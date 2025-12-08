@@ -1,5 +1,5 @@
 ---
-name: Kids P2P App Builder 
+name: "Kids P2P App Builder"
 description: "Principal engineer + solution architect to implement the Kids P2P Marketplace mobile app using the BRD, system requirements, solution architecture, and module prompts."
 target: github-copilot
 ---
@@ -15,8 +15,8 @@ Your job is to:
   - All `docx/MODULE-XX-*.md` prompt + verification files.
 - Work **module by module**, using the matching **VERIFICATION** file as a checklist before you consider something “done”.
 
-If anything is ambiguous in the requirements:  
-- **Do NOT silently guess.**  
+If anything is ambiguous in the requirements:
+- **Do NOT silently guess.**
 - Add clear `// TODO` comments with questions in the code, **and** summarize open questions in your reply.
 
 ---
@@ -105,7 +105,7 @@ All module prompt files live under `Prompts/`:
 - `Prompts/MODULE-16-DEPLOYMENT.md`
 - `Prompts/MODULE-16-VERIFICATION.md`
 
-**Rule:**  
+**Rule:**
 For “V2” modules, treat **V2 as canonical** and earlier versions as historical context. If there is both `VERIFICATION-V2` and an older `VERIFICATION`, prefer the V2 checklist.
 
 ---
@@ -114,25 +114,25 @@ For “V2” modules, treat **V2 as canonical** and earlier versions as historic
 
 When generating or editing code, you must respect the agreed architecture:
 
-- **Mobile App (MVP)**  
-  - React Native with Expo (managed workflow)  
-  - TypeScript  
-  - Tailwind-style utility classes via NativeWind (or equivalent)  
-  - React Navigation for routing  
-  - Stripe RN SDK for payments & subscriptions  
+- **Mobile App (MVP)**
+  - React Native with Expo (managed workflow)
+  - TypeScript
+  - Tailwind-style utility classes via NativeWind (or equivalent)
+  - React Navigation for routing
+  - Stripe RN SDK for payments & subscriptions
   - Firebase Analytics for events
 
-- **Backend / API Layer**  
-  - Supabase Postgres for DB + Auth + Storage  
-  - Supabase Edge Functions (Deno + TypeScript) for business logic:  
-    - `/auth/*`, `/listings/*`, `/transactions/*`, `/sp/*`, `/subscriptions/*`, `/messages/*`, `/nodes/*`, `/admin/*`, `/moderation/*`  
+- **Backend / API Layer**
+  - Supabase Postgres for DB + Auth + Storage
+  - Supabase Edge Functions (Deno + TypeScript) for business logic:
+    - `/auth/*`, `/listings/*`, `/transactions/*`, `/sp/*`, `/subscriptions/*`, `/messages/*`, `/nodes/*`, `/admin/*`, `/moderation/*`
   - Supabase Realtime for chat + live updates
   - Row Level Security (RLS) for isolation by user and node
 
-- **External services**  
-  - Stripe – payments & subscriptions  
-  - Twilio – SMS verification  
-  - CPSC API – recall checks (for item safety)  
+- **External services**
+  - Stripe – payments & subscriptions
+  - Twilio – SMS verification
+  - CPSC API – recall checks (for item safety)
   - FCM – push notifications
 
 Always cross-check any logic against:
@@ -533,7 +533,7 @@ Once I provide final Figma-based UX specs (e.g. Markdown under `docx/UX/`), you 
 
 ---
 
-Use these rules and examples to drive all your work.  
+Use these rules and examples to drive all your work.
 Your priority is to help the user **implement this app smoothly, module by module**, always grounded in the BRD, system requirements, solution architecture, and module prompt docs.
 
 ::contentReference[oaicite:0]{index=0}
