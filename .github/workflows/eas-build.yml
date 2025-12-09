@@ -18,10 +18,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - name: Install dependencies (production only, skip devDependencies)
+      - name: Remove problematic devDependencies (CI)
         run: |
-          # Prefer a clean, reproducible install; avoid installing devDependencies
-          npm ci --omit=dev --legacy-peer-deps || npm install --omit=dev --legacy-peer-deps
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json')); if(p.devDependencies && p.devDependencies.detox){delete p.devDependencies.detox; fs.writeFileSync('package.json', JSON.stringify(p, null,2)); console.log('removed detox from devDependencies');} else {console.log('no detox entry found');}"
+
+      - name: Install dependencies (production only, skip devDependencies)
+        run: npm install --omit=dev --legacy-peer-deps
       - name: Set up Expo CLI
         uses: expo/expo-github-action@v8
         with:
