@@ -14,13 +14,32 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 // Mock native expo modules that expect a device environment
 (globalThis as any).jest?.mock && jest.mock('expo-status-bar', () => ({ StatusBar: 'StatusBar' }));
 
+// Provide lightweight mocks for native-base components used in unit tests so
+// tests do not depend on the full NativeBase runtime or theme system.
+if ((globalThis as any).jest?.mock) {
+	jest.mock('native-base', () => {
+		const React = require('react');
+
+		const NativeBaseProvider = ({ children }: any) => React.createElement(React.Fragment, null, children);
+		const Button = (props: any) => React.createElement('button', props as any, props.children);
+
+		return {
+			__esModule: true,
+			NativeBaseProvider,
+			Button,
+		};
+	});
+}
+
 // Provide dummy Supabase env vars for unit tests so creating the client doesn't throw
 process.env.EXPO_PUBLIC_SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'http://localhost';
 process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'anon-key';
 
 // Mock the testSupabase util so we don't make network calls in unit tests
 if ((globalThis as any).jest?.mock) {
+	// jest.mock factories must not reference out-of-scope variables (Jest's runtime rule).
+	// Return a simple async function instead of `jest.fn(...)` to avoid the "Invalid variable access: jest" error.
 	jest.mock('./src/utils/testSupabase', () => ({
-		testSupabaseConnection: jest.fn(async () => true),
+		testSupabaseConnection: async () => true,
 	}));
 }
