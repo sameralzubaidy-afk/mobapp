@@ -15,11 +15,11 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "clean": "rm -rf node_modules && npm install"
+    "clean": "rm -rf node_modules && npm install",
     "e2e:build:ios": "npx expo prebuild --platform ios --no-install && xcodebuild -project ios/ios.xcodeproj -scheme p2p-kids-marketplace -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build",
     "e2e:run:ios": "detox test --configuration ios.sim.debug",
     "e2e:build:android": "npx expo prebuild --platform android --no-install && cd android && ./gradlew assembleDebug",
-    "e2e:run:android": "detox test --configuration android.emu.debug",
+    "e2e:run:android": "detox test --configuration android.emu.debug"
   },
   "dependencies": {
     "@amplitude/analytics-react-native": "^1.5.16",
@@ -76,7 +76,7 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^4.6.2",
     "prettier": "^3.7.4",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
     "detox": "^23.8.0"
   },
   "private": true
