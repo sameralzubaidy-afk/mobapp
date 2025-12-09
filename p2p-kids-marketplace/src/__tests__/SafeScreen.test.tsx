@@ -1,14 +1,19 @@
+// Mock react-native-screens Screen component in the unit test environment so children render
+// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+jest.mock('react-native-screens', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  const ReactMock = require('react');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+  const { View: MockView } = require('react-native');
+  return { Screen: (props: any) => ReactMock.createElement(MockView, props) };
+});
+
+/* eslint-disable import/first */
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import { Text, View } from 'react-native';
-
-// Mock react-native-screens Screen component in the unit test environment so children render
-jest.mock('react-native-screens', () => {
-  const React = require('react');
-  const { View: MockView } = require('react-native');
-  return { Screen: (props: any) => React.createElement(MockView, props) };
-});
+import { Text } from 'react-native';
 import SafeScreen from '../components/native/SafeScreen';
+/* eslint-enable import/first */
 
 describe('SafeScreen wrapper', () => {
   it('renders and preserves detent strings and converts size tokens', () => {

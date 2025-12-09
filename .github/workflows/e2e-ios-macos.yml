@@ -12,14 +12,14 @@ jobs:
     name: iOS Detox smoke tests
     runs-on: macos-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: p2p-kids-marketplace
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install Homebrew deps
-        run: |
-          brew update || true
-          brew install yarn || true
 
       - name: Use Node.js 20
         uses: actions/setup-node@v4
@@ -29,14 +29,16 @@ jobs:
       - name: Cache node modules
         uses: actions/cache@v4
         with:
-          path: ~/.yarn/cache
-          key: macos-yarn-${{ hashFiles('**/yarn.lock') }}
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci --legacy-peer-deps
 
       - name: Check pinned native deps
-        run: yarn check:deps
+        run: npm run check:deps
 
       - name: Setup CocoaPods
         run: |
@@ -47,13 +49,13 @@ jobs:
         run: npx expo prebuild --platform ios --no-install
 
       - name: Install pods
-        working-directory: ios
+        working-directory: p2p-kids-marketplace/ios
         run: pod install --repo-update
 
       - name: Build app for simulator
-        run: yarn e2e:build:ios
+        run: npm run e2e:build:ios
 
       - name: Run Detox tests
         env:
           EXPOTOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: yarn e2e:run:ios
+        run: npm run e2e:run:ios

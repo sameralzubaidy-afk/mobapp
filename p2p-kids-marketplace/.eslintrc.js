@@ -11,6 +11,7 @@ module.exports = {
     project: './tsconfig.json',
   },
   plugins: ['@typescript-eslint', 'react', 'react-hooks'],
+  ignorePatterns: ['e2e/**/*.ts', 'node_modules/', 'ios/', 'android/'],
   rules: {
     // Relax rules for initial scaffolding (placeholders will be converted to strict rules later)
     '@typescript-eslint/no-empty-object-type': 'off',

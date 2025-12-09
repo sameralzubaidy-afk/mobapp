@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import sanitizePropsObject from '@/utils/propSanitizer';
+import { sanitizePropsObject } from '@/utils/propSanitizer';
 
 export default function DetentTestScreen() {
   // Example props that often trip native conversions

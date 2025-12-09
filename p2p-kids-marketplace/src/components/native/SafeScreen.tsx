@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, ViewProps } from 'react-native';
-import sanitizePropsObject from '@/utils/propSanitizer';
+import { sanitizePropsObject } from '@/utils/propSanitizer';
 
 // Try to import RNSScreen if available; otherwise fallback to View.
 let RNSScreen: any = null;
 try {
-  // eslint-disable-next-line global-require
+  // eslint-disable-next-line global-require, @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
   RNSScreen = require('react-native-screens').Screen;
-} catch (e) {
+} catch {
   RNSScreen = null;
 }
 
