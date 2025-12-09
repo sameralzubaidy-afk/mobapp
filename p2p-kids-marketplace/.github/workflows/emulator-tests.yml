@@ -18,25 +18,30 @@ jobs:
           node-version: 18
 
       - name: Install dependencies
+        working-directory: p2p-kids-marketplace
         run: npm ci --legacy-peer-deps
 
       - name: Prebuild iOS app (generate native project)
+        working-directory: p2p-kids-marketplace
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           npx expo prebuild --platform ios --no-install
 
       - name: Install CocoaPods
+        working-directory: p2p-kids-marketplace
         run: |
           cd ios && pod install --repo-update
 
       - name: Build for Simulator
+        working-directory: p2p-kids-marketplace
         run: |
           cd ios
           # Use Xcode build for simulator (derivedData path to avoid conflicts)
           xcodebuild -workspace "$(ls | grep .xcworkspace)" -scheme "$(ls | grep .xcodeproj | sed 's/\.xcodeproj//')" -configuration Debug -sdk iphonesimulator -derivedDataPath build
 
       - name: Boot iPhone Simulator and install app
+        working-directory: p2p-kids-marketplace
         run: |
           SIM_NAME="iPhone 14"
           xcrun simctl boot "$SIM_NAME" || true
@@ -46,6 +51,7 @@ jobs:
           # Verify package installed by checking the bundle container
           xcrun simctl get_app_container booted com.p2pkidsmarketplace.app || true
       - name: Run Detox E2E tests (iOS)
+        working-directory: p2p-kids-marketplace
         env:
           CI: true
         run: |
@@ -75,12 +81,15 @@ jobs:
           emulator-options: '-no-window -no-audio -no-boot-anim'
 
       - name: Install dependencies
+        working-directory: p2p-kids-marketplace
         run: npm ci --legacy-peer-deps
 
       - name: Prebuild Android app
+        working-directory: p2p-kids-marketplace
         run: npx expo prebuild --platform android --no-install
 
       - name: Build and install debug APK
+        working-directory: p2p-kids-marketplace
         run: |
           cd android
           ./gradlew assembleDebug
@@ -91,6 +100,7 @@ jobs:
           adb devices
           adb shell pm list packages | grep com.p2pkidsmarketplace.app || (adb logcat -d | tail -n 200 && exit 1)
       - name: Run Detox E2E tests (Android)
+        working-directory: p2p-kids-marketplace
         env:
           CI: true
         run: |
