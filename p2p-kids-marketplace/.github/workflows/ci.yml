@@ -25,13 +25,17 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install dependencies
+        working-directory: p2p-kids-marketplace
         run: npm ci --legacy-peer-deps
 
       - name: Lint
+        working-directory: p2p-kids-marketplace
         run: npm run lint
 
       - name: Type-check
+        working-directory: p2p-kids-marketplace
         run: npm run type-check
 
       - name: Run unit tests
+        working-directory: p2p-kids-marketplace
         run: npm run test:ci
