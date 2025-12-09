@@ -33,9 +33,11 @@ jobs:
           key: macos-yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Install dependencies
+        working-directory: p2p-kids-marketplace
         run: yarn install --frozen-lockfile
 
       - name: Check pinned native deps
+        working-directory: p2p-kids-marketplace
         run: yarn check:deps
 
       - name: Setup CocoaPods
@@ -44,16 +46,19 @@ jobs:
           sudo gem install xcpretty || true
 
       - name: Prebuild native iOS
+        working-directory: p2p-kids-marketplace
         run: npx expo prebuild --platform ios --no-install
 
       - name: Install pods
-        working-directory: ios
+        working-directory: p2p-kids-marketplace/ios
         run: pod install --repo-update
 
       - name: Build app for simulator
+        working-directory: p2p-kids-marketplace
         run: yarn e2e:build:ios
 
       - name: Run Detox tests
+        working-directory: p2p-kids-marketplace
         env:
           EXPOTOKEN: ${{ secrets.EXPO_TOKEN }}
         run: yarn e2e:run:ios

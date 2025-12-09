@@ -30,13 +30,17 @@ jobs:
             ${{ runner.os }}-node-
 
       - name: Install deps
+        working-directory: p2p-kids-marketplace
         run: yarn install --frozen-lockfile
 
       - name: Check pinned native deps
+        working-directory: p2p-kids-marketplace
         run: yarn check:deps
 
       - name: Run lint
+        working-directory: p2p-kids-marketplace
         run: yarn lint
 
       - name: Run unit tests
+        working-directory: p2p-kids-marketplace
         run: yarn test --silent
