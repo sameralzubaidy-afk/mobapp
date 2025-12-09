@@ -10,6 +10,8 @@ jobs:
   tests:
     name: Unit & lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: p2p-kids-marketplace

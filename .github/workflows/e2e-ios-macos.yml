@@ -12,6 +12,8 @@ jobs:
     name: iOS Detox smoke tests
     runs-on: macos-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: p2p-kids-marketplace
