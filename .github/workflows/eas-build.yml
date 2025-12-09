@@ -24,10 +24,13 @@ jobs:
 
       - name: Install dependencies (production only, skip devDependencies)
         run: npm install --omit=dev --legacy-peer-deps
-      - name: Set up Expo CLI
-        uses: expo/expo-github-action@v8
-        with:
-          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Verify Expo token (lightweight, don't rely on expo action)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          # Show whoami; will exit non-zero if token invalid (but we continue),
+          # EAS CLI will use EXPO_TOKEN env var when running.
+          npx expo whoami || echo "expo whoami failed (token may be invalid)"
       - name: Install EAS CLI
         run: npm install -g eas-cli
       - name: Start EAS build (preview on main)
