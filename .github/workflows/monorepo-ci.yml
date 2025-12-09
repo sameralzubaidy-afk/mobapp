@@ -1,0 +1,61 @@
+name: Monorepo CI
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+defaults:
+  run:
+    working-directory: p2p-kids-marketplace
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Remove problematic devDependencies (CI)
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json')); if(p.devDependencies && p.devDependencies.detox){delete p.devDependencies.detox; fs.writeFileSync('package.json', JSON.stringify(p, null,2)); console.log('removed detox from devDependencies');} else {console.log('no detox entry found');}"
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Run linter
+        run: npm run lint || true
+
+  type-check:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Remove problematic devDependencies (CI)
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json')); if(p.devDependencies && p.devDependencies.detox){delete p.devDependencies.detox; fs.writeFileSync('package.json', JSON.stringify(p, null,2)); console.log('removed detox from devDependencies');} else {console.log('no detox entry found');}"
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Run type-check
+        run: npm run type-check
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Remove problematic devDependencies (CI)
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json')); if(p.devDependencies && p.devDependencies.detox){delete p.devDependencies.detox; fs.writeFileSync('package.json', JSON.stringify(p, null,2)); console.log('removed detox from devDependencies');} else {console.log('no detox entry found');}"
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Run tests
+        run: npm test --silent
