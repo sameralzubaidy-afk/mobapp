@@ -1,0 +1,35 @@
+name: Admin Panel CI (template)
+
+# This workflow is a template for the future admin repo or monorepo admin/ folder.
+# It's intentionally written as a standalone, reusable CI that you can copy to the admin
+# repository or enable by removing the `if: false` line in the monorepo CI.
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-test:
+    name: Lint / Type-check / Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint --if-present
+
+      - name: Run TypeScript type-check
+        run: npm run type-check --if-present
+
+      - name: Run tests
+        run: npm test --if-present

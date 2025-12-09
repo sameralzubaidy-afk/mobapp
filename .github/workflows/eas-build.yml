@@ -1,0 +1,40 @@
+name: EAS Build (Monorepo)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build mobile app with EAS
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: p2p-kids-marketplace
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci --prefix p2p-kids-marketplace --legacy-peer-deps
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Run EAS build (preview)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          cd p2p-kids-marketplace
+          eas build --platform all --profile preview --non-interactive
