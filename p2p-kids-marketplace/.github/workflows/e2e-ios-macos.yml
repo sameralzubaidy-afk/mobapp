@@ -1,0 +1,59 @@
+name: CI — iOS E2E (Detox)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  detox-ios:
+    name: iOS Detox smoke tests
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Homebrew deps
+        run: |
+          brew update || true
+          brew install yarn || true
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cache node modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.yarn/cache
+          key: macos-yarn-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Check pinned native deps
+        run: yarn check:deps
+
+      - name: Setup CocoaPods
+        run: |
+          gem install cocoapods -v 1.17.3 || true
+          sudo gem install xcpretty || true
+
+      - name: Prebuild native iOS
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: Install pods
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Build app for simulator
+        run: yarn e2e:build:ios
+
+      - name: Run Detox tests
+        env:
+          EXPOTOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: yarn e2e:run:ios

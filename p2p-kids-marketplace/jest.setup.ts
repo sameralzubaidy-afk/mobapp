@@ -20,7 +20,9 @@ process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANO
 
 // Mock the testSupabase util so we don't make network calls in unit tests
 if ((globalThis as any).jest?.mock) {
+	// Avoid using jest.fn() inside the factory (Babel/Jest limitation when transforming setup files).
+	// Return a plain async function instead.
 	jest.mock('./src/utils/testSupabase', () => ({
-		testSupabaseConnection: jest.fn(async () => true),
+		testSupabaseConnection: async () => true,
 	}));
 }
