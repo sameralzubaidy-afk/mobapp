@@ -1,5 +1,9 @@
 name: EAS Build
 
+defaults:
+  run:
+    working-directory: p2p-kids-marketplace
+
 on:
   push:
     branches: [ main ]
