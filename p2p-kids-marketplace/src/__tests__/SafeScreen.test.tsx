@@ -8,10 +8,12 @@ jest.mock('react-native-screens', () => {
   return { Screen: (props: any) => ReactMock.createElement(MockView, props) };
 });
 
+/* eslint-disable import/first */
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import SafeScreen from '../components/native/SafeScreen';
+/* eslint-enable import/first */
 
 describe('SafeScreen wrapper', () => {
   it('renders and preserves detent strings and converts size tokens', () => {

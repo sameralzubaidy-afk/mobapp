@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ViewProps } from 'react-native';
-import sanitizePropsObject from '@/utils/propSanitizer';
+import { sanitizePropsObject } from '@/utils/propSanitizer';
 
 // Try to import RNSScreen if available; otherwise fallback to View.
 let RNSScreen: any = null;
