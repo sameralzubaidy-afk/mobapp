@@ -10,6 +10,9 @@ jobs:
   tests:
     name: Unit & lint
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: p2p-kids-marketplace
     steps:
       - name: Checkout
         uses: actions/checkout@v4

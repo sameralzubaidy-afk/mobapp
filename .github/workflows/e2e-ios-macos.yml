@@ -12,6 +12,9 @@ jobs:
     name: iOS Detox smoke tests
     runs-on: macos-latest
     timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: p2p-kids-marketplace
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,7 +47,7 @@ jobs:
         run: npx expo prebuild --platform ios --no-install
 
       - name: Install pods
-        working-directory: ios
+        working-directory: p2p-kids-marketplace/ios
         run: pod install --repo-update
 
       - name: Build app for simulator
