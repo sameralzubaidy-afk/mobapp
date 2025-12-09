@@ -8,8 +8,11 @@ import { useToken } from 'native-base';
  */
 export function useResolvedToken<T = any>(tokenKey: string, fallback?: T): T {
   try {
-    // useToken will throw if token doesn't exist, so we catch and return fallback
-    return useToken(tokenKey) as T;
+    // useToken signature: useToken(property, token | token[], fallback?)
+    // Most sizing tokens live under 'sizes' or 'space' in NativeBase theme.
+    // Use 'sizes' first, then fallback to given fallback.
+    const resolved = useToken('sizes', tokenKey, fallback as any);
+    return resolved as T;
   } catch {
     return fallback as T;
   }

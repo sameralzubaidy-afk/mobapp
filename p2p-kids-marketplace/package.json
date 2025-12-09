@@ -18,6 +18,8 @@
     "test:watch": "jest --watch",
     "clean": "rm -rf node_modules && npm install",
     "check:supabase": "node ./scripts/check-supabase.js",
+    "supabase:gen-types": "echo 'Run: npx supabase gen types typescript --project-id <PROJECT_ID> > src/types/database.types.ts'",
+    "supabase:rls-test": "ts-node ./supabase/scripts/rls_test.ts",
     "e2e:build:ios": "npx expo prebuild --platform ios --no-install && xcodebuild -project ios/ios.xcodeproj -scheme p2p-kids-marketplace -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build",
     "e2e:run:ios": "detox test --configuration ios.sim.debug",
     "e2e:build:android": "npx expo prebuild --platform android --no-install && cd android && ./gradlew assembleDebug",
