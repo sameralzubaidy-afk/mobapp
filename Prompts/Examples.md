@@ -41,16 +41,17 @@ Repo paths:
 App: p2p-kids-marketplace/
 
 Supabase: supabase/
-
+My Example 
+I’m working on Infrastructure.
+Module:MODULE-01-INFRASTRUCTURE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: Please implement TASK INFRA-001 scope is Initialize React Native Expo Project with TypeScript
 Please:
-
-Follow the module exactly, and cross-check with the verification file
-
+Follow the module and task exactly, and cross-check with the verification file
 Show me the files you create or edit with their full paths
-
 Tell me which items in MODULE-01-VERIFICATION.md are now satisfied
-
 List the commands I should run to test/verify this (e.g. npm, supabase)
+
+
 
 B. Example – Auth V2 signup with trial (Module 03)
 

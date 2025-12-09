@@ -1,0 +1,18 @@
+{
+  "testRunner": "jest",
+  "runnerConfig": "./e2e/jest.config.js",
+  "configurations": {
+    "ios.sim.debug": {
+      "type": "ios.simulator",
+      "binaryPath": "ios/build/Build/Products/Debug-iphonesimulator/p2p-kids-marketplace.app",
+      "build": "npx expo prebuild --platform ios --no-install && xcodebuild -workspace ios/ios.xcworkspace -scheme p2p-kids-marketplace -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build",
+      "device": { "type": "iPhone 14" }
+    },
+    "android.emu.debug": {
+      "type": "android.emulator",
+      "binaryPath": "android/app/build/outputs/apk/debug/app-debug.apk",
+      "build": "npx expo prebuild --platform android --no-install && cd android && ./gradlew assembleDebug",
+      "device": { "avdName": "Pixel_4_API_31" }
+    }
+  }
+}
