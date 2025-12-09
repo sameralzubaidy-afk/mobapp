@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { Database } from '@/types/database.types';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -26,7 +27,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
       order: (..._args: any[]) => q,
       range: (..._args: any[]) => q,
       eq: (..._args: any[]) => q,
-      // helpful for some usages that call .select().then(...) etc.
       then: async (resolve: any) => resolve(noop()),
     };
     return q;
@@ -56,14 +56,21 @@ if (!supabaseUrl || !supabaseAnonKey) {
   } as unknown as ReturnType<typeof createClient>;
 
 } else {
-  _supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  _supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
-      storage: AsyncStorage,
+      storage: AsyncStorage as any,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+    },
+    global: {
+      headers: {
+        'x-platform': 'expo',
+      },
     },
   });
 }
 
 export const supabase = _supabase as ReturnType<typeof createClient>;
+
+

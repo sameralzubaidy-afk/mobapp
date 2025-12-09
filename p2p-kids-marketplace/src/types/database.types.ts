@@ -1,3 +1,4 @@
+// Supabase database types placeholder — regenerate from live DB
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
