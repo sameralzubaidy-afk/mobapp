@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import sanitizePropsObject from '@/utils/propSanitizer';
+import { sanitizePropsObject } from '@/utils/propSanitizer';
 
 export default function DetentTestScreen() {
   // Example props that often trip native conversions
@@ -12,7 +12,17 @@ export default function DetentTestScreen() {
     flex: 'auto',
   } as const;
 
-  const sanitized = sanitizePropsObject(rawProps as any);
+  // Be defensive: ensure sanitizer exists and returns an object
+  let sanitized: Record<string, any> = {};
+  try {
+    if (typeof sanitizePropsObject === 'function') {
+      sanitized = sanitizePropsObject(rawProps as any) || {};
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('Sanitizer failed or returned invalid value', err);
+    sanitized = {};
+  }
 
   return (
     <View style={styles.container} testID="detent-test-screen">

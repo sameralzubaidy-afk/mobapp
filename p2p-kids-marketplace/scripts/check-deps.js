@@ -8,7 +8,7 @@ const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 const recommended = {
   'react-native': '0.81.5',
   expo: '~54.0.27',
-  'react-native-screens': '3.37.0',
+  'react-native-screens': '~4.16.0',
   'react-native-safe-area-context': '5.6.2',
   'native-base': '3.4.28',
   '@react-navigation/native-stack': '7.8.6',
