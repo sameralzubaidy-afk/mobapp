@@ -14,6 +14,7 @@
     },
     "ios": {
       "supportsTablet": true
+      ,"bundleIdentifier": "com.sameralzubaidi.p2pmarketplace"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,9 +23,24 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
+      ,"package": "com.sameralzubaidi.p2pmarketplace"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "sentry-expo",
+        {
+          "sentryCliProperties": "sentry.properties"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "21aa65c8-be37-498f-8a34-ba51014a9c0f"
+      }
+    },
+    "owner": "sameralzubaidys-organization"
   }
 }
