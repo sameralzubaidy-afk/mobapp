@@ -16,6 +16,9 @@ if (SENTRY_DSN) {
     tracesSampleRate: Number(process.env.EXPO_PUBLIC_SENTRY_TRACES_RATE || 0.05),
     enableNative: true,
   });
+  // Log initialization so we can verify Sentry enabled at runtime in the app
+  // eslint-disable-next-line no-console
+  console.log('Sentry initialized', { dsn: SENTRY_DSN ? '***' : '', environment: ENV, release: RELEASE });
   // Optional: tag integration version
   Sentry.setTag('app', 'p2p-kids-marketplace');
   if (process.env.EXPO_PUBLIC_RELEASE) Sentry.setTag('release', process.env.EXPO_PUBLIC_RELEASE);

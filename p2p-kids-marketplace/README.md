@@ -78,3 +78,26 @@ EXPO_PUBLIC_ENVIRONMENT=development
 ```
 
 Note: Do NOT commit secrets into git. The `sentry.properties` file exists as a template and includes placeholders for `auth.token`.
+
+### Android emulator helper
+
+If you don't have a connected Android device, a helper script can start an available AVD and wait for it to boot:
+
+```bash
+./scripts/start-android-emulator.sh            # starts the first available AVD
+./scripts/start-android-emulator.sh AVD_NAME  # start a specific AVD name
+```
+
+Make sure your shell has the Android SDK env vars configured (added to `~/.zshrc` by the setup script):
+
+```bash
+export ANDROID_SDK_ROOT="$HOME/Library/Android/sdk"
+export PATH="$PATH:$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/platform-tools"
+```
+
+After emulator is running, launch the app:
+
+```bash
+npx expo start --clear
+# press 'a' to open on Android (or run: npx expo run:android)
+```

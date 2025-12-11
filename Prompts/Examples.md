@@ -47,10 +47,12 @@ Module:MODULE-01-INFRASTRUCTURE.md in /Users/sameralzubaidi/Desktop/kids_marketp
 Tasks: Please implement TASK INFRA-001 scope is Initialize React Native Expo Project with TypeScript
 Please:
 Follow the module and task exactly, and cross-check with the verification file
+if there are  Manual steps (can't be automated) mention to me in your response.
 Show me the files you create or edit with their full paths
 Tell me which items in MODULE-01-VERIFICATION.md are now satisfied
 List the commands I should run to test/verify this (e.g. npm, supabase)
-awlays include short answers first and then explain detials as needed
+Always include short answers first and then explain detials as needed
+
 
 
 

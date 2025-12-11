@@ -1,20 +1,20 @@
 {
   "expo": {
-    "name": "p2p-kids-marketplace",
+    "name": "p2p-kids-marketplace (Expo Go Debug)",
     "slug": "p2p-kids-marketplace",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "entryPoint": "./App.dev.tsx",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
-      ,"bundleIdentifier": "com.sameralzubaidi.p2pmarketplace"
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sameralzubaidi.p2pmarketplace"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,8 +22,8 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-      ,"package": "com.sameralzubaidi.p2pmarketplace"
+      "predictiveBackGestureEnabled": false,
+      "package": "com.sameralzubaidi.p2pmarketplace"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -41,7 +41,6 @@
         "projectId": "21aa65c8-be37-498f-8a34-ba51014a9c0f"
       }
     },
-    "owner": "sameralzubaidys-organization",
-    "entryPoint": "./App.dev.tsx"
+    "owner": "sameralzubaidys-organization"
   }
 }

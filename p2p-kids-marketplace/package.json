@@ -7,6 +7,7 @@
     "e2e:run:ios:amplitude-check": "detox test --configuration ios.sim.debug && node ../../scripts/check-amplitude-events.js --event dev_analytics_test --start $(date -v-1d +%Y-%m-%dT%H:%M:%S) --end $(date +%Y-%m-%dT%H:%M:%S)",
     "test:ci": "jest --runInBand --reporters=default",
     "start": "expo start",
+    "start:expo-go": "expo start --entry-file App.dev.tsx",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
@@ -14,10 +15,10 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "type-check": "tsc --noEmit",
-      "packageManager": "yarn@1.22.19",
-      "resolutions": {
-        "react-native-svg": "^14.2.0"
-      },
+    "packageManager": "yarn@1.22.19",
+    "resolutions": {
+      "react-native-svg": "^14.2.0"
+    },
     "test": "jest",
     "test-sentry": "node scripts/test-sentry-node.js",
     "eas:build:dev": "eas build --profile development --platform all --non-interactive",
@@ -26,7 +27,6 @@
     "sentry:upload-sourcemaps": "sentry-cli releases files $RELEASE upload-sourcemaps ./ --rewrite",
     "sentry:finalize-release": "sentry-cli releases finalize $RELEASE",
     "sentry:release": "npm run sentry:create-release && npm run sentry:upload-sourcemaps && npm run sentry:finalize-release",
-    
     "test:watch": "jest --watch",
     "clean": "rm -rf node_modules && npm install",
     "check:supabase": "node ./scripts/check-supabase.js",
@@ -51,7 +51,6 @@
     "expo": "~54.0.27",
     "expo-application": "~7.0.8",
     "expo-constants": "~18.0.11",
-    "expo-dev-client": "^6.0.20",
     "expo-device": "~8.0.10",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.9",
@@ -68,7 +67,7 @@
     "react-native-maps": "1.20.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-svg": "^14.2.0",
+    "react-native-svg": "14.1.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-uuid": "^2.0.3",
     "sentry-expo": "~7.0.0",
