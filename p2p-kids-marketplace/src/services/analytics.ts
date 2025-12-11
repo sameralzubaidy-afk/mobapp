@@ -8,10 +8,13 @@ export const initAnalytics = async () => {
     return;
   }
 
-  // Ensure a minimal `document` exists to avoid cookie writing errors in some
-  // development environments that attempt to use cookie storage (the Amplitude
-  // library can try to write cookies when running in a hybrid environment).
-  if (typeof globalThis !== 'undefined' && typeof (globalThis as any).document === 'undefined') {
+  // In some development environments the Amplitude JS bridge may attempt to
+  // write cookies. Only add a minimal `document` stub when explicitly allowed
+  // to avoid masking real production issues. Enable by setting
+  // `EXPO_DEV_ALLOW_DOCUMENT_STUB=true` in local `.env` if needed or when
+  // `EXPO_PUBLIC_ENVIRONMENT` is `development`.
+  const allowDocumentStub = process.env.EXPO_DEV_ALLOW_DOCUMENT_STUB === 'true' || process.env.EXPO_PUBLIC_ENVIRONMENT === 'development';
+  if (allowDocumentStub && typeof globalThis !== 'undefined' && typeof (globalThis as any).document === 'undefined') {
     (globalThis as any).document = { cookie: '' };
   }
 
