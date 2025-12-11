@@ -38,7 +38,7 @@ export const uploadImage = async (
 
 export const uploadMultipleImages = async (
   bucket: StorageBucket,
-  files: Array<{ path: string; fileUri: string }>
+  files: { path: string; fileUri: string }[]
 ): Promise<UploadResult[]> => {
   const promises = files.map(({ path, fileUri }) => uploadImage(bucket, path, fileUri, { upsert: true }));
   return Promise.all(promises);

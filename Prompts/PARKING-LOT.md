@@ -88,3 +88,72 @@ Owner: @sameralzubaidy-afk // TODO: assign a team owner in the next sprint
 Notes / rationale:
 - The temporary stub helped unblock early frontend work and emulator verification — this task makes that fallback explicit and safe to keep in the codebase if desired, or easy to remove once Supabase config is required.
 
+### TASK: INFRA-006 - Sentry follow-up (parking)
+
+Purpose: Finish Sentry integration verification and automation for both the React Native mobile app and the Next.js admin panel. This captures the remaining steps raised during the initial INFRA-006 work: dependency deduplication, successful EAS builds, native artifact uploads, and CI automation verification.
+
+Acceptance criteria (what 'done' looks like):
+- Mobile: EAS development build (dev client or full build) completes successfully and a native Sentry event (crash / native exception) is visible in Sentry for at least one release and environment.
+- Mobile: JS sourcemaps and native artifacts (dSYM for iOS, mapping file for Android) are uploaded to Sentry and stack traces in Sentry map to TypeScript sources for at least one mobile release.
+- Mobile: Duplicate native module issues resolved (no duplicate @sentry/react-native or async-storage versions causing autolinking/Gradle failures) and project has a single canonical lockfile.
+- CI: GitHub Actions run the Sentry release steps (create release, upload sourcemaps, finalize) successfully using `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, and `SENTRY_PROJECT_MOBILE` secrets.
+- Admin: Next.js sourcemaps upload validated in Sentry and server & client events are mapped correctly for one release.
+- Documentation updated: `docs/INFRA-006-SENTRY.md` (new) with verification steps, required env vars, and troubleshooting notes.
+
+Steps to run locally / verify:
+1. Standardize package manager: choose Yarn or npm, delete the other lockfile (`yarn.lock` or `package-lock.json`), and commit the chosen lockfile.
+   ```bash
+   # choose yarn (example)
+   rm package-lock.json
+   yarn install
+   ```
+2. Deduplicate Sentry & native dependencies:
+   - Remove direct `@sentry/react-native` if `sentry-expo` is used, or pin both to the same version.
+   - Align `@react-native-async-storage/async-storage` version across transitive deps (use `resolutions` in `package.json` if needed).
+   ```bash
+   # example: remove direct RN package if using sentry-expo
+   yarn remove @sentry/react-native
+   yarn add sentry-expo@latest
+   ```
+3. Run diagnostics & prebuild:
+   ```bash
+   npx -y expo-doctor --fix
+   npx expo prebuild --platform android --no-install
+   ```
+4. Run an interactive EAS build (resolve credentials interactively if needed):
+   ```bash
+   npx eas build --platform android --profile development
+   ```
+   - If Gradle/autolinking errors occur, iterate on dependency pins and re-run `expo prebuild`.
+5. Once build succeeds, set the release and run release upload script to Sentry:
+   ```bash
+   ./scripts/set-release.sh
+   ./scripts/release-sentry.sh mobile
+   ```
+6. Install dev client (or release) on device/emulator, trigger `testSentryError()` (JS) and a native crash test, and confirm events arrive in Sentry with the expected `release` tag and mapped frames.
+7. Validate admin sourcemap upload using `./scripts/release-sentry.sh admin` and trigger `/dev/sentry-test` endpoints to ensure events map correctly.
+8. Add CI secrets and validate GitHub Actions run that performs the release and sourcemap upload non-interactively.
+
+CI notes / requirements:
+- Add repository secrets: `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT_MOBILE`, `SENTRY_PROJECT_ADMIN`, `EXPO_TOKEN`.
+- For non-interactive EAS builds, set up keystore credentials in EAS or configure `eas credentials` ahead of time (or use a secure secrets provider).
+- Workflow should run `sentry-cli` steps after builds to upload sourcemaps and native artifacts. Confirm the step finishes with a success code and check Sentry release page for uploaded files.
+
+Open questions / follow-ups:
+- Do we prefer Yarn (recommended for Expo) or npm for the canonical lockfile across the monorepo? (affects CI and resolution strategies)
+- For amplitude and other transitive deps causing duplicates, do we want temporary `resolutions` or update the upstream packages first?
+
+Owner: @sameralzubaidy-afk
+Priority: High
+Status: In parking lot — ready to pick up when dependency issues and EAS build failures are scheduled to be resolved.
+
+Files to update when completed:
+- `docs/INFRA-006-SENTRY.md` (new verification + troubleshooting guide)
+- `.github/workflows/sentry-release.yml` (ensure mobile steps included and secrets referenced)
+- `Prompts/PARKING-LOT.md` (this entry will be removed when done)
+
+Troubleshooting tips:
+- If `expo-doctor` still reports duplicate native modules, run `yarn why <pkg>` to find which packages pull differing versions and either pin using `resolutions` or update/remove the offending dependency.
+- For Gradle build logs, check the EAS job logs and the local `android/gradle` output after `npx expo prebuild` to find the autolinking/missing settings.gradle issues.
+
+

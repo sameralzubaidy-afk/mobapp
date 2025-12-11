@@ -1,0 +1,69 @@
+name: Sentry Releases
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+jobs:
+  admin-release:
+    name: Admin Sentry Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        run: npm ci
+        working-directory: p2p-kids-admin
+      - name: Build Next.js admin
+        run: npm run build
+        env:
+          NEXT_PUBLIC_RELEASE: ${{ github.sha }}
+        working-directory: p2p-kids-admin
+      - name: Create Sentry release (admin)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT_ADMIN: ${{ secrets.SENTRY_PROJECT_ADMIN }}
+          RELEASE: ${{ github.sha }}
+        run: |
+          cd p2p-kids-admin
+          chmod +x ./scripts/release-sentry.sh || true
+          ./scripts/release-sentry.sh
+
+  mobile-release:
+    name: Mobile Sentry Release
+    runs-on: ubuntu-latest
+    needs: []
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install
+        run: npm ci
+        working-directory: p2p-kids-marketplace
+      - name: EAS build (development profile)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          cd p2p-kids-marketplace
+          echo "EXPO_PUBLIC_RELEASE=${{ github.sha }}" >> $GITHUB_ENV
+          echo "RELEASE=${{ github.sha }}" >> $GITHUB_ENV
+          npx eas --version
+          npm install -g eas-cli || true
+          # Build dev client with release tag
+          npx eas build --platform all --profile development --non-interactive --build-env EXPO_PUBLIC_RELEASE=${{ github.sha }}
+      - name: Create Sentry release and upload sourcemaps (mobile)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          RELEASE: ${{ github.sha }}
+        run: |
+          cd p2p-kids-marketplace
+          chmod +x ./scripts/auto-release-mobile.sh || true
+          ./scripts/auto-release-mobile.sh development ${{ github.sha }}

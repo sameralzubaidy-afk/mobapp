@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: node_modules/react-native-svg/package.json
+@@
+-  "react-native": "src/index.ts",
++  "react-native": "lib/module/index.js",
+*** End Patch
