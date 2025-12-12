@@ -4,6 +4,7 @@ export type StorageBucket = 'item-images' | 'chat-images' | 'user-avatars';
 
 export interface UploadResult {
   url: string | null;
+  cdnUrl?: string | null;
   path: string | null;
   error: Error | null;
 }
@@ -30,7 +31,8 @@ export const uploadImage = async (
     if (error) return { url: null, path: null, error };
 
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
-    return { url: urlData.publicUrl, path: data.path, error: null };
+    const cdnUrl = getCdnUrl(bucket, data.path);
+    return { url: urlData.publicUrl, cdnUrl, path: data.path, error: null };
   } catch (e: any) {
     return { url: null, path: null, error: e as Error };
   }
@@ -47,6 +49,25 @@ export const uploadMultipleImages = async (
 export const deleteImage = async (bucket: StorageBucket, path: string): Promise<{ error: Error | null }> => {
   try {
     const { error } = await supabase.storage.from(bucket).remove([path]);
+    // Purge CDN cache if configured
+    try {
+      const purgeEndpoint = process.env.SUPABASE_PURGE_ENDPOINT;
+      const purgeKey = process.env.SUPABASE_PURGE_X_API_KEY;
+      if (purgeEndpoint && purgeKey) {
+        const cdnUrl = getCdnUrl(bucket, path);
+        const targetUrl = cdnUrl ?? getPublicUrl(bucket, path) ?? '';
+        if (targetUrl) {
+          await fetch(purgeEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': purgeKey },
+            body: JSON.stringify({ urls: [targetUrl] }),
+          });
+        }
+      }
+    } catch (e) {
+      // Log but don't fail deletion flow
+      console.warn('Cache purge failed', e);
+    }
     return { error: error ?? null };
   } catch (e: any) {
     return { error: e as Error };
@@ -56,6 +77,23 @@ export const deleteImage = async (bucket: StorageBucket, path: string): Promise<
 export const deleteMultipleImages = async (bucket: StorageBucket, paths: string[]): Promise<{ error: Error | null }> => {
   try {
     const { error } = await supabase.storage.from(bucket).remove(paths);
+    // Purge CDN cache if configured
+    try {
+      const purgeEndpoint = process.env.SUPABASE_PURGE_ENDPOINT;
+      const purgeKey = process.env.SUPABASE_PURGE_X_API_KEY;
+      if (purgeEndpoint && purgeKey) {
+        const urlsToPurge = paths.map((p) => getCdnUrl(bucket, p) ?? getPublicUrl(bucket, p)).filter(Boolean) as string[];
+        if (urlsToPurge.length) {
+          await fetch(purgeEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': purgeKey },
+            body: JSON.stringify({ urls: urlsToPurge }),
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Cache purge failed', e);
+    }
     return { error: error ?? null };
   } catch (e: any) {
     return { error: e as Error };
@@ -68,6 +106,31 @@ export const getPublicUrl = (bucket: StorageBucket, path: string): string | null
     return data.publicUrl ?? null;
   } catch (e) {
     return null;
+  }
+};
+
+/**
+ * Returns a CDN proxied URL for a Supabase public URL when `EXPO_PUBLIC_CDN_URL` is set.
+ * If the CDN env is not configured, returns the original public URL.
+ */
+export const getCdnUrl = (bucket: StorageBucket, path: string): string | null => {
+  const publicUrl = getPublicUrl(bucket, path);
+  if (!publicUrl) return null;
+
+  const cdn = process.env.EXPO_PUBLIC_CDN_URL;
+  if (!cdn) return publicUrl;
+
+  try {
+    const u = new URL(publicUrl);
+    // find the suffix after /storage/v1/object/public
+    const idx = u.pathname.indexOf('/storage/v1/object/public');
+    if (idx === -1) return publicUrl;
+    const suffix = u.pathname.substring(idx + '/storage/v1/object/public'.length);
+    // ensure suffix starts with '/'
+    const pathSuffix = suffix.startsWith('/') ? suffix : `/${suffix}`;
+    return `${cdn}${pathSuffix}`;
+  } catch (e) {
+    return publicUrl;
   }
 };
 

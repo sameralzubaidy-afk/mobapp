@@ -1,0 +1,77 @@
+name: Deploy Cloudflare Worker
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'infra/cloudflare-worker/**'
+      - '.github/workflows/deploy-cloudflare-worker.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+jobs:
+  deploy-worker:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'infra/cloudflare-worker/package-lock.json'
+
+      - name: Install dependencies (with fallback)
+        working-directory: infra/cloudflare-worker
+        run: npm ci || npm install
+
+      - name: Verify Cloudflare secrets
+        run: |
+          if [ -z "${{ secrets.CF_ACCOUNT_ID }}" ]; then
+            echo "❌ CF_ACCOUNT_ID secret not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.CF_API_TOKEN }}" ]; then
+            echo "❌ CF_API_TOKEN secret not set"
+            exit 1
+          fi
+          echo "✅ Cloudflare secrets verified"
+
+      - name: Deploy to Cloudflare
+        working-directory: infra/cloudflare-worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: npm run deploy
+
+      - name: Log deployment success
+        run: |
+          echo "✅ Cloudflare Worker deployed successfully"
+          echo "Worker URL: https://p2p-kids-cf-worker-dev.samer-alzubaidy.workers.dev"
+          echo "View in dashboard: https://dash.cloudflare.com/workers"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ $? -eq 0 ]; then
+            echo "✅ Deployment completed successfully"
+          else
+            echo "❌ Deployment failed"
+            exit 1
+          fi

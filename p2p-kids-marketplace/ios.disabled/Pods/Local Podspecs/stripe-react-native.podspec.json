@@ -1,0 +1,62 @@
+{
+  "name": "stripe-react-native",
+  "version": "0.50.3",
+  "summary": "Stripe SDK for React Native",
+  "homepage": "https://github.com/stripe/stripe-react-native/#readme",
+  "license": "MIT",
+  "authors": "Stripe",
+  "platforms": {
+    "ios": "13.0"
+  },
+  "source": {
+    "git": "https://github.com/stripe/stripe-react-native.git",
+    "tag": "0.50.3"
+  },
+  "source_files": "ios/**/*.{h,m,mm,swift}",
+  "exclude_files": [
+    "ios/Tests/",
+    "ios/NewArch/"
+  ],
+  "private_header_files": [
+    "ios/StripeSdk.h",
+    "ios/StripeSwiftInterop.h"
+  ],
+  "header_dir": "stripe_react_native",
+  "pod_target_xcconfig": {
+    "USE_HEADERMAP": "YES",
+    "DEFINES_MODULE": "YES",
+    "CLANG_CXX_LANGUAGE_STANDARD": "c++20",
+    "SWIFT_COMPILATION_MODE": "wholemodule"
+  },
+  "dependencies": {
+    "React-Core": [],
+    "Stripe": [
+      "~> 24.19.0"
+    ],
+    "StripePaymentSheet": [
+      "~> 24.19.0"
+    ],
+    "StripePayments": [
+      "~> 24.19.0"
+    ],
+    "StripePaymentsUI": [
+      "~> 24.19.0"
+    ],
+    "StripeApplePay": [
+      "~> 24.19.0"
+    ],
+    "StripeFinancialConnections": [
+      "~> 24.19.0"
+    ]
+  },
+  "testspecs": [
+    {
+      "name": "Tests",
+      "test_type": "unit",
+      "platforms": {
+        "ios": "15.1"
+      },
+      "source_files": "ios/Tests/**/*.{m,swift}"
+    }
+  ]
+}
