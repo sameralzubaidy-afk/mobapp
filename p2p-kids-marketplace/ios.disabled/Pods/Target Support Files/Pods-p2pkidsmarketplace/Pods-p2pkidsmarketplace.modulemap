@@ -1,0 +1,6 @@
+module Pods_p2pkidsmarketplace {
+  umbrella header "Pods-p2pkidsmarketplace-umbrella.h"
+
+  export *
+  module * { export * }
+}

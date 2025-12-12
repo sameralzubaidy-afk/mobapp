@@ -1,0 +1,16 @@
+{
+  "name": "p2p-kids-cf-worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy:dev": "wrangler deploy --env development",
+    "deploy": "wrangler deploy --env production",
+    "purge": "node purge_cache.js"
+  },
+  "devDependencies": {
+    "wrangler": "^3.9.0",
+    "node-fetch": "^2.6.1",
+    "jq": "*"
+  }
+}
