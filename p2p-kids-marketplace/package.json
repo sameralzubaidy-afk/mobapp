@@ -15,7 +15,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:e2e:cloudflare": "jest e2e/cloudflare-cache.integration.test.ts --runInBand",
+    "test:e2e:cloudflare": "jest e2e/cloudflare-cache.integration.test.ts e2e/delete-purge.integration.test.ts --runInBand",
     "clean": "rm -rf node_modules && npm install",
     "check:supabase": "node ./scripts/check-supabase.js",
     "e2e:build:ios": "npx expo prebuild --platform ios --no-install && xcodebuild -project ios/ios.xcodeproj -scheme p2p-kids-marketplace -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build",
