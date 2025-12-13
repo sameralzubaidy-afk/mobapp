@@ -1,0 +1,185 @@
+```
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║              INFRA-009: AWS SNS SMS SERVICE - READY TO DEPLOY ✅          ║
+║                                                                            ║
+║  Implementation Complete • Documentation Complete • Tests Ready           ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 WHAT'S BEEN IMPLEMENTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Lambda Function (index.js)
+   • Sends SMS via AWS SNS
+   • Stores verification codes in DynamoDB
+   • Validates codes (one-time use)
+   • Rate limits per phone number
+
+✅ Infrastructure as Code (template.yaml)
+   • SAM CloudFormation template
+   • Deploys everything: Lambda, API Gateway, DynamoDB x2
+   • Auto-configures IAM roles & permissions
+   • Sets up API key authentication
+
+✅ Testing Suite
+   • test-sms-flow.js - 6 end-to-end test cases
+   • send-sms-local.js - Quick local test
+   • Unit tests in mobile app
+
+✅ Documentation
+   • DEPLOYMENT.md - Step-by-step guide (8 phases)
+   • CHECKLIST.md - Task tracker
+   • README.md files - Quick reference
+
+✅ Supabase Integration
+   • Edge Function proxy (sms-send)
+   • Secure API communication
+
+✅ Mobile Client
+   • src/services/sms.ts - Client SMS service
+   • src/utils/testSMS.ts - Test helper
+   • src/services/__tests__/ - Unit tests
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 QUICK START - 7 STEPS TO SEND YOUR FIRST SMS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1️⃣  Generate API Key
+   $ python3 -c "import secrets; print(secrets.token_hex(16))"
+   → Copy the output; you'll need it 3 times below
+
+Step 2️⃣  Build & Deploy with SAM
+   $ cd infra/aws/lambda-sns-send-sms
+   $ sam build
+   $ sam deploy --guided
+   
+   When prompted, provide:
+   • Stack Name: p2p-sms-service-prod
+   • Region: us-east-1
+   • ApiKeyValue: <paste your generated key>
+   • Environment: production
+   • Confirm changes: y
+   
+   ⭐ Save the ApiEndpoint from outputs (looks like https://xxx.execute-api.us-east-1.amazonaws.com/production)
+
+Step 3️⃣  Raise SNS Spending Limit (AWS Console Manual)
+   1. Go to https://console.aws.amazon.com
+   2. SNS → Text messaging (SMS) → Spend limit
+   3. Request increase to $200/month
+   4. Wait for approval (usually instant)
+
+Step 4️⃣  Configure Supabase Secrets
+   $ supabase secrets set AWS_SNS_API_GATEWAY_URL="https://xxx.execute-api.us-east-1.amazonaws.com/production" \
+     --project-id YOUR_PROJECT_ID
+   $ supabase secrets set AWS_SNS_API_GATEWAY_KEY="<your-generated-key>" \
+     --project-id YOUR_PROJECT_ID
+
+Step 5️⃣  Deploy Supabase Edge Function
+   $ cd /Users/sameralzubaidi/Desktop/kids_marketplace_app
+   $ supabase functions deploy sms-send --project-ref YOUR_PROJECT_ID
+
+Step 6️⃣  (Optional) Add GitHub Secrets for CI/CD
+   $ gh secret set AWS_SNS_API_GATEWAY_URL -b "https://xxx.execute-api.us-east-1.amazonaws.com/production"
+   $ gh secret set AWS_SNS_API_GATEWAY_KEY -b "<your-generated-key>"
+
+Step 7️⃣  TEST - Send SMS to Your Phone! 📱
+   $ cd infra/aws/lambda-sns-send-sms
+   $ node test-sms-flow.js \
+     --phone-number "+YOUR_REAL_PHONE_NUMBER" \
+     --api-endpoint "https://xxx.execute-api.us-east-1.amazonaws.com/production" \
+     --api-key "<your-generated-key>"
+   
+   ✅ Check your phone in 10 seconds for SMS!
+   ✅ All 6 test cases should pass
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📂 FILE LOCATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 Infrastructure
+   infra/aws/lambda-sns-send-sms/
+   ├── index.js          ← Lambda handler (sends SMS, stores codes)
+   ├── template.yaml     ← SAM CloudFormation (deploy everything)
+   ├── package.json      ← Node dependencies
+   ├── DEPLOYMENT.md     ← Full step-by-step guide 📖
+   ├── CHECKLIST.md      ← Task progress tracker ✓
+   ├── README.md         ← Quick reference
+   └── test-sms-flow.js  ← Run this to test
+
+📡 Supabase
+   supabase/functions/sms-send/
+   ├── index.ts          ← Edge Function (proxies to Lambda)
+   └── README.md         ← Configuration guide
+
+📱 Mobile App
+   p2p-kids-marketplace/
+   ├── src/services/sms.ts                    ← Client SMS service
+   ├── src/utils/testSMS.ts                   ← Test helper
+   ├── src/services/__tests__/sms.test.ts     ← Unit tests
+   └── .env.local.example                     ← Added EXPO_PUBLIC_SMS_API_URL
+
+📋 Summary
+   /INFRA-009-COMPLETE.md                     ← This entire task summary
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔐 WHAT YOU GET
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Send SMS                  Any phone number, any message
+✅ Store Codes             DynamoDB auto-expires after 10 min
+✅ Verify Codes            One-time use enforcement
+✅ Rate Limiting           3 SMS per 60 seconds per phone
+✅ API Security            x-api-key authentication
+✅ Auto-Scaling            DynamoDB on-demand billing
+✅ Monitoring              CloudWatch logs + Lambda metrics
+✅ Cost Control            ~$50-100/month for MVP
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 API REFERENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Send SMS with Code:
+  POST https://<api>.execute-api.us-east-1.amazonaws.com/production/send
+  Headers: x-api-key: <your-key>, Content-Type: application/json
+  Body: {
+    "action": "send",
+    "phoneNumber": "+15551234567",
+    "message": "Your code is: 123456"
+  }
+
+Verify Code:
+  POST https://<api>.execute-api.us-east-1.amazonaws.com/production/send
+  Headers: x-api-key: <your-key>, Content-Type: application/json
+  Body: {
+    "action": "verify",
+    "phoneNumber": "+15551234567",
+    "code": "123456"
+  }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 NEXT STEPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Open: infra/aws/lambda-sns-send-sms/DEPLOYMENT.md
+2. Follow: Phase 1 → Phase 2 → Phase 3 → Phase 7 (test)
+3. Confirm: SMS received on your phone ✅
+4. Next Module: MODULE-02-AUTHENTICATION (integrate SMS into signup)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❓ NEED HELP?
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Read: DEPLOYMENT.md (troubleshooting section)
+• Check: CHECKLIST.md (mark your progress)
+• Logs: aws logs tail /aws/lambda/p2p-sms-sender-production --follow
+• Test: node test-sms-flow.js (with your phone + endpoint + key)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Status: ✅ CODE READY • 📖 DOCS READY • 🧪 TESTS READY
+        → Awaiting your deployment (Steps 1-7 above)
+
+Last Updated: December 13, 2025
+```
