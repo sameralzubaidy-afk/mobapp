@@ -50,6 +50,8 @@ Follow the module and task exactly, and cross-check with the verification file
 Show me the files you create or edit with their full paths
 Tell me which items in MODULE-01-VERIFICATION.md are now satisfied
 List the commands I should run to test/verify this (e.g. npm, supabase)
+Always include short answers first and then explain detials as needed
+Note I have completed the manaul steps.
 
 
 
