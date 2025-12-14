@@ -1,24 +1,35 @@
 import React from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
-import { Button as NBButton } from 'native-base';
+import { View, Text, ActivityIndicator, Pressable } from 'react-native';
 
 export default function HomeFeedScreen() {
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Home Feed</Text>
-      {/* Debug repro #1: intentionally pass a string token into a numeric style to reproduce conversion crash */}
-      <View
-        testID="repro-string-to-float"
-        // @ts-expect-error deliberate bad value for repro
-        style={{ width: 'large', height: 20, backgroundColor: 'tomato', marginTop: 12 }}
-      />
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+      <Text style={{ fontSize: 28, fontWeight: 'bold', marginBottom: 20 }}>
+        Home Feed
+      </Text>
 
-      {/* Debug repro #2: native-base token usage */}
-      <NBButton size="large" mt={4} onPress={() => {}} testID="nb-large">NB large</NBButton>
-      <NBButton size="lg" mt={4} onPress={() => {}} testID="nb-lg">NB lg</NBButton>
+      {/* Simple action button */}
+      <Pressable
+        style={{
+          backgroundColor: '#3b82f6',
+          paddingHorizontal: 24,
+          paddingVertical: 12,
+          borderRadius: 8,
+          marginBottom: 20,
+        }}
+        onPress={() => console.log('Button pressed')}
+      >
+        <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+          Press Me
+        </Text>
+      </Pressable>
 
-      {/* Debug repro #3: React Native ActivityIndicator with token */}
-      <ActivityIndicator size={'large'} color="#3b82f6" style={{ marginTop: 12 }} />
+      {/* Loading indicator */}
+      <ActivityIndicator size={32} color="#3b82f6" style={{ marginVertical: 20 }} />
+
+      <Text style={{ marginTop: 20, fontSize: 14, color: '#666', textAlign: 'center' }}>
+        App is running on both iOS and Android!
+      </Text>
     </View>
   );
 }
