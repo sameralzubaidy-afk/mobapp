@@ -2,8 +2,11 @@
 -- Create push_tokens table to store Expo push notification tokens per device
 
 -- Create push_tokens table
+-- Ensure pgcrypto extension for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE IF NOT EXISTS push_tokens (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   token TEXT NOT NULL,
   device_id TEXT NOT NULL,
@@ -46,11 +49,8 @@ CREATE POLICY "Users can delete their own push tokens"
 CREATE POLICY "Admins can view all push tokens"
   ON push_tokens FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-        AND profiles.role IN ('admin', 'moderator')
-    )
+    -- Allow service role (server-side) access; admin UI should use service role
+    auth.role() = 'service_role'
   );
 
 -- Auto-update updated_at timestamp

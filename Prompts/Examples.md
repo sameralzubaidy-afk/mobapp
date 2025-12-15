@@ -42,15 +42,17 @@ App: p2p-kids-marketplace/
 
 Supabase: supabase/
 My Example 
-I’m working on Infrastructure.
-Module:MODULE-01-INFRASTRUCTURE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: Please implement TASK INFRA-001 scope is Initialize React Native Expo Project with TypeScript
+I’m working on the VERIFICATION tasks
+Module:MODULE-01-VERIFICATION.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: Please implement ## TASK AUTH-001: Implement Supabase Auth Signup Flow scope is Implement email + password signup flow using Supabase Auth. Create signup screen with form validation, error handling, and automatic user profile creation in the database.
 Please:
 Follow the module and task exactly, and cross-check with the verification file
 Show me the files you create or edit with their full paths
 Tell me which items in MODULE-01-VERIFICATION.md are now satisfied
 List the commands I should run to test/verify this (e.g. npm, supabase)
 always include short answers first and then explain detials as needed
+Update the navigation file so i can verify manual
+provide steps to manaul test 
 
 Note I have completed the manaul steps.
 
