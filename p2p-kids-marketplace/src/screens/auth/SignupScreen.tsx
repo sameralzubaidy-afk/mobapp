@@ -12,6 +12,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { isAtLeastAge } from '@/utils/age';
 import { signUp } from '@/services/supabase/auth';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
@@ -26,6 +27,7 @@ export default function SignupScreen() {
     name: '',
     email: '',
     phone: '',
+    dob: '',
     password: '',
     confirmPassword: '',
   });
@@ -59,6 +61,17 @@ export default function SignupScreen() {
     if (!phone || !phoneRegex.test(phone)) {
       return 'Please enter a valid phone number (10+ digits)';
     }
+    return null;
+  };
+
+  const validateDob = (dob: string): string | null => {
+    // Expect YYYY-MM-DD
+    if (!dob) return 'Please enter your date of birth';
+    const m = /^\d{4}-\d{2}-\d{2}$/.exec(dob);
+    if (!m) return 'Date of birth must be in YYYY-MM-DD format';
+    const date = new Date(dob + 'T00:00:00Z');
+    if (Number.isNaN(date.getTime())) return 'Invalid date of birth';
+    // Age check will be performed separately
     return null;
   };
 
@@ -103,6 +116,9 @@ export default function SignupScreen() {
     const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
     if (confirmPasswordError) newErrors.confirmPassword = confirmPasswordError;
 
+    const dobError = validateDob(formData.dob);
+    if (dobError) newErrors.dob = dobError;
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -127,12 +143,20 @@ export default function SignupScreen() {
     setLoading(true);
 
     try {
+      // Age check: ensure user is at least 18
+      if (!isAtLeastAge(formData.dob, 18)) {
+        Alert.alert('Sorry', 'Sorry, you must be 18 years old to register.');
+        setLoading(false);
+        return;
+      }
+
       // Call Supabase Auth signup
       const { user, error } = await signUp({
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
         name: formData.name.trim(),
         phone: formData.phone.trim(),
+        dob: formData.dob.trim(),
       });
 
       if (error) {
@@ -265,6 +289,25 @@ export default function SignupScreen() {
               autoCorrect={false}
             />
             {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+          </View>
+
+          {/* DOB Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Date of Birth</Text>
+            <TextInput
+              style={[styles.input, errors.dob && styles.inputError]}
+              placeholder="YYYY-MM-DD"
+              value={formData.dob}
+              onChangeText={(text) => {
+                setFormData({ ...formData, dob: text });
+                if (errors.dob) {
+                  setErrors({ ...errors, dob: '' });
+                }
+              }}
+              keyboardType="numeric"
+              autoCorrect={false}
+            />
+            {errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
           </View>
 
           {/* Password Input */}

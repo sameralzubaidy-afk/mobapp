@@ -6,6 +6,7 @@ export interface SignUpData {
   password: string;
   name: string;
   phone: string;
+  dob?: string; // YYYY-MM-DD
 }
 
 export interface SignInData {
@@ -26,6 +27,7 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
         data: {
           name: data.name,
           phone: data.phone,
+          dob: data.dob,
         },
       },
     });
@@ -66,6 +68,7 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
         .insert({
           user_id: authData.user.id,
           name: data.name,
+          dob: data.dob || null,
           phone_verified: false,
         });
 

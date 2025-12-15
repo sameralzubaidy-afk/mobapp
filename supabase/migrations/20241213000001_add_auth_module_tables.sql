@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   city TEXT,
   state TEXT,
   zip_code TEXT,
-  node_id UUID REFERENCES nodes(id) ON DELETE SET NULL,
+  node_id TEXT, -- REFERENCES nodes(id) ON DELETE SET NULL, -- FK added later
   
   -- Profile completion status
   profile_completed BOOLEAN NOT NULL DEFAULT false,
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS nodes (
 
 CREATE TABLE IF NOT EXISTS zip_codes (
   zip TEXT PRIMARY KEY,
-  node_id UUID NOT NULL REFERENCES nodes(id) ON DELETE RESTRICT,
+  node_id TEXT NOT NULL REFERENCES nodes(id) ON DELETE RESTRICT,
   city TEXT,
   state TEXT,
   latitude DECIMAL(10, 8),
@@ -392,6 +392,10 @@ $$ LANGUAGE plpgsql;
 -- Use indexes on `profiles` (public profile data) for performance instead.
 
 -- TODO: After running this migration, regenerate TypeScript types:
+-- Add foreign key constraint for profiles.node_id (added after nodes table creation)
+ALTER TABLE profiles ADD CONSTRAINT fk_profiles_node_id 
+  FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE SET NULL;
+
 -- npx supabase gen types typescript --project-id YOUR_PROJECT_ID > src/types/database.types.ts
 
 -- TODO: Seed initial nodes and zip codes via admin panel or separate seed script

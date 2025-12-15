@@ -52,7 +52,7 @@ Tell me which items in MODULE-01-VERIFICATION.md are now satisfied
 List the commands I should run to test/verify this (e.g. npm, supabase)
 always include short answers first and then explain detials as needed
 Update the navigation file so i can verify manual
-provide steps to manaul test 
+provide steps to manaul test if there are steps I need to do before test clearly list them. 
 
 Note I have completed the manaul steps.
 

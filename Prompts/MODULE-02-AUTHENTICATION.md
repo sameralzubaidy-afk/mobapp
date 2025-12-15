@@ -97,7 +97,7 @@ User signs up with email, password, name, and phone number. After successful Sup
 create a user profile in the database with default values.
 
 REQUIREMENTS:
-1. Create signup screen with form validation
+1. Create signup screen with form validation (includes DOB field, user must be 18+ to register)
 2. Implement Supabase Auth signup
 3. Create user profile in database
 4. Handle errors gracefully
