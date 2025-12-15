@@ -11,19 +11,35 @@ export default function HomeFeedScreen() {
         Home Feed
       </Text>
 
-      {/* Simple action button - navigates to Signup for testing */}
+      {/* Navigate to Profile */}
       <Pressable
         style={{
           backgroundColor: '#3b82f6',
           paddingHorizontal: 24,
           paddingVertical: 12,
           borderRadius: 8,
-          marginBottom: 20,
+          marginBottom: 12,
         }}
-        onPress={() => (navigation as any).navigate('Signup')}
+        onPress={() => (navigation as any).navigate('Profile')}
       >
         <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-          Press Me
+          View Profile
+        </Text>
+      </Pressable>
+
+      {/* Navigate to ProfileSetup for testing */}
+      <Pressable
+        style={{
+          backgroundColor: '#10b981',
+          paddingHorizontal: 24,
+          paddingVertical: 12,
+          borderRadius: 8,
+          marginBottom: 20,
+        }}
+        onPress={() => (navigation as any).navigate('ProfileSetup')}
+      >
+        <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+          Setup Profile (Test)
         </Text>
       </Pressable>
 

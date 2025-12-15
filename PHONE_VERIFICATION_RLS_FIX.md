@@ -269,7 +269,11 @@ After applying the migration:
 1. ✅ Sign up new user → works
 2. ✅ Navigate to phone verification → works
 3. ✅ Enter code `123456` → **phone_verified becomes TRUE**
+
+Note: The `verify_user_phone` function now requires a recent verified row in `phone_verification_codes` for the supplied phone (within 24 hours). This prevents accidental or malicious marking of phones as verified without a proper verification record. The test-mode code path will automatically create a verified row for convenience in development.
 4. ✅ Check database → see `phone_verified: true, phone_verified_at: <timestamp>`
+
+Note: This project now includes an Edge Function `auth-update-phone` (supabase/functions/auth-update-phone) which will be used to update the Auth user's phone using the service role key. Deploy this function and set `SUPABASE_SERVICE_ROLE_KEY` in the function's environment to enable updating the `auth.users` phone without requiring an SMS provider. If the function is not configured, verification will fall back to updating the `profiles` table only.
 5. ✅ Logs show detailed RPC call success
 
 ---

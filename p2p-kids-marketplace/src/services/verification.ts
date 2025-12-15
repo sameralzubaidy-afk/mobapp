@@ -104,6 +104,25 @@ export const verifyPhoneCode = async (
       console.log('🧪 [TEST MODE] Using hardcoded test code 123456');
       console.log('🧪 [TEST MODE] Attempting to verify phone for user_id:', userId);
       
+      // Ensure a verified code row exists for test purposes so RPC check passes
+      try {
+        const { error: insertErr } = await supabase.from('phone_verification_codes').insert({
+          user_id: userId,
+          phone,
+          code: '123456',
+          verified: true,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+        });
+        if (insertErr) {
+          console.error('❌ [TEST MODE] Failed to insert test verified row:', insertErr);
+          throw insertErr;
+        }
+      } catch (e) {
+        console.error('❌ [TEST MODE] Exception creating test verified row:', e);
+        throw e;
+      }
+
       // Use database function to bypass RLS
       // This function has SECURITY DEFINER privilege and can update any profile
       const { data: result, error: rpcError } = await supabase

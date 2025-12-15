@@ -59,6 +59,14 @@ export default function LandingScreen() {
           >
             <Text style={styles.loginButtonText}>Log In</Text>
           </TouchableOpacity>
+
+          {/* Test button to skip auth */}
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={() => (navigation as any).navigate('Home')}
+          >
+            <Text style={styles.testButtonText}>Skip Auth (Test)</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Footer */}
@@ -160,6 +168,19 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#007AFF',
+  },
+  testButton: {
+    height: 44,
+    backgroundColor: '#f59e0b',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  testButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   footer: {
     marginTop: 40,

@@ -49,8 +49,10 @@ Please:
 Follow the module and task exactly, and cross-check with the verification file
 Show me the files you create or edit with their full paths
 Tell me which items in MODULE-01-VERIFICATION.md are now satisfied
-List the commands I should run to test/verify this (e.g. npm, supabase)
 always include short answers first and then explain detials as needed
+List the commands I should run to test/verify this (e.g. npm, supabase)
+if there is a need to run a sql in supabase before testing clearly ask me to do. do not assume. 
+apply E2E test so you fix all errors before I start verifying.
 Update the navigation file so i can verify manual
 provide steps to manaul test if there are steps I need to do before test clearly list them. 
 

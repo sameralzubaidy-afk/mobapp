@@ -531,6 +531,72 @@ Once I provide final Figma-based UX specs (e.g. Markdown under `docx/UX/`), you 
 - Treat them as **source of truth for layout and visuals**.
 - Refactor existing screens to match the new UX while preserving working logic.
 
+## 12 Hardening Protocol (mandatory)
+
+### HP-1 Contract-first (no exceptions)
+For every Edge Function endpoint or business flow:
+1) Define Zod schemas for request/response first:
+   - `supabase/functions/_shared/schemas/<domain>.ts`
+2) Derive TypeScript types from schemas (z.infer) and export them for the app:
+   - App must import from a single shared contract file (or generated mirror).
+3) Only then implement handler + UI wiring.
+
+### HP-2 Quality gates (stop if failing)
+Before marking any task “done”, you MUST provide:
+- Commands to run + expected results:
+  - Mobile: `yarn lint`, `yarn typecheck`, `yarn test`
+  - Supabase: `supabase start`, `supabase db reset`, `supabase functions serve`, `deno lint`, `deno test`
+- At least 1 unit test for any non-trivial business logic:
+  - SP cap, fee formula, pending/release, grace period, etc.
+- A smoke test recipe for the endpoint:
+  - Example request + example response + known error cases.
+
+If you cannot add tests (e.g., tooling missing), you MUST:
+- add `// TODO(TEST): ...` with exact missing test cases
+- provide a manual verification checklist with queries + expected results.
+
+### HP-3 Supabase auth/RLS rule (be explicit)
+Default rule:
+- Edge Functions MUST use user JWT + anon key so RLS applies.
+Service role key is ONLY allowed for:
+- Stripe webhooks
+- admin-only operations
+- scheduled/batch moderation tasks
+In service-role cases you MUST implement explicit authorization checks and log an audit event.
+
+### HP-4 DB invariants (bugs must not reach data)
+For points/money/state logic you MUST enforce:
+- CHECK constraints (non-negative values, valid caps)
+- enums for statuses
+- uniqueness constraints (idempotency keys, Stripe event IDs)
+- foreign keys + indexes
+
+### HP-5 Atomic operations via Postgres RPC
+Any multi-table mutation that must be atomic MUST be implemented as a Postgres RPC function
+(e.g., `rpc_create_transaction_with_ledger`) and called from Edge Functions.
+No scattered updates across multiple tables without atomicity.
+
+### HP-6 “Done” evidence format
+Every response must include:
+- What changed (files + brief summary)
+- How to test (commands + expected results)
+- Verification checklist mapping (which items satisfied + how)
+- Open questions / TODOs (if any)
+
+## 13 Bug-class prevention rules
+
+1) No “magic constants”:
+   - fees, caps, time windows must be in config tables or a single constants module.
+2) No duplicated business logic:
+   - fee/SP logic lives in ONE place (shared pure functions + tests).
+3) No silent fallback:
+   - unexpected cases must throw structured errors with codes.
+4) Observability required:
+   - every Edge Function logs a request_id, user_id (hashed), endpoint, error_code.
+5) Feature-gating must be server-enforced:
+   - UI can hide, but server MUST enforce subscription gates.
+
+
 ---
 
 Use these rules and examples to drive all your work.

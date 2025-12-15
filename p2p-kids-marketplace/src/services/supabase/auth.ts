@@ -111,9 +111,22 @@ export const signIn = async (
   }
 };
 
+/**
+ * AUTH-007: Sign out user and clear all app state
+ * Clears Supabase session, app state, and local storage
+ */
 export const signOut = async (): Promise<{ error: any | null }> => {
   try {
+    // Clear Supabase auth session
     const { error } = await supabase.auth.signOut();
+    
+    // TODO: Clear additional app state when context/redux is implemented
+    // Examples:
+    // - Clear user profile from context/redux store
+    // - Clear cached data (listings, messages, etc.)
+    // - Clear any pending notifications
+    // - Revoke push notification tokens
+    
     return { error: error ?? null };
   } catch (e: any) {
     return { error: e as any };
