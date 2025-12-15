@@ -4944,7 +4944,7 @@ After referral code entry complete:
 **Dependencies:** AUTH-010 (Referral code entry), Trade completion (future module)
 
 ### Description
-Award 50 points bonus to both referrer and referee when referee completes their first trade. Update referral status to 'completed', create points transactions, send notifications.
+Award 5 points bonus to both referrer and referee when referee completes their first trade. Update referral status to 'completed', create points transactions, send notifications.
 
 ---
 

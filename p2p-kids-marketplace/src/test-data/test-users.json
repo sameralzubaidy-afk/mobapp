@@ -1,0 +1,57 @@
+[
+  {
+    "id": "test-user-1",
+    "email": "dev+user1@example.com",
+    "firstName": "Alex",
+    "lastName": "River",
+    "displayName": "Alex R",
+    "phone": "+15550000001",
+    "dob": "2012-04-15",
+    "password": "Password123!",
+    "nodeId": "node-101"
+  },
+  {
+    "id": "test-user-2",
+    "email": "dev+user2@example.com",
+    "firstName": "Sam",
+    "lastName": "Green",
+    "displayName": "Sam G",
+    "phone": "+15550000002",
+    "dob": "2011-09-02",
+    "password": "Password123!",
+    "nodeId": "node-102"
+  },
+  {
+    "id": "test-user-3",
+    "email": "dev+user3@example.com",
+    "firstName": "Jamie",
+    "lastName": "Lee",
+    "displayName": "Jamie L",
+    "phone": "+15550000003",
+    "dob": "2010-12-11",
+    "password": "Password123!",
+    "nodeId": "node-103"
+  },
+  {
+    "id": "test-user-4",
+    "email": "dev+user4@example.com",
+    "firstName": "Taylor",
+    "lastName": "Brooks",
+    "displayName": "Taylor B",
+    "phone": "+15550000004",
+    "dob": "2013-07-20",
+    "password": "Password123!",
+    "nodeId": "node-104"
+  },
+  {
+    "id": "test-user-5",
+    "email": "dev+user5@example.com",
+    "firstName": "Riley",
+    "lastName": "Fox",
+    "displayName": "Riley F",
+    "phone": "+15550000005",
+    "dob": "2009-01-03",
+    "password": "Password123!",
+    "nodeId": "node-105"
+  }
+]

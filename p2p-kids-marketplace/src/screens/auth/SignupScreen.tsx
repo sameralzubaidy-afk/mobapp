@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,8 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { getRandomTestUser, getAllTestUsers, TestUser } from '@/test-data';
 import { isAtLeastAge } from '@/utils/age';
 import { signUp } from '@/services/supabase/auth';
 // TODO: Implement analytics service
@@ -35,6 +36,18 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const route = useRoute();
+
+  useEffect(() => {
+    // If navigation passes a prefill user id (dev-only), apply it
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: any = (route as any).params;
+    if (__DEV__ && params?.prefillTestUserId) {
+      const u = getAllTestUsers().find((x) => x.id === params.prefillTestUserId);
+      if (u) applyTestUser(u);
+    }
+  }, [route]);
 
   // Validation functions
   const validateName = (name: string): string | null => {
@@ -218,6 +231,18 @@ export default function SignupScreen() {
     }
   };
 
+  function applyTestUser(user: TestUser) {
+    setFormData({
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      phone: user.phone ?? '',
+      dob: user.dob ?? '',
+      password: user.password ?? '',
+      confirmPassword: user.password ?? '',
+    });
+    setErrors({});
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -240,6 +265,7 @@ export default function SignupScreen() {
               style={[styles.input, errors.name && styles.inputError]}
               placeholder="Enter your full name"
               value={formData.name}
+              testID="name-input"
               onChangeText={(text) => {
                 setFormData({ ...formData, name: text });
                 if (errors.name) {
@@ -259,6 +285,7 @@ export default function SignupScreen() {
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="Enter your email"
               value={formData.email}
+              testID="email-input"
               onChangeText={(text) => {
                 setFormData({ ...formData, email: text });
                 if (errors.email) {
@@ -279,6 +306,7 @@ export default function SignupScreen() {
               style={[styles.input, errors.phone && styles.inputError]}
               placeholder="+1234567890"
               value={formData.phone}
+              testID="phone-input"
               onChangeText={(text) => {
                 setFormData({ ...formData, phone: text });
                 if (errors.phone) {
@@ -298,6 +326,7 @@ export default function SignupScreen() {
               style={[styles.input, errors.dob && styles.inputError]}
               placeholder="YYYY-MM-DD"
               value={formData.dob}
+              testID="dob-input"
               onChangeText={(text) => {
                 setFormData({ ...formData, dob: text });
                 if (errors.dob) {
@@ -318,6 +347,7 @@ export default function SignupScreen() {
                 style={[styles.input, errors.password && styles.inputError, styles.inputWithIcon]}
                 placeholder="Enter your password"
                 value={formData.password}
+                testID="password-input"
                 onChangeText={(text) => {
                   setFormData({ ...formData, password: text });
                   if (errors.password) {
@@ -353,6 +383,7 @@ export default function SignupScreen() {
                 style={[styles.input, errors.confirmPassword && styles.inputError, styles.inputWithIcon]}
                 placeholder="Confirm your password"
                 value={formData.confirmPassword}
+                testID="confirmPassword-input"
                 onChangeText={(text) => {
                   setFormData({ ...formData, confirmPassword: text });
                   if (errors.confirmPassword) {
@@ -375,6 +406,30 @@ export default function SignupScreen() {
             </View>
             {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
           </View>
+          {__DEV__ && (
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Dev: Autofill</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  testID="dev-fill-random-user"
+                  style={{ padding: 8, backgroundColor: '#eee', borderRadius: 6 }}
+                  onPress={() => applyTestUser(getRandomTestUser())}
+                >
+                  <Text>Fill Random</Text>
+                </TouchableOpacity>
+                {getAllTestUsers().slice(0, 3).map((u) => (
+                  <TouchableOpacity
+                    key={u.id}
+                    testID={`dev-fill-${u.id}`}
+                    style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 6 }}
+                    onPress={() => applyTestUser(u)}
+                  >
+                    <Text>{u.firstName}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
 
           {/* Signup Button */}
           <TouchableOpacity
