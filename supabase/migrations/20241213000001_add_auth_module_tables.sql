@@ -253,7 +253,7 @@ RETURNS TABLE(node_id TEXT, node_name TEXT, distance DECIMAL) AS $$
 BEGIN
   RETURN QUERY
   SELECT 
-    n.id,
+    CAST(n.id AS TEXT),
     n.name,
     -- Simple distance formula (not Haversine - requires PostGIS)
     CAST(

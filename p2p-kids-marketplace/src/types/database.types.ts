@@ -438,6 +438,7 @@ export type Database = {
           name: string
           radius_miles: number | null
           state: string | null
+          status: string
           updated_at: string
           zip_code: string | null
         }
@@ -451,6 +452,7 @@ export type Database = {
           name: string
           radius_miles?: number | null
           state?: string | null
+          status?: string
           updated_at?: string
           zip_code?: string | null
         }
@@ -464,6 +466,7 @@ export type Database = {
           name?: string
           radius_miles?: number | null
           state?: string | null
+          status?: string
           updated_at?: string
           zip_code?: string | null
         }
@@ -583,14 +586,17 @@ export type Database = {
           bio: string | null
           city: string | null
           created_at: string
+          dob: string | null
           id: string
           name: string
           node_id: string | null
           onboarding_completed: boolean
+          onboarding_completed_at: string | null
           phone_verified: boolean
           phone_verified_at: string | null
           profile_completed: boolean
           referral_code: string | null
+          referred_by: string | null
           state: string | null
           updated_at: string
           user_id: string
@@ -601,14 +607,17 @@ export type Database = {
           bio?: string | null
           city?: string | null
           created_at?: string
+          dob?: string | null
           id?: string
           name: string
           node_id?: string | null
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
           phone_verified?: boolean
           phone_verified_at?: string | null
           profile_completed?: boolean
           referral_code?: string | null
+          referred_by?: string | null
           state?: string | null
           updated_at?: string
           user_id: string
@@ -619,20 +628,30 @@ export type Database = {
           bio?: string | null
           city?: string | null
           created_at?: string
+          dob?: string | null
           id?: string
           name?: string
           node_id?: string | null
           onboarding_completed?: boolean
+          onboarding_completed_at?: string | null
           phone_verified?: boolean
           phone_verified_at?: string | null
           profile_completed?: boolean
           referral_code?: string | null
+          referred_by?: string | null
           state?: string | null
           updated_at?: string
           user_id?: string
           zip_code?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_profiles_node_id"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_node_id_fkey"
             columns: ["node_id"]
@@ -1035,7 +1054,47 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      profiles_with_auth: {
+        Row: {
+          auth_created_at: string | null
+          avatar_url: string | null
+          bio: string | null
+          city: string | null
+          created_at: string | null
+          email: string | null
+          email_confirmed_at: string | null
+          id: string | null
+          last_sign_in_at: string | null
+          name: string | null
+          node_id: string | null
+          onboarding_completed: boolean | null
+          phone: string | null
+          phone_verified: boolean | null
+          phone_verified_at: string | null
+          profile_completed: boolean | null
+          referral_code: string | null
+          state: string | null
+          updated_at: string | null
+          user_id: string | null
+          zip_code: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_profiles_node_id"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_node_id_fkey"
+            columns: ["node_id"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       assign_node_by_zip: { Args: { p_zip: string }; Returns: string }
@@ -1044,6 +1103,19 @@ export type Database = {
         Returns: number
       }
       calculate_points_balance: { Args: { user_uuid: string }; Returns: number }
+      check_phone_verification_status: {
+        Args: { p_user_id: string }
+        Returns: {
+          email: string
+          last_verification_code: string
+          last_verification_sent_at: string
+          name: string
+          phone: string
+          phone_verified: boolean
+          phone_verified_at: string
+          user_id: string
+        }[]
+      }
       check_sms_rate_limit: {
         Args: { p_max_per_hour?: number; p_phone: string }
         Returns: {
@@ -1052,6 +1124,7 @@ export type Database = {
           sms_count_this_hour: number
         }[]
       }
+      debug_auth_context: { Args: never; Returns: Json }
       generate_referral_code: { Args: never; Returns: string }
       get_nearest_node: {
         Args: { p_status?: string; user_lat: number; user_lng: number }
@@ -1105,6 +1178,10 @@ export type Database = {
           success: boolean
           user_id: string
         }[]
+      }
+      verify_user_phone: {
+        Args: { p_phone: string; p_user_id: string }
+        Returns: Json
       }
     }
     Enums: {

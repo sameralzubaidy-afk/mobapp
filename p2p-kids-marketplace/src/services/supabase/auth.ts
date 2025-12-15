@@ -1,5 +1,6 @@
 import { supabase } from './client';
 import type { Session, User } from '@supabase/supabase-js';
+import { generateReferralCode, processReferralCode } from '../referral';
 
 export interface SignUpData {
   email: string;
@@ -7,6 +8,7 @@ export interface SignUpData {
   name: string;
   phone: string;
   dob?: string; // YYYY-MM-DD
+  referralCode?: string;
 }
 
 export interface SignInData {
@@ -62,6 +64,9 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
     if (!profileData) {
       console.warn('Profile not created by trigger, attempting manual creation...');
       
+      // Generate unique referral code for new user
+      const userReferralCode = await generateReferralCode();
+
       // Fallback: Create profile manually if trigger failed
       const { error: profileError } = await supabase
         .from('profiles')
@@ -70,6 +75,7 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
           name: data.name,
           dob: data.dob || null,
           phone_verified: false,
+          referral_code: userReferralCode,
         });
 
       if (profileError) {
@@ -84,10 +90,24 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
           };
         }
       } else {
-        console.log('Profile created manually');
+        console.log('Profile created manually with referral code:', userReferralCode);
       }
     } else {
       console.log('Profile found:', profileData);
+      
+      // Ensure referral code exists
+      if (!profileData.referral_code) {
+        const userReferralCode = await generateReferralCode();
+        await supabase
+          .from('profiles')
+          .update({ referral_code: userReferralCode })
+          .eq('user_id', authData.user.id);
+      }
+    }
+
+    // Process referral code if provided
+    if (data.referralCode && data.referralCode.trim()) {
+      await processReferralCode(authData.user.id, data.referralCode);
     }
 
     return { user: authData.user, error: null };

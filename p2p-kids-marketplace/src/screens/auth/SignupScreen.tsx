@@ -31,6 +31,7 @@ export default function SignupScreen() {
     dob: '',
     password: '',
     confirmPassword: '',
+    referralCode: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -170,6 +171,7 @@ export default function SignupScreen() {
         name: formData.name.trim(),
         phone: formData.phone.trim(),
         dob: formData.dob.trim(),
+        referralCode: formData.referralCode.trim(),
       });
 
       if (error) {
@@ -238,6 +240,7 @@ export default function SignupScreen() {
       phone: user.phone ?? '',
       dob: user.dob ?? '',
       password: user.password ?? '',
+      referralCode: '',
       confirmPassword: user.password ?? '',
     });
     setErrors({});
@@ -406,6 +409,31 @@ export default function SignupScreen() {
             </View>
             {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
           </View>
+
+          {/* Referral Code Input (Optional) */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Referral Code (Optional)</Text>
+            <TextInput
+              style={[styles.input, errors.referralCode && styles.inputError]}
+              placeholder="Enter referral code"
+              value={formData.referralCode}
+              testID="referralCode-input"
+              onChangeText={(text) => {
+                setFormData({ ...formData, referralCode: text.toUpperCase() });
+                if (errors.referralCode) {
+                  setErrors({ ...errors, referralCode: '' });
+                }
+              }}
+              autoCapitalize="characters"
+              maxLength={8}
+              autoCorrect={false}
+            />
+            {errors.referralCode && <Text style={styles.errorText}>{errors.referralCode}</Text>}
+            <Text style={styles.helperText}>
+              Get 5 bonus points when you complete your first trade!
+            </Text>
+          </View>
+
           {__DEV__ && (
             <View style={{ marginBottom: 12 }}>
               <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Dev: Autofill</Text>

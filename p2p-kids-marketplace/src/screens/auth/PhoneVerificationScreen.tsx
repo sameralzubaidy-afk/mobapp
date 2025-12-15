@@ -109,13 +109,13 @@ export default function PhoneVerificationScreen() {
     if (result.success) {
       Alert.alert(
         'Success!',
-        'Your phone number has been verified. Let\'s set up your profile!',
+        'Your phone number has been verified. Let\'s complete your profile!',
         [
           {
             text: 'Continue',
             onPress: () => {
-              // Navigate to ProfileSetup screen (AUTH-005)
-              (navigation as any).navigate('ProfileSetup');
+              // Navigate to ProfileCompletion screen (AUTH-008)
+              (navigation as any).navigate('ProfileCompletion', { userId });
             },
           },
         ]

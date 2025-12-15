@@ -12,6 +12,11 @@ import EditProfileScreen from '@/screens/profile/EditProfileScreen';
 import ProfileScreen from '@/screens/profile/ProfileScreen';
 import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '@/screens/auth/ResetPasswordScreen';
+import WelcomeScreen from '@/screens/onboarding/WelcomeScreen';
+import ProfileCompletionScreen from '@/screens/onboarding/ProfileCompletionScreen';
+import LocationPickerScreen from '@/screens/onboarding/LocationPickerScreen';
+import NodeSelectionScreen from '@/screens/onboarding/NodeSelectionScreen';
+import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScreen';
 
 const Stack = createStackNavigator();
 
@@ -30,6 +35,11 @@ const linking = {
       Profile: 'profile',
       EditProfile: 'edit-profile',
       ForgotPassword: 'forgot-password',
+      Welcome: 'welcome',
+      ProfileCompletion: 'profile-completion',
+      LocationPicker: 'location-picker',
+      NodeSelection: 'node-selection',
+      FeatureHighlights: 'feature-highlights',
     },
   },
 };
@@ -44,6 +54,11 @@ export default function AppNavigator() {
         <Stack.Screen name="Signup" component={SignupScreen} />
         <Stack.Screen name="PhoneVerification" component={PhoneVerificationScreen} />
         <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
+        <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} />
+        <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
+        <Stack.Screen name="NodeSelection" component={NodeSelectionScreen} />
+        <Stack.Screen name="FeatureHighlights" component={FeatureHighlightsScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
