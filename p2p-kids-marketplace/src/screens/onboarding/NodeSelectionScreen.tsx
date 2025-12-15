@@ -41,13 +41,15 @@ export default function NodeSelectionScreen() {
 
       if (error) throw error;
       
-      // Map the node data to match the Node interface
-      setAssignedNode({
-        id: data.id,
-        name: data.name,
-        description: data.name, // Use name as description since table doesn't have description
-        member_count: 0, // Placeholder - can be calculated later
-      });
+      if (data) {
+        // Map the node data to match the Node interface
+        setAssignedNode({
+          id: (data as any).id,
+          name: (data as any).name,
+          description: (data as any).name, // Use name as description since table doesn't have description
+          member_count: 0, // Placeholder - can be calculated later
+        });
+      }
     } catch (error) {
       console.error('Load node error:', error);
     } finally {

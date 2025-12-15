@@ -106,7 +106,7 @@ export const verifyPhoneCode = async (
       
       // Ensure a verified code row exists for test purposes so RPC check passes
       try {
-        const { error: insertErr } = await supabase.from('phone_verification_codes').insert({
+        const { error: insertErr } = await (supabase.from('phone_verification_codes') as any).insert({
           user_id: userId,
           phone,
           code: '123456',
@@ -125,11 +125,10 @@ export const verifyPhoneCode = async (
 
       // Use database function to bypass RLS
       // This function has SECURITY DEFINER privilege and can update any profile
-      const { data: result, error: rpcError } = await supabase
-        .rpc('verify_user_phone', {
+      const { data: result, error: rpcError } = await (supabase.rpc('verify_user_phone', {
           p_user_id: userId,
           p_phone: phone,
-        });
+        }) as any);
 
       if (rpcError) {
         console.error('❌ [TEST MODE] RPC error:', rpcError);
@@ -176,7 +175,7 @@ export const verifyPhoneCode = async (
     }
 
     // Check if code is expired
-    if (new Date(codeData.expires_at) < new Date()) {
+    if (new Date((codeData as any).expires_at) < new Date()) {
       return {
         success: false,
         error: 'Verification code has expired. Please request a new code.',
@@ -184,7 +183,7 @@ export const verifyPhoneCode = async (
     }
 
     // Check if too many attempts
-    if (codeData.attempts >= 3) {
+    if ((codeData as any).attempts >= 3) {
       return {
         success: false,
         error: 'Too many failed attempts. Please request a new code.',
@@ -192,24 +191,22 @@ export const verifyPhoneCode = async (
     }
 
     // Check if code matches
-    if (codeData.code !== code) {
+    if ((codeData as any).code !== code) {
       // Increment attempt count
-      await supabase
-        .from('phone_verification_codes')
-        .update({ attempts: codeData.attempts + 1 })
-        .eq('id', codeData.id);
+      await (supabase.from('phone_verification_codes') as any)
+        .update({ attempts: (codeData as any).attempts + 1 })
+        .eq('id', (codeData as any).id);
 
       return {
         success: false,
-        error: `Invalid code. ${2 - codeData.attempts} attempts remaining.`,
+        error: `Invalid code. ${2 - (codeData as any).attempts} attempts remaining.`,
       };
     }
 
     // Code is valid! Mark as verified in the verification codes table
-    const { error: verifyError } = await supabase
-      .from('phone_verification_codes')
+    const { error: verifyError } = await (supabase.from('phone_verification_codes') as any)
       .update({ verified: true })
-      .eq('id', codeData.id);
+      .eq('id', (codeData as any).id);
 
     if (verifyError) {
       console.error('Mark code verified error:', verifyError);
@@ -220,11 +217,11 @@ export const verifyPhoneCode = async (
     // This bypasses RLS issues
     console.log('📝 Updating profile for user:', userId, 'via database function');
     
-    const { data: result, error: rpcError } = await supabase
+    const { data: result, error: rpcError } = await (supabase
       .rpc('verify_user_phone', {
         p_user_id: userId,
         p_phone: phone,
-      });
+      }) as any);
 
     if (rpcError) {
       console.error('❌ RPC error:', rpcError);
@@ -234,15 +231,15 @@ export const verifyPhoneCode = async (
 
     console.log('🔍 RPC result:', result);
 
-    if (result && result.success) {
+    if (result && (result as any).success) {
       console.log('✅ Phone verified successfully via database function');
-      console.log('✅ Rows updated:', result.rows_updated);
+      console.log('✅ Rows updated:', (result as any).rows_updated);
       return { success: true };
     } else {
-      console.error('❌ Verification failed:', result?.message || 'Unknown error');
+      console.error('❌ Verification failed:', (result as any)?.message || 'Unknown error');
       return {
         success: false,
-        error: result?.message || 'Failed to verify phone',
+        error: (result as any)?.message || 'Failed to verify phone',
       };
     }
 

@@ -16,12 +16,14 @@ import {
 import { getUserProfile } from '@/services/profile';
 import { getCurrentUser, signOut } from '@/services/supabase/auth';
 import { supabase } from '@/services/supabase/client';
-import type { User } from '@/types/profile.types';
+import type { Database } from '@/types/database.types';
+
+type UserProfile = Database['public']['Tables']['profiles']['Row'];
 
 export default function ProfileScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [user, setUser] = useState<any | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
@@ -48,7 +50,8 @@ export default function ProfileScreen({ navigation }: any) {
       }
 
       // Resolve phone with fallbacks
-      let phoneFromAuth = authUser.phone || (authUser.user_metadata && (authUser.user_metadata.phone || authUser.user_metadata?.phone)) || (authUser.raw_user_meta_data && authUser.raw_user_meta_data.phone) || '';
+      let phoneFromAuth = (authUser as any).phone || 
+        ((authUser as any).user_metadata?.phone) || '';
       if (!phoneFromAuth) {
         try {
           const { data: phoneData, error: phoneError } = await supabase
@@ -59,7 +62,7 @@ export default function ProfileScreen({ navigation }: any) {
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
-          if (!phoneError && phoneData && phoneData.phone) phoneFromAuth = phoneData.phone;
+          if (!phoneError && phoneData?.phone) phoneFromAuth = phoneData.phone;
         } catch (e) {
           console.warn('Error fetching verified phone:', e);
         }
@@ -73,12 +76,12 @@ export default function ProfileScreen({ navigation }: any) {
           const { data: urlData } = supabase.storage.from('user-avatars').getPublicUrl(profileData.avatar_url);
           resolvedAvatar = urlData.publicUrl || null;
         }
-      } else if (authUser.user_metadata && authUser.user_metadata.avatar_url) {
-        resolvedAvatar = authUser.user_metadata.avatar_url;
+      } else if ((authUser as any).user_metadata?.avatar_url) {
+        resolvedAvatar = (authUser as any).user_metadata.avatar_url;
       }
 
-      setUser({ ...authUser, phone: phoneFromAuth } as User);
-      setProfile({ ...profileData, avatar_url: resolvedAvatar });
+      setUser({ ...authUser, phone: phoneFromAuth });
+      setProfile(profileData as UserProfile);
     } catch (error: any) {
       console.error('Load profile error:', error);
       Alert.alert('Error', 'Failed to load profile. Please try again.');

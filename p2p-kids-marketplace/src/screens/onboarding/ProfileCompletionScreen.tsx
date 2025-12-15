@@ -127,7 +127,7 @@ export default function ProfileCompletionScreen() {
           avatar_url: avatarUrl,
           profile_completed: true,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('user_id', userId);
 
       if (error) throw error;

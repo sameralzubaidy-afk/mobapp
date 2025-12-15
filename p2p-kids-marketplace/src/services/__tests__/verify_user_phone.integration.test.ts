@@ -13,7 +13,11 @@ describe('verify_user_phone RPC', () => {
     // Use returned user id or fallback to a generated uuid
     testUserId = (signData as any)?.user?.id || (globalThis as any).crypto?.randomUUID?.() || '00000000-0000-4000-8000-000000000000';
     // Create a profile row for the user
-    await supabase.from('profiles').upsert({ user_id: testUserId, name: 'RPC Test User', phone_verified: false });
+    await supabase.from('profiles').upsert({ 
+      user_id: testUserId, 
+      name: 'RPC Test User', 
+      phone_verified: false,
+    } as any);
   });
 
   afterAll(async () => {
@@ -24,12 +28,15 @@ describe('verify_user_phone RPC', () => {
   });
 
   test('returns error when no verified code exists', async () => {
-    const { data: noData, error: noError } = await supabase.rpc('verify_user_phone', { p_user_id: testUserId, p_phone: phone });
+    const { data: noData, error: noError } = await supabase.rpc('verify_user_phone', { 
+      p_user_id: testUserId, 
+      p_phone: phone,
+    } as any);
     expect(noError).toBeNull();
     const result = Array.isArray(noData) ? noData[0] : noData;
     expect(result).toBeDefined();
-    expect(result.success).toBe(false);
-    expect(result.message).toMatch(/No recent verified code/);
+    expect((result as any)?.success).toBe(false);
+    expect((result as any)?.message).toMatch(/No recent verified code/);
   });
 
   test('marks profile verified when a verified code exists', async () => {
@@ -41,10 +48,13 @@ describe('verify_user_phone RPC', () => {
       verified: true,
       expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // valid for 24h
       created_at: new Date().toISOString(),
-    });
+    } as any);
     expect(insertErr).toBeNull();
 
-    const { data, error } = await supabase.rpc('verify_user_phone', { p_user_id: testUserId, p_phone: phone });
+    const { data, error } = await supabase.rpc('verify_user_phone', { 
+      p_user_id: testUserId, 
+      p_phone: phone,
+    } as any);
     expect(error).toBeNull();
     const result = Array.isArray(data) ? data[0] : data;
     expect(result).toBeDefined();

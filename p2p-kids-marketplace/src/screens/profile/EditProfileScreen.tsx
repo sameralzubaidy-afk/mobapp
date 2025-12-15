@@ -21,15 +21,17 @@ import { requestPhoneVerification, verifyPhoneCode } from '@/services/phone';
 import { supabase } from '@/services/supabase/client';
 import { Modal } from 'react-native';
 import type { ProfileUpdateData } from '@/types/profile.types';
-import type { User } from '@/types/profile.types';
+import type { Database } from '@/types/database.types';
+
+type UserProfile = Database['public']['Tables']['profiles']['Row'];
 
 export default function EditProfileScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentProfile, setCurrentProfile] = useState<any | null>(null);
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [bio, setBio] = useState('');
@@ -65,18 +67,18 @@ export default function EditProfileScreen({ navigation }: any) {
 
       setCurrentUser(authUser);
       setCurrentProfile(profile);
-      setDisplayName(profile.name || '');
-      setBio(profile.bio || '');
-      setZipCode(profile.zip_code || '');
+      setDisplayName((profile as any)?.name || '');
+      setBio((profile as any)?.bio || '');
+      setZipCode((profile as any)?.zip_code || '');
 
-      // Phone may exist on auth user top-level or inside user_metadata/raw_user_meta_data
-      let phoneFromAuth = authUser.phone || (authUser.user_metadata && (authUser.user_metadata.phone || authUser.user_metadata?.phone)) || (authUser.raw_user_meta_data && authUser.raw_user_meta_data.phone) || '';
+      // Phone may exist on auth user top-level or inside user_metadata
+      let phoneFromAuth = (authUser as any).phone || 
+        ((authUser as any).user_metadata?.phone) || '';
 
       // If phone not available on auth user, try to fetch the latest verified phone from phone_verification_codes
       if (!phoneFromAuth) {
         try {
-          const { data: phoneData, error: phoneError } = await supabase
-            .from('phone_verification_codes')
+          const { data: phoneData, error: phoneError } = await (supabase.from('phone_verification_codes') as any)
             .select('phone')
             .eq('user_id', authUser.id)
             .eq('verified', true)
@@ -84,7 +86,7 @@ export default function EditProfileScreen({ navigation }: any) {
             .limit(1)
             .maybeSingle();
 
-          if (!phoneError && phoneData && phoneData.phone) {
+          if (!phoneError && phoneData?.phone) {
             phoneFromAuth = phoneData.phone;
           }
         } catch (e) {
@@ -226,16 +228,15 @@ export default function EditProfileScreen({ navigation }: any) {
         // Check verified phone records for this user
         let alreadyVerified = false;
         try {
-          const { data: verifiedRow } = await supabase
-            .from('phone_verification_codes')
+          const { data: verifiedRow } = await (supabase.from('phone_verification_codes') as any)
             .select('phone')
-            .eq('user_id', currentUser.id)
+            .eq('user_id', (currentUser as any).id)
             .eq('verified', true)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
-          if (verifiedRow && verifiedRow.phone) {
-            alreadyVerified = (verifiedRow.phone === phone.trim());
+          if (verifiedRow && (verifiedRow as any).phone) {
+            alreadyVerified = ((verifiedRow as any).phone === phone.trim());
           }
         } catch (e) {
           console.warn('Could not check verified phone records:', e);
@@ -289,8 +290,8 @@ export default function EditProfileScreen({ navigation }: any) {
               text: 'Join Waitlist',
               onPress: async () => {
                 const { success } = await addToWaitlist({
-                  email: currentUser.email || '',
-                  phone: currentUser.phone,
+                  email: (currentUser as any)?.email || '',
+                  phone: (currentUser as any)?.phone,
                   zip: updatedZip,
                 });
 

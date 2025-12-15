@@ -18,7 +18,7 @@ export const addToWaitlist = async (
   entry: WaitlistEntry
 ): Promise<{ success: boolean; error: any | null }> => {
   try {
-    const { error } = await supabase
+    const { error } = await (supabase
       .from('waitlist')
       .insert({
         email: entry.email,
@@ -27,7 +27,7 @@ export const addToWaitlist = async (
         kids_count: entry.kids_count || null,
         kids_ages: entry.kids_ages || null,
         created_at: new Date().toISOString(),
-      });
+      }) as any);
 
     if (error) {
       console.error('Waitlist insert error:', error);

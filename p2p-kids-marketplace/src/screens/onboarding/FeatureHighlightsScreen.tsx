@@ -103,7 +103,7 @@ export default function FeatureHighlightsScreen() {
         scrollEventThrottle={16}
         style={styles.scrollView}
       >
-        {features.map((feature, index) => (
+        {features.map((feature: typeof features[0], index: number) => (
           <View key={index} style={[styles.slide, { width }]}>
             <View style={styles.slideContent}>
               <Text style={styles.emoji}>{feature.emoji}</Text>
@@ -113,7 +113,7 @@ export default function FeatureHighlightsScreen() {
 
             {/* Pagination Dots */}
             <View style={styles.paginationContainer}>
-              {features.map((_, dotIndex) => (
+              {features.map((_: typeof features[0], dotIndex: number) => (
                 <View
                   key={dotIndex}
                   style={[

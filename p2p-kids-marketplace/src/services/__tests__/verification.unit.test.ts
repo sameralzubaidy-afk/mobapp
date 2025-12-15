@@ -7,7 +7,11 @@ describe('verifyPhoneCode (service)', () => {
 
   beforeAll(async () => {
     testUserId = (globalThis as any).crypto?.randomUUID?.() || '00000000-0000-4000-8000-000000000001';
-    await supabase.from('profiles').upsert({ user_id: testUserId, name: 'Verify Service User', phone_verified: false });
+    await supabase.from('profiles').upsert({ 
+      user_id: testUserId, 
+      name: 'Verify Service User', 
+      phone_verified: false,
+    } as any);
   });
 
   afterAll(async () => {
@@ -32,8 +36,8 @@ describe('verifyPhoneCode (service)', () => {
     const res = await verifyPhoneCode(testUserId, phone, '123456');
     expect(res.success).toBe(true);
 
-    const { data: profile } = await supabase.from('profiles').select('phone_verified').eq('user_id', testUserId).single();
-    expect(profile.phone_verified).toBe(true);
+    const profile = await supabase.from('profiles').select('phone_verified').eq('user_id', testUserId).single();
+    expect((profile as any)?.data?.phone_verified).toBe(true);
 
     fromMock.mockRestore();
     rpcMock.mockRestore();
