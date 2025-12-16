@@ -16,12 +16,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { loginWithContext } from '../services/auth';
+import { useAuth } from '../hooks/useAuth';
 import { AuthError } from '../types/user';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { setSession } = useAuth();
 
   // Form state
   const [email, setEmail] = useState('');
@@ -52,7 +54,13 @@ export const LoginScreen: React.FC = () => {
   };
 
   /**
-   * Handle login submission
+   * MODULE-03 AUTH-V2-003: Handle login submission
+   * 
+   * Steps:
+   * 1. Validate form inputs
+   * 2. Call loginWithContext to get enriched session
+   * 3. Update auth context with new session (triggers navigation)
+   * 4. Session refresh includes subscription status + SP wallet
    */
   const handleLogin = async () => {
     if (!validateForm()) {
@@ -63,22 +71,26 @@ export const LoginScreen: React.FC = () => {
     setErrors({});
 
     try {
+      console.log('[AUTH] Logging in user:', email);
+      
       const session = await loginWithContext({
         email: email.trim(),
         password,
       });
 
-      // Success - navigate to home
-      // Session context includes subscription status and SP balance
-      console.log('Login successful:', {
+      // Update auth context with new session
+      // This will trigger navigation automatically via RootNavigator
+      setSession(session);
+
+      console.log('[AUTH] Login successful:', {
         user: session.user.name,
         subscription: session.subscription_status,
         availablePoints: session.available_points,
       });
 
-      navigation.navigate('Home');
+      // Session context will handle navigation
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('[AUTH] Login error:', error);
 
       let errorMessage = 'Login failed. Please check your credentials.';
 
@@ -171,7 +183,7 @@ export const LoginScreen: React.FC = () => {
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
             <TouchableOpacity
-              onPress={() => navigation.navigate('Signup')}
+              onPress={() => navigation.navigate('Signup' as any)}
               disabled={loading}
             >
               <Text style={styles.linkText}>Sign Up</Text>
@@ -181,10 +193,7 @@ export const LoginScreen: React.FC = () => {
           {/* Forgot Password Link */}
           <TouchableOpacity
             style={styles.forgotPassword}
-            onPress={() => {
-              // TODO: Navigate to forgot password screen
-              Alert.alert('Forgot Password', 'Feature coming soon!');
-            }}
+            onPress={() => navigation.navigate('ForgotPassword' as any)}
             disabled={loading}
           >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
@@ -287,3 +296,5 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
 });
+
+export default LoginScreen;

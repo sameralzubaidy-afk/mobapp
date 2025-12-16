@@ -17,11 +17,13 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { loginWithContext } from '@/services/auth';
 import { AuthError } from '@/types/user';
+import { useAuth } from '@/hooks/useAuth';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
 // Default export for existing navigation
 export default function LoginScreen() {
+  const { setSession } = useAuth();
   const navigation = useNavigation<NavigationProp>();
 
   // Form state
@@ -69,7 +71,7 @@ export default function LoginScreen() {
         password,
       });
 
-      // Success - navigate to home
+      // Success - update auth context which triggers automatic navigation
       // Session context includes subscription status and SP balance
       console.log('Login successful:', {
         user: session.user.name,
@@ -77,7 +79,8 @@ export default function LoginScreen() {
         availablePoints: session.available_points,
       });
 
-      navigation.navigate('Home');
+      // Update auth context - this triggers automatic navigation to Home via RootNavigator
+      setSession(session);
     } catch (error: any) {
       console.error('Login error:', error);
 

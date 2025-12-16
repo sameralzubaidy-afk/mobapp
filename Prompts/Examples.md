@@ -51,6 +51,7 @@ Show me the files you create or edit with their full paths
 Tell me which items in MODULE-01-VERIFICATION.md are now satisfied
 always include short answers first and then explain detials as needed
 List the commands I should run to test/verify this (e.g. npm, supabase)
+note - I do not use supabase locally, always must be supabase prod. 
 if there is a need to run a sql in supabase before testing clearly ask me to do. do not assume. 
 apply E2E test so you fix all errors before I start verifying.
 Update the navigation file so i can verify manual

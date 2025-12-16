@@ -1,16 +1,34 @@
-import React from 'react';
+// File: p2p-kids-marketplace/src/screens/auth/LandingScreen.tsx
+// MODULE-03 AUTH-V2-003: Landing Screen (Pre-Login & Post-Login)
+
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Image,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../hooks/useAuth';
+
+type NavigationProp = NativeStackNavigationProp<any>;
 
 export default function LandingScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
+  const isFocused = useIsFocused();
+  const { session, isLoading, refreshSession } = useAuth();
+
+  // Refresh session when screen comes into focus
+  useEffect(() => {
+    if (isFocused && session) {
+      refreshSession();
+    }
+  }, [isFocused, session, refreshSession]);
 
   return (
     <SafeAreaView style={styles.container}>
