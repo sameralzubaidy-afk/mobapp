@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/screens/auth/SignupScreen.tsx
 // MODULE-03 AUTH-V2-002: User Signup with Automatic Trial Activation
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,12 +14,13 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { signupWithTrial } from '@/services/auth';
-import { isAtLeastAge } from '@/utils/age';
-import { getAllTestUsers, getRandomTestUser, TestUser } from '@/utils/testUsers';
+import { SignupInput, AuthError } from '@/types/user';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
+import { AUTH_EVENTS } from '@/constants/analytics-events';
+
 // TODO: Integrate Sentry
 // import * as Sentry from '@sentry/react-native';
 
@@ -39,7 +40,17 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Dev-only navigation params handled elsewhere if needed
+  const route = useRoute();
+
+  useEffect(() => {
+    // If navigation passes a prefill user id (dev-only), apply it
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: any = (route as any).params;
+    if (__DEV__ && params?.prefillTestUserId) {
+      const u = getAllTestUsers().find((x) => x.id === params.prefillTestUserId);
+      if (u) applyTestUser(u);
+    }
+  }, [route]);
 
   // Validation functions
   const validateName = (name: string): string | null => {
@@ -155,8 +166,8 @@ export default function SignupScreen() {
         return;
       }
 
-      // Call Supabase Auth signup with trial activation
-      const { user, error } = await signupWithTrial({
+      // Call Supabase Auth signup
+      const { user, error } = await signUp({
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
         name: formData.name.trim(),

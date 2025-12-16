@@ -114,8 +114,8 @@ export default function PhoneVerificationScreen() {
           {
             text: 'Continue',
             onPress: () => {
-              // Navigate to ProfileCompletion screen (AUTH-008)
-              (navigation as any).navigate('ProfileCompletion', { userId });
+              // Navigate to ProfileSetup screen (consolidated profile + zip code setup)
+              (navigation as any).navigate('ProfileSetup', { userId });
             },
           },
         ]

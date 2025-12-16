@@ -596,6 +596,213 @@ Every response must include:
 5) Feature-gating must be server-enforced:
    - UI can hide, but server MUST enforce subscription gates.
 
+# 14 ✅ Regression + Flow Coverage Addendum
+
+## A) Mandatory “Flow Registry” (covers ALL existing flows)
+You MUST maintain and keep updated a canonical registry file:
+- `docs/flow-registry.md`
+
+Rules:
+1) Every change MUST map to 1+ flows in the registry (even “small” changes).
+2) No feature/change is “done” until:
+   - impacted flows are listed/updated in `docs/flow-registry.md`, AND
+   - Tiered Regression (Section B) is executed for those flows, AND
+   - you provide commands + expected results.
+3) Every flow MUST have at least ONE of:
+   - an automated smoke script under `scripts/smoke/<flow>.mjs`, OR
+   - a manual checklist with exact steps + expected results (only if automation is not feasible yet).
+
+Folder requirements (must exist in repo):
+- `scripts/smoke/`  (one smoke script per flow)
+- `scripts/smoke/run.mjs` (runner that can execute `--flows` or `--all`)
+- `docs/flow-registry.md` (single source of truth for flows + required tests)
+
+Smoke script rules (minimum standard):
+- Each `scripts/smoke/<flow>.mjs` must:
+  1) use seeded test users (free + Kids Club+), at least 2 nodes
+  2) call relevant Edge Functions / Supabase queries
+  3) assert expected output (fail fast with non-zero exit code)
+  4) print clear “PASS/FAIL + reason” for debugging
+
+---
+
+## B) Tiered Regression (REQUIRED) + how to trigger in GitHub
+### Tier 0 (ALWAYS run locally)
+Run after EVERY change (UI, API, DB, anything):
+- App: lint + typecheck (and unit tests if logic changed)
+- Functions: lint/typecheck
+Output must include the exact commands and expected results.
+
+### Tier 1 (Targeted smoke tests by impacted flows)
+Run when changes touch ANY of:
+- Edge Functions, API contracts, auth flows, realtime/messaging, notifications, payments/subscriptions, Swap Points, fee logic
+Only run smoke tests for impacted flows from the Flow Registry.
+
+### Tier 2 (Full regression)
+Run when changes touch ANY of:
+- DB migrations, triggers, RPC, constraints, RLS policies
+- Stripe webhook logic / subscription lifecycle
+- Swap Points ledger/balance rules OR fee formulas
+Tier 2 MUST include:
+- DB rebuild from migrations (`supabase db reset`)
+- DB lint
+- ALL smoke scripts (`--all`)
+
+### GitHub enforcement (mandatory)
+- GitHub Actions must run Tier 2 on every PR to `main`.
+- Do not allow merge if Tier 2 fails.
+
+### Definition of Done (hard rule)
+Every response MUST end with:
+1) **Change Classification** (DB/API/UI/Stripe/Realtime/SP/Fee/etc.)
+2) **Impacted Flows** (by Flow IDs below)
+3) **Regression Plan** (which tiers + why)
+4) **Commands to Run** (exact)
+5) **Expected Results**
+You MUST NOT say “done/complete” unless required tiers pass.
+
+---
+
+## C) Change Classification → Required Tiers (non-negotiable)
+Before coding, classify the change:
+A) DB/Migrations/RLS/Triggers/RPC
+B) Edge Functions/API contracts/types
+C) Mobile UI/screens only
+D) Stripe/subscriptions/webhooks
+E) Messaging/realtime/notifications
+F) Swap Points / Fees / money / state machines
+G) Safety/moderation/CPSC recall checks
+H) Admin config/controls
+
+Required tiers:
+- Always: Tier 0
+- If B/D/E/F/G/H: Tier 1 for impacted flows
+- If A OR D OR F: Tier 2
+
+---
+
+## D) COMPLETE Flow List (Agent MUST use this list for mapping + checks)
+Use these Flow IDs in `docs/flow-registry.md` and in every response.
+
+### FLOW-00: Infrastructure & Environment Health
+- Covers: app boots, env vars, Supabase URL/keys, function routing, local stack
+- Smoke: `scripts/smoke/infra.mjs`
+- Tier: 0 always; Tier 1 when env/config changes; Tier 2 when Supabase stack changes
+
+### FLOW-01: Auth – Signup/Login/Logout/Session Restore
+- Covers: email/password auth, optional phone verification flow, session persistence
+- Smoke: `scripts/smoke/auth.mjs`
+- Must validate: no “Database error saving new user”, no SMS-provider failures if phone auth is used
+
+### FLOW-02: Profiles & Onboarding
+- Covers: profile row creation, required fields strategy (nullable until onboarding), user_metadata usage
+- Smoke: `scripts/smoke/profiles.mjs`
+- Hard rule: never add NOT NULL profile fields without default or trigger population
+
+### FLOW-03: Node/ZIP Gating + Waitlist
+- Covers: node assignment, access gating, waitlist behavior, node isolation
+- Smoke: `scripts/smoke/nodes.mjs`
+
+### FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
+- Covers: listing lifecycle, statuses, seller payment preference rules (Cash/Accept SP/Donate)
+- Smoke: `scripts/smoke/listings.mjs`
+
+### FLOW-05: Media Upload (Storage) – Listing Photos
+- Covers: upload, permissions, signed URLs, deletion, size/type validation
+- Smoke: `scripts/smoke/media.mjs`
+
+### FLOW-06: Discovery – Feed/Search/Filters/Favorites
+- Covers: browse, search, filters, favorites, node scoping
+- Smoke: `scripts/smoke/discovery.mjs`
+
+### FLOW-07: Cart & Bundling (if implemented)
+- Covers: bundling rules, pricing aggregation, fee aggregation, SP cap applied correctly
+- Smoke: `scripts/smoke/cart.mjs`
+
+### FLOW-08: Trade Flow – Checkout (No Payment) + Transaction State Machine
+- Covers: transaction creation, state transitions, seller preference enforcement, node checks
+- Smoke: `scripts/smoke/transactions.mjs`
+- Hard rule: state changes must go through a single state-machine function (no ad-hoc updates)
+
+### FLOW-09: Fees & Pricing Engine
+- Covers: buyer fee (fixed + %), seller fee, tier discounts, node-based config, rounding rules
+- Smoke: `scripts/smoke/fees.mjs`
+- Must include unit tests for fee math
+
+### FLOW-10: Swap Points Wallet – Read + Ledger Integrity
+- Covers: wallet balance available/pending/frozen, ledger append-only rules
+- Smoke: `scripts/smoke/sp-wallet.mjs`
+
+### FLOW-11: Swap Points – Earn/Spend/Cap + Pending→Release + Expiration
+- Covers:
+  - subscriber-only gating for earn/spend
+  - 50% SP cap per purchase
+  - buyer ALWAYS pays cash platform fee
+  - 3-day pending for earned SP
+  - expiration/inactivity rules (as specified)
+- Smoke: `scripts/smoke/sp-rules.mjs`
+- Must include unit tests for SP calculations + edge cases
+
+### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period + Feature Gates
+- Covers: Stripe subscription lifecycle, webhook processing, tier propagation to DB, 90-day grace + SP freeze behavior
+- Smoke: `scripts/smoke/subscriptions.mjs`
+- Tier 2 ALWAYS when webhooks or subscription logic changes
+
+### FLOW-13: Referrals (if implemented)
+- Covers: referral code creation, redemption, incentives, abuse checks
+- Smoke: `scripts/smoke/referrals.mjs`
+
+### FLOW-14: Messaging (Realtime) – Start Chat / Send / Receive
+- Covers: realtime subscriptions, delivery, message storage, node/user isolation
+- Smoke: `scripts/smoke/messaging.mjs`
+
+### FLOW-15: Safety & Moderation – Prohibited Items + Reports
+- Covers: reporting flow, moderation queue hooks, content rules
+- Smoke: `scripts/smoke/moderation.mjs`
+
+### FLOW-16: CPSC Recall Check (if implemented)
+- Covers: recall lookup integration, handling failures, caching, blocking rules if required
+- Smoke: `scripts/smoke/cpsc.mjs`
+
+### FLOW-17: Notifications – Push/In-app (FCM)
+- Covers: registration, delivery for key events (messages, transaction updates, SP changes, subscription events)
+- Smoke: `scripts/smoke/notifications.mjs`
+
+### FLOW-18: Admin Controls – Config + Overrides
+- Covers: fee config, SP formulas, node controls, moderation actions, user adjustments
+- Smoke: `scripts/smoke/admin.mjs`
+
+### FLOW-19: Analytics Events (Firebase)
+- Covers: event emission for key user actions, dedupe, privacy-safe payloads
+- Smoke: `scripts/smoke/analytics.mjs` (or manual checklist if automation is not feasible)
+
+### FLOW-20: Audit/Logging (Security + Critical Actions)
+- Covers: audit trail for admin actions, subscription changes, SP adjustments, moderation actions
+- Smoke: `scripts/smoke/audit.mjs`
+
+---
+
+## E) DB/Backend Hard Rules (prevents “worked before, broke now”)
+1) Any multi-table mutation (transaction + ledger + wallet update) MUST be atomic:
+   - implement as Postgres RPC and call from Edge Functions
+2) DB invariants required for money/points/state:
+   - CHECK constraints, enums, unique idempotency keys, FKs, indexes
+3) Edge Function auth approach must be explicit:
+   - default: use user JWT + anon key so RLS applies
+   - service role only for admin/webhooks/batch with explicit authorization + audit log
+4) No schema changes without updating dependent triggers/RPC/functions in the SAME change.
+
+---
+
+## F) Prompt Behavior (how you trigger tiers via prompts)
+When the user asks for implementation/debugging:
+- You MUST first classify change + list impacted Flow IDs.
+- You MUST require Tier 0 always.
+- You MUST require Tier 1/Tier 2 based on Section C.
+- You MUST output the exact commands to run (local) and confirm expected results.
+
+END OF ADDENDUM
+
 
 ---
 

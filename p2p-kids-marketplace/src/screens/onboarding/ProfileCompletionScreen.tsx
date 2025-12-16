@@ -137,8 +137,9 @@ export default function ProfileCompletionScreen() {
       // TODO: Track analytics event
       // trackEvent('profile_completed', { user_id: userId });
 
-      // Navigate to location picker
-      (navigation as any).navigate('LocationPicker', { userId });
+      // Navigate to subscription choice (MODULE-03 AUTH-V2-003)
+      // User will choose between Free Tier or Kids Club+ Trial
+      (navigation as any).navigate('SubscriptionChoice', { userId });
     } catch (error) {
       console.error('Profile update error:', error);
       Alert.alert('Error', 'Failed to save profile');

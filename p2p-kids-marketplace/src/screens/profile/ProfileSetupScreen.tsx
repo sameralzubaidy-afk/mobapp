@@ -130,8 +130,8 @@ export default function ProfileSetupScreen({ navigation }: any) {
               text: 'Skip for Now',
               style: 'cancel',
               onPress: () => {
-                // Continue to home without joining waitlist
-                navigation.replace('Home');
+                // Continue to subscription choice
+                navigation.replace('SubscriptionChoice', { userId: currentUser.id });
               },
             },
             {
@@ -148,11 +148,11 @@ export default function ProfileSetupScreen({ navigation }: any) {
                   Alert.alert(
                     'Added to Waitlist!',
                     "We'll notify you as soon as we launch in your area. You can still explore the app!",
-                    [{ text: 'OK', onPress: () => navigation.replace('Home') }]
+                    [{ text: 'OK', onPress: () => navigation.replace('SubscriptionChoice', { userId: currentUser.id }) }]
                   );
                 } else {
                   Alert.alert('Info', 'Could not add to waitlist, but you can still use the app!', [
-                    { text: 'OK', onPress: () => navigation.replace('Home') },
+                    { text: 'OK', onPress: () => navigation.replace('SubscriptionChoice', { userId: currentUser.id }) },
                   ]);
                 }
               },
@@ -160,13 +160,13 @@ export default function ProfileSetupScreen({ navigation }: any) {
           ]
         );
       } else {
-        // Profile created successfully with node assignment
+        // Profile created successfully - navigate to subscription choice
         Alert.alert('Success', 'Your profile has been created!', [
           {
             text: 'OK',
             onPress: () => {
-              // Navigate to home screen
-              navigation.replace('Home');
+              // Navigate to subscription choice screen
+              navigation.replace('SubscriptionChoice', { userId: currentUser.id });
             },
           },
         ]);

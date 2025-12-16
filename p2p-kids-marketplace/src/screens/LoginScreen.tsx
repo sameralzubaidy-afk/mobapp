@@ -15,13 +15,12 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { loginWithContext } from '@/services/auth';
-import { AuthError } from '@/types/user';
+import { loginWithContext } from '../services/auth';
+import { AuthError } from '../types/user';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
-// Default export for existing navigation
-export default function LoginScreen() {
+export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
 
   // Form state
@@ -78,7 +77,7 @@ export default function LoginScreen() {
       });
 
       navigation.navigate('Home');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Login error:', error);
 
       let errorMessage = 'Login failed. Please check your credentials.';
@@ -194,7 +193,7 @@ export default function LoginScreen() {
       </View>
     </KeyboardAvoidingView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -288,6 +287,3 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
 });
-
-// Named export for convenience
-export { LoginScreen };
