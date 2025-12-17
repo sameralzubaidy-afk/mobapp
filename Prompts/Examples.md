@@ -42,13 +42,14 @@ App: p2p-kids-marketplace/
 
 Supabase: supabase/
 My Example 
-I’m working on the VERIFICATION tasks
-Module:MODULE-01-VERIFICATION.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+I’m working on the # Module 03: Node Management - Verification Report
+tasks
+Module: MODULE-03-NODE-MANAGEMENT.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: Please implement ## TASK AUTH-001: Implement Supabase Auth Signup Flow scope is Implement email + password signup flow using Supabase Auth. Create signup screen with form validation, error handling, and automatic user profile creation in the database.
 Please:
 Follow the module and task exactly, and cross-check with the verification file
 Show me the files you create or edit with their full paths
-Tell me which items in MODULE-01-VERIFICATION.md are now satisfied
+Tell me which items in MODULE-03-Node Management VERIFICATION.md  are now satisfied
 always include short answers first and then explain detials as needed
 List the commands I should run to test/verify this (e.g. npm, supabase)
 note - I do not use supabase locally, always must be supabase prod. 

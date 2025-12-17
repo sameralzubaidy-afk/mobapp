@@ -313,9 +313,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         setIsLoading(true);
 
-        // Get current session from Supabase
+        // Get current session from Supabase with timeout protection
+        // Android can hang on this call if network is slow - timeout after 5s
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
+        );
+
         const { data: sessionData, error: sessionError } =
-          await supabase.auth.getSession();
+          await Promise.race([sessionPromise, timeoutPromise]) as any;
 
         if (sessionError) {
           throw new AuthError(
@@ -385,11 +391,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   /**
    * Setup real-time listeners when session is established
    * DISABLED: Causing infinite loops - will use manual refresh instead
+   * 
+   * Added: Auto-refresh when onboarding completes (detects profile updates)
    */
   useEffect(() => {
-    // Realtime listeners temporarily disabled to prevent infinite subscription loops
-    // Will be re-enabled with proper dependency management in future update
+    if (!session) return;
+
+    // Setup a listener for profile changes (onboarding completion, profile updates)
+    let profileRef: any = null;
+    try {
+      profileRef = supabase
+        .channel(`profiles:user_id=eq.${session.user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'profiles',
+            filter: `user_id=eq.${session.user.id}`,
+          },
+          (payload) => {
+            console.log('[AUTH] Profile changed:', payload);
+            // Refresh session when profile changes (e.g., onboarding_completed, subscription_tier)
+            refreshSession();
+          }
+        )
+        .subscribe(status => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[AUTH] Profile listener subscribed');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.warn('[AUTH] Profile channel error');
+          }
+        });
+    } catch (err) {
+      console.error('[AUTH] Failed to setup profile listener:', err);
+    }
+
     return () => {
+      if (profileRef) {
+        profileRef.unsubscribe();
+      }
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
       }
@@ -397,7 +438,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         walletRef.current.unsubscribe();
       }
     };
-  }, []);
+  }, [session, refreshSession]);
 
   /**
    * Handle app state changes (resume/background)

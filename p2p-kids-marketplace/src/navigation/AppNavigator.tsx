@@ -88,6 +88,7 @@ function RootNavigator() {
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} />
+            <Stack.Screen name="SubscriptionChoice" component={SubscriptionChoiceScreen} />
             <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
             <Stack.Screen name="NodeSelection" component={NodeSelectionScreen} />
             <Stack.Screen name="FeatureHighlights" component={FeatureHighlightsScreen} />

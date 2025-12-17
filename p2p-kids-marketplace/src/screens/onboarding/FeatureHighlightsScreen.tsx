@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase';
+import { AuthContext } from '@/contexts/AuthContext';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
 
@@ -45,6 +46,7 @@ export default function FeatureHighlightsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { userId } = (route.params as any) || {};
+  const { refreshSession } = React.useContext(AuthContext);
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -67,17 +69,13 @@ export default function FeatureHighlightsScreen() {
 
       if (error) throw error;
 
-      // TODO: Track analytics event
-      // trackEvent('onboarding_completed', {
-      //   user_id: userId,
-      //   timestamp: new Date().toISOString(),
-      // });
+      console.log('[ONBOARDING] Marked onboarding as complete');
 
-      // Navigate to home screen
-      (navigation as any).reset({
-        index: 0,
-        routes: [{ name: 'Home' }],
-      });
+      // Refresh session to pick up the onboarding_completed flag
+      // This will trigger AuthContext to update session and RootNavigator to show authenticated screens
+      setTimeout(() => {
+        refreshSession();
+      }, 500);
     } catch (error) {
       console.error('Complete onboarding error:', error);
     }

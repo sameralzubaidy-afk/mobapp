@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase';
@@ -16,6 +17,7 @@ interface Node {
   name: string;
   description: string;
   member_count: number;
+  status?: 'active' | 'inactive';
 }
 
 export default function NodeSelectionScreen() {
@@ -25,6 +27,7 @@ export default function NodeSelectionScreen() {
 
   const [assignedNode, setAssignedNode] = useState<Node | null>(null);
   const [loading, setLoading] = useState(true);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
 
   useEffect(() => {
     loadNode();
@@ -32,26 +35,51 @@ export default function NodeSelectionScreen() {
 
   const loadNode = async () => {
     try {
-      const { data, error } = await supabase
+      // First try to find an active node
+      const { data: activeNode, error: activeError } = await supabase
         .from('nodes')
         .select('id, name, latitude, longitude, status')
         .eq('id', nodeId)
         .eq('status', 'active')
         .single();
 
-      if (error) throw error;
-      
-      if (data) {
-        // Map the node data to match the Node interface
+      if (activeNode) {
+        // Node is active - show it
         setAssignedNode({
-          id: (data as any).id,
-          name: (data as any).name,
-          description: (data as any).name, // Use name as description since table doesn't have description
-          member_count: 0, // Placeholder - can be calculated later
+          id: (activeNode as any).id,
+          name: (activeNode as any).name,
+          description: (activeNode as any).name,
+          member_count: 0,
+          status: 'active',
         });
+      } else {
+        // Node might be inactive - check without status filter
+        const { data: anyNode, error: anyError } = await supabase
+          .from('nodes')
+          .select('id, name, latitude, longitude, status')
+          .eq('id', nodeId)
+          .single();
+
+        if (anyError) throw anyError;
+
+        if (anyNode && (anyNode as any).status === 'inactive') {
+          // Node is INACTIVE - show waitlist option
+          setAssignedNode({
+            id: (anyNode as any).id,
+            name: (anyNode as any).name,
+            description: (anyNode as any).name,
+            member_count: 0,
+            status: 'inactive',
+          });
+        } else {
+          // Unknown state
+          throw new Error('Node not found or not active');
+        }
       }
     } catch (error) {
       console.error('Load node error:', error);
+      // Still try to render something - user can continue
+      setAssignedNode(null);
     } finally {
       setLoading(false);
     }
@@ -65,6 +93,40 @@ export default function NodeSelectionScreen() {
     // });
 
     (navigation as any).navigate('FeatureHighlights', { userId });
+  };
+
+  const handleJoinWaitlist = async () => {
+    try {
+      setWaitlistLoading(true);
+
+      // Add user to waitlist for this inactive node
+      const { error } = await supabase
+        .from('waitlist_registrations')
+        .insert({
+          user_id: userId,
+          node_id: nodeId,
+          created_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
+
+      // Show success and navigate to features
+      Alert.alert(
+        'Waitlist Confirmed',
+        `We'll notify you as soon as ${assignedNode?.name} is ready to launch!`,
+        [
+          {
+            text: 'Continue',
+            onPress: () => (navigation as any).navigate('FeatureHighlights', { userId }),
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('Waitlist error:', error);
+      Alert.alert('Error', error.message || 'Failed to join waitlist');
+    } finally {
+      setWaitlistLoading(false);
+    }
   };
 
   if (loading) {
@@ -111,10 +173,24 @@ export default function NodeSelectionScreen() {
           </Text>
         </View>
 
-        {/* Continue Button */}
-        <TouchableOpacity style={styles.button} onPress={handleContinue}>
-          <Text style={styles.buttonText}>Looks Good!</Text>
-        </TouchableOpacity>
+        {/* Button - conditional based on node status */}
+        {assignedNode?.status === 'inactive' ? (
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={handleJoinWaitlist}
+            disabled={waitlistLoading}
+          >
+            {waitlistLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Join Waitlist</Text>
+            )}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.button} onPress={handleContinue}>
+            <Text style={styles.buttonText}>Looks Good!</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
