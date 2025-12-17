@@ -3,108 +3,75 @@
 
 import { supabase } from './supabase/client';
 import type { User, ProfileSetupData, ProfileUpdateData, NodeAssignment } from '@/types/profile.types';
+import { assignNodeByZipCode, incrementNodeMemberCount } from './location';
 
 /**
- * Find the nearest node based on zip code
- * TODO: Implement actual geocoding and distance calculation
- * For MVP, we'll use a simple zip code lookup to assign nodes
+ * NODE-003: Find the nearest active node based on ZIP code
+ * Uses the new resolve_active_node_for_signup RPC that:
+ * - Returns exact match if active node exists for ZIP
+ * - Returns nearest active node if ZIP is not active
+ * - Signals if ZIP is not active (match_type='nearest') for waitlist popup
+ * 
+ * IMPORTANT: This function DOES NOT show the popup.
+ * The calling code (LocationPickerScreen) handles the popup logic.
  */
 export const findNearestNode = async (zipCode: string): Promise<NodeAssignment | null> => {
   try {
-    console.log('🔍 Looking up node for zip code:', zipCode);
+    console.log('🔍 [NODE-003] Looking up node for zip code:', zipCode);
     
-    // First try to find node by zip code using the zip_codes table
-    const { data: zipData, error: zipError } = await supabase
-      .from('zip_codes')
-      .select('node_id, city, state')
-      .eq('zip', zipCode)
-      .single();
-
-    console.log('📍 ZIP lookup result:', { zipData, zipError });
-
-    if (zipData && !zipError) {
-      // Get node details
-      const { data: nodeData, error: nodeError } = await supabase
-        .from('nodes')
-        .select('name')
-        .eq('id', zipData.node_id)
-        .eq('status', 'active')
-        .single();
-
-      console.log('🏢 Node lookup result:', { nodeData, nodeError });
-
-      if (nodeData && !nodeError) {
-        console.log('✅ Found node by ZIP code:', nodeData.name);
-        return {
-          node_id: zipData.node_id,
-          node_name: nodeData.name,
-          distance_miles: 0, // ZIP code match, so distance is 0
-        };
-      }
+    // Use the new NODE-003 assignment function that handles exact match or nearest
+    const result = await assignNodeByZipCode(zipCode);
+    
+    console.log('✅ [NODE-003] Node assignment result:', {
+      nodeId: result.nodeId,
+      nodeName: result.nodeName,
+      matchType: result.matchType,
+      distanceMiles: result.distanceMiles,
+    });
+    
+    return {
+      node_id: result.nodeId,
+      node_name: result.nodeName,
+      distance_miles: result.distanceMiles || 0,
+      // NEW: Signal if ZIP is inactive (for popup logic)
+      is_exact_match: result.matchType === 'zip',
+    };
+  } catch (error: any) {
+    console.error('❌ [NODE-003] Node assignment error:', error);
+    // Return null if NO active nodes exist anywhere
+    // This will trigger the "no active nodes" flow
+    if (error.message?.includes('not currently active')) {
+      return null;
     }
-
-    // Fallback: Find nearest active node using simple distance calculation
-    // This requires latitude/longitude in zip_codes table
-    console.log('🔄 ZIP lookup failed, trying RPC fallback...');
-    const { data: nearestNode, error: nearestError } = await supabase
-      .rpc('get_nearest_node', { 
-        user_lat: 0, // TODO: Get lat/lng from zip code
-        user_lng: 0, // TODO: Get lat/lng from zip code
-        p_status: 'active' 
-      });
-
-    console.log('🛰️ RPC result:', { nearestNode, nearestError });
-
-    if (nearestNode && nearestNode.length > 0 && !nearestError) {
-      console.log('✅ Found node via RPC:', nearestNode[0].node_name);
-      return {
-        node_id: nearestNode[0].node_id,
-        node_name: nearestNode[0].node_name,
-        distance_miles: parseFloat(nearestNode[0].distance) || 0,
-      };
-    }
-
-    // Last resort: Return first active node
-    console.log('🔄 RPC failed, trying first active node...');
-    const { data: firstNode, error: firstError } = await supabase
-      .from('nodes')
-      .select('id, name')
-      .eq('status', 'active')
-      .limit(1)
-      .single();
-
-    console.log('🎯 First node result:', { firstNode, firstError });
-
-    if (firstNode && !firstError) {
-      console.log('✅ Found first active node:', firstNode.name);
-      return {
-        node_id: firstNode.id,
-        node_name: firstNode.name,
-        distance_miles: 0,
-      };
-    }
-
-    console.error('❌ No active nodes found in database');
-    return null;
-  } catch (error) {
-    console.error('Error in findNearestNode:', error);
     return null;
   }
 };
 
 /**
  * AUTH-005: Complete user profile setup after phone verification
+ * NODE-003: Updated to use new node assignment flow with waitlist support
  */
 export const setupUserProfile = async (
   userId: string,
   profileData: ProfileSetupData
-): Promise<{ user: User | null; error: any | null; needsWaitlist?: boolean; zipCode?: string }> => {
+): Promise<{ 
+  user: User | null; 
+  error: any | null; 
+  needsWaitlist?: boolean; 
+  zipCode?: string;
+  matchType?: 'zip' | 'nearest';  // NODE-003: Signal if ZIP is inactive
+  assignedNodeId?: string;
+  assignedNodeName?: string;
+}> => {
   try {
-    // Step 1: Find nearest node based on zip code
+    console.log('🔍 [NODE-003] setupUserProfile called with ZIP:', profileData.zip_code);
+    
+    // Step 1: NODE-003 - Find nearest active node (exact match or fallback)
     const nodeAssignment = await findNearestNode(profileData.zip_code);
     
     let needsWaitlist = false;
     let assignedNodeId = null;
+    let matchType: 'zip' | 'nearest' | undefined = undefined;
 
     if (!nodeAssignment) {
       console.log('⚠️ No node found for zip code:', profileData.zip_code);
@@ -113,6 +80,16 @@ export const setupUserProfile = async (
       // Don't return error - allow profile creation to continue
     } else {
       assignedNodeId = nodeAssignment.node_id;
+      // NODE-003: Check if this was an exact match or fallback
+      matchType = nodeAssignment.is_exact_match ? 'zip' : 'nearest';
+      
+      console.log(`✅ [NODE-003] Node assigned: ${nodeAssignment.node_name} (${matchType})`);
+      
+      // NODE-003: If fallback (inactive ZIP), signal waitlist needed
+      if (matchType === 'nearest') {
+        needsWaitlist = true;
+        console.log('⚠️ [NODE-003] ZIP is inactive - waitlist popup should be shown');
+      }
     }
 
     // Step 2: Create or update user profile in database
@@ -145,6 +122,17 @@ export const setupUserProfile = async (
       return { user: null, error: insertError };
     }
 
+    // NODE-003: Increment node member count if node assigned
+    if (assignedNodeId) {
+      try {
+        await incrementNodeMemberCount(assignedNodeId);
+        console.log('✅ [NODE-003] Node member count incremented:', assignedNodeId);
+      } catch (error) {
+        console.error('❌ [NODE-003] Failed to increment member count (non-fatal):', error);
+        // Non-fatal error - continue
+      }
+    }
+
     // Return the user data (we'll need to get it from auth.users)
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) {
@@ -155,7 +143,10 @@ export const setupUserProfile = async (
       user: userData.user as User, 
       error: null,
       needsWaitlist,
-      zipCode: profileData.zip_code
+      zipCode: profileData.zip_code,
+      matchType,
+      assignedNodeId: assignedNodeId || undefined,
+      assignedNodeName: nodeAssignment?.node_name || undefined,
     };
   } catch (error) {
     console.error('Setup profile exception:', error);

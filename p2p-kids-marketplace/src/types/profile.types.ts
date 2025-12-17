@@ -28,4 +28,5 @@ export interface NodeAssignment {
   node_id: string;
   node_name: string;
   distance_miles?: number;
+  is_exact_match?: boolean; // NODE-003: true if exact ZIP match, false if fallback/nearest
 }

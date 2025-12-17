@@ -116,27 +116,51 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, [notifySessionChanges]);
 
   /**
-   * Refresh session: Re-fetch subscription + SP wallet context
+   * Refresh session: Re-fetch session from Supabase + subscription + SP wallet context
    *
    * Called after:
    * - Initial app load
    * - App resume (foreground)
-   * - Manual refresh request
+   * - Manual refresh request (e.g., after onboarding completion)
    * - Subscription/wallet Realtime changes
    */
   const refreshSession = useCallback(async () => {
-    if (!session) return;
-
     try {
       setError(null);
+
+      // First, get the current Supabase auth session
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError) {
+        console.error('[AUTH] Failed to get session:', sessionError);
+        throw sessionError;
+      }
+
+      if (!sessionData.session?.user) {
+        // No active session - clear context
+        setSession(null);
+        console.log('[AUTH] No active session found');
+        return;
+      }
+
+      // User is authenticated - fetch their profile with latest data
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', sessionData.session.user.id)
+        .single();
+
+      if (profileError || !profileData) {
+        console.error('[AUTH] Failed to fetch profile:', profileError);
+        setSession(null);
+        return;
+      }
 
       // Re-fetch subscription summary from MODULE-11
       const { data: subData, error: subError } = await (supabase.rpc(
         'get_subscription_summary',
-        { p_user_id: session.user.id }
+        { p_user_id: sessionData.session.user.id }
       ) as any);
-
-      if (subError) throw subError;
 
       const subscriptionSummary = (subData as any[])?.[0] || {
         status: 'free',
@@ -146,10 +170,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Re-fetch SP wallet summary from MODULE-09
       const { data: walletData, error: walletError } = await (supabase.rpc(
         'get_user_sp_wallet_summary',
-        { p_user_id: session.user.id }
+        { p_user_id: sessionData.session.user.id }
       ) as any);
-
-      if (walletError) throw walletError;
 
       const walletSummary = (walletData as any[])?.[0] || {
         available_points: 0,
@@ -158,9 +180,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         lifetime_spent: 0,
       };
 
-      // Update session with refreshed context
+      // Create updated session with FULL profile data
       const updatedSession: AuthSession = {
-        ...session,
+        user: {
+          id: profileData.user_id || profileData.id,
+          user_id: profileData.user_id || profileData.id,
+          email: sessionData.session.user.email || '',
+          name: profileData.full_name || '',
+          avatar_url: profileData.avatar_url || undefined,
+          bio: profileData.bio,
+          city: profileData.city,
+          state: profileData.state,
+          zip_code: profileData.zip_code,
+          node_id: profileData.node_id,
+          profile_completed: profileData.profile_completed || false,
+          onboarding_completed: profileData.onboarding_completed || false,
+          phone_verified: profileData.phone_verified || false,
+          phone_verified_at: profileData.phone_verified_at,
+          subscription_id: profileData.subscription_id,
+          sp_wallet_id: profileData.sp_wallet_id,
+          onboarding_completed_at: profileData.onboarding_completed_at,
+          parental_consent_verified: profileData.parental_consent_verified || false,
+          age: profileData.age,
+          referral_code: profileData.referral_code,
+          created_at: profileData.created_at,
+          updated_at: profileData.updated_at,
+        },
+        access_token: sessionData.session.access_token,
+        refresh_token: sessionData.session.refresh_token || '',
         subscription_status: subscriptionSummary.status,
         can_spend_sp: subscriptionSummary.can_spend_sp,
         available_points: walletSummary.available_points,
@@ -171,6 +218,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       setSession(updatedSession);
       console.log('[AUTH] Session refreshed:', {
+        user_id: updatedSession.user.id,
+        onboarding_completed: updatedSession.user.onboarding_completed,
         subscription_status: updatedSession.subscription_status,
         available_points: updatedSession.available_points,
       });
@@ -336,17 +385,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', sessionData.session.user.id)
+            .eq('user_id', sessionData.session.user.id)
             .single();
 
           if (!profileError && profileData) {
-            // Create a minimal session from stored profile
+            // Create a session with FULL profile data (including onboarding_completed)
             const authSession: AuthSession = {
               user: {
-                id: sessionData.session.user.id,
+                id: profileData.user_id || profileData.id,
+                user_id: profileData.user_id || profileData.id,
                 email: sessionData.session.user.email || '',
                 name: profileData.full_name || '',
-                avatar: profileData.avatar_url || undefined,
+                avatar_url: profileData.avatar_url || undefined,
+                bio: profileData.bio,
+                city: profileData.city,
+                state: profileData.state,
+                zip_code: profileData.zip_code,
+                node_id: profileData.node_id,
+                profile_completed: profileData.profile_completed || false,
+                onboarding_completed: profileData.onboarding_completed || false,
+                phone_verified: profileData.phone_verified || false,
+                phone_verified_at: profileData.phone_verified_at,
+                subscription_id: profileData.subscription_id,
+                sp_wallet_id: profileData.sp_wallet_id,
+                onboarding_completed_at: profileData.onboarding_completed_at,
+                parental_consent_verified: profileData.parental_consent_verified || false,
+                age: profileData.age,
+                referral_code: profileData.referral_code,
+                created_at: profileData.created_at,
+                updated_at: profileData.updated_at,
               },
               access_token: sessionData.session.access_token,
               refresh_token: sessionData.session.refresh_token || '',
@@ -358,7 +425,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               lifetime_spent: 0,
             };
             setSession(authSession);
-            console.log('[AUTH] Session restored for user:', authSession.user.id);
+            console.log('[AUTH] Session restored for user:', authSession.user.id, 'onboarding_completed:', authSession.user.onboarding_completed);
           } else {
             // Profile not found, clear session
             setSession(null);

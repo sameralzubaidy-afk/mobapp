@@ -45,8 +45,11 @@ const features = [
 export default function FeatureHighlightsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { userId } = (route.params as any) || {};
-  const { refreshSession } = React.useContext(AuthContext);
+  const { userId: routeUserId } = (route.params as any) || {};
+  const { session, refreshSession } = React.useContext(AuthContext);
+  
+  // Use session user ID if available, otherwise fall back to route params
+  const userId = session?.user?.id || routeUserId;
 
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -58,6 +61,12 @@ export default function FeatureHighlightsScreen() {
 
   const handleGetStarted = async () => {
     try {
+      if (!userId) {
+        throw new Error('User ID not available');
+      }
+
+      console.log('[ONBOARDING] Starting completion process for user:', userId);
+
       // Mark onboarding as complete
       const { error } = await supabase
         .from('profiles')
@@ -69,15 +78,15 @@ export default function FeatureHighlightsScreen() {
 
       if (error) throw error;
 
-      console.log('[ONBOARDING] Marked onboarding as complete');
+      console.log('[ONBOARDING] Marked onboarding as complete for user:', userId);
 
-      // Refresh session to pick up the onboarding_completed flag
-      // This will trigger AuthContext to update session and RootNavigator to show authenticated screens
-      setTimeout(() => {
-        refreshSession();
-      }, 500);
+      // Refresh session - this will trigger RootNavigator to switch to authenticated stack
+      // RootNavigator watches session state and will automatically show Home when session exists
+      console.log('[ONBOARDING] Refreshing session - RootNavigator will switch stacks...');
+      await refreshSession();
+      console.log('[ONBOARDING] Session refreshed - authenticated stack should now be visible');
     } catch (error) {
-      console.error('Complete onboarding error:', error);
+      console.error('❌ Complete onboarding error:', error);
     }
   };
 

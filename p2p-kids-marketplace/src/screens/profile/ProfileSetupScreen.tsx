@@ -16,7 +16,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { setupUserProfile, uploadProfileAvatar } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
-import { addToWaitlist } from '@/services/waitlist';
+import { upsertZipWaitlist } from '@/services/waitlist';
 import type { ProfileSetupData } from '@/types/profile.types';
 
 export default function ProfileSetupScreen({ navigation }: any) {
@@ -114,22 +114,25 @@ export default function ProfileSetupScreen({ navigation }: any) {
         avatar_url: uploadedAvatarUrl || undefined,
       };
 
-      const { user, error, needsWaitlist, zipCode: userZip } = await setupUserProfile(currentUser.id, profileData);
+      const { user, error, needsWaitlist, zipCode: userZip, matchType, assignedNodeId, assignedNodeName } = await setupUserProfile(currentUser.id, profileData);
 
       if (error) {
         throw error;
       }
 
-      // Check if user needs to be added to waitlist
-      if (needsWaitlist && userZip) {
+      // NODE-003: Check if user needs to be added to waitlist
+      if (needsWaitlist && userZip && matchType === 'nearest') {
+        console.log('⚠️ [NODE-003] Showing waitlist popup for inactive ZIP:', userZip);
+        
         Alert.alert(
-          'Area Not Yet Available',
-          `We're not live in your area (${userZip}) yet! Would you like to join the waitlist to be notified when we launch?`,
+          "We're Coming Soon! 🎉",
+          `We're not quite active in ${userZip} yet, but we're coming soon! In the meantime, we've connected you with traders in ${assignedNodeName || 'a nearby area'}.\n\nWant to be notified when we launch in your area?`,
           [
             {
-              text: 'Skip for Now',
+              text: 'Continue Trading',
               style: 'cancel',
               onPress: () => {
+                console.log('✅ [NODE-003] User skipped waitlist');
                 // Continue to subscription choice
                 navigation.replace('SubscriptionChoice', { userId: currentUser.id });
               },
@@ -137,20 +140,24 @@ export default function ProfileSetupScreen({ navigation }: any) {
             {
               text: 'Join Waitlist',
               onPress: async () => {
-                // Add user to waitlist
-                const { success } = await addToWaitlist({
-                  email: currentUser.email || '',
-                  phone: currentUser.phone,
-                  zip: userZip,
-                });
+                try {
+                  console.log('📋 [NODE-003] Adding user to waitlist:', { userZip, assignedNodeId });
+                  
+                  // NODE-003: Add user to ZIP waitlist
+                  await upsertZipWaitlist({
+                    userId: currentUser.id,
+                    email: currentUser.email || '',
+                    requestedZip: userZip,
+                    assignedNodeId: assignedNodeId || null,
+                  });
 
-                if (success) {
                   Alert.alert(
-                    'Added to Waitlist!',
-                    "We'll notify you as soon as we launch in your area. You can still explore the app!",
-                    [{ text: 'OK', onPress: () => navigation.replace('SubscriptionChoice', { userId: currentUser.id }) }]
+                    'Waitlist Confirmed',
+                    `Thank you! We've added you to the waitlist for ${userZip}. We'll notify you as soon as we launch in your area.\n\nIn the meantime, you can trade items with users in ${assignedNodeName || 'your assigned area'}.`,
+                    [{ text: 'Got it', onPress: () => navigation.replace('SubscriptionChoice', { userId: currentUser.id }) }]
                   );
-                } else {
+                } catch (error) {
+                  console.error('❌ [NODE-003] Waitlist error:', error);
                   Alert.alert('Info', 'Could not add to waitlist, but you can still use the app!', [
                     { text: 'OK', onPress: () => navigation.replace('SubscriptionChoice', { userId: currentUser.id }) },
                   ]);

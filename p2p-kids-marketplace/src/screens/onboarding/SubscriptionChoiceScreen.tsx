@@ -141,10 +141,11 @@ export default function SubscriptionChoiceScreen() {
             {
               text: 'Get Started',
               onPress: () => {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Home' }],
-                });
+                // Navigate to Welcome screen (wizard) instead of directly to Home
+                // This allows the app to show feature highlights before dashboard
+                setTimeout(() => {
+                  (navigation as any).navigate('Welcome', { userId });
+                }, 100);
               },
             },
           ]
@@ -179,10 +180,11 @@ export default function SubscriptionChoiceScreen() {
           {
             text: 'Get Started',
             onPress: () => {
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Home' }],
-              });
+              // Navigate to Welcome screen (wizard) instead of directly to Home
+              // This allows the app to show feature highlights before dashboard
+              setTimeout(() => {
+                (navigation as any).navigate('Welcome', { userId });
+              }, 100);
             },
           },
         ]

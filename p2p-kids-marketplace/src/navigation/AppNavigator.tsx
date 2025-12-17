@@ -53,6 +53,11 @@ const linking = {
  * MODULE-03 AUTH-V2-003: RootNavigator
  * 
  * Handles both authenticated and unauthenticated state transitions
+ * 
+ * KEY FIX: Check BOTH session AND onboarding_completed status
+ * - If session exists BUT onboarding not complete → show onboarding stack
+ * - If session exists AND onboarding complete → show authenticated/dashboard stack
+ * - If no session → show landing/auth stack
  */
 function RootNavigator() {
   const { session, isLoading } = React.useContext(AuthContext);
@@ -65,11 +70,17 @@ function RootNavigator() {
     );
   }
 
+  // Determine which stack to show based on session + onboarding status
+  const isAuthenticated = session !== null;
+  const isOnboardingComplete = session?.user?.onboarding_completed === true;
+
+  console.log('[NAVIGATOR] isAuthenticated:', isAuthenticated, 'isOnboardingComplete:', isOnboardingComplete);
+
   return (
     <NavigationContainer linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {session ? (
-          // Authenticated stack
+        {isAuthenticated && isOnboardingComplete ? (
+          // Authenticated + Onboarding Complete → Dashboard stack
           <>
             <Stack.Screen name="Home" component={UserDashboardScreen} />
             <Stack.Screen name="HomeFeed" component={HomeFeedScreen} />
@@ -79,7 +90,7 @@ function RootNavigator() {
             {/* Add more authenticated screens as needed */}
           </>
         ) : (
-          // Unauthenticated stack
+          // Unauthenticated OR Onboarding Incomplete → Onboarding/Auth stack
           <>
             <Stack.Screen name="Landing" component={LandingScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />

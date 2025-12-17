@@ -633,6 +633,36 @@ Run after EVERY change (UI, API, DB, anything):
 - Functions: lint/typecheck
 Output must include the exact commands and expected results.
 
+### Admin Portal Tier 0 (mandatory when admin-portal changes)
+If ANY file under `p2p-kids-admin/` (or `admin-portal/`) changes, you MUST run:
+- `yarn lint`
+- `yarn typecheck` (or `next lint` + `tsc --noEmit`)
+- `yarn build` (Next.js compile check)
+
+You MUST NOT mark work complete if build fails.
+You MUST include the exact error line + the fix.
+
+## Formatting rule (mandatory)
+After editing any `.ts/.tsx` file, you MUST:
+- run Prettier on the changed file(s) OR ensure editor format-on-save is enabled
+- never leave JSX in a partially edited state
+If Prettier would fail, STOP and fix syntax first.
+
+## Layout safety rule (Admin Portal)
+Avoid complex inline JSX edits inside `src/app/layout.tsx`.
+If adding nav links or sidebar items:
+- extract navigation into `src/components/AdminNav.tsx`
+- import and render `<AdminNav />` from layout
+This reduces syntax risk and keeps layout minimal.
+
+## JSX Integrity Checklist (must self-check before responding)
+Before finalizing any `.tsx` change, confirm:
+- every opening tag has a closing tag (or is self-closing)
+- no stray characters like lone `>` or `</` exist
+- return blocks have balanced `()` and `{}` 
+- conditional rendering uses `{condition && (...)}` or ternaries with both branches
+
+
 ### Tier 1 (Targeted smoke tests by impacted flows)
 Run when changes touch ANY of:
 - Edge Functions, API contracts, auth flows, realtime/messaging, notifications, payments/subscriptions, Swap Points, fee logic

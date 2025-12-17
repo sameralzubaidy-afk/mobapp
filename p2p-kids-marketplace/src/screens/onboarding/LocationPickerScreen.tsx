@@ -7,12 +7,13 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  Modal,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase';
-import { assignNodeByZipCode } from '@/services/location';
-// TODO: Implement analytics service
-// import { trackEvent } from '@/services/analytics';
+import { assignNodeByZipCode, NodeAssignmentResult, incrementNodeMemberCount } from '@/services/location';
+import { upsertZipWaitlist } from '@/services/waitlist';
+import { trackEvent } from '@/services/analytics';
 
 export default function LocationPickerScreen() {
   const navigation = useNavigation();
@@ -23,6 +24,18 @@ export default function LocationPickerScreen() {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [loading, setLoading] = useState(false);
+  const [assignmentResult, setAssignmentResult] = useState<NodeAssignmentResult | null>(null);
+  const [showWaitlistPopup, setShowWaitlistPopup] = useState(false);
+  const [waitlistLoading, setWaitlistLoading] = useState(false);
+
+  // Get user email for waitlist
+  const getUserEmail = async (): Promise<string> => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user?.email) {
+      throw new Error('Unable to retrieve user email');
+    }
+    return data.user.email;
+  };
 
   const handleZipCodeChange = async (zip: string) => {
     setZipCode(zip);
@@ -53,40 +66,123 @@ export default function LocationPickerScreen() {
     setLoading(true);
 
     try {
-      // Assign node based on ZIP code
-      const nodeId = await assignNodeByZipCode(zipCode);
+      // NODE-003: Assign node (exact match or nearest active)
+      const result = await assignNodeByZipCode(zipCode, userId);
+      setAssignmentResult(result);
 
-      // Update user location
-      const { error } = await supabase
+      console.log('✅ Node assignment result:', {
+        matchType: result.matchType,
+        nodeName: result.nodeName,
+        distanceMiles: result.distanceMiles,
+      });
+
+      // Update user location in profiles
+      const { error: updateError } = await supabase
         .from('profiles')
         .update({
           zip_code: zipCode,
-          city,
-          state,
-          node_id: nodeId,
-        } as any) // TODO: Fix when profiles type is regenerated
+          city: result.city,
+          state: result.state,
+          node_id: result.nodeId,
+        } as any)
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
 
-      // TODO: Track analytics event
-      // trackEvent('onboarding_location_set', {
-      //   user_id: userId,
-      //   zip_code: zipCode,
-      //   node_id: nodeId,
-      // });
+      // NODE-003: Increment node member count
+      await incrementNodeMemberCount(result.nodeId);
 
-      // Navigate to node selection
-      (navigation as any).navigate('NodeSelection', {
-        userId,
-        nodeId,
+      // Track analytics event
+      trackEvent('onboarding_location_set', {
+        user_id: userId,
+        zip_code: zipCode,
+        node_id: result.nodeId,
+        match_type: result.matchType,
       });
+
+      // NODE-003: If assigned to fallback node, show waitlist popup
+      if (result.matchType === 'nearest') {
+        console.log('⚠️ User assigned to fallback node - showing waitlist popup');
+        setShowWaitlistPopup(true);
+      } else {
+        // Exact ZIP match - proceed to next screen
+        (navigation as any).navigate('NodeSelection', {
+          userId,
+          nodeId: result.nodeId,
+        });
+      }
     } catch (error: any) {
-      console.error('Location picker error:', error);
-      Alert.alert('Error', 'Failed to set location. Please try again.');
+      console.error('❌ Location picker error:', error);
+      const errorMessage = error.message?.includes('not currently active')
+        ? 'We are not currently active in your area. Please join the waitlist to be notified when we launch.'
+        : 'Failed to set location. Please try again.';
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  // NODE-003: Handle waitlist opt-in
+  const handleWaitlistOptIn = async () => {
+    if (!assignmentResult) return;
+
+    setWaitlistLoading(true);
+
+    try {
+      const email = await getUserEmail();
+
+      // Add to waitlist
+      await upsertZipWaitlist({
+        userId,
+        email,
+        requestedZip: zipCode,
+        assignedNodeId: assignmentResult.nodeId,
+      });
+
+      console.log('✅ User added to waitlist for:', zipCode);
+
+      Alert.alert(
+        'Waitlist Confirmed',
+        `Thank you! We've added you to the waitlist for ${zipCode}. We'll notify you as soon as we launch in your area.\n\nIn the meantime, you can trade items with users in ${assignmentResult.nodeName}.`,
+        [
+          {
+            text: 'Got it',
+            onPress: () => {
+              // Proceed to node selection with assigned node
+              (navigation as any).navigate('NodeSelection', {
+                userId,
+                nodeId: assignmentResult.nodeId,
+              });
+            },
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('❌ Waitlist opt-in error:', error);
+      Alert.alert('Error', 'Failed to join waitlist. Please try again later.');
+    } finally {
+      setWaitlistLoading(false);
+    }
+  };
+
+  // NODE-003: Handle skipping waitlist
+  const handleSkipWaitlist = () => {
+    if (!assignmentResult) return;
+
+    setShowWaitlistPopup(false);
+
+    // Track skip event
+    trackEvent('waitlist_skipped', {
+      user_id: userId,
+      requested_zip: zipCode,
+      assigned_node_id: assignmentResult.nodeId,
+    });
+
+    // Proceed to node selection with assigned node
+    (navigation as any).navigate('NodeSelection', {
+      userId,
+      nodeId: assignmentResult.nodeId,
+    });
   };
 
   return (
@@ -135,6 +231,52 @@ export default function LocationPickerScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* NODE-003: Waitlist Popup Modal */}
+      <Modal
+        visible={showWaitlistPopup}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => handleSkipWaitlist()}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>We're Coming Soon! 🎉</Text>
+            <Text style={styles.modalMessage}>
+              We're not quite active in {zipCode} yet, but we're coming soon! In the meantime,
+              we've connected you with traders in {assignmentResult?.nodeName || 'a nearby area'}.
+            </Text>
+
+            <View style={styles.featuresList}>
+              <Text style={styles.featuresTitle}>Get notified when we launch:</Text>
+              <Text style={styles.featureItem}>✓ Early access to {zipCode}</Text>
+              <Text style={styles.featureItem}>✓ Exclusive launch-day rewards</Text>
+              <Text style={styles.featureItem}>✓ Special founder pricing</Text>
+            </View>
+
+            {/* Buttons */}
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonPrimary]}
+              onPress={handleWaitlistOptIn}
+              disabled={waitlistLoading}
+            >
+              {waitlistLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.modalButtonText}>Join Waitlist</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalButtonSecondary]}
+              onPress={handleSkipWaitlist}
+              disabled={waitlistLoading}
+            >
+              <Text style={styles.modalButtonTextSecondary}>Continue Trading</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -208,6 +350,74 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // NODE-003: Waitlist Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#111',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 16,
+    color: '#555',
+    lineHeight: 24,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  featuresList: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 24,
+  },
+  featuresTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  featureItem: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 24,
+  },
+  modalButton: {
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalButtonPrimary: {
+    backgroundColor: '#3b82f6',
+  },
+  modalButtonSecondary: {
+    backgroundColor: '#e5e7eb',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalButtonTextSecondary: {
+    color: '#333',
     fontSize: 16,
     fontWeight: '600',
   },

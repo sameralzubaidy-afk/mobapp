@@ -28,7 +28,7 @@ export default function WelcomeScreen() {
         {/* Get Started Button */}
         <TouchableOpacity
           style={styles.button}
-          onPress={() => (navigation as any).navigate('LocationPicker', { userId })}
+          onPress={() => (navigation as any).navigate('FeatureHighlights', { userId })}
         >
           <Text style={styles.buttonText}>Get Started</Text>
         </TouchableOpacity>

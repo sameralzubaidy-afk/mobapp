@@ -57,6 +57,8 @@ if there is a need to run a sql in supabase before testing clearly ask me to do.
 apply E2E test so you fix all errors before I start verifying.
 Update the navigation file so i can verify manual
 provide steps to manaul test if there are steps I need to do before test clearly list them. 
+run Run Unit Tests Locally and Run E2E Tests and fix any issue that is not passed
+
 
 Note I have completed the manaul steps.
 
