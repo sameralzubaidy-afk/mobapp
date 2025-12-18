@@ -175,11 +175,17 @@ export const getItemsWithinRadius = async (
       .from('geographic_nodes')
       .select('latitude, longitude')
       .eq('id', userNodeId)
-      .single();
+      .maybeSingle();
 
     if (nodeError) {
       console.error('❌ Node lookup error:', nodeError);
       throw new Error(nodeError.message || 'Failed to lookup node');
+    }
+
+    // If node not found, return empty array (user may be on waitlist or node doesn't exist)
+    if (!userNode) {
+      console.warn(`⚠️ Node not found: ${userNodeId}. Returning empty results.`);
+      return [];
     }
 
     // Find all nodes within radius
@@ -298,7 +304,7 @@ export const getItemById = async (itemId: string): Promise<Item | null> => {
         images:item_images(id, url, thumbnail_url, display_order)
       `)
       .eq('id', itemId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('❌ Get item by ID error:', error);

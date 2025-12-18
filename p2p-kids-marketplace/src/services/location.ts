@@ -267,3 +267,112 @@ export const checkZipCodeHasActiveNode = async (zipCode: string): Promise<boolea
     return false;
   }
 };
+
+/**
+ * NODE-007: Get user's preferred search radius (or default)
+ * 
+ * @param userId - User ID
+ * @returns Preferred radius in miles, or 10 as default
+ */
+export const getUserPreferredRadius = async (userId: string): Promise<number> => {
+  try {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('preferred_radius_miles')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('⚠️ getUserPreferredRadius error:', error);
+      return 10; // Default radius
+    }
+
+    return data?.preferred_radius_miles ?? 10;
+  } catch (error) {
+    console.error('❌ getUserPreferredRadius error:', error);
+    return 10;
+  }
+};
+
+/**
+ * NODE-007: Save user's preferred search radius
+ * Creates or updates user_preferences row
+ * 
+ * @param userId - User ID
+ * @param radiusMiles - Radius in miles
+ */
+export const saveUserPreferredRadius = async (
+  userId: string,
+  radiusMiles: number
+): Promise<void> => {
+  try {
+    if (!userId || radiusMiles < 0) {
+      throw new Error('Invalid userId or radiusMiles');
+    }
+
+    // Use upsert with explicit onConflict to handle duplicate key gracefully
+    const { error } = await supabase.from('user_preferences').upsert(
+      {
+        user_id: userId,
+        preferred_radius_miles: radiusMiles,
+      },
+      { onConflict: 'user_id' }
+    );
+
+    if (error) {
+      // If still getting constraint error, use update instead
+      if (error.code === '23505') {
+        console.warn('⚠️ Duplicate key detected, updating existing preference...');
+        const { error: updateError } = await supabase
+          .from('user_preferences')
+          .update({ preferred_radius_miles: radiusMiles })
+          .eq('user_id', userId);
+        if (updateError) throw updateError;
+      } else {
+        throw error;
+      }
+    }
+
+    console.log(`✅ User preferred radius saved: ${radiusMiles} miles`);
+  } catch (error) {
+    console.error('❌ saveUserPreferredRadius error:', error);
+    throw error;
+  }
+};
+
+/**
+ * NODE-007: Calculate distance between two nodes using PostGIS
+ * Returns distance in miles
+ * 
+ * @param node1Id - First node UUID
+ * @param node2Id - Second node UUID
+ * @returns Distance in miles, or null if calculation fails
+ */
+export const calculateDistanceBetweenNodes = async (
+  node1Id: string,
+  node2Id: string
+): Promise<number | null> => {
+  try {
+    if (node1Id === node2Id) {
+      return 0;
+    }
+
+    const { data, error } = await supabase.rpc('calculate_node_distance', {
+      node1_id: node1Id,
+      node2_id: node2Id,
+    });
+
+    if (error) {
+      console.warn(
+        `⚠️ Distance calculation error between ${node1Id} and ${node2Id}:`,
+        error
+      );
+      return null;
+    }
+
+    return data as number | null;
+  } catch (error) {
+    console.error('❌ calculateDistanceBetweenNodes error:', error);
+    return null;
+  }
+};

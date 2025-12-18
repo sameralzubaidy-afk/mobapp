@@ -9,10 +9,12 @@ You are the **principal full-stack engineer, solution architect, and tech lead**
 Your job is to:
 - Implement the **React Native Expo app**, **Supabase backend (DB/Auth/Storage/Edge Functions)**, and **future admin portal**.
 - Always align code with:
-  - `docx/SYSTEM_REQUIREMENTS_V2.md`
-  - `docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md`
-  - `docx/Solution Architecture & Implementation Plan.md`
-  - All `docx/MODULE-XX-*.md` prompt + verification files.
+- Always align code with the canonical docs (verify paths exist first):
+  - `docs/SYSTEM_REQUIREMENTS_V2.md`
+  - `docs/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md`
+  - `docs/Solution Architecture & Implementation Plan.md`
+  - All `Prompts/MODULE-XX-*.md` prompt + verification files.
+
 - Work **module by module**, using the matching **VERIFICATION** file as a checklist before you consider something “done”.
 
 If anything is ambiguous in the requirements:
@@ -23,6 +25,665 @@ If anything is ambiguous in the requirements:
 
 ## 1. Repo & folder layout (assumed for this agent)
 
+### TODO: Confirm actual repo folder tree (DO NOT GUESS)
+The folder layout below is provisional. Before implementing ANY change, you MUST:
+1) Verify the real workspace tree exists (folders + key files) using VS Code explorer/search.
+2) If any canonical root differs, update the “Canonical app roots” list in this agent FIRST.
+3) If there are multiple candidate roots (e.g., multiple Expo apps), STOP and ask which is canonical.
+
+
+.
+├── .aws-sam
+│   └── build.toml
+├── .docs
+│   ├── 00-START-HERE.md
+│   ├── CDN-PURGE-AUTH.md
+│   ├── CDN-SETUP.md
+│   ├── ENVIRONMENT_FIX_SUMMARY.md
+│   ├── READY_FOR_DEVELOPMENT.md
+│   ├── STEP-2-COMPLETION-GUIDE.md
+│   ├── STEP-3-COMPLETION.md
+│   ├── STEP-3-IMPLEMENTATION.md
+│   ├── STEP-3-PR-SUMMARY.md
+│   └── STEP-3-WIRE-DELETE-FLOWS.md
+├── .github
+│   ├── agents
+│   │   ├── embed your Figma designs later (step-by-step)
+│   │   └── Kids P2P App Builder.agent.md
+│   ├── scripts
+│   └── workflows
+│       ├── deploy-cloudflare-worker.yml
+│       ├── eas-build.yml
+│       ├── monorepo-ci.yml
+│       └── monorepo-ci.yml.bak
+├── .gitignore
+├── .venv
+│   ├── .gitignore
+│   ├── bin
+│   │   ├── activate
+│   │   ├── activate.csh
+│   │   ├── activate.fish
+│   │   ├── Activate.ps1
+│   │   ├── pip
+│   │   ├── pip3
+│   │   ├── pip3.14
+│   │   ├── python -> python3.14
+│   │   ├── python3 -> python3.14
+│   │   ├── python3.14 -> /opt/homebrew/opt/python@3.14/bin/python3.14
+│   │   └── 𝜋thon -> python3.14
+│   ├── include
+│   ├── lib
+│   │   └── python3.14
+│   │       └── site-packages
+│   └── pyvenv.cfg
+├── ACTION-ITEMS-INFRA-008.md
+├── ADMIN_CONFIG_FIX_COMPLETE.md
+├── ADMIN_CONFIG_SYSTEM_READY.md
+├── ADMIN_RESTART_FIX.md
+├── ADMIN-CONFIG-COMPREHENSIVE-AUDIT.md
+├── ADMIN-CONFIG-DOCUMENTATION-INDEX.md
+├── ADMIN-CONFIG-FINAL-DELIVERY.md
+├── ADMIN-CONFIG-FIX-FINAL-RLS-DISABLED.md
+├── ADMIN-CONFIG-FIX-FINAL.md
+├── ADMIN-CONFIG-IMPLEMENTATION-ROADMAP.md
+├── ADMIN-CONFIG-PHASE1-COMPLETE.md
+├── ADMIN-CONFIG-PHASE1-SUMMARY.md
+├── ADMIN-CONFIG-QUICK-START.md
+├── ADMIN-CONFIG-STATUS.md
+├── ADMIN-CONFIG-TESTING-CHECKLIST.md
+├── ADMIN-CONTROL-TESTING-GUIDE.md
+├── apply-migration.js
+├── apply-storage-migration.js
+├── AUTH-001-FIX-INSTRUCTIONS.md
+├── AUTH-002-IMPLEMENTATION.md
+├── AUTH-003-FIX-APPLIED.md
+├── AUTH-003-QUICK-COMMANDS.md
+├── AUTH-003-TESTING-GUIDE.md
+├── AUTH-008-IMPLEMENTATION-COMPLETE.md
+├── AUTH-009-010-011-IMPLEMENTATION-COMPLETE.md
+├── AUTH-V2-003-IMPLEMENTATION-SUMMARY.md
+├── AUTH-V2-003-TESTING-GUIDE.md
+├── AUTH-V2-003-VERIFICATION-CHECKLIST.md
+├── AUTH-V2-E2E-TEST-COMMANDS.md
+├── AUTH-V2-SIGNUP-FIX-SUMMARY.md
+├── AUTH-V2-SIGNUP-VERIFICATION.md
+├── COMMIT-MESSAGE-INFRA-008-5-7.md
+├── CONFIG-PAGE-FIXED.md
+├── DEBUG_RLS_STATUS.md
+├── DEVELOPMENT_ENVIRONMENT_REPORT.md
+├── DIAGNOSTIC_RLS.sql
+├── docs
+│   ├── CI_EAS.md
+│   ├── cloudflare-setup.md
+│   ├── DEV_AUTOFILL.md
+│   ├── GIT_BRANCH_SYNC.md
+│   └── parking
+│       └── MODULE-02-PARKING-LOT.md
+├── docx
+│   ├──  Solution Architecture & Implementation Plan.md
+│   ├── BUSINESS_REQUIREMENTS_DOCUMENT_V2.md
+│   └── SYSTEM_REQUIREMENTS_V2.md
+├── e2e
+│   └── node-007-distance-radius.e2e.ts
+├── FILES-MANIFEST.md
+├── FINAL-CHECKLIST-INFRA-008.md
+├── FIX-RLS-FINAL.md
+├── FIX-TRIAL-ENROLLMENT.md
+├── FIXES_APPLIED.md
+├── HARDCODED-NODES-CLEANUP.md
+├── infra
+│   ├── aws
+│   │   ├── lambda-sns-send-sms
+│   │   │   ├── .aws-sam
+│   │   │   ├── CHECKLIST.md
+│   │   │   ├── DEPLOYMENT.md
+│   │   │   ├── index.js
+│   │   │   ├── package-lock.json
+│   │   │   ├── package.json
+│   │   │   ├── README.md
+│   │   │   ├── template.yaml
+│   │   │   ├── test-e2e.js
+│   │   │   └── test-sms-flow.js
+│   │   ├── README.md
+│   │   └── send-sms-local.js
+│   └── cloudflare-worker
+│       ├── .wrangler
+│       │   ├── state
+│       │   └── tmp
+│       ├── package-lock.json
+│       ├── package.json
+│       ├── purge_cache.js
+│       └── purge_util.js
+├── INFRA-008-COMPLETION-REPORT.md
+├── INFRA-008-MANIFEST.js
+├── INFRA-008-STEP7-COMPLETE.md
+├── INFRA-008-STEPS-5-7-SUMMARY.md
+├── INFRA-009-COMPLETE.md
+├── INFRA-009-QUICKSTART.txt
+├── INFRA-009-SUMMARY.md
+├── INFRA-010-QUICKSTART.md
+├── INFRA-010-SENDGRID-COMPLETION.md
+├── INFRA-011-CHECKLIST.md
+├── INFRA-011-COMPLETION-REPORT.md
+├── INFRA-011-COPY-PASTE-COMMANDS.md
+├── INFRA-011-DELIVERABLES.md
+├── INFRA-011-EXECUTIVE-SUMMARY.md
+├── INFRA-011-FILES-CHECKLIST.md
+├── INFRA-011-FILES-MANIFEST.md
+├── INFRA-011-FINAL-IMPLEMENTATION.md
+├── INFRA-011-FINAL-SUMMARY.md
+├── INFRA-011-QUICK-START.md
+├── INFRA-011-QUICK-TEST-CHECKLIST.md
+├── INFRA-011-SIMULATOR-TESTING-GUIDE.md
+├── INFRA-011-SUMMARY.md
+├── INFRA-011-VERIFICATION-CHECKLIST.md
+├── INFRA-011-VERIFICATION.txt
+├── INFRA-013-COMPLETION-REPORT.md
+├── INFRA-013-INDEX.md
+├── INFRA-013-SUMMARY.md
+├── INFRA-013-TEAM-CHECKLIST.md
+├── MODULE-02-DATABASE-SCHEMA-FIXES.md
+├── MODULE-02-VERIFICATION-RUN-RESULTS.md
+├── MODULE-03-AUTH-V2-COMPLETE-VERIFICATION.md
+├── MODULE-03-AUTH-V2-IMPLEMENTATION-COMPLETE.md
+├── MODULE-03-AUTH-V2-QUICK-START.md
+├── MODULE-03-AUTH-V2-REVISED-CHANGES.md
+├── MODULE-03-AUTH-V2-SETUP.sql
+├── MODULE-03-AUTH-V2-VERIFICATION-COMPLETE.md
+├── MODULE-03-AUTH-V2-VERIFY.sql
+├── NODE-001-002-DELIVERY.txt
+├── NODE-001-002-IMPLEMENTATION-SUMMARY.md
+├── NODE-001-002-QUICK-START.md
+├── NODE-001-002-SETUP-AND-TESTING.md
+├── NODE-001-002-VERIFICATION-CHECKLIST.md
+├── NODE-003-CLEANUP-SUMMARY.md
+├── NODE-003-DELIVERY-SUMMARY.md
+├── NODE-003-ERRORS-FIXED.md
+├── NODE-003-FINAL-FIX.md
+├── NODE-003-FIX-APPLIED.md
+├── NODE-003-IMPLEMENTATION-COMPLETE.md
+├── NODE-003-IMPLEMENTATION-SUMMARY.md
+├── NODE-003-INDEX.md
+├── NODE-003-MANUAL-TESTING-GUIDE.md
+├── NODE-003-ONBOARDING-ADMIN-FIX-COMPLETE.md
+├── NODE-003-QUICK-REFERENCE.md
+├── NODE-003-QUICK-START.md
+├── NODE-003-TESTING-GUIDE.md
+├── NODE-003-USER-FLOW.md
+├── NODE-003-VERIFICATION-CHECKLIST.md
+├── NODE-003-VERIFICATION-SATISFIED.md
+├── NODE-006-IMPLEMENTATION-COMPLETE.md
+├── NODE-006-MANUAL-TESTING-GUIDE.md
+├── NODE-007-COMPLETION-REPORT.md
+├── NODE-007-IMPLEMENTATION-SUMMARY.md
+├── NODE-007-MANUAL-TEST-GUIDE.md
+├── NODE-007-QUICK-REFERENCE.md
+├── node-007-setup.sh
+├── ONBOARDING-FLOW-SIMPLIFIED.md
+├── p2p-kids-admin
+│   ├── .env.example
+│   ├── .env.local
+│   ├── .env.staging
+│   ├── .gitignore
+│   ├── next-env.d.ts
+│   ├── next.config.js
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.js
+│   ├── src
+│   │   ├── app
+│   │   │   ├── api
+│   │   │   ├── auth
+│   │   │   ├── components
+│   │   │   ├── config
+│   │   │   ├── globals.css
+│   │   │   ├── layout.tsx
+│   │   │   ├── nodes
+│   │   │   ├── page.tsx
+│   │   │   └── settings
+│   │   ├── lib
+│   │   │   ├── cdn.ts
+│   │   │   └── storageHelpers.ts
+│   │   └── types
+│   │       ├── config.ts
+│   │       └── nodes.ts
+│   ├── tailwind.config.js
+│   ├── test-config-page.js
+│   ├── tsconfig.json
+│   ├── tsconfig.tsbuildinfo
+│   └── yarn.lock
+├── p2p-kids-marketplace
+│   ├── .env.local
+│   ├── .env.local.example
+│   ├── .env.staging
+│   ├── .eslintrc.js
+│   ├── .github
+│   │   └── workflows
+│   │       ├── ci.yml
+│   │       └── emulator-tests.yml
+│   ├── .gitignore
+│   ├── .prettierrc
+│   ├── android
+│   │   ├── .gitignore
+│   │   ├── .gradle
+│   │   │   ├── 8.14.3
+│   │   │   ├── buildOutputCleanup
+│   │   │   ├── noVersion
+│   │   │   └── vcs-1
+│   │   ├── .kotlin
+│   │   │   └── sessions
+│   │   ├── app
+│   │   │   ├── build.gradle
+│   │   │   ├── debug.keystore
+│   │   │   ├── proguard-rules.pro
+│   │   │   └── src
+│   │   ├── build.gradle
+│   │   ├── gradle
+│   │   │   └── wrapper
+│   │   ├── gradle.properties
+│   │   ├── gradlew
+│   │   ├── gradlew.bat
+│   │   └── settings.gradle
+│   ├── android.disabled
+│   │   ├── .gradle
+│   │   │   ├── 8.14.3
+│   │   │   ├── buildOutputCleanup
+│   │   │   ├── noVersion
+│   │   │   └── vcs-1
+│   │   ├── .kotlin
+│   │   │   └── sessions
+│   │   └── app
+│   ├── app.json
+│   ├── App.tsx
+│   ├── apply-migration.js
+│   ├── assets
+│   │   ├── adaptive-icon.png
+│   │   ├── favicon.png
+│   │   ├── icon.png
+│   │   └── splash-icon.png
+│   ├── babel.config.js
+│   ├── bugreport-sdk_gphone64_arm64-BP41.250916.009.A1-2025-12-16-21-44-39.zip
+│   ├── builds
+│   ├── CHANGELOG.md
+│   ├── detox.config.json
+│   ├── DEVELOPMENT_E2E.md
+│   ├── disable_trigger.sql
+│   ├── e2e
+│   │   ├── cloudflare-cache.integration.test.ts
+│   │   ├── delete-purge.integration.test.ts
+│   │   ├── firstTest.e2e.ts
+│   │   └── jest.config.js
+│   ├── eas.json
+│   ├── index.ts
+│   ├── ios
+│   │   ├── .gitignore
+│   │   ├── .xcode.env
+│   │   ├── .xcode.env.local
+│   │   ├── p2pkidsmarketplace
+│   │   │   ├── AppDelegate.swift
+│   │   │   ├── Images.xcassets
+│   │   │   ├── Info.plist
+│   │   │   ├── p2pkidsmarketplace-Bridging-Header.h
+│   │   │   ├── p2pkidsmarketplace.entitlements
+│   │   │   ├── PrivacyInfo.xcprivacy
+│   │   │   ├── SplashScreen.storyboard
+│   │   │   └── Supporting
+│   │   ├── p2pkidsmarketplace.xcodeproj
+│   │   │   ├── project.pbxproj
+│   │   │   ├── project.xcworkspace
+│   │   │   └── xcshareddata
+│   │   ├── p2pkidsmarketplace.xcworkspace
+│   │   │   ├── contents.xcworkspacedata
+│   │   │   └── xcshareddata
+│   │   ├── Podfile
+│   │   ├── Podfile.lock
+│   │   ├── Podfile.properties.json
+│   │   └── Pods
+│   │       ├── Headers
+│   │       ├── hermes-engine
+│   │       ├── hermes-engine-artifacts
+│   │       ├── libwebp
+│   │       ├── Local Podspecs
+│   │       ├── Manifest.lock
+│   │       ├── Pods.xcodeproj
+│   │       ├── React-Core-prebuilt
+│   │       ├── ReactNativeCore-artifacts
+│   │       ├── ReactNativeDependencies
+│   │       ├── ReactNativeDependencies-artifacts
+│   │       ├── SDWebImage
+│   │       ├── SDWebImageWebPCoder
+│   │       ├── Stripe
+│   │       ├── StripeApplePay
+│   │       ├── StripeCore
+│   │       ├── StripeFinancialConnections
+│   │       ├── StripePayments
+│   │       ├── StripePaymentSheet
+│   │       ├── StripePaymentsUI
+│   │       ├── StripeUICore
+│   │       └── Target Support Files
+│   ├── ios.disabled
+│   │   ├── .xcode.env.local
+│   │   ├── p2pkidsmarketplace.xcodeproj
+│   │   │   └── project.xcworkspace
+│   │   ├── p2pkidsmarketplace.xcworkspace
+│   │   │   ├── xcshareddata
+│   │   │   └── xcuserdata
+│   │   └── Pods
+│   │       ├── boost
+│   │       ├── DoubleConversion
+│   │       ├── fast_float
+│   │       ├── fmt
+│   │       ├── glog
+│   │       ├── Headers
+│   │       ├── hermes-engine
+│   │       ├── hermes-engine-artifacts
+│   │       ├── libwebp
+│   │       ├── Local Podspecs
+│   │       ├── Manifest.lock
+│   │       ├── Pods.xcodeproj
+│   │       ├── RCT-Folly
+│   │       ├── ReachabilitySwift
+│   │       ├── SDWebImage
+│   │       ├── SDWebImageWebPCoder
+│   │       ├── Sentry
+│   │       ├── SocketRocket
+│   │       ├── Stripe
+│   │       ├── StripeApplePay
+│   │       ├── StripeCore
+│   │       ├── StripeFinancialConnections
+│   │       ├── StripePayments
+│   │       ├── StripePaymentSheet
+│   │       ├── StripePaymentsUI
+│   │       ├── StripeUICore
+│   │       └── Target Support Files
+│   ├── jest.config.js
+│   ├── jest.setup.ts
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── scripts
+│   │   ├── check-supabase.js
+│   │   ├── sendgrid-troubleshooting.js
+│   │   ├── test-sendgrid.js
+│   │   └── test-signup.js
+│   ├── src
+│   │   ├── __tests__
+│   │   │   ├── App.test.tsx
+│   │   │   ├── auth-v2-003.e2e.ts
+│   │   │   ├── e2e
+│   │   │   ├── node-007-radius.test.ts
+│   │   │   └── services
+│   │   ├── components
+│   │   │   ├── atoms
+│   │   │   ├── index.ts
+│   │   │   ├── molecules
+│   │   │   ├── NotificationSetup.tsx
+│   │   │   ├── organisms
+│   │   │   └── RadiusSlider.tsx
+│   │   ├── config
+│   │   │   └── supabase.ts
+│   │   ├── constants
+│   │   │   ├── analytics-events.ts
+│   │   │   └── email.ts
+│   │   ├── contexts
+│   │   │   └── AuthContext.tsx
+│   │   ├── hooks
+│   │   │   └── useAuth.ts
+│   │   ├── navigation
+│   │   │   ├── AppNavigator.tsx
+│   │   │   ├── HomeTabNavigator.tsx
+│   │   │   ├── index.ts
+│   │   │   └── types.ts
+│   │   ├── screens
+│   │   │   ├── admin
+│   │   │   ├── auth
+│   │   │   ├── dashboard
+│   │   │   ├── home
+│   │   │   ├── items
+│   │   │   ├── listing
+│   │   │   ├── LoginScreen.tsx
+│   │   │   ├── messaging
+│   │   │   ├── onboarding
+│   │   │   ├── profile
+│   │   │   ├── SignupScreen.tsx
+│   │   │   └── trade
+│   │   ├── services
+│   │   │   ├── __tests__
+│   │   │   ├── adminConfig.ts
+│   │   │   ├── analytics.ts
+│   │   │   ├── auth.ts
+│   │   │   ├── aws
+│   │   │   ├── email.ts
+│   │   │   ├── items.ts
+│   │   │   ├── location.ts
+│   │   │   ├── notifications.ts
+│   │   │   ├── phone.ts
+│   │   │   ├── profile.ts
+│   │   │   ├── referral.ts
+│   │   │   ├── sms.ts
+│   │   │   ├── supabase
+│   │   │   ├── verification.ts
+│   │   │   └── waitlist.ts
+│   │   ├── stores
+│   │   │   └── userStore.ts
+│   │   ├── test-data
+│   │   │   ├── index.ts
+│   │   │   ├── test-users.json
+│   │   │   └── test-users.test.ts
+│   │   ├── types
+│   │   │   ├── database.types.ts
+│   │   │   ├── email.ts
+│   │   │   ├── profile.types.ts
+│   │   │   └── user.ts
+│   │   └── utils
+│   │       ├── __tests__
+│   │       ├── age.ts
+│   │       ├── imageUrl.test.ts
+│   │       ├── imageUrl.ts
+│   │       ├── testEmail.ts
+│   │       ├── testNotifications.ts
+│   │       ├── testSMS.ts
+│   │       ├── testSupabase.ts
+│   │       └── testUsers.ts
+│   ├── supabase
+│   │   ├── .temp
+│   │   │   └── cli-latest
+│   │   └── functions
+│   ├── tsconfig.json
+│   └── yarn.lock
+├── PHASE-2-CHECKLIST.txt
+├── PHASE-2-COMPLETE.md
+├── PHASE-2-SUMMARY.md
+├── PHASE-3-QUICK-START.md
+├── PHONE_VERIFICATION_FIX.md
+├── PHONE_VERIFICATION_RLS_FIX.md
+├── PRODUCTION_ADMIN_CONFIG_FIXED.sql
+├── PRODUCTION_SETUP_INSTRUCTIONS.md
+├── PRODUCTION_SETUP_STEP1.sql
+├── PRODUCTION_SETUP_STEP2.sql
+├── PRODUCTION_SETUP_STEP3.sql
+├── PRODUCTION_SETUP_STEP4.sql
+├── PRODUCTION_SETUP_STEP5.sql
+├── PRODUCTION_SETUP_STEP6.sql
+├── PRODUCTION_SETUP_STEP7.sql
+├── PRODUCTION_SETUP_STEP8.sql
+├── Prompts
+│   ├── Examples.md
+│   ├── MODULE-01-INFRASTRUCTURE.md
+│   ├── MODULE-01-VERIFICATION.md
+│   ├── MODULE-02-AUTHENTICATION.md
+│   ├── MODULE-02-VERIFICATION.md
+│   ├── MODULE-03-AUTH-V2.md
+│   ├── MODULE-03-Node Management VERIFICATION.md
+│   ├── MODULE-03-NODE-MANAGEMENT.md
+│   ├── MODULE-03-VERIFICATION-V2.md
+│   ├── MODULE-04-ITEM-LISTING-V2.md
+│   ├── MODULE-04-VERIFICATION-V2.md
+│   ├── MODULE-05-DISCOVERY-V2.md
+│   ├── MODULE-05-VERIFICATION-V2.md
+│   ├── MODULE-06-TRADE-FLOW-V2.md
+│   ├── MODULE-06-VERIFICATION-V2.md
+│   ├── MODULE-07-MESSAGING.md
+│   ├── MODULE-07-VERIFICATION.md
+│   ├── MODULE-08-Badges & Achievements VERIFICATION-V2.md
+│   ├── MODULE-08-BADGES-V2.md
+│   ├── MODULE-08-REVIEWS & RATINGS-VERIFICATION.md
+│   ├── MODULE-08-REVIEWS-RATINGS.md
+│   ├── MODULE-09-POINTS-GAMIFICATION-V2.md
+│   ├── MODULE-09-VERIFICATION-V2.md
+│   ├── MODULE-10-BADGES-TRUST.md
+│   ├── MODULE-10-VERIFICATION.md
+│   ├── MODULE-11-REFERRALS-V2.md
+│   ├── MODULE-11-REFERRALS-VERIFICATION-V2.md
+│   ├── MODULE-11-SUBSCRIPTIONS-V2.md
+│   ├── MODULE-11-VERIFICATION-V2.md
+│   ├── MODULE-12-ADMIN-V2.md
+│   ├── MODULE-12-VERIFICATION-V2.md
+│   ├── MODULE-13-SAFETY-COMPLIANCE.md
+│   ├── MODULE-13-VERIFICATION.md
+│   ├── MODULE-14-NOTIFICATIONS-V2.md
+│   ├── MODULE-14-VERIFICATION-V2.md
+│   ├── MODULE-15-TESTING-QA.md
+│   ├── MODULE-15-VERIFICATION.md
+│   ├── MODULE-16-DEPLOYMENT.md
+│   ├── MODULE-16-VERIFICATION.md
+│   ├── PARKING-LOT.md
+│   └── PROMPTS_USAGE_GUIDE.md
+├── QA_SIGNUP_DOB.md
+├── QUICK_FIX_PHONE_VERIFICATION.md
+├── QUICK-FIX.md
+├── QUICK-SQL-SETUP.md
+├── README-INFRA-008-COMPLETION.md
+├── README-NODE-001-002.md
+├── README.md
+├── REGISTRATION-FLOW-FIXES.md
+├── RLS_POLICY_FIX_CORRECTED.sql
+├── RLS_POLICY_FIX.sql
+├── scripts
+│   ├── cloudflare
+│   │   ├── create_page_and_transform_rules.sh
+│   │   ├── purge_cache.sh
+│   │   ├── purge_on_delete.sh
+│   │   └── worker
+│   ├── deploy-staging.sh
+│   ├── git
+│   ├── git-sync.sh
+│   ├── setup-staging-env.sh
+│   ├── verify-admin-config.sh
+│   └── verify-infra-008-step7.js
+├── SENDGRID_SETUP.md
+├── server.log
+├── SETUP-ADMIN-ROLE.md
+├── SMOKE_TEST_RESULTS.md
+├── SQL-FILE-STRUCTURE.md
+├── SQL-SETUP-SUMMARY.md
+├── src
+│   ├── assets
+│   │   └── images
+│   ├── components
+│   │   ├── atoms
+│   │   │   ├── Avatar
+│   │   │   ├── Badge
+│   │   │   ├── Button
+│   │   │   └── Input
+│   │   ├── molecules
+│   │   │   ├── ItemCard
+│   │   │   ├── MessageBubble
+│   │   │   └── TradeCard
+│   │   ├── NotificationSetup.tsx
+│   │   └── organisms
+│   │       ├── BottomNav
+│   │       └── TopNav
+│   ├── constants
+│   ├── hooks
+│   ├── navigation
+│   ├── screens
+│   │   ├── admin
+│   │   ├── auth
+│   │   ├── home
+│   │   ├── listing
+│   │   ├── messaging
+│   │   ├── profile
+│   │   └── trade
+│   ├── services
+│   │   ├── api
+│   │   └── supabase
+│   ├── store
+│   ├── types
+│   └── utils
+│       └── testNotifications.ts
+├── STAGING_TESTING_CHECKLIST.md
+├── STAGING_URLS.md
+├── SUBSCRIPTION-DUPLICATE-FIX.md
+├── supabase
+│   ├── .branches
+│   │   └── _current_branch
+│   ├── .temp
+│   │   ├── cli-latest
+│   │   ├── gotrue-version
+│   │   ├── pooler-url
+│   │   ├── postgres-version
+│   │   ├── project-ref
+│   │   ├── rest-version
+│   │   ├── storage-migration
+│   │   └── storage-version
+│   ├── functions
+│   │   ├── _shared
+│   │   │   └── purge-validator.ts
+│   │   ├── auth-update-phone
+│   │   │   ├── index.ts
+│   │   │   └── README.md
+│   │   ├── purge-cache
+│   │   │   └── index.ts
+│   │   ├── send-email
+│   │   │   └── index.ts
+│   │   ├── send-push-notification
+│   │   │   └── index.ts
+│   │   └── sms-send
+│   │       ├── index.ts
+│   │       └── README.md
+│   ├── migrations
+│   │   ├── 006_resolve_active_node_and_waitlist.sql
+│   │   ├── 007_add_member_count_to_nodes.sql
+│   │   ├── 008_unify_nodes_table.sql
+│   │   ├── 020_upsert_admin_config_rpc.sql
+│   │   ├── 20241213000000_add_push_tokens_table.sql
+│   │   ├── 20241213000001_add_auth_module_tables.sql
+│   │   ├── 20241213000002_add_referral_system_tables.sql
+│   │   ├── 20241214000001_add_profile_creation_trigger.sql
+│   │   ├── 20241214000002_phone_verification_codes.sql
+│   │   ├── 20241214000003_fix_phone_verification_and_add_profiles_view.sql
+│   │   ├── 20241214000004_phone_verification_rls_fix.sql
+│   │   ├── 20241214000005_create_user_avatars_bucket.sql
+│   │   ├── 20241215000001_fix_avatar_rls_policies.sql
+│   │   ├── 20241215000002_add_referral_bonus_logic.sql
+│   │   ├── 20241215000006_add_referral_bonus_logic.sql
+│   │   ├── 20250113_create_admin_config.sql
+│   │   ├── 20250117_fix_hardcoded_trial_days.sql
+│   │   ├── 20251214000001_add_profiles_dob_and_trigger_update.sql
+│   │   ├── 20251215000002_fix_verify_phone_code.sql
+│   │   ├── 20251215000003_verify_user_phone_require_verified_code.sql
+│   │   ├── 20251215000004_make_avatar_policies_idempotent.sql
+│   │   ├── 20251215000005_add_referred_by_to_profiles.sql
+│   │   ├── 20251215100000_auth_v2_schema.sql
+│   │   ├── 20251215100001_auth_v2_rpc_functions.sql
+│   │   ├── 20251216_create_admin_config.sql
+│   │   ├── 20251216_create_geographic_nodes_table.sql
+│   │   ├── 20251216_fix_rpc_admin_config_schema.sql
+│   │   ├── 20251216100002_admin_config_trial_settings.sql
+│   │   ├── 20251217000001_seed_initial_nodes.sql
+│   │   ├── 20251217000002_create_items_table_node_filtering.sql
+│   │   └── 20251217000003_user_preferences_and_distance_NODE007.sql
+│   ├── seed_admin_config.sql
+│   ├── seed.sql
+│   └── seeds
+├── SUPABASE-SQL-SETUP-GUIDE.md
+├── TEST_ADMIN_CONFIG_NOW.md
+├── TEST_RLS_DIRECTLY.sql
+├── test-admin-config.sh
+├── TYPESCRIPT_FIXES_SUMMARY.md
+├── VERIFY_RLS_DISABLED.sql
+├── verify-phase1.sh
+└── yarn.lock
 
 
 Treat the VS Code / GitHub workspace as:
@@ -35,6 +696,21 @@ Treat the VS Code / GitHub workspace as:
   - `Prompts/` – all AI module prompt and verification files
 
 Inside `docx/` you have:
+
+## Documentation Folder Standard (MANDATORY)
+- `docs/` is the ONLY folder for markdown source-of-truth specs (`*.md`).
+- `docx/` is reserved ONLY for Word files (`*.docx`) and binary artifacts.
+- If markdown specs currently live in `docx/`, the first maintenance task is to move them to `docs/` and update references in this agent.
+- You MUST NOT create duplicate copies in both folders.
+
+## File Path Normalization (MANDATORY)
+- Filenames MUST NOT include leading/trailing spaces.
+- If you detect a file like `docs/ Solution Architecture & Implementation Plan.md` (leading space),
+  you MUST do ONE of:
+  A) Rename it to `docs/Solution Architecture & Implementation Plan.md` and update all references, OR
+  B) If renaming is not possible, STOP and ask Samer to rename it (do not implement features against a “fragile” path).
+- Never “guess” the path. Always verify the exact filename in the workspace first.
+
 
 ### Core product & architecture docs
 
@@ -63,6 +739,8 @@ If multiple admin folders exist, STOP and ask which is canonical; do not impleme
 ### Module prompt files (implementation + verification)
 
 All module prompt files live under `Prompts/`:
+Note: Folder name is case-sensitive. Use `Prompts/` exactly as it exists in the repo. Do not create `prompts/` or `PROMPTS/`.
+
 
 - `Prompts/MODULE-01-INFRASTRUCTURE.md`
 - `Prompts/MODULE-01-VERIFICATION.md`
@@ -138,7 +816,20 @@ When generating or editing code, you must respect the agreed architecture:
 
 - **Backend / API Layer**
   - Supabase Postgres for DB + Auth + Storage
-  - Supabase Edge Functions (Deno + TypeScript) for business logic:
+## Edge Function Convention (MANDATORY)
+We use **Pattern A (one function = one folder)**:
+- `supabase/functions/<domain>-<action>/index.ts`
+Examples:
+- `supabase/functions/auth-signup/index.ts`
+- `supabase/functions/listings-create/index.ts`
+- `supabase/functions/transactions-create/index.ts`
+- `supabase/functions/sp-wallet-read/index.ts`
+- `supabase/functions/subscriptions-webhook/index.ts`
+
+Rules:
+- Do NOT assume Express-style `/auth/*` routing unless an API router is explicitly implemented.
+- If you find an existing router-style function in the repo, STOP and adopt that existing pattern (do not mix patterns).
+
     - `/auth/*`, `/listings/*`, `/transactions/*`, `/sp/*`, `/subscriptions/*`, `/messages/*`, `/nodes/*`, `/admin/*`, `/moderation/*`
   - Supabase Realtime for chat + live updates
   - Row Level Security (RLS) for isolation by user and node
@@ -317,6 +1008,17 @@ Before implementing any feature, validate against these common issues:
 - ✅ **Discovery priority**: Subscribers get higher listing visibility
 - ✅ **Grace period logic**: 90 days with frozen (not deleted) SP after cancellation
 - ⚠️ **Don't gate**: Basic listing creation, search/browse, messaging, reviews
+
+## Authentication Canonical Decision (MANDATORY)
+Default (MVP):
+- Primary authentication = Supabase email + password.
+- Phone verification via Twilio is OPTIONAL and used for trust/onboarding gating (not required for login unless explicitly specified in docs).
+- Login via phone OTP is OUT OF SCOPE unless `docs/*` explicitly requires it.
+
+If any doc conflicts with the above:
+- Prefer: System Requirements → BRD → Solution Architecture → Module prompts.
+- Add `// TODO(AUTH): clarify whether phone OTP login is required` and list it under Open Questions.
+
 
 ### 6.2 Swap Points calculation validation
 - ✅ **50% cap**: User can never pay more than 50% of item price with SP
@@ -547,13 +1249,22 @@ Once I provide final Figma-based UX specs (e.g. Markdown under `docx/UX/`), you 
 
 ## 12 Hardening Protocol (mandatory)
 
-### HP-1 Contract-first (no exceptions)
-For every Edge Function endpoint or business flow:
+### HP-1 Contract-first + Single Source of Truth (no exceptions)
+Canonical contracts live in ONE place only:
+- `supabase/functions/_shared/contracts/`
+
+Rules:
 1) Define Zod schemas for request/response first:
-   - `supabase/functions/_shared/schemas/<domain>.ts`
-2) Derive TypeScript types from schemas (z.infer) and export them for the app:
-   - App must import from a single shared contract file (or generated mirror).
-3) Only then implement handler + UI wiring.
+   - `supabase/functions/_shared/contracts/<domain>.ts`
+2) Derive TypeScript types from schemas (z.infer) in the SAME file.
+3) The mobile app consumes contracts by importing from a mirrored location:
+   - `p2p-kids-marketplace/src/contracts/`
+
+Sync rule (MANDATORY):
+- If `p2p-kids-marketplace/src/contracts/` is missing or stale, you MUST add a sync mechanism:
+  - Prefer a repo script (e.g., `scripts/sync-contracts.mjs`) that copies from supabase → app.
+  - You MUST NOT claim a command exists unless it is present in `package.json` (see Script Existence Rule).
+- Never maintain two “independent” contract definitions. Supabase contracts are canonical.
 
 ### HP-2 Quality gates (stop if failing)
 Before marking any task “done”, you MUST provide:
@@ -568,6 +1279,34 @@ Before marking any task “done”, you MUST provide:
 If you cannot add tests (e.g., tooling missing), you MUST:
 - add `// TODO(TEST): ...` with exact missing test cases
 - provide a manual verification checklist with queries + expected results.
+
+### HP-2a Preflight Compile Gate (MANDATORY — catches duplicate identifiers)
+
+Before you tell the user to run the app in iOS Simulator / Android Emulator / Expo Go, you MUST ensure the codebase compiles.
+
+Rules:
+1) You MUST require a TypeScript compile check + lint check for the target app.
+2) If compile/lint fails, STOP. Do NOT proceed to manual verification steps. Fix the compile error first.
+3) You MUST NOT claim “Fixed” unless the preflight compile gate passes.
+
+Commands (MUST obey Script Existence Rule):
+- If `typecheck` exists in `p2p-kids-marketplace/package.json`:
+  - `cd p2p-kids-marketplace && yarn typecheck`
+- Else use:
+  - `cd p2p-kids-marketplace && npx tsc -p tsconfig.json --noEmit`
+
+Lint:
+- If `lint` exists:
+  - `cd p2p-kids-marketplace && yarn lint`
+- Else:
+  - `cd p2p-kids-marketplace && npx eslint .`
+
+Expected results:
+- Both commands exit code 0 with no “SyntaxError”, “Identifier has already been declared”, or TS compile errors.
+
+If the user reports a Metro/Babel SyntaxError:
+- Treat it as a Tier 0 blocker and fix it BEFORE any further steps.
+
 
 ### HP-3 Supabase auth/RLS rule (be explicit)
 Default rule:
@@ -605,6 +1344,10 @@ Every response must include:
 - What changed (files + brief summary)
 - How to test (commands + expected results)
 - Verification checklist mapping (which items satisfied + how)
+- Include a “Preflight Gate Status” section:
+  - Typecheck: PASS/FAIL (include the exact command used)
+  - Lint: PASS/FAIL (include the exact command used)
+- You MUST NOT say “Fixed” unless both are PASS.
 - Open questions / TODOs (if any)
 
 ## 13 Bug-class prevention rules
@@ -655,6 +1398,24 @@ Before creating a new file for routes/types/context/services:
 - search mentally using existing structure and references in current code
 - if an equivalent file already exists, you MUST update it instead of creating a new one
 You MUST NOT create parallel implementations (e.g., `AuthContext2`, `routes-new.ts`, etc.).
+
+## Duplicate Symbol Guard (MANDATORY)
+
+Before creating ANY new exported function/type in an existing file, you MUST prove it does not already exist.
+
+Required steps:
+1) Search in the current file FIRST (not memory).
+2) Search in the app source tree for the exact identifier.
+
+Use ripgrep (preferred):
+- `cd p2p-kids-marketplace && rg -n "export (const|function|class|type|interface) <IDENTIFIER>" src`
+- `cd p2p-kids-marketplace && rg -n "<IDENTIFIER>" src/services src/api src/hooks src/utils`
+
+Rules:
+- If an export already exists, you MUST update/refactor the existing implementation.
+- You MUST NOT add a second function with the same name “temporarily”.
+- If two implementations exist, consolidate to ONE and update all references.
+
 ----
 
 ## Navigation Hardening Protocol (MANDATORY)
@@ -814,6 +1575,17 @@ Run after EVERY change (UI, API, DB, anything):
 - App: lint + typecheck (and unit tests if logic changed)
 - Functions: lint/typecheck
 Output must include the exact commands and expected results.
+
+Tier 0 MUST include a compile gate that would fail on duplicate identifiers:
+
+Mobile (minimum):
+- `cd p2p-kids-marketplace && (yarn typecheck OR npx tsc -p tsconfig.json --noEmit)`
+- `cd p2p-kids-marketplace && (yarn lint OR npx eslint .)`
+
+Hard rule:
+- If the user cannot reach the app loading screen because of a SyntaxError, Tier 0 was NOT satisfied.
+- Do NOT ask for simulator testing until Tier 0 passes.
+
 
 ### Admin Portal Tier 0 (mandatory when admin-portal changes)
 If ANY file under `p2p-kids-admin/` (or `admin-portal/`) changes, you MUST run:
@@ -1041,5 +1813,3 @@ END OF ADDENDUM
 
 Use these rules and examples to drive all your work.
 Your priority is to help the user **implement this app smoothly, module by module**, always grounded in the BRD, system requirements, solution architecture, and module prompt docs.
-
-::contentReference[oaicite:0]{index=0}
