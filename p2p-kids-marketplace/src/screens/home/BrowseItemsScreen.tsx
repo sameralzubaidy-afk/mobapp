@@ -1,482 +1,486 @@
-/**
- * Browse Items Screen (NODE-006)
- * Displays items filtered by user's assigned node
- * Supports toggling between node-only and all items views
- * Includes node badges and distance indicators
- */
-
-import React, { useState, useEffect, useCallback } from 'react';
+// File: p2p-kids-marketplace/src/screens/home/BrowseItemsScreen.tsx
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   FlatList,
   ActivityIndicator,
-  StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
+  Image,
+  SafeAreaView,
   RefreshControl,
   Switch,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { getItems, getItemsWithinRadius, calculateDistance } from '@/services/items';
-import type { Item, ItemFilters, NodeInfo } from '@/types/item.types';
+import { useUserStore } from '@/stores/userStore';
+import { getItems, getCategories } from '@/services/items';
+import { supabase } from '@/config/supabase';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-// TODO(UI): Replace with final design tokens once Figma specs available
-const colors = {
-  primary: '#007AFF',
-  background: '#F2F2F7',
-  card: '#FFFFFF',
-  text: '#000000',
-  textSecondary: '#666666',
-  border: '#CCCCCC',
-  badge: '#FF9500',
-  success: '#34C759',
-};
+type NavigationProp = NativeStackNavigationProp<any>;
 
-interface BrowseItemsScreenProps {
-  navigation?: any;
+interface Item {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  category_id: string;
+  condition: string;
+  status: string;
+  accepts_swap_points: boolean;
+  created_at: string;
+  seller_id: string;
+  seller_node_id?: string;
+  seller_node_name?: string;
 }
 
-export default function BrowseItemsScreen({
-  navigation,
-}: BrowseItemsScreenProps) {
+interface Category {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+export default function BrowseItemsScreen() {
+  const { user, setUser } = useUserStore();
+  const navigation = useNavigation<NavigationProp>();
   const [items, setItems] = useState<Item[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [showAllNodes, setShowAllNodes] = useState(false);
-  const [userNodeId, setUserNodeId] = useState<string | null>(null);
-  const [userNode, setUserNode] = useState<NodeInfo | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Initialize user data (normally from AuthContext or user store)
+  // Load user from auth if not in store
   useEffect(() => {
-    // TODO: Get user from AuthContext or user store
-    const testUserId = 'user-test-123';
-    const testNodeId = '550e8400-e29b-41d4-a716-446655440001'; // Norwalk UUID
-    const testNode: NodeInfo = {
-      id: '550e8400-e29b-41d4-a716-446655440001',
-      name: 'Norwalk Central',
-      city: 'Norwalk',
-      state: 'CT',
-      latitude: 41.1177,
-      longitude: -73.4079,
-      radius_miles: 10,
+    const loadUser = async () => {
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        
+        if (!authUser) {
+          setError('Not authenticated');
+          setLoading(false);
+          return;
+        }
+
+        // If user not in store, fetch from profiles table
+        if (!user?.id) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', authUser.id)
+            .single();
+
+          if (profileError) {
+            console.error('Error loading profile:', profileError);
+            setError('Failed to load user profile');
+            setLoading(false);
+            return;
+          }
+
+          if (profile && profile.node_id) {
+            // Fetch node data separately
+            const { data: nodeData } = await supabase
+              .from('geographic_nodes')
+              .select('id, name, city, state, latitude, longitude')
+              .eq('id', profile.node_id)
+              .single();
+
+            // Map database fields to store format
+            const userData = {
+              id: profile.user_id,
+              email: profile.email || authUser.email || '',
+              name: profile.name || '',
+              avatar_url: profile.avatar_url || '',
+              node_id: profile.node_id,
+              node: nodeData || undefined,
+            };
+            setUser(userData);
+          } else if (profile) {
+            // Profile exists but no node assigned
+            const userData = {
+              id: profile.user_id,
+              email: profile.email || authUser.email || '',
+              name: profile.name || '',
+              avatar_url: profile.avatar_url || '',
+              node_id: profile.node_id,
+              node: undefined,
+            };
+            setUser(userData);
+          }
+        }
+
+        setError(null);
+      } catch (err) {
+        console.error('Error in loadUser:', err);
+        setError('Failed to load user');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    setUserId(testUserId);
-    setUserNodeId(testNodeId);
-    setUserNode(testNode);
+    loadUser();
+  }, [user?.id, setUser]);
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const cats = await getCategories();
+        setCategories(cats);
+      } catch (err) {
+        console.error('Error loading categories:', err);
+      }
+    };
+    loadCategories();
   }, []);
 
-  // Load items on mount and when filters change
-  useFocusEffect(
-    useCallback(() => {
-      if (userNodeId) {
-        loadItems();
-      }
-    }, [userNodeId, showAllNodes])
-  );
+  // Fetch items when filters or user data changes
+  useEffect(() => {
+    loadItems();
+  }, [showAllNodes, selectedCategory, user?.node_id]);
 
-  /**
-   * Load items based on filter settings
-   */
   const loadItems = async () => {
-    if (!userId || !userNodeId) {
-      setError('User not initialized');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
 
-      const filters: ItemFilters = {
-        node_id: userNodeId,
-        include_all_nodes: showAllNodes,
+      // Get current auth user as fallback
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!authUser) {
+        setError('Not authenticated');
+        setItems([]);
+        setLoading(false);
+        return;
+      }
+
+      // Use store user if available, otherwise need to fetch profile first
+      const userId = user?.id || authUser.id;
+      const nodeId = user?.node_id;
+
+      if (!nodeId && !showAllNodes) {
+        // If no node assigned and trying to show local items, show message
+        setError('Your node is not assigned yet');
+        setItems([]);
+        setLoading(false);
+        return;
+      }
+
+      const filters = {
+        node_id: showAllNodes ? undefined : nodeId,
+        category_id: selectedCategory || undefined,
       };
 
-      const result = showAllNodes
-        ? // Show all nodes - use larger radius
-          await getItemsWithinRadius(userNodeId, 50, userId)
-        : // Show only user's node
-          await getItems(filters, userId);
-
-      setItems(result.items);
+      const fetchedItems = await getItems(filters, userId);
+      setItems(fetchedItems);
+      setError(null);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to load items';
-      setError(message);
-      console.error('❌ Load items error:', err);
+      console.error('Error loading items:', err);
+      setError('Failed to load items');
     } finally {
       setLoading(false);
     }
   };
 
-  /**
-   * Handle refresh (pull to refresh)
-   */
-  const onRefresh = useCallback(async () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    try {
-      await loadItems();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [userId, userNodeId, showAllNodes]);
-
-  /**
-   * Handle node filter toggle
-   */
-  const handleToggleNodeFilter = (value: boolean) => {
-    setShowAllNodes(value);
+    await loadItems();
+    setRefreshing(false);
   };
 
-  /**
-   * Render item card with node badge for cross-node items
-   */
   const renderItemCard = ({ item }: { item: Item }) => {
-    const isCrossNode = showAllNodes && item.node_id !== userNodeId;
-    const distance =
-      isCrossNode &&
-      item.node &&
-      userNode &&
-      item.node.latitude !== undefined &&
-      item.node.longitude !== undefined
-        ? calculateDistance(userNode, item.node as any)
-        : null;
+    const isOtherNode = showAllNodes && item.seller_node_id !== user?.node_id;
 
     return (
       <TouchableOpacity
-        style={styles.itemCard}
-        onPress={() => navigation?.navigate('ItemDetailScreen', { itemId: item.id })}
+        style={{
+          flex: 1,
+          margin: 8,
+          backgroundColor: '#fff',
+          borderRadius: 12,
+          overflow: 'hidden',
+          elevation: 3,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        }}
       >
-        {/* Item image placeholder */}
-        <View style={styles.imageContainer}>
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.placeholderText}>📦</Text>
-          </View>
+        {/* Image */}
+        <View
+          style={{
+            width: '100%',
+            height: 150,
+            backgroundColor: '#f0f0f0',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ color: '#999', fontSize: 12 }}>📷 No Image</Text>
         </View>
 
-        {/* Item info */}
-        <View style={styles.itemInfo}>
-          <Text style={styles.itemTitle} numberOfLines={2}>
+        {/* Content */}
+        <View style={{ padding: 12 }}>
+          {/* Badges */}
+          <View style={{ flexDirection: 'row', marginBottom: 8, gap: 6 }}>
+            {isOtherNode && (
+              <View
+                style={{
+                  backgroundColor: '#ffd700',
+                  paddingHorizontal: 6,
+                  paddingVertical: 3,
+                  borderRadius: 4,
+                }}
+              >
+                <Text style={{ fontSize: 10, color: '#333', fontWeight: '600' }}>
+                  Other Node
+                </Text>
+              </View>
+            )}
+            {item.accepts_swap_points && (
+              <View
+                style={{
+                  backgroundColor: '#e8f5e9',
+                  paddingHorizontal: 6,
+                  paddingVertical: 3,
+                  borderRadius: 4,
+                }}
+              >
+                <Text style={{ fontSize: 10, color: '#2e7d32', fontWeight: '600' }}>
+                  ⚡ SP Eligible
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Title */}
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: 'bold',
+              color: '#333',
+              marginBottom: 4,
+            }}
+            numberOfLines={2}
+          >
             {item.title}
           </Text>
 
-          <Text style={styles.itemPrice}>
-            ${(item.price_cents / 100).toFixed(2)}
+          {/* Price */}
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: 'bold',
+              color: '#007AFF',
+              marginBottom: 4,
+            }}
+          >
+            ${item.price.toFixed(2)}
           </Text>
 
-          {/* Seller info */}
-          {item.seller && (
-            <Text style={styles.sellerName}>
-              by {item.seller.name || 'Unknown'}
+          {/* Node Name (if cross-node) */}
+          {isOtherNode && (
+            <Text style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>
+              📍 {item.seller_node_name || 'Unknown Node'}
             </Text>
           )}
 
-          {/* Node badge for cross-node items */}
-          {isCrossNode && item.node && (
-            <View style={styles.badgeContainer}>
-              <View style={styles.nodeBadge}>
-                <Text style={styles.badgeText}>
-                  {item.node.name}
-                  {distance ? ` • ${distance.toFixed(1)} mi` : ''}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Condition badge */}
-          {item.condition && (
-            <Text style={styles.conditionText}>
-              {item.condition.replace('_', ' ').toUpperCase()}
-            </Text>
-          )}
+          {/* Condition */}
+          <Text style={{ fontSize: 11, color: '#999' }}>
+            {item.condition ? item.condition.charAt(0).toUpperCase() + item.condition.slice(1) : 'Good'}
+          </Text>
         </View>
       </TouchableOpacity>
     );
   };
 
-  /**
-   * Render empty state
-   */
-  const renderEmptyState = () => {
-    if (loading) return null;
+  const renderEmptyState = () => (
+    <View
+      style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 40,
+      }}
+    >
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 8 }}>
+        No Items Found
+      </Text>
+      <Text style={{ fontSize: 14, color: '#666', textAlign: 'center', paddingHorizontal: 20 }}>
+        {showAllNodes
+          ? 'No items available in nearby nodes'
+          : 'No items in your node yet. Try expanding your search!'}
+      </Text>
+    </View>
+  );
 
+  if (loading && items.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>No items found</Text>
-        <Text style={styles.emptySubtitle}>
-          {showAllNodes
-            ? 'Try adjusting your search radius'
-            : 'No items available in your node yet'}
-        </Text>
-        {!showAllNodes && (
-          <TouchableOpacity
-            style={styles.expandButton}
-            onPress={() => setShowAllNodes(true)}
-          >
-            <Text style={styles.expandButtonText}>
-              Show items from nearby nodes
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      </SafeAreaView>
     );
-  };
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header with node info */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Browse Items</Text>
-        {userNode && !loading && (
-          <Text style={styles.nodeInfo}>
-            📍 Your Node: {userNode.name || 'Loading...'}
-          </Text>
-        )}
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }}>
+      {/* Header */}
+      <View style={{ paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#fff' }}>
+        <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>
+          Browse Items
+        </Text>
 
-      {/* Filter controls */}
-      <View style={styles.filterContainer}>
-        <View style={styles.filterRow}>
-          <Text style={styles.filterLabel}>Show all nodes</Text>
+        {/* Node Filter Toggle */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: '#f0f0f0',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 8,
+          }}
+        >
+          <View>
+            <Text style={{ fontSize: 12, color: '#666', fontWeight: '600' }}>
+              {showAllNodes 
+                ? 'All Nodes' 
+                : user?.node?.name 
+                  ? `My Node: ${user.node.name}, ${user.node.city || 'City'}, ${user.node.state || 'State'}`
+                  : 'My Node: Loading...'}
+            </Text>
+          </View>
           <Switch
-            style={styles.switch}
-            trackColor={{ false: '#767577', true: '#81C784' }}
-            thumbColor={showAllNodes ? colors.primary : '#f4f3f4'}
-            ios_backgroundColor="#3e3e3e"
-            onValueChange={handleToggleNodeFilter}
             value={showAllNodes}
-            testID="node-filter-toggle"
+            onValueChange={setShowAllNodes}
+            trackColor={{ false: '#ddd', true: '#81c784' }}
+            thumbColor={showAllNodes ? '#4caf50' : '#f1f1f1'}
           />
         </View>
-        {showAllNodes && (
-          <Text style={styles.filterHint}>
-            Showing items from nearby communities
-          </Text>
+
+        {/* Category Filter */}
+        {categories.length > 0 && (
+          <View style={{ marginTop: 12 }}>
+            <Text style={{ fontSize: 12, color: '#666', fontWeight: '600', marginBottom: 8 }}>
+              Categories
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <TouchableOpacity
+                onPress={() => setSelectedCategory(null)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  backgroundColor: selectedCategory === null ? '#007AFF' : '#e0e0e0',
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: selectedCategory === null ? '#fff' : '#333',
+                    fontWeight: '600',
+                  }}
+                >
+                  All
+                </Text>
+              </TouchableOpacity>
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => setSelectedCategory(cat.id)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 20,
+                    backgroundColor: selectedCategory === cat.id ? '#007AFF' : '#e0e0e0',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: selectedCategory === cat.id ? '#fff' : '#333',
+                      fontWeight: '600',
+                    }}
+                  >
+                    {cat.icon} {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         )}
       </View>
 
-      {/* Error message */}
+      {/* Error Message */}
       {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>⚠️ {error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={onRefresh}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+        <View style={{ backgroundColor: '#ffebee', paddingHorizontal: 16, paddingVertical: 10 }}>
+          <Text style={{ color: '#c62828', fontSize: 12 }}>Error: {error}</Text>
         </View>
       )}
 
-      {/* Loading state */}
-      {loading && !refreshing && (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      )}
-
-      {/* Items list */}
-      {!loading && (
+      {/* Items Grid */}
+      {items.length === 0 ? (
+        renderEmptyState()
+      ) : (
         <FlatList
           data={items}
           renderItem={renderItemCard}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
           numColumns={2}
-          columnWrapperStyle={styles.columnWrapper}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          ListEmptyComponent={renderEmptyState}
+          columnWrapperStyle={{ paddingHorizontal: 4 }}
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: 16 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         />
       )}
+
+      {/* Quick Links Navigation Bar */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          backgroundColor: '#fff',
+          borderTopColor: '#e0e0e0',
+          borderTopWidth: 1,
+          paddingVertical: 12,
+        }}
+      >
+        <TouchableOpacity
+          style={{ alignItems: 'center' }}
+          onPress={() => navigation.navigate('Home')}
+        >
+          <Text style={{ fontSize: 24, marginBottom: 4 }}>🏠</Text>
+          <Text style={{ fontSize: 11, color: '#666', fontWeight: '600' }}>Home</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={{ alignItems: 'center' }}
+          onPress={() => navigation.navigate('BrowseItems')}
+        >
+          <Text style={{ fontSize: 24, marginBottom: 4 }}>🛍️</Text>
+          <Text style={{ fontSize: 11, color: '#007AFF', fontWeight: '600' }}>Browse</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={{ alignItems: 'center' }}
+          onPress={() => navigation.navigate('Profile')}
+        >
+          <Text style={{ fontSize: 24, marginBottom: 4 }}>👤</Text>
+          <Text style={{ fontSize: 11, color: '#666', fontWeight: '600' }}>Profile</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={{ alignItems: 'center' }}
+          onPress={() => alert('Messages - coming soon')}
+        >
+          <Text style={{ fontSize: 24, marginBottom: 4 }}>💬</Text>
+          <Text style={{ fontSize: 11, color: '#666', fontWeight: '600' }}>Messages</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  nodeInfo: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  filterContainer: {
-    backgroundColor: colors.card,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  filterLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  switch: {
-    marginLeft: 8,
-  },
-  filterHint: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#FFE5E5',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#CC0000',
-  },
-  retryButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#CC0000',
-    borderRadius: 4,
-  },
-  retryButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.card,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContent: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
-  columnWrapper: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    marginBottom: 8,
-  },
-  itemCard: {
-    flex: 0.5,
-    marginHorizontal: 4,
-    marginVertical: 4,
-    backgroundColor: colors.card,
-    borderRadius: 8,
-    overflow: 'hidden',
-    // TODO(UX): Add shadow styling once design tokens finalized
-  },
-  imageContainer: {
-    height: 140,
-    backgroundColor: colors.background,
-  },
-  imagePlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F0F0F0',
-  },
-  placeholderText: {
-    fontSize: 48,
-  },
-  itemInfo: {
-    padding: 8,
-  },
-  itemTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  itemPrice: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  sellerName: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  badgeContainer: {
-    marginVertical: 4,
-  },
-  nodeBadge: {
-    backgroundColor: colors.badge,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.card,
-  },
-  conditionText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  expandButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  expandButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.card,
-  },
-});

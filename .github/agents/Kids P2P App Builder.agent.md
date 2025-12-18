@@ -23,6 +23,8 @@ If anything is ambiguous in the requirements:
 
 ## 1. Repo & folder layout (assumed for this agent)
 
+
+
 Treat the VS Code / GitHub workspace as:
 
 - Root: `kids_marketplace_app/`
@@ -45,6 +47,18 @@ These are the **source of truth** for:
 - Swap Points (SP) rules (earn/spend, 3-day pending, 90-day grace, 50% redemption cap, etc.)
 - Revenue model (subscription + buyer fee + seller fee, etc.)
 - Architecture decisions: React Native, Supabase Postgres, Edge Functions, Stripe, Twilio, CPSC API, etc.
+
+## Monorepo App Scope Rules (MANDATORY)
+
+This repo contains multiple apps. Every instruction MUST specify which app it targets.
+
+Canonical app roots:
+- Mobile app root: `p2p-kids-marketplace/`
+- Admin app root: `p2p-kids-admin/`  (if a different folder exists, use the actual one and update this list)
+
+You MUST NOT reference `admin-portal/` unless that folder actually exists in the workspace.
+If multiple admin folders exist, STOP and ask which is canonical; do not implement in both.
+
 
 ### Module prompt files (implementation + verification)
 
@@ -564,6 +578,16 @@ Service role key is ONLY allowed for:
 - scheduled/batch moderation tasks
 In service-role cases you MUST implement explicit authorization checks and log an audit event.
 
+## Script Existence Rule (MANDATORY)
+
+Before telling the user to run any command like `yarn typecheck`, you MUST:
+- confirm the script exists in the target app’s `package.json`
+If it does NOT exist, you MUST either:
+A) provide the exact `package.json` change to add it, OR
+B) use a command that definitely exists (e.g., `yarn lint` only if it exists).
+Never invent scripts.
+
+
 ### HP-4 DB invariants (bugs must not reach data)
 For points/money/state logic you MUST enforce:
 - CHECK constraints (non-negative values, valid caps)
@@ -625,14 +649,27 @@ Smoke script rules (minimum standard):
   4) print clear “PASS/FAIL + reason” for debugging
 
 ---
+## No Duplicate Implementations (MANDATORY)
+
+Before creating a new file for routes/types/context/services:
+- search mentally using existing structure and references in current code
+- if an equivalent file already exists, you MUST update it instead of creating a new one
+You MUST NOT create parallel implementations (e.g., `AuthContext2`, `routes-new.ts`, etc.).
+----
 
 ## Navigation Hardening Protocol (MANDATORY)
 
 ### NAV-0: Navigation Contract (single source of truth)
-The repo MUST have:
-- `src/navigation/routes.ts` (export route name constants; no raw strings in screens)
-- `src/navigation/types.ts` (TypeScript ParamLists for all navigators)
-Rule: screens MUST import route constants + typed params; never hardcode `"Welcome"`/`"Home"` strings.
+For the MOBILE app only, the repo MUST have:
+- `p2p-kids-marketplace/src/navigation/routes.ts`
+- `p2p-kids-marketplace/src/navigation/types.ts`
+
+For the ADMIN app (Next.js), routing is filesystem-based under:
+- `p2p-kids-admin/src/app/*`
+
+Rule: Mobile screens MUST import route constants + typed params; never hardcode `"Welcome"`/`"Home"` strings.
+Admin routes must be added via files under `src/app/` (no manual string route map).
+
 
 ### NAV-1: Route Ownership Rule (prevents RESET not handled)
 Before making ANY navigation change, you MUST:
@@ -666,6 +703,16 @@ Before editing navigation:
 - Confirm canonical auth/onboarding functions exist and are imported from ONE place.
 - If anything is unclear, STOP and add `// TODO(NAV): question...` rather than guessing.
 
+## Root Test Runner (recommended for seamless workflow)
+
+Prefer adding root scripts that delegate to each app:
+- `yarn tier0` runs Tier 0 for every changed app
+- `yarn tier1 --flows ...` runs smoke tests for impacted flows
+- `yarn tier2` runs `supabase db reset` + all smokes
+
+If root scripts are missing, the agent must output per-app commands with `cd <app>`.
+
+
 ### NAV-5: Navigation Regression Tests (Tier rules)
 Every nav change MUST include:
 Tier 0 (always):
@@ -686,6 +733,80 @@ If a navigation fix fails once:
 - You MUST diagnose using the exact error/warning, navigator ownership map, and current stack state.
 - You MUST NOT propose another navigation call until ownership is proven from code.
 ---
+
+## SQL / Migration Hardening Protocol (MANDATORY)
+
+### SQL-0: Migration mode must be declared
+Before writing SQL, you MUST declare ONE mode:
+- Mode A: "one-time migration" (assumes fresh DB; not rerunnable)
+- Mode B: "idempotent rerunnable migration" (safe to re-run multiple times)
+
+You MUST NOT mix patterns. Pick one and implement consistently.
+
+### SQL-1: Supabase/Postgres compatibility rules
+You MUST NOT use unsupported syntax. In particular:
+- DO NOT use `CREATE POLICY IF NOT EXISTS` (unsupported in Postgres).
+- DO NOT claim a statement is rerunnable unless it truly is.
+
+If you need rerunnable policies:
+- Use `DROP POLICY IF EXISTS ... ON <table>;` then `CREATE POLICY ...;`
+(or implement a DO block that checks `pg_policies` and conditionally creates.)
+
+### SQL-2: Strict ordering + explicit dependencies
+When tables depend on other tables:
+- create referenced tables FIRST (e.g., `categories` before `items`)
+- create columns BEFORE indexes/policies/views that reference them
+- create RLS policies only AFTER `ALTER TABLE ... ENABLE ROW LEVEL SECURITY;`
+
+### SQL-3: Mandatory assertions ("fail fast with clear diagnosis")
+After each critical step, you MUST include a verification query that I can run immediately:
+- After `CREATE TABLE items...` you MUST include:
+  - `SELECT column_name FROM information_schema.columns ... WHERE table_name='items';`
+- Before creating indexes, you MUST include a check that required columns exist.
+- Before creating policies, you MUST include a check that RLS is enabled.
+
+### SQL-4: Provide a 2-phase execution plan (prevents “copy/paste all” confusion)
+Every SQL deliverable MUST be split into exactly two runnable blocks:
+
+BLOCK 1 — Schema:
+- create/alter tables
+- constraints + enums
+- RLS enablement
+- functions/RPC (if any)
+
+BLOCK 2 — Security + Performance:
+- policies (drop then create if rerunnable)
+- indexes
+- views
+
+And you MUST tell me:
+- run Block 1 first; confirm verification query results
+- then run Block 2
+
+### SQL-5: Never hand-wave re-run behavior
+If I am using Supabase SQL Editor (manual execution), you MUST:
+- avoid partial execution assumptions
+- include safe drop statements where required for reruns (policies/views/functions)
+- explicitly state what is safe to re-run vs not
+
+### SQL-6: DB Object Checklist (must be included in your response)
+For every migration you generate, include this checklist in your response:
+- [ ] tables created in correct order
+- [ ] columns verified (include verification query)
+- [ ] constraints created
+- [ ] RLS enabled
+- [ ] policies created (no unsupported syntax)
+- [ ] indexes reference verified columns
+- [ ] view/function drop/create behavior stated
+- [ ] rollback instructions provided (or explicitly “no rollback” + why)
+
+### SQL-7: SQL Editor rerun safety
+Assume I might accidentally re-run the same SQL in Supabase SQL Editor.
+Therefore:
+- policies/views/functions must be droppable safely
+- table creation must either be `IF NOT EXISTS` (if idempotent mode) OR clearly marked one-time
+- never include “run entire file” advice without also giving the 2-block plan above
+
 
 ## B) Tiered Regression (REQUIRED) + how to trigger in GitHub
 ### Tier 0 (ALWAYS run locally)
@@ -770,6 +891,26 @@ Required tiers:
 - If B/D/E/F/G/H: Tier 1 for impacted flows
 - If A OR D OR F: Tier 2
 
+---
+## External Provider Dev Mode (MANDATORY)
+
+For Twilio/Stripe/FCM/CPSC:
+- Implement a DEV fallback mode using feature flags (env-based)
+- Provide mock/stub behavior in dev so core flows can be tested without live providers
+- Never block onboarding due to optional integrations in DEV unless the module explicitly requires it
+
+All provider errors must surface as structured errors with an actionable message:
+- what failed
+- which env var is missing
+- exact remediation step
+---
+## Rollback Plan Requirement (MANDATORY for DB/Auth/Nav/Payments)
+
+If a change touches DB migrations, RootNavigator/auth boundary, Stripe webhooks, SP/fees:
+You MUST include a rollback plan:
+- what to revert
+- how to verify rollback succeeded
+If rollback is not feasible, you MUST say so and propose a safe forward fix.
 ---
 
 ## D) COMPLETE Flow List (Agent MUST use this list for mapping + checks)
@@ -891,6 +1032,7 @@ When the user asks for implementation/debugging:
 - You MUST require Tier 0 always.
 - You MUST require Tier 1/Tier 2 based on Section C.
 - You MUST output the exact commands to run (local) and confirm expected results.
+
 
 END OF ADDENDUM
 

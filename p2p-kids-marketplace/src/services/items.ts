@@ -1,240 +1,185 @@
 /**
- * Items Service
- * Handles item queries with node filtering
- * Supports node-based and radius-based filtering for NODE-006
+ * File: p2p-kids-marketplace/src/services/items.ts
+ * MODULE-03 NODE-006: Node-Specific Item Filtering
+ * 
+ * Handles:
+ * - Item listing queries with node-based filtering
+ * - Cross-node search within radius
+ * - Item filtering by category, price, condition
+ * - Analytics tracking for item browsing
  */
 
-import { supabase } from './supabase/client';
+import { supabase } from './supabase';
 import { trackEvent } from './analytics';
-import type {
-  Item,
-  ItemFilters,
-  ItemsQueryResult,
-  NearbyNode,
-} from '@/types/item.types';
 
 /**
- * Build Supabase query for items
- * Applies filters and returns paginated results
+ * Item filter options for browse/search
  */
-const buildItemsQuery = (filters: ItemFilters) => {
-  let query = supabase
-    .from('items')
-    .select(
-      `
-      id,
-      title,
-      description,
-      condition,
-      status,
-      price_cents,
-      currency,
-      category,
-      seller_id,
-      node_id,
-      accepts_swap_points,
-      donate_to_nonprofit,
-      is_boosted,
-      boost_ends_at,
-      images,
-      favorites_count,
-      seller_reputation_score,
-      created_at,
-      updated_at
-    `,
-      { count: 'exact' }
-    )
-    .eq('status', 'available');
-
-  // Filter by node (default behavior - show only user's node items)
-  if (filters.node_id && !filters.include_all_nodes) {
-    query = query.eq('node_id', filters.node_id);
-  }
-
-  // Category filter
-  if (filters.category_id) {
-    query = query.eq('category', filters.category_id);
-  }
-
-  // Condition filter
-  if (filters.condition) {
-    query = query.eq('condition', filters.condition);
-  }
-
-  // Price range filter
-  if (filters.min_price !== undefined) {
-    query = query.gte('price_cents', filters.min_price);
-  }
-  if (filters.max_price !== undefined) {
-    query = query.lte('price_cents', filters.max_price);
-  }
-
-  // Search query (full-text search on title and description)
-  if (filters.search_query && filters.search_query.trim()) {
-    const searchTerm = `%${filters.search_query.trim()}%`;
-    query = query.or(
-      `title.ilike.${searchTerm},description.ilike.${searchTerm}`
-    );
-  }
-
-  // Payment preference filter (if subscriber-only feature)
-  if (filters.accepted_payment === 'accept_swap_points') {
-    query = query.eq('accepts_swap_points', true);
-  }
-  if (filters.accepted_payment === 'donate') {
-    query = query.eq('donate_to_nonprofit', true);
-  }
-
-  // Sort by created_at (newest first), then by boosted items
-  query = query
-    .order('is_boosted', { ascending: false })
-    .order('created_at', { ascending: false });
-
-  return query;
-};
+export interface ItemFilters {
+  node_id?: string;
+  category_id?: string;
+  condition?: string;
+  min_price?: number;
+  max_price?: number;
+  search_query?: string;
+  include_all_nodes?: boolean; // Cross-node search
+  accepts_swap_points?: boolean; // Filter SP-eligible items (MODULE-04)
+}
 
 /**
- * Get items with filters (node-based by default)
- * @param filters - Item filter criteria
- * @param userId - Current user ID for analytics
- * @returns Items with pagination info
- * @throws Error if query fails
+ * Item details returned from queries
+ */
+export interface Item {
+  id: string;
+  seller_id: string;
+  title: string;
+  description: string | null;
+  price: number;
+  category_id: string | null;
+  condition: string | null;
+  status: string;
+  accepts_swap_points: boolean;
+  created_at: string;
+  updated_at: string;
+  sold_at: string | null;
+  seller?: {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    node_id: string | null;
+    node?: {
+      id: string;
+      name: string;
+      city: string;
+      state: string;
+    } | null;
+  };
+  category?: {
+    id: string;
+    name: string;
+    icon: string | null;
+  } | null;
+  images?: Array<{
+    id: string;
+    url: string;
+    thumbnail_url: string | null;
+    display_order: number;
+  }>;
+}
+
+/**
+ * Get items with filters (NODE-006: Node-based filtering)
+ * 
+ * @param filters - Filter criteria
+ * @param userId - Current user ID (for analytics)
+ * @returns Array of items
  */
 export const getItems = async (
   filters: ItemFilters,
   userId: string
-): Promise<ItemsQueryResult> => {
+): Promise<Item[]> => {
   try {
-    const query = buildItemsQuery(filters);
+    let query = supabase
+      .from('items')
+      .select('*')
+      .eq('status', 'available')
+      .order('created_at', { ascending: false });
 
-    const { data, error, count } = await query.limit(20).range(0, 19);
+    // Category filter
+    if (filters.category_id) {
+      query = query.eq('category_id', filters.category_id);
+    }
+
+    // Condition filter
+    if (filters.condition) {
+      query = query.eq('condition', filters.condition);
+    }
+
+    // Price range filter
+    if (filters.min_price !== undefined) {
+      query = query.gte('price', filters.min_price);
+    }
+    if (filters.max_price !== undefined) {
+      query = query.lte('price', filters.max_price);
+    }
+
+    // Swap Points filter (MODULE-04)
+    if (filters.accepts_swap_points !== undefined) {
+      query = query.eq('accepts_swap_points', filters.accepts_swap_points);
+    }
+
+    // Search query (title or description)
+    if (filters.search_query) {
+      query = query.or(
+        `title.ilike.%${filters.search_query}%,description.ilike.%${filters.search_query}%`
+      );
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('❌ Get items error:', error);
-      throw error;
+      throw new Error(error.message || 'Failed to fetch items');
     }
 
-    // Track analytics
-    await trackEvent('items_browsed', {
+    let filteredItems = data || [];
+
+    // NODE-006: Filter by node locally (default behavior)
+    if (filters.node_id && !filters.include_all_nodes) {
+      // Fetch seller profiles to filter by node
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, node_id')
+        .eq('node_id', filters.node_id);
+
+      const nodeUserIds = new Set((profiles || []).map(p => p.user_id));
+      filteredItems = filteredItems.filter(item => nodeUserIds.has(item.seller_id));
+    }
+
+    // Track analytics (NODE-006)
+    trackEvent('items_browsed', {
       user_id: userId,
       node_filter: filters.node_id,
       include_all_nodes: filters.include_all_nodes || false,
       category: filters.category_id,
-      search_query: filters.search_query ? '[redacted]' : undefined,
-      result_count: data?.length || 0,
-      timestamp: new Date().toISOString(),
+      search_query: filters.search_query,
+      accepts_swap_points: filters.accepts_swap_points,
+      result_count: filteredItems.length,
     });
 
-    return {
-      items: (data as Item[]) || [],
-      total_count: count || 0,
-      has_more: (count || 0) > 20,
-    };
-  } catch (error) {
-    console.error('❌ getItems error:', error);
+    return filteredItems as Item[];
+  } catch (error: any) {
+    console.error('❌ Get items error:', error);
     throw error;
   }
 };
 
 /**
- * Get items within distance radius (cross-node search)
- * @param userNodeId - User's current node ID
+ * Get items within distance radius (NODE-007: Cross-node search)
+ * 
+ * @param userNodeId - User's node ID
  * @param radiusMiles - Search radius in miles
- * @param userId - Current user ID for analytics
- * @returns Items within radius with node info
- * @throws Error if query fails
+ * @param userId - Current user ID
+ * @param additionalFilters - Optional additional filters
+ * @returns Array of items within radius
  */
 export const getItemsWithinRadius = async (
   userNodeId: string,
   radiusMiles: number,
-  userId: string
-): Promise<ItemsQueryResult> => {
-  try {
-    // TODO: For now, just get all items (RPC function pending deployment)
-    // In production, this will use the get_nodes_within_radius RPC function
-    // For MVP, "Show All Nodes" simply queries all available items across all nodes
-    
-    const { data, error: itemsError, count } = await supabase
-      .from('items')
-      .select(
-        `
-        id,
-        title,
-        description,
-        condition,
-        status,
-        price_cents,
-        currency,
-        category,
-        seller_id,
-        node_id,
-        accepts_swap_points,
-        donate_to_nonprofit,
-        is_boosted,
-        boost_ends_at,
-        images,
-        favorites_count,
-        seller_reputation_score,
-        created_at,
-        updated_at
-      `,
-        { count: 'exact' }
-      )
-      .eq('status', 'available')
-      .order('is_boosted', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(20)
-      .range(0, 19);
-
-    if (itemsError) {
-      console.error('❌ Failed to get items:', itemsError);
-      throw itemsError;
-    }
-
-    // Track analytics
-    await trackEvent('items_browsed_by_radius', {
-      user_id: userId,
-      user_node_id: userNodeId,
-      radius_miles: radiusMiles,
-      nodes_searched: 0,
-      result_count: data?.length || 0,
-      timestamp: new Date().toISOString(),
-    });
-
-    return {
-      items: (data as Item[]) || [],
-      total_count: count || 0,
-      has_more: (count || 0) > 20,
-    };
-  } catch (error) {
-    console.error('❌ getItemsWithinRadius error:', error);
-    throw error;
-  }
-};
-
-/**
- * Get nearby nodes within radius
- * @param nodeId - User's node ID
- * @param radiusMiles - Search radius in miles
- * @returns Nearby nodes with distance info
- * @throws Error if query fails
- */
-export const getNearbyNodes = async (
-  nodeId: string,
-  radiusMiles: number
-): Promise<NearbyNode[]> => {
+  userId: string,
+  additionalFilters?: Omit<ItemFilters, 'node_id' | 'include_all_nodes'>
+): Promise<Item[]> => {
   try {
     // Get user's node coordinates
     const { data: userNode, error: nodeError } = await supabase
-      .from('nodes')
+      .from('geographic_nodes')
       .select('latitude, longitude')
-      .eq('id', nodeId)
+      .eq('id', userNodeId)
       .single();
 
-    if (nodeError) throw nodeError;
-
-    if (!userNode?.latitude || !userNode?.longitude) {
-      throw new Error('Node missing coordinates');
+    if (nodeError) {
+      console.error('❌ Node lookup error:', nodeError);
+      throw new Error(nodeError.message || 'Failed to lookup node');
     }
 
     // Find all nodes within radius
@@ -247,79 +192,195 @@ export const getNearbyNodes = async (
       }
     );
 
-    if (nodesError) throw nodesError;
+    if (nodesError) {
+      console.error('❌ Nearby nodes lookup error:', nodesError);
+      throw new Error(nodesError.message || 'Failed to find nearby nodes');
+    }
 
-    return (nearbyNodes as NearbyNode[]) || [];
-  } catch (error) {
-    console.error('❌ getNearbyNodes error:', error);
+    const nodeIds = nearbyNodes.map((node: any) => node.id);
+
+    console.log(`🔍 Found ${nodeIds.length} nodes within ${radiusMiles} miles`);
+
+    // Get items from nearby nodes
+    let query = supabase
+      .from('items')
+      .select(`
+        *,
+        seller:profiles!items_seller_id_fkey(
+          user_id,
+          name,
+          avatar_url,
+          node_id,
+          node:geographic_nodes!profiles_node_id_fkey(
+            id,
+            name,
+            city,
+            state
+          )
+        ),
+        category:categories(id, name, icon),
+        images:item_images(id, url, thumbnail_url, display_order)
+      `)
+      .eq('status', 'available')
+      .in('seller.node_id', nodeIds)
+      .order('created_at', { ascending: false });
+
+    // Apply additional filters
+    if (additionalFilters?.category_id) {
+      query = query.eq('category_id', additionalFilters.category_id);
+    }
+    if (additionalFilters?.condition) {
+      query = query.eq('condition', additionalFilters.condition);
+    }
+    if (additionalFilters?.min_price !== undefined) {
+      query = query.gte('price', additionalFilters.min_price);
+    }
+    if (additionalFilters?.max_price !== undefined) {
+      query = query.lte('price', additionalFilters.max_price);
+    }
+    if (additionalFilters?.accepts_swap_points !== undefined) {
+      query = query.eq('accepts_swap_points', additionalFilters.accepts_swap_points);
+    }
+    if (additionalFilters?.search_query) {
+      query = query.or(
+        `title.ilike.%${additionalFilters.search_query}%,description.ilike.%${additionalFilters.search_query}%`
+      );
+    }
+
+    const { data: items, error: itemsError } = await query;
+
+    if (itemsError) {
+      console.error('❌ Items within radius error:', itemsError);
+      throw new Error(itemsError.message || 'Failed to fetch items within radius');
+    }
+
+    // Track analytics (NODE-007)
+    trackEvent('items_browsed_by_radius', {
+      user_id: userId,
+      user_node_id: userNodeId,
+      radius_miles: radiusMiles,
+      nodes_searched: nodeIds.length,
+      result_count: items?.length || 0,
+    });
+
+    return (items || []) as Item[];
+  } catch (error: any) {
+    console.error('❌ Get items within radius error:', error);
     throw error;
   }
 };
 
 /**
  * Get single item by ID
+ * 
  * @param itemId - Item ID
- * @returns Item with seller and node info
- * @throws Error if not found
+ * @returns Item details
  */
-export const getItemById = async (itemId: string): Promise<Item> => {
+export const getItemById = async (itemId: string): Promise<Item | null> => {
   try {
     const { data, error } = await supabase
       .from('items')
-      .select(
-        `
-        id,
-        title,
-        description,
-        condition,
-        status,
-        price_cents,
-        currency,
-        category,
-        seller_id,
-        node_id,
-        accepts_swap_points,
-        donate_to_nonprofit,
-        is_boosted,
-        boost_ends_at,
-        images,
-        favorites_count,
-        seller_reputation_score,
-        created_at,
-        updated_at
-      `
-      )
+      .select(`
+        *,
+        seller:profiles!items_seller_id_fkey(
+          user_id,
+          name,
+          avatar_url,
+          node_id,
+          node:geographic_nodes!profiles_node_id_fkey(
+            id,
+            name,
+            city,
+            state
+          )
+        ),
+        category:categories(id, name, icon),
+        images:item_images(id, url, thumbnail_url, display_order)
+      `)
       .eq('id', itemId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Get item by ID error:', error);
+      throw new Error(error.message || 'Failed to fetch item');
+    }
+
     return data as Item;
-  } catch (error) {
-    console.error('❌ getItemById error:', error);
-    throw error;
+  } catch (error: any) {
+    console.error('❌ Get item by ID error:', error);
+    return null;
   }
 };
 
 /**
- * Calculate distance between two nodes in miles
- * @param node1 - First node with coordinates
- * @param node2 - Second node with coordinates
- * @returns Distance in miles
+ * Get all categories
+ * 
+ * @returns Array of categories
  */
-export const calculateDistance = (
-  node1: { latitude: number; longitude: number },
-  node2: { latitude: number; longitude: number }
-): number => {
-  // Haversine formula for distance calculation
-  const R = 3959; // Earth radius in miles
-  const dLat = ((node2.latitude - node1.latitude) * Math.PI) / 180;
-  const dLng = ((node2.longitude - node1.longitude) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((node1.latitude * Math.PI) / 180) *
-      Math.cos((node2.latitude * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+export const getCategories = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+
+    if (error) throw error;
+
+    return data || [];
+  } catch (error: any) {
+    console.error('❌ Get categories error:', error);
+    return [];
+  }
+};
+
+/**
+ * Create new item listing
+ * (Will be expanded in MODULE-04)
+ * 
+ * @param itemData - Item data
+ * @returns Created item
+ */
+export const createItem = async (itemData: {
+  title: string;
+  description?: string;
+  price: number;
+  category_id?: string;
+  condition?: string;
+  accepts_swap_points?: boolean;
+}): Promise<Item> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { data, error } = await supabase
+      .from('items')
+      .insert([
+        {
+          seller_id: user.id,
+          ...itemData,
+          status: 'available',
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    trackEvent('item_created', {
+      user_id: user.id,
+      item_id: data.id,
+      price: itemData.price,
+      category_id: itemData.category_id,
+      accepts_swap_points: itemData.accepts_swap_points || false,
+    });
+
+    return data as Item;
+  } catch (error: any) {
+    console.error('❌ Create item error:', error);
+    throw error;
+  }
 };

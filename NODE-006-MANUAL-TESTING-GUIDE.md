@@ -1,282 +1,295 @@
 # NODE-006: Manual Testing Guide
 
-**Task:** NODE-006 - Node-Specific Item Filtering  
-**Manual Verification Checklist**
+## Prerequisites
 
----
+Before you can test NODE-006, you need to:
 
-## PRE-REQUISITES
+### 1. Run the Database Migration (REQUIRED)
 
-**Before starting manual tests, ensure:**
-- [ ] Database migration `009_get_nodes_within_radius.sql` applied to Supabase prod
-- [ ] At least 2 nodes exist (Norwalk CT, Little Falls NJ)
-- [ ] Test items exist in both nodes
-- [ ] Test user account created
-- [ ] App deployed and running
+**In Supabase SQL Editor:**
 
----
+1. Go to https://supabase.com/dashboard
+2. Select your project
+3. Click "SQL Editor" in the left sidebar
+4. Click "New Query"
+5. Copy the entire contents of `supabase/migrations/20251217000002_create_items_table_node_filtering.sql`
+6. Paste into the editor
+7. Click "Run" or press Cmd+Enter
 
-## MANUAL TESTING SCENARIOS
+**Expected Output:**
+- Tables created: `items`, `categories`, `item_images`
+- Function created: `get_nodes_within_radius()`
+- View created: `items_with_node_info`
+- 8 categories seeded
+- RLS policies enabled
 
-### Scenario 1: View Items in User's Node
-**Steps:**
-1. Launch app
-2. Sign in with test account (should be assigned to Norwalk node)
-3. Tap "Browse Items" button
-4. Observe:
-   - [x] Header shows "Your Node: Norwalk Central"
-   - [x] "Show all nodes" toggle is OFF
-   - [x] Items list displays only Norwalk items
-   - [x] NO node badges visible (all items from same node)
-5. **Expected:** 2-5 items from Norwalk node displayed
+### 2. Verify Nodes Exist
 
-**Verification:**
+**In Supabase Table Editor:**
+
+1. Go to Table Editor → `geographic_nodes`
+2. Verify you have at least 2 active nodes:
+   - Norwalk Central (Norwalk, CT, ZIP: 06850)
+   - Little Falls (Little Falls, NJ, ZIP: 07424)
+
+If not, run `supabase/migrations/20251217000001_seed_initial_nodes.sql`
+
+### 3. Create Test Items
+
+**In Supabase SQL Editor:**
+
+```sql
+-- Get a test user ID (replace with your actual user ID)
+SELECT id, email FROM auth.users LIMIT 5;
+
+-- Create test item in Norwalk node
+INSERT INTO items (
+  seller_id,
+  title,
+  description,
+  price,
+  category_id,
+  condition,
+  status,
+  accepts_swap_points
+) 
+SELECT 
+  (SELECT id FROM auth.users WHERE email = 'your-test-user@example.com'),
+  'Lego Star Wars Set',
+  'Barely used, complete set with all pieces and instructions',
+  25.99,
+  (SELECT id FROM categories WHERE name = 'Toys'),
+  'like_new',
+  'available',
+  true;
+
+-- Create another test item
+INSERT INTO items (
+  seller_id,
+  title,
+  description,
+  price,
+  category_id,
+  condition,
+  status
+) 
+SELECT 
+  (SELECT id FROM auth.users WHERE email = 'another-user@example.com'),
+  'Nintendo Switch Game',
+  'Pokemon Sword - great condition',
+  35.00,
+  (SELECT id FROM categories WHERE name = 'Games'),
+  'good',
+  'available';
 ```
-✅ Items from user's node displayed
-✅ No cross-node badges shown
-✅ Header shows correct node name
-✅ Toggle switch is OFF
-```
 
----
+### 4. Ensure User is Assigned to a Node
 
-### Scenario 2: Toggle to Show All Nodes
-**Steps:**
-1. Starting from Scenario 1 BrowseItemsScreen
-2. Tap "Show all nodes" toggle (ON)
-3. Wait for items to reload
-4. Observe:
-   - [x] Toggle is now ON
-   - [x] Filter hint appears: "Showing items from nearby communities"
-   - [x] Items list now includes Norwalk AND Little Falls items
-   - [x] Little Falls items have orange node badge
-5. **Expected:** 5-10 items total from both nodes
+**In Supabase Table Editor:**
 
-**Verification:**
-```
-✅ Toggle switch ON
-✅ Helper text displayed
-✅ Items from multiple nodes shown
-✅ Node badges visible for cross-node items
-```
+1. Go to Table Editor → `profiles`
+2. Find your test user
+3. Verify `node_id` is set (should be Norwalk or Little Falls UUID)
+4. If not set, run signup flow or manually update:
 
----
-
-### Scenario 3: Check Node Badges and Distance
-**Steps:**
-1. Starting from Scenario 2 (all nodes view)
-2. Look for items with orange badge
-3. Tap an item from Little Falls node
-4. Observe badge displays:
-   - [x] Node name: "Stamford Downtown" OR "Little Falls"
-   - [x] Distance indicator: "~8.1 mi" OR similar
-5. **Expected:** Badge shows "Node Name • X.X mi"
-
-**Verification:**
-```
-✅ Badge displayed for cross-node items
-✅ Node name shown correctly
-✅ Distance calculated and displayed
-✅ Distance value reasonable (7-50 miles)
-```
-
----
-
-### Scenario 4: Filter by Payment Preference
-**Steps:**
-1. In all nodes view, look for items with different payment options
-2. Observe item list has mix of:
-   - [x] Items with SP badge (Swap Points accepted)
-   - [x] Items without SP badge (Cash Only)
-3. Try filtering (if filter UI implemented):
-   - [x] Filter to show only "Accept Swap Points"
-   - [x] Filter to show only "Cash Only"
-4. **Expected:** Items correctly categorized
-
-**Verification:**
-```
-✅ Items with different payment preferences visible
-✅ SP indicators shown correctly
-✅ Mix of payment options present
+```sql
+UPDATE profiles 
+SET node_id = (SELECT id FROM geographic_nodes WHERE name = 'Norwalk Central')
+WHERE user_id = 'your-user-id-here';
 ```
 
 ---
 
-### Scenario 5: Price Filtering
-**Steps:**
-1. In browse items screen, check item prices
-2. Prices should range widely (e.g., $5 - $50)
-3. Items displayed in price order
-4. Try manually filtering by price (if implemented):
-   - [x] Show items under $20
-   - [x] Show items $20-$50
-5. **Expected:** Correct items shown based on filter
+## Manual Test Steps
 
-**Verification:**
+### Test 1: Basic Item Browsing
+
+1. **Start the app:**
+   ```bash
+   cd p2p-kids-marketplace
+   npm start
+   ```
+
+2. **Navigate to Browse Items screen**
+   - Currently needs to be added to navigation
+   - Direct import for testing: Open BrowseItemsScreen.tsx
+
+3. **Expected Results:**
+   - ✅ Screen loads without errors
+   - ✅ Header shows "Browse Items"
+   - ✅ Subtitle shows "My Node: [Your Node Name]"
+   - ✅ Filter info shows "Items from [City], [State]"
+   - ✅ Toggle switch shows "Local" label
+
+### Test 2: Node-Specific Filtering (Default)
+
+1. **With toggle set to "My Node" (default):**
+   - View the items list
+
+2. **Expected Results:**
+   - ✅ Only items from your assigned node are shown
+   - ✅ Each item shows node name: "📍 [Node Name]"
+   - ✅ NO "Other Node" badges visible
+   - ✅ If no items in your node → Empty state message
+
+### Test 3: Cross-Node Filtering
+
+1. **Toggle "Show All Nodes" switch ON:**
+   - Flip the switch to enable all nodes
+
+2. **Expected Results:**
+   - ✅ Header updates to "All Nodes"
+   - ✅ Subtitle changes to "Items from all communities"
+   - ✅ Items from ALL nodes are shown
+   - ✅ Items from other nodes show "Other Node" badge (yellow background)
+   - ✅ Your node items still show node name but NO badge
+
+### Test 4: Empty State
+
+1. **Scenario A - No items in your node:**
+   - Toggle OFF (My Node only)
+   - If your node has no items
+
+2. **Expected Results:**
+   - ✅ Empty state icon: 📦
+   - ✅ Title: "No items in your node yet"
+   - ✅ Text: "Try toggling 'Show All Nodes' to see items from nearby communities"
+
+3. **Scenario B - No items anywhere:**
+   - Toggle ON (All Nodes)
+   - If no items exist in database
+
+4. **Expected Results:**
+   - ✅ Empty state icon: 📦
+   - ✅ Title: "No items available"
+   - ✅ Text: "Be the first to list an item!"
+
+### Test 5: Item Display
+
+1. **Check each item card displays:**
+   - ✅ Item image (or placeholder 📦 if no image)
+   - ✅ Item title (2 lines max)
+   - ✅ Price (formatted as $XX.XX)
+   - ✅ Node location: "📍 [Node Name]"
+   - ✅ "Other Node" badge (if from different node and toggle ON)
+   - ✅ "⚡ SP Eligible" badge (if accepts_swap_points = true)
+
+### Test 6: Pull to Refresh
+
+1. **Pull down on the items list:**
+   - Drag screen down from top
+
+2. **Expected Results:**
+   - ✅ Spinner shows while refreshing
+   - ✅ Items reload
+   - ✅ Current toggle state preserved (Local or All Nodes)
+
+### Test 7: Toggle Persistence
+
+1. **Toggle to "All Nodes"**
+2. **Scroll through items**
+3. **Toggle back to "Local"**
+
+4. **Expected Results:**
+   - ✅ Toggle switches smoothly
+   - ✅ Items reload each time
+   - ✅ Filter applies correctly each time
+   - ✅ No crashes or errors
+
+---
+
+## Troubleshooting
+
+### "No items shown" even when items exist
+
+**Check:**
+1. User's `node_id` is set in `profiles` table
+2. Items exist with sellers who have `node_id` set
+3. Item `status` = 'available'
+4. Check console logs for errors
+
+**Fix:**
+```sql
+-- Verify user node assignment
+SELECT p.user_id, p.name, p.node_id, gn.name as node_name
+FROM profiles p
+LEFT JOIN geographic_nodes gn ON p.node_id = gn.id
+WHERE p.user_id = 'your-user-id';
+
+-- Verify item sellers have nodes
+SELECT i.id, i.title, p.name as seller, gn.name as node
+FROM items i
+JOIN profiles p ON i.seller_id = p.user_id
+LEFT JOIN geographic_nodes gn ON p.node_id = gn.id
+WHERE i.status = 'available';
 ```
-✅ Wide price range visible
-✅ Price display formatted correctly ($XX.XX)
-✅ Price filtering works (if implemented)
+
+### "TypeError: Cannot read property 'node' of undefined"
+
+**Cause:** User store not populated with node data
+
+**Fix:** Ensure user profile is fetched with node data:
+```typescript
+const { data: profile } = await supabase
+  .from('profiles')
+  .select(`
+    *,
+    node:geographic_nodes(*)
+  `)
+  .eq('user_id', user.id)
+  .single();
+```
+
+### Toggle doesn't change items
+
+**Check:**
+1. `showAllNodes` state is updating
+2. `loadItems()` is called in `useEffect` with `showAllNodes` dependency
+3. No JavaScript errors in console
+
+### Database Error: "relation 'items' does not exist"
+
+**Fix:** Run the migration first! See Prerequisites section.
+
+---
+
+## Expected Console Logs
+
+When everything works correctly, you should see:
+
+```
+🔍 Loading items with filters: { node_id: 'uuid...', include_all_nodes: false }
+✅ Loaded 5 items
+```
+
+When toggling to All Nodes:
+
+```
+🔍 Loading items with filters: { node_id: 'uuid...', include_all_nodes: true }
+✅ Loaded 12 items
 ```
 
 ---
 
-### Scenario 6: Empty State
-**Steps:**
-1. Sign in with a different test account assigned to empty node
-2. Navigate to Browse Items
-3. See no items in the user's node
-4. Observe empty state message
-5. Tap "Show items from nearby nodes" (if available)
-6. **Expected:** Items from nearby nodes appear
+## Success Criteria
 
-**Verification:**
-```
-✅ Empty state message shown
-✅ Helpful messaging provided
-✅ Option to expand search offered
-```
+- [ ] Migration ran successfully
+- [ ] Test items created
+- [ ] BrowseItemsScreen loads without errors
+- [ ] Items filtered by node by default
+- [ ] Toggle switches between local and all nodes
+- [ ] "Other Node" badge appears on cross-node items
+- [ ] Empty states show appropriate messages
+- [ ] SP Eligible badge shows for eligible items
+- [ ] Pull-to-refresh works
+- [ ] No console errors
 
 ---
 
-### Scenario 7: Pull to Refresh
-**Steps:**
-1. In any browse screen
-2. Pull down on item list (refresh gesture)
-3. Loading spinner appears
-4. Wait for items to reload
-5. **Expected:** Items refreshed, no duplicates
+## Next Steps After Manual Testing
 
-**Verification:**
-```
-✅ Pull to refresh gesture works
-✅ Loading indicator shown
-✅ Items refreshed correctly
-```
-
----
-
-### Scenario 8: Switching Between Nodes
-**Steps:**
-1. Sign out
-2. Sign in with test account assigned to Little Falls node
-3. Navigate to Browse Items
-4. Observe:
-   - [x] Header shows "Your Node: Little Falls"
-   - [x] Items are from Little Falls
-   - [x] Different items than before
-5. Toggle "Show all nodes"
-   - [x] Norwalk items now show distance badge
-6. **Expected:** Correct node context and items
-
-**Verification:**
-```
-✅ Node switched correctly
-✅ Correct items shown for new node
-✅ Node info updated in header
-✅ Cross-node badges now for different node
-```
-
----
-
-### Scenario 9: Error Handling
-**Steps:**
-1. Turn off WiFi/data on device
-2. Navigate to Browse Items or tap Refresh
-3. Observe error message displayed
-4. Turn on WiFi/data
-5. Tap "Retry" button
-6. **Expected:** Items load successfully after retry
-
-**Verification:**
-```
-✅ Error message displayed clearly
-✅ Retry button functional
-✅ Items load after retry
-```
-
----
-
-### Scenario 10: Analytics Tracking
-**Steps:**
-1. Complete Scenarios 1-3
-2. Check Supabase logs or Firebase Analytics
-3. Should see events:
-   - [x] `items_browsed` when viewing node items
-   - [x] `items_browsed_by_radius` when expanding search
-4. **Expected:** Events captured with correct properties
-
-**Verification:**
-```
-✅ Analytics events fired
-✅ Events include correct properties
-✅ User ID tracked
-✅ Filter preferences recorded
-```
-
----
-
-## PERFORMANCE CHECKS
-
-| Check | Expected | Status |
-|-------|----------|--------|
-| Items load in <2s | ✅ Fast | [ ] Pass |
-| Pull refresh <1s | ✅ Fast | [ ] Pass |
-| Toggle "all nodes" <1s | ✅ Fast | [ ] Pass |
-| No memory leaks | ✅ Smooth | [ ] Pass |
-| 50 items load smoothly | ✅ Scrolls well | [ ] Pass |
-
----
-
-## ACCESSIBILITY CHECKS
-
-| Check | Expected | Status |
-|-------|----------|--------|
-| Toggle switch keyboard accessible | ✅ Yes | [ ] Pass |
-| Error messages readable | ✅ Yes | [ ] Pass |
-| Buttons have adequate size (>44px) | ✅ Yes | [ ] Pass |
-| Text has sufficient contrast | ✅ Yes | [ ] Pass |
-| Screen reader compatible | ✅ Yes | [ ] Pass |
-
----
-
-## COMPREHENSIVE TEST SUMMARY
-
-**Total Scenarios:** 10  
-**Verification Points:** 45+  
-**Estimated Time:** 15-20 minutes
-
-### Checklist to Mark Complete:
-
-- [ ] Scenario 1: View Items in User's Node ✅
-- [ ] Scenario 2: Toggle to Show All Nodes ✅
-- [ ] Scenario 3: Check Node Badges and Distance ✅
-- [ ] Scenario 4: Filter by Payment Preference ✅
-- [ ] Scenario 5: Price Filtering ✅
-- [ ] Scenario 6: Empty State ✅
-- [ ] Scenario 7: Pull to Refresh ✅
-- [ ] Scenario 8: Switching Between Nodes ✅
-- [ ] Scenario 9: Error Handling ✅
-- [ ] Scenario 10: Analytics Tracking ✅
-- [ ] Performance Checks ✅
-- [ ] Accessibility Checks ✅
-
-**ALL TESTS PASSED:** [ ] Date: ________
-
----
-
-## ISSUES FOUND (if any)
-
-| Issue | Severity | Steps to Reproduce | Expected | Actual | Fix |
-|-------|----------|-------------------|----------|--------|-----|
-| | | | | | |
-
----
-
-## SIGN-OFF
-
-**Tested By:** _________________  
-**Date:** _________________  
-**Notes:** _________________  
-
-✅ **NODE-006 is ready for production**
+1. Add BrowseItemsScreen to app navigation
+2. Create item details screen (MODULE-04)
+3. Add item creation flow (MODULE-04)
+4. Test with multiple users across different nodes
+5. Verify analytics events are tracked
