@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/screens/profile/ProfileScreen.tsx
 // Profile screen with Edit and Logout functionality (AUTH-006, AUTH-007)
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -14,13 +14,15 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { getUserProfile } from '@/services/profile';
-import { getCurrentUser, signOut } from '@/services/supabase/auth';
+import { getCurrentUser } from '@/services/supabase/auth';
 import { supabase } from '@/services/supabase/client';
+import { AuthContext } from '@/contexts/AuthContext';
 import type { Database } from '@/types/database.types';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'];
 
 export default function ProfileScreen({ navigation }: any) {
+  const { logout: contextLogout } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -115,20 +117,12 @@ export default function ProfileScreen({ navigation }: any) {
   const performLogout = async () => {
     setLoggingOut(true);
     try {
-      const { error } = await signOut();
-      if (error) {
-        throw error;
-      }
-
-      // Navigate to landing screen
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Landing' }],
-      });
+      // Use AuthContext logout which properly clears session and updates context
+      await contextLogout();
+      console.log('[LOGOUT] Context logout successful, session cleared');
     } catch (error: any) {
       console.error('Logout error:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
-    } finally {
       setLoggingOut(false);
     }
   };

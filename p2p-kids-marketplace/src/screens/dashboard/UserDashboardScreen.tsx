@@ -297,6 +297,14 @@ export default function UserDashboardScreen() {
         <View style={styles.quickLinksContainer}>
           <TouchableOpacity
             style={styles.quickLink}
+            onPress={() => navigation.navigate('BrowseItems')}
+          >
+            <Text style={styles.quickLinkEmoji}>🛍️</Text>
+            <Text style={styles.quickLinkLabel}>Browse Items</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickLink}
             onPress={() => navigation.navigate('Profile')}
           >
             <Text style={styles.quickLinkEmoji}>👤</Text>

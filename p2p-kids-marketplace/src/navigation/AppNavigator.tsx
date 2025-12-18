@@ -4,6 +4,8 @@ import { createStackNavigator } from '@react-navigation/stack';
 import * as Linking from 'expo-linking';
 import { ActivityIndicator, View } from 'react-native';
 import HomeFeedScreen from '@/screens/home/HomeFeedScreen';
+import BrowseItemsScreen from '@/screens/home/BrowseItemsScreen';
+import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
 import UserDashboardScreen from '@/screens/dashboard/UserDashboardScreen';
 import LoginScreen from '@/screens/auth/LoginScreen';
 import SignupScreen from '@/screens/auth/SignupScreen';
@@ -34,6 +36,8 @@ const linking = {
       Login: 'login',
       Signup: 'signup',
       Home: 'home',
+      HomeFeed: 'feed',
+      BrowseItems: 'browse',
       PhoneVerification: 'phone-verification',
       ProfileSetup: 'profile-setup',
       Profile: 'profile',
@@ -84,6 +88,8 @@ function RootNavigator() {
           <>
             <Stack.Screen name="Home" component={UserDashboardScreen} />
             <Stack.Screen name="HomeFeed" component={HomeFeedScreen} />
+            <Stack.Screen name="BrowseItems" component={BrowseItemsScreen} />
+            <Stack.Screen name="ItemDetailScreen" component={ItemDetailScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="SubscriptionChoice" component={SubscriptionChoiceScreen} />

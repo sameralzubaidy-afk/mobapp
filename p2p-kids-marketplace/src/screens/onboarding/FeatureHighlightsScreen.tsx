@@ -80,11 +80,14 @@ export default function FeatureHighlightsScreen() {
 
       console.log('[ONBOARDING] Marked onboarding as complete for user:', userId);
 
-      // Refresh session - this will trigger RootNavigator to switch to authenticated stack
-      // RootNavigator watches session state and will automatically show Home when session exists
-      console.log('[ONBOARDING] Refreshing session - RootNavigator will switch stacks...');
+      // Refresh session - this updates AuthContext with onboarding_completed=true
+      // RootNavigator watches the session and will automatically detect the change
+      // and switch from unauthenticated stack to authenticated stack (Home)
+      console.log('[ONBOARDING] Refreshing session...');
       await refreshSession();
-      console.log('[ONBOARDING] Session refreshed - authenticated stack should now be visible');
+      console.log('[ONBOARDING] Session refreshed - RootNavigator will auto-switch to Home');
+      
+      // No navigation needed - RootNavigator handles it automatically
     } catch (error) {
       console.error('❌ Complete onboarding error:', error);
     }
