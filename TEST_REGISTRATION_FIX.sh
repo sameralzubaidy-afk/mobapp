@@ -1,0 +1,52 @@
+#!/bin/bash
+# Manual Test Script for Registration Free Tier Fix
+# Run these commands in order in Supabase SQL Editor
+
+echo "==================================="
+echo "STEP 1: Deploy the new migration"
+echo "==================================="
+echo "Copy-paste this entire file to Supabase SQL Editor:"
+echo "→ File: supabase/migrations/20251220_free_subscription_creation.sql"
+echo ""
+echo "Run it and verify no errors"
+echo ""
+
+echo "==================================="
+echo "STEP 2: Verify function exists"
+echo "==================================="
+echo "SELECT proname FROM pg_proc WHERE proname = 'create_free_subscription';"
+echo ""
+
+echo "==================================="
+echo "STEP 3: Test creating a free subscription"
+echo "==================================="
+echo "Run this SQL (using a test user UUID from your DB):"
+echo ""
+echo "-- First, get an existing user (or use your own test UUID)"
+echo "SELECT id FROM auth.users LIMIT 1;"
+echo ""
+echo "-- Then use that UUID to test (replace 'YOUR_TEST_UUID' with actual UUID):"
+echo "SELECT * FROM create_free_subscription('YOUR_TEST_UUID'::UUID);"
+echo ""
+
+echo "==================================="
+echo "STEP 4: Verify subscription was created"
+echo "==================================="
+echo "SELECT status, trial_end_date, trial_start_date FROM subscriptions"
+echo "WHERE user_id = 'YOUR_TEST_UUID'::UUID"
+echo "LIMIT 1;"
+echo ""
+echo "Expected: status='free', both trial dates should be NULL"
+echo ""
+
+echo "==================================="
+echo "STEP 5: Test upgrade to trial"
+echo "==================================="
+echo "SELECT * FROM upgrade_free_subscription_to_trial('YOUR_TEST_UUID'::UUID);"
+echo ""
+echo "Then check subscription again - should now have status='trial' and trial dates"
+echo ""
+
+echo "==================================="
+echo "DONE!"
+echo "==================================="

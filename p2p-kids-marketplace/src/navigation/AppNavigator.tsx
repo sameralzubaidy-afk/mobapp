@@ -1,7 +1,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import * as Linking from 'expo-linking';
 import { ActivityIndicator, View } from 'react-native';
 import HomeFeedScreen from '@/screens/home/HomeFeedScreen';
 import BrowseItemsScreen from '@/screens/home/BrowseItemsScreen';
@@ -22,6 +21,9 @@ import SubscriptionChoiceScreen from '@/screens/onboarding/SubscriptionChoiceScr
 import LocationPickerScreen from '@/screens/onboarding/LocationPickerScreen';
 import NodeSelectionScreen from '@/screens/onboarding/NodeSelectionScreen';
 import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScreen';
+import CreateListingScreen from '@/screens/listing/CreateListingScreen';
+import EditListingScreen from '@/screens/listing/EditListingScreen';
+import MyListingsScreen from '@/screens/listing/MyListingsScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 
 const Stack = createStackNavigator();
@@ -49,6 +51,9 @@ const linking = {
       LocationPicker: 'location-picker',
       NodeSelection: 'node-selection',
       FeatureHighlights: 'feature-highlights',
+      MyListings: 'my-listings',
+      CreateListing: 'create-listing',
+      EditListing: 'edit-listing',
     },
   },
 };
@@ -78,8 +83,6 @@ function RootNavigator() {
   const isAuthenticated = session !== null;
   const isOnboardingComplete = session?.user?.onboarding_completed === true;
 
-  console.log('[NAVIGATOR] isAuthenticated:', isAuthenticated, 'isOnboardingComplete:', isOnboardingComplete);
-
   return (
     <NavigationContainer linking={linking}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -93,6 +96,10 @@ function RootNavigator() {
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             <Stack.Screen name="SubscriptionChoice" component={SubscriptionChoiceScreen} />
+            {/* MODULE-04: Listing screens */}
+            <Stack.Screen name="MyListings" component={MyListingsScreen} />
+            <Stack.Screen name="CreateListing" component={CreateListingScreen} />
+            <Stack.Screen name="EditListing" component={EditListingScreen} />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (

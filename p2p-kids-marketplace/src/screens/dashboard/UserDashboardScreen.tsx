@@ -178,7 +178,7 @@ export default function UserDashboardScreen() {
           {subscription.status === 'grace' && daysUntilExpiry !== null && (
             <View style={styles.cardRow}>
               <Text style={styles.label}>Grace Period Ends In:</Text>
-              <Text style={styles.value} style={{ color: '#FF3B30' }}>
+              <Text style={[styles.value, { color: '#FF3B30' }]}>
                 {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
               </Text>
             </View>
@@ -301,6 +301,22 @@ export default function UserDashboardScreen() {
           >
             <Text style={styles.quickLinkEmoji}>🛍️</Text>
             <Text style={styles.quickLinkLabel}>Browse Items</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickLink}
+            onPress={() => navigation.navigate('CreateListing')}
+          >
+            <Text style={styles.quickLinkEmoji}>📝</Text>
+            <Text style={styles.quickLinkLabel}>Create Listing</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickLink}
+            onPress={() => navigation.navigate('MyListings')}
+          >
+            <Text style={styles.quickLinkEmoji}>📋</Text>
+            <Text style={styles.quickLinkLabel}>My Listings</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

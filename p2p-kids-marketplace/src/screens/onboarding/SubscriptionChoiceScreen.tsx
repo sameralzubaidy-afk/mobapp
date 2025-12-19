@@ -16,6 +16,7 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { enrollInTrialSubscription } from '@/services/auth';
 import { supabase } from '@/config/supabase';
+import { useAuth } from '@/hooks/useAuth';
 import {
   getSubscriptionPrice,
   getTrialDays,
@@ -25,14 +26,17 @@ import {
   getSPMaxPercentage,
 } from '@/services/adminConfig';
 
-interface RouteParams {
-  userId: string;
-}
-
 export default function SubscriptionChoiceScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { userId } = route.params as RouteParams;
+  const { session } = useAuth();
+  
+  // Get userId from route params (during onboarding) or from session (when navigating from app)
+  const userIdFromParams = (route.params as any)?.userId;
+  const userId = userIdFromParams || session?.user?.id;
+  
+  // Determine if we're in onboarding flow (has userId param) or authenticated app flow (no userId param)
+  const isOnboardingFlow = !!userIdFromParams;
 
   const [loading, setLoading] = useState(false);
   const [trialEnabled, setTrialEnabled] = useState(true);
@@ -78,7 +82,11 @@ export default function SubscriptionChoiceScreen() {
     try {
       setLoading(true);
 
+      console.log('🎯 SUBSCRIPTION FLOW: User chose FREE tier');
+      
       // Mark profile as complete
+      // Note: User already has free subscription from signup (create_free_subscription RPC)
+      // No need to modify subscription - it's already 'free' status
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -90,6 +98,8 @@ export default function SubscriptionChoiceScreen() {
       if (error) {
         throw error;
       }
+
+      console.log('✅ SUBSCRIPTION FLOW: Profile marked complete with FREE tier');
 
       // Navigate to FeatureHighlights to complete onboarding
       // The session will be automatically established after profile_completed is true
@@ -111,6 +121,8 @@ export default function SubscriptionChoiceScreen() {
         return;
       }
 
+      console.log('🎯 SUBSCRIPTION FLOW: User chose TRIAL tier');
+
       // Check if user already has a subscription (from signup flow)
       const { data: existingSubscription } = await supabase
         .from('subscriptions')
@@ -118,9 +130,65 @@ export default function SubscriptionChoiceScreen() {
         .eq('user_id', userId)
         .single();
 
+      // Subscription should exist and be 'free' from signup
+      // We need to upgrade it to 'trial'
+      if (existingSubscription?.status === 'free') {
+        console.log('🔄 SUBSCRIPTION FLOW: Upgrading free subscription to trial');
+        
+        // Mark profile as complete first
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            profile_completed: true,
+            onboarding_completed_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        // Upgrade free subscription to trial using RPC
+        // (This is the same function used for mid-session upgrades)
+        const { data: upgradeResult, error: upgradeError } = await (supabase.rpc(
+          'upgrade_free_subscription_to_trial',
+          { p_user_id: userId }
+        ) as any);
+
+        if (upgradeError) {
+          console.error('❌ SUBSCRIPTION FLOW: Upgrade failed:', upgradeError);
+          throw upgradeError;
+        }
+
+        console.log('✅ SUBSCRIPTION FLOW: Successfully upgraded to trial');
+
+        Alert.alert(
+          'Welcome to Kids Club+!',
+          'Your 30-day free trial has been activated. Enjoy unlimited Swap Points!',
+          [
+            {
+              text: 'Get Started',
+              onPress: () => {
+                // If coming from onboarding, navigate to Welcome screen
+                // If coming from authenticated app (CreateListingScreen), go back to listing
+                if (isOnboardingFlow) {
+                  setTimeout(() => {
+                    (navigation as any).navigate('Welcome', { userId });
+                  }, 100);
+                } else {
+                  // User upgraded mid-listing creation, go back to continue
+                  navigation.goBack();
+                }
+              },
+            },
+          ]
+        );
+        return;
+      }
+
       if (existingSubscription?.status === 'trial') {
-        // User already has trial from signup, just complete onboarding
-        console.log('User already enrolled in trial from signup');
+        // Already in trial (shouldn't happen with new flow, but handle it)
+        console.log('✅ SUBSCRIPTION FLOW: User already in trial');
         
         const { error: updateError } = await supabase
           .from('profiles')
@@ -141,11 +209,13 @@ export default function SubscriptionChoiceScreen() {
             {
               text: 'Get Started',
               onPress: () => {
-                // Navigate to Welcome screen (wizard) instead of directly to Home
-                // This allows the app to show feature highlights before dashboard
-                setTimeout(() => {
-                  (navigation as any).navigate('Welcome', { userId });
-                }, 100);
+                if (isOnboardingFlow) {
+                  setTimeout(() => {
+                    (navigation as any).navigate('Welcome', { userId });
+                  }, 100);
+                } else {
+                  navigation.goBack();
+                }
               },
             },
           ]
@@ -153,7 +223,10 @@ export default function SubscriptionChoiceScreen() {
         return;
       }
 
-      // Mark profile as complete first
+      // Fallback: subscription doesn't exist yet (shouldn't happen)
+      // Try to create trial subscription
+      console.warn('⚠️ SUBSCRIPTION FLOW: No existing subscription, creating trial from scratch');
+      
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -166,12 +239,14 @@ export default function SubscriptionChoiceScreen() {
         throw updateError;
       }
 
-      // Enroll in trial subscription (if not already enrolled)
       const { subscription, wallet, error: enrollError } = await enrollInTrialSubscription(userId);
 
       if (enrollError) {
+        console.error('❌ SUBSCRIPTION FLOW: Enrollment failed:', enrollError);
         throw enrollError;
       }
+
+      console.log('✅ SUBSCRIPTION FLOW: Trial created from scratch:', { subscription, wallet });
 
       Alert.alert(
         'Welcome to Kids Club+!',
@@ -180,11 +255,18 @@ export default function SubscriptionChoiceScreen() {
           {
             text: 'Get Started',
             onPress: () => {
-              // Navigate to Welcome screen (wizard) instead of directly to Home
-              // This allows the app to show feature highlights before dashboard
-              setTimeout(() => {
-                (navigation as any).navigate('Welcome', { userId });
-              }, 100);
+              // If coming from onboarding, navigate to Welcome screen
+              // If coming from authenticated app (CreateListingScreen), go back to listing
+              if (isOnboardingFlow) {
+                console.log('[SubscriptionChoice] ✅ Completing onboarding flow');
+                setTimeout(() => {
+                  (navigation as any).navigate('Welcome', { userId });
+                }, 100);
+              } else {
+                // User upgraded mid-listing creation, go back to continue
+                console.log('[SubscriptionChoice] ✅ Returning to listing creation, subscription should refresh on focus');
+                navigation.goBack();
+              }
             },
           },
         ]

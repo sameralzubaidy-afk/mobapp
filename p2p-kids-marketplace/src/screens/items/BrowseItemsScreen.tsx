@@ -144,6 +144,13 @@ export default function BrowseItemsScreen() {
   const handleRadiusChange = async (newRadius: number) => {
     setRadiusMiles(newRadius);
 
+    // Track radius adjustment event (NODE-007)
+    trackEvent('radius_adjusted', {
+      user_id: user.id,
+      new_radius: newRadius,
+      previous_radius: radiusMiles,
+    });
+
     // Save user preference
     if (user?.id) {
       try {

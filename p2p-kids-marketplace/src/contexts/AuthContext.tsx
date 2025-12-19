@@ -389,6 +389,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .single();
 
           if (!profileError && profileData) {
+            // Also fetch subscription status from subscriptions table (source of truth)
+            const { data: subscriptionData } = await supabase
+              .from('subscriptions')
+              .select('status,trial_end_date,current_period_end')
+              .eq('user_id', sessionData.session.user.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+
+            const subscriptionStatus = subscriptionData?.status || 'free';
+            const canSpendSP = subscriptionStatus === 'trial' || subscriptionStatus === 'active';
+
             // Create a session with FULL profile data (including onboarding_completed)
             const authSession: AuthSession = {
               user: {
@@ -417,15 +429,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               },
               access_token: sessionData.session.access_token,
               refresh_token: sessionData.session.refresh_token || '',
-              subscription_status: profileData.subscription_tier || 'free',
-              can_spend_sp: profileData.subscription_tier === 'active' || profileData.subscription_tier === 'trial',
+              subscription_status: subscriptionStatus,
+              can_spend_sp: canSpendSP,
               available_points: 0,
               pending_points: 0,
               lifetime_earned: 0,
               lifetime_spent: 0,
             };
             setSession(authSession);
-            console.log('[AUTH] Session restored for user:', authSession.user.id, 'onboarding_completed:', authSession.user.onboarding_completed);
+            console.log('[AUTH] Session restored for user:', authSession.user.id, 'subscription:', subscriptionStatus, 'onboarding_completed:', authSession.user.onboarding_completed);
           } else {
             // Profile not found, clear session
             setSession(null);

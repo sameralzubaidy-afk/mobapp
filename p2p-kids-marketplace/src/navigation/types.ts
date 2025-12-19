@@ -9,4 +9,12 @@ export type RootStackParamList = {
   EditProfile: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string } | undefined;
+  // MODULE-04: Listing routes
+  MyListings: undefined;
+  CreateListing: undefined;
+  EditListing: { listing_id: string };
+  ListingDetail: { listing_id: string };
+  // Subscription routes
+  Subscription: undefined;
+  SubscriptionChoice: undefined;
 };

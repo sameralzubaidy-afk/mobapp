@@ -172,7 +172,7 @@ export const getItemsWithinRadius = async (
   try {
     // Get user's node coordinates
     const { data: userNode, error: nodeError } = await supabase
-      .from('geographic_nodes')
+      .from('nodes')
       .select('latitude, longitude')
       .eq('id', userNodeId)
       .maybeSingle();
@@ -217,7 +217,7 @@ export const getItemsWithinRadius = async (
           name,
           avatar_url,
           node_id,
-          node:geographic_nodes!profiles_node_id_fkey(
+          node:nodes!profiles_node_id_fkey(
             id,
             name,
             city,
@@ -293,7 +293,7 @@ export const getItemById = async (itemId: string): Promise<Item | null> => {
           name,
           avatar_url,
           node_id,
-          node:geographic_nodes!profiles_node_id_fkey(
+          node:nodes!profiles_node_id_fkey(
             id,
             name,
             city,

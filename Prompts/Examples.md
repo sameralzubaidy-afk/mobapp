@@ -41,15 +41,15 @@ Repo paths:
 App: p2p-kids-marketplace/
 
 Supabase: supabase/
-My Example 
-I’m working on the # Module 03: Node Management - Verification Report
-tasks
-Module: MODULE-03-NODE-MANAGEMENT.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+-----
+My Example 1
+I’m working on the # MODULE-04-ITEM-LISTING-V2 tasks
+Module: MODULE-04-ITEM-LISTING-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: Please implement ## TASK AUTH-001: Implement Supabase Auth Signup Flow scope is Implement email + password signup flow using Supabase Auth. Create signup screen with form validation, error handling, and automatic user profile creation in the database.
 Please:
 Follow the module and task exactly, and cross-check with the verification file
 Show me the files you create or edit with their full paths
-Tell me which items in MODULE-03-Node Management VERIFICATION.md  are now satisfied
+Tell me which items in MODULE-04-VERIFICATION-V2.md are now satisfied
 always include short answers first and then explain detials as needed
 List the commands I should run to test/verify this (e.g. npm, supabase)
 note - I do not use supabase locally, always must be supabase prod. 
@@ -58,12 +58,23 @@ apply E2E test so you fix all errors before I start verifying.
 Update the navigation file so i can verify manual
 provide steps to manaul test if there are steps I need to do before test clearly list them. 
 run Run Unit Tests Locally and Run E2E Tests and fix any issue that is not passed
+if i report back to you that something is not working or need to be fixed, you must investgiate and fix it permanently.
+
+my example 2 - to verify
+
+I want to verify what’s already implemented for MODULE-03-NODE-MANAGEMENT 
+Module: /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-03-Node Management VERIFICATION.md
+
+Please:
+
+Read the verification checklist
+Inspect the current code under:
+/Users/sameralzubaidi/Desktop/kids_marketplace_app
+Tell me which verification items appear complete, which are partially done, and which are missing
+Suggest a small, safe set of next changes to fully satisfy the remaining items
 
 
-Note I have completed the manaul steps.
-
-
-
+-----
 B. Example – Auth V2 signup with trial (Module 03)
 
 I’m working on Auth V2.
