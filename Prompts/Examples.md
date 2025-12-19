@@ -45,7 +45,8 @@ Supabase: supabase/
 My Example 1
 I’m working on the # MODULE-04-ITEM-LISTING-V2 tasks
 Module: MODULE-04-ITEM-LISTING-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: Please implement ## TASK AUTH-001: Implement Supabase Auth Signup Flow scope is Implement email + password signup flow using Supabase Auth. Create signup screen with form validation, error handling, and automatic user profile creation in the database.
+Tasks: Please implement ## TASK AUTH-001: Implement Supabase Auth Signup Flow 
+scope is Implement email + password signup flow using Supabase Auth. Create signup screen with form validation, error handling, and automatic user profile creation in the database.
 Please:
 Follow the module and task exactly, and cross-check with the verification file
 Show me the files you create or edit with their full paths

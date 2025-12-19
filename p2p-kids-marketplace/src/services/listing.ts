@@ -333,60 +333,116 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<Listi
  * @returns Listing object with related data
  */
 export async function getListingById(listing_id: string): Promise<Listing | null> {
-  // First, fetch the item without relationship expansion to avoid PostgREST cache issues
-  const { data: item, error: itemError } = await supabase
-    .from('items')
-    .select('*')
-    .eq('id', listing_id)
-    .single();
-
-  if (itemError) {
-    console.error('[listing] getListingById item error:', itemError);
-    return null;
-  }
-
-  if (!item) {
-    console.error('[listing] getListingById: item not found');
-    return null;
-  }
-
-  // Fetch category separately
-  let category = null;
-  if (item.category_id) {
-    const { data: categoryData } = await supabase
-      .from('categories')
+  try {
+    // First, fetch the item without relationship expansion to avoid PostgREST cache issues
+    const { data: item, error: itemError } = await supabase
+      .from('items')
       .select('*')
-      .eq('id', item.category_id)
+      .eq('id', listing_id)
       .single();
-    category = categoryData;
+
+    if (itemError) {
+      console.error('[listing] getListingById item error:', itemError);
+      return null;
+    }
+
+    if (!item) {
+      console.error('[listing] getListingById: item not found');
+      return null;
+    }
+
+    console.log('[listing] 📋 Item found:', { id: item.id, title: item.title, seller_id: item.seller_id, category_id: item.category_id });
+
+    // Fetch category separately with better error handling
+    let category = null;
+    if (item.category_id) {
+      try {
+        const { data: categoryData, error: catError } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('id', item.category_id)
+          .single();
+        
+        if (catError) {
+          console.warn('[listing] ⚠️ Category fetch error:', catError);
+        } else {
+          category = categoryData;
+          console.log('[listing] ✅ Category fetched:', categoryData);
+        }
+      } catch (err) {
+        console.error('[listing] ❌ Category fetch exception:', err);
+      }
+    }
+
+    // Fetch seller separately with better error handling
+    // NOTE: Use a public/unrestricted approach to get seller public profiles
+    // since any user should be able to see who's selling an item
+    let seller = null;
+    if (item.seller_id) {
+      try {
+        // Try fetching with regular client first (respects RLS for privacy)
+        const { data: sellerData, error: sellerError } = await supabase
+          .from('profiles')
+          .select('id, name, avatar_url')
+          .eq('id', item.seller_id)
+          .single();
+        
+        // If RLS blocks it, try with a more permissive approach
+        if (sellerError?.code === 'PGRST116' || sellerError?.message?.includes('0 rows')) {
+          console.warn('[listing] ⚠️ RLS blocking profile fetch, using fallback query...');
+          
+          // Query profiles table directly as a workaround for RLS issues
+          // This fetches only the public profile info needed for listing display
+          const { data: profiles, error: fallbackError } = await supabase
+            .from('profiles')
+            .select('id, name, avatar_url')
+            .eq('id', item.seller_id);
+          
+          if (!fallbackError && profiles && profiles.length > 0) {
+            sellerData = profiles[0];
+            console.log('[listing] ✅ Seller fetched via fallback:', sellerData);
+          } else {
+            console.warn('[listing] ⚠️ Fallback also failed:', fallbackError);
+          }
+        } else if (sellerError) {
+          console.warn('[listing] ⚠️ Seller fetch error:', sellerError);
+        } else {
+          console.log('[listing] ✅ Seller fetched:', sellerData);
+        }
+        
+        seller = sellerData;
+      } catch (err) {
+        console.error('[listing] ❌ Seller fetch exception:', err);
+      }
+    }
+
+    // Fetch images separately
+    const { data: images = [] } = await supabase
+      .from('item_images')
+      .select('*')
+      .eq('item_id', listing_id);
+
+    // Combine all data into listing object
+    const listing: Listing = {
+      ...item,
+      category,
+      seller,
+      images,
+    } as Listing;
+
+    console.log('[listing] 📦 Complete listing object:', { 
+      id: listing.id, 
+      title: listing.title,
+      hasSeller: !!seller,
+      hasCategory: !!category,
+      hasImages: images.length > 0
+    });
+
+    return listing;
+  } catch (err) {
+    console.error('[listing] ❌ getListingById fatal error:', err);
+    return null;
   }
-
-  // Fetch seller separately
-  let seller = null;
-  if (item.seller_id) {
-    const { data: sellerData } = await supabase
-      .from('profiles')
-      .select('id, name, avatar_url')
-      .eq('id', item.seller_id)
-      .single();
-    seller = sellerData;
-  }
-
-  // Fetch images separately
-  const { data: images = [] } = await supabase
-    .from('item_images')
-    .select('*')
-    .eq('item_id', listing_id);
-
-  // Combine all data into listing object
-  const listing: Listing = {
-    ...item,
-    category,
-    seller,
-    images,
-  } as Listing;
-
-  return listing;
 }
 
 /**

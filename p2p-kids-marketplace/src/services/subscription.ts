@@ -27,6 +27,7 @@ export type SubscriptionStatus =
  */
 export interface SubscriptionSummary {
   status: SubscriptionStatus;
+  is_subscriber: boolean;  // Whether user is currently subscribed (trial or active)
   can_earn_sp: boolean;   // Can earn Swap Points from sales
   can_spend_sp: boolean;  // Can spend Swap Points on purchases
   subscription_tier_id: string | null;
@@ -83,6 +84,7 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
       console.log('[subscription] ✅ User has', sub.status, 'subscription, expires:', sub.trial_end_date || sub.current_period_end);
       return {
         status: sub.status as SubscriptionStatus,
+        is_subscriber: true,
         can_earn_sp: true,
         can_spend_sp: true,
         subscription_tier_id: null, // No tier_id column in schema yet
@@ -93,6 +95,7 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
       console.log('[subscription] ℹ️ User does not have active/trial subscription, status:', sub?.status);
       return {
         status: 'none',
+        is_subscriber: false,
         can_earn_sp: false,
         can_spend_sp: false,
         subscription_tier_id: null,
@@ -104,6 +107,7 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     // Return free user status on error to avoid blocking the flow
     return {
       status: 'none',
+      is_subscriber: false,
       can_earn_sp: false,
       can_spend_sp: false,
       subscription_tier_id: null,

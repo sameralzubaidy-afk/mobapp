@@ -57,6 +57,9 @@ export default function BrowseItemsScreen() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // MODULE-04 LISTING-V2-004: SP-eligible filter toggle
+  const [spEligibleOnly, setSpEligibleOnly] = useState(false);
+
   // NODE-007: Radius filter state
   const [radiusMiles, setRadiusMiles] = useState(10);
   const [minRadius, setMinRadius] = useState(5);
@@ -166,12 +169,13 @@ export default function BrowseItemsScreen() {
   }, []);
 
   // NODE-007: Reload items when node toggle or category changes
+  // MODULE-04 LISTING-V2-004: Also reload when SP filter changes
   // Do NOT reload on radiusMiles change - only on sliding complete
   useEffect(() => {
     (async () => {
       await loadItems();
     })();
-  }, [showAllNodes, selectedCategory, user?.node_id]);
+  }, [showAllNodes, selectedCategory, spEligibleOnly, user?.node_id]);
 
   const loadRadiusSettings = async () => {
     console.log('🟡 loadRadiusSettings started');
@@ -353,6 +357,7 @@ export default function BrowseItemsScreen() {
       const filters = {
         node_id: showAllNodes ? undefined : nodeId,
         category_id: selectedCategory || undefined,
+        accepts_swap_points: spEligibleOnly, // MODULE-04 LISTING-V2-004: SP filter
       };
 
       let fetchedItems: Item[] = [];
@@ -403,6 +408,7 @@ export default function BrowseItemsScreen() {
           shadowOpacity: 0.1,
           shadowRadius: 4,
         }}
+        onPress={() => navigation.navigate('ListingDetail', { listing_id: item.id })}
       >
         {/* Image */}
         <View
@@ -585,6 +591,35 @@ export default function BrowseItemsScreen() {
             loading={loadingDistances}
           />
         )}
+
+        {/* MODULE-04 LISTING-V2-004: SP-Eligible Filter Toggle */}
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: '#f0f9ff',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 8,
+            marginTop: 12,
+          }}
+        >
+          <View>
+            <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: '600' }}>
+              ⚡ Show only SP-eligible listings
+            </Text>
+            <Text style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>
+              {spEligibleOnly ? 'Showing items that accept Swap Points' : 'Showing all items'}
+            </Text>
+          </View>
+          <Switch
+            value={spEligibleOnly}
+            onValueChange={setSpEligibleOnly}
+            trackColor={{ false: '#cbd5e1', true: '#3b82f6' }}
+            thumbColor={spEligibleOnly ? '#1d4ed8' : '#f1f5f9'}
+          />
+        </View>
 
         {/* Category Filter */}
         {categories.length > 0 && (

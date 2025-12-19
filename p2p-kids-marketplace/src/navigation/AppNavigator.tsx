@@ -54,6 +54,7 @@ const linking = {
       MyListings: 'my-listings',
       CreateListing: 'create-listing',
       EditListing: 'edit-listing',
+      ListingDetail: 'listing/:listing_id',
     },
   },
 };
@@ -100,6 +101,7 @@ function RootNavigator() {
             <Stack.Screen name="MyListings" component={MyListingsScreen} />
             <Stack.Screen name="CreateListing" component={CreateListingScreen} />
             <Stack.Screen name="EditListing" component={EditListingScreen} />
+            <Stack.Screen name="ListingDetail" component={ItemDetailScreen} />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (

@@ -40,7 +40,7 @@ CREATE TABLE items (
   price DECIMAL(10, 2) NOT NULL CHECK (price >= 0 AND price <= 10000),
   category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
   condition TEXT CHECK (condition IN ('new', 'like_new', 'good', 'fair', 'poor')),
-  status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('draft', 'available', 'pending', 'sold', 'deleted')),
+  status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('draft', 'available', 'pending', 'sold', 'deleted', 'paused')),
   accepts_swap_points BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
