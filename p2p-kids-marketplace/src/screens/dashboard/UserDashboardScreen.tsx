@@ -305,6 +305,14 @@ export default function UserDashboardScreen() {
 
           <TouchableOpacity
             style={styles.quickLink}
+            onPress={() => navigation.navigate('Search')}
+          >
+            <Text style={styles.quickLinkEmoji}>🔎</Text>
+            <Text style={styles.quickLinkLabel}>Search</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickLink}
             onPress={() => navigation.navigate('CreateListing')}
           >
             <Text style={styles.quickLinkEmoji}>📝</Text>

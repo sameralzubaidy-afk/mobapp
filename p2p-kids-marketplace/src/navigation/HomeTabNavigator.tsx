@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View } from 'react-native';
 import HomeFeedScreen from '@/screens/home/HomeFeedScreen';
 import BrowseItemsScreen from '@/screens/home/BrowseItemsScreen';
+import SearchScreen from '@/screens/home/SearchScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -12,6 +13,7 @@ const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => {
   const icons: { [key: string]: string } = {
     Feed: '🏠',
     Browse: '🔍',
+    Search: '🔎',
     Messages: '💬',
     Profile: '👤',
   };
@@ -67,6 +69,8 @@ export function HomeTabNavigator() {
               ? 'Feed'
               : route.name === 'BrowseItems'
               ? 'Browse'
+              : route.name === 'Search'
+              ? 'Search'
               : route.name}
           </Text>
         ),
@@ -76,6 +80,8 @@ export function HomeTabNavigator() {
               ? 'Feed'
               : route.name === 'BrowseItems'
               ? 'Browse'
+              : route.name === 'Search'
+              ? 'Search'
               : route.name;
           return <TabIcon name={iconName} focused={focused} />;
         },
@@ -93,6 +99,13 @@ export function HomeTabNavigator() {
         component={BrowseItemsScreen}
         options={{
           title: 'Browse',
+        }}
+      />
+      <Tab.Screen
+        name="Search"
+        component={SearchScreen}
+        options={{
+          title: 'Search',
         }}
       />
     </Tab.Navigator>

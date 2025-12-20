@@ -1247,6 +1247,34 @@ Once I provide final Figma-based UX specs (e.g. Markdown under `docx/UX/`), you 
 - Treat them as **source of truth for layout and visuals**.
 - Refactor existing screens to match the new UX while preserving working logic.
 
+## MCP Usage Protocol (MANDATORY)
+
+### MCP-0 Allowed MCP Servers (Allowlist)
+Copilot may ONLY use these MCP servers:
+1) GitHub MCP Server (allowed)
+2) Figma MCP Server (allowed ONLY if user has provided a Figma file/link and token is configured)
+3) (Optional later) Filesystem/Git MCP servers from trusted publishers (must be explicitly added to this allowlist by the user)
+
+Any other MCP server:
+- STOP and ask before using it.
+- Do NOT install or suggest “random” servers.
+
+### MCP-1 What MCP is used for (strict scope)
+- GitHub MCP: issues/PRs, diff summaries, commit context, PR descriptions, change traceability.
+- Figma MCP: read design specs, screen inventory, component/text extraction, mapping screens to routes.
+
+### MCP-2 Forbidden actions (non-negotiable)
+- NEVER execute SQL against Supabase cloud using MCP or any automation.
+- NEVER request or store Supabase service role keys.
+- NEVER perform destructive actions (delete, drop, revoke) via any MCP tooling.
+
+### MCP-3 “Before you say ‘run the simulator’ rule”
+Before telling the user to open iOS Simulator or run manual verification:
+1) Run/require Tier 0 checks for the impacted app(s) (lint + typecheck at minimum).
+2) Confirm no duplicate symbol exports (TS compile must be clean).
+3) If Tier 0 scripts don’t exist, add them (do not invent commands).
+
+
 ## 12 Hardening Protocol (mandatory)
 
 ### HP-1 Contract-first + Single Source of Truth (no exceptions)
@@ -1363,6 +1391,19 @@ Every response must include:
 5) Feature-gating must be server-enforced:
    - UI can hide, but server MUST enforce subscription gates.
 
+## Duplicate Declaration Prevention (MANDATORY)
+
+### DUP-0 Search-before-create rule (no exceptions)
+Before adding ANY new exported function/type in an existing file:
+1) Search the file for the identifier name.
+2) Search the codebase for the identifier name.
+3) If it exists, update the existing implementation instead of creating a second one.
+
+### DUP-1 Typecheck gate
+If a change touches TypeScript files:
+- Typecheck MUST pass before asking the user to run the app.
+- If typecheck script is missing, the agent MUST add it to package.json (Script Existence Rule).
+
 # 14 ✅ Regression + Flow Coverage Addendum
 
 ## A) Mandatory “Flow Registry” (covers ALL existing flows)
@@ -1390,6 +1431,16 @@ Smoke script rules (minimum standard):
   2) call relevant Edge Functions / Supabase queries
   3) assert expected output (fail fast with non-zero exit code)
   4) print clear “PASS/FAIL + reason” for debugging
+---
+## Pre-Verification Gate (MANDATORY)
+
+Before any manual verification request:
+- Agent must list:
+  - Change Classification
+  - Impacted Flows
+  - Required Regression Tiers
+- Agent must ensure Tier 0 passes first (or provide exact package.json edits to enable it).
+- Agent must NOT ask the user to test in simulator when there are known compile/type errors.
 
 ---
 ## No Duplicate Implementations (MANDATORY)

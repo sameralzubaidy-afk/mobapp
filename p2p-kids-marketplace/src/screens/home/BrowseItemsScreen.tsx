@@ -13,9 +13,11 @@ import {
   RefreshControl,
   Switch,
   StyleSheet,
+  TextInput,
 } from 'react-native';
 import { useUserStore } from '@/stores/userStore';
 import { getItems, getItemsWithinRadius, getCategories } from '@/services/items';
+import { searchListings } from '@/services/discovery';
 import { supabase } from '@/config/supabase';
 import { calculateDistanceBetweenNodes, getUserPreferredRadius, saveUserPreferredRadius } from '@/services/location';
 import { trackEvent } from '@/services/analytics';
@@ -59,6 +61,14 @@ export default function BrowseItemsScreen() {
 
   // MODULE-04 LISTING-V2-004: SP-eligible filter toggle
   const [spEligibleOnly, setSpEligibleOnly] = useState(false);
+
+  // DISCOVERY-V2-001: Search functionality
+  // inputText: updates immediately on each keystroke (for TextInput display)
+  // searchQuery: only updates after debounce completes (for actual search logic)
+  const [inputText, setInputText] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // NODE-007: Radius filter state
   const [radiusMiles, setRadiusMiles] = useState(10);
@@ -171,11 +181,18 @@ export default function BrowseItemsScreen() {
   // NODE-007: Reload items when node toggle or category changes
   // MODULE-04 LISTING-V2-004: Also reload when SP filter changes
   // Do NOT reload on radiusMiles change - only on sliding complete
+  // DISCOVERY-V2-001: Skip this effect if there's an active search (let search re-filter instead)
   useEffect(() => {
+    // If user is actively searching, don't load browse items
+    if (searchQuery.trim().length >= 3) {
+      console.log('[Browse] Skipping loadItems because search is active');
+      return;
+    }
+
     (async () => {
       await loadItems();
     })();
-  }, [showAllNodes, selectedCategory, spEligibleOnly, user?.node_id]);
+  }, [showAllNodes, selectedCategory, spEligibleOnly, user?.node_id, searchQuery]);
 
   const loadRadiusSettings = async () => {
     console.log('🟡 loadRadiusSettings started');
@@ -533,6 +550,136 @@ export default function BrowseItemsScreen() {
     </View>
   );
 
+  // DISCOVERY-V2-001: Handle text search with debounce (1000ms for better UX)
+  const handleSearchChange = useCallback(async (query: string) => {
+    // IMPORTANT: Only update inputText immediately (for visual feedback)
+    // Don't update searchQuery here - that stays debounced
+    setInputText(query);
+
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If empty query, load normal items immediately
+    if (!query.trim()) {
+      setSearchQuery(''); // Update searchQuery state
+      setItems([]); // Clear search results first
+      try {
+        await loadItems();
+      } catch (error) {
+        // Gracefully handle if node isn't assigned yet
+        console.warn('[Search] Error loading items on clear:', error);
+        setError(null); // Don't show error, just stay with empty list
+      }
+      return;
+    }
+
+    // DISCOVERY-V2-001: Minimum 3 characters required for search
+    if (query.trim().length < 3) {
+      setItems([]); // Clear results if less than 3 chars
+      setError(null);
+      console.log(`[Search] Query too short: "${query}" (${query.trim().length} chars, need 3+)`);
+      return;
+    }
+
+    // Debounce search: 1000ms (wait 1 second after user stops typing before searching)
+    searchTimeoutRef.current = setTimeout(async () => {
+      // NOW update searchQuery (after debounce completes)
+      setSearchQuery(query);
+
+      try {
+        setIsSearching(true);
+        setError(null); // Clear any previous errors
+        
+        const results = await searchListings(query.trim(), {
+          spEligibleOnly,
+          limit: 20,
+        });
+        
+        // Safety check: Filter results client-side to ensure they match
+        // This ensures the query is in title, description, or category (substring matching)
+        const queryLower = query.trim().toLowerCase();
+        const filteredResults = results.filter(item => {
+          const title = (item.title || '').toLowerCase();
+          const description = (item.description || '').toLowerCase();
+          
+          // Must have the search term as a substring in title or description
+          const matchesQuery = title.includes(queryLower) || description.includes(queryLower);
+          
+          // Must match SP filter if enabled
+          const matchesSP = !spEligibleOnly || item.accepts_swap_points;
+          
+          return matchesQuery && matchesSP;
+        });
+        
+        console.log(`[Search] Query: "${query}" (${query.trim().length} chars) → Server: ${results.length} results, Filtered: ${filteredResults.length} results`);
+        
+        setItems(filteredResults); // Set ONLY filtered results
+        
+        trackEvent('search_performed', {
+          query: query.substring(0, 100), // PII-safe truncation
+          result_count: filteredResults.length,
+          sp_filter: spEligibleOnly,
+        });
+      } catch (error) {
+        console.error('[searchListings] Error:', error);
+        setError('Search failed. Try browsing instead.');
+        setItems([]); // Clear items on error
+      } finally {
+        setIsSearching(false);
+      }
+    }, 1000); // 1000ms (1 second) debounce delay - waits longer for user to finish typing
+  }, [spEligibleOnly]);
+
+  // DISCOVERY-V2-001: Re-run search when SP filter toggle changes
+  // This ensures the server-side search respects the new filter
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 3) {
+      // No active search, skip
+      return;
+    }
+
+    console.log(`[Search] SP filter toggled - re-running search for "${searchQuery}"`);
+    
+    // Re-run the search with the new spEligibleOnly value
+    (async () => {
+      try {
+        setIsSearching(true);
+        setError(null);
+        
+        const results = await searchListings(searchQuery.trim(), {
+          spEligibleOnly,
+          limit: 20,
+        });
+        
+        // Safety check: Filter results client-side to ensure they match
+        const queryLower = searchQuery.trim().toLowerCase();
+        const filteredResults = results.filter(item => {
+          const title = (item.title || '').toLowerCase();
+          const description = (item.description || '').toLowerCase();
+          
+          // Must have the search term as a substring in title or description
+          const matchesQuery = title.includes(queryLower) || description.includes(queryLower);
+          
+          // Must match SP filter if enabled
+          const matchesSP = !spEligibleOnly || item.accepts_swap_points;
+          
+          return matchesQuery && matchesSP;
+        });
+        
+        console.log(`[Search] Re-filtered after SP toggle: ${results.length} results → ${filteredResults.length} results`);
+        setItems(filteredResults);
+      } catch (error) {
+        console.error('[Search] Error during SP filter toggle:', error);
+        setError('Search failed');
+        setItems([]);
+      } finally {
+        setIsSearching(false);
+      }
+    })();
+  }, [spEligibleOnly, searchQuery]);
+
   if (loading && items.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -550,6 +697,37 @@ export default function BrowseItemsScreen() {
         <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 12 }}>
           Browse Items
         </Text>
+
+        {/* DISCOVERY-V2-001: Search Input */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#f0f0f0',
+            borderRadius: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ fontSize: 16, marginRight: 8 }}>🔎</Text>
+          <TextInput
+            style={{
+              flex: 1,
+              fontSize: 14,
+              color: '#333',
+              padding: 0,
+            }}
+            placeholder="Search items..."
+            placeholderTextColor="#999"
+            value={inputText}
+            onChangeText={handleSearchChange}
+            editable={!isSearching}
+          />
+          {isSearching && (
+            <ActivityIndicator size="small" color="#007AFF" style={{ marginLeft: 8 }} />
+          )}
+        </View>
 
         {/* Node Filter Toggle */}
         <View

@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View } from 'react-native';
 import HomeFeedScreen from '@/screens/home/HomeFeedScreen';
 import BrowseItemsScreen from '@/screens/home/BrowseItemsScreen';
+import SearchScreen from '@/screens/home/SearchScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
 import UserDashboardScreen from '@/screens/dashboard/UserDashboardScreen';
 import LoginScreen from '@/screens/auth/LoginScreen';
@@ -40,6 +41,7 @@ const linking = {
       Home: 'home',
       HomeFeed: 'feed',
       BrowseItems: 'browse',
+      Search: 'search',
       PhoneVerification: 'phone-verification',
       ProfileSetup: 'profile-setup',
       Profile: 'profile',
@@ -93,6 +95,7 @@ function RootNavigator() {
             <Stack.Screen name="Home" component={UserDashboardScreen} />
             <Stack.Screen name="HomeFeed" component={HomeFeedScreen} />
             <Stack.Screen name="BrowseItems" component={BrowseItemsScreen} />
+            <Stack.Screen name="Search" component={SearchScreen} />
             <Stack.Screen name="ItemDetailScreen" component={ItemDetailScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="EditProfile" component={EditProfileScreen} />
