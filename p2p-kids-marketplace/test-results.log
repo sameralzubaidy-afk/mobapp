@@ -1,0 +1,192 @@
+
+> p2p-kids-marketplace@1.0.0 test
+> jest src/services/__tests__/listing.test.ts src/services/__tests__/listing.integration.test.ts --passWithNoTests
+
+PASS src/services/__tests__/listing.test.ts
+FAIL src/services/__tests__/listing.integration.test.ts
+  ● LISTING-V2-007: Listing Module Integration Tests › E2E: Create listing → Browse → View › should complete full listing lifecycle with SP enabled
+
+    TypeError: Cannot read properties of undefined (reading 'insert')
+
+      37 |       } as any);
+      38 |
+    > 39 |       mockSupabase.from('listings').insert.mockResolvedValueOnce({
+         |                                    ^
+      40 |         data: {
+      41 |           id: listingId,
+      42 |           seller_id: sellerId,
+
+      at Object.<anonymous> (src/services/__tests__/listing.integration.test.ts:39:36)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● LISTING-V2-007: Listing Module Integration Tests › E2E: Create listing → Browse → View › should allow subscribers to browse listings with SP enabled
+
+    TypeError: Cannot read properties of undefined (reading 'select')
+
+      109 |
+      110 |       // Verify listing is queryable
+    > 111 |       mockSupabase.from('listings')
+          |                                    ^
+      112 |         .select('*, profiles(id, user_id, name)')
+      113 |         .eq('status', 'available')
+      114 |         .eq('accepts_swap_points', true)
+
+      at Object.<anonymous> (src/services/__tests__/listing.integration.test.ts:111:36)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● LISTING-V2-007: Listing Module Integration Tests › E2E: Admin search → Force-delete › should allow admin to search deleted items
+
+    TypeError: Cannot read properties of undefined (reading 'select')
+
+      146 |
+      147 |       // Admin searches for deleted items
+    > 148 |       mockSupabase.from('listings')
+          |                                    ^
+      149 |         .select('*, profiles(id, user_id, name)')
+      150 |         .eq('status', 'deleted')
+      151 |         .mockResolvedValueOnce({
+
+      at Object.<anonymous> (src/services/__tests__/listing.integration.test.ts:148:36)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● LISTING-V2-007: Listing Module Integration Tests › E2E: Admin search → Force-delete › should execute force-delete via RPC
+
+    TypeError: Cannot read properties of undefined (reading 'mockResolvedValueOnce')
+
+      180 |
+      181 |       // Call admin_force_delete_listing RPC
+    > 182 |       mockSupabase.rpc('admin_force_delete_listing').mockResolvedValueOnce({
+          |                                                     ^
+      183 |         data: {
+      184 |           success: true,
+      185 |           listing_id: listingId,
+
+      at Object.<anonymous> (src/services/__tests__/listing.integration.test.ts:182:53)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● LISTING-V2-007: Listing Module Integration Tests › SP subscription gating › should gate SP-accept option to subscribers only
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      235 |           expect(sub.can_spend_sp).toBe(true);
+      236 |         } else {
+    > 237 |           expect(sub.can_earn_sp).toBe(false);
+          |                                   ^
+      238 |         }
+      239 |       }
+      240 |     });
+
+      at Object.toBe (src/services/__tests__/listing.integration.test.ts:237:35)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● LISTING-V2-007: Listing Module Integration Tests › Listing state transitions › should enforce correct status flow
+
+    TypeError: Cannot read properties of undefined (reading 'update')
+
+      255 |
+      256 |       for (const transition of validTransitions) {
+    > 257 |         mockSupabase.from('listings')
+          |                                      ^
+      258 |           .update({ status: transition.to })
+      259 |           .eq('id', listingId)
+      260 |           .eq('seller_id', sellerId)
+
+      at Object.<anonymous> (src/services/__tests__/listing.integration.test.ts:257:38)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● LISTING-V2-007: Listing Module Integration Tests › Listing state transitions › should support pause/unpause transitions
+
+    TypeError: Cannot read properties of undefined (reading 'mockResolvedValueOnce')
+
+      279 |
+      280 |       // Pause listing
+    > 281 |       mockSupabase.rpc('admin_pause_listing').mockResolvedValueOnce({
+          |                                              ^
+      282 |         data: {
+      283 |           success: true,
+      284 |           listing_id: listingId,
+
+      at Object.<anonymous> (src/services/__tests__/listing.integration.test.ts:281:46)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● LISTING-V2-007: Listing Module Integration Tests › RLS and permission enforcement › should enforce ownership rules on updates
+
+    TypeError: Cannot read properties of undefined (reading 'select')
+
+      319 |
+      320 |       // Seller 1 owns the listing
+    > 321 |       mockSupabase.from('listings')
+          |                                    ^
+      322 |         .select('seller_id')
+      323 |         .eq('id', listingId)
+      324 |         .mockResolvedValueOnce({
+
+      at Object.<anonymous> (src/services/__tests__/listing.integration.test.ts:321:36)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● LISTING-V2-007: Listing Module Integration Tests › Soft-delete workflow › should soft-delete for owner
+
+    TypeError: Cannot read properties of undefined (reading 'update')
+
+      360 |
+      361 |       // Delete listing
+    > 362 |       mockSupabase.from('listings')
+          |                                    ^
+      363 |         .update({ status: 'deleted', deleted_at: expect.any(String) })
+      364 |         .eq('id', listingId)
+      365 |         .eq('seller_id', sellerId)
+
+      at Object.<anonymous> (src/services/__tests__/listing.integration.test.ts:362:36)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● LISTING-V2-007: Listing Module Integration Tests › Soft-delete workflow › should prevent non-owner from deleting
+
+    TypeError: Cannot read properties of undefined (reading 'update')
+
+      384 |
+      385 |       // Non-owner tries to delete → RLS blocks
+    > 386 |       mockSupabase.from('listings')
+          |                                    ^
+      387 |         .update({ status: 'deleted' })
+      388 |         .eq('id', listingId)
+      389 |         .eq('seller_id', otherSellerId)
+
+      at Object.<anonymous> (src/services/__tests__/listing.integration.test.ts:386:36)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       10 failed, 10 passed, 20 total
+Snapshots:   0 total
+Time:        0.89 s, estimated 1 s
+Ran all test suites matching /src\/services\/__tests__\/listing.test.ts|src\/services\/__tests__\/listing.integration.test.ts/i.
