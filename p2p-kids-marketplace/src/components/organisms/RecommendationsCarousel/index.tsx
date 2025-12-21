@@ -75,9 +75,8 @@ export default function RecommendationsCarousel({
   };
 
   const handleItemPress = (itemId: string) => {
-    // Navigate to item detail screen
-    // FIXED: Correct route name from 'ItemDetail' to 'ItemDetailScreen'
-    (navigation as any).navigate('ItemDetailScreen', { itemId });
+    // Navigate to item detail screen with correct parameter name
+    (navigation as any).navigate('ListingDetail', { listing_id: itemId });
   };
 
   // Don't render if no user session
