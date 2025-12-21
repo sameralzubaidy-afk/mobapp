@@ -19,11 +19,13 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
+  SafeAreaView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyListings, getListingSummary, deleteListing } from '../../services/listing';
 import { Listing, ListingSummary } from '../../types/listing';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 export default function MyListingsScreen({ navigation }: any) {
   const { session } = useAuth();
@@ -151,14 +153,18 @@ export default function MyListingsScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading your listings...</Text>
-      </View>
+      <SafeAreaView style={styles.loadingContainer}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading your listings...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={{ flex: 1, flexDirection: 'column' }}>
     <View style={styles.container}>
       {/* Summary Header */}
       {summary && (
@@ -213,55 +219,11 @@ export default function MyListingsScreen({ navigation }: any) {
         </TouchableOpacity>
       )}
 
-      {/* Quick Links Navigation */}
-      <View style={styles.quickLinksContainer}>
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => navigation.navigate('BrowseItems')}
-        >
-          <Text style={styles.quickLinkEmoji}>🛍️</Text>
-          <Text style={styles.quickLinkLabel}>Browse Items</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => navigation.navigate('CreateListing')}
-        >
-          <Text style={styles.quickLinkEmoji}>📝</Text>
-          <Text style={styles.quickLinkLabel}>Create Listing</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <Text style={styles.quickLinkEmoji}>👤</Text>
-          <Text style={styles.quickLinkLabel}>Profile</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => {
-            // TODO: Navigate to settings
-            alert('Settings page - coming soon');
-          }}
-        >
-          <Text style={styles.quickLinkEmoji}>⚙️</Text>
-          <Text style={styles.quickLinkLabel}>Settings</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => {
-            // TODO: Navigate to help/support
-            alert('Help & Support - coming soon');
-          }}
-        >
-          <Text style={styles.quickLinkEmoji}>❓</Text>
-          <Text style={styles.quickLinkLabel}>Help</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Unified Navigation Bar */}
+      <BottomNavBar />
     </View>
+      </View>
+    </SafeAreaView>
   );
 }
 

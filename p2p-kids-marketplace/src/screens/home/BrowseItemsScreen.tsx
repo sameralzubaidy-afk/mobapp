@@ -17,13 +17,14 @@ import {
 } from 'react-native';
 import { useUserStore } from '@/stores/userStore';
 import { getItems, getItemsWithinRadius, getCategories } from '@/services/items';
-import { searchListings } from '@/services/discovery';
+import { searchListings, searchListingsByCategoryAndQuery } from '@/services/discovery';
 import { supabase } from '@/config/supabase';
 import { calculateDistanceBetweenNodes, getUserPreferredRadius, saveUserPreferredRadius } from '@/services/location';
 import { trackEvent } from '@/services/analytics';
 import RadiusSlider from '@/components/RadiusSlider';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import BottomNavBar from '@/components/organisms/BottomNavBar';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -592,10 +593,21 @@ export default function BrowseItemsScreen() {
         setIsSearching(true);
         setError(null); // Clear any previous errors
         
-        const results = await searchListings(query.trim(), {
-          spEligibleOnly,
-          limit: 20,
-        });
+        // DISCOVERY-V2-002: Use category-filtered search if category selected, otherwise full-text search
+        let results;
+        if (selectedCategory) {
+          // Search WITHIN the selected category
+          results = await searchListingsByCategoryAndQuery(selectedCategory, query.trim(), {
+            spEligibleOnly,
+            limit: 20,
+          });
+        } else {
+          // Full-text search across all categories
+          results = await searchListings(query.trim(), {
+            spEligibleOnly,
+            limit: 20,
+          });
+        }
         
         // Safety check: Filter results client-side to ensure they match
         // This ensures the query is in title, description, or category (substring matching)
@@ -648,10 +660,19 @@ export default function BrowseItemsScreen() {
         setIsSearching(true);
         setError(null);
         
-        const results = await searchListings(searchQuery.trim(), {
-          spEligibleOnly,
-          limit: 20,
-        });
+        // DISCOVERY-V2-002: Use category-filtered search if category selected
+        let results;
+        if (selectedCategory) {
+          results = await searchListingsByCategoryAndQuery(selectedCategory, searchQuery.trim(), {
+            spEligibleOnly,
+            limit: 20,
+          });
+        } else {
+          results = await searchListings(searchQuery.trim(), {
+            spEligibleOnly,
+            limit: 20,
+          });
+        }
         
         // Safety check: Filter results client-side to ensure they match
         const queryLower = searchQuery.trim().toLowerCase();
@@ -678,7 +699,7 @@ export default function BrowseItemsScreen() {
         setIsSearching(false);
       }
     })();
-  }, [spEligibleOnly, searchQuery]);
+  }, [spEligibleOnly, searchQuery, selectedCategory]);
 
   if (loading && items.length === 0) {
     return (
@@ -874,50 +895,8 @@ export default function BrowseItemsScreen() {
         />
       )}
 
-      {/* Quick Links Navigation Bar */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-around',
-          alignItems: 'center',
-          backgroundColor: '#fff',
-          borderTopColor: '#e0e0e0',
-          borderTopWidth: 1,
-          paddingVertical: 12,
-        }}
-      >
-        <TouchableOpacity
-          style={{ alignItems: 'center' }}
-          onPress={() => navigation.navigate('Home')}
-        >
-          <Text style={{ fontSize: 24, marginBottom: 4 }}>🏠</Text>
-          <Text style={{ fontSize: 11, color: '#666', fontWeight: '600' }}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={{ alignItems: 'center' }}
-          onPress={() => navigation.navigate('BrowseItems')}
-        >
-          <Text style={{ fontSize: 24, marginBottom: 4 }}>🛍️</Text>
-          <Text style={{ fontSize: 11, color: '#007AFF', fontWeight: '600' }}>Browse</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={{ alignItems: 'center' }}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <Text style={{ fontSize: 24, marginBottom: 4 }}>👤</Text>
-          <Text style={{ fontSize: 11, color: '#666', fontWeight: '600' }}>Profile</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={{ alignItems: 'center' }}
-          onPress={() => alert('Messages - coming soon')}
-        >
-          <Text style={{ fontSize: 24, marginBottom: 4 }}>💬</Text>
-          <Text style={{ fontSize: 11, color: '#666', fontWeight: '600' }}>Messages</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Unified Navigation Bar */}
+      <BottomNavBar />
     </SafeAreaView>
   );
 }

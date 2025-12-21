@@ -20,12 +20,14 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
+  SafeAreaView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { getSubscriptionSummary } from '../../services/subscription';
 import { createListing } from '../../services/listing';
 import { ListingCondition } from '../../types/listing';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 export default function CreateListingScreen({ navigation }: any) {
   const { session } = useAuth();
@@ -132,7 +134,9 @@ export default function CreateListingScreen({ navigation }: any) {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={{ flex: 1, flexDirection: 'column' }}>
+        <ScrollView style={styles.container}>
       <View style={styles.form}>
         <Text style={styles.sectionTitle}>Item Details</Text>
 
@@ -241,56 +245,10 @@ export default function CreateListingScreen({ navigation }: any) {
           )}
         </TouchableOpacity>
       </View>
-
-      {/* Quick Links Navigation */}
-      <View style={styles.quickLinksContainer}>
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => navigation.navigate('BrowseItems')}
-        >
-          <Text style={styles.quickLinkEmoji}>🛍️</Text>
-          <Text style={styles.quickLinkLabel}>Browse Items</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => navigation.navigate('MyListings')}
-        >
-          <Text style={styles.quickLinkEmoji}>📋</Text>
-          <Text style={styles.quickLinkLabel}>My Listings</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <Text style={styles.quickLinkEmoji}>👤</Text>
-          <Text style={styles.quickLinkLabel}>Profile</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => {
-            // TODO: Navigate to settings
-            alert('Settings page - coming soon');
-          }}
-        >
-          <Text style={styles.quickLinkEmoji}>⚙️</Text>
-          <Text style={styles.quickLinkLabel}>Settings</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.quickLink}
-          onPress={() => {
-            // TODO: Navigate to help/support
-            alert('Help & Support - coming soon');
-          }}
-        >
-          <Text style={styles.quickLinkEmoji}>❓</Text>
-          <Text style={styles.quickLinkLabel}>Help</Text>
-        </TouchableOpacity>
+        </ScrollView>
+        <BottomNavBar />
       </View>
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -434,31 +392,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  // Quick Links
-  quickLinksContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginHorizontal: 16,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  quickLink: {
-    alignItems: 'center',
-  },
-  quickLinkEmoji: {
-    fontSize: 28,
-    marginBottom: 8,
-  },
-  quickLinkLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#000',
-  },
+  // Navigation handled by BottomNavBar
 });

@@ -12,12 +12,14 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
 import { getUserProfile } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { supabase } from '@/services/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
 import type { Database } from '@/types/database.types';
+import BottomNavBar from '@/components/organisms/BottomNavBar';
 
 type UserProfile = Database['public']['Tables']['profiles']['Row'];
 
@@ -148,7 +150,9 @@ export default function ProfileScreen({ navigation }: any) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={{ flex: 1, flexDirection: 'column' }}>
+        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Avatar and Name */}
       <View style={styles.profileHeader}>
         {profile.avatar_url ? (
@@ -198,7 +202,10 @@ export default function ProfileScreen({ navigation }: any) {
           )}
         </TouchableOpacity>
       </View>
-    </ScrollView>
+        </ScrollView>
+        <BottomNavBar />
+      </View>
+    </SafeAreaView>
   );
 }
 

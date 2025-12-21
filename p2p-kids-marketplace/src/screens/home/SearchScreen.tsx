@@ -22,6 +22,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { searchListings } from '../../services/discovery';
 import { SearchResult } from '../../types/discovery';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type Props = NativeStackScreenProps<any, 'Search'>;
 
@@ -252,6 +253,9 @@ export const SearchScreen: React.FC<Props> = ({ navigation }) => {
           </Text>
         </View>
       )}
+
+      {/* Unified Navigation Bar */}
+      <BottomNavBar />
     </SafeAreaView>
   );
 };

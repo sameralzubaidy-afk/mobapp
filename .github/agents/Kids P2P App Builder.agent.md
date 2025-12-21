@@ -735,6 +735,30 @@ Canonical app roots:
 You MUST NOT reference `admin-portal/` unless that folder actually exists in the workspace.
 If multiple admin folders exist, STOP and ask which is canonical; do not implement in both.
 
+## Postgres RPC / SQL Naming Convention (MANDATORY)
+
+For ALL Postgres functions/RPC:
+- ALL parameters MUST be prefixed with `p_` (e.g., `p_radius_miles`)
+- ALL local variables MUST be prefixed with `v_`
+- ALL column references MUST be qualified with table aliases (e.g., `i.node_id`, not `node_id`)
+- NEVER reuse a column name as a parameter name.
+
+Required in every SQL deliverable:
+- A verification query that calls the RPC with sample inputs
+- A “common failure modes” note (e.g., ambiguous columns, missing indexes, RLS scope)
+
+## UI Performance Defaults (MANDATORY)
+
+Debounce defaults:
+- Search debounce must default to 150–250ms (NOT 500ms+) unless the spec says otherwise.
+- Keep `rawQuery` (immediate) separate from `debouncedQuery` (fetch trigger).
+
+Effects/rerender rules:
+- Never set state inside a useEffect that depends on that same state (avoid loops).
+- Prefer one-time initialization patterns:
+  - `useRef` for “didInit”
+  - dependency-safe effects
+- Any screen showing repeated rerenders must be fixed before handoff.
 
 ### Module prompt files (implementation + verification)
 
@@ -941,6 +965,12 @@ For **every task**, follow this sequence:
    - When implementing a module, verify dependent modules are implemented first or add clear dependency notes.
    - Use shared types across modules - avoid duplicating type definitions.
 
+9. **Tool Hygiene (MANDATORY)**
+- Assume tool calling gets unreliable when too many tools are enabled.
+- For coding tasks, use ONLY: filesystem + git (and GitHub tool only if needed).
+- Do NOT use external/doc tools (Context7) unless the task explicitly requires up-to-date API usage.
+- If you detect >30 tools enabled, warn me and suggest the minimal tool set to enable for this task.
+
 ---
 
 ## 5. Module-by-module intent (high-level)
@@ -1131,6 +1161,12 @@ Here are some concrete ways the user can use this agent in GitHub Copilot Chat:
 
 > “From `MODULE-15-TESTING-QA.md`, propose a Jest-based test structure for RN + Edge Functions and add a sample test suite for the trade flow + SP release, mapping directly to the verification checklist.”
 
+### Duplicate Identifier Gate (MANDATORY)
+If you edited any `.ts/.tsx` file:
+- You MUST ensure there are no duplicate exported identifiers in any edited file.
+- If `yarn typecheck` exists, it MUST be run before simulator testing.
+- If typecheck is missing, add it and require it.
+
 ---
 
 ---
@@ -1273,6 +1309,40 @@ Before telling the user to open iOS Simulator or run manual verification:
 1) Run/require Tier 0 checks for the impacted app(s) (lint + typecheck at minimum).
 2) Confirm no duplicate symbol exports (TS compile must be clean).
 3) If Tier 0 scripts don’t exist, add them (do not invent commands).
+
+## MCP Tooling Protocol (MANDATORY)
+
+You have MCP tools available. You MUST use them to prevent duplicate code, wrong paths, and incomplete edits.
+
+### MCP Servers Available
+- filesystem MCP: browse/read files ONLY within the allow-listed workspace path
+- git MCP: inspect diffs/status and avoid accidental duplicate edits
+- GitHub MCP: search code/PRs/issues in the remote repo when helpful
+- Context7 MCP: fetch up-to-date library docs (Expo/Supabase/Stripe/etc.)
+
+### MCP-1: Preflight before coding (NO EXCEPTIONS)
+Before creating or editing any file:
+1) Use filesystem MCP to confirm the file exists and read the relevant sections.
+2) Use filesystem MCP search/browse to locate the canonical implementation (avoid “v2” duplicates).
+3) If adding a new exported function/type/component, you MUST verify it does not already exist:
+   - Search the file first
+   - Then search the codebase for the symbol name
+4) If unsure, STOP and ask (or add // TODO) — do not create parallel implementations.
+
+### MCP-2: Preflight before asking the user to run the app
+Before telling the user “run the simulator”:
+1) Use git MCP to list changed files and show a diff summary.
+2) Run a “duplicate export check” on edited files:
+   - Ensure no exported const/function/type is declared twice in the same file.
+3) Ensure TypeScript compilation would fail fast:
+   - If `yarn typecheck` exists, require it BEFORE simulator testing.
+   - If it doesn't exist, add it to package.json (per Script Existence Rule).
+
+### MCP-3: When fixing a bug
+When a user reports an error:
+- Use filesystem MCP to open the exact file/line
+- Use git MCP to confirm the minimal fix and avoid rewriting unrelated code
+- Provide a tiny patch instead of broad refactors unless explicitly requested
 
 
 ## 12 Hardening Protocol (mandatory)
@@ -1445,10 +1515,30 @@ Before any manual verification request:
 ---
 ## No Duplicate Implementations (MANDATORY)
 
-Before creating a new file for routes/types/context/services:
-- search mentally using existing structure and references in current code
-- if an equivalent file already exists, you MUST update it instead of creating a new one
-You MUST NOT create parallel implementations (e.g., `AuthContext2`, `routes-new.ts`, etc.).
+Before creating a new file or adding a new exported symbol:
+- You MUST search for an existing implementation using MCP tools:
+  1) filesystem MCP (local workspace)
+  2) GitHub MCP (remote repo search, if needed)
+- If an equivalent exists, update it instead.
+- You MUST NOT create parallel implementations (AuthContext2, routes-new.ts, duplicate exported functions, etc.).
+
+
+## Duplicate Identifier Guardrail (MANDATORY)
+
+Before creating or exporting ANY new identifier (function/type/component/const):
+1) Search the CURRENT FILE for the identifier.
+2) Search the ENTIRE REPO for the identifier.
+3) If it exists, you MUST update/extend the existing implementation (do not create a second one).
+4) If you believe a second version is needed, STOP and ask; do NOT implement both.
+
+Required evidence in every response when you add a new export:
+- Show the exact search command used (repo-wide) and confirm only ONE result exists after the change.
+- If >1 result exists, you must consolidate before handoff.
+
+Recommended search commands:
+- Repo-wide: `rg -n "export (const|function) <IDENTIFIER>" p2p-kids-marketplace/src`
+- File-only: `rg -n "<IDENTIFIER>" p2p-kids-marketplace/src/path/to/file.ts`
+
 
 ## Duplicate Symbol Guard (MANDATORY)
 
@@ -1621,6 +1711,7 @@ Therefore:
 
 
 ## B) Tiered Regression (REQUIRED) + how to trigger in GitHub
+
 ### Tier 0 (ALWAYS run locally)
 Run after EVERY change (UI, API, DB, anything):
 - App: lint + typecheck (and unit tests if logic changed)
@@ -1646,6 +1737,19 @@ If ANY file under `p2p-kids-admin/` (or `admin-portal/`) changes, you MUST run:
 
 You MUST NOT mark work complete if build fails.
 You MUST include the exact error line + the fix.
+
+## Compile/Lint Gate Before Manual Testing (MANDATORY)
+
+The agent MUST NOT ask the user to open iOS simulator / run Expo until:
+- Typecheck passes (no TS/JS parse errors)
+- ESLint passes (no redeclare / duplicate exports)
+- The bundler can build without syntax errors
+
+If any gate fails:
+- Fix the failure FIRST
+- Then re-run the gate commands
+- Only then proceed to manual verification
+
 
 ## Formatting rule (mandatory)
 After editing any `.ts/.tsx` file, you MUST:

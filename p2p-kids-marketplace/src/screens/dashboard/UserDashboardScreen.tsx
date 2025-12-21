@@ -301,70 +301,7 @@ export default function UserDashboardScreen() {
           </View>
         )}
 
-        {/* Quick Links */}
-        <View style={styles.quickLinksContainer}>
-          <TouchableOpacity
-            style={styles.quickLink}
-            onPress={() => navigation.navigate('BrowseItems')}
-          >
-            <Text style={styles.quickLinkEmoji}>🛍️</Text>
-            <Text style={styles.quickLinkLabel}>Browse Items</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickLink}
-            onPress={() => navigation.navigate('Search')}
-          >
-            <Text style={styles.quickLinkEmoji}>🔎</Text>
-            <Text style={styles.quickLinkLabel}>Search</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickLink}
-            onPress={() => navigation.navigate('CreateListing')}
-          >
-            <Text style={styles.quickLinkEmoji}>📝</Text>
-            <Text style={styles.quickLinkLabel}>Create Listing</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickLink}
-            onPress={() => navigation.navigate('MyListings')}
-          >
-            <Text style={styles.quickLinkEmoji}>📋</Text>
-            <Text style={styles.quickLinkLabel}>My Listings</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickLink}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Text style={styles.quickLinkEmoji}>👤</Text>
-            <Text style={styles.quickLinkLabel}>Profile</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickLink}
-            onPress={() => {
-              // TODO: Navigate to settings
-              alert('Settings page - coming soon');
-            }}
-          >
-            <Text style={styles.quickLinkEmoji}>⚙️</Text>
-            <Text style={styles.quickLinkLabel}>Settings</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.quickLink}
-            onPress={() => {
-              // TODO: Navigate to help/support
-              alert('Help & Support - coming soon');
-            }}
-          >
-            <Text style={styles.quickLinkEmoji}>❓</Text>
-            <Text style={styles.quickLinkLabel}>Help</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Navigation handled by BottomNavBar below */}
         </ScrollView>
         <BottomNavBar />
       </View>
@@ -690,30 +627,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Quick Links
-  quickLinksContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  quickLink: {
-    alignItems: 'center',
-  },
-  quickLinkEmoji: {
-    fontSize: 28,
-    marginBottom: 8,
-  },
-  quickLinkLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#000',
-  },
+
 });

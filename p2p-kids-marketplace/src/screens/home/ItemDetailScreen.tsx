@@ -30,6 +30,7 @@ import { getSubscriptionSummary } from '@/services/subscription';
 import { Listing } from '@/types/listing';
 import { trackEvent } from '@/services/analytics';
 import { RootStackParamList } from '@/navigation/types';
+import BottomNavBar from '@/components/organisms/BottomNavBar';
 
 type ItemDetailScreenRouteProp = RouteProp<RootStackParamList, 'ListingDetail'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -162,10 +163,13 @@ export default function ItemDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading item...</Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+        <View style={{ flex: 1, flexDirection: 'column' }}>
+          <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading item...</Text>
+          </View>
+          <BottomNavBar />
         </View>
       </SafeAreaView>
     );
@@ -173,12 +177,15 @@ export default function ItemDetailScreen() {
 
   if (error || !listing) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Text style={styles.errorTitle}>❌ {error || 'Listing not found'}</Text>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>← Go Back</Text>
-          </TouchableOpacity>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+        <View style={{ flex: 1, flexDirection: 'column' }}>
+          <View style={styles.centerContent}>
+            <Text style={styles.errorTitle}>❌ {error || 'Listing not found'}</Text>
+            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+              <Text style={styles.backButtonText}>← Go Back</Text>
+            </TouchableOpacity>
+          </View>
+          <BottomNavBar />
         </View>
       </SafeAreaView>
     );
@@ -196,8 +203,9 @@ export default function ItemDetailScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <View style={{ flex: 1, flexDirection: 'column' }}>
+        <ScrollView>
         {/* Header with back button */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -366,13 +374,15 @@ export default function ItemDetailScreen() {
             </View>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
 
-      {/* MODULE-04 LISTING-V2-005: Buy Now Button (fixed at bottom) */}
-      <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.buyNowButton} onPress={handleBuyNow}>
-          <Text style={styles.buyNowButtonText}>🛍️ Buy Now</Text>
-        </TouchableOpacity>
+        {/* MODULE-04 LISTING-V2-005: Buy Now Button (fixed at bottom) */}
+        <View style={styles.bottomActions}>
+          <TouchableOpacity style={styles.buyNowButton} onPress={handleBuyNow}>
+            <Text style={styles.buyNowButtonText}>🛍️ Buy Now</Text>
+          </TouchableOpacity>
+        </View>
+        <BottomNavBar />
       </View>
     </SafeAreaView>
   );

@@ -2,12 +2,13 @@
  * File: p2p-kids-marketplace/src/services/__tests__/discovery.test.ts
  * MODULE-05-DISCOVERY-V2: Discovery Service Tests
  * Task: DISCOVERY-V2-001 - Full-Text Search
+ * Task: DISCOVERY-V2-002 - Subscriber-Personalized Recommendations
  * 
  * Unit tests for search and discovery functions
  */
 
-import { searchListings, searchListingsByCategory } from '../discovery';
-import { SearchResult, CategoryResult } from '../../types/discovery';
+import { searchListings, searchListingsByCategory, getRecommendations } from '../discovery';
+import { SearchResult, CategoryResult, Recommendation } from '../../types/discovery';
 import * as supabaseModule from '../../config/supabase';
 import * as analyticsModule from '../analytics';
 
@@ -344,6 +345,170 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
         sp_eligible_only: false,
         offset: 5,
       });
+    });
+  });
+
+  describe('getRecommendations - DISCOVERY-V2-002', () => {
+    const mockRecommendation: Recommendation = {
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      title: 'Recommended Toy',
+      price: 19.99,
+      accepts_swap_points: true,
+      status: 'available',
+      seller_id: '660e8400-e29b-41d4-a716-446655440000',
+      category_id: '770e8400-e29b-41d4-a716-446655440000',
+      condition: 'excellent',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      score: 150, // SP-eligible + affordable
+    };
+
+    test('should return personalized recommendations for user', async () => {
+      // Arrange
+      const userId = '880e8400-e29b-41d4-a716-446655440000';
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [mockRecommendation],
+        error: null,
+      } as any);
+
+      // Act
+      const results = await getRecommendations(userId);
+
+      // Assert
+      expect(results).toHaveLength(1);
+      expect(results[0].title).toBe('Recommended Toy');
+      expect(results[0].score).toBeGreaterThan(0);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_recommendations', {
+        p_user_id: userId,
+        p_limit: 10,
+      });
+      expect(mockTrackEvent).toHaveBeenCalledWith('view_recommendations', {
+        user_id: userId,
+        result_count: 1,
+        limit: 10,
+      });
+    });
+
+    test('should respect custom limit parameter', async () => {
+      // Arrange
+      const userId = '880e8400-e29b-41d4-a716-446655440000';
+      const customLimit = 5;
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [mockRecommendation],
+        error: null,
+      } as any);
+
+      // Act
+      const results = await getRecommendations(userId, customLimit);
+
+      // Assert
+      expect(results).toHaveLength(1);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_recommendations', {
+        p_user_id: userId,
+        p_limit: customLimit,
+      });
+    });
+
+    test('should return SP-eligible items with high scores', async () => {
+      // Arrange
+      const userId = '880e8400-e29b-41d4-a716-446655440000';
+      const spRecommendation = { 
+        ...mockRecommendation, 
+        accepts_swap_points: true,
+        score: 150, // High score for SP-eligible
+      };
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [spRecommendation],
+        error: null,
+      } as any);
+
+      // Act
+      const results = await getRecommendations(userId);
+
+      // Assert
+      expect(results).toHaveLength(1);
+      expect(results[0].accepts_swap_points).toBe(true);
+      expect(results[0].score).toBeGreaterThanOrEqual(100);
+    });
+
+    test('should return empty array for empty user ID', async () => {
+      // Act - empty user ID should be caught and return empty array gracefully
+      const results = await getRecommendations('');
+
+      // Assert - should gracefully return empty array, not throw
+      expect(results).toEqual([]);
+    });
+
+    test('should return empty array on RPC error (graceful fallback)', async () => {
+      // Arrange
+      const userId = '880e8400-e29b-41d4-a716-446655440000';
+      const error = new Error('Database connection failed');
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: null,
+        error,
+      } as any);
+
+      // Act
+      const results = await getRecommendations(userId);
+
+      // Assert - should not throw, return empty array
+      expect(results).toEqual([]);
+    });
+
+    test('should handle null/undefined data gracefully', async () => {
+      // Arrange
+      const userId = '880e8400-e29b-41d4-a716-446655440000';
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: null,
+        error: null,
+      } as any);
+
+      // Act
+      const results = await getRecommendations(userId);
+
+      // Assert
+      expect(results).toEqual([]);
+    });
+
+    test('should track view_recommendations event', async () => {
+      // Arrange
+      const userId = '880e8400-e29b-41d4-a716-446655440000';
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [mockRecommendation],
+        error: null,
+      } as any);
+
+      // Act
+      await getRecommendations(userId, 15);
+
+      // Assert
+      expect(mockTrackEvent).toHaveBeenCalledWith('view_recommendations', {
+        user_id: userId,
+        result_count: 1,
+        limit: 15,
+      });
+    });
+
+    test('should verify recommendations are sorted by score descending', async () => {
+      // Arrange
+      const userId = '880e8400-e29b-41d4-a716-446655440000';
+      const recommendations = [
+        { ...mockRecommendation, id: '1', score: 150 },
+        { ...mockRecommendation, id: '2', score: 100 },
+        { ...mockRecommendation, id: '3', score: 50 },
+      ];
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: recommendations,
+        error: null,
+      } as any);
+
+      // Act
+      const results = await getRecommendations(userId);
+
+      // Assert
+      expect(results).toHaveLength(3);
+      expect(results[0].score).toBeGreaterThanOrEqual(results[1].score);
+      expect(results[1].score).toBeGreaterThanOrEqual(results[2].score);
     });
   });
 });

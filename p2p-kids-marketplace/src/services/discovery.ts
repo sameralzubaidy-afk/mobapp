@@ -120,6 +120,62 @@ export async function searchListingsByCategory(
 }
 
 /**
+ * Search listings within a specific category with optional text query
+ * Combines category filtering with full-text search for refined results
+ *
+ * @param categoryId - Category UUID to search within
+ * @param query - Optional search query (empty string returns all category items)
+ * @param filters - Optional category filters
+ * @returns Array of search results
+ * @throws Error if search fails
+ */
+export async function searchListingsByCategoryAndQuery(
+  categoryId: string,
+  query: string = '',
+  filters?: CategoryFilters
+): Promise<SearchResult[]> {
+  try {
+    // Validate category ID
+    if (!categoryId || categoryId.trim().length === 0) {
+      throw new Error('Category ID is required');
+    }
+
+    const spEligibleOnly = filters?.spEligibleOnly ?? false;
+    const limit = filters?.limit ?? 20;
+    const offset = filters?.offset ?? 0;
+
+    // Call RPC function for combined category + text search
+    const { data, error } = await supabase.rpc('search_listings_by_category_and_query', {
+      p_category_id: categoryId,
+      p_query: query.trim(),
+      p_sp_eligible_only: spEligibleOnly,
+      p_limit: limit,
+      p_offset: offset,
+    });
+
+    if (error) {
+      console.error('[searchListingsByCategoryAndQuery] RPC error:', error);
+      throw error;
+    }
+
+    // Track search event for analytics
+    trackEvent('search_listings_by_category', {
+      category_id: categoryId,
+      query: query.substring(0, 100), // Limit PII length
+      result_count: data?.length ?? 0,
+      sp_eligible_only: spEligibleOnly,
+    });
+
+    return (data as SearchResult[]) || [];
+  } catch (err) {
+    console.error('[searchListingsByCategoryAndQuery] Error:', err);
+    throw new Error(
+      err instanceof Error ? err.message : 'Failed to search category listings'
+    );
+  }
+}
+
+/**
  * Get personalized recommendations for user
  * SP-eligible items ranked higher for subscribers
  * Respects user's SP balance and subscription status
@@ -142,12 +198,27 @@ export async function getRecommendations(
       throw new Error('User ID is required');
     }
 
-    // TODO(DISCOVERY-V2-002): Implement RPC function get_recommendations
-    // This requires MODULE-09 (SP Wallet) and MODULE-11 (Subscriptions)
-    // For now, return empty to unblock Module 05 search functionality
-    console.warn('[getRecommendations] Not yet implemented - requires Module 09 + 11');
+    // Call RPC function for personalized recommendations
+    const { data, error } = await supabase.rpc('get_recommendations', {
+      p_user_id: userId,
+      p_limit: limit,
+    });
 
-    return [];
+    if (error) {
+      console.error('[getRecommendations] RPC error:', error);
+      // Return empty array on error instead of throwing
+      // so that home screen doesn't break if recommendations fail
+      return [];
+    }
+
+    // Track recommendations event for analytics
+    trackEvent('view_recommendations', {
+      user_id: userId,
+      result_count: data?.length ?? 0,
+      limit,
+    });
+
+    return (data as Recommendation[]) || [];
   } catch (err) {
     console.error('[getRecommendations] Error:', err);
     // Return empty array on error instead of throwing
