@@ -1,17 +1,11 @@
--- ================================================================
--- Migration: 20251220000003_get_recommendations_rpc.sql
--- Module: MODULE-05-DISCOVERY-V2 - Subscriber-Personalized Recommendations
--- Task: DISCOVERY-V2-002
--- Description: Build recommendation engine that prioritizes SP-eligible items
---              for subscribers and suggests items within user's SP balance range
--- ================================================================
+-- DIRECT FIX FOR SUPABASE: Update the get_recommendations RPC function
+-- Apply this directly in Supabase SQL Editor
+-- No need to use migrations - just execute this raw SQL
 
--- =============================================================================
--- FUNCTION: get_recommendations
--- =============================================================================
-
+-- Drop the old function first
 DROP FUNCTION IF EXISTS get_recommendations(UUID, INT) CASCADE;
 
+-- Create the corrected function with proper SP prioritization scoring
 CREATE OR REPLACE FUNCTION get_recommendations(
   p_user_id UUID,
   p_limit INT DEFAULT 10
@@ -32,7 +26,7 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-AS $
+AS $$
 DECLARE
   v_user_sp_balance INT DEFAULT 0;
   v_available_points INT DEFAULT 0;
@@ -148,30 +142,36 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION get_recommendations IS 'MODULE-05 DISCOVERY-V2-002: Get personalized recommendations for user. Prioritizes SP-eligible items for subscribers and suggests items within SP balance range.';
-
 -- =============================================================================
--- VERIFICATION QUERIES
+-- VERIFICATION QUERIES (run after applying this fix)
 -- =============================================================================
 
--- Test with sample user (replace with actual user_id):
--- SELECT * FROM get_recommendations('00000000-0000-0000-0000-000000000000'::UUID, 10);
+-- 1. Verify function exists with correct signature:
+-- SELECT proname, prosrc FROM pg_proc WHERE proname = 'get_recommendations';
 
--- Verify function exists:
--- SELECT proname, proargnames, prosrc 
--- FROM pg_proc 
--- WHERE proname = 'get_recommendations';
+-- 2. Test with a SUBSCRIBER user (replace with actual user_id):
+-- SELECT 
+--   id, 
+--   title, 
+--   accepts_swap_points, 
+--   price, 
+--   score
+-- FROM get_recommendations('dbd3f8f8-a6ea-4289-8fe4-902b0a1dbff5'::UUID, 5)
+-- ORDER BY score DESC
+-- EXPECT: SP-eligible items have score >= 110, cash-only items have score = 10
 
--- Test scoring logic (subscribers vs non-subscribers):
--- With subscriber user: should see high scores for SP-eligible items
--- With free user: should see lower/zero scores for SP items
+-- 3. Test with a FREE user (replace with actual user_id):
+-- SELECT 
+--   id, 
+--   title, 
+--   accepts_swap_points, 
+--   price, 
+--   score
+-- FROM get_recommendations('free-user-id'::UUID, 5)
+-- EXPECT: all items have score = 10 (randomized order)
 
--- =============================================================================
--- COMMON FAILURE MODES TO CHECK
--- =============================================================================
+-- 4. Check subscription status for debugging:
+-- SELECT user_id, status FROM subscriptions WHERE user_id = 'dbd3f8f8-a6ea-4289-8fe4-902b0a1dbff5'::UUID;
 
--- 1. Missing sp_wallets table: MODULE-09 must be implemented first
--- 2. Missing subscription_tier in profiles: MODULE-11 must be implemented first
--- 3. get_user_sp_wallet_summary function missing: Check MODULE-03 AUTH-V2-003
--- 4. RLS scope: This function uses SECURITY DEFINER context (verify RLS policies)
-
+-- 5. Check items that accept SP:
+-- SELECT id, title, accepts_swap_points, price FROM items WHERE accepts_swap_points = true LIMIT 5;

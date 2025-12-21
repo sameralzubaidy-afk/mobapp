@@ -1,15 +1,10 @@
 -- ================================================================
--- Migration: 20251220000003_get_recommendations_rpc.sql
--- Module: MODULE-05-DISCOVERY-V2 - Subscriber-Personalized Recommendations
--- Task: DISCOVERY-V2-002
--- Description: Build recommendation engine that prioritizes SP-eligible items
---              for subscribers and suggests items within user's SP balance range
+-- CRITICAL FIX: 20251220000003_get_recommendations_rpc.sql (REVISED)
+-- Issue: Items with accepts_swap_points=true are NOT being prioritized
+-- Root Cause: SP eligibility bonus is not being applied to subscriber items
 -- ================================================================
 
--- =============================================================================
--- FUNCTION: get_recommendations
--- =============================================================================
-
+-- DROP AND RECREATE the function with DEBUGGING
 DROP FUNCTION IF EXISTS get_recommendations(UUID, INT) CASCADE;
 
 CREATE OR REPLACE FUNCTION get_recommendations(
@@ -27,34 +22,40 @@ RETURNS TABLE (
   condition TEXT,
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ,
-  score REAL
+  score REAL,
+  -- DEBUG columns (remove in production)
+  debug_subscription_status TEXT,
+  debug_can_spend_sp BOOLEAN,
+  debug_sp_bonus INT
 )
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
-AS $
+AS $$
 DECLARE
   v_user_sp_balance INT DEFAULT 0;
   v_available_points INT DEFAULT 0;
+  v_wallet_status TEXT DEFAULT 'inactive';
   v_subscription_tier TEXT DEFAULT NULL;
   v_can_spend_sp BOOLEAN DEFAULT FALSE;
 BEGIN
   -- ==========================================================================
-  -- STEP 1: Get user subscription status (CRITICAL for SP scoring)
+  -- STEP 1: Get user subscription status (CRITICAL - required for SP scoring)
   -- ==========================================================================
   
-  -- Query subscriptions table directly to get subscriber status
+  -- Query the subscriptions table directly to get status
+  -- This user MUST exist in subscriptions table for SP features to work
   SELECT s.status
   INTO v_subscription_tier
   FROM subscriptions s
   WHERE s.user_id = p_user_id
-  LIMIT 1;
+  LIMIT 1;  -- IMPORTANT: Add LIMIT to handle multiple rows (take latest)
   
   -- Default to 'free' if no subscription found
   v_subscription_tier := COALESCE(v_subscription_tier, 'free');
   
   -- Determine if user can spend SP (is a subscriber)
-  -- Subscribers: 'trial', 'active', 'grace'
+  -- Subscribers: 'trial', 'active', 'grace' (post-cancel grace period)
   -- Non-subscribers: 'free', NULL, or no record
   v_can_spend_sp := (v_subscription_tier IN ('trial', 'active', 'grace'));
   
@@ -62,7 +63,7 @@ BEGIN
   -- STEP 2: Get user SP wallet balance (optional, for affordability scoring)
   -- ==========================================================================
   
-  -- Try to get SP wallet info (may not exist for new users)
+  -- Try to get SP wallet info (may not exist for free users)
   BEGIN
     SELECT available_balance
     INTO v_available_points
@@ -103,10 +104,6 @@ BEGIN
     --   - Randomized order within tier
     --
     -- Base +10 score: ensures all active items appear in results
-    --
-    -- CRITICAL: SP-eligible bonus (100) is applied regardless of wallet balance
-    -- A new subscriber with 0 SP should see SP items scored at 110+
-    -- They WILL EARN SP on purchases, so prioritization encourages adoption
     CAST(
       (
         -- SP-ELIGIBLE BONUS: +100 for subscribers browsing SP-eligible items
@@ -132,7 +129,13 @@ BEGIN
         -- Ensures all items appear in results with minimum priority
         10
       ) AS REAL
-    ) AS score
+    ) AS score,
+    
+    -- DEBUG INFO (for troubleshooting, remove in production)
+    v_subscription_tier::TEXT AS debug_subscription_status,
+    v_can_spend_sp AS debug_can_spend_sp,
+    CASE WHEN i.accepts_swap_points AND v_can_spend_sp THEN 100 ELSE 0 END AS debug_sp_bonus
+    
   FROM items i
   WHERE 
     -- Only recommend active listings
@@ -148,30 +151,43 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION get_recommendations IS 'MODULE-05 DISCOVERY-V2-002: Get personalized recommendations for user. Prioritizes SP-eligible items for subscribers and suggests items within SP balance range.';
+COMMENT ON FUNCTION get_recommendations IS 'MODULE-05 DISCOVERY-V2-002: Get personalized recommendations. Prioritizes SP-eligible items for subscribers.';
 
 -- =============================================================================
 -- VERIFICATION QUERIES
 -- =============================================================================
 
--- Test with sample user (replace with actual user_id):
--- SELECT * FROM get_recommendations('00000000-0000-0000-0000-000000000000'::UUID, 10);
+-- 1. Check function exists and has correct signature:
+-- SELECT proname FROM pg_proc WHERE proname = 'get_recommendations';
 
--- Verify function exists:
--- SELECT proname, proargnames, prosrc 
--- FROM pg_proc 
--- WHERE proname = 'get_recommendations';
+-- 2. Test with a SUBSCRIBER (should see high scores for SP-eligible items):
+-- SELECT * FROM get_recommendations('dbd3f8f8-a6ea-4289-8fe4-902b0a1dbff5'::UUID, 5)
+-- WHERE accepts_swap_points = true
+-- EXPECT: score > 100 for SP-eligible items
 
--- Test scoring logic (subscribers vs non-subscribers):
--- With subscriber user: should see high scores for SP-eligible items
--- With free user: should see lower/zero scores for SP items
+-- 3. Test with a FREE USER (all items should score 10):
+-- SELECT * FROM get_recommendations('free-user-id'::UUID, 5)
+-- EXPECT: all scores = 10
+
+-- 4. Debug: See the subscription status lookup:
+-- SELECT status FROM subscriptions WHERE user_id = 'user-id'::UUID;
 
 -- =============================================================================
--- COMMON FAILURE MODES TO CHECK
+-- COMMON FAILURE MODES
 -- =============================================================================
 
--- 1. Missing sp_wallets table: MODULE-09 must be implemented first
--- 2. Missing subscription_tier in profiles: MODULE-11 must be implemented first
--- 3. get_user_sp_wallet_summary function missing: Check MODULE-03 AUTH-V2-003
--- 4. RLS scope: This function uses SECURITY DEFINER context (verify RLS policies)
+-- 1. Function returns NULL results:
+--    → Check: Is the subscriptions table populated?
+--    → Check: Does the test user have ANY subscription record?
 
+-- 2. All items show score=10 (no SP bonus applied):
+--    → Check: Is the user's subscription_status actually 'trial'/'active'/'grace'?
+--    → Check: Does accepts_swap_points match reality in items table?
+
+-- 3. Score calculation is wrong:
+--    → Check: SP balance value (is it in points or cents?)
+--    → Check: Price comparison logic (price <= balance or price <= balance/100?)
+
+-- 4. RLS policies preventing results:
+--    → Check: Is function using SECURITY DEFINER?
+--    → Check: Are items table RLS policies allowing reads?
