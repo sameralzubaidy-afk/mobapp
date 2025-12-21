@@ -55,12 +55,12 @@ BEGIN
       v_wallet_status := 'inactive';
   END;
   
-  -- Get user subscription tier from profiles
+  -- Get user subscription status from subscriptions table
   BEGIN
-    SELECT subscription_tier
+    SELECT s.status
     INTO v_subscription_tier
-    FROM profiles
-    WHERE id = p_user_id;
+    FROM subscriptions s
+    WHERE s.user_id = p_user_id;
     
     v_subscription_tier := COALESCE(v_subscription_tier, 'free');
   EXCEPTION
@@ -68,11 +68,12 @@ BEGIN
       v_subscription_tier := 'free';
   END;
   
-  -- User can spend SP if they are a subscriber (trial or kids_club_plus) with active wallet
+  -- User can spend SP if they are a subscriber (trial or kids_club_plus)
+  -- Note: We check subscription status, not wallet balance, because:
+  --   1. Wallet might not exist yet for new subscribers
+  --   2. They will EARN SP on purchases, so still want SP-eligible items prioritized
   v_can_spend_sp := (
-    v_subscription_tier IN ('trial', 'kids_club_plus') 
-    AND v_wallet_status = 'active'
-    AND v_user_sp_balance > 0
+    v_subscription_tier IN ('trial', 'active', 'grace') 
   );
   
   -- ==========================================================================
@@ -92,10 +93,26 @@ BEGIN
     i.created_at,
     i.updated_at,
     -- Scoring logic (V2 Subscription-Aware):
-    -- +100: SP-eligible AND user can spend SP (subscriber with balance)
-    -- +50:  Item price <= user's SP balance (affordable with SP)
+    -- +100: SP-eligible (accepts_swap_points=true) AND subscriber (trial/active/grace status)
+    --       PURPOSE: Subscribers see SP-eligible items ranked first
+    -- +50:  Item price is affordable with current SP balance
+    --       PURPOSE: Show items user can fully or partially pay with SP
     -- +10:  Base score for all active items
-    -- Randomize within same score tier for variety
+    --       PURPOSE: Ensure all active items appear, sorted by base score
+    --
+    -- IMPORTANT: Score is INDEPENDENT of wallet balance for SPeligibility bonus
+    -- A new subscriber with 0 SP should still see SP-eligible items scored at 110+
+    -- They will EARN SP on purchases, so prioritization encourages SP adoption
+    --
+    -- Example scores:
+    -- Subscriber browsing SP-eligible item ($50) with $100 SP balance:
+    --   Score = 100 (eligible) + 0 (price $50 > $100/100=$1) + 10 = 110
+    -- Subscriber browsing SP-eligible item ($20) with $100 SP balance:
+    --   Score = 100 (eligible) + 50 (price $20 < $100/100=$1) + 10 = 160
+    -- Free user browsing SP-eligible item ($50):
+    --   Score = 0 (not subscriber) + 0 (not subscriber) + 10 = 10
+    -- Free user browsing cash-only item ($50):
+    --   Score = 0 (not SP-eligible) + 0 (not subscriber) + 10 = 10
     CAST(
       (
         -- SP-eligible bonus (subscribers only)
