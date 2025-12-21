@@ -10,7 +10,7 @@
  * - Recommendations handle errors gracefully
  */
 
-import { getRecommendations, searchListings, searchListingsByCategory } from '../../services/discovery';
+import { getRecommendations, searchListings, searchListingsByCategory, fetchListingsByCategory } from '../../services/discovery';
 import { supabase } from '../../config/supabase';
 import { Recommendation, SearchResult, CategoryResult } from '../../types/discovery';
 
@@ -18,6 +18,15 @@ import { Recommendation, SearchResult, CategoryResult } from '../../types/discov
 jest.mock('../../config/supabase', () => ({
   supabase: {
     rpc: jest.fn(),
+    from: jest.fn(() => ({
+      select: jest.fn(() => ({
+        ilike: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn(),
+          })),
+        })),
+      })),
+    })),
   },
 }));
 
@@ -244,6 +253,72 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
 
     it('should throw error for empty category ID', async () => {
       await expect(searchListingsByCategory('', { spEligibleOnly: false })).rejects.toThrow('Category ID is required');
+    });
+  });
+
+  describe('fetchListingsByCategory', () => {
+    it('should resolve category name to ID and return results', async () => {
+      const mockCategoryId = 'cat-toys-uuid';
+      const mockResults: CategoryResult[] = [
+        {
+          id: 'item-1',
+          title: 'Toy Car',
+          description: 'Red toy car',
+          price: 5.00,
+          accepts_swap_points: true,
+          status: 'available',
+          seller_id: 'seller-1',
+          category_id: mockCategoryId,
+          condition: 'like_new',
+          created_at: '2025-12-20T00:00:00Z',
+          updated_at: '2025-12-20T00:00:00Z',
+        },
+      ];
+
+      // Mock category lookup
+      const mockMaybeSingle = jest.fn().mockResolvedValue({
+        data: { id: mockCategoryId },
+        error: null,
+      });
+      const mockEq = jest.fn(() => ({ maybeSingle: mockMaybeSingle }));
+      const mockIlike = jest.fn(() => ({ eq: mockEq }));
+      const mockSelect = jest.fn(() => ({ ilike: mockIlike }));
+      (supabase.from as jest.Mock).mockReturnValue({ select: mockSelect });
+
+      // Mock RPC call
+      (supabase.rpc as jest.Mock).mockResolvedValue({
+        data: mockResults,
+        error: null,
+      });
+
+      const result = await fetchListingsByCategory('Toys', true);
+
+      expect(result).toEqual(mockResults);
+      expect(supabase.from).toHaveBeenCalledWith('categories');
+      expect(mockIlike).toHaveBeenCalledWith('name', 'Toys');
+      expect(supabase.rpc).toHaveBeenCalledWith('search_listings_by_category', {
+        p_category_id: mockCategoryId,
+        p_sp_eligible_only: true,
+        p_limit: 50,
+        p_offset: 0,
+      });
+    });
+
+    it('should return empty array if category not found', async () => {
+      // Mock category lookup returning null
+      const mockMaybeSingle = jest.fn().mockResolvedValue({
+        data: null,
+        error: null,
+      });
+      const mockEq = jest.fn(() => ({ maybeSingle: mockMaybeSingle }));
+      const mockIlike = jest.fn(() => ({ eq: mockEq }));
+      const mockSelect = jest.fn(() => ({ ilike: mockIlike }));
+      (supabase.from as jest.Mock).mockReturnValue({ select: mockSelect });
+
+      const result = await fetchListingsByCategory('NonExistent', false);
+
+      expect(result).toEqual([]);
+      expect(supabase.rpc).not.toHaveBeenCalled();
     });
   });
 });

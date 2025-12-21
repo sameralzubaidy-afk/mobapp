@@ -2,7 +2,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View } from 'react-native';
-import HomeFeedScreen from '@/screens/home/HomeFeedScreen';
+import UserDashboardScreen from '@/screens/dashboard/UserDashboardScreen';
 import BrowseItemsScreen from '@/screens/home/BrowseItemsScreen';
 import SearchScreen from '@/screens/home/SearchScreen';
 
@@ -11,7 +11,7 @@ const Tab = createBottomTabNavigator();
 // Simple icon component since we don't have icon library
 const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => {
   const icons: { [key: string]: string } = {
-    Feed: '🏠',
+    Dashboard: '🏠',
     Browse: '🔍',
     Search: '🔎',
     Messages: '💬',
@@ -65,8 +65,8 @@ export function HomeTabNavigator() {
               marginBottom: 4,
             }}
           >
-            {route.name === 'HomeFeed'
-              ? 'Feed'
+            {route.name === 'Dashboard'
+              ? 'Dashboard'
               : route.name === 'BrowseItems'
               ? 'Browse'
               : route.name === 'Search'
@@ -76,8 +76,8 @@ export function HomeTabNavigator() {
         ),
         tabBarIcon: ({ focused }) => {
           const iconName =
-            route.name === 'HomeFeed'
-              ? 'Feed'
+            route.name === 'Dashboard'
+              ? 'Dashboard'
               : route.name === 'BrowseItems'
               ? 'Browse'
               : route.name === 'Search'
@@ -88,10 +88,10 @@ export function HomeTabNavigator() {
       })}
     >
       <Tab.Screen
-        name="HomeFeed"
-        component={HomeFeedScreen}
+        name="Dashboard"
+        component={UserDashboardScreen}
         options={{
-          title: 'Feed',
+          title: 'Dashboard',
         }}
       />
       <Tab.Screen

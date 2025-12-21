@@ -120,6 +120,44 @@ export async function searchListingsByCategory(
 }
 
 /**
+ * Fetch listings by category name with optional SP filter
+ * Resolves category name to ID and calls searchListingsByCategory
+ * 
+ * @param categoryName - Name of the category (e.g., 'Toys', 'Books')
+ * @param spEligibleOnly - Filter for SP-eligible items
+ * @returns Array of category results
+ */
+export async function fetchListingsByCategory(
+  categoryName: string,
+  spEligibleOnly: boolean = false
+): Promise<CategoryResult[]> {
+  try {
+    // 1. Get category ID from name
+    const { data: categoryData, error: categoryError } = await supabase
+      .from('categories')
+      .select('id')
+      .ilike('name', categoryName)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (categoryError) throw categoryError;
+    if (!categoryData) {
+      console.warn(`[fetchListingsByCategory] Category not found: ${categoryName}`);
+      return [];
+    }
+
+    // 2. Fetch listings using the ID
+    return await searchListingsByCategory(categoryData.id, {
+      spEligibleOnly,
+      limit: 50,
+    });
+  } catch (err) {
+    console.error('[fetchListingsByCategory] Error:', err);
+    return [];
+  }
+}
+
+/**
  * Search listings within a specific category with optional text query
  * Combines category filtering with full-text search for refined results
  *

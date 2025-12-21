@@ -16,6 +16,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
+import CategorySelector from '../../components/molecules/CategorySelector';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type NavigationProp = NativeStackNavigationProp<any>;
@@ -42,17 +43,6 @@ export default function UserDashboardScreen() {
       }
     }
   }, [isFocused, session, refreshSession]);
-
-  // Calculate days until subscription expiry
-  useEffect(() => {
-    if (session && session.subscription_expires_at) {
-      const expiryDate = new Date(session.subscription_expires_at);
-      const today = new Date();
-      const diffTime = expiryDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      setDaysUntilExpiry(diffDays > 0 ? diffDays : 0);
-    }
-  }, [session]);
 
   if (isLoading) {
     return (
@@ -123,6 +113,11 @@ export default function UserDashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* DISCOVERY-V2-003: Category Browsing */}
+        <View style={{ marginBottom: 20 }}>
+          <CategorySelector />
+        </View>
+
         {/* DISCOVERY-V2-002: Personalized Recommendations */}
         <View style={styles.recommendationsSection}>
           <RecommendationsCarousel limit={10} />
@@ -132,9 +127,9 @@ export default function UserDashboardScreen() {
         <View style={styles.profileCard}>
           <View style={styles.profileContent}>
             <View style={styles.avatarContainer}>
-              {session.user.avatar ? (
+              {session.user.avatar_url ? (
                 <Image
-                  source={{ uri: session.user.avatar }}
+                  source={{ uri: session.user.avatar_url }}
                   style={styles.avatar}
                 />
               ) : (

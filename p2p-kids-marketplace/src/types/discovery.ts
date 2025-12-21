@@ -60,8 +60,8 @@ export interface DiscoveryFilters {
  * Category filter options
  */
 export interface CategoryFilters {
-  /** Category ID to browse */
-  categoryId: string;
+  /** Category ID to browse (optional if passed separately) */
+  categoryId?: string;
   /** Only return SP-eligible items */
   spEligibleOnly?: boolean;
   /** Maximum results to return */
