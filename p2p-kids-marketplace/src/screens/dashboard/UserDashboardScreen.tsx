@@ -16,6 +16,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -105,11 +106,12 @@ export default function UserDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={{ flex: 1, flexDirection: 'column' }}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Dashboard</Text>
@@ -363,7 +365,9 @@ export default function UserDashboardScreen() {
             <Text style={styles.quickLinkLabel}>Help</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+        </ScrollView>
+        <BottomNavBar />
+      </View>
     </SafeAreaView>
   );
 }
