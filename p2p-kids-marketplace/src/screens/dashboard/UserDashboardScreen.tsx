@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
+import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -118,6 +119,11 @@ export default function UserDashboardScreen() {
           >
             <Text style={styles.settingsIcon}>⚙️</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* DISCOVERY-V2-002: Personalized Recommendations */}
+        <View style={styles.recommendationsSection}>
+          <RecommendationsCarousel limit={10} />
         </View>
 
         {/* User Profile Card */}
@@ -403,6 +409,13 @@ const styles = StyleSheet.create({
   },
   settingsIcon: {
     fontSize: 24,
+  },
+  
+  // Recommendations Section
+  recommendationsSection: {
+    marginBottom: 20,
+    marginHorizontal: -16, // Extend to edges
+    paddingHorizontal: 16,
   },
 
   // Profile Card

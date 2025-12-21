@@ -11,12 +11,18 @@
 ## 📍 WHERE TO FIND THE RECOMMENDATIONS
 
 ### Location in App
-**Screen**: Home Feed Screen (after login)  
-**Position**: Top section of the screen, ABOVE the action buttons ("Browse", "List Item", etc.)  
+**Screen**: User Dashboard Screen (the main screen after login)  
+**Position**: **VERY TOP of the screen**, IMMEDIATELY after the header "Dashboard" title  
 **Component Name**: `RecommendationsCarousel`
 
+### Visual Location
+The Recommendations carousel appears:
+1. BELOW the "Dashboard" header + settings icon
+2. ABOVE the user profile card
+3. BEFORE subscription and SP wallet information
+
 ### File Reference
-- Screen File: `p2p-kids-marketplace/src/screens/home/HomeFeedScreen.tsx`
+- Screen File: `p2p-kids-marketplace/src/screens/dashboard/UserDashboardScreen.tsx`
 - Component File: `p2p-kids-marketplace/src/components/organisms/RecommendationsCarousel/index.tsx`
 
 ---
@@ -25,20 +31,23 @@
 
 ### PHASE 1: APP SETUP (One-time)
 
-#### Step 1.1: Start the Expo Development Server
+#### Step 1.1: Start the Expo Development Server and Login
 ```bash
 cd /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace
 yarn ios
 ```
 
+Then:
+1. **Tap "Login"** on Welcome screen
+2. **Enter your credentials** and sign in
+3. **You'll land on the USER DASHBOARD screen**
+
 **Expected Result**:
 - iOS Simulator opens
 - Expo app loads
-- You see the Welcome/Login screen
-
-**Troubleshooting**:
-- If simulator doesn't open: `xcrun simctl erase all` then restart
-- If Expo freezes: Press `i` in terminal to rebuild
+- After login, you see the Dashboard screen
+- "Dashboard" title at the top
+- **Recommendations carousel should be visible BELOW the header**
 
 ---
 
@@ -80,24 +89,43 @@ prosrc           | (long function body showing scoring logic)
 
 ### PHASE 2: TEST WITH SUBSCRIBER ACCOUNT (SP Balance)
 
-#### Step 2.1: Login as Subscriber
-In the iOS Simulator:
+#### Step 2.1: You Should Already Be on Dashboard
+After logging in, you're already on the **User Dashboard Screen**.
 
-1. **Tap "Login"** on Welcome screen
-2. **Email**: Use your test subscriber account
-   - Example: `subscriber@test.com`
-3. **Password**: Enter your test password
-4. **Tap "Sign In"**
+**Dashboard Layout** (from top to bottom):
+```
+┌──────────────────────────────┐
+│ Dashboard          ⚙️ Settings│  ← Header
+├──────────────────────────────┤
+│  RECOMMENDATIONS             │  ← NEW: Recommendations carousel
+│ ┌──────┐  ┌──────┐ ┌──────┐ │
+│ │ Item │  │ Item │ │ Item │ │  ← Horizontal scroll cards
+│ │ $15  │  │ $20  │ │ $25  │ │
+│ │✓ SP  │  │      │ │✓ SP  │ │  ← SP badges for subscribers
+│ └──────┘  └──────┘ └──────┘ │
+├──────────────────────────────┤
+│ 👤 User             (Profile) │  ← Existing: User profile card
+├──────────────────────────────┤
+│ Subscription: Kids Club+ Trial│  ← Existing: Subscription card
+│ ✨ SP Wallet Unlocked        │
+├──────────────────────────────┤
+│ Swap Points Wallet           │  ← Existing: SP wallet card
+│ Available: 0  |  Pending: 0   │
+├──────────────────────────────┤
+│ 🛍️ Browse 🔎 Search 📝 Create│  ← Existing: Quick links
+│ 📋 Listings 👤 Profile ⚙️    │
+└──────────────────────────────┘
+```
 
 **Expected Result**:
-- Login succeeds
-- You're redirected to Home Feed screen
-- You see "Recommendations" carousel at the TOP
+- You're on the Dashboard screen
+- Recommendations carousel is visible at the TOP (below header)
+- You can scroll the carousel horizontally
 
 ---
 
-#### Step 2.2: Verify RecommendationsCarousel Appears
-On the Home Feed screen:
+#### Step 2.2: Verify RecommendationsCarousel Appears at TOP of Dashboard
+On the Dashboard screen:
 
 **What You Should See** (from top to bottom):
 ```
@@ -125,8 +153,8 @@ On the Home Feed screen:
 - [ ] No error message visible
 
 **If Carousel Doesn't Appear**:
-- Check if you can scroll down (it might be above the fold)
-- Check mobile simulator: Device > Rotate Left/Right (verify layout)
+- Scroll to the very TOP of the Dashboard (might be cut off)
+- Check if you're on Dashboard screen (not Browse/Profile/Search)
 - Check console in terminal for errors
 - If 404 error: SQL migration wasn't applied (go back to Step 1.2)
 
