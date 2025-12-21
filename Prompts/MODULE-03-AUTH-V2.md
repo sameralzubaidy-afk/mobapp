@@ -495,11 +495,12 @@ NEXT TASK: AUTH-V2-003 (Login & Session Management)
 ### Description
 
 Implement login flow that:
-1. Authenticates user credentials.
+
 2. Fetches current subscription status (MODULE-11).
 3. Fetches SP wallet summary (MODULE-09).
 4. Enriches JWT token with subscription and SP context.
 5. Refreshes session on subscription status changes.
+6. create a landing screen UI after sucessful login
 
 ### AI Prompt for Cursor
 

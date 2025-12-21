@@ -75,8 +75,8 @@ NEXT TASK: DISCOVERY-V2-001 (Search Index & Full-Text Search)
 ```
 
 ---
-
 ## TASK DISCOVERY-V2-001: Full-Text Search Index
+
 
 **Duration:** 3 hours  
 **Priority:** High  

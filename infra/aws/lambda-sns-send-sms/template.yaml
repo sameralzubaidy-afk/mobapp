@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2013-12-31
+Description: 'SMS Service for P2P Kids Marketplace using AWS SNS, Lambda, API Gateway, DynamoDB'
+
+Parameters:
+  SmsRateLimitWindow:
+    Type: Number
+    Default: 60
+    Description: Rate limit window in seconds
+  SmsRateLimitMax:
+    Type: Number
+    Default: 3
+    Description: Max SMS sends per window per phone
+  SmsCodeExpiry:
+    Type: Number
+    Default: 600
+    Description: Verification code expiry in seconds (default 10 min)
+  ApiKeyValue:
+    Type: String
+    NoEcho: true
+    Description: API Key for protecting the endpoint
+  Environment:
+    Type: String
+    Default: development
+    AllowedValues: [development, staging, production]
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        AWS_REGION: !Ref AWS::Region
+        SMS_RATE_WINDOW_SECONDS: !Ref SmsRateLimitWindow
+        SMS_RATE_MAX_PER_WINDOW: !Ref SmsRateLimitMax
+        SMS_CODE_EXPIRY_SECONDS: !Ref SmsCodeExpiry
+        DYNAMODB_TABLE_SMS_RATE: !Ref SmsRateLimitTable
+        DYNAMODB_TABLE_VERIFICATION_CODES: !Ref VerificationCodesTable
+
+Resources:
+  # Lambda Function
+  SmsSenderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub 'p2p-sms-sender-${Environment}'
+      CodeUri: ./
+      Handler: index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SmsRateLimitTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref VerificationCodesTable
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sns:Publish
+              Resource: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:*'
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref SmsApi
+            Path: /send
+            Method: POST
+            Auth:
+              ApiKeyRequired: true
+
+  # DynamoDB: Rate Limit Table
+  SmsRateLimitTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'p2p-sms-rate-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: phone
+          AttributeType: S
+      KeySchema:
+        - AttributeName: phone
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: lastModified
+        Enabled: true
+
+  # DynamoDB: Verification Codes Table
+  VerificationCodesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'p2p-verification-codes-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: phone
+          AttributeType: S
+      KeySchema:
+        - AttributeName: phone
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  # API Gateway
+  SmsApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Sub 'p2p-sms-api-${Environment}'
+      Description: SMS API for P2P Kids Marketplace
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # API Key for protection
+  SmsApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: !Sub 'p2p-sms-api-key-${Environment}'
+      Description: API key for SMS endpoint
+      Value: !Ref ApiKeyValue
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref SmsApi
+          StageName: !Ref Environment
+
+  # Usage Plan
+  SmsUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      UsagePlanName: !Sub 'p2p-sms-usage-plan-${Environment}'
+      Description: Usage plan for SMS API
+      ApiStages:
+        - ApiId: !Ref SmsApi
+          Stage: !Ref Environment
+      Throttle:
+        RateLimit: 100  # Requests per second
+        BurstLimit: 200
+
+  # Link API Key to Usage Plan
+  SmsUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref SmsApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref SmsUsagePlan
+
+  # API Deployment
+  SmsApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - SmsApi
+    Properties:
+      RestApiId: !Ref SmsApi
+      StageName: !Ref Environment
+
+Outputs:
+  ApiEndpoint:
+    Description: SMS API Gateway endpoint URL
+    Value: !Sub 'https://${SmsApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}'
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiEndpoint'
+
+  ApiKeyId:
+    Description: API Key ID (store in GitHub Secrets as AWS_SNS_API_KEY)
+    Value: !Ref SmsApiKey
+    Export:
+      Name: !Sub '${AWS::StackName}-ApiKeyId'
+
+  SmsRateLimitTable:
+    Description: DynamoDB table for rate limiting
+    Value: !Ref SmsRateLimitTable
+    Export:
+      Name: !Sub '${AWS::StackName}-RateLimitTable'
+
+  VerificationCodesTable:
+    Description: DynamoDB table for verification codes
+    Value: !Ref VerificationCodesTable
+    Export:
+      Name: !Sub '${AWS::StackName}-VerificationCodesTable'
+
+  SmsFunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt SmsSenderFunction.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-SmsFunctionArn'

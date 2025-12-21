@@ -1,0 +1,14 @@
+{
+  "name": "lambda-sns-send-sms",
+  "version": "1.0.0",
+  "description": "AWS Lambda function that sends SMS messages via AWS SNS",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js",
+    "deploy": "echo 'Deploy with AWS Lambda / SAM / Serverless (manual steps).'",
+    "local": "node index.js"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1400.0"
+  }
+}

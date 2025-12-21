@@ -12,7 +12,9 @@ import { testSupabaseConnection } from './src/utils/testSupabase';
 
 export default function App() {
   useEffect(() => {
-    testSupabaseConnection();
+    // Commented out: testSupabaseConnection can hang on Android
+    // Connection is tested during auth initialization instead
+    // testSupabaseConnection();
   }, []);
 
   return (

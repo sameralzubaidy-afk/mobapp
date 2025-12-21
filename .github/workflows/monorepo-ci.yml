@@ -59,3 +59,26 @@ jobs:
         run: npm install --legacy-peer-deps
       - name: Run tests
         run: npm test --silent
+
+  e2e-cache:
+    name: E2E - Cache Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Remove problematic devDependencies (CI)
+        run: |
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json')); if(p.devDependencies && p.devDependencies.detox){delete p.devDependencies.detox; fs.writeFileSync('package.json', JSON.stringify(p, null,2)); console.log('removed detox from devDependencies');} else {console.log('no detox entry found');}"
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+      - name: Run E2E cache integration tests
+        run: npm run test:e2e:cloudflare
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EXPO_PUBLIC_CDN_URL: ${{ secrets.EXPO_PUBLIC_CDN_URL }}
+          SUPABASE_PURGE_X_API_KEY: ${{ secrets.SUPABASE_PURGE_X_API_KEY }}

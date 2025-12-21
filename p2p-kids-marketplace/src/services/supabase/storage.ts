@@ -40,7 +40,7 @@ export const uploadImage = async (
 
 export const uploadMultipleImages = async (
   bucket: StorageBucket,
-  files: Array<{ path: string; fileUri: string }>
+  files: { path: string; fileUri: string }[]
 ): Promise<UploadResult[]> => {
   const promises = files.map(({ path, fileUri }) => uploadImage(bucket, path, fileUri, { upsert: true }));
   return Promise.all(promises);
@@ -104,7 +104,7 @@ export const getPublicUrl = (bucket: StorageBucket, path: string): string | null
   try {
     const { data } = supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl ?? null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -129,7 +129,7 @@ export const getCdnUrl = (bucket: StorageBucket, path: string): string | null =>
     // ensure suffix starts with '/'
     const pathSuffix = suffix.startsWith('/') ? suffix : `/${suffix}`;
     return `${cdn}${pathSuffix}`;
-  } catch (e) {
+  } catch {
     return publicUrl;
   }
 };

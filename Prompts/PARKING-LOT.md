@@ -88,3 +88,7 @@ Owner: @sameralzubaidy-afk // TODO: assign a team owner in the next sprint
 Notes / rationale:
 - The temporary stub helped unblock early frontend work and emulator verification — this task makes that fallback explicit and safe to keep in the codebase if desired, or easy to remove once Supabase config is required.
 
+ ## TASK AUTH-005,6 and 7
+ edit profile > zip code not avalaible and trigger the add to wish list. 
+ ## TASK AUTH-008: Forgot Password Flow
+I need to do E2E test in stage , locally I could not. 

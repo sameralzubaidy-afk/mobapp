@@ -97,7 +97,7 @@ User signs up with email, password, name, and phone number. After successful Sup
 create a user profile in the database with default values.
 
 REQUIREMENTS:
-1. Create signup screen with form validation
+1. Create signup screen with form validation (includes DOB field, user must be 18+ to register)
 2. Implement Supabase Auth signup
 3. Create user profile in database
 4. Handle errors gracefully
@@ -4944,7 +4944,7 @@ After referral code entry complete:
 **Dependencies:** AUTH-010 (Referral code entry), Trade completion (future module)
 
 ### Description
-Award 50 points bonus to both referrer and referee when referee completes their first trade. Update referral status to 'completed', create points transactions, send notifications.
+Award 5 points bonus to both referrer and referee when referee completes their first trade. Update referral status to 'completed', create points transactions, send notifications.
 
 ---
 

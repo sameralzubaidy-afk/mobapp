@@ -1,4 +1,5 @@
 module.exports = {
+  ignorePatterns: ['e2e/**', '*.config.js', 'jest.setup*.ts'],
   extends: [
     'expo',
     'plugin:@typescript-eslint/recommended',
@@ -24,6 +25,8 @@ module.exports = {
     'import/prefer-default-export': 'off',
     'react/jsx-props-no-spreading': 'off',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
+    '@typescript-eslint/no-require-imports': 'off',
+    '@typescript-eslint/no-var-requires': 'off',
     // allow either function declarations or arrow functions for scaffolding
     'react/function-component-definition': 'off',
   },

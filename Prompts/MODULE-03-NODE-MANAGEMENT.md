@@ -1067,193 +1067,275 @@ Automatically assign users to nearest active geographic node based on their ZIP 
 
 ```typescript
 /*
-TASK: Implement automatic node assignment on signup
+TASK: Implement automatic node assignment on signup + ZIP-not-active popup + waitlist opt-in
 
 CONTEXT:
-When user completes profile creation with ZIP code, automatically assign them to the nearest
-active geographic node. Uses PostGIS to calculate distance from user's coordinates to all
-active nodes.
+During onboarding/profile creation, user enters ZIP code.
+- If we are ACTIVE in that exact ZIP: assign user to that node (normal behavior).
+- If we are NOT ACTIVE in that exact ZIP: still assign user to the nearest ACTIVE node,
+  but show a popup on mobile:
+    "We are not active yet in this ZIP... we assigned nearest active ZIP... want to join waitlist?"
+  Since this happens during onboarding, user email is already known (auth user).
 
 REQUIREMENTS:
 1. Get user's coordinates from ZIP code
-2. Find nearest active node using PostGIS
-3. Assign node_id to user
-4. Update node member_count
-5. Track analytics event
-6. Handle edge cases (no active nodes nearby)
+2. Determine if user's ZIP has an active node
+3. If yes → assign to that node
+4. If no  → assign to nearest active node AND show popup asking to join waitlist
+5. If user opts-in → add user to waitlist for requested ZIP (store email + user_id)
+6. Update node member_count
+7. Track analytics events (assignment + popup + waitlist opt-in)
+8. Handle edge cases:
+   - No active nodes anywhere → show friendly message + allow waitlist opt-in
+   - Invalid ZIP → validation error
+   - Waitlist duplicates → upsert
 
 ==================================================
 FILE 1: Update src/services/location.ts
 ==================================================
-Enhance existing assignNodeByZipCode function
+- Change assignNodeByZipCode to return metadata indicating if ZIP is active
+- Use a single RPC that either matches ZIP or falls back to nearest active
 */
 
-// filepath: src/services/location.ts (update existing function)
+// filepath: src/services/location.ts
 
 import { supabase } from './supabase';
 import { trackEvent } from './analytics';
 import * as Sentry from '@sentry/react-native';
 
-/**
- * Assign user to nearest active geographic node based on ZIP code
- * @param zipCode - User's ZIP code
- * @param userId - User's ID (for analytics)
- * @returns Node ID
- */
+export type NodeAssignmentResult = {
+  nodeId: string;
+  nodeName: string;
+  nodeZipCode: string | null;
+  distanceMiles: number | null;        // null when exact ZIP match
+  matchType: 'zip' | 'nearest';        // zip = active in same ZIP, nearest = fallback
+};
+
 export const assignNodeByZipCode = async (
   zipCode: string,
   userId?: string
-): Promise<string> => {
+): Promise<NodeAssignmentResult> => {
   try {
-    // Get coordinates for ZIP code
     const coordinates = await getZipCodeCoordinates(zipCode);
-    
+
     if (!coordinates) {
-      throw new Error('Failed to get coordinates for ZIP code');
+      throw new Error('Invalid ZIP code or unable to lookup ZIP coordinates.');
     }
 
     const { latitude, longitude } = coordinates;
 
-    // Find nearest ACTIVE node using PostGIS
-    const { data, error } = await supabase.rpc('get_nearest_active_node', {
+    // One RPC: if active node exists for ZIP -> returns match_type='zip'
+    // else returns nearest active node -> match_type='nearest'
+    const { data, error } = await supabase.rpc('resolve_active_node_for_signup', {
+      requested_zip: zipCode,
       user_lat: latitude,
       user_lng: longitude,
     });
 
     if (error) throw error;
 
+    // If there are no active nodes anywhere, RPC returns empty
     if (!data || data.length === 0) {
-      // No active nodes found - log to Sentry
-      Sentry.captureMessage('No active nodes available for user assignment', {
+      Sentry.captureMessage('No active nodes exist for assignment', {
         level: 'warning',
-        extra: {
-          user_id: userId,
-          zip_code: zipCode,
-          latitude,
-          longitude,
-        },
+        extra: { user_id: userId, zip_code: zipCode, latitude, longitude },
       });
 
-      throw new Error('No active nodes available in your area. Please contact support.');
+      // IMPORTANT: do NOT say "contact support"—instead allow onboarding UI to offer waitlist
+      throw new Error('We’re not active in your area yet. You can join the waitlist to be notified when we launch.');
     }
 
-    const nearestNode = data[0];
-    const distanceKm = nearestNode.distance_km;
-    const distanceMiles = distanceKm * 0.621371;
+    const row = data[0];
+    const distanceKm: number | null = row.distance_km ?? null;
+    const distanceMiles = distanceKm === null ? null : distanceKm * 0.621371;
 
-    // Check if node is within reasonable distance (50 miles)
-    if (distanceMiles > 50) {
-      Sentry.captureMessage('Nearest node is >50 miles away', {
+    // Optional: warn if fallback node is far
+    if (distanceMiles !== null && distanceMiles > 50) {
+      Sentry.captureMessage('Nearest active node is >50 miles away', {
         level: 'warning',
         extra: {
           user_id: userId,
-          zip_code: zipCode,
-          node_id: nearestNode.id,
+          requested_zip: zipCode,
+          node_id: row.id,
           distance_miles: distanceMiles,
         },
       });
     }
 
-    // Track analytics
     if (userId) {
       trackEvent('node_assigned', {
         user_id: userId,
-        node_id: nearestNode.id,
-        node_name: nearestNode.name,
-        distance_miles: distanceMiles.toFixed(2),
-        zip_code: zipCode,
+        node_id: row.id,
+        node_name: row.name,
+        node_zip_code: row.zip_code,
+        requested_zip: zipCode,
+        match_type: row.match_type,
+        distance_miles: distanceMiles === null ? null : Number(distanceMiles.toFixed(2)),
       });
     }
 
-    return nearestNode.id;
-
+    return {
+      nodeId: row.id,
+      nodeName: row.name,
+      nodeZipCode: row.zip_code ?? null,
+      distanceMiles: distanceMiles === null ? null : Number(distanceMiles.toFixed(2)),
+      matchType: row.match_type, // 'zip' or 'nearest'
+    };
   } catch (error: any) {
     console.error('Node assignment error:', error);
-    Sentry.captureException(error, {
-      extra: {
-        user_id: userId,
-        zip_code: zipCode,
-      },
-    });
+    Sentry.captureException(error, { extra: { user_id: userId, zip_code: zipCode } });
     throw error;
   }
 };
 
-/**
- * Get coordinates for ZIP code
- */
 const getZipCodeCoordinates = async (
   zipCode: string
 ): Promise<{ latitude: number; longitude: number } | null> => {
   try {
     const response = await fetch(`https://api.zippopotam.us/us/${zipCode}`);
-    
-    if (!response.ok) {
-      throw new Error('ZIP code lookup failed');
-    }
+    if (!response.ok) return null;
 
     const data = await response.json();
-    const place = data.places[0];
+    const place = data.places?.[0];
+    if (!place?.latitude || !place?.longitude) return null;
 
-    return {
-      latitude: parseFloat(place.latitude),
-      longitude: parseFloat(place.longitude),
-    };
+    return { latitude: parseFloat(place.latitude), longitude: parseFloat(place.longitude) };
   } catch (error) {
     console.error('ZIP lookup error:', error);
     return null;
   }
 };
 
-/**
- * Update node member count
- * Call this after assigning user to node
- */
 export const incrementNodeMemberCount = async (nodeId: string): Promise<void> => {
   try {
-    const { error } = await supabase.rpc('increment_node_member_count', {
-      node_id: nodeId,
-    });
-
+    const { error } = await supabase.rpc('increment_node_member_count', { node_id: nodeId });
     if (error) throw error;
   } catch (error) {
     console.error('Increment node member count error:', error);
   }
 };
 
+export const decrementNodeMemberCount = async (nodeId: string): Promise<void> => {
+  try {
+    const { error } = await supabase.rpc('decrement_node_member_count', { node_id: nodeId });
+    if (error) throw error;
+  } catch (error) {
+    console.error('Decrement node member count error:', error);
+  }
+};
+
+
 /*
 ==================================================
-FILE 2: Create get_nearest_active_node database function
+FILE 2: Add waitlist service
+==================================================
+- User opts in on popup -> upsert into zip_waitlist
+*/
+
+// filepath: src/services/waitlist.ts
+
+import { supabase } from './supabase';
+import { trackEvent } from './analytics';
+import * as Sentry from '@sentry/react-native';
+
+export const upsertZipWaitlist = async (params: {
+  userId: string;
+  email: string;
+  requestedZip: string;
+  assignedNodeId?: string | null;
+}) => {
+  try {
+    const { userId, email, requestedZip, assignedNodeId } = params;
+
+    const { error } = await supabase
+      .from('zip_waitlist')
+      .upsert(
+        {
+          user_id: userId,
+          email,
+          requested_zip: requestedZip,
+          assigned_node_id: assignedNodeId ?? null,
+        },
+        { onConflict: 'user_id,requested_zip' }
+      );
+
+    if (error) throw error;
+
+    trackEvent('waitlist_opt_in', {
+      user_id: userId,
+      requested_zip: requestedZip,
+      assigned_node_id: assignedNodeId ?? null,
+    });
+  } catch (error: any) {
+    console.error('Waitlist upsert error:', error);
+    Sentry.captureException(error, { extra: params });
+    // Don't block onboarding if waitlist fails
+  }
+};
+
+
+/*
+==================================================
+FILE 3: Database changes (RPC + waitlist table)
 ==================================================
 */
 
--- filepath: supabase/migrations/006_get_nearest_active_node.sql
+// filepath: supabase/migrations/006_resolve_active_node_and_waitlist.sql
 
--- Function to get nearest ACTIVE geographic node
--- (Replaces get_nearest_node from AUTH-005 to filter by active status)
-CREATE OR REPLACE FUNCTION get_nearest_active_node(user_lat DOUBLE PRECISION, user_lng DOUBLE PRECISION)
+-- Ensure geographic_nodes has zip_code (if it already exists, keep as-is)
+-- ALTER TABLE geographic_nodes ADD COLUMN IF NOT EXISTS zip_code TEXT;
+
+-- Unified function: exact ZIP active match first, otherwise nearest active node.
+CREATE OR REPLACE FUNCTION resolve_active_node_for_signup(
+  requested_zip TEXT,
+  user_lat DOUBLE PRECISION,
+  user_lng DOUBLE PRECISION
+)
 RETURNS TABLE (
   id UUID,
   name TEXT,
-  distance_km DOUBLE PRECISION
+  zip_code TEXT,
+  distance_km DOUBLE PRECISION,
+  match_type TEXT
 ) AS $$
 BEGIN
+  -- 1) Exact ZIP match if active
   RETURN QUERY
   SELECT
     gn.id,
     gn.name,
+    gn.zip_code,
+    NULL::DOUBLE PRECISION AS distance_km,
+    'zip'::TEXT AS match_type
+  FROM geographic_nodes gn
+  WHERE gn.is_active = true
+    AND gn.zip_code = requested_zip
+  LIMIT 1;
+
+  -- If we already returned a row, stop
+  IF FOUND THEN
+    RETURN;
+  END IF;
+
+  -- 2) Fallback to nearest active node
+  RETURN QUERY
+  SELECT
+    gn.id,
+    gn.name,
+    gn.zip_code,
     ST_DistanceSphere(
       ST_MakePoint(gn.longitude, gn.latitude),
       ST_MakePoint(user_lng, user_lat)
-    ) / 1000.0 AS distance_km
+    ) / 1000.0 AS distance_km,
+    'nearest'::TEXT AS match_type
   FROM geographic_nodes gn
-  WHERE gn.is_active = true  -- Only active nodes
+  WHERE gn.is_active = true
   ORDER BY distance_km ASC
   LIMIT 1;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to increment node member count
+-- Member count helpers (same as before)
 CREATE OR REPLACE FUNCTION increment_node_member_count(node_id UUID)
 RETURNS VOID AS $$
 BEGIN
@@ -1263,7 +1345,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to decrement node member count
 CREATE OR REPLACE FUNCTION decrement_node_member_count(node_id UUID)
 RETURNS VOID AS $$
 BEGIN
@@ -1273,22 +1354,72 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Waitlist table
+CREATE TABLE IF NOT EXISTS zip_waitlist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL,
+  email TEXT NOT NULL,
+  requested_zip TEXT NOT NULL,
+  assigned_node_id UUID NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT zip_waitlist_unique UNIQUE (user_id, requested_zip)
+);
+
+-- Optional FK (depends on your schema; keep if you have it)
+-- ALTER TABLE zip_waitlist ADD CONSTRAINT zip_waitlist_user_fk
+--   FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE;
+
+-- ALTER TABLE zip_waitlist ADD CONSTRAINT zip_waitlist_node_fk
+--   FOREIGN KEY (assigned_node_id) REFERENCES geographic_nodes (id) ON DELETE SET NULL;
+
+-- Basic RLS (recommended)
+ALTER TABLE zip_waitlist ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'zip_waitlist' AND policyname = 'zip_waitlist_insert_own'
+  ) THEN
+    CREATE POLICY zip_waitlist_insert_own
+      ON zip_waitlist
+      FOR INSERT
+      TO authenticated
+      WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'zip_waitlist' AND policyname = 'zip_waitlist_update_own'
+  ) THEN
+    CREATE POLICY zip_waitlist_update_own
+      ON zip_waitlist
+      FOR UPDATE
+      TO authenticated
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+
 /*
 ==================================================
-FILE 3: Update ProfileCreationScreen to use new function
+FILE 4: Update ProfileCreationScreen to show popup and waitlist opt-in
 ==================================================
 */
 
-// filepath: src/screens/onboarding/ProfileCreationScreen.tsx (update handleSave)
+// filepath: src/screens/onboarding/ProfileCreationScreen.tsx
 
+import { Alert } from 'react-native';
 import { assignNodeByZipCode, incrementNodeMemberCount } from '@/services/location';
+import { upsertZipWaitlist } from '@/services/waitlist';
 
 const handleSave = async () => {
   // ... existing validation code ...
 
   try {
-    // Assign node based on ZIP code
-    const nodeId = await assignNodeByZipCode(formData.zipCode, user!.id);
+    const email = user?.email ?? ''; // already known during onboarding
+
+    const assignment = await assignNodeByZipCode(formData.zipCode, user!.id);
 
     // Update user profile
     const { error: userError } = await supabase
@@ -1299,114 +1430,113 @@ const handleSave = async () => {
         zip_code: formData.zipCode,
         city: formData.city,
         state: formData.state,
-        node_id: nodeId,
+        node_id: assignment.nodeId,
         profile_completed: true,
       })
       .eq('id', user!.id);
 
     if (userError) throw userError;
 
-    // Increment node member count
-    await incrementNodeMemberCount(nodeId);
+    await incrementNodeMemberCount(assignment.nodeId);
 
-    // ... rest of existing code ...
+    // NEW: If ZIP is not active, show popup and offer waitlist opt-in
+    if (assignment.matchType === 'nearest') {
+      trackEvent('zip_not_active_popup_shown', {
+        user_id: user!.id,
+        requested_zip: formData.zipCode,
+        assigned_node_id: assignment.nodeId,
+        assigned_node_zip: assignment.nodeZipCode,
+      });
+
+      Alert.alert(
+        `Not active in ${formData.zipCode} yet`,
+        `We’re not active yet in your ZIP code (${formData.zipCode}).\n\nIn the meantime, we assigned you to the nearest active area${assignment.nodeZipCode ? ` (${assignment.nodeZipCode})` : ''}.\n\nWould you like to be added to the waiting list so we can notify you as soon as we launch in ${formData.zipCode}?`,
+        [
+          {
+            text: 'Not now',
+            style: 'cancel',
+          },
+          {
+            text: 'Add me to the waitlist',
+            onPress: async () => {
+              if (!email) return; // don’t block; worst case skip
+              await upsertZipWaitlist({
+                userId: user!.id,
+                email,
+                requestedZip: formData.zipCode,
+                assignedNodeId: assignment.nodeId,
+              });
+            },
+          },
+        ]
+      );
+    }
+
+    // ... rest of existing success/navigation code ...
   } catch (error: any) {
     console.error('Profile creation error:', error);
     alert(error.message || 'Failed to complete profile');
   }
 };
 
+
 /*
 ==================================================
-FILE 4: Handle node reassignment when user changes ZIP code
+FILE 5 (Optional but recommended): Handle ZIP change in EditProfileScreen similarly
 ==================================================
+- If user updates ZIP to one we are not active in, still reassign to nearest active node,
+  and offer waitlist opt-in for the NEW requested ZIP.
+- (Same popup + upsertZipWaitlist)
 */
 
-// filepath: src/screens/profile/EditProfileScreen.tsx (update handleSave)
-
-import { assignNodeByZipCode, incrementNodeMemberCount, decrementNodeMemberCount } from '@/services/location';
-
-const handleSave = async () => {
-  // ... existing validation code ...
-
-  try {
-    const oldNodeId = user!.node_id;
-    let newNodeId = oldNodeId;
-
-    // If ZIP code changed, reassign node
-    if (formData.zipCode !== user!.zip_code) {
-      newNodeId = await assignNodeByZipCode(formData.zipCode, user!.id);
-
-      // Update member counts if node changed
-      if (newNodeId !== oldNodeId && oldNodeId) {
-        await decrementNodeMemberCount(oldNodeId);
-        await incrementNodeMemberCount(newNodeId);
-      }
-    }
-
-    // Update user profile
-    const { error: userError } = await supabase
-      .from('users')
-      .update({
-        name: formData.name.trim(),
-        avatar_url: avatarUrl || user!.avatar_url,
-        phone: formData.phone,
-        zip_code: formData.zipCode,
-        city: formData.city,
-        state: formData.state,
-        node_id: newNodeId,
-      })
-      .eq('id', user!.id);
-
-    if (userError) throw userError;
-
-    // ... rest of existing code ...
-  } catch (error: any) {
-    console.error('Profile edit error:', error);
-    alert(error.message || 'Failed to update profile');
-  }
-};
 
 /*
 ==================================================
-VERIFICATION STEPS
+VERIFICATION STEPS (Updated)
 ==================================================
 
-1. Create 2 active nodes in database:
-   - Node A: Norwalk, CT (06850)
-   - Node B: Little Falls, NJ (07424)
-2. Deactivate all other nodes (if any)
-3. Sign up new user with ZIP 06851 (near Norwalk)
-4. Complete profile creation
+A) ZIP is active
+1. Create active node with zip_code=06850 (Norwalk, CT)
+2. Sign up with ZIP 06850
+3. Verify:
+   - assignment.matchType === 'zip'
+   - no popup shown
+   - users.node_id = Norwalk node
+   - member_count incremented
+
+B) ZIP is NOT active but nearest exists
+1. Ensure 06850 is active, and 06851 is NOT active (no node with zip_code=06851)
+2. Sign up with ZIP 06851
+3. Verify:
+   - assignment.matchType === 'nearest'
+   - user assigned to 06850 node
+   - popup shown with correct messaging
+4. Tap “Add me to the waitlist”
 5. Verify:
-   - User assigned to Norwalk node
-   - users.node_id = Norwalk node ID
-   - Norwalk node member_count incremented by 1
-   - Analytics event "node_assigned" tracked
-6. Edit user profile, change ZIP to 07424 (Little Falls)
-7. Verify:
-   - User reassigned to Little Falls node
-   - Norwalk member_count decremented
-   - Little Falls member_count incremented
-8. Try ZIP code far from any node (e.g., 99501 Alaska)
-9. Verify warning logged to Sentry (>50 miles away)
-10. Deactivate all nodes, try to sign up new user
-11. Verify error: "No active nodes available"
+   - zip_waitlist row created (user_id + requested_zip=06851)
+   - waitlist_opt_in analytics fired
+
+C) No active nodes anywhere
+1. Set all geographic_nodes.is_active=false
+2. Sign up with any ZIP
+3. Verify:
+   - friendly error shown (“not active in your area yet… join waitlist”)
+   - (optional improvement) you can still show a waitlist-only popup if you want
 
 ==================================================
-ACCEPTANCE CRITERIA
+ACCEPTANCE CRITERIA (Updated)
 ==================================================
 
-✓ User automatically assigned to nearest active node
-✓ Only active nodes considered for assignment
-✓ PostGIS calculates distance correctly
+✓ User assigned to exact ZIP node if active
+✓ If ZIP not active: user assigned to nearest active node
+✓ Popup shown during onboarding when ZIP not active
+✓ Popup offers waitlist opt-in (email already known)
+✓ Waitlist entry upserted (no duplicates)
 ✓ Node member_count incremented on assignment
-✓ Analytics event tracked
-✓ Error handling for no active nodes
-✓ Warning logged if nearest node >50 miles
-✓ ZIP code change reassigns node
-✓ Member counts update on reassignment
-✓ Sentry logging for edge cases
+✓ Analytics tracked: node_assigned, zip_not_active_popup_shown, waitlist_opt_in
+✓ Edge case handled: no active nodes anywhere (no crash)
+✓ Sentry logging for edge cases and abnormal distances
+*/
 
 ==================================================
 TROUBLESHOOTING

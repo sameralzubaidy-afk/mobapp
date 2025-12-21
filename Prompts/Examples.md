@@ -41,18 +41,44 @@ Repo paths:
 App: p2p-kids-marketplace/
 
 Supabase: supabase/
-My Example 
-I’m working on Infrastructure.
-Module:MODULE-01-INFRASTRUCTURE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: Please implement TASK INFRA-001 scope is Initialize React Native Expo Project with TypeScript
+-----
+My Example 1
+## TASK DISCOVERY-V2-001: Full-Text Search Index
+
+I’m working on the # MODULE-05-DISCOVERY-V2.md tasks
+Module: MODULE-05-DISCOVERY-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: Please implemen t## TASK DISCOVERY-V2-001: Full-Text Search Index
+scope is Implement PostgreSQL full-text search for listings with relevance scoring.
 Please:
-Follow the module and task exactly, and cross-check with the verification file
+Follow the module and task exactly, and cross-check with the verification file in MODULE-05-VERIFICATION-V2.md 
 Show me the files you create or edit with their full paths
-Tell me which items in MODULE-01-VERIFICATION.md are now satisfied
+Tell me which items in MODULE-05-VERIFICATION-V2.md are now satisfied
+always include short answers first and then explain detials as needed
 List the commands I should run to test/verify this (e.g. npm, supabase)
+note - I do not use supabase locally, always must be supabase prod. 
+if there is a need to run a sql in supabase before testing clearly ask me to do. do not assume. 
+apply E2E test so you fix all errors before I start verifying.
+Update the navigation file so i can verify manual
+run Run Unit Tests and Run E2E Tests and fix any issue that is not passed
+run functional test where applicaible
+provide steps to manaul test if there are steps I need to do before test clearly list them. 
+if i report back to you a bug or error you must investgiate and fix it permanently.
+
+my example 2 - to verify
+
+I want to verify what’s already implemented for MODULE-03-NODE-MANAGEMENT by exeucting the steps in MODULE-04-VERIFICATION-V2.md
+Module: /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-04-VERIFICATION-V2.md
+
+Please:
+
+Read the verification checklist
+Inspect the current code under:
+/Users/sameralzubaidi/Desktop/kids_marketplace_app
+Tell me which verification items appear complete, which are partially done, and which are missing
+Suggest a small, safe set of next changes to fully satisfy the remaining items
 
 
-
+-----
 B. Example – Auth V2 signup with trial (Module 03)
 
 I’m working on Auth V2.
