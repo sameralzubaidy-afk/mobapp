@@ -25,6 +25,8 @@ import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScree
 import CreateListingScreen from '@/screens/listing/CreateListingScreen';
 import EditListingScreen from '@/screens/listing/EditListingScreen';
 import MyListingsScreen from '@/screens/listing/MyListingsScreen';
+import TradeInitiationScreen from '@/screens/trade/TradeInitiationScreen';
+import TradeSuccessScreen from '@/screens/trade/TradeSuccessScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 
 const Stack = createStackNavigator();
@@ -105,6 +107,8 @@ function RootNavigator() {
             <Stack.Screen name="CreateListing" component={CreateListingScreen} />
             <Stack.Screen name="EditListing" component={EditListingScreen} />
             <Stack.Screen name="ListingDetail" component={ItemDetailScreen} />
+            <Stack.Screen name="TradeInitiation" component={TradeInitiationScreen} />
+            <Stack.Screen name="TradeSuccess" component={TradeSuccessScreen} />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (

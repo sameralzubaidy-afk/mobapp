@@ -305,8 +305,8 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<Listi
     sellerIds.length > 0
       ? supabase
           .from('profiles')
-          .select('id, name, avatar_url')
-          .in('id', sellerIds)
+          .select('id, user_id, name, avatar_url')
+          .in('user_id', sellerIds)
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -314,7 +314,7 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<Listi
     (categoriesData.data || []).map((c: any) => [c.id, c])
   );
   const sellersMap = new Map(
-    (sellersData.data || []).map((s: any) => [s.id, s])
+    (sellersData.data || []).map((s: any) => [s.user_id, s])
   );
 
   // Combine data and return as Listing[]
@@ -384,7 +384,7 @@ export async function getListingById(listing_id: string): Promise<Listing | null
         const { data: sellerData, error: sellerError } = await supabase
           .from('profiles')
           .select('id, name, avatar_url')
-          .eq('id', item.seller_id)
+          .eq('user_id', item.seller_id)
           .single();
         
         // If RLS blocks it, try with a more permissive approach
@@ -396,7 +396,7 @@ export async function getListingById(listing_id: string): Promise<Listing | null
           const { data: profiles, error: fallbackError } = await supabase
             .from('profiles')
             .select('id, name, avatar_url')
-            .eq('id', item.seller_id);
+            .eq('user_id', item.seller_id);
           
           if (!fallbackError && profiles && profiles.length > 0) {
             sellerData = profiles[0];

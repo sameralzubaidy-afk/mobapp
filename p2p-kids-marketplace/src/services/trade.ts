@@ -10,153 +10,167 @@ import { supabase } from '../config/supabase';
 import { Trade, TradeStatus } from '../types/trade';
 import { getSubscriptionSummary } from './subscription';
 import { getListingById } from './listing';
+import { getAdminConfig } from './adminConfig';
 
-export interface InitiateTradeParams {
-  listingId: string;
-  spAmount?: number; // Amount of Swap Points the buyer wants to use
+export interface InitiateTradeInput {
+  item_id: string;
+  sp_amount: number;
+}
+
+export interface InitiateTradeResult {
+  success: boolean;
+  trade_id?: string;
+  error?: string;
+  trade?: Trade;
+  appliedPoints?: number;
+  cashAmountCents?: number;
+  transactionFeeCents?: number;
+  buyerSubscriptionStatus?: string;
 }
 
 /**
  * TASK TRADE-V2-002: Initiate Trade with Subscription & SP Context
  * 
  * V2 Rules:
- * 1. Validates buyer and seller are in the same node (or allowed cross-node).
+ * 1. Validates item availability and self-purchase.
  * 2. Integrates MODULE-11 subscription summary to determine fee ($0.99 vs $2.99).
  * 3. Integrates MODULE-09 SP wallet summary to validate SP balance if SP is used.
  * 4. Enforces the 50% SP cap (SP cannot exceed 50% of item price).
  * 5. Creates the trade record in 'pending' status.
+ * 6. Non-subscribers cannot apply SP discounts (clamped to 0).
  * 
- * @param params - Trade initiation parameters
- * @returns Created trade object
+ * @param input - Trade initiation input
+ * @returns Trade initiation result
  * @throws Error if validation fails
  */
-export async function initiateTradeV2(params: InitiateTradeParams): Promise<Trade> {
-  const { listingId, spAmount = 0 } = params;
+export async function initiateTradeV2(input: InitiateTradeInput): Promise<InitiateTradeResult> {
+  const { item_id, sp_amount } = input;
 
-  // 1. Get current user (buyer)
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    throw new Error('You must be logged in to initiate a trade');
-  }
-  const buyerId = user.id;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+    const buyerId = user.id;
 
-  // 2. Get listing details
-  const listing = await getListingById(listingId);
-  if (!listing) {
-    throw new Error('Listing not found');
-  }
+    // 1. Load item and ensure it is still available and not self-purchase
+    const { data: item, error: itemError } = await supabase
+      .from('items')
+      .select('id, status, seller_id, price')
+      .eq('id', item_id)
+      .single();
 
-  if (listing.seller_id === buyerId) {
-    throw new Error('You cannot buy your own item');
-  }
+    if (itemError || !item) {
+      return { success: false, error: 'Item not found' };
+    }
 
-  if (listing.status !== 'available') {
-    throw new Error('This item is no longer available');
-  }
+    const itemData = item as any;
 
-  // 3. Get buyer and seller profiles to check nodes
-  const { data: profiles, error: profilesError } = await (supabase
-    .from('profiles')
-    .select('user_id, node_id')
-    .in('user_id', [buyerId, listing.seller_id]) as any);
+    if (itemData.status !== 'available') {
+      return { success: false, error: 'Item is no longer available' };
+    }
 
-  if (profilesError || !profiles || profiles.length < 2) {
-    // If seller profile is missing, we can't proceed. 
-    // If buyer profile is missing, it's a critical error.
-    throw new Error('Failed to verify user profiles and node locations');
-  }
+    if (itemData.seller_id === buyerId) {
+      return { success: false, error: 'Cannot buy your own item' };
+    }
 
-  const buyerProfile = (profiles as any[]).find(p => p.user_id === buyerId);
-  const sellerProfile = (profiles as any[]).find(p => p.user_id === listing.seller_id);
+    const itemPriceCents = Math.round(itemData.price * 100);
 
-  if (!buyerProfile?.node_id || !sellerProfile?.node_id) {
-    throw new Error('Both buyer and seller must be assigned to a node to trade');
-  }
+    // 2. Get buyer subscription summary (MODULE-11)
+    const subscriptionSummary = await getSubscriptionSummary(buyerId);
+    const buyerStatus = subscriptionSummary.status;
 
-  // V2 Rule: Same node validation (can be expanded for cross-node later)
-  if (buyerProfile.node_id !== sellerProfile.node_id) {
-    // TODO(NODE-007): Support cross-node trades if allowed by admin config
-    throw new Error('You can only trade with users in your same node');
-  }
+    // 3. Determine if buyer can spend SP
+    const canSpendSp = subscriptionSummary.can_spend_sp;
 
-  // 4. Get buyer subscription summary (MODULE-11)
-  const buyerSub = await getSubscriptionSummary(buyerId);
-
-  // 5. Get buyer SP wallet summary (MODULE-09)
-  let buyerAvailableSP = 0;
-  if (spAmount > 0) {
-    const { data: walletData, error: walletError } = await (supabase.rpc('get_user_sp_wallet_summary', {
-      p_user_id: buyerId
+    // 4. Load SP wallet summary from MODULE-09
+    const { data: walletSummary, error: walletError } = await (supabase.rpc('get_user_sp_wallet_summary', { 
+      p_user_id: buyerId 
     } as any) as any);
-    
+
     if (walletError) {
       console.error('[trade] Error fetching SP wallet:', walletError);
-      throw new Error('Failed to verify Swap Points balance');
+      return { success: false, error: 'Failed to verify Swap Points balance' };
     }
-    
+
     // RPC returns an array or single object depending on implementation
-    const wallet = Array.isArray(walletData) ? walletData[0] : walletData;
-    buyerAvailableSP = wallet?.available_points || 0;
+    const wallet = Array.isArray(walletSummary) ? walletSummary[0] : walletSummary;
+    const availablePoints: number = wallet?.available_points ?? 0;
+
+    // 5. Clamp requested SP discount based on rules
+    let appliedPoints = 0;
+
+    if (canSpendSp && availablePoints > 0 && sp_amount > 0) {
+      // Rule: SP cannot exceed dynamic percentage of item price (default 50%)
+      const config = await getAdminConfig();
+      const maxPercentage = config?.sp_max_percentage_per_purchase ?? 50;
+      
+      // V2: 1 SP = $1.00 (100 cents)
+      const spToCashRate = 1; 
+      const maxDiscountCents = Math.floor(itemPriceCents * (maxPercentage / 100));
+      const maxSPAllowedPoints = maxDiscountCents / (spToCashRate * 100);
+      
+      // Clamp to 2 decimal places to avoid floating point issues
+      const requestedPoints = Math.floor(sp_amount * 100) / 100;
+      appliedPoints = Math.min(requestedPoints, availablePoints, maxSPAllowedPoints);
+    } else {
+      // Non-subscribers or no balance: ignore requested SP (clamp to 0)
+      appliedPoints = 0;
+    }
+
+    // V2: 1 SP = $1 discount for simplicity (100 cents)
+    const spToCashRate = 1; 
+    const discountCentsFromSp = appliedPoints * spToCashRate * 100;
+
+    const discountedSubtotalCents = Math.max(itemPriceCents - discountCentsFromSp, 0);
+
+    // 6. Compute transaction fee based on subscription status
+    // Subscriber: $0.99, Non-subscriber: $2.99
+    const isSubscriber = subscriptionSummary.is_subscriber;
+    const transactionFeeCents = isSubscriber ? 99 : 299;
+
+    const cashAmountCents = discountedSubtotalCents + transactionFeeCents;
+
+    // 7. Create trade row
+    const { data: trade, error: tradeError } = await (supabase
+      .from('trades')
+      .insert({
+        listing_id: item_id,
+        buyer_id: buyerId,
+        seller_id: itemData.seller_id,
+        status: 'pending' as TradeStatus,
+        sp_amount: appliedPoints,
+        cash_amount_cents: cashAmountCents,
+        cash_currency: 'usd',
+        buyer_subscription_status: buyerStatus,
+        buyer_transaction_fee_cents: transactionFeeCents,
+        last_status_change_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      } as any)
+      .select()
+      .single() as any);
+
+    if (tradeError || !trade) {
+      console.error('[trade] Error creating trade:', tradeError);
+      return { success: false, error: 'Failed to create trade' };
+    }
+
+    return {
+      success: true,
+      trade_id: trade.id,
+      trade: trade as Trade,
+      appliedPoints,
+      cashAmountCents,
+      transactionFeeCents,
+      buyerSubscriptionStatus: buyerStatus,
+    };
+  } catch (error: any) {
+    console.error('[trade] initiateTradeV2 failed:', error);
+    return { success: false, error: error.message || 'An unexpected error occurred' };
   }
-
-  // 6. Validation Logic
-  
-  // Rule: Only subscribers can use SP
-  if (spAmount > 0 && !buyerSub.can_spend_sp) {
-    throw new Error('Only Kids Club+ subscribers can use Swap Points');
-  }
-
-  // Rule: Seller must accept SP
-  if (spAmount > 0 && !listing.accepts_swap_points) {
-    throw new Error('This seller does not accept Swap Points for this item');
-  }
-
-  // Rule: SP cannot exceed 50% of item price
-  // Price is in dollars (e.g. 10.00), convert to cents for comparison
-  const priceInCents = Math.round(listing.price * 100);
-  const maxSPAllowed = Math.floor(priceInCents * 0.5);
-  
-  if (spAmount > maxSPAllowed) {
-    throw new Error(`Swap Points cannot exceed 50% of the item price (Max: ${maxSPAllowed} SP)`);
-  }
-
-  // Rule: Buyer must have enough SP
-  if (spAmount > buyerAvailableSP) {
-    throw new Error(`Insufficient Swap Points balance (Available: ${buyerAvailableSP} SP)`);
-  }
-
-  // 7. Calculate Fees
-  // Subscriber: $0.99, Non-subscriber: $2.99
-  const feeCents = buyerSub.is_subscriber ? 99 : 299;
-
-  // 8. Create Trade Record
-  const { data: trade, error: tradeError } = await (supabase
-    .from('trades')
-    .insert({
-      listing_id: listingId,
-      buyer_id: buyerId,
-      seller_id: listing.seller_id,
-      status: 'pending' as TradeStatus,
-      price_cents: priceInCents,
-      sp_amount: spAmount,
-      cash_amount_cents: priceInCents - spAmount,
-      buyer_transaction_fee_cents: feeCents,
-      buyer_subscription_status: buyerSub.status,
-      node_id: sellerProfile.node_id,
-      last_status_change_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    } as any)
-    .select()
-    .single() as any);
-
-  if (tradeError) {
-    console.error('[trade] Error creating trade:', tradeError);
-    throw new Error(`Failed to initiate trade: ${tradeError.message}`);
-  }
-
-  return trade as Trade;
 }
+
 
 /**
  * TASK TRADE-V2-003: Payment Orchestration (Stripe + SP Atomicity)

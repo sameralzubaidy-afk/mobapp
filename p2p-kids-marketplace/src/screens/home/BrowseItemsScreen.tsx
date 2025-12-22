@@ -96,7 +96,7 @@ export default function BrowseItemsScreen() {
           if (profile && profile.node_id) {
             // Fetch node data separately
             const { data: nodeData } = await supabase
-              .from('geographic_nodes')
+              .from('nodes')
               .select('id, name, city, state, latitude, longitude')
               .eq('id', profile.node_id)
               .single();

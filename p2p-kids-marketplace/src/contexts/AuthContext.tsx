@@ -12,6 +12,7 @@ import { AppState } from 'react-native';
 import { supabase } from '../config/supabase';
 import { AuthSession, AuthError } from '../types/user';
 import { loginWithContext } from '../services/auth';
+import { useUserStore } from '../stores/userStore';
 
 /**
  * Authentication context type
@@ -74,6 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<AuthError | null>(null);
   const [isSignout, setIsSignout] = useState(false);
+  const { setUser, clearUser } = useUserStore();
 
   // Realtime subscription references
   const subscriptionRef = useRef<any>(null);
@@ -113,7 +115,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const setSession = useCallback((newSession: AuthSession | null) => {
     setSessionState(newSession);
     notifySessionChanges(newSession);
-  }, [notifySessionChanges]);
+    
+    // Sync with userStore
+    if (newSession?.user) {
+      setUser({
+        id: newSession.user.id,
+        email: newSession.user.email,
+        name: newSession.user.name,
+        avatar_url: newSession.user.avatar_url || null,
+        node_id: newSession.user.node_id || null,
+        node: newSession.user.node || null,
+      });
+    } else {
+      clearUser();
+    }
+  }, [notifySessionChanges, setUser, clearUser]);
 
   /**
    * Refresh session: Re-fetch session from Supabase + subscription + SP wallet context
@@ -146,7 +162,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // User is authenticated - fetch their profile with latest data
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, node:nodes(*)')
         .eq('user_id', sessionData.session.user.id)
         .single();
 
@@ -193,6 +209,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           state: profileData.state,
           zip_code: profileData.zip_code,
           node_id: profileData.node_id,
+          node: profileData.node || undefined,
           profile_completed: profileData.profile_completed || false,
           onboarding_completed: profileData.onboarding_completed || false,
           phone_verified: profileData.phone_verified || false,
@@ -384,7 +401,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // User is authenticated - restore session from profile
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('*')
+            .select('*, node:nodes(*)')
             .eq('user_id', sessionData.session.user.id)
             .single();
 
@@ -414,6 +431,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 state: profileData.state,
                 zip_code: profileData.zip_code,
                 node_id: profileData.node_id,
+                node: profileData.node || undefined,
                 profile_completed: profileData.profile_completed || false,
                 onboarding_completed: profileData.onboarding_completed || false,
                 phone_verified: profileData.phone_verified || false,

@@ -214,12 +214,12 @@ export const getItemsWithinRadius = async (
       .from('items')
       .select(`
         *,
-        seller:profiles!items_seller_id_fkey(
+        seller:profiles(
           user_id,
           name,
           avatar_url,
           node_id,
-          node:nodes!profiles_node_id_fkey(
+          node:nodes(
             id,
             name,
             city,
@@ -286,16 +286,17 @@ export const getItemsWithinRadius = async (
  */
 export const getItemById = async (itemId: string): Promise<Item | null> => {
   try {
+    // Try fetching with relationship expansion first
     const { data, error } = await supabase
       .from('items')
       .select(`
         *,
-        seller:profiles!items_seller_id_fkey(
+        seller:profiles(
           user_id,
           name,
           avatar_url,
           node_id,
-          node:nodes!profiles_node_id_fkey(
+          node:nodes(
             id,
             name,
             city,
@@ -309,8 +310,29 @@ export const getItemById = async (itemId: string): Promise<Item | null> => {
       .maybeSingle();
 
     if (error) {
-      console.error('❌ Get item by ID error:', error);
-      throw new Error(error.message || 'Failed to fetch item');
+      console.warn('⚠️ getItemById join failed, falling back to separate fetches:', error.message);
+      
+      // Fallback: Fetch item first, then related data (more resilient to schema cache issues)
+      const { data: item, error: itemError } = await supabase
+        .from('items')
+        .select('*')
+        .eq('id', itemId)
+        .maybeSingle();
+
+      if (itemError || !item) return null;
+
+      const [sellerRes, categoryRes, imagesRes] = await Promise.all([
+        supabase.from('profiles').select('*, node:nodes(*)').eq('user_id', item.seller_id).maybeSingle(),
+        item.category_id ? supabase.from('categories').select('*').eq('id', item.category_id).maybeSingle() : Promise.resolve({ data: null }),
+        supabase.from('item_images').select('*').eq('item_id', itemId).order('display_order', { ascending: true })
+      ]);
+
+      return {
+        ...item,
+        seller: sellerRes.data,
+        category: categoryRes.data,
+        images: imagesRes.data || []
+      } as Item;
     }
 
     return data as Item;

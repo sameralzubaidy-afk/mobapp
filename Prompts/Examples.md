@@ -65,7 +65,7 @@ apply E2E test so you fix all errors before I start verifying.
 run Run Unit Tests and Run E2E Tests and fix any issue that is not passed
 Update the navigation file so i can verify manual
 run functional test where applicaible
-provide steps to manaul test if there are steps I need to do before test clearly list them. 
+provide steps to manaul test format it as test cases create md file for it. 
 if i report back to you a bug or error you must investgiate and fix it permanently.
 
 

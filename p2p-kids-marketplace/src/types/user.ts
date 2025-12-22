@@ -31,6 +31,14 @@ export interface UserProfile {
   state?: string;
   zip_code?: string;
   node_id?: string;
+  node?: {
+    id: string;
+    name: string;
+    city: string;
+    state: string;
+    latitude: number;
+    longitude: number;
+  };
   
   // Profile completion
   profile_completed: boolean;

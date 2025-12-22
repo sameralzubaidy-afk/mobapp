@@ -25,6 +25,7 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useUserStore } from '@/stores/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { getListingById } from '@/services/listing';
 import { getSubscriptionSummary } from '@/services/subscription';
 import { Listing } from '@/types/listing';
@@ -39,7 +40,9 @@ export default function ItemDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ItemDetailScreenRouteProp>();
   const { listing_id } = route.params;
-  const { user } = useUserStore();
+  const { user: storeUser } = useUserStore();
+  const { session } = useAuth();
+  const user = session?.user || storeUser;
 
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,6 +102,18 @@ export default function ItemDetailScreen() {
 
   const loadBuyerSubscription = async () => {
     try {
+      // If we have a session, use the subscription data from it directly
+      if (session) {
+        console.log('[ItemDetailScreen] 📊 Using session subscription data:', {
+          status: session.subscription_status,
+          can_spend_sp: session.can_spend_sp
+        });
+        setBuyerIsSubscriber(session.subscription_status === 'trial' || session.subscription_status === 'active');
+        setBuyerCanSpendSP(session.can_spend_sp);
+        setBuyerSubLoading(false);
+        return;
+      }
+
       if (!user?.id) {
         console.log('[ItemDetailScreen] 📊 No user, defaulting to free');
         setBuyerIsSubscriber(false);
@@ -137,12 +152,8 @@ export default function ItemDetailScreen() {
 
     if (!listing) return;
 
-    // TODO(MODULE-06): Navigate to trade initiation screen
-    Alert.alert(
-      'Coming Soon',
-      'Trade flow (MODULE-06) is not yet implemented. This will navigate to checkout/trade initiation.'
-    );
-    // navigation.navigate('InitiateTrade', { listing_id: listing.id });
+    // Navigate to trade initiation screen (MODULE-06)
+    navigation.navigate('TradeInitiation', { itemId: listing.id });
   };
 
   const handleContactSeller = () => {
