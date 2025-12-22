@@ -42,6 +42,8 @@ export interface Item {
   created_at: string;
   updated_at: string;
   sold_at: string | null;
+  relevance?: number; // Search relevance score (0-1)
+  seller_node_id?: string; // Seller's node ID for distance calculations
   seller?: {
     id: string;
     name: string;

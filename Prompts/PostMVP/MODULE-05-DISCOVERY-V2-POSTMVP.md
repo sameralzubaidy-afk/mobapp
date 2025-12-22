@@ -137,6 +137,21 @@ RPCs must validate admin role and return structured errors. Use SECURITY DEFINER
 - [ ] helper RPCs implemented
 - [ ] verification queries pass
 
+### Suggested Setting: display_recommendation_score (boolean)
+- **Key:** `display_recommendation_score`
+- **Type:** boolean
+- **Default:** `true` (show scores in the Recommendation carousel / Search dev mode)
+- **Description:** Allows admins to turn on/off visual display of recommendation scores on item cards (Dev mode: scores may be shown for debugging; Admin toggle controls production visibility).
+
+Example SQL to seed default value (idempotent):
+```sql
+INSERT INTO admin_discovery_settings (key, value, description)
+VALUES ('display_recommendation_score', 'true'::jsonb, 'Toggle showing recommendation score in UI')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+```
+
+**Implementation note:** The mobile/web clients should read this setting from the `rpc_get_discovery_settings()` RPC (or a dedicated endpoint) and enforce the visibility server-side by hiding score text even if score data is present. Admin UI changes must be audited in `admin_discovery_changes`.
+
 ---
 
 ### TASK ADMIN-DISCOVERY-002: Admin UI – Management Pages
@@ -160,6 +175,7 @@ RPCs must validate admin role and return structured errors. Use SECURITY DEFINER
 - All actions must show a confirmation modal and require an admin reason (stored in `admin_discovery_changes`).
 - Feature toggles must display current value, last changed by admin and timestamp.
 - Disallow editing production-critical weights without a mandatory note and a 'dry run' option.
+- **Show Recommendation Score toggle:** Add a dedicated toggle control named **"Show recommendation score"** on the `Discovery Settings` page that updates the `display_recommendation_score` setting via `admin-discovery-set` RPC. Changes must be server-enforced and audited; the toggle should include a short contextual help text explaining that this controls whether score labels (e.g., "Score: 110.0") appear on item cards in the Recommendations carousel and (dev) Search UI.
 
 **Security & Auth:**
 - Use existing admin session middleware; pages must be server-side guarded (Next.js server checks role before render).
@@ -238,6 +254,7 @@ RPCs must validate admin role and return structured errors. Use SECURITY DEFINER
 - [ ] Admin UI pages exist and gated by role
 - [ ] Actions produce `admin_discovery_changes` audit rows
 - [ ] FEATURE: featured listings show in /feed/test endpoint and ranking bump applies
+- [ ] **TOGGLE:** `display_recommendation_score` controls visibility of score labels in Recommendations carousel and Search dev mode (verify both enabled and disabled states)
 - [ ] BOOST: Refund / extend flows produce ledger adjustments and admin_activity_log entries
 - [ ] A/B: Experiments run and experiment metrics appear in admin UI
 - [ ] Tier 0 gates: typecheck & lint pass for admin app and functions

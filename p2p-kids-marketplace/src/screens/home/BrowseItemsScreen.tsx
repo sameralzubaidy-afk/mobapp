@@ -16,7 +16,7 @@ import {
   TextInput,
 } from 'react-native';
 import { useUserStore } from '@/stores/userStore';
-import { getItems, getItemsWithinRadius, getCategories } from '@/services/items';
+import { getItems, getItemsWithinRadius, getCategories, Item } from '@/services/items';
 import { searchListings, searchListingsByCategoryAndQuery } from '@/services/discovery';
 import { supabase } from '@/config/supabase';
 import { calculateDistanceBetweenNodes, getUserPreferredRadius, saveUserPreferredRadius } from '@/services/location';
@@ -28,20 +28,6 @@ import BottomNavBar from '@/components/organisms/BottomNavBar';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
-interface Item {
-  id: string;
-  title: string;
-  description: string;
-  price: number;
-  category_id: string;
-  condition: string;
-  status: string;
-  accepts_swap_points: boolean;
-  created_at: string;
-  seller_id: string;
-  seller_node_id?: string;
-  seller_node_name?: string;
-}
 
 interface Category {
   id: string;
@@ -151,6 +137,8 @@ export default function BrowseItemsScreen() {
     loadUser();
   }, [user?.id, setUser]);
 
+  // Items state is managed by loadItems and search handlers
+
   // Fetch categories on mount
   useEffect(() => {
     const loadCategories = async () => {
@@ -166,7 +154,6 @@ export default function BrowseItemsScreen() {
 
   // NODE-007: Load radius settings on mount
   useEffect(() => {
-    console.log('🔵 BrowseItemsScreen mounted - calling loadRadiusSettings');
     loadRadiusSettings();
     loadUserPreferredRadiusValue();
     
@@ -186,7 +173,6 @@ export default function BrowseItemsScreen() {
   useEffect(() => {
     // If user is actively searching, don't load browse items
     if (searchQuery.trim().length >= 3) {
-      console.log('[Browse] Skipping loadItems because search is active');
       return;
     }
 
@@ -196,9 +182,7 @@ export default function BrowseItemsScreen() {
   }, [showAllNodes, selectedCategory, spEligibleOnly, user?.node_id, searchQuery]);
 
   const loadRadiusSettings = async () => {
-    console.log('🟡 loadRadiusSettings started');
     try {
-      console.log('🟡 Querying admin_config table...');
       const { data, error } = await supabase
         .from('admin_config')
         .select('key, value')
@@ -209,12 +193,8 @@ export default function BrowseItemsScreen() {
           'allow_user_radius_adjustment',
         ]);
 
-      console.log('🟡 Query returned. Error:', error);
-      console.log('🟡 Query returned. Data length:', data?.length);
-
       if (error) {
-        console.warn('⚠️ Load radius settings RLS/query error:', error.message);
-        console.warn('ℹ️ Using hardcoded defaults (admin_config query blocked)');
+        console.warn('Load radius settings RLS/query error:', error.message);
         setRadiusMiles(10);
         setMinRadius(5);
         setMaxRadius(25);
@@ -229,38 +209,29 @@ export default function BrowseItemsScreen() {
             settings[item.key] = Number(value);
           }
         });
-
-        console.log('✅ Radius settings loaded from admin_config:', settings);
         
         if (settings.default_radius_miles !== undefined) {
-          console.log('  → Setting default radius:', settings.default_radius_miles);
           setRadiusMiles(settings.default_radius_miles);
         }
         if (settings.min_user_radius_miles !== undefined) {
-          console.log('  → Setting min radius:', settings.min_user_radius_miles);
           setMinRadius(settings.min_user_radius_miles);
         }
         if (settings.max_user_radius_miles !== undefined) {
-          console.log('  → Setting max radius:', settings.max_user_radius_miles);
           setMaxRadius(settings.max_user_radius_miles);
         }
         if (settings.hasOwnProperty('allow_user_radius_adjustment')) {
-          console.log('  → Setting allow adjust:', settings.allow_user_radius_adjustment);
           setAllowRadiusAdjustment(settings.allow_user_radius_adjustment);
         }
       } else {
-        console.warn('ℹ️ No admin_config settings found - using hardcoded defaults');
         setRadiusMiles(10);
         setMinRadius(5);
         setMaxRadius(25);
         setAllowRadiusAdjustment(true);
       }
     } catch (error) {
-      console.error('❌ loadRadiusSettings exception:', error);
-      console.warn('ℹ️ Using hardcoded defaults due to exception');
+      console.error('loadRadiusSettings exception:', error);
       setAllowRadiusAdjustment(true);
     } finally {
-      console.log('🟢 loadRadiusSettings finished - setting loadingSettings=false');
       setLoadingSettings(false);
     }
   };
@@ -308,7 +279,6 @@ export default function BrowseItemsScreen() {
       }
       
       radiusChangeTimeoutRef.current = setTimeout(async () => {
-        console.log(`🔄 [DEBOUNCE COMPLETE] Reloading items after radius adjustment to ${newRadius}mi`);
         await loadItems();
         radiusChangeTimeoutRef.current = null;
       }, 300); // 300ms debounce delay
@@ -346,7 +316,6 @@ export default function BrowseItemsScreen() {
 
   const loadItems = async () => {
     try {
-      console.log(`📍 [loadItems] Called - radiusMiles=${radiusMiles}, showAllNodes=${showAllNodes}`);
       setLoading(true);
       setError(null);
 
@@ -580,7 +549,6 @@ export default function BrowseItemsScreen() {
     if (query.trim().length < 3) {
       setItems([]); // Clear results if less than 3 chars
       setError(null);
-      console.log(`[Search] Query too short: "${query}" (${query.trim().length} chars, need 3+)`);
       return;
     }
 
@@ -625,9 +593,28 @@ export default function BrowseItemsScreen() {
           return matchesQuery && matchesSP;
         });
         
-        console.log(`[Search] Query: "${query}" (${query.trim().length} chars) → Server: ${results.length} results, Filtered: ${filteredResults.length} results`);
+        // Map SearchResult to Item
+        const itemsWithRelevance: Item[] = filteredResults.map(result => {
+          const item: Item = {
+            id: result.id,
+            seller_id: result.seller_id,
+            title: result.title,
+            description: result.description,
+            price: result.price,
+            category_id: result.category_id,
+            condition: result.condition,
+            status: result.status,
+            accepts_swap_points: result.accepts_swap_points,
+            created_at: result.created_at,
+            updated_at: (result as any).updated_at || result.created_at,
+            sold_at: (result as any).sold_at || null,
+            relevance: (result as any).relevance,
+            seller_node_id: (result as any).seller_node_id,
+          };
+          return item;
+        });
         
-        setItems(filteredResults); // Set ONLY filtered results
+        setItems(itemsWithRelevance);
         
         trackEvent('search_performed', {
           query: query.substring(0, 100), // PII-safe truncation
@@ -652,8 +639,6 @@ export default function BrowseItemsScreen() {
       return;
     }
 
-    console.log(`[Search] SP filter toggled - re-running search for "${searchQuery}"`);
-    
     // Re-run the search with the new spEligibleOnly value
     (async () => {
       try {
@@ -689,8 +674,13 @@ export default function BrowseItemsScreen() {
           return matchesQuery && matchesSP;
         });
         
-        console.log(`[Search] Re-filtered after SP toggle: ${results.length} results → ${filteredResults.length} results`);
-        setItems(filteredResults);
+        // Map SearchResult to Item, explicitly preserving relevance score
+        const itemsWithRelevance: Item[] = filteredResults.map(result => ({
+          ...result,
+          relevance: (result as any).relevance,
+        } as Item));
+        
+        setItems(itemsWithRelevance);
       } catch (error) {
         console.error('[Search] Error during SP filter toggle:', error);
         setError('Search failed');
@@ -701,15 +691,17 @@ export default function BrowseItemsScreen() {
     })();
   }, [spEligibleOnly, searchQuery, selectedCategory]);
 
+  /*
   if (loading && items.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator testID="loading-indicator" size="large" color="#007AFF" />
         </View>
       </SafeAreaView>
     );
   }
+  */
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }}>
@@ -813,6 +805,7 @@ export default function BrowseItemsScreen() {
             </Text>
           </View>
           <Switch
+            testID="sp-eligible-switch"
             value={spEligibleOnly}
             onValueChange={setSpEligibleOnly}
             trackColor={{ false: '#cbd5e1', true: '#3b82f6' }}
