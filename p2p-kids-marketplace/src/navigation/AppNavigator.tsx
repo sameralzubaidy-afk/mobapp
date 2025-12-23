@@ -28,6 +28,7 @@ import MyListingsScreen from '@/screens/listing/MyListingsScreen';
 import TradeInitiationScreen from '@/screens/trade/TradeInitiationScreen';
 import TradeSuccessScreen from '@/screens/trade/TradeSuccessScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
+import { StripeProvider } from '@stripe/stripe-react-native';
 
 const Stack = createStackNavigator();
 
@@ -140,7 +141,12 @@ function RootNavigator() {
 export default function AppNavigator() {
   return (
     <AuthProvider>
-      <RootNavigator />
+      <StripeProvider
+        publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
+        merchantIdentifier="merchant.com.p2pkidsmarketplace" // required for Apple Pay
+      >
+        <RootNavigator />
+      </StripeProvider>
     </AuthProvider>
   );
 }

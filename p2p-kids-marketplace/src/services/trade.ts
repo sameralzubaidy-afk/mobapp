@@ -54,11 +54,16 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     const buyerId = user.id;
 
     // 1. Load item and ensure it is still available and not self-purchase
+    // NOTE: do NOT select non-existent 'node_id' from items; seller node is stored on profiles.node_id
     const { data: item, error: itemError } = await supabase
       .from('items')
-      .select('id, status, seller_id, price')
+      .select('id, status, seller_id, price, accepts_swap_points')
       .eq('id', item_id)
       .single();
+
+    if (itemError) {
+      console.error('[trade] Error fetching item:', itemError);
+    }
 
     if (itemError || !item) {
       return { success: false, error: 'Item not found' };
@@ -110,9 +115,9 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       const maxDiscountCents = Math.floor(itemPriceCents * (maxPercentage / 100));
       const maxSPAllowedPoints = maxDiscountCents / (spToCashRate * 100);
       
-      // Clamp to 2 decimal places to avoid floating point issues
-      const requestedPoints = Math.floor(sp_amount * 100) / 100;
-      appliedPoints = Math.min(requestedPoints, availablePoints, maxSPAllowedPoints);
+      // Clamp to integer points as per MODULE-09 ledger rules
+      const requestedPoints = Math.floor(sp_amount);
+      appliedPoints = Math.min(requestedPoints, availablePoints, Math.floor(maxSPAllowedPoints));
     } else {
       // Non-subscribers or no balance: ignore requested SP (clamp to 0)
       appliedPoints = 0;
@@ -120,7 +125,7 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
 
     // V2: 1 SP = $1 discount for simplicity (100 cents)
     const spToCashRate = 1; 
-    const discountCentsFromSp = appliedPoints * spToCashRate * 100;
+    const discountCentsFromSp = Math.floor(appliedPoints * spToCashRate * 100);
 
     const discountedSubtotalCents = Math.max(itemPriceCents - discountCentsFromSp, 0);
 
@@ -131,16 +136,30 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
 
     const cashAmountCents = discountedSubtotalCents + transactionFeeCents;
 
-    // 7. Create trade row
+    // 7. Fetch seller profile to get node_id and then create trade row
+    const { data: sellerProfile, error: sellerProfileError } = await supabase
+      .from('profiles')
+      .select('node_id')
+      .eq('user_id', itemData.seller_id)
+      .maybeSingle();
+
+    if (sellerProfileError) {
+      console.warn('[trade] Could not fetch seller profile node_id:', sellerProfileError);
+    }
+
+    const sellerNodeId = sellerProfile?.node_id ?? null;
+
     const { data: trade, error: tradeError } = await (supabase
       .from('trades')
       .insert({
         listing_id: item_id,
         buyer_id: buyerId,
         seller_id: itemData.seller_id,
+        node_id: sellerNodeId,
         status: 'pending' as TradeStatus,
         sp_amount: appliedPoints,
         cash_amount_cents: cashAmountCents,
+        platform_fee_cents: transactionFeeCents,
         cash_currency: 'usd',
         buyer_subscription_status: buyerStatus,
         buyer_transaction_fee_cents: transactionFeeCents,
@@ -195,7 +214,56 @@ export async function processTradePayment(
 
     if (error) {
       console.error('[trade-service] processTradePayment function error:', error);
-      return { success: false, error: error.message };
+      console.error('[trade-service] Full error object:', JSON.stringify(error, null, 2));
+      
+      // Try to extract detailed error from the response body if available
+      let errorMessage = error.message;
+      if (error instanceof Error) {
+        // Try different ways to access the response body
+        try {
+          if ('details' in error && error.details) {
+            errorMessage = error.details;
+          } else if ('body' in error && error.body) {
+            const body = typeof error.body === 'string' ? JSON.parse(error.body) : error.body;
+            if (body.error) errorMessage = body.error;
+            // If Stripe included structured info, prefer that
+            if (body.stripe && body.stripe.code) {
+              errorMessage = `${body.stripe.code}: ${body.details?.message ?? body.error ?? ''}`;
+            } else if (body.details && typeof body.details === 'object' && body.details.message) {
+              errorMessage = body.details.message;
+            }
+          } else if ('context' in error) {
+            const context = (error as any).context;
+            if (context && typeof context.json === 'function') {
+              const body = await context.json();
+              if (body.error) errorMessage = body.error;
+              if (body.stripe && body.stripe.code) {
+                errorMessage = `${body.stripe.code}: ${body.details?.message ?? body.error ?? ''}`;
+              } else if (body.details && typeof body.details === 'object' && body.details.message) {
+                errorMessage = body.details.message;
+              }
+            } else if (context && context.body) {
+              const body = typeof context.body === 'string' ? JSON.parse(context.body) : context.body;
+              if (body.error) errorMessage = body.error;
+              if (body.stripe && body.stripe.code) {
+                errorMessage = `${body.stripe.code}: ${body.details?.message ?? body.error ?? ''}`;
+              } else if (body.details && typeof body.details === 'object' && body.details.message) {
+                errorMessage = body.details.message;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[trade-service] Could not parse error response body:', e);
+        }
+      }
+      
+      // Map Stripe decline to friendly message when present
+      const lower = (errorMessage || '').toString().toLowerCase();
+      if (lower.includes('card_declined') || lower.includes('your card was declined') || lower.includes('card was declined')) {
+        return { success: false, error: 'Payment failed: the card was declined. Try a different card or payment method.' };
+      }
+
+      return { success: false, error: errorMessage };
     }
 
     return { 

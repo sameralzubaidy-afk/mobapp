@@ -27,9 +27,10 @@ import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
 import { getSubscriptionSummary, SubscriptionSummary } from '@/services/subscription';
 import { getSPWalletSummary, SPWalletSummary } from '@/services/sp';
-import { initiateTradeV2 } from '@/services/trade';
+import { initiateTradeV2, processTradePayment } from '@/services/trade';
 import { useAuth } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
+import { CardField, useStripe } from '@stripe/stripe-react-native';
 
 type TradeInitiationRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -37,6 +38,7 @@ export default function TradeInitiationScreen() {
   const route = useRoute<TradeInitiationRouteProp>();
   const navigation = useNavigation<any>();
   const { session } = useAuth();
+  const { createPaymentMethod } = useStripe();
   const user = session?.user;
   const { itemId } = route.params;
 
@@ -47,6 +49,7 @@ export default function TradeInitiationScreen() {
   const [wallet, setWallet] = useState<SPWalletSummary | null>(null);
   const [spAmount, setSpAmount] = useState(0);
   const [maxSpPercentage, setMaxSpPercentage] = useState(50);
+  const [cardComplete, setCardComplete] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -114,20 +117,54 @@ export default function TradeInitiationScreen() {
   const cashAmount = cashAmountCents / 100;
 
   const handleInitiateTrade = async () => {
+    if (!cardComplete && cashAmountCents > 0) {
+      Alert.alert('Payment Required', 'Please enter your card details to continue.');
+      return;
+    }
+
     try {
       setSubmitting(true);
+      
+      // 1. Initiate Trade (creates 'pending' trade)
       const result = await initiateTradeV2({
         item_id: item.id,
         sp_amount: spAmount,
       });
 
-      if (result.success && result.trade_id) {
-        // Navigate to success or payment screen
-        // For now, we'll go to a success screen (to be implemented)
-        navigation.replace('TradeSuccess', { tradeId: result.trade_id });
-      } else {
+      if (!result.success || !result.trade_id) {
         Alert.alert('Trade Failed', result.error || 'Could not initiate trade');
+        return;
       }
+
+      const tradeId = result.trade_id;
+
+      // 2. Handle Payment if cash is due
+      if (cashAmountCents > 0) {
+        // Create Stripe PaymentMethod
+        const { paymentMethod, error: pmError } = await createPaymentMethod({
+          paymentMethodType: 'Card',
+          billingDetails: {
+            email: user?.email,
+          },
+        });
+
+        if (pmError) {
+          console.error('❌ Stripe PaymentMethod error:', pmError);
+          Alert.alert('Payment Error', pmError.message);
+          return;
+        }
+
+        // 3. Orchestrate Payment via Edge Function (Atomic Stripe + SP)
+        const paymentResult = await processTradePayment(tradeId, paymentMethod.id);
+
+        if (!paymentResult.success) {
+          Alert.alert('Payment Failed', paymentResult.error || 'Could not process payment');
+          return;
+        }
+      }
+
+      // 4. Success!
+      navigation.replace('TradeSuccess', { tradeId });
     } catch (error: any) {
       Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
@@ -279,6 +316,27 @@ export default function TradeInitiationScreen() {
             <Text style={styles.totalValue}>${cashAmount.toFixed(2)}</Text>
           </View>
         </View>
+
+        {/* Payment Section */}
+        {cashAmountCents > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Payment Method</Text>
+            <CardField
+              postalCodeEnabled={true}
+              placeholder={{
+                number: 'Card Number',
+              }}
+              cardStyle={{
+                backgroundColor: '#FFFFFF',
+                textColor: '#000000',
+              }}
+              style={styles.cardField}
+              onCardChange={(cardDetails) => {
+                setCardComplete(cardDetails.complete);
+              }}
+            />
+          </View>
+        )}
 
         <View style={styles.footer}>
           <Text style={styles.disclaimer}>
@@ -506,6 +564,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#3b82f6',
+  },
+  cardField: {
+    width: '100%',
+    height: 50,
+    marginVertical: 10,
   },
   footer: {
     marginTop: 8,

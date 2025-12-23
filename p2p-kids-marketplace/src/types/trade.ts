@@ -26,11 +26,13 @@ export interface Trade {
   listing_id: string; // Changed from item_id to match DB
   buyer_id: string;
   seller_id: string;
+  node_id: string | null;
   status: TradeStatus;
   
   // Monetary breakdown
   sp_amount: number;         // SP portion in points
   cash_amount_cents: number; // Cash portion in cents
+  platform_fee_cents: number; // Total platform fee in cents
   cash_currency: string;     // e.g., 'usd'
   
   // Fees & Snapshots
