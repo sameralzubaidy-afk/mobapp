@@ -468,9 +468,12 @@ BEGIN
     updated_at = NOW()
   WHERE id = v_trade.listing_id;
 
-  -- 6. Refund SP to buyer if they spent any
-  -- Only refund if the trade was already paid (in_progress or payment_processing)
-  IF v_trade.sp_amount > 0 AND v_trade.status IN ('in_progress', 'payment_processing') THEN
+  -- 6. Refund SP to buyer if they spent any.
+  -- Refund when a SP debit exists (sp_debit_ledger_entry_id) and a refund has not
+  -- already been recorded (sp_credit_ledger_entry_id IS NULL). This covers
+  -- cancellations that happen before the trade reached `in_progress` while
+  -- avoiding double refunds.
+  IF v_trade.sp_amount > 0 AND v_trade.sp_debit_ledger_entry_id IS NOT NULL AND v_trade.sp_credit_ledger_entry_id IS NULL THEN
     SELECT credit_sp_for_cancelled_trade(
       v_trade.buyer_id,
       v_trade.id,

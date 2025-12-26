@@ -36,11 +36,16 @@ BEGIN
 END $$;
 
 -- RLS: Users can only view/insert their own waitlist entries
--- Drop and recreate policies safely
-DROP POLICY IF EXISTS "zip_waitlist_user_select" ON public.zip_waitlist;
-DROP POLICY IF EXISTS "zip_waitlist_user_insert" ON public.zip_waitlist;
-DROP POLICY IF EXISTS "zip_waitlist_user_update" ON public.zip_waitlist;
-DROP POLICY IF EXISTS "zip_waitlist_admin_all" ON public.zip_waitlist;
+-- Drop and recreate policies safely (only if table exists)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'zip_waitlist') THEN
+    DROP POLICY IF EXISTS "zip_waitlist_user_select" ON public.zip_waitlist;
+    DROP POLICY IF EXISTS "zip_waitlist_user_insert" ON public.zip_waitlist;
+    DROP POLICY IF EXISTS "zip_waitlist_user_update" ON public.zip_waitlist;
+    DROP POLICY IF EXISTS "zip_waitlist_admin_all" ON public.zip_waitlist;
+  END IF;
+END $$;
 
 DO $$
 BEGIN
@@ -98,7 +103,7 @@ BEGIN
       longitude DOUBLE PRECISION,
       distance_km DOUBLE PRECISION,
       match_type TEXT
-    ) AS $$
+    ) AS $func$
     DECLARE
       exact_match_count INT;
     BEGIN
@@ -149,7 +154,7 @@ BEGIN
       ) ASC
       LIMIT 1;
     END;
-    $$ LANGUAGE plpgsql STABLE;
+    $func$ LANGUAGE plpgsql STABLE;
   END IF;
 END $$;
 
@@ -161,14 +166,14 @@ DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'nodes') THEN
     CREATE OR REPLACE FUNCTION public.increment_node_member_count(node_id UUID)
-    RETURNS VOID AS $$
+    RETURNS VOID AS $func$
     BEGIN
       UPDATE public.nodes
       SET member_count = COALESCE(member_count, 0) + 1,
           updated_at = now()
       WHERE id = node_id;
     END;
-    $$ LANGUAGE plpgsql SECURITY INVOKER;
+    $func$ LANGUAGE plpgsql SECURITY INVOKER;
 
     GRANT EXECUTE ON FUNCTION public.increment_node_member_count(UUID) TO authenticated, anon;
   END IF;
@@ -182,14 +187,14 @@ DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'nodes') THEN
     CREATE OR REPLACE FUNCTION public.decrement_node_member_count(node_id UUID)
-    RETURNS VOID AS $$
+    RETURNS VOID AS $func$
     BEGIN
       UPDATE public.nodes
       SET member_count = GREATEST(COALESCE(member_count, 0) - 1, 0),
           updated_at = now()
       WHERE id = node_id;
     END;
-    $$ LANGUAGE plpgsql SECURITY INVOKER;
+    $func$ LANGUAGE plpgsql SECURITY INVOKER;
 
     GRANT EXECUTE ON FUNCTION public.decrement_node_member_count(UUID) TO authenticated, anon;
   END IF;

@@ -51,6 +51,7 @@ export interface Trade {
   updated_at: string;
   completed_at?: string | null;
   cancelled_at?: string | null;
+  seller_marked_completed_at?: string | null;
   cancellation_reason?: string | null;
   last_status_change_at: string;
 }

@@ -376,6 +376,78 @@ This checklist ensures that MODULE-06 (Trade & Transaction Flow V2) has been ful
 
 ---
 
+## SELLER PAYOUTS (EXT) VERIFICATION
+
+This section validates the Phase-1 seller payouts work described in `MODULE-06-TRADE-FLOW-sellerpayouts.md` (Stripe, PayPal, Venmo) and the Post‑MVP ACH items.
+
+### A. SCHEMA & MIGRATIONS (PAY-001)
+
+- [ ] **Migration `061_seller_payouts.sql` applied**
+  - [ ] Table `seller_payout_methods` created with `is_primary`, `is_verified`, provider fields and unique primary index
+  - [ ] Table `seller_payouts` created linked to `trades` with `idempotency_key`, `provider_reference_id`, `gross_amount`, `payout_fee`, `net_amount`, `status`
+  - [ ] Indexes on `user_id`, `trade_id`, `status`, and `idempotency_key`
+  - [ ] Verification query: ensure rows can be inserted/queried and primary-method uniqueness enforced
+
+### B. HELPERS & BUSINESS LOGIC (PAY-002)
+
+- [ ] **`src/lib/payoutFees.ts` implemented and unit-tested**
+  - [ ] `getPayoutFeeCents(methodType, amountCents)` returns expected fees (Stripe, PayPal, Venmo caps)
+  - [ ] `computeNetPayoutCents` never returns negative
+  - [ ] Tests: `src/lib/payoutFees.test.ts` passing in CI
+
+### C. EDGE FUNCTIONS & ROUTER (PAY-004, PAY-005, PAY-006, PAY-007)
+
+- [ ] **Stripe onboarding functions deployed**
+  - [ ] `supabase/functions/create-stripe-connect-account/index.ts` exists and creates connected accounts
+  - [ ] `supabase/functions/create-stripe-account-link/index.ts` creates onboarding links
+  - [ ] Webhook `supabase/functions/stripe-webhooks/index.ts` verifies signatures and updates `seller_payout_methods`
+
+- [ ] **PayPal/Venmo payout processor deployed**
+  - [ ] `supabase/functions/process-paypal-payout/index.ts` accepts `payoutId`, is idempotent, stores `provider_reference_id`, and marks status `processing`
+  - [ ] Secrets: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID` present for staging/production
+
+- [ ] **Payout router / trigger implemented**
+  - [ ] `src/services/payouts.ts` creates payout records idempotently (`trade:<tradeId>:seller:<sellerId>`) on trade completion
+  - [ ] `supabase/functions/trigger-seller-payout/index.ts` (optional) enqueues provider calls
+  - [ ] Logic computes `gross_amount`, `platform_fee` (0), `payout_fee`, and `net_amount` and persists them
+
+- [ ] **Atomicity & idempotency**
+  - [ ] Re-running payout creation with same idempotency key does not create duplicates
+  - [ ] Provider call failures leave consistent ledger state; webhooks reconcile final status
+
+### D. WEBHOOKS & RECONCILIATION (PAY-007)
+
+- [ ] **Stripe webhook handler** verifies signature and maps provider events to `seller_payouts` by `provider_reference_id` or metadata
+- [ ] **PayPal webhook handler** verifies and updates payout item statuses
+- [ ] **Tests**: webhook simulation tests for success/failure path update payouts accordingly
+
+### E. UI & ADMIN (PAY-003, PAY-008)
+
+- [ ] **Seller Payout Settings UI** (`src/screens/seller/PayoutSettingsScreen.tsx`) allows adding Stripe/PayPal/Venmo, marking primary, and shows verification state
+- [ ] **Earnings UI** (`src/screens/seller/EarningsScreen.tsx`) lists payouts with status and net amount
+- [ ] **Admin Payouts view** (`src/admin/components/PayoutsTable.tsx`) supports search/filter and force-retry/force-cancel actions tied to `admin_force_cancel_trade` or admin RPCs
+
+### F. POST‑MVP (ACH, BATCHING, RETRIES)
+
+- [ ] **ACH onboarding & processing planned** (`supabase/functions/process-ach-payout`, `bank-tokenize` flow) and covered by migration plan PAY-101/PAY-102
+- [ ] **Batching & schedule**: `run-payout-batch` cron indicated and documented
+- [ ] **Retries & reconciliation**: `reconcile-payouts` cron and admin retry actions implemented or TODOs added with clear tests
+
+### G. TESTS & ACCEPTANCE
+
+- [ ] Unit tests for fee helpers and payout router
+- [ ] Integration tests for end-to-end: trade completion → payout record → provider call → webhook reconciliation
+- [ ] Idempotency tests: duplicate calls to `process-paypal-payout` / Stripe onboarding APIs do not duplicate provider payouts
+- [ ] CI includes `npm run type-check`, `npm run lint`, and `npm test -- --testPathPattern=payout`
+
+### H. DEPLOYMENT & SECRETS
+
+- [ ] Env vars set: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`
+- [ ] Webhook endpoints registered in Stripe and PayPal with correct URLs and secrets
+- [ ] Admin notifications for failed payouts and `requires_action` states
+
+---
+
 ## CHANGELOG
 
 | Date       | Author | Change Description                          |

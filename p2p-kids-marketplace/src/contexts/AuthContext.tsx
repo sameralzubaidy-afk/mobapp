@@ -178,10 +178,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         { p_user_id: sessionData.session.user.id }
       ) as any);
 
-      const subscriptionSummary = (subData as any[])?.[0] || {
+      // RPC may return: 1) array of rows (old TABLE return), 2) single JSONB object (new JSONB return)
+      let subscriptionSummary = Array.isArray(subData) ? subData[0] : subData || {
         status: 'free',
         can_spend_sp: false,
       };
+
+      // Normalize booleans and default status value for UI consistency
+      if (subscriptionSummary && typeof subscriptionSummary.can_spend_sp === 'string') {
+        subscriptionSummary.can_spend_sp = subscriptionSummary.can_spend_sp === 'true' || subscriptionSummary.can_spend_sp === 't';
+      }
+      subscriptionSummary.status = subscriptionSummary.status || 'free';
 
       // Re-fetch SP wallet summary from MODULE-09
       const { data: walletData, error: walletError } = await (supabase.rpc(
@@ -189,7 +196,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         { p_user_id: sessionData.session.user.id }
       ) as any);
 
-      const walletSummary = (walletData as any[])?.[0] || {
+      const walletSummary = Array.isArray(walletData) ? walletData[0] : walletData || {
         available_points: 0,
         pending_points: 0,
         lifetime_earned: 0,

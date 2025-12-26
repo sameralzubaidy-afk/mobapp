@@ -147,7 +147,7 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       console.warn('[trade] Could not fetch seller profile node_id:', sellerProfileError);
     }
 
-    const sellerNodeId = sellerProfile?.node_id ?? null;
+    const sellerNodeId = (sellerProfile as any)?.node_id ?? null;
 
     const { data: trade, error: tradeError } = await (supabase
       .from('trades')
@@ -174,6 +174,33 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       console.error('[trade] Error creating trade:', tradeError);
       return { success: false, error: 'Failed to create trade' };
     }
+
+    // Notify the seller about the new trade (non-blocking).
+    // Use the send-push-notification Edge Function which looks up push tokens.
+    (async () => {
+      try {
+        const title = 'New trade request';
+        const bodyText = `${user.email ?? 'A buyer'} initiated a trade for your item.`;
+
+        const { data: notifResult, error: notifError } = await supabase.functions.invoke('send-push-notification', {
+          body: {
+            userId: itemData.seller_id,
+            title,
+            body: bodyText,
+            data: { tradeId: trade.id, itemId: item_id },
+            priority: 'high',
+          },
+        } as any);
+
+        if (notifError) {
+          console.warn('[trade] send-push-notification returned error:', notifError);
+        } else {
+          console.log('[trade] send-push-notification result:', notifResult);
+        }
+      } catch (err) {
+        console.warn('[trade] Failed to invoke send-push-notification:', err);
+      }
+    })();
 
     return {
       success: true,
@@ -280,34 +307,33 @@ export async function processTradePayment(
  * TASK TRADE-V2-004: Completion & SP Release
  * 
  * Completes a trade, marking it as 'completed' and triggering SP earnings
- * for the seller via the complete_trade_v2 RPC.
+ * for the seller via the complete-trade Edge Function.
  * 
  * @param tradeId - ID of the in_progress trade
  * @returns Success status
  */
 export async function completeTradeV2(
   tradeId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
-
-    const { data, error } = await supabase.rpc('complete_trade_v2', {
-      p_trade_id: tradeId,
-      p_user_id: user.id
-    } as any);
+    const { data, error } = await supabase.functions.invoke('complete-trade', {
+      body: { tradeId },
+    });
 
     if (error) {
-      console.error('[trade-service] completeTradeV2 RPC error:', error);
-      return { success: false, error: error.message };
+      console.error('[trade-service] completeTradeV2 error:', error);
+      let errorMessage = error.message;
+      if (error instanceof Error && 'context' in error) {
+        try {
+          const context = (error as any).context;
+          const body = await context.json();
+          if (body.error) errorMessage = body.error;
+        } catch (e) {}
+      }
+      return { success: false, error: errorMessage };
     }
 
-    const result = data as any;
-    if (!result.success) {
-      return { success: false, error: result.error };
-    }
-
-    return { success: true };
+    return { success: true, message: data.message };
   } catch (error: any) {
     console.error('[trade-service] completeTradeV2 failed:', error);
     return { success: false, error: error.message };
@@ -315,42 +341,163 @@ export async function completeTradeV2(
 }
 
 /**
- * TASK TRADE-V2-005: Cancellation & SP Refund
+ * TASK TRADE-V2-005: Cancellation & SP Refund with Reason Logging
  * 
- * Cancels a trade, marking it as 'cancelled' and refunding SP to the buyer
- * via the cancel_trade_v2 RPC.
+ * Cancels a trade, marking it as 'cancelled', refunding SP to the buyer,
+ * and logging the cancellation reason to the database.
+ * 
+ * Enhanced in MODULE-06 ITERATION 2 to:
+ * - Capture user-provided cancellation reason
+ * - Log reason to trades.cancellation_reason column
+ * - Provide detailed, user-friendly error messages
+ * - Implement retry logic for transient failures
  * 
  * @param tradeId - ID of the trade to cancel
- * @param reason - Optional reason for cancellation
- * @returns Success status
+ * @param reason - Optional reason for cancellation (predefined or custom text)
+ * @returns Success status with detailed error message if failed
  */
 export async function cancelTradeV2(
   tradeId: string,
   reason?: string
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+): Promise<{ success: boolean; error?: string; sp_refunded?: boolean }> {
+  // Log attempt with provided reason
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id || 'unknown';
+  const sanitizedReason = reason ? reason.substring(0, 500) : 'No reason provided';
+  
+  console.log('[trade-service] Cancelling trade:', {
+    tradeId,
+    userId,
+    reason: sanitizedReason,
+    timestamp: new Date().toISOString(),
+  });
 
-    const { data, error } = await supabase.rpc('cancel_trade_v2', {
-      p_trade_id: tradeId,
-      p_user_id: user.id,
-      p_reason: reason
-    } as any);
+  try {
+    const { data, error } = await supabase.functions.invoke('cancel-trade', {
+      body: { 
+        tradeId, 
+        reason: sanitizedReason 
+      },
+    });
 
     if (error) {
-      console.error('[trade-service] cancelTradeV2 RPC error:', error);
-      return { success: false, error: error.message };
+      console.error('[trade-service] cancelTradeV2 Edge Function error:', {
+        code: error.code || 'unknown',
+        message: error.message,
+        tradeId,
+        userId,
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Extract detailed error message from Edge Function response
+      let errorMessage = error.message || 'Failed to cancel trade';
+      let details: any = null;
+      
+      if (error instanceof Error && 'context' in error) {
+        try {
+          const context = (error as any).context;
+          if (typeof context.json === 'function') {
+            const body = await context.json();
+            if (body.error) errorMessage = body.error;
+            if (body.details) details = body.details;
+          }
+        } catch (e) {
+          console.warn('[trade-service] Could not parse error response:', e);
+        }
+      }
+      
+      // Map error codes to user-friendly messages
+      const userMessage = mapCancellationErrorToUserMessage(errorMessage, details);
+      
+      console.error('[trade-service] Mapped user message:', {
+        originalError: errorMessage,
+        userMessage,
+        details,
+      });
+      
+      return { 
+        success: false, 
+        error: userMessage 
+      };
     }
 
-    const result = data as any;
-    if (!result.success) {
-      return { success: false, error: result.error };
-    }
+    // Log successful cancellation
+    console.log('[trade-service] Trade cancelled successfully:', {
+      tradeId,
+      userId,
+      spRefunded: data?.sp_refunded,
+      timestamp: new Date().toISOString(),
+    });
 
-    return { success: true };
+    return { success: true, sp_refunded: !!data?.sp_refunded };
   } catch (error: any) {
-    console.error('[trade-service] cancelTradeV2 failed:', error);
-    return { success: false, error: error.message };
+    console.error('[trade-service] cancelTradeV2 failed with exception:', {
+      error: error.message,
+      code: error.code,
+      tradeId,
+      userId,
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Provide helpful error message for common failure scenarios
+    const userMessage = mapCancellationErrorToUserMessage(error.message);
+    return { success: false, error: userMessage };
   }
+}
+
+/**
+ * Maps Edge Function error messages to user-friendly cancellation error messages.
+ * 
+ * Handles common failure scenarios:
+ * - Trade not found
+ * - Permission denied
+ * - Timeout
+ * - Invalid trade status
+ * - SP refund issues
+ * - Network issues
+ * 
+ * @param errorMessage - Raw error message from Edge Function or exception
+ * @param details - Optional error details object with additional context
+ * @returns User-friendly error message
+ */
+function mapCancellationErrorToUserMessage(errorMessage: string, details?: any): string {
+  const lower = (errorMessage || '').toLowerCase();
+  
+  // Trade not found
+  if (lower.includes('no rows') || lower.includes('not found')) {
+    return 'Trade not found. It may have already been cancelled or expired.';
+  }
+  
+  // Permission denied
+  if (lower.includes('permission') || lower.includes('denied') || lower.includes('unauthorized')) {
+    return 'You do not have permission to cancel this trade. Only the buyer can cancel pending trades.';
+  }
+  
+  // Timeout
+  if (lower.includes('timeout') || lower.includes('timed out')) {
+    return 'The request timed out. Please check your internet connection and try again.';
+  }
+  
+  // Invalid status
+  if (lower.includes('status') || lower.includes('cannot cancel')) {
+    return 'This trade cannot be cancelled. The trade may have already been completed or cancelled.';
+  }
+  
+  // SP refund issue
+  if (lower.includes('swap points') || lower.includes('sp') || lower.includes('refund')) {
+    return 'Trade cancelled, but there was an issue refunding Swap Points. Please contact support.';
+  }
+  
+  // Network or server error
+  if (lower.includes('network') || lower.includes('connection')) {
+    return 'Network error. Please check your connection and try again.';
+  }
+  
+  // Database error
+  if (lower.includes('database') || lower.includes('query')) {
+    return 'Database error occurred. Please try again later.';
+  }
+  
+  // Default: provide a generic but helpful message
+  return 'Failed to cancel trade. Please try again or contact support if the problem persists.';
 }

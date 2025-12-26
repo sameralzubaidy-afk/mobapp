@@ -71,6 +71,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   });
 }
 
-export const supabase = _supabase as ReturnType<typeof createClient>;
+export const supabase = _supabase as any;
 
 

@@ -1250,7 +1250,6 @@ Design and implement React Native UI components for trade lifecycle:
 2. **Trade Timeline Screen**: Display trade status (pending → in_progress → completed) with action buttons (cancel, mark complete).
 3. **Trade Details Screen**: Full breakdown of cash, SP, fees, Stripe receipt link, cancellation/refund history.
 
-V2 requirements:
 - Clear visibility of transaction fee ($0.99 vs $2.99 based on subscription).
 - SP discount UI disabled for non-subscribers with upgrade CTA.
 - Real-time status updates via Supabase subscriptions.

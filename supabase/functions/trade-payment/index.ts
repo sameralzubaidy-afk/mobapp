@@ -126,13 +126,16 @@ serve(async (req) => {
 
         customerId = customer.id;
 
-        // Update subscription record with customer ID
+        // Update subscription record with customer ID.
+        // Important: do NOT set or overwrite `status` here — avoid accidentally
+        // downgrading an existing subscription. Only write the Stripe customer id
+        // and timestamps; the subscription `status` should be managed by subscription
+        // / billing flows and webhooks.
         const { error: upsertError } = await supabaseClient
           .from('subscriptions')
-          .upsert({ 
+          .upsert({
             user_id: buyer.id,
             stripe_customer_id: customerId,
-            status: 'free', 
             updated_at: new Date().toISOString()
           }, { onConflict: 'user_id' });
           

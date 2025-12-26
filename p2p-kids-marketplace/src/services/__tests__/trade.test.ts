@@ -21,6 +21,9 @@ jest.mock('../../config/supabase', () => ({
       insert: jest.fn().mockReturnThis(),
     })),
     rpc: jest.fn(),
+    functions: {
+      invoke: jest.fn(),
+    },
   },
 }));
 
@@ -194,4 +197,65 @@ describe('trade service', () => {
       expect(result.error).toBe('Cannot buy your own item');
     });
   });
-});
+
+  describe('completeTradeV2', () => {
+    it('should call complete-trade edge function', async () => {
+      // Mock supabase.functions.invoke
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: { success: true },
+        error: null,
+      });
+
+      const { completeTradeV2 } = require('../trade');
+      const result = await completeTradeV2('trade-123');
+
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('complete-trade', {
+        body: { trade_id: 'trade-123' },
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle edge function errors', async () => {
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: null,
+        error: { message: 'Function error' },
+      });
+
+      const { completeTradeV2 } = require('../trade');
+      const result = await completeTradeV2('trade-123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Function error');
+    });
+  });
+
+  describe('processTradePayment', () => {
+    it('should call trade-payment edge function', async () => {
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: { success: true, status: 'in_progress' },
+        error: null,
+      });
+
+      const { processTradePayment } = require('../trade');
+      const result = await processTradePayment('trade-123', 'pm_123');
+
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('trade-payment', {
+        body: { tradeId: 'trade-123', paymentMethodId: 'pm_123' },
+      });
+      expect(result.success).toBe(true);
+      expect(result.status).toBe('in_progress');
+    });
+
+    it('should handle edge function errors', async () => {
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: null,
+        error: { message: 'Payment failed' },
+      });
+
+      const { processTradePayment } = require('../trade');
+      const result = await processTradePayment('trade-123', 'pm_123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Payment failed');
+    });
+  });

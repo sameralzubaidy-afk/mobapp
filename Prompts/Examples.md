@@ -57,16 +57,13 @@ Please:
 Follow the module and task exactly, and cross-check with the verification file in MODULE-06-TRADE-FLOW-V2.md
 Show me the files you create or edit with their full paths
 Tell me which items in MODULE-06-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-06-VERIFICATION-V2.md)
-always include short answers first and then explain detials as needed
-List the commands I should run to test/verify this (e.g. npm, supabase)
-note - I do not use supabase locally, always must be supabase prod. 
-if there is a need to run a sql in supabase before testing clearly ask me to do. do not assume and do not run it for me. 
-apply E2E test so you fix all errors before I start verifying.
-run Run Unit Tests and Run E2E Tests and fix any issue that is not passed
+always include short answers first
+Note I do not use supabase locally, always must be supabase prod. if there is a need to run a sql in supabase before testing clearly ask me to do. do not assume and do not run it for me. 
+create and run Unit testing and E2E tests so you fix all errors before I start verifying.
 Update the navigation file so i can verify manual
 run functional test where applicaible
 provide steps to manaul test format it as test cases create md file for it. 
-if i report back to you a bug or error you must investgiate and fix it permanently.
+
 
 
 my example 2 - to verify
@@ -78,6 +75,7 @@ Please:
 Read the verification checklist
 Inspect the current code under:
 /Users/sameralzubaidi/Desktop/kids_marketplace_app
+make sure you create all needed unit tests and E2E tests. 
 Tell me which verification items appear complete, which are partially done, and which are missing
 Suggest a small, safe set of next changes to fully satisfy the remaining items in case missing items
 start with short and crisp answer

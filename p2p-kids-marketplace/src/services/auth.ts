@@ -401,10 +401,17 @@ export async function loginWithContext(
       p_user_id: userId,
     }) as any;
 
-    const subscriptionSummary = subData?.[0] || {
-      status: 'free',
+    // RPC may return: 1) array of rows (old TABLE return), 2) single JSONB object (new JSONB return)
+    let subscriptionSummary = Array.isArray(subData) ? subData[0] : subData || {
+      status: 'none',
       can_spend_sp: false,
     };
+
+    // Normalize booleans and default status value for UI consistency
+    if (subscriptionSummary && typeof subscriptionSummary.can_spend_sp === 'string') {
+      subscriptionSummary.can_spend_sp = subscriptionSummary.can_spend_sp === 'true' || subscriptionSummary.can_spend_sp === 't';
+    }
+    subscriptionSummary.status = subscriptionSummary.status || 'free';
 
     // Step 4: Fetch SP wallet summary (MODULE-09)
     const { data: walletData } = await supabase.rpc(
@@ -414,7 +421,7 @@ export async function loginWithContext(
       }
     ) as any;
 
-    const walletSummary = walletData?.[0] || {
+    const walletSummary = Array.isArray(walletData) ? walletData[0] : walletData || {
       available_points: 0,
       pending_points: 0,
       lifetime_earned: 0,
@@ -490,10 +497,16 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
       p_user_id: userId,
     }) as any;
 
-    const subscriptionSummary = subData?.[0] || {
-      status: 'free',
+    let subscriptionSummary = Array.isArray(subData) ? subData[0] : subData || {
+      status: 'none',
       can_spend_sp: false,
     };
+
+    // Normalize booleans and default status value
+    if (subscriptionSummary && typeof subscriptionSummary.can_spend_sp === 'string') {
+      subscriptionSummary.can_spend_sp = subscriptionSummary.can_spend_sp === 'true' || subscriptionSummary.can_spend_sp === 't';
+    }
+    subscriptionSummary.status = subscriptionSummary.status || 'free';
 
     // Fetch SP wallet summary
     const { data: walletData } = await supabase.rpc(
@@ -503,7 +516,7 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
       }
     ) as any;
 
-    const walletSummary = walletData?.[0] || {
+    const walletSummary = Array.isArray(walletData) ? walletData[0] : walletData || {
       available_points: 0,
       pending_points: 0,
       lifetime_earned: 0,

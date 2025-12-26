@@ -16,6 +16,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
+
 import CategorySelector from '../../components/molecules/CategorySelector';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
@@ -296,11 +297,81 @@ export default function UserDashboardScreen() {
           </View>
         )}
 
+        {/* Recent Trade Quick Link */}
+        <RecentTradeCard navigation={navigation} session={session} />
+
+        <View style={{ marginTop: 8, marginBottom: 16 }}>
+          <TouchableOpacity
+            style={[styles.upgradeButton, { alignSelf: 'stretch', paddingVertical: 12 }]}
+            onPress={() => navigation.navigate('TradeList')}
+          >
+            <Text style={[styles.upgradeButtonText, { textAlign: 'center' }]}>View All Trades</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Navigation handled by BottomNavBar below */}
         </ScrollView>
         <BottomNavBar />
       </View>
     </SafeAreaView>
+  );
+}
+
+/* RecentTradeCard - inline to avoid bundler circular imports */
+function RecentTradeCard({ navigation, session }: any) {
+  const userId = session?.user?.id;
+  const [loadingTrade, setLoadingTrade] = React.useState(false);
+  const [trade, setTrade] = React.useState<any | null>(null);
+
+  React.useEffect(() => {
+    if (!userId) return;
+    (async function fetchRecentTrade() {
+      setLoadingTrade(true);
+      try {
+        const { supabase } = await import('@/config/supabase');
+        const { data, error } = await supabase
+          .from('trades')
+          .select('id, status, created_at, listing:items(title, price)')
+          .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (error) throw error;
+        setTrade(data as any);
+      } catch (err) {
+        console.warn('[RecentTradeCard] error', err);
+      } finally {
+        setLoadingTrade(false);
+      }
+    })();
+  }, [userId]);
+
+  if (loadingTrade) {
+    return (
+      <View style={styles.card}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (!trade) return null;
+
+  return (
+    <View style={styles.card}>
+      <View style={styles.row}>
+        <View style={styles.info}>
+          <Text style={styles.title}>{trade.listing?.title || 'Recent Trade'}</Text>
+          <Text style={styles.subtitle}>{trade.status.replace('_', ' ').toUpperCase()}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate('TradeDetail', { tradeId: trade.id })}
+        >
+          <Text style={styles.buttonText}>View Trade</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 

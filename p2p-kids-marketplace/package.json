@@ -14,7 +14,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "test:watch": "jest --watch",
+    "test:unit:trade": "jest src/services/__tests__/trade.test.ts",
     "test:e2e:cloudflare": "jest e2e/cloudflare-cache.integration.test.ts e2e/delete-purge.integration.test.ts --runInBand",
     "clean": "rm -rf node_modules && npm install",
     "check:supabase": "node ./scripts/check-supabase.js",
