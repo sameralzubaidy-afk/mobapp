@@ -1,4 +1,4 @@
-# MODULE 06 (EXT): SELLER PAYOUTS (Stripe + ACH + PayPal/Venmo)
+# MODULE 06 (EXT): SELLER PAYOUTS (ACH Only)
 
 **Total Tasks:** 12 (Phase 1: 8, Post‑MVP: 4)  
 **Estimated Time:** Phase 1 ~24 hours, Post‑MVP ~14 hours  
@@ -13,6 +13,7 @@
 Close the payout loop after a trade completes by providing sellers multiple payout options:
 
 - **Stripe Connect (Express)**
+- **Direct Bank Deposit (ACH)**
 - **PayPal Payouts**
 - **Venmo** (via PayPal Payouts)
 
@@ -97,7 +98,7 @@ KEY REQUIREMENTS:
 
 ### Concepts
 
-- **Payout Method**: A seller-configured destination (Stripe Express account, PayPal email, Venmo handle/phone).
+- **Payout Method**: A seller-configured destination (Stripe Express account, PayPal email, Venmo handle/phone, ACH bank token).
 - **Payout Ledger**: Canonical record of every seller payout and its lifecycle.
 - **Payout Router**: Determines which provider is used based on seller’s primary payout method.
 
@@ -578,11 +579,148 @@ FILEPATHS:
 
 ---
 
+# PART 2 — POST‑MVP
+
+## Task Summary (Post‑MVP)
+
+| Task ID | Description | Duration | Priority |
+|--------:|-------------|----------|----------|
+| PAY-101 | Bank (ACH) onboarding + verification (tokenized) | 6h | High |
+| PAY-102 | ACH payout processing + events/webhooks | 4h | High |
+| PAY-103 | Batching/scheduling + payout preferences | 2h | Medium |
+| PAY-104 | Retries, reconciliation jobs, and admin interventions | 2h | Medium |
+
+---
+
+## TASK PAY-101: Direct Bank (ACH) Setup + Verification
+
+**Duration:** 6 hours  
+**Priority:** High
+
+### Description
+
+Add an ACH payout method that never stores raw bank details.
+
+Acceptable approaches:
+- Stripe tokenization for bank account details (preferred if already using Stripe in backend)
+- Plaid for bank verification + tokenized account reference
+
+### AI Prompt for Cursor
+
+```ts
+/*
+TASK: Add bank ACH payout method
+
+REQUIREMENTS:
+1. UI flow to add bank account
+2. Tokenize bank details (Stripe/Plaid)
+3. Verification (micro-deposits or instant)
+4. Store only token + last4s
+5. Mark is_verified when verification passes
+
+FILEPATHS:
+- src/screens/seller/BankSetupScreen.tsx
+- supabase/functions/bank-tokenize/index.ts
+- supabase/functions/bank-verify/index.ts
+*/
+```
+
+---
+
+## TASK PAY-102: ACH Payout Processing
+
+**Duration:** 4 hours  
+**Priority:** High
+
+### Description
+
+Submit ACH payouts for verified bank methods and reconcile status.
+
+### AI Prompt for Cursor
+
+```ts
+/*
+TASK: ACH payout processing
+
+REQUIREMENTS:
+1. Edge Function: process-ach-payout (input payoutId)
+2. Idempotent provider calls
+3. Webhook/event reconciliation to update status
+
+FILEPATHS:
+- supabase/functions/process-ach-payout/index.ts
+- supabase/functions/ach-webhooks/index.ts
+*/
+```
+
+---
+
+## TASK PAY-103: Batching/Scheduling Preferences
+
+**Duration:** 2 hours  
+**Priority:** Medium
+
+### Description
+
+Allow sellers to pick payout timing:
+- `instant` (where supported)
+- `daily`
+- `weekly`
+
+Batching reduces fees and operational overhead.
+
+### AI Prompt for Cursor
+
+```ts
+/*
+TASK: Payout scheduling preferences
+
+REQUIREMENTS:
+1. Store seller payout cadence
+2. Cron job to batch eligible payouts
+
+FILEPATHS:
+- supabase/migrations/0xx_payout_cadence.sql
+- supabase/functions/run-payout-batch/index.ts
+*/
+```
+
+---
+
+## TASK PAY-104: Retries + Reconciliation
+
+**Duration:** 2 hours  
+**Priority:** Medium
+
+### Description
+
+Add resilience:
+- Retry failed payouts with exponential backoff
+- Admin manual retry
+- Reconciliation cron (detect stuck `processing`)
+
+### AI Prompt for Cursor
+
+```ts
+/*
+TASK: Retries & reconciliation
+
+REQUIREMENTS:
+1. Retry queue/table
+2. Cron to retry failures and reconcile stuck payouts
+3. Admin action to re-submit payout
+
+FILEPATHS:
+- supabase/functions/reconcile-payouts/index.ts
+- src/admin/actions/retryPayout.ts
+*/
+```
+
 ---
 
 ## Acceptance Criteria (Module)
 
-- Seller can configure payout via Stripe Connect / PayPal / Venmo (MVP)
+- Seller can configure payout via Stripe Connect / PayPal / Venmo (MVP) and ACH (Post‑MVP)
 - Every completed cash trade produces a payout record or a `requires_action` placeholder
 - Payout fee is computed and stored; seller pays it
 - Webhooks update payout status reliably and securely

@@ -259,3 +259,82 @@ describe('trade service', () => {
       expect(result.error).toBe('Payment failed');
     });
   });
+
+  describe('cancelTradeV2', () => {
+    beforeEach(() => {
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      });
+    });
+
+    it('should cancel trade with reason', async () => {
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: { success: true, sp_refunded: false },
+        error: null,
+      });
+
+      const { cancelTradeV2 } = require('../trade');
+      const result = await cancelTradeV2('trade-123', 'Changed my mind');
+
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('cancel-trade', {
+        body: { tradeId: 'trade-123', reason: 'Changed my mind' },
+      });
+      expect(result.success).toBe(true);
+      expect(result.sp_refunded).toBe(false);
+    });
+
+    it('should handle SP refund on cancellation', async () => {
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: { success: true, sp_refunded: true },
+        error: null,
+      });
+
+      const { cancelTradeV2 } = require('../trade');
+      const result = await cancelTradeV2('trade-456', 'Item damaged');
+
+      expect(result.success).toBe(true);
+      expect(result.sp_refunded).toBe(true);
+    });
+
+    it('should handle trade not found error', async () => {
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: null,
+        error: { message: 'no rows returned' },
+      });
+
+      const { cancelTradeV2 } = require('../trade');
+      const result = await cancelTradeV2('nonexistent', 'Test');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('not found');
+    });
+
+    it('should handle permission denied', async () => {
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: null,
+        error: { message: 'permission denied' },
+      });
+
+      const { cancelTradeV2 } = require('../trade');
+      const result = await cancelTradeV2('trade-123', 'Test');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('permission');
+    });
+
+    it('should truncate long cancellation reason to 500 chars', async () => {
+      const longReason = 'A'.repeat(600);
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: { success: true },
+        error: null,
+      });
+
+      const { cancelTradeV2 } = require('../trade');
+      await cancelTradeV2('trade-123', longReason);
+
+      const callArgs = (supabase.functions.invoke as jest.Mock).mock.calls[0][1];
+      expect(callArgs.body.reason.length).toBeLessThanOrEqual(500);
+    });
+  });
+});
