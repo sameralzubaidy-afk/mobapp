@@ -295,7 +295,8 @@ TASK: Implement payout fee helpers
 REQUIREMENTS:
 1. getPayoutFeeCents(methodType, amountCents)
 2. computeNetPayout(gross, platformFee, payoutFee)
-3. Unit tests
+3. make the fees dynamic and create a page for admin to view, update as needed. 
+4. Unit tests
 
 ==================================================
 FILE 1: Helpers
