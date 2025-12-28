@@ -6,6 +6,10 @@
   "scripts": {
     "test:ci": "jest --runInBand --reporters=default",
     "start": "expo start",
+    "start:android": "expo start --clear --localhost --android",
+    "start:android:dev": "expo start --dev-client --clear --localhost --android",
+    "logs:android": "bash ./scripts/android-logs.sh",
+    "start:android:logs": "bash ./scripts/start-android-with-logs.sh",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",

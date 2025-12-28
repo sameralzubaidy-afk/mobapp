@@ -23,4 +23,6 @@ export type RootStackParamList = {
   TradeDetail: { tradeId: string };
   TradeList: undefined;
   TradeSuccess: { tradeId: string };
+  // Admin routes
+  AdminDashboard: undefined;
 };

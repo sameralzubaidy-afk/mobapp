@@ -58,7 +58,8 @@ Follow the module and task exactly, and cross-check with the verification file i
 Show me the files you create or edit with their full paths
 Tell me which items in MODULE-06-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-06-VERIFICATION-V2.md)
 always include short answers first
-Note I do not use supabase locally, always must be supabase prod. if there is a need to run a sql in supabase before testing clearly ask me to do. do not assume and do not run it for me. 
+Note I do not use supabase locally, always must be supabase prod.
+if there is a need to run a sql in supabase before testing clearly ask me to do. 
 create and run Unit testing and E2E tests so you fix all errors before I start verifying.
 Update the navigation file so i can verify manual
 run functional test where applicaible

@@ -70,9 +70,14 @@ interface AuthProviderProps {
  * - Error boundary with retry logic
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  console.log('[AUTH] AuthProvider render');
+
   // Session state
   const [session, setSessionState] = useState<AuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Default to `false` so UI doesn't get stuck on an endless spinner
+  // if initialization hangs on certain Android environments.
+  const [isLoading, setIsLoading] = useState(false);
+  const isLoadingRef = useRef(false);
   const [error, setError] = useState<AuthError | null>(null);
   const [isSignout, setIsSignout] = useState(false);
   const { setUser, clearUser } = useUserStore();
@@ -383,11 +388,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    */
   useEffect(() => {
     const initializeAuth = async () => {
+      console.log('[AUTH] 🏁 Initializing auth state...');
+      const initTimeout = setTimeout(() => {
+        if (isLoadingRef.current) {
+          console.warn('[AUTH] ⚠️ Initialization taking too long, forcing loading to false');
+          setIsLoading(false);
+        }
+      }, 10000); // 10s safety valve
+
       try {
+        isLoadingRef.current = true;
         setIsLoading(true);
+        // mark startup step
+        try { require('@/utils/startupDebug').setStartupStep('fetching session'); } catch(_) {}
 
         // Get current session from Supabase with timeout protection
-        // Android can hang on this call if network is slow - timeout after 5s
+        console.log('[AUTH] 🔍 Fetching session...');
         const sessionPromise = supabase.auth.getSession();
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
@@ -397,6 +413,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           await Promise.race([sessionPromise, timeoutPromise]) as any;
 
         if (sessionError) {
+          console.error('[AUTH] ❌ Session fetch error:', sessionError);
           throw new AuthError(
             'Failed to restore session',
             'RESTORE_SESSION_ERROR',
@@ -405,7 +422,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
 
         if (sessionData.session?.user) {
+          try { require('@/utils/startupDebug').setStartupStep('fetching profile'); } catch(_) {}
+          console.log('[AUTH] 👤 User found in session:', sessionData.session.user.id);
+          
           // User is authenticated - restore session from profile
+          console.log('[AUTH] 🔍 Fetching profile...');
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('*, node:nodes(*)')
@@ -413,7 +434,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .single();
 
           if (!profileError && profileData) {
+            try { require('@/utils/startupDebug').setStartupStep('fetching subscription'); } catch(_) {}
+            console.log('[AUTH] ✅ Profile found');
+            
             // Also fetch subscription status from subscriptions table (source of truth)
+            console.log('[AUTH] 🔍 Fetching subscription status...');
             const { data: subscriptionData } = await supabase
               .from('subscriptions')
               .select('status,trial_end_date,current_period_end')
@@ -431,7 +456,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 id: profileData.user_id || profileData.id,
                 user_id: profileData.user_id || profileData.id,
                 email: sessionData.session.user.email || '',
-                name: profileData.full_name || '',
+                name: profileData.full_name || profileData.name || '',
                 avatar_url: profileData.avatar_url || undefined,
                 bio: profileData.bio,
                 city: profileData.city,
@@ -462,22 +487,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               lifetime_spent: 0,
             };
             setSession(authSession);
-            console.log('[AUTH] Session restored for user:', authSession.user.id, 'subscription:', subscriptionStatus, 'onboarding_completed:', authSession.user.onboarding_completed);
+            try { require('@/utils/startupDebug').setStartupStep('session restored'); } catch(_) {}
+            console.log('[AUTH] 🎉 Session restored successfully');
           } else {
-            // Profile not found, clear session
+            console.warn('[AUTH] ⚠️ Profile not found for authenticated user');
             setSession(null);
           }
         } else {
-          // No active session
+          try { require('@/utils/startupDebug').setStartupStep('no active session'); } catch(_) {}
+          console.log('[AUTH] ℹ️ No active session found');
           setSession(null);
         }
       } catch (err: any) {
         // Ignore expected auth errors during init (e.g., no session on first load)
         if (err?.code === 'INVALID_CREDENTIALS' || err?.message?.includes('Invalid login credentials')) {
-          console.log('[AUTH] No active session on startup (expected)');
+          console.log('[AUTH] ℹ️ No active session on startup (expected)');
           setSession(null);
         } else {
-          console.error('[AUTH] Failed to initialize auth:', err);
+          console.error('[AUTH] ❌ Failed to initialize auth:', err);
           const authError = err instanceof AuthError
             ? err
             : new AuthError('Auth initialization failed', 'INIT_FAILED', err);
@@ -485,6 +512,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSession(null);
         }
       } finally {
+        console.log('[AUTH] ✅ Initialization complete');
+        clearTimeout(initTimeout);
+        isLoadingRef.current = false;
         setIsLoading(false);
       }
     };

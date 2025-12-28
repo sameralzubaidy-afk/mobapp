@@ -243,51 +243,46 @@ export async function processTradePayment(
       console.error('[trade-service] processTradePayment function error:', error);
       console.error('[trade-service] Full error object:', JSON.stringify(error, null, 2));
       
-      // Try to extract detailed error from the response body if available
-      let errorMessage = error.message;
-      if (error instanceof Error) {
-        // Try different ways to access the response body
-        try {
-          if ('details' in error && error.details) {
-            errorMessage = error.details;
-          } else if ('body' in error && error.body) {
-            const body = typeof error.body === 'string' ? JSON.parse(error.body) : error.body;
-            if (body.error) errorMessage = body.error;
-            // If Stripe included structured info, prefer that
-            if (body.stripe && body.stripe.code) {
-              errorMessage = `${body.stripe.code}: ${body.details?.message ?? body.error ?? ''}`;
-            } else if (body.details && typeof body.details === 'object' && body.details.message) {
-              errorMessage = body.details.message;
+      // Extract detailed error from the response body
+      let errorMessage = error.message || 'Unknown error';
+      let serverResponse = null;
+      
+      try {
+        // Try to get the response body from the context
+        if (error.context && error.context._bodyInit) {
+          // For React Native, try to read the response body
+          const response = new Response(error.context._bodyInit);
+          const responseText = await response.text();
+          console.error('[trade-service] Server response body:', responseText);
+          
+          try {
+            serverResponse = JSON.parse(responseText);
+            if (serverResponse.error) {
+              errorMessage = serverResponse.error;
             }
-          } else if ('context' in error) {
-            const context = (error as any).context;
-            if (context && typeof context.json === 'function') {
-              const body = await context.json();
-              if (body.error) errorMessage = body.error;
-              if (body.stripe && body.stripe.code) {
-                errorMessage = `${body.stripe.code}: ${body.details?.message ?? body.error ?? ''}`;
-              } else if (body.details && typeof body.details === 'object' && body.details.message) {
-                errorMessage = body.details.message;
-              }
-            } else if (context && context.body) {
-              const body = typeof context.body === 'string' ? JSON.parse(context.body) : context.body;
-              if (body.error) errorMessage = body.error;
-              if (body.stripe && body.stripe.code) {
-                errorMessage = `${body.stripe.code}: ${body.details?.message ?? body.error ?? ''}`;
-              } else if (body.details && typeof body.details === 'object' && body.details.message) {
-                errorMessage = body.details.message;
-              }
-            }
+          } catch (parseErr) {
+            console.warn('[trade-service] Could not parse server response as JSON:', parseErr);
+            errorMessage = responseText || errorMessage;
           }
-        } catch (e) {
-          console.warn('[trade-service] Could not parse error response body:', e);
         }
+      } catch (bodyReadErr) {
+        console.warn('[trade-service] Could not read response body:', bodyReadErr);
       }
       
-      // Map Stripe decline to friendly message when present
-      const lower = (errorMessage || '').toString().toLowerCase();
-      if (lower.includes('card_declined') || lower.includes('your card was declined') || lower.includes('card was declined')) {
-        return { success: false, error: 'Payment failed: the card was declined. Try a different card or payment method.' };
+      // Map common server errors to user-friendly messages
+      const lower = errorMessage.toLowerCase();
+      if (lower.includes('stripe secret key') || lower.includes('server configuration')) {
+        errorMessage = 'Payment system configuration error. Please contact support.';
+      } else if (lower.includes('trade not found')) {
+        errorMessage = 'Trade not found. It may have been cancelled or expired.';
+      } else if (lower.includes('buyer not found')) {
+        errorMessage = 'User authentication error. Please try logging out and back in.';
+      } else if (lower.includes('card_declined') || lower.includes('card was declined')) {
+        errorMessage = 'Payment failed: the card was declined. Try a different card or payment method.';
+      } else if (lower.includes('payment method') && lower.includes('attach')) {
+        errorMessage = 'Payment method error. Please try entering your card details again.';
+      } else if (lower.includes('swap points')) {
+        errorMessage = 'Swap Points processing error. Please try again or contact support.';
       }
 
       return { success: false, error: errorMessage };
@@ -336,6 +331,36 @@ export async function completeTradeV2(
     return { success: true, message: data.message };
   } catch (error: any) {
     console.error('[trade-service] completeTradeV2 failed:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * TASK TRADE-V2-007: Handling Mid-Trade Subscription Changes
+ * 
+ * Invokes the monitor-mid-trade-subscription-changes Edge Function to detect
+ * and alert on trades where the buyer's subscription status has changed
+ * since the trade was initiated.
+ * 
+ * @returns Success status and count of flagged trades
+ */
+export async function monitorMidTradeSubscriptionChanges(): Promise<{ success: boolean; error?: string; flagged_count?: number }> {
+  try {
+    const { data, error } = await supabase.functions.invoke('monitor-mid-trade-subscription-changes', {
+      body: {},
+    });
+
+    if (error) {
+      console.error('[trade-service] monitorMidTradeSubscriptionChanges error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { 
+      success: true, 
+      flagged_count: data.flagged_count 
+    };
+  } catch (error: any) {
+    console.error('[trade-service] monitorMidTradeSubscriptionChanges failed:', error);
     return { success: false, error: error.message };
   }
 }
@@ -477,27 +502,27 @@ function mapCancellationErrorToUserMessage(errorMessage: string, details?: any):
   if (lower.includes('timeout') || lower.includes('timed out')) {
     return 'The request timed out. Please check your internet connection and try again.';
   }
-  
+
   // Invalid status
   if (lower.includes('status') || lower.includes('cannot cancel')) {
     return 'This trade cannot be cancelled. The trade may have already been completed or cancelled.';
   }
-  
+
   // SP refund issue
   if (lower.includes('swap points') || lower.includes('sp') || lower.includes('refund')) {
     return 'Trade cancelled, but there was an issue refunding Swap Points. Please contact support.';
   }
-  
+
   // Network or server error
   if (lower.includes('network') || lower.includes('connection')) {
     return 'Network error. Please check your connection and try again.';
   }
-  
+
   // Database error
   if (lower.includes('database') || lower.includes('query')) {
     return 'Database error occurred. Please try again later.';
   }
-  
+
   // Default: provide a generic but helpful message
   return 'Failed to cancel trade. Please try again or contact support if the problem persists.';
 }

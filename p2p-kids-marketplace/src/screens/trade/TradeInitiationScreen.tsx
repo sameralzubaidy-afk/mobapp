@@ -141,24 +141,57 @@ export default function TradeInitiationScreen() {
       // 2. Handle Payment if cash is due
       if (cashAmountCents > 0) {
         // Create Stripe PaymentMethod
-        const { paymentMethod, error: pmError } = await createPaymentMethod({
-          paymentMethodType: 'Card',
-          billingDetails: {
-            email: user?.email,
-          },
-        });
+        try {
+          const { paymentMethod, error: pmError } = await createPaymentMethod({
+            paymentMethodType: 'Card',
+            billingDetails: {
+              email: user?.email,
+            },
+          });
 
-        if (pmError) {
-          console.error('❌ Stripe PaymentMethod error:', pmError);
-          Alert.alert('Payment Error', pmError.message);
-          return;
-        }
+          if (pmError) {
+            console.error('❌ Stripe PaymentMethod error:', pmError);
+            
+            // Check for common issues
+            if (pmError.message?.includes('API key') || pmError.code === 'Failed') {
+              Alert.alert(
+                'Payment Setup Error', 
+                'Payment system is not properly configured. Please contact support or try again later.',
+                [
+                  { text: 'OK' },
+                  { 
+                    text: 'Try Development Build', 
+                    onPress: () => Alert.alert(
+                      'Development Build Required',
+                      'For full payment testing, run:\n\nexpo run:android\n\ninstead of Expo Go.'
+                    )
+                  }
+                ]
+              );
+            } else {
+              Alert.alert('Payment Error', pmError.message || 'Card validation failed');
+            }
+            return;
+          }
 
-        // 3. Orchestrate Payment via Edge Function (Atomic Stripe + SP)
-        const paymentResult = await processTradePayment(tradeId, paymentMethod.id);
+          if (!paymentMethod?.id) {
+            Alert.alert('Payment Error', 'Failed to create payment method');
+            return;
+          }
 
-        if (!paymentResult.success) {
-          Alert.alert('Payment Failed', paymentResult.error || 'Could not process payment');
+          // 3. Orchestrate Payment via Edge Function (Atomic Stripe + SP)
+          const paymentResult = await processTradePayment(tradeId, paymentMethod.id);
+
+          if (!paymentResult.success) {
+            Alert.alert('Payment Failed', paymentResult.error || 'Could not process payment');
+            return;
+          }
+        } catch (stripeError: any) {
+          console.error('❌ Stripe initialization error:', stripeError);
+          Alert.alert(
+            'Payment System Error', 
+            'Stripe payment system is not available. This might be due to running in Expo Go. For full payment testing, use a development build.'
+          );
           return;
         }
       }

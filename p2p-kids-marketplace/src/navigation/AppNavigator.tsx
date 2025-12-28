@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View } from 'react-native';
 import BrowseItemsScreen from '@/screens/home/BrowseItemsScreen';
@@ -27,8 +27,9 @@ import EditListingScreen from '@/screens/listing/EditListingScreen';
 import MyListingsScreen from '@/screens/listing/MyListingsScreen';
 import TradeInitiationScreen from '@/screens/trade/TradeInitiationScreen';
 import TradeSuccessScreen from '@/screens/trade/TradeSuccessScreen';
+import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
-import { StripeProvider } from '@stripe/stripe-react-native';
+import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 
 const Stack = createStackNavigator();
 
@@ -59,6 +60,7 @@ const linking = {
       CreateListing: 'create-listing',
       EditListing: 'edit-listing',
       ListingDetail: 'listing/:listing_id',
+      AdminDashboard: 'admin',
     },
   },
 };
@@ -76,6 +78,28 @@ const linking = {
 function RootNavigator() {
   const { session, isLoading } = React.useContext(AuthContext);
 
+  const navigationRef = React.useRef(createNavigationContainerRef<any>()).current;
+  const lastRouteNameRef = React.useRef<string | undefined>(undefined);
+
+  const logRouteChange = React.useCallback(() => {
+    try {
+      if (!navigationRef.isReady()) return;
+      const route = navigationRef.getCurrentRoute();
+      const name = route?.name;
+      if (!name) return;
+
+      if (lastRouteNameRef.current !== name) {
+        lastRouteNameRef.current = name;
+        // Keep logs short; large params can slow Android.
+        // eslint-disable-next-line no-console
+        console.log('[NAV] route:', name);
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[NAV] Failed to read current route', e);
+    }
+  }, [navigationRef]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -89,7 +113,12 @@ function RootNavigator() {
   const isOnboardingComplete = session?.user?.onboarding_completed === true;
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      onReady={logRouteChange}
+      onStateChange={logRouteChange}
+    >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated && isOnboardingComplete ? (
           // Authenticated + Onboarding Complete → Dashboard stack
@@ -112,6 +141,7 @@ function RootNavigator() {
             <Stack.Screen name="TradeList" component={require('@/screens/trade/TradeListScreen').default} />
             <Stack.Screen name="TradeDetail" component={require('@/screens/trade/TradeDetailScreen').default} />
             <Stack.Screen name="TradeSuccess" component={TradeSuccessScreen} />
+            <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (
@@ -143,12 +173,12 @@ function RootNavigator() {
 export default function AppNavigator() {
   return (
     <AuthProvider>
-      <StripeProvider
+      <StripeProviderWrapper
         publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
         merchantIdentifier="merchant.com.p2pkidsmarketplace" // required for Apple Pay
       >
         <RootNavigator />
-      </StripeProvider>
+      </StripeProviderWrapper>
     </AuthProvider>
   );
 }

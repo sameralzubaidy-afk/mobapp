@@ -3,10 +3,6 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@12.0.0';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
-});
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -35,6 +31,26 @@ serve(async (req) => {
 
   const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
+  const stripeKeyRaw = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
+  const stripeKey = stripeKeyRaw.trim();
+  if (!stripeKey || !stripeKey.startsWith('sk_')) {
+    console.error('[trade-payment] STRIPE_SECRET_KEY is missing or invalid');
+    return new Response(
+      JSON.stringify({
+        error: 'Server configuration error: Stripe secret key missing or invalid',
+        details: { expected: 'sk_test_... or sk_live_...', gotPrefix: stripeKey.slice(0, 3) || null },
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
+  }
+
+  const stripe = new Stripe(stripeKey, {
+    apiVersion: '2023-10-16',
+  });
+
   try {
     const body = await req.json();
     console.log('[trade-payment] Request body:', body);
@@ -47,14 +63,7 @@ serve(async (req) => {
       });
     }
 
-    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
-    if (!stripeKey) {
-      console.error('[trade-payment] STRIPE_SECRET_KEY is not set');
-      return new Response(JSON.stringify({ error: 'Server configuration error: Stripe key missing' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // stripeKey is validated above; Stripe client is ready.
 
     // 1) Load trade info
     console.log('[trade-payment] Fetching trade:', tradeId);
@@ -98,11 +107,11 @@ serve(async (req) => {
       });
     }
 
-    // 3) Load subscription info (stripe_customer_id)
+    // 3) Load subscription info (stripe_customer_id, status)
     console.log('[trade-payment] Fetching subscription for:', trade.buyer_id);
     const { data: subscription, error: subError } = await supabaseClient
       .from('subscriptions')
-      .select('stripe_customer_id')
+      .select('stripe_customer_id, status')
       .eq('user_id', trade.buyer_id)
       .maybeSingle();
 
@@ -506,7 +515,7 @@ serve(async (req) => {
       );
     }
 
-    // 8) Update trade as in_progress with payment + SP linkage
+    // 8) Update trade as in_progress with payment + SP linkage + subscription snapshot
     const { error: updateTradeError } = await supabaseClient
       .from('trades')
       .update({
@@ -515,6 +524,7 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
         stripe_payment_intent_id: paymentIntent.id,
         sp_debit_ledger_entry_id: spDebitLedgerId,
+        buyer_subscription_status: subscription?.status || 'free',
       })
       .eq('id', trade.id);
 

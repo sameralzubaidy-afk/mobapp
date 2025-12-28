@@ -9,6 +9,15 @@
 
 export type AnalyticsEventParams = Record<string, any>;
 
+function safeJson(value: any) {
+  try {
+    if (value === undefined) return '';
+    return JSON.stringify(value);
+  } catch {
+    return '[unserializable]';
+  }
+}
+
 /**
  * Track an analytics event
  * @param eventName - Name of the event (e.g., 'node_assigned')
@@ -19,7 +28,10 @@ export const trackEvent = (eventName: string, params?: AnalyticsEventParams): vo
     // TODO: Connect to Firebase Analytics
     // Currently just logging - will wire to Firebase in next phase
     if (process.env.NODE_ENV !== 'production') {
-      console.debug(`[Analytics] Event tracked: ${eventName}`, params);
+      const payload = safeJson(params);
+      // Match iOS-style readability: "DEBUG  [Analytics] ... {json}"
+      // eslint-disable-next-line no-console
+      console.debug(`DEBUG  [Analytics] Event tracked: ${eventName}${payload ? ` ${payload}` : ''}`);
     }
   } catch (error) {
     console.error(`[Analytics] Failed to track event: ${eventName}`, error);
@@ -35,7 +47,9 @@ export const setUserProperties = (userId: string, properties: Record<string, any
   try {
     // TODO: Connect to Firebase Analytics
     if (process.env.NODE_ENV !== 'production') {
-      console.debug(`[Analytics] User properties set for ${userId}`, properties);
+      const payload = safeJson(properties);
+      // eslint-disable-next-line no-console
+      console.debug(`DEBUG  [Analytics] User properties set for ${userId}${payload ? ` ${payload}` : ''}`);
     }
   } catch (error) {
     console.error(`[Analytics] Failed to set user properties`, error);
@@ -49,7 +63,8 @@ export const resetAnalytics = (): void => {
   try {
     // TODO: Connect to Firebase Analytics
     if (process.env.NODE_ENV !== 'production') {
-      console.debug('[Analytics] Analytics reset');
+      // eslint-disable-next-line no-console
+      console.debug('DEBUG  [Analytics] Analytics reset');
     }
   } catch (error) {
     console.error('[Analytics] Failed to reset analytics', error);
