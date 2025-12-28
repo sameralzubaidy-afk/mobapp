@@ -44,15 +44,15 @@ Supabase: supabase/
 -----
 My Example 1
 ## TASK TRADE-V2-001: Normalize Trade Schema & States
-
-I’m working on the # MODULE-06-TRADE-FLOW-V2.md  tasks
-Module: MODULE-05-DISCOVERY-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: Please implement ### TASK TRADE-V2-001: Normalize Trade Schema & States
+## TASK PAY-001: Database Schema (Payout Methods + Payout Ledger)
+I’m working on the MODULE-06-TRADE-FLOW-sellerpayouts ### Phase 1 (MVP) tasks
+Module: MODULE-06-TRADE-FLOW-sellerpayouts.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: Please implement## TASK PAY-001: Database Schema (Payout Methods + Payout Ledger)
 scope is 
-Refine the `trades` table and associated TypeScript types to:
-- Support V2 state machine (`pending`, `payment_processing`, `in_progress`, `completed`, `cancelled`).
-- Track SP and cash components, platform fees, and links to SP ledger entries.
-- Ensure trade rows can be joined with SP ledger (MODULE-09) and subscription state (MODULE-11) for analytics.
+
+Create tables to store:
+- Seller payout methods (Stripe/PayPal/Venmo now; bank placeholders)
+- Seller payout ledger records, linked to `trades`
 Please:
 Follow the module and task exactly, and cross-check with the verification file in MODULE-06-TRADE-FLOW-V2.md
 Show me the files you create or edit with their full paths
