@@ -106,12 +106,22 @@ export default function UserDashboardScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Dashboard</Text>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <Text style={styles.settingsIcon}>⚙️</Text>
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => navigation.navigate('PayoutSettings')}
+              title="Payout Settings"
+            >
+              <Text style={styles.headerButtonIcon}>💳</Text>
+              <Text style={styles.headerButtonText}>Payouts</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <Text style={styles.settingsIcon}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* DISCOVERY-V2-003: Category Browsing */}
@@ -410,6 +420,29 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: '#000',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F4F8',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  headerButtonIcon: {
+    fontSize: 16,
+    marginRight: 4,
+  },
+  headerButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   settingsButton: {
     padding: 8,

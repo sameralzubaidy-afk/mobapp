@@ -579,6 +579,9 @@ FILEPATHS:
 
 ---
 
+## TASK PAY-009 - make the required intergration to complete payout method validations. 
+
+## TASK PAY-010 - Update the reqs docx with these changes. 
 ---
 
 ## Acceptance Criteria (Module)
