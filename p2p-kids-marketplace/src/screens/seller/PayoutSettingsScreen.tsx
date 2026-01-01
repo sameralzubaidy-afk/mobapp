@@ -76,6 +76,8 @@ export default function PayoutSettingsScreen() {
   const [balanceDisplay, setBalanceDisplay] = useState<BalanceDisplay | null>(null);
   const [recentPayouts, setRecentPayouts] = useState<SellerPayout[]>([]);
   const [withdrawing, setWithdrawing] = useState(false);
+  const [payoutLimit, setPayoutLimit] = useState(5); // Start with 5, increase on "Load More"
+  const [loadingMore, setLoadingMore] = useState(false);
   const [eligibility, setEligibility] = useState({
     can_receive_payouts: false,
     message: '',
@@ -119,8 +121,8 @@ export default function PayoutSettingsScreen() {
       setBalance(balanceData);
       setBalanceDisplay(formatBalanceForDisplay(balanceData));
 
-      // Load recent payouts
-      const payoutsData = await getRecentPayouts(5);
+      // Load recent payouts (use current limit)
+      const payoutsData = await getRecentPayouts(payoutLimit);
       setRecentPayouts(payoutsData);
     } catch (error) {
       console.error('Failed to load payout data:', error);
@@ -133,7 +135,23 @@ export default function PayoutSettingsScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
+    setPayoutLimit(5); // Reset to initial limit on refresh
     loadPayoutMethods();
+  };
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const newLimit = payoutLimit + 5;
+      setPayoutLimit(newLimit);
+      const payoutsData = await getRecentPayouts(newLimit);
+      setRecentPayouts(payoutsData);
+    } catch (error) {
+      console.error('Failed to load more payouts:', error);
+      Alert.alert('Error', 'Failed to load more payouts. Please try again.');
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   // =============================================================================
@@ -320,6 +338,13 @@ export default function PayoutSettingsScreen() {
             {recentPayouts.map((payout) => (
               <PayoutHistoryCard key={payout.id} payout={payout} />
             ))}
+            <TouchableOpacity style={styles.loadMoreButton} onPress={handleLoadMore} disabled={loadingMore}>
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#007AFF" />
+              ) : (
+                <Text style={styles.loadMoreButtonText}>Load More Payouts</Text>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
@@ -415,6 +440,11 @@ function PayoutHistoryCard({ payout }: PayoutHistoryCardProps) {
       </View>
       {payout.payout_fee_cents > 0 && (
         <Text style={styles.payoutFee}>Fee: {formatCentsToDollars(payout.payout_fee_cents)}</Text>
+      )}
+      {payout.failure_reason && (
+        <View style={styles.failureReasonBox}>
+          <Text style={styles.failureReasonText}>⚠️ {payout.failure_reason}</Text>
+        </View>
       )}
     </View>
   );
@@ -1228,6 +1258,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#999',
   },
+  failureReasonBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#dc3545',
+  },
+  failureReasonText: {
+    fontSize: 13,
+    color: '#991B1B',
+    fontWeight: '500',
+  },
   // Withdraw Modal styles
   withdrawModalContent: {
     width: '90%',
@@ -1285,6 +1328,20 @@ const styles = StyleSheet.create({
   },
   withdrawMethodValue: {
     fontSize: 15,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  loadMoreButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loadMoreButtonText: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#007AFF',
   },

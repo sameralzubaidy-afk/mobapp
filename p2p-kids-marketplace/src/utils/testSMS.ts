@@ -7,14 +7,10 @@ export const testSMSSending = async (phoneNumber = '+15555555555') => {
     return res;
   } catch (error) {
     console.error('SMS sending test failed:', error);
-    return { success: false, error };
+    return { success: false, error: String(error) };
   }
 };
 
-// Self-invoking run if executed directly
-if (require.main === module) {
-  (async () => {
-    const result = await testSMSSending(process.env.TEST_SMS_NUMBER || '+15555555555');
-    console.log('done', result);
-  })();
-}
+// NOTE:
+// This utility is intended to be imported and called from a test or script.
+// Avoid attempting to execute it directly in the React Native runtime.

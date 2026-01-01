@@ -25,6 +25,7 @@ export type RootStackParamList = {
   TradeSuccess: { tradeId: string };
   // MODULE-06 (EXT): Seller Payout routes
   PayoutSettings: undefined;
+  SellerEarnings: undefined;
   // Admin routes
   AdminDashboard: undefined;
 };

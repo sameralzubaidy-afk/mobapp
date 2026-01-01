@@ -94,5 +94,6 @@ Notes / rationale:
 I need to do E2E test in stage , locally I could not. 
 
  ## MODULE-06-TRADE-FLOW-sellerpayouts.md
+## TASK PAY-009 - make the required intergration to complete payout method validations. 
 
 payout needs FULL end to end testing with real money , check status on app and db BEFORE GO love 

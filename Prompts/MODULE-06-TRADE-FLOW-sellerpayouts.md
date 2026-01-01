@@ -579,9 +579,8 @@ FILEPATHS:
 
 ---
 
-## TASK PAY-009 - make the required intergration to complete payout method validations. 
-
 ## TASK PAY-010 - I have to decide direct payout after completing or hold and then request payout. 
+### Test Case 2.10: Trade ID Link
 
 ## TASK PAY-011 - Update the reqs docx with these changes. 
 ---

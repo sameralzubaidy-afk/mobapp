@@ -60,7 +60,8 @@ Tell me which items in MODULE-06-VERIFICATION-V2.md are now satisfied (location 
 always include short answers first
 Note I do not use supabase locally, always must be supabase prod.
 if there is a need to run a sql in supabase before testing clearly ask me to do. 
-create and run Unit testing and E2E tests so you fix all errors before I start verifying.
+create  Unit and E2E tests 
+execute Unit and E2E tests so you fix all errors before I start verifying.
 Update the navigation file so i can verify manual
 run functional test where applicaible
 provide steps to manaul test format it as test cases create md file for it. 

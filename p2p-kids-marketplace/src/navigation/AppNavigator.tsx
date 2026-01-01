@@ -28,6 +28,7 @@ import MyListingsScreen from '@/screens/listing/MyListingsScreen';
 import TradeInitiationScreen from '@/screens/trade/TradeInitiationScreen';
 import TradeSuccessScreen from '@/screens/trade/TradeSuccessScreen';
 import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
+import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
@@ -144,6 +145,7 @@ function RootNavigator() {
             <Stack.Screen name="TradeSuccess" component={TradeSuccessScreen} />
             {/* MODULE-06 (EXT): Seller Payout screens */}
             <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} />
+            <Stack.Screen name="SellerEarnings" component={SellerEarningsScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
             {/* Add more authenticated screens as needed */}
           </>

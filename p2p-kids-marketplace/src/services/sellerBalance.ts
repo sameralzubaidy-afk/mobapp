@@ -87,6 +87,51 @@ export interface BalanceDisplay {
 // Balance Queries
 // =============================================================================
 
+async function getSellerBalanceDerivedFromPayouts(userId: string): Promise<SellerBalance> {
+  const { data, error } = await supabase
+    .from('seller_payouts')
+    .select('status, net_amount_cents, gross_amount_cents, created_at')
+    .eq('user_id', userId);
+
+  if (error) {
+    throw error;
+  }
+
+  const payouts = data || [];
+
+  const available_balance_cents = payouts
+    .filter((p) => p.status === 'completed')
+    .reduce((sum, p) => sum + (p.net_amount_cents ?? 0), 0);
+
+  const pending_balance_cents = payouts
+    .filter((p) => p.status === 'pending' || p.status === 'processing')
+    .reduce((sum, p) => sum + (p.net_amount_cents ?? 0), 0);
+
+  // Interpreting "Lifetime Earnings" as pre-payout-fee earnings (gross) for completed payouts.
+  // This matches what sellers expect to see even if fees are deducted from withdrawals.
+  const lifetime_earnings_cents = payouts
+    .filter((p) => p.status === 'completed')
+    .reduce((sum, p) => sum + (p.gross_amount_cents ?? 0), 0);
+
+  const last_payout_at = payouts
+    .map((p) => p.created_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? null;
+
+  return {
+    user_id: userId,
+    available_balance_cents,
+    pending_balance_cents,
+    lifetime_earnings_cents,
+    total_trades_completed: payouts.filter((p) => p.status === 'completed').length,
+    total_trades_pending: payouts.filter((p) => p.status === 'pending' || p.status === 'processing').length,
+    last_payout_at,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
 /**
  * Get seller balance for the authenticated user
  */
@@ -105,19 +150,32 @@ export async function getSellerBalance(): Promise<SellerBalance | null> {
   if (error) {
     // If no balance record exists yet, return default balance
     if (error.code === 'PGRST116') {
-      return {
-        user_id: user.id,
-        available_balance_cents: 0,
-        pending_balance_cents: 0,
-        lifetime_earnings_cents: 0,
-        total_trades_completed: 0,
-        total_trades_pending: 0,
-        last_payout_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      // No balance row yet (common in dev/test seeding). Derive from payouts so the
+      // "Your Earnings" summary matches what the seller sees in Recent Withdrawals.
+      return await getSellerBalanceDerivedFromPayouts(user.id);
     }
     throw error;
+  }
+
+  // If we have payouts but the balance row is still all zeros (stale/missing trigger),
+  // derive the summary from payouts to keep the UI consistent.
+  const derived = await getSellerBalanceDerivedFromPayouts(user.id);
+  const derivedHasData =
+    derived.available_balance_cents > 0 ||
+    derived.pending_balance_cents > 0 ||
+    derived.lifetime_earnings_cents > 0;
+
+  // Treat the seller_balance row as stale if it's missing pieces that are present
+  // in the payouts ledger (common when test data is inserted directly into seller_payouts).
+  const availableStale =
+    (data.available_balance_cents ?? 0) === 0 && derived.available_balance_cents > 0;
+  const pendingStale =
+    (data.pending_balance_cents ?? 0) === 0 && derived.pending_balance_cents > 0;
+  const lifetimeStale =
+    (data.lifetime_earnings_cents ?? 0) === 0 && derived.lifetime_earnings_cents > 0;
+
+  if (derivedHasData && (availableStale || pendingStale || lifetimeStale)) {
+    return derived;
   }
 
   return data;
