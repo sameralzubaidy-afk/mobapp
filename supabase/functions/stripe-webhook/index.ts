@@ -3,6 +3,8 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
 
+import { mapStripePayoutEventToUpdate } from '../_shared/payouts/webhookReconcile.ts';
+
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
 });
@@ -117,39 +119,31 @@ serve(async (req) => {
 
       // Stripe Connect payout events (PAY-007)
       case 'payout.created':
+      case 'payout.updated':
       case 'payout.paid':
       case 'payout.failed': {
         const payout = event.data.object as Stripe.Payout;
-        
+        const update = mapStripePayoutEventToUpdate(event.type, {
+          failure_message: payout.failure_message,
+        });
+
+        if (!update) break;
+
         // Find seller payout by provider reference ID
-        const { data: sellerPayout, error: payoutError } = await supabaseClient
+        const { data: sellerPayout } = await supabaseClient
           .from('seller_payouts')
-          .select('*')
+          .select('id, status')
           .eq('provider_reference_id', payout.id)
           .maybeSingle();
 
-        if (sellerPayout) {
-          const updates: any = {
-            updated_at: new Date().toISOString()
-          };
+        if (!sellerPayout) break;
 
-          if (event.type === 'payout.paid') {
-            updates.status = 'completed';
-            updates.completed_at = new Date().toISOString();
-          } else if (event.type === 'payout.failed') {
-            updates.status = 'failed';
-            updates.failure_reason = payout.failure_message || 'Payout failed';
-          } else if (event.type === 'payout.created') {
-            updates.status = 'processing';
-            updates.initiated_at = new Date().toISOString();
-          }
+        console.log(`[stripe-webhook] Updating seller payout ${sellerPayout.id} status to ${update.status}`);
+        await supabaseClient
+          .from('seller_payouts')
+          .update(update)
+          .eq('id', sellerPayout.id);
 
-          console.log(`[stripe-webhook] Updating seller payout ${sellerPayout.id} status to ${updates.status}`);
-          await supabaseClient
-            .from('seller_payouts')
-            .update(updates)
-            .eq('id', sellerPayout.id);
-        }
         break;
       }
 

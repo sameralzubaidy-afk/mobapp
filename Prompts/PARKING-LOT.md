@@ -92,3 +92,7 @@ Notes / rationale:
  edit profile > zip code not avalaible and trigger the add to wish list. 
  ## TASK AUTH-008: Forgot Password Flow
 I need to do E2E test in stage , locally I could not. 
+
+ ## MODULE-06-TRADE-FLOW-sellerpayouts.md
+
+payout needs FULL end to end testing with real money , check status on app and db BEFORE GO love 

@@ -9,7 +9,15 @@ function pass(message) {
   console.log(`[SMOKE] PASS: ${message}`);
 }
 
-const required = ['PAYPAL_CLIENT_ID', 'PAYPAL_CLIENT_SECRET', 'PAYPAL_WEBHOOK_ID'];
+const required = [
+  // PayPal
+  'PAYPAL_CLIENT_ID',
+  'PAYPAL_CLIENT_SECRET',
+  'PAYPAL_WEBHOOK_ID',
+  // Stripe (webhooks)
+  'STRIPE_SECRET_KEY',
+  'STRIPE_WEBHOOK_SECRET',
+];
 for (const key of required) {
   const value = (process.env[key] ?? '').trim();
   if (!value) {
