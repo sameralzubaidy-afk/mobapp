@@ -43,6 +43,8 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Manual checks:
   - Initiate trade -> payment succeeds -> trade status becomes `in_progress`.
   - When `STRIPE_SECRET_KEY` is missing/blank: payment fails with a clear server config error (not a Stripe runtime error).
+  - Seller Stripe Connect onboarding completes -> `seller_payout_methods.stripe_onboarding_complete=true` and (once Stripe enables payouts) `stripe_payouts_enabled=true`.
+  - PayPal/Venmo payout: Seller creates PayPal/Venmo payout method, withdraws, and payout moves `pending` -> `processing` after submission; later `completed/failed` via PayPal webhook.
 
 ### FLOW-09: Fees & Pricing Engine
 - Smoke: (manual)

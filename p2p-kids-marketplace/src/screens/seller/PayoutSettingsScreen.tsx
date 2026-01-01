@@ -18,10 +18,13 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Linking,
 } from 'react-native';
+import * as ExpoLinking from 'expo-linking';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
+import { supabase } from '../../services/supabase/client';
 import {
   listPayoutMethods,
   createPayoutMethod,
@@ -29,6 +32,7 @@ import {
   setPrimaryPayoutMethod,
   formatPayoutMethodDisplay,
   checkPayoutEligibility,
+  syncStripeConnectStatus,
 } from '../../services/payoutMethods';
 import type {
   SellerPayoutMethod,
@@ -40,6 +44,7 @@ import {
   formatBalanceForDisplay,
   requestWithdrawal,
   requestFullWithdrawal,
+  submitPayPalPayout,
   getRecentPayouts,
   formatPayoutStatus,
   formatCentsToDollars,
@@ -88,6 +93,16 @@ export default function PayoutSettingsScreen() {
   const loadPayoutMethods = async () => {
     try {
       setLoading(true);
+
+      // Best-effort: sync Stripe Connect onboarding state from Stripe -> DB
+      // so the UI and payout eligibility reflect completion immediately.
+      try {
+        await syncStripeConnectStatus();
+      } catch (e) {
+        // Don't block the screen on sync failures; user can pull-to-refresh.
+        console.warn('Stripe Connect status sync failed:', e);
+      }
+
       const response = await listPayoutMethods();
       setMethods(response.methods);
       setPrimaryMethodId(response.primary_method?.id || null);
@@ -191,10 +206,21 @@ export default function PayoutSettingsScreen() {
       const result = await requestFullWithdrawal();
       
       if (result.success) {
+        let providerSubmissionLine = '';
+        if (result.payout_id && (result.method_type === 'paypal' || result.method_type === 'venmo')) {
+          const submitRes = await submitPayPalPayout(result.payout_id);
+          if (submitRes.success) {
+            providerSubmissionLine = `\n\nSubmitted to PayPal. Status: ${submitRes.status || 'processing'}.`;
+          } else {
+            providerSubmissionLine = `\n\nPayPal submission failed: ${submitRes.error || 'Unknown error'}.`;
+          }
+        }
+
         Alert.alert(
           'Withdrawal Requested',
           `Your withdrawal of ${formatCentsToDollars(result.amount_cents || 0)} has been initiated. ` +
-          `After fees, you will receive ${formatCentsToDollars(result.net_amount_cents || 0)}.`,
+          `After fees, you will receive ${formatCentsToDollars(result.net_amount_cents || 0)}.` +
+          providerSubmissionLine,
           [{ text: 'OK', onPress: () => setShowWithdrawModal(false) }]
         );
         loadPayoutMethods(); // Refresh data
@@ -547,14 +573,135 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
     try {
       setSubmitting(true);
 
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        Alert.alert('Error', 'Your session has expired. Please log in again.');
+        setSubmitting(false);
+        return;
+      }
+
+      const token = session.access_token;
+      const userId = session.user.id;
+
       switch (selectedType) {
         case 'stripe_connect':
-          // Stripe onboarding will be handled separately via edge function
-          Alert.alert(
-            'Stripe Connect',
-            'Stripe onboarding is not yet implemented. This will redirect you to Stripe onboarding.',
-            [{ text: 'OK', onPress: onClose }]
-          );
+          // Call Edge Function to create Stripe Connect account
+          try {
+            console.log('[Stripe] Creating account for user:', userId);
+            const response = await fetch(
+              `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/create-stripe-connect-account`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  userId: userId,
+                }),
+              }
+            );
+
+            const result = await response.json();
+            console.log('[Stripe] Create account result:', result);
+
+            if (!response.ok || !result.success) {
+              Alert.alert('Error', result.error || 'Failed to create Stripe account');
+              return;
+            }
+
+            // Store the account ID and method ID
+            const methodId = result.methodId;
+
+            // Generate Stripe onboarding link
+            console.log('[Stripe] Generating onboarding link for method:', methodId);
+
+            const redirectBaseUrl = process.env.EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL;
+            if (!redirectBaseUrl) {
+              Alert.alert(
+                'Configuration Error',
+                'Missing EXPO_PUBLIC_STRIPE_REDIRECT_BASE_URL. This must be an https:// URL to a hosted redirect page.'
+              );
+              return;
+            }
+
+            // Build a deep link that works for the current runtime:
+            // - Expo Go: exp://...
+            // - Standalone builds: p2pkidsmarketplace://...
+            const deepLinkSuccess = ExpoLinking.createURL('payout-settings', {
+              queryParams: { success: 'true' },
+            });
+            const deepLinkRefresh = ExpoLinking.createURL('payout-settings', {
+              queryParams: { refresh: 'true' },
+            });
+
+            const base = redirectBaseUrl.replace(/\/$/, '');
+
+            const linkResponse = await fetch(
+              `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/create-stripe-account-link`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  userId: userId,
+                  methodId,
+                  returnUrl: `${base}/stripe-redirect?status=success&dl=${encodeURIComponent(deepLinkSuccess)}`,
+                  refreshUrl: `${base}/stripe-redirect?status=refresh&dl=${encodeURIComponent(deepLinkRefresh)}`,
+                }),
+              }
+            );
+
+            const linkResult = await linkResponse.json();
+            console.log('[Stripe] Link result:', linkResult);
+
+            if (!linkResponse.ok || !linkResult.success) {
+              Alert.alert('Error', linkResult.error || 'Failed to generate onboarding link');
+              return;
+            }
+
+            Alert.alert(
+              'Success',
+              'Stripe account created! You will now be redirected to complete your onboarding.',
+              [{ 
+                text: 'OK', 
+                onPress: async () => {
+                  // Open Stripe onboarding URL
+                  const url = linkResult.url;
+                  if (url) {
+                    try {
+                      const supported = await Linking.canOpenURL(url);
+                      if (supported) {
+                        await Linking.openURL(url);
+                        onClose(true);
+                      } else {
+                        Alert.alert(
+                          'Stripe Onboarding',
+                          'Please open this URL in your browser to complete setup:\n\n' + url,
+                          [{ text: 'OK', onPress: () => onClose(true) }]
+                        );
+                      }
+                    } catch (err) {
+                      console.error('Failed to open URL:', err);
+                      Alert.alert(
+                        'Stripe Onboarding',
+                        'Please open this URL in your browser to complete setup:\n\n' + url,
+                        [{ text: 'OK', onPress: () => onClose(true) }]
+                      );
+                    }
+                  } else {
+                    onClose(true);
+                  }
+                }
+              }]
+            );
+          } catch (error) {
+            console.error('Failed to create Stripe Connect account:', error);
+            Alert.alert('Error', String(error) || 'Failed to create Stripe account');
+          }
           break;
 
         case 'paypal':

@@ -23,6 +23,47 @@ import type {
 
 const PAYOUT_METHODS_TABLE = 'seller_payout_methods';
 
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+
+// =============================================================================
+// Stripe Connect Status Sync (Fallback)
+// =============================================================================
+
+/**
+ * Sync Stripe Connect status from Stripe -> DB.
+ * This is a fallback for when `account.updated` webhooks are delayed or misconfigured.
+ */
+export async function syncStripeConnectStatus(methodId?: string): Promise<void> {
+  if (!SUPABASE_URL) {
+    throw new Error('EXPO_PUBLIC_SUPABASE_URL not configured');
+  }
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('Not authenticated');
+  }
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-stripe-connect-status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(methodId ? { methodId } : {}),
+  });
+
+  if (!res.ok) {
+    let message = 'Failed to sync Stripe status';
+    try {
+      const body = await res.json();
+      message = body?.error || message;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+}
+
 // =============================================================================
 // Fetch Functions
 // =============================================================================
@@ -129,7 +170,7 @@ export async function createPayoutMethod(
     user_id: user.id,
     method_type: request.method_type,
     is_primary: request.set_as_primary || false,
-    is_verified: false, // Will be verified later via webhook or email confirmation
+    is_verified: false, // Will be verified later via manual DB update or email confirmation
     stripe_account_id: request.stripe_account_id || null,
     paypal_email: request.paypal_email || null,
     venmo_handle: request.venmo_handle || null,

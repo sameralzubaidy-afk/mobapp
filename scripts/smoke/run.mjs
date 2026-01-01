@@ -37,6 +37,7 @@ if (args.length === 0) {
 if (args.includes('--all')) {
   // Minimal default set; expand as automation is added.
   runScript('transactions');
+  runScript('payouts');
   process.exit(process.exitCode ?? 0);
 }
 

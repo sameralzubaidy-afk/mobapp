@@ -7,6 +7,8 @@
 
 import { supabase } from '../config/supabase';
 
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL;
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -63,6 +65,14 @@ export interface WithdrawalResponse {
   requested?: number;
   minimum_required?: number;
 }
+
+export type ProcessPayPalPayoutResponse = {
+  success: boolean;
+  payoutId?: string;
+  batchId?: string;
+  status?: string;
+  error?: string;
+};
 
 export interface BalanceDisplay {
   available: string;
@@ -327,6 +337,44 @@ export async function requestFullWithdrawal(): Promise<WithdrawalResponse> {
   }
 
   return requestWithdrawal(balance.available_balance_cents);
+}
+
+/**
+ * Submit an existing pending payout to PayPal (also used for Venmo payouts).
+ * This triggers real PayPal processing + real PayPal webhooks.
+ */
+export async function submitPayPalPayout(payoutId: string, idempotencyKey?: string): Promise<ProcessPayPalPayoutResponse> {
+  if (!SUPABASE_URL) {
+    throw new Error('EXPO_PUBLIC_SUPABASE_URL not configured');
+  }
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('Not authenticated');
+  }
+
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/process-paypal-payout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ payoutId, ...(idempotencyKey ? { idempotencyKey } : {}) }),
+  });
+
+  let payload: any = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!res.ok) {
+    const message = payload?.error || `Failed to submit payout (HTTP ${res.status})`;
+    return { success: false, error: message };
+  }
+
+  return payload as ProcessPayPalPayoutResponse;
 }
 
 // =============================================================================

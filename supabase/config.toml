@@ -1,0 +1,17 @@
+# Supabase configuration file
+# File: supabase/config.toml
+
+[functions.payout-settings-redirect]
+verify_jwt = false
+
+[functions.create-stripe-connect-account]
+verify_jwt = false
+
+[functions.create-stripe-account-link]
+verify_jwt = false
+
+[functions.trade-payment]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false

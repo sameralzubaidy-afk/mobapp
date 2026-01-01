@@ -1,7 +1,7 @@
 // File: supabase/functions/stripe-webhook/index.ts
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import Stripe from 'https://esm.sh/stripe@12.0.0';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import Stripe from 'https://esm.sh/stripe@14.11.0';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -72,6 +72,83 @@ serve(async (req) => {
               updated_at: new Date().toISOString()
             })
             .eq('id', tradeId);
+        }
+        break;
+      }
+
+      // Stripe Connect account update events (PAY-004)
+      case 'account.updated': {
+        const account = event.data.object as Stripe.Account;
+        
+        // Find payout method by Stripe account ID
+        const { data: method, error: methodError } = await supabaseClient
+          .from('seller_payout_methods')
+          .select('*')
+          .eq('stripe_account_id', account.id)
+          .eq('method_type', 'stripe_connect')
+          .maybeSingle();
+
+        if (method) {
+          const updates: any = {
+            updated_at: new Date().toISOString()
+          };
+
+          // Treat onboarding as complete once Stripe marks details submitted.
+          // Note: `charges_enabled` can remain false for some setups; payouts onboarding
+          // is still considered complete when details are submitted.
+          if (account.details_submitted) {
+            updates.stripe_onboarding_complete = true;
+          }
+
+          // Check if payouts are enabled
+          if (account.payouts_enabled) {
+            updates.stripe_payouts_enabled = true;
+            updates.is_verified = true;
+          }
+
+          console.log(`[stripe-webhook] Updating payout method ${method.id} for account ${account.id}`);
+          await supabaseClient
+            .from('seller_payout_methods')
+            .update(updates)
+            .eq('id', method.id);
+        }
+        break;
+      }
+
+      // Stripe Connect payout events (PAY-007)
+      case 'payout.created':
+      case 'payout.paid':
+      case 'payout.failed': {
+        const payout = event.data.object as Stripe.Payout;
+        
+        // Find seller payout by provider reference ID
+        const { data: sellerPayout, error: payoutError } = await supabaseClient
+          .from('seller_payouts')
+          .select('*')
+          .eq('provider_reference_id', payout.id)
+          .maybeSingle();
+
+        if (sellerPayout) {
+          const updates: any = {
+            updated_at: new Date().toISOString()
+          };
+
+          if (event.type === 'payout.paid') {
+            updates.status = 'completed';
+            updates.completed_at = new Date().toISOString();
+          } else if (event.type === 'payout.failed') {
+            updates.status = 'failed';
+            updates.failure_reason = payout.failure_message || 'Payout failed';
+          } else if (event.type === 'payout.created') {
+            updates.status = 'processing';
+            updates.initiated_at = new Date().toISOString();
+          }
+
+          console.log(`[stripe-webhook] Updating seller payout ${sellerPayout.id} status to ${updates.status}`);
+          await supabaseClient
+            .from('seller_payouts')
+            .update(updates)
+            .eq('id', sellerPayout.id);
         }
         break;
       }

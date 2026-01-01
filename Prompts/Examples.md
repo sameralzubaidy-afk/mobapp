@@ -44,7 +44,7 @@ Supabase: supabase/
 -----
 My Example 1
 ## TASK TRADE-V2-001: Normalize Trade Schema & States
-## TASK PAY-001: Database Schema (Payout Methods + Payout Ledger)
+
 I’m working on the MODULE-06-TRADE-FLOW-sellerpayouts ### Phase 1 (MVP) tasks
 Module: MODULE-06-TRADE-FLOW-sellerpayouts.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: Please implement## TASK PAY-001: Database Schema (Payout Methods + Payout Ledger)

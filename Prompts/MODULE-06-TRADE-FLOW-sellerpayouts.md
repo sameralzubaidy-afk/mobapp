@@ -581,7 +581,9 @@ FILEPATHS:
 
 ## TASK PAY-009 - make the required intergration to complete payout method validations. 
 
-## TASK PAY-010 - Update the reqs docx with these changes. 
+## TASK PAY-010 - I have to decide direct payout after completing or hold and then request payout. 
+
+## TASK PAY-011 - Update the reqs docx with these changes. 
 ---
 
 ## Acceptance Criteria (Module)
