@@ -81,11 +81,13 @@ serve(async (req) => {
       });
     }
 
-    console.log('[trade-payment] Trade found:', { 
-      id: trade.id, 
-      status: trade.status, 
+    console.log('[trade-payment] Trade found:', {
+      id: trade.id,
+      status: trade.status,
       cash_amount_cents: trade.cash_amount_cents,
-      buyer_id: trade.buyer_id 
+      buyer_transaction_fee_cents: trade.buyer_transaction_fee_cents,
+      platform_fee_cents: trade.platform_fee_cents,
+      buyer_id: trade.buyer_id,
     });
 
     if (trade.status !== 'pending') {
@@ -120,7 +122,13 @@ serve(async (req) => {
       // We don't throw here, we'll just create a customer if needed
     }
 
-    const cashAmountCents = trade.cash_amount_cents;
+    // IMPORTANT:
+    // - `trade.cash_amount_cents` = discounted item subtotal (after SP)
+    // - `trade.buyer_transaction_fee_cents` (aka platform fee) MUST still be paid via card
+    // Total amount to charge via Stripe at this stage = subtotal + fee
+    const itemSubtotalCents = Number(trade.cash_amount_cents ?? 0);
+    const buyerFeeCents = Number(trade.buyer_transaction_fee_cents ?? trade.platform_fee_cents ?? 0);
+    const cashAmountCents = itemSubtotalCents + buyerFeeCents;
 
     // 4) Create or reuse Stripe customer
     let customerId = subscription?.stripe_customer_id;

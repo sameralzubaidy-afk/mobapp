@@ -1,0 +1,25 @@
+
+> p2p-kids-marketplace@1.0.0 type-check
+> tsc --noEmit
+
+src/contexts/AuthContext.tsx(128,9): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/providers/StripeProviderWrapper.tsx(60,9): error TS2322: Type 'ReactNode' is not assignable to type 'ReactElement<unknown, string | JSXElementConstructor<any>> | ReactElement<unknown, string | JSXElementConstructor<any>>[]'.
+  Type 'undefined' is not assignable to type 'ReactElement<unknown, string | JSXElementConstructor<any>> | ReactElement<unknown, string | JSXElementConstructor<any>>[]'.
+src/screens/onboarding/ProfileCompletionScreen.tsx(118,9): error TS2322: Type 'string | null' is not assignable to type 'null'.
+  Type 'string' is not assignable to type 'null'.
+src/screens/onboarding/SubscriptionChoiceScreen.tsx(106,27): error TS2345: Argument of type '[never, never]' is not assignable to parameter of type 'never'.
+src/screens/profile/EditProfileScreen.tsx(26,49): error TS2339: Property 'profiles' does not exist on type '{}'.
+src/screens/profile/ProfileScreen.tsx(24,49): error TS2339: Property 'profiles' does not exist on type '{}'.
+src/screens/seller/SellerEarningsScreen.tsx(32,11): error TS2339: Property 'user' does not exist on type 'AuthContextType'.
+src/screens/seller/SellerEarningsScreen.tsx(51,13): error TS2322: Type '{ methodName: string; statusLabel: string; statusColor: string; id: string; user_id: string; trade_id?: string | undefined; payout_method_id?: string | undefined; currency: string; gross_amount: number; ... 15 more ...; updated_at: string; }[]' is not assignable to type 'PayoutDisplayItem[]'.
+  Type '{ methodName: string; statusLabel: string; statusColor: string; id: string; user_id: string; trade_id?: string; payout_method_id?: string; currency: string; gross_amount: number; platform_fee: number; ... 14 more ...; updated_at: string; }' is not assignable to type 'PayoutDisplayItem'.
+    Type '{ methodName: string; statusLabel: string; statusColor: string; id: string; user_id: string; trade_id?: string; payout_method_id?: string; currency: string; gross_amount: number; platform_fee: number; ... 14 more ...; updated_at: string; }' is not assignable to type 'SellerPayout'.
+      Types of property 'trade_id' are incompatible.
+        Type 'string | undefined' is not assignable to type 'string | null'.
+          Type 'undefined' is not assignable to type 'string | null'.
+src/screens/seller/SellerEarningsScreen.tsx(53,42): error TS2345: Argument of type 'import("/Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/src/types/payouts").SellerPayout' is not assignable to parameter of type 'import("/Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/src/types/payout.types").SellerPayout'.
+  Types of property 'trade_id' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string | null'.
+      Type 'undefined' is not assignable to type 'string | null'.
+src/screens/SignupScreen.tsx(114,9): error TS2353: Object literal may only specify known properties, and 'displayName' does not exist in type 'SignupInput'.

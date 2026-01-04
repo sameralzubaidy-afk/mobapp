@@ -235,7 +235,7 @@ export default function SignupScreen() {
     }
   };
 
-  function applyTestUser(user: TestUser) {
+  function applyTestUser(user: any) {
     setFormData({
       name: `${user.firstName} ${user.lastName}`,
       email: user.email,

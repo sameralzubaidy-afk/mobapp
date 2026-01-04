@@ -24,6 +24,8 @@ export interface User {
 export interface UserProfile {
   id: string;
   user_id: string;
+  email?: string;
+  display_name?: string;
   name: string;
   avatar_url?: string;
   bio?: string;
@@ -69,8 +71,8 @@ export interface UserProfile {
  */
 export interface AuthSession {
   user: UserProfile;
-  access_token: string;
-  refresh_token: string;
+  access_token?: string;
+  refresh_token?: string;
   
   // V2: Subscription context (from MODULE-11)
   subscription_status: 'free' | 'trial' | 'active' | 'grace' | 'canceled';
@@ -90,8 +92,11 @@ export interface SignupInput {
   email: string;
   password: string;
   name: string;
-  phone: string;
-  dob: string; // YYYY-MM-DD format
+  phone?: string;
+  dob?: string; // YYYY-MM-DD format
+  age?: number;
+  zipCode?: string;
+  parentalEmail?: string;
   referralCode?: string;
 }
 

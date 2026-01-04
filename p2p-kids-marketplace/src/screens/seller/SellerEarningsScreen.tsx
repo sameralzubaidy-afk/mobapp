@@ -48,12 +48,16 @@ export default function SellerEarningsScreen() {
       console.log('[DEBUG] Fetched payouts:', { count: data.length, data: data.map(p => ({ status: p.status, net_amount_cents: p.net_amount_cents })) });
       
       // Enrich payouts with display data
-      const enriched: PayoutDisplayItem[] = data.map(payout => ({
-        ...payout,
-        methodName: getPayoutMethodLabel(payout),
-        statusLabel: getPayoutStatusLabel(payout.status),
-        statusColor: getPayoutStatusColor(payout.status)
-      }));
+      const enriched: PayoutDisplayItem[] = data.map(payout => {
+        // Normalize trade_id to null when undefined so it matches SellerPayout type (string | null)
+        const normalized = ({ ...payout, trade_id: payout.trade_id ?? null } as SellerPayout);
+        return {
+          ...normalized,
+          methodName: getPayoutMethodLabel(normalized),
+          statusLabel: getPayoutStatusLabel(normalized.status),
+          statusColor: getPayoutStatusColor(normalized.status),
+        };
+      });
       
       setPayouts(enriched);
     } catch (err: any) {

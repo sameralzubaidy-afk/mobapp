@@ -45,13 +45,18 @@ export interface SellerPayoutMethod {
 export interface SellerPayout {
   id: string;
   user_id: string;
-  trade_id?: string;
+  trade_id?: string | null;
   payout_method_id?: string;
   currency: string;
   gross_amount: number;
   platform_fee: number;
   payout_fee: number;
   net_amount: number;
+  // Added cents-based fields to align with server-side types
+  gross_amount_cents?: number;
+  platform_fee_cents?: number;
+  payout_fee_cents?: number;
+  net_amount_cents?: number;
   status: PayoutStatus;
   provider?: PayoutProvider;
   provider_reference_id?: string;

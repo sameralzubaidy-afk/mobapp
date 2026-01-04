@@ -342,7 +342,7 @@ export default function BrowseItemsScreen() {
       }
 
       const filters = {
-        node_id: showAllNodes ? undefined : nodeId,
+        node_id: showAllNodes ? undefined : (nodeId ?? undefined),
         category_id: selectedCategory || undefined,
         accepts_swap_points: spEligibleOnly, // MODULE-04 LISTING-V2-004: SP filter
       };
@@ -487,7 +487,7 @@ export default function BrowseItemsScreen() {
           {/* Node Name (if cross-node) */}
           {isOtherNode && (
             <Text style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>
-              📍 {item.seller_node_name || 'Unknown Node'}
+              📍 {item.seller?.node?.name || 'Unknown Node'}
             </Text>
           )}
 

@@ -110,7 +110,6 @@ export default function UserDashboardScreen() {
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => navigation.navigate('PayoutSettings')}
-              title="Payout Settings"
             >
               <Text style={styles.headerButtonIcon}>💳</Text>
               <Text style={styles.headerButtonText}>Payouts</Text>
@@ -151,8 +150,8 @@ export default function UserDashboardScreen() {
             </View>
 
             <View style={styles.profileInfo}>
-              <Text style={styles.userName}>{session.user.name || 'User'}</Text>
-              <Text style={styles.userEmail}>{session.user.email}</Text>
+              <Text style={styles.userName}>{session.user.display_name || session.user.email || 'User'}</Text>
+              <Text style={styles.userEmail}>{session.user.email || ''}</Text>
             </View>
           </View>
         </View>
@@ -424,7 +423,7 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    // gap is not supported in React Native StyleSheet
   },
   headerButton: {
     flexDirection: 'row',
@@ -721,6 +720,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   unlockButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // RecentTradeCard styles
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  info: {
+    flex: 1,
+    marginRight: 12,
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  buttonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',

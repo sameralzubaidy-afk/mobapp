@@ -21,8 +21,8 @@ export async function signup(input: {
   email: string;
   password: string;
   name: string;
-  phone: string;
-  dob: string;
+  phone?: string | null;
+  dob?: string | null;
   referralCode?: string;
 }): Promise<{ user: any; error: any }> {
   // This function already exists in the old service
@@ -74,8 +74,8 @@ export async function signupWithTrial(input: {
   email: string;
   password: string;
   name: string;
-  phone: string;
-  dob: string;
+  phone?: string | null;
+  dob?: string | null;
   referralCode?: string;
 }): Promise<{ user: any; error: any }> {
   const { email, password, name, phone, dob, referralCode } = input;

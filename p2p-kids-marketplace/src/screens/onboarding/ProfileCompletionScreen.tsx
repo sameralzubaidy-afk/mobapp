@@ -113,7 +113,7 @@ export default function ProfileCompletionScreen() {
 
     try {
       // Upload avatar if selected
-      let avatarUrl = null;
+      let avatarUrl: string | null = null;
       if (avatarUri) {
         avatarUrl = await uploadAvatar();
       }

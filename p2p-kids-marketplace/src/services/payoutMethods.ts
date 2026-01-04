@@ -124,7 +124,7 @@ export async function checkPayoutEligibility(): Promise<PayoutEligibilityCheck> 
 
   const canReceivePayouts = !!(primary_method && primary_method.is_verified);
 
-  let blockingReason = null;
+  let blockingReason: string | null = null;
   if (!has_verified_method) {
     blockingReason = 'No verified payout method configured';
   } else if (!primary_method) {

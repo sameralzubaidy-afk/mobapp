@@ -20,6 +20,7 @@ import { useUserStore } from '../stores/userStore';
 export interface AuthContextType {
   // Session state
   session: AuthSession | null;
+  user?: AuthSession['user'] | null;
   isLoading: boolean;
   isSignout: boolean;
   error: AuthError | null;
@@ -38,6 +39,7 @@ export interface AuthContextType {
  */
 export const AuthContext = createContext<AuthContextType>({
   session: null,
+  user: null,
   isLoading: true,
   isSignout: false,
   error: null,
@@ -125,8 +127,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (newSession?.user) {
       setUser({
         id: newSession.user.id,
-        email: newSession.user.email,
-        name: newSession.user.name,
+        email: newSession.user.email || '',
+        name: newSession.user.name || '',
         avatar_url: newSession.user.avatar_url || null,
         node_id: newSession.user.node_id || null,
         node: newSession.user.node || null,
@@ -595,6 +597,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const value: AuthContextType = {
     session,
+    user: session?.user || null,
     isLoading,
     isSignout,
     error,

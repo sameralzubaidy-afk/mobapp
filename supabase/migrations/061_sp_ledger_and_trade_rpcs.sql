@@ -268,6 +268,11 @@ BEGIN
     RAISE EXCEPTION 'SP wallet not found';
   END IF;
 
+  -- Validate p_points is positive to satisfy sp_batches constraints
+  IF p_points IS NULL OR p_points <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid SP points amount');
+  END IF;
+
   -- 2. Update wallet balance
   UPDATE sp_wallets
   SET 
@@ -333,6 +338,11 @@ $$;
 -- 4. ADD FOREIGN KEY CONSTRAINTS TO TRADES TABLE
 -- =============================================================================
 
+-- Drop constraints if they already exist (idempotent)
+ALTER TABLE trades DROP CONSTRAINT IF EXISTS fk_trades_sp_debit_ledger_entry_id;
+ALTER TABLE trades DROP CONSTRAINT IF EXISTS fk_trades_sp_credit_ledger_entry_id;
+
+-- Add constraints
 ALTER TABLE trades
   ADD CONSTRAINT fk_trades_sp_debit_ledger_entry_id 
   FOREIGN KEY (sp_debit_ledger_entry_id) REFERENCES sp_ledger(id) ON DELETE SET NULL;

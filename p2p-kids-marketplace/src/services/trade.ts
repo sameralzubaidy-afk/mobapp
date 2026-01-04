@@ -134,7 +134,10 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     const isSubscriber = subscriptionSummary.is_subscriber;
     const transactionFeeCents = isSubscriber ? 99 : 299;
 
-    const cashAmountCents = discountedSubtotalCents + transactionFeeCents;
+    // CRITICAL: cash_amount_cents is ONLY the discounted item price (without fee)
+    // The fee is tracked separately in buyer_transaction_fee_cents
+    // Total buyer pays = cash_amount_cents + buyer_transaction_fee_cents
+    const cashAmountCents = discountedSubtotalCents;
 
     // 7. Fetch seller profile to get node_id and then create trade row
     const { data: sellerProfile, error: sellerProfileError } = await supabase
@@ -245,7 +248,7 @@ export async function processTradePayment(
       
       // Extract detailed error from the response body
       let errorMessage = error.message || 'Unknown error';
-      let serverResponse = null;
+      let serverResponse: any = null;
       
       try {
         // Try to get the response body from the context
@@ -257,7 +260,7 @@ export async function processTradePayment(
           
           try {
             serverResponse = JSON.parse(responseText);
-            if (serverResponse.error) {
+            if (serverResponse && serverResponse.error) {
               errorMessage = serverResponse.error;
             }
           } catch (parseErr) {

@@ -132,6 +132,74 @@ async function getSellerBalanceDerivedFromPayouts(userId: string): Promise<Selle
   };
 }
 
+async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Promise<SellerBalance> {
+  const [{ data: trades, error: tradesError }, { data: payouts, error: payoutsError }] = await Promise.all([
+    supabase
+      .from('trades')
+      .select('cash_amount_cents')
+      .eq('seller_id', userId)
+      .eq('status', 'completed'),
+    supabase
+      .from('seller_payouts')
+      .select('status, gross_amount_cents, net_amount_cents, created_at')
+      .eq('user_id', userId),
+  ]);
+
+  if (tradesError) {
+    throw tradesError;
+  }
+  if (payoutsError) {
+    throw payoutsError;
+  }
+
+  const completedTrades = trades || [];
+  const allPayouts = payouts || [];
+
+  const lifetime_earnings_cents = completedTrades.reduce(
+    (sum, t) => sum + (t.cash_amount_cents ?? 0),
+    0
+  );
+
+  const pendingPayouts = allPayouts.filter((p) => p.status === 'pending' || p.status === 'processing');
+  const pending_reserved_gross_cents = pendingPayouts.reduce(
+    (sum, p) => sum + (p.gross_amount_cents ?? 0),
+    0
+  );
+
+  // UI convention: show the net amount the seller will receive; show fee separately in the list.
+  const pending_balance_cents = pendingPayouts.reduce(
+    (sum, p) => sum + (p.net_amount_cents ?? 0),
+    0
+  );
+
+  const withdrawn_gross_cents = allPayouts
+    .filter((p) => p.status === 'completed')
+    .reduce((sum, p) => sum + (p.gross_amount_cents ?? 0), 0);
+
+  const available_balance_cents = Math.max(
+    lifetime_earnings_cents - pending_reserved_gross_cents - withdrawn_gross_cents,
+    0
+  );
+
+  const last_payout_at = allPayouts
+    .map((p) => p.created_at)
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? null;
+
+  return {
+    user_id: userId,
+    available_balance_cents,
+    pending_balance_cents,
+    lifetime_earnings_cents,
+    total_trades_completed: completedTrades.length,
+    total_trades_pending: allPayouts.filter((p) => p.status === 'pending' || p.status === 'processing').length,
+    last_payout_at,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
 /**
  * Get seller balance for the authenticated user
  */
@@ -150,31 +218,21 @@ export async function getSellerBalance(): Promise<SellerBalance | null> {
   if (error) {
     // If no balance record exists yet, return default balance
     if (error.code === 'PGRST116') {
-      // No balance row yet (common in dev/test seeding). Derive from payouts so the
-      // "Your Earnings" summary matches what the seller sees in Recent Withdrawals.
-      return await getSellerBalanceDerivedFromPayouts(user.id);
+      // No balance row yet (common in dev/test). In manual-withdrawal mode there may be
+      // no payouts at all, so compute from completed trades + payouts.
+      return await getSellerBalanceDerivedFromTradesAndPayouts(user.id);
     }
     throw error;
   }
 
-  // If we have payouts but the balance row is still all zeros (stale/missing trigger),
-  // derive the summary from payouts to keep the UI consistent.
-  const derived = await getSellerBalanceDerivedFromPayouts(user.id);
-  const derivedHasData =
-    derived.available_balance_cents > 0 ||
-    derived.pending_balance_cents > 0 ||
-    derived.lifetime_earnings_cents > 0;
+  // If the seller_balance row looks stale (common when triggers didn't run), derive
+  // from completed trades + payouts, which reflects the real withdrawable amount.
+  const derived = await getSellerBalanceDerivedFromTradesAndPayouts(user.id);
+  const staleAvailable = (data.available_balance_cents ?? 0) === 0 && derived.available_balance_cents > 0;
+  const stalePending = (data.pending_balance_cents ?? 0) === 0 && derived.pending_balance_cents > 0;
+  const staleLifetime = (data.lifetime_earnings_cents ?? 0) === 0 && derived.lifetime_earnings_cents > 0;
 
-  // Treat the seller_balance row as stale if it's missing pieces that are present
-  // in the payouts ledger (common when test data is inserted directly into seller_payouts).
-  const availableStale =
-    (data.available_balance_cents ?? 0) === 0 && derived.available_balance_cents > 0;
-  const pendingStale =
-    (data.pending_balance_cents ?? 0) === 0 && derived.pending_balance_cents > 0;
-  const lifetimeStale =
-    (data.lifetime_earnings_cents ?? 0) === 0 && derived.lifetime_earnings_cents > 0;
-
-  if (derivedHasData && (availableStale || pendingStale || lifetimeStale)) {
+  if (staleAvailable || stalePending || staleLifetime) {
     return derived;
   }
 

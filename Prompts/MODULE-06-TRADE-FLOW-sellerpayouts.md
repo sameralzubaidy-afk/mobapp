@@ -479,43 +479,114 @@ ACCEPTANCE:
 
 ---
 
-## TASK PAY-006: Payout Router + Trade Completion Trigger
+## TASK PAY-006: Payout Router + Trade Completion Trigger (with Admin Config)
 
 **Duration:** 3 hours  
 **Priority:** Critical
 
 ### Description
 
-On trade completion (manual or auto-complete), create a payout record and dispatch to provider.
+On trade completion (manual or auto-complete), create a payout record and determine payout behavior based on **admin configuration**:
+- **If auto-payout enabled**: dispatch to provider immediately
+- **If auto-payout disabled**: create payout in `pending` state; seller must manually request withdrawal
+
+### Admin Configuration
+
+A new admin config flag must be added (or extended in existing admin_config table):
+- `enable_automatic_seller_payout` (BOOLEAN, DEFAULT = false)
+- Toggleable via Admin Panel
+- Applied globally to all sellers (or per-node in future)
 
 ### AI Prompt for Cursor
 
 ```ts
 /*
-TASK: Payout router + trade completion integration
+TASK: Payout router + trade completion integration with admin toggle
 
 REQUIREMENTS:
-1. When trade status transitions to completed:
+1. Check admin config: `enable_automatic_seller_payout` (fetch from admin_config RPC or table)
+
+2. When trade status transitions to completed:
    - Create payout record if not exists (idempotency_key = `trade:<tradeId>:seller:<sellerId>`)
    - Determine primary payout method
-   - If missing/unverified: set payout status requires_action, notify seller
-   - Else route:
-     - stripe_connect: record provider=stripe and rely on connect transfer flow OR mark completed if using destination charges
-     - paypal/venmo: enqueue call to process-paypal-payout
-2. Update payout amounts:
+   
+   IF auto_payout_enabled = TRUE:
+     - If missing/unverified payout method: set payout status requires_action, notify seller
+     - Else route automatically:
+       - stripe_connect: record provider=stripe and rely on connect transfer flow OR mark completed if using destination charges
+       - paypal/venmo: enqueue call to process-paypal-payout
+       - Set payout status to processing
+   
+   IF auto_payout_enabled = FALSE:
+     - Always create payout in pending status (regardless of method verification)
+     - Notify seller: "You have $X.XX available for withdrawal"
+     - Seller must manually request withdrawal via EarningsScreen
+     - Set payout status to pending (awaiting seller action)
+
+3. Update payout amounts:
    - gross_amount = seller cash proceeds basis (trade.cash_amount minus platform fee model)
    - platform_fee = 0 for platform transaction fee policy OR trade fee field if it exists
-   - payout_fee = seller-paid provider fee
+   - payout_fee = seller-paid provider fee (calculated even if pending; updated on actual payout)
    - net_amount = gross - platform_fee - payout_fee
 
+4. Respect existing implementation:
+   - Use existing payout_fee calculation helpers (PAY-002)
+   - Reuse existing provider routing logic (stripe vs paypal/venmo)
+   - Link to existing process-paypal-payout function
+   - No new database tables required (use existing seller_payouts)
+
 FILEPATHS:
-- src/services/payouts.ts
-- supabase/functions/trigger-seller-payout/index.ts (optional)
+- src/services/payouts.ts (add getAdminPayoutConfig() call; update routeSellerPayout logic)
+- supabase/functions/trigger-seller-payout/index.ts (optional; or inline in trade completion trigger)
+
+ADMIN CONFIG UPDATE:
+- Extend admin_config table to include enable_automatic_seller_payout BOOLEAN
+- OR add to existing config retrieval RPC if already implemented
 
 NOTE:
 - This module assumes platform transaction fee is $0; ensure the calculation aligns with current trade schema.
+- When auto_payout is FALSE, seller must explicitly call request-seller-payout endpoint (existing flow)
 */
 ```
+
+### Flow Diagrams
+
+**WITH Auto-Payout Enabled (enable_automatic_seller_payout = true):**
+```
+Trade completed
+  ↓
+Check admin config → auto_payout_enabled = TRUE
+  ↓
+Create payout record
+  ↓
+Seller has verified payout method?
+  ├─ YES → Route to provider (stripe/paypal) + set status processing
+  └─ NO  → Set status requires_action + notify seller
+```
+
+**WITHOUT Auto-Payout (enable_automatic_seller_payout = false):**
+```
+Trade completed
+  ↓
+Check admin config → auto_payout_enabled = FALSE
+  ↓
+Create payout record with status PENDING
+  ↓
+Notify seller: "Available to Withdraw: $X.XX"
+  ↓
+Seller taps "Request Withdrawal" on EarningsScreen
+  ↓
+Call existing process-seller-withdrawal endpoint
+  ↓
+Route to provider + set status processing
+```
+
+### Implementation Notes
+
+- **Config fetch**: Use existing admin config RPC (e.g., `get_admin_config()`) if available; otherwise create a simple query to admin_config table
+- **No new endpoints**: Reuse existing withdrawal request flow when auto-payout is disabled
+- **Backwards compatible**: If config does not exist, default to `false` (manual withdrawal) to match current implementation
+- **Webhook reconciliation**: Webhooks (PAY-007) handle status updates regardless of auto vs manual payout
 
 ---
 
@@ -579,8 +650,8 @@ FILEPATHS:
 
 ---
 
-## TASK PAY-010 - I have to decide direct payout after completing or hold and then request payout. 
 ### Test Case 2.10: Trade ID Link
+
 
 ## TASK PAY-011 - Update the reqs docx with these changes. 
 ---

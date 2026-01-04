@@ -98,7 +98,7 @@ export default function TradeInitiationScreen() {
 
   // Business Rules
   const isSubscriber = subscription.is_subscriber;
-  const buyerFeeCents = isSubscriber ? 99 : 299;
+  const platformFeeCents = isSubscriber ? 99 : 299; // Platform fee (always charged via card at checkout)
   const itemPriceCents = Math.round(item.price * 100);
   
   // V2: 1 SP = $1.00 (100 cents)
@@ -113,7 +113,8 @@ export default function TradeInitiationScreen() {
   const canUseSp = isSubscriber && item.accepts_swap_points;
 
   const spDiscountCents = spAmount * spToCashRate;
-  const cashAmountCents = itemPriceCents - spDiscountCents + buyerFeeCents;
+  // Stripe charge: item price (after SP discount) + platform fee - BOTH must be paid
+  const cashAmountCents = (itemPriceCents - spDiscountCents) + platformFeeCents;
   const cashAmount = cashAmountCents / 100;
 
   const handleInitiateTrade = async () => {
@@ -144,8 +145,10 @@ export default function TradeInitiationScreen() {
         try {
           const { paymentMethod, error: pmError } = await createPaymentMethod({
             paymentMethodType: 'Card',
-            billingDetails: {
-              email: user?.email,
+            paymentMethodData: {
+              billingDetails: {
+                email: user?.email,
+              },
             },
           });
 
@@ -341,11 +344,11 @@ export default function TradeInitiationScreen() {
                 {isSubscriber ? 'Kids Club+ Rate' : 'Standard Rate'}
               </Text>
             </View>
-            <Text style={styles.breakdownValue}>${(buyerFeeCents / 100).toFixed(2)}</Text>
+            <Text style={styles.breakdownValue}>${(platformFeeCents / 100).toFixed(2)}</Text>
           </View>
 
           <View style={[styles.breakdownRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total Cash Due</Text>
+            <Text style={styles.totalLabel}>Total Cash Due (Item + Fee)</Text>
             <Text style={styles.totalValue}>${cashAmount.toFixed(2)}</Text>
           </View>
         </View>
@@ -356,7 +359,7 @@ export default function TradeInitiationScreen() {
             <Text style={styles.sectionTitle}>Payment Method</Text>
             <CardField
               postalCodeEnabled={true}
-              placeholder={{
+              placeholders={{
                 number: 'Card Number',
               }}
               cardStyle={{

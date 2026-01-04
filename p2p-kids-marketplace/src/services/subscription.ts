@@ -69,6 +69,7 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
       console.log('[subscription] ℹ️ No subscription found for user:', userId);
       return {
         status: 'none',
+        is_subscriber: false,
         can_earn_sp: false,
         can_spend_sp: false,
         subscription_tier_id: null,

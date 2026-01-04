@@ -111,7 +111,7 @@ export const SignupScreen: React.FC = () => {
       const signupData: SignupInput = {
         email: email.trim(),
         password,
-        displayName: displayName.trim(),
+        name: displayName.trim(),
         age: ageNum,
         zipCode: zipCode.trim(),
         parentalEmail: requiresParentalConsent

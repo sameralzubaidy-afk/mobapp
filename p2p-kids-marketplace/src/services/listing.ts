@@ -381,7 +381,7 @@ export async function getListingById(listing_id: string): Promise<Listing | null
     if (item.seller_id) {
       try {
         // Try fetching with regular client first (respects RLS for privacy)
-        const { data: sellerData, error: sellerError } = await supabase
+        let { data: sellerData, error: sellerError } = await supabase
           .from('profiles')
           .select('id, name, avatar_url')
           .eq('user_id', item.seller_id)

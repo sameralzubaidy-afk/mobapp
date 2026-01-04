@@ -139,6 +139,14 @@ export default function PayoutSettingsScreen() {
     loadPayoutMethods();
   };
 
+  const handleBackPress = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('Home' as any);
+    }
+  };
+
   const handleLoadMore = async () => {
     setLoadingMore(true);
     try {
@@ -212,7 +220,20 @@ export default function PayoutSettingsScreen() {
       return;
     }
     if (!primaryMethodId) {
-      Alert.alert('Action Required', 'Please add and verify a payout method first');
+      Alert.alert(
+        'Payment Method Required',
+        'To withdraw your earnings, you need to add and verify a payment method. Please add a payment method first.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Add Payment Method',
+            onPress: () => setShowAddMethodModal(true),
+          },
+        ]
+      );
       return;
     }
     setShowWithdrawModal(true);
@@ -274,7 +295,7 @@ export default function PayoutSettingsScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Payout Settings</Text>
@@ -317,7 +338,6 @@ export default function PayoutSettingsScreen() {
               <TouchableOpacity 
                 style={styles.withdrawButton} 
                 onPress={handleWithdrawClick}
-                disabled={!primaryMethodId}
               >
                 <Text style={styles.withdrawButtonText}>💳 Withdraw Now</Text>
               </TouchableOpacity>
@@ -395,6 +415,7 @@ export default function PayoutSettingsScreen() {
         </View>
       </ScrollView>
 
+      {/* Modals rendered outside ScrollView for proper overlay behavior */}
       {/* Add Method Modal */}
       {showAddMethodModal && (
         <AddPayoutMethodModal onClose={handleCloseAddMethod} />

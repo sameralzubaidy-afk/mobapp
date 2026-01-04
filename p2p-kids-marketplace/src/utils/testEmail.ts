@@ -131,7 +131,7 @@ export const runAllEmailTests = async (testEmail: string = 'test@example.com') =
     { name: 'Subscription Status Email', fn: () => testSubscriptionStatusEmail(testEmail) },
   ];
 
-  const results = [];
+  const results: Array<{ name: string; result: any }> = [];
 
   for (const test of tests) {
     console.log(`\n--- ${test.name} ---`);

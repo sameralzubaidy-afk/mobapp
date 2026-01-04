@@ -124,7 +124,8 @@ BEGIN
     );
   END IF;
   
-  -- 7. Create payout record
+  -- 7. Create payout record with 'processing' status (no admin approval needed)
+  -- Manual withdrawal requests are immediately dispatched to payment provider
   INSERT INTO seller_payouts (
     user_id,
     trade_id,
@@ -149,7 +150,7 @@ BEGIN
     0, -- Platform transaction fee is $0 per fee policy
     v_payout_fee_cents,
     v_net_amount_cents,
-    'pending',
+    'processing', -- Auto-dispatch to payment provider (no admin approval needed)
     CASE v_primary_method.method_type
       WHEN 'stripe_connect' THEN 'stripe'
       WHEN 'paypal' THEN 'paypal'
@@ -158,7 +159,7 @@ BEGIN
       ELSE NULL
     END,
     'manual_withdrawal:' || p_user_id::TEXT || ':' || EXTRACT(EPOCH FROM NOW())::TEXT,
-    NOW(),
+    NOW(), -- initiated_at set to NOW() (withdrawal started immediately)
     NOW(),
     NOW()
   ) RETURNING id INTO v_payout_id;
@@ -179,8 +180,8 @@ BEGIN
     'payout_fee_cents', v_payout_fee_cents,
     'net_amount_cents', v_net_amount_cents,
     'method_type', v_primary_method.method_type,
-    'status', 'pending',
-    'message', 'Payout request created successfully'
+    'status', 'processing',
+    'message', 'Withdrawal request submitted and dispatched to payment provider'
   );
 END;
 $$;

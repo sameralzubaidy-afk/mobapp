@@ -70,7 +70,7 @@ export const setupUserProfile = async (
     const nodeAssignment = await findNearestNode(profileData.zip_code);
     
     let needsWaitlist = false;
-    let assignedNodeId = null;
+    let assignedNodeId: string | null = null;
     let matchType: 'zip' | 'nearest' | undefined = undefined;
 
     if (!nodeAssignment) {

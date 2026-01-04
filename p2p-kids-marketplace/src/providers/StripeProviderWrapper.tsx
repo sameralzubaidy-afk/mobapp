@@ -25,10 +25,10 @@ export default function StripeProviderWrapper({
   publishableKey,
   merchantIdentifier,
 }: {
-  children: React.ReactNode;
+  children: React.ReactElement | React.ReactElement[];
   publishableKey: string;
   merchantIdentifier?: string;
-}) {
+}): React.ReactElement | React.ReactElement[] | null {
   // Validate publishable key
   if (!publishableKey || !publishableKey.startsWith('pk_')) {
     if (__DEV__) {
@@ -65,6 +65,6 @@ export default function StripeProviderWrapper({
       console.error('[Stripe] Failed to initialize StripeProvider:', error);
     }
     // Fallback: render children without Stripe context
-    return <>{children}</>;
+    return <React.Fragment>{children}</React.Fragment>;
   }
 }

@@ -103,7 +103,7 @@ export default function SubscriptionChoiceScreen() {
 
       // Navigate to FeatureHighlights to complete onboarding
       // The session will be automatically established after profile_completed is true
-      navigation.navigate('FeatureHighlights' as never, { userId } as never);
+      (navigation as any).navigate('FeatureHighlights', { userId });
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to complete setup');
       console.error('Choose Free error:', error);

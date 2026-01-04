@@ -146,7 +146,7 @@ export default function BrowseItemsScreen() {
 
     // Track radius adjustment event (NODE-007)
     trackEvent('radius_adjusted', {
-      user_id: user.id,
+      user_id: user?.id,
       new_radius: newRadius,
       previous_radius: radiusMiles,
     });
@@ -155,10 +155,10 @@ export default function BrowseItemsScreen() {
     if (user?.id) {
       try {
         await saveUserPreferredRadius(user.id, newRadius);
-        trackEvent('radius_adjusted', {
-          user_id: user.id,
-          new_radius: newRadius,
-        });
+            trackEvent('radius_adjusted', {
+              user_id: user?.id,
+              new_radius: newRadius,
+            });
       } catch (error) {
         console.error('❌ Save preferred radius error:', error);
       }

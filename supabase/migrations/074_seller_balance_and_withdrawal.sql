@@ -55,31 +55,17 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-  v_item RECORD;
-  v_item_price_cents INTEGER;
   v_seller_proceeds_cents INTEGER;
-  v_platform_fee_cents INTEGER;
 BEGIN
+  -- Ensure stable name resolution under SECURITY DEFINER
+  PERFORM set_config('search_path', 'public', true);
+
   -- Only process when trade moves to 'completed' status
   IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status <> 'completed') THEN
-    
-    -- Get item price from items table
-    SELECT * INTO v_item FROM items WHERE id = NEW.listing_id;
-    IF NOT FOUND THEN
-      -- If item not found, skip balance update (item may be deleted)
-      RETURN NEW;
-    END IF;
-    
-    v_item_price_cents := (v_item.price * 100)::INTEGER;
-    
-    -- Calculate seller proceeds
-    -- CRITICAL: Seller only receives the CASH portion paid by buyer
-    -- SP amount stored in trades table is in POINTS (not cents)
-    -- Conversion: 1 SP point = $1.00 = 100 cents
-    -- Example: Item $100, buyer pays $50 cash + 50 SP points → seller gets only $50
-    -- Calculation: 10000 cents (item price) - (50 points * 100) = 5000 cents
-    v_seller_proceeds_cents := v_item_price_cents - (COALESCE(NEW.sp_amount, 0) * 100);
-    v_platform_fee_cents := COALESCE(NEW.buyer_transaction_fee_cents, 0);
+
+    -- CRITICAL: Seller proceeds should come from the CASH portion only.
+    -- Prefer trades.cash_amount_cents because it remains correct even if the item is later deleted.
+    v_seller_proceeds_cents := COALESCE(NEW.cash_amount_cents, 0);
     
     -- Seller receives only the cash value as available balance for withdrawal
     -- (SP points stay in buyer's wallet, are not transferred to seller's balance)
@@ -106,9 +92,89 @@ BEGIN
       total_trades_completed = seller_balance.total_trades_completed + 1,
       updated_at = NOW();
     
+    -- Log successful balance update
+    RAISE DEBUG 'Updated seller balance for user % with amount %', NEW.seller_id, v_seller_proceeds_cents;
+    
   END IF;
   
   RETURN NEW;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- STEP 1.3b: Helper RPC to recompute seller_balance from source-of-truth tables
+-- -----------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION recompute_seller_balance(p_user_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_total_earnings_cents INTEGER;
+  v_pending_payouts_cents INTEGER;
+  v_completed_payouts_cents INTEGER;
+  v_available_cents INTEGER;
+  v_completed_trades_count INTEGER;
+BEGIN
+  PERFORM set_config('search_path', 'public', true);
+
+  -- Earnings: sum of cash actually paid on completed trades
+  SELECT COALESCE(SUM(COALESCE(t.cash_amount_cents, 0)), 0), COUNT(*)
+    INTO v_total_earnings_cents, v_completed_trades_count
+  FROM trades t
+  WHERE t.seller_id = p_user_id
+    AND t.status = 'completed';
+
+  -- Reserved: payouts in flight
+  SELECT COALESCE(SUM(p.gross_amount_cents), 0)
+    INTO v_pending_payouts_cents
+  FROM seller_payouts p
+  WHERE p.user_id = p_user_id
+    AND p.status IN ('pending', 'processing');
+
+  -- Withdrawn: payouts completed
+  SELECT COALESCE(SUM(p.gross_amount_cents), 0)
+    INTO v_completed_payouts_cents
+  FROM seller_payouts p
+  WHERE p.user_id = p_user_id
+    AND p.status = 'completed';
+
+  v_available_cents := GREATEST(v_total_earnings_cents - (v_pending_payouts_cents + v_completed_payouts_cents), 0);
+
+  INSERT INTO seller_balance (
+    user_id,
+    available_balance_cents,
+    pending_balance_cents,
+    lifetime_earnings_cents,
+    total_trades_completed,
+    created_at,
+    updated_at
+  ) VALUES (
+    p_user_id,
+    v_available_cents,
+    v_pending_payouts_cents,
+    v_total_earnings_cents,
+    v_completed_trades_count,
+    NOW(),
+    NOW()
+  )
+  ON CONFLICT (user_id) DO UPDATE SET
+    available_balance_cents = EXCLUDED.available_balance_cents,
+    pending_balance_cents = EXCLUDED.pending_balance_cents,
+    lifetime_earnings_cents = EXCLUDED.lifetime_earnings_cents,
+    total_trades_completed = EXCLUDED.total_trades_completed,
+    updated_at = NOW();
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'user_id', p_user_id,
+    'available_balance_cents', v_available_cents,
+    'pending_balance_cents', v_pending_payouts_cents,
+    'completed_payouts_cents', v_completed_payouts_cents,
+    'lifetime_earnings_cents', v_total_earnings_cents,
+    'total_trades_completed', v_completed_trades_count
+  );
 END;
 $$;
 
@@ -234,7 +300,7 @@ BEGIN
     0, -- Platform transaction fee is $0 per fee policy
     v_payout_fee_cents,
     v_net_amount_cents,
-    'pending',
+    'processing',
     CASE v_primary_method.method_type
       WHEN 'stripe_connect' THEN 'stripe'
       WHEN 'paypal' THEN 'paypal'
@@ -264,7 +330,7 @@ BEGIN
     'payout_fee_cents', v_payout_fee_cents,
     'net_amount_cents', v_net_amount_cents,
     'method_type', v_primary_method.method_type,
-    'status', 'pending',
+    'status', 'processing',
     'message', 'Payout request created successfully'
   );
 END;
@@ -287,15 +353,25 @@ ALTER TABLE seller_balance ENABLE ROW LEVEL SECURITY;
 -- Drop existing policies if re-running
 DROP POLICY IF EXISTS "Users can view own balance" ON seller_balance;
 DROP POLICY IF EXISTS "System can manage balance" ON seller_balance;
+DROP POLICY IF EXISTS "System can insert balance" ON seller_balance;
+DROP POLICY IF EXISTS "System can update balance" ON seller_balance;
 DROP POLICY IF EXISTS "Admins can view all balances" ON seller_balance;
 
--- Create policies
+-- Policy 1: Users can read their own balance
 CREATE POLICY "Users can view own balance" ON seller_balance
-  FOR SELECT USING (auth.uid() = user_id);
+  FOR SELECT 
+  USING (auth.uid() = user_id);
 
--- System can insert/update (via triggers and RPC functions)
-CREATE POLICY "System can manage balance" ON seller_balance
-  FOR ALL USING (true);
+-- Policy 2: System (triggers, RPC functions with SECURITY DEFINER) can insert
+CREATE POLICY "System can insert balance" ON seller_balance
+  FOR INSERT
+  WITH CHECK (true);
+
+-- Policy 3: System (triggers, RPC functions with SECURITY DEFINER) can update
+CREATE POLICY "System can update balance" ON seller_balance
+  FOR UPDATE
+  USING (true)
+  WITH CHECK (true);
 
 -- Admin access (future enhancement - requires profiles.role column)
 -- TODO: Add admin policy once profiles.role column is implemented
