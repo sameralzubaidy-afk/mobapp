@@ -20,6 +20,7 @@ export type RootStackParamList = {
   SubscriptionChoice: undefined;
   // Trade routes
   TradeInitiation: { itemId: string };
+  TradeTimeline: { tradeId: string };
   TradeDetail: { tradeId: string };
   TradeList: undefined;
   TradeSuccess: { tradeId: string };

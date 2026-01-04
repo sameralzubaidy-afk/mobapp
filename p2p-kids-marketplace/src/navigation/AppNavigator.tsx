@@ -27,6 +27,7 @@ import EditListingScreen from '@/screens/listing/EditListingScreen';
 import MyListingsScreen from '@/screens/listing/MyListingsScreen';
 import TradeInitiationScreen from '@/screens/trade/TradeInitiationScreen';
 import TradeSuccessScreen from '@/screens/trade/TradeSuccessScreen';
+import TradeTimelineScreen from '@/screens/trade/TradeTimelineScreen';
 import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
 import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
@@ -142,6 +143,7 @@ function RootNavigator() {
             <Stack.Screen name="TradeInitiation" component={TradeInitiationScreen} />
             <Stack.Screen name="TradeList" component={require('@/screens/trade/TradeListScreen').default} />
             <Stack.Screen name="TradeDetail" component={require('@/screens/trade/TradeDetailScreen').default} />
+            <Stack.Screen name="TradeTimeline" component={TradeTimelineScreen} />
             <Stack.Screen name="TradeSuccess" component={TradeSuccessScreen} />
             {/* MODULE-06 (EXT): Seller Payout screens */}
             <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} />

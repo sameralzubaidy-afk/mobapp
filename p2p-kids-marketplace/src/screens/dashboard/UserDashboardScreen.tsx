@@ -375,9 +375,9 @@ function RecentTradeCard({ navigation, session }: any) {
         </View>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate('TradeDetail', { tradeId: trade.id })}
+          onPress={() => navigation.navigate('TradeTimeline', { tradeId: trade.id })}
         >
-          <Text style={styles.buttonText}>View Trade</Text>
+          <Text style={styles.buttonText}>View Timeline</Text>
         </TouchableOpacity>
       </View>
     </View>
