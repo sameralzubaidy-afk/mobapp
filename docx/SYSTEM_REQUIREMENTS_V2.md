@@ -29,16 +29,17 @@ This version reflects the **FINAL DECISION** to implement Swap Points as an **ex
 4. [Subscription System](#subscription-system)
 5. [Swap Points System (Subscription-Gated)](#swap-points-system-subscription-gated)
 6. [Core Features & Specifications](#core-features--specifications)
-7. [Business Rules & Logic](#business-rules--logic)
-8. [Data Models](#data-models)
-9. [API Specifications](#api-specifications)
-10. [Trust & Safety Implementation](#trust--safety-implementation)
-11. [Admin Control Panel Specifications](#admin-control-panel-specifications)
-12. [Analytics & Metrics](#analytics--metrics)
-13. [Integration Requirements](#integration-requirements)
-14. [Security & Privacy](#security--privacy)
-15. [Performance Requirements](#performance-requirements)
-16. [Testing Requirements](#testing-requirements)
+7. [Trade Flow & Seller Payouts](#trade-flow--seller-payouts)
+8. [Business Rules & Logic](#business-rules--logic)
+9. [Data Models](#data-models)
+10. [API Specifications](#api-specifications)
+11. [Trust & Safety Implementation](#trust--safety-implementation)
+12. [Admin Control Panel Specifications](#admin-control-panel-specifications)
+13. [Analytics & Metrics](#analytics--metrics)
+14. [Integration Requirements](#integration-requirements)
+15. [Security & Privacy](#security--privacy)
+16. [Performance Requirements](#performance-requirements)
+17. [Testing Requirements](#testing-requirements)
 
 ---
 
@@ -1176,14 +1177,265 @@ Progress: [●●●●]
 
 ---
 
-## 7. Business Rules & Logic
+## 7. Trade Flow & Seller Payouts
+
+### 7.1 Overview
+
+**Seller Payout System** enables sellers to receive payment after trades complete through multiple provider-managed channels. Platform charges **zero transaction fee** on payouts; sellers pay transparent provider fees.
+
+**Supported Methods (Phase 1):**
+- **Stripe Connect (Express)**: $0.25 + 0.25% per payout
+- **PayPal Payouts**: 2% (capped at $20)
+- **Venmo**: 2% (capped at $20)
+- **Bank ACH** (Post-MVP): ~$0.50 per deposit
+
+### 7.2 Payout Method Management
+
+**Seller Controls:**
+- Add multiple payout methods (one per provider type)
+- Mark one method as **primary** (must be verified)
+- Change primary method anytime
+- View method verification status
+- Delete unused methods
+
+**Verification Requirements:**
+- **Stripe Connect**: Automatic via Stripe onboarding dashboard (checks payouts_enabled)
+- **PayPal/Venmo**: Email confirmation or "verify later" option
+- **Bank ACH**: Phone verification + micro-deposit confirmation (post-MVP)
+
+### 7.3 Payout Ledger
+
+**Automatic Creation:**
+Every completed cash trade generates a payout record:
+
+```
+Payout Record Fields:
+├── id: UUID (unique identifier)
+├── seller_id: user UUID
+├── trade_id: linked trade UUID  
+├── payout_method_id: selected method
+├── gross_amount: sale proceeds (before fees)
+├── platform_fee: $0.00 (platform takes zero)
+├── payout_fee: seller-paid provider fee
+├── net_amount: gross - payout_fee
+├── status: pending | requires_action | processing | completed | failed
+├── provider: stripe | paypal
+├── provider_reference_id: external tracking ID
+├── idempotency_key: prevents duplicate payouts
+└── timestamps: created_at, initiated_at, completed_at
+```
+
+**Status Lifecycle:**
+
+```
+Success Path:
+pending → processing → completed
+
+Blocked Path:
+pending → requires_action (no verified method)
+
+Failure Path:  
+processing → failed → retry available
+```
+
+### 7.4 Payout Calculation Engine
+
+**Fee Formulas (Seller-Paid):**
+
+```typescript
+// Stripe Connect
+fee = Math.round(amountCents * 0.0025) + 25
+
+// PayPal / Venmo  
+fee = Math.min(Math.round(amountCents * 0.02), 2000)
+```
+
+**Example:**
+```
+Sale Price: $50.00
+Stripe Connect Fee: 0.25% + $0.25 = $0.375 + $0.25 = $0.625 → $0.63
+Net to Seller: $49.37
+
+Sale Price: $100.00
+PayPal Fee: 2% = $2.00 (not capped since < $20)
+Net to Seller: $98.00
+```
+
+### 7.5 Admin Configuration: Automatic Payouts
+
+**New Admin Config Flag:**
+`enable_automatic_seller_payout` (BOOLEAN, DEFAULT = false)
+
+**Behavior with Flag = TRUE:**
+- Payout created and dispatched immediately after trade completion
+- If seller has no verified method:
+  - Status = `requires_action`
+  - Seller prompted to set up payment method
+  - No funds held; awaiting seller action
+- If verified method exists:
+  - Payout routed to provider
+  - Status = `processing`
+  - Seller receives funds per provider timeline
+
+**Behavior with Flag = FALSE (Default):**
+- Payout created with status = `pending`
+- Seller sees "Available for Withdrawal: $X.XX"
+- Seller must manually request withdrawal via **EarningsScreen**
+- Platform routes to provider only when seller initiates
+- Aligns with current implementation; no urgent provider setup needed
+
+### 7.6 Webhook Reconciliation
+
+**Stripe Webhooks:**
+- `account.updated`: Verify payout_enabled flag and seller verification status
+- `payout.created`, `payout.updated`, `payout.paid`, `payout.failed`: Update payout ledger status
+
+**PayPal Webhooks:**
+- `PAYMENT.PAYOUTSBATCH.SUCCESS`: Item completed successfully
+- `PAYMENT.PAYOUTSBATCH.DENIED`: Item failed
+- Updates seller payout status with provider confirmation
+
+**Security:**
+- All webhooks signature-verified before processing
+- Webhook delivery logged for audit trail
+- Failed webhook delivery triggers retry queue
+
+### 7.7 Mobile App Integration
+
+**Seller Earnings Screen:**
+- List recent payouts (last 20 with pagination)
+- Show status (pending, processing, completed, failed)
+- Display net amount and payout fee
+- "Request Withdrawal" button (if auto_payout = FALSE and pending payouts exist)
+- Filter by status and date range
+
+**Payout Method Setup Screen:**
+- Add new payout method (Stripe, PayPal, Venmo)
+- List existing methods with verification badges
+- Set one method as primary
+- Edit or delete methods
+- Stripe onboarding button (redirects to Stripe dashboard)
+
+### 7.8 Admin Panel Integration
+
+**Payout Management Screen:**
+- Searchable table of all payouts (seller, status, amount, date)
+- Filter by: user, status, date range, payout method
+- Sort by amount, date, seller name
+- View detailed payout record (amounts, fees, provider reference, timestamps)
+- Manual retry button for failed payouts
+- Webhook delivery status dashboard
+
+**Payout Configuration:**
+- Toggle `enable_automatic_seller_payout`
+- View payout volume metrics (last 30 days)
+- Success rate by method
+- Average payout time
+- Failed payout analysis
+
+### 7.9 Data Model
+
+**seller_payout_methods Table:**
+```sql
+├── id UUID PRIMARY KEY
+├── user_id UUID (FOREIGN KEY users.id)
+├── method_type TEXT ('stripe_connect', 'paypal', 'venmo', 'bank_ach')
+├── is_primary BOOLEAN (one per user, enforced by unique index)
+├── is_verified BOOLEAN
+├── stripe_account_id TEXT (optional)
+├── stripe_onboarding_complete BOOLEAN
+├── stripe_payouts_enabled BOOLEAN
+├── paypal_email TEXT (optional)
+├── venmo_handle TEXT (optional)
+├── venmo_phone_e164 TEXT (optional)
+├── bank_account_token TEXT (post-MVP)
+├── bank_account_last4 TEXT
+├── bank_routing_last4 TEXT
+├── created_at TIMESTAMPTZ
+└── updated_at TIMESTAMPTZ
+```
+
+**seller_payouts Table:**
+```sql
+├── id UUID PRIMARY KEY
+├── user_id UUID (FOREIGN KEY users.id)
+├── trade_id UUID (FOREIGN KEY trades.id, optional)
+├── payout_method_id UUID (FOREIGN KEY seller_payout_methods.id)
+├── currency TEXT (default 'usd')
+├── gross_amount DECIMAL(10,2)
+├── platform_fee DECIMAL(10,2) (always 0.00)
+├── payout_fee DECIMAL(10,2)
+├── net_amount DECIMAL(10,2)
+├── status TEXT (pending, requires_action, processing, completed, failed)
+├── provider TEXT (stripe, paypal, ach)
+├── provider_reference_id TEXT (external ID)
+├── idempotency_key TEXT UNIQUE
+├── initiated_at TIMESTAMPTZ
+├── completed_at TIMESTAMPTZ
+├── failure_reason TEXT
+├── created_at TIMESTAMPTZ
+└── updated_at TIMESTAMPTZ
+```
+
+**admin_config Table Extension:**
+```sql
+ALTER TABLE admin_config ADD COLUMN 
+  enable_automatic_seller_payout BOOLEAN DEFAULT FALSE;
+```
+
+### 7.10 API Endpoints (Edge Functions)
+
+**Method Management:**
+- `POST /create-stripe-connect-account` - Create Stripe Express account
+- `POST /create-stripe-account-link` - Generate Stripe onboarding link
+- `POST /add-paypal-method` - Add PayPal email
+- `POST /add-venmo-method` - Add Venmo handle/phone
+- `POST /set-primary-payout-method` - Mark method as primary
+- `GET /get-payout-methods` - List seller's methods
+- `DELETE /delete-payout-method/{id}` - Remove method
+
+**Payout Processing:**
+- `POST /trigger-seller-payout` - Create payout (called on trade completion)
+- `POST /process-paypal-payout` - Submit PayPal batch
+- `POST /request-seller-withdrawal` - Manual withdrawal request
+- `GET /get-seller-payouts` - List payout history
+- `GET /get-payout-details/{id}` - View single payout
+- `POST /estimate-payout-fee` - Calculate fee before trade
+
+**Webhooks:**
+- `POST /stripe-webhooks` - Stripe events
+- `POST /paypal-webhooks` - PayPal events
+
+### 7.11 Security & Compliance
+
+**No Sensitive Data Storage:**
+✅ Platform stores: method type, Stripe account ID, PayPal email, Venmo handle/phone
+❌ Platform NEVER stores: API keys, bank numbers, routing numbers, PayPal credentials
+
+**Webhook Verification:**
+- Stripe: Validates `Stripe-Signature` header
+- PayPal: Validates signature per PayPal SDK
+- All webhooks logged with timestamp, signature hash, and outcome
+
+**RLS & Access Control:**
+- Sellers view only their own payouts and methods
+- Admins (admin role) view all payouts and manage settings
+- Audit log tracks manual admin actions
+
+**Idempotency:**
+Every payout submission uses `idempotency_key = "trade:<tradeId>:seller:<sellerId>"`
+Prevents duplicate payouts if Edge Function is called multiple times or retried
+
+---
+
+## 8. Business Rules & Logic
 
 
-### 7.1 Transaction Fees
+### 8.1 Transaction Fees
 
 This section defines how buyer and seller transaction fees are calculated and configured at the node level.
 
-#### 7.1.1 Overview
+#### 8.1.1 Overview
 
 - All transaction fees are **configurable per geographic node** via the admin console.
 - **Buyer fees** are calculated as a combination of:
@@ -1193,7 +1445,7 @@ This section defines how buyer and seller transaction fees are calculated and co
 - **Swap Points (SP) can never be used to pay platform fees** — all fees are paid in cash.
 - **Seller fees** remain percentage-based and are deducted from the seller’s cash payout.
 
-#### 7.1.2 Fee Components & Formulas
+#### 8.1.2 Fee Components & Formulas
 
 Let:
 
@@ -1263,7 +1515,7 @@ Example 2: Subscriber buys $25 item (12 SP + cash)
     └─ $13.94 cash ($13 + $0.99 fee - 5% of $13)
 ```
 
-7.1.3 Admin Configuration (Per Node)
+8.1.3 Admin Configuration (Per Node)
 
 Admin can configure the following values for each node:
 
@@ -1293,7 +1545,7 @@ Seller
 
 seller_percent_fee (default: 5.0%)
 
-7.1.4 Default V1 Configuration (Launch Assumptions)
+8.1.4 Default V1 Configuration (Launch Assumptions)
 
 To match the current financial model and examples:
 
@@ -1317,7 +1569,7 @@ Seller (all users)
 
 seller_percent_fee = 5.0%
 
-7.1.5 Calculation Examples (Illustrative)
+8.1.5 Calculation Examples (Illustrative)
 
 **Note: Examples below assume the default V1 configuration above (no percentage component).
 **
@@ -1352,7 +1604,7 @@ Seller receives:
         seller fee (5%)   = 5% × $25.00 = $1.25
         net cash          = $13.00 - $1.25 = $11.75
 
-### 7.2 Minimum Transaction Value
+### 8.2 Minimum Transaction Value
 
 **BR-MIN-001: $30 Minimum Rule**
 - Individual items must be priced ≥ $30
@@ -1364,7 +1616,7 @@ Seller receives:
 - Error message: "Minimum item value is $30. Please increase the price or bundle with other items."
 - Admin override: Can manually approve < $30 items for special cases
 
-### 7.3 Bundle Listings
+### 8.3 Bundle Listings
 
 **BR-BUNDLE-001: Bundle Creation**
 - Users can create bundles (multiple items in one listing)
@@ -1378,7 +1630,7 @@ Seller receives:
 - SP usage applies to total bundle price
 - If bundle = $60, max SP = 30 (50% rule applies to total)
 
-### 7.4 Geographic Restrictions
+### 8.4 Geographic Restrictions
 
 **BR-GEO-001: Node-Based Marketplace**
 - Users can only see listings in their assigned node
@@ -1392,7 +1644,7 @@ Seller receives:
 - Auto-notify when node launches
 - Waitlist converts to active user (retains signup data)
 
-### 7.5 Listing Expiration
+### 8.5 Listing Expiration
 
 **BR-EXP-001: Auto-Expiration**
 - Active listings expire after 90 days
