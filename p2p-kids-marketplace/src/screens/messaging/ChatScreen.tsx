@@ -26,15 +26,19 @@ import {
   Image,
   SafeAreaView,
   Pressable,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/config/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import {
   getMessages,
   sendMessage,
+  sendImageMessage,
   subscribeToMessages,
   unsubscribeFromMessages,
   markAsRead,
@@ -59,6 +63,7 @@ interface Trade {
 }
 
 const MESSAGE_CHAR_LIMIT = 2000;
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function ChatScreen() {
   const route = useRoute<ChatScreenRouteProp>();
@@ -70,8 +75,12 @@ export default function ChatScreen() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendingImage, setSendingImage] = useState(false);
   const [trade, setTrade] = useState<Trade | null>(null);
   const [loadingTrade, setLoadingTrade] = useState(true);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [imageViewerIndex, setImageViewerIndex] = useState(0);
+  const [imageViewerImages, setImageViewerImages] = useState<Array<{ uri: string }>>([]);
 
   const flatListRef = useRef<FlatList>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -222,8 +231,83 @@ export default function ChatScreen() {
     }
   };
 
+  const handleImagePicker = async () => {
+    try {
+      // Request camera roll permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to your photo library to share images.'
+        );
+        return;
+      }
+
+      // Show image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        allowsMultipleSelection: false,
+      });
+
+      if (!result.canceled && result.assets?.[0]) {
+        const imageAsset = result.assets[0];
+        handleSendImage(imageAsset.uri);
+      }
+    } catch (error) {
+      console.error('[ChatScreen.handleImagePicker] Error:', error);
+      Alert.alert('Error', 'Failed to select image');
+    }
+  };
+
+  const handleSendImage = async (imageUri: string) => {
+    if (!session?.user?.id || sendingImage) {
+      return;
+    }
+
+    console.log('[ChatScreen.handleSendImage] Sending image:', imageUri);
+    setSendingImage(true);
+
+    try {
+      const result = await sendImageMessage({
+        tradeId,
+        senderId: session.user.id,
+        imageUri,
+      });
+
+      if (!result.success) {
+        console.error('[ChatScreen.handleSendImage] Send failed:', result.error);
+        Alert.alert('Error', result.error || 'Failed to send image');
+      } else {
+        console.log('[ChatScreen.handleSendImage] Image sent successfully:', result.message?.id);
+        if (result.message) {
+          addMessageToState(result.message);
+        }
+      }
+    } catch (error: any) {
+      console.error('[ChatScreen.handleSendImage] Error:', error);
+      Alert.alert('Error', 'Failed to send image');
+    } finally {
+      setSendingImage(false);
+    }
+  };
+
+  const handleImagePress = (imageUrl: string, allImages: string[]) => {
+    const images = allImages.map(url => ({ uri: url }));
+    const index = allImages.findIndex(url => url === imageUrl);
+    
+    setImageViewerImages(images);
+    setImageViewerIndex(Math.max(0, index));
+    setImageViewerVisible(true);
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwnMessage = item.sender_id === session?.user?.id;
+
+    // Get all image URLs from messages for image viewer
+    const allImageMessages = messages.filter(msg => msg.message_type === 'image' && msg.image_url);
+    const allImageUrls = allImageMessages.map(msg => msg.image_url!);
 
     return (
       <View
@@ -236,16 +320,30 @@ export default function ChatScreen() {
           style={[
             styles.messageBubble,
             isOwnMessage ? styles.ownBubble : styles.otherBubble,
+            item.message_type === 'image' && styles.imageBubble,
           ]}
         >
-          <Text
-            style={[
-              styles.messageText,
-              isOwnMessage ? styles.ownText : styles.otherText,
-            ]}
-          >
-            {item.content}
-          </Text>
+          {item.message_type === 'image' && item.image_url ? (
+            <TouchableOpacity
+              onPress={() => handleImagePress(item.image_url!, allImageUrls)}
+              activeOpacity={0.8}
+            >
+              <Image
+                source={{ uri: item.image_url }}
+                style={styles.chatImage}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          ) : (
+            <Text
+              style={[
+                styles.messageText,
+                isOwnMessage ? styles.ownText : styles.otherText,
+              ]}
+            >
+              {item.content}
+            </Text>
+          )}
         </View>
         <Text style={styles.messageTime}>
           {new Date(item.created_at).toLocaleTimeString([], {
@@ -352,7 +450,7 @@ export default function ChatScreen() {
               onChangeText={handleInputChange}
               multiline
               maxLength={2000}
-              editable={!sending}
+              editable={!sending && !sendingImage}
             />
             <Text style={[
               styles.charCounter,
@@ -361,13 +459,31 @@ export default function ChatScreen() {
               {inputText.length}/{MESSAGE_CHAR_LIMIT}
             </Text>
           </View>
+          
+          {/* Image Picker Button */}
+          <TouchableOpacity
+            testID="image-picker-button"
+            style={[
+              styles.imageButton,
+              (sending || sendingImage) && styles.buttonDisabled,
+            ]}
+            onPress={handleImagePicker}
+            disabled={sending || sendingImage}
+          >
+            {sendingImage ? (
+              <ActivityIndicator size="small" color="#6B7280" />
+            ) : (
+              <Ionicons name="image" size={24} color="#6B7280" />
+            )}
+          </TouchableOpacity>
+          
           <TouchableOpacity
             style={[
               styles.sendButton,
-              (!inputText.trim() || sending) && styles.sendButtonDisabled,
+              (!inputText.trim() || sending || sendingImage) && styles.sendButtonDisabled,
             ]}
             onPress={handleSend}
-            disabled={!inputText.trim() || sending}
+            disabled={!inputText.trim() || sending || sendingImage}
           >
             {sending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -377,6 +493,61 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Image Viewer Modal */}
+      <Modal
+        visible={imageViewerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImageViewerVisible(false)}
+      >
+        <View style={styles.imageViewerContainer}>
+          <Pressable
+            style={styles.imageViewerHeader}
+            onPress={() => setImageViewerVisible(false)}
+          >
+            <Ionicons name="close" size={28} color="white" />
+          </Pressable>
+
+          {imageViewerImages.length > 0 && (
+            <Image
+              source={imageViewerImages[imageViewerIndex]}
+              style={styles.fullscreenImage}
+              resizeMode="contain"
+            />
+          )}
+
+          {imageViewerImages.length > 1 && (
+            <>
+              <Pressable
+                style={[styles.navButton, styles.navButtonLeft]}
+                onPress={() =>
+                  setImageViewerIndex((prev) =>
+                    prev === 0 ? imageViewerImages.length - 1 : prev - 1
+                  )
+                }
+              >
+                <Ionicons name="chevron-back" size={32} color="white" />
+              </Pressable>
+
+              <Pressable
+                style={[styles.navButton, styles.navButtonRight]}
+                onPress={() =>
+                  setImageViewerIndex((prev) =>
+                    prev === imageViewerImages.length - 1 ? 0 : prev + 1
+                  )
+                }
+              >
+                <Ionicons name="chevron-forward" size={32} color="white" />
+              </Pressable>
+
+              <Text style={styles.imageCounter}>
+                {imageViewerIndex + 1} / {imageViewerImages.length}
+              </Text>
+            </>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -491,6 +662,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
+  imageBubble: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  chatImage: {
+    width: screenWidth * 0.6,
+    height: screenWidth * 0.6 * 0.75, // 4:3 aspect ratio
+    borderRadius: 8,
+  },
   ownBubble: {
     backgroundColor: '#3B82F6',
   },
@@ -522,7 +703,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     alignItems: 'flex-end',
-    gap: 10,
+    gap: 8,
   },
   inputWrapper: {
     flex: 1,
@@ -554,6 +735,64 @@ const styles = StyleSheet.create({
   charCounterWarning: {
     color: '#DC2626',
     fontWeight: '700',
+  },
+  imageViewerContainer: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageViewerHeader: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    zIndex: 100,
+    padding: 8,
+  },
+  fullscreenImage: {
+    width: screenWidth,
+    height: Dimensions.get('window').height * 0.8,
+  },
+  navButton: {
+    position: 'absolute',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 50,
+    height: 50,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 25,
+  },
+  navButtonLeft: {
+    left: 20,
+  },
+  navButtonRight: {
+    right: 20,
+  },
+  imageCounter: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  imageButton: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 24,
+    padding: 12,
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   sendButton: {
     backgroundColor: '#3B82F6',

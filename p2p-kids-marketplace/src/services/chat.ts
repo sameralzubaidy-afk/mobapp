@@ -12,6 +12,8 @@
 import { supabase } from '../config/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { decode } from 'base64-arraybuffer';
 
 function parseLastViewedMs(lastViewedStr: string | null): number {
   if (!lastViewedStr) return 0;
@@ -27,6 +29,18 @@ export interface Message {
   message_type: 'text' | 'image';
   image_url?: string;
   created_at: string;
+}
+
+export interface SendImageMessageInput {
+  tradeId: string;
+  senderId: string;
+  imageUri: string;
+}
+
+export interface SendImageMessageResult {
+  success: boolean;
+  message?: Message;
+  error?: string;
 }
 
 export interface SendMessageInput {
@@ -427,5 +441,209 @@ export async function markAsRead(
     console.log('[chat.markAsRead] Marked trade', tradeId, 'as read at', now);
   } catch (error) {
     console.error('[chat.markAsRead] Error:', error);
+  }
+}
+
+/**
+ * Compress an image before uploading to reduce file size
+ * 
+ * @param imageUri - Local image URI to compress
+ * @returns Compressed image result with URI and base64 data
+ */
+export async function compressImage(
+  imageUri: string
+): Promise<{
+  success: boolean;
+  uri?: string;
+  base64?: string;
+  width?: number;
+  height?: number;
+  error?: string;
+}> {
+  try {
+    console.log('[chat.compressImage] Compressing image:', imageUri);
+    
+    const result = await ImageManipulator.manipulateAsync(
+      imageUri,
+      [
+        // Resize to max 1200px width/height while maintaining aspect ratio
+        { resize: { width: 1200 } },
+      ],
+      {
+        compress: 0.8, // 80% quality
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
+      }
+    );
+
+    if (!result.base64) {
+      return {
+        success: false,
+        error: 'Failed to generate base64 from compressed image',
+      };
+    }
+
+    console.log(
+      `[chat.compressImage] Compressed: ${result.width}x${result.height}`
+    );
+    
+    return {
+      success: true,
+      uri: result.uri,
+      base64: result.base64,
+      width: result.width,
+      height: result.height,
+    };
+  } catch (error: any) {
+    console.error('[chat.compressImage] Error:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to compress image',
+    };
+  }
+}
+
+/**
+ * Upload an image to Supabase Storage chat-images bucket
+ * 
+ * @param tradeId - Trade ID for organizing images
+ * @param senderId - User ID of sender
+ * @param base64Data - Base64 encoded image data
+ * @returns Upload result with public URL
+ */
+export async function uploadChatImage(
+  tradeId: string,
+  senderId: string,
+  base64Data: string
+): Promise<{
+  success: boolean;
+  publicUrl?: string;
+  error?: string;
+}> {
+  try {
+    // Generate unique filename: {trade_id}/{sender_id}/{timestamp}-{uuid}.jpg
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 15);
+    const filename = `${tradeId}/${senderId}/${timestamp}-${randomId}.jpg`;
+
+    console.log('[chat.uploadChatImage] Uploading to:', filename);
+
+    // Convert base64 to ArrayBuffer
+    const fileBuffer = decode(base64Data);
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from('chat-images')
+      .upload(filename, fileBuffer, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('[chat.uploadChatImage] Upload error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to upload image',
+      };
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('chat-images')
+      .getPublicUrl(filename);
+
+    console.log('[chat.uploadChatImage] Upload successful:', urlData.publicUrl);
+    
+    return {
+      success: true,
+      publicUrl: urlData.publicUrl,
+    };
+  } catch (error: any) {
+    console.error('[chat.uploadChatImage] Unexpected error:', error);
+    return {
+      success: false,
+      error: error.message || 'Unexpected error uploading image',
+    };
+  }
+}
+
+/**
+ * Send an image message to a trade chat
+ * Compresses the image, uploads to storage, then creates the message record
+ * 
+ * @param input - Image message input (tradeId, senderId, imageUri)
+ * @returns Result with success flag and message or error
+ */
+export async function sendImageMessage(
+  input: SendImageMessageInput
+): Promise<SendImageMessageResult> {
+  const { tradeId, senderId, imageUri } = input;
+
+  // Validate input
+  if (!tradeId || !senderId || !imageUri) {
+    return {
+      success: false,
+      error: 'Missing required fields: tradeId, senderId, or imageUri',
+    };
+  }
+
+  console.log('[chat.sendImageMessage] Processing image message for trade:', tradeId);
+
+  try {
+    // 1. Compress the image
+    const compressionResult = await compressImage(imageUri);
+    if (!compressionResult.success || !compressionResult.base64) {
+      return {
+        success: false,
+        error: compressionResult.error || 'Failed to compress image',
+      };
+    }
+
+    // 2. Upload to storage
+    const uploadResult = await uploadChatImage(
+      tradeId,
+      senderId,
+      compressionResult.base64
+    );
+    
+    if (!uploadResult.success || !uploadResult.publicUrl) {
+      return {
+        success: false,
+        error: uploadResult.error || 'Failed to upload image',
+      };
+    }
+
+    // 3. Create message record
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        trade_id: tradeId,
+        sender_id: senderId,
+        content: 'Image', // Placeholder content for image messages
+        message_type: 'image',
+        image_url: uploadResult.publicUrl,
+      })
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('[chat.sendImageMessage] Database error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to save image message',
+      };
+    }
+
+    console.log('[chat.sendImageMessage] Image message sent successfully:', data.id);
+    return {
+      success: true,
+      message: data,
+    };
+  } catch (error: any) {
+    console.error('[chat.sendImageMessage] Unexpected error:', error);
+    return {
+      success: false,
+      error: error.message || 'Unexpected error sending image message',
+    };
   }
 }
