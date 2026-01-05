@@ -24,6 +24,8 @@ export type RootStackParamList = {
   TradeDetail: { tradeId: string };
   TradeList: undefined;
   TradeSuccess: { tradeId: string };
+  // MODULE-07: Messaging routes
+  Chat: { tradeId: string };
   // MODULE-06 (EXT): Seller Payout routes
   PayoutSettings: undefined;
   SellerEarnings: undefined;

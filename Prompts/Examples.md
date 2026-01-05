@@ -43,20 +43,17 @@ App: p2p-kids-marketplace/
 Supabase: supabase/
 -----
 My Example 1
-## TASK TRADE-V2-001: Normalize Trade Schema & States
+## TASK MSG-001: Implement Supabase Realtime Chat (Text Messages)
 
-I’m working on the MODULE-06-TRADE-FLOW-sellerpayouts ### Phase 1 (MVP) tasks
-Module: MODULE-06-TRADE-FLOW-sellerpayouts.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: Please implement## TASK PAY-001: Database Schema (Payout Methods + Payout Ledger)
+I’m working on the MODULE-07-MESSAGING.md tasks
+Module: MODULE-07-MESSAGING.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: Please implement ## TASK MSG-001: Implement Supabase Realtime Chat (Text Messages)
 scope is 
-
-Create tables to store:
-- Seller payout methods (Stripe/PayPal/Venmo now; bank placeholders)
-- Seller payout ledger records, linked to `trades`
+Implement real-time text messaging between buyer and seller using Supabase Realtime. Create messages table with trade_id foreign key. Subscribe to message inserts for live updates. Support text-only messages initially.
 Please:
-Follow the module and task exactly, and cross-check with the verification file in MODULE-06-TRADE-FLOW-V2.md
+Follow the module and task exactly, and cross-check with the verification file in MODULE-07-VERIFICATION.md
 Show me the files you create or edit with their full paths
-Tell me which items in MODULE-06-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-06-VERIFICATION-V2.md)
+Tell me which items in MODULE-07-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-07-VERIFICATION.md)
 always include short answers first
 Note I do not use supabase locally, always must be supabase prod.
 if there is a need to run a sql in supabase before testing clearly ask me to do. 
@@ -65,6 +62,7 @@ execute Unit and E2E tests so you fix all errors before I start verifying.
 Update the navigation file so i can verify manual
 run functional test where applicaible
 provide steps to manaul test format it as test cases create md file for it. 
+
 
 
 

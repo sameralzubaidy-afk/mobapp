@@ -142,6 +142,10 @@ export default function TradeTimelineScreen() {
     navigation.navigate('TradeDetail', { tradeId });
   };
 
+  const handleOpenChat = () => {
+    navigation.navigate('Chat', { tradeId });
+  };
+
   if (loading || !trade) {
     return (
       <SafeAreaView style={styles.container}>
@@ -257,6 +261,15 @@ export default function TradeTimelineScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Message Button */}
+        <Pressable
+          style={[styles.button, styles.messageButton]}
+          onPress={handleOpenChat}
+        >
+          <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+          <Text style={styles.messageButtonText}>Message {isBuyer ? 'Seller' : 'Buyer'}</Text>
+        </Pressable>
 
         {/* Action Buttons */}
         {trade.status === 'in_progress' && (
@@ -615,5 +628,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#007AFF',
     fontWeight: '500',
+  },
+  messageButton: {
+    backgroundColor: '#007AFF',
+    marginBottom: 16,
+  },
+  messageButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });

@@ -145,6 +145,8 @@ function RootNavigator() {
             <Stack.Screen name="TradeDetail" component={require('@/screens/trade/TradeDetailScreen').default} />
             <Stack.Screen name="TradeTimeline" component={TradeTimelineScreen} />
             <Stack.Screen name="TradeSuccess" component={TradeSuccessScreen} />
+            {/* MODULE-07: Messaging screens */}
+            <Stack.Screen name="Chat" component={require('@/screens/messaging/ChatScreen').default} />
             {/* MODULE-06 (EXT): Seller Payout screens */}
             <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} />
             <Stack.Screen name="SellerEarnings" component={SellerEarningsScreen} />
