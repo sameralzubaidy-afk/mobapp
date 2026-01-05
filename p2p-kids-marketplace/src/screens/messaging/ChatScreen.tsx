@@ -37,6 +37,7 @@ import {
   sendMessage,
   subscribeToMessages,
   unsubscribeFromMessages,
+  markAsRead,
   Message,
 } from '@/services/chat';
 
@@ -107,11 +108,21 @@ export default function ChatScreen() {
     seenMessageIdsRef.current.clear();
     loadMessages();
 
+    // Mark as read when opening the chat screen
+    if (session?.user?.id) {
+      markAsRead(tradeId, session.user.id)
+        .then(() => {
+          console.log('[ChatScreen] Marked trade', tradeId, 'as read on mount');
+        })
+        .catch((error) => {
+          console.warn('[ChatScreen] Failed to mark as read:', error);
+        });
+    }
+
     // Subscribe to new messages
     channelRef.current = subscribeToMessages(tradeId, (newMessage) => {
       console.log('[ChatScreen] Realtime message received:', newMessage.id);
       addMessageToState(newMessage);
-      setTimeout(() => scrollToBottom(), 100);
     });
 
     return () => {
@@ -120,7 +131,7 @@ export default function ChatScreen() {
         unsubscribeFromMessages(channelRef.current);
       }
     };
-  }, [tradeId]);
+  }, [tradeId, session?.user?.id]);
 
   const loadMessages = async () => {
     setLoading(true);
@@ -128,7 +139,12 @@ export default function ChatScreen() {
     seenMessageIdsRef.current = new Set(msgs.map((msg) => msg.id));
     setMessages(msgs);
     setLoading(false);
-    setTimeout(() => scrollToBottom(), 100);
+    // On iOS, force scroll to offset 0 (bottom of the inverted list) after data load
+    if (Platform.OS === 'ios') {
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      }, 50);
+    }
   };
 
   const addMessageToState = (message: Message) => {
@@ -139,12 +155,6 @@ export default function ChatScreen() {
       seenMessageIdsRef.current.add(message.id);
       return [...prev, message];
     });
-  };
-
-  const scrollToBottom = () => {
-    if (flatListRef.current && messages.length > 0) {
-      flatListRef.current.scrollToEnd({ animated: true });
-    }
   };
 
   const handleInputChange = (text: string) => {
@@ -201,7 +211,6 @@ export default function ChatScreen() {
         console.log('[ChatScreen] Message sent successfully, adding to UI:', result.message?.id);
         if (result.message) {
           addMessageToState(result.message);
-          setTimeout(() => scrollToBottom(), 100);
         }
       }
     } catch (error: any) {
@@ -306,15 +315,25 @@ export default function ChatScreen() {
       <KeyboardAvoidingView
         style={styles.containerBody}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <FlatList
           ref={flatListRef}
-          data={messages}
+          data={[...messages].reverse()}
+          inverted
           keyExtractor={(item) => item.id}
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesList}
-          onContentSizeChange={() => scrollToBottom()}
+          // iOS-specific props for chat stability
+          maintainVisibleContentPosition={
+            Platform.OS === 'ios' ? { minIndexForVisible: 0 } : undefined
+          }
+          onContentSizeChange={() => {
+            // Ensure we stay at bottom when new messages come in
+            if (messages.length > 0) {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+            }
+          }}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No messages yet</Text>
@@ -437,6 +456,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 40,
+    transform: [{ scaleY: -1 }], // Flip back because FlatList is inverted
   },
   emptyText: {
     fontSize: 18,

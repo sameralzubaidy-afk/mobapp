@@ -62,6 +62,7 @@ execute Unit and E2E tests so you fix all errors before I start verifying.
 Update the navigation file so i can verify manual
 run functional test where applicaible
 provide steps to manaul test format it as test cases create md file for it. 
+I do not use yarn I use npm so give me all commend lines for npm. 
 
 
 

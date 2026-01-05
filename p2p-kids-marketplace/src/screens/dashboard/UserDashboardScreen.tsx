@@ -109,16 +109,17 @@ export default function UserDashboardScreen() {
           <View style={styles.headerButtons}>
             <TouchableOpacity
               style={styles.headerButton}
+              onPress={() => navigation.navigate('Conversations')}
+            >
+              <Text style={styles.headerButtonIcon}>💬</Text>
+              <Text style={styles.headerButtonText}>Messages</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
               onPress={() => navigation.navigate('PayoutSettings')}
             >
               <Text style={styles.headerButtonIcon}>💳</Text>
               <Text style={styles.headerButtonText}>Payouts</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={() => navigation.navigate('Profile')}
-            >
-              <Text style={styles.settingsIcon}>⚙️</Text>
             </TouchableOpacity>
           </View>
         </View>

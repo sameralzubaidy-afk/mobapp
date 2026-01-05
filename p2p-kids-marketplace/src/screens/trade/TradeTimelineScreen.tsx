@@ -321,7 +321,7 @@ function renderTimelineStep(
   step: TradeStatus,
   label: string,
   currentStatus: TradeStatus
-): JSX.Element {
+): React.JSX.Element {
   const statusOrder: TradeStatus[] = ['pending', 'payment_processing', 'in_progress', 'completed'];
   const currentIndex = statusOrder.indexOf(currentStatus);
   const stepIndex = statusOrder.indexOf(step);

@@ -1,4 +1,8 @@
-import { supabase } from './supabase';
+import { supabase } from './supabase/client';
+import { generateReferralCode, processReferralCode } from './supabase/auth';
+
+// Re-export referral code functions for backward compatibility
+export { generateReferralCode, processReferralCode };
 
 export interface ReferralStats {
   total_referrals: number;
@@ -6,103 +10,6 @@ export interface ReferralStats {
   completed_referrals: number;
   total_points_earned: number;
 }
-
-/**
- * Generate a unique 8-character referral code for a user
- * Format: Uppercase alphanumeric (e.g., ABC123XY)
- */
-export const generateReferralCode = async (): Promise<string> => {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-
-  // Generate random 8-character code
-  for (let i = 0; i < 8; i++) {
-    code += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-
-  // Check if code already exists
-  const { data } = await supabase
-    .from('profiles')
-    .select('user_id')
-    .eq('referral_code', code)
-    .maybeSingle();
-
-  // If code exists, generate a new one (recursive)
-  if (data) {
-    return generateReferralCode();
-  }
-
-  return code;
-};
-
-/**
- * Process referral code entered during signup
- * Temporarily stores referral info in profiles table due to Supabase schema cache issue
- * Will be migrated to referrals table once schema cache is refreshed
- */
-export const processReferralCode = async (
-  newUserId: string,
-  referralCode: string
-): Promise<void> => {
-  try {
-    // Skip if no referral code provided
-    if (!referralCode || !referralCode.trim()) {
-      console.log('ℹ️ No referral code provided');
-      return;
-    }
-
-    console.log('🔄 Processing referral code:', referralCode.toUpperCase());
-
-    // Find user with this referral code
-    const { data: referrer, error } = await supabase
-      .from('profiles')
-      .select('user_id, name')
-      .eq('referral_code', referralCode.toUpperCase())
-      .maybeSingle();
-
-    if (error) {
-      console.warn('⚠️ Error looking up referral code:', error);
-      return;
-    }
-
-    if (!referrer) {
-      console.warn('⚠️ Invalid referral code:', referralCode);
-      return;
-    }
-
-    // Prevent self-referral
-    if ((referrer as any).user_id === newUserId) {
-      console.warn('⚠️ Self-referral attempt');
-      return;
-    }
-
-    console.log('✅ Valid referrer found:', (referrer as any).name);
-
-    // WORKAROUND: Due to Supabase schema cache not recognizing the referrals table,
-    // we temporarily store the referrer_user_id in the profiles.referred_by column
-    // This is not ideal but prevents signup from being blocked
-    // TODO: Remove this workaround once Supabase schema cache is fixed
-
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        referred_by: (referrer as any).user_id, // Store referrer ID temporarily
-      })
-      .eq('user_id', newUserId);
-
-    if (updateError) {
-      console.warn('⚠️ Could not store referral relationship:', updateError);
-      // Don't fail signup - this is just a bonus feature
-      return;
-    }
-
-    console.log('✅ Referral code processed successfully');
-
-  } catch (error) {
-    console.error('❌ Process referral code exception:', error);
-    // Don't rethrow - allow signup to continue
-  }
-};
 
 /**
  * Award referral bonus (5 points each) when referee completes first trade

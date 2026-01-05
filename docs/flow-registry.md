@@ -8,16 +8,20 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Purpose: App boots; Metro reachable; Supabase env present.
 - Smoke: (manual)
   - App boots to login screen without redbox.
+  - If network/auth calls stall, app still leaves the full-screen spinner within ~12s and renders the unauthenticated stack.
   - Supabase URL/anon key configured; auth requests succeed.
 
 ### FLOW-01: Auth – Signup/Login/Logout/Session Restore
 - Smoke: (manual)
   - Signup -> logged in -> kill app -> relaunch -> session restores.
   - Logout returns to unauthenticated stack.
+  - Cold launch does not hang indefinitely on a full-screen spinner even if profile/subscription fetches time out.
+  - App launch does not get stuck in an auth refresh loop (no repeated profile realtime subscribe spam).
 
 ### FLOW-02: Profiles & Onboarding
 - Smoke: (manual)
   - New user gets profile row (or profile fetch does not crash).
+  - Profile realtime listener does not resubscribe continuously while onboarding/profile updates.
 
 ### FLOW-03: Node/ZIP Gating + Waitlist
 - Smoke: (manual)
@@ -72,6 +76,9 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-14: Messaging (Realtime)
 - Smoke: (manual)
+  - Open Messages list -> unread badges reflect unread messages only.
+  - Tap a conversation -> Chat opens and that conversation’s unread badge clears on returning to the list.
+  - New incoming message (other user) increments unread badge until the conversation is opened again.
 
 ### FLOW-15: Safety & Moderation
 - Smoke: (manual)

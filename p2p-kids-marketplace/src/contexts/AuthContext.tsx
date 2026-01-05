@@ -87,6 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Realtime subscription references
   const subscriptionRef = useRef<any>(null);
   const walletRef = useRef<any>(null);
+  const profileRef = useRef<any>(null);
 
   // Session change listeners (for external components to react to session updates)
   const sessionChangeListenersRef = useRef<Set<(session: AuthSession | null) => void>>(
@@ -355,6 +356,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsSignout(true);
 
       // Clean up real-time listeners
+      if (profileRef.current) {
+        profileRef.current.unsubscribe();
+        profileRef.current = null;
+      }
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
       }
@@ -391,9 +396,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       console.log('[AUTH] 🏁 Initializing auth state...');
+      const withTimeout = async <T,>(
+        promise: Promise<T>,
+        ms: number,
+        label: string
+      ): Promise<T> => {
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error(`${label} timeout after ${ms}ms`));
+          }, ms);
+        });
+
+        try {
+          return (await Promise.race([promise, timeoutPromise])) as T;
+        } finally {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+        }
+      };
+
       const initTimeout = setTimeout(() => {
         if (isLoadingRef.current) {
           console.warn('[AUTH] ⚠️ Initialization taking too long, forcing loading to false');
+          isLoadingRef.current = false;
           setIsLoading(false);
         }
       }, 10000); // 10s safety valve
@@ -406,13 +433,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         // Get current session from Supabase with timeout protection
         console.log('[AUTH] 🔍 Fetching session...');
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
-        );
-
-        const { data: sessionData, error: sessionError } =
-          await Promise.race([sessionPromise, timeoutPromise]) as any;
+        const { data: sessionData, error: sessionError } = (await withTimeout(
+          supabase.auth.getSession(),
+          5000,
+          'Session fetch'
+        )) as any;
 
         if (sessionError) {
           console.error('[AUTH] ❌ Session fetch error:', sessionError);
@@ -429,11 +454,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           
           // User is authenticated - restore session from profile
           console.log('[AUTH] 🔍 Fetching profile...');
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*, node:nodes(*)')
-            .eq('user_id', sessionData.session.user.id)
-            .single();
+          const { data: profileData, error: profileError } = (await withTimeout(
+            supabase
+              .from('profiles')
+              .select('*, node:nodes(*)')
+              .eq('user_id', sessionData.session.user.id)
+              .single(),
+            6000,
+            'Profile fetch'
+          )) as any;
 
           if (!profileError && profileData) {
             try { require('@/utils/startupDebug').setStartupStep('fetching subscription'); } catch(_) {}
@@ -441,13 +470,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             
             // Also fetch subscription status from subscriptions table (source of truth)
             console.log('[AUTH] 🔍 Fetching subscription status...');
-            const { data: subscriptionData } = await supabase
-              .from('subscriptions')
-              .select('status,trial_end_date,current_period_end')
-              .eq('user_id', sessionData.session.user.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single();
+            const { data: subscriptionData } = (await withTimeout(
+              supabase
+                .from('subscriptions')
+                .select('status,trial_end_date,current_period_end')
+                .eq('user_id', sessionData.session.user.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single(),
+              6000,
+              'Subscription fetch'
+            )) as any;
 
             const subscriptionStatus = subscriptionData?.status || 'free';
             const canSpendSP = subscriptionStatus === 'trial' || subscriptionStatus === 'active';
@@ -531,20 +564,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Added: Auto-refresh when onboarding completes (detects profile updates)
    */
   useEffect(() => {
-    if (!session) return;
+    const userId = session?.user?.id;
+    if (!userId) return;
 
-    // Setup a listener for profile changes (onboarding completion, profile updates)
-    let profileRef: any = null;
+    // Setup a listener for profile changes (onboarding completion, profile updates).
+    // Subscribe only when `userId` changes to avoid resubscribing on every session refresh.
     try {
-      profileRef = supabase
-        .channel(`profiles:user_id=eq.${session.user.id}`)
+      if (profileRef.current) {
+        profileRef.current.unsubscribe();
+        profileRef.current = null;
+      }
+
+      profileRef.current = supabase
+        .channel(`profiles:user_id=eq.${userId}`)
         .on(
           'postgres_changes',
           {
             event: 'UPDATE',
             schema: 'public',
             table: 'profiles',
-            filter: `user_id=eq.${session.user.id}`,
+            filter: `user_id=eq.${userId}`,
           },
           (payload) => {
             console.log('[AUTH] Profile changed:', payload);
@@ -552,7 +591,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             refreshSession();
           }
         )
-        .subscribe(status => {
+        .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             console.log('[AUTH] Profile listener subscribed');
           } else if (status === 'CHANNEL_ERROR') {
@@ -564,17 +603,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     return () => {
-      if (profileRef) {
-        profileRef.unsubscribe();
-      }
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
-      if (walletRef.current) {
-        walletRef.current.unsubscribe();
+      if (profileRef.current) {
+        profileRef.current.unsubscribe();
+        profileRef.current = null;
       }
     };
-  }, [session, refreshSession]);
+  }, [session?.user?.id, refreshSession]);
 
   /**
    * Handle app state changes (resume/background)

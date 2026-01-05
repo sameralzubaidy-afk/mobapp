@@ -81,6 +81,24 @@ const linking = {
 function RootNavigator() {
   const { session, isLoading } = React.useContext(AuthContext);
 
+  // Fail-open guard: if some startup network call hangs, do not block the entire UI forever.
+  // We still prefer waiting for auth init, but after a short grace period, render the auth stack.
+  const [forceRender, setForceRender] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isLoading) {
+      setForceRender(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      console.warn('[NAV] isLoading stuck >12s; forcing navigator render');
+      setForceRender(true);
+    }, 12000);
+
+    return () => clearTimeout(timer);
+  }, [isLoading]);
+
   const navigationRef = React.useRef(createNavigationContainerRef<any>()).current;
   const lastRouteNameRef = React.useRef<string | undefined>(undefined);
 
@@ -103,7 +121,7 @@ function RootNavigator() {
     }
   }, [navigationRef]);
 
-  if (isLoading) {
+  if (isLoading && !forceRender) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#007AFF" />
@@ -146,6 +164,7 @@ function RootNavigator() {
             <Stack.Screen name="TradeTimeline" component={TradeTimelineScreen} />
             <Stack.Screen name="TradeSuccess" component={TradeSuccessScreen} />
             {/* MODULE-07: Messaging screens */}
+            <Stack.Screen name="Conversations" component={require('@/screens/messaging/ConversationsListScreen').default} />
             <Stack.Screen name="Chat" component={require('@/screens/messaging/ChatScreen').default} />
             {/* MODULE-06 (EXT): Seller Payout screens */}
             <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} />
