@@ -312,7 +312,7 @@ export async function processTradePayment(
  */
 export async function completeTradeV2(
   tradeId: string
-): Promise<{ success: boolean; error?: string; message?: string }> {
+): Promise<{ success: boolean; error?: string; message?: string; status?: string }> {
   try {
     const { data, error } = await supabase.functions.invoke('complete-trade', {
       body: { tradeId },
@@ -320,18 +320,36 @@ export async function completeTradeV2(
 
     if (error) {
       console.error('[trade-service] completeTradeV2 error:', error);
-      let errorMessage = error.message;
-      if (error instanceof Error && 'context' in error) {
-        try {
-          const context = (error as any).context;
-          const body = await context.json();
-          if (body.error) errorMessage = body.error;
-        } catch (e) {}
+      console.error('[trade-service] Full error object:', JSON.stringify(error, null, 2));
+
+      let errorMessage = error.message || 'Failed to complete trade';
+
+      // Try to extract Edge Function response body for better diagnostics
+      try {
+        const ctx: any = (error as any)?.context;
+
+        if (ctx && typeof ctx.json === 'function') {
+          const body = await ctx.json();
+          if (body?.error) errorMessage = body.error;
+        } else if (ctx && ctx._bodyInit) {
+          const response = new Response(ctx._bodyInit);
+          const responseText = await response.text();
+          console.error('[trade-service] completeTradeV2 server response body:', responseText);
+          try {
+            const parsed = JSON.parse(responseText);
+            if (parsed?.error) errorMessage = parsed.error;
+          } catch {
+            if (responseText) errorMessage = responseText;
+          }
+        }
+      } catch (e) {
+        console.warn('[trade-service] Could not read completeTradeV2 response body:', e);
       }
+
       return { success: false, error: errorMessage };
     }
 
-    return { success: true, message: data.message };
+    return { success: true, message: data?.message, status: data?.status };
   } catch (error: any) {
     console.error('[trade-service] completeTradeV2 failed:', error);
     return { success: false, error: error.message };

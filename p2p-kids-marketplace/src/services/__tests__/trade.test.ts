@@ -210,7 +210,7 @@ describe('trade service', () => {
       const result = await completeTradeV2('trade-123');
 
       expect(supabase.functions.invoke).toHaveBeenCalledWith('complete-trade', {
-        body: { trade_id: 'trade-123' },
+        body: { tradeId: 'trade-123' },
       });
       expect(result.success).toBe(true);
     });

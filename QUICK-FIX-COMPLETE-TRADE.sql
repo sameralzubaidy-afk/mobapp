@@ -1,21 +1,15 @@
--- Migration: 20260103000000_fix_complete_trade_v2_two_step_payout_router.sql
--- Mode B: Idempotent rerunnable migration
--- Purpose: Restore two-step completion semantics for `complete_trade_v2` while preserving
---          PAY-006 payout-router integration.
---
--- Business rule:
---   - Seller marking “complete” must NOT finalize the trade or release funds.
---   - Buyer (or system auto-complete) finalizes the trade.
---
--- Notes:
---   - This overrides the `complete_trade_v2` definition introduced in 078 which
---     finalized trades on seller action.
---   - Keep signature compatible with callers using 1-arg invocation via DEFAULT.
+-- ============================================================================
+-- QUICK FIX: Trade Completion Function Error
+-- ============================================================================
+-- Issue: completeTradeV2 throws "FunctionsHttpError: Edge Function returned a non-2xx status code"
+-- Root Cause: Type mismatch in complete_trade_v2 RPC when calling get_subscription_summary()
+-- Solution: Fix the function signature and variable types
+-- ============================================================================
 
--- =============================================================================
--- BLOCK 1 — Schema (RPC)
--- =============================================================================
+-- Step 1: Drop the old function
+DROP FUNCTION IF EXISTS public.complete_trade_v2(UUID, UUID) CASCADE;
 
+-- Step 2: Re-create with fixed logic
 CREATE OR REPLACE FUNCTION public.complete_trade_v2(
   p_trade_id UUID,
   p_user_id UUID DEFAULT NULL -- NULL allowed for system/auto-complete
@@ -152,8 +146,25 @@ EXCEPTION
 END;
 $$;
 
--- =============================================================================
--- BLOCK 2 — Security
--- =============================================================================
-
+-- Grant permissions
 GRANT EXECUTE ON FUNCTION public.complete_trade_v2(UUID, UUID) TO anon, authenticated;
+
+-- ============================================================================
+-- VERIFICATION
+-- ============================================================================
+-- Run these queries to verify the fix:
+
+-- Check function exists and is correct
+SELECT proname, prosrc
+FROM pg_proc
+WHERE proname = 'complete_trade_v2'
+LIMIT 1;
+
+-- Expected: Should show the function definition with RECORD variable and v_can_earn_sp
+
+-- ============================================================================
+-- Testing (Optional)
+-- ============================================================================
+-- To test with a real trade, replace 'your-trade-id' and 'your-user-id':
+-- SELECT complete_trade_v2('your-trade-id'::UUID, 'your-user-id'::UUID);
+-- Expected: Should return JSON with success: true

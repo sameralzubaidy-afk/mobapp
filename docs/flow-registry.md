@@ -75,12 +75,11 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Smoke: (manual)
 
 ### FLOW-14: Messaging (Realtime)
-- Smoke: (manual)
   - Open Messages list -> unread badges reflect unread messages only.
   - Tap a conversation -> Chat opens and that conversation’s unread badge clears on returning to the list.
   - New incoming message (other user) increments unread badge until the conversation is opened again.
+  - After a trade is completed, messages in that trade get an `expires_at` timestamp (trade completion + configured retention days) and are later soft-deleted by the MSG-004 expiration job.
 
-### FLOW-15: Safety & Moderation
 - Smoke: (manual)
 
 ### FLOW-16: CPSC Recall Check (if implemented)

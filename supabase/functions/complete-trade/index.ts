@@ -39,10 +39,11 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { tradeId } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const tradeId = body?.tradeId ?? body?.trade_id;
 
     if (!tradeId) {
-      return new Response(JSON.stringify({ error: 'Missing tradeId' }), {
+      return new Response(JSON.stringify({ error: 'Missing tradeId (expected tradeId or trade_id)' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -63,8 +64,8 @@ serve(async (req) => {
       });
     }
 
-    if (!data.success) {
-      return new Response(JSON.stringify({ error: data.error }), {
+    if (!data?.success) {
+      return new Response(JSON.stringify({ error: data?.error || 'Unknown error completing trade' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -73,6 +74,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       tradeId: data.trade_id,
+      status: data.status,
       message: data.message 
     }), {
       status: 200,

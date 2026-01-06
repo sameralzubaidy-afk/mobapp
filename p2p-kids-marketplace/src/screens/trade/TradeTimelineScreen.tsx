@@ -96,12 +96,14 @@ export default function TradeTimelineScreen() {
           onPress: async () => {
             try {
               setSubmitting(true);
-              await completeTradeV2(tradeId);
-              Alert.alert('Success', 'Trade marked as completed!');
-              fetchTrade();
-            } catch (error: any) {
-              console.error('❌ Error completing trade:', error);
-              Alert.alert('Error', error.message || 'Failed to complete trade');
+              const result = await completeTradeV2(tradeId);
+
+              if (result.success) {
+                Alert.alert('Success', result.message || 'Trade updated successfully');
+                fetchTrade();
+              } else {
+                Alert.alert('Error', result.error || 'Failed to complete trade');
+              }
             } finally {
               setSubmitting(false);
             }
@@ -123,12 +125,13 @@ export default function TradeTimelineScreen() {
           onPress: async () => {
             try {
               setSubmitting(true);
-              await cancelTradeV2(tradeId, 'User requested cancellation');
-              Alert.alert('Cancelled', 'Trade has been cancelled. Refunds will be processed.');
-              navigation.goBack();
-            } catch (error: any) {
-              console.error('❌ Error cancelling trade:', error);
-              Alert.alert('Error', error.message || 'Failed to cancel trade');
+              const result = await cancelTradeV2(tradeId, 'User requested cancellation');
+              if (result.success) {
+                Alert.alert('Cancelled', 'Trade has been cancelled. Refunds will be processed.');
+                navigation.goBack();
+              } else {
+                Alert.alert('Error', result.error || 'Failed to cancel trade');
+              }
             } finally {
               setSubmitting(false);
             }
