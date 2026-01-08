@@ -1,24 +1,39 @@
 /**
  * Edge Function: cleanup-messages
- * Module: MODULE-07 MSG-004 (Message Expiration)
+ * Module: MODULE-07 MSG-005 (Message Expiration)
  * 
  * Purpose: Scheduled job to automatically mark expired messages as deleted.
- * Runs daily via Supabase cron or manual invocation.
- * 
- * Expiration rule: Messages are soft deleted X days after trade completion,
- * where X is configurable via admin_config.message_expiration_days (default: 30).
+ * Follows the pattern of auto-complete-trades:
+ * 1. Calls scheduled_message_cleanup() RPC (DB wrapper).
+ * 2. DB wrapper logs results to message_cleanup_runs audit table.
  * 
  * Invocation:
- * - Scheduled: Configure in Supabase Dashboard → Database → Cron Jobs
- * - Manual: POST to https://<project>.supabase.co/functions/v1/cleanup-messages
+ * - External Scheduler (GitHub Actions, etc.)
+ * - Supabase Dashboard → Edge Functions → Invoke
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req) => {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    console.error('[cleanup-messages] Missing environment variables');
+    return new Response(
+      JSON.stringify({ 
+        error: 'Server configuration error',
+        details: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   try {
-    // Only allow POST or GET methods
+    // 1. Only allow POST or GET (for easy manual testing/triggering)
     if (req.method !== 'POST' && req.method !== 'GET') {
       return new Response(
         JSON.stringify({ error: 'Method not allowed' }),
@@ -26,53 +41,39 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client with service role key
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('[cleanup-messages] Missing environment variables');
-      return new Response(
-        JSON.stringify({ 
-          error: 'Server configuration error',
-          details: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Log execution start
     console.log('[cleanup-messages] Starting message cleanup job...');
 
-    // Call the mark_expired_messages() RPC function
-    const { data, error } = await supabase.rpc('mark_expired_messages');
+    // 2. Call the scheduled wrapper RPC.
+    // The DB wrapper is responsible for writing to public.message_cleanup_runs.
+    const { data: result, error: rpcError } = await supabase.rpc('scheduled_message_cleanup', {
+      p_invoked_by: 'edge_function',
+      p_job_payload: { action: 'cleanup-messages', method: req.method },
+    });
 
-    if (error) {
-      console.error('[cleanup-messages] RPC error:', error);
+    if (rpcError) {
+      console.error('[cleanup-messages] RPC error:', rpcError);
+
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: error.message,
-          hint: error.hint,
-          details: error.details
+          error: rpcError.message,
+          details: rpcError.details
         }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    const deletedCount = data || 0;
+    const count = typeof result?.processed_count === 'number' ? result.processed_count : 0;
+    console.log(`[cleanup-messages] Cleanup completed. processed_count=${count}`);
 
-    console.log(`[cleanup-messages] Successfully marked ${deletedCount} messages as expired`);
-
-    // Return success response
+    // 4. Return success response
     return new Response(
       JSON.stringify({ 
         success: true,
-        deleted_count: deletedCount,
+        deleted_count: count,
         timestamp: new Date().toISOString(),
-        message: `Marked ${deletedCount} messages as expired`
+        message: `Marked ${count} messages as expired`,
+        result,
       }),
       { 
         status: 200,
@@ -80,7 +81,7 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[cleanup-messages] Unexpected error:', error);
 
     return new Response(
