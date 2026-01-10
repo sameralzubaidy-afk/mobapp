@@ -157,10 +157,14 @@ P2P Kids Marketplace is a hyper-local, mobile-first marketplace where verified p
 ┌───────────────────────▼──────────────��───────────────────┐
 │              APPLICATION LAYER (Business Logic)          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
-│  │ User Mgmt│  │ Listings │  │  Swap    │  │Messages │ │
-│  │  Service │  │  Service │  │  Points  │  │ Service │ │
-│  └──────────┘  └──────────┘  │  Service │  └─────────┘ │
-│                               └──────────┘               │
+│  │ User Mgmt│  │ Listings │  │Gamific.  │  │Messages │ │
+│  │  Service │  │  Service │  │ Service  │  │ Service │ │
+│  └──────────┘  └──────────┘  └──────────┘  └─────────┘ │
+│                ┌──────────┐                            │
+│                │  Swap    │                            │
+│                │  Points  │                            │
+│                │  Service │                            │
+│                └──────────┘                            │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
 │  │ Payment  │  │Geography │  │ Moderation│  │Analytics│ │
 │  │  Service │  │  Service │  │  Service  │  │ Service │ │
@@ -172,8 +176,8 @@ P2P Kids Marketplace is a hyper-local, mobile-first marketplace where verified p
 │  ┌─────────────────────────────────────────────────┐    │
 │  │  Supabase PostgreSQL (Primary Database)        │    │
 │  │  - Users, Listings, Transactions                │    │
-│  │  - Swap Points, Subscriptions                   │    │
-│  │  - Messages, Node Management                    │    │
+│  │  - Swap Points, Subscriptions, Badges           │    │
+│  │  - Messages, Node Management, Badge Configs     │    │
 │  └─────────────────────────────────────────────────┘    │
 │  ┌─────────────────────────────────────────────────┐    │
 │  │  Upstash Redis (Cache & Sessions)              │    │
@@ -1927,7 +1931,36 @@ CREATE TABLE transactions (
 );
 ```
 
-### 8.6 SP Configuration Table (Admin)
+### 8.6 Badge Definitions Table (Admin)
+
+```sql
+CREATE TABLE badge_configs (
+  badge_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug VARCHAR(50) UNIQUE NOT NULL, -- e.g., 'community-champion'
+  title VARCHAR(100) NOT NULL,
+  description TEXT,
+  icon_path VARCHAR(255), -- Path in 'badge-icons' bucket
+  
+  -- Logic Configuration (JSONB)
+  -- Example: {"type": "donations", "threshold": 10}
+  -- Example: {"type": "sales_count", "threshold": 50}
+  earning_logic JSONB NOT NULL,
+  
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_badges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(user_id) ON DELETE CASCADE,
+  badge_id UUID REFERENCES badge_configs(badge_id) ON DELETE CASCADE,
+  awarded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, badge_id)
+);
+```
+
+### 8.7 SP Configuration Table (Admin)
 
 ```sql
 CREATE TABLE sp_config (
@@ -2036,7 +2069,7 @@ Response (200 OK):
 }
 ```
 
-### 9.2 Swap Points APIs
+### 9.2 Swap Points & Gamification APIs
 
 #### GET /api/sp/wallet
 ```typescript
@@ -2074,6 +2107,37 @@ Response (200 OK) - Free User:
   "message": "Swap Points are only available to Kids Club+ subscribers",
   "upgrade_url": "/subscription/upgrade"
 }
+```
+
+#### GET /api/badges/list
+```typescript
+Request Headers:
+Authorization: Bearer {jwt_token}
+
+Response (200 OK):
+[
+  {
+    "badge_id": "uuid",
+    "title": "Community Champion",
+    "icon_url": "https://...",
+    "awarded_at": "2025-12-05T12:00:00Z"
+  }
+]
+```
+
+#### POST /api/admin/badges/upsert
+```typescript
+Request (Admin Only):
+{
+  "badge_id": "uuid", // Optional for new
+  "slug": "generous",
+  "title": "Generous Donor",
+  "earning_logic": {"type": "donations", "threshold": 5},
+  "icon_path": "icons/generous.svg"
+}
+
+Response:
+{ "success": true, "badge_id": "uuid" }
 ```
 
 #### POST /api/sp/calculate

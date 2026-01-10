@@ -64,6 +64,7 @@ CONTEXT:
 - Part of Phase 3 for Kids Club+ marketplace V2.
 - MODULE-09 (SP Gamification) tracks SP earning/spending for badge triggers.
 - MODULE-11 (Subscriptions) tracks tenure for subscription badges.
+- NEW: Admin Configurability for all badge metrics, titles, and icons.
 
 YOUR INSTRUCTIONS:
 1. Read this entire module specification carefully.
@@ -583,6 +584,329 @@ describe('Badge Awarding', () => {
 
 /*
 ==================================================
+NEXT TASK: BADGES-V2-005 (Admin Config Schema & History)
+==================================================
+*/
+
+---
+
+## TASK BADGES-V2-005: Admin Configuration Schema & History
+
+**Duration:** 3 hours  
+**Priority:** High  
+**Dependencies:** BADGES-V2-001
+
+### Description
+
+Extend the badge schema to support dynamic admin control, versioning, and audit logging.
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Extend badge schema for admin configurability and history
+
+REQUIREMENTS:
+1. Migration: Update badges table with admin fields
+2. Migration: Create badge_config_history for versioning
+3. Migration: Create badge_audit_logs for manual actions
+
+==================================================
+FILE 1: Migration - Schema Updates
+==================================================
+*/
+
+-- filepath: supabase/migrations/084_badge_admin_config.sql
+
+ALTER TABLE badges
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE,
+ADD COLUMN sort_order INT DEFAULT 0,
+ADD COLUMN is_archived BOOLEAN DEFAULT FALSE,
+ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Track configuration history
+CREATE TABLE badge_config_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  badge_id UUID NOT NULL REFERENCES badges(id) ON DELETE CASCADE,
+  admin_id UUID NOT NULL, -- Reference to admin user
+  old_threshold INT,
+  new_threshold INT,
+  old_name TEXT,
+  new_name TEXT,
+  changed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Audit logs for manual badge awards and overrides
+CREATE TABLE badge_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  badge_id UUID REFERENCES badges(id) ON DELETE SET NULL,
+  user_id UUID NOT NULL,
+  admin_id UUID NOT NULL,
+  action_type TEXT NOT NULL, -- 'manual_award', 'manual_revoke', 'config_change'
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+/*
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ badges table updated with is_active and sort_order
+✓ badge_config_history table tracks threshold changes
+✓ badge_audit_logs captures admin-initiated actions
+*/
+```
+
+---
+
+## TASK BADGES-V2-006: Badge Icon Management & Supabase Storage
+
+**Duration:** 2 hours  
+**Priority:** Medium  
+**Dependencies:** BADGES-V2-005
+
+### Description
+
+Implement icon management using Supabase Storage for admin uploads.
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Setup badge icon storage and signed URL logic
+
+REQUIREMENTS:
+1. Storage: Create 'badge-icons' bucket
+2. Service: Upload icon handle and signed URL retrieval
+
+==================================================
+FILE 1: Storage Setup (SQL)
+==================================================
+*/
+
+-- Create bucket for badge icons if not exists
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('badge-icons', 'badge-icons', true)
+ON CONFLICT (id) DO NOTHING;
+
+/*
+==================================================
+FILE 2: Service - Badge Utils
+==================================================
+*/
+
+// filepath: src/services/badgeUtils.ts
+
+import { supabase } from '../lib/supabase';
+
+export async function uploadBadgeIcon(badgeId: string, file: File) {
+  const filePath = `icons/${badgeId}-${Date.now()}.png`;
+  const { data, error } = await supabase.storage
+    .from('badge-icons')
+    .upload(filePath, file);
+
+  if (error) throw error;
+  
+  const { data: { publicUrl } } = supabase.storage
+    .from('badge-icons')
+    .getPublicUrl(filePath);
+
+  await supabase
+    .from('badges')
+    .update({ icon_url: publicUrl })
+    .eq('id', badgeId);
+
+  return publicUrl;
+}
+```
+
+---
+
+## TASK BADGES-V2-007: Admin Portal UI (Management & Manual Awards)
+
+**Duration:** 5 hours  
+**Priority:** High  
+**Dependencies:** BADGES-V2-005, BADGES-V2-006
+
+### Description
+
+Build the admin management interface for badges.
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Build Badge Management in mobappadmin
+
+REQUIREMENTS:
+1. UI: Badge List with toggles for is_active
+2. UI: Badge Editor (Title, Description, Threshold, Icon Upload)
+3. UI: Manual Awarding interface for specific users
+4. UI: History log for config changes
+
+==================================================
+FILE 1: Admin Badge Manager
+==================================================
+*/
+
+// filepath: mobappadmin/src/pages/Badges/BadgeManager.tsx
+
+// Implement form-based editor for:
+// - name, description, threshold
+// - category (readonly or selectable)
+// - is_active status
+// - sort_order
+// - Icon upload component
+
+/*
+==================================================
+FILE 2: Manual Award Form
+==================================================
+*/
+
+// filepath: mobappadmin/src/pages/Badges/ManualAward.tsx
+
+// Form to:
+// - Select User (Search by email/name)
+// - Select Badge
+// - Input Reason
+// - Submit -> Calls RPC for manual_award_badge
+```
+
+---
+
+## TASK BADGES-V2-008: Retroactive Awarding & Dynamic Triggers
+
+**Duration:** 3 hours  
+**Priority:** High  
+**Dependencies:** BADGES-V2-005
+
+### Description
+
+Update awarding logic to be dynamic and support retroactive awards when admins lower thresholds.
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: implement retroactive awarding and dynamic triggers
+
+REQUIREMENTS:
+1. Update: award_badge_if_eligible to check is_active = true
+2. Function: retroactive_award_badges(badgeId)
+3. Logic: If threshold decreased, find all users who met new threshold but don't have badge
+
+==================================================
+FILE 1: Update awarding logic
+==================================================
+*/
+
+-- filepath: supabase/migrations/085_retroactive_badges.sql
+
+CREATE OR REPLACE FUNCTION retroactive_award_badges(p_badge_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $
+DECLARE
+  v_badge RECORD;
+  v_user_id UUID;
+BEGIN
+  SELECT * INTO v_badge FROM badges WHERE id = p_badge_id AND is_active = TRUE;
+  
+  IF v_badge.category = 'sp_earning' THEN
+    INSERT INTO user_badges (user_id, badge_id)
+    SELECT user_id, v_badge.id
+    FROM (
+      SELECT user_id, SUM(points) as total
+      FROM sp_ledger
+      WHERE points > 0
+      GROUP BY user_id
+    ) t
+    WHERE t.total >= v_badge.threshold
+    ON CONFLICT (user_id, badge_id) DO NOTHING;
+    
+    -- Repeat for other categories...
+  END IF;
+END;
+$;
+```
+
+---
+
+## TASK BADGES-V2-009: Admin Sandbox & Real-time Integration
+
+**Duration:** 4 hours  
+**Priority:** Medium  
+**Dependencies:** BADGES-V2-007, BADGES-V2-008
+
+### Description
+
+Implement "Sandbox" for testing badge triggers and real-time sync for mobile.
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Admin Sandbox and Mobile Real-time Sync
+
+REQUIREMENTS:
+1. UI: Sandbox page to simulate SP/Trade events for test users
+2. Mobile: Subscribe to 'user_badges' for real-time notifications
+
+==================================================
+FILE 1: Admin Sandbox Page
+==================================================
+*/
+
+// filepath: mobappadmin/src/pages/Badges/Sandbox.tsx
+
+// Allow admin to:
+// - Select test user
+// - Trigger "Add 50 SP"
+// - Trigger "Complete Trade"
+// - Verify badge award in real-time UI
+
+/*
+==================================================
+FILE 2: Mobile Real-time Subscription
+==================================================
+*/
+
+// filepath: src/hooks/useUserBadges.ts
+
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+
+export const useUserBadges = (userId: string) => {
+  const [badges, setBadges] = useState([]);
+
+  useEffect(() => {
+    // Initial load...
+    
+    // Real-time subscription
+    const channel = supabase
+      .channel('user_badges_changes')
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'user_badges',
+        filter: `user_id=eq.${userId}` 
+      }, (payload) => {
+        // Handle new badge award (e.g., show celebration modal)
+        loadBadges();
+      })
+      .subscribe();
+
+    return () => { channel.unsubscribe(); };
+  }, [userId]);
+  
+  return badges;
+};
+```
+
+/*
+==================================================
 MODULE SUMMARY
 ==================================================
 */
@@ -590,31 +914,37 @@ MODULE SUMMARY
 ## MODULE-08 SUMMARY: Badges & Achievements (V2)
 
 ### Overview
-Gamification badges tied to SP and subscription milestones:
-- **SP Milestones**: Badges for earning/spending 10, 50, 100, 500 SP.
-- **Trade Milestones**: Badges for 1, 10, 50 completed trades.
-- **Subscription Tenure**: Badges for trial, 1-month, 6-month, 1-year subscribers.
+Gamification badges tied to SP and subscription milestones, fully configurable by admin:
+- **SP Milestones**: Badges for earning/spending (configurable thresholds).
+- **Trade Milestones**: Badges for trade completions (configurable thresholds).
+- **Subscription Tenure**: Badges for trial and active tenure.
+- **Admin Control**: Dynamic management of titles, descriptions, icons, and logic.
 
 ### Key Features
 - Automatic badge awarding via Postgres triggers.
-- Badge showcase on user profiles.
-- Leaderboard ranked by total badges.
+- Retroactive awarding when thresholds are modified.
+- Admin Portal for config management, manual awards, and A/B testing.
+- Badge showcase on user profiles with real-time sync.
+- Audit logs for all configuration changes and manual awards.
 
 ### API Surface
 - `award_badge_if_eligible(userId, category, value)`: RPC for badge checks.
+- `retroactive_award_badges(badgeId)`: RPC for batch processing on config change.
 - `getUserBadges(userId)`: Fetch user's earned badges.
 - `get_badge_leaderboard(limit)`: RPC for leaderboard.
 
 ### Test Coverage
 - ✓ Badges awarded automatically on SP milestones.
 - ✓ Trade completion triggers badge checks.
+- ✓ Retroactive awarding works when thresholds decrease.
+- ✓ Configuration history is tracked correctly.
 - ✓ Leaderboard ranks users correctly.
 
 ---
 
 ## MODULE-08 COMPLETE ✅
 
-All tasks (BADGES-V2-001 through BADGES-V2-004) specified.
+All tasks (BADGES-V2-001 through BADGES-V2-009) specified.
 
 **Next:** MODULE-08-VERIFICATION-V2.md
 

@@ -196,8 +196,14 @@ describe('MSG-009: Typing Indicators', () => {
     jest.clearAllMocks();
     mockChannel = {
       on: jest.fn().mockReturnThis(),
-      subscribe: jest.fn(),
+      subscribe: jest.fn().mockImplementation((cb) => {
+        if (cb) cb('SUBSCRIBED');
+        return mockChannel;
+      }),
       unsubscribe: jest.fn(),
+      presenceState: jest.fn().mockReturnValue({}),
+      track: jest.fn().mockResolvedValue(undefined),
+      send: jest.fn().mockResolvedValue(undefined),
     };
     (supabase.channel as jest.Mock).mockReturnValue(mockChannel);
   });
@@ -208,7 +214,10 @@ describe('MSG-009: Typing Indicators', () => {
       const userId = 'user-456';
       const isTyping = true;
 
-      mockChannel.subscribe.mockResolvedValueOnce('SUBSCRIBED');
+      mockChannel.subscribe.mockImplementation((cb: any) => {
+        if (cb) cb('SUBSCRIBED');
+        return Promise.resolve(mockChannel);
+      });
 
       await broadcastTypingStatus(tradeId, userId, isTyping);
 
@@ -223,7 +232,10 @@ describe('MSG-009: Typing Indicators', () => {
       const tradeId = 'trade-123';
       const userId = 'user-456';
 
-      mockChannel.subscribe.mockResolvedValueOnce('SUBSCRIBED');
+      mockChannel.subscribe.mockImplementation((cb: any) => {
+        if (cb) cb('SUBSCRIBED');
+        return Promise.resolve(mockChannel);
+      });
 
       await broadcastTypingStatus(tradeId, userId, true);
 
@@ -234,7 +246,10 @@ describe('MSG-009: Typing Indicators', () => {
       const tradeId = 'trade-123';
       const userId = 'user-456';
 
-      mockChannel.subscribe.mockResolvedValueOnce('SUBSCRIBED');
+      mockChannel.subscribe.mockImplementation((cb: any) => {
+        if (cb) cb('SUBSCRIBED');
+        return Promise.resolve(mockChannel);
+      });
 
       await broadcastTypingStatus(tradeId, userId, false);
 
@@ -245,7 +260,10 @@ describe('MSG-009: Typing Indicators', () => {
       const tradeId = 'trade-123';
       const userId = 'user-456';
 
-      mockChannel.subscribe.mockRejectedValueOnce(new Error('Channel error'));
+      mockChannel.subscribe.mockImplementation((cb: any) => {
+        if (cb) cb('CHANNEL_ERROR', new Error('Channel error'));
+        return Promise.reject(new Error('Channel error'));
+      });
 
       // Should not throw
       await expect(broadcastTypingStatus(tradeId, userId, true)).resolves.not.toThrow();
@@ -258,7 +276,10 @@ describe('MSG-009: Typing Indicators', () => {
       const callback = jest.fn();
 
       mockChannel.on.mockReturnValue(mockChannel);
-      mockChannel.subscribe.mockResolvedValueOnce('SUBSCRIBED');
+      mockChannel.subscribe.mockImplementation((cb: any) => {
+        if (cb) cb('SUBSCRIBED');
+        return mockChannel;
+      });
 
       subscribeToTypingStatus(tradeId, callback);
 
@@ -275,7 +296,10 @@ describe('MSG-009: Typing Indicators', () => {
       const callback = jest.fn();
 
       mockChannel.on.mockReturnValue(mockChannel);
-      mockChannel.subscribe.mockResolvedValueOnce('SUBSCRIBED');
+      mockChannel.subscribe.mockImplementation((cb: any) => {
+        if (cb) cb('SUBSCRIBED');
+        return mockChannel;
+      });
 
       const unsubscribe = subscribeToTypingStatus(tradeId, callback);
 
@@ -289,22 +313,26 @@ describe('MSG-009: Typing Indicators', () => {
       const callback = jest.fn();
 
       mockChannel.on.mockImplementation((event: string, options: any, handler?: Function) => {
-        // Handle both signatures: on(event, handler) and on(event, options, handler)
         const actualHandler = handler || options;
-        if (event === 'presence') {
-          // Simulate presence sync
-          actualHandler({
-            userId: 'user-789',
-            isTyping: true,
+        if (event === 'presence' && options.event === 'sync') {
+          // Mock presence state to have a typing user
+          mockChannel.presenceState.mockReturnValue({
+            'user-789': [{ user_id: 'user-789', is_typing: true }]
           });
+          // Simulate presence sync
+          actualHandler();
         }
         return mockChannel;
       });
-      mockChannel.subscribe.mockResolvedValueOnce('SUBSCRIBED');
+      mockChannel.subscribe.mockImplementation((cb: any) => {
+        if (cb) cb('SUBSCRIBED');
+        return mockChannel;
+      });
 
       subscribeToTypingStatus(tradeId, callback);
 
       expect(mockChannel.on).toHaveBeenCalled();
+      expect(callback).toHaveBeenCalledWith('user-789', true);
     });
 
     it('should handle multiple users typing', () => {
@@ -312,7 +340,10 @@ describe('MSG-009: Typing Indicators', () => {
       const callback = jest.fn();
 
       mockChannel.on.mockReturnValue(mockChannel);
-      mockChannel.subscribe.mockResolvedValueOnce('SUBSCRIBED');
+      mockChannel.subscribe.mockImplementation((cb: any) => {
+        if (cb) cb('SUBSCRIBED');
+        return mockChannel;
+      });
 
       subscribeToTypingStatus(tradeId, callback);
 

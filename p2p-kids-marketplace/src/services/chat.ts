@@ -29,6 +29,10 @@ export interface Message {
   message_type: 'text' | 'image';
   image_url?: string;
   created_at: string;
+  sender?: {
+    first_name: string;
+    profile_image_url: string | null;
+  };
   // MSG-008: Delivery status tracking
   delivery_status?: 'sent' | 'delivered' | 'read';
   delivered_at?: string;
@@ -137,7 +141,7 @@ export async function getMessages(tradeId: string): Promise<Message[]> {
   try {
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
+      .select('*, sender:profiles(first_name:name, profile_image_url:avatar_url)')
       .eq('trade_id', tradeId)
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
@@ -177,7 +181,20 @@ export function subscribeToMessages(
       },
       async (payload) => {
         console.log('[chat.subscribeToMessages] New message received:', payload.new.id);
-        onMessage(payload.new as Message);
+        
+        // Fetch full message with sender details
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*, sender:profiles(first_name:name, profile_image_url:avatar_url)')
+          .eq('id', payload.new.id)
+          .single();
+          
+        if (!error && data) {
+          onMessage(data as Message);
+        } else {
+          // Fallback to payload if fetch fails
+          onMessage(payload.new as Message);
+        }
       }
     )
     .subscribe((status) => {

@@ -144,7 +144,7 @@ export const getItems = async (
     // Step 3: Apply node filter (after fetching profiles)
     if (filters.node_id && !filters.include_all_nodes) {
       filteredItems = filteredItems.filter((item: any) => {
-        const profile = profileMap.get(item.seller_id);
+        const profile = profileMap.get(item.seller_id) as any;
         return profile?.node_id === filters.node_id;
       });
     }
@@ -185,7 +185,7 @@ export const getItems = async (
 
     // Step 7: Merge all data
     const finalItems = filteredItems.map((item: any) => {
-      const profile = profileMap.get(item.seller_id);
+      const profile = profileMap.get(item.seller_id) as any;
       const node = nodeMap.get(profile?.node_id);
       const itemImages = (imageMap.get(item.id) || []).sort((a: any, b: any) => a.display_order - b.display_order);
       const category = categoryMap.get(item.category_id);
@@ -371,7 +371,7 @@ export const getItemsWithinRadius = async (
     const categoryMap = new Map((catData || []).map((c: any) => [c.id, c]));
 
     const finalItems = itemsList.map((item: any) => {
-      const profile = profileMap.get(item.seller_id);
+      const profile = profileMap.get(item.seller_id) as any;
       const node = nodeMap.get(profile?.node_id);
       const itemImages = (imageMap.get(item.id) || []).sort((a: any, b: any) => a.display_order - b.display_order);
       const category = categoryMap.get(item.category_id);

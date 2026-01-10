@@ -57,6 +57,41 @@
   - [ ] Shows badge icons and names
 - [ ] Leaderboard UI (optional)
 
+### 5. ADMIN CONFIGURATION & AUDIT (BADGES-V2-005)
+
+- [ ] Migration `084_badge_admin_config.sql` applied
+  - [ ] `badges` table updated with `is_active`, `sort_order`, `is_archived`
+  - [ ] `badge_config_history` table created
+  - [ ] `badge_audit_logs` table created
+- [ ] Audit logs captured for config changes
+
+### 6. ICON MANAGEMENT (BADGES-V2-006)
+
+- [ ] Supabase Storage bucket `badge-icons` created
+- [ ] `uploadBadgeIcon` service implemented
+- [ ] Icons display correctly using storage URLs
+
+### 7. ADMIN PORTAL UI (BADGES-V2-007)
+
+- [ ] Badge Management page functional
+  - [ ] Can enable/disable badges
+  - [ ] Can update thresholds and titles
+- [ ] Manual Awarding tool functional
+- [ ] Audit log viewer integrated
+
+### 8. RETROACTIVE AWARDING (BADGES-V2-008)
+
+- [ ] Migration `085_retroactive_badges.sql` applied
+- [ ] RPC `retroactive_award_badges` functional
+- [ ] Verification: Lowering threshold awards badges to eligible users automatically
+
+### 9. SANDBOX & REAL-TIME (BADGES-V2-009)
+
+- [ ] Admin Sandbox page functional
+  - [ ] Can simulate SP and trade events
+- [ ] Mobile real-time sync implemented
+  - [ ] Real-time celebration/modal displays when badge is awarded
+
 - [ ] All tests passing in CI/CD
 
 ---

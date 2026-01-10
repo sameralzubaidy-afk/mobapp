@@ -97,8 +97,8 @@ export default function ChatScreen() {
   const typingChannelRef = useRef<RealtimeChannel | null>(null);
   const seenMessageIdsRef = useRef(new Set<string>());
   // MSG-009: Typing state refs
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
-  const typingSubscriptionRef = useRef<any>();
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingSubscriptionRef = useRef<any>(null);
   const lastTypingBroadcastRef = useRef<number>(0);
   // MSG-009: Animated typing dots
   const typingAnimRef = useRef(new Animated.Value(0)).current;
@@ -861,7 +861,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 40,
-    transform: [{ scaleY: -1 }], // Flip back because FlatList is inverted
+    // On some platforms/versions, ListEmptyComponent may already be flipped by FlatList inverted={true}
+    // If text appears upside down on Android, we remove this transform or use Platform.select
+    ...(Platform.OS === 'ios' ? { transform: [{ scaleY: -1 }] } : {}),
   },
   emptyText: {
     fontSize: 18,

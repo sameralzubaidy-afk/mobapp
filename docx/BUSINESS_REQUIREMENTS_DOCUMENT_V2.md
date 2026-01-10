@@ -93,10 +93,10 @@ Kids P2P Marketplace addresses these challenges through:
    - AI-powered content moderation
    - Recall/safety checks
 
-5. **Swipe-Based Discovery**
-   - Modern, intuitive Tinder-style interface
-   - Child profile matching (age, size, interests)
-   - Priority matching for subscribers
+5. **Dynamic Gamification**
+   - Admin-configurable achievement badges and milestones
+   - Real-time celebrations for milestones (first sale, 10th donation, etc.)
+   - Progress tracking and retroactive awarding for configuration changes
 
 ### 1.4 Business Model
 
@@ -253,11 +253,12 @@ Kids P2P Marketplace addresses these challenges through:
 - Priority in matching algorithm
 - Priority customer support
 
-**Donation & Badges**
+**Gamification & Badges**
 
-- Donate items for free (earn badges)
-- Badge progression: Helper (1) → Generous (5) → Champion (10) → Super Parent (25)
-- Enhanced reputation/trust
+- Dynamic achievement badges (Helper, Top Seller, etc.)
+- Admin-configurable titles, thresholds, and custom icons
+- Real-time celebration animations upon earning
+- Milestone tracking for seller performance and community contributions
 
 ### 4.2 Feature Comparison Table
 
@@ -888,19 +889,19 @@ Acceptance Criteria:
 ✓ Export data to CSV
 ```
 
-**US-ADMIN-003: Manual SP Adjustment**
+**US-ADMIN-004: Manage Achievement Badges**
 
 ```
-As a platform admin handling a dispute,
-I want to manually adjust a user's SP balance,
-So that I can resolve edge cases.
+As a platform admin,
+I want to create and configure achievement badges,
+So that I can motivate user behavior without code deployments.
 
 Acceptance Criteria:
-✓ Search for user by ID or email
-✓ View current SP balance (available + pending)
-✓ Add or deduct SP with reason note
-✓ Change logged in audit trail
-✓ User notified of adjustment via email
+✓ Create/Edit badge titles, descriptions, and earning logic (e.g., "Total Sales > 10")
+✓ Upload custom badge icons to Supabase Storage
+✓ Set "milestone" vs "repetitive" badge types
+✓ Trigger retroactive awarding when thresholds are lowered
+✓ Sandbox mode to test awarding logic before going live
 ```
 
 ---

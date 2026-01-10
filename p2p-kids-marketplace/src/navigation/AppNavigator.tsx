@@ -14,6 +14,7 @@ import LandingScreen from '@/screens/auth/LandingScreen';
 import ProfileSetupScreen from '@/screens/profile/ProfileSetupScreen';
 import EditProfileScreen from '@/screens/profile/EditProfileScreen';
 import ProfileScreen from '@/screens/profile/ProfileScreen';
+import BadgesScreen from '@/screens/profile/BadgesScreen';
 import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '@/screens/auth/ResetPasswordScreen';
 import WelcomeScreen from '@/screens/onboarding/WelcomeScreen';
@@ -170,6 +171,7 @@ function RootNavigator() {
             <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} />
             <Stack.Screen name="SellerEarnings" component={SellerEarningsScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+            <Stack.Screen name="Badges" component={BadgesScreen} />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (

@@ -30,13 +30,29 @@ jest.mock('@/services/chat', () => ({
   subscribeToTypingStatus: jest.fn().mockReturnValue(jest.fn()),
 }));
 
+const mockChannel = {
+  on: jest.fn().mockReturnThis(),
+  subscribe: jest.fn().mockImplementation((cb) => {
+    if (cb) cb('SUBSCRIBED');
+    return mockChannel;
+  }),
+  unsubscribe: jest.fn(),
+  presenceState: jest.fn().mockReturnValue({}),
+  track: jest.fn().mockResolvedValue(undefined),
+  send: jest.fn().mockResolvedValue(undefined),
+};
+
 jest.mock('@/config/supabase', () => ({
   supabase: {
     from: jest.fn().mockReturnValue({
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
+      is: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: null, error: null }),
     }),
+    channel: jest.fn(() => mockChannel),
   },
 }));
 

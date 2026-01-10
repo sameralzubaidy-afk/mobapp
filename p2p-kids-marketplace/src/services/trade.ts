@@ -234,7 +234,7 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
         const title = 'New trade request';
         const bodyText = `${user.email ?? 'A buyer'} initiated a trade for your item.`;
 
-        const { data: notifResult, error: notifError } = await supabase.functions.invoke('send-push-notification', {
+        const response = await supabase.functions.invoke('send-push-notification', {
           body: {
             userId: itemData.seller_id,
             title,
@@ -243,6 +243,9 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
             priority: 'high',
           },
         } as any);
+
+        const notifResult = response?.data;
+        const notifError = response?.error;
 
         if (notifError) {
           console.warn('[trade] send-push-notification returned error:', notifError);
@@ -287,9 +290,11 @@ export async function processTradePayment(
   paymentMethodId: string
 ): Promise<{ success: boolean; error?: string; status?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke('trade-payment', {
+    const response = await supabase.functions.invoke('trade-payment', {
       body: { tradeId, paymentMethodId },
     });
+    const data = response?.data;
+    const error = response?.error;
 
     if (error) {
       console.error('[trade-service] processTradePayment function error:', error);
@@ -363,9 +368,11 @@ export async function completeTradeV2(
   tradeId: string
 ): Promise<{ success: boolean; error?: string; message?: string; status?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke('complete-trade', {
+    const response = await supabase.functions.invoke('complete-trade', {
       body: { tradeId },
     });
+    const data = response?.data;
+    const error = response?.error;
 
     if (error) {
       console.error('[trade-service] completeTradeV2 error:', error);
@@ -416,9 +423,11 @@ export async function completeTradeV2(
  */
 export async function monitorMidTradeSubscriptionChanges(): Promise<{ success: boolean; error?: string; flagged_count?: number }> {
   try {
-    const { data, error } = await supabase.functions.invoke('monitor-mid-trade-subscription-changes', {
+    const response = await supabase.functions.invoke('monitor-mid-trade-subscription-changes', {
       body: {},
     });
+    const data = response?.data;
+    const error = response?.error;
 
     if (error) {
       console.error('[trade-service] monitorMidTradeSubscriptionChanges error:', error);
@@ -468,12 +477,14 @@ export async function cancelTradeV2(
   });
 
   try {
-    const { data, error } = await supabase.functions.invoke('cancel-trade', {
+    const response = await supabase.functions.invoke('cancel-trade', {
       body: { 
         tradeId, 
         reason: sanitizedReason 
       },
     });
+    const data = response?.data;
+    const error = response?.error;
 
     if (error) {
       console.error('[trade-service] cancelTradeV2 Edge Function error:', {

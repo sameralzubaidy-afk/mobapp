@@ -43,23 +43,22 @@ App: p2p-kids-marketplace/
 Supabase: supabase/
 -----
 My Example 1
-## TASK MSG-001: Implement Supabase Realtime Chat (Text Messages)
 
-I’m working on the MODULE-07-MESSAGING.md tasks
-Module: MODULE-07-MESSAGING.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: Please implement ## TASK MSG-001: Implement Supabase Realtime Chat (Text Messages)
+I’m working on the MODULE-08-BADGES-V2.md tasks
+Module: MODULE-08-BADGES-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: 
 scope is 
-Implement real-time text messaging between buyer and seller using Supabase Realtime. Create messages table with trade_id foreign key. Subscribe to message inserts for live updates. Support text-only messages initially.
+
 Please:
-Follow the module and task exactly, and cross-check with the verification file in MODULE-07-VERIFICATION.md
+Follow the module and task exactly, and cross-check with the verification file in MODULE-08-Badges & Achievements VERIFICATION-V2.md
 Show me the files you create or edit with their full paths
-Tell me which items in MODULE-07-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-07-VERIFICATION.md)
+Tell me which items in MODULE-08-Badges & Achievements VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-08-Badges & Achievements VERIFICATION-V2.md)
 always include short answers first
 Note I do not use supabase locally, always must be supabase prod.
 if there is a need to run a sql in supabase before testing clearly ask me to do. 
 create  Unit and E2E tests 
-execute Unit and E2E tests and fix failed cases. 
-Update the navigation file so i can verify manual
+execute Unit and E2E tests and fix errors. 
+Update the navigation file on UI  so i can verify manual
 run functional test where applicaible
 provide steps to manaul test format it as test cases create md file for it. 
 I do not use yarn I use npm so give me all commend lines for npm. 

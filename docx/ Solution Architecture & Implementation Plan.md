@@ -1354,6 +1354,60 @@ All
 No critical bugs
 
 
+EPIC E0.13: Gamification (Badges & Achievements)
+Goal: Implementation of dynamic, admin-configurable badges and achievements.
+Task ID
+Task
+Description
+Dependencies
+Done Criteria
+E0.13.1
+Badge Storage Bucket
+Create 'badge-icons' bucket in Supabase Storage
+E0.1.3
+Bucket exists, permissions set
+E0.13.2
+Badge Config Schema
+Create badge_configs and user_badges tables
+E0.1.4
+Tables created, RLS enabled
+E0.13.3
+Admin Badge Management UI
+Create screens for CRUD operations on badges
+E0.10.2
+Admin can create/edit badges
+E0.13.4
+Earning Logic Engine
+Implement server-side logic to award badges based on triggers
+E0.13.2
+Badges awarded on activity
+E0.13.5
+Retroactive Awarding Job
+Script to award badges to users who already met new thresholds
+E0.13.4
+Past activity processed
+E0.13.6
+Sandbox/Simulator
+Admin UI to test logic against real user data safely
+E0.13.3
+Tests run without side effects
+E0.13.7
+In-App Celebration Modals
+Real-time UI for notifying users of new badge awards
+E0.13.4
+Modals appear on award
+E0.13.8
+Badge List API
+Endpoint for users to see their earned badges
+E0.13.2
+API returns badge list
+E0.13.9
+Gamification Analytics
+Track badge adoption and impact on engagement
+E0.11.1
+Metrics visible in admin dashboard
+
+
 2.4 Suggested Sequencing (Gantt-Style)
 
 
