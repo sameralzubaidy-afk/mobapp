@@ -34,28 +34,96 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
 
   describe('getItems', () => {
     it('should filter items by node_id when provided', async () => {
-      const mockItems = [
+      const mockItemsList = [
         {
           id: 'item-1',
+          seller_id: 'seller-1',
           title: 'Test Item',
+          description: null,
           price: 10.99,
-          seller: {
-            node_id: 'node-norwalk',
-            node: { name: 'Norwalk Central', city: 'Norwalk', state: 'CT' },
-          },
+          category_id: 'cat-1',
+          condition: null,
+          status: 'available',
+          accepts_swap_points: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          sold_at: null,
+        },
+        {
+          id: 'item-2',
+          seller_id: 'seller-2',
+          title: 'Other Item',
+          description: null,
+          price: 5,
+          category_id: 'cat-1',
+          condition: null,
+          status: 'available',
+          accepts_swap_points: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          sold_at: null,
         },
       ];
 
-      const mockQuery = {
+      const mockProfiles = [
+        { user_id: 'seller-1', name: 'Seller 1', avatar_url: null, node_id: 'node-norwalk' },
+        { user_id: 'seller-2', name: 'Seller 2', avatar_url: null, node_id: 'node-other' },
+      ];
+
+      const mockNodes = [
+        { id: 'node-norwalk', name: 'Norwalk Central', city: 'Norwalk', state: 'CT' },
+        { id: 'node-other', name: 'Other Node', city: 'Other', state: 'CT' },
+      ];
+
+      const mockImages = [
+        {
+          id: 'img-1',
+          item_id: 'item-1',
+          url: 'https://example.com/item-1.jpg',
+          thumbnail_url: null,
+          display_order: 1,
+        },
+      ];
+
+      const mockCategories = [{ id: 'cat-1', name: 'Toys', icon: '🧸' }];
+
+      const mockItemsQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         gte: jest.fn().mockReturnThis(),
         lte: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue({ data: mockItems, error: null }),
+        order: jest.fn().mockResolvedValue({ data: mockItemsList, error: null }),
       };
 
-      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+      const mockProfilesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockProfiles, error: null }),
+      };
+
+      const mockNodesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockNodes, error: null }),
+      };
+
+      const mockImagesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockImages, error: null }),
+      };
+
+      const mockCategoriesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockCategories, error: null }),
+      };
+
+      (supabase.from as jest.Mock).mockImplementation((table: string) => {
+        if (table === 'items') return mockItemsQuery;
+        if (table === 'profiles') return mockProfilesQuery;
+        if (table === 'geographic_nodes') return mockNodesQuery;
+        if (table === 'item_images') return mockImagesQuery;
+        if (table === 'categories') return mockCategoriesQuery;
+        return {};
+      });
 
       const filters = {
         node_id: 'node-norwalk',
@@ -64,36 +132,93 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
 
       const result = await getItems(filters, 'user-123');
 
-      expect(result).toEqual(mockItems);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('item-1');
+      expect(result[0].seller?.node_id).toBe('node-norwalk');
       expect(supabase.from).toHaveBeenCalledWith('items');
-      expect(mockQuery.eq).toHaveBeenCalledWith('status', 'available');
-      expect(mockQuery.eq).toHaveBeenCalledWith('seller.node_id', 'node-norwalk');
+      expect(mockItemsQuery.eq).toHaveBeenCalledWith('status', 'available');
+      expect(mockProfilesQuery.in).toHaveBeenCalledWith('user_id', ['seller-1', 'seller-2']);
     });
 
     it('should not filter by node when include_all_nodes is true', async () => {
-      const mockItems = [
+      const mockItemsList = [
         {
           id: 'item-1',
+          seller_id: 'seller-1',
           title: 'Item from Norwalk',
-          seller: { node: { name: 'Norwalk Central' } },
+          description: null,
+          price: 10,
+          category_id: 'cat-1',
+          condition: null,
+          status: 'available',
+          accepts_swap_points: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          sold_at: null,
         },
         {
           id: 'item-2',
+          seller_id: 'seller-2',
           title: 'Item from Little Falls',
-          seller: { node: { name: 'Little Falls' } },
+          description: null,
+          price: 5,
+          category_id: 'cat-1',
+          condition: null,
+          status: 'available',
+          accepts_swap_points: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          sold_at: null,
         },
       ];
 
-      const mockQuery = {
+      const mockProfiles = [
+        { user_id: 'seller-1', name: 'Seller 1', avatar_url: null, node_id: 'node-norwalk' },
+        { user_id: 'seller-2', name: 'Seller 2', avatar_url: null, node_id: 'node-littlefalls' },
+      ];
+
+      const mockNodes = [
+        { id: 'node-norwalk', name: 'Norwalk Central', city: 'Norwalk', state: 'CT' },
+        { id: 'node-littlefalls', name: 'Little Falls', city: 'Little Falls', state: 'NJ' },
+      ];
+
+      const mockItemsQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         gte: jest.fn().mockReturnThis(),
         lte: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue({ data: mockItems, error: null }),
+        order: jest.fn().mockResolvedValue({ data: mockItemsList, error: null }),
       };
 
-      (supabase.from as jest.Mock).mockReturnValue(mockQuery);
+      const mockProfilesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockProfiles, error: null }),
+      };
+
+      const mockNodesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockNodes, error: null }),
+      };
+
+      const mockImagesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+
+      const mockCategoriesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+
+      (supabase.from as jest.Mock).mockImplementation((table: string) => {
+        if (table === 'items') return mockItemsQuery;
+        if (table === 'profiles') return mockProfilesQuery;
+        if (table === 'geographic_nodes') return mockNodesQuery;
+        if (table === 'item_images') return mockImagesQuery;
+        if (table === 'categories') return mockCategoriesQuery;
+        return {};
+      });
 
       const filters = {
         node_id: 'node-norwalk',
@@ -102,10 +227,9 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
 
       const result = await getItems(filters, 'user-123');
 
-      expect(result).toEqual(mockItems);
       expect(result.length).toBe(2);
-      // Should NOT have called eq with node_id filter
-      expect(mockQuery.eq).not.toHaveBeenCalledWith('seller.node_id', expect.any(String));
+      // Node filtering is applied in-app after profiles fetch; include_all_nodes skips it.
+      expect(result.map((i: any) => i.id).sort()).toEqual(['item-1', 'item-2']);
     });
 
     it('should apply category filter', async () => {
@@ -197,19 +321,56 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
         { id: 'node-1', name: 'Node 1', distance_miles: 5 },
         { id: 'node-2', name: 'Node 2', distance_miles: 10 },
       ];
-      const mockItems = [
-        { id: 'item-1', title: 'Item 1', seller: { node_id: 'node-1' } },
-        { id: 'item-2', title: 'Item 2', seller: { node_id: 'node-2' } },
+      const mockSellersInRadius = [{ user_id: 'seller-1' }, { user_id: 'seller-2' }];
+      const mockItemsList = [
+        {
+          id: 'item-1',
+          seller_id: 'seller-1',
+          title: 'Item 1',
+          description: null,
+          price: 10,
+          category_id: 'cat-1',
+          condition: null,
+          status: 'available',
+          accepts_swap_points: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          sold_at: null,
+        },
+        {
+          id: 'item-2',
+          seller_id: 'seller-2',
+          title: 'Item 2',
+          description: null,
+          price: 5,
+          category_id: 'cat-1',
+          condition: null,
+          status: 'available',
+          accepts_swap_points: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          sold_at: null,
+        },
+      ];
+
+      const mockProfiles = [
+        { user_id: 'seller-1', name: 'Seller 1', avatar_url: null, node_id: 'node-1' },
+        { user_id: 'seller-2', name: 'Seller 2', avatar_url: null, node_id: 'node-2' },
+      ];
+
+      const mockNodes = [
+        { id: 'node-1', name: 'Node 1', city: 'City 1', state: 'ST' },
+        { id: 'node-2', name: 'Node 2', city: 'City 2', state: 'ST' },
       ];
 
       // Mock node lookup
       const mockNodeQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: mockNode, error: null }),
+        in: jest.fn().mockResolvedValue({ data: mockNodes, error: null }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: mockNode, error: null }),
       };
 
-      // Mock items query
       const mockItemsQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -217,13 +378,41 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
         gte: jest.fn().mockReturnThis(),
         lte: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
-        order: jest.fn().mockResolvedValue({ data: mockItems, error: null }),
+        order: jest.fn().mockResolvedValue({ data: mockItemsList, error: null }),
+      };
+
+      const mockProfilesNodeQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockSellersInRadius, error: null }),
+      };
+
+      const mockProfilesDetailsQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockProfiles, error: null }),
+      };
+
+      const mockImagesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+
+      const mockCategoriesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
 
       (supabase.from as jest.Mock).mockImplementation((table) => {
         if (table === 'geographic_nodes') return mockNodeQuery;
+        if (table === 'profiles') {
+          // first call: sellers in radius; second call: seller details
+          const callCount = (supabase.from as jest.Mock).mock.calls.filter((c) => c[0] === 'profiles')
+            .length;
+          return callCount === 1 ? mockProfilesNodeQuery : mockProfilesDetailsQuery;
+        }
         if (table === 'items') return mockItemsQuery;
-        return mockNodeQuery;
+        if (table === 'item_images') return mockImagesQuery;
+        if (table === 'categories') return mockCategoriesQuery;
+        return {};
       });
 
       (supabase.rpc as jest.Mock).mockResolvedValue({
@@ -233,27 +422,26 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
 
       const result = await getItemsWithinRadius('node-norwalk', 10, 'user-123');
 
-      expect(result).toEqual(mockItems);
+      expect(result).toHaveLength(2);
       expect(supabase.rpc).toHaveBeenCalledWith('get_nodes_within_radius', {
         center_lat: mockNode.latitude,
         center_lng: mockNode.longitude,
         radius_miles: 10,
       });
-      expect(mockItemsQuery.in).toHaveBeenCalledWith('seller.node_id', ['node-1', 'node-2']);
+      expect(mockProfilesNodeQuery.in).toHaveBeenCalledWith('node_id', ['node-1', 'node-2']);
+      expect(mockItemsQuery.in).toHaveBeenCalledWith('seller_id', ['seller-1', 'seller-2']);
     });
 
     it('should handle node lookup errors', async () => {
       const mockNodeQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockRejectedValue(new Error('Node not found')),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: { message: 'Node not found' } }),
       };
 
       (supabase.from as jest.Mock).mockReturnValue(mockNodeQuery);
 
-      await expect(
-        getItemsWithinRadius('invalid-node', 10, 'user-123')
-      ).rejects.toThrow();
+      await expect(getItemsWithinRadius('invalid-node', 10, 'user-123')).resolves.toEqual([]);
     });
   });
 
@@ -263,12 +451,30 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
         id: 'item-123',
         title: 'Test Item',
         price: 15.99,
+        seller: {
+          user_id: 'seller-1',
+          name: 'Seller Name',
+          avatar_url: 'https://example.com/avatar.jpg',
+        },
+        category: {
+          id: 'cat-1',
+          name: 'Toys',
+          icon: '🧸',
+        },
+        images: [
+          {
+            id: 'img-1',
+            url: 'https://example.com/item.jpg',
+            thumbnail_url: 'https://example.com/item-thumb.jpg',
+            display_order: 1,
+          },
+        ],
       };
 
       const mockQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: mockItem, error: null }),
+        maybeSingle: jest.fn().mockResolvedValue({ data: mockItem, error: null }),
       };
 
       (supabase.from as jest.Mock).mockReturnValue(mockQuery);
@@ -283,7 +489,7 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
       const mockQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({
+        maybeSingle: jest.fn().mockResolvedValue({
           data: null,
           error: { message: 'Not found' },
         }),

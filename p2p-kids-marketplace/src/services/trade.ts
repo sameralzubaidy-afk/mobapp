@@ -12,6 +12,42 @@ import { getSubscriptionSummary } from './subscription';
 import { getListingById } from './listing';
 import { getAdminConfig } from './adminConfig';
 
+/**
+ * Map Stripe error codes to user-friendly messages
+ * @param error - Stripe error message or code
+ * @returns User-friendly error message
+ */
+export function mapStripeErrorToMessage(error?: string): string {
+  if (!error) {
+    return 'Payment failed. Please try again.';
+  }
+
+  const lowerError = error.toLowerCase();
+
+  if (lowerError.includes('card_declined') || lowerError.includes('declined')) {
+    return 'Payment failed: the card was declined. Try a different card or payment method.';
+  }
+
+  if (lowerError.includes('expired_card')) {
+    return 'Your card has expired. Please use a different payment method.';
+  }
+
+  if (lowerError.includes('incorrect_cvc')) {
+    return 'The security code (CVC) is incorrect. Please check and try again.';
+  }
+
+  if (lowerError.includes('insufficient_funds')) {
+    return 'Insufficient funds. Please try a different payment method.';
+  }
+
+  if (lowerError.includes('lost_card') || lowerError.includes('stolen_card')) {
+    return 'This card has been blocked. Please use a different payment method.';
+  }
+
+  // Pass through non-Stripe errors as-is
+  return error;
+}
+
 export interface InitiateTradeInput {
   item_id: string;
   sp_amount: number;
@@ -88,19 +124,24 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     // 3. Determine if buyer can spend SP
     const canSpendSp = subscriptionSummary.can_spend_sp;
 
-    // 4. Load SP wallet summary from MODULE-09
-    const { data: walletSummary, error: walletError } = await (supabase.rpc('get_user_sp_wallet_summary', { 
-      p_user_id: buyerId 
-    } as any) as any);
+    // 4. Load SP wallet summary from MODULE-09 only when needed.
+    // Offline-first tests and non-subscribers should not require this RPC.
+    let availablePoints = 0;
+    if (sp_amount > 0 && canSpendSp) {
+      const { data: walletSummary, error: walletError } = await (supabase.rpc(
+        'get_user_sp_wallet_summary',
+        { p_user_id: buyerId } as any
+      ) as any);
 
-    if (walletError) {
-      console.error('[trade] Error fetching SP wallet:', walletError);
-      return { success: false, error: 'Failed to verify Swap Points balance' };
+      if (walletError) {
+        console.error('[trade] Error fetching SP wallet:', walletError);
+        return { success: false, error: 'Failed to verify Swap Points balance' };
+      }
+
+      // RPC returns an array or single object depending on implementation
+      const wallet = Array.isArray(walletSummary) ? walletSummary[0] : walletSummary;
+      availablePoints = wallet?.available_points ?? 0;
     }
-
-    // RPC returns an array or single object depending on implementation
-    const wallet = Array.isArray(walletSummary) ? walletSummary[0] : walletSummary;
-    const availablePoints: number = wallet?.available_points ?? 0;
 
     // 5. Clamp requested SP discount based on rules
     let appliedPoints = 0;
@@ -134,23 +175,31 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     const isSubscriber = subscriptionSummary.is_subscriber;
     const transactionFeeCents = isSubscriber ? 99 : 299;
 
-    // CRITICAL: cash_amount_cents is ONLY the discounted item price (without fee)
-    // The fee is tracked separately in buyer_transaction_fee_cents
-    // Total buyer pays = cash_amount_cents + buyer_transaction_fee_cents
+    // CRITICAL: cash_amount_cents stored in DB is the discounted item price (without fee).
+    // For UI/checkout display, return the total cash charge (subtotal + fee).
     const cashAmountCents = discountedSubtotalCents;
+    const totalCashChargeCents = cashAmountCents + transactionFeeCents;
 
     // 7. Fetch seller profile to get node_id and then create trade row
-    const { data: sellerProfile, error: sellerProfileError } = await supabase
-      .from('profiles')
-      .select('node_id')
-      .eq('user_id', itemData.seller_id)
-      .maybeSingle();
+    // Be defensive: tests may not mock this table.
+    let sellerNodeId: string | null = null;
+    try {
+      const profilesQuery: any = (supabase as any)?.from?.('profiles');
+      if (profilesQuery?.select && profilesQuery?.eq && profilesQuery?.maybeSingle) {
+        const { data: sellerProfile, error: sellerProfileError } = await profilesQuery
+          .select('node_id')
+          .eq('user_id', itemData.seller_id)
+          .maybeSingle();
 
-    if (sellerProfileError) {
-      console.warn('[trade] Could not fetch seller profile node_id:', sellerProfileError);
+        if (sellerProfileError) {
+          console.warn('[trade] Could not fetch seller profile node_id:', sellerProfileError);
+        }
+
+        sellerNodeId = (sellerProfile as any)?.node_id ?? null;
+      }
+    } catch (e) {
+      console.warn('[trade] seller profile lookup failed (non-blocking):', e);
     }
-
-    const sellerNodeId = (sellerProfile as any)?.node_id ?? null;
 
     const { data: trade, error: tradeError } = await (supabase
       .from('trades')
@@ -210,7 +259,7 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       trade_id: trade.id,
       trade: trade as Trade,
       appliedPoints,
-      cashAmountCents,
+      cashAmountCents: totalCashChargeCents,
       transactionFeeCents,
       buyerSubscriptionStatus: buyerStatus,
     };

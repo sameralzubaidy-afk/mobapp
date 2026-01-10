@@ -10,6 +10,7 @@ This file is the canonical registry of end-to-end flows and their required regre
   - App boots to login screen without redbox.
   - If network/auth calls stall, app still leaves the full-screen spinner within ~12s and renders the unauthenticated stack.
   - Supabase URL/anon key configured; auth requests succeed.
+  - Test hygiene: `yarn test` must not require real Supabase/network by default; Supabase/network E2E tests only run when `RUN_SUPABASE_E2E=true` and real `SUPABASE_URL`/keys are provided; Detox E2E tests only run when `RUN_DETOX_E2E=true`.
 
 ### FLOW-01: Auth – Signup/Login/Logout/Session Restore
 - Smoke: (manual)
@@ -30,6 +31,7 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
 - Smoke: (manual)
   - Create listing -> appears in listings feed for same node.
+- Automated (offline): Jest covers listing service lifecycle + SP gating.
 
 ### FLOW-05: Media Upload (Storage) – Listing Photos
 - Smoke: (manual)
@@ -38,6 +40,7 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-06: Discovery – Feed/Search/Filters/Favorites
 - Smoke: (manual)
   - Feed loads; search filters update results.
+- Automated (offline): Jest covers `getItems` node filtering and NODE-007 radius fetch.
 
 ### FLOW-07: Cart & Bundling (if implemented)
 - Smoke: (manual)
@@ -55,6 +58,7 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Seller Stripe Connect onboarding completes -> `seller_payout_methods.stripe_onboarding_complete=true` and (once Stripe enables payouts) `stripe_payouts_enabled=true`.
   - PayPal/Venmo payout: Seller creates PayPal/Venmo payout method, withdraws, and payout moves `pending` -> `processing` after submission; later `completed/failed` via PayPal webhook.
   - Stripe payouts: a `seller_payouts` row with `provider='stripe'` and `provider_reference_id=<stripe payout id>` moves `processing` -> `completed/failed` via Stripe payout webhooks.
+- Automated (offline): Jest covers `SellerEarningsScreen` payout summary rendering.
 
 ### FLOW-09: Fees & Pricing Engine
 - Smoke: (manual)
@@ -79,6 +83,8 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Tap a conversation -> Chat opens and that conversation’s unread badge clears on returning to the list.
   - New incoming message (other user) increments unread badge until the conversation is opened again.
   - After a trade is completed, messages in that trade get an `expires_at` timestamp (trade completion + configured retention days) and are later soft-deleted by the MSG-004 expiration job.
+
+- Automated (offline): Jest covers MSG-008/MSG-009 chat service helpers (delivery status + typing indicators).
 
 - Smoke: (manual)
 

@@ -3,8 +3,8 @@
  * E2E scenarios covering complete user workflows
  */
 
-import { createListing, updateListing, deleteListing } from '../listing';
-import { getSubscriptionSummary } from '../subscription';
+import { createListing, updateListing, deleteListing, fetchListings } from '../listing';
+import { getSubscriptionSummary, getSubscriptionStatusString } from '../subscription';
 import { trackEvent } from '../analytics';
 import { supabase } from '../../config/supabase';
 
@@ -14,8 +14,17 @@ jest.mock('../analytics');
 jest.mock('../../config/supabase');
 
 const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction<typeof getSubscriptionSummary>;
+const mockGetSubscriptionStatusString = getSubscriptionStatusString as jest.MockedFunction<
+  typeof getSubscriptionStatusString
+>;
 const mockTrackEvent = trackEvent as jest.MockedFunction<typeof trackEvent>;
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
+
+function makeThenable<T>(result: T) {
+  return {
+    then: (onFulfilled: any, onRejected: any) => Promise.resolve(result).then(onFulfilled, onRejected),
+  } as any;
+}
 
 describe('LISTING-V2-007: Listing Module Integration Tests', () => {
   beforeEach(() => {
@@ -36,36 +45,45 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
         subscription_expires_at: null,
       } as any);
 
-      mockSupabase.from('listings').insert.mockResolvedValueOnce({
-        data: {
-          id: listingId,
-          seller_id: sellerId,
-          title: 'Nintendo Switch',
-          price: 249.99,
-          accepts_swap_points: true,
-          status: 'available',
-        },
-        error: null,
-      } as any);
+      mockGetSubscriptionStatusString.mockResolvedValueOnce('active');
+
+      // createListing(): supabase.from('items').insert(...).select().single()
+      const createBuilder = {
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: listingId,
+            seller_id: sellerId,
+            title: 'Nintendo Switch',
+            price: 249.99,
+            accepts_swap_points: true,
+            status: 'available',
+          },
+          error: null,
+        }),
+      } as any;
+      mockSupabase.from.mockReturnValueOnce(createBuilder);
 
       const createResult = await createListing({
-        sellerId,
-        itemName: 'Nintendo Switch',
-        itemDescription: 'Like new, includes 2 controllers',
-        priceCents: 24999,
-        category: 'electronics',
+        seller_id: sellerId,
+        title: 'Nintendo Switch',
+        description: 'Like new, includes 2 controllers',
+        price: 249.99,
+        category_id: 'cat-electronics',
         condition: 'like_new',
-        imageUrls: ['https://example.com/switch.jpg'],
-        acceptsSwapPoints: true,
-      });
+        accepts_swap_points: true,
+      } as any);
 
       expect(createResult.id).toBe(listingId);
       expect(createResult.accepts_swap_points).toBe(true);
-      expect(mockTrackEvent).toHaveBeenCalledWith('listing_created', {
-        listing_id: listingId,
-        seller_id: sellerId,
-        accepts_sp: true,
-      });
+      expect(mockTrackEvent).toHaveBeenCalledWith(
+        'listing_created',
+        expect.objectContaining({
+          listing_id: listingId,
+          accepts_swap_points: true,
+        })
+      );
     });
 
     it('should prevent free users from creating listings with SP', async () => {
@@ -80,62 +98,88 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
         subscription_expires_at: null,
       } as any);
 
+      mockGetSubscriptionStatusString.mockResolvedValueOnce('free');
+
       // Should fail or auto-disable SP
       await expect(
         createListing({
-          sellerId: freeUserId,
-          itemName: 'Item',
-          itemDescription: 'Description',
-          priceCents: 1000,
-          category: 'electronics',
+          seller_id: freeUserId,
+          title: 'Item',
+          description: 'Description',
+          price: 10,
+          category_id: 'cat-electronics',
           condition: 'like_new',
-          imageUrls: [],
-          acceptsSwapPoints: true, // ← Free user tries to enable SP
-        })
+          accepts_swap_points: true,
+        } as any)
       ).rejects.toThrow();
     });
 
-    it('should allow subscribers to browse listings with SP enabled', async () => {
-      const buyerId = 'buyer-456';
+    it('should allow browsing listings with SP enabled', async () => {
       const listingId = 'listing-abc';
 
-      // Buyer is a subscriber
-      mockGetSubscriptionSummary.mockResolvedValueOnce({
-        status: 'active',
-        can_earn_sp: true,
-        can_spend_sp: true,
-        subscription_tier_id: 'tier-active',
-      } as any);
-
-      // Verify listing is queryable
-      mockSupabase.from('listings')
-        .select('*, profiles(id, user_id, name)')
-        .eq('status', 'available')
-        .eq('accepts_swap_points', true)
-        .mockResolvedValueOnce({
-          data: [{
+      // fetchListings() performs:
+      // - supabase.from('items').select('*').eq('status', 'available').order(...).eq('accepts_swap_points', true)
+      // - then supabase.from('profiles').select(...).in('user_id', sellerIds)
+      // - optionally supabase.from('categories') if category_id exists
+      const itemsResult = {
+        data: [
+          {
             id: listingId,
             seller_id: 'seller-123',
             title: 'Nintendo Switch',
             price: 249.99,
             accepts_swap_points: true,
-            profiles: {
-              id: 'profile-123',
-              user_id: 'seller-123',
-              name: 'Alice Smith',
-            },
-          }],
-          error: null,
-        } as any);
+            status: 'available',
+            category_id: 'cat-electronics',
+          },
+        ],
+        error: null,
+      };
 
-      const listingsResult = await supabase
-        .from('listings')
-        .select('*, profiles(id, user_id, name)')
-        .eq('status', 'available')
-        .eq('accepts_swap_points', true);
+      const itemsBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        then: (onFulfilled: any, onRejected: any) =>
+          Promise.resolve(itemsResult).then(onFulfilled, onRejected),
+      } as any;
 
-      expect(listingsResult.data).toHaveLength(1);
-      expect(listingsResult.data?.[0].accepts_swap_points).toBe(true);
+      const profilesResult = {
+        data: [{ id: 'profile-1', user_id: 'seller-123', name: 'Seller Name', avatar_url: null }],
+        error: null,
+      };
+      const profilesBuilder = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        then: (onFulfilled: any, onRejected: any) =>
+          Promise.resolve(profilesResult).then(onFulfilled, onRejected),
+      } as any;
+
+      const categoriesResult = {
+        data: [{ id: 'cat-electronics', name: 'Electronics' }],
+        error: null,
+      };
+      const categoriesBuilder = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        then: (onFulfilled: any, onRejected: any) =>
+          Promise.resolve(categoriesResult).then(onFulfilled, onRejected),
+      } as any;
+
+      mockSupabase.from.mockImplementation(((tableName: string) => {
+        if (tableName === 'items') return itemsBuilder;
+        if (tableName === 'profiles') return profilesBuilder;
+        if (tableName === 'categories') return categoriesBuilder;
+        return {} as any;
+      }) as any);
+
+      const listings = await fetchListings({ sp_eligible_only: true } as any);
+
+      expect(listings).toHaveLength(1);
+      expect(listings[0].accepts_swap_points).toBe(true);
     });
   });
 
@@ -145,24 +189,27 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
       const listingId = 'listing-to-delete';
 
       // Admin searches for deleted items
-      mockSupabase.from('listings')
-        .select('*, profiles(id, user_id, name)')
-        .eq('status', 'deleted')
-        .mockResolvedValueOnce({
-          data: [{
-            id: listingId,
-            seller_id: 'seller-123',
-            title: 'Broken Item',
-            status: 'deleted',
-            deleted_at: new Date().toISOString(),
-            profiles: {
-              id: 'profile-123',
-              user_id: 'seller-123',
-              name: 'Alice Smith',
-            },
-          }],
-          error: null,
-        } as any);
+      const mockDeletedQuery = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn(),
+      };
+      mockDeletedQuery.eq.mockReturnValue({
+        data: [{
+          id: listingId,
+          seller_id: 'seller-123',
+          title: 'Broken Item',
+          status: 'deleted',
+          deleted_at: new Date().toISOString(),
+          profiles: {
+            id: 'profile-123',
+            user_id: 'seller-123',
+            name: 'Alice Smith',
+          },
+        }],
+        error: null,
+      });
+      mockDeletedQuery.select.mockReturnValue(mockDeletedQuery);
+      (supabase.from as jest.Mock).mockReturnValue(mockDeletedQuery);
 
       const deletedListings = await supabase
         .from('listings')
@@ -179,14 +226,14 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
       const listingId = 'listing-to-delete';
 
       // Call admin_force_delete_listing RPC
-      mockSupabase.rpc('admin_force_delete_listing').mockResolvedValueOnce({
+      (supabase.rpc as jest.Mock).mockResolvedValue({
         data: {
           success: true,
           listing_id: listingId,
           deleted_at: new Date().toISOString(),
         },
         error: null,
-      } as any);
+      });
 
       const deleteResult = await supabase.rpc('admin_force_delete_listing', {
         p_listing_id: listingId,
@@ -225,7 +272,9 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
       ];
 
       for (const result of subscriptionCheckResults) {
-        mockGetSubscriptionSummary.mockResolvedValueOnce(result as any);
+        const mocked = { ...result };
+        delete (mocked as any).shouldAllowSP;
+        mockGetSubscriptionSummary.mockResolvedValueOnce(mocked as any);
 
         const sub = await getSubscriptionSummary('user-123');
 
@@ -254,19 +303,31 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
       ];
 
       for (const transition of validTransitions) {
-        mockSupabase.from('listings')
-          .update({ status: transition.to })
-          .eq('id', listingId)
-          .eq('seller_id', sellerId)
-          .mockResolvedValueOnce({
-            data: { id: listingId, status: transition.to },
+        // updateListing(): first fetch listing, then update
+        const fetchBuilder = {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: { id: listingId, seller_id: sellerId, status: transition.from },
             error: null,
-          } as any);
+          }),
+        } as any;
+        const updateBuilder = {
+          update: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({
+            data: { id: listingId, seller_id: sellerId, status: transition.to },
+            error: null,
+          }),
+        } as any;
+        mockSupabase.from.mockReturnValueOnce(fetchBuilder).mockReturnValueOnce(updateBuilder);
 
-        const result = await updateListing(listingId, {
-          sellerId,
+        const result = await updateListing({
+          listing_id: listingId,
+          user_id: sellerId,
           status: transition.to,
-        });
+        } as any);
 
         if (transition.allowed) {
           expect(result.status).toBe(transition.to);
@@ -278,14 +339,14 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
       const listingId = 'listing-to-pause';
 
       // Pause listing
-      mockSupabase.rpc('admin_pause_listing').mockResolvedValueOnce({
+      (supabase.rpc as jest.Mock).mockResolvedValueOnce({
         data: {
           success: true,
           listing_id: listingId,
           new_status: 'paused',
         },
         error: null,
-      } as any);
+      });
 
       const pauseResult = await supabase.rpc('admin_pause_listing', {
         p_listing_id: listingId,
@@ -294,14 +355,14 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
       expect(pauseResult.data?.new_status).toBe('paused');
 
       // Unpause listing
-      mockSupabase.rpc('admin_unpause_listing').mockResolvedValueOnce({
+      (supabase.rpc as jest.Mock).mockResolvedValueOnce({
         data: {
           success: true,
           listing_id: listingId,
           new_status: 'available',
         },
         error: null,
-      } as any);
+      });
 
       const unpauseResult = await supabase.rpc('admin_unpause_listing', {
         p_listing_id: listingId,
@@ -317,39 +378,20 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
       const seller1 = 'seller-1';
       const seller2 = 'seller-2';
 
-      // Seller 1 owns the listing
-      mockSupabase.from('listings')
-        .select('seller_id')
-        .eq('id', listingId)
-        .mockResolvedValueOnce({
-          data: [{ seller_id: seller1 }],
+      // updateListing() should reject when user_id doesn't match listing.seller_id
+      const fetchBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: listingId, seller_id: seller1, status: 'available' },
           error: null,
-        } as any);
+        }),
+      } as any;
+      mockSupabase.from.mockReturnValueOnce(fetchBuilder);
 
-      const listing = await supabase
-        .from('listings')
-        .select('seller_id')
-        .eq('id', listingId);
-
-      expect(listing.data?.[0].seller_id).toBe(seller1);
-
-      // Seller 2 tries to update → RLS blocks
-      mockSupabase.from('listings')
-        .update({ title: 'Hacked Title' })
-        .eq('id', listingId)
-        .eq('seller_id', seller2)
-        .mockResolvedValueOnce({
-          data: null,
-          error: { message: 'permission denied' } as any,
-        } as any);
-
-      const updateResult = await supabase
-        .from('listings')
-        .update({ title: 'Hacked Title' })
-        .eq('id', listingId)
-        .eq('seller_id', seller2);
-
-      expect(updateResult.error).not.toBeNull();
+      await expect(
+        updateListing({ listing_id: listingId, user_id: seller2, title: 'Hacked Title' } as any)
+      ).rejects.toThrow('not authorized');
     });
   });
 
@@ -358,47 +400,38 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
       const listingId = 'listing-to-soft-delete';
       const sellerId = 'seller-123';
 
-      // Delete listing
-      mockSupabase.from('listings')
-        .update({ status: 'deleted', deleted_at: expect.any(String) })
-        .eq('id', listingId)
-        .eq('seller_id', sellerId)
-        .mockResolvedValueOnce({
-          data: {
-            id: listingId,
-            status: 'deleted',
-            deleted_at: new Date().toISOString(),
-          },
+      const fetchBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: listingId, seller_id: sellerId },
           error: null,
-        } as any);
+        }),
+      } as any;
+      const updateBuilder = {
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnValue(makeThenable({ error: null })),
+      } as any;
+      mockSupabase.from.mockReturnValueOnce(fetchBuilder).mockReturnValueOnce(updateBuilder);
 
-      const result = await deleteListing(listingId, sellerId);
-
-      expect(result.status).toBe('deleted');
-      expect(result.deleted_at).toBeDefined();
+      await expect(deleteListing(listingId, sellerId)).resolves.toBeUndefined();
     });
 
     it('should prevent non-owner from deleting', async () => {
       const listingId = 'listing-owned-by-other';
       const otherSellerId = 'seller-2';
 
-      // Non-owner tries to delete → RLS blocks
-      mockSupabase.from('listings')
-        .update({ status: 'deleted' })
-        .eq('id', listingId)
-        .eq('seller_id', otherSellerId)
-        .mockResolvedValueOnce({
-          data: null,
-          error: { message: 'permission denied' } as any,
-        } as any);
+      const fetchBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { id: listingId, seller_id: 'someone-else' },
+          error: null,
+        }),
+      } as any;
+      mockSupabase.from.mockReturnValueOnce(fetchBuilder);
 
-      const result = await supabase
-        .from('listings')
-        .update({ status: 'deleted' })
-        .eq('id', listingId)
-        .eq('seller_id', otherSellerId);
-
-      expect(result.error).not.toBeNull();
+      await expect(deleteListing(listingId, otherSellerId)).rejects.toThrow('not authorized');
     });
   });
 });

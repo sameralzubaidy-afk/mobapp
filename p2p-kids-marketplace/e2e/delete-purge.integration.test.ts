@@ -14,8 +14,10 @@ const CDN_URL = process.env.EXPO_PUBLIC_CDN_URL || process.env.NEXT_PUBLIC_CDN_U
 const PURGE_ENDPOINT = process.env.SUPABASE_PURGE_ENDPOINT || 'http://localhost:54321/functions/v1/purge-cache';
 const PURGE_API_KEY = process.env.SUPABASE_PURGE_X_API_KEY;
 
-// Skip all tests if environment not configured
-const shouldSkip = !SUPABASE_URL || !SERVICE_ROLE || !CDN_URL;
+const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
+
+// Skip all tests unless explicitly enabled and environment is configured
+const shouldSkip = !shouldRunSupabaseE2E || !SUPABASE_URL || !SERVICE_ROLE || !CDN_URL;
 
 if (shouldSkip) {
   console.warn(

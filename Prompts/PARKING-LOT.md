@@ -97,3 +97,8 @@ I need to do E2E test in stage , locally I could not.
 ## TASK PAY-009 - make the required intergration to complete payout method validations. 
 
 payout needs FULL end to end testing with real money , check status on app and db BEFORE GO love 
+
+ ## BEFORE GO live  I must test on physical devices the push notifcations reqs includes 
+ new trades, unread messeges and what no 
+
+ ## BEFORE GO live  I must test on physical devices the email notifcations for read messeges. 

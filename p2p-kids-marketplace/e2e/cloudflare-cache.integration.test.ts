@@ -6,16 +6,22 @@ const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const CDN_URL = process.env.EXPO_PUBLIC_CDN_URL || process.env.NEXT_PUBLIC_CDN_URL;
 const PURGE_API_KEY = process.env.SUPABASE_PURGE_X_API_KEY;
 
-if (!SUPABASE_URL || !SERVICE_ROLE || !CDN_URL) {
-  // Skip test if environment not configured
-  console.warn('Supabase URL, service role key, or CDN URL missing. Skipping integration test.');
+const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
+const shouldRunCdnIntegration = shouldRunSupabaseE2E && !!SUPABASE_URL && !!SERVICE_ROLE && !!CDN_URL && !!PURGE_API_KEY;
+const describeCdnIntegration = shouldRunCdnIntegration ? describe : describe.skip;
+
+if (!shouldRunCdnIntegration) {
+  console.warn(
+    'CDN integration tests are opt-in. Set RUN_SUPABASE_E2E=true and provide SUPABASE/ CDN env vars to enable.'
+  );
 }
 
-describe('Cloudflare CDN integration (Supabase -> Worker)', () => {
-  if (!SUPABASE_URL || !SERVICE_ROLE || !CDN_URL) {
-    it('skipped', () => {
-      expect(true).toBeTruthy();
-    });
+describeCdnIntegration('Cloudflare CDN integration (Supabase -> Worker)', () => {
+
+  // NOTE: `describe.skip` still evaluates the callback in Jest, so we must
+  // guard any side-effectful initialization (like createClient) explicitly.
+  if (!shouldRunCdnIntegration) {
+    it.skip('skipped (missing RUN_SUPABASE_E2E/env vars)', () => {});
     return;
   }
 

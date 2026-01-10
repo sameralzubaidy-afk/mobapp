@@ -1,1 +1,266 @@
-/**\n * @jest-environment jsdom\n */\n\nimport {\n  compressImage,\n  uploadChatImage,\n  sendImageMessage,\n} from '../chat';\nimport { supabase } from '../../config/supabase';\nimport * as ImageManipulator from 'expo-image-manipulator';\n\n// Mock dependencies\njest.mock('../../config/supabase', () => ({\n  supabase: {\n    storage: {\n      from: jest.fn(),\n    },\n    from: jest.fn(),\n  },\n}));\n\njest.mock('expo-image-manipulator', () => ({\n  manipulateAsync: jest.fn(),\n  SaveFormat: {\n    JPEG: 'jpeg',\n  },\n}));\n\njest.mock('base64-arraybuffer', () => ({\n  decode: jest.fn(),\n}));\n\ndescribe('Chat Image Functions', () => {\n  beforeEach(() => {\n    jest.clearAllMocks();\n  });\n\n  describe('compressImage', () => {\n    it('should successfully compress an image', async () => {\n      const mockResult = {\n        uri: 'compressed-image-uri',\n        base64: 'base64-data',\n        width: 800,\n        height: 600,\n      };\n\n      (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce(mockResult);\n\n      const result = await compressImage('original-image-uri');\n\n      expect(result.success).toBe(true);\n      expect(result.uri).toBe(mockResult.uri);\n      expect(result.base64).toBe(mockResult.base64);\n      expect(result.width).toBe(mockResult.width);\n      expect(result.height).toBe(mockResult.height);\n\n      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(\n        'original-image-uri',\n        [{ resize: { width: 1200 } }],\n        {\n          compress: 0.8,\n          format: ImageManipulator.SaveFormat.JPEG,\n          base64: true,\n        }\n      );\n    });\n\n    it('should handle compression failure', async () => {\n      const error = new Error('Compression failed');\n      (ImageManipulator.manipulateAsync as jest.Mock).mockRejectedValueOnce(error);\n\n      const result = await compressImage('original-image-uri');\n\n      expect(result.success).toBe(false);\n      expect(result.error).toBe('Compression failed');\n    });\n\n    it('should handle missing base64 result', async () => {\n      const mockResult = {\n        uri: 'compressed-image-uri',\n        base64: null, // Missing base64\n        width: 800,\n        height: 600,\n      };\n\n      (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce(mockResult);\n\n      const result = await compressImage('original-image-uri');\n\n      expect(result.success).toBe(false);\n      expect(result.error).toBe('Failed to generate base64 from compressed image');\n    });\n  });\n\n  describe('uploadChatImage', () => {\n    it('should successfully upload an image', async () => {\n      const mockUploadData = { path: 'upload-path' };\n      const mockPublicUrl = 'https://example.com/image.jpg';\n\n      const mockStorageFrom = {\n        upload: jest.fn().mockResolvedValueOnce({ data: mockUploadData, error: null }),\n        getPublicUrl: jest.fn().mockReturnValueOnce({ data: { publicUrl: mockPublicUrl } }),\n      };\n\n      (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);\n\n      const result = await uploadChatImage('trade-123', 'user-456', 'base64-data');\n\n      expect(result.success).toBe(true);\n      expect(result.publicUrl).toBe(mockPublicUrl);\n\n      expect(supabase.storage.from).toHaveBeenCalledWith('chat-images');\n      expect(mockStorageFrom.upload).toHaveBeenCalledWith(\n        expect.stringMatching(/^trade-123\\/user-456-\\d+-[a-z0-9]+\\.jpg$/),\n        expect.any(ArrayBuffer),\n        {\n          contentType: 'image/jpeg',\n          upsert: false,\n        }\n      );\n    });\n\n    it('should handle upload failure', async () => {\n      const mockError = { message: 'Upload failed' };\n      const mockStorageFrom = {\n        upload: jest.fn().mockResolvedValueOnce({ data: null, error: mockError }),\n        getPublicUrl: jest.fn(),\n      };\n\n      (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);\n\n      const result = await uploadChatImage('trade-123', 'user-456', 'base64-data');\n\n      expect(result.success).toBe(false);\n      expect(result.error).toBe('Upload failed');\n    });\n\n    it('should validate required parameters', async () => {\n      const result = await uploadChatImage('', '', '');\n\n      expect(result.success).toBe(false);\n      expect(result.error).toContain('Unexpected error');\n    });\n  });\n\n  describe('sendImageMessage', () => {\n    it('should validate required fields', async () => {\n      const result = await sendImageMessage({\n        tradeId: '',\n        senderId: 'user-123',\n        imageUri: 'image-uri',\n      });\n\n      expect(result.success).toBe(false);\n      expect(result.error).toBe('Missing required fields: tradeId, senderId, or imageUri');\n    });\n\n    it('should handle compression failure in sendImageMessage', async () => {\n      // Mock compression failure\n      (ImageManipulator.manipulateAsync as jest.Mock).mockRejectedValueOnce(\n        new Error('Compression failed')\n      );\n\n      const result = await sendImageMessage({\n        tradeId: 'trade-123',\n        senderId: 'user-456',\n        imageUri: 'image-uri',\n      });\n\n      expect(result.success).toBe(false);\n      expect(result.error).toBe('Compression failed');\n    });\n\n    it('should handle upload failure in sendImageMessage', async () => {\n      // Mock successful compression\n      (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce({\n        uri: 'compressed-uri',\n        base64: 'base64-data',\n        width: 800,\n        height: 600,\n      });\n\n      // Mock upload failure\n      const mockStorageFrom = {\n        upload: jest.fn().mockResolvedValueOnce({ \n          data: null, \n          error: { message: 'Upload failed' } \n        }),\n        getPublicUrl: jest.fn(),\n      };\n      (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);\n\n      const result = await sendImageMessage({\n        tradeId: 'trade-123',\n        senderId: 'user-456',\n        imageUri: 'image-uri',\n      });\n\n      expect(result.success).toBe(false);\n      expect(result.error).toBe('Upload failed');\n    });\n\n    it('should successfully send image message', async () => {\n      // Mock successful compression\n      (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce({\n        uri: 'compressed-uri',\n        base64: 'base64-data',\n        width: 800,\n        height: 600,\n      });\n\n      // Mock successful upload\n      const mockPublicUrl = 'https://example.com/image.jpg';\n      const mockStorageFrom = {\n        upload: jest.fn().mockResolvedValueOnce({ \n          data: { path: 'upload-path' }, \n          error: null \n        }),\n        getPublicUrl: jest.fn().mockReturnValueOnce({ \n          data: { publicUrl: mockPublicUrl } \n        }),\n      };\n      (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);\n\n      // Mock successful database insert\n      const mockMessageData = {\n        id: 'message-123',\n        trade_id: 'trade-123',\n        sender_id: 'user-456',\n        content: 'Image',\n        message_type: 'image',\n        image_url: mockPublicUrl,\n        created_at: new Date().toISOString(),\n      };\n\n      const mockSupabaseFrom = {\n        insert: jest.fn().mockReturnThis(),\n        select: jest.fn().mockReturnThis(),\n        single: jest.fn().mockResolvedValueOnce({ \n          data: mockMessageData, \n          error: null \n        }),\n      };\n      (supabase.from as jest.Mock).mockReturnValue(mockSupabaseFrom);\n\n      const result = await sendImageMessage({\n        tradeId: 'trade-123',\n        senderId: 'user-456',\n        imageUri: 'image-uri',\n      });\n\n      expect(result.success).toBe(true);\n      expect(result.message).toEqual(mockMessageData);\n\n      // Verify database insert was called correctly\n      expect(mockSupabaseFrom.insert).toHaveBeenCalledWith({\n        trade_id: 'trade-123',\n        sender_id: 'user-456',\n        content: 'Image',\n        message_type: 'image',\n        image_url: mockPublicUrl,\n      });\n    });\n  });\n});
+// @jest-environment jsdom
+
+import {
+  compressImage,
+  uploadChatImage,
+  sendImageMessage,
+} from '../chat';
+import { supabase } from '../../config/supabase';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { decode } from 'base64-arraybuffer';
+
+// Mock dependencies
+jest.mock('../../config/supabase', () => ({
+  supabase: {
+    storage: {
+      from: jest.fn(),
+    },
+    from: jest.fn(),
+  },
+}));
+
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn(),
+  SaveFormat: {
+    JPEG: 'jpeg',
+  },
+}));
+
+jest.mock('base64-arraybuffer', () => ({
+  decode: jest.fn(),
+}));
+
+describe('Chat Image Functions', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (decode as jest.Mock).mockReturnValue(new ArrayBuffer(8));
+  });
+
+  describe('compressImage', () => {
+    it('should successfully compress an image', async () => {
+      const mockResult = {
+        uri: 'compressed-image-uri',
+        base64: 'base64-data',
+        width: 800,
+        height: 600,
+      };
+
+      (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce(mockResult);
+
+      const result = await compressImage('original-image-uri');
+
+      expect(result.success).toBe(true);
+      expect(result.uri).toBe(mockResult.uri);
+      expect(result.base64).toBe(mockResult.base64);
+      expect(result.width).toBe(mockResult.width);
+      expect(result.height).toBe(mockResult.height);
+
+      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
+        'original-image-uri',
+        [{ resize: { width: 1200 } }],
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        }
+      );
+    });
+
+    it('should handle compression failure', async () => {
+      const error = new Error('Compression failed');
+      (ImageManipulator.manipulateAsync as jest.Mock).mockRejectedValueOnce(error);
+
+      const result = await compressImage('original-image-uri');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Compression failed');
+    });
+
+    it('should handle missing base64 result', async () => {
+      const mockResult = {
+        uri: 'compressed-image-uri',
+        base64: null, // Missing base64
+        width: 800,
+        height: 600,
+      };
+
+      (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce(mockResult);
+
+      const result = await compressImage('original-image-uri');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to generate base64 from compressed image');
+    });
+  });
+
+  describe('uploadChatImage', () => {
+    it('should successfully upload an image', async () => {
+      const mockUploadData = { path: 'upload-path' };
+      const mockPublicUrl = 'https://example.com/image.jpg';
+
+      const mockStorageFrom = {
+        upload: jest.fn().mockResolvedValueOnce({ data: mockUploadData, error: null }),
+        getPublicUrl: jest.fn().mockReturnValueOnce({ data: { publicUrl: mockPublicUrl } }),
+      };
+
+      (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);
+
+      const result = await uploadChatImage('trade-123', 'user-456', 'base64-data');
+
+      expect(result.success).toBe(true);
+      expect(result.publicUrl).toBe(mockPublicUrl);
+
+      expect(supabase.storage.from).toHaveBeenCalledWith('chat-images');
+      expect(mockStorageFrom.upload).toHaveBeenCalledWith(
+        expect.stringMatching(/^trade-123\/user-456-\d+-[a-z0-9]+\.jpg$/),
+        expect.any(ArrayBuffer),
+        {
+          contentType: 'image/jpeg',
+          upsert: false,
+        }
+      );
+    });
+
+    it('should handle upload failure', async () => {
+      const mockError = { message: 'Upload failed' };
+      const mockStorageFrom = {
+        upload: jest.fn().mockResolvedValueOnce({ data: null, error: mockError }),
+        getPublicUrl: jest.fn(),
+      };
+
+      (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);
+
+      const result = await uploadChatImage('trade-123', 'user-456', 'base64-data');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Upload failed');
+    });
+
+    it('should validate required parameters', async () => {
+      const result = await uploadChatImage('', '', '');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Missing required fields: tradeId, senderId, or base64Data');
+    });
+  });
+
+  describe('sendImageMessage', () => {
+    it('should validate required fields', async () => {
+      const result = await sendImageMessage({
+        tradeId: '',
+        senderId: 'user-123',
+        imageUri: 'image-uri',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Missing required fields: tradeId, senderId, or imageUri');
+    });
+
+    it('should handle compression failure in sendImageMessage', async () => {
+      // Mock compression failure
+      (ImageManipulator.manipulateAsync as jest.Mock).mockRejectedValueOnce(
+        new Error('Compression failed')
+      );
+
+      const result = await sendImageMessage({
+        tradeId: 'trade-123',
+        senderId: 'user-456',
+        imageUri: 'image-uri',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Compression failed');
+    });
+
+    it('should handle upload failure in sendImageMessage', async () => {
+      // Mock successful compression
+      (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce({
+        uri: 'compressed-uri',
+        base64: 'base64-data',
+        width: 800,
+        height: 600,
+      });
+
+      // Mock upload failure
+      const mockStorageFrom = {
+        upload: jest.fn().mockResolvedValueOnce({ 
+          data: null, 
+          error: { message: 'Upload failed' } 
+        }),
+        getPublicUrl: jest.fn(),
+      };
+      (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);
+
+      const result = await sendImageMessage({
+        tradeId: 'trade-123',
+        senderId: 'user-456',
+        imageUri: 'image-uri',
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Upload failed');
+    });
+
+    it('should successfully send image message', async () => {
+      // Mock successful compression
+      (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValueOnce({
+        uri: 'compressed-uri',
+        base64: 'base64-data',
+        width: 800,
+        height: 600,
+      });
+
+      // Mock successful upload
+      const mockPublicUrl = 'https://example.com/image.jpg';
+      const mockStorageFrom = {
+        upload: jest.fn().mockResolvedValueOnce({ 
+          data: { path: 'upload-path' }, 
+          error: null 
+        }),
+        getPublicUrl: jest.fn().mockReturnValueOnce({ 
+          data: { publicUrl: mockPublicUrl } 
+        }),
+      };
+      (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);
+
+      // Mock successful database insert
+      const mockMessageData = {
+        id: 'message-123',
+        trade_id: 'trade-123',
+        sender_id: 'user-456',
+        content: 'Image',
+        message_type: 'image',
+        image_url: mockPublicUrl,
+        created_at: new Date().toISOString(),
+      };
+
+      const mockSupabaseFrom = {
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValueOnce({ 
+          data: mockMessageData, 
+          error: null 
+        }),
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockSupabaseFrom);
+
+      const result = await sendImageMessage({
+        tradeId: 'trade-123',
+        senderId: 'user-456',
+        imageUri: 'image-uri',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toEqual(mockMessageData);
+
+      // Verify database insert was called correctly
+      expect(mockSupabaseFrom.insert).toHaveBeenCalledWith({
+        trade_id: 'trade-123',
+        sender_id: 'user-456',
+        content: 'Image',
+        message_type: 'image',
+        image_url: mockPublicUrl,
+      });
+    });
+  });
+});

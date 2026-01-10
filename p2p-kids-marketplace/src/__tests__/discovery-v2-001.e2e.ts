@@ -22,10 +22,11 @@ import { supabase } from '../config/supabase';
  * Run with: npm run test:e2e -- discovery-v2-001
  */
 describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
-  // Skip if no SUPABASE_URL environment variable
-  const skipIfNoSupabase = process.env.SUPABASE_URL ? describe : describe.skip;
+  // Default test runs must be offline/deterministic. Enable real Supabase E2E explicitly.
+  const RUN_SUPABASE_E2E = process.env.RUN_SUPABASE_E2E === 'true';
+  const describeSupabase = RUN_SUPABASE_E2E ? describe : describe.skip;
 
-  skipIfNoSupabase('Full-Text Search', () => {
+  describeSupabase('Full-Text Search', () => {
     let testListingIds: string[] = [];
 
     beforeAll(async () => {
@@ -201,7 +202,7 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
     });
   });
 
-  skipIfNoSupabase('Category Browsing', () => {
+  describeSupabase('Category Browsing', () => {
     test('should browse listings by category', async () => {
       // Note: This test requires a valid category ID from the database
       // In real implementation, fetch a real category first
@@ -275,7 +276,7 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
     });
   });
 
-  describe('Integration: Search + Database', () => {
+  describeSupabase('Integration: Search + Database', () => {
     test('should verify search_vector column exists', async () => {
       // This test verifies the database schema is correct
       // Query information_schema to check for search_vector column

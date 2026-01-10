@@ -20,10 +20,11 @@ import { supabase } from '../config/supabase';
  * Run with: npm test src/__tests__/discovery-v2-003.e2e.ts
  */
 describe('E2E: DISCOVERY-V2-003 - Category Browsing', () => {
-  // Skip if no SUPABASE_URL environment variable
-  const skipIfNoSupabase = process.env.SUPABASE_URL ? describe : describe.skip;
+  // Default test runs must be offline/deterministic. Enable real Supabase E2E explicitly.
+  const RUN_SUPABASE_E2E = process.env.RUN_SUPABASE_E2E === 'true';
+  const describeSupabase = RUN_SUPABASE_E2E ? describe : describe.skip;
 
-  skipIfNoSupabase('Category Browsing Service', () => {
+  describeSupabase('Category Browsing Service', () => {
     let realCategoryName = '';
 
     beforeAll(async () => {

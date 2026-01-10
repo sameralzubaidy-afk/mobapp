@@ -18,6 +18,9 @@ import { describe, it, expect, beforeAll } from '@jest/globals';
 import { supabase } from '../../config/supabase';
 import { initiateTradeV2, processTradePayment, completeTradeV2, cancelTradeV2 } from '../../services/trade';
 
+const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
+const describeSupabaseE2E = shouldRunSupabaseE2E ? describe : describe.skip;
+
 // Test data - Replace with actual test user IDs from your Supabase staging environment
 const TEST_DATA = {
   subscriberBuyer: {
@@ -42,7 +45,7 @@ const TEST_DATA = {
   },
 };
 
-describe('Trade Flow V2 - E2E Tests', () => {
+describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
   beforeAll(async () => {
     // Verify Supabase connection
     const { data, error } = await supabase.from('items').select('count').limit(1);

@@ -13,10 +13,13 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
+const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true' && Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
-describe('PAY-001: Seller Payout Schema E2E Tests', () => {
+const d = shouldRunSupabaseE2E ? describe : describe.skip;
+
+d('PAY-001: Seller Payout Schema E2E Tests', () => {
   let supabase: SupabaseClient;
   let testUserId: string;
   let testMethodId: string;
@@ -29,7 +32,7 @@ describe('PAY-001: Seller Payout Schema E2E Tests', () => {
     // Get authenticated user (assumes test user is already signed in)
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) {
-      throw new Error('Test requires authenticated user');
+      throw new Error('Test requires authenticated user (RUN_SUPABASE_E2E=true and an active session).');
     }
     testUserId = user.id;
 

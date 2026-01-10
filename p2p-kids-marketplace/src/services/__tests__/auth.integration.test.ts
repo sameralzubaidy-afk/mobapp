@@ -10,8 +10,10 @@ import { SignupInput } from '@/types/user';
  * 
  * Tests the complete V2 onboarding flow with admin config integration
  */
+const RUN_SUPABASE_E2E = process.env.RUN_SUPABASE_E2E === 'true';
+const describeSupabase = RUN_SUPABASE_E2E ? describe : describe.skip;
 
-describe('AUTH-V2: Complete Signup → Trial Flow', () => {
+describeSupabase('AUTH-V2: Complete Signup → Trial Flow', () => {
   const testUserId = 'test-user-' + Date.now();
   const testEmail = `test-${Date.now()}@example.com`;
   const testSignupInput: SignupInput = {

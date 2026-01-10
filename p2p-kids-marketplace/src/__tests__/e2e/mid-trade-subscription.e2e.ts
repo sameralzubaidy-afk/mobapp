@@ -23,7 +23,10 @@ const TEST_CONFIG = {
   itemId: process.env.TEST_ITEM_ID || 'test-item',
 };
 
-describe('Mid-Trade Subscription Changes E2E (TRADE-V2-007)', () => {
+const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
+const d = shouldRunSupabaseE2E ? describe : describe.skip;
+
+d('Mid-Trade Subscription Changes E2E (TRADE-V2-007)', () => {
   beforeAll(async () => {
     const { error } = await supabase.from('trades').select('count').limit(1);
     if (error) {

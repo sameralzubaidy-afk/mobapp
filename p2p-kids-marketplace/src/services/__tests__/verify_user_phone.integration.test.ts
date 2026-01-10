@@ -1,6 +1,9 @@
 import { supabase } from '@/services/supabase/client';
 
-describe('verify_user_phone RPC', () => {
+const RUN_SUPABASE_E2E = process.env.RUN_SUPABASE_E2E === 'true';
+const describeSupabase = RUN_SUPABASE_E2E ? describe : describe.skip;
+
+describeSupabase('verify_user_phone RPC', () => {
   const phone = '+15555550123';
   let testUserId: string;
 

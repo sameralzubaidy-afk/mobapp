@@ -8,7 +8,10 @@
 
 import { supabase } from '../../config/supabase';
 
-describe('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E2E', () => {
+const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
+const describeSupabaseE2E = shouldRunSupabaseE2E ? describe : describe.skip;
+
+describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E2E', () => {
   let testUserId: string;
   let testSellerId: string;
   let testItemIds: string[] = [];

@@ -1,6 +1,9 @@
 import { by, element, expect, device } from 'detox';
 
-describe('AUTH-008: Forgot Password Flow', () => {
+const RUN_DETOX_E2E = process.env.RUN_DETOX_E2E === 'true';
+const describeDetox = RUN_DETOX_E2E ? describe : describe.skip;
+
+describeDetox('AUTH-008: Forgot Password Flow', () => {
   beforeAll(async () => {
     await device.launchApp();
   });

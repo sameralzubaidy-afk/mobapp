@@ -92,20 +92,26 @@ describe('chat.ts - Conversation Functions', () => {
 
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(new Date(0).toISOString());
 
-      // Mock trades query
+      // Mock trades query (note: implementation chains .or(...).order(...))
       (supabase.from as jest.Mock).mockImplementation((table) => {
         if (table === 'trades') {
           return {
             select: jest.fn().mockReturnThis(),
-            or: jest.fn().mockResolvedValue({ data: mockTrades, error: null }),
+            or: jest.fn().mockReturnThis(),
+            order: jest.fn().mockResolvedValue({ data: mockTrades, error: null }),
           };
-        } else if (table === 'users') {
+        }
+
+        // Implementation prefers profiles.name first
+        if (table === 'profiles') {
           return {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: { first_name: 'Seller' }, error: null }),
+            single: jest.fn().mockResolvedValue({ data: { name: 'Seller' }, error: null }),
           };
-        } else if (table === 'messages') {
+        }
+
+        if (table === 'messages') {
           const mockMessagesChain = {
             select: jest.fn().mockReturnThis(),
             eq: jest.fn().mockReturnThis(),
@@ -117,6 +123,7 @@ describe('chat.ts - Conversation Functions', () => {
           };
           return mockMessagesChain;
         }
+
         return {};
       });
 

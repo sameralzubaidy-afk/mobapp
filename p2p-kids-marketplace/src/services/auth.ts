@@ -213,65 +213,34 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
 }> {
   try {
     console.log('[enrollInTrialSubscription] 🚀 Starting enrollment for user:', userId);
-    
-    // Step 0: Ensure user has a profile (defensive check)
-    console.log('[enrollInTrialSubscription] 🔍 Checking if profile exists');
-    const { data: existingProfile, error: profileCheckError } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('user_id', userId)
-      .single();
 
-    if (profileCheckError || !existingProfile) {
-      console.log('[enrollInTrialSubscription] ⚠️ Profile not found, creating minimal profile...');
-      
-      // Create minimal profile - user can update details later
-      const { error: createProfileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: userId,
-          name: '', // Will be updated when user completes profile
-          phone: null,
-          dob: null,
-          phone_verified: false,
-        });
+    // NOTE: This function is invoked after profile completion.
+    // Avoid creating profiles here; it complicates testability and can hide trigger failures.
 
-      if (createProfileError) {
-        console.error('[enrollInTrialSubscription] ❌ Failed to create profile:', createProfileError);
-        return {
-          subscription: null,
-          wallet: null,
-          error: new AuthError(
-            'Failed to create user profile',
-            'PROFILE_CREATION_FAILED',
-            createProfileError
-          ),
-        };
-      }
-      
-      console.log('[enrollInTrialSubscription] ✅ Minimal profile created successfully');
-    }
-    
     // Step 1: Check if trial enrollment is enabled (admin config)
-    const { data: trialEnabled } = await (supabase.rpc('is_trial_enabled', {}) as any);
+    const { data: trialEnabled, error: trialEnabledError } = await (supabase.rpc(
+      'is_trial_enabled',
+      {}
+    ) as any);
 
-    console.log('[enrollInTrialSubscription] 📋 Trial enabled:', trialEnabled);
+    if (trialEnabledError) {
+      throw new AuthError(
+        `Failed to check trial status: ${trialEnabledError.message}`,
+        'TRIAL_STATUS_CHECK_FAILED',
+        trialEnabledError
+      );
+    }
 
     if (!trialEnabled) {
-      console.log('[enrollInTrialSubscription] ❌ Trial enrollment is disabled by admin');
-      return { 
-        subscription: null, 
+      console.log('[enrollInTrialSubscription] 🚫 Trial enrollment is disabled by admin');
+      return {
+        subscription: null,
         wallet: null,
-        error: new AuthError(
-          'Trial enrollment is not available at this time',
-          'TRIAL_DISABLED',
-          { message: 'Admin has disabled trial enrollment' }
-        ),
+        error: new AuthError('Trial enrollment is currently disabled', 'TRIAL_DISABLED'),
       };
     }
 
-    // Step 2: Create or Get trial subscription
-    // The RPC create_trial_subscription is now idempotent and handles free/expired status
+    // Step 2: Create (or get) trial subscription
     console.log('[enrollInTrialSubscription] ✨ Ensuring trial subscription exists');
     const { data: subscription, error: subError } = await (supabase.rpc(
       'create_trial_subscription',
@@ -279,7 +248,7 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
     ) as any);
 
     if (subError) {
-      console.error('[enrollInTrialSubscription] ❌ RPC error:', subError);
+      console.error('[enrollInTrialSubscription] ❌ Subscription RPC error:', subError);
       throw new AuthError(
         `Failed to create trial subscription: ${subError.message}`,
         'SUBSCRIPTION_CREATION_FAILED',
@@ -287,10 +256,7 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
       );
     }
 
-    console.log('[enrollInTrialSubscription] ✅ Subscription ready:', subscription);
-
-    // Step 3: Initialize or Get SP wallet
-    // The RPC initialize_sp_wallet is now idempotent
+    // Step 3: Initialize (or get) SP wallet
     console.log('[enrollInTrialSubscription] 💰 Ensuring SP wallet exists');
     const { data: wallet, error: walletError } = await (supabase.rpc(
       'initialize_sp_wallet',
@@ -306,9 +272,7 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
       );
     }
 
-    console.log('[enrollInTrialSubscription] ✅ Wallet ready:', wallet);
-
-    // Step 4: Ensure profile is linked to subscription and wallet
+    // Step 4: Best-effort profile linking (do not block enrollment on this)
     const { error: updateError } = await (supabase
       .from('profiles')
       .update({
@@ -319,8 +283,7 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
       .eq('user_id', userId) as any);
 
     if (updateError) {
-      console.warn('Warning updating profile links:', updateError);
-      // Don't throw - profile link update failure shouldn't block enrollment
+      console.warn('[enrollInTrialSubscription] Warning updating profile links:', updateError);
     }
 
     return { subscription, wallet };
@@ -331,11 +294,7 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
     return {
       subscription: null,
       wallet: null,
-      error: new AuthError(
-        'Trial enrollment failed',
-        'TRIAL_ENROLLMENT_FAILED',
-        error
-      ),
+      error: new AuthError('Trial enrollment failed', 'TRIAL_ENROLLMENT_FAILED', error),
     };
   }
 }

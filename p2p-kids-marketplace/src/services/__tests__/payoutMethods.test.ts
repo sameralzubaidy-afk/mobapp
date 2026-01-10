@@ -122,14 +122,8 @@ describe('PayoutMethods Service', () => {
         }),
       };
 
-      const mockUpdate = {
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-      };
-
-      (supabase.from as jest.Mock)
-        .mockReturnValueOnce(mockUpdate) // First call for unset primary
-        .mockReturnValueOnce(mockInsert); // Second call for insert
+      // set_as_primary is false, so no unsetPrimaryMethod call should occur
+      (supabase.from as jest.Mock).mockReturnValueOnce(mockInsert);
 
       const result = await createPayoutMethod({
         method_type: 'paypal',
@@ -177,14 +171,7 @@ describe('PayoutMethods Service', () => {
         }),
       };
 
-      const mockUpdate = {
-        update: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-      };
-
-      (supabase.from as jest.Mock)
-        .mockReturnValueOnce(mockUpdate)
-        .mockReturnValueOnce(mockInsert);
+      (supabase.from as jest.Mock).mockReturnValueOnce(mockInsert);
 
       const result = await createPayoutMethod({
         method_type: 'stripe_connect',

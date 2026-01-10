@@ -29,6 +29,10 @@ export interface Message {
   message_type: 'text' | 'image';
   image_url?: string;
   created_at: string;
+  // MSG-008: Delivery status tracking
+  delivery_status?: 'sent' | 'delivered' | 'read';
+  delivered_at?: string;
+  read_at?: string;
 }
 
 export interface SendImageMessageInput {
@@ -521,10 +525,17 @@ export async function uploadChatImage(
   error?: string;
 }> {
   try {
+    if (!tradeId || !senderId || !base64Data) {
+      return {
+        success: false,
+        error: 'Missing required fields: tradeId, senderId, or base64Data',
+      };
+    }
+
     // Generate unique filename: {trade_id}/{sender_id}/{timestamp}-{uuid}.jpg
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 15);
-    const filename = `${tradeId}/${senderId}/${timestamp}-${randomId}.jpg`;
+    const filename = `${tradeId}/${senderId}-${timestamp}-${randomId}.jpg`;
 
     console.log('[chat.uploadChatImage] Uploading to:', filename);
 
@@ -565,6 +576,255 @@ export async function uploadChatImage(
       error: error.message || 'Unexpected error uploading image',
     };
   }
+}
+
+/**
+ * MSG-008: Update delivery status for a message
+ * 
+ * @param messageId - Message ID to update
+ * @param status - New status (sent, delivered, read)
+ * @returns Success boolean
+ */
+export async function updateDeliveryStatus(
+  messageId: string,
+  status: 'sent' | 'delivered' | 'read'
+): Promise<boolean> {
+  if (!messageId || !status) {
+    console.error('[chat.updateDeliveryStatus] Missing messageId or status');
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .rpc('update_message_delivery_status', {
+        p_message_id: messageId,
+        p_status: status,
+      });
+
+    if (error) {
+      console.error('[chat.updateDeliveryStatus] Error:', error);
+      return false;
+    }
+
+    console.log(`[chat.updateDeliveryStatus] Updated message ${messageId} to ${status}`);
+    return data === true;
+  } catch (error) {
+    console.error('[chat.updateDeliveryStatus] Unexpected error:', error);
+    return false;
+  }
+}
+
+/**
+ * MSG-008: Mark all messages in a trade as delivered (when chat opened)
+ * 
+ * @param tradeId - Trade ID
+ * @param userId - Current user ID
+ * @returns Number of messages updated
+ */
+export async function markTradeMessagesAsDelivered(
+  tradeId: string,
+  userId: string
+): Promise<number> {
+  if (!tradeId || !userId) {
+    return 0;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .rpc('mark_trade_messages_delivered', {
+        p_trade_id: tradeId,
+        p_user_id: userId,
+      });
+
+    if (error) {
+      console.error('[chat.markTradeMessagesAsDelivered] Error:', error);
+      return 0;
+    }
+
+    console.log(`[chat.markTradeMessagesAsDelivered] Marked ${data} messages as delivered`);
+    // Return updated count if provided by RPC, otherwise return number or undefined
+    return (data && (data.updated_count ?? data)) ?? 0;
+  } catch (error) {
+    console.error('[chat.markTradeMessagesAsDelivered] Unexpected error:', error);
+    return 0;
+  }
+}
+
+/**
+ * MSG-008: Mark all messages in a trade as read (when chat is actively viewed)
+ * 
+ * @param tradeId - Trade ID
+ * @param userId - Current user ID
+ * @returns Number of messages updated
+ */
+export async function markTradeMessagesAsRead(
+  tradeId: string,
+  userId: string
+): Promise<number> {
+  if (!tradeId || !userId) {
+    return 0;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .rpc('mark_trade_messages_read', {
+        p_trade_id: tradeId,
+        p_user_id: userId,
+      });
+
+    if (error) {
+      console.error('[chat.markTradeMessagesAsRead] Error:', error);
+      return 0;
+    }
+
+    console.log(`[chat.markTradeMessagesAsRead] Marked ${data} messages as read`);
+    return (data && (data.updated_count ?? data)) ?? 0;
+  } catch (error) {
+    console.error('[chat.markTradeMessagesAsRead] Unexpected error:', error);
+    return 0;
+  }
+}
+
+/**
+ * MSG-009: Broadcast typing status via Realtime presence
+ * 
+ * @param tradeId - Trade ID
+ * @param userId - Current user ID
+ * @param isTyping - Whether user is typing
+ */
+export async function broadcastTypingStatus(
+  tradeId: string,
+  userId: string,
+  isTyping: boolean
+): Promise<void> {
+  if (!tradeId || !userId) {
+    return;
+  }
+
+  // Use consistent presence channel naming expected by tests and other code
+  const channel = supabase.channel(`presence-trade-${tradeId}`, {
+    config: {
+      presence: {
+        key: 'typing',
+      },
+    },
+  });
+
+  // Ensure we subscribe before attempting to broadcast presence updates
+  try {
+    if (typeof channel.subscribe === 'function') {
+      // subscribe may be async; await if it's a promise
+      try {
+        await channel.subscribe();
+      } catch (err) {
+        // swallow subscription errors for robustness in tests/dev
+        console.warn('[chat.broadcastTypingStatus] Channel subscribe warning:', err);
+      }
+    }
+
+    // Prefer using presence API when available
+    if (typeof channel.track === 'function') {
+      try {
+        channel.track({
+          user_id: userId,
+          is_typing: isTyping,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('[chat.broadcastTypingStatus] Error calling channel.track:', err);
+      }
+    } else if (typeof (channel as any).send === 'function') {
+      try {
+        // Fallback to a generic send/broadcast if track is not available
+        (channel as any).send('broadcastTyping', {
+          user_id: userId,
+          is_typing: isTyping,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn('[chat.broadcastTypingStatus] Error sending broadcastTyping:', err);
+      }
+    }
+  } catch (err) {
+    console.warn('[chat.broadcastTypingStatus] Unexpected error:', err);
+  }
+
+  console.log(`[chat.broadcastTypingStatus] User ${userId} typing: ${isTyping}`);
+}
+
+/**
+ * MSG-009: Subscribe to typing status updates
+ * 
+ * @param tradeId - Trade ID
+ * @param onTypingChange - Callback when typing status changes (userId, isTyping)
+ * @returns Unsubscribe function
+ */
+export function subscribeToTypingStatus(
+  tradeId: string,
+  onTypingChange: (userId: string, isTyping: boolean) => void
+): () => void {
+  const channel = supabase
+    .channel(`presence-trade-${tradeId}`, {
+      config: {
+        presence: {
+          key: 'typing',
+        },
+      },
+    });
+
+  const syncTypingStatus = () => {
+    const state = channel.presenceState();
+    console.log('[chat.subscribeToTypingStatus] Presence state synced:', JSON.stringify(state));
+    
+    // Create a set of users currently typing based on full presence state
+    const currentTypingUsers = new Set<string>();
+    
+    Object.keys(state).forEach((key) => {
+      const presences = state[key];
+      presences?.forEach((p: any) => {
+        if (p.user_id && p.is_typing) {
+          currentTypingUsers.add(p.user_id);
+          onTypingChange(p.user_id, true);
+        } else if (p.user_id) {
+          onTypingChange(p.user_id, false);
+        }
+      });
+    });
+  };
+
+  channel
+    .on('presence', { event: 'sync' }, () => {
+      syncTypingStatus();
+    })
+    .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+      console.log('[chat.subscribeToTypingStatus] Presence joined:', key, newPresences);
+      newPresences?.forEach((p: any) => {
+        if (p.user_id) {
+          onTypingChange(p.user_id, !!p.is_typing);
+        }
+      });
+    })
+    .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+      console.log('[chat.subscribeToTypingStatus] Presence left:', key, leftPresences);
+      leftPresences?.forEach((p: any) => {
+        if (p.user_id) {
+          // When someone leaves, they are definitely not typing anymore
+          onTypingChange(p.user_id, false);
+        }
+      });
+    });
+
+  channel.subscribe((status) => {
+    console.log('[chat.subscribeToTypingStatus] Subscription status:', status);
+    if (status === 'SUBSCRIBED') {
+      console.log('[chat.subscribeToTypingStatus] Successfully subscribed to presence for trade:', tradeId);
+    }
+  });
+
+  return () => {
+    console.log('[chat.subscribeToTypingStatus] Unsubscribing from presence for trade:', tradeId);
+    channel.unsubscribe();
+  };
 }
 
 /**

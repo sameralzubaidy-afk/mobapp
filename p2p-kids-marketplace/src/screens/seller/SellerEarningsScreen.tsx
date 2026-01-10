@@ -29,7 +29,8 @@ type PayoutDisplayItem = SellerPayout & {
 };
 
 export default function SellerEarningsScreen() {
-  const { user } = useAuth();
+  const { session } = useAuth();
+  const user = session?.user ?? null;
   const [payouts, setPayouts] = useState<PayoutDisplayItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,7 +41,11 @@ export default function SellerEarningsScreen() {
   }, []);
 
   const loadPayouts = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     
     setError(null);
     try {

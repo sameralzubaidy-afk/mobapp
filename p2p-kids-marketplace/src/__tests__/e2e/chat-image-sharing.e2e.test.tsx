@@ -1,1 +1,304 @@
-/**\n * @jest-environment jsdom\n */\n\nimport React from 'react';\nimport { render, fireEvent, waitFor } from '@testing-library/react-native';\nimport { Alert } from 'react-native';\nimport ChatScreen from '../../screens/messaging/ChatScreen';\nimport * as ImagePicker from 'expo-image-picker';\nimport { sendImageMessage } from '../../services/chat';\nimport { AuthContext } from '../../contexts/AuthContext';\n\n// Mock dependencies\njest.mock('expo-image-picker', () => ({\n  requestMediaLibraryPermissionsAsync: jest.fn(),\n  launchImageLibraryAsync: jest.fn(),\n  MediaTypeOptions: {\n    Images: 'Images',\n  },\n}));\n\njest.mock('../../services/chat', () => ({\n  getMessages: jest.fn().mockResolvedValue([]),\n  sendMessage: jest.fn(),\n  sendImageMessage: jest.fn(),\n  subscribeToMessages: jest.fn().mockReturnValue({ unsubscribe: jest.fn() }),\n  unsubscribeFromMessages: jest.fn(),\n  markAsRead: jest.fn(),\n}));\n\njest.mock('../../config/supabase', () => ({\n  supabase: {\n    from: jest.fn().mockReturnValue({\n      select: jest.fn().mockReturnThis(),\n      eq: jest.fn().mockReturnThis(),\n      single: jest.fn().mockResolvedValue({ data: null, error: null }),\n    }),\n  },\n}));\n\njest.mock('@react-navigation/native', () => ({\n  useRoute: () => ({\n    params: { tradeId: 'test-trade-123' },\n  }),\n  useNavigation: () => ({\n    goBack: jest.fn(),\n  }),\n}));\n\njest.mock('react-native-image-viewing', () => 'ImageViewing');\n\n// Mock Alert\njest.spyOn(Alert, 'alert');\n\nconst mockAuthContext = {\n  session: {\n    user: {\n      id: 'test-user-123',\n      email: 'test@example.com',\n    },\n  },\n  signOut: jest.fn(),\n};\n\nconst renderChatScreen = () => {\n  return render(\n    <AuthContext.Provider value={mockAuthContext}>\n      <ChatScreen />\n    </AuthContext.Provider>\n  );\n};\n\ndescribe('ChatScreen Image Sharing E2E', () => {\n  beforeEach(() => {\n    jest.clearAllMocks();\n  });\n\n  it('should handle image picker permission denied', async () => {\n    const { getByTestId } = renderChatScreen();\n\n    // Mock permission denied\n    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({\n      status: 'denied',\n    });\n\n    await waitFor(() => {\n      const imageButton = getByTestId('image-picker-button');\n      fireEvent.press(imageButton);\n    });\n\n    await waitFor(() => {\n      expect(Alert.alert).toHaveBeenCalledWith(\n        'Permission Required',\n        'Please allow access to your photo library to share images.'\n      );\n    });\n  });\n\n  it('should handle successful image selection and sending', async () => {\n    const { getByTestId } = renderChatScreen();\n\n    // Mock permission granted\n    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({\n      status: 'granted',\n    });\n\n    // Mock image picker result\n    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({\n      canceled: false,\n      assets: [\n        {\n          uri: 'file://test-image.jpg',\n          width: 800,\n          height: 600,\n        },\n      ],\n    });\n\n    // Mock successful sendImageMessage\n    (sendImageMessage as jest.Mock).mockResolvedValueOnce({\n      success: true,\n      message: {\n        id: 'message-123',\n        trade_id: 'test-trade-123',\n        sender_id: 'test-user-123',\n        content: 'Image',\n        message_type: 'image',\n        image_url: 'https://example.com/image.jpg',\n        created_at: new Date().toISOString(),\n      },\n    });\n\n    await waitFor(() => {\n      const imageButton = getByTestId('image-picker-button');\n      fireEvent.press(imageButton);\n    });\n\n    await waitFor(() => {\n      expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled();\n      expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledWith({\n        mediaTypes: ImagePicker.MediaTypeOptions.Images,\n        allowsEditing: true,\n        quality: 0.8,\n        allowsMultipleSelection: false,\n      });\n      expect(sendImageMessage).toHaveBeenCalledWith({\n        tradeId: 'test-trade-123',\n        senderId: 'test-user-123',\n        imageUri: 'file://test-image.jpg',\n      });\n    });\n  });\n\n  it('should handle image picker cancellation', async () => {\n    const { getByTestId } = renderChatScreen();\n\n    // Mock permission granted\n    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({\n      status: 'granted',\n    });\n\n    // Mock image picker cancellation\n    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({\n      canceled: true,\n    });\n\n    await waitFor(() => {\n      const imageButton = getByTestId('image-picker-button');\n      fireEvent.press(imageButton);\n    });\n\n    await waitFor(() => {\n      expect(sendImageMessage).not.toHaveBeenCalled();\n    });\n  });\n\n  it('should handle image sending failure', async () => {\n    const { getByTestId } = renderChatScreen();\n\n    // Mock permission granted\n    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({\n      status: 'granted',\n    });\n\n    // Mock image picker result\n    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({\n      canceled: false,\n      assets: [\n        {\n          uri: 'file://test-image.jpg',\n          width: 800,\n          height: 600,\n        },\n      ],\n    });\n\n    // Mock sendImageMessage failure\n    (sendImageMessage as jest.Mock).mockResolvedValueOnce({\n      success: false,\n      error: 'Failed to upload image',\n    });\n\n    await waitFor(() => {\n      const imageButton = getByTestId('image-picker-button');\n      fireEvent.press(imageButton);\n    });\n\n    await waitFor(() => {\n      expect(Alert.alert).toHaveBeenCalledWith(\n        'Error',\n        'Failed to upload image'\n      );\n    });\n  });\n\n  it('should disable image button while sending', async () => {\n    const { getByTestId } = renderChatScreen();\n\n    // Mock permission granted\n    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({\n      status: 'granted',\n    });\n\n    // Mock image picker result\n    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({\n      canceled: false,\n      assets: [\n        {\n          uri: 'file://test-image.jpg',\n        },\n      ],\n    });\n\n    // Mock sendImageMessage with delay\n    (sendImageMessage as jest.Mock).mockImplementationOnce(\n      () => new Promise((resolve) => {\n        setTimeout(() => {\n          resolve({\n            success: true,\n            message: {\n              id: 'message-123',\n              message_type: 'image',\n              image_url: 'https://example.com/image.jpg',\n            },\n          });\n        }, 100);\n      })\n    );\n\n    const imageButton = getByTestId('image-picker-button');\n    \n    await waitFor(() => {\n      fireEvent.press(imageButton);\n    });\n\n    // Button should be disabled while sending\n    expect(imageButton.props.disabled).toBe(true);\n  });\n\n  it('should handle image picker error', async () => {\n    const { getByTestId } = renderChatScreen();\n\n    // Mock permission granted\n    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({\n      status: 'granted',\n    });\n\n    // Mock image picker error\n    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockRejectedValueOnce(\n      new Error('Image picker failed')\n    );\n\n    await waitFor(() => {\n      const imageButton = getByTestId('image-picker-button');\n      fireEvent.press(imageButton);\n    });\n\n    await waitFor(() => {\n      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to select image');\n    });\n  });\n});
+// @jest-environment jsdom
+
+import React from 'react';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import ChatScreen from '../../screens/messaging/ChatScreen';
+import * as ImagePicker from 'expo-image-picker';
+import { sendImageMessage } from '@/services/chat';
+import { AuthContext } from '../../contexts/AuthContext';
+
+// Mock dependencies
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(),
+  launchImageLibraryAsync: jest.fn(),
+  MediaTypeOptions: {
+    Images: 'Images',
+  },
+}));
+
+jest.mock('@/services/chat', () => ({
+  getMessages: jest.fn().mockResolvedValue([]),
+  sendMessage: jest.fn(),
+  sendImageMessage: jest.fn(),
+  subscribeToMessages: jest.fn().mockReturnValue({ unsubscribe: jest.fn() }),
+  unsubscribeFromMessages: jest.fn(),
+  markAsRead: jest.fn().mockResolvedValue({ success: true }),
+  markTradeMessagesAsDelivered: jest.fn().mockResolvedValue({ success: true }),
+  markTradeMessagesAsRead: jest.fn().mockResolvedValue({ success: true }),
+  broadcastTypingStatus: jest.fn().mockResolvedValue({ success: true }),
+  subscribeToTypingStatus: jest.fn().mockReturnValue(jest.fn()),
+}));
+
+jest.mock('@/config/supabase', () => ({
+  supabase: {
+    from: jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    }),
+  },
+}));
+
+jest.mock('@react-navigation/native', () => ({
+  useRoute: () => ({
+    params: { tradeId: 'test-trade-123' },
+  }),
+  useNavigation: () => ({
+    goBack: jest.fn(),
+  }),
+}));
+
+jest.mock(
+  'react-native-image-viewing',
+  () => ({
+    __esModule: true,
+    default: 'ImageViewing',
+  }),
+  { virtual: true }
+);
+
+jest.mock('@expo/vector-icons', () => ({
+  Ionicons: 'MockIcon',
+}));
+
+// Mock Alert
+jest.spyOn(Alert, 'alert');
+
+const mockAuthContext = {
+  session: {
+    user: {
+      id: 'test-user-123',
+      email: 'test@example.com',
+    },
+  },
+  signOut: jest.fn(),
+};
+
+const renderChatScreen = () => {
+  return render(
+    <AuthContext.Provider value={mockAuthContext}>
+      <ChatScreen />
+    </AuthContext.Provider>
+  );
+};
+
+describe('ChatScreen Image Sharing E2E', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should handle image picker permission denied', async () => {
+    const { getByTestId } = renderChatScreen();
+
+    // Mock permission denied
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'denied',
+    });
+
+    await waitFor(() => {
+      const imageButton = getByTestId('image-picker-button');
+      fireEvent.press(imageButton);
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Permission Required',
+        'Please allow access to your photo library to share images.'
+      );
+    });
+  });
+
+  it('should handle successful image selection and sending', async () => {
+    const { getByTestId } = renderChatScreen();
+
+    // Mock permission granted
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'granted',
+    });
+
+    // Mock image picker result
+    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file://test-image.jpg',
+          width: 800,
+          height: 600,
+        },
+      ],
+    });
+
+    // Mock successful sendImageMessage
+    (sendImageMessage as jest.Mock).mockResolvedValueOnce({
+      success: true,
+      message: {
+        id: 'message-123',
+        trade_id: 'test-trade-123',
+        sender_id: 'test-user-123',
+        content: 'Image',
+        message_type: 'image',
+        image_url: 'https://example.com/image.jpg',
+        created_at: new Date().toISOString(),
+      },
+    });
+
+    await waitFor(() => {
+      const imageButton = getByTestId('image-picker-button');
+      fireEvent.press(imageButton);
+    });
+
+    await waitFor(() => {
+      expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled();
+      expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalledWith({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+        allowsMultipleSelection: false,
+      });
+      expect(sendImageMessage).toHaveBeenCalledWith({
+        tradeId: 'test-trade-123',
+        senderId: 'test-user-123',
+        imageUri: 'file://test-image.jpg',
+      });
+    });
+  });
+
+  it('should handle image picker cancellation', async () => {
+    const { getByTestId } = renderChatScreen();
+
+    // Mock permission granted
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'granted',
+    });
+
+    // Mock image picker cancellation
+    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
+      canceled: true,
+    });
+
+    await waitFor(() => {
+      const imageButton = getByTestId('image-picker-button');
+      fireEvent.press(imageButton);
+    });
+
+    await waitFor(() => {
+      expect(sendImageMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should handle image sending failure', async () => {
+    const { getByTestId } = renderChatScreen();
+
+    // Mock permission granted
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'granted',
+    });
+
+    // Mock image picker result
+    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file://test-image.jpg',
+          width: 800,
+          height: 600,
+        },
+      ],
+    });
+
+    // Mock sendImageMessage failure
+    (sendImageMessage as jest.Mock).mockResolvedValueOnce({
+      success: false,
+      error: 'Failed to upload image',
+    });
+
+    await waitFor(() => {
+      const imageButton = getByTestId('image-picker-button');
+      fireEvent.press(imageButton);
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Error',
+        'Failed to upload image'
+      );
+    });
+  });
+
+  it('should disable image button while sending', async () => {
+    const { getByTestId } = renderChatScreen();
+
+    // Mock permission granted
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'granted',
+    });
+
+    // Mock image picker result
+    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        {
+          uri: 'file://test-image.jpg',
+        },
+      ],
+    });
+
+    // Mock sendImageMessage with a deferred promise (no timers needed)
+    let resolveSend: ((value: any) => void) | null = null;
+    const sendPromise = new Promise((resolve) => {
+      resolveSend = resolve;
+    });
+    (sendImageMessage as jest.Mock).mockReturnValueOnce(sendPromise);
+
+    await waitFor(() => {
+      expect(getByTestId('image-picker-button')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('image-picker-button'));
+
+    await waitFor(() => {
+      const node = getByTestId('image-picker-button');
+      const disabled = node.props.accessibilityState?.disabled ?? node.props.disabled;
+      expect(disabled).toBe(true);
+    });
+
+    resolveSend?.({
+      success: true,
+      message: {
+        id: 'message-123',
+        message_type: 'image',
+        image_url: 'https://example.com/image.jpg',
+      },
+    });
+
+    await waitFor(() => {
+      const node = getByTestId('image-picker-button');
+      const disabled = node.props.accessibilityState?.disabled ?? node.props.disabled;
+      expect(disabled).toBe(false);
+    });
+  });
+
+  it('should handle image picker error', async () => {
+    const { getByTestId } = renderChatScreen();
+
+    // Mock permission granted
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({
+      status: 'granted',
+    });
+
+    // Mock image picker error
+    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockRejectedValueOnce(
+      new Error('Image picker failed')
+    );
+
+    await waitFor(() => {
+      const imageButton = getByTestId('image-picker-button');
+      fireEvent.press(imageButton);
+    });
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to select image');
+    });
+  });
+});

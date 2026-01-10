@@ -81,11 +81,14 @@ export const getItems = async (
   userId: string
 ): Promise<Item[]> => {
   try {
+    // FIX: PostgREST has FK ambiguity with items->profiles.
+    // Solution: fetch items, profiles, and join in app code to avoid PGRST108 error.
+    
+    // Step 1: Fetch items with direct filters (no relationship embedding)
     let query = supabase
       .from('items')
-      .select('*')
-      .eq('status', 'available')
-      .order('created_at', { ascending: false });
+      .select('id, seller_id, title, description, price, category_id, condition, status, accepts_swap_points, created_at, updated_at, sold_at')
+      .eq('status', 'available');
 
     // Category filter
     if (filters.category_id) {
@@ -117,26 +120,89 @@ export const getItems = async (
       );
     }
 
-    const { data, error } = await query;
+    const { data: itemsList, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('❌ Get items error:', error);
       throw new Error(error.message || 'Failed to fetch items');
     }
 
-    let filteredItems = data || [];
-
-    // NODE-006: Filter by node locally (default behavior)
-    if (filters.node_id && !filters.include_all_nodes) {
-      // Fetch seller profiles to filter by node
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, node_id')
-        .eq('node_id', filters.node_id);
-
-      const nodeUserIds = new Set((profiles || []).map(p => p.user_id));
-      filteredItems = filteredItems.filter(item => nodeUserIds.has(item.seller_id));
+    let filteredItems = itemsList || [];
+    if (filteredItems.length === 0) {
+      return [];
     }
+
+    // Step 2: Fetch seller profiles
+    const sellerIds = [...new Set(filteredItems.map((i: any) => i.seller_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, name, avatar_url, node_id')
+      .in('user_id', sellerIds);
+
+    const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+
+    // Step 3: Apply node filter (after fetching profiles)
+    if (filters.node_id && !filters.include_all_nodes) {
+      filteredItems = filteredItems.filter((item: any) => {
+        const profile = profileMap.get(item.seller_id);
+        return profile?.node_id === filters.node_id;
+      });
+    }
+
+    if (filteredItems.length === 0) {
+      return [];
+    }
+
+    // Step 4: Fetch node details
+    const nodeIds = Array.from(profileMap.values()).map((p: any) => p.node_id).filter(Boolean);
+    const { data: nodes } = await supabase
+      .from('geographic_nodes')
+      .select('id, name, city, state')
+      .in('id', nodeIds);
+    const nodeMap = new Map((nodes || []).map((n: any) => [n.id, n]));
+
+    // Step 5: Fetch item images
+    const itemIds = filteredItems.map((i: any) => i.id);
+    const { data: images } = await supabase
+      .from('item_images')
+      .select('id, item_id, url, thumbnail_url, display_order')
+      .in('item_id', itemIds);
+    const imageMap = new Map();
+    (images || []).forEach((img: any) => {
+      if (!imageMap.has(img.item_id)) {
+        imageMap.set(img.item_id, []);
+      }
+      imageMap.get(img.item_id).push(img);
+    });
+
+    // Step 6: Fetch categories
+    const catIds = filteredItems.map((i: any) => i.category_id).filter(Boolean);
+    const { data: categories } = await supabase
+      .from('categories')
+      .select('id, name, icon')
+      .in('id', catIds);
+    const categoryMap = new Map((categories || []).map((c: any) => [c.id, c]));
+
+    // Step 7: Merge all data
+    const finalItems = filteredItems.map((item: any) => {
+      const profile = profileMap.get(item.seller_id);
+      const node = nodeMap.get(profile?.node_id);
+      const itemImages = (imageMap.get(item.id) || []).sort((a: any, b: any) => a.display_order - b.display_order);
+      const category = categoryMap.get(item.category_id);
+
+      return {
+        ...item,
+        seller: profile ? {
+          id: profile.user_id,
+          name: profile.name,
+          avatar_url: profile.avatar_url,
+          node_id: profile.node_id,
+          node: node || null,
+        } : undefined,
+        category: category || null,
+        images: itemImages,
+      };
+    });
 
     // Track analytics (NODE-006)
     trackEvent('items_browsed', {
@@ -146,10 +212,10 @@ export const getItems = async (
       category: filters.category_id,
       search_query: filters.search_query,
       accepts_swap_points: filters.accepts_swap_points,
-      result_count: filteredItems.length,
+      result_count: finalItems.length,
     });
 
-    return filteredItems as Item[];
+    return finalItems as Item[];
   } catch (error: any) {
     console.error('❌ Get items error:', error);
     throw error;
@@ -174,14 +240,14 @@ export const getItemsWithinRadius = async (
   try {
     // Get user's node coordinates
     const { data: userNode, error: nodeError } = await supabase
-      .from('nodes')
+      .from('geographic_nodes')
       .select('latitude, longitude')
       .eq('id', userNodeId)
       .maybeSingle();
 
     if (nodeError) {
       console.error('❌ Node lookup error:', nodeError);
-      throw new Error(nodeError.message || 'Failed to lookup node');
+      return [];
     }
 
     // If node not found, return empty array (user may be on waitlist or node doesn't exist)
@@ -202,36 +268,34 @@ export const getItemsWithinRadius = async (
 
     if (nodesError) {
       console.error('❌ Nearby nodes lookup error:', nodesError);
-      throw new Error(nodesError.message || 'Failed to find nearby nodes');
+      return [];
     }
 
-    const nodeIds = nearbyNodes.map((node: any) => node.id);
+    const nodeIds = (nearbyNodes || []).map((node: any) => node.id);
+
+    if (nodeIds.length === 0) {
+      return [];
+    }
 
     console.log(`🔍 Found ${nodeIds.length} nodes within ${radiusMiles} miles`);
 
-    // Get items from nearby nodes
+    // Fetch sellers in the nearby nodes
+    const { data: sellersInRadius } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .in('node_id', nodeIds);
+
+    const sellerIds = (sellersInRadius || []).map((s: any) => s.user_id);
+    if (sellerIds.length === 0) {
+      return [];
+    }
+
+    // Fetch items from those sellers
     let query = supabase
       .from('items')
-      .select(`
-        *,
-        seller:profiles(
-          user_id,
-          name,
-          avatar_url,
-          node_id,
-          node:nodes(
-            id,
-            name,
-            city,
-            state
-          )
-        ),
-        category:categories(id, name, icon),
-        images:item_images(id, url, thumbnail_url, display_order)
-      `)
+      .select('id, seller_id, title, description, price, category_id, condition, status, accepts_swap_points, created_at, updated_at, sold_at')
       .eq('status', 'available')
-      .in('seller.node_id', nodeIds)
-      .order('created_at', { ascending: false });
+      .in('seller_id', sellerIds);
 
     // Apply additional filters
     if (additionalFilters?.category_id) {
@@ -255,12 +319,76 @@ export const getItemsWithinRadius = async (
       );
     }
 
-    const { data: items, error: itemsError } = await query;
+    const { data: items, error: itemsError } = await query.order('created_at', { ascending: false });
 
     if (itemsError) {
       console.error('❌ Items within radius error:', itemsError);
       throw new Error(itemsError.message || 'Failed to fetch items within radius');
     }
+
+    // Map seller info to items
+    const itemsList = items || [];
+    if (itemsList.length === 0) {
+      return [];
+    }
+
+    const itemSellerIds = [...new Set(itemsList.map((i: any) => i.seller_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, name, avatar_url, node_id')
+      .in('user_id', itemSellerIds);
+
+    const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
+
+    // Fetch node details
+    const nodeIdList = Array.from(profileMap.values()).map((p: any) => p.node_id).filter(Boolean);
+    const { data: nodeData } = await supabase
+      .from('geographic_nodes')
+      .select('id, name, city, state')
+      .in('id', nodeIdList);
+    const nodeMap = new Map((nodeData || []).map((n: any) => [n.id, n]));
+
+    // Fetch images
+    const itemIdsToFetch = itemsList.map((i: any) => i.id);
+    const { data: images } = await supabase
+      .from('item_images')
+      .select('id, item_id, url, thumbnail_url, display_order')
+      .in('item_id', itemIdsToFetch);
+    const imageMap = new Map();
+    (images || []).forEach((img: any) => {
+      if (!imageMap.has(img.item_id)) {
+        imageMap.set(img.item_id, []);
+      }
+      imageMap.get(img.item_id).push(img);
+    });
+
+    // Fetch categories
+    const catIds = itemsList.map((i: any) => i.category_id).filter(Boolean);
+    const { data: catData } = await supabase
+      .from('categories')
+      .select('id, name, icon')
+      .in('id', catIds);
+    const categoryMap = new Map((catData || []).map((c: any) => [c.id, c]));
+
+    const finalItems = itemsList.map((item: any) => {
+      const profile = profileMap.get(item.seller_id);
+      const node = nodeMap.get(profile?.node_id);
+      const itemImages = (imageMap.get(item.id) || []).sort((a: any, b: any) => a.display_order - b.display_order);
+      const category = categoryMap.get(item.category_id);
+
+      return {
+        ...item,
+        seller: profile ? {
+          id: profile.user_id,
+          name: profile.name,
+          avatar_url: profile.avatar_url,
+          node_id: profile.node_id,
+          node: node || null,
+        } : undefined,
+        category: category || null,
+        images: itemImages,
+      };
+    });
 
     // Track analytics (NODE-007)
     trackEvent('items_browsed_by_radius', {
@@ -268,10 +396,10 @@ export const getItemsWithinRadius = async (
       user_node_id: userNodeId,
       radius_miles: radiusMiles,
       nodes_searched: nodeIds.length,
-      result_count: items?.length || 0,
+      result_count: finalItems.length,
     });
 
-    return (items || []) as Item[];
+    return finalItems as Item[];
   } catch (error: any) {
     console.error('❌ Get items within radius error:', error);
     throw error;

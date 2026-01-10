@@ -1163,6 +1163,7 @@ NOTE: This task is deferred to Post-MVP
 
 ---
 ## TASK MSG-010: create admin field for this change Implement Message Expiration (Delete After 30 Days Post-Trade)
+also add field to trun on / on sending email for new chat messegs 
 
 ---
 

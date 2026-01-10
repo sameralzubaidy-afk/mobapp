@@ -3,38 +3,52 @@
 
 import { findNearestNode, setupUserProfile, updateUserProfile, getUserProfile } from '../profile';
 import { supabase } from '../supabase/client';
+import { assignNodeByZipCode } from '../location';
 
 // Mock Supabase client
 jest.mock('../supabase/client', () => ({
   supabase: {
     from: jest.fn(),
+    auth: {
+      getUser: jest.fn(),
+    },
+    functions: {
+      invoke: jest.fn(),
+    },
     storage: {
       from: jest.fn(),
     },
   },
 }));
 
+// Mock location service used by profile.ts
+jest.mock('../location', () => ({
+  assignNodeByZipCode: jest.fn(),
+  incrementNodeMemberCount: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe('Profile Service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default: return an auth user object so profile service can return `user`.
+    (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+      data: {
+        user: {
+          id: 'user-1',
+          display_name: 'Test User',
+        },
+      },
+      error: null,
+    });
   });
 
   describe('findNearestNode', () => {
     it('should return nearest node based on zip code', async () => {
-      const mockNodes = [
-        { id: '1', name: 'Norwalk CT', is_active: true },
-        { id: '2', name: 'Little Falls NJ', is_active: true },
-      ];
-
-      (supabase.from as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: mockNodes,
-              error: null,
-            }),
-          }),
-        }),
+      (assignNodeByZipCode as jest.Mock).mockResolvedValue({
+        nodeId: '1',
+        nodeName: 'Norwalk CT',
+        matchType: 'zip',
+        distanceMiles: 0,
       });
 
       const result = await findNearestNode('06851'); // Norwalk, CT zip
@@ -45,16 +59,7 @@ describe('Profile Service', () => {
     });
 
     it('should return null if no active nodes exist', async () => {
-      (supabase.from as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          }),
-        }),
-      });
+      (assignNodeByZipCode as jest.Mock).mockRejectedValue(new Error('not currently active'));
 
       const result = await findNearestNode('12345');
       expect(result).toBeNull();
@@ -63,30 +68,26 @@ describe('Profile Service', () => {
 
   describe('setupUserProfile', () => {
     it('should create user profile with node assignment', async () => {
-      const mockNode = { id: 'node-1', name: 'Test Node', distance_miles: 0 };
       const mockUser = {
         id: 'user-1',
         display_name: 'Test User',
         node_id: 'node-1',
       };
 
-      // Mock findNearestNode
+      (assignNodeByZipCode as jest.Mock).mockResolvedValue({
+        nodeId: 'node-1',
+        nodeName: 'Test Node',
+        matchType: 'zip',
+        distanceMiles: 0,
+      });
+
+      // Mock Supabase update
       (supabase.from as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: [{ id: 'node-1', name: 'Test Node', is_active: true }],
+        upsert: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: mockUser,
               error: null,
-            }),
-          }),
-        }),
-        update: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            select: jest.fn().mockReturnValue({
-              single: jest.fn().mockResolvedValue({
-                data: mockUser,
-                error: null,
-              }),
             }),
           }),
         }),
@@ -110,6 +111,16 @@ describe('Profile Service', () => {
         display_name: 'Updated Name',
         bio: 'Updated bio',
       };
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({
+        data: {
+          user: {
+            id: 'user-1',
+            display_name: 'Updated Name',
+          },
+        },
+        error: null,
+      });
 
       (supabase.from as jest.Mock).mockReturnValue({
         update: jest.fn().mockReturnValue({

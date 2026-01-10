@@ -128,8 +128,9 @@ describe('AUTH-V2-002: enrollInTrialSubscription', () => {
       .mockResolvedValueOnce({ data: { id: mockSubId }, error: null })
       .mockResolvedValueOnce({ data: { id: mockWalletId }, error: null });
 
+    const mockEq = jest.fn().mockResolvedValue({ error: null });
     const mockUpdate = jest.fn(() => ({
-      eq: jest.fn().mockResolvedValue({ error: null }),
+      eq: mockEq,
     }));
 
     (supabase.from as jest.Mock).mockReturnValue({
@@ -145,7 +146,7 @@ describe('AUTH-V2-002: enrollInTrialSubscription', () => {
       updated_at: expect.any(String),
     });
 
-    expect(mockUpdate().eq).toHaveBeenCalledWith('user_id', mockUserId);
+    expect(mockEq).toHaveBeenCalledWith('user_id', mockUserId);
   });
 
   it('should handle subscription creation failure', async () => {

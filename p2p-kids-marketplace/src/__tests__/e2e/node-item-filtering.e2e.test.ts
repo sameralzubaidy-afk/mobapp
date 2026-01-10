@@ -11,7 +11,10 @@
 import { supabase } from '../../services/supabase';
 import { getItems } from '../../services/items';
 
-describe('NODE-006 E2E: Node-Specific Item Filtering', () => {
+const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
+const describeSupabaseE2E = shouldRunSupabaseE2E ? describe : describe.skip;
+
+describeSupabaseE2E('NODE-006 E2E: Node-Specific Item Filtering', () => {
   let testUserId: string;
   let norwalkNodeId: string;
   let littleFallsNodeId: string;

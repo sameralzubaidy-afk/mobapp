@@ -5,8 +5,10 @@
  * falls back to direct Supabase Storage if CDN unavailable
  */
 
-const CDN_URL = process.env.EXPO_PUBLIC_CDN_URL || '';
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+function getCdnBaseUrl(): string {
+  // Read env at call time so tests that mutate process.env after import work.
+  return process.env.EXPO_PUBLIC_CDN_URL || '';
+}
 
 /**
  * Transform a Supabase Storage publicUrl to use CDN if available
@@ -22,8 +24,10 @@ const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 export function transformToCdnUrl(publicUrl: string | null | undefined): string | null {
   if (!publicUrl) return null;
 
+  const cdnBaseUrl = getCdnBaseUrl();
+
   // If CDN not configured, return original URL
-  if (!CDN_URL) {
+  if (!cdnBaseUrl) {
     return publicUrl;
   }
 
@@ -43,7 +47,7 @@ export function transformToCdnUrl(publicUrl: string | null | undefined): string 
     const bucketAndPath = parts[1]; // e.g., "item-images/user-123/abc.jpg"
 
     // Construct CDN URL
-    const cdnUrl = `${CDN_URL}/${bucketAndPath}`;
+    const cdnUrl = `${cdnBaseUrl}/${bucketAndPath}`;
     return cdnUrl;
   } catch (error) {
     console.warn(`[imageUrl] Failed to transform URL: ${publicUrl}`, error);
@@ -87,7 +91,8 @@ export function getImageUrl(
  */
 export function isCdnUrl(url: string | null | undefined): boolean {
   if (!url) return false;
-  return url.includes('workers.dev') || url.includes(CDN_URL);
+  // Only return true for actual Cloudflare worker URLs, not Supabase
+  return url.includes('.workers.dev');
 }
 
 /**

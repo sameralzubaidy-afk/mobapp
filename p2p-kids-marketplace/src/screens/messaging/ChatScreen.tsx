@@ -1,14 +1,18 @@
 /**
  * File: p2p-kids-marketplace/src/screens/messaging/ChatScreen.tsx
- * MODULE-07 MSG-001: Real-time Chat Screen
+ * MODULE-07 MSG-001-009: Real-time Chat Screen with Delivery Status & Typing Indicators
  * 
  * Features:
  * - Display item header with listing details
- * - Display messages chronologically
- * - Send text messages
- * - Real-time updates via Supabase Realtime
- * - Auto-scroll to latest message
- * - Distinguish own vs other messages
+ * - Display messages chronologically (MSG-001)
+ * - Send text messages (MSG-001)
+ * - Real-time updates via Supabase Realtime (MSG-001)
+ * - Auto-scroll to latest message (MSG-001)
+ * - Distinguish own vs other messages (MSG-001)
+ * - MSG-006: Show push notification badges
+ * - MSG-007: Email notification tracking (handled server-side)
+ * - MSG-008: Display delivery status (sent ✓ → delivered ✓✓ → read ✓✓ blue)
+ * - MSG-009: Show typing indicators when other user is typing
  */
 
 import React, { useState, useEffect, useRef, useContext } from 'react';
@@ -28,6 +32,7 @@ import {
   Pressable,
   Modal,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -43,6 +48,8 @@ import {
   unsubscribeFromMessages,
   markAsRead,
   Message,
+  markTradeMessagesAsDelivered,
+  markTradeMessagesAsRead,
 } from '@/services/chat';
 
 type ChatScreenRouteProp = RouteProp<{ Chat: { tradeId: string } }, 'Chat'>;
@@ -81,15 +88,47 @@ export default function ChatScreen() {
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
   const [imageViewerImages, setImageViewerImages] = useState<Array<{ uri: string }>>([]);
+  // MSG-009: Typing indicator state
+  const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
+  const otherUserTyping = Object.entries(typingUsers).some(([uid, isTyping]) => uid !== session?.user?.id && isTyping);
 
   const flatListRef = useRef<FlatList>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const typingChannelRef = useRef<RealtimeChannel | null>(null);
   const seenMessageIdsRef = useRef(new Set<string>());
+  // MSG-009: Typing state refs
+  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const typingSubscriptionRef = useRef<any>();
+  const lastTypingBroadcastRef = useRef<number>(0);
+  // MSG-009: Animated typing dots
+  const typingAnimRef = useRef(new Animated.Value(0)).current;
 
   // Fetch trade details (item info)
   useEffect(() => {
     fetchTrade();
   }, [tradeId]);
+
+  // MSG-009: Animate typing dots when indicator shows
+  useEffect(() => {
+    if (otherUserTyping) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(typingAnimRef, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: false,
+          }),
+          Animated.timing(typingAnimRef, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: false,
+          }),
+        ])
+      ).start();
+    } else {
+      typingAnimRef.setValue(0);
+    }
+  }, [otherUserTyping, typingAnimRef]);
 
   const fetchTrade = async () => {
     try {
@@ -119,13 +158,25 @@ export default function ChatScreen() {
 
     // Mark as read when opening the chat screen
     if (session?.user?.id) {
-      markAsRead(tradeId, session.user.id)
+      // MSG-008: Mark all messages as delivered when screen opens
+      markTradeMessagesAsDelivered(tradeId, session.user.id)
         .then(() => {
-          console.log('[ChatScreen] Marked trade', tradeId, 'as read on mount');
+          console.log('[ChatScreen] Marked all trade messages as delivered');
         })
         .catch((error) => {
-          console.warn('[ChatScreen] Failed to mark as read:', error);
+          console.warn('[ChatScreen] Failed to mark as delivered:', error);
         });
+
+      // MSG-008: Mark as read after 3 second delay
+      setTimeout(() => {
+        markTradeMessagesAsRead(tradeId, session.user.id)
+          .then(() => {
+            console.log('[ChatScreen] Marked trade messages as read');
+          })
+          .catch((error) => {
+            console.warn('[ChatScreen] Failed to mark as read:', error);
+          });
+      }, 3000);
     }
 
     // Subscribe to new messages
@@ -134,10 +185,73 @@ export default function ChatScreen() {
       addMessageToState(newMessage);
     });
 
+    // MSG-009: Manage typing presence channel
+    const typingChannelName = `presence-trade-${tradeId}`;
+    console.log('[ChatScreen] Initializing typing presence channel:', typingChannelName);
+    
+    const typingChannel = supabase.channel(typingChannelName, {
+      config: {
+        presence: {
+          key: 'typing',
+        },
+      },
+    });
+
+    typingChannelRef.current = typingChannel;
+
+    typingChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = typingChannel.presenceState();
+        console.log('[ChatScreen] Typing presence sync:', JSON.stringify(state));
+        
+        const typingMap: Record<string, boolean> = {};
+        Object.keys(state).forEach((key) => {
+          const presences = state[key];
+          presences?.forEach((p: any) => {
+            if (p.user_id) {
+              typingMap[p.user_id] = !!p.is_typing;
+            }
+          });
+        });
+        
+        console.log('[ChatScreen] Calculated typingMap:', typingMap);
+        setTypingUsers(typingMap);
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        console.log('[ChatScreen] Typing presence join:', key, newPresences);
+        setTypingUsers(prev => {
+          const next = { ...prev };
+          newPresences.forEach((p: any) => {
+            if (p.user_id) next[p.user_id] = !!p.is_typing;
+          });
+          return next;
+        });
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        console.log('[ChatScreen] Typing presence leave:', key, leftPresences);
+        setTypingUsers(prev => {
+          const next = { ...prev };
+          leftPresences.forEach((p: any) => {
+            if (p.user_id) next[p.user_id] = false;
+          });
+          return next;
+        });
+      });
+
+    typingChannel.subscribe((status) => {
+      console.log('[ChatScreen] Typing channel status:', status);
+    });
+
     return () => {
-      console.log('[ChatScreen] Unmounting, unsubscribing from messages');
+      console.log('[ChatScreen] Unmounting, unsubscribing from messages & presence');
       if (channelRef.current) {
         unsubscribeFromMessages(channelRef.current);
+      }
+      if (typingChannelRef.current) {
+        typingChannelRef.current.unsubscribe();
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
       }
     };
   }, [tradeId, session?.user?.id]);
@@ -180,6 +294,41 @@ export default function ChatScreen() {
     } else {
       setInputText(text);
     }
+
+    // MSG-009: Broadcast typing status with debounce (3 second throttle)
+    if (session?.user?.id && text.length > 0) {
+      const now = Date.now();
+      if (now - lastTypingBroadcastRef.current > 3000) {
+        console.log('[ChatScreen] Broadcasting typing status: true');
+        if (typingChannelRef.current) {
+          typingChannelRef.current.track({
+            user_id: session.user.id,
+            is_typing: true,
+            timestamp: new Date().toISOString(),
+          }).catch(err => console.warn('[ChatScreen] track error:', err));
+        }
+        lastTypingBroadcastRef.current = now;
+      }
+    }
+
+    // Clear existing typing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set new timeout to stop typing indicator after 3 seconds of inactivity
+    if (text.length > 0) {
+      typingTimeoutRef.current = setTimeout(() => {
+        if (session?.user?.id && typingChannelRef.current) {
+          console.log('[ChatScreen] Broadcasting typing status: false');
+          typingChannelRef.current.track({
+            user_id: session.user.id,
+            is_typing: false,
+            timestamp: new Date().toISOString(),
+          }).catch(err => console.warn('[ChatScreen] track error (stop):', err));
+        }
+      }, 3000);
+    }
   };
 
   const handleSend = async () => {
@@ -203,6 +352,15 @@ export default function ChatScreen() {
     
     setInputText('');
     setSending(true);
+
+    // MSG-009: Stop typing broadcast when message is sent
+    if (session?.user?.id && typingChannelRef.current) {
+      typingChannelRef.current.track({
+        user_id: session.user.id,
+        is_typing: false,
+        timestamp: new Date().toISOString(),
+      }).catch(err => console.warn('[ChatScreen] track error (send):', err));
+    }
 
     try {
       const result = await sendMessage({
@@ -302,6 +460,36 @@ export default function ChatScreen() {
     setImageViewerVisible(true);
   };
 
+  // MSG-008: Render delivery status indicator for own messages
+  const renderDeliveryStatus = (message: Message) => {
+    // Only show for own messages
+    if (message.sender_id !== session?.user?.id) {
+      return null;
+    }
+
+    const statusIcon = (status: string | null) => {
+      switch (status) {
+        case 'read':
+          // Double checkmark in blue
+          return <Text style={styles.readCheckmark}>✓✓</Text>;
+        case 'delivered':
+          // Double checkmark in gray
+          return <Text style={styles.deliveredCheckmark}>✓✓</Text>;
+        case 'sent':
+          // Single checkmark
+          return <Text style={styles.sentCheckmark}>✓</Text>;
+        default:
+          return <ActivityIndicator size="small" color="#9CA3AF" />;
+      }
+    };
+
+    return (
+      <View style={styles.deliveryStatusContainer}>
+        {statusIcon(message.delivery_status || 'sent')}
+      </View>
+    );
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwnMessage = item.sender_id === session?.user?.id;
 
@@ -345,12 +533,15 @@ export default function ChatScreen() {
             </Text>
           )}
         </View>
-        <Text style={styles.messageTime}>
-          {new Date(item.created_at).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </Text>
+        <View style={styles.messageMetaContainer}>
+          <Text style={styles.messageTime}>
+            {new Date(item.created_at).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+          {renderDeliveryStatus(item)}
+        </View>
       </View>
     );
   };
@@ -439,6 +630,49 @@ export default function ChatScreen() {
             </View>
           }
         />
+
+        {/* MSG-009: Typing Indicator */}
+        {otherUserTyping && (
+          <View style={styles.typingIndicatorContainer}>
+            <View style={[styles.messageBubble, styles.otherBubble, { paddingVertical: 8 }]}>
+              <View style={styles.typingDots}>
+                <Animated.View
+                  style={[
+                    styles.typingDot,
+                    {
+                      opacity: typingAnimRef.interpolate({
+                        inputRange: [0, 0.33, 0.66, 1],
+                        outputRange: [0.4, 1, 0.4, 0.4],
+                      }),
+                    },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.typingDot,
+                    {
+                      opacity: typingAnimRef.interpolate({
+                        inputRange: [0, 0.33, 0.66, 1],
+                        outputRange: [0.4, 0.4, 1, 0.4],
+                      }),
+                    },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.typingDot,
+                    {
+                      opacity: typingAnimRef.interpolate({
+                        inputRange: [0, 0.33, 0.66, 1],
+                        outputRange: [0.4, 0.4, 0.4, 1],
+                      }),
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          </View>
+        )}
 
         <View style={styles.inputContainer}>
           <View style={styles.inputWrapper}>
@@ -693,8 +927,49 @@ const styles = StyleSheet.create({
   messageTime: {
     fontSize: 11,
     color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  messageMetaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginTop: 4,
     marginHorizontal: 12,
+  },
+  deliveryStatusContainer: {
+    marginLeft: 4,
+  },
+  sentCheckmark: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  deliveredCheckmark: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '700',
+  },
+  readCheckmark: {
+    fontSize: 12,
+    color: '#3B82F6',
+    fontWeight: '700',
+  },
+  typingIndicatorContainer: {
+    marginBottom: 16,
+    maxWidth: '75%',
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  typingDots: {
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
+  },
+  typingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#6B7280',
   },
   inputContainer: {
     flexDirection: 'row',

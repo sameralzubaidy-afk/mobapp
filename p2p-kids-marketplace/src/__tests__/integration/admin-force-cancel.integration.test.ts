@@ -18,7 +18,10 @@ const TEST_CONFIG = {
   itemId: process.env.TEST_ITEM_ID || 'test-item',
 };
 
-describe('Admin Force-Cancel Trade Integration (TRADE-V2-009)', () => {
+const RUN_SUPABASE_E2E = process.env.RUN_SUPABASE_E2E === 'true';
+const describeSupabase = RUN_SUPABASE_E2E ? describe : describe.skip;
+
+describeSupabase('Admin Force-Cancel Trade Integration (TRADE-V2-009)', () => {
   let testTradeIds: string[] = [];
 
   beforeAll(async () => {
