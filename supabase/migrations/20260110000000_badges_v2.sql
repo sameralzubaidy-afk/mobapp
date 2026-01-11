@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS badges (
 -- User badges junction table
 CREATE TABLE IF NOT EXISTS user_badges (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   badge_id UUID NOT NULL REFERENCES badges(id) ON DELETE CASCADE,
   awarded_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, badge_id) -- User can earn each badge only once

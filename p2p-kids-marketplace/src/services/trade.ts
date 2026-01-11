@@ -184,21 +184,31 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     // Be defensive: tests may not mock this table.
     let sellerNodeId: string | null = null;
     try {
-      const profilesQuery: any = (supabase as any)?.from?.('profiles');
-      if (profilesQuery?.select && profilesQuery?.eq && profilesQuery?.maybeSingle) {
-        const { data: sellerProfile, error: sellerProfileError } = await profilesQuery
+      const { data: sellerProfile, error: sellerProfileError } = await supabase
+        .from('profiles')
+        .select('node_id')
+        .eq('user_id', itemData.seller_id)
+        .maybeSingle();
+
+      if (sellerProfileError) {
+        console.warn('[trade] Could not fetch seller profile node_id:', sellerProfileError);
+      } else if (sellerProfile) {
+        sellerNodeId = (sellerProfile as any).node_id;
+      }
+
+      // Fallback: If seller has no node_id, try using the buyer's node_id
+      if (!sellerNodeId) {
+        console.log('[trade] Seller missing node_id, falling back to buyer node_id');
+        const { data: buyerProfile } = await supabase
+          .from('profiles')
           .select('node_id')
-          .eq('user_id', itemData.seller_id)
+          .eq('user_id', buyerId)
           .maybeSingle();
-
-        if (sellerProfileError) {
-          console.warn('[trade] Could not fetch seller profile node_id:', sellerProfileError);
-        }
-
-        sellerNodeId = (sellerProfile as any)?.node_id ?? null;
+        
+        sellerNodeId = (buyerProfile as any)?.node_id ?? null;
       }
     } catch (e) {
-      console.warn('[trade] seller profile lookup failed (non-blocking):', e);
+      console.warn('[trade] node_id lookup failed (non-blocking):', e);
     }
 
     const { data: trade, error: tradeError } = await (supabase

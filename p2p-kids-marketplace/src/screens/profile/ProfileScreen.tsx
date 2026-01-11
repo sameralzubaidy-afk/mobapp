@@ -18,6 +18,7 @@ import { getUserProfile } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { supabase } from '@/services/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
+import { BadgeShowcase } from '@/components/BadgeShowcase';
 // generated `Database` types may be missing locally; use a permissive fallback
 // to avoid type errors until DB types are generated.
 import BottomNavBar from '@/components/organisms/BottomNavBar';
@@ -184,6 +185,9 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.infoValue}>{user.swap_points_balance || 0} SP</Text>
         </View>
       </View>
+
+      {/* Badges Section */}
+      <BadgeShowcase userId={user.id} />
 
       {/* Action Buttons */}
       <View style={styles.actionsSection}>
