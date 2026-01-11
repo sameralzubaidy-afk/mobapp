@@ -15,7 +15,7 @@ export async function getUserBadges(userId: string): Promise<UserBadge[]> {
 
   if (error) {
     console.error('Error fetching user badges:', error);
-    throw error;
+    throw new Error(error.message || 'Failed to fetch user badges');
   }
 
   return data as UserBadge[];
@@ -33,7 +33,7 @@ export async function getAllBadges(): Promise<Badge[]> {
 
   if (error) {
     console.error('Error fetching all badges:', error);
-    throw error;
+    throw new Error(error.message || 'Failed to fetch badges');
   }
 
   return data as Badge[];
