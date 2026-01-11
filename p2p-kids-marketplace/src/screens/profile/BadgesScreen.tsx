@@ -75,7 +75,9 @@ const BadgesScreen = ({ navigation }: any) => {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Achievements</Text>
-        <View style={{ width: 60 }} />
+        <TouchableOpacity onPress={() => navigation.navigate('Leaderboard')} style={styles.leaderboardButton}>
+          <Text style={styles.leaderboardButtonText}>🏆 Top</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.statsContainer}>
@@ -122,6 +124,16 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: '#3B82F6',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  leaderboardButton: {
+    padding: 8,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+  },
+  leaderboardButtonText: {
+    color: '#92400E',
+    fontSize: 14,
     fontWeight: '600',
   },
   title: {

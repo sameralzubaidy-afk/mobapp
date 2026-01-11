@@ -1,7 +1,8 @@
 // File: p2p-kids-marketplace/src/components/BadgeShowcase.tsx
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { getUserBadges } from '../services/badges';
 import { UserBadge } from '../types/badge';
 
@@ -10,6 +11,7 @@ interface BadgeShowcaseProps {
 }
 
 export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
+  const navigation = useNavigation<any>();
   const [badges, setBadges] = useState<UserBadge[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,15 +31,26 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
     }
   };
 
+  const handleNavigateToBadges = () => {
+    navigation.navigate('Badges');
+  };
+
   if (loading) {
     return <ActivityIndicator size="small" color="#3B82F6" style={styles.loader} />;
   }
 
   if (badges.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No badges earned yet. Start trading to earn badges!</Text>
-      </View>
+      <TouchableOpacity 
+        style={styles.container}
+        onPress={handleNavigateToBadges}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.title}>My Badges (0)</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No badges earned yet. Start trading to earn badges! →</Text>
+        </View>
+      </TouchableOpacity>
     );
   }
 
@@ -57,8 +70,15 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>My Badges ({badges.length})</Text>
+    <TouchableOpacity 
+      style={styles.container}
+      onPress={handleNavigateToBadges}
+      activeOpacity={0.7}
+    >
+      <View style={styles.header}>
+        <Text style={styles.title}>My Badges ({badges.length})</Text>
+        <Text style={styles.viewAllArrow}>→</Text>
+      </View>
       <FlatList
         data={badges}
         renderItem={renderBadge}
@@ -66,8 +86,10 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        scrollEnabled={true}
       />
-    </View>
+      <Text style={styles.tapHint}>Tap to view all badges</Text>
+    </TouchableOpacity>
   );
 };
 
@@ -77,12 +99,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   title: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 12,
+    flex: 1,
+  },
+  viewAllArrow: {
+    fontSize: 20,
+    color: '#3B82F6',
+    fontWeight: 'bold',
   },
   loader: {
     marginVertical: 20,
@@ -98,6 +133,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     gap: 16,
+    marginBottom: 12,
   },
   badgeItem: {
     alignItems: 'center',
@@ -127,5 +163,12 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     textAlign: 'center',
     fontWeight: '500',
+  },
+  tapHint: {
+    fontSize: 11,
+    color: '#3B82F6',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });
