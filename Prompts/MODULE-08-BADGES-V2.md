@@ -905,6 +905,9 @@ export const useUserBadges = (userId: string) => {
 };
 ```
 
+## TASK BADGES-V2-010: test upload icon from admin 
+## TASK BADGES-V2-011: leadership board should be segmented by node and globle. 
+## TASK BADGES-V2-011: create option for admin to enable/disable the badge feature. 
 /*
 ==================================================
 MODULE SUMMARY

@@ -35,7 +35,8 @@ export async function getAllBadges(): Promise<Badge[]> {
     .select('*')
     .eq('is_active', true)
     .eq('is_archived', false)
-    .order('sort_order', { ascending: true });
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
 
   if (error) {
     console.error('Error fetching all badges:', error);

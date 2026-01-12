@@ -47,7 +47,15 @@ const BadgesScreen = ({ navigation }: any) => {
     return (
       <View style={[styles.badgeCard, !earned && styles.lockedBadgeCard]}>
         <View style={[styles.iconContainer, !earned && styles.lockedIconContainer]}>
-          <Text style={styles.badgeEmoji}>{earned ? '🏅' : '🔒'}</Text>
+          {item.icon_url ? (
+            <Image 
+              source={{ uri: item.icon_url }} 
+              style={styles.badgeImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <Text style={styles.badgeEmoji}>{earned ? '🏅' : '🔒'}</Text>
+          )}
         </View>
         <Text style={styles.badgeName}>{item.name}</Text>
         <Text style={styles.badgeDescription} numberOfLines={2}>{item.description}</Text>
@@ -192,6 +200,11 @@ const styles = StyleSheet.create({
   },
   badgeEmoji: {
     fontSize: 30,
+  },
+  badgeImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
   badgeName: {
     fontSize: 14,
