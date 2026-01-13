@@ -25,12 +25,15 @@ export interface SPWalletSummary {
  */
 export async function getSPWalletSummary(userId: string): Promise<SPWalletSummary> {
   try {
-    const { data, error } = await supabase.rpc('get_user_sp_wallet_summary', {
+    const result = await supabase.rpc('get_user_sp_wallet_summary', {
       p_user_id: userId,
-    } as any);
+    });
+
+    const error = result.error;
+    const data = result.data as Record<string, number> | Record<string, number>[] | null;
 
     if (error) {
-      console.error('❌ Error fetching SP wallet summary:', error);
+      console.error('❌ Error fetching SP wallet summary:', error.message);
       // Return zeroed summary on error to avoid crashing
       return {
         user_id: userId,
@@ -42,7 +45,7 @@ export async function getSPWalletSummary(userId: string): Promise<SPWalletSummar
     }
 
     // RPC returns an array or single object
-    const summary = Array.isArray(data) ? data[0] : data;
+    const summary = Array.isArray(data) ? data[0] : (data as Record<string, number> | null);
 
     return {
       user_id: userId,
@@ -52,7 +55,8 @@ export async function getSPWalletSummary(userId: string): Promise<SPWalletSummar
       lifetime_spent: summary?.lifetime_spent ?? 0,
     };
   } catch (error) {
-    console.error('❌ getSPWalletSummary failed:', error);
+    const err = error as Error;
+    console.error('❌ getSPWalletSummary failed:', err.message);
     return {
       user_id: userId,
       available_balance: 0,

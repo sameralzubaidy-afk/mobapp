@@ -60,12 +60,12 @@ interface Trade {
     id: string;
     title: string;
     price: number;
-    images?: Array<{
+    images?: {
       id: string;
       url: string;
       thumbnail_url: string;
       display_order: number;
-    }>;
+    }[];
   };
 }
 
@@ -87,7 +87,7 @@ export default function ChatScreen() {
   const [loadingTrade, setLoadingTrade] = useState(true);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
-  const [imageViewerImages, setImageViewerImages] = useState<Array<{ uri: string }>>([]);
+  const [imageViewerImages, setImageViewerImages] = useState<{ uri: string }[]>([]);
   // MSG-009: Typing indicator state
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const otherUserTyping = Object.entries(typingUsers).some(([uid, isTyping]) => uid !== session?.user?.id && isTyping);

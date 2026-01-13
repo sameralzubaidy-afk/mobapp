@@ -9,7 +9,6 @@
 import { supabase } from '../config/supabase';
 import { Trade, TradeStatus } from '../types/trade';
 import { getSubscriptionSummary } from './subscription';
-import { getListingById } from './listing';
 import { getAdminConfig } from './adminConfig';
 
 /**
@@ -105,7 +104,7 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       return { success: false, error: 'Item not found' };
     }
 
-    const itemData = item as any;
+    const itemData = item as { id: string; status: string; seller_id: string; price: number; accepts_swap_points: boolean };
 
     if (itemData.status !== 'available') {
       return { success: false, error: 'Item is no longer available' };
@@ -128,10 +127,10 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     // Offline-first tests and non-subscribers should not require this RPC.
     let availablePoints = 0;
     if (sp_amount > 0 && canSpendSp) {
-      const { data: walletSummary, error: walletError } = await (supabase.rpc(
+      const { data: walletSummary, error: walletError } = await supabase.rpc(
         'get_user_sp_wallet_summary',
-        { p_user_id: buyerId } as any
-      ) as any);
+        { p_user_id: buyerId }
+      );
 
       if (walletError) {
         console.error('[trade] Error fetching SP wallet:', walletError);
@@ -139,7 +138,7 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       }
 
       // RPC returns an array or single object depending on implementation
-      const wallet = Array.isArray(walletSummary) ? walletSummary[0] : walletSummary;
+      const wallet = (Array.isArray(walletSummary) ? walletSummary[0] : walletSummary) as { available_points?: number } | null;
       availablePoints = wallet?.available_points ?? 0;
     }
 
@@ -193,19 +192,18 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       if (sellerProfileError) {
         console.warn('[trade] Could not fetch seller profile node_id:', sellerProfileError);
       } else if (sellerProfile) {
-        sellerNodeId = (sellerProfile as any).node_id;
+        sellerNodeId = (sellerProfile as { node_id: string | null }).node_id;
       }
 
       // Fallback: If seller has no node_id, try using the buyer's node_id
       if (!sellerNodeId) {
-        console.log('[trade] Seller missing node_id, falling back to buyer node_id');
         const { data: buyerProfile } = await supabase
           .from('profiles')
           .select('node_id')
           .eq('user_id', buyerId)
           .maybeSingle();
         
-        sellerNodeId = (buyerProfile as any)?.node_id ?? null;
+        sellerNodeId = (buyerProfile as { node_id: string | null })?.node_id ?? null;
       }
     } catch (e) {
       console.warn('[trade] node_id lookup failed (non-blocking):', e);
@@ -228,9 +226,9 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
         last_status_change_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      } as any)
+      })
       .select()
-      .single() as any);
+      .single());
 
     if (tradeError || !trade) {
       console.error('[trade] Error creating trade:', tradeError);
@@ -252,15 +250,12 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
             data: { tradeId: trade.id, itemId: item_id },
             priority: 'high',
           },
-        } as any);
+        });
 
-        const notifResult = response?.data;
         const notifError = response?.error;
 
         if (notifError) {
           console.warn('[trade] send-push-notification returned error:', notifError);
-        } else {
-          console.log('[trade] send-push-notification result:', notifResult);
         }
       } catch (err) {
         console.warn('[trade] Failed to invoke send-push-notification:', err);
@@ -270,15 +265,16 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     return {
       success: true,
       trade_id: trade.id,
-      trade: trade as Trade,
+      trade: trade as unknown as Trade,
       appliedPoints,
       cashAmountCents: totalCashChargeCents,
       transactionFeeCents,
       buyerSubscriptionStatus: buyerStatus,
     };
-  } catch (error: any) {
-    console.error('[trade] initiateTradeV2 failed:', error);
-    return { success: false, error: error.message || 'An unexpected error occurred' };
+  } catch (error) {
+    const err = error as Error;
+    console.error('[trade] initiateTradeV2 failed:', err);
+    return { success: false, error: err.message || 'An unexpected error occurred' };
   }
 }
 
@@ -312,14 +308,14 @@ export async function processTradePayment(
       
       // Extract detailed error from the response body
       let errorMessage = error.message || 'Unknown error';
-      let serverResponse: any = null;
+      let serverResponse: { error?: string } | null = null;
       
       try {
         // Try to get the response body from the context
         if (error.context && error.context._bodyInit) {
           // For React Native, try to read the response body
-          const response = new Response(error.context._bodyInit);
-          const responseText = await response.text();
+          const responseBody = new Response(error.context._bodyInit);
+          const responseText = await responseBody.text();
           console.error('[trade-service] Server response body:', responseText);
           
           try {
@@ -359,9 +355,10 @@ export async function processTradePayment(
       success: true, 
       status: data.status 
     };
-  } catch (error: any) {
-    console.error('[trade-service] processTradePayment failed:', error);
-    return { success: false, error: error.message };
+  } catch (error) {
+    const err = error as Error;
+    console.error('[trade-service] processTradePayment failed:', err);
+    return { success: false, error: err.message };
   }
 }
 
@@ -392,14 +389,14 @@ export async function completeTradeV2(
 
       // Try to extract Edge Function response body for better diagnostics
       try {
-        const ctx: any = (error as any)?.context;
+        const ctx = error?.context as { json?: () => Promise<{ error?: string }>; _bodyInit?: string | Blob | ArrayBufferView | ArrayBuffer | FormData | URLSearchParams | ReadableStream<Uint8Array> | null };
 
         if (ctx && typeof ctx.json === 'function') {
           const body = await ctx.json();
           if (body?.error) errorMessage = body.error;
         } else if (ctx && ctx._bodyInit) {
-          const response = new Response(ctx._bodyInit);
-          const responseText = await response.text();
+          const res = new Response(ctx._bodyInit);
+          const responseText = await res.text();
           console.error('[trade-service] completeTradeV2 server response body:', responseText);
           try {
             const parsed = JSON.parse(responseText);
@@ -416,9 +413,10 @@ export async function completeTradeV2(
     }
 
     return { success: true, message: data?.message, status: data?.status };
-  } catch (error: any) {
-    console.error('[trade-service] completeTradeV2 failed:', error);
-    return { success: false, error: error.message };
+  } catch (error) {
+    const err = error as Error;
+    console.error('[trade-service] completeTradeV2 failed:', err);
+    return { success: false, error: err.message };
   }
 }
 
@@ -448,9 +446,10 @@ export async function monitorMidTradeSubscriptionChanges(): Promise<{ success: b
       success: true, 
       flagged_count: data.flagged_count 
     };
-  } catch (error: any) {
-    console.error('[trade-service] monitorMidTradeSubscriptionChanges failed:', error);
-    return { success: false, error: error.message };
+  } catch (error) {
+    const err = error as Error;
+    console.error('[trade-service] monitorMidTradeSubscriptionChanges failed:', err);
+    return { success: false, error: err.message };
   }
 }
 
@@ -479,7 +478,7 @@ export async function cancelTradeV2(
   const userId = user?.id || 'unknown';
   const sanitizedReason = reason ? reason.substring(0, 500) : 'No reason provided';
   
-  console.log('[trade-service] Cancelling trade:', {
+  console.warn('[trade-service] Cancelling trade:', {
     tradeId,
     userId,
     reason: sanitizedReason,
@@ -507,15 +506,13 @@ export async function cancelTradeV2(
       
       // Extract detailed error message from Edge Function response
       let errorMessage = error.message || 'Failed to cancel trade';
-      let details: any = null;
       
       if (error instanceof Error && 'context' in error) {
         try {
-          const context = (error as any).context;
+          const context = (error as unknown as { context: { json?: () => Promise<{ error?: string; details?: object }> } }).context;
           if (typeof context.json === 'function') {
             const body = await context.json();
             if (body.error) errorMessage = body.error;
-            if (body.details) details = body.details;
           }
         } catch (e) {
           console.warn('[trade-service] Could not parse error response:', e);
@@ -523,12 +520,11 @@ export async function cancelTradeV2(
       }
       
       // Map error codes to user-friendly messages
-      const userMessage = mapCancellationErrorToUserMessage(errorMessage, details);
+      const userMessage = mapCancellationErrorToUserMessage(errorMessage);
       
       console.error('[trade-service] Mapped user message:', {
         originalError: errorMessage,
         userMessage,
-        details,
       });
       
       return { 
@@ -537,26 +533,19 @@ export async function cancelTradeV2(
       };
     }
 
-    // Log successful cancellation
-    console.log('[trade-service] Trade cancelled successfully:', {
-      tradeId,
-      userId,
-      spRefunded: data?.sp_refunded,
-      timestamp: new Date().toISOString(),
-    });
-
     return { success: true, sp_refunded: !!data?.sp_refunded };
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as { message?: string; code?: string };
     console.error('[trade-service] cancelTradeV2 failed with exception:', {
-      error: error.message,
-      code: error.code,
+      error: err.message,
+      code: err.code,
       tradeId,
       userId,
       timestamp: new Date().toISOString(),
     });
     
     // Provide helpful error message for common failure scenarios
-    const userMessage = mapCancellationErrorToUserMessage(error.message);
+    const userMessage = mapCancellationErrorToUserMessage(err.message || 'Unknown error');
     return { success: false, error: userMessage };
   }
 }
@@ -576,7 +565,7 @@ export async function cancelTradeV2(
  * @param details - Optional error details object with additional context
  * @returns User-friendly error message
  */
-function mapCancellationErrorToUserMessage(errorMessage: string, details?: any): string {
+function mapCancellationErrorToUserMessage(errorMessage: string, _details?: unknown): string {
   const lower = (errorMessage || '').toLowerCase();
   
   // Trade not found

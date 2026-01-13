@@ -17,18 +17,9 @@ import { assignNodeByZipCode, incrementNodeMemberCount } from './location';
  */
 export const findNearestNode = async (zipCode: string): Promise<NodeAssignment | null> => {
   try {
-    console.log('🔍 [NODE-003] Looking up node for zip code:', zipCode);
-    
     // Use the new NODE-003 assignment function that handles exact match or nearest
     const result = await assignNodeByZipCode(zipCode);
-    
-    console.log('✅ [NODE-003] Node assignment result:', {
-      nodeId: result.nodeId,
-      nodeName: result.nodeName,
-      matchType: result.matchType,
-      distanceMiles: result.distanceMiles,
-    });
-    
+
     return {
       node_id: result.nodeId,
       node_name: result.nodeName,
@@ -36,11 +27,12 @@ export const findNearestNode = async (zipCode: string): Promise<NodeAssignment |
       // NEW: Signal if ZIP is inactive (for popup logic)
       is_exact_match: result.matchType === 'zip',
     };
-  } catch (error: any) {
-    console.error('❌ [NODE-003] Node assignment error:', error);
+  } catch (error) {
+    const err = error as Error;
+    console.error('❌ [NODE-003] Node assignment error:', err);
     // Return null if NO active nodes exist anywhere
     // This will trigger the "no active nodes" flow
-    if (error.message?.includes('not currently active')) {
+    if (err.message?.includes('not currently active')) {
       return null;
     }
     return null;
@@ -56,7 +48,7 @@ export const setupUserProfile = async (
   profileData: ProfileSetupData
 ): Promise<{ 
   user: User | null; 
-  error: any | null; 
+  error: Error | object | null; 
   needsWaitlist?: boolean; 
   zipCode?: string;
   matchType?: 'zip' | 'nearest';  // NODE-003: Signal if ZIP is inactive
@@ -64,8 +56,6 @@ export const setupUserProfile = async (
   assignedNodeName?: string;
 }> => {
   try {
-    console.log('🔍 [NODE-003] setupUserProfile called with ZIP:', profileData.zip_code);
-    
     // Step 1: NODE-003 - Find nearest active node (exact match or fallback)
     const nodeAssignment = await findNearestNode(profileData.zip_code);
     
@@ -74,8 +64,6 @@ export const setupUserProfile = async (
     let matchType: 'zip' | 'nearest' | undefined = undefined;
 
     if (!nodeAssignment) {
-      console.log('⚠️ No node found for zip code:', profileData.zip_code);
-      console.log('🎯 User will be prompted to join waitlist but can continue registration');
       needsWaitlist = true;
       // Don't return error - allow profile creation to continue
     } else {
@@ -83,12 +71,9 @@ export const setupUserProfile = async (
       // NODE-003: Check if this was an exact match or fallback
       matchType = nodeAssignment.is_exact_match ? 'zip' : 'nearest';
       
-      console.log(`✅ [NODE-003] Node assigned: ${nodeAssignment.node_name} (${matchType})`);
-      
       // NODE-003: If fallback (inactive ZIP), signal waitlist needed
       if (matchType === 'nearest') {
         needsWaitlist = true;
-        console.log('⚠️ [NODE-003] ZIP is inactive - waitlist popup should be shown');
       }
     }
 
@@ -108,7 +93,7 @@ export const setupUserProfile = async (
       updated_at: new Date().toISOString(),
     };
 
-    const { data: newProfile, error: insertError } = await supabase
+    const { error: insertError } = await supabase
       .from('profiles')
       .upsert(dbProfileData, { 
         onConflict: 'user_id',
@@ -126,7 +111,6 @@ export const setupUserProfile = async (
     if (assignedNodeId) {
       try {
         await incrementNodeMemberCount(assignedNodeId);
-        console.log('✅ [NODE-003] Node member count incremented:', assignedNodeId);
       } catch (error) {
         console.error('❌ [NODE-003] Failed to increment member count (non-fatal):', error);
         // Non-fatal error - continue
@@ -162,9 +146,9 @@ export const setupUserProfile = async (
 export const updateUserProfile = async (
   userId: string,
   updates: ProfileUpdateData
-): Promise<{ user: User | null; error: any | null; needsWaitlist?: boolean; zipCode?: string }> => {
+): Promise<{ user: User | null; error: Error | object | null; needsWaitlist?: boolean; zipCode?: string }> => {
   try {
-    const updatePayload: any = {
+    const updatePayload: Record<string, string | null> = {
       updated_at: new Date().toISOString(),
     };
     let needsWaitlist = false;
@@ -180,13 +164,13 @@ export const updateUserProfile = async (
       updatePayload.bio = updates.bio;
     }
     // Phone number is stored on the auth user, update separately
-    let phoneUpdateError: any = null;
+    let phoneUpdateError: Error | object | null = null;
     if (updates.phone !== undefined) {
       try {
         // Call server-side Edge Function to update auth user phone using service role
         const invokeRes = await supabase.functions.invoke('auth-update-phone', { body: { user_id: userId, phone: updates.phone } });
-        const fnData = (invokeRes as any)?.data;
-        const fnError = (invokeRes as any)?.error;
+        const fnData = invokeRes?.data;
+        const fnError = invokeRes?.error;
         if (fnError) {
           console.error('Failed to update auth user phone via function (SDK error):', fnError);
           phoneUpdateError = fnError;
@@ -209,7 +193,7 @@ export const updateUserProfile = async (
         }
       } catch (e) {
         console.error('Exception invoking auth-update-phone:', e);
-        phoneUpdateError = e;
+        phoneUpdateError = e as Error;
       }
     }
 
@@ -218,7 +202,6 @@ export const updateUserProfile = async (
       const nodeAssignment = await findNearestNode(updates.zip_code);
       if (!nodeAssignment) {
         // No node found; do not block update. Set node_id to null and signal waitlist
-        console.log('⚠️ No node found for updated zip code:', updates.zip_code);
         needsWaitlist = true;
         userZip = updates.zip_code;
         updatePayload.node_id = null;
@@ -228,7 +211,7 @@ export const updateUserProfile = async (
     }
 
     // Update the user profile
-    const { data: updatedProfile, error: updateError } = await supabase
+    const { error: updateError } = await supabase
       .from('profiles')
       .update(updatePayload)
       .eq('user_id', userId)
@@ -261,7 +244,7 @@ export const updateUserProfile = async (
 /**
  * Get current user profile from database
  */
-export const getUserProfile = async (userId: string): Promise<{ user: any | null; error: any | null }> => {
+export const getUserProfile = async (userId: string): Promise<{ user: User | null; error: Error | object | null }> => {
   try {
     const { data, error } = await supabase
       .from('profiles')
@@ -274,10 +257,10 @@ export const getUserProfile = async (userId: string): Promise<{ user: any | null
       return { user: null, error };
     }
 
-    return { user: data, error: null };
+    return { user: data as unknown as User, error: null };
   } catch (error) {
     console.error('Get user profile exception:', error);
-    return { user: null, error };
+    return { user: null, error: error as Error };
   }
 };
 
@@ -288,7 +271,7 @@ export const getUserProfile = async (userId: string): Promise<{ user: any | null
 export const uploadProfileAvatar = async (
   userId: string,
   imageUri: string
-): Promise<{ url: string | null; error: any | null }> => {
+): Promise<{ url: string | null; error: Error | object | null }> => {
   try {
     // Convert image URI to blob
     const response = await fetch(imageUri);
@@ -299,8 +282,6 @@ export const uploadProfileAvatar = async (
     const timestamp = Date.now();
     const fileName = `${userId}-${timestamp}.${fileExt}`;
     const filePath = `avatars/${fileName}`;
-
-    console.log(`📤 Uploading avatar: ${filePath}`);
 
     // Upload to Supabase Storage
     const { data, error } = await supabase.storage
@@ -322,19 +303,16 @@ export const uploadProfileAvatar = async (
       return { url: null, error };
     }
 
-    console.log('✅ Avatar uploaded successfully:', data.path);
-
     // Get public URL; use fallback if not provided
     const { data: urlData } = supabase.storage.from('user-avatars').getPublicUrl(filePath);
-    const publicUrl = (urlData && (urlData.publicUrl || (urlData as any).public_url))
-      ? (urlData.publicUrl || (urlData as any).public_url)
-      : `${process.env.EXPO_PUBLIC_SUPABASE_URL || (supabase as any).url}/storage/v1/object/public/user-avatars/${filePath}`;
-
-    console.log('🔗 Avatar URL:', publicUrl);
+    
+    // The publicUrl property exists on the data object returned by getPublicUrl
+    const publicUrl = urlData?.publicUrl || 
+      `${process.env.EXPO_PUBLIC_SUPABASE_URL || (supabase as any).url}/storage/v1/object/public/user-avatars/${filePath}`;
 
     return { url: publicUrl, error: null };
   } catch (error) {
     console.error('❌ Upload avatar exception:', error);
-    return { url: null, error };
+    return { url: null, error: error as Error };
   }
 };

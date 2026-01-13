@@ -18,8 +18,7 @@ export const sendSMS = async (phone: string, message: string): Promise<SendSMSRe
   try {
     // TODO: Replace with actual AWS SNS implementation when AWS credentials are configured
     // For now, just log the SMS for testing
-    console.log('📱 [SMS Service] Would send SMS to:', phone);
-    console.log('📱 [SMS Service] Message:', message);
+    console.warn('📱 [SMS Service] Mock: SMS to:', phone);
     
     // Simulate network delay
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -28,11 +27,12 @@ export const sendSMS = async (phone: string, message: string): Promise<SendSMSRe
       success: true,
       messageId: `test-message-${Date.now()}`,
     };
-  } catch (error: any) {
-    console.error('❌ [SMS Service] Error:', error);
+  } catch (error) {
+    const err = error as Error;
+    console.error('❌ [SMS Service] Error:', err);
     return {
       success: false,
-      error: error.message || 'Failed to send SMS',
+      error: err.message || 'Failed to send SMS',
     };
   }
 };

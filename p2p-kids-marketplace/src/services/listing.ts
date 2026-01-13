@@ -85,7 +85,8 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
     .single();
 
   if (error) {
-    console.error('[listing] createListing error:', error);
+    const err = error as Error;
+    console.error('[listing] createListing error:', err.message);
     throw new Error(`Failed to create listing: ${error.message}`);
   }
 
@@ -169,7 +170,8 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
     .single();
 
   if (error) {
-    console.error('[listing] updateListing error:', error);
+    const err = error as Error;
+    console.error('[listing] updateListing error:', err.message);
     throw new Error(`Failed to update listing: ${error.message}`);
   }
 
@@ -220,7 +222,8 @@ export async function deleteListing(listing_id: string, user_id: string): Promis
     .eq('id', listing_id);
 
   if (error) {
-    console.error('[listing] deleteListing error:', error);
+    const err = error as Error;
+    console.error('[listing] deleteListing error:', err.message);
     throw new Error(`Failed to delete listing: ${error.message}`);
   }
 
@@ -283,7 +286,8 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<Listi
   const { data: items, error } = await query;
 
   if (error) {
-    console.error('[listing] fetchListings error:', error);
+    const err = error as Error;
+    console.error('[listing] fetchListings error:', err.message);
     throw new Error(`Failed to fetch listings: ${error.message}`);
   }
 
@@ -292,8 +296,8 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<Listi
   }
 
   // Fetch all related data in parallel for performance
-  const categoryIds = [...new Set(items.filter((i: any) => i.category_id).map((i: any) => i.category_id))];
-  const sellerIds = [...new Set(items.map((i: any) => i.seller_id))];
+  const categoryIds = [...new Set(items.filter((i: { category_id: string | null }) => i.category_id).map((i: { category_id: string | null }) => i.category_id as string))];
+  const sellerIds = [...new Set(items.map((i: { seller_id: string }) => i.seller_id))];
 
   const [categoriesData, sellersData] = await Promise.all([
     categoryIds.length > 0 
@@ -311,19 +315,19 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<Listi
   ]);
 
   const categoriesMap = new Map(
-    (categoriesData.data || []).map((c: any) => [c.id, c])
+    (categoriesData.data || []).map((c: { id: string }) => [c.id, c])
   );
   const sellersMap = new Map(
-    (sellersData.data || []).map((s: any) => [s.user_id, s])
+    (sellersData.data || []).map((s: { user_id: string }) => [s.user_id, s])
   );
 
   // Combine data and return as Listing[]
-  return items.map((item: any) => ({
+  return items.map((item: Record<string, unknown>) => ({
     ...item,
-    category: categoriesMap.get(item.category_id) || null,
-    seller: sellersMap.get(item.seller_id) || null,
+    category: categoriesMap.get(item.category_id as string) || null,
+    seller: sellersMap.get(item.seller_id as string) || null,
     images: [],
-  } as Listing));
+  } as unknown as Listing));
 }
 
 /**
@@ -342,16 +346,13 @@ export async function getListingById(listing_id: string): Promise<Listing | null
       .single();
 
     if (itemError) {
-      console.error('[listing] getListingById item error:', itemError);
+      console.error('[listing] getListingById item error:', itemError.message);
       return null;
     }
 
     if (!item) {
-      console.error('[listing] getListingById: item not found');
       return null;
     }
-
-    console.log('[listing] 📋 Item found:', { id: item.id, title: item.title, seller_id: item.seller_id, category_id: item.category_id });
 
     // Fetch category separately with better error handling
     let category = null;
@@ -364,13 +365,13 @@ export async function getListingById(listing_id: string): Promise<Listing | null
           .single();
         
         if (catError) {
-          console.warn('[listing] ⚠️ Category fetch error:', catError);
+          console.warn('[listing] ⚠️ Category fetch error:', catError.message);
         } else {
           category = categoryData;
-          console.log('[listing] ✅ Category fetched:', categoryData);
         }
       } catch (err) {
-        console.error('[listing] ❌ Category fetch exception:', err);
+        const error = err as Error;
+        console.error('[listing] ❌ Category fetch exception:', error.message);
       }
     }
 
@@ -381,16 +382,17 @@ export async function getListingById(listing_id: string): Promise<Listing | null
     if (item.seller_id) {
       try {
         // Try fetching with regular client first (respects RLS for privacy)
-        let { data: sellerData, error: sellerError } = await supabase
+        const result = await supabase
           .from('profiles')
           .select('id, name, avatar_url')
           .eq('user_id', item.seller_id)
           .single();
         
+        let sellerData = result.data as { id: string; name: string; avatar_url: string | null } | null;
+        const sellerError = result.error;
+        
         // If RLS blocks it, try with a more permissive approach
         if (sellerError?.code === 'PGRST116' || sellerError?.message?.includes('0 rows')) {
-          console.warn('[listing] ⚠️ RLS blocking profile fetch, using fallback query...');
-          
           // Query profiles table directly as a workaround for RLS issues
           // This fetches only the public profile info needed for listing display
           const { data: profiles, error: fallbackError } = await supabase
@@ -399,20 +401,18 @@ export async function getListingById(listing_id: string): Promise<Listing | null
             .eq('user_id', item.seller_id);
           
           if (!fallbackError && profiles && profiles.length > 0) {
-            sellerData = profiles[0];
-            console.log('[listing] ✅ Seller fetched via fallback:', sellerData);
-          } else {
-            console.warn('[listing] ⚠️ Fallback also failed:', fallbackError);
+            sellerData = profiles[0] as { id: string; name: string; avatar_url: string | null };
+          } else if (fallbackError) {
+            console.warn('[listing] ⚠️ Fallback also failed:', fallbackError.message);
           }
         } else if (sellerError) {
-          console.warn('[listing] ⚠️ Seller fetch error:', sellerError);
-        } else {
-          console.log('[listing] ✅ Seller fetched:', sellerData);
+          console.warn('[listing] ⚠️ Seller fetch error:', sellerError.message);
         }
         
         seller = sellerData;
       } catch (err) {
-        console.error('[listing] ❌ Seller fetch exception:', err);
+        const error = err as Error;
+        console.error('[listing] ❌ Seller fetch exception:', error.message);
       }
     }
 
@@ -428,19 +428,12 @@ export async function getListingById(listing_id: string): Promise<Listing | null
       category,
       seller,
       images,
-    } as Listing;
-
-    console.log('[listing] 📦 Complete listing object:', { 
-      id: listing.id, 
-      title: listing.title,
-      hasSeller: !!seller,
-      hasCategory: !!category,
-      hasImages: images.length > 0
-    });
+    } as unknown as Listing;
 
     return listing;
   } catch (err) {
-    console.error('[listing] ❌ getListingById fatal error:', err);
+    const error = err as Error;
+    console.error('[listing] ❌ getListingById fatal error:', error.message);
     return null;
   }
 }
@@ -461,8 +454,9 @@ export async function getMyListings(seller_id: string): Promise<Listing[]> {
     .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('[listing] getMyListings error:', error);
-    throw new Error(`Failed to fetch your listings: ${error.message}`);
+    const err = error as Error;
+    console.error('[listing] getMyListings error:', err.message);
+    throw new Error(`Failed to fetch your listings: ${err.message}`);
   }
 
   return data as Listing[];
@@ -483,8 +477,9 @@ export async function getListingSummary(seller_id: string): Promise<ListingSumma
     .neq('status', 'deleted');
 
   if (error) {
-    console.error('[listing] getListingSummary error:', error);
-    throw new Error(`Failed to fetch listing summary: ${error.message}`);
+    const err = error as Error;
+    console.error('[listing] getListingSummary error:', err.message);
+    throw new Error(`Failed to fetch listing summary: ${err.message}`);
   }
 
   const active = data.filter((l) => l.status === 'available').length;

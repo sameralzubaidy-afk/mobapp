@@ -38,10 +38,10 @@ const TEMPLATES = {
 };
 
 interface SendGridRequest {
-  personalizations: Array<{
-    to: Array<{ email: string }>;
+  personalizations: {
+    to: { email: string }[];
     dynamic_template_data: Record<string, any>;
-  }>;
+  }[];
   from: { email: string };
   reply_to: { email: string };
   template_id: string;
@@ -87,8 +87,6 @@ async function sendViaSendGrid(
         error: `SendGrid API returned ${response.status}`,
       };
     }
-
-    console.log(`✅ Email sent successfully to ${to}`);
 
     // Try to get message ID from response headers
     const messageId = response.headers.get('x-message-id');

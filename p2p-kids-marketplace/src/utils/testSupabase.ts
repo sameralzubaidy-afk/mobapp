@@ -12,17 +12,14 @@ export const testSupabaseConnection = async (): Promise<boolean> => {
     if (error) {
       // If table missing or other Postgres error, we'll still treat this as a valid connection
       // because the server responded. Only treat network failures as false.
-      // eslint-disable-next-line no-console
-      console.warn('Supabase query returned an error — this may be expected before schema is created:', error.message ?? error);
+      console.warn('⚠️ Supabase query returned an error — this may be expected before schema is created:', error.message);
       return true;
     }
 
-    // eslint-disable-next-line no-console
-    console.log('✅ Supabase connected successfully (test query returned rows count:', (data ?? []).length, ')');
     return true;
-  } catch (err: any) {
-    // eslint-disable-next-line no-console
-    console.error('Supabase connection failed', err?.message ?? err);
+  } catch (err) {
+    const error = err as Error;
+    console.warn('⚠️ Supabase connection failed:', error.message);
     return false;
   }
 };

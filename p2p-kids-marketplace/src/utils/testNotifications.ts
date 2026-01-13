@@ -138,7 +138,7 @@ export const testScheduledNotification = async () => {
 export const testAllNotifications = async () => {
   console.log('🧪 Starting comprehensive notification tests...\n');
 
-  const results: Array<{ success: boolean; error?: string }>= [];
+  const results: { success: boolean; error?: string }[] = [];
 
   console.log('1. Testing basic local notification...');
   results.push(await testLocalNotification());

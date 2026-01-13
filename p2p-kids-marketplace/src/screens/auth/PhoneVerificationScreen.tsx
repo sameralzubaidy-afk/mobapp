@@ -33,7 +33,7 @@ export default function PhoneVerificationScreen() {
   const [countdown, setCountdown] = useState(0);
 
   // Refs for TextInputs to manage focus
-  const inputRefs = useRef<Array<TextInput | null>>([]);
+  const inputRefs = useRef<(TextInput | null)[]>([]);
 
   // Auto-send code on mount
   useEffect(() => {

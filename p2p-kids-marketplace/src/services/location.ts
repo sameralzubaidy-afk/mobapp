@@ -33,12 +33,12 @@ export type NodeAssignmentResult = {
  */
 type ZipCodeResponse = {
   country: string;
-  places: Array<{
+  places: {
     latitude: string;
     longitude: string;
     place_name: string;
     state: string;
-  }>;
+  }[];
   'post code': string;
 };
 
@@ -75,7 +75,6 @@ export const assignNodeByZipCode = async (
 
     const { latitude, longitude } = coordinates;
 
-    console.log('🗺️ ZIP coords:', { zipCode, latitude, longitude });
 
     // Step 2: Call RPC to find best active node (exact match or nearest)
     const { data, error } = await supabase.rpc('resolve_active_node_for_signup', {
@@ -101,7 +100,6 @@ export const assignNodeByZipCode = async (
     const distanceKm: number | null = row.distance_km ?? null;
     const distanceMiles = distanceKm === null ? null : distanceKm * 0.621371;
 
-    console.log(`✅ Assigned to node: ${row.name} (${row.match_type}, ${distanceMiles?.toFixed(1) || 'exact'} mi)`);
 
     // Step 3: Warn if fallback node is far (>50 miles)
     if (distanceMiles !== null && distanceMiles > 50) {
@@ -203,7 +201,6 @@ export const incrementNodeMemberCount = async (nodeId: string): Promise<void> =>
       }
       throw error;
     }
-    console.log('✅ Node member count incremented:', nodeId);
   } catch (error) {
     console.error('❌ Increment node member count error:', error);
     // Don't throw - this is non-critical for signup flow
@@ -233,7 +230,6 @@ export const decrementNodeMemberCount = async (nodeId: string): Promise<void> =>
       }
       throw error;
     }
-    console.log('✅ Node member count decremented:', nodeId);
   } catch (error) {
     console.error('❌ Decrement node member count error:', error);
     // Don't throw - this is non-critical
@@ -333,7 +329,6 @@ export const saveUserPreferredRadius = async (
       }
     }
 
-    console.log(`✅ User preferred radius saved: ${radiusMiles} miles`);
   } catch (error) {
     console.error('❌ saveUserPreferredRadius error:', error);
     throw error;

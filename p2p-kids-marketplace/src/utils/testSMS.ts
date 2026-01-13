@@ -3,11 +3,11 @@ import { sendVerificationCode } from '@/services/sms';
 export const testSMSSending = async (phoneNumber = '+15555555555') => {
   try {
     const res = await sendVerificationCode(phoneNumber);
-    console.log('Test SMS sent:', res);
     return res;
-  } catch (error) {
-    console.error('SMS sending test failed:', error);
-    return { success: false, error: String(error) };
+  } catch (err) {
+    const error = err as Error;
+    console.warn('⚠️ SMS sending test failed:', error.message);
+    return { success: false, error: error.message };
   }
 };
 

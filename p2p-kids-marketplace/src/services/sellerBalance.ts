@@ -87,51 +87,6 @@ export interface BalanceDisplay {
 // Balance Queries
 // =============================================================================
 
-async function getSellerBalanceDerivedFromPayouts(userId: string): Promise<SellerBalance> {
-  const { data, error } = await supabase
-    .from('seller_payouts')
-    .select('status, net_amount_cents, gross_amount_cents, created_at')
-    .eq('user_id', userId);
-
-  if (error) {
-    throw error;
-  }
-
-  const payouts = data || [];
-
-  const available_balance_cents = payouts
-    .filter((p) => p.status === 'completed')
-    .reduce((sum, p) => sum + (p.net_amount_cents ?? 0), 0);
-
-  const pending_balance_cents = payouts
-    .filter((p) => p.status === 'pending' || p.status === 'processing')
-    .reduce((sum, p) => sum + (p.net_amount_cents ?? 0), 0);
-
-  // Interpreting "Lifetime Earnings" as pre-payout-fee earnings (gross) for completed payouts.
-  // This matches what sellers expect to see even if fees are deducted from withdrawals.
-  const lifetime_earnings_cents = payouts
-    .filter((p) => p.status === 'completed')
-    .reduce((sum, p) => sum + (p.gross_amount_cents ?? 0), 0);
-
-  const last_payout_at = payouts
-    .map((p) => p.created_at)
-    .filter(Boolean)
-    .sort()
-    .at(-1) ?? null;
-
-  return {
-    user_id: userId,
-    available_balance_cents,
-    pending_balance_cents,
-    lifetime_earnings_cents,
-    total_trades_completed: payouts.filter((p) => p.status === 'completed').length,
-    total_trades_pending: payouts.filter((p) => p.status === 'pending' || p.status === 'processing').length,
-    last_payout_at,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
-}
-
 async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Promise<SellerBalance> {
   const [{ data: trades, error: tradesError }, { data: payouts, error: payoutsError }] = await Promise.all([
     supabase

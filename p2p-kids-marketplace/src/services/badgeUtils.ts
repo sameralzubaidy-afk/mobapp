@@ -28,7 +28,7 @@ export async function uploadBadgeIcon(
 
     // Read file as base64
     const base64 = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: 'base64',
     });
 
     // Convert to ArrayBuffer
@@ -69,11 +69,10 @@ export async function uploadBadgeIcon(
       return { url: null, path: null, error: updateError };
     }
 
-    console.log('[badgeUtils.uploadBadgeIcon] Success:', publicUrl);
     return { url: publicUrl, path: data.path, error: null };
-  } catch (e: any) {
-    console.error('[badgeUtils.uploadBadgeIcon] Exception:', e);
-    return { url: null, path: null, error: e as Error };
+  } catch (error) {
+    console.error('[badgeUtils.uploadBadgeIcon] Exception:', error);
+    return { url: null, path: null, error: error as Error };
   }
 }
 
@@ -120,10 +119,9 @@ export async function deleteBadgeIcon(path: string): Promise<boolean> {
       return false;
     }
 
-    console.log('[badgeUtils.deleteBadgeIcon] Success:', path);
     return true;
-  } catch (e) {
-    console.error('[badgeUtils.deleteBadgeIcon] Exception:', e);
+  } catch (error) {
+    console.error('[badgeUtils.deleteBadgeIcon] Exception:', error);
     return false;
   }
 }

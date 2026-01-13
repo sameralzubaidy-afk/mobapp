@@ -9,7 +9,7 @@
  */
 
 import { supabase } from '../config/supabase';
-import { SellerPayout, PayoutMethodType } from '../types/payouts';
+import { PayoutMethodType } from '../types/payouts';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 

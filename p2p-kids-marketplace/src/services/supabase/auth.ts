@@ -45,11 +45,9 @@ export const processReferralCode = async (
   try {
     // Skip if no referral code provided
     if (!referralCode || !referralCode.trim()) {
-      console.log('ℹ️ No referral code provided');
       return;
     }
 
-    console.log('🔄 Processing referral code:', referralCode.toUpperCase());
 
     // Find user with this referral code
     const { data: referrer, error } = await supabase
@@ -74,7 +72,6 @@ export const processReferralCode = async (
       return;
     }
 
-    console.log('✅ Valid referrer found:', (referrer as any).name);
 
     // WORKAROUND: Due to Supabase schema cache not recognizing the referrals table,
     // we temporarily store the referrer_user_id in the profiles.referred_by column
@@ -94,7 +91,6 @@ export const processReferralCode = async (
       return;
     }
 
-    console.log('✅ Referral code processed successfully');
 
   } catch (error) {
     console.error('❌ Process referral code exception:', error);
@@ -149,7 +145,6 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
 
     // Step 2: Verify profile was created by database trigger
     // The database trigger (on_auth_user_created) should auto-create the profile
-    console.log('Checking if profile was created by database trigger for user:', authData.user.id);
 
     // Small delay to allow trigger to execute
     await new Promise(resolve => setTimeout(resolve, 200));
@@ -185,7 +180,6 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
       if (profileError) {
         // Check if it's a duplicate error (someone else created it)
         if (profileError.code === '23505') {
-          console.log('Profile already exists (race condition)');
         } else {
           console.error('Manual profile creation failed:', profileError);
           return {
@@ -194,10 +188,8 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
           };
         }
       } else {
-        console.log('Profile created manually with referral code:', userReferralCode);
       }
     } else {
-      console.log('Profile found:', profileData);
       
       // Ensure referral code exists
       if (!profileData.referral_code) {

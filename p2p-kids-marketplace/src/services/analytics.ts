@@ -7,9 +7,9 @@
  * Currently a stub - will be fully implemented with Firebase Analytics SDK
  */
 
-export type AnalyticsEventParams = Record<string, any>;
+export type AnalyticsEventParams = Record<string, unknown>;
 
-function safeJson(value: any) {
+function safeJson(value: unknown) {
   try {
     if (value === undefined) return '';
     return JSON.stringify(value);
@@ -33,8 +33,9 @@ export const trackEvent = (eventName: string, params?: AnalyticsEventParams): vo
       // eslint-disable-next-line no-console
       console.debug(`DEBUG  [Analytics] Event tracked: ${eventName}${payload ? ` ${payload}` : ''}`);
     }
-  } catch (error) {
-    console.error(`[Analytics] Failed to track event: ${eventName}`, error);
+  } catch (err) {
+    const error = err as Error;
+    console.warn(`⚠️ [Analytics] Failed to track event: ${eventName}`, error.message);
   }
 };
 
@@ -43,7 +44,7 @@ export const trackEvent = (eventName: string, params?: AnalyticsEventParams): vo
  * @param userId - User ID to associate events with
  * @param properties - User properties (subscription status, tier, etc)
  */
-export const setUserProperties = (userId: string, properties: Record<string, any>): void => {
+export const setUserProperties = (userId: string, properties: Record<string, unknown>): void => {
   try {
     // TODO: Connect to Firebase Analytics
     if (process.env.NODE_ENV !== 'production') {
@@ -51,8 +52,9 @@ export const setUserProperties = (userId: string, properties: Record<string, any
       // eslint-disable-next-line no-console
       console.debug(`DEBUG  [Analytics] User properties set for ${userId}${payload ? ` ${payload}` : ''}`);
     }
-  } catch (error) {
-    console.error(`[Analytics] Failed to set user properties`, error);
+  } catch (err) {
+    const error = err as Error;
+    console.warn(`⚠️ [Analytics] Failed to set user properties`, error.message);
   }
 };
 
@@ -66,7 +68,8 @@ export const resetAnalytics = (): void => {
       // eslint-disable-next-line no-console
       console.debug('DEBUG  [Analytics] Analytics reset');
     }
-  } catch (error) {
-    console.error('[Analytics] Failed to reset analytics', error);
+  } catch (err) {
+    const error = err as Error;
+    console.warn('⚠️ [Analytics] Failed to reset analytics', error.message);
   }
 };

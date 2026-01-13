@@ -42,7 +42,6 @@ export const upsertZipWaitlist = async (params: {
   try {
     const { userId, email, requestedZip, assignedNodeId } = params;
 
-    console.log('📋 Adding to waitlist:', { userId, email, requestedZip, assignedNodeId });
 
     // Use upsert: insert new or update if (user_id, requested_zip) exists
     const { data, error } = await supabase
@@ -64,14 +63,13 @@ export const upsertZipWaitlist = async (params: {
       .single();
 
     if (error) {
-      console.error('❌ Waitlist upsert error:', error);
+      console.error('❌ Waitlist upsert error:', error.message);
       throw error;
     }
 
     // Determine if this was a new entry or update
     const wasNewEntry = !!data?.id;
 
-    console.log('✅ Waitlist entry:', { wasNewEntry, id: data?.id });
 
     // Track analytics event
     trackEvent('waitlist_opt_in', {
@@ -87,9 +85,10 @@ export const upsertZipWaitlist = async (params: {
       requestedZip,
       assignedNodeId: assignedNodeId || null,
     };
-  } catch (error: any) {
-    console.error('❌ upsertZipWaitlist error:', error);
-    throw error;
+  } catch (error) {
+    const err = error as Error;
+    console.error('❌ upsertZipWaitlist error:', err.message);
+    throw err;
   }
 };
 
@@ -114,13 +113,14 @@ export const isUserOnWaitlist = async (
       .maybeSingle();
 
     if (error) {
-      console.warn('⚠️ isUserOnWaitlist error:', error);
+      console.warn('⚠️ isUserOnWaitlist error:', error.message);
       return false;
     }
 
     return !!data;
   } catch (error) {
-    console.error('❌ isUserOnWaitlist error:', error);
+    const err = error as Error;
+    console.error('❌ isUserOnWaitlist error:', err.message);
     return false;
   }
 };
@@ -135,13 +135,13 @@ export const isUserOnWaitlist = async (
 export const getUserWaitlistEntries = async (
   userId: string
 ): Promise<
-  Array<{
+  {
     id: string;
     requestedZip: string;
     assignedNodeId: string | null;
     status: 'pending' | 'notified' | 'joined';
     createdAt: string;
-  }>
+  }[]
 > => {
   try {
     const { data, error } = await supabase
@@ -151,7 +151,7 @@ export const getUserWaitlistEntries = async (
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.warn('⚠️ getUserWaitlistEntries error:', error);
+      console.warn('⚠️ getUserWaitlistEntries error:', error.message);
       return [];
     }
 
@@ -163,7 +163,8 @@ export const getUserWaitlistEntries = async (
       createdAt: row.created_at,
     }));
   } catch (error) {
-    console.error('❌ getUserWaitlistEntries error:', error);
+    const err = error as Error;
+    console.error('❌ getUserWaitlistEntries error:', err.message);
     return [];
   }
 };
@@ -186,9 +187,9 @@ export interface WaitlistEntry {
  */
 export const addToWaitlist = async (
   entry: WaitlistEntry
-): Promise<{ success: boolean; error: any | null }> => {
+): Promise<{ success: boolean; error: Error | null }> => {
   try {
-    const { error } = await (supabase
+    const { error } = await supabase
       .from('waitlist')
       .insert({
         email: entry.email,
@@ -197,18 +198,18 @@ export const addToWaitlist = async (
         kids_count: entry.kids_count || null,
         kids_ages: entry.kids_ages || null,
         created_at: new Date().toISOString(),
-      }) as any);
+      });
 
     if (error) {
-      console.error('Waitlist insert error:', error);
-      return { success: false, error };
+      console.error('Waitlist insert error:', error.message);
+      return { success: false, error: new Error(error.message) };
     }
 
-    console.log('✅ Added to waitlist for zip:', entry.zip);
     return { success: true, error: null };
   } catch (error) {
-    console.error('Waitlist exception:', error);
-    return { success: false, error };
+    const err = error as Error;
+    console.error('Waitlist exception:', err.message);
+    return { success: false, error: err };
   }
 };
 
@@ -219,7 +220,7 @@ export const addToWaitlist = async (
 export const checkWaitlistStatus = async (
   email: string,
   zip: string
-): Promise<{ exists: boolean; error: any | null }> => {
+): Promise<{ exists: boolean; error: Error | null }> => {
   try {
     const { data, error } = await supabase
       .from('waitlist')
@@ -229,13 +230,14 @@ export const checkWaitlistStatus = async (
       .maybeSingle();
 
     if (error) {
-      console.error('Waitlist check error:', error);
-      return { exists: false, error };
+      console.error('Waitlist check error:', error.message);
+      return { exists: false, error: new Error(error.message) };
     }
 
     return { exists: !!data, error: null };
   } catch (error) {
-    console.error('Waitlist check exception:', error);
-    return { exists: false, error };
+    const err = error as Error;
+    console.error('Waitlist check exception:', err.message);
+    return { exists: false, error: err };
   }
 };

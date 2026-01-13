@@ -279,9 +279,5 @@ export async function searchListingsWithTiming(
   const results = await searchListings(query, filters);
   const timingMs = performance.now() - startTime;
 
-  if (__DEV__) {
-    console.log(`[searchListings] Query: "${query}" | Time: ${timingMs.toFixed(2)}ms | Results: ${results.length}`);
-  }
-
   return { results, timingMs };
 }

@@ -101,9 +101,10 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
         setErrorMessage(result.error || 'Failed to save notification token');
       }
     } catch (err) {
+      const error = err as Error;
       setStatus('error');
-      setErrorMessage(`Error: ${String(err)}`);
-      console.error('Notification setup error:', err);
+      setErrorMessage(`Error: ${error.message}`);
+      console.warn('⚠️ Notification setup error:', error.message);
     } finally {
       setLoading(false);
     }

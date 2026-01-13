@@ -32,8 +32,9 @@ export const sendSMS = async ({ phoneNumber, message }: SendSMSParams) => {
     const json = await res.json();
     return json;
   } catch (error) {
-    console.error('sendSMS error:', error);
-    throw error;
+    const err = error as Error;
+    console.error('sendSMS error:', err.message);
+    throw err;
   }
 };
 

@@ -57,10 +57,10 @@ export const sendEmail = async ({
 
   try {
     await sgMail.send(msg);
-    console.log(`✅ Email sent successfully to: ${to}`);
     return { success: true };
-  } catch (error) {
-    console.error(`❌ Failed to send email to ${to}:`, error);
+  } catch (err) {
+    const error = err as Error;
+    console.warn(`⚠️ Failed to send email to ${to}:`, error.message);
     return { success: false, error };
   }
 };
@@ -89,10 +89,10 @@ export const sendWelcomeEmail = async (
 
   try {
     await sgMail.send(msg);
-    console.log(`✅ Welcome email sent to: ${data.email}`);
     return { success: true };
-  } catch (error) {
-    console.error(`❌ Failed to send welcome email to ${data.email}:`, error);
+  } catch (err) {
+    const error = err as Error;
+    console.warn(`⚠️ Failed to send welcome email to ${data.email}:`, error.message);
     return { success: false, error };
   }
 };
@@ -123,10 +123,10 @@ export const sendPasswordResetEmail = async (
 
   try {
     await sgMail.send(msg);
-    console.log(`✅ Password reset email sent to: ${data.email}`);
     return { success: true };
-  } catch (error) {
-    console.error(`❌ Failed to send password reset email to ${data.email}:`, error);
+  } catch (err) {
+    const error = err as Error;
+    console.warn(`⚠️ Failed to send password reset email to ${data.email}:`, error.message);
     return { success: false, error };
   }
 };
@@ -157,10 +157,10 @@ export const sendTradeNotificationEmail = async (
 
   try {
     await sgMail.send(msg);
-    console.log(`✅ Trade notification email sent to: ${data.sellerEmail}`);
     return { success: true };
-  } catch (error) {
-    console.error(`❌ Failed to send trade notification email to ${data.sellerEmail}:`, error);
+  } catch (err) {
+    const error = err as Error;
+    console.warn(`⚠️ Failed to send trade notification email to ${data.sellerEmail}:`, error.message);
     return { success: false, error };
   }
 };
@@ -192,12 +192,12 @@ export const sendTransactionConfirmationEmail = async (
 
   try {
     await sgMail.send(msg);
-    console.log(`✅ Transaction confirmation email sent to: ${data.buyerEmail}`);
     return { success: true };
-  } catch (error) {
-    console.error(
-      `❌ Failed to send transaction confirmation email to ${data.buyerEmail}:`,
-      error
+  } catch (err) {
+    const error = err as Error;
+    console.warn(
+      `⚠️ Failed to send transaction confirmation email to ${data.buyerEmail}:`,
+      error.message
     );
     return { success: false, error };
   }
@@ -228,10 +228,10 @@ export const sendSubscriptionStatusEmail = async (
 
   try {
     await sgMail.send(msg);
-    console.log(`✅ Subscription status email sent to: ${data.email}`);
     return { success: true };
-  } catch (error) {
-    console.error(`❌ Failed to send subscription status email to ${data.email}:`, error);
+  } catch (err) {
+    const error = err as Error;
+    console.warn(`⚠️ Failed to send subscription status email to ${data.email}:`, error.message);
     return { success: false, error };
   }
 };

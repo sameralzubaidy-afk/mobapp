@@ -42,7 +42,7 @@ export const processReferralBonus = async (
       .eq('status', 'completed');
 
     if (tradeCountError) {
-      console.error('Trade count error:', tradeCountError);
+      console.error('Trade count error:', tradeCountError.message);
       return { success: false, error: tradeCountError.message };
     }
 
@@ -53,27 +53,28 @@ export const processReferralBonus = async (
 
     // Award 5 points to both referrer and referee
     const REFERRAL_BONUS = 5;
+    const ref = referral as { id: string; referrer_user_id: string; referred_user_id: string; referral_code: string };
 
     // Create points transactions for both users
     const { error: pointsError } = await supabase.from('points_transactions').insert([
       {
-        user_id: (referral as any).referrer_user_id,
+        user_id: ref.referrer_user_id,
         points: REFERRAL_BONUS,
         transaction_type: 'referral_bonus',
-        description: `Referral bonus: ${(referral as any).referral_code}`,
-        related_id: (referral as any).id,
+        description: `Referral bonus: ${ref.referral_code}`,
+        related_id: ref.id,
       },
       {
-        user_id: (referral as any).referred_user_id,
+        user_id: ref.referred_user_id,
         points: REFERRAL_BONUS,
         transaction_type: 'referral_bonus',
-        description: `Referral bonus: ${(referral as any).referral_code}`,
-        related_id: (referral as any).id,
+        description: `Referral bonus: ${ref.referral_code}`,
+        related_id: ref.id,
       },
-    ] as any); // TODO: Fix when points_transactions type is regenerated
+    ]); // TODO: Fix when points_transactions type is regenerated
 
     if (pointsError) {
-      console.error('Points transaction error:', pointsError);
+      console.error('Points transaction error:', pointsError.message);
       return { success: false, error: pointsError.message };
     }
 
@@ -86,11 +87,11 @@ export const processReferralBonus = async (
         bonus_claimed_at: new Date().toISOString(),
         bonus_points_referrer: REFERRAL_BONUS,
         bonus_claimed_referrer_at: new Date().toISOString(),
-      } as any) // TODO: Fix when referrals type is regenerated
-      .eq('id', (referral as any).id);
+      }) // TODO: Fix when referrals type is regenerated
+      .eq('id', ref.id);
 
     if (updateError) {
-      console.error('Referral update error:', updateError);
+      console.error('Referral update error:', updateError.message);
       return { success: false, error: updateError.message };
     }
 
@@ -105,9 +106,10 @@ export const processReferralBonus = async (
     // });
 
     return { success: true };
-  } catch (error: any) {
-    console.error('Process referral bonus error:', error);
-    return { success: false, error: error.message };
+  } catch (error) {
+    const err = error as Error;
+    console.error('Process referral bonus error:', err.message);
+    return { success: false, error: err.message };
   }
 };
 
@@ -125,8 +127,8 @@ export const getReferralStats = async (userId: string): Promise<ReferralStats> =
     if (error) throw error;
 
     const total_referrals = data?.length || 0;
-    const pending_referrals = data?.filter((r: any) => r.status === 'pending').length || 0;
-    const completed_referrals = data?.filter((r: any) => r.status === 'claimed').length || 0;
+    const pending_referrals = data?.filter((r: { status: string }) => r.status === 'pending').length || 0;
+    const completed_referrals = data?.filter((r: { status: string }) => r.status === 'claimed').length || 0;
     const total_points_earned = completed_referrals * 5; // 5 points per completed referral
 
     return {
@@ -136,7 +138,8 @@ export const getReferralStats = async (userId: string): Promise<ReferralStats> =
       total_points_earned,
     };
   } catch (error) {
-    console.error('Get referral stats error:', error);
+    const err = error as Error;
+    console.error('Get referral stats error:', err.message);
     return {
       total_referrals: 0,
       pending_referrals: 0,

@@ -19,7 +19,7 @@ export async function getUserBadges(userId: string): Promise<UserBadge[]> {
     .order('awarded_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching user badges:', error);
+    console.warn('⚠️ Error fetching user badges:', error.message);
     throw new Error(error.message || 'Failed to fetch user badges');
   }
 
@@ -39,7 +39,7 @@ export async function getAllBadges(): Promise<Badge[]> {
     .order('name', { ascending: true });
 
   if (error) {
-    console.error('Error fetching all badges:', error);
+    console.warn('⚠️ Error fetching all badges:', error.message);
     throw new Error(error.message || 'Failed to fetch badges');
   }
 
@@ -60,34 +60,22 @@ export interface LeaderboardEntry {
  * @param limit Number of top users to return (default: 10)
  */
 export async function getBadgeLeaderboard(limit: number = 10): Promise<LeaderboardEntry[]> {
-  console.log('[getBadgeLeaderboard] Calling RPC with limit:', limit);
-  
   const { data, error } = await supabase.rpc('get_badge_leaderboard', {
     p_limit: limit,
   });
 
-  console.log('[getBadgeLeaderboard] RPC Response:', {
-    data,
-    error,
-    dataType: typeof data,
-    isArray: Array.isArray(data),
-    dataLength: Array.isArray(data) ? data.length : 'not-array',
-  });
-
   if (error) {
-    console.error('[getBadgeLeaderboard] RPC Error:', error);
+    console.warn('⚠️ [getBadgeLeaderboard] RPC Error:', error.message);
     throw new Error(`Failed to fetch leaderboard: ${error.message}`);
   }
 
   // Handle null or undefined data
   if (!data) {
-    console.warn('[getBadgeLeaderboard] RPC returned null/undefined data');
     return [];
   }
 
   // Ensure we're returning an array
   const result = Array.isArray(data) ? data : [];
-  console.log('[getBadgeLeaderboard] Returning leaderboard with', result.length, 'entries');
   
   return result as LeaderboardEntry[];
 }
@@ -111,7 +99,7 @@ export async function manualAwardBadge(
   });
 
   if (error) {
-    console.error('[manualAwardBadge] Error:', error);
+    console.warn('⚠️ [manualAwardBadge] Error:', error.message);
     throw new Error(error.message || 'Failed to manually award badge');
   }
 
@@ -133,7 +121,7 @@ export async function manualRevokeBadge(
   });
 
   if (error) {
-    console.error('[manualRevokeBadge] Error:', error);
+    console.warn('⚠️ [manualRevokeBadge] Error:', error.message);
     throw new Error(error.message || 'Failed to manually revoke badge');
   }
 
@@ -153,7 +141,7 @@ export async function getBadgeConfigHistory(
   });
 
   if (error) {
-    console.error('[getBadgeConfigHistory] Error:', error);
+    console.warn('⚠️ [getBadgeConfigHistory] Error:', error.message);
     throw new Error(error.message || 'Failed to fetch badge config history');
   }
 
@@ -177,9 +165,68 @@ export async function getBadgeAuditLogs(options?: {
   });
 
   if (error) {
-    console.error('[getBadgeAuditLogs] Error:', error);
+    console.warn('⚠️ [getBadgeAuditLogs] Error:', error.message);
     throw new Error(error.message || 'Failed to fetch badge audit logs');
   }
 
   return (data || []) as BadgeAuditLog[];
+}
+
+// =============================================================================
+// Retroactive Awarding Functions (BADGES-V2-008)
+// =============================================================================
+
+/**
+ * Preview users who would receive a badge if retroactive awarding runs (dry-run)
+ */
+export interface RetroactivePreview {
+  user_id: string;
+  display_name: string;
+  current_value: number;
+  already_has_badge: boolean;
+}
+
+export async function previewRetroactiveAwards(
+  badgeId: string
+): Promise<RetroactivePreview[]> {
+  const { data, error } = await supabase.rpc('preview_retroactive_awards', {
+    p_badge_id: badgeId,
+  });
+
+  if (error) {
+    console.warn('⚠️ [previewRetroactiveAwards] Error:', error.message);
+    throw new Error(error.message || 'Failed to preview retroactive awards');
+  }
+
+  return (data || []) as RetroactivePreview[];
+}
+
+/**
+ * Trigger retroactive badge awarding for a specific badge (admin only)
+ * Awards badges to all eligible users who meet the current threshold
+ */
+export interface RetroactiveAwardResult {
+  success: boolean;
+  badge_id: string;
+  badge_name: string;
+  category: string;
+  threshold: number;
+  awarded_count: number;
+}
+
+export async function triggerRetroactiveAwards(
+  badgeId: string,
+  reason?: string
+): Promise<RetroactiveAwardResult> {
+  const { data, error } = await supabase.rpc('admin_trigger_retroactive_awards', {
+    p_badge_id: badgeId,
+    p_reason: reason || null,
+  });
+
+  if (error) {
+    console.warn('⚠️ [triggerRetroactiveAwards] Error:', error.message);
+    throw new Error(error.message || 'Failed to trigger retroactive awards');
+  }
+
+  return data as RetroactiveAwardResult;
 }

@@ -63,6 +63,12 @@ export interface SendMessageResult {
   error?: string;
 }
 
+export interface PresenceItem extends Record<string, unknown> {
+  user_id: string;
+  is_typing?: boolean;
+  timestamp?: string;
+}
+
 /**
  * Send a text message to a trade chat
  * 
@@ -83,7 +89,6 @@ export async function sendMessage(
   }
 
   const trimmedContent = content.trim();
-  console.log(`[chat.sendMessage] Validating message with ${trimmedContent.length} chars`);
   
   if (trimmedContent.length > 2000) {
     console.error(`[chat.sendMessage] ⚠️ REJECTED: Message exceeds 2000 chars (${trimmedContent.length} chars)`);
@@ -117,11 +122,12 @@ export async function sendMessage(
       success: true,
       message: data,
     };
-  } catch (error: any) {
-    console.error('[chat.sendMessage] Unexpected error:', error);
+  } catch (error) {
+    const err = error as Error;
+    console.error('[chat.sendMessage] Unexpected error:', err);
     return {
       success: false,
-      error: error.message || 'Unexpected error sending message',
+      error: err.message || 'Unexpected error sending message',
     };
   }
 }
@@ -180,7 +186,6 @@ export function subscribeToMessages(
         filter: `trade_id=eq.${tradeId}`,
       },
       async (payload) => {
-        console.log('[chat.subscribeToMessages] New message received:', payload.new.id);
         
         // Fetch full message with sender details
         const { data, error } = await supabase
@@ -197,9 +202,7 @@ export function subscribeToMessages(
         }
       }
     )
-    .subscribe((status) => {
-      console.log('[chat.subscribeToMessages] Subscription status:', status);
-    });
+    .subscribe();
 
   return channel;
 }
@@ -214,7 +217,6 @@ export async function unsubscribeFromMessages(
 ): Promise<void> {
   if (channel) {
     await channel.unsubscribe();
-    console.log('[chat.unsubscribeFromMessages] Unsubscribed');
   }
 }
 
@@ -270,16 +272,12 @@ export async function getConversations(
       return [];
     }
 
-    if (!trades || trades.length === 0) {
-      console.log('[chat.getConversations] No trades found for user:', userId);
-      return [];
-    }
 
-    console.log('[chat.getConversations] Found', trades.length, 'trades');
+
 
     // For each trade, get last message and unread count
     const conversations = await Promise.all(
-      trades.map(async (trade: any) => {
+      trades.map(async (trade) => {
         // Get last message for this trade
         const { data: lastMessage } = await supabase
           .from('messages')
@@ -319,7 +317,7 @@ export async function getConversations(
               otherUserName = otherUser.first_name;
             }
           }
-        } catch (err) {
+        } catch {
           console.warn('[chat.getConversations] Could not fetch profile name for', otherUserId);
         }
 
@@ -340,11 +338,11 @@ export async function getConversations(
             .gte('created_at', new Date(lastViewedMs).toISOString());
 
           unreadCount =
-            unreadMessages?.filter((msg: any) => {
+            unreadMessages?.filter((msg) => {
               const msgTime = new Date(msg.created_at).getTime();
               return Number.isFinite(msgTime) && msgTime > lastViewedMs;
             }).length ?? 0;
-        } catch (err) {
+        } catch {
           console.warn('[chat.getConversations] Could not compute unread count for trade:', trade.id);
         }
 
@@ -371,7 +369,6 @@ export async function getConversations(
           new Date(a.last_message_time).getTime()
       );
 
-    console.log('[chat.getConversations] Returning', validConversations.length, 'valid conversations');
     return validConversations;
   } catch (error) {
     console.error('[chat.getConversations] Unexpected error:', error);
@@ -425,12 +422,11 @@ export async function getUnreadCount(
 
     // Filter messages that are actually after the last viewed time
     const actualUnread =
-      unreadMessages?.filter((msg: any) => {
+      unreadMessages?.filter((msg) => {
         const msgTime = new Date(msg.created_at).getTime();
         return Number.isFinite(msgTime) && msgTime > lastViewed;
       }) || [];
 
-    console.log('[chat.getUnreadCount] Trade', tradeId, '- Unread:', actualUnread.length, 'Last viewed:', new Date(lastViewed).toISOString());
     return actualUnread.length;
   } catch (error) {
     console.error('[chat.getUnreadCount] Error:', error);
@@ -459,7 +455,6 @@ export async function markAsRead(
     const lastViewedKey = `last_viewed_${userId}_${tradeId}`;
     const now = new Date().toISOString();
     await AsyncStorage.setItem(lastViewedKey, now);
-    console.log('[chat.markAsRead] Marked trade', tradeId, 'as read at', now);
   } catch (error) {
     console.error('[chat.markAsRead] Error:', error);
   }
@@ -482,7 +477,6 @@ export async function compressImage(
   error?: string;
 }> {
   try {
-    console.log('[chat.compressImage] Compressing image:', imageUri);
     
     const result = await ImageManipulator.manipulateAsync(
       imageUri,
@@ -504,9 +498,7 @@ export async function compressImage(
       };
     }
 
-    console.log(
-      `[chat.compressImage] Compressed: ${result.width}x${result.height}`
-    );
+
     
     return {
       success: true,
@@ -515,11 +507,12 @@ export async function compressImage(
       width: result.width,
       height: result.height,
     };
-  } catch (error: any) {
-    console.error('[chat.compressImage] Error:', error);
+  } catch (error) {
+    const err = error as Error;
+    console.error('[chat.compressImage] Error:', err);
     return {
       success: false,
-      error: error.message || 'Failed to compress image',
+      error: err.message || 'Failed to compress image',
     };
   }
 }
@@ -554,13 +547,12 @@ export async function uploadChatImage(
     const randomId = Math.random().toString(36).substring(2, 15);
     const filename = `${tradeId}/${senderId}-${timestamp}-${randomId}.jpg`;
 
-    console.log('[chat.uploadChatImage] Uploading to:', filename);
 
     // Convert base64 to ArrayBuffer
     const fileBuffer = decode(base64Data);
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('chat-images')
       .upload(filename, fileBuffer, {
         contentType: 'image/jpeg',
@@ -580,17 +572,17 @@ export async function uploadChatImage(
       .from('chat-images')
       .getPublicUrl(filename);
 
-    console.log('[chat.uploadChatImage] Upload successful:', urlData.publicUrl);
     
     return {
       success: true,
       publicUrl: urlData.publicUrl,
     };
-  } catch (error: any) {
-    console.error('[chat.uploadChatImage] Unexpected error:', error);
+  } catch (error) {
+    const err = error as Error;
+    console.error('[chat.uploadChatImage] Unexpected error:', err);
     return {
       success: false,
-      error: error.message || 'Unexpected error uploading image',
+      error: err.message || 'Unexpected error uploading image',
     };
   }
 }
@@ -623,7 +615,6 @@ export async function updateDeliveryStatus(
       return false;
     }
 
-    console.log(`[chat.updateDeliveryStatus] Updated message ${messageId} to ${status}`);
     return data === true;
   } catch (error) {
     console.error('[chat.updateDeliveryStatus] Unexpected error:', error);
@@ -658,7 +649,6 @@ export async function markTradeMessagesAsDelivered(
       return 0;
     }
 
-    console.log(`[chat.markTradeMessagesAsDelivered] Marked ${data} messages as delivered`);
     // Return updated count if provided by RPC, otherwise return number or undefined
     return (data && (data.updated_count ?? data)) ?? 0;
   } catch (error) {
@@ -694,7 +684,6 @@ export async function markTradeMessagesAsRead(
       return 0;
     }
 
-    console.log(`[chat.markTradeMessagesAsRead] Marked ${data} messages as read`);
     return (data && (data.updated_count ?? data)) ?? 0;
   } catch (error) {
     console.error('[chat.markTradeMessagesAsRead] Unexpected error:', error);
@@ -750,10 +739,10 @@ export async function broadcastTypingStatus(
       } catch (err) {
         console.warn('[chat.broadcastTypingStatus] Error calling channel.track:', err);
       }
-    } else if (typeof (channel as any).send === 'function') {
+    } else if (typeof (channel as { send?: (event: string, payload: unknown) => void }).send === 'function') {
       try {
         // Fallback to a generic send/broadcast if track is not available
-        (channel as any).send('broadcastTyping', {
+        (channel as { send: (event: string, payload: unknown) => void }).send('broadcastTyping', {
           user_id: userId,
           is_typing: isTyping,
           timestamp: new Date().toISOString(),
@@ -766,7 +755,6 @@ export async function broadcastTypingStatus(
     console.warn('[chat.broadcastTypingStatus] Unexpected error:', err);
   }
 
-  console.log(`[chat.broadcastTypingStatus] User ${userId} typing: ${isTyping}`);
 }
 
 /**
@@ -791,14 +779,13 @@ export function subscribeToTypingStatus(
 
   const syncTypingStatus = () => {
     const state = channel.presenceState();
-    console.log('[chat.subscribeToTypingStatus] Presence state synced:', JSON.stringify(state));
     
     // Create a set of users currently typing based on full presence state
     const currentTypingUsers = new Set<string>();
     
     Object.keys(state).forEach((key) => {
-      const presences = state[key];
-      presences?.forEach((p: any) => {
+      const presences = state[key] as unknown as PresenceItem[];
+      presences?.forEach((p) => {
         if (p.user_id && p.is_typing) {
           currentTypingUsers.add(p.user_id);
           onTypingChange(p.user_id, true);
@@ -813,33 +800,24 @@ export function subscribeToTypingStatus(
     .on('presence', { event: 'sync' }, () => {
       syncTypingStatus();
     })
-    .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-      console.log('[chat.subscribeToTypingStatus] Presence joined:', key, newPresences);
-      newPresences?.forEach((p: any) => {
+    .on('presence', { event: 'join' }, ({ newPresences }) => {
+      (newPresences as unknown as PresenceItem[])?.forEach((p) => {
         if (p.user_id) {
           onTypingChange(p.user_id, !!p.is_typing);
         }
       });
     })
-    .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-      console.log('[chat.subscribeToTypingStatus] Presence left:', key, leftPresences);
-      leftPresences?.forEach((p: any) => {
+    .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+      (leftPresences as unknown as PresenceItem[])?.forEach((p) => {
         if (p.user_id) {
           // When someone leaves, they are definitely not typing anymore
           onTypingChange(p.user_id, false);
         }
       });
-    });
-
-  channel.subscribe((status) => {
-    console.log('[chat.subscribeToTypingStatus] Subscription status:', status);
-    if (status === 'SUBSCRIBED') {
-      console.log('[chat.subscribeToTypingStatus] Successfully subscribed to presence for trade:', tradeId);
-    }
-  });
+    })
+    .subscribe();
 
   return () => {
-    console.log('[chat.subscribeToTypingStatus] Unsubscribing from presence for trade:', tradeId);
     channel.unsubscribe();
   };
 }
@@ -864,7 +842,6 @@ export async function sendImageMessage(
     };
   }
 
-  console.log('[chat.sendImageMessage] Processing image message for trade:', tradeId);
 
   try {
     // 1. Compress the image
@@ -911,16 +888,16 @@ export async function sendImageMessage(
       };
     }
 
-    console.log('[chat.sendImageMessage] Image message sent successfully:', data.id);
     return {
       success: true,
       message: data,
     };
-  } catch (error: any) {
-    console.error('[chat.sendImageMessage] Unexpected error:', error);
+  } catch (error) {
+    const err = error as Error;
+    console.error('[chat.sendImageMessage] Unexpected error:', err);
     return {
       success: false,
-      error: error.message || 'Unexpected error sending image message',
+      error: err.message || 'Unexpected error sending image message',
     };
   }
 }

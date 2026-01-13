@@ -11,7 +11,12 @@ import {
 
 // Mock dependencies
 jest.mock('../../config/supabase');
-jest.mock('expo-file-system');
+jest.mock('expo-file-system', () => ({
+  readAsStringAsync: jest.fn(),
+  EncodingType: {
+    Base64: 'base64',
+  },
+}));
 jest.mock('base64-arraybuffer', () => ({
   decode: jest.fn((base64) => new ArrayBuffer(8)),
 }));

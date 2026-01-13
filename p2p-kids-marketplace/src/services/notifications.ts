@@ -83,13 +83,12 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
  * @param token - Push notification token from Expo
  * @returns Success/failure result
  */
-export const savePushToken = async (userId: string, token: string) => {
+export const savePushToken = async (userId: string, token: string): Promise<{ success: boolean; error?: string }> => {
   try {
     const deviceId = Constants.deviceId || 'unknown';
 
-    // TODO: Update type when push_tokens table schema is added to database.types.ts
-    // Using 'any' cast because push_tokens table is not yet in generated database types
-    const result: any = await (supabase.from('push_tokens' as any) as any).upsert({
+    // Using any cast if push_tokens is not yet in generated database types
+    const { error } = await supabase.from('push_tokens' as never).upsert({
       user_id: userId,
       token,
       device_id: deviceId,
@@ -97,18 +96,16 @@ export const savePushToken = async (userId: string, token: string) => {
       updated_at: new Date().toISOString(),
     });
 
-    const { error } = result;
-
     if (error) {
-      console.error('Failed to save push token:', error);
+      console.warn('⚠️ Failed to save push token:', error.message);
       return { success: false, error: error.message };
     }
 
-    console.log('Push token saved successfully');
     return { success: true };
   } catch (err) {
-    console.error('Error saving push token:', err);
-    return { success: false, error: String(err) };
+    const error = err as Error;
+    console.warn('⚠️ Error saving push token:', error.message);
+    return { success: false, error: error.message };
   }
 };
 
@@ -124,7 +121,7 @@ export const sendLocalNotification = async (
   title: string,
   body: string,
   data?: NotificationData
-) => {
+): Promise<void> => {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -136,9 +133,9 @@ export const sendLocalNotification = async (
       },
       trigger: null, // Immediate notification
     });
-    console.log('Local notification sent:', title);
   } catch (err) {
-    console.error('Failed to send local notification:', err);
+    const error = err as Error;
+    console.warn('⚠️ Failed to send local notification:', error.message);
   }
 };
 
@@ -155,7 +152,7 @@ export const scheduleNotification = async (
   body: string,
   seconds: number,
   data?: NotificationData
-) => {
+): Promise<void> => {
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -169,21 +166,21 @@ export const scheduleNotification = async (
         seconds,
       },
     });
-    console.log(`Notification scheduled for ${seconds}s from now:`, title);
   } catch (err) {
-    console.error('Failed to schedule notification:', err);
+    const error = err as Error;
+    console.warn('⚠️ Failed to schedule notification:', error.message);
   }
 };
 
 /**
  * Cancel all scheduled notifications
  */
-export const cancelAllNotifications = async () => {
+export const cancelAllNotifications = async (): Promise<void> => {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('All scheduled notifications cancelled');
   } catch (err) {
-    console.error('Failed to cancel notifications:', err);
+    const error = err as Error;
+    console.warn('⚠️ Failed to cancel notifications:', error.message);
   }
 };
 
@@ -196,30 +193,26 @@ export const cancelAllNotifications = async () => {
 export const useNotificationObserver = () => {
   // Listen for notifications received while app is open
   const notificationListener = Notifications.addNotificationReceivedListener(
-    (notification) => {
-      console.log('Notification received while app open:', notification);
-      // Perform any app-specific logic here
+    (_notification) => {
+      // Notification received logic
     }
   );
 
   // Listen for user tapping on a notification
   const responseListener = Notifications.addNotificationResponseReceivedListener(
-    (response) => {
-      console.log('User tapped notification:', response);
-
+    (_response) => {
+      // User tapped logic
       // TODO: Implement navigation based on notification type
-      // Extract data from: response.notification.request.content.data
-      // Example patterns:
-      // if (data.type === 'message') navigation.navigate('Messages', { chatId: data.chatId });
-      // if (data.type === 'trade') navigation.navigate('Trade', { tradeId: data.tradeId });
+    }
+  );
       // if (data.type === 'item_update') navigation.navigate('Item', { itemId: data.itemId });
     }
   );
 
   // Return cleanup function to remove listeners
   return () => {
-    Notifications.removeNotificationSubscription(notificationListener);
-    Notifications.removeNotificationSubscription(responseListener);
+    notificationListener.remove();
+    responseListener.remove();
   };
 };
 
@@ -246,26 +239,25 @@ export const getCurrentPushToken = async (): Promise<string | null> => {
 /**
  * Remove a push token from database (e.g., when user logs out)
  */
-export const removePushToken = async (userId: string, deviceId?: string) => {
+export const removePushToken = async (userId: string, deviceId?: string): Promise<{ success: boolean; error?: string }> => {
   try {
-    let query = supabase.from('push_tokens').delete().eq('user_id', userId);
+    let query = supabase.from('push_tokens' as never).delete().eq('user_id', userId);
 
     if (deviceId) {
       query = query.eq('device_id', deviceId);
     }
 
-    // TODO: Update type when push_tokens table schema is added to database.types.ts
-    const { error } = await (query as any);
+    const { error } = await query;
 
     if (error) {
-      console.error('Failed to remove push token:', error);
+      console.warn('⚠️ Failed to remove push token:', error.message);
       return { success: false, error: error.message };
     }
 
-    console.log('Push token removed');
     return { success: true };
   } catch (err) {
-    console.error('Error removing push token:', err);
-    return { success: false, error: String(err) };
+    const error = err as Error;
+    console.warn('⚠️ Error removing push token:', error.message);
+    return { success: false, error: error.message };
   }
 };

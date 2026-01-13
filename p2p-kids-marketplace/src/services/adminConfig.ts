@@ -80,7 +80,7 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
       .eq('is_active', true);
 
     if (error) {
-      console.error('Failed to fetch admin config:', error);
+      console.warn('⚠️ Failed to fetch admin config:', error.message);
       // Return defaults if fetch fails
       return getDefaultConfig();
     }
@@ -111,7 +111,8 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
 
     return config;
   } catch (err) {
-    console.error('Error fetching admin config:', err);
+    const error = err as Error;
+    console.warn('⚠️ Error fetching admin config:', error.message);
     return getDefaultConfig();
   }
 }

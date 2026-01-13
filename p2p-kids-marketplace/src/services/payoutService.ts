@@ -11,9 +11,7 @@ import {
   CreateStripeConnectAccountResponse,
   CreateStripeAccountLinkRequest,
   CreateStripeAccountLinkResponse,
-  AddPayoutMethodRequest,
   AddPayoutMethodResponse,
-  PayoutMethodType
 } from '../types/payouts';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL!;

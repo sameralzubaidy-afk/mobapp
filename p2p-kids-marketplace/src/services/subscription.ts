@@ -45,7 +45,6 @@ export interface SubscriptionSummary {
  */
 export async function getSubscriptionSummary(userId: string): Promise<SubscriptionSummary> {
   try {
-    console.log('[subscription] 🔍 Checking subscription for user:', userId);
     
     // Fetch user's subscription from subscriptions table with fresh query (no caching)
     // Only query columns that actually exist
@@ -56,17 +55,15 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
       .order('created_at', { ascending: false })
       .limit(1);
 
-    console.log('[subscription] 📊 Query result:', { subscription, error, userId });
 
     if (error) {
-      console.error('[subscription] ❌ Error fetching user subscription:', error);
+      console.error('[subscription] ❌ Error fetching user subscription:', error.message);
       throw new Error(`Failed to fetch subscription: ${error.message}`);
     }
 
     // Check if subscription array is empty or null
     if (!subscription || subscription.length === 0) {
       // No subscription found - free user
-      console.log('[subscription] ℹ️ No subscription found for user:', userId);
       return {
         status: 'none',
         is_subscriber: false,
@@ -78,11 +75,9 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     }
 
     const sub = subscription[0];
-    console.log('[subscription] 📋 Subscription record:', sub);
 
     // Check if user has an active or trial subscription
     if (sub && sub.status && (sub.status === 'active' || sub.status === 'trial')) {
-      console.log('[subscription] ✅ User has', sub.status, 'subscription, expires:', sub.trial_end_date || sub.current_period_end);
       return {
         status: sub.status as SubscriptionStatus,
         is_subscriber: true,
@@ -93,7 +88,6 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
       };
     } else {
       // Free user or no subscription: no SP access
-      console.log('[subscription] ℹ️ User does not have active/trial subscription, status:', sub?.status);
       return {
         status: 'none',
         is_subscriber: false,
@@ -104,7 +98,8 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
       };
     }
   } catch (error) {
-    console.error('[subscription] ❌ getSubscriptionSummary failed:', error);
+    const err = error as Error;
+    console.error('[subscription] ❌ getSubscriptionSummary failed:', err.message);
     // Return free user status on error to avoid blocking the flow
     return {
       status: 'none',

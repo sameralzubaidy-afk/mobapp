@@ -74,14 +74,14 @@ export const sendPhoneVerificationCode = async (
       };
     }
 
-    console.log('✅ Verification code sent to:', phone);
     return { success: true };
 
-  } catch (error: any) {
-    console.error('Send verification code error:', error);
+  } catch (error) {
+    const err = error as Error;
+    console.error('Send verification code error:', err);
     return {
       success: false,
-      error: error.message || 'Failed to send verification code',
+      error: err.message || 'Failed to send verification code',
     };
   }
 };
@@ -101,12 +101,12 @@ export const verifyPhoneCode = async (
   try {
     // TEST CODE: Always accept '123456' for testing (documented in parking lot)
     if (code === '123456') {
-      console.log('🧪 [TEST MODE] Using hardcoded test code 123456');
-      console.log('🧪 [TEST MODE] Attempting to verify phone for user_id:', userId);
+      console.warn('🧪 [TEST MODE] Using hardcoded test code 123456');
+      console.warn('🧪 [TEST MODE] Attempting to verify phone for user_id:', userId);
       
       // Ensure a verified code row exists for test purposes so RPC check passes
       try {
-        const { error: insertErr } = await (supabase.from('phone_verification_codes') as any).insert({
+        const { error: insertErr } = await supabase.from('phone_verification_codes').insert({
           user_id: userId,
           phone,
           code: '123456',
@@ -125,10 +125,10 @@ export const verifyPhoneCode = async (
 
       // Use database function to bypass RLS
       // This function has SECURITY DEFINER privilege and can update any profile
-      const { data: result, error: rpcError } = await (supabase.rpc('verify_user_phone', {
+      const { data: result, error: rpcError } = await supabase.rpc('verify_user_phone', {
           p_user_id: userId,
           p_phone: phone,
-        }) as any);
+        });
 
       if (rpcError) {
         console.error('❌ [TEST MODE] RPC error:', rpcError);
@@ -136,17 +136,17 @@ export const verifyPhoneCode = async (
         throw rpcError;
       }
 
-      console.log('🔍 [TEST MODE] RPC result:', result);
+      const rpcResult = result as { success: boolean; message?: string; rows_updated?: number } | null;
 
-      if (result && result.success) {
-        console.log('✅ [TEST MODE] Phone verified successfully via database function');
-        console.log('✅ [TEST MODE] Rows updated:', result.rows_updated);
+      if (rpcResult && rpcResult.success) {
+        console.warn('✅ [TEST MODE] Phone verified successfully via database function');
+        console.warn('✅ [TEST MODE] Rows updated:', rpcResult.rows_updated);
         return { success: true };
       } else {
-        console.error('❌ [TEST MODE] Verification failed:', result?.message || 'Unknown error');
+        console.error('❌ [TEST MODE] Verification failed:', rpcResult?.message || 'Unknown error');
         return {
           success: false,
-          error: result?.message || 'Failed to verify phone',
+          error: rpcResult?.message || 'Failed to verify phone',
         };
       }
     }
@@ -175,7 +175,8 @@ export const verifyPhoneCode = async (
     }
 
     // Check if code is expired
-    if (new Date((codeData as any).expires_at) < new Date()) {
+    const codeRow = codeData as { expires_at: string; attempts: number; code: string; id: string };
+    if (new Date(codeRow.expires_at) < new Date()) {
       return {
         success: false,
         error: 'Verification code has expired. Please request a new code.',
@@ -183,7 +184,7 @@ export const verifyPhoneCode = async (
     }
 
     // Check if too many attempts
-    if ((codeData as any).attempts >= 3) {
+    if (codeRow.attempts >= 3) {
       return {
         success: false,
         error: 'Too many failed attempts. Please request a new code.',
@@ -191,22 +192,22 @@ export const verifyPhoneCode = async (
     }
 
     // Check if code matches
-    if ((codeData as any).code !== code) {
+    if (codeRow.code !== code) {
       // Increment attempt count
-      await (supabase.from('phone_verification_codes') as any)
-        .update({ attempts: (codeData as any).attempts + 1 })
-        .eq('id', (codeData as any).id);
+      await supabase.from('phone_verification_codes')
+        .update({ attempts: codeRow.attempts + 1 })
+        .eq('id', codeRow.id);
 
       return {
         success: false,
-        error: `Invalid code. ${2 - (codeData as any).attempts} attempts remaining.`,
+        error: `Invalid code. ${2 - codeRow.attempts} attempts remaining.`,
       };
     }
 
     // Code is valid! Mark as verified in the verification codes table
-    const { error: verifyError } = await (supabase.from('phone_verification_codes') as any)
+    const { error: verifyError } = await supabase.from('phone_verification_codes')
       .update({ verified: true })
-      .eq('id', (codeData as any).id);
+      .eq('id', codeRow.id);
 
     if (verifyError) {
       console.error('Mark code verified error:', verifyError);
@@ -215,13 +216,12 @@ export const verifyPhoneCode = async (
 
     // Update profile to mark phone as verified using database function
     // This bypasses RLS issues
-    console.log('📝 Updating profile for user:', userId, 'via database function');
     
-    const { data: result, error: rpcError } = await (supabase
+    const { data: result, error: rpcError } = await supabase
       .rpc('verify_user_phone', {
         p_user_id: userId,
         p_phone: phone,
-      }) as any);
+      });
 
     if (rpcError) {
       console.error('❌ RPC error:', rpcError);
@@ -229,25 +229,24 @@ export const verifyPhoneCode = async (
       throw rpcError;
     }
 
-    console.log('🔍 RPC result:', result);
+    const rpcResult = result as { success: boolean; message?: string } | null;
 
-    if (result && (result as any).success) {
-      console.log('✅ Phone verified successfully via database function');
-      console.log('✅ Rows updated:', (result as any).rows_updated);
+    if (rpcResult && rpcResult.success) {
       return { success: true };
     } else {
-      console.error('❌ Verification failed:', (result as any)?.message || 'Unknown error');
+      console.error('❌ Verification failed:', rpcResult?.message || 'Unknown error');
       return {
         success: false,
-        error: (result as any)?.message || 'Failed to verify phone',
+        error: rpcResult?.message || 'Failed to verify phone',
       };
     }
 
-  } catch (error: any) {
-    console.error('Verify phone code error:', error);
+  } catch (error) {
+    const err = error as Error;
+    console.error('Verify phone code error:', err);
     return {
       success: false,
-      error: error.message || 'Failed to verify code',
+      error: err.message || 'Failed to verify code',
     };
   }
 };
