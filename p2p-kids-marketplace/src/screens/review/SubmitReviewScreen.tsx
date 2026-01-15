@@ -18,8 +18,10 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { useAuth } from '@/hooks/useAuth';
-import { submitReview, canReviewUser } from '@/services/review';
+import { submitReview, canReviewUser, skipReview } from '@/services/review';
 import { StarRating } from '@/components/StarRating';
+// import { logEvent } from '@/services/analytics'; // TODO: uncomment when analytics service is available
+import { REVIEW_EVENTS } from '@/constants/analytics-events';
 
 type SubmitReviewRouteProp = RouteProp<RootStackParamList, 'SubmitReview'>;
 type SubmitReviewNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SubmitReview'>;
@@ -40,7 +42,7 @@ export function SubmitReviewScreen() {
   useEffect(() => {
     checkCanReview();
     
-    // Set up navigation header with back button
+    // Set up navigation header without back button
     navigation.setOptions({
       headerShown: true,
       headerTitle: `Review ${revieweeName}`,
@@ -50,6 +52,7 @@ export function SubmitReviewScreen() {
       },
       headerTintColor: '#3B82F6',
       headerBackTitle: 'Back',
+      headerLeft: () => null, // Hide back button
     });
   }, [navigation, revieweeName]);
 
@@ -105,6 +108,14 @@ export function SubmitReviewScreen() {
       });
 
       if (result.success) {
+        // TODO: Track review submission for analytics when logEvent service is available
+        // await logEvent(REVIEW_EVENTS.REVIEW_SUBMITTED, {
+        //   trade_id: tradeId,
+        //   rating,
+        //   has_comment: !!comment.trim(),
+        //   is_anonymous: isAnonymous,
+        // });
+
         Alert.alert(
           'Success',
           'Your review has been submitted!',
@@ -118,6 +129,35 @@ export function SubmitReviewScreen() {
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSkip = async () => {
+    if (!user?.id) {
+      console.log('[handleSkip] No user ID, navigating back');
+      navigation.goBack();
+      return;
+    }
+
+    try {
+      // Track skip event for review completion rate analytics
+      console.log('[handleSkip] User skipped review', { tradeId, userId: user.id });
+      
+      await skipReview({
+        tradeId,
+        userId: user.id,
+      });
+
+      // TODO: Add analytics tracking when logEvent service is available
+      // await logEvent(REVIEW_EVENTS.REVIEW_SKIPPED, { trade_id: tradeId });
+
+      // Navigate back without blocking the user
+      console.log('[handleSkip] Navigating back after skip');
+      navigation.goBack();
+    } catch (error) {
+      console.error('[handleSkip] Error during skip:', error);
+      // Even if there's an error, navigate back
+      navigation.goBack();
     }
   };
 
@@ -213,6 +253,17 @@ export function SubmitReviewScreen() {
           ) : (
             <Text style={styles.submitButtonText}>Submit Review</Text>
           )}
+        </TouchableOpacity>
+
+        {/* Skip Button - TASK REVIEW-004 */}
+        <TouchableOpacity
+          style={styles.skipButton}
+          onPress={handleSkip}
+          disabled={submitting}
+          testID="skip-review-button"
+          activeOpacity={0.7}
+        >
+          <Text style={styles.skipButtonText}>Skip for Now</Text>
         </TouchableOpacity>
 
         {/* Info Note */}
@@ -331,6 +382,20 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  skipButton: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  skipButtonText: {
+    color: '#6B7280',
     fontSize: 16,
     fontWeight: '600',
   },

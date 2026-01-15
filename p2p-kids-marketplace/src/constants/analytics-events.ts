@@ -40,3 +40,10 @@ export const SP_EVENTS = {
   SP_SPENT: 'sp_spent',
   SP_EXPIRED: 'sp_expired',
 };
+
+export const REVIEW_EVENTS = {
+  REVIEW_SUBMITTED: 'review_submitted',
+  REVIEW_SKIPPED: 'review_skipped',
+  REVIEW_EDITED: 'review_edited',
+  REVIEW_REPORTED: 'review_reported',
+};

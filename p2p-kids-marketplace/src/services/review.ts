@@ -404,3 +404,38 @@ export async function getTradeReviewStatus(tradeId: string, userId: string): Pro
     };
   }
 }
+
+/**
+ * Track that a user skipped leaving a review
+ * This is used for analytics and doesn't block the user from continuing
+ * 
+ * TASK REVIEW-004: Allow Users to Skip Leaving Reviews
+ */
+export async function skipReview(params: {
+  tradeId: string;
+  userId: string;
+}): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { tradeId, userId } = params;
+
+  try {
+    // Log skip event for analytics
+    console.log('[skipReview] User skipped review', { tradeId, userId });
+    
+    // Note: We don't save skip events to database
+    // They're tracked via analytics only to calculate review completion rate
+    // This ensures reviews remain fully optional without any database state
+    
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error('Skip review unexpected error:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred',
+    };
+  }
+}

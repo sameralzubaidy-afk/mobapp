@@ -109,3 +109,6 @@ MODULE-08-BADGES-V2.md
  ## BADGES-V2-010: Manual badge creation UI + admin_create_badge RPC (runs retroactive awarding when activated)
  ## BADGES-V2-011: Badge Dashboard (counts per badge, node/global segmentation, CSV export)
  ## BADGES-V2-012: Feature flag badge_feature_enabled (DB migration, server guards, admin toggle)
+
+  #  # # Analytics Configuration for all key actions in the app 
+  https://app.amplitude.com/analytics/kidsapp/home user samer.alzubaidy 
