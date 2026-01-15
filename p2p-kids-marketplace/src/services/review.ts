@@ -1,0 +1,357 @@
+// File: p2p-kids-marketplace/src/services/review.ts
+// Review service for MODULE-08-REVIEWS-RATINGS (TASK REVIEW-001)
+
+import { supabase } from './supabase';
+
+export interface Review {
+  id: string;
+  trade_id: string;
+  reviewer_id: string;
+  reviewee_id: string;
+  rating: number;
+  comment: string | null;
+  is_anonymous: boolean;
+  is_hidden: boolean;
+  report_count: number;
+  created_at: string;
+  updated_at: string;
+  reviewer?: {
+    first_name: string;
+    last_name: string;
+    profile_image_url: string | null;
+  };
+}
+
+export interface ReviewStats {
+  average_rating: number;
+  total_reviews: number;
+  rating_breakdown: {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  };
+}
+
+export interface SubmitReviewParams {
+  tradeId: string;
+  reviewerId: string;
+  revieweeId: string;
+  rating: number;
+  comment: string | null;
+  isAnonymous?: boolean;
+}
+
+/**
+ * Submit a review for a completed trade
+ */
+export async function submitReview(params: SubmitReviewParams): Promise<{
+  success: boolean;
+  review?: Review;
+  error?: string;
+}> {
+  const { tradeId, reviewerId, revieweeId, rating, comment, isAnonymous = false } = params;
+
+  // Validate rating
+  if (rating < 1 || rating > 5) {
+    return {
+      success: false,
+      error: 'Rating must be between 1 and 5',
+    };
+  }
+
+  // Validate comment length
+  if (comment && comment.length > 500) {
+    return {
+      success: false,
+      error: 'Comment must be 500 characters or less',
+    };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .insert({
+        trade_id: tradeId,
+        reviewer_id: reviewerId,
+        reviewee_id: revieweeId,
+        rating,
+        comment: comment?.trim() || null,
+        is_anonymous: isAnonymous,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Submit review error:', error);
+      
+      // Handle specific errors
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error: 'You have already reviewed this trade',
+        };
+      }
+      
+      return {
+        success: false,
+        error: error.message || 'Failed to submit review',
+      };
+    }
+
+    return {
+      success: true,
+      review: data,
+    };
+  } catch (error) {
+    console.error('Submit review unexpected error:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred',
+    };
+  }
+}
+
+/**
+ * Get all reviews for a specific user (reviewee)
+ */
+export async function getUserReviews(userId: string): Promise<{
+  success: boolean;
+  reviews: Review[];
+  error?: string;
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select(`
+        *,
+        reviewer:profiles!reviewer_id(first_name, last_name, profile_image_url)
+      `)
+      .eq('reviewee_id', userId)
+      .eq('is_hidden', false)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Get user reviews error:', error);
+      return {
+        success: false,
+        reviews: [],
+        error: error.message,
+      };
+    }
+
+    return {
+      success: true,
+      reviews: (data || []).map((review: any) => ({
+        ...review,
+        reviewer: review.reviewer,
+      })),
+    };
+  } catch (error) {
+    console.error('Get user reviews unexpected error:', error);
+    return {
+      success: false,
+      reviews: [],
+      error: 'An unexpected error occurred',
+    };
+  }
+}
+
+/**
+ * Calculate review statistics for a user
+ */
+export async function getReviewStats(userId: string): Promise<{
+  success: boolean;
+  stats?: ReviewStats;
+  error?: string;
+}> {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('reviewee_id', userId)
+      .eq('is_hidden', false);
+
+    if (error) {
+      console.error('Get review stats error:', error);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+
+    const reviews = data || [];
+    const totalReviews = reviews.length;
+
+    if (totalReviews === 0) {
+      return {
+        success: true,
+        stats: {
+          average_rating: 0,
+          total_reviews: 0,
+          rating_breakdown: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        },
+      };
+    }
+
+    const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+    const averageRating = sum / totalReviews;
+
+    const breakdown = reviews.reduce(
+      (acc, r) => {
+        acc[r.rating as keyof typeof acc]++;
+        return acc;
+      },
+      { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    );
+
+    return {
+      success: true,
+      stats: {
+        average_rating: Math.round(averageRating * 10) / 10,
+        total_reviews: totalReviews,
+        rating_breakdown: breakdown,
+      },
+    };
+  } catch (error) {
+    console.error('Get review stats unexpected error:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred',
+    };
+  }
+}
+
+/**
+ * Check if a user can review another user for a specific trade
+ */
+export async function canReviewUser(
+  tradeId: string,
+  reviewerId: string
+): Promise<{
+  success: boolean;
+  canReview: boolean;
+  reason?: string;
+}> {
+  try {
+    // Check if trade is completed
+    const { data: trade, error: tradeError } = await supabase
+      .from('trades')
+      .select('status, completed_at, buyer_id, seller_id')
+      .eq('id', tradeId)
+      .single();
+
+    if (tradeError || !trade) {
+      return {
+        success: false,
+        canReview: false,
+        reason: 'Trade not found',
+      };
+    }
+
+    // Verify user is part of the trade
+    if (trade.buyer_id !== reviewerId && trade.seller_id !== reviewerId) {
+      return {
+        success: true,
+        canReview: false,
+        reason: 'You are not part of this trade',
+      };
+    }
+
+    // Check if trade is completed
+    if (trade.status !== 'completed' || !trade.completed_at) {
+      return {
+        success: true,
+        canReview: false,
+        reason: 'Trade is not completed yet',
+      };
+    }
+
+    // Check if review already exists
+    const { data: existingReview, error: reviewError } = await supabase
+      .from('reviews')
+      .select('id')
+      .eq('trade_id', tradeId)
+      .eq('reviewer_id', reviewerId)
+      .maybeSingle();
+
+    if (reviewError) {
+      console.error('Check existing review error:', reviewError);
+      return {
+        success: false,
+        canReview: false,
+        reason: 'Error checking existing review',
+      };
+    }
+
+    if (existingReview) {
+      return {
+        success: true,
+        canReview: false,
+        reason: 'You have already reviewed this trade',
+      };
+    }
+
+    return {
+      success: true,
+      canReview: true,
+    };
+  } catch (error) {
+    console.error('Can review user unexpected error:', error);
+    return {
+      success: false,
+      canReview: false,
+      reason: 'An unexpected error occurred',
+    };
+  }
+}
+
+/**
+ * Get review details for a specific trade
+ */
+export async function getTradeReviewStatus(tradeId: string, userId: string): Promise<{
+  success: boolean;
+  userReviewed: boolean;
+  otherUserReviewed: boolean;
+  userReview?: Review;
+  otherUserReview?: Review;
+  error?: string;
+}> {
+  try {
+    // Get all reviews for this trade
+    const { data: reviews, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('trade_id', tradeId);
+
+    if (error) {
+      console.error('Get trade review status error:', error);
+      return {
+        success: false,
+        userReviewed: false,
+        otherUserReviewed: false,
+        error: error.message,
+      };
+    }
+
+    const userReview = reviews?.find((r) => r.reviewer_id === userId);
+    const otherUserReview = reviews?.find((r) => r.reviewee_id === userId);
+
+    return {
+      success: true,
+      userReviewed: !!userReview,
+      otherUserReviewed: !!otherUserReview,
+      userReview,
+      otherUserReview,
+    };
+  } catch (error) {
+    console.error('Get trade review status unexpected error:', error);
+    return {
+      success: false,
+      userReviewed: false,
+      otherUserReviewed: false,
+      error: 'An unexpected error occurred',
+    };
+  }
+}

@@ -905,10 +905,279 @@ export const useUserBadges = (userId: string) => {
 };
 ```
 
-## TASK BADGES-V2-010: create new badge manaully 
-## TASK BADGES-V2-010.1 I need a dashboard to show me stats
-## TASK BADGES-V2-011: leadership board should be segmented by node and globle. 
-## TASK BADGES-V2-011: create option for admin to enable/disable the badge feature. 
+## TASK BADGES-V2-010: Create New Badge (Manual Admin UI + Server Flow)
+
+**Duration:** 3 hours
+**Priority:** High
+**Dependencies:** BADGES-V2-005, BADGES-V2-006, BADGES-V2-008
+
+### Description
+
+Add a first-class "Create Badge" flow to the admin portal so admins can manually create and publish badges. The UI must allow entering all badge fields (name, description, category, threshold, threshold_type, icon upload, is_active, sort_order, visibility/node scope). When an admin marks a newly-created badge as `is_active = true`, the system must immediately run the retroactive awarding logic so the badge becomes effective for all eligible users.
+
+### AI Prompt for Cursor
+
+/*
+TASK: Manual badge creation UI + server RPC
+
+REQUIREMENTS:
+1. Admin page with form and icon upload
+2. Create badge via RPC `admin_create_badge` (validates input, inserts badge)
+3. If `is_active = true` on create, call `retroactive_award_badges(badge_id)`
+4. Audit log entry created in `badge_audit_logs` for the manual creation
+
+==================================================
+FILE 1: Admin UI - CreateBadge page
+==================================================
+*/
+
+// filepath: mobappadmin/src/pages/Badges/CreateBadge.tsx
+
+// Implement a form with fields:
+// - name, short_name, description
+// - category (sp_earning | sp_spending | trades | tenure)
+// - threshold (int), threshold_type ('gte'|'exact')
+// - icon upload (uses badge-utils service)
+// - is_active (checkbox)
+// - scope (global | node_id)
+// On submit: call RPC `admin_create_badge`
+
+/*
+==================================================
+FILE 2: RPC - admin_create_badge
+==================================================
+*/
+
+-- filepath: supabase/migrations/086_admin_create_badge.sql
+
+-- Create a safe RPC that inserts a badge and optionally runs retroactive awarding
+CREATE OR REPLACE FUNCTION admin_create_badge(
+  p_admin_id UUID,
+  p_name TEXT,
+  p_short_name TEXT,
+  p_description TEXT,
+  p_category TEXT,
+  p_threshold INT,
+  p_threshold_type TEXT,
+  p_icon_url TEXT,
+  p_is_active BOOLEAN DEFAULT FALSE,
+  p_sort_order INT DEFAULT 0,
+  p_scope TEXT DEFAULT 'global',
+  p_scope_node_id UUID DEFAULT NULL
+)
+RETURNS TABLE(badge_id UUID)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_badge_id UUID;
+BEGIN
+  -- Input validation
+  IF p_category IS NULL THEN
+    RAISE EXCEPTION 'category required';
+  END IF;
+
+  INSERT INTO badges (
+    id, name, short_name, description, category, threshold, threshold_type,
+    icon_url, is_active, sort_order, scope, scope_node_id, created_at
+  ) VALUES (
+    gen_random_uuid(), p_name, p_short_name, p_description, p_category, p_threshold, p_threshold_type,
+    p_icon_url, p_is_active, p_sort_order, p_scope, p_scope_node_id, NOW()
+  ) RETURNING id INTO v_badge_id;
+
+  -- Audit log for manual creation
+  INSERT INTO badge_audit_logs (id, badge_id, user_id, admin_id, action_type, reason, created_at)
+  VALUES (gen_random_uuid(), v_badge_id, NULL, p_admin_id, 'manual_create', 'Created via admin UI', NOW());
+
+  -- If activated immediately, run retroactive awarding so eligible users get the badge
+  IF p_is_active THEN
+    PERFORM retroactive_award_badges(v_badge_id);
+  END IF;
+
+  RETURN QUERY SELECT v_badge_id;
+END;
+$$;
+
+/*
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ Admin can create a badge via UI with all fields
+✓ Creation writes to `badges` and `badge_audit_logs`
+✓ If `is_active`, `retroactive_award_badges` is called and eligible users receive the badge
+✓ No duplicate badge rows, form validation prevents invalid input
+
+==================================================
+NEXT TASK: BADGES-V2-011 (Badge Dashboard Stats)
+==================================================
+*/
+
+## TASK BADGES-V2-011: Badge Dashboard (Counts per Badge + Segments)
+
+**Duration:** 3 hours
+**Priority:** Medium
+**Dependencies:** BADGES-V2-001, BADGES-V2-005, BADGES-V2-010
+
+### Description
+
+Provide an admin dashboard that shows counts of users who hold each defined badge. The dashboard must support global counts and segmentation by `node` (node_id). Include filters (node, category, date range when awarded) and export (CSV) capability.
+
+### AI Prompt for Cursor
+
+/*
+TASK: Badge stats dashboard
+
+REQUIREMENTS:
+1. RPC `get_badge_stats(p_node_id UUID DEFAULT NULL, p_category TEXT DEFAULT NULL)` returns badge_id, badge_name, badge_icon, total_count
+2. Admin UI page with table, filters, and CSV export
+3. Support counts by node and global (p_node_id NULL => global)
+
+==================================================
+FILE 1: RPC - get_badge_stats
+==================================================
+*/
+
+-- filepath: supabase/migrations/087_badge_stats.sql
+
+CREATE OR REPLACE FUNCTION get_badge_stats(p_node_id UUID DEFAULT NULL, p_category TEXT DEFAULT NULL)
+RETURNS TABLE(
+  badge_id UUID,
+  badge_name TEXT,
+  badge_icon TEXT,
+  category TEXT,
+  total_count BIGINT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    b.id,
+    b.name,
+    b.icon_url,
+    b.category,
+    COUNT(ub.id) AS total_count
+  FROM badges b
+  LEFT JOIN user_badges ub ON ub.badge_id = b.id
+  WHERE (p_category IS NULL OR b.category = p_category)
+    AND (
+      p_node_id IS NULL
+      OR (b.scope = 'global' OR b.scope_node_id = p_node_id)
+    )
+  GROUP BY b.id, b.name, b.icon_url, b.category
+  ORDER BY total_count DESC;
+END;
+$$;
+
+/*
+==================================================
+FILE 2: Admin UI - BadgeStats page
+==================================================
+*/
+
+// filepath: mobappadmin/src/pages/Badges/BadgeStats.tsx
+
+// Implement a page that calls `get_badge_stats` via supabase.rpc
+// - Filter controls: node select, category select, date range (award date filter optional)
+// - Table: badge icon, name, category, total_count
+// - Export CSV button that fetches current rows and offers CSV download
+
+/*
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ Admin dashboard shows counts per badge (global & per-node)
+✓ Filters work and update counts within 1s for reasonable dataset
+✓ CSV export provides rows: badge_id, name, category, total_count
+
+==================================================
+NEXT TASK: BADGES-V2-012 (Feature Flag for Badge System)
+==================================================
+*/
+
+## TASK BADGES-V2-012: Badge Feature Flag (Enable / Disable)
+
+**Duration:** 2 hours
+**Priority:** High
+**Dependencies:** BADGES-V2-005, BADGES-V2-010
+
+### Description
+
+Add a feature flag to enable/disable the entire badge feature from admin UI. The flag must be enforced server-side (award functions / RPCs / triggers should return early when disabled). Provide migration to add a `badge_feature_enabled` column to `admin_config` (or create `admin_config` if missing) and add an admin toggle in the Badge Manager.
+
+### AI Prompt for Cursor
+
+/*
+TASK: Add feature flag + server checks
+
+REQUIREMENTS:
+1. Migration: add/ensure `admin_config` table has `badge_feature_enabled BOOLEAN DEFAULT TRUE`
+2. Update `award_badge_if_eligible`, `retroactive_award_badges`, `check_sp_badges` to early-return if disabled
+3. Admin UI toggle in `BadgeManager` to flip the flag
+
+==================================================
+FILE 1: Migration - admin_config flag
+==================================================
+*/
+
+-- filepath: supabase/migrations/088_badge_feature_flag.sql
+
+-- Create admin_config if not exists and add badge_feature_enabled
+CREATE TABLE IF NOT EXISTS admin_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  value TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Upsert a boolean config for badges
+INSERT INTO admin_config (id, key, value)
+VALUES (gen_random_uuid(), 'badge_feature_enabled', 'true')
+ON CONFLICT (key) DO UPDATE SET value = COALESCE(admin_config.value, 'true');
+
+/*
+==================================================
+FILE 2: Server-side guard (PLPGSQL snippet)
+==================================================
+*/
+
+-- Example change to award_badge_if_eligible and other badge functions:
+-- At the top of the function add:
+-- SELECT value::boolean INTO v_badges_enabled FROM admin_config WHERE key = 'badge_feature_enabled';
+-- IF NOT v_badges_enabled THEN
+--   RETURN;
+-- END IF;
+
+/*
+==================================================
+FILE 3: Admin UI - BadgeManager toggle
+==================================================
+*/
+
+// filepath: mobappadmin/src/pages/Badges/BadgeManager.tsx
+
+// Add a small toggle that calls a simple RPC/admin endpoint `admin_set_config(key, value)`
+// Ensure the toggle is visible only to admin role and that changing it writes admin audit log
+
+/*
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ Feature flag stored in DB and defaults to `true`
+✓ Awarding functions early-exit when flag is disabled
+✓ Admin UI toggle updates the flag and creates an audit entry
+
+==================================================
+MODULE-08: NEXT STEPS
+==================================================
+
+1. Add unit tests for `admin_create_badge` and `get_badge_stats` RPCs
+2. Wire the admin UI pages into `mobappadmin` navigation
+3. Add feature-flag check to real-time subscription logic on mobile (do not surface badge events if disabled)
+
 /*
 ==================================================
 MODULE SUMMARY

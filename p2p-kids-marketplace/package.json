@@ -42,7 +42,7 @@
     "date-fns": "^3.6.0",
     "dotenv": "^17.2.3",
     "expo": "~54.0.31",
-    "expo-device": "~17.0.8",
+    "expo-device": "~8.0.10",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.10",
     "expo-linking": "~8.0.11",

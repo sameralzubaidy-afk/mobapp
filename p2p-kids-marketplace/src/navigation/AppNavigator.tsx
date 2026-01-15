@@ -33,6 +33,7 @@ import TradeTimelineScreen from '@/screens/trade/TradeTimelineScreen';
 import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
 import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
+import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 
@@ -174,6 +175,8 @@ function RootNavigator() {
             <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
             <Stack.Screen name="Badges" component={BadgesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            {/* MODULE-08: Review screens */}
+            <Stack.Screen name="SubmitReview" component={SubmitReviewScreen} />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (

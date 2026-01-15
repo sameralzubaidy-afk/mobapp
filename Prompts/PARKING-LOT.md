@@ -104,3 +104,8 @@ payout needs FULL end to end testing with real money , check status on app and d
  ## BEFORE GO live  I must test on physical devices the email notifcations for read messeges. 
 
  ## TASK MSG-010: create admin field for this change Implement Message Expiration (Delete After 30 Days Post-Trade)
+
+MODULE-08-BADGES-V2.md 
+ ## BADGES-V2-010: Manual badge creation UI + admin_create_badge RPC (runs retroactive awarding when activated)
+ ## BADGES-V2-011: Badge Dashboard (counts per badge, node/global segmentation, CSV export)
+ ## BADGES-V2-012: Feature flag badge_feature_enabled (DB migration, server guards, admin toggle)

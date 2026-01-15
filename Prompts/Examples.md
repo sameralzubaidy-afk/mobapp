@@ -44,22 +44,25 @@ Supabase: supabase/
 -----
 My Example 1
 
-I’m working on the MODULE-08-BADGES-V2.md tasks
-Module: MODULE-08-BADGES-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+## TASK REVIEW-001: Create Review Submission UI (Star Rating + Comment)
+
+MODULE-08-REVIEWS-RATINGS.md
+
+
+I’m working on the MODULE-08-REVIEWS-RATINGS.md tasks
+Module: MODULE-08-REVIEWS-RATINGS.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: 
 scope is 
 
 Please:
-Follow the module and task exactly, and cross-check with the verification file in MODULE-08-Badges & Achievements VERIFICATION-V2.md
+Follow the module and task exactly, and cross-check with the verification file in MODULE-08-REVIEWS & RATINGS-VERIFICATION.md
 Show me the files you create or edit with their full paths
-Tell me which items in MODULE-08-Badges & Achievements VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-08-Badges & Achievements VERIFICATION-V2.md)
+Tell me which items in MODULE-08-REVIEWS & RATINGS-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-08-REVIEWS & RATINGS-VERIFICATION.md)
 always include short answers first
 Note I do not use supabase locally, always must be supabase prod.
 if there is a need to run a sql in supabase before testing clearly ask me to do. 
 create  Unit and E2E tests 
-execute Unit and E2E tests and fix errors. 
-Update the navigation file on UI  so i can verify manual
-run functional test where applicaible
+Update the navigation file on UI  so i can verify manually
 provide steps to manaul test format it as test cases create md file for it. 
 I do not use yarn I use npm so give me all commend lines for npm. 
 

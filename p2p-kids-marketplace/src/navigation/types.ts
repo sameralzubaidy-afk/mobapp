@@ -34,4 +34,6 @@ export type RootStackParamList = {
   // MODULE-08: Badge routes
   Badges: undefined;
   Leaderboard: undefined;
+  // MODULE-08: Review routes
+  SubmitReview: { tradeId: string; revieweeId: string; revieweeName: string };
 };

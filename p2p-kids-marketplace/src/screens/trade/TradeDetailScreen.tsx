@@ -6,6 +6,7 @@
  * - Shows trade status and monetary breakdown
  * - Allows buyer/seller to mark trade as 'completed'
  * - Allows buyer/seller to cancel trade
+ * - Allows users to review completed trades
  */
 
 import React, { useState, useEffect } from 'react';
@@ -20,20 +21,23 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { Trade } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
+import { canReviewUser } from '@/services/review';
 import { useAuth } from '@/hooks/useAuth';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
 import { Ionicons } from '@expo/vector-icons';
 
 type TradeDetailRouteProp = RouteProp<RootStackParamList, 'TradeDetail'>;
+type TradeDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'TradeDetail'>;
 
 export default function TradeDetailScreen() {
   const route = useRoute<TradeDetailRouteProp>();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<TradeDetailNavigationProp>();
   const { session, refreshSession } = useAuth();
   const user = session?.user;
   const { tradeId } = route.params;
@@ -43,6 +47,9 @@ export default function TradeDetailScreen() {
   const [trade, setTrade] = useState<Trade | null>(null);
   const [showCancellationModal, setShowCancellationModal] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [canReview, setCanReview] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [revieweeId, setRevieweeId] = useState<string>('');
 
   useEffect(() => {
     fetchTrade();
@@ -81,6 +88,23 @@ export default function TradeDetailScreen() {
 
       if (error) throw error;
       setTrade(data as any);
+
+      // Check if user can review (only for completed trades)
+      if (user?.id && (data as any).status === 'completed') {
+        const revieweeUserId = (data as any).buyer_id === user.id 
+          ? (data as any).seller_id 
+          : (data as any).buyer_id;
+        
+        setRevieweeId(revieweeUserId);
+        
+        setHasReviewed(false);
+        const result = await canReviewUser(tradeId, user.id);
+        if (result.success) {
+          setCanReview(result.canReview === true);
+          const reasonLower = (result.reason || '').toLowerCase();
+          setHasReviewed(!result.canReview && reasonLower.includes('already reviewed'));
+        }
+      }
     } catch (error) {
       console.error('❌ Error fetching trade:', error);
       Alert.alert('Error', 'Failed to load trade details');
@@ -90,6 +114,7 @@ export default function TradeDetailScreen() {
   };
 
   const handleComplete = async () => {
+    const isSeller = trade?.seller_id === user?.id;
     const confirmMessage = isSeller 
       ? 'Are you sure you want to mark this trade as completed? The buyer will be notified to confirm.'
       : 'Are you sure you want to mark this trade as completed? This will release Swap Points or cash to the seller.';
@@ -177,6 +202,35 @@ export default function TradeDetailScreen() {
     }
   };
 
+  const handleReviewPress = () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to submit a review');
+      return;
+    }
+
+    if (!trade) {
+      Alert.alert('Error', 'Trade information not available');
+      return;
+    }
+
+    if (!canReview) {
+      return;
+    }
+
+    // Get the counterparty's name (user we're reviewing)
+    const isBuyer = trade.buyer_id === user.id;
+    const counterpartyId = isBuyer ? trade.seller_id : trade.buyer_id;
+    
+    // For now, use a generic name (we could fetch the profile name, but we'll keep it simple)
+    const counterpartyName = isBuyer ? 'the seller' : 'the buyer';
+
+    navigation.navigate('SubmitReview', {
+      tradeId,
+      revieweeId: counterpartyId,
+      revieweeName: counterpartyName,
+    });
+  };
+
   if (loading || !trade) {
     return (
       <View style={styles.loadingContainer}>
@@ -189,6 +243,11 @@ export default function TradeDetailScreen() {
   const isSeller = trade.seller_id === user?.id;
   console.log('[TradeDetail] isBuyer:', isBuyer, 'isSeller:', isSeller, 'userId:', user?.id, 'tradeId:', tradeId);
   const canAction = trade.status === 'in_progress' && (isBuyer || isSeller);
+  const reviewButtonVisible = trade.status === 'completed' && (isBuyer || isSeller);
+  const reviewButtonLabel = hasReviewed
+    ? 'Already Reviewed'
+    : `Review ${isBuyer ? 'the Seller' : 'the Buyer'}`;
+  const isReviewButtonDisabled = submitting || !canReview;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -246,6 +305,7 @@ export default function TradeDetailScreen() {
               ]}
               onPress={handleComplete}
               disabled={submitting || (isSeller && !!trade.seller_marked_completed_at)}
+              testID="mark-completed-button"
             >
               {submitting ? (
                 <ActivityIndicator color="#fff" />
@@ -262,6 +322,7 @@ export default function TradeDetailScreen() {
               style={[styles.button, styles.cancelButton, submitting && styles.disabledButton]}
               onPress={handleCancel}
               disabled={submitting}
+              testID="cancel-trade-button"
             >
               <Text style={[styles.buttonText, styles.cancelButtonText]}>Cancel Trade</Text>
             </Pressable>
@@ -274,6 +335,24 @@ export default function TradeDetailScreen() {
             <Text style={styles.sellerCompletedText}>
               The seller has marked this trade as completed. Please confirm if you have received the item.
             </Text>
+          </View>
+        )}
+
+        {reviewButtonVisible && (
+          <View style={styles.reviewContainer}>
+            <Pressable
+              style={[
+                styles.button,
+                styles.reviewButton,
+                isReviewButtonDisabled && styles.disabledButton,
+              ]}
+              onPress={handleReviewPress}
+              disabled={isReviewButtonDisabled}
+              testID="review-trade-button"
+            >
+              <Ionicons name="star" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={styles.buttonText}>{reviewButtonLabel}</Text>
+            </Pressable>
           </View>
         )}
 
@@ -432,10 +511,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 12,
   },
+  reviewContainer: {
+    marginTop: 16,
+    gap: 12,
+  },
   button: {
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   completeButton: {
     backgroundColor: '#3b82f6',
@@ -444,6 +529,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e5e7eb',
+  },
+  reviewButton: {
+    backgroundColor: '#f59e0b',
   },
   disabledButton: {
     opacity: 0.5,
