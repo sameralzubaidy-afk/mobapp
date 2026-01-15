@@ -64,23 +64,21 @@ describe('StarRating Component', () => {
   });
 
   it('should use custom size prop', () => {
-    const { container } = render(
+    const { getByTestId } = render(
       <StarRating rating={3} editable={false} size={48} />
     );
 
-    // Test that the size prop is passed to Ionicons
-    // This is a simplified test - actual implementation would check icon size
-    expect(container).toBeTruthy();
+    const starIcon = getByTestId('star-icon-1');
+    expect(starIcon.props.size).toBe(48);
   });
 
   it('should use custom color prop', () => {
-    const { container } = render(
+    const { getByTestId } = render(
       <StarRating rating={3} editable={false} color="#FF0000" />
     );
 
-    // Test that the color prop is passed to Ionicons
-    // This is a simplified test - actual implementation would check icon color
-    expect(container).toBeTruthy();
+    const starIcon = getByTestId('star-icon-1');
+    expect(starIcon.props.color).toBe('#FF0000');
   });
 });
 

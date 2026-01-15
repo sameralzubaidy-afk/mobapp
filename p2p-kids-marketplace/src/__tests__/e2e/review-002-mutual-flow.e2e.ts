@@ -25,16 +25,18 @@ import { supabase } from '@/services/supabase/client';
 
 describe('E2E: REVIEW-002 - Mutual Review Flow', () => {
   // Test data (replace with real test data in production DB)
-  const testTradeId = 'TEST-TRADE-ID'; // Replace with actual completed trade ID
-  const buyerId = 'TEST-BUYER-ID'; // Replace with actual buyer user ID
-  const sellerId = 'TEST-SELLER-ID'; // Replace with actual seller user ID
+  const testTradeId = process.env.E2E_TEST_TRADE_ID || '';
+  const buyerId = process.env.E2E_TEST_BUYER_ID || '';
+  const sellerId = process.env.E2E_TEST_SELLER_ID || '';
 
-  // Skip tests if running in CI without test data
-  const skipIfNoTestData = process.env.CI && !process.env.E2E_TEST_DATA_AVAILABLE;
+  const hasTestIdentifiers = Boolean(testTradeId && buyerId && sellerId);
+  const skipIfNoTestData = !hasTestIdentifiers;
+  const missingEnvMessage =
+    'Set E2E_TEST_TRADE_ID, E2E_TEST_BUYER_ID, and E2E_TEST_SELLER_ID to run REVIEW-002 E2E tests.';
 
   beforeAll(async () => {
     if (skipIfNoTestData) {
-      console.log('⚠️  Skipping E2E tests - no test data available');
+      console.log('⚠️  Skipping E2E tests -', missingEnvMessage);
       return;
     }
 
@@ -57,7 +59,7 @@ describe('E2E: REVIEW-002 - Mutual Review Flow', () => {
 
   it('should allow buyer to review seller', async () => {
     if (skipIfNoTestData) {
-      console.log('Test skipped - no test data');
+      console.log('Test skipped -', missingEnvMessage);
       return;
     }
 
@@ -89,7 +91,7 @@ describe('E2E: REVIEW-002 - Mutual Review Flow', () => {
 
   it('should prevent buyer from reviewing twice', async () => {
     if (skipIfNoTestData) {
-      console.log('Test skipped - no test data');
+      console.log('Test skipped -', missingEnvMessage);
       return;
     }
 

@@ -12,6 +12,6 @@ module.exports = {
   // transforming several packages that ship modern JS (ESM/TS) syntax.
   transformIgnorePatterns: [
     // allow transforming common RN / Expo packages which publish modern JS
-    'node_modules/(?!(react-native|@react-native|@react-navigation|@react-native-async-storage|expo|expo-.*|expo-modules-.*|@unimodules|native-base|react-native-.*|@sentry|@stripe|react-native-url-polyfill))',
+    'node_modules/(?!(react-native|@react-native|@react-navigation|@react-native-async-storage|expo|expo-.*|expo-modules-.*|@expo/vector-icons|@unimodules|native-base|react-native-.*|@sentry|@stripe|react-native-url-polyfill))',
   ],
 };

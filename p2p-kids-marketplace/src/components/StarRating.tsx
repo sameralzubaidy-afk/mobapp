@@ -47,6 +47,7 @@ export function StarRating({
               name={filled ? 'star' : 'star-outline'}
               size={size}
               color={filled ? color : '#D1D5DB'}
+              testID={`star-icon-${star}`}
             />
           </StarComponent>
         );

@@ -14,6 +14,10 @@ import { AuthSession, AuthError } from '../types/user';
 import { loginWithContext } from '../services/auth';
 import { useUserStore } from '../stores/userStore';
 
+const SUPABASE_CONFIGURED = Boolean(
+  process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
+);
+
 /**
  * Authentication context type
  */
@@ -150,6 +154,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    */
   const refreshSession = useCallback(async () => {
     try {
+      if (!SUPABASE_CONFIGURED) {
+        console.warn('[AUTH] Supabase env missing; skipping session refresh');
+        setSession(null);
+        return;
+      }
+
       setError(null);
 
       // First, get the current Supabase auth session
@@ -394,6 +404,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Restores session from Supabase if user is authenticated
    */
   useEffect(() => {
+    if (!SUPABASE_CONFIGURED) {
+      console.warn('[AUTH] Supabase env not set; skipping auth initialization');
+      setSession(null);
+      setIsLoading(false);
+      isLoadingRef.current = false;
+      return;
+    }
+
     const initializeAuth = async () => {
       console.log('[AUTH] 🏁 Initializing auth state...');
       const withTimeout = async <T,>(
