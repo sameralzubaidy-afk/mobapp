@@ -22,6 +22,7 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-02: Profiles & Onboarding
 - Smoke: (manual)
   - New user gets profile row (or profile fetch does not crash).
+  - Upload profile avatar -> profile screen re-renders with the new image (avatar URL resolves from `profiles.avatar_url` storage path).
   - Profile realtime listener does not resubscribe continuously while onboarding/profile updates.
 
 ### FLOW-03: Node/ZIP Gating + Waitlist

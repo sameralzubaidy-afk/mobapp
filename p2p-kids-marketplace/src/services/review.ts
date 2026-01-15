@@ -2,6 +2,7 @@
 // Review service for MODULE-08-REVIEWS-RATINGS (TASK REVIEW-001)
 
 import { supabase } from './supabase';
+import { resolveAvatarUrl } from '@/services/profile';
 
 export interface Review {
   id: string;
@@ -22,13 +23,21 @@ export interface Review {
   };
 }
 
-function formatReviewerFromProfile(profile: any): Review['reviewer'] {
+async function buildReviewerFromProfile(profile: any): Promise<Review['reviewer']> {
   const fullName = (profile?.name || 'User').trim();
   const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
+  let avatarUrl: string | null = null;
+  if (profile?.avatar_url) {
+    try {
+      avatarUrl = await resolveAvatarUrl(profile.avatar_url);
+    } catch (error) {
+      console.error('Failed to resolve reviewer avatar URL:', error);
+    }
+  }
   return {
     first_name: firstName || 'User',
     last_name: rest.join(' '),
-    profile_image_url: profile?.avatar_url ?? null,
+    profile_image_url: avatarUrl,
   };
 }
 
@@ -165,19 +174,28 @@ export async function getUserReviews(userId: string): Promise<{
       }
     }
 
-    const profileMap: Record<string, Review['reviewer']> = reviewerProfiles.reduce((acc, profile) => {
-      if (profile?.user_id) {
-        acc[profile.user_id] = formatReviewerFromProfile(profile);
+    const profileEntries = await Promise.all(
+      reviewerProfiles.map(async (profile) => ({
+        userId: profile?.user_id,
+        reviewer: profile?.user_id ? await buildReviewerFromProfile(profile) : null,
+      }))
+    );
+
+    const profileMap: Record<string, Review['reviewer']> = profileEntries.reduce((acc, entry) => {
+      if (entry.userId && entry.reviewer) {
+        acc[entry.userId] = entry.reviewer;
       }
       return acc;
     }, {} as Record<string, Review['reviewer']>);
 
     return {
       success: true,
-      reviews: reviews.map((review: any) => ({
-        ...review,
-        reviewer: profileMap[review.reviewer_id] || null,
-      })),
+      reviews: await Promise.all(
+        reviews.map(async (review: any) => ({
+          ...review,
+          reviewer: profileMap[review.reviewer_id] || null,
+        }))
+      ),
     };
   } catch (error) {
     console.error('Get user reviews unexpected error:', error);

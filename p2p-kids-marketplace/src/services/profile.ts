@@ -2,8 +2,13 @@
 // Profile management service for AUTH-005, AUTH-006, AUTH-007
 
 import { supabase } from './supabase/client';
-import type { User, ProfileSetupData, ProfileUpdateData, NodeAssignment } from '@/types/profile.types';
+import type { UploadAvatarResult, User, ProfileSetupData, ProfileUpdateData, NodeAssignment } from '@/types/profile.types';
 import { assignNodeByZipCode, incrementNodeMemberCount } from './location';
+import { getImageUrl } from '@/utils/imageUrl';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { decode as decodeBase64ArrayBuffer } from 'base64-arraybuffer';
+
+const AVATAR_BUCKET = 'user-avatars';
 
 /**
  * NODE-003: Find the nearest active node based on ZIP code
@@ -241,6 +246,43 @@ export const updateUserProfile = async (
   }
 };
 
+export const resolveAvatarUrl = async (
+  avatarPathOrUrl?: string | null
+): Promise<string | null> => {
+  if (!avatarPathOrUrl) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(avatarPathOrUrl)) {
+    return getImageUrl(undefined, avatarPathOrUrl) || avatarPathOrUrl;
+  }
+
+  try {
+    const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(avatarPathOrUrl);
+    const publicUrl = urlData?.publicUrl || null;
+    if (!publicUrl) return null;
+    return getImageUrl(undefined, publicUrl) || publicUrl;
+  } catch (error) {
+    console.warn('[profile.resolveAvatarUrl] public URL fallback failed', error);
+  }
+
+  // Fallback: if public URLs are not available (bucket is private), try a signed URL.
+  try {
+    const { data: signedData, error: signedError } = await supabase
+      .storage
+      .from(AVATAR_BUCKET)
+      .createSignedUrl(avatarPathOrUrl, 60);
+
+    if (!signedError && signedData?.signedUrl) {
+      return signedData.signedUrl;
+    }
+  } catch (error) {
+    console.debug('[profile.resolveAvatarUrl] signed URL failed', error);
+  }
+
+  return null;
+};
+
 /**
  * Get current user profile from database
  */
@@ -267,52 +309,138 @@ export const getUserProfile = async (userId: string): Promise<{ user: User | nul
 /**
  * Upload profile avatar to Supabase Storage
  * Returns the public URL of the uploaded image
+ * Includes retry logic with exponential backoff for network resilience
  */
 export const uploadProfileAvatar = async (
   userId: string,
-  imageUri: string
-): Promise<{ url: string | null; error: Error | object | null }> => {
+  imageUri: string,
+  maxRetries: number = 3
+): Promise<UploadAvatarResult> => {
+  let lastError: Error | null = null;
+
+  // Normalize the picked image into a small JPEG and upload as ArrayBuffer.
+  // This avoids Android-specific failures when trying to `fetch()` a local `file://` or `content://` URI.
+  const timestamp = Date.now();
+  const fileName = `${userId}-${timestamp}.jpg`;
+  const filePath = `avatars/${fileName}`;
+  const contentType = 'image/jpeg';
+
+  let uploadBody: ArrayBuffer | null = null;
   try {
-    // Convert image URI to blob
-    const response = await fetch(imageUri);
-    const blob = await response.blob();
-    
-    // Generate unique filename with user ID prefix for RLS
-    const fileExt = imageUri.split('.').pop() || 'jpg';
-    const timestamp = Date.now();
-    const fileName = `${userId}-${timestamp}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
-
-    // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from('user-avatars')
-      .upload(filePath, blob, {
-        contentType: `image/${fileExt}`,
-        upsert: true, // Allow overwriting if file exists
-      });
-
-    if (error) {
-      console.error('❌ Avatar upload error:', error);
-      // If it's an RLS error, provide helpful message
-      if (error.message?.includes('row-level security') || error.message?.includes('violates')) {
-        return {
-          url: null,
-          error: new Error('Storage not configured. Please contact support. (Profile will be created without avatar)')
-        };
+    const manipulated = await ImageManipulator.manipulateAsync(
+      imageUri,
+      [{ resize: { width: 512, height: 512 } }],
+      {
+        compress: 0.85,
+        format: ImageManipulator.SaveFormat.JPEG,
+        base64: true,
       }
-      return { url: null, error };
+    );
+
+    if (!manipulated.base64) {
+      return {
+        url: null,
+        path: null,
+        error: new Error('Unable to read image data for upload (missing base64)')
+      };
     }
 
-    // Get public URL; use fallback if not provided
-    const { data: urlData } = supabase.storage.from('user-avatars').getPublicUrl(filePath);
-    
-    // The publicUrl property exists on the data object returned by getPublicUrl
-    const publicUrl = urlData?.publicUrl || 
-      `${process.env.EXPO_PUBLIC_SUPABASE_URL || (supabase as any).url}/storage/v1/object/public/user-avatars/${filePath}`;
-
-    return { url: publicUrl, error: null };
+    uploadBody = decodeBase64ArrayBuffer(manipulated.base64);
   } catch (error) {
-    console.error('❌ Upload avatar exception:', error);
-    return { url: null, error: error as Error };
+    console.error('❌ Avatar preprocess failed:', error);
+    return {
+      url: null,
+      path: null,
+      error: error as Error,
+    };
   }
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(filePath, uploadBody, {
+          contentType,
+          upsert: true,
+        });
+
+      if (error) {
+        lastError = error as Error;
+        console.error(`❌ Avatar upload error (attempt ${attempt + 1}/${maxRetries}):`, {
+          message: error.message,
+          status: (error as any).status,
+          statusCode: (error as any).statusCode,
+        });
+        
+        // Diagnose error type
+        if (error.message?.includes('Network')) {
+          console.error('→ NETWORK ERROR: Retrying with backoff...');
+        } else if (error.message?.includes('row-level security') || error.message?.includes('violates')) {
+          console.error('→ RLS ERROR: Storage policies may be misconfigured');
+          return {
+            url: null,
+            path: null,
+            error: new Error('Storage not configured. Please contact support. (Profile will be created without avatar)')
+          };
+        } else if (error.message?.includes('not found')) {
+          console.error('→ BUCKET ERROR: Storage bucket not found');
+          return { url: null, path: null, error };
+        }
+        
+        // Retry if not a permanent error
+        if (attempt < maxRetries - 1) {
+          const waitMs = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+          console.warn(`⏳ Retrying in ${waitMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitMs));
+          continue;
+        }
+        
+        return { url: null, path: null, error };
+      }
+
+      // Get public URL; use fallback if not provided
+      const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filePath);
+      
+      // The publicUrl property exists on the data object returned by getPublicUrl
+      const publicUrl = urlData?.publicUrl || 
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL || (supabase as any).url}/storage/v1/object/public/user-avatars/${filePath}`;
+
+      console.log('✅ Avatar uploaded successfully');
+      return { url: publicUrl, path: filePath, error: null };
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`❌ Upload avatar exception (attempt ${attempt + 1}/${maxRetries}):`, error);
+
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      if (typeof supabaseUrl === 'string') {
+        if (supabaseUrl.includes('localhost') || supabaseUrl.includes('127.0.0.1')) {
+          console.error(
+            '⚠️ Supabase URL points to localhost. Uploads will fail on a physical device. ' +
+              'Use your machine LAN IP (or a hosted Supabase URL) in EXPO_PUBLIC_SUPABASE_URL.'
+          );
+        }
+        if (supabaseUrl.startsWith('http://')) {
+          console.error(
+            '⚠️ Supabase URL is http://. Android may block cleartext traffic depending on config. ' +
+              'Prefer https:// Supabase URL.'
+          );
+        }
+      }
+      
+      if (attempt < maxRetries - 1) {
+        const waitMs = Math.pow(2, attempt) * 1000;
+        console.warn(`⏳ Retrying in ${waitMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        continue;
+      }
+    }
+  }
+  
+  console.error('❌ Avatar upload failed after maximum retries');
+  return { 
+    url: null, 
+    path: null, 
+    error: lastError || new Error('Upload failed after maximum retries') 
+  };
 };

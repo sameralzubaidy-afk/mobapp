@@ -41,6 +41,12 @@ export interface ProfileUpdateData {
   phone?: string;
 }
 
+export interface UploadAvatarResult {
+  url: string | null;
+  path?: string | null;
+  error: Error | object | null;
+}
+
 export interface NodeAssignment {
   node_id: string;
   node_name: string;

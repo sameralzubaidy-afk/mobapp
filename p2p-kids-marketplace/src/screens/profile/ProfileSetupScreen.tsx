@@ -91,11 +91,12 @@ export default function ProfileSetupScreen({ navigation }: any) {
       }
 
       let uploadedAvatarUrl: string | null = null;
+      let uploadedAvatarPath: string | null = null;
 
       // Upload avatar if user selected one
       if (localImageUri) {
         setUploadingImage(true);
-        const { url, error: uploadError } = await uploadProfileAvatar(currentUser.id, localImageUri);
+        const { url, path, error: uploadError } = await uploadProfileAvatar(currentUser.id, localImageUri);
         setUploadingImage(false);
         
         if (uploadError) {
@@ -103,6 +104,7 @@ export default function ProfileSetupScreen({ navigation }: any) {
           Alert.alert('Warning', 'Profile will be created without avatar. You can add it later.');
         } else {
           uploadedAvatarUrl = url;
+          uploadedAvatarPath = path ?? null;
         }
       }
 
@@ -111,7 +113,7 @@ export default function ProfileSetupScreen({ navigation }: any) {
         display_name: displayName.trim(),
         zip_code: zipCode.trim(),
         bio: bio.trim() || undefined,
-        avatar_url: uploadedAvatarUrl || undefined,
+        avatar_url: uploadedAvatarPath || uploadedAvatarUrl || undefined,
       };
 
       const { user, error, needsWaitlist, zipCode: userZip, matchType, assignedNodeId, assignedNodeName } = await setupUserProfile(currentUser.id, profileData);

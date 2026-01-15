@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
-import { getUserProfile } from '@/services/profile';
+import { getUserProfile, resolveAvatarUrl } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { supabase } from '@/services/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -50,6 +50,7 @@ export default function ProfileScreen({ navigation }: any) {
   );
 
   const loadProfile = async () => {
+    setLoading(true);
     try {
       const { user: authUser, error: authError } = await getCurrentUser();
       if (authError || !authUser) {
@@ -80,20 +81,15 @@ export default function ProfileScreen({ navigation }: any) {
         }
       }
 
-      // Resolve avatar URL
-      let resolvedAvatar: string | null = null;
-      if (profileData.avatar_url) {
-        if (profileData.avatar_url.startsWith('http')) resolvedAvatar = profileData.avatar_url;
-        else {
-          const { data: urlData } = supabase.storage.from('user-avatars').getPublicUrl(profileData.avatar_url);
-          resolvedAvatar = urlData.publicUrl || null;
-        }
-      } else if ((authUser as any).user_metadata?.avatar_url) {
-        resolvedAvatar = (authUser as any).user_metadata.avatar_url;
-      }
+      const resolvedAvatar = await resolveAvatarUrl(profileData.avatar_url);
+      const metadataAvatar = (authUser as any).user_metadata?.avatar_url;
+      const finalAvatar = resolvedAvatar || metadataAvatar || null;
 
       setUser({ ...authUser, phone: phoneFromAuth });
-      setProfile(profileData as UserProfile);
+      setProfile({
+        ...(profileData as UserProfile),
+        avatar_url: finalAvatar,
+      });
       
       // Load reviews and stats
       await loadReviewsData(authUser.id);
@@ -189,7 +185,11 @@ export default function ProfileScreen({ navigation }: any) {
       {/* Avatar and Name */}
       <View style={styles.profileHeader}>
         {profile.avatar_url ? (
-          <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+          <Image
+            key={profile.avatar_url}
+            source={{ uri: profile.avatar_url }}
+            style={styles.avatar}
+          />
         ) : (
           <View style={styles.avatarPlaceholder}>
             <Text style={styles.avatarPlaceholderText}>

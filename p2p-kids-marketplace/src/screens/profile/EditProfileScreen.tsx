@@ -14,16 +14,30 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { updateUserProfile, getUserProfile, uploadProfileAvatar } from '@/services/profile';
+import { updateUserProfile, getUserProfile, uploadProfileAvatar, resolveAvatarUrl } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { addToWaitlist } from '@/services/waitlist';
 import { requestPhoneVerification, verifyPhoneCode } from '@/services/phone';
 import { supabase } from '@/services/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Modal } from 'react-native';
 import type { ProfileUpdateData } from '@/types/profile.types';
 // Temporary fallback: generated Database types may be missing in local dev.
 // Use `any` here to unblock type-checking until DB types are generated.
 type UserProfile = any;
+
+const formatErrorMessage = (error: unknown): string => {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const candidate = (error as Record<string, unknown>).message;
+    if (typeof candidate === 'string') {
+      return candidate;
+    }
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return JSON.stringify(error) || 'Unknown error';
+};
 
 export default function EditProfileScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
@@ -48,6 +62,8 @@ export default function EditProfileScreen({ navigation }: any) {
     verifying?: boolean;
     message?: string;
   }>({ visible: false });
+
+  const { refreshSession } = useAuth();
 
   useEffect(() => {
     loadUserProfile();
@@ -97,15 +113,7 @@ export default function EditProfileScreen({ navigation }: any) {
       setPhone(phoneFromAuth || '');
 
       // Resolve avatar URL: profile.avatar_url could be a full URL or a storage path
-      let resolvedAvatar: string | null = null;
-      if (profile.avatar_url) {
-        if (profile.avatar_url.startsWith('http')) {
-          resolvedAvatar = profile.avatar_url;
-        } else {
-          const { data: urlData } = await supabase.storage.from('user-avatars').getPublicUrl(profile.avatar_url);
-          resolvedAvatar = urlData.publicUrl || null;
-        }
-      }
+      const resolvedAvatar = await resolveAvatarUrl(profile.avatar_url);
       setAvatarUrl(resolvedAvatar);
 
     } catch (error: any) {
@@ -173,19 +181,33 @@ export default function EditProfileScreen({ navigation }: any) {
     setSaving(true);
 
     try {
-      let uploadedAvatarUrl: string | null = null;
+      let uploadedAvatarPath: string | null = null;
 
       // Upload new avatar if user selected one
       if (localImageUri) {
         setUploadingImage(true);
-        const { url, error: uploadError } = await uploadProfileAvatar(currentUser.id, localImageUri);
+        const { url, path, error: uploadError } = await uploadProfileAvatar(currentUser.id, localImageUri);
         setUploadingImage(false);
         
         if (uploadError) {
           console.error('Avatar upload error:', uploadError);
-          Alert.alert('Warning', 'Failed to upload avatar. Other changes will still be saved.');
+          const errorMsgRaw = formatErrorMessage(uploadError);
+          let errorMsg = 'Failed to upload avatar.';
+          if (errorMsgRaw.includes('Storage not configured')) {
+            errorMsg = 'Storage service unavailable. Your profile will be saved without avatar.';
+          } else if (errorMsgRaw.includes('Network')) {
+            errorMsg = 'Network connection issue. Try again or skip avatar. Profile will be saved without it.';
+          } else if (errorMsgRaw.includes('retry')) {
+            errorMsg = 'Upload timed out. Try again or skip avatar. Profile will be saved without it.';
+          }
+          Alert.alert('Avatar Upload', errorMsg, [
+            { text: 'Retry', onPress: () => handlePickImage() },
+            { text: 'Skip Avatar', onPress: () => setLocalImageUri(null) },
+          ]);
+          // Don't block profile save if avatar fails
         } else {
-          uploadedAvatarUrl = url;
+          uploadedAvatarPath = path ?? null;
+          if (url) setAvatarUrl(url);
         }
       }
 
@@ -207,8 +229,8 @@ export default function EditProfileScreen({ navigation }: any) {
         // Only update zip code if user entered one
         updates.zip_code = zipCode.trim();
       }
-      if (uploadedAvatarUrl) {
-        updates.avatar_url = uploadedAvatarUrl;
+      if (uploadedAvatarPath) {
+        updates.avatar_url = uploadedAvatarPath;
       }
 
       // Only call update if there are changes
@@ -313,6 +335,14 @@ export default function EditProfileScreen({ navigation }: any) {
           ]
         );
         return;
+      }
+
+      if (refreshSession) {
+        try {
+          await refreshSession();
+        } catch (refreshError) {
+          console.warn('[EditProfileScreen] Failed to refresh session after profile update', refreshError);
+        }
       }
 
       Alert.alert('Success', 'Your profile has been updated!', [

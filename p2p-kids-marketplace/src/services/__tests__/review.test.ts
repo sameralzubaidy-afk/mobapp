@@ -147,6 +147,112 @@ describe('Review Service', () => {
         })
       );
     });
+
+    // REVIEW-003: Anonymous Review Tests
+    it('should submit anonymous review with is_anonymous flag true', async () => {
+      const mockReview = {
+        id: '456',
+        trade_id: 'trade-2',
+        reviewer_id: 'user-1',
+        reviewee_id: 'user-2',
+        rating: 4,
+        comment: 'Good trade',
+        is_anonymous: true,
+        created_at: '2026-01-15T00:00:00Z',
+      };
+
+      const mockInsert = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({
+            data: mockReview,
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as jest.Mock).mockReturnValue({
+        insert: mockInsert,
+      });
+
+      const result = await submitReview({
+        tradeId: 'trade-2',
+        reviewerId: 'user-1',
+        revieweeId: 'user-2',
+        rating: 4,
+        comment: 'Good trade',
+        isAnonymous: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.review?.is_anonymous).toBe(true);
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          is_anonymous: true,
+        })
+      );
+    });
+
+    it('should default to is_anonymous false when not specified', async () => {
+      const mockInsert = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({
+            data: { id: '789' },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as jest.Mock).mockReturnValue({
+        insert: mockInsert,
+      });
+
+      await submitReview({
+        tradeId: 'trade-3',
+        reviewerId: 'user-1',
+        revieweeId: 'user-2',
+        rating: 5,
+        comment: 'Great!',
+        // isAnonymous not provided
+      });
+
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          is_anonymous: false,
+        })
+      );
+    });
+
+    it('should submit anonymous review without comment', async () => {
+      const mockInsert = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({
+            data: { id: '999', is_anonymous: true },
+            error: null,
+          }),
+        }),
+      });
+
+      (supabase.from as jest.Mock).mockReturnValue({
+        insert: mockInsert,
+      });
+
+      const result = await submitReview({
+        tradeId: 'trade-4',
+        reviewerId: 'user-1',
+        revieweeId: 'user-2',
+        rating: 3,
+        comment: null,
+        isAnonymous: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          is_anonymous: true,
+          comment: null,
+        })
+      );
+    });
   });
 
   describe('getUserReviews', () => {
@@ -225,6 +331,79 @@ describe('Review Service', () => {
       await getUserReviews('user-1');
 
       expect(reviewsChain.eq).toHaveBeenCalledWith('is_hidden', false);
+    });
+
+    // REVIEW-003: Anonymous Review Display Tests
+    it('should include anonymous reviews in user review list', async () => {
+      const mockReviews = [
+        {
+          id: '1',
+          reviewer_id: 'rev-1',
+          reviewee_id: 'user-1',
+          rating: 5,
+          comment: 'Great!',
+          is_anonymous: false,
+          created_at: '2026-01-01T00:00:00Z',
+          is_hidden: false,
+        },
+        {
+          id: '2',
+          reviewer_id: 'rev-2',
+          reviewee_id: 'user-1',
+          rating: 4,
+          comment: 'Good experience',
+          is_anonymous: true, // Anonymous review
+          created_at: '2026-01-02T00:00:00Z',
+          is_hidden: false,
+        },
+      ];
+
+      const mockProfiles = [
+        { user_id: 'rev-1', name: 'John Doe', avatar_url: 'http://example.com/avatar1.jpg' },
+        { user_id: 'rev-2', name: 'Jane Smith', avatar_url: 'http://example.com/avatar2.jpg' },
+      ];
+
+      buildUserReviewMocks(mockReviews, mockProfiles);
+
+      const result = await getUserReviews('user-1');
+
+      expect(result.success).toBe(true);
+      expect(result.reviews).toHaveLength(2);
+      
+      // Non-anonymous review should have reviewer info
+      expect(result.reviews[0].is_anonymous).toBe(false);
+      expect(result.reviews[0].reviewer?.first_name).toBe('John');
+      
+      // Anonymous review should still be in list (hiding happens in UI)
+      expect(result.reviews[1].is_anonymous).toBe(true);
+      expect(result.reviews[1].reviewer?.first_name).toBe('Jane');
+    });
+
+    it('should handle reviews with only anonymous reviews', async () => {
+      const mockReviews = [
+        {
+          id: '1',
+          reviewer_id: 'rev-1',
+          reviewee_id: 'user-1',
+          rating: 5,
+          comment: 'Anonymous feedback',
+          is_anonymous: true,
+          created_at: '2026-01-01T00:00:00Z',
+          is_hidden: false,
+        },
+      ];
+
+      const mockProfiles = [
+        { user_id: 'rev-1', name: 'Test User', avatar_url: null },
+      ];
+
+      buildUserReviewMocks(mockReviews, mockProfiles);
+
+      const result = await getUserReviews('user-1');
+
+      expect(result.success).toBe(true);
+      expect(result.reviews).toHaveLength(1);
+      expect(result.reviews[0].is_anonymous).toBe(true);
     });
   });
 
