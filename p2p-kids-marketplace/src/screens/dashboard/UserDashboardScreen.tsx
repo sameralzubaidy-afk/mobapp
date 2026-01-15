@@ -29,7 +29,7 @@ export default function UserDashboardScreen() {
   const subscription = useSubscriptionStatus();
   const wallet = useSPWallet();
 
-  const [daysUntilExpiry, setDaysUntilExpiry] = useState<number | null>(null);
+  const [daysUntilExpiry] = useState<number | null>(null); // TODO: show days until expiry when needed (was unused)
 
   // Refresh data when screen comes into focus (but not too frequently)
   useEffect(() => {

@@ -150,64 +150,81 @@ describe('Review Service', () => {
   });
 
   describe('getUserReviews', () => {
+    const buildUserReviewMocks = (mockReviews: any[], mockProfiles: any[] = []) => {
+      const reviewsChain: any = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
+      };
+
+      const profilesChain: any = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: mockProfiles, error: null }),
+      };
+
+      (supabase.from as jest.Mock).mockImplementation((table: string) => {
+        if (table === 'reviews') {
+          return reviewsChain;
+        }
+
+        if (table === 'profiles') {
+          return profilesChain;
+        }
+
+        return null;
+      });
+
+      return { reviewsChain, profilesChain };
+    };
+
     it('should fetch user reviews successfully', async () => {
       const mockReviews = [
         {
           id: '1',
+          reviewer_id: 'rev-1',
+          reviewee_id: 'user-1',
           rating: 5,
           comment: 'Great!',
           is_anonymous: false,
-          reviewer: { first_name: 'John', last_name: 'Doe', profile_image_url: null },
+          created_at: '2026-01-01T00:00:00Z',
+          is_hidden: false,
         },
         {
           id: '2',
+          reviewer_id: 'rev-2',
+          reviewee_id: 'user-1',
           rating: 4,
           comment: 'Good',
           is_anonymous: false,
-          reviewer: { first_name: 'Jane', last_name: 'Smith', profile_image_url: null },
+          created_at: '2026-01-02T00:00:00Z',
+          is_hidden: false,
         },
       ];
 
-      (supabase.from as jest.Mock).mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockReturnValue({
-              order: jest.fn().mockResolvedValue({
-                data: mockReviews,
-                error: null,
-              }),
-            }),
-          }),
-        }),
-      });
+      const mockProfiles = [
+        { user_id: 'rev-1', name: 'John Doe', avatar_url: null },
+        { user_id: 'rev-2', name: 'Jane Smith', avatar_url: null },
+      ];
+
+      const { reviewsChain, profilesChain } = buildUserReviewMocks(mockReviews, mockProfiles);
 
       const result = await getUserReviews('user-1');
 
       expect(result.success).toBe(true);
       expect(result.reviews).toHaveLength(2);
       expect(result.reviews[0].reviewer?.first_name).toBe('John');
+      expect(result.reviews[0].reviewer?.last_name).toBe('Doe');
+      expect(result.reviews[0].reviewer?.profile_image_url).toBeNull();
+      expect(profilesChain.in).toHaveBeenCalledWith('user_id', ['rev-1', 'rev-2']);
+      expect(reviewsChain.order).toHaveBeenCalled();
     });
 
     it('should exclude hidden reviews', async () => {
-      const mockSelect = jest.fn().mockReturnValue({
-        eq: jest.fn().mockReturnValue({
-          eq: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          }),
-        }),
-      });
-
-      (supabase.from as jest.Mock).mockReturnValue({
-        select: mockSelect,
-      });
+      const { reviewsChain } = buildUserReviewMocks([]);
 
       await getUserReviews('user-1');
 
-      // Verify that is_hidden = false filter is applied
-      expect(mockSelect).toHaveBeenCalled();
+      expect(reviewsChain.eq).toHaveBeenCalledWith('is_hidden', false);
     });
   });
 

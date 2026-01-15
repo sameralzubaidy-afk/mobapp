@@ -3,7 +3,7 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import BrowseItemsScreen from '../BrowseItemsScreen';
 import { supabase } from '@/config/supabase';
 import { searchListings } from '@/services/discovery';
-import { getItems, getItemsWithinRadius, getCategories as getCategoriesItems } from '@/services/items';
+import { getItems, getItemsWithinRadius } from '@/services/items';
 import { useUserStore } from '@/stores/userStore';
 
 // Mock the dependencies using the same aliases as the component

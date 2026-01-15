@@ -22,7 +22,7 @@ import { supabase } from '@/config/supabase';
 import { calculateDistanceBetweenNodes, getUserPreferredRadius, saveUserPreferredRadius } from '@/services/location';
 import { trackEvent } from '@/services/analytics';
 import RadiusSlider from '@/components/RadiusSlider';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 

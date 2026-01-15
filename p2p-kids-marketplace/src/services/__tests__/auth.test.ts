@@ -3,7 +3,6 @@
 
 import { enrollInTrialSubscription, loginWithContext, getCurrentSession } from '../auth';
 import { supabase } from '../../config/supabase';
-import { AuthError } from '../../types/user';
 
 // Mock Supabase client
 jest.mock('../../config/supabase', () => ({

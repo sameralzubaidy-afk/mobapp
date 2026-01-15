@@ -203,9 +203,7 @@ export const useNotificationObserver = () => {
     (_response) => {
       // User tapped logic
       // TODO: Implement navigation based on notification type
-    }
-  );
-      // if (data.type === 'item_update') navigation.navigate('Item', { itemId: data.itemId });
+      // Example: if (data.type === 'item_update') navigation.navigate('Item', { itemId: data.itemId });
     }
   );
 

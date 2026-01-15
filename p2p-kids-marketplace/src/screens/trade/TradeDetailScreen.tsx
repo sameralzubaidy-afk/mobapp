@@ -9,7 +9,7 @@
  * - Allows users to review completed trades
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,13 +20,13 @@ import {
   Pressable,
   SafeAreaView,
 } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { Trade } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
-import { canReviewUser } from '@/services/review';
+import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { useAuth } from '@/hooks/useAuth';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
@@ -49,7 +49,47 @@ export default function TradeDetailScreen() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [canReview, setCanReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [otherUserReviewed, setOtherUserReviewed] = useState(false);
   const [revieweeId, setRevieweeId] = useState<string>('');
+
+  const fetchTrade = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('trades')
+        .select('*, listing:items(*)')
+        .eq('id', tradeId)
+        .single();
+
+      if (error) throw error;
+      setTrade(data as any);
+
+      // Check mutual review status (only for completed trades)
+      if (user?.id && (data as any).status === 'completed') {
+        const revieweeUserId = (data as any).buyer_id === user.id 
+          ? (data as any).seller_id 
+          : (data as any).buyer_id;
+        
+        setRevieweeId(revieweeUserId);
+        
+        const reviewStatusResult = await getTradeReviewStatus(tradeId, user.id);
+        if (reviewStatusResult.success) {
+          setHasReviewed(reviewStatusResult.userReviewed);
+          setOtherUserReviewed(reviewStatusResult.otherUserReviewed);
+          
+          const result = await canReviewUser(tradeId, user.id);
+          if (result.success) {
+            setCanReview(result.canReview === true);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching trade:', error);
+      Alert.alert('Error', 'Failed to load trade details');
+    } finally {
+      setLoading(false);
+    }
+  }, [tradeId, user?.id]);
 
   useEffect(() => {
     fetchTrade();
@@ -75,43 +115,13 @@ export default function TradeDetailScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tradeId]);
+  }, [tradeId, fetchTrade]);
 
-  const fetchTrade = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('trades')
-        .select('*, listing:items(*)')
-        .eq('id', tradeId)
-        .single();
-
-      if (error) throw error;
-      setTrade(data as any);
-
-      // Check if user can review (only for completed trades)
-      if (user?.id && (data as any).status === 'completed') {
-        const revieweeUserId = (data as any).buyer_id === user.id 
-          ? (data as any).seller_id 
-          : (data as any).buyer_id;
-        
-        setRevieweeId(revieweeUserId);
-        
-        setHasReviewed(false);
-        const result = await canReviewUser(tradeId, user.id);
-        if (result.success) {
-          setCanReview(result.canReview === true);
-          const reasonLower = (result.reason || '').toLowerCase();
-          setHasReviewed(!result.canReview && reasonLower.includes('already reviewed'));
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error fetching trade:', error);
-      Alert.alert('Error', 'Failed to load trade details');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      fetchTrade();
+    }, [fetchTrade])
+  );
 
   const handleComplete = async () => {
     const isSeller = trade?.seller_id === user?.id;
@@ -340,6 +350,31 @@ export default function TradeDetailScreen() {
 
         {reviewButtonVisible && (
           <View style={styles.reviewContainer}>
+            {/* Show review status info */}
+            <View style={styles.reviewStatusInfo}>
+              <View style={styles.reviewStatusRow}>
+                <Ionicons
+                  name={hasReviewed ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={20}
+                  color={hasReviewed ? '#10B981' : '#9CA3AF'}
+                />
+                <Text style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}>
+                  {`You ${hasReviewed ? 'have' : "haven't"} reviewed ${isBuyer ? 'the seller' : 'the buyer'}`}
+                </Text>
+              </View>
+              <View style={styles.reviewStatusRow}>
+                <Ionicons
+                  name={otherUserReviewed ? 'checkmark-circle' : 'ellipse-outline'}
+                  size={20}
+                  color={otherUserReviewed ? '#10B981' : '#9CA3AF'}
+                />
+                <Text style={[styles.reviewStatusText, otherUserReviewed && styles.reviewStatusTextComplete]}>
+                  {`${isBuyer ? 'The seller' : 'The buyer'} ${otherUserReviewed ? 'has' : "hasn't"} reviewed you`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Review button */}
             <Pressable
               style={[
                 styles.button,
@@ -514,6 +549,26 @@ const styles = StyleSheet.create({
   reviewContainer: {
     marginTop: 16,
     gap: 12,
+  },
+  reviewStatusInfo: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+    gap: 12,
+  },
+  reviewStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  reviewStatusText: {
+    fontSize: 14,
+    color: '#6B7280',
+    flex: 1,
+  },
+  reviewStatusTextComplete: {
+    color: '#065F46',
+    fontWeight: '500',
   },
   button: {
     paddingVertical: 16,

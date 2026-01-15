@@ -545,7 +545,7 @@ export async function uploadChatImage(
     // Generate unique filename: {trade_id}/{sender_id}/{timestamp}-{uuid}.jpg
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 15);
-    const filename = `${tradeId}/${senderId}-${timestamp}-${randomId}.jpg`;
+    const filename = `${tradeId}/${senderId}/${timestamp}-${randomId}.jpg`;
 
 
     // Convert base64 to ArrayBuffer

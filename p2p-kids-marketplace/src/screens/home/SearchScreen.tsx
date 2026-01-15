@@ -18,7 +18,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+// import { useFocusEffect } from '@react-navigation/native'; // not needed here
 import { searchListings } from '../../services/discovery';
 import { SearchResult } from '../../types/discovery';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';

@@ -50,9 +50,6 @@ export function SubmitReviewScreen() {
       },
       headerTintColor: '#3B82F6',
       headerBackTitle: 'Back',
-      headerLeftContainerStyle: {
-        paddingLeft: 8,
-      },
     });
   }, [navigation, revieweeName]);
 

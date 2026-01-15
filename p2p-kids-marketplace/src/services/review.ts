@@ -22,6 +22,16 @@ export interface Review {
   };
 }
 
+function formatReviewerFromProfile(profile: any): Review['reviewer'] {
+  const fullName = (profile?.name || 'User').trim();
+  const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);
+  return {
+    first_name: firstName || 'User',
+    last_name: rest.join(' '),
+    profile_image_url: profile?.avatar_url ?? null,
+  };
+}
+
 export interface ReviewStats {
   average_rating: number;
   total_reviews: number;
@@ -124,10 +134,7 @@ export async function getUserReviews(userId: string): Promise<{
   try {
     const { data, error } = await supabase
       .from('reviews')
-      .select(`
-        *,
-        reviewer:profiles!reviewer_id(first_name, last_name, profile_image_url)
-      `)
+      .select('*')
       .eq('reviewee_id', userId)
       .eq('is_hidden', false)
       .order('created_at', { ascending: false });
@@ -141,11 +148,35 @@ export async function getUserReviews(userId: string): Promise<{
       };
     }
 
+    const reviews = data || [];
+    const reviewerIds = Array.from(new Set(reviews.map((review: any) => review.reviewer_id)));
+    let reviewerProfiles: any[] = [];
+
+    if (reviewerIds.length) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id, name, avatar_url')
+        .in('user_id', reviewerIds);
+
+      if (profileError) {
+        console.error('Get reviewer profiles error:', profileError);
+      } else {
+        reviewerProfiles = profileData || [];
+      }
+    }
+
+    const profileMap: Record<string, Review['reviewer']> = reviewerProfiles.reduce((acc, profile) => {
+      if (profile?.user_id) {
+        acc[profile.user_id] = formatReviewerFromProfile(profile);
+      }
+      return acc;
+    }, {} as Record<string, Review['reviewer']>);
+
     return {
       success: true,
-      reviews: (data || []).map((review: any) => ({
+      reviews: reviews.map((review: any) => ({
         ...review,
-        reviewer: review.reviewer,
+        reviewer: profileMap[review.reviewer_id] || null,
       })),
     };
   } catch (error) {

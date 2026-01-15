@@ -19,6 +19,9 @@ import { getCurrentUser } from '@/services/supabase/auth';
 import { supabase } from '@/services/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BadgeShowcase } from '@/components/BadgeShowcase';
+import { getUserReviews, getReviewStats, Review, ReviewStats } from '@/services/review';
+import { ReviewCard } from '@/components/ReviewCard';
+import { StarRating } from '@/components/StarRating';
 // generated `Database` types may be missing locally; use a permissive fallback
 // to avoid type errors until DB types are generated.
 import BottomNavBar from '@/components/organisms/BottomNavBar';
@@ -31,6 +34,9 @@ export default function ProfileScreen({ navigation }: any) {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -88,11 +94,36 @@ export default function ProfileScreen({ navigation }: any) {
 
       setUser({ ...authUser, phone: phoneFromAuth });
       setProfile(profileData as UserProfile);
+      
+      // Load reviews and stats
+      await loadReviewsData(authUser.id);
     } catch (error: any) {
       console.error('Load profile error:', error);
       Alert.alert('Error', 'Failed to load profile. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReviewsData = async (userId: string) => {
+    try {
+      setLoadingReviews(true);
+      const [reviewsResult, statsResult] = await Promise.all([
+        getUserReviews(userId),
+        getReviewStats(userId),
+      ]);
+
+      if (reviewsResult.success) {
+        setReviews(reviewsResult.reviews);
+      }
+
+      if (statsResult.success && statsResult.stats) {
+        setReviewStats(statsResult.stats);
+      }
+    } catch (error) {
+      console.error('Load reviews error:', error);
+    } finally {
+      setLoadingReviews(false);
     }
   };
 
@@ -188,6 +219,64 @@ export default function ProfileScreen({ navigation }: any) {
 
       {/* Badges Section */}
       <BadgeShowcase userId={user.id} />
+
+      {/* Reviews Section */}
+      {reviewStats && reviewStats.total_reviews > 0 && (
+        <View style={styles.reviewsSection}>
+          <Text style={styles.sectionTitle}>Reviews ({reviewStats.total_reviews})</Text>
+          
+          {/* Rating Summary */}
+          <View style={styles.ratingSection}>
+            <View style={styles.ratingHeader}>
+              <Text style={styles.averageRating}>
+                {reviewStats.average_rating.toFixed(1)}
+              </Text>
+              <View style={styles.ratingDetails}>
+                <StarRating rating={Math.round(reviewStats.average_rating)} size={24} />
+                <Text style={styles.totalReviews}>
+                  Based on {reviewStats.total_reviews} {reviewStats.total_reviews === 1 ? 'review' : 'reviews'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Rating Breakdown */}
+            <View style={styles.breakdown}>
+              {[5, 4, 3, 2, 1].map((stars) => {
+                const count = reviewStats.rating_breakdown[stars as keyof typeof reviewStats.rating_breakdown];
+                const percentage = reviewStats.total_reviews > 0
+                  ? (count / reviewStats.total_reviews) * 100
+                  : 0;
+
+                return (
+                  <View key={stars} style={styles.breakdownRow}>
+                    <Text style={styles.breakdownLabel}>{stars} ★</Text>
+                    <View style={styles.breakdownBar}>
+                      <View
+                        style={[styles.breakdownFill, { width: `${percentage}%` }]}
+                      />
+                    </View>
+                    <Text style={styles.breakdownCount}>{count}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Recent Reviews */}
+          <View style={styles.reviewsList}>
+            <Text style={styles.reviewsListTitle}>Recent Reviews</Text>
+            {loadingReviews ? (
+              <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 20 }} />
+            ) : reviews.length > 0 ? (
+              reviews.slice(0, 5).map((review) => (
+                <ReviewCard key={review.id} review={review} />
+              ))
+            ) : (
+              <Text style={styles.noReviewsText}>No reviews yet</Text>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Action Buttons */}
       <View style={styles.actionsSection}>
@@ -342,5 +431,85 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 18,
     fontWeight: '600',
+  },
+  reviewsSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  ratingSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+  },
+  ratingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  averageRating: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#111827',
+    marginRight: 16,
+  },
+  ratingDetails: {
+    flex: 1,
+  },
+  totalReviews: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  breakdown: {
+    marginTop: 8,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  breakdownLabel: {
+    width: 40,
+    fontSize: 14,
+    color: '#374151',
+  },
+  breakdownBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
+    marginHorizontal: 12,
+    overflow: 'hidden',
+  },
+  breakdownFill: {
+    height: '100%',
+    backgroundColor: '#FBBF24',
+  },
+  breakdownCount: {
+    width: 30,
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'right',
+  },
+  reviewsList: {
+    marginTop: 8,
+  },
+  reviewsListTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  noReviewsText: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginVertical: 20,
   },
 });

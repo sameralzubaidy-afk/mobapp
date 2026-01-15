@@ -19,7 +19,7 @@ import { signupWithTrial } from '@/services/auth';
 import { SignupInput, AuthError } from '@/types/user';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
-import { AUTH_EVENTS } from '@/constants/analytics-events';
+// import { AUTH_EVENTS } from '@/constants/analytics-events'; // unused while analytics is TODO
 
 // TODO: Integrate Sentry
 // import * as Sentry from '@sentry/react-native';

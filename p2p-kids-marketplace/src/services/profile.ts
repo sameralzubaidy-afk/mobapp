@@ -134,7 +134,7 @@ export const setupUserProfile = async (
     };
   } catch (error) {
     console.error('Setup profile exception:', error);
-    return { user: null, error };
+    return { user: null, error: error as Error };
   }
 };
 
@@ -237,7 +237,7 @@ export const updateUserProfile = async (
     return { user: userData.user as User, error: null, needsWaitlist, zipCode: userZip };
   } catch (error) {
     console.error('Update profile exception:', error);
-    return { user: null, error };
+    return { user: null, error: error as Error };
   }
 };
 

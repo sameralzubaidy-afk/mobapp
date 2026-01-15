@@ -314,9 +314,8 @@ export async function processTradePayment(
         // Try to get the response body from the context
         if (error.context && error.context._bodyInit) {
           // For React Native, try to read the response body
-          const responseBody = new Response(error.context._bodyInit);
+          const responseBody = new Response(error.context._bodyInit as any);
           const responseText = await responseBody.text();
-          console.error('[trade-service] Server response body:', responseText);
           
           try {
             serverResponse = JSON.parse(responseText);
@@ -395,7 +394,7 @@ export async function completeTradeV2(
           const body = await ctx.json();
           if (body?.error) errorMessage = body.error;
         } else if (ctx && ctx._bodyInit) {
-          const res = new Response(ctx._bodyInit);
+          const res = new Response(ctx._bodyInit as any);
           const responseText = await res.text();
           console.error('[trade-service] completeTradeV2 server response body:', responseText);
           try {

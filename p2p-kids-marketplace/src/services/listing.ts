@@ -378,7 +378,7 @@ export async function getListingById(listing_id: string): Promise<Listing | null
     // Fetch seller separately with better error handling
     // NOTE: Use a public/unrestricted approach to get seller public profiles
     // since any user should be able to see who's selling an item
-    let seller = null;
+    let seller: { id: string; name: string; avatar_url: string | null } | null = null;
     if (item.seller_id) {
       try {
         // Try fetching with regular client first (respects RLS for privacy)

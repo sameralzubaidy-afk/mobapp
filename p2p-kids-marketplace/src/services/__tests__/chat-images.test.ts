@@ -112,7 +112,7 @@ describe('Chat Image Functions', () => {
 
       expect(supabase.storage.from).toHaveBeenCalledWith('chat-images');
       expect(mockStorageFrom.upload).toHaveBeenCalledWith(
-        expect.stringMatching(/^trade-123\/user-456-\d+-[a-z0-9]+\.jpg$/),
+        expect.stringMatching(/^trade-123\/user-456\/\d+-[a-z0-9]+\.jpg$/),
         expect.any(ArrayBuffer),
         {
           contentType: 'image/jpeg',

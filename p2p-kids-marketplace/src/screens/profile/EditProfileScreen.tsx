@@ -266,13 +266,14 @@ export default function EditProfileScreen({ navigation }: any) {
         console.warn('Partial update warning:', error);
         // Update local phone if available from returned user
         if (user && user.phone) setPhone(user.phone);
-        Alert.alert('Updated with Warning', error.message || 'Some fields were not updated.', [
+        const errMsg = error instanceof Error ? error.message : (error && (error as any).message) || 'Some fields were not updated.';
+        Alert.alert('Updated with Warning', errMsg, [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
-      // Ensure verification modal remains if phone change in progress
-      if (phoneChanged && phoneVerification.visible) {
-        // no-op here; modal will handle verification
-      }
+        // Ensure verification modal remains if phone change in progress
+        if (phoneChanged && phoneVerification.visible) {
+          // no-op here; modal will handle verification
+        }
         return;
       }
 
@@ -325,7 +326,8 @@ export default function EditProfileScreen({ navigation }: any) {
       ]);
     } catch (error: any) {
       console.error('Profile update error:', error);
-      Alert.alert('Error', error.message || 'Failed to update profile. Please try again.');
+      const errMsg = error instanceof Error ? error.message : String(error) || 'Failed to update profile. Please try again.';
+      Alert.alert('Error', errMsg);
     } finally {
       setSaving(false);
       setUploadingImage(false);
@@ -342,7 +344,8 @@ export default function EditProfileScreen({ navigation }: any) {
     const { success, message, error } = await verifyPhoneCode(currentUser!.id, phoneVerification.code!);
     setPhoneVerification(prev => ({ ...prev, verifying: false }));
     if (!success) {
-      setPhoneVerification(prev => ({ ...prev, message: message || (error && error.message) || 'Verification failed' }));
+      const errMsg = error instanceof Error ? error.message : (error && (error as any).message) || 'Verification failed';
+      setPhoneVerification(prev => ({ ...prev, message: message || errMsg }));
       return;
     }
 

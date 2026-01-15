@@ -139,7 +139,7 @@ export const getItems = async (
       .select('user_id, name, avatar_url, node_id')
       .in('user_id', sellerIds);
 
-    const profileMap = new Map((profiles || []).map((p: { user_id: string; name: string; avatar_url: string | null; node_id: string | null }) => [p.user_id, p]));
+    const profileMap = new Map<string, any>((profiles || []).map((p: any) => [p.user_id, p]));
 
     // Step 3: Apply node filter (after fetching profiles)
     if (filters.node_id && !filters.include_all_nodes) {
@@ -154,7 +154,7 @@ export const getItems = async (
     }
 
     // Step 4: Fetch node details
-    const nodeIds = Array.from(profileMap.values()).map((p: { node_id: string | null }) => p.node_id).filter(Boolean);
+    const nodeIds = Array.from(profileMap.values()).map((p: any) => p.node_id).filter(Boolean) as string[];
     const { data: nodes } = await supabase
       .from('geographic_nodes')
       .select('id, name, city, state')
@@ -337,10 +337,10 @@ export const getItemsWithinRadius = async (
       .select('user_id, name, avatar_url, node_id')
       .in('user_id', itemSellerIds);
 
-    const profileMap = new Map((profiles || []).map((p: { user_id: string; name: string; avatar_url: string | null; node_id: string | null }) => [p.user_id, p]));
+    const profileMap = new Map<string, any>((profiles || []).map((p: any) => [p.user_id, p]));
 
     // Fetch node details
-    const nodeIdList = Array.from(profileMap.values()).map((p: { node_id: string | null }) => p.node_id).filter(Boolean);
+    const nodeIdList = Array.from(profileMap.values()).map((p: any) => p.node_id).filter(Boolean) as string[];
     const { data: nodeData } = await supabase
       .from('geographic_nodes')
       .select('id, name, city, state')

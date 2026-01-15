@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { supabase } from '@/config/supabase';
@@ -51,7 +51,7 @@ export default function RecentTradeCard({ navigation }: any) {
     }, [userId])
   );
 
-  const fetchRecentTrade = async () => {
+  const fetchRecentTrade = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -69,7 +69,7 @@ export default function RecentTradeCard({ navigation }: any) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
   if (loading) {
     return (
