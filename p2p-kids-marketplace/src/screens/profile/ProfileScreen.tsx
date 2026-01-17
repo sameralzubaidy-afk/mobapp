@@ -37,6 +37,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
   const [loadingReviews, setLoadingReviews] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -158,6 +159,10 @@ export default function ProfileScreen({ navigation }: any) {
     }
   };
 
+  const handleToggleViewAll = () => {
+    setShowAllReviews(!showAllReviews);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -264,11 +269,25 @@ export default function ProfileScreen({ navigation }: any) {
 
           {/* Recent Reviews */}
           <View style={styles.reviewsList}>
-            <Text style={styles.reviewsListTitle}>Recent Reviews</Text>
+            <View style={styles.reviewsListHeader}>
+              <Text style={styles.reviewsListTitle}>
+                {showAllReviews ? 'All Reviews' : 'Recent Reviews'}
+              </Text>
+              {reviews.length > 5 && (
+                <TouchableOpacity 
+                  style={styles.viewAllButtonContainer}
+                  onPress={handleToggleViewAll}
+                >
+                  <Text style={styles.viewAllButtonText}>
+                    {showAllReviews ? 'Show Less' : `View All (${reviews.length})`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
             {loadingReviews ? (
               <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 20 }} />
             ) : reviews.length > 0 ? (
-              reviews.slice(0, 5).map((review) => (
+              (showAllReviews ? reviews : reviews.slice(0, 5)).map((review) => (
                 <ReviewCard key={review.id} review={review} />
               ))
             ) : (
@@ -500,11 +519,27 @@ const styles = StyleSheet.create({
   reviewsList: {
     marginTop: 8,
   },
+  reviewsListHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   reviewsListTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 12,
+  },
+  viewAllButtonContainer: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#EFF6FF',
+  },
+  viewAllButtonText: {
+    color: '#3B82F6',
+    fontSize: 14,
+    fontWeight: '600',
   },
   noReviewsText: {
     fontSize: 16,
