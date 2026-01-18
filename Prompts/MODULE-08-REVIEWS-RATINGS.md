@@ -1367,7 +1367,7 @@ REVIEW-007: Create admin moderation queue
 **Dependencies:** REVIEW-006 (Review reporting)
 
 ### Description
-Create admin panel to view reported reviews. Show report count, reasons, and reporter info. Admin actions: approve (unhide), delete review, ban user. Filter by report reason. Pagination for large lists.
+Update admin panel to view reported reviews. Show report count, reasons, and reporter info. Admin actions: approve (unhide), delete review, ban user. Filter by report reason. Pagination for large lists.
 
 ---
 

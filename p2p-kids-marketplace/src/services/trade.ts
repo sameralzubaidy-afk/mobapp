@@ -278,32 +278,125 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
 }
 
 /**
- * Complete a trade (mark as completed/delivered)
- * TODO: Implement full trade completion logic with SP release
+ * TASK TRADE-V2-004: Complete a trade (mark as completed/delivered)
+ * 
+ * Rules:
+ * 1. Buyer or seller can mark as completed
+ * 2. If seller initiates: records seller_marked_completed_at, awaits buyer confirmation
+ * 3. If buyer initiates OR seller already marked: completes trade, updates item to 'sold', awards SP to seller
+ * 4. Calls complete_trade_v2 RPC for atomic transaction handling
+ * 
+ * @param tradeId - Trade UUID
+ * @returns { success: boolean, error?: string, message?: string }
  */
-export async function completeTradeV2(tradeId: string): Promise<{ success: boolean; error?: string }> {
+export async function completeTradeV2(tradeId: string): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
-    console.log('[trade] Completing trade:', tradeId);
-    // TODO: Implement trade completion
-    return { success: true };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    console.log('[trade] Completing trade:', tradeId, 'by user:', user.id);
+
+    // Call the complete-trade Edge Function
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/complete-trade`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({ tradeId }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('[trade] Complete trade error:', errorData);
+      return { 
+        success: false, 
+        error: errorData.error || `HTTP ${response.status}: Failed to complete trade` 
+      };
+    }
+
+    const data = await response.json();
+    
+    console.log('[trade] Trade completion response:', data);
+
+    return {
+      success: data.success,
+      error: data.error,
+      message: data.message,
+    };
   } catch (error) {
     console.error('[trade] Error completing trade:', error);
-    return { success: false, error: 'Failed to complete trade' };
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to complete trade' 
+    };
   }
 }
 
 /**
- * Cancel a trade (return to pending state or cancel entirely)
- * TODO: Implement full trade cancellation logic with SP reversal
+ * TASK TRADE-V2-005: Cancel a trade
+ * 
+ * Rules:
+ * 1. Can cancel before payment (pending status): no refunds needed
+ * 2. Can cancel after payment (in_progress status): refund cash + re-credit SP
+ * 3. Cancellation reason is tracked in audit logs
+ * 4. Calls cancel-trade Edge Function for atomic transaction handling
+ * 
+ * @param tradeId - Trade UUID
+ * @param reason - Cancellation reason
+ * @returns { success: boolean, error?: string, message?: string }
  */
-export async function cancelTradeV2(tradeId: string): Promise<{ success: boolean; error?: string }> {
+export async function cancelTradeV2(tradeId: string, reason?: string): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
-    console.log('[trade] Cancelling trade:', tradeId);
-    // TODO: Implement trade cancellation
-    return { success: true };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    console.log('[trade] Cancelling trade:', tradeId, 'by user:', user.id, 'reason:', reason);
+
+    // Call the cancel-trade Edge Function
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/cancel-trade`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+        body: JSON.stringify({ tradeId, reason: reason || 'User requested cancellation' }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('[trade] Cancel trade error:', errorData);
+      return { 
+        success: false, 
+        error: errorData.error || `HTTP ${response.status}: Failed to cancel trade` 
+      };
+    }
+
+    const data = await response.json();
+    
+    console.log('[trade] Trade cancellation response:', data);
+
+    return {
+      success: data.success,
+      error: data.error,
+      message: data.message,
+    };
   } catch (error) {
     console.error('[trade] Error cancelling trade:', error);
-    return { success: false, error: 'Failed to cancel trade' };
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to cancel trade' 
+    };
   }
 }
 
