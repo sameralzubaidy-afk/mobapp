@@ -5,7 +5,7 @@ export type RootStackParamList = {
   Signup: undefined;
   PhoneVerification: undefined;
   ProfileSetup: undefined;
-  Profile: undefined;
+  Profile: { userId?: string } | undefined;
   EditProfile: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string } | undefined;

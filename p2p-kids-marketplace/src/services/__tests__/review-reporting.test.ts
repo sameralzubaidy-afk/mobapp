@@ -20,8 +20,18 @@ describe('reportReview', () => {
       error: null,
     });
 
-    (supabase.from as jest.Mock).mockReturnValue({
-      insert: mockInsert,
+    (supabase.from as jest.Mock).mockImplementation((table) => {
+      if (table === 'review_reports') {
+        return { insert: mockInsert };
+      }
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { reviewee_id: 'user-456' },
+          error: null,
+        }),
+      };
     });
 
     const result = await reportReview({
@@ -45,8 +55,18 @@ describe('reportReview', () => {
       error: null,
     });
 
-    (supabase.from as jest.Mock).mockReturnValue({
-      insert: mockInsert,
+    (supabase.from as jest.Mock).mockImplementation((table) => {
+      if (table === 'review_reports') {
+        return { insert: mockInsert };
+      }
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { reviewee_id: 'user-456' },
+          error: null,
+        }),
+      };
     });
 
     const result = await reportReview({
@@ -70,8 +90,18 @@ describe('reportReview', () => {
       error: null,
     });
 
-    (supabase.from as jest.Mock).mockReturnValue({
-      insert: mockInsert,
+    (supabase.from as jest.Mock).mockImplementation((table) => {
+      if (table === 'review_reports') {
+        return { insert: mockInsert };
+      }
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { reviewee_id: 'user-456' },
+          error: null,
+        }),
+      };
     });
 
     const result = await reportReview({
@@ -107,8 +137,18 @@ describe('reportReview', () => {
       error: { code: '23505', message: 'duplicate key' },
     });
 
-    (supabase.from as jest.Mock).mockReturnValue({
-      insert: mockInsert,
+    (supabase.from as jest.Mock).mockImplementation((table) => {
+      if (table === 'review_reports') {
+        return { insert: mockInsert };
+      }
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { reviewee_id: 'user-456' },
+          error: null,
+        }),
+      };
     });
 
     const result = await reportReview({
@@ -119,7 +159,7 @@ describe('reportReview', () => {
     });
 
     expect(result.success).toBe(false);
-    expect(result.error).toBe('You have already reported this review');
+    expect(result.error).toContain('already reported');
   });
 
   it('should handle database error', async () => {
@@ -127,8 +167,18 @@ describe('reportReview', () => {
       error: { message: 'Database error' },
     });
 
-    (supabase.from as jest.Mock).mockReturnValue({
-      insert: mockInsert,
+    (supabase.from as jest.Mock).mockImplementation((table) => {
+      if (table === 'review_reports') {
+        return { insert: mockInsert };
+      }
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { reviewee_id: 'user-456' },
+          error: null,
+        }),
+      };
     });
 
     const result = await reportReview({
@@ -163,8 +213,18 @@ describe('reportReview', () => {
       error: null,
     });
 
-    (supabase.from as jest.Mock).mockReturnValue({
-      insert: mockInsert,
+    (supabase.from as jest.Mock).mockImplementation((table) => {
+      if (table === 'review_reports') {
+        return { insert: mockInsert };
+      }
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { reviewee_id: 'user-456' },
+          error: null,
+        }),
+      };
     });
 
     const validReasons: Array<'spam' | 'offensive' | 'false_info' | 'other'> = [

@@ -2,16 +2,24 @@
 // Unit tests for StarRating component (MODULE-08-REVIEWS-RATINGS TASK REVIEW-001)
 
 import React from 'react';
-import { View } from 'react-native';
 import { render, fireEvent } from '@testing-library/react-native';
 import { StarRating } from '../StarRating';
 
 // Mock Ionicons to expose props for testing assertions
-jest.mock('@expo/vector-icons', () => ({
-  Ionicons: ({ name, size, color, testID }: any) => (
-    <View testID={testID} accessible accessibilityLabel={name} size={size} color={color} />
-  ),
-}));
+jest.mock('@expo/vector-icons', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    Ionicons: ({ name, size, color, testID }: any) =>
+      React.createElement(View, {
+        testID,
+        accessible: true,
+        accessibilityLabel: name,
+        size,
+        color,
+      }),
+  };
+});
 
 describe('StarRating Component', () => {
   it('should render 5 stars', () => {
@@ -19,7 +27,7 @@ describe('StarRating Component', () => {
       <StarRating rating={0} editable={false} />
     );
 
-    const stars = getAllByTestId(/star-/);
+    const stars = getAllByTestId(/^star-\d+$/);
     expect(stars).toHaveLength(5);
   });
 

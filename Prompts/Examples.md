@@ -70,12 +70,12 @@ I do not use yarn I use npm so give me all commend lines for npm.
 
 
 my example 2 - to verify
-I want to verify what’s already implemented for MODULE-03-NODE-MANAGEMENT by exeucting the steps in # MODULE-05 VERIFICATION CHECKLIST (V2) in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-05-VERIFICATION-V2.md
-Module where reqs  /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-05-DISCOVERY-V2.md
+I want to verify what’s already implemented for MODULE-08-REVIEWS-RATINGS by exeucting the steps in MODULE-08-REVIEWS & RATINGS-VERIFICATION.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/
+ My requirements listed in   /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-08-REVIEWS-RATINGS.md
 
 Please:
 
-Read the verification checklist
+Read the verification checklist in MODULE-08-REVIEWS & RATINGS-VERIFICATION.md
 Inspect the current code under:
 /Users/sameralzubaidi/Desktop/kids_marketplace_app
 make sure you create all needed unit tests and E2E tests. 

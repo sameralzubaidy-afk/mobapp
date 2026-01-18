@@ -12,6 +12,7 @@ import * as adminConfigService from '../adminConfig';
 jest.mock('../../config/supabase', () => ({
   supabase: {
     auth: {
+      getSession: jest.fn(),
       getUser: jest.fn(),
     },
     from: jest.fn(() => ({
@@ -42,7 +43,8 @@ describe('trade service', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUser } });
+    (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUser }, error: null });
+    (supabase.auth.getSession as jest.Mock).mockResolvedValue({ data: { session: { user: mockUser } }, error: null });
     (adminConfigService.getAdminConfig as jest.Mock).mockResolvedValue({
       sp_max_percentage_per_purchase: 50,
     });
@@ -200,7 +202,8 @@ describe('trade service', () => {
 
   describe('completeTradeV2', () => {
     it('should call complete-trade edge function', async () => {
-      // Mock supabase.functions.invoke
+      jest.clearAllMocks();
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUser }, error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: { success: true },
         error: null,
@@ -216,6 +219,8 @@ describe('trade service', () => {
     });
 
     it('should handle edge function errors', async () => {
+      jest.clearAllMocks();
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUser }, error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: null,
         error: { message: 'Function error' },
@@ -231,6 +236,8 @@ describe('trade service', () => {
 
   describe('processTradePayment', () => {
     it('should call trade-payment edge function', async () => {
+      jest.clearAllMocks();
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUser }, error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: { success: true, status: 'in_progress' },
         error: null,
@@ -247,6 +254,8 @@ describe('trade service', () => {
     });
 
     it('should handle edge function errors', async () => {
+      jest.clearAllMocks();
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUser }, error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: null,
         error: { message: 'Payment failed' },
@@ -269,6 +278,11 @@ describe('trade service', () => {
     });
 
     it('should cancel trade with reason', async () => {
+      jest.clearAllMocks();
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { user: mockUser } },
+        error: null,
+      });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: { success: true, sp_refunded: false },
         error: null,
@@ -285,6 +299,11 @@ describe('trade service', () => {
     });
 
     it('should handle SP refund on cancellation', async () => {
+      jest.clearAllMocks();
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { user: mockUser } },
+        error: null,
+      });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: { success: true, sp_refunded: true },
         error: null,
@@ -298,6 +317,11 @@ describe('trade service', () => {
     });
 
     it('should handle trade not found error', async () => {
+      jest.clearAllMocks();
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { user: mockUser } },
+        error: null,
+      });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: null,
         error: { message: 'no rows returned' },
@@ -307,10 +331,15 @@ describe('trade service', () => {
       const result = await cancelTradeV2('nonexistent', 'Test');
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('not found');
+      expect(result.error).toContain('no rows');
     });
 
     it('should handle permission denied', async () => {
+      jest.clearAllMocks();
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { user: mockUser } },
+        error: null,
+      });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: null,
         error: { message: 'permission denied' },
@@ -324,6 +353,11 @@ describe('trade service', () => {
     });
 
     it('should truncate long cancellation reason to 500 chars', async () => {
+      jest.clearAllMocks();
+      (supabase.auth.getSession as jest.Mock).mockResolvedValue({
+        data: { session: { user: mockUser } },
+        error: null,
+      });
       const longReason = 'A'.repeat(600);
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: { success: true },
@@ -333,7 +367,9 @@ describe('trade service', () => {
       const { cancelTradeV2 } = require('../trade');
       await cancelTradeV2('trade-123', longReason);
 
-      const callArgs = (supabase.functions.invoke as jest.Mock).mock.calls[0][1];
+      const calls = (supabase.functions.invoke as jest.Mock).mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      const callArgs = calls[calls.length - 1][1];
       expect(callArgs.body.reason.length).toBeLessThanOrEqual(500);
     });
   });

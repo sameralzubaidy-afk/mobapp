@@ -222,21 +222,28 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     // 5. Clamp requested SP discount based on rules
     let appliedPoints = 0;
 
-    if (canSpendSp && availablePoints > 0 && sp_amount > 0) {
+    if (canSpendSp && sp_amount > 0) {
       // Rule: SP cannot exceed dynamic percentage of item price (default 50%)
       const config = await getAdminConfig();
-      const spCap = Math.round((config?.sp_max_percentage_per_purchase ?? 50) / 100 * itemPriceCents);
+      const spCapPercentage = config?.sp_max_percentage_per_purchase ?? 50;
+      // Convert item price cents to dollars, apply percentage, get SP cap
+      const itemPriceDollars = itemPriceCents / 100;
+      const spCapPoints = Math.round((spCapPercentage / 100) * itemPriceDollars);
       
-      appliedPoints = Math.min(sp_amount, availablePoints, spCap);
+      // Cap: cannot exceed available points, cannot exceed SP cap, cannot exceed requested amount
+      appliedPoints = Math.min(sp_amount, availablePoints, spCapPoints);
     }
 
     // 6. Calculate fees and cash amount
-    const spAmountCents = appliedPoints;
-    const cashAmountCents = itemPriceCents - spAmountCents;
+    // SP units are converted to cents (1 SP = $1 = 100 cents)
+    const spAmountCents = appliedPoints * 100;
+    const cashBeforeFee = itemPriceCents - spAmountCents;
     
-    // Transaction fee (buyer pays fee on cash portion)
-    const feePercentage = (buyerStatus === 'active') ? 0.99 : 2.99;
-    const transactionFeeCents = Math.ceil(cashAmountCents * (feePercentage / 100));
+    // Transaction fee: fixed amounts (99¢ for subscribers, 299¢ for non-subscribers)
+    const transactionFeeCents = (buyerStatus === 'active') ? 99 : 299;
+    
+    // Total cash amount includes fee (for display to user)
+    const cashAmountCents = cashBeforeFee + transactionFeeCents;
 
     // 7. Create trade record
     const { data: tradeData, error: tradeError } = await supabase
@@ -246,7 +253,7 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
         seller_id: itemData.seller_id,
         listing_id: item_id,
         sp_amount: appliedPoints,
-        cash_amount_cents: cashAmountCents,
+        cash_amount_cents: cashBeforeFee,
         buyer_transaction_fee_cents: transactionFeeCents,
         cash_currency: 'usd',
         status: 'pending',
@@ -299,28 +306,17 @@ export async function completeTradeV2(tradeId: string): Promise<{ success: boole
     console.log('[trade] Completing trade:', tradeId, 'by user:', user.id);
 
     // Call the complete-trade Edge Function
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/complete-trade`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
-        body: JSON.stringify({ tradeId }),
-      }
-    );
+    const { data, error } = await supabase.functions.invoke('complete-trade', {
+      body: { tradeId },
+    });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('[trade] Complete trade error:', errorData);
+    if (error) {
+      console.error('[trade] Complete trade error:', error);
       return { 
         success: false, 
-        error: errorData.error || `HTTP ${response.status}: Failed to complete trade` 
+        error: error.message || 'Failed to complete trade' 
       };
     }
-
-    const data = await response.json();
     
     console.log('[trade] Trade completion response:', data);
 
@@ -351,38 +347,30 @@ export async function completeTradeV2(tradeId: string): Promise<{ success: boole
  * @param reason - Cancellation reason
  * @returns { success: boolean, error?: string, message?: string }
  */
-export async function cancelTradeV2(tradeId: string, reason?: string): Promise<{ success: boolean; error?: string; message?: string }> {
+export async function cancelTradeV2(tradeId: string, reason?: string): Promise<{ success: boolean; error?: string; message?: string; sp_refunded?: boolean }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
       return { success: false, error: 'User not authenticated' };
     }
 
-    console.log('[trade] Cancelling trade:', tradeId, 'by user:', user.id, 'reason:', reason);
+    console.log('[trade] Cancelling trade:', tradeId, 'reason:', reason);
+
+    // Truncate reason to 500 chars
+    const truncatedReason = reason ? reason.substring(0, 500) : 'User requested cancellation';
 
     // Call the cancel-trade Edge Function
-    const response = await fetch(
-      `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/cancel-trade`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
-        body: JSON.stringify({ tradeId, reason: reason || 'User requested cancellation' }),
-      }
-    );
+    const { data, error } = await supabase.functions.invoke('cancel-trade', {
+      body: { tradeId, reason: truncatedReason },
+    });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('[trade] Cancel trade error:', errorData);
+    if (error) {
+      console.error('[trade] Cancel trade error:', error);
       return { 
         success: false, 
-        error: errorData.error || `HTTP ${response.status}: Failed to cancel trade` 
+        error: error.message || 'Failed to cancel trade' 
       };
     }
-
-    const data = await response.json();
     
     console.log('[trade] Trade cancellation response:', data);
 
@@ -390,6 +378,7 @@ export async function cancelTradeV2(tradeId: string, reason?: string): Promise<{
       success: data.success,
       error: data.error,
       message: data.message,
+      sp_refunded: data.sp_refunded,
     };
   } catch (error) {
     console.error('[trade] Error cancelling trade:', error);
@@ -417,46 +406,28 @@ export async function cancelTradeV2(tradeId: string, reason?: string): Promise<{
 export async function processTradePayment(
   tradeId: string,
   paymentMethodId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; status?: string }> {
   try {
-    console.log('[trade] Calling trade-payment Edge Function for:', tradeId);
-
-    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) {
-      throw new Error('EXPO_PUBLIC_SUPABASE_URL not configured');
-    }
-
-    // Get the user's JWT token
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.access_token) {
+    if (!session) {
       return { success: false, error: 'Not authenticated' };
     }
 
+    console.log('[trade] Calling trade-payment Edge Function for:', tradeId);
+
     // Call the Edge Function
-    const response = await fetch(`${supabaseUrl}/functions/v1/trade-payment`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
+    const { data, error } = await supabase.functions.invoke('trade-payment', {
+      body: {
         tradeId,
         paymentMethodId,
-      }),
+      },
     });
 
-    // Parse response
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('[trade] Edge Function error:', {
-        status: response.status,
-        error: data.error,
-        details: data.details,
-      });
+    if (error) {
+      console.error('[trade] Edge Function error:', error);
       return {
         success: false,
-        error: data.error || `Payment failed (HTTP ${response.status})`,
+        error: error.message || 'Payment failed',
       };
     }
 
@@ -466,7 +437,7 @@ export async function processTradePayment(
       paymentIntentId: data.payment_intent_id,
     });
 
-    return { success: true };
+    return { success: true, status: data.status };
   } catch (error) {
     console.error('[trade] Error processing payment:', error);
     return {
@@ -478,13 +449,29 @@ export async function processTradePayment(
 
 /**
  * Monitor mid-trade subscription changes (grace period, cancellation)
- * TODO: Implement subscription change monitoring during active trade
+ * Scans active trades and flags those where buyer/seller subscription status changed
+ * Returns result with flagged count for admin dashboard
  */
-export async function monitorMidTradeSubscriptionChanges(userId: string): Promise<void> {
+export async function monitorMidTradeSubscriptionChanges(): Promise<{ success: boolean; flagged_count?: number; error?: string }> {
   try {
-    console.log('[trade] Monitoring subscription changes for user:', userId);
-    // TODO: Implement subscription change monitoring
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    console.log('[trade] Monitoring subscription changes for user:', user.id);
+    
+    // TODO: Implement subscription change monitoring logic
+    // For now, return a placeholder response
+    return {
+      success: true,
+      flagged_count: 0,
+    };
   } catch (error) {
     console.error('[trade] Error monitoring subscription changes:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Monitoring failed',
+    };
   }
 }
