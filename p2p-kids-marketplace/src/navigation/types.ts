@@ -31,6 +31,7 @@ export type RootStackParamList = {
   SellerEarnings: undefined;
   // Admin routes
   AdminDashboard: undefined;
+  ReviewModeration: undefined;
   // MODULE-08: Badge routes
   Badges: undefined;
   Leaderboard: undefined;

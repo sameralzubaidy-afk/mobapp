@@ -33,6 +33,7 @@ import TradeTimelineScreen from '@/screens/trade/TradeTimelineScreen';
 import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
 import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
+import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
@@ -126,7 +127,7 @@ function RootNavigator() {
 
   if (isLoading && !forceRender) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
         <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
@@ -173,6 +174,7 @@ function RootNavigator() {
             <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} />
             <Stack.Screen name="SellerEarnings" component={SellerEarningsScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+            <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
             <Stack.Screen name="Badges" component={BadgesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
             {/* MODULE-08: Review screens */}

@@ -71,7 +71,7 @@ REASONING GUIDELINES:
   - `getUserReviews()` - Fetch user's received reviews
   - `getReviewStats()` - Calculate average rating and breakdown
   - `canReviewUser()` - Check if user can review
-  - `reportReview()` - Report inappropriate review
+  - `reportReview()` - Report inappropriate review (restricted to reviewee only)
 
 - [ ] **src/services/admin/reviewModeration.ts** - Admin moderation service
   - `getReportedReviews()` - Fetch all reported reviews
@@ -249,7 +249,7 @@ REASONING GUIDELINES:
 ### 5. Report Review Flow
 
 **User Journey:**
-1. User sees inappropriate review
+1. User (Reviewee) sees inappropriate review written about them
 2. Taps 3-dot menu on review
 3. Selects "Report" → Choose reason (spam, offensive, false info)
 4. Optionally enters description
@@ -258,16 +258,19 @@ REASONING GUIDELINES:
 7. After 3 reports, review auto-hidden
 
 **Technical Steps:**
-1. User taps menu icon → Show dropdown menu
+1. User taps menu icon → Show dropdown menu (only visible for reviewee)
 2. Tap "Report" → Show reason selector
 3. User selects reason → `setReason('spam')`
 4. Optionally enters description → `setDescription(text)`
 5. Submit → Call `reportReview(reviewId, reporterId, reason, description)`
 6. Insert into `review_reports` table
-7. Trigger `check_review_reports()` runs:
+7. RLS policy verifies:
+   - `reporter_id = auth.uid()`
+   - `reviews.reviewee_id = auth.uid()` (Reporter is the subject of the review)
+8. Trigger `check_review_reports()` runs:
    - Update `reviews.report_count = COUNT(review_reports)`
    - If `report_count >= 3`: Set `reviews.is_hidden = true`
-8. Hidden reviews excluded from `getUserReviews()`
+9. Hidden reviews excluded from `getUserReviews()`
 
 **Database Implications:**
 - Insert into `review_reports` table
@@ -423,7 +426,8 @@ CREATE TABLE review_reports (
   - Hidden reviews excluded
 
 - [ ] **Review reporting**
-  - Report review → Saved to database
+  - Report review → Saved to database (if reporter is reviewee)
+  - Report review by non-reviewee → Fails (RLS and service level)
   - 3rd report → Review auto-hidden
   - Duplicate report prevented
   - Hidden reviews excluded from profile
@@ -458,7 +462,7 @@ CREATE TABLE review_reports (
   - Reviewer name shown (or "Anonymous User")
   - Profile image shown (or placeholder)
   - Timestamp formatted correctly
-  - Report menu accessible via 3-dot icon
+  - Report menu accessible via 3-dot icon (ONLY for the reviewee)
 
 - [ ] **ReviewModerationScreen (Admin)**
   - Reported reviews listed
@@ -483,7 +487,7 @@ CREATE TABLE review_reports (
   - One review per user per trade
 
 - [ ] **Report creation**
-  - Any user can report reviews
+  - Only the reviewee can report a review
   - One report per user per review
   - Admins can view all reports
 

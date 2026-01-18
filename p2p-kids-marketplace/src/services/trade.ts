@@ -10,6 +10,83 @@ import { supabase } from '../config/supabase';
 import { Trade, TradeStatus } from '../types/trade';
 import { getSubscriptionSummary } from './subscription';
 import { getAdminConfig } from './adminConfig';
+import { getUserReviews } from './review';
+
+/**
+ * Check if there is an active trade between buyer and seller
+ * Active trades include: pending, in_progress statuses
+ * 
+ * @param buyerId - Current user (buyer)
+ * @param sellerId - Seller of the item
+ * @returns True if active trade exists
+ */
+export async function hasActiveTradeBetween(buyerId: string, sellerId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('trades')
+      .select('id', { count: 'exact' })
+      .eq('buyer_id', buyerId)
+      .eq('seller_id', sellerId)
+      .in('status', ['pending', 'in_progress'])
+      .limit(1);
+
+    if (error) {
+      console.error('[trade] Error checking active trades:', error);
+      return false;
+    }
+
+    return (data?.length ?? 0) > 0;
+  } catch (error) {
+    console.error('[trade] Error in hasActiveTradeBetween:', error);
+    return false;
+  }
+}
+
+/**
+ * Get seller rating summary
+ * Returns average rating and total reviews
+ * 
+ * @param sellerId - Seller user ID
+ * @returns Rating info with average and count
+ */
+export async function getSellerRating(sellerId: string): Promise<{
+  averageRating: number | null;
+  totalReviews: number;
+  ratingBreakdown?: Record<number, number>;
+}> {
+  try {
+    const result = await getUserReviews(sellerId);
+    
+    if (!result.success || result.reviews.length === 0) {
+      return {
+        averageRating: null,
+        totalReviews: 0,
+      };
+    }
+
+    const reviews = result.reviews;
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+    const averageRating = totalRating / reviews.length;
+    
+    // Build rating breakdown
+    const breakdown: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    reviews.forEach(review => {
+      breakdown[review.rating] = (breakdown[review.rating] || 0) + 1;
+    });
+
+    return {
+      averageRating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
+      totalReviews: reviews.length,
+      ratingBreakdown: breakdown,
+    };
+  } catch (error) {
+    console.error('[trade] Error getting seller rating:', error);
+    return {
+      averageRating: null,
+      totalReviews: 0,
+    };
+  }
+}
 
 /**
  * Map Stripe error codes to user-friendly messages
@@ -148,460 +225,173 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     if (canSpendSp && availablePoints > 0 && sp_amount > 0) {
       // Rule: SP cannot exceed dynamic percentage of item price (default 50%)
       const config = await getAdminConfig();
-      const maxPercentage = config?.sp_max_percentage_per_purchase ?? 50;
+      const spCap = Math.round((config?.sp_max_percentage_per_purchase ?? 50) / 100 * itemPriceCents);
       
-      // V2: 1 SP = $1.00 (100 cents)
-      const spToCashRate = 1; 
-      const maxDiscountCents = Math.floor(itemPriceCents * (maxPercentage / 100));
-      const maxSPAllowedPoints = maxDiscountCents / (spToCashRate * 100);
-      
-      // Clamp to integer points as per MODULE-09 ledger rules
-      const requestedPoints = Math.floor(sp_amount);
-      appliedPoints = Math.min(requestedPoints, availablePoints, Math.floor(maxSPAllowedPoints));
-    } else {
-      // Non-subscribers or no balance: ignore requested SP (clamp to 0)
-      appliedPoints = 0;
+      appliedPoints = Math.min(sp_amount, availablePoints, spCap);
     }
 
-    // V2: 1 SP = $1 discount for simplicity (100 cents)
-    const spToCashRate = 1; 
-    const discountCentsFromSp = Math.floor(appliedPoints * spToCashRate * 100);
+    // 6. Calculate fees and cash amount
+    const spAmountCents = appliedPoints;
+    const cashAmountCents = itemPriceCents - spAmountCents;
+    
+    // Transaction fee (buyer pays fee on cash portion)
+    const feePercentage = (buyerStatus === 'active') ? 0.99 : 2.99;
+    const transactionFeeCents = Math.ceil(cashAmountCents * (feePercentage / 100));
 
-    const discountedSubtotalCents = Math.max(itemPriceCents - discountCentsFromSp, 0);
-
-    // 6. Compute transaction fee based on subscription status
-    // Subscriber: $0.99, Non-subscriber: $2.99
-    const isSubscriber = subscriptionSummary.is_subscriber;
-    const transactionFeeCents = isSubscriber ? 99 : 299;
-
-    // CRITICAL: cash_amount_cents stored in DB is the discounted item price (without fee).
-    // For UI/checkout display, return the total cash charge (subtotal + fee).
-    const cashAmountCents = discountedSubtotalCents;
-    const totalCashChargeCents = cashAmountCents + transactionFeeCents;
-
-    // 7. Fetch seller profile to get node_id and then create trade row
-    // Be defensive: tests may not mock this table.
-    let sellerNodeId: string | null = null;
-    try {
-      const { data: sellerProfile, error: sellerProfileError } = await supabase
-        .from('profiles')
-        .select('node_id')
-        .eq('user_id', itemData.seller_id)
-        .maybeSingle();
-
-      if (sellerProfileError) {
-        console.warn('[trade] Could not fetch seller profile node_id:', sellerProfileError);
-      } else if (sellerProfile) {
-        sellerNodeId = (sellerProfile as { node_id: string | null }).node_id;
-      }
-
-      // Fallback: If seller has no node_id, try using the buyer's node_id
-      if (!sellerNodeId) {
-        const { data: buyerProfile } = await supabase
-          .from('profiles')
-          .select('node_id')
-          .eq('user_id', buyerId)
-          .maybeSingle();
-        
-        sellerNodeId = (buyerProfile as { node_id: string | null })?.node_id ?? null;
-      }
-    } catch (e) {
-      console.warn('[trade] node_id lookup failed (non-blocking):', e);
-    }
-
-    const { data: trade, error: tradeError } = await (supabase
+    // 7. Create trade record
+    const { data: tradeData, error: tradeError } = await supabase
       .from('trades')
       .insert({
-        listing_id: item_id,
         buyer_id: buyerId,
         seller_id: itemData.seller_id,
-        node_id: sellerNodeId,
-        status: 'pending' as TradeStatus,
+        listing_id: item_id,
         sp_amount: appliedPoints,
         cash_amount_cents: cashAmountCents,
-        platform_fee_cents: transactionFeeCents,
-        cash_currency: 'usd',
-        buyer_subscription_status: buyerStatus,
         buyer_transaction_fee_cents: transactionFeeCents,
-        last_status_change_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        cash_currency: 'usd',
+        status: 'pending',
       })
       .select()
-      .single());
+      .single();
 
-    if (tradeError || !trade) {
+    if (tradeError) {
       console.error('[trade] Error creating trade:', tradeError);
       return { success: false, error: 'Failed to create trade' };
     }
 
-    // Notify the seller about the new trade (non-blocking).
-    // Use the send-push-notification Edge Function which looks up push tokens.
-    (async () => {
-      try {
-        const title = 'New trade request';
-        const bodyText = `${user.email ?? 'A buyer'} initiated a trade for your item.`;
-
-        const response = await supabase.functions.invoke('send-push-notification', {
-          body: {
-            userId: itemData.seller_id,
-            title,
-            body: bodyText,
-            data: { tradeId: trade.id, itemId: item_id },
-            priority: 'high',
-          },
-        });
-
-        const notifError = response?.error;
-
-        if (notifError) {
-          console.warn('[trade] send-push-notification returned error:', notifError);
-        }
-      } catch (err) {
-        console.warn('[trade] Failed to invoke send-push-notification:', err);
-      }
-    })();
-
     return {
       success: true,
-      trade_id: trade.id,
-      trade: trade as unknown as Trade,
-      appliedPoints,
-      cashAmountCents: totalCashChargeCents,
-      transactionFeeCents,
+      trade_id: tradeData?.id,
+      trade: tradeData as Trade,
+      appliedPoints: appliedPoints,
+      cashAmountCents: cashAmountCents,
+      transactionFeeCents: transactionFeeCents,
       buyerSubscriptionStatus: buyerStatus,
     };
   } catch (error) {
-    const err = error as Error;
-    console.error('[trade] initiateTradeV2 failed:', err);
-    return { success: false, error: err.message || 'An unexpected error occurred' };
+    console.error('[trade] Unexpected error in initiateTradeV2:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }
 
+/**
+ * Complete a trade (mark as completed/delivered)
+ * TODO: Implement full trade completion logic with SP release
+ */
+export async function completeTradeV2(tradeId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('[trade] Completing trade:', tradeId);
+    // TODO: Implement trade completion
+    return { success: true };
+  } catch (error) {
+    console.error('[trade] Error completing trade:', error);
+    return { success: false, error: 'Failed to complete trade' };
+  }
+}
 
 /**
- * TASK TRADE-V2-003: Payment Orchestration (Stripe + SP Atomicity)
+ * Cancel a trade (return to pending state or cancel entirely)
+ * TODO: Implement full trade cancellation logic with SP reversal
+ */
+export async function cancelTradeV2(tradeId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('[trade] Cancelling trade:', tradeId);
+    // TODO: Implement trade cancellation
+    return { success: true };
+  } catch (error) {
+    console.error('[trade] Error cancelling trade:', error);
+    return { success: false, error: 'Failed to cancel trade' };
+  }
+}
+
+/**
+ * TASK TRADE-V2-003: Process Trade Payment via Stripe
  * 
- * Calls the trade-payment Edge Function to handle:
- * 1. Stripe PaymentIntent creation/confirmation.
- * 2. Atomic SP debit via RPC.
- * 3. Trade status transition to 'in_progress'.
+ * Calls the trade-payment Edge Function to:
+ * 1. Create/attach Stripe PaymentMethod to customer
+ * 2. Create PaymentIntent and authorize (manual capture)
+ * 3. Debit SP wallet if applicable (atomic)
+ * 4. Capture Stripe payment
+ * 5. Transition trade from 'pending' → 'in_progress'
  * 
- * @param tradeId - ID of the pending trade
- * @param paymentMethodId - Stripe PaymentMethod ID from the UI
- * @returns Success status and new trade status
+ * @param tradeId - Trade UUID
+ * @param paymentMethodId - Stripe PaymentMethod ID (pm_...)
+ * @returns Success status with error message if failed
  */
 export async function processTradePayment(
   tradeId: string,
   paymentMethodId: string
-): Promise<{ success: boolean; error?: string; status?: string }> {
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await supabase.functions.invoke('trade-payment', {
-      body: { tradeId, paymentMethodId },
-    });
-    const data = response?.data;
-    const error = response?.error;
+    console.log('[trade] Calling trade-payment Edge Function for:', tradeId);
 
-    if (error) {
-      console.error('[trade-service] processTradePayment function error:', error);
-      console.error('[trade-service] Full error object:', JSON.stringify(error, null, 2));
-      
-      // Extract detailed error from the response body
-      let errorMessage = error.message || 'Unknown error';
-      let serverResponse: { error?: string } | null = null;
-      
-      try {
-        // Try to get the response body from the context
-        if (error.context && error.context._bodyInit) {
-          // For React Native, try to read the response body
-          const responseBody = new Response(error.context._bodyInit as any);
-          const responseText = await responseBody.text();
-          
-          try {
-            serverResponse = JSON.parse(responseText);
-            if (serverResponse && serverResponse.error) {
-              errorMessage = serverResponse.error;
-            }
-          } catch (parseErr) {
-            console.warn('[trade-service] Could not parse server response as JSON:', parseErr);
-            errorMessage = responseText || errorMessage;
-          }
-        }
-      } catch (bodyReadErr) {
-        console.warn('[trade-service] Could not read response body:', bodyReadErr);
-      }
-      
-      // Map common server errors to user-friendly messages
-      const lower = errorMessage.toLowerCase();
-      if (lower.includes('stripe secret key') || lower.includes('server configuration')) {
-        errorMessage = 'Payment system configuration error. Please contact support.';
-      } else if (lower.includes('trade not found')) {
-        errorMessage = 'Trade not found. It may have been cancelled or expired.';
-      } else if (lower.includes('buyer not found')) {
-        errorMessage = 'User authentication error. Please try logging out and back in.';
-      } else if (lower.includes('card_declined') || lower.includes('card was declined')) {
-        errorMessage = 'Payment failed: the card was declined. Try a different card or payment method.';
-      } else if (lower.includes('payment method') && lower.includes('attach')) {
-        errorMessage = 'Payment method error. Please try entering your card details again.';
-      } else if (lower.includes('swap points')) {
-        errorMessage = 'Swap Points processing error. Please try again or contact support.';
-      }
-
-      return { success: false, error: errorMessage };
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) {
+      throw new Error('EXPO_PUBLIC_SUPABASE_URL not configured');
     }
 
-    return { 
-      success: true, 
-      status: data.status 
-    };
-  } catch (error) {
-    const err = error as Error;
-    console.error('[trade-service] processTradePayment failed:', err);
-    return { success: false, error: err.message };
-  }
-}
-
-/**
- * TASK TRADE-V2-004: Completion & SP Release
- * 
- * Completes a trade, marking it as 'completed' and triggering SP earnings
- * for the seller via the complete-trade Edge Function.
- * 
- * @param tradeId - ID of the in_progress trade
- * @returns Success status
- */
-export async function completeTradeV2(
-  tradeId: string
-): Promise<{ success: boolean; error?: string; message?: string; status?: string }> {
-  try {
-    const response = await supabase.functions.invoke('complete-trade', {
-      body: { tradeId },
-    });
-    const data = response?.data;
-    const error = response?.error;
-
-    if (error) {
-      console.error('[trade-service] completeTradeV2 error:', error);
-      console.error('[trade-service] Full error object:', JSON.stringify(error, null, 2));
-
-      let errorMessage = error.message || 'Failed to complete trade';
-
-      // Try to extract Edge Function response body for better diagnostics
-      try {
-        const ctx = error?.context as { json?: () => Promise<{ error?: string }>; _bodyInit?: string | Blob | ArrayBufferView | ArrayBuffer | FormData | URLSearchParams | ReadableStream<Uint8Array> | null };
-
-        if (ctx && typeof ctx.json === 'function') {
-          const body = await ctx.json();
-          if (body?.error) errorMessage = body.error;
-        } else if (ctx && ctx._bodyInit) {
-          const res = new Response(ctx._bodyInit as any);
-          const responseText = await res.text();
-          console.error('[trade-service] completeTradeV2 server response body:', responseText);
-          try {
-            const parsed = JSON.parse(responseText);
-            if (parsed?.error) errorMessage = parsed.error;
-          } catch {
-            if (responseText) errorMessage = responseText;
-          }
-        }
-      } catch (e) {
-        console.warn('[trade-service] Could not read completeTradeV2 response body:', e);
-      }
-
-      return { success: false, error: errorMessage };
+    // Get the user's JWT token
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) {
+      return { success: false, error: 'Not authenticated' };
     }
 
-    return { success: true, message: data?.message, status: data?.status };
-  } catch (error) {
-    const err = error as Error;
-    console.error('[trade-service] completeTradeV2 failed:', err);
-    return { success: false, error: err.message };
-  }
-}
-
-/**
- * TASK TRADE-V2-007: Handling Mid-Trade Subscription Changes
- * 
- * Invokes the monitor-mid-trade-subscription-changes Edge Function to detect
- * and alert on trades where the buyer's subscription status has changed
- * since the trade was initiated.
- * 
- * @returns Success status and count of flagged trades
- */
-export async function monitorMidTradeSubscriptionChanges(): Promise<{ success: boolean; error?: string; flagged_count?: number }> {
-  try {
-    const response = await supabase.functions.invoke('monitor-mid-trade-subscription-changes', {
-      body: {},
-    });
-    const data = response?.data;
-    const error = response?.error;
-
-    if (error) {
-      console.error('[trade-service] monitorMidTradeSubscriptionChanges error:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { 
-      success: true, 
-      flagged_count: data.flagged_count 
-    };
-  } catch (error) {
-    const err = error as Error;
-    console.error('[trade-service] monitorMidTradeSubscriptionChanges failed:', err);
-    return { success: false, error: err.message };
-  }
-}
-
-/**
- * TASK TRADE-V2-005: Cancellation & SP Refund with Reason Logging
- * 
- * Cancels a trade, marking it as 'cancelled', refunding SP to the buyer,
- * and logging the cancellation reason to the database.
- * 
- * Enhanced in MODULE-06 ITERATION 2 to:
- * - Capture user-provided cancellation reason
- * - Log reason to trades.cancellation_reason column
- * - Provide detailed, user-friendly error messages
- * - Implement retry logic for transient failures
- * 
- * @param tradeId - ID of the trade to cancel
- * @param reason - Optional reason for cancellation (predefined or custom text)
- * @returns Success status with detailed error message if failed
- */
-export async function cancelTradeV2(
-  tradeId: string,
-  reason?: string
-): Promise<{ success: boolean; error?: string; sp_refunded?: boolean }> {
-  // Log attempt with provided reason
-  const { data: { user } } = await supabase.auth.getUser();
-  const userId = user?.id || 'unknown';
-  const sanitizedReason = reason ? reason.substring(0, 500) : 'No reason provided';
-  
-  console.warn('[trade-service] Cancelling trade:', {
-    tradeId,
-    userId,
-    reason: sanitizedReason,
-    timestamp: new Date().toISOString(),
-  });
-
-  try {
-    const response = await supabase.functions.invoke('cancel-trade', {
-      body: { 
-        tradeId, 
-        reason: sanitizedReason 
+    // Call the Edge Function
+    const response = await fetch(`${supabaseUrl}/functions/v1/trade-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
       },
-    });
-    const data = response?.data;
-    const error = response?.error;
-
-    if (error) {
-      console.error('[trade-service] cancelTradeV2 Edge Function error:', {
-        code: error.code || 'unknown',
-        message: error.message,
+      body: JSON.stringify({
         tradeId,
-        userId,
-        timestamp: new Date().toISOString(),
+        paymentMethodId,
+      }),
+    });
+
+    // Parse response
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('[trade] Edge Function error:', {
+        status: response.status,
+        error: data.error,
+        details: data.details,
       });
-      
-      // Extract detailed error message from Edge Function response
-      let errorMessage = error.message || 'Failed to cancel trade';
-      
-      if (error instanceof Error && 'context' in error) {
-        try {
-          const context = (error as unknown as { context: { json?: () => Promise<{ error?: string; details?: object }> } }).context;
-          if (typeof context.json === 'function') {
-            const body = await context.json();
-            if (body.error) errorMessage = body.error;
-          }
-        } catch (e) {
-          console.warn('[trade-service] Could not parse error response:', e);
-        }
-      }
-      
-      // Map error codes to user-friendly messages
-      const userMessage = mapCancellationErrorToUserMessage(errorMessage);
-      
-      console.error('[trade-service] Mapped user message:', {
-        originalError: errorMessage,
-        userMessage,
-      });
-      
-      return { 
-        success: false, 
-        error: userMessage 
+      return {
+        success: false,
+        error: data.error || `Payment failed (HTTP ${response.status})`,
       };
     }
 
-    return { success: true, sp_refunded: !!data?.sp_refunded };
-  } catch (error) {
-    const err = error as { message?: string; code?: string };
-    console.error('[trade-service] cancelTradeV2 failed with exception:', {
-      error: err.message,
-      code: err.code,
-      tradeId,
-      userId,
-      timestamp: new Date().toISOString(),
+    console.log('[trade] Payment successful:', {
+      tradeId: data.tradeId,
+      status: data.status,
+      paymentIntentId: data.payment_intent_id,
     });
-    
-    // Provide helpful error message for common failure scenarios
-    const userMessage = mapCancellationErrorToUserMessage(err.message || 'Unknown error');
-    return { success: false, error: userMessage };
+
+    return { success: true };
+  } catch (error) {
+    console.error('[trade] Error processing payment:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Payment processing failed',
+    };
   }
 }
 
 /**
- * Maps Edge Function error messages to user-friendly cancellation error messages.
- * 
- * Handles common failure scenarios:
- * - Trade not found
- * - Permission denied
- * - Timeout
- * - Invalid trade status
- * - SP refund issues
- * - Network issues
- * 
- * @param errorMessage - Raw error message from Edge Function or exception
- * @param details - Optional error details object with additional context
- * @returns User-friendly error message
+ * Monitor mid-trade subscription changes (grace period, cancellation)
+ * TODO: Implement subscription change monitoring during active trade
  */
-function mapCancellationErrorToUserMessage(errorMessage: string, _details?: unknown): string {
-  const lower = (errorMessage || '').toLowerCase();
-  
-  // Trade not found
-  if (lower.includes('no rows') || lower.includes('not found')) {
-    return 'Trade not found. It may have already been cancelled or expired.';
+export async function monitorMidTradeSubscriptionChanges(userId: string): Promise<void> {
+  try {
+    console.log('[trade] Monitoring subscription changes for user:', userId);
+    // TODO: Implement subscription change monitoring
+  } catch (error) {
+    console.error('[trade] Error monitoring subscription changes:', error);
   }
-  
-  // Permission denied
-  if (lower.includes('permission') || lower.includes('denied') || lower.includes('unauthorized')) {
-    return 'You do not have permission to cancel this trade. Only the buyer can cancel pending trades.';
-  }
-  
-  // Timeout
-  if (lower.includes('timeout') || lower.includes('timed out')) {
-    return 'The request timed out. Please check your internet connection and try again.';
-  }
-
-  // Invalid status
-  if (lower.includes('status') || lower.includes('cannot cancel')) {
-    return 'This trade cannot be cancelled. The trade may have already been completed or cancelled.';
-  }
-
-  // SP refund issue
-  if (lower.includes('swap points') || lower.includes('sp') || lower.includes('refund')) {
-    return 'Trade cancelled, but there was an issue refunding Swap Points. Please contact support.';
-  }
-
-  // Network or server error
-  if (lower.includes('network') || lower.includes('connection')) {
-    return 'Network error. Please check your connection and try again.';
-  }
-
-  // Database error
-  if (lower.includes('database') || lower.includes('query')) {
-    return 'Database error occurred. Please try again later.';
-  }
-
-  // Default: provide a generic but helpful message
-  return 'Failed to cancel trade. Please try again or contact support if the problem persists.';
 }

@@ -1,14 +1,21 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '@/navigation/types';
 import { monitorMidTradeSubscriptionChanges } from '../../services/trade';
+import { Ionicons } from '@expo/vector-icons';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 /**
  * File: p2p-kids-marketplace/src/screens/admin/AdminDashboardScreen.tsx
  * TASK TRADE-V2-007: Handling Mid-Trade Subscription Changes
  * 
- * Admin dashboard with manual verification tools.
+ * Admin dashboard with manual verification tools and moderation access.
  */
 export default function AdminDashboardScreen() {
+  const navigation = useNavigation<NavigationProp>();
   const [loading, setLoading] = useState(false);
 
   const handleRunMonitoring = async () => {
@@ -33,6 +40,21 @@ export default function AdminDashboardScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Admin Dashboard</Text>
+      
+      {/* Review Moderation Card */}
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate('ReviewModeration')}
+      >
+        <View style={styles.cardIconContainer}>
+          <Ionicons name="flag" size={28} color="#FF6B6B" />
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle}>Review Moderation</Text>
+          <Text style={styles.cardDescription}>Review and moderate reported reviews</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color="#ccc" />
+      </TouchableOpacity>
       
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Trade Monitoring (TASK TRADE-V2-007)</Text>
@@ -82,6 +104,41 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     textAlign: 'center',
     color: '#333',
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFE5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  cardDescription: {
+    fontSize: 13,
+    color: '#666',
   },
   section: {
     backgroundColor: '#fff',

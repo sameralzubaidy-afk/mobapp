@@ -288,7 +288,11 @@ export default function ProfileScreen({ navigation }: any) {
               <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 20 }} />
             ) : reviews.length > 0 ? (
               (showAllReviews ? reviews : reviews.slice(0, 5)).map((review) => (
-                <ReviewCard key={review.id} review={review} />
+                <ReviewCard 
+                  key={review.id} 
+                  review={review} 
+                  currentUserId={user.id} 
+                />
               ))
             ) : (
               <Text style={styles.noReviewsText}>No reviews yet</Text>

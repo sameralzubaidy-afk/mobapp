@@ -439,3 +439,87 @@ export async function skipReview(params: {
     };
   }
 }
+
+/**
+ * Report an inappropriate review
+ * TASK REVIEW-006: Implement Review Reporting and Flagging
+ */
+export async function reportReview(params: {
+  reviewId: string;
+  reporterId: string;
+  reason: 'spam' | 'offensive' | 'false_info' | 'other';
+  description?: string | null;
+}): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const { reviewId, reporterId, reason, description } = params;
+
+  // Validate reason
+  const validReasons = ['spam', 'offensive', 'false_info', 'other'];
+  if (!validReasons.includes(reason)) {
+    return {
+      success: false,
+      error: 'Invalid report reason',
+    };
+  }
+
+  try {
+    // SECURITY: Ensure the reporter is the reviewee (ONLY report reviews about yourself)
+    const { data: reviewData, error: reviewError } = await supabase
+      .from('reviews')
+      .select('reviewee_id')
+      .eq('id', reviewId)
+      .single();
+
+    if (reviewError || !reviewData) {
+      return {
+        success: false,
+        error: 'Review not found',
+      };
+    }
+
+    if (reviewData.reviewee_id !== reporterId) {
+      return {
+        success: false,
+        error: 'You can only report reviews that were written about you',
+      };
+    }
+
+    const { error } = await supabase
+      .from('review_reports')
+      .insert({
+        review_id: reviewId,
+        reporter_id: reporterId,
+        reason,
+        description: description?.trim() || null,
+      });
+
+    if (error) {
+      // Handle specific errors
+      if (error.code === '23505') {
+        // Expected error: user already reported this review
+        return {
+          success: false,
+          error: 'You have already reported this review. Thanks. The admin is reviewing your report.',
+        };
+      }
+      
+      console.error('Report review error:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to report review',
+      };
+    }
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error('Report review unexpected error:', error);
+    return {
+      success: false,
+      error: 'An unexpected error occurred',
+    };
+  }
+}

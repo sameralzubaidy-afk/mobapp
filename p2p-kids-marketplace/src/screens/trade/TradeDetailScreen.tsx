@@ -241,6 +241,16 @@ export default function TradeDetailScreen() {
     });
   };
 
+  const handleItemDetailsPress = () => {
+    if (!trade || !(trade as any).listing) {
+      Alert.alert('Error', 'Item information not available');
+      return;
+    }
+
+    const listingId = (trade as any).listing.id;
+    navigation.navigate('ListingDetail', { listing_id: listingId });
+  };
+
   if (loading || !trade) {
     return (
       <View style={styles.loadingContainer}>
@@ -277,11 +287,17 @@ export default function TradeDetailScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
+        <Pressable
+          onPress={handleItemDetailsPress}
+          style={({ pressed }) => [
+            styles.section,
+            pressed && styles.sectionPressed,
+          ]}
+        >
           <Text style={styles.sectionTitle}>Item Details</Text>
           <Text style={styles.itemTitle}>{(trade as any).listing?.title || 'Item'}</Text>
           <Text style={styles.itemPrice}>Price: ${((trade as any).listing?.price || 0).toFixed(2)}</Text>
-        </View>
+        </Pressable>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Summary</Text>
@@ -495,6 +511,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 2,
+  },
+  sectionPressed: {
+    backgroundColor: '#f3f4f6',
   },
   sectionTitle: {
     fontSize: 16,
