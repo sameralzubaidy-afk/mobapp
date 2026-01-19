@@ -76,8 +76,6 @@ interface AuthProviderProps {
  * - Error boundary with retry logic
  */
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  console.log('[AUTH] AuthProvider render');
-
   // Session state
   const [session, setSessionState] = useState<AuthSession | null>(null);
   // Default to `false` so UI doesn't get stuck on an endless spinner
@@ -155,7 +153,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const refreshSession = useCallback(async () => {
     try {
       if (!SUPABASE_CONFIGURED) {
-        console.warn('[AUTH] Supabase env missing; skipping session refresh');
         setSession(null);
         return;
       }
@@ -173,7 +170,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!sessionData.session?.user) {
         // No active session - clear context
         setSession(null);
-        console.log('[AUTH] No active session found');
         return;
       }
 
@@ -196,17 +192,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         { p_user_id: sessionData.session.user.id }
       ) as any);
 
-      // RPC may return: 1) array of rows (old TABLE return), 2) single JSONB object (new JSONB return)
-      let subscriptionSummary = Array.isArray(subData) ? subData[0] : subData || {
-        status: 'free',
-        can_spend_sp: false,
-      };
+      let subscriptionSummary = null;
+      
+      if (subError) {
+        console.warn('[AUTH] get_subscription_summary warning:', subError);
+      } else if (Array.isArray(subData) && subData.length > 0) {
+        subscriptionSummary = subData[0];
+      } else if (subData && !Array.isArray(subData)) {
+        subscriptionSummary = subData;
+      } else if (Array.isArray(subData) && subData.length === 0) {
+        subscriptionSummary = { status: 'free', can_spend_sp: false };
+      } else {
+        subscriptionSummary = { status: 'free', can_spend_sp: false };
+      }
 
       // Normalize booleans and default status value for UI consistency
       if (subscriptionSummary && typeof subscriptionSummary.can_spend_sp === 'string') {
         subscriptionSummary.can_spend_sp = subscriptionSummary.can_spend_sp === 'true' || subscriptionSummary.can_spend_sp === 't';
       }
-      subscriptionSummary.status = subscriptionSummary.status || 'free';
+      if (subscriptionSummary) {
+        subscriptionSummary.status = subscriptionSummary.status || 'free';
+      }
 
       // Re-fetch SP wallet summary from MODULE-09
       const { data: walletData, error: walletError } = await (supabase.rpc(
@@ -214,12 +220,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         { p_user_id: sessionData.session.user.id }
       ) as any);
 
-      const walletSummary = Array.isArray(walletData) ? walletData[0] : walletData || {
+      if (walletError) {
+        console.warn('[AUTH] ⚠️ get_user_sp_wallet_summary error:', walletError);
+      }
+
+      // Handle different return types
+      let walletSummary = {
         available_points: 0,
         pending_points: 0,
         lifetime_earned: 0,
         lifetime_spent: 0,
       };
+      
+      if (Array.isArray(walletData) && walletData.length > 0) {
+        walletSummary = walletData[0];
+      } else if (walletData && !Array.isArray(walletData)) {
+        walletSummary = walletData;
+      }
 
       // Create updated session with FULL profile data
       const updatedSession: AuthSession = {
@@ -227,7 +244,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           id: profileData.user_id || profileData.id,
           user_id: profileData.user_id || profileData.id,
           email: sessionData.session.user.email || '',
-          name: profileData.full_name || '',
+          name: profileData.name || profileData.full_name || '',
+          display_name: profileData.name || profileData.full_name || '',
           avatar_url: profileData.avatar_url || undefined,
           bio: profileData.bio,
           city: profileData.city,
@@ -252,19 +270,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         refresh_token: sessionData.session.refresh_token || '',
         subscription_status: subscriptionSummary.status,
         can_spend_sp: subscriptionSummary.can_spend_sp,
-        available_points: walletSummary.available_points,
-        pending_points: walletSummary.pending_points,
-        lifetime_earned: walletSummary.lifetime_earned,
-        lifetime_spent: walletSummary.lifetime_spent,
+        available_points: (walletSummary.available_points as number) || 0,
+        pending_points: (walletSummary.pending_points as number) || 0,
+        lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
+        lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
       };
 
       setSession(updatedSession);
-      console.log('[AUTH] Session refreshed:', {
-        user_id: updatedSession.user.id,
-        onboarding_completed: updatedSession.user.onboarding_completed,
-        subscription_status: updatedSession.subscription_status,
-        available_points: updatedSession.available_points,
-      });
     } catch (err) {
       console.error('[AUTH] Session refresh failed:', err);
       const authError = err instanceof AuthError
@@ -273,7 +285,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setError(authError);
     }
   }, [setSession]);
-
   /**
    * Setup real-time subscription listener
    * Listens to subscriptions table for changes
@@ -503,13 +514,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const subscriptionStatus = subscriptionData?.status || 'free';
             const canSpendSP = subscriptionStatus === 'trial' || subscriptionStatus === 'active';
 
+            // Also fetch SP wallet summary
+            console.log('[AUTH] 🔍 Fetching SP wallet summary...');
+            const { data: walletData, error: walletFetchError } = (await withTimeout(
+              supabase.rpc('get_user_sp_wallet_summary', { p_user_id: sessionData.session.user.id }),
+              6000,
+              'Wallet summary fetch'
+            )) as any;
+
+            if (walletFetchError) {
+              console.warn('[AUTH] ⚠️ Wallet fetch error:', walletFetchError);
+            } else {
+              console.log('[AUTH] ✅ Wallet data received:', walletData);
+            }
+
+            let walletSummary = {
+              available_points: 0,
+              pending_points: 0,
+              lifetime_earned: 0,
+              lifetime_spent: 0,
+            };
+
+            if (Array.isArray(walletData) && walletData.length > 0) {
+              walletSummary = walletData[0];
+              console.log('[AUTH] 📊 Wallet summary from array:', walletSummary);
+            } else if (walletData && !Array.isArray(walletData)) {
+              walletSummary = walletData;
+              console.log('[AUTH] 📊 Wallet summary from object:', walletSummary);
+            } else {
+              console.warn('[AUTH] ⚠️ No wallet data received, using defaults');
+            }
+
             // Create a session with FULL profile data (including onboarding_completed)
             const authSession: AuthSession = {
               user: {
                 id: profileData.user_id || profileData.id,
                 user_id: profileData.user_id || profileData.id,
                 email: sessionData.session.user.email || '',
-                name: profileData.full_name || profileData.name || '',
+                name: profileData.name || profileData.full_name || '',
+                display_name: profileData.name || profileData.full_name || '',
                 avatar_url: profileData.avatar_url || undefined,
                 bio: profileData.bio,
                 city: profileData.city,
@@ -534,10 +577,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               refresh_token: sessionData.session.refresh_token || '',
               subscription_status: subscriptionStatus,
               can_spend_sp: canSpendSP,
-              available_points: 0,
-              pending_points: 0,
-              lifetime_earned: 0,
-              lifetime_spent: 0,
+              available_points: (walletSummary.available_points as number) || 0,
+              pending_points: (walletSummary.pending_points as number) || 0,
+              lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
+              lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
             };
             setSession(authSession);
             try { require('@/utils/startupDebug').setStartupStep('session restored'); } catch(_) {}
@@ -577,16 +620,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   /**
    * Setup real-time listeners when session is established
-   * DISABLED: Causing infinite loops - will use manual refresh instead
+   * Re-enabled: Added individual listeners for wallet and subscription
    * 
-   * Added: Auto-refresh when onboarding completes (detects profile updates)
+   * Added: Auto-refresh when wallet, subscription, or profile changes
    */
   useEffect(() => {
     const userId = session?.user?.id;
     if (!userId) return;
 
-    // Setup a listener for profile changes (onboarding completion, profile updates).
-    // Subscribe only when `userId` changes to avoid resubscribing on every session refresh.
+    // 1. Profile listener (onboarding completion, node changes)
     try {
       if (profileRef.current) {
         profileRef.current.unsubscribe();
@@ -605,28 +647,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           },
           (payload) => {
             console.log('[AUTH] Profile changed:', payload);
-            // Refresh session when profile changes (e.g., onboarding_completed, subscription_tier)
             refreshSession();
           }
         )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('[AUTH] Profile listener subscribed');
-          } else if (status === 'CHANNEL_ERROR') {
-            console.warn('[AUTH] Profile channel error');
-          }
-        });
+        .subscribe();
     } catch (err) {
       console.error('[AUTH] Failed to setup profile listener:', err);
     }
 
+    // 2. Wallet listener (SP balance updates from trades/sales)
+    setupWalletListener();
+
+    // 3. Subscription listener (Status changes)
+    setupSubscriptionListener();
+
     return () => {
-      if (profileRef.current) {
-        profileRef.current.unsubscribe();
-        profileRef.current = null;
-      }
+      if (profileRef.current) profileRef.current.unsubscribe();
+      if (walletRef.current) walletRef.current.unsubscribe();
+      if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
     };
-  }, [session?.user?.id, refreshSession]);
+  }, [session?.user?.id, refreshSession, setupWalletListener, setupSubscriptionListener]);
 
   /**
    * Handle app state changes (resume/background)

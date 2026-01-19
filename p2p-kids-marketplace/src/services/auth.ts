@@ -119,27 +119,9 @@ export async function signupWithTrial(input: {
     const userId = authData.user.id;
 
     // Step 2: Profile is auto-created by trigger on auth.users
-    // The handle_new_user() trigger handles this
-    // Just verify the profile exists
-    let profileExists = false;
-    for (let i = 0; i < 3; i++) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('user_id', userId)
-        .single();
-
-      if (profile) {
-        profileExists = true;
-        break;
-      }
-      // Brief wait for trigger to execute
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-
-    if (!profileExists) {
-      console.warn('Profile creation trigger may have failed for user:', userId);
-    }
+    // The handle_new_user() trigger handles this asynchronously
+    // We don't wait for it since it runs AFTER INSERT on auth.users
+    // If it fails, we log a warning but don't fail signup
 
     // Step 3: Create FREE subscription (not trial yet)
     // User will choose Free or Trial on SubscriptionChoiceScreen
@@ -155,33 +137,9 @@ export async function signupWithTrial(input: {
       // User will be asked to choose tier anyway
     }
 
-    // Step 4: Initialize SP wallet (MODULE-09)
-    const { data: wallet, error: walletError } = await supabase.rpc(
-      'initialize_sp_wallet',
-      { p_user_id: userId }
-    );
-
-    if (walletError) {
-      console.warn('SP wallet initialization warning:', walletError);
-      // Don't fail signup if wallet fails - just log warning
-    }
-
-    // Step 5: Link subscription and wallet to profile (if both created successfully)
-    if (subscription && wallet) {
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          subscription_id: (subscription as { id: string }).id,
-          sp_wallet_id: (wallet as { id: string }).id,
-          updated_at: new Date().toISOString(),
-        } as never)
-        .eq('user_id', userId);
-
-      if (updateError) {
-        console.warn('Profile link update warning:', updateError);
-        // Don't fail signup if update fails
-      }
-    }
+    // Step 4: DO NOT initialize SP wallet during signup
+    // It will be created on-demand when needed or during trial enrollment
+    // This prevents cascading failures if wallet creation has issues
 
     return { user: authData.user, error: null };
   } catch (error) {
@@ -390,7 +348,10 @@ export async function loginWithContext(
 
     // Step 5: Build enriched session
     const session: AuthSession = {
-      user: profile as UserProfile,
+      user: {
+        ...(profile as UserProfile),
+        display_name: (profile as any).name || (profile as any).display_name || (profile as any).full_name || '',
+      },
       access_token: authData.session!.access_token,
       refresh_token: authData.session!.refresh_token,
       subscription_status: subscriptionSummary.status as 'free' | 'trial' | 'active' | 'grace' | 'canceled',
@@ -486,7 +447,10 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
     };
 
     return {
-      user: profile as UserProfile,
+      user: {
+        ...(profile as UserProfile),
+        display_name: (profile as any).name || (profile as any).display_name || (profile as any).full_name || '',
+      },
       access_token: session.access_token,
       refresh_token: session.refresh_token,
       subscription_status: (subscriptionSummary.status as 'free' | 'trial' | 'active' | 'grace' | 'canceled') || 'free',

@@ -84,9 +84,12 @@ export const setupUserProfile = async (
 
     // Step 2: Create or update user profile in database
     // Note: A trigger auto-creates a minimal profile on signup, so we use upsert
+    // We explicitly include email and phone here to ensure they are captured even if the trigger fails
     const dbProfileData: Record<string, any> = {
       user_id: userId,
       name: profileData.display_name,
+      email: profileData.email || null,
+      phone: profileData.phone || null,
       avatar_url: profileData.avatar_url || null,
       bio: profileData.bio || null,
       zip_code: profileData.zip_code,

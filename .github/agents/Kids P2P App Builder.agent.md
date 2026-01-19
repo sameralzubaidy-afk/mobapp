@@ -971,6 +971,17 @@ For **every task**, follow this sequence:
 - Do NOT use external/doc tools (Context7) unless the task explicitly requires up-to-date API usage.
 - If you detect >30 tools enabled, warn me and suggest the minimal tool set to enable for this task.
 
+10. **Tier-0 Build Gate (MANDATORY)**
+If editing any `.tsx` or `.ts` file:
+
+- JSX must compile with no escaped quotes or invalid attributes
+- Treat ANY syntax error as a blocking failure
+- Do NOT proceed to logic fixes until compilation succeeds
+
+If JSX is generated:
+- It must be valid JSX, not stringified JSX
+- No escaped quotes (`\"`) are allowed inside JSX attributes
+
 ---
 
 ## 5. Module-by-module intent (high-level)
@@ -1011,6 +1022,14 @@ When asked to implement or change something, map it to these modules:
 
 - **Module 12 – Admin**
   - Admin portal features, configuration of SP formulas, fee configurations, node controls, moderation queue.
+ - All Admin-facing API routes and pages MUST:
+- Disable caching explicitly:
+  - `export const dynamic = 'force-dynamic'` (App Router)
+  - `cache: 'no-store'` on all fetch calls
+- NEVER rely on implicit refetch for state correctness
+Reason:
+- Admin tools require immediate consistency
+- Cached moderation data causes incorrect governance actions
 
 - **Module 13 – Safety & Compliance**
   - Prohibited items, CPSC recall checks, escalation flows.
@@ -1063,6 +1082,13 @@ If any doc conflicts with the above:
 - ✅ **Node isolation**: Users can only see listings/transactions in their node (or nodes they manage)
 - ✅ **Soft deletes**: Use `deleted_at` for listings, transactions, messages (audit trail)
 - ✅ **Indexing**: Add indexes on foreign keys, frequently queried columns (node_id, user_id, status, created_at)
+- Admin moderation views MUST be driven from ENTITY tables
+  - e.g. `reviews`, `listings`, `users`
+- Event tables (`*_reports`, `*_logs`, `*_history`) are:
+  - Supplementary metadata only
+  - NEVER the primary query source
+
+Deleting events MUST NOT cause entities to disappear from admin views.
 
 ### 6.4 Edge Function validation
 - ✅ **Auth verification**: Every Edge Function must validate JWT and extract user_id

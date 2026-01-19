@@ -31,6 +31,8 @@ export interface ProfileSetupData {
   avatar_url?: string;
   zip_code: string;
   bio?: string;
+  email?: string;
+  phone?: string;
 }
 
 export interface ProfileUpdateData {

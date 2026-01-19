@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/screens/dashboard/UserDashboardScreen.tsx
 // MODULE-09: User Dashboard with Subscription & SP Wallet Stats
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -29,21 +30,41 @@ export default function UserDashboardScreen() {
   const subscription = useSubscriptionStatus();
   const wallet = useSPWallet();
 
-  const [daysUntilExpiry] = useState<number | null>(null); // TODO: show days until expiry when needed (was unused)
+  const [refreshing, setRefreshing] = useState(false);
+  const [daysUntilExpiry] = useState<number | null>(null); // TODO: show days until expiry when needed
+  const hasRefreshedRef = useRef(false);
 
-  // Refresh data when screen comes into focus (but not too frequently)
-  useEffect(() => {
-    if (isFocused && session) {
-      // Debounce: only refresh if last refresh was > 30 seconds ago
-      const now = Date.now();
-      const lastRefresh = (global as any).lastSessionRefresh || 0;
-      
-      if (now - lastRefresh > 30000) {
-        (global as any).lastSessionRefresh = now;
-        refreshSession();
-      }
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshSession();
+    } catch (error) {
+      console.error('[Dashboard] Manual refresh failed:', error);
+    } finally {
+      setRefreshing(false);
     }
-  }, [isFocused, session, refreshSession]);
+  };
+
+  // DEBUG: Log session and wallet data on mount and when focused
+  useEffect(() => {
+    if (isFocused) {
+      console.log('[Dashboard] Wallet hook data:', wallet);
+    }
+  }, [isFocused, wallet]);
+
+  // Refresh data when screen comes into focus
+  useEffect(() => {
+    if (isFocused) {
+      if (!hasRefreshedRef.current) {
+        console.log('[Dashboard] First focus refresh, refreshing session data...');
+        refreshSession();
+        hasRefreshedRef.current = true;
+      }
+    } else {
+      // Reset ref when screen loses focus so it can refresh again when user returns
+      hasRefreshedRef.current = false;
+    }
+  }, [isFocused, refreshSession]);
 
   if (isLoading) {
     return (
@@ -102,6 +123,9 @@ export default function UserDashboardScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         >
         {/* Header */}
         <View style={styles.header}>

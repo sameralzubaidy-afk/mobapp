@@ -114,6 +114,8 @@ export default function ProfileSetupScreen({ navigation }: any) {
         zip_code: zipCode.trim(),
         bio: bio.trim() || undefined,
         avatar_url: uploadedAvatarPath || uploadedAvatarUrl || undefined,
+        email: currentUser.email,
+        phone: currentUser.user_metadata?.phone || currentUser.phone,
       };
 
       const { user, error, needsWaitlist, zipCode: userZip, matchType, assignedNodeId, assignedNodeName } = await setupUserProfile(currentUser.id, profileData);

@@ -7201,6 +7201,9 @@ describe('SP System Integration', () => {
 ```
 
 ---
+### TODO
+
+## Test Case 5: Subscription-Gated SP Spending (Grace Period)
 
 ## Module Summary
 

@@ -18,13 +18,27 @@ CREATE POLICY "System can insert profiles"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (user_id, name, phone_verified)
+  INSERT INTO public.profiles (
+    user_id,
+    name,
+    email,
+    phone,
+    phone_verified,
+    phone_verified_at
+  )
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', ''),
-    false
+    COALESCE(NEW.raw_user_meta_data->>'name', 'User'),
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'phone', NULL),
+    false,
+    NULL
   )
   ON CONFLICT (user_id) DO NOTHING; -- Prevent duplicate inserts
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Log error but don't fail the auth trigger
+  RAISE WARNING 'Profile creation failed for user %: %', NEW.id, SQLERRM;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

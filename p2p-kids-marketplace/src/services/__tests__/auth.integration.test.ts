@@ -89,7 +89,7 @@ describeSupabase('AUTH-V2: Complete Signup → Trial Flow', () => {
     expect(subscription.trial_end_date).toBeDefined();
 
     expect(wallet).toBeDefined();
-    expect(wallet.status).toBe('active');
+    expect(wallet.state).toBe('active');
     expect(wallet.available_points).toBe(0);
 
     // Verify profile was updated with subscription and wallet links

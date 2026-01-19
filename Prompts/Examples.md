@@ -44,27 +44,50 @@ Supabase: supabase/
 -----
 My Example 1
 
-## TASK REVIEW-001: Create Review Submission UI (Star Rating + Comment)
+## TASK SP-001: SP Database Schema & Wallet
 
-MODULE-08-REVIEWS-RATINGS.md
+MODULE-09-POINTS-GAMIFICATION-V2.md
+MODULE-09-VERIFICATION-V2.md
 
 
-I’m working on the MODULE-08-REVIEWS-RATINGS.md tasks
-Module: MODULE-08-REVIEWS-RATINGS.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: 
+I’m working on the MODULE-09-POINTS-GAMIFICATION-V2 tasks
+Module: MODULE-09-POINTS-GAMIFICATION-V2 in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks:  ## TASK SP-001: SP Database Schema & Wallet
 scope is 
+Create the complete Swap Points database schema including:
+- SP wallet table with balance tracking
+- SP ledger for full audit trail with FIFO support
+- Admin configuration table for SP settings
+- RPC functions for atomic SP operations
+- Subscription status checks on all SP operations
 
-Please:
-Follow the module and task exactly, and cross-check with the verification file in MODULE-08-REVIEWS & RATINGS-VERIFICATION.md
-Show me the files you create or edit with their full paths
-Tell me which items in MODULE-08-REVIEWS & RATINGS-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-08-REVIEWS & RATINGS-VERIFICATION.md)
-always include short answers first
-Note I do not use supabase locally, always must be supabase prod.
-if there is a need to run a sql in supabase before testing clearly ask me to do. 
-create  Unit and E2E tests 
-Update the navigation file on UI  so i can verify manually
-provide steps to manaul test format it as test cases create md file for it. 
-I do not use yarn I use npm so give me all commend lines for npm. 
+Important rules:
+
+1- Search the codebase for existing implementations using:
+   - Feature keywords
+   - Table names
+   - Function names
+   - UI labels (admin buttons, status names, etc.)
+
+   2. Explicitly confirm ONE of the following in your response:
+   - ✅ An existing implementation was found and will be reused/extended
+   - ❌ No existing implementation exists, new code is required
+
+3. If similar logic exists:
+   - You MUST extend or refactor the existing code
+   - You MUST NOT create a parallel implementation
+4.Forbidden: Re-implementing logic that already exists under a different name
+
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-09-VERIFICATION-V2.md
+6. Show me the files you create or edit with their full paths
+7. Tell me which items in MODULE-09-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-09-VERIFICATION-V2.md)
+8. always include short answers first
+9. Note I do not use supabase locally, always must be supabase prod.
+10. if there is a need to run a sql in supabase before testing clearly ask me to do. 
+11. create  Unit and E2E tests 
+12. Update the navigation file on UI  so i can verify manually
+13. provide steps to manaul test format it as test cases create md file for it. 
+14. I do not use yarn I use npm so give me all commend lines for npm. 
 
 
 

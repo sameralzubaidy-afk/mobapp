@@ -172,6 +172,8 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
         .insert({
           user_id: authData.user.id,
           name: data.name,
+          email: data.email,
+          phone: data.phone,
           dob: data.dob || null,
           phone_verified: false,
           referral_code: userReferralCode,

@@ -15,10 +15,11 @@ import { supabase } from '../config/supabase';
  * Maps to subscription lifecycle states
  */
 export type SubscriptionStatus = 
-  | 'none'           // No subscription (free user)
+  | 'free'           // No subscription (free user)
   | 'trial'          // Active trial period
   | 'active'         // Active paid subscription
-  | 'grace_period'   // Canceled but still within grace period
+  | 'grace'          // Canceled but still within grace period
+  | 'canceled'       // Canceled and no longer in grace period
   | 'expired';       // Subscription expired
 
 /**
@@ -45,16 +46,34 @@ export interface SubscriptionSummary {
  */
 export async function getSubscriptionSummary(userId: string): Promise<SubscriptionSummary> {
   try {
-    
-    // Fetch user's subscription from subscriptions table with fresh query (no caching)
-    // Only query columns that actually exist
+    // 1. Try to fetch from RPC first (consistent with AuthContext)
+    const { data: subData, error: subError } = await supabase.rpc(
+      'get_subscription_summary',
+      { p_user_id: userId }
+    );
+
+    if (!subError && subData) {
+      // Handle array or object response from RPC
+      const summary = Array.isArray(subData) ? subData[0] : subData;
+      
+      return {
+        status: summary.status as SubscriptionStatus,
+        is_subscriber: summary.can_spend_sp || summary.status === 'active' || summary.status === 'trial' || summary.status === 'grace',
+        can_earn_sp: summary.can_spend_sp,
+        can_spend_sp: summary.can_spend_sp,
+        subscription_tier_id: null,
+        subscription_expires_at: summary.trial_end_date || summary.current_period_end || null,
+      };
+    }
+
+    // 2. Fallback to direct query if RPC fails or is missing
+    console.warn('[subscription] ⚠️ Falling back to direct query for getSubscriptionSummary');
     const { data: subscription, error } = await supabase
       .from('subscriptions')
       .select('user_id,status,created_at,updated_at,trial_end_date,current_period_end')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1);
-
 
     if (error) {
       console.error('[subscription] ❌ Error fetching user subscription:', error.message);
@@ -65,7 +84,7 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     if (!subscription || subscription.length === 0) {
       // No subscription found - free user
       return {
-        status: 'none',
+        status: 'free',
         is_subscriber: false,
         can_earn_sp: false,
         can_spend_sp: false,
@@ -76,33 +95,23 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
 
     const sub = subscription[0];
 
-    // Check if user has an active or trial subscription
-    if (sub && sub.status && (sub.status === 'active' || sub.status === 'trial')) {
-      return {
-        status: sub.status as SubscriptionStatus,
-        is_subscriber: true,
-        can_earn_sp: true,
-        can_spend_sp: true,
-        subscription_tier_id: null, // No tier_id column in schema yet
-        subscription_expires_at: sub.trial_end_date || sub.current_period_end || null,
-      };
-    } else {
-      // Free user or no subscription: no SP access
-      return {
-        status: 'none',
-        is_subscriber: false,
-        can_earn_sp: false,
-        can_spend_sp: false,
-        subscription_tier_id: null,
-        subscription_expires_at: null,
-      };
-    }
+    // Check if user has an active or trial subscription (include grace)
+    const isActive = ['active', 'trial', 'grace'].includes(sub.status);
+    
+    return {
+      status: sub.status as SubscriptionStatus,
+      is_subscriber: isActive,
+      can_earn_sp: isActive,
+      can_spend_sp: isActive,
+      subscription_tier_id: null, 
+      subscription_expires_at: sub.trial_end_date || sub.current_period_end || null,
+    };
   } catch (error) {
     const err = error as Error;
     console.error('[subscription] ❌ getSubscriptionSummary failed:', err.message);
     // Return free user status on error to avoid blocking the flow
     return {
-      status: 'none',
+      status: 'free',
       is_subscriber: false,
       can_earn_sp: false,
       can_spend_sp: false,

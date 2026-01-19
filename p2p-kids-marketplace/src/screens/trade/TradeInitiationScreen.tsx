@@ -25,10 +25,8 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
-import { getSubscriptionSummary, SubscriptionSummary } from '@/services/subscription';
-import { getSPWalletSummary, SPWalletSummary } from '@/services/sp';
 import { initiateTradeV2, processTradePayment } from '@/services/trade';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 
@@ -37,7 +35,9 @@ type TradeInitiationRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>
 export default function TradeInitiationScreen() {
   const route = useRoute<TradeInitiationRouteProp>();
   const navigation = useNavigation<any>();
-  const { session } = useAuth();
+  const { session, refreshSession } = useAuth();
+  const subStatus = useSubscriptionStatus();
+  const walletStats = useSPWallet();
   const { createPaymentMethod } = useStripe();
   const user = session?.user;
   const { itemId } = route.params;
@@ -45,8 +45,6 @@ export default function TradeInitiationScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [item, setItem] = useState<Item | null>(null);
-  const [subscription, setSubscription] = useState<SubscriptionSummary | null>(null);
-  const [wallet, setWallet] = useState<SPWalletSummary | null>(null);
   const [spAmount, setSpAmount] = useState(0);
   const [maxSpPercentage, setMaxSpPercentage] = useState(50);
   const [cardComplete, setCardComplete] = useState(false);
@@ -60,10 +58,8 @@ export default function TradeInitiationScreen() {
     
     try {
       setLoading(true);
-      const [itemData, subData, walletData, config] = await Promise.all([
+      const [itemData, config] = await Promise.all([
         getItemById(itemId),
-        getSubscriptionSummary(user.id),
-        getSPWalletSummary(user.id),
         getAdminConfig(),
       ]);
 
@@ -73,9 +69,10 @@ export default function TradeInitiationScreen() {
         return;
       }
 
+      // Refresh session to get latest subscription/wallet info from RPCs
+      await refreshSession();
+
       setItem(itemData);
-      setSubscription(subData);
-      setWallet(walletData);
       if (config?.sp_max_percentage_per_purchase) {
         setMaxSpPercentage(config.sp_max_percentage_per_purchase);
       }
@@ -87,7 +84,7 @@ export default function TradeInitiationScreen() {
     }
   };
 
-  if (loading || !item || !subscription || !wallet) {
+  if (loading || !item) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3b82f6" />
@@ -96,9 +93,9 @@ export default function TradeInitiationScreen() {
     );
   }
 
-  // Business Rules
-  const isSubscriber = subscription.is_subscriber;
-  const platformFeeCents = isSubscriber ? 99 : 299; // Platform fee (always charged via card at checkout)
+  // Business Rules using standardized hooks
+  const isSubscriber = subStatus.status === 'active' || subStatus.status === 'trial' || subStatus.status === 'grace';
+  const platformFeeCents = isSubscriber ? 99 : 299; // Platform fee
   const itemPriceCents = Math.round(item.price * 100);
   
   // V2: 1 SP = $1.00 (100 cents)
@@ -106,7 +103,7 @@ export default function TradeInitiationScreen() {
   const maxDiscountCents = Math.floor(itemPriceCents * (maxSpPercentage / 100));
   const maxSpAllowed = maxDiscountCents / spToCashRate;
   
-  const availableSp = wallet.available_balance;
+  const availableSp = walletStats.available;
   const maxSpToUse = Math.min(maxSpAllowed, availableSp);
   
   // SP is only available for subscribers and if item accepts SP
