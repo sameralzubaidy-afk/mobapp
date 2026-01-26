@@ -11,6 +11,7 @@
 
 import { supabase } from './supabase';
 import { trackEvent } from './analytics';
+import { getSubscriptionStatusString } from './subscription';
 
 /**
  * Item filter options for browse/search
@@ -513,13 +514,27 @@ export const createItem = async (itemData: {
       throw new Error('User not authenticated');
     }
 
+    const { data: isEligible, error: eligibilityError } = await supabase.rpc(
+      'is_eligible_for_starter_pack',
+      { p_seller_id: user.id }
+    );
+
+    if (eligibilityError) {
+      console.warn('⚠️ SP eligibility check failed, defaulting to available:', eligibilityError);
+    }
+
+    // Get current subscription status for audit trail
+    const sellerSubStatus = await getSubscriptionStatusString(user.id);
+
     const { data, error } = await supabase
       .from('items')
       .insert([
         {
           seller_id: user.id,
           ...itemData,
-          status: 'available',
+          status: isEligible ? 'pending' : 'available',
+          eligible_for_starter_pack: isEligible || false,
+          seller_subscription_status_at_creation: sellerSubStatus,
         },
       ])
       .select()

@@ -53,17 +53,30 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     );
 
     if (!subError && subData) {
-      // Handle array or object response from RPC
       const summary = Array.isArray(subData) ? subData[0] : subData;
-      
-      return {
-        status: summary.status as SubscriptionStatus,
-        is_subscriber: summary.can_spend_sp || summary.status === 'active' || summary.status === 'trial' || summary.status === 'grace',
-        can_earn_sp: summary.can_spend_sp,
-        can_spend_sp: summary.can_spend_sp,
-        subscription_tier_id: null,
-        subscription_expires_at: summary.trial_end_date || summary.current_period_end || null,
-      };
+
+      if (!summary || typeof summary !== 'object') {
+        console.warn(
+          '[subscription] ⚠️ get_subscription_summary returned no data, falling back to free status'
+        );
+      } else if (!summary.status) {
+        console.warn(
+          '[subscription] ⚠️ get_subscription_summary missing status field, falling back to free status'
+        );
+      } else {
+        const status = summary.status as SubscriptionStatus;
+        const canSpend = Boolean(summary.can_spend_sp);
+        const isActive = ['active', 'trial', 'grace'].includes(status);
+
+        return {
+          status,
+          is_subscriber: isActive,
+          can_earn_sp: canSpend,
+          can_spend_sp: canSpend,
+          subscription_tier_id: null,
+          subscription_expires_at: summary.trial_end_date || summary.current_period_end || null,
+        };
+      }
     }
 
     // 2. Fallback to direct query if RPC fails or is missing
@@ -83,6 +96,7 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     // Check if subscription array is empty or null
     if (!subscription || subscription.length === 0) {
       // No subscription found - free user
+      console.log('[subscription] ℹ️ No subscription found for user', userId, '- treating as free user');
       return {
         status: 'free',
         is_subscriber: false,
@@ -94,6 +108,32 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     }
 
     const sub = subscription[0];
+    
+    // Guard against undefined sub (should not happen, but defensive)
+    if (!sub || typeof sub !== 'object') {
+      console.warn('[subscription] ⚠️ Invalid subscription record retrieved, treating as free user');
+      return {
+        status: 'free',
+        is_subscriber: false,
+        can_earn_sp: false,
+        can_spend_sp: false,
+        subscription_tier_id: null,
+        subscription_expires_at: null,
+      };
+    }
+
+    // Guard against missing status field
+    if (!sub.status) {
+      console.warn('[subscription] ⚠️ Subscription record missing status field, treating as free user');
+      return {
+        status: 'free',
+        is_subscriber: false,
+        can_earn_sp: false,
+        can_spend_sp: false,
+        subscription_tier_id: null,
+        subscription_expires_at: null,
+      };
+    }
 
     // Check if user has an active or trial subscription (include grace)
     const isActive = ['active', 'trial', 'grace'].includes(sub.status);

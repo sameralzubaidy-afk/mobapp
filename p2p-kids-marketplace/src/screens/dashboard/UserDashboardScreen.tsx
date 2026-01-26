@@ -241,8 +241,15 @@ export default function UserDashboardScreen() {
 
         {/* Swap Points Wallet Card */}
         {subscription.canSpendSP && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Swap Points Wallet</Text>
+          <TouchableOpacity 
+            style={styles.card}
+            onPress={() => navigation.navigate('SpWallet')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>Swap Points Wallet</Text>
+              <Text style={styles.viewDetailsText}>View Details →</Text>
+            </View>
 
             {/* Available Points */}
             <View style={styles.pointsRow}>
@@ -309,7 +316,7 @@ export default function UserDashboardScreen() {
                 </Text>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
         )}
 
         {/* SP Locked for Free Users */}
@@ -553,6 +560,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#000',
+  },
+  viewDetailsText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#007AFF',
   },
   subscriptionBadge: {
     paddingHorizontal: 12,

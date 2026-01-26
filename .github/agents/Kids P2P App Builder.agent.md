@@ -507,14 +507,15 @@ The folder layout below is provisional. Before implementing ANY change, you MUST
 ├── PRODUCTION_SETUP_STEP7.sql
 ├── PRODUCTION_SETUP_STEP8.sql
 ├── Prompts
-│   ├── Examples.md
+│   ├── 00-START-HERE.md
+│   ├── MASTER-IMPLEMENTATION-PLAN.md
 │   ├── MODULE-01-INFRASTRUCTURE.md
 │   ├── MODULE-01-VERIFICATION.md
 │   ├── MODULE-02-AUTHENTICATION.md
 │   ├── MODULE-02-VERIFICATION.md
 │   ├── MODULE-03-AUTH-V2.md
-│   ├── MODULE-03-Node Management VERIFICATION.md
 │   ├── MODULE-03-NODE-MANAGEMENT.md
+│   ├── MODULE-03-Node Management VERIFICATION.md
 │   ├── MODULE-03-VERIFICATION-V2.md
 │   ├── MODULE-04-ITEM-LISTING-V2.md
 │   ├── MODULE-04-VERIFICATION-V2.md
@@ -524,29 +525,17 @@ The folder layout below is provisional. Before implementing ANY change, you MUST
 │   ├── MODULE-06-VERIFICATION-V2.md
 │   ├── MODULE-07-MESSAGING.md
 │   ├── MODULE-07-VERIFICATION.md
-│   ├── MODULE-08-Badges & Achievements VERIFICATION-V2.md
 │   ├── MODULE-08-BADGES-V2.md
-│   ├── MODULE-08-REVIEWS & RATINGS-VERIFICATION.md
 │   ├── MODULE-08-REVIEWS-RATINGS.md
-│   ├── MODULE-09-POINTS-GAMIFICATION-V2.md
-│   ├── MODULE-09-VERIFICATION-V2.md
-│   ├── MODULE-10-BADGES-TRUST.md
-│   ├── MODULE-10-VERIFICATION.md
-│   ├── MODULE-11-REFERRALS-V2.md
-│   ├── MODULE-11-REFERRALS-VERIFICATION-V2.md
-│   ├── MODULE-11-SUBSCRIPTIONS-V2.md
-│   ├── MODULE-11-VERIFICATION-V2.md
-│   ├── MODULE-12-ADMIN-V2.md
-│   ├── MODULE-12-VERIFICATION-V2.md
-│   ├── MODULE-13-SAFETY-COMPLIANCE.md
-│   ├── MODULE-13-VERIFICATION.md
+│   ├── MODULE-09-SUBSCRIPTIONS-REMAINING.md
+│   ├── MODULE-10-SWAP-POINTS-CORE-REMAINING.md
+│   ├── MODULE-11-REFACTORING-V2-ALIGNMENT.md
+│   ├── MODULE-12-REFERRALS-V2-IMPLEMENTATION.md
+│   ├── MODULE-13-GAMIFICATION-IMPLEMENTATION.md
 │   ├── MODULE-14-NOTIFICATIONS-V2.md
-│   ├── MODULE-14-VERIFICATION-V2.md
 │   ├── MODULE-15-TESTING-QA.md
-│   ├── MODULE-15-VERIFICATION.md
 │   ├── MODULE-16-DEPLOYMENT.md
-│   ├── MODULE-16-VERIFICATION.md
-│   ├── PARKING-LOT.md
+│   ├── DEPRECATED-*
 │   └── PROMPTS_USAGE_GUIDE.md
 ├── QA_SIGNUP_DOB.md
 ├── QUICK_FIX_PHONE_VERIFICATION.md
@@ -765,6 +754,8 @@ Effects/rerender rules:
 All module prompt files live under `Prompts/`:
 Note: Folder name is case-sensitive. Use `Prompts/` exactly as it exists in the repo. Do not create `prompts/` or `PROMPTS/`.
 
+- `Prompts/00-START-HERE.md`
+- `Prompts/MASTER-IMPLEMENTATION-PLAN.md`
 
 - `Prompts/MODULE-01-INFRASTRUCTURE.md`
 - `Prompts/MODULE-01-VERIFICATION.md`
@@ -774,9 +765,8 @@ Note: Folder name is case-sensitive. Use `Prompts/` exactly as it exists in the 
 
 - `Prompts/MODULE-03-AUTH-V2.md`
 - `Prompts/MODULE-03-NODE-MANAGEMENT.md`
+- `Prompts/MODULE-03-Node Management VERIFICATION.md`
 - `Prompts/MODULE-03-VERIFICATION-V2.md`
-- `Prompts/MODULE-03-Node Management VERIFICATION.md`      # name slightly irregular, still valid
-
 
 - `Prompts/MODULE-04-ITEM-LISTING-V2.md`
 - `Prompts/MODULE-04-VERIFICATION-V2.md`
@@ -790,27 +780,23 @@ Note: Folder name is case-sensitive. Use `Prompts/` exactly as it exists in the 
 - `Prompts/MODULE-07-MESSAGING.md`
 - `Prompts/MODULE-07-VERIFICATION.md`
 
-- `Prompts/MODULE-08-BADGES & Achievements VERIFICATION-V2.md`  # name slightly irregular, still valid
 - `Prompts/MODULE-08-BADGES-V2.md`
 - `Prompts/MODULE-08-REVIEWS-RATINGS.md`
-- `Prompts/MODULE-08-REVIEWS & RATINGS-VERIFICATION.md`   # name slightly irregular, still valid
 
-- `Prompts/MODULE-09-POINTS-GAMIFICATION-V2.md`
-- `Prompts/MODULE-09-VERIFICATION-V2.md`
+- `Prompts/MODULE-09-SUBSCRIPTIONS-REMAINING.md`
+- `Prompts/MODULE-09-SUBSCRIPTIONS-VERIFICATION.md`
 
-- `Prompts/MODULE-10-BADGES-TRUST.md`
-- `Prompts/MODULE-10-VERIFICATION.md`
+- `Prompts/MODULE-10-SWAP-POINTS-CORE-REMAINING.md`
+- `Prompts/MODULE-10-SWAP-POINTS-CORE-VERIFICATION.md`
 
-- `Prompts/MODULE-11-REFERRALS-V2.md`
-- `Prompts/MODULE-11-REFERRALS-VERIFICATION-V2.md`
-- `Prompts/MODULE-11-SUBSCRIPTIONS-V2.md`
-- `Prompts/MODULE-11-VERIFICATION-V2.md`
+- `Prompts/MODULE-11-REFACTORING-V2-ALIGNMENT.md`
+- `Prompts/MODULE-11-REFACTORING-VERIFICATION.md`
 
-- `Prompts/MODULE-12-ADMIN-V2.md`
-- `Prompts/MODULE-12-VERIFICATION-V2.md`
+- `Prompts/MODULE-12-REFERRALS-V2-IMPLEMENTATION.md`
+- `Prompts/MODULE-12-REFERRALS-VERIFICATION.md`
 
-- `Prompts/MODULE-13-SAFETY-COMPLIANCE.md`
-- `Prompts/MODULE-13-VERIFICATION.md`
+- `Prompts/MODULE-13-GAMIFICATION-IMPLEMENTATION.md`
+- `Prompts/MODULE-13-GAMIFICATION-VERIFICATION.md`
 
 - `Prompts/MODULE-14-NOTIFICATIONS-V2.md`
 - `Prompts/MODULE-14-VERIFICATION-V2.md`
@@ -822,7 +808,7 @@ Note: Folder name is case-sensitive. Use `Prompts/` exactly as it exists in the 
 - `Prompts/MODULE-16-VERIFICATION.md`
 
 **Rule:**
-For “V2” modules, treat **V2 as canonical** and earlier versions as historical context. If there is both `VERIFICATION-V2` and an older `VERIFICATION`, prefer the V2 checklist.
+For “V2” modules, treat **V2 as canonical** and earlier versions as historical context. Files prefixed with `DEPRECATED-` are for reference only and contain no active implementation work.
 
 ---
 
@@ -1010,29 +996,20 @@ When asked to implement or change something, map it to these modules:
 - **Module 08 – Badges, Achievements, Reviews**
   - Ratings, reviews, donation badges, trust badges.
 
-- **Module 09 – Points & Gamification (SP)**
-  - SP wallet & ledger, earning/spending flows, pending/release, expiration, admin adjustments.
+- **Module 09 – Subscriptions (Stripe)**
+  - Stripe integration, Kids Club+ tier gating, webhook handling, and grace periods.
 
-- **Module 10 – Trust Badges**
-  - Reputation, identity/trust indicators over time.
+- **Module 10 – Swap Points Core**
+  - SP ledger implementation, 50% cap, pending/release transition logic.
 
-- **Module 11 – Referrals & Subscriptions**
-  - Referral codes, tracking, incentives.
-  - Subscription lifecycle, free trials, grace period handling, Stripe webhooks.
+- **Module 11 – App Refactoring & Alignment**
+  - Performance audit, navigation hardening, and state management consistency (v2 alignment).
 
-- **Module 12 – Admin**
-  - Admin portal features, configuration of SP formulas, fee configurations, node controls, moderation queue.
- - All Admin-facing API routes and pages MUST:
-- Disable caching explicitly:
-  - `export const dynamic = 'force-dynamic'` (App Router)
-  - `cache: 'no-store'` on all fetch calls
-- NEVER rely on implicit refetch for state correctness
-Reason:
-- Admin tools require immediate consistency
-- Cached moderation data causes incorrect governance actions
+- **Module 12 – Referrals V2**
+  - Secure referral code generation and subscriber-only incentive management.
 
-- **Module 13 – Safety & Compliance**
-  - Prohibited items, CPSC recall checks, escalation flows.
+- **Module 13 – Gamification (Lifetime SP)**
+  - Lifetime statistics, milestones, and advanced point-based achievements.
 
 - **Module 14 – Notifications**
   - Push, in-app, email notifications for key events (transactions, SP changes, subscription status, safety alerts).

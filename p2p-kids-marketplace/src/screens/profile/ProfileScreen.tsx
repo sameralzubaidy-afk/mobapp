@@ -13,6 +13,7 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  Clipboard,
 } from 'react-native';
 import { getUserProfile, resolveAvatarUrl } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
@@ -38,6 +39,8 @@ export default function ProfileScreen({ navigation }: any) {
   const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -91,6 +94,9 @@ export default function ProfileScreen({ navigation }: any) {
         ...(profileData as UserProfile),
         avatar_url: finalAvatar,
       });
+      
+      // Set referral code from profile
+      setReferralCode((profileData as any)?.referral_code || null);
       
       // Load reviews and stats
       await loadReviewsData(authUser.id);
@@ -163,6 +169,23 @@ export default function ProfileScreen({ navigation }: any) {
     setShowAllReviews(!showAllReviews);
   };
 
+  const handleCopyReferralCode = async () => {
+    if (!referralCode) return;
+    
+    try {
+      await Clipboard.setString(referralCode);
+      setCopiedToClipboard(true);
+      
+      // Reset copied state after 2 seconds
+      setTimeout(() => {
+        setCopiedToClipboard(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to copy referral code:', error);
+      Alert.alert('Error', 'Failed to copy referral code');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -224,6 +247,30 @@ export default function ProfileScreen({ navigation }: any) {
 
       {/* Badges Section */}
       <BadgeShowcase userId={user.id} />
+
+      {/* Referral Code Section */}
+      {referralCode && (
+        <View style={styles.referralSection}>
+          <Text style={styles.sectionTitle}>Share & Earn</Text>
+          <View style={styles.referralCodeContainer}>
+            <View style={styles.referralCodeWrapper}>
+              <Text style={styles.referralCodeLabel}>Your Referral Code:</Text>
+              <Text style={styles.referralCode}>{referralCode}</Text>
+              <Text style={styles.referralCodeHint}>
+                Share this code with friends to earn bonus Swap Points
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.copyButton, copiedToClipboard && styles.copyButtonSuccess]}
+              onPress={handleCopyReferralCode}
+            >
+              <Text style={styles.copyButtonText}>
+                {copiedToClipboard ? '✓ Copied' : 'Copy'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Reviews Section */}
       {reviewStats && reviewStats.total_reviews > 0 && (
@@ -550,5 +597,59 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     marginVertical: 20,
+  },
+  referralSection: {
+    marginBottom: 24,
+  },
+  referralCodeContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#DBEAFE',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  referralCodeWrapper: {
+    flex: 1,
+    marginRight: 12,
+  },
+  referralCodeLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  referralCode: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#3B82F6',
+    marginBottom: 8,
+    letterSpacing: 2,
+  },
+  referralCodeHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+  },
+  copyButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  copyButtonSuccess: {
+    backgroundColor: '#10B981',
+  },
+  copyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

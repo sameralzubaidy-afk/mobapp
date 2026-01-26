@@ -65,6 +65,8 @@ export interface UserProfile {
   updated_at: string;
 }
 
+export type SubscriptionStatus = 'free' | 'trial' | 'active' | 'grace' | 'canceled';
+
 /**
  * V2 Authentication session with subscription context
  * Enriched with subscription status and SP wallet info for client-side gating
@@ -75,7 +77,7 @@ export interface AuthSession {
   refresh_token?: string;
   
   // V2: Subscription context (from MODULE-11)
-  subscription_status: 'free' | 'trial' | 'active' | 'grace' | 'canceled';
+  subscription_status: SubscriptionStatus;
   can_spend_sp: boolean; // True for trial/active, false otherwise
   
   // V2: SP wallet context (from MODULE-09)
@@ -106,7 +108,7 @@ export interface SignupInput {
 export interface SubscriptionSummary {
   id: string;
   user_id: string;
-  status: 'free' | 'trial' | 'active' | 'grace' | 'canceled';
+  status: SubscriptionStatus;
   trial_start_date?: string;
   trial_end_date?: string;
   current_period_start?: string;

@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import { AppState } from 'react-native';
 import { supabase } from '../config/supabase';
-import { AuthSession, AuthError } from '../types/user';
+import { AuthSession, AuthError, SubscriptionStatus } from '../types/user';
 import { loginWithContext } from '../services/auth';
 import { useUserStore } from '../stores/userStore';
 
@@ -192,27 +192,57 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         { p_user_id: sessionData.session.user.id }
       ) as any);
 
-      let subscriptionSummary = null;
-      
+      type RawSubscriptionSummary = {
+        status?: string;
+        can_spend_sp?: boolean | string | null;
+      };
+
+      const mapStatus = (raw?: string): SubscriptionStatus => {
+        switch (raw?.toLowerCase()) {
+          case 'trialing':
+          case 'trial_ending':
+          case 'trial':
+            return 'trial';
+          case 'free':
+            return 'free';
+          case 'active':
+            return 'active';
+          case 'grace':
+            return 'grace';
+          case 'cancelled':
+          case 'canceled':
+          case 'expired':
+            return 'canceled';
+          default:
+            return 'free';
+        }
+      };
+
+      let subscriptionSummary: RawSubscriptionSummary | null = null;
+
       if (subError) {
         console.warn('[AUTH] get_subscription_summary warning:', subError);
       } else if (Array.isArray(subData) && subData.length > 0) {
         subscriptionSummary = subData[0];
-      } else if (subData && !Array.isArray(subData)) {
-        subscriptionSummary = subData;
       } else if (Array.isArray(subData) && subData.length === 0) {
         subscriptionSummary = { status: 'free', can_spend_sp: false };
+      } else if (subData && !Array.isArray(subData)) {
+        subscriptionSummary = subData;
       } else {
         subscriptionSummary = { status: 'free', can_spend_sp: false };
       }
 
-      // Normalize booleans and default status value for UI consistency
-      if (subscriptionSummary && typeof subscriptionSummary.can_spend_sp === 'string') {
-        subscriptionSummary.can_spend_sp = subscriptionSummary.can_spend_sp === 'true' || subscriptionSummary.can_spend_sp === 't';
-      }
-      if (subscriptionSummary) {
-        subscriptionSummary.status = subscriptionSummary.status || 'free';
-      }
+      const normalizedSubscriptionSummary = (() => {
+        const base = subscriptionSummary ?? { status: 'free', can_spend_sp: false };
+        const canSpend = typeof base.can_spend_sp === 'string'
+          ? base.can_spend_sp === 'true' || base.can_spend_sp === 't'
+          : Boolean(base.can_spend_sp);
+
+        return {
+          status: mapStatus(base.status),
+          can_spend_sp: canSpend,
+        };
+      })();
 
       // Re-fetch SP wallet summary from MODULE-09
       const { data: walletData, error: walletError } = await (supabase.rpc(
@@ -268,8 +298,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         },
         access_token: sessionData.session.access_token,
         refresh_token: sessionData.session.refresh_token || '',
-        subscription_status: subscriptionSummary.status,
-        can_spend_sp: subscriptionSummary.can_spend_sp,
+        subscription_status: normalizedSubscriptionSummary.status,
+        can_spend_sp: normalizedSubscriptionSummary.can_spend_sp,
         available_points: (walletSummary.available_points as number) || 0,
         pending_points: (walletSummary.pending_points as number) || 0,
         lifetime_earned: (walletSummary.lifetime_earned as number) || 0,

@@ -65,6 +65,19 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
   // Capture seller subscription status for audit trail
   const sellerSubStatus = await getSubscriptionStatusString(seller_id);
 
+  // Starter Pack eligibility check (approval workflow)
+  // If eligible, listing should be created as 'pending' so admin can approve
+  const { data: isEligibleForStarterPack, error: eligibilityError } = await supabase.rpc(
+    'is_eligible_for_starter_pack',
+    { p_seller_id: seller_id }
+  );
+
+  if (eligibilityError) {
+    console.warn('[listing] ⚠️ is_eligible_for_starter_pack RPC failed:', eligibilityError);
+  }
+
+  const shouldRequireApproval = Boolean(isEligibleForStarterPack) && Boolean(accepts_swap_points);
+
   // Create listing in database
   const { data, error } = await supabase
     .from('items')
@@ -75,9 +88,10 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
       price, // DB stores as DECIMAL, not cents
       category_id,
       condition,
-      status: 'available', // New listings are immediately active
+      status: shouldRequireApproval ? 'pending' : 'available',
       accepts_swap_points,
       seller_subscription_status_at_creation: sellerSubStatus, // V2: Audit trail
+      eligible_for_starter_pack: Boolean(isEligibleForStarterPack),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })

@@ -32,6 +32,10 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
 - Smoke: (manual)
   - Create listing -> appears in listings feed for same node.
+  - If seller enabled "Accept Swap Points" and is Starter Pack eligible: listing is created with `status='pending'` (not visible in public feed until approved).
+  - Pending listing creates `admin_notifications` rows for all admins (notification type `listing_pending_approval`).
+  - Admin approves listing -> `items.status` transitions `pending` -> `available` and listing becomes visible.
+  - Seller edits an approved listing (e.g., title/price/photos) -> `items.status` transitions `available` -> `pending` and requires admin re-approval.
 - Automated (offline): Jest covers listing service lifecycle + SP gating.
 
 ### FLOW-05: Media Upload (Storage) – Listing Photos
@@ -72,6 +76,7 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-11: Swap Points – Earn/Spend/Cap + Pending→Release
 - Smoke: (manual)
   - 50% cap enforced; buyer fee always cash.
+  - First eligible listing approval awards Starter Pack SP once (wallet + ledger updated).
 
 ### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period
 - Smoke: (manual)
@@ -97,6 +102,7 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-18: Admin Controls
 - Smoke: (manual)
+  - Approving a pending listing succeeds and creates an audit row in `admin_activity_log`.
 
 ### FLOW-19: Analytics Events
 - Smoke: (manual)

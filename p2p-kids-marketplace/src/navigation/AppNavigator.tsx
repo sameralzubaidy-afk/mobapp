@@ -7,6 +7,7 @@ import SearchScreen from '@/screens/home/SearchScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
 import UserDashboardScreen from '@/screens/dashboard/UserDashboardScreen';
+import SpWalletScreen from '@/screens/sp/SpWalletScreen';
 import LoginScreen from '@/screens/auth/LoginScreen';
 import SignupScreen from '@/screens/auth/SignupScreen';
 import PhoneVerificationScreen from '@/screens/auth/PhoneVerificationScreen';
@@ -177,6 +178,8 @@ function RootNavigator() {
             <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
             <Stack.Screen name="Badges" component={BadgesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            {/* MODULE-09: Swap Points screens */}
+            <Stack.Screen name="SpWallet" component={SpWalletScreen} />
             {/* MODULE-08: Review screens */}
             <Stack.Screen name="SubmitReview" component={SubmitReviewScreen} />
             {/* Add more authenticated screens as needed */}

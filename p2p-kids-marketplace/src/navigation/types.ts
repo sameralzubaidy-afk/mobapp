@@ -37,4 +37,7 @@ export type RootStackParamList = {
   Leaderboard: undefined;
   // MODULE-08: Review routes
   SubmitReview: { tradeId: string; revieweeId: string; revieweeName: string };
+  // MODULE-09: Swap Points routes
+  SpWallet: undefined;
+  SpWalletScreen: undefined;
 };
