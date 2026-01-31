@@ -10,7 +10,7 @@ This file is the canonical registry of end-to-end flows and their required regre
   - App boots to login screen without redbox.
   - If network/auth calls stall, app still leaves the full-screen spinner within ~12s and renders the unauthenticated stack.
   - Supabase URL/anon key configured; auth requests succeed.
-  - Test hygiene: `yarn test` must not require real Supabase/network by default; Supabase/network E2E tests only run when `RUN_SUPABASE_E2E=true` and real `SUPABASE_URL`/keys are provided; Detox E2E tests only run when `RUN_DETOX_E2E=true`.
+  - Test hygiene: `yarn test` must not require real Supabase/network by default; Supabase/network E2E tests only run when `SUPABASE_E2E_ENABLED=true` and real `SUPABASE_URL`/keys are provided; Detox E2E tests only run when `RUN_DETOX_E2E=true`.
 
 ### FLOW-01: Auth – Signup/Login/Logout/Session Restore
 - Smoke: (manual)
@@ -77,6 +77,13 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Smoke: (manual)
   - 50% cap enforced; buyer fee always cash.
   - First eligible listing approval awards Starter Pack SP once (wallet + ledger updated).
+
+### FLOW-13: Referrals – Code Generation + Apply On Signup
+- Smoke: (manual)
+  - User A: signup -> Profile shows referral code; DB: `profiles.referral_code` matches `referral_codes.code`.
+  - User B: signup with User A code -> `referrals` row created with `status='pending'`.
+  - User B: DB: `profiles.referred_by` is set to User A user_id.
+  - User A: Referral Dashboard stats show `total=1`, `pending=1`.
 
 ### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period
 - Smoke: (manual)

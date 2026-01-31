@@ -129,8 +129,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Sync with userStore
     if (newSession?.user) {
       setUser({
-        id: newSession.user.id,
-        email: newSession.user.email || '',
+        id: newSession.user.user_id, // Use user_id which is the auth.users.id
+        email: newSession.user.email || '', // email is optional in profile but required in userStore
         name: newSession.user.name || '',
         avatar_url: newSession.user.avatar_url || null,
         node_id: newSession.user.node_id || null,

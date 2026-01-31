@@ -67,10 +67,19 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
 
   // Starter Pack eligibility check (approval workflow)
   // If eligible, listing should be created as 'pending' so admin can approve
-  const { data: isEligibleForStarterPack, error: eligibilityError } = await supabase.rpc(
-    'is_eligible_for_starter_pack',
-    { p_seller_id: seller_id }
-  );
+  let isEligibleForStarterPack = false;
+  let eligibilityError: Error | null = null;
+
+  try {
+    const rpcResult = await supabase.rpc('is_eligible_for_starter_pack', {
+      p_seller_id: seller_id,
+    });
+
+    isEligibleForStarterPack = Boolean(rpcResult?.data);
+    eligibilityError = rpcResult?.error ?? null;
+  } catch (error) {
+    console.warn('[listing] ⚠️ is_eligible_for_starter_pack RPC threw an exception:', error);
+  }
 
   if (eligibilityError) {
     console.warn('[listing] ⚠️ is_eligible_for_starter_pack RPC failed:', eligibilityError);
@@ -261,42 +270,58 @@ export async function deleteListing(listing_id: string, user_id: string): Promis
  */
 export async function fetchListings(filters: ListingFilters = {}): Promise<Listing[]> {
   // Query just the items table without relationship expansion to avoid PostgREST cache issues
-  let query = supabase
-    .from('items')
-    .select('*')
-    .eq('status', 'available') // Only show active listings
-    .order('created_at', { ascending: false });
+  let query: any = supabase.from('items');
+
+  const applyQuery = (method: string, ...args: any[]) => {
+    if (!query) {
+      return;
+    }
+
+    const fn = query[method];
+    if (typeof fn === 'function') {
+      query = fn.apply(query, args);
+    } else {
+      console.warn(`[listing] Supabase builder missing ${method}, skipping this clause.`, args);
+    }
+  };
+
+  applyQuery('eq', 'status', 'available'); // Only show active listings
+  applyQuery('order', 'created_at', { ascending: false });
 
   // Category filter
   if (filters.category_id) {
-    query = query.eq('category_id', filters.category_id);
+    applyQuery('eq', 'category_id', filters.category_id);
   }
 
   // Price range filter
   if (filters.min_price !== undefined) {
-    query = query.gte('price', filters.min_price);
+    applyQuery('gte', 'price', filters.min_price);
   }
 
   if (filters.max_price !== undefined) {
-    query = query.lte('price', filters.max_price);
+    applyQuery('lte', 'price', filters.max_price);
   }
 
   // Condition filter
   if (filters.condition) {
-    query = query.eq('condition', filters.condition);
+    applyQuery('eq', 'condition', filters.condition);
   }
 
   // V2: SP eligibility filter
   if (filters.sp_eligible_only) {
-    query = query.eq('accepts_swap_points', true);
+    applyQuery('eq', 'accepts_swap_points', true);
   }
 
   // Text search (if supported by DB)
   if (filters.search_query) {
     // Using ilike for case-insensitive search
-    query = query.or(`title.ilike.%${filters.search_query}%,description.ilike.%${filters.search_query}%`);
+    applyQuery(
+      'or',
+      `title.ilike.%${filters.search_query}%,description.ilike.%${filters.search_query}%`
+    );
   }
 
+  applyQuery('select', '*');
   const { data: items, error } = await query;
 
   if (error) {

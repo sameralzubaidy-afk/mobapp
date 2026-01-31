@@ -1,3 +1,13 @@
+# Tier 0 Validation - Preflight Gate - ATTEMPT 2
+# Fixed AuthContext.tsx TypeScript error
+
+cd p2p-kids-marketplace
+
+# TypeScript compilation check
+yarn type-check
+
+# ESLint check
+yarn lint
 
 > p2p-kids-marketplace@1.0.0 type-check
 > tsc --noEmit

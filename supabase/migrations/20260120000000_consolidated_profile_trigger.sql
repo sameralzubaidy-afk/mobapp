@@ -71,6 +71,14 @@ BEGIN
     dob = EXCLUDED.dob,
     age = EXCLUDED.age;
 
+  -- Create referral code for new user
+  BEGIN
+    PERFORM create_referral_code(NEW.id);
+  EXCEPTION WHEN OTHERS THEN
+    -- Log warning but don't fail user creation
+    RAISE WARNING 'Referral code creation failed for user %: %', NEW.id, SQLERRM;
+  END;
+
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
   -- Log error but don't fail the auth process

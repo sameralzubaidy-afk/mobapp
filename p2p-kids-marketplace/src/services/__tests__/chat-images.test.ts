@@ -31,9 +31,18 @@ jest.mock('base64-arraybuffer', () => ({
 }));
 
 describe('Chat Image Functions', () => {
+  let consoleErrorSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
     (decode as jest.Mock).mockReturnValue(new ArrayBuffer(8));
+
+    // These tests intentionally exercise error paths; silence expected logs.
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
   });
 
   describe('compressImage', () => {

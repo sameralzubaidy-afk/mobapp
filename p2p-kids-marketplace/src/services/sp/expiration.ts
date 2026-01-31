@@ -139,33 +139,41 @@ export async function getExpirationSummary(userId: string): Promise<ExpirationSu
   }
 }
 
+const DEFAULT_EXPIRATION_DAYS = 365;
+
 /**
- * Calculate expiration date based on config
- * Used when creating new SP batches
+ * Calculate expiration date based on a delta and an optional start date.
  */
-export async function calculateExpirationDate(): Promise<Date> {
+export function calculateExpirationDate(daysUntilExpiry: number, startDate?: Date): Date {
+  if (!Number.isFinite(daysUntilExpiry)) {
+    throw new Error('daysUntilExpiry must be a finite number');
+  }
+
+  const baseDate = startDate ? new Date(startDate) : new Date();
+  const expirationDate = new Date(baseDate);
+  expirationDate.setUTCDate(expirationDate.getUTCDate() + daysUntilExpiry);
+  return expirationDate;
+}
+
+/**
+ * Calculate expiration date using the admin-configured period (from sp_config).
+ */
+export async function calculateExpirationDateFromConfig(startDate?: Date): Promise<Date> {
   try {
-    // Get expiration config
     const { data: periodData } = await supabase
       .from('sp_config')
       .select('config_value')
       .eq('config_key', 'expiration_period_days')
       .single();
 
-    const expirationDays = periodData?.config_value 
-      ? parseInt(periodData.config_value, 10) 
-      : 365; // Default 1 year
+    const expirationDays = periodData?.config_value
+      ? parseInt(periodData.config_value, 10)
+      : DEFAULT_EXPIRATION_DAYS;
 
-    const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + expirationDays);
-
-    return expirationDate;
+    return calculateExpirationDate(expirationDays, startDate);
   } catch (error) {
     console.error('Calculate expiration date exception:', error);
-    // Default to 1 year
-    const defaultDate = new Date();
-    defaultDate.setFullYear(defaultDate.getFullYear() + 1);
-    return defaultDate;
+    return calculateExpirationDate(DEFAULT_EXPIRATION_DAYS, startDate);
   }
 }
 
@@ -186,30 +194,31 @@ export async function hasExpirationWarnings(userId: string): Promise<boolean> {
  * Format days until expiry for UI display
  */
 export function formatDaysUntilExpiry(days: number): string {
-  if (days <= 0) {
-    return 'Expires today';
-  } else if (days === 1) {
-    return 'Expires tomorrow';
-  } else if (days <= 7) {
-    return `Expires in ${days} days`;
-  } else if (days <= 30) {
-    return `Expires in ${Math.ceil(days / 7)} weeks`;
-  } else {
-    return `Expires in ${Math.ceil(days / 30)} months`;
+  if (days < 0) {
+    const absDays = Math.abs(days);
+    const unit = absDays === 1 ? 'day' : 'days';
+    return `Expired ${absDays} ${unit} ago`;
   }
+
+  if (days === 0) {
+    return 'Expires today';
+  }
+
+  const unit = days === 1 ? 'day' : 'days';
+  return `Expires in ${days} ${unit}`;
 }
 
 /**
  * Get color for expiration warning badge
  */
 export function getExpirationWarningColor(days: number): string {
-  if (days <= 1) {
+  if (days <= 7) {
     return '#EF4444'; // Red - urgent
-  } else if (days <= 7) {
-    return '#F59E0B'; // Orange - warning
-  } else if (days <= 14) {
-    return '#F59E0B'; // Orange
-  } else {
-    return '#10B981'; // Green - safe
   }
+
+  if (days <= 30) {
+    return '#F59E0B'; // Orange - warning
+  }
+
+  return '#10B981'; // Green - safe
 }

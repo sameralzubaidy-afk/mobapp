@@ -36,7 +36,8 @@ const mockSupabase = supabase as jest.Mocked<typeof supabase>;
 const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
 
 // Test data
-const TEST_USER_ID = 'test-user-123';
+const TEST_USER_ID =
+  process.env.E2E_TEST_BUYER_ID || '49243010-f458-4744-add1-a6c84ab95f1f';
 const TEST_EMAIL = 'test@example.com';
 const ACTIVE_ZIP = '06850'; // Norwalk - should have active node
 const INACTIVE_ZIP = '06840'; // Near Norwalk - no active node

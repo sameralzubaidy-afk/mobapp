@@ -17,7 +17,7 @@ import { supabase } from '../config/supabase';
  * - Database migrations applied:
  *   - 20251220000001_add_search_vector_listings.sql
  *   - 20251220000002_search_listings_rpc.sql
- * - Test data with listings created
+ * - Test data created: Run `npm run seed:staging`
  * 
  * Run with: npm run test:e2e -- discovery-v2-001
  */
@@ -27,39 +27,19 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
   const describeSupabase = RUN_SUPABASE_E2E ? describe : describe.skip;
 
   describeSupabase('Full-Text Search', () => {
-    let testListingIds: string[] = [];
-
     beforeAll(async () => {
-      // Create test listings for search
-      const testListings = [
-        {
-          title: 'Red Toy Car',
-          description: 'A beautiful red toy car in excellent condition',
-          price: 19.99,
-          accepts_swap_points: true,
-          condition: 'good',
-          status: 'available',
-        },
-        {
-          title: 'Blue Building Blocks',
-          description: 'Set of blue building blocks, perfect for kids',
-          price: 24.99,
-          accepts_swap_points: false,
-          condition: 'like_new',
-          status: 'available',
-        },
-        {
-          title: 'Board Game: Strategy',
-          description: 'Educational strategy board game for all ages',
-          price: 29.99,
-          accepts_swap_points: true,
-          condition: 'new',
-          status: 'available',
-        },
-      ];
+      // Verify RPC function exists
+      const { error } = await supabase.rpc('search_listings', {
+        p_query: 'test',
+        p_sp_eligible_only: false,
+        p_limit: 1,
+      });
 
-      // Note: In real E2E, we'd need to seed test data or use test user auth
-      // For now, we verify the search functions work with existing data
+      if (error && error.message.includes('function')) {
+        throw new Error(
+          'search_listings RPC not found. Deploy migration 20251220000002_search_listings_rpc.sql first.'
+        );
+      }
     });
 
     test('should search for listings by full-text query', async () => {

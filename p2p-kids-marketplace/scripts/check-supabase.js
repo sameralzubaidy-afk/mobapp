@@ -10,6 +10,19 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
+function decodeJwtRole(maybeJwt) {
+  if (!maybeJwt || typeof maybeJwt !== 'string') return 'missing';
+  if (!maybeJwt.includes('.')) return 'non-jwt';
+  try {
+    const [, payload] = maybeJwt.split('.');
+    const json = Buffer.from(payload, 'base64').toString('utf8');
+    const parsed = JSON.parse(json);
+    return typeof parsed.role === 'string' ? parsed.role : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 // Try to load .env.local into process.env if present and env vars not set
 const fs = require('fs');
 if ((!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY) && fs.existsSync('./.env.local')) {
@@ -37,6 +50,20 @@ const supabase = createClient(url, key);
 
 async function check() {
   try {
+    // Helpful diagnostics: show whether your "service role" key is actually service_role.
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceRoleKey) {
+      const role = decodeJwtRole(serviceRoleKey);
+      console.log(`Detected SUPABASE_SERVICE_ROLE_KEY format: ${role}`);
+      if (role === 'anon') {
+        console.warn(
+          '⚠️ SUPABASE_SERVICE_ROLE_KEY appears to be an ANON JWT (role=anon).\n' +
+            '   For admin operations / bypassing RLS you need the *service_role secret* from Supabase Dashboard → Project Settings → API → "service_role".\n' +
+            '   New-style secrets often start with sb_secret_. Do NOT commit it.'
+        );
+      }
+    }
+
     console.log('Testing query: select id from subscription_tiers (if table missing this still verifies connection)');
     const { data, error } = await supabase.from('subscription_tiers').select('id').limit(1);
 

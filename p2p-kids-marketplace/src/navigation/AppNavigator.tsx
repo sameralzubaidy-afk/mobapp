@@ -36,6 +36,7 @@ import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
+import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 
@@ -182,6 +183,8 @@ function RootNavigator() {
             <Stack.Screen name="SpWallet" component={SpWalletScreen} />
             {/* MODULE-08: Review screens */}
             <Stack.Screen name="SubmitReview" component={SubmitReviewScreen} />
+            {/* MODULE-11: Referral screens */}
+            <Stack.Screen name="ReferralDashboard" component={ReferralDashboardScreen} />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (

@@ -9,6 +9,7 @@ import {
   UserProfile,
   AuthError,
 } from '../types/user';
+import { ReferralCodeServiceV2 } from './referralCodeV2';
 
 /**
  * AUTH-V2-001: User Signup (No Trial Activation)
@@ -28,7 +29,7 @@ export async function signup(input: {
   // Delegate to existing signUp function if available
   // For now, just create the auth user without trial
   
-  const { email, password, name, phone, dob } = input;
+  const { email, password, name, phone, dob, referralCode } = input;
 
   try {
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -39,6 +40,9 @@ export async function signup(input: {
           display_name: name,
           phone: phone,
           dob: dob,
+          ...(referralCode && referralCode.trim()
+            ? { referral_code: referralCode.trim().toLowerCase() }
+            : {}),
         },
       },
     });
@@ -84,7 +88,7 @@ export async function signupWithTrial(input: {
   dob?: string | null;
   referralCode?: string;
 }): Promise<{ user: SupabaseUser | null; error: AuthError | null }> {
-  const { email, password, name, phone, dob } = input;
+  const { email, password, name, phone, dob, referralCode } = input;
 
   try {
     // Step 1: Create auth user
@@ -96,6 +100,9 @@ export async function signupWithTrial(input: {
           display_name: name,
           phone: phone,
           dob: dob,
+          ...(referralCode && referralCode.trim()
+            ? { referral_code: referralCode.trim().toLowerCase() }
+            : {}),
         },
       },
     });
@@ -123,7 +130,27 @@ export async function signupWithTrial(input: {
     // We don't wait for it since it runs AFTER INSERT on auth.users
     // If it fails, we log a warning but don't fail signup
 
-    // Step 3: Create FREE subscription (not trial yet)
+    // Step 3: Apply referral code if provided
+    if (referralCode && referralCode.trim()) {
+      console.log('Applying referral code:', referralCode);
+      try {
+        const result = await ReferralCodeServiceV2.applyReferralCode(
+          userId,
+          referralCode.trim()
+        );
+        if (!result.success && result.error !== 'Referral code already applied') {
+          console.warn('Referral code application failed:', result.error);
+          // Don't fail signup, just log the warning
+        } else {
+          console.log('Referral code applied successfully');
+        }
+      } catch (error) {
+        console.error('Error applying referral code:', error);
+        // Don't fail signup for referral issues
+      }
+    }
+
+    // Step 4: Create FREE subscription (not trial yet)
     // User will choose Free or Trial on SubscriptionChoiceScreen
     // If they choose trial, it will be upgraded by enrollInTrialSubscription
     const { data: subscription, error: subError } = await supabase.rpc(
@@ -137,7 +164,7 @@ export async function signupWithTrial(input: {
       // User will be asked to choose tier anyway
     }
 
-    // Step 4: DO NOT initialize SP wallet during signup
+    // Step 5: DO NOT initialize SP wallet during signup
     // It will be created on-demand when needed or during trial enrollment
     // This prevents cascading failures if wallet creation has issues
 

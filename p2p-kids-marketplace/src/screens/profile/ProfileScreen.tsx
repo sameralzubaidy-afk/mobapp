@@ -23,6 +23,7 @@ import { BadgeShowcase } from '@/components/BadgeShowcase';
 import { getUserReviews, getReviewStats, Review, ReviewStats } from '@/services/review';
 import { ReviewCard } from '@/components/ReviewCard';
 import { StarRating } from '@/components/StarRating';
+import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 // generated `Database` types may be missing locally; use a permissive fallback
 // to avoid type errors until DB types are generated.
 import BottomNavBar from '@/components/organisms/BottomNavBar';
@@ -95,8 +96,14 @@ export default function ProfileScreen({ navigation }: any) {
         avatar_url: finalAvatar,
       });
       
-      // Set referral code from profile
-      setReferralCode((profileData as any)?.referral_code || null);
+      // Load referral code from ReferralCodeServiceV2 (same as dashboard)
+      try {
+        const code = await ReferralCodeServiceV2.getReferralCode(authUser.id);
+        setReferralCode(code || null);
+      } catch (error) {
+        console.warn('Error loading referral code:', error);
+        setReferralCode(null);
+      }
       
       // Load reviews and stats
       await loadReviewsData(authUser.id);
@@ -251,7 +258,15 @@ export default function ProfileScreen({ navigation }: any) {
       {/* Referral Code Section */}
       {referralCode && (
         <View style={styles.referralSection}>
-          <Text style={styles.sectionTitle}>Share & Earn</Text>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>Share & Earn</Text>
+            <TouchableOpacity
+              style={styles.viewDashboardButton}
+              onPress={() => navigation.navigate('ReferralDashboard')}
+            >
+              <Text style={styles.viewDashboardButtonText}>View Dashboard →</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.referralCodeContainer}>
             <View style={styles.referralCodeWrapper}>
               <Text style={styles.referralCodeLabel}>Your Referral Code:</Text>
@@ -510,6 +525,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 16,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  viewDashboardButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#EFF6FF',
+  },
+  viewDashboardButtonText: {
+    color: '#3B82F6',
+    fontSize: 14,
+    fontWeight: '600',
   },
   ratingSection: {
     backgroundColor: '#FFFFFF',

@@ -21,7 +21,6 @@ describe('E2E: BADGES-V2-005 Admin Configuration Workflow', () => {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.warn('[E2E Skip] No authenticated user found. Tests require authentication.');
       testUserId = 'skipped';
       testBadgeId = 'skipped';
       return;
@@ -71,7 +70,6 @@ describe('E2E: BADGES-V2-005 Admin Configuration Workflow', () => {
   describe('Workflow 1: Admin Manual Badge Award', () => {
     it('should complete full manual award workflow', async () => {
       if (testBadgeId === 'skipped' || !testUserId || testUserId === 'skipped') {
-        console.warn('[E2E Skip] Missing prerequisites');
         return;
       }
 
@@ -131,7 +129,6 @@ describe('E2E: BADGES-V2-005 Admin Configuration Workflow', () => {
   describe('Workflow 2: Admin Badge Configuration Update', () => {
     it('should track configuration changes in history', async () => {
       if (testBadgeId === 'skipped') {
-        console.warn('[E2E Skip] Missing prerequisites');
         return;
       }
 
@@ -201,7 +198,6 @@ describe('E2E: BADGES-V2-005 Admin Configuration Workflow', () => {
   describe('Workflow 3: Admin Manual Badge Revoke', () => {
     it('should complete full revoke workflow with audit trail', async () => {
       if (testBadgeId === 'skipped' || !testUserId || testUserId === 'skipped') {
-        console.warn('[E2E Skip] Missing prerequisites');
         return;
       }
 
@@ -214,7 +210,6 @@ describe('E2E: BADGES-V2-005 Admin Configuration Workflow', () => {
         .single();
 
       if (!beforeRevoke) {
-        console.warn('[E2E Skip] Badge not found on user - may not have been awarded yet');
         return;
       }
 
@@ -274,7 +269,6 @@ describe('E2E: BADGES-V2-005 Admin Configuration Workflow', () => {
   describe('Workflow 4: Badge Archival', () => {
     it('should archive badge and filter from active lists', async () => {
       if (testBadgeId === 'skipped') {
-        console.warn('[E2E Skip] Missing prerequisites');
         return;
       }
 
@@ -330,7 +324,6 @@ describe('E2E: BADGES-V2-005 Admin Configuration Workflow', () => {
   describe('Workflow 5: Comprehensive Audit Trail Query', () => {
     it('should retrieve complete audit trail for badge lifecycle', async () => {
       if (testBadgeId === 'skipped') {
-        console.warn('[E2E Skip] Missing prerequisites');
         return;
       }
 

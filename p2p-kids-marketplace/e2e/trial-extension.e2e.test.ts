@@ -14,7 +14,27 @@
 import { supabase } from '../src/config/supabase';
 import { extendTrial, getTrialExtensionStats, getTrialExtensionHistory } from '../src/services/subscriptions/trialExtension';
 
-describe('Trial Extension E2E', () => {
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || '';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() || '';
+const supabaseE2eEnabled = process.env.SUPABASE_E2E_ENABLED === 'true';
+const hasSupabaseEnv = Boolean(supabaseUrl && supabaseAnonKey && supabaseE2eEnabled);
+
+if (!hasSupabaseEnv) {
+  const reasons: string[] = [];
+  if (!supabaseE2eEnabled) {
+    reasons.push('set SUPABASE_E2E_ENABLED=true');
+  }
+  if (!supabaseUrl || !supabaseAnonKey) {
+    reasons.push('provide EXPO_PUBLIC_SUPABASE_URL/ANON_KEY');
+  }
+  console.warn(
+    `[Trial Extension] Skipping E2E suite: ${reasons.join(', ')}.`
+  );
+}
+
+const describeTrialExtension = hasSupabaseEnv ? describe : describe.skip;
+
+describeTrialExtension('Trial Extension E2E', () => {
   let testUserId: string;
   let referralUserId: string;
 
@@ -148,7 +168,7 @@ describe('Trial Extension E2E', () => {
   });
 });
 
-describe('Trial Extension Edge Cases', () => {
+describeTrialExtension('Trial Extension Edge Cases', () => {
   it('should reject extension for non-trial user', async () => {
     // Create user with active (non-trial) subscription
     const { data: authData, error: authError } = await supabase.auth.signUp({

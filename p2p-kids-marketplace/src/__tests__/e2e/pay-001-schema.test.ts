@@ -15,7 +15,27 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
-const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true' && Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+function getJwtRole(maybeJwt: string): string {
+  // Supabase legacy keys are JWT-like; new keys may not be.
+  if (!maybeJwt || !maybeJwt.includes('.')) return 'unknown';
+  try {
+    const [, payload] = maybeJwt.split('.');
+    const json = Buffer.from(payload, 'base64').toString('utf8');
+    const parsed = JSON.parse(json);
+    return typeof parsed?.role === 'string' ? parsed.role : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+const serviceKeyRole = getJwtRole(SUPABASE_SERVICE_KEY);
+const shouldRunSupabaseE2E =
+  process.env.RUN_SUPABASE_E2E === 'true' &&
+  Boolean(SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_SERVICE_KEY) &&
+  // If the key is JWT-like, require service_role; otherwise allow and rely on DB response.
+  (serviceKeyRole === 'unknown' || serviceKeyRole === 'service_role');
 
 const d = shouldRunSupabaseE2E ? describe : describe.skip;
 
@@ -26,15 +46,22 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
   let testPayoutId: string;
 
   beforeAll(async () => {
-    // Initialize Supabase client
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Initialize Supabase client with service role key for testing
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-    // Get authenticated user (assumes test user is already signed in)
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user) {
-      throw new Error('Test requires authenticated user (RUN_SUPABASE_E2E=true and an active session).');
+    // Use seeded test user (test-seller)
+    testUserId = '14be337c-aad6-403f-bab2-ba1a7d80b666';
+    
+    // Verify test user exists
+    const { data: userExists } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', testUserId)
+      .single();
+    
+    if (!userExists) {
+      throw new Error('Test user not found. Run `npm run seed:staging` first.');
     }
-    testUserId = user.id;
 
     // Clean up any existing test data
     await supabase

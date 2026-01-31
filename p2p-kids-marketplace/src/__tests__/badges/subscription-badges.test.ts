@@ -3,6 +3,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { createClient } from '@supabase/supabase-js';
+import { createConfirmedTestUser, deleteTestUser } from '@/test-helpers/authTestUtils';
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
@@ -18,6 +19,7 @@ const supabase = !shouldSkip ? createClient(supabaseUrl, supabaseKey) : null;
 
 describe('Subscription Tenure Badges', () => {
   let testUserId: string;
+  let runtimeSkip = shouldSkip;
 
   beforeAll(async () => {
     if (shouldSkip) {
@@ -25,20 +27,22 @@ describe('Subscription Tenure Badges', () => {
       return;
     }
 
-    // Create test user
-    const { data: user } = await supabase!.auth.signUp({
-      email: `sub-badge-test-${Date.now()}@test.com`,
-      password: 'TestPassword123!',
-    });
-    testUserId = user?.user?.id || '';
+    const email = `sub-badge-test-${Date.now()}@test.com`;
+    const password = 'TestPassword123!';
+
+    const created = await createConfirmedTestUser({ email, password });
+    testUserId = created?.userId || '';
+    runtimeSkip = !testUserId;
   });
 
   afterAll(async () => {
-    // Cleanup test users if needed
+    if (testUserId) {
+      await deleteTestUser(testUserId);
+    }
   });
 
   it('should award "Trial Member" badge for trial status', async () => {
-    if (shouldSkip) return;
+    if (runtimeSkip) return;
 
     const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
@@ -60,7 +64,7 @@ describe('Subscription Tenure Badges', () => {
   });
 
   it('should award "1-Month Subscriber" badge after 30 days', async () => {
-    if (shouldSkip) return;
+    if (runtimeSkip) return;
 
     const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
@@ -81,7 +85,7 @@ describe('Subscription Tenure Badges', () => {
   });
 
   it('should award "6-Month Subscriber" badge after 180 days', async () => {
-    if (shouldSkip) return;
+    if (runtimeSkip) return;
 
     const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
@@ -102,7 +106,7 @@ describe('Subscription Tenure Badges', () => {
   });
 
   it('should award "1-Year Subscriber" badge after 365 days', async () => {
-    if (shouldSkip) return;
+    if (runtimeSkip) return;
 
     const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
@@ -123,7 +127,7 @@ describe('Subscription Tenure Badges', () => {
   });
 
   it('should award all eligible tenure badges progressively', async () => {
-    if (shouldSkip) return;
+    if (runtimeSkip) return;
 
     // User with 365 days should get all badges (Trial, 1-Month, 6-Month, 1-Year)
     const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
@@ -145,7 +149,7 @@ describe('Subscription Tenure Badges', () => {
   });
 
   it('should not award badges for negative days', async () => {
-    if (shouldSkip) return;
+    if (runtimeSkip) return;
 
     const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,

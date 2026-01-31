@@ -1,4 +1,11 @@
 import '@testing-library/jest-native/extend-expect';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load environment variables for testing.
+// Prefer staging env when running Supabase E2E.
+dotenv.config({ path: path.join(__dirname, '.env.staging'), quiet: true });
+dotenv.config({ path: path.join(__dirname, '.env'), quiet: true });
 
 // Make TypeScript happy in this test setup file (jest is a runtime global)
 declare const jest: any;
@@ -34,8 +41,9 @@ if ((globalThis as any).jest?.mock) {
 }
 
 // Provide dummy Supabase env vars for unit tests so creating the client doesn't throw
-process.env.EXPO_PUBLIC_SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'http://localhost';
-process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'anon-key';
+// When RUN_SUPABASE_E2E=true, these will be loaded from .env file
+process.env.EXPO_PUBLIC_SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'http://localhost';
+process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'anon-key';
 
 // By default, prevent tests from making real Supabase/network calls.
 // Opt-in to real Supabase E2E by setting `RUN_SUPABASE_E2E=true`.

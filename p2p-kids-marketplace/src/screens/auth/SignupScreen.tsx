@@ -162,7 +162,7 @@ export default function SignupScreen() {
         name: formData.name.trim(),
         phone: formData.phone.trim(),
         dob: formData.dob.trim(),
-        referralCode: formData.referralCode.trim(),
+        referralCode: formData.referralCode.trim().toLowerCase(),
       });
 
       if (error) {
@@ -187,7 +187,13 @@ export default function SignupScreen() {
       });
 
     } catch (error: any) {
-      console.error('Signup error:', error);
+      const debugInfo = {
+        name: error?.name,
+        message: error?.message,
+        status: error?.status,
+        code: error?.code,
+      };
+      console.error('Signup error:', debugInfo, error);
 
       // TODO: Capture error in Sentry
       // Sentry.captureException(error, {
@@ -214,6 +220,9 @@ export default function SignupScreen() {
         errorMessage = 'Password is too weak. Please choose a stronger password.';
       } else if (error.message?.includes('network')) {
         errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message?.includes('Database error saving new user')) {
+        errorMessage =
+          'Signup failed due to a backend database trigger error. Please check Supabase Auth logs for the underlying SQL error (often caused by a failing auth.users trigger).';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -410,14 +419,15 @@ export default function SignupScreen() {
               value={formData.referralCode}
               testID="referralCode-input"
               onChangeText={(text) => {
-                setFormData({ ...formData, referralCode: text.toUpperCase() });
+                  setFormData({ ...formData, referralCode: text });
                 if (errors.referralCode) {
                   setErrors({ ...errors, referralCode: '' });
                 }
               }}
-              autoCapitalize="characters"
+                autoCapitalize="none"
               maxLength={8}
               autoCorrect={false}
+                autoComplete="off"
             />
             {errors.referralCode && <Text style={styles.errorText}>{errors.referralCode}</Text>}
             <Text style={styles.helperText}>

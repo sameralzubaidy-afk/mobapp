@@ -738,6 +738,247 @@ Required in every SQL deliverable:
 
 ## UI Performance Defaults (MANDATORY)
 
+---
+
+## 🛡️ BUG PREVENTION RULES (MANDATORY - LEARNED FROM PAST ISSUES)
+
+These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
+
+### BP-1: RLS Policy Prevention (Most Common Bug Category)
+
+**Problem**: `PGRST204 no rows returned` or data not visible to users.
+
+**Rules**:
+1. EVERY new table MUST have RLS policies created in the SAME migration.
+2. BEFORE creating any RPC/function that reads data, verify RLS allows the operation.
+3. For Edge Functions needing to bypass RLS, you MUST:
+   - Use service role key explicitly
+   - Document WHY bypass is needed
+   - Add audit logging for the operation
+4. Test RLS policies with this verification query BEFORE deployment:
+   ```sql
+   -- Verify RLS is enabled
+   SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public' AND tablename = '<table>';
+   -- List policies
+   SELECT policyname, cmd, qual FROM pg_policies WHERE tablename = '<table>';
+   ```
+
+**RLS Policy Template (use for every new table)**:
+```sql
+-- Enable RLS
+ALTER TABLE public.<table_name> ENABLE ROW LEVEL SECURITY;
+
+-- Authenticated users can read their own data
+CREATE POLICY "<table>_select_own" ON public.<table_name>
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+
+-- Authenticated users can insert their own data  
+CREATE POLICY "<table>_insert_own" ON public.<table_name>
+  FOR INSERT TO authenticated
+  WITH CHECK (user_id = auth.uid());
+
+-- Authenticated users can update their own data
+CREATE POLICY "<table>_update_own" ON public.<table_name>
+  FOR UPDATE TO authenticated
+  USING (user_id = auth.uid());
+
+-- Service role bypasses RLS (for admin/webhooks)
+CREATE POLICY "<table>_service_role" ON public.<table_name>
+  FOR ALL TO service_role
+  USING (true);
+```
+
+### BP-2: Foreign Key Type Matching (Second Most Common Bug)
+
+**Problem**: FK violations due to `user_id` (UUID from auth.users) vs `profile.id` (UUID from profiles table) confusion.
+
+**Rules**:
+1. ALWAYS check the target table's column type before creating FK references.
+2. Use this verification BEFORE any INSERT that references another table:
+   ```sql
+   -- Check what ID type the target column expects
+   SELECT column_name, data_type, udt_name 
+   FROM information_schema.columns 
+   WHERE table_name = '<target_table>' AND column_name = '<fk_column>';
+   ```
+3. In RPC functions, ALWAYS query the correct ID before INSERT:
+   ```sql
+   -- WRONG: Assuming user_id works for profile foreign key
+   INSERT INTO referrals (referrer_id) VALUES (p_user_id);
+   
+   -- CORRECT: Look up the profile_id first
+   SELECT id INTO v_referrer_profile_id FROM profiles WHERE user_id = p_user_id;
+   INSERT INTO referrals (referrer_id) VALUES (v_referrer_profile_id);
+   ```
+
+### BP-3: Ambiguous Column Reference Prevention
+
+**Problem**: `ERROR: column reference "X" is ambiguous` in SQL queries.
+
+**Rules**:
+1. EVERY column in SELECT/WHERE/JOIN MUST be table-qualified.
+2. Parameter names MUST NOT match any column name in touched tables.
+3. Use this pattern:
+   ```sql
+   -- WRONG
+   SELECT id, name, status FROM items WHERE node_id = p_node_id;
+   
+   -- CORRECT  
+   SELECT i.id, i.name, i.status FROM items i WHERE i.node_id = p_node_id;
+   ```
+
+### BP-4: Trigger Silent Failure Prevention
+
+**Problem**: Triggers fail silently, appearing to succeed but doing nothing.
+
+**Rules**:
+1. NEVER use bare `EXCEPTION WHEN OTHERS THEN RETURN NEW;` - this hides all errors.
+2. ALWAYS log errors to `debug_logs` table (or equivalent) in exception handlers:
+   ```sql
+   EXCEPTION WHEN OTHERS THEN
+     INSERT INTO public.debug_logs (process_name, message, payload)
+     VALUES ('function_name', 'ERROR', jsonb_build_object('error', SQLERRM, 'state', SQLSTATE));
+     RAISE WARNING 'Trigger error: %', SQLERRM;
+     RETURN NEW; -- Only if you want to proceed despite error
+   END;
+   ```
+3. For critical triggers (auth, referrals, SP), add step-by-step logging:
+   ```sql
+   INSERT INTO debug_logs (process_name, message, payload) 
+   VALUES ('handle_new_user', 'Step 1: Profile creation', jsonb_build_object('user_id', NEW.id));
+   ```
+
+### BP-5: SECURITY DEFINER Function Rules
+
+**Problem**: Functions with SECURITY DEFINER can bypass RLS unexpectedly or fail to access needed data.
+
+**Rules**:
+1. Only use `SECURITY DEFINER` when the function MUST bypass RLS.
+2. Document WHY it needs SECURITY DEFINER in a comment.
+3. Always set explicit search_path:
+   ```sql
+   CREATE OR REPLACE FUNCTION public.my_function()
+   RETURNS void AS $$
+   -- SECURITY DEFINER needed because: <reason>
+   BEGIN
+     -- function body
+   END;
+   $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+   ```
+
+### BP-6: Pre-Deploy SQL Validation Checklist
+
+BEFORE running ANY SQL on staging, you MUST provide these verification queries:
+
+```sql
+-- 1. Check for ambiguous column references (dry run)
+EXPLAIN (VERBOSE) <your_query>;
+
+-- 2. Verify FK targets exist
+SELECT column_name, data_type FROM information_schema.columns 
+WHERE table_name = '<target_table>';
+
+-- 3. Verify RLS is configured
+SELECT tablename, rowsecurity FROM pg_tables 
+WHERE schemaname = 'public' AND tablename = '<new_table>';
+
+-- 4. Test RPC with sample data
+SELECT public.<function_name>(<test_params>);
+
+-- 5. Check for constraint violations
+SELECT conname, contype, pg_get_constraintdef(oid) 
+FROM pg_constraint WHERE conrelid = '<table>'::regclass;
+```
+
+### BP-7: Edge Function Error Handling
+
+**Problem**: Edge Functions return 500 or swallow errors without actionable messages.
+
+**Rules**:
+1. ALWAYS return structured errors:
+   ```typescript
+   return new Response(
+     JSON.stringify({ 
+       success: false, 
+       error: { 
+         code: 'INVALID_REFERRAL_CODE',
+         message: 'The referral code does not exist',
+         details: { code: inputCode }
+       }
+     }),
+     { status: 400, headers: { 'Content-Type': 'application/json' } }
+   );
+   ```
+2. Log errors with context before returning:
+   ```typescript
+   console.error('[apply-referral]', { userId, code, error: err.message });
+   ```
+3. NEVER use bare `catch (e) { }` - always log or rethrow.
+
+### BP-8: TypeScript Service Error Handling
+
+**Problem**: App services catch errors and return undefined, making debugging impossible.
+
+**Rules**:
+1. Services MUST return typed results:
+   ```typescript
+   type ServiceResult<T> = 
+     | { success: true; data: T }
+     | { success: false; error: { code: string; message: string } };
+   ```
+2. NEVER: `catch (e) { return null; }`
+3. ALWAYS: `catch (e) { console.error('[serviceName]', e); throw e; }` or return structured error.
+
+### BP-9: Migration Dependency Order
+
+**Problem**: Migrations fail because they reference tables/columns that don't exist yet.
+
+**Rules**:
+1. Create tables in dependency order (referenced tables first).
+2. Add columns BEFORE indexes/constraints that use them.
+3. Enable RLS BEFORE creating policies.
+4. Create functions BEFORE triggers that call them.
+5. Use this template order in every migration:
+   ```sql
+   -- 1. Create/alter tables
+   -- 2. Add constraints
+   -- 3. Enable RLS
+   -- 4. Create policies  
+   -- 5. Create functions
+   -- 6. Create triggers
+   -- 7. Create indexes
+   -- 8. Insert seed data (if any)
+   ```
+
+### BP-10: Required Verification Queries
+
+For EVERY database change, include these verification queries in your response:
+
+```sql
+-- After table creation
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns WHERE table_name = '<table>';
+
+-- After RLS setup
+SELECT tablename, rowsecurity FROM pg_tables WHERE tablename = '<table>';
+SELECT policyname, cmd, permissive, roles, qual, with_check 
+FROM pg_policies WHERE tablename = '<table>';
+
+-- After function creation
+SELECT proname, prosrc FROM pg_proc WHERE proname = '<function>';
+
+-- After trigger creation  
+SELECT trigger_name, event_manipulation, action_statement
+FROM information_schema.triggers WHERE trigger_schema = 'public';
+```
+
+---
+
+---
+
+## UI Performance Defaults (MANDATORY)
+
 Debounce defaults:
 - Search debounce must default to 150–250ms (NOT 500ms+) unless the spec says otherwise.
 - Keep `rawQuery` (immediate) separate from `debouncedQuery` (fetch trigger).

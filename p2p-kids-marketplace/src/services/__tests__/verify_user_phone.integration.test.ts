@@ -1,4 +1,5 @@
 import { supabase } from '@/services/supabase/client';
+import { createConfirmedTestUser, deleteTestUser, getServiceClient } from '@/test-helpers/authTestUtils';
 
 const RUN_SUPABASE_E2E = process.env.RUN_SUPABASE_E2E === 'true';
 const describeSupabase = RUN_SUPABASE_E2E ? describe : describe.skip;
@@ -6,17 +7,23 @@ const describeSupabase = RUN_SUPABASE_E2E ? describe : describe.skip;
 describeSupabase('verify_user_phone RPC', () => {
   const phone = '+15555550123';
   let testUserId: string;
+  const service = getServiceClient();
 
   beforeAll(async () => {
-    // Create a test auth user (so foreign keys to auth.users succeed)
+    if (!service) {
+      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+    }
+
+    // Create a confirmed test auth user (so foreign keys to auth.users succeed)
     const email = `verify-rpc-${Date.now()}@example.com`;
     const pw = 'TestPass123!';
-    const { data: signData, error: signErr } = await supabase.auth.signUp({ email, password: pw });
-    if (signErr) throw signErr;
-    // Use returned user id or fallback to a generated uuid
-    testUserId = (signData as any)?.user?.id || (globalThis as any).crypto?.randomUUID?.() || '00000000-0000-4000-8000-000000000000';
+    const created = await createConfirmedTestUser({ email, password: pw });
+    if (!created?.userId) {
+      throw new Error('Failed to create confirmed test user. Set SUPABASE_SERVICE_ROLE_KEY for integration tests.');
+    }
+    testUserId = created.userId;
     // Create a profile row for the user
-    await supabase.from('profiles').upsert({ 
+    await service.from('profiles').upsert({ 
       user_id: testUserId, 
       name: 'RPC Test User', 
       phone_verified: false,
@@ -25,9 +32,11 @@ describeSupabase('verify_user_phone RPC', () => {
 
   afterAll(async () => {
     // Cleanup test rows
-    await supabase.from('phone_verification_codes').delete().eq('user_id', testUserId);
-    await supabase.from('profiles').delete().eq('user_id', testUserId);
-    // Note: auth.users cleanup requires service role and is left as-is for staging tests
+    if (service) {
+      await service.from('phone_verification_codes').delete().eq('user_id', testUserId);
+      await service.from('profiles').delete().eq('user_id', testUserId);
+    }
+    await deleteTestUser(testUserId);
   });
 
   test('returns error when no verified code exists', async () => {

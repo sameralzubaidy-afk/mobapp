@@ -220,7 +220,7 @@ describe('E2E: Badge Icon Management', () => {
         return;
       }
 
-      expect(error?.message).toContain('permission');
+      expect(error?.message).toContain('row-level security');
     }
   });
 

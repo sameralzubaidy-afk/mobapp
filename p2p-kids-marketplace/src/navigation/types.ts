@@ -40,4 +40,6 @@ export type RootStackParamList = {
   // MODULE-09: Swap Points routes
   SpWallet: undefined;
   SpWalletScreen: undefined;
+  // MODULE-11: Referral routes
+  ReferralDashboard: undefined;
 };

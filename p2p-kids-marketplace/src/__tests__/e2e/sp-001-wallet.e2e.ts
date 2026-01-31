@@ -4,24 +4,42 @@
 
 import { supabase } from '@/config/supabase';
 import { getWallet, getBalance, canSpendSP, getWalletSummary, getSPConfig } from '@/services/sp/wallet';
+import { createConfirmedTestUser, deleteTestUser, getServiceClient } from '@/test-helpers/authTestUtils';
 
-describe('SP-001 E2E: SP Wallet', () => {
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || '';
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() || '';
+const supabaseE2eEnabled = process.env.SUPABASE_E2E_ENABLED === 'true';
+const hasSupabaseEnv = Boolean(supabaseUrl && supabaseAnonKey && supabaseE2eEnabled);
+
+if (!hasSupabaseEnv) {
+  const reasons: string[] = [];
+  if (!supabaseE2eEnabled) {
+    reasons.push('set SUPABASE_E2E_ENABLED=true');
+  }
+  if (!supabaseUrl || !supabaseAnonKey) {
+    reasons.push('provide EXPO_PUBLIC_SUPABASE_URL/ANON_KEY');
+  }
+  console.warn(
+    `[SP-001] Skipping wallet E2E suite: ${reasons.join(', ')}.`
+  );
+}
+
+const describeWalletSuite = hasSupabaseEnv ? describe : describe.skip;
+
+describeWalletSuite('SP-001 E2E: SP Wallet', () => {
   let testUserId: string;
   let cleanupIds: string[] = [];
 
   beforeAll(async () => {
-    // Create test user
-    const { data, error } = await supabase.auth.signUp({
-      email: `test-sp-${Date.now()}@test.com`,
-      password: 'testpassword123'
-    });
+    const email = `test-sp-${Date.now()}@test.com`;
+    const password = 'testpassword123';
 
-    if (error) {
-      console.error('Test user creation failed:', error);
-      throw error;
+    const created = await createConfirmedTestUser({ email, password });
+    if (!created?.userId) {
+      throw new Error('Test user creation failed: no userId returned (auth settings?)');
     }
 
-    testUserId = data.user!.id;
+    testUserId = created.userId;
     cleanupIds.push(testUserId);
 
     // Create subscription for test user
@@ -39,7 +57,10 @@ describe('SP-001 E2E: SP Wallet', () => {
     if (testUserId) {
       await supabase.from('sp_wallets').delete().eq('user_id', testUserId);
       await supabase.from('subscriptions').delete().eq('user_id', testUserId);
-      await supabase.auth.admin.deleteUser(testUserId);
+      const service = getServiceClient();
+      if (service) {
+        await deleteTestUser(testUserId);
+      }
     }
   });
 
