@@ -47,14 +47,13 @@ My Example 1
 ## TASK SP-001: SP Database Schema & Wallet
 
 
-MODULE-11-REFERRALS-V2.md
-MODULE-11-REFERRALS-VERIFICATION-V2.md
+## TASK REF-V2-002: SP Bonus Rewards on First Trade
 
 I’m working on the MODULE-11-REFERRALS-V2.md tasks
 Module: MODULE-11-REFERRALS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK REF-V2-001: Referral Code Generation & Storage
+Tasks: ## TASK REF-V2-002: SP Bonus Rewards on First Trade
 scope is 
-Create referral code system with unique 8-character alphanumeric codes per user. Generate codes on user signup. Store referral relationships with attribution tracking. Implement self-referral prevention checks.
+Implement SP bonus rewards when referee completes first trade. Referrer earns 25 SP, referee earns 10 SP. Verify both users have trial/active subscription before granting rewards. Update referral status to 'completed' after rewards granted.
 
 
 Please

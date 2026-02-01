@@ -2202,6 +2202,9 @@ const styles = StyleSheet.create({
 ## **REF-V2-008**: manage SP bonus rewards for admin ( to confgire the values of rewards on backend and frontend.) 
 ## **REF-V2-009**: think about what i need to do if user is not on subscirption and won SPs> pomte to trail first month free sub. 
 
+## REF-V2-010 > must test ## Test Case 3: Subscription Gating
+Verify that rewards are NOT granted if either user's subscription is expired/cancelled.
+
 ### Testing Checklist
 - [ ] K-factor calculation correct
 - [ ] Total referrals count correct
