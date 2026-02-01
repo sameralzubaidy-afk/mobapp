@@ -15,6 +15,7 @@ export interface Referral {
   id: string;
   referrer_user_id: string;
   referred_user_id: string;
+  referred_user_name?: string; // New field for UI
   referral_code: string;
   status: 'pending' | 'completed' | 'expired';
   reward_granted_at: string | null;
@@ -72,6 +73,29 @@ export class ReferralCodeServiceV2 {
     }
 
     return data.code;
+  }
+
+  /**
+   * Check if a referral code exists (used for validation before signup)
+   */
+  static async checkCodeExists(code: string): Promise<boolean> {
+    try {
+      if (!code || code.trim().length === 0) return false;
+      
+      const { data, error } = await supabase.rpc('check_referral_code_exists', {
+        p_code: code.trim().toLowerCase(),
+      });
+
+      if (error) {
+        console.error('Check referral code exists RPC error:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (error) {
+      console.error('Check referral code exists error:', error);
+      return false;
+    }
   }
 
   /**
@@ -147,21 +171,43 @@ export class ReferralCodeServiceV2 {
   }
 
   /**
-   * Get referral history for user
+   * Get referral history for user with joined profile names
    */
   static async getReferralHistory(userId: string): Promise<Referral[]> {
     try {
+      // Attempt to join with profiles. If the relation is missing, fallback to raw select.
       const { data, error } = await supabase
         .from('referrals')
-        .select('*')
+        .select(`
+          *,
+          profiles:profiles!referrals_referred_profile_fkey (
+            name
+          )
+        `)
         .eq('referrer_user_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) {
-        throw new Error(`Failed to get referral history: ${error.message}`);
+        // Fallback: If relationship is missing, just get the referrals without names
+        if (error.message.includes('relationship') || error.code === 'PGRST200') {
+          console.warn('Referral join failed, fetching without names:', error.message);
+          const { data: rawData, error: rawError } = await supabase
+            .from('referrals')
+            .select('*')
+            .eq('referrer_user_id', userId)
+            .order('created_at', { ascending: false });
+          
+          if (rawError) throw rawError;
+          return rawData || [];
+        }
+        throw error;
       }
 
-      return data || [];
+      // Map profiles.name to referred_user_name
+      return (data || []).map((referral: any) => ({
+        ...referral,
+        referred_user_name: referral.profiles?.name || null
+      }));
     } catch (error) {
       console.error('Get referral history error:', error);
       return [];

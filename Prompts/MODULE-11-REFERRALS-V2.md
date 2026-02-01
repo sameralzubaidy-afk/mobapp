@@ -596,8 +596,8 @@ Implement SP bonus rewards when referee completes first trade. Referrer earns 25
 
 ### Acceptance Criteria
 - [ ] SP rewards triggered when referee completes first trade
-- [ ] Referrer receives 25 SP
-- [ ] Referee receives 10 SP
+- [ ] Referrer receives 25 SP must be dynamic and defined in the admin side
+- [ ] Referee receives 10 SP  must be dynamic and defined in the admin side
 - [ ] Subscription status verified for both users (trial/active only)
 - [ ] Rewards only granted once per referral (idempotent)
 - [ ] Referral status updated to 'completed'
@@ -2197,6 +2197,10 @@ const styles = StyleSheet.create({
   },
 });
 ```
+
+## **REF-V2-007**: SP bonus rewards on first listing 
+## **REF-V2-008**: manage SP bonus rewards for admin ( to confgire the values of rewards on backend and frontend.) 
+## **REF-V2-009**: think about what i need to do if user is not on subscirption and won SPs> pomte to trail first month free sub. 
 
 ### Testing Checklist
 - [ ] K-factor calculation correct

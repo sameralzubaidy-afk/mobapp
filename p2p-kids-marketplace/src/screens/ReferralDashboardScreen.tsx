@@ -95,7 +95,7 @@ export const ReferralDashboardScreen: React.FC = () => {
     <View style={styles.referralItem}>
       <View style={styles.referralInfo}>
         <Text style={styles.referralId}>
-          {formatReferralId(item.referred_user_id)}
+          {item.referred_user_name || formatReferralId(item.referred_user_id)}
         </Text>
         <Text style={styles.referralDate}>
           {formatDate(item.created_at)}

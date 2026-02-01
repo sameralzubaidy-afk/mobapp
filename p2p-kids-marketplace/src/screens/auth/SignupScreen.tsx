@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { signupWithTrial } from '@/services/auth';
+import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 import { isAtLeastAge } from '@/utils/age';
 import { getAllTestUsers, getRandomTestUser, TestUser } from '@/utils/testUsers';
 // TODO: Implement analytics service
@@ -103,6 +104,27 @@ export default function SignupScreen() {
     return null;
   };
 
+  const validateReferralCode = (code: string): string | null => {
+    // If empty, that's OK (referral code is optional)
+    if (!code || code.trim().length === 0) {
+      return null;
+    }
+    
+    const trimmedCode = code.trim().toLowerCase();
+    
+    // Must be 8 characters
+    if (trimmedCode.length !== 8) {
+      return 'Referral code must be exactly 8 characters';
+    }
+    
+    // Must contain only lowercase letters and numbers
+    if (!/^[a-z0-9]+$/.test(trimmedCode)) {
+      return 'Referral code must contain only letters and numbers';
+    }
+    
+    return null;
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -123,6 +145,10 @@ export default function SignupScreen() {
 
     const dobError = validateDob(formData.dob);
     if (dobError) newErrors.dob = dobError;
+
+    // Validate referral code if provided
+    const referralError = validateReferralCode(formData.referralCode);
+    if (referralError) newErrors.referralCode = referralError;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -155,14 +181,60 @@ export default function SignupScreen() {
         return;
       }
 
-      // Call Supabase Auth signup with trial activation
+      // TC-005 Validate referral code exists BEFORE creating auth user
+      // This prevents the "Email already registered" error if the referral check fails later.
+      if (formData.referralCode && formData.referralCode.trim()) {
+        const codeValid = await ReferralCodeServiceV2.checkCodeExists(formData.referralCode.trim());
+        if (!codeValid) {
+          setLoading(false);
+          Alert.alert(
+            'Invalid Referral Code',
+            'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
+            [
+              {
+                text: 'Fix it',
+                style: 'cancel',
+                onPress: () => {
+                  // Do nothing, let user edit
+                }
+              },
+              {
+                text: 'Continue anyway',
+                onPress: async () => {
+                   // Proceed without the referral code
+                   setFormData(prev => ({ ...prev, referralCode: '' }));
+                   // We need to trigger handleSignup again but without the code
+                   await runFinalSignup('');
+                }
+              }
+            ]
+          );
+          return;
+        }
+      }
+
+      await runFinalSignup(formData.referralCode.trim().toLowerCase());
+
+    } catch (error: any) {
+      handleSignupError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Final signup execution after validation passes
+   */
+  const runFinalSignup = async (finalReferralCode: string) => {
+    setLoading(true);
+    try {
       const { user, error } = await signupWithTrial({
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
         name: formData.name.trim(),
         phone: formData.phone.trim(),
         dob: formData.dob.trim(),
-        referralCode: formData.referralCode.trim().toLowerCase(),
+        referralCode: finalReferralCode,
       });
 
       if (error) {
@@ -173,64 +245,51 @@ export default function SignupScreen() {
         throw new Error('Signup succeeded but no user returned');
       }
 
-      // TODO: Track successful signup
-      // trackEvent(AUTH_EVENTS.SIGNUP_COMPLETED, {
-      //   user_id: user.id,
-      //   method: 'email',
-      //   timestamp: new Date().toISOString(),
-      // });
-
       // Navigate to phone verification screen
       (navigation as any).navigate('PhoneVerification', {
         userId: user.id,
         phone: formData.phone,
       });
-
     } catch (error: any) {
-      const debugInfo = {
-        name: error?.name,
-        message: error?.message,
-        status: error?.status,
-        code: error?.code,
-      };
-      console.error('Signup error:', debugInfo, error);
-
-      // TODO: Capture error in Sentry
-      // Sentry.captureException(error, {
-      //   contexts: {
-      //     signup: {
-      //       email: formData.email,
-      //       phone: formData.phone,
-      //     },
-      //   },
-      // });
-
-      // TODO: Track failed signup
-      // trackEvent(AUTH_EVENTS.SIGNUP_FAILED, {
-      //   reason: error.message || 'unknown_error',
-      //   error_code: error.code,
-      // });
-
-      // Show user-friendly error message
-      let errorMessage = 'Signup failed. Please try again.';
-      
-      if (error.message?.includes('already registered')) {
-        errorMessage = 'This email is already registered. Please log in instead.';
-      } else if (error.message?.includes('weak password')) {
-        errorMessage = 'Password is too weak. Please choose a stronger password.';
-      } else if (error.message?.includes('network')) {
-        errorMessage = 'Network error. Please check your connection and try again.';
-      } else if (error.message?.includes('Database error saving new user')) {
-        errorMessage =
-          'Signup failed due to a backend database trigger error. Please check Supabase Auth logs for the underlying SQL error (often caused by a failing auth.users trigger).';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      Alert.alert('Signup Failed', errorMessage);
+      handleSignupError(error);
     } finally {
       setLoading(false);
     }
+  };
+
+  /**
+   * Unified error handling for signup process
+   */
+  const handleSignupError = (error: any) => {
+    const debugInfo = {
+      name: error?.name,
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+    };
+    console.error('Signup error:', debugInfo, error);
+
+    // Show user-friendly error message
+    let errorMessage = 'Signup failed. Please try again.';
+    
+    if (error.message?.includes('already registered')) {
+      errorMessage = 'This email is already registered. Please log in instead.';
+    } else if (error.message?.includes('weak password')) {
+      errorMessage = 'Password is too weak. Please choose a stronger password.';
+    } else if (error.message?.includes('network')) {
+      errorMessage = 'Network error. Please check your connection and try again.';
+    } else if (error.message?.includes('Invalid referral code')) {
+      errorMessage = 'The referral code you entered is invalid. Please check the code and try again.';
+    } else if (error.message?.includes('Referral code')) {
+      errorMessage = 'There was an error applying the referral code. Please try again or skip this step.';
+    } else if (error.message?.includes('Database error saving new user')) {
+      errorMessage =
+        'Signup failed due to a backend database trigger error. Please check Supabase Auth logs for the underlying SQL error (often caused by a failing auth.users trigger).';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    Alert.alert('Signup Failed', errorMessage);
   };
 
   function applyTestUser(user: TestUser) {

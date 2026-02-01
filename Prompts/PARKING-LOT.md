@@ -106,6 +106,8 @@ payout needs FULL end to end testing with real money , check status on app and d
 
   ## BEFORE GO live make the search faster and more accessible , today there is a waiting time to load search 1 sec. 
 
+ ## BEFORE GO live  ### TC-004: Prevent self-referral attempts
+
  ## TASK MSG-010: create admin field for this change Implement Message Expiration (Delete After 30 Days Post-Trade)
 
 MODULE-08-BADGES-V2.md 

@@ -126,9 +126,8 @@ export async function signupWithTrial(input: {
     const userId = authData.user.id;
 
     // Step 2: Profile is auto-created by trigger on auth.users
-    // The handle_new_user() trigger handles this asynchronously
-    // We don't wait for it since it runs AFTER INSERT on auth.users
-    // If it fails, we log a warning but don't fail signup
+    // The handle_new_user() trigger handles this.
+    // We let the app apply the referral code next to handle errors gracefully.
 
     // Step 3: Apply referral code if provided
     if (referralCode && referralCode.trim()) {
@@ -138,15 +137,21 @@ export async function signupWithTrial(input: {
           userId,
           referralCode.trim()
         );
-        if (!result.success && result.error !== 'Referral code already applied') {
-          console.warn('Referral code application failed:', result.error);
-          // Don't fail signup, just log the warning
+        if (!result.success) {
+          const errorMsg = result.error || 'Unknown referral code error';
+          if (errorMsg.toLowerCase().includes('already applied')) {
+            // This is OK, referral was already applied
+            console.log('Referral code already applied:', errorMsg);
+          } else {
+            // TC-005: Log warning but DO NOT throw - signup continues despite invalid code
+            console.warn('[signupWithTrial] Referral application failed but continuing signup:', errorMsg);
+          }
         } else {
           console.log('Referral code applied successfully');
         }
       } catch (error) {
-        console.error('Error applying referral code:', error);
-        // Don't fail signup for referral issues
+        // TC-005: Log warning but DO NOT throw - signup continues despite invalid code
+        console.warn('[signupWithTrial] Error applying referral code, continuing signup:', error);
       }
     }
 
