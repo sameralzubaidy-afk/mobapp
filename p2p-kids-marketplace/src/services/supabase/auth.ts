@@ -35,8 +35,7 @@ export const generateReferralCode = async (): Promise<string> => {
 
 /**
  * Process referral code entered during signup
- * Temporarily stores referral info in profiles table due to Supabase schema cache issue
- * Will be migrated to referrals table once schema cache is refreshed
+ * Uses the database RPC function to apply the referral correctly
  */
 export const processReferralCode = async (
   newUserId: string,
@@ -48,53 +47,50 @@ export const processReferralCode = async (
       return;
     }
 
+    const cleanCode = referralCode.trim().toLowerCase();
 
-    // Find user with this referral code
-    const { data: referrer, error } = await supabase
-      .from('profiles')
-      .select('user_id, name')
-      .eq('referral_code', referralCode.toUpperCase())
-      .maybeSingle();
+    // Call the RPC function to apply the referral code
+    // This handles validation, self-referral checks, and updates both referrals and profiles tables
+    const { data, error } = await supabase.rpc('apply_referral_code', {
+      p_referee_id: newUserId,
+      p_referral_code: cleanCode,
+    });
 
     if (error) {
-      console.warn('⚠️ Error looking up referral code:', error);
+      console.warn('⚠️ Error applying referral code via RPC:', error);
+      
+      // Fallback: If RPC is missing or fails (legacy environment), try the profiles-table workaround
+      // but use lowercase and search correctly
+      const { data: referrer, error: findError } = await supabase
+        .from('referral_codes') // Try primary source first
+        .select('user_id')
+        .eq('code', cleanCode)
+        .maybeSingle();
+
+      const actualReferrer = referrer || await (async () => {
+        const { data: p } = await supabase
+          .from('profiles')
+          .select('user_id')
+          .eq('referral_code', referralCode.toUpperCase()) // Fallback to uppercase for legacy profiles
+          .maybeSingle();
+        return p;
+      })();
+
+      if (actualReferrer) {
+        await supabase
+          .from('profiles')
+          .update({ referred_by: (actualReferrer as any).user_id })
+          .eq('user_id', newUserId);
+      }
       return;
     }
 
-    if (!referrer) {
-      console.warn('⚠️ Invalid referral code:', referralCode);
-      return;
+    if (data && !data.success) {
+      console.warn('⚠️ Referral code not applied:', data.error);
     }
-
-    // Prevent self-referral
-    if ((referrer as any).user_id === newUserId) {
-      console.warn('⚠️ Self-referral attempt');
-      return;
-    }
-
-
-    // WORKAROUND: Due to Supabase schema cache not recognizing the referrals table,
-    // we temporarily store the referrer_user_id in the profiles.referred_by column
-    // This is not ideal but prevents signup from being blocked
-    // TODO: Remove this workaround once Supabase schema cache is fixed
-
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        referred_by: (referrer as any).user_id, // Store referrer ID temporarily
-      })
-      .eq('user_id', newUserId);
-
-    if (updateError) {
-      console.warn('⚠️ Could not store referral relationship:', updateError);
-      // Don't fail signup - this is just a bonus feature
-      return;
-    }
-
 
   } catch (error) {
     console.error('❌ Process referral code exception:', error);
-    // Don't rethrow - allow signup to continue
   }
 };
 
@@ -130,6 +126,7 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
           name: data.name,
           phone: data.phone,
           dob: data.dob,
+          referral_code: data.referralCode, // Pass referral code for background trigger processing
         },
       },
     });
