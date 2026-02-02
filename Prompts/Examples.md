@@ -47,13 +47,14 @@ My Example 1
 ## TASK SP-001: SP Database Schema & Wallet
 
 
-## TASK REF-V2-005: Referral Notifications
+## TASK REF-V2-006: Admin Referral Analytics
 
 I’m working on the MODULE-11-REFERRALS-V2.md tasks
 Module: MODULE-11-REFERRALS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK REF-V2-005: Referral Notifications
+Tasks: ## TASK REF-V2-006: Admin Referral Analytics
+
 scope is 
-Send notifications for referral events: invite accepted (referee signs up), first trade completed, SP rewards granted. Create notification templates for each event. Integrate with notification preferences system.
+Create admin analytics dashboard for referral program. Display K-factor, viral coefficient, conversion funnel (signups → first trades → rewards granted). Show top referrers leaderboard. Track referral SP distribution over time.
 
 
 Please

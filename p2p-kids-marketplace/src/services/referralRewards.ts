@@ -2,7 +2,8 @@
 // MODULE-11 REF-V2-002: SP Bonus Rewards Service
 // Wraps the award_referral_sp RPC function (migration 094)
 
-import { supabase } from '../config/supabase';
+import { supabase as defaultClient } from '../config/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface ReferralRewardResult {
   success: boolean;
@@ -58,10 +59,11 @@ export class ReferralRewardsService {
   static async grantRewards(
     referrerId: string,
     refereeId: string,
-    referralId: string
+    referralId: string,
+    client: SupabaseClient = defaultClient
   ): Promise<ReferralRewardResult> {
     try {
-      const { data, error } = await supabase.rpc('award_referral_sp', {
+      const { data, error } = await client.rpc('award_referral_sp', {
         p_referrer_id: referrerId,
         p_referee_id: refereeId,
         p_referral_id: referralId,
@@ -105,11 +107,12 @@ export class ReferralRewardsService {
    * Check if user is eligible for referral rewards
    * 
    * @param userId - User ID to check (referee)
+   * @param client - Supabase client (optional)
    * @returns Eligibility status with referrer info
    */
-  static async checkEligibility(userId: string): Promise<ReferralEligibility> {
+  static async checkEligibility(userId: string, client: SupabaseClient = defaultClient): Promise<ReferralEligibility> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('referrals')
         .select('referrer_user_id, status')
         .eq('referred_user_id', userId)
@@ -156,11 +159,12 @@ export class ReferralRewardsService {
    * Check if this is the user's first completed trade
    * 
    * @param userId - User ID to check
+   * @param client - Supabase client (optional)
    * @returns True if this is their first completed trade
    */
-  static async isFirstCompletedTrade(userId: string): Promise<boolean> {
+  static async isFirstCompletedTrade(userId: string, client: SupabaseClient = defaultClient): Promise<boolean> {
     try {
-      const { count, error } = await supabase
+      const { count, error } = await client
         .from('trades')
         .select('*', { count: 'exact', head: true })
         .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
@@ -181,14 +185,15 @@ export class ReferralRewardsService {
   /**
    * Get configured SP reward amounts from admin config
    * 
+   * @param client - Supabase client (optional)
    * @returns Object with referrer and referee SP amounts
    */
-  static async getConfiguredRewardAmounts(): Promise<{
+  static async getConfiguredRewardAmounts(client: SupabaseClient = defaultClient): Promise<{
     referrer_sp: number;
     referee_sp: number;
   }> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('sp_config')
         .select('config_key, config_value')
         .in('config_key', ['referral_reward_referrer_sp', 'referral_reward_referee_sp']);
@@ -216,14 +221,16 @@ export class ReferralRewardsService {
    * 
    * @param referrerId - Referrer user ID
    * @param refereeId - Referee user ID
+   * @param client - Supabase client (optional)
    * @returns True if both have active/trial subscription
    */
   static async verifyBothUsersSubscribed(
     referrerId: string,
-    refereeId: string
+    refereeId: string,
+    client: SupabaseClient = defaultClient
   ): Promise<{ both_subscribed: boolean; referrer_status: string | null; referee_status: string | null }> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('subscriptions')
         .select('user_id, status, trial_end_date, current_period_end')
         .in('user_id', [referrerId, refereeId])

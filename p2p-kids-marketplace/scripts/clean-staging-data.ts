@@ -38,6 +38,7 @@ const adminSupabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
 const TEST_USER_IDS = [
   '49243010-f458-4744-add1-a6c84ab95f1f', // test-buyer
   '14be337c-aad6-403f-bab2-ba1a7d80b666', // test-seller
+  'e861a7a0-9764-4e2a-9f5e-2b5e1b9b6e6f', // test-admin
 ];
 
 const TEST_EMAILS = [
@@ -56,11 +57,13 @@ async function deleteTestData(): Promise<void> {
 
   // 1. Delete referrals
   console.log('\n🔗 Cleaning referrals...');
-  const { error: referralsError, count: referralsCount } = await adminSupabase
+  const { error: referralsError, data: referralsData } = await adminSupabase
     .from('referrals')
     .delete()
     .in('referrer_user_id', TEST_USER_IDS)
-    .select('*', { count: 'exact', head: true });
+    .select();
+  
+  const referralsCount = referralsData?.length || 0;
   
   if (referralsError) {
     console.error(`   ❌ Error: ${referralsError.message}`);
@@ -71,11 +74,13 @@ async function deleteTestData(): Promise<void> {
 
   // 2. Delete referral codes
   console.log('\n🎫 Cleaning referral codes...');
-  const { error: codesError, count: codesCount } = await adminSupabase
+  const { error: codesError, data: codesData } = await adminSupabase
     .from('referral_codes')
     .delete()
     .in('user_id', TEST_USER_IDS)
-    .select('*', { count: 'exact', head: true });
+    .select();
+  
+  const codesCount = codesData?.length || 0;
   
   if (codesError) {
     console.error(`   ❌ Error: ${codesError.message}`);
@@ -86,11 +91,13 @@ async function deleteTestData(): Promise<void> {
 
   // 3. Delete user badges
   console.log('\n🏆 Cleaning user badges...');
-  const { error: userBadgesError, count: userBadgesCount } = await adminSupabase
+  const { error: userBadgesError, data: userBadgesData } = await adminSupabase
     .from('user_badges')
     .delete()
     .in('user_id', TEST_USER_IDS)
-    .select('*', { count: 'exact', head: true });
+    .select();
+  
+  const userBadgesCount = userBadgesData?.length || 0;
   
   if (userBadgesError) {
     console.error(`   ❌ Error: ${userBadgesError.message}`);
@@ -101,11 +108,13 @@ async function deleteTestData(): Promise<void> {
 
   // 4. Delete SP ledger entries
   console.log('\n💰 Cleaning SP ledger...');
-  const { error: spError, count: spCount } = await adminSupabase
+  const { error: spError, data: spData } = await adminSupabase
     .from('sp_ledger')
     .delete()
     .in('user_id', TEST_USER_IDS)
-    .select('*', { count: 'exact', head: true });
+    .select();
+  
+  const spCount = spData?.length || 0;
   
   if (spError) {
     console.error(`   ❌ Error: ${spError.message}`);
@@ -116,11 +125,13 @@ async function deleteTestData(): Promise<void> {
 
   // 5. Delete trades
   console.log('\n🤝 Cleaning trades...');
-  const { error: tradesError, count: tradesCount } = await adminSupabase
+  const { error: tradesError, data: tradesData } = await adminSupabase
     .from('trades')
     .delete()
     .or(`buyer_id.in.(${TEST_USER_IDS.join(',')}),seller_id.in.(${TEST_USER_IDS.join(',')})`)
-    .select('*', { count: 'exact', head: true });
+    .select();
+  
+  const tradesCount = tradesData?.length || 0;
   
   if (tradesError) {
     console.error(`   ❌ Error: ${tradesError.message}`);
@@ -131,11 +142,13 @@ async function deleteTestData(): Promise<void> {
 
   // 6. Delete listings
   console.log('\n📦 Cleaning listings...');
-  const { error: listingsError, count: listingsCount } = await adminSupabase
+  const { error: listingsError, data: listingsData } = await adminSupabase
     .from('items')
     .delete()
     .in('user_id', TEST_USER_IDS)
-    .select('*', { count: 'exact', head: true });
+    .select();
+  
+  const listingsCount = listingsData?.length || 0;
   
   if (listingsError) {
     console.error(`   ❌ Error: ${listingsError.message}`);
@@ -146,11 +159,13 @@ async function deleteTestData(): Promise<void> {
 
   // 7. Delete subscriptions
   console.log('\n💳 Cleaning subscriptions...');
-  const { error: subsError, count: subsCount } = await adminSupabase
+  const { error: subsError, data: subsData } = await adminSupabase
     .from('subscriptions')
     .delete()
     .in('user_id', TEST_USER_IDS)
-    .select('*', { count: 'exact', head: true });
+    .select();
+  
+  const subsCount = subsData?.length || 0;
   
   if (subsError) {
     console.error(`   ❌ Error: ${subsError.message}`);
@@ -161,11 +176,13 @@ async function deleteTestData(): Promise<void> {
 
   // 8. Delete profiles
   console.log('\n👤 Cleaning profiles...');
-  const { error: profilesError, count: profilesCount } = await adminSupabase
+  const { error: profilesError, data: profilesData } = await adminSupabase
     .from('profiles')
     .delete()
     .in('user_id', TEST_USER_IDS)
-    .select('*', { count: 'exact', head: true });
+    .select();
+  
+  const profilesCount = profilesData?.length || 0;
   
   if (profilesError) {
     console.error(`   ❌ Error: ${profilesError.message}`);
@@ -194,37 +211,27 @@ async function deleteTestData(): Promise<void> {
 
   // Try to delete by email as fallback
   console.log('\n📧 Cleaning auth users by email (fallback)...');
-  for (const email of TEST_EMAILS) {
-    try {
-      // Try to get user by email using admin API
-      const { data: users, error: listError } = await adminSupabase.auth.admin.listUsers({
-        filters: {
-          email: {
-            operator: 'eq',
-            value: email,
-          }
-        }
-      });
-
-      if (listError) {
-        console.warn(`   ⚠️  Could not list users for ${email}: ${listError.message}`);
-        continue;
-      }
-
-      if (users && users.users && users.users.length > 0) {
-        for (const user of users.users) {
+  try {
+    const { data: { users }, error: listError } = await adminSupabase.auth.admin.listUsers();
+    
+    if (listError) {
+      console.warn(`   ⚠️  Could not list users for email fallback: ${listError.message}`);
+    } else if (users) {
+      for (const email of TEST_EMAILS) {
+        const user = users.find(u => u.email === email);
+        if (user) {
           const { error: deleteError } = await adminSupabase.auth.admin.deleteUser(user.id);
           if (deleteError) {
             console.warn(`   ⚠️  Could not delete ${email}: ${deleteError.message}`);
           } else {
-            console.log(`   ✓ Deleted auth user: ${email}`);
+            console.log(`   ✓ Deleted auth user by email: ${email}`);
             authDeleted++;
           }
         }
       }
-    } catch (err) {
-      console.warn(`   ⚠️  Fallback failed for ${email}:`, (err as Error).message);
     }
+  } catch (err) {
+    console.warn('   ⚠️  Email fallback failed:', (err as Error).message);
   }
   
   if (authDeleted === 0) {

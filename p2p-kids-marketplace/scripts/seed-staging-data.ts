@@ -64,6 +64,7 @@ export const TEST_USERS = {
     phone: '5551234002',
   },
   admin: {
+    id: 'e861a7a0-9764-4e2a-9f5e-2b5e1b9b6e6f', // Fixed UUID for admin
     email: 'test-admin@kidsmarketplace.test',
     password: 'TestAdmin123!',
     name: 'Test Admin',

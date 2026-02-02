@@ -236,9 +236,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   loadingContainer: {
-    backgroundColor: '#F3F4F6',
-  },
-  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
