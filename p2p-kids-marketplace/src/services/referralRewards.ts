@@ -186,33 +186,56 @@ export class ReferralRewardsService {
    * Get configured SP reward amounts from admin config
    * 
    * @param client - Supabase client (optional)
-   * @returns Object with referrer and referee SP amounts
+   * @returns Object with referrer and referee SP amounts for trade and listing
    */
   static async getConfiguredRewardAmounts(client: SupabaseClient = defaultClient): Promise<{
     referrer_sp: number;
     referee_sp: number;
+    referrer_listing_sp: number;
+    referee_listing_sp: number;
+    program_enabled: boolean;
+    first_trade_enabled: boolean;
+    first_listing_enabled: boolean;
   }> {
     try {
-      const { data, error } = await client
-        .from('sp_config')
-        .select('config_key, config_value')
-        .in('config_key', ['referral_reward_referrer_sp', 'referral_reward_referee_sp']);
+      const { data, error } = await client.rpc('get_referral_listing_config');
 
-      if (error || !data) {
-        // Return defaults if config not found
-        return { referrer_sp: 25, referee_sp: 10 };
+      if (error || !data || (Array.isArray(data) && data.length === 0)) {
+        console.error('[ReferralRewards] Get config error:', error);
+        return { 
+          referrer_sp: 25, 
+          referee_sp: 10,
+          referrer_listing_sp: 25,
+          referee_listing_sp: 10,
+          program_enabled: true,
+          first_trade_enabled: true,
+          first_listing_enabled: true
+        };
       }
 
-      const referrerConfig = data.find(c => c.config_key === 'referral_reward_referrer_sp');
-      const refereeConfig = data.find(c => c.config_key === 'referral_reward_referee_sp');
+      // Handle table/array response or single object
+      const config = Array.isArray(data) ? data[0] : data;
 
       return {
-        referrer_sp: referrerConfig ? parseInt(referrerConfig.config_value) : 25,
-        referee_sp: refereeConfig ? parseInt(refereeConfig.config_value) : 10,
+        referrer_sp: config.referrer_sp ?? 25,
+        referee_sp: config.referee_sp ?? 10,
+        referrer_listing_sp: config.referrer_listing_sp ?? 25,
+        referee_listing_sp: config.referee_listing_sp ?? 10,
+        program_enabled: config.program_enabled ?? true,
+        first_trade_enabled: config.first_trade_enabled ?? true,
+        first_listing_enabled: config.first_listing_enabled ?? true,
       };
     } catch (err) {
       console.error('[ReferralRewards] Get config error:', err);
-      return { referrer_sp: 25, referee_sp: 10 };
+      return { 
+        referrer_sp: 25, 
+        referee_sp: 10,
+        referrer_listing_sp: 25,
+        referee_listing_sp: 10,
+        program_enabled: true,
+        first_trade_enabled: true,
+        first_listing_enabled: true
+      };
     }
   }
 
@@ -257,6 +280,29 @@ export class ReferralRewardsService {
     } catch (err) {
       console.error('[ReferralRewards] Verify subscription error:', err);
       return { both_subscribed: false, referrer_status: null, referee_status: null };
+    }
+  }
+
+  /**
+   * Check if listing bonus feature is enabled (REF-V2-008)
+   * 
+   * @param client - Supabase client (optional)
+   * @returns True if referral_first_listing_enabled = true
+   */
+  static async isListingBonusEnabled(client: SupabaseClient = defaultClient): Promise<boolean> {
+    try {
+      const { data, error } = await client.rpc('get_referral_listing_config');
+
+      if (error || !data) {
+        console.error('[ReferralRewards] Check listing bonus enabled error:', error);
+        return true; // Default to enabled if error
+      }
+
+      const config = Array.isArray(data) ? data[0] : data;
+      return config?.first_listing_enabled ?? true;
+    } catch (err) {
+      console.error('[ReferralRewards] Check listing bonus enabled error:', err);
+      return true; // Default to enabled
     }
   }
 }

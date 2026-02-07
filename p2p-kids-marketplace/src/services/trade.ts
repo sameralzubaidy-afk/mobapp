@@ -299,7 +299,9 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
 export async function completeTradeV2(tradeId: string): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!user || !session) {
       return { success: false, error: 'User not authenticated' };
     }
 
@@ -308,17 +310,55 @@ export async function completeTradeV2(tradeId: string): Promise<{ success: boole
     // Call the complete-trade Edge Function
     const { data, error } = await supabase.functions.invoke('complete-trade', {
       body: { tradeId },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
     });
 
     if (error) {
       console.error('[trade] Complete trade error:', error);
+      console.error('[trade] Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error
+      });
+
+      // Best-effort: FunctionsHttpError sometimes contains a Response in error.context
+      // which includes the real JSON error body from the Edge Function.
+      try {
+        const anyError = error as any;
+        const context = anyError?.context;
+
+        if (context?.body) {
+          console.error('[trade] Edge Function response body (context.body):', context.body);
+        }
+
+        const response: Response | undefined = context?.response;
+        if (response) {
+          const resForRead = typeof (response as any).clone === 'function' ? (response as any).clone() : response;
+          const text = await resForRead.text();
+          console.error('[trade] Edge Function response body (response.text):', text);
+        }
+      } catch (parseErr) {
+        console.error('[trade] Failed to read Edge Function error body:', parseErr);
+      }
+
       return { 
         success: false, 
-        error: error.message || 'Failed to complete trade' 
+        error: error.message || 'Failed to complete trade'
       };
     }
     
     console.log('[trade] Trade completion response:', data);
+
+    if (!data.success) {
+      console.error('[trade] RPC returned failure:', data);
+      return {
+        success: false,
+        error: data.error || 'Failed to complete trade',
+        message: data.message,
+      };
+    }
 
     return {
       success: data.success,

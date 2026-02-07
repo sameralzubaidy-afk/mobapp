@@ -19,6 +19,13 @@ SELECT
   schemaname,
   tablename,
   rowsecurity
-FROM pg_class
-JOIN pg_namespace ON pg_class.relnamespace = pg_namespace.oid
+FROM pg_tables
 WHERE tablename = 'admin_config';
+
+-- Check current values and categories
+SELECT key, value, category, updated_at FROM admin_config WHERE key LIKE 'referral%';
+
+-- Check for triggers that might be reverting changes
+SELECT trigger_name, event_manipulation, action_statement, action_timing
+FROM information_schema.triggers 
+WHERE event_object_table = 'admin_config';

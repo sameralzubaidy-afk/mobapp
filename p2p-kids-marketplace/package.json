@@ -15,6 +15,7 @@
     "web": "expo start --web",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "type-check": "tsc --noEmit",
     "test": "jest",

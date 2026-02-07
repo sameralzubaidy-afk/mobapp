@@ -85,6 +85,15 @@ export const setupUserProfile = async (
     // Step 2: Create or update user profile in database
     // Note: A trigger auto-creates a minimal profile on signup, so we use upsert
     // We explicitly include email and phone here to ensure they are captured even if the trigger fails
+    
+    // CRITICAL: Preserve referral fields set by auth trigger
+    // The trigger sets referral_code + referred_by on signup, and we must not overwrite them
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('referral_code, referred_by')
+      .eq('user_id', userId)
+      .maybeSingle();
+
     const dbProfileData: Record<string, any> = {
       user_id: userId,
       name: profileData.display_name,
@@ -99,6 +108,10 @@ export const setupUserProfile = async (
       phone_verified: true,
       phone_verified_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      // PROTECTED FIELDS: Removed to prevent overwriting trigger-generated values
+      // We do not send referral_code/referred_by here.
+      // If the row exists (trigger created it): Supabase update will leave them alone.
+      // If the row is new (trigger failed): They will be null (correct default).
     };
 
     const { error: insertError } = await supabase
@@ -219,6 +232,7 @@ export const updateUserProfile = async (
     }
 
     // Update the user profile
+    // NOTE: We NEVER update referral_code or referred_by here - they are managed by auth trigger
     const { error: updateError } = await supabase
       .from('profiles')
       .update(updatePayload)

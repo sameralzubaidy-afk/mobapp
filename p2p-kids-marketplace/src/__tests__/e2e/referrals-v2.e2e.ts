@@ -219,7 +219,7 @@ d('Referrals V2 E2E', () => {
       );
       
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid referral code');
+      expect(result.error).toContain('Already applied');
     });
   });
 

@@ -33,11 +33,15 @@ async function insertTradeWithBackCompat(
   client: SupabaseClient,
   payload: Record<string, any>
 ): Promise<{ data: any; error: any }> {
+  // Get item_id from listing
+  const { data: listing } = await client.from('items').select('id').eq('id', payload.listing_id).single();
+  const insertData = { ...payload, item_id: listing?.id };
+
   // Prefer current schema (buyer_transaction_fee_cents + sp_amount)
-  let res = await client.from('trades').insert(payload).select().single();
+  let res = await client.from('trades').insert(insertData).select().single();
 
   if (res.error && res.error.message?.includes('buyer_transaction_fee_cents')) {
-    const { buyer_transaction_fee_cents, ...rest } = payload;
+    const { buyer_transaction_fee_cents, ...rest } = insertData;
     res = await client
       .from('trades')
       .insert({ ...rest, transaction_fee_cents: buyer_transaction_fee_cents })
@@ -46,7 +50,7 @@ async function insertTradeWithBackCompat(
   }
 
   if (res.error && res.error.message?.includes('sp_amount')) {
-    const { sp_amount, ...rest } = payload;
+    const { sp_amount, ...rest } = insertData;
     res = await client
       .from('trades')
       .insert({ ...rest, points_amount: sp_amount })

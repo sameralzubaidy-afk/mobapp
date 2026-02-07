@@ -24,6 +24,7 @@ import { getUserReviews, getReviewStats, Review, ReviewStats } from '@/services/
 import { ReviewCard } from '@/components/ReviewCard';
 import { StarRating } from '@/components/StarRating';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
+import { ReferralRewardsService } from '@/services/referralRewards';
 // generated `Database` types may be missing locally; use a permissive fallback
 // to avoid type errors until DB types are generated.
 import BottomNavBar from '@/components/organisms/BottomNavBar';
@@ -42,6 +43,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
+  const [pendingReferralNotice, setPendingReferralNotice] = useState<string | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -103,6 +105,29 @@ export default function ProfileScreen({ navigation }: any) {
       } catch (error) {
         console.warn('Error loading referral code:', error);
         setReferralCode(null);
+      }
+
+      // Load pending referral notice (Refereee condition)
+      try {
+        const eligibility = await ReferralCodeServiceV2.checkEligibility(authUser.id);
+        if (eligibility.rewards_pending) {
+          const config = await ReferralRewardsService.getConfiguredRewardAmounts();
+          const actions = [];
+          if (config.first_listing_enabled) actions.push("list your first item");
+          if (config.first_trade_enabled) actions.push("complete one trade");
+          
+          if (actions.length > 0) {
+              const actionStr = actions.length === 2 
+                ? `${actions[0]} or ${actions[1]}` 
+                : actions[0];
+              setPendingReferralNotice(`🎁 Your bonus is waiting! ${actionStr.charAt(0).toUpperCase() + actionStr.slice(1)} to earn ${config.referee_sp} SP.`);
+          }
+        } else {
+          setPendingReferralNotice(null);
+        }
+      } catch (error) {
+        console.warn('Error loading pending referral info:', error);
+        setPendingReferralNotice(null);
       }
       
       // Load reviews and stats
@@ -267,6 +292,14 @@ export default function ProfileScreen({ navigation }: any) {
               <Text style={styles.viewDashboardButtonText}>View Dashboard →</Text>
             </TouchableOpacity>
           </View>
+
+          {/* New Pending Action Notice */}
+          {pendingReferralNotice && (
+            <View style={styles.pendingReferralBadge}>
+              <Text style={styles.pendingReferralText}>{pendingReferralNotice}</Text>
+            </View>
+          )}
+
           <View style={styles.referralCodeContainer}>
             <View style={styles.referralCodeWrapper}>
               <Text style={styles.referralCodeLabel}>Your Referral Code:</Text>
@@ -632,6 +665,21 @@ const styles = StyleSheet.create({
   },
   referralSection: {
     marginBottom: 24,
+  },
+  pendingReferralBadge: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  pendingReferralText: {
+    color: '#B45309',
+    fontSize: 13,
+    fontWeight: '500',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   referralCodeContainer: {
     backgroundColor: '#FFFFFF',

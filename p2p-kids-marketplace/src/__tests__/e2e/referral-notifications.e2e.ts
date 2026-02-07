@@ -51,8 +51,8 @@ describe('Referral Notifications E2E', () => {
       const { data: referral, error: referralError } = await supabase
         .from('referrals')
         .insert({
-          referrer_id: TEST_REFERRER_ID,
-          referee_id: TEST_REFEREE_ID,
+          referrer_user_id: TEST_REFERRER_ID,
+          referred_user_id: TEST_REFEREE_ID,
           referral_code: 'testcode123',
           status: 'pending',
         })
@@ -92,7 +92,7 @@ describe('Referral Notifications E2E', () => {
       const { data: referral } = await supabase
         .from('referrals')
         .select('*')
-        .eq('referee_id', TEST_REFEREE_ID)
+        .eq('referred_user_id', TEST_REFEREE_ID)
         .eq('status', 'pending')
         .single();
 

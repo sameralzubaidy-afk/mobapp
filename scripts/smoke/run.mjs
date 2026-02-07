@@ -38,6 +38,7 @@ if (args.includes('--all')) {
   // Minimal default set; expand as automation is added.
   runScript('transactions');
   runScript('payouts');
+  runScript('referrals');
   process.exit(process.exitCode ?? 0);
 }
 

@@ -14,6 +14,7 @@ import {
 import { Clipboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ReferralCodeServiceV2, type Referral, type ReferralStats } from '@/services/referralCodeV2';
+import { ReferralRewardsService } from '@/services/referralRewards';
 import { useAuth } from '@/hooks/useAuth';
 
 export const ReferralDashboardScreen: React.FC = () => {
@@ -27,8 +28,21 @@ export const ReferralDashboardScreen: React.FC = () => {
     total_sp_earned: 0,
     trial_extensions_used: 0,
   });
+  const [rewardsConfig, setRewardsConfig] = useState({
+    referrer_sp: 25,
+    referee_sp: 10,
+    referrer_listing_sp: 25,
+    referee_listing_sp: 10,
+    program_enabled: true,
+    first_trade_enabled: true,
+    first_listing_enabled: true,
+  });
   const [history, setHistory] = useState<Referral[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingReward, setPendingReward] = useState<{
+    rewards_pending: boolean;
+    referrer_id: string | null;
+  }>({ rewards_pending: false, referrer_id: null });
 
   useEffect(() => {
     if (user?.id) {
@@ -43,15 +57,19 @@ export const ReferralDashboardScreen: React.FC = () => {
       setIsLoading(true);
       
       // Load all referral data concurrently
-      const [code, statsData, historyData] = await Promise.all([
+      const [code, statsData, historyData, config, eligibility] = await Promise.all([
         ReferralCodeServiceV2.getReferralCode(user.id),
         ReferralCodeServiceV2.getReferralStats(user.id),
         ReferralCodeServiceV2.getReferralHistory(user.id),
+        ReferralRewardsService.getConfiguredRewardAmounts(),
+        ReferralCodeServiceV2.checkEligibility(user.id),
       ]);
 
       setReferralCode(code || '');
       setStats(statsData);
       setHistory(historyData);
+      setRewardsConfig(config);
+      setPendingReward(eligibility);
     } catch (error) {
       console.error('Failed to load referral data:', error);
       Alert.alert('Error', 'Failed to load referral data');
@@ -71,7 +89,23 @@ export const ReferralDashboardScreen: React.FC = () => {
     if (!referralCode) return;
 
     const link = ReferralCodeServiceV2.getReferralLink(referralCode);
-    const message = `Join Kids Club+ and earn 10 SP when you complete your first trade! Use my referral code: ${referralCode}\n\n${link}`;
+    let bonusText = '';
+    
+    if (rewardsConfig.program_enabled) {
+      const bonuses = [];
+      if (rewardsConfig.first_trade_enabled) {
+        bonuses.push(`${rewardsConfig.referee_sp} SP for your first trade`);
+      }
+      if (rewardsConfig.first_listing_enabled) {
+        bonuses.push(`${rewardsConfig.referee_listing_sp} SP for your first listing`);
+      }
+      
+      if (bonuses.length > 0) {
+        bonusText = ` and get ${bonuses.join(' and ')}`;
+      }
+    }
+    
+    const message = `Join Kids Club+${bonusText}! Use my referral code: ${referralCode}\n\n${link}`;
 
     try {
       await Share.share({
@@ -89,6 +123,22 @@ export const ReferralDashboardScreen: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const getPendingActionMessage = () => {
+    if (!rewardsConfig.program_enabled) return null;
+    
+    const actions = [];
+    if (rewardsConfig.first_listing_enabled) actions.push("list your first item");
+    if (rewardsConfig.first_trade_enabled) actions.push("complete one trade");
+    
+    if (actions.length === 0) return null;
+    
+    const actionStr = actions.length === 2 
+      ? `${actions[0]} OR ${actions[1]}` 
+      : actions[0];
+      
+    return `To earn your ${rewardsConfig.referee_sp} SP sign-up bonus, simply ${actionStr}!`;
   };
 
   const renderReferralItem = ({ item }: { item: Referral }) => (
@@ -149,9 +199,48 @@ export const ReferralDashboardScreen: React.FC = () => {
           </TouchableOpacity>
           <View style={styles.headerContent}>
             <Text style={styles.title}>Refer Friends, Earn Rewards!</Text>
-            <Text style={styles.subtitle}>
-              Invite friends and earn 25 SP when they complete their first trade
-            </Text>
+            
+            {/* [NEW] Pending Reward Notice for Referee */}
+            {pendingReward.rewards_pending && getPendingActionMessage() && (
+              <View style={styles.pendingNotice}>
+                <Text style={styles.pendingNoticeTitle}>🎁 Your Bonus is Waiting!</Text>
+                <Text style={styles.pendingNoticeText}>{getPendingActionMessage()}</Text>
+              </View>
+            )}
+            
+            {/* Referral Rewards Breakdown */}
+            {rewardsConfig.program_enabled && (
+              <>
+                {rewardsConfig.first_trade_enabled && (
+                  <View style={styles.rewardsBreakdown}>
+                    <Text style={styles.rewardLabel}>🎯 First Trade Bonus</Text>
+                    <Text style={styles.rewardDetail}>
+                      You get: <Text style={styles.rewardAmount}>{rewardsConfig.referrer_sp} SP</Text>
+                    </Text>
+                    <Text style={styles.rewardDetail}>
+                      Friend gets: <Text style={styles.rewardAmount}>{rewardsConfig.referee_sp} SP</Text>
+                    </Text>
+                  </View>
+                )}
+
+                {rewardsConfig.first_listing_enabled && (
+                  <View style={styles.rewardsBreakdown}>
+                    <Text style={styles.rewardLabel}>📝 First Listing Bonus</Text>
+                    <Text style={styles.rewardDetail}>
+                      You get: <Text style={styles.rewardAmount}>{rewardsConfig.referrer_listing_sp} SP</Text>
+                    </Text>
+                    <Text style={styles.rewardDetail}>
+                      Friend gets: <Text style={styles.rewardAmount}>{rewardsConfig.referee_listing_sp} SP</Text>
+                    </Text>
+                  </View>
+                )}
+              </>
+            )}
+            {!rewardsConfig.program_enabled && (
+              <View style={styles.pausedBanner}>
+                <Text style={styles.pausedText}>The referral program is currently paused. Check back later!</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -257,16 +346,81 @@ const styles = StyleSheet.create({
   headerContent: {
     flex: 1,
   },
+  pendingNotice: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  pendingNoticeTitle: {
+    color: '#92400E',
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  pendingNoticeText: {
+    color: '#B45309',
+    fontSize: 13,
+    lineHeight: 18,
+  },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 12,
     color: '#333',
+  },
+  rewardsBreakdown: {
+    backgroundColor: '#f0f8ff',
+    borderLeftWidth: 3,
+    borderLeftColor: '#2196F3',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+    borderRadius: 4,
+  },
+  rewardLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1976D2',
+    marginBottom: 6,
+  },
+  rewardDetail: {
+    fontSize: 12,
+    color: '#555',
+    lineHeight: 18,
+    marginBottom: 3,
+  },
+  rewardAmount: {
+    fontWeight: '700',
+    color: '#2196F3',
+    fontSize: 13,
+  },
+  pausedBanner: {
+    backgroundColor: '#fff3e0',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffb74d',
+    marginBottom: 16,
+  },
+  pausedText: {
+    color: '#e65100',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   subtitle: {
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+  },
+  listingBonusText: {
+    fontSize: 12,
+    color: '#2196F3',
+    fontWeight: '600',
+    marginTop: 4,
   },
   codeCard: {
     margin: 16,

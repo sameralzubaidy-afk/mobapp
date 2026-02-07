@@ -16,177 +16,262 @@ This module introduces a referral program integrated with the V2 subscription-ga
 **Core Changes:**
 - Referral codes generate unique shareable links
 - **SP Bonus Rewards**: Both referrer and referee earn SP when referee completes first trade
-- **Trial Extension (Optional)**: Successful referrals can extend trial period
-- Referral tracking dashboard shows invites sent, signups, completed trades, SP earned
-- Admin analytics for K-factor, conversion rates, viral coefficient
+## **REF-V2-008**: SP bonus rewards on first listing (updated: admin toggles + shared config)
 
-**V2 Business Model Integration:**
-- Kids Club+ subscription: $7.99/month with 30-day no-card trial
-- Swap Points gated by subscription: Only trial/active subscribers can earn/spend SP
-- **Referral SP Rewards**: Referrer earns 25 SP, referee earns 10 SP (on first trade completion)
-- **Trial Extension Bonus**: Successful referral extends trial by 7 days (max 3 extensions = 21 days)
-- Referral SP rewards only granted if both users have active/trial subscriptions
+TASK CLASSIFICATION: Admin Config + DB/API + Listings Trigger + Trade Trigger + Notifications + Frontend copy
 
-### Why V2 Matters for Referrals
-- **Viral Growth**: SP rewards incentivize users to invite friends
-- **Quality Referrals**: First trade completion ensures engaged users (not just signups)
-- **Subscription Alignment**: Trial extension encourages early adoption before payment
-- **Network Effects**: More referrals = more SP = more trades = stronger marketplace
+Duration: 3 hours
+Priority: High
+Dependencies: MODULE-12 (Admin Panel), MODULE-04 (Item Listing), MODULE-06 (Trade Flow), MODULE-09 (Swap Points), MODULE-14 (Notifications)
 
----
+Description:
+- Implement referral bonus rewards that trigger on two separate events (configurable):
+  - First approved listing (listing status = 'approved').
+  - First completed trade (trade status = 'completed').
+- Add two admin-controlled feature toggles to enable/disable each event independently:
+  - `referral_first_listing_enabled` (boolean)
+  - `referral_first_trade_enabled` (boolean)
+- Make SP bonus amounts configurable from admin for both events and for both parties:
+  - `sp_bonus_referrer_listing`, `sp_bonus_referee_listing`
+  - `sp_bonus_referrer_trade`, `sp_bonus_referee_trade`
+- Ensure reward granting reads config values (not hard-coded), is idempotent, atomic, and gated by subscription status when the gating flag is enabled.
+- Update mobile screens, email copy, and notification templates to display the configured amounts and to reflect the enabled/disabled state.
 
-## CHANGELOG (V2)
+Acceptance Criteria:
+- [ ] Admin can enable/disable both "First Listing Referral Bonus" and "First Trade Referral Bonus" independently.
+- [ ] Admin can set `sp_bonus_referrer_listing`, `sp_bonus_referee_listing`, `sp_bonus_referrer_trade`, and `sp_bonus_referee_trade` (integers) and changes take effect immediately.
+- [ ] When the corresponding event occurs (first approved listing or first completed trade) and a pending referral exists, grant the configured SP to both users and mark referral `completed`.
+- [ ] Rewards are gated by subscription status (trial/active) when the subscription-gating policy is enabled for referral rewards.
+- [ ] Notifications, emails, and in-app screens show the actual configured amounts (not hard-coded values) and reflect the toggles' state.
+- [ ] Reward granting is idempotent and runs only once per referral (use `pending` → `completed` transition inside a DB transaction).
 
-### Added
-- **Referral Code Generation**: Unique 8-character alphanumeric codes per user
-- **Shareable Links**: Deep links to referral signup with code pre-filled
-- **SP Bonus Rewards**: 25 SP for referrer, 10 SP for referee on first trade completion
-- **Trial Extension**: Optional 7-day trial extension per successful referral (max 3)
-- **Referral Tracking Dashboard**: Invites sent, signups, completed trades, SP earned
-- **Admin Analytics**: K-factor calculation, conversion funnel, viral coefficient
-- **Referral Notifications**: Invite accepted, first trade completed, SP awarded
+AI Prompt for Cursor (DB + Trigger + Frontend + Notifications)
 
-### Modified
-- None (new module)
-
-### Deprecated
-- None
-
----
-
-## CRITICAL RULES (V2 Compliance)
-
-### Subscription Gating
-1. **SP Rewards Only for Subscribers**:
-   - Referral SP rewards ONLY granted if BOTH referrer and referee have trial/active subscription
-   - If either user's subscription expires, pending SP rewards are forfeited
-   - Non-subscribers can still refer but won't earn SP rewards
-
-2. **Trial Extension Logic**:
-   - Trial extension only applies to trial_end_date (not paid subscriptions)
-   - Maximum 3 successful referrals can extend trial (21 days total extension)
-   - Extension applied when referee completes first trade
-   - Extension tracked in `referral_extensions_used` counter
-
-### Referral Attribution
-1. **First-Touch Attribution**: Referee linked to referrer on first signup only
-2. **One Referrer Per User**: Cannot change referrer after signup
-3. **Self-Referral Prevention**: Users cannot refer themselves (same email/device check)
-4. **Referral Code Uniqueness**: Each user gets one unique code (no duplicates)
-
-### Reward Triggers
-1. **Signup Event**: Referee linked to referrer (no rewards yet)
-2. **First Trade Completion**: SP rewards granted + trial extension applied
-3. **Reward Timing**: SP credited immediately after trade marked 'completed'
-4. **Idempotency**: Rewards only granted once per referral (status: 'pending' → 'completed')
-
----
-
-## AGENT TEMPLATE INSTRUCTIONS
-
-When implementing tasks from this module, use this template for AI code generation:
-
-```typescript
-/*
-CONTEXT: Kids Club+ V2 Referral System
-BUSINESS MODEL: $7.99/month subscription, 30-day no-card trial, SP gated by subscription
-REFERRAL REWARDS: Referrer gets 25 SP, referee gets 10 SP on first trade completion
-TRIAL EXTENSION: +7 days per successful referral (max 3 extensions = 21 days)
-
-CRITICAL RULES:
-- SP rewards ONLY granted if BOTH users have trial/active subscription
-- Trial extension ONLY applies to users still in trial (not paid subscriptions)
-- Referral SP rewards triggered by first trade completion (not signup)
-- Self-referral prevention: Check email, device_id, IP address
-- Max 3 trial extensions per user (21 days total)
-
-CROSS-MODULE DEPENDENCIES:
-- MODULE-11 (Subscriptions): trial_end_date extension logic
-- MODULE-09 (Swap Points): SP ledger entries for referral rewards
-- MODULE-06 (Trade Flow): First trade completion trigger
-- MODULE-14 (Notifications): Referral event notifications
-- MODULE-03 (Authentication): Referral code capture on signup
-
-TASK: [specific task from this module]
-FILES TO CREATE/MODIFY: [list files]
-*/
 ```
-
----
-
-## TASK REF-V2-001: Referral Code Generation & Storage
-
-**Duration:** 2.5 hours  
-**Priority:** Critical  
-**Dependencies:** MODULE-03 (Auth)
-
-### Description
-Create referral code system with unique 8-character alphanumeric codes per user. Generate codes on user signup. Store referral relationships with attribution tracking. Implement self-referral prevention checks.
-
-### Acceptance Criteria
-- [ ] Each user gets unique 8-character referral code on signup
-- [ ] Referral codes are case-insensitive (stored lowercase)
-- [ ] Self-referral prevention (email, device_id checks)
-- [ ] Referral relationships stored with status tracking
-- [ ] Referrer-referee linkage established on signup
-
----
-
-### AI Prompt for Cursor
-
-```typescript
 /*
-TASK: Referral code generation and storage
+TASK: Implement configurable referral SP rewards for first approved listing and first completed trade
 
 CONTEXT:
-Each user gets a unique referral code on signup.
-Referees enter code during registration to link to referrer.
-Track referral relationships with status (pending, completed).
+- Two independent reward triggers: listing approval and trade completion.
+- Admin toggles control whether each trigger is active.
+- SP amounts for referrer/referee for each trigger are admin-configurable.
+- All user-facing copy (mobile screens, notifications, emails) must reference the configured amounts and feature toggle state.
 
-REFERRAL CODE FORMAT:
-- 8 characters: alphanumeric (a-z, 0-9)
-- Case-insensitive (stored lowercase)
-- Example: "abc123xy"
-- Collision prevention (retry on duplicate)
+FILES TO CREATE / MODIFY:
+- File: supabase/migrations/175_referral_config_sp_rewards.sql -- add config keys to admin_config or referral_config table (see below)
+- File: supabase/migrations/171_referral_rewards.sql -- refactor `grant_referral_rewards` to read config values and support both `trade` and `listing` reasons
+- File: supabase/migrations/176_referral_rewards_listing.sql -- optional: separate RPC that delegates to shared reward logic if preferred
+- File: supabase/functions/_shared/adminConfig.ts -- helper RPC/TS helper to read admin config safely (and return defaults)
+- File: p2p-kids-marketplace/src/services/referralRewards.ts -- read display values for UI/notifications and expose `getReferralBonuses()`
+- File: p2p-kids-marketplace/src/screens/ReferralDashboardScreen.tsx -- update share/copy messages to interpolate dynamic amounts and show toggle state
+- File: p2p-kids-marketplace/src/screens/ListingCreateScreen.tsx -- show listing-bonus copy where appropriate
+- File: p2p-kids-marketplace/src/screens/TradeCompleteScreen.tsx -- show trade-bonus copy where appropriate
+- File: supabase/migrations/173_referral_notifications.sql -- update notification templates to include dynamic amounts and reason codes (`referral_bonus_listing` / `referral_bonus_trade`)
 
-SELF-REFERRAL PREVENTION:
-- Same email check
-- Same device_id check (if available)
-- Same IP address check (optional)
-
-==================================================
-FILE 1: Referral code schema
-==================================================
-*/
-
--- filepath: supabase/migrations/170_referral_codes_v2.sql
-
--- Referral codes table
-CREATE TABLE referral_codes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  code TEXT NOT NULL UNIQUE,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  CONSTRAINT code_length CHECK (char_length(code) = 8)
+DB: Migration sample (Block 1 — schema + config insert)
+-- Create referral_config table if not reusing admin_config
+CREATE TABLE IF NOT EXISTS referral_config (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
-CREATE UNIQUE INDEX referral_codes_code_idx ON referral_codes(LOWER(code));
-CREATE INDEX referral_codes_user_idx ON referral_codes(user_id);
+-- Insert defaults (idempotent)
+INSERT INTO referral_config (key, value) VALUES
+  ('referral_first_listing_enabled', jsonb_build_object('value', true))
+  ON CONFLICT (key) DO NOTHING;
 
--- Referral status enum
-CREATE TYPE referral_status AS ENUM ('pending', 'completed', 'expired');
+INSERT INTO referral_config (key, value) VALUES
+  ('referral_first_trade_enabled', jsonb_build_object('value', true))
+  ON CONFLICT (key) DO NOTHING;
 
--- Referrals table (tracks referrer → referee relationships)
-CREATE TABLE referrals (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  referrer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  referee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  referral_code TEXT NOT NULL,
-  status referral_status DEFAULT 'pending',
-  reward_granted_at TIMESTAMPTZ,
-  trial_extension_applied BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  completed_at TIMESTAMPTZ,
+INSERT INTO referral_config (key, value) VALUES
+  ('sp_bonus_referrer_listing', jsonb_build_object('value', 25))
+  ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO referral_config (key, value) VALUES
+  ('sp_bonus_referee_listing', jsonb_build_object('value', 10))
+  ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO referral_config (key, value) VALUES
+  ('sp_bonus_referrer_trade', jsonb_build_object('value', 25))
+  ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO referral_config (key, value) VALUES
+  ('sp_bonus_referee_trade', jsonb_build_object('value', 10))
+  ON CONFLICT (key) DO NOTHING;
+
+-- Optional: config key to control subscription gating behavior for referral rewards
+INSERT INTO referral_config (key, value) VALUES
+  ('referral_rewards_require_subscription', jsonb_build_object('value', true))
+  ON CONFLICT (key) DO NOTHING;
+
+DB: Migration sample (Block 2 — shared reward RPC + triggers)
+-- Shared RPC: grant_referral_rewards(p_referee_id UUID, p_context_id UUID, p_context_type TEXT)
+-- p_context_type = 'trade' | 'listing' ; p_context_id = trade_id | listing_id
+CREATE OR REPLACE FUNCTION grant_referral_rewards(
+  p_referee_id UUID,
+  p_context_id UUID,
+  p_context_type TEXT
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_referral_id UUID;
+  v_referrer_id UUID;
+  v_referrer_bonus INT := 0;
+  v_referee_bonus INT := 0;
+  v_feature_enabled BOOLEAN := true;
+  v_require_subscription BOOLEAN := true;
+  v_referrer_subscription_status subscription_status;
+  v_referee_subscription_status subscription_status;
+BEGIN
+  -- Determine which config keys to read based on context_type
+  IF p_context_type = 'listing' THEN
+    SELECT (value->>'value')::BOOLEAN INTO v_feature_enabled FROM referral_config WHERE key = 'referral_first_listing_enabled' LIMIT 1;
+    SELECT (value->>'value')::INT INTO v_referrer_bonus FROM referral_config WHERE key = 'sp_bonus_referrer_listing' LIMIT 1;
+    SELECT (value->>'value')::INT INTO v_referee_bonus FROM referral_config WHERE key = 'sp_bonus_referee_listing' LIMIT 1;
+  ELSE
+    SELECT (value->>'value')::BOOLEAN INTO v_feature_enabled FROM referral_config WHERE key = 'referral_first_trade_enabled' LIMIT 1;
+    SELECT (value->>'value')::INT INTO v_referrer_bonus FROM referral_config WHERE key = 'sp_bonus_referrer_trade' LIMIT 1;
+    SELECT (value->>'value')::INT INTO v_referee_bonus FROM referral_config WHERE key = 'sp_bonus_referee_trade' LIMIT 1;
+  END IF;
+
+  SELECT (value->>'value')::BOOLEAN INTO v_require_subscription FROM referral_config WHERE key = 'referral_rewards_require_subscription' LIMIT 1;
+
+  IF v_feature_enabled IS NULL OR v_feature_enabled = false THEN
+    RETURN jsonb_build_object('success', false, 'reason', 'Referral reward feature disabled for this event');
+  END IF;
+
+  -- Find pending referral for referee (idempotency)
+  SELECT id, referrer_id INTO v_referral_id, v_referrer_id
+  FROM referrals
+  WHERE referee_id = p_referee_id AND status = 'pending'
+  LIMIT 1;
+
+  IF v_referrer_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'reason', 'No pending referral');
+  END IF;
+
+  -- Additional checks: ensure this is the referee's first completed trade OR first approved listing depending on context
+  IF p_context_type = 'listing' THEN
+    IF EXISTS(
+      SELECT 1 FROM listings WHERE user_id = p_referee_id AND status = 'approved' AND id != p_context_id
+    ) THEN
+      RETURN jsonb_build_object('success', false, 'reason', 'Not first approved listing');
+    END IF;
+  ELSE
+    IF EXISTS(
+      SELECT 1 FROM trades WHERE buyer_id = p_referee_id AND status = 'completed' AND id != p_context_id
+    ) THEN
+      RETURN jsonb_build_object('success', false, 'reason', 'Not first completed trade');
+    END IF;
+  END IF;
+
+  -- Subscription gating if required
+  IF v_require_subscription THEN
+    SELECT status INTO v_referrer_subscription_status FROM subscriptions WHERE user_id = v_referrer_id ORDER BY created_at DESC LIMIT 1;
+    SELECT status INTO v_referee_subscription_status FROM subscriptions WHERE user_id = p_referee_id ORDER BY created_at DESC LIMIT 1;
+    IF v_referrer_subscription_status NOT IN ('trial','active') OR v_referee_subscription_status NOT IN ('trial','active') THEN
+      RETURN jsonb_build_object('success', false, 'reason', 'Both users must have an active/trial subscription');
+    END IF;
+  END IF;
+
+  -- Perform rewards and referral update atomically
+  PERFORM (
+    WITH inserted AS (
+      INSERT INTO sp_ledger (user_id, amount, reason, trade_id, listing_id)
+      VALUES
+        (v_referrer_id, COALESCE(v_referrer_bonus,0), CASE WHEN p_context_type='listing' THEN 'referral_bonus_listing' ELSE 'referral_bonus_trade' END, CASE WHEN p_context_type='trade' THEN p_context_id ELSE NULL END, CASE WHEN p_context_type='listing' THEN p_context_id ELSE NULL END),
+        (p_referee_id, COALESCE(v_referee_bonus,0), CASE WHEN p_context_type='listing' THEN 'referral_bonus_listing' ELSE 'referral_bonus_trade' END, CASE WHEN p_context_type='trade' THEN p_context_id ELSE NULL END, CASE WHEN p_context_type='listing' THEN p_context_id ELSE NULL END)
+      RETURNING *
+    )
+    UPDATE sp_wallets SET
+      balance = CASE WHEN user_id = v_referrer_id THEN balance + COALESCE(v_referrer_bonus,0) WHEN user_id = p_referee_id THEN balance + COALESCE(v_referee_bonus,0) ELSE balance END,
+      total_earned = CASE WHEN user_id = v_referrer_id THEN total_earned + COALESCE(v_referrer_bonus,0) WHEN user_id = p_referee_id THEN total_earned + COALESCE(v_referee_bonus,0) ELSE total_earned END,
+      updated_at = now()
+    WHERE user_id IN (v_referrer_id, p_referee_id)
+  );
+
+  UPDATE referrals
+  SET status = 'completed', reward_granted_at = now(), completed_at = now()
+  WHERE id = v_referral_id;
+
+  -- Return details for callers
+  RETURN jsonb_build_object('success', true, 'referrer_sp', v_referrer_bonus, 'referee_sp', v_referee_bonus, 'referral_id', v_referral_id);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger examples (call shared RPC when status transitions occur)
+CREATE OR REPLACE FUNCTION trigger_referral_rewards_on_listing()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'approved' AND OLD.status IS DISTINCT FROM 'approved' THEN
+    PERFORM grant_referral_rewards(NEW.user_id, NEW.id, 'listing');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER grant_referral_rewards_listing_trigger
+AFTER UPDATE ON listings
+FOR EACH ROW
+EXECUTE FUNCTION trigger_referral_rewards_on_listing();
+
+CREATE OR REPLACE FUNCTION trigger_referral_rewards_on_trade()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'completed' AND OLD.status IS DISTINCT FROM 'completed' THEN
+    PERFORM grant_referral_rewards(COALESCE(NEW.buyer_id, NEW.user_id), NEW.id, 'trade');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER grant_referral_rewards_trade_trigger
+AFTER UPDATE ON trades
+FOR EACH ROW
+EXECUTE FUNCTION trigger_referral_rewards_on_trade();
+
+NOTIFICATIONS & FRONTEND:
+- Update `send_referral_rewards_notification` to accept dynamic amounts and reason codes `referral_bonus_listing` / `referral_bonus_trade`.
+- Update mobile share/UI copy (e.g., `ReferralDashboardScreen`, `ListingCreateScreen`, `TradeCompleteScreen`) to display the configured amounts via `ReferralConfigService.getReferralBonuses()` and to hide/show messaging depending on the feature toggles.
+- Update transactional emails templates to interpolate configured SP amounts and include deep links to referral dashboard or SP wallet.
+
+IDEMPOTENCY & SAFETY:
+- Use referral `status` (`pending` → `completed`) and DB transaction semantics to ensure single granting.
+- Read config values at runtime so admin changes take effect immediately for subsequent events.
+- Log reward attempts to `sp_ledger` with `reason` and context ids for auditing.
+
+VERIFICATION STEPS:
+1. Run migration `175_referral_config_sp_rewards.sql` (or apply the combined migration that creates/updates `referral_config`).
+2. Confirm `referral_config` contains the new keys and defaults.
+3. Verify trigger behavior:
+   - Create a pending referral, create and approve a referee listing → check `sp_ledger` and `sp_wallets` and `referrals.status` = 'completed'.
+   - Create a pending referral, complete referee's first trade → check same as above for trade path.
+4. Toggle `referral_first_listing_enabled` and `referral_first_trade_enabled` off in admin UI and verify rewards are not granted for the corresponding events.
+5. Update bonus amounts in admin UI and verify subsequent rewards reflect new amounts.
+
+TESTING CHECKLIST:
+- [ ] Admin toggles `referral_first_listing_enabled` and `referral_first_trade_enabled` control behavior independently.
+- [ ] `sp_bonus_referrer_listing`, `sp_bonus_referee_listing`, `sp_bonus_referrer_trade`, `sp_bonus_referee_trade` are used in ledger entries.
+- [ ] Rewards granted only on first approved listing / first completed trade respectively.
+- [ ] Rewards gated by subscription status when `referral_rewards_require_subscription` = true.
+- [ ] Notifications, emails, and in-app screens include configured amounts and correct reason codes.
+- [ ] Idempotent: repeated status updates do not duplicate rewards.
+
+DEPLOYMENT NOTES:
+1. Add & run migration: `supabase/migrations/175_referral_config_sp_rewards.sql` (or combined migrations `171/175/176` as desired).
+2. Deploy admin UI changes to surface toggles and amounts in `Referral Program` configuration.
+3. Deploy mobile/web UI changes to show listing/trade-bonus amounts and updated notification/email copy.
+4. Test in staging with multiple scenarios (no referrer, already had approved listing/trade, subscription expired, feature disabled).
+
+OPEN QUESTIONS / TODOs:
+- Should listing-based rewards and trade-based rewards share the same subscription-gating policy? (default: yes; configurable via `referral_rewards_require_subscription`).
+- Should `referral_first_listing_enabled` trigger on `approved` or `published`? Use canonical listing lifecycle; default set to `approved`.
+- RBAC: which admin roles can edit referral configuration? Add authorization to admin RPCs.
+*/
+```
   UNIQUE(referee_id), -- One referrer per referee
   CHECK (referrer_id != referee_id) -- Prevent self-referral
 );
@@ -2198,8 +2283,334 @@ const styles = StyleSheet.create({
 });
 ```
 
-## **REF-V2-007**: SP bonus rewards on first listing 
-## **REF-V2-008**: manage SP bonus rewards for admin ( to confgire the values of rewards on backend and frontend.) 
+## **REF-V2-007**: manage SP bonus rewards for admin (to configure the values of rewards on backend and frontend)
+
+TASK CLASSIFICATION: Admin UI + DB/API + Notifications + Frontend copy
+
+TASK 1: Admin UI — Manage Referral card + Referral Program Analytics tab
+
+Duration: 3 hours
+Priority: High
+Dependencies: MODULE-12 (Admin Panel), MODULE-09 (Swap Points), MODULE-14 (Notifications)
+
+Description:
+- Add a "Manage Referral" card to the Admin Home page next to the existing "Trades" card.
+- Create a new admin page and top-level tab titled "Referral Program Analytics" and move the existing referral analytics visualizations to this new page/tab.
+- On the main Referral Program admin page create a "Configuration" section and move the following configurable fields into it:
+  - `Max Referral Extensions`
+  - `Feature Flag: Referral Program Enabled`
+  - `Referral Extension Days`
+
+Acceptance Criteria:
+- "Manage Referral" card visible on Admin Home next to Trades card and links to Referral Program page.
+- A new top-level admin tab/page `Referral Program Analytics` exists and contains the analytics previously on the lab page.
+- The main Referral Program page contains a `Configuration` section with the three fields listed above and values are editable by admins.
+
+AI Prompt for Cursor (Admin UI changes)
+```
+/*
+TASK: Admin UI updates for Referral Program (card + new page + Configuration section)
+
+FILES TO MODIFY / CREATE:
+- File: p2p-kids-admin/src/app/dashboard/page.tsx   -- add Manage Referral card component import + route link
+- File: p2p-kids-admin/src/app/admin/referrals/page.tsx -- new page for Referral Program admin UI
+- File: p2p-kids-admin/src/app/admin/referrals/analytics-tab.tsx -- moved analytics visualization
+- File: p2p-kids-admin/src/app/admin/referrals/configuration-tab.tsx -- configuration UI (forms + save)
+- File: p2p-kids-admin/src/lib/api/referralConfig.ts -- client for fetching/updating config via RPC/REST
+
+STEPS:
+1. Add Admin Home card: small UI card component with icon, label "Manage Referral", and route to `/admin/referrals`.
+2. Create `/admin/referrals` page with two tabs: `Configuration` and `Referral Program Analytics`.
+3. Move analytics visualization component into `analytics-tab.tsx` and import existing RPC calls to fetch metrics.
+4. Implement `configuration-tab.tsx` with form fields:
+   - `max_referral_extensions` (number)
+   - `referral_program_enabled` (boolean)
+   - `referral_extension_days` (number)
+   - `sp_bonus_referrer` (number)
+   - `sp_bonus_referee` (number)
+5. Save button should call a secured RPC or update `admin_config` table; show success/error toast.
+
+VERIFICATION:
+- Admin Home shows new card and link works.
+- Configuration tab shows current values and updates persist.
+- Analytics tab renders same charts as previous lab location.
+
+*/
+```
+
+TASK 2: Admin Config — Add SP bonus config values and wire to backend + frontend
+
+Duration: 3 hours
+Priority: High
+Dependencies: MODULE-09 (Swap Points), existing `admin_config` or `admin_settings` storage
+
+Description:
+- Add two new configuration values to the admin-config store to control SP bonus amounts awarded on first trade:
+  - `sp_bonus_referrer` (integer, default 25)
+  - `sp_bonus_referee` (integer, default 10)
+- Ensure the referral reward granting process reads these values (DB RPC / Edge Function) rather than hard-coded constants.
+- Surface these values on admin UI (in Task 1 Configuration section) and update notification templates and user-facing screens to display the configured amounts.
+
+Acceptance Criteria:
+- New config fields created in DB and accessible via admin UI.
+- `grant_referral_rewards` RPC (or equivalent Edge Function) uses `sp_bonus_referrer` and `sp_bonus_referee` when inserting `sp_ledger` and updating `sp_wallets`.
+- Notifications and user screens show the actual configured SP amounts (not hard-coded 25/10).
+- Changing values in admin UI affects subsequent rewards (verified in staging).
+
+AI Prompt for Cursor (DB + API + Notifications + Frontend wiring)
+```
+/*
+TASK: Add SP bonus config keys and use them in rewards flow
+
+FILES TO CREATE / MODIFY:
+- File: supabase/migrations/175_referral_config_sp_rewards.sql -- add config keys to admin_config or a new referral_config table
+- File: supabase/migrations/171_referral_rewards.sql -- update `grant_referral_rewards` to read config values instead of constants
+- File: supabase/functions/_shared/adminConfig.ts -- (optional) helper RPC to read admin config
+- File: p2p-kids-marketplace/src/services/referralRewards.ts -- read display values for UI and notifications
+- File: p2p-kids-marketplace/src/screens/ReferralDashboardScreen.tsx -- display updated SP amounts in copy and share message
+- File: supabase/migrations/173_referral_notifications.sql -- update notification text insertion to include dynamic amounts
+
+DB: Migration sample (Block 1 — schema + config insert)
+-- Create referral config table (if admin_config not used)
+CREATE TABLE IF NOT EXISTS referral_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  value JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- Insert defaults
+INSERT INTO referral_config (key, value) VALUES
+  ('sp_bonus_referrer', jsonb_build_object('value', 25))
+  ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO referral_config (key, value) VALUES
+  ('sp_bonus_referee', jsonb_build_object('value', 10))
+  ON CONFLICT (key) DO NOTHING;
+
+DB: Migration sample (Block 2 — update reward RPC to read config)
+-- Example: inside grant_referral_rewards RPC
+-- read config values
+SELECT (value->>'value')::INT INTO v_referrer_bonus FROM referral_config WHERE key = 'sp_bonus_referrer' LIMIT 1;
+SELECT (value->>'value')::INT INTO v_referee_bonus FROM referral_config WHERE key = 'sp_bonus_referee' LIMIT 1;
+
+-- use v_referrer_bonus and v_referee_bonus when inserting into sp_ledger and updating sp_wallets
+
+NOTIFICATIONS:
+-- Update notifications insertion to include the actual amounts:
+-- e.g., 'You earned ' || v_referrer_bonus || ' SP!'
+
+FRONTEND:
+- Read and display config values via a new `ReferralConfigService` that calls a secure RPC (e.g., `get_referral_config`).
+- Update share/screen copy to interpolate the dynamic amounts.
+
+IDEMPOTENCY & SAFETY:
+- Keep reward granting atomic and idempotent. Use existing referral status `pending` -> `completed` transition to prevent double-granting.
+- If migration adds new table, include verification queries to confirm entries.
+
+VERIFICATION STEPS:
+1. Run migrations.
+2. Confirm referral_config contains `sp_bonus_referrer` and `sp_bonus_referee`.
+3. Trigger a first-trade referral reward in staging and verify `sp_ledger` entries use configured values and `sp_wallets` update accordingly.
+4. Update values from admin UI and repeat step 3 to verify change takes effect.
+
+*/
+```
+
+Testing Checklist:
+- [ ] `Manage Referral` card appears on Admin Home and links to `/admin/referrals`.
+- [ ] `Referral Program Analytics` tab exists and analytics moved correctly.
+- [ ] `Configuration` section exists and includes `Max Referral Extensions`, `Referral Program Enabled`, `Referral Extension Days`, `sp_bonus_referrer`, `sp_bonus_referee`.
+- [ ] Admin can update `sp_bonus_referrer` and `sp_bonus_referee`; changes persist.
+- [ ] `grant_referral_rewards` uses configured values (verify `sp_ledger` entries and `sp_wallets` updates match configured amounts).
+- [ ] Notifications and referral screen text reflect configured SP amounts.
+- [ ] Changing config values affects subsequent rewards (idempotent for previous completed referrals).
+
+Deployment Notes:
+1. Add & run migration: `supabase/migrations/175_referral_config_sp_rewards.sql` and updated `171_referral_rewards.sql` (or apply in single migration if preferred).
+2. Deploy Admin app changes in `p2p-kids-admin` and Mobile app changes in `p2p-kids-marketplace`.
+3. Verify in staging: create referral, complete first trade, confirm `sp_ledger` and `notifications` reflect configured amounts.
+4. Monitor logs for `grant_referral_rewards` RPC errors and notification delivery issues.
+
+Open Questions / TODOs:
+- Should `sp_bonus_referrer`/`sp_bonus_referee` be integers only, or allow decimals? (TODO: confirm with product)
+- Where should these config keys live: existing `admin_config` table vs new `referral_config`? If `admin_config` exists prefer reusing it.
+- Confirm admin RBAC: which admin roles can edit referral configuration? Add authorization checks to RPCs.
+
+
+## **REF-V2-008**: SP bonus rewards on first listing
+
+TASK CLASSIFICATION: Admin Config + DB/API + Listings Trigger + Notifications + Frontend copy
+
+Duration: 3 hours
+Priority: High
+Dependencies: MODUL -12 (Admin Panel), MODULE-04 (Item Listing), MODULE-09 (Swap Points), MODULE-14 (Notifications)
+
+Description:
+- Implement referral bonus rewards that trigger when a referee creates their first *approved* listing (status = 'approved'). This mirrors REF-V2-002 but the trigger is listing approval instead of trade completion.
+- Make the feature admin-toggleable and configurable via admin config with dynamic SP amounts for both referrer and referee.
+- Surface the feature flag and amounts in admin `Configuration` (see REF-V2-007) and show values in user-facing screens and notifications.
+
+Acceptance Criteria:
+- Admin can enable/disable "First Listing Referral Bonus" via configuration.
+- Admin can set `sp_bonus_referrer_listing` and `sp_bonus_referee_listing` (integers) and changes take effect immediately.
+- When a referee's first listing becomes `approved` and a pending referral exists, grant configured SP to both users and mark referral `completed`.
+- Rewards are gated by subscription status (trial/active) if configured to follow the same subscription gating rules.
+- Notifications and referral UI show the configured listing-bonus amounts.
+- Reward granting is idempotent and runs only once per referral.
+
+AI Prompt for Cursor (DB + Trigger + Frontend + Notifications)
+```
+/*
+TASK: Implement referral SP rewards on first approved listing
+
+FILES TO CREATE / MODIFY:
+- File: supabase/migrations/176_referral_rewards_listing.sql -- create config keys + create RPC
+- File: supabase/migrations/171_referral_rewards.sql -- (optional) refactor to shared helper reading config values
+- File: supabase/functions/_shared/adminConfig.ts -- helper to read admin config (if not present)
+- File: p2p-kids-marketplace/src/services/referralRewards.ts -- add method to fetch listing-bonus display values
+- File: p2p-kids-marketplace/src/screens/ListingCreateScreen.tsx -- update copy/messages to show referral listing-bonus when applicable
+- File: supabase/migrations/173_referral_notifications.sql -- update notification templates to include dynamic listing-bonus amounts
+
+DB: Migration sample (Block 1 — config keys + RPC)
+-- Add admin config keys for listing bonus
+INSERT INTO referral_config (key, value)
+  VALUES ('referral_first_listing_enabled', jsonb_build_object('value', true))
+  ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO referral_config (key, value)
+  VALUES ('sp_bonus_referrer_listing', jsonb_build_object('value', 25))
+  ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO referral_config (key, value)
+  VALUES ('sp_bonus_referee_listing', jsonb_build_object('value', 10))
+  ON CONFLICT (key) DO NOTHING;
+
+-- RPC: Grant listing referral rewards (atomic, idempotent)
+CREATE OR REPLACE FUNCTION grant_referral_rewards_on_listing(
+  p_referee_id UUID,
+  p_listing_id UUID
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_referral_id UUID;
+  v_referrer_id UUID;
+  v_referrer_bonus INT := 25;
+  v_referee_bonus INT := 10;
+  v_feature_enabled BOOLEAN := true;
+  v_referrer_subscription_status subscription_status;
+  v_referee_subscription_status subscription_status;
+BEGIN
+  -- Read config values (safe defaults used if missing)
+  SELECT (value->>'value')::BOOLEAN INTO v_feature_enabled FROM referral_config WHERE key = 'referral_first_listing_enabled' LIMIT 1;
+  SELECT (value->>'value')::INT INTO v_referrer_bonus FROM referral_config WHERE key = 'sp_bonus_referrer_listing' LIMIT 1;
+  SELECT (value->>'value')::INT INTO v_referee_bonus FROM referral_config WHERE key = 'sp_bonus_referee_listing' LIMIT 1;
+
+  IF v_feature_enabled IS NULL OR v_feature_enabled = false THEN
+    RETURN jsonb_build_object('success', false, 'reason', 'Listing referral bonus disabled');
+  END IF;
+
+  -- Find pending referral for referee
+  SELECT id, referrer_id INTO v_referral_id, v_referrer_id
+  FROM referrals
+  WHERE referee_id = p_referee_id AND status = 'pending'
+  LIMIT 1;
+
+  IF v_referrer_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'reason', 'No pending referral');
+  END IF;
+
+  -- Ensure this is referee's first approved listing (exclude current)
+  IF EXISTS(
+    SELECT 1 FROM listings
+    WHERE user_id = p_referee_id
+      AND status = 'approved'
+      AND id != p_listing_id
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'reason', 'Not first approved listing');
+  END IF;
+
+  -- (Optional) check subscription gating similar to trade rewards
+  SELECT status INTO v_referrer_subscription_status FROM subscriptions WHERE user_id = v_referrer_id ORDER BY created_at DESC LIMIT 1;
+  SELECT status INTO v_referee_subscription_status FROM subscriptions WHERE user_id = p_referee_id ORDER BY created_at DESC LIMIT 1;
+
+  IF v_referrer_subscription_status NOT IN ('trial','active') OR v_referee_subscription_status NOT IN ('trial','active') THEN
+    RETURN jsonb_build_object('success', false, 'reason', 'Both users must have active subscription');
+  END IF;
+
+  -- Grant SP to referrer
+  INSERT INTO sp_ledger (user_id, amount, reason, listing_id)
+  VALUES (v_referrer_id, v_referrer_bonus, 'referral_bonus_listing', p_listing_id);
+
+  UPDATE sp_wallets SET balance = balance + v_referrer_bonus, total_earned = total_earned + v_referrer_bonus, updated_at = now() WHERE user_id = v_referrer_id;
+
+  -- Grant SP to referee
+  INSERT INTO sp_ledger (user_id, amount, reason, listing_id)
+  VALUES (p_referee_id, v_referee_bonus, 'referral_bonus_listing', p_listing_id);
+
+  UPDATE sp_wallets SET balance = balance + v_referee_bonus, total_earned = total_earned + v_referee_bonus, updated_at = now() WHERE user_id = p_referee_id;
+
+  -- Mark referral completed
+  UPDATE referrals SET status = 'completed', reward_granted_at = now(), completed_at = now() WHERE id = v_referral_id;
+
+  RETURN jsonb_build_object('success', true, 'referrer_sp', v_referrer_bonus, 'referee_sp', v_referee_bonus);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DB: Migration sample (Block 2 — trigger on listings)
+-- Trigger: call grant_referral_rewards_on_listing when listing status changes to 'approved'
+CREATE OR REPLACE FUNCTION trigger_referral_rewards_on_listing()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status = 'approved' AND OLD.status != 'approved' THEN
+    PERFORM grant_referral_rewards_on_listing(NEW.user_id, NEW.id);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER grant_referral_rewards_listing_trigger
+AFTER UPDATE ON listings
+FOR EACH ROW
+EXECUTE FUNCTION trigger_referral_rewards_on_listing();
+
+NOTIFICATIONS & FRONTEND:
+- Update `send_referral_rewards_notification` to accept dynamic amounts and reason `referral_bonus_listing`.
+- Update mobile share/UI copy (e.g., `ReferralDashboardScreen`, `ListingCreateScreen`) to display the configured listing-bonus amounts via `ReferralConfigService.getListingBonuses()`.
+
+IDEMPOTENCY & SAFETY:
+- Use referral `status` to ensure single granting. The RPC uses `status = 'pending'` lookup and updates to 'completed' atomically.
+- Add audits/logs to `sp_ledger` entries for easier troubleshooting.
+
+VERIFICATION STEPS:
+1. Run migration `176_referral_rewards_listing.sql`.
+2. Confirm config keys exist and have correct defaults.
+3. Create a test referral; create and approve a referee listing; verify `sp_ledger` and `sp_wallets` reflect configured amounts and `referrals.status` = 'completed'.
+4. Toggle feature off in admin UI and confirm approved listings no longer trigger rewards.
+
+TESTING CHECKLIST:
+- [ ] Admin toggle `referral_first_listing_enabled` controls behavior.
+- [ ] `sp_bonus_referrer_listing` and `sp_bonus_referee_listing` are used in ledger entries.
+- [ ] Rewards granted only on first approved listing.
+- [ ] Rewards gated by subscription status (if that rule is enforced here).
+- [ ] Notifications include configured amounts and correct reason `referral_bonus_listing`.
+- [ ] Idempotent: repeated status updates do not duplicate rewards.
+
+DEPLOYMENT NOTES:
+1. Add & run migration: `supabase/migrations/176_referral_rewards_listing.sql`.
+2. Deploy admin UI changes to surface toggle and amounts.
+3. Deploy mobile/web UI changes to show listing-bonus amounts and updated notification copy.
+4. Test in staging with multiple scenarios (no referrer, already had approved listing, subscription expired, feature disabled).
+
+OPEN QUESTIONS / TODOs:
+- Should listing-based rewards share the same subscription-gating policy as trade-based rewards? (TODO: confirm)
+- Should the listing trigger be `approved` or `published` (depending on listing workflow)? Use canonical listing lifecycle status.
+- RBAC: which admin roles can edit listing-bonus config?
+
+*/
+```
+
 ## **REF-V2-009**: think about what i need to do if user is not on subscirption and won SPs> pomte to trail first month free sub. 
 
 ## REF-V2-010 > must test ## Test Case 3: Subscription Gating

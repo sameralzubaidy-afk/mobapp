@@ -57,6 +57,8 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Two-step completion is enforced regardless of `enable_automatic_seller_payout`.
   - Seller marks trade complete -> trade remains `in_progress`, `seller_marked_completed_at` is set, and NO funds/payouts are released yet (await buyer confirmation).
   - Buyer marks trade complete (or system auto-complete) -> trade becomes `completed`, item becomes `sold`, and seller balance/payout routing runs.
+  - Completing a trade does not hard-fail if the seller is missing an `sp_wallets` row; the DB layer must auto-create the wallet and proceed.
+  - Completing a trade does not hard-fail if payout-related `admin_config` values are malformed (e.g., JSON-quoted strings). The system must fall back to safe defaults and return a warning in `payout_result`.
   - If buyer uses SP to cover 100% of item price, buyer still pays platform fee by card; Stripe charge amount = `trades.cash_amount_cents + trades.buyer_transaction_fee_cents`.
   - With `enable_automatic_seller_payout=false`: completing a trade increases seller "Available to Withdraw" by `trades.cash_amount_cents` and increases "Lifetime Earnings"; "Pending (In Progress)" reflects any withdrawals in `pending/processing`.
   - When `STRIPE_SECRET_KEY` is missing/blank: payment fails with a clear server config error (not a Stripe runtime error).
@@ -79,17 +81,20 @@ This file is the canonical registry of end-to-end flows and their required regre
   - First eligible listing approval awards Starter Pack SP once (wallet + ledger updated).
 
 ### FLOW-13: Referrals – Code Generation + Apply On Signup
-- Smoke: (manual)
+ - Smoke: scripts/smoke/referrals.mjs
   - User A: signup -> Profile shows referral code; DB: `profiles.referral_code` matches `referral_codes.code`.
   - User B: signup with User A code -> `referrals` row created with `status='pending'`.
   - User B: DB: `profiles.referred_by` is set to User A user_id.
   - User A: Referral Dashboard stats show `total=1`, `pending=1`.
+  - Persistence: After onboarding/profile upsert completes, `profiles.referral_code` remains non-null (no NULL regression).
+- Must validate: user-entered signup referral code is persisted (e.g., `profiles.referred_by_code`) and the relationship is applied (`profiles.referred_by` + `referrals` row)
+  - Fail-safe: If auth.users signup trigger was missing, a profiles AFTER INSERT trigger applies referral from auth metadata.
+  - Back-compat: apply can resolve codes from `referral_codes.code` OR legacy `profiles.referral_code`.
 
 ### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period
 - Smoke: (manual)
 
-### FLOW-13: Referrals (if implemented)
-- Smoke: (manual)
+<!-- Removed duplicate FLOW-13 placeholder; FLOW-13 above is canonical. -->
 
 ### FLOW-14: Messaging (Realtime)
   - Open Messages list -> unread badges reflect unread messages only.
@@ -110,6 +115,8 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-18: Admin Controls
 - Smoke: (manual)
   - Approving a pending listing succeeds and creates an audit row in `admin_activity_log`.
+  - Config persistence: update `referral_bonus` in Admin Config UI -> refresh -> value stays updated.
+  - DB reflects change: `admin_config.key='referral_bonus'` and `sp_config.config_key='referral_bonus'` match.
 
 ### FLOW-19: Analytics Events
 - Smoke: (manual)

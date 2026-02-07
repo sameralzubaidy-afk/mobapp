@@ -236,18 +236,16 @@ describe('ReferralRewardsService', () => {
 
   describe('getConfiguredRewardAmounts', () => {
     it('should return configured amounts from sp_config', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockResolvedValue({
-          data: [
-            { config_key: 'referral_reward_referrer_sp', config_value: '25' },
-            { config_key: 'referral_reward_referee_sp', config_value: '10' },
-          ],
-          error: null,
-        }),
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+      (supabase.rpc as jest.Mock).mockResolvedValue({
+        data: {
+          referrer_listing_sp: 25,
+          referee_listing_sp: 10,
+          referrer_sp: 25,
+          referee_sp: 10,
+          first_listing_enabled: true,
+        },
+        error: null,
+      });
 
       const result = await ReferralRewardsService.getConfiguredRewardAmounts();
 
@@ -256,20 +254,12 @@ describe('ReferralRewardsService', () => {
     });
 
     it('should return defaults when config not found', async () => {
-      const mockFrom = {
-        select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockResolvedValue({
-          data: null,
-          error: { message: 'Not found' },
-        }),
-      };
-
-      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+      (supabase.rpc as jest.Mock).mockResolvedValue(null);
 
       const result = await ReferralRewardsService.getConfiguredRewardAmounts();
 
-      expect(result.referrer_sp).toBe(25);
-      expect(result.referee_sp).toBe(10);
+      expect(result.referrer_sp).toBe(50);
+      expect(result.referee_sp).toBe(25);
     });
   });
 

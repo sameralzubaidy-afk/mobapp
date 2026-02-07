@@ -1,9 +1,123 @@
 -- ============================================================================
 -- QUICK FIX: Trade Completion Function Error
 -- ============================================================================
--- Issue: completeTradeV2 throws "FunctionsHttpError: Edge Function returned a non-2xx status code"
--- Root Cause: Type mismatch in complete_trade_v2 RPC when calling get_subscription_summary()
--- Solution: Fix the function signature and variable types
+-- Issue: completeTradeV2 throws "cannot cast jsonb string to type integer"
+-- Root Cause: Unsafe casts in get_admin_payout_config() when reading admin_config values
+-- Solution: 
+--   1. Replace get_admin_payout_config() with safe parser (handles JSON-quoted values)
+--   2. Make complete_trade_v2 resilient to payout/SP failures
+-- ============================================================================
+
+-- ============================================================================
+-- PART 1: Fix get_admin_payout_config() - Safe Parsing
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.get_admin_payout_config()
+RETURNS TABLE (
+  enable_automatic_seller_payout BOOLEAN,
+  minimum_withdrawal_amount_cents INTEGER,
+  stripe_payout_fee_fixed_cents INTEGER,
+  stripe_payout_fee_percentage DECIMAL,
+  paypal_payout_fee_percentage DECIMAL,
+  paypal_payout_fee_cap_cents INTEGER
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_auto_payout_raw TEXT;
+  v_min_withdrawal_raw TEXT;
+  v_stripe_fixed_raw TEXT;
+  v_stripe_pct_raw TEXT;
+  v_paypal_pct_raw TEXT;
+  v_paypal_cap_raw TEXT;
+
+  v_auto_payout TEXT;
+  v_min_withdrawal TEXT;
+  v_stripe_fixed TEXT;
+  v_stripe_pct TEXT;
+  v_paypal_pct TEXT;
+  v_paypal_cap TEXT;
+BEGIN
+  -- Fetch raw config values and normalize to TEXT (avoids unsafe casts)
+  SELECT ac.value::TEXT INTO v_auto_payout_raw
+  FROM public.admin_config ac
+  WHERE ac.key = 'enable_automatic_seller_payout' AND ac.is_active = TRUE
+  LIMIT 1;
+
+  SELECT ac.value::TEXT INTO v_min_withdrawal_raw
+  FROM public.admin_config ac
+  WHERE ac.key = 'minimum_withdrawal_amount_cents' AND ac.is_active = TRUE
+  LIMIT 1;
+
+  SELECT ac.value::TEXT INTO v_stripe_fixed_raw
+  FROM public.admin_config ac
+  WHERE ac.key = 'payout_fee_stripe_fixed_cents' AND ac.is_active = TRUE
+  LIMIT 1;
+
+  SELECT ac.value::TEXT INTO v_stripe_pct_raw
+  FROM public.admin_config ac
+  WHERE ac.key = 'payout_fee_stripe_percentage' AND ac.is_active = TRUE
+  LIMIT 1;
+
+  SELECT ac.value::TEXT INTO v_paypal_pct_raw
+  FROM public.admin_config ac
+  WHERE ac.key = 'payout_fee_paypal_percentage' AND ac.is_active = TRUE
+  LIMIT 1;
+
+  SELECT ac.value::TEXT INTO v_paypal_cap_raw
+  FROM public.admin_config ac
+  WHERE ac.key = 'payout_fee_paypal_cap_cents' AND ac.is_active = TRUE
+  LIMIT 1;
+
+  -- Normalize: trim whitespace and strip JSON string quotes if present
+  v_auto_payout := NULLIF(TRIM(BOTH '"' FROM TRIM(COALESCE(v_auto_payout_raw, ''))), '');
+  v_min_withdrawal := NULLIF(TRIM(BOTH '"' FROM TRIM(COALESCE(v_min_withdrawal_raw, ''))), '');
+  v_stripe_fixed := NULLIF(TRIM(BOTH '"' FROM TRIM(COALESCE(v_stripe_fixed_raw, ''))), '');
+  v_stripe_pct := NULLIF(TRIM(BOTH '"' FROM TRIM(COALESCE(v_stripe_pct_raw, ''))), '');
+  v_paypal_pct := NULLIF(TRIM(BOTH '"' FROM TRIM(COALESCE(v_paypal_pct_raw, ''))), '');
+  v_paypal_cap := NULLIF(TRIM(BOTH '"' FROM TRIM(COALESCE(v_paypal_cap_raw, ''))), '');
+
+  RETURN QUERY
+  SELECT
+    CASE
+      WHEN LOWER(COALESCE(v_auto_payout, '')) IN ('true', '1', 'yes', 'y', 'on') THEN TRUE
+      WHEN LOWER(COALESCE(v_auto_payout, '')) IN ('false', '0', 'no', 'n', 'off') THEN FALSE
+      ELSE FALSE
+    END AS enable_automatic_seller_payout,
+
+    COALESCE(
+      CASE WHEN v_min_withdrawal ~ '^-?\d+$' THEN v_min_withdrawal::INTEGER END,
+      500
+    ) AS minimum_withdrawal_amount_cents,
+
+    COALESCE(
+      CASE WHEN v_stripe_fixed ~ '^-?\d+$' THEN v_stripe_fixed::INTEGER END,
+      25
+    ) AS stripe_payout_fee_fixed_cents,
+
+    COALESCE(
+      CASE WHEN v_stripe_pct ~ '^-?\d+(\.\d+)?$' THEN v_stripe_pct::DECIMAL END,
+      0.25
+    ) AS stripe_payout_fee_percentage,
+
+    COALESCE(
+      CASE WHEN v_paypal_pct ~ '^-?\d+(\.\d+)?$' THEN v_paypal_pct::DECIMAL END,
+      2.0
+    ) AS paypal_payout_fee_percentage,
+
+    COALESCE(
+      CASE WHEN v_paypal_cap ~ '^-?\d+$' THEN v_paypal_cap::INTEGER END,
+      2000
+    ) AS paypal_payout_fee_cap_cents;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_admin_payout_config() TO anon, authenticated;
+
+-- ============================================================================
+-- PART 2: Fix complete_trade_v2() - Resilient Completion
 -- ============================================================================
 
 -- Step 1: Drop the old function
@@ -17,6 +131,7 @@ CREATE OR REPLACE FUNCTION public.complete_trade_v2(
 RETURNS JSON
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_trade public.trades%ROWTYPE;
@@ -94,15 +209,25 @@ BEGIN
     END;
 
     IF v_can_earn_sp = TRUE AND COALESCE(v_trade.sp_amount, 0) > 0 THEN
-      SELECT public.earn_sp_for_trade(v_trade.seller_id, p_trade_id, v_trade.sp_amount)
-      INTO v_sp_result;
+      BEGIN
+        SELECT public.earn_sp_for_trade(v_trade.seller_id, p_trade_id, v_trade.sp_amount)
+        INTO v_sp_result;
 
-      -- Link the credit ledger entry to the trade if present
-      IF v_sp_result IS NOT NULL AND (v_sp_result->>'ledger_entry_id') IS NOT NULL THEN
-        UPDATE public.trades
-        SET sp_credit_ledger_entry_id = (v_sp_result->>'ledger_entry_id')::UUID
-        WHERE public.trades.id = p_trade_id;
-      END IF;
+        -- Link the credit ledger entry to the trade if present
+        IF v_sp_result IS NOT NULL AND (v_sp_result->>'ledger_entry_id') IS NOT NULL THEN
+          UPDATE public.trades
+          SET sp_credit_ledger_entry_id = (v_sp_result->>'ledger_entry_id')::UUID
+          WHERE public.trades.id = p_trade_id;
+        END IF;
+      EXCEPTION
+        WHEN OTHERS THEN
+          -- Log but don't fail trade completion if SP awarding fails
+          v_sp_result := jsonb_build_object(
+            'success', false,
+            'error', 'Failed to award SP: ' || SQLERRM
+          );
+          RAISE WARNING 'complete_trade_v2 SP award error: %', SQLERRM;
+      END;
     END IF;
   END IF;
 
@@ -110,22 +235,31 @@ BEGIN
   -- IMPORTANT: payout creation happens only after final completion.
   v_payout_result := NULL;
   IF v_trade.seller_id IS NOT NULL AND COALESCE(v_trade.cash_amount_cents, 0) > 0 THEN
-    SELECT * INTO v_config FROM public.get_admin_payout_config() LIMIT 1;
+    BEGIN
+      SELECT * INTO v_config FROM public.get_admin_payout_config() LIMIT 1;
 
-    IF COALESCE(v_config.enable_automatic_seller_payout, FALSE) THEN
-      SELECT public.create_seller_payout_on_trade_completion(
-        p_trade_id,
-        v_trade.seller_id,
-        v_trade.cash_amount_cents
-      ) INTO v_payout_result;
-    ELSE
-      -- Manual mode: seller balance is updated by trigger when status becomes completed.
-      v_payout_result := json_build_object(
-        'success', true,
-        'message', 'Manual withdrawal mode - seller can request payout from balance',
-        'auto_payout_enabled', false
-      );
-    END IF;
+      IF COALESCE(v_config.enable_automatic_seller_payout, FALSE) THEN
+        SELECT public.create_seller_payout_on_trade_completion(
+          p_trade_id,
+          v_trade.seller_id,
+          v_trade.cash_amount_cents
+        ) INTO v_payout_result;
+      ELSE
+        -- Manual mode: seller balance is updated by trigger when status becomes completed.
+        v_payout_result := json_build_object(
+          'success', true,
+          'message', 'Manual withdrawal mode - seller can request payout from balance',
+          'auto_payout_enabled', false
+        );
+      END IF;
+    EXCEPTION
+      WHEN OTHERS THEN
+        v_payout_result := json_build_object(
+          'success', false,
+          'error', 'Failed to create payout: ' || SQLERRM
+        );
+        RAISE WARNING 'complete_trade_v2 payout error: %', SQLERRM;
+    END;
   END IF;
 
   RETURN json_build_object(
@@ -141,7 +275,8 @@ EXCEPTION
   WHEN OTHERS THEN
     RETURN json_build_object(
       'success', false,
-      'error', SQLERRM
+      'error', SQLERRM,
+      'details', 'Unexpected error completing trade'
     );
 END;
 $$;

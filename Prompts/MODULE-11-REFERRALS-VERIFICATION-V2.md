@@ -89,18 +89,25 @@
   - [ ] `trigger_referral_rewards()` trigger created on trades table
   - [ ] Trigger fires on trade status change to 'completed'
   - [ ] Subscription status checks implemented
+### Updated Database Verification (REF-V2-007 / REF-V2-008)
+- [ ] **Migration 175**: Referral config keys deployed (or added to `admin_config`)
+  - [ ] Config keys present: `referral_first_listing_enabled`, `referral_first_trade_enabled`, `sp_bonus_referrer_listing`, `sp_bonus_referee_listing`, `sp_bonus_referrer_trade`, `sp_bonus_referee_trade`, `referral_rewards_require_subscription`
+- [ ] **Migration 176** (optional/separate): Listing-based referral rewards (RPC + triggers) deployed
+- [ ] `grant_referral_rewards()` RPC updated to read config values and support both `listing` and `trade` contexts
+- [ ] Triggers exist on `listings` (status -> 'approved') and `trades` (status -> 'completed') and call the shared RPC
+- [ ] RLS and permissions verified for admin config reads
 
 ### Functional Verification
 - [ ] **SP Reward Granting**
-  - [ ] SP rewards triggered when referee completes first trade
-  - [ ] Referrer receives exactly 25 SP
-  - [ ] Referee receives exactly 10 SP
-  - [ ] SP ledger entries created with reason 'referral_bonus'
-  - [ ] SP wallet balances updated correctly
-  - [ ] SP wallet total_earned updated correctly
+  - [ ] SP rewards triggered when referee completes first trade (if `referral_first_trade_enabled` = true)
+  - [ ] SP rewards triggered when referee's first listing is approved (if `referral_first_listing_enabled` = true)
+  - [ ] Referrer receives configured `sp_bonus_referrer_trade` or `sp_bonus_referrer_listing` depending on event
+  - [ ] Referee receives configured `sp_bonus_referee_trade` or `sp_bonus_referee_listing` depending on event
+  - [ ] SP ledger entries created with reason `referral_bonus_trade` or `referral_bonus_listing` as appropriate
+  - [ ] SP wallet balances updated correctly for both users
+  - [ ] SP wallet `total_earned` updated correctly
   - [ ] Referral status updated from 'pending' to 'completed'
-  - [ ] reward_granted_at timestamp set
-  - [ ] completed_at timestamp set
+  - [ ] `reward_granted_at` and `completed_at` timestamps set
 
 - [ ] **Subscription Gating**
   - [ ] Rewards ONLY granted if referrer has trial/active subscription
@@ -121,6 +128,19 @@
   - [ ] `grantRewards()` calls RPC correctly
   - [ ] `checkEligibility()` returns correct status
   - [ ] Methods handle errors gracefully
+
+### Admin Config Verification
+- [ ] Admin UI exposes toggles: `referral_first_listing_enabled`, `referral_first_trade_enabled` and they persist
+- [ ] Admin UI exposes numeric fields for `sp_bonus_referrer_listing`, `sp_bonus_referee_listing`, `sp_bonus_referrer_trade`, `sp_bonus_referee_trade` and changes persist
+- [ ] Changing config values affects subsequent rewards (verified in staging)
+- [ ] Admin RBAC enforced for modifying these config keys
+
+### Trigger Verification
+- [ ] Trigger fires when trade status changes to 'completed' (and `referral_first_trade_enabled` enabled)
+- [ ] Trigger fires when listing status changes to 'approved' (and `referral_first_listing_enabled` enabled)
+- [ ] Trigger checks if buyer/seller or lister is the referee
+- [ ] Trigger only fires on first completed trade / first approved listing
+- [ ] Trigger does NOT fire when feature toggle is disabled
 
 ### Trigger Verification
 - [ ] Trigger fires when trade status changes to 'completed'

@@ -47,15 +47,17 @@ My Example 1
 ## TASK SP-001: SP Database Schema & Wallet
 
 
-## TASK REF-V2-006: Admin Referral Analytics
+## **REF-V2-008**: SP bonus rewards on first listing
 
 I’m working on the MODULE-11-REFERRALS-V2.md tasks
 Module: MODULE-11-REFERRALS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK REF-V2-006: Admin Referral Analytics
+Tasks: 
+## **REF-V2-008**: SP bonus rewards on first listing
 
 scope is 
-Create admin analytics dashboard for referral program. Display K-factor, viral coefficient, conversion funnel (signups → first trades → rewards granted). Show top referrers leaderboard. Track referral SP distribution over time.
-
+- Implement referral bonus rewards that trigger when a referee creates their first *approved* listing (status = 'approved'). This mirrors REF-V2-002 but the trigger is listing approval instead of trade completion.
+- Make the feature admin-toggleable and configurable via admin config with dynamic SP amounts for both referrer and referee.
+- Surface the feature flag and amounts in admin `Configuration` (see REF-V2-007) and show values in user-facing screens and notifications.
 
 Please
 
