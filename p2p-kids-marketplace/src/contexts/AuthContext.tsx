@@ -31,7 +31,7 @@ export interface AuthContextType {
 
   // Session management
   setSession: (session: AuthSession | null) => void;
-  refreshSession: () => Promise<void>;
+  refreshSession: (silent?: boolean) => Promise<void>;
   logout: () => Promise<void>;
 
   // Subscription change listener
@@ -150,13 +150,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * - Manual refresh request (e.g., after onboarding completion)
    * - Subscription/wallet Realtime changes
    */
-  const refreshSession = useCallback(async () => {
+  const refreshSession = useCallback(async (silent: boolean = true) => {
     try {
       if (!SUPABASE_CONFIGURED) {
         setSession(null);
         return;
       }
 
+      if (!silent) setIsLoading(true);
       setError(null);
 
       // First, get the current Supabase auth session
@@ -313,6 +314,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         ? err
         : new AuthError('Session refresh failed', 'REFRESH_FAILED', err);
       setError(authError);
+    } finally {
+      setIsLoading(false);
     }
   }, [setSession]);
   /**

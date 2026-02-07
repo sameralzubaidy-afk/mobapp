@@ -166,7 +166,7 @@ function RootNavigator() {
             <Stack.Screen name="ListingDetail" component={ItemDetailScreen} />
             <Stack.Screen name="TradeInitiation" component={TradeInitiationScreen} />
             <Stack.Screen name="TradeList" component={require('@/screens/trade/TradeListScreen').default} />
-            <Stack.Screen name="TradeDetail" component={require('@/screens/trade/TradeDetailScreen').default} />
+            <Stack.Screen name="TradeDetail" component={TradeTimelineScreen} />
             <Stack.Screen name="TradeTimeline" component={TradeTimelineScreen} />
             <Stack.Screen name="TradeSuccess" component={TradeSuccessScreen} />
             {/* MODULE-07: Messaging screens */}

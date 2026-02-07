@@ -17,6 +17,8 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { enrollInTrialSubscription } from '@/services/auth';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
+import { ReferralRewardsService } from '@/services/referralRewards';
 import {
   getSubscriptionPrice,
   getTrialDays,
@@ -43,13 +45,40 @@ export default function SubscriptionChoiceScreen() {
   const [subscriptionPrice, setSubscriptionPrice] = useState('7.99');
   const [trialDays, setTrialDays] = useState(30);
   const [spMaxPercentage, setSpMaxPercentage] = useState(50);
+  const [isReferred, setIsReferred] = useState(false);
+  const [bonusAmount, setBonusAmount] = useState(0);
 
   // Fetch config every time screen is focused (ensures fresh values from admin changes)
   useFocusEffect(
     React.useCallback(() => {
       loadConfigSettings();
-    }, [])
+      checkReferralStatus();
+    }, [userId])
   );
+
+  const checkReferralStatus = async () => {
+    if (!userId) return;
+    try {
+      const eligibility = await ReferralCodeServiceV2.checkEligibility(userId);
+      setIsReferred(eligibility.rewards_pending);
+      
+      if (eligibility.rewards_pending) {
+        const config = await ReferralRewardsService.getConfiguredRewardAmounts();
+        // Calculate potential bonus based on what's enabled
+        let total = 0;
+        if (config.first_listing_enabled && config.first_trade_enabled) {
+          total = config.referee_sp + config.referee_listing_sp;
+        } else if (config.first_listing_enabled) {
+          total = config.referee_listing_sp;
+        } else if (config.first_trade_enabled) {
+          total = config.referee_sp;
+        }
+        setBonusAmount(total);
+      }
+    } catch (error) {
+      console.warn('Error checking referral status:', error);
+    }
+  };
 
   const loadConfigSettings = async () => {
     try {
@@ -80,6 +109,35 @@ export default function SubscriptionChoiceScreen() {
 
   const handleChooseFree = async () => {
     try {
+      // If referred, show warning about losing bonus
+      if (isReferred) {
+        Alert.alert(
+          'Wait! Potential Bonus Loss',
+          `As a referred member, you are eligible for a sign-up Swap Points bonus. By selecting the Free Tier and skipping the Trial membership, you will lose this sign-up bonus.\n\nAre you sure you want to proceed?`,
+          [
+            {
+              text: 'Back to Select Screen',
+              style: 'cancel',
+            },
+            {
+              text: 'Proceed with Free tier',
+              style: 'destructive',
+              onPress: () => performChooseFree(),
+            },
+          ]
+        );
+        return;
+      }
+
+      await performChooseFree();
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to complete setup');
+      console.error('Choose Free error:', error);
+    }
+  };
+
+  const performChooseFree = async () => {
+    try {
       setLoading(true);
 
       console.log('🎯 SUBSCRIPTION FLOW: User chose FREE tier');
@@ -104,9 +162,6 @@ export default function SubscriptionChoiceScreen() {
       // Navigate to FeatureHighlights to complete onboarding
       // The session will be automatically established after profile_completed is true
       (navigation as any).navigate('FeatureHighlights', { userId });
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to complete setup');
-      console.error('Choose Free error:', error);
     } finally {
       setLoading(false);
     }
@@ -169,11 +224,11 @@ export default function SubscriptionChoiceScreen() {
             {
               text: 'Get Started',
               onPress: () => {
-                // If coming from onboarding, navigate to Welcome screen
+                // If coming from onboarding, navigate to FeatureHighlights screen (tutorials)
                 // If coming from authenticated app (CreateListingScreen), go back to listing
                 if (isOnboardingFlow) {
                   setTimeout(() => {
-                    (navigation as any).navigate('Welcome', { userId });
+                    (navigation as any).navigate('FeatureHighlights', { userId });
                   }, 100);
                 } else {
                   // User upgraded mid-listing creation, go back to continue
@@ -211,7 +266,7 @@ export default function SubscriptionChoiceScreen() {
               onPress: () => {
                 if (isOnboardingFlow) {
                   setTimeout(() => {
-                    (navigation as any).navigate('Welcome', { userId });
+                    (navigation as any).navigate('FeatureHighlights', { userId });
                   }, 100);
                 } else {
                   navigation.goBack();
@@ -255,12 +310,12 @@ export default function SubscriptionChoiceScreen() {
           {
             text: 'Get Started',
             onPress: () => {
-              // If coming from onboarding, navigate to Welcome screen
+              // If coming from onboarding, navigate to FeatureHighlights screen (tutorials)
               // If coming from authenticated app (CreateListingScreen), go back to listing
               if (isOnboardingFlow) {
-                console.log('[SubscriptionChoice] ✅ Completing onboarding flow');
+                console.log('[SubscriptionChoice] ✅ Navigating to tutorials (FeatureHighlights)');
                 setTimeout(() => {
-                  (navigation as any).navigate('Welcome', { userId });
+                  (navigation as any).navigate('FeatureHighlights', { userId });
                 }, 100);
               } else {
                 // User upgraded mid-listing creation, go back to continue

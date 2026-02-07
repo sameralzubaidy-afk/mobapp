@@ -104,7 +104,7 @@ export const setupUserProfile = async (
       zip_code: profileData.zip_code,
       node_id: assignedNodeId, // Can be null if no node found
       profile_completed: true,
-      onboarding_completed: true,
+      onboarding_completed: false, // Set to false, WelcomeScreen will set to true at the end of onboarding
       phone_verified: true,
       phone_verified_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

@@ -138,7 +138,18 @@ export const ReferralDashboardScreen: React.FC = () => {
       ? `${actions[0]} OR ${actions[1]}` 
       : actions[0];
       
-    return `To earn your ${rewardsConfig.referee_sp} SP sign-up bonus, simply ${actionStr}!`;
+    // Calculate correct bonus amount based on enabled actions
+    let bonusAmount = 0;
+    if (rewardsConfig.first_listing_enabled && rewardsConfig.first_trade_enabled) {
+      // If both are enabled, show total potential bonus
+      bonusAmount = rewardsConfig.referee_sp + rewardsConfig.referee_listing_sp;
+    } else if (rewardsConfig.first_listing_enabled) {
+      bonusAmount = rewardsConfig.referee_listing_sp;
+    } else if (rewardsConfig.first_trade_enabled) {
+      bonusAmount = rewardsConfig.referee_sp;
+    }
+      
+    return `To earn your sign-up bonus, simply ${actionStr}!`;
   };
 
   const renderReferralItem = ({ item }: { item: Referral }) => (

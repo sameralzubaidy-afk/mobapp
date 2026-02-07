@@ -65,31 +65,10 @@ export default function FeatureHighlightsScreen() {
         throw new Error('User ID not available');
       }
 
-      console.log('[ONBOARDING] Starting completion process for user:', userId);
-
-      // Mark onboarding as complete
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          onboarding_completed: true,
-          onboarding_completed_at: new Date().toISOString(),
-        } as any) // TODO: Fix when profiles type is regenerated
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
-      console.log('[ONBOARDING] Marked onboarding as complete for user:', userId);
-
-      // Refresh session - this updates AuthContext with onboarding_completed=true
-      // RootNavigator watches the session and will automatically detect the change
-      // and switch from unauthenticated stack to authenticated stack (Home)
-      console.log('[ONBOARDING] Refreshing session...');
-      await refreshSession();
-      console.log('[ONBOARDING] Session refreshed - RootNavigator will auto-switch to Home');
-      
-      // No navigation needed - RootNavigator handles it automatically
+      console.log('[ONBOARDING] Tutorials finished/skipped, navigating to Welcome screen');
+      (navigation as any).navigate('Welcome', { userId });
     } catch (error) {
-      console.error('❌ Complete onboarding error:', error);
+      console.error('❌ Tutorial navigation error:', error);
     }
   };
 

@@ -86,6 +86,7 @@ Please
 12. Update the navigation file on UI  so i can verify manually
 13. provide steps to manaul test format it as test cases create md file for it. 
 14. I do not use yarn I use npm so give me all commend lines for npm. 
+15. update flow-registry.md if needed so that i keep this file up to date.
 
 
 

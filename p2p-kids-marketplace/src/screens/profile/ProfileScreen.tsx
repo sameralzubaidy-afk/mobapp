@@ -120,7 +120,19 @@ export default function ProfileScreen({ navigation }: any) {
               const actionStr = actions.length === 2 
                 ? `${actions[0]} or ${actions[1]}` 
                 : actions[0];
-              setPendingReferralNotice(`🎁 Your bonus is waiting! ${actionStr.charAt(0).toUpperCase() + actionStr.slice(1)} to earn ${config.referee_sp} SP.`);
+              
+              // Calculate correct bonus amount based on enabled actions
+              let bonusAmount = 0;
+              if (config.first_listing_enabled && config.first_trade_enabled) {
+                // If both are enabled, show total potential bonus
+                bonusAmount = config.referee_sp + config.referee_listing_sp;
+              } else if (config.first_listing_enabled) {
+                bonusAmount = config.referee_listing_sp;
+              } else if (config.first_trade_enabled) {
+                bonusAmount = config.referee_sp;
+              }
+
+              setPendingReferralNotice(`🎁 Your bonus is waiting! ${actionStr.charAt(0).toUpperCase() + actionStr.slice(1)} to earn your sign-up bonus.`);
           }
         } else {
           setPendingReferralNotice(null);

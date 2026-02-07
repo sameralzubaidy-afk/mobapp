@@ -6,7 +6,7 @@
  * Shows: pending → payment_processing → in_progress → completed/cancelled
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,26 +18,74 @@ import {
   Image,
   SafeAreaView,
 } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { Trade, TradeStatus } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
+import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
+import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
+import BottomNavBar from '@/components/organisms/BottomNavBar';
 
 type TradeTimelineRouteProp = RouteProp<RootStackParamList, 'TradeTimeline'>;
 
 export default function TradeTimelineScreen() {
   const route = useRoute<TradeTimelineRouteProp>();
   const navigation = useNavigation<any>();
-  const { session } = useAuth();
+  const { session, refreshSession } = useAuth();
   const user = session?.user;
   const { tradeId } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [trade, setTrade] = useState<Trade | null>(null);
+  const [showCancellationModal, setShowCancellationModal] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [canReview, setCanReview] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState(false);
+  const [otherUserReviewed, setOtherUserReviewed] = useState(false);
+  const [revieweeId, setRevieweeId] = useState<string>('');
+
+  const fetchTrade = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('trades')
+        .select('*, listing:items(id, title, price, images:item_images(id, url, thumbnail_url, display_order))')
+        .eq('id', tradeId)
+        .single();
+
+      if (error) throw error;
+      setTrade(data as any);
+
+      // Check mutual review status (only for completed trades)
+      if (user?.id && (data as any).status === 'completed') {
+        const revieweeUserId = (data as any).buyer_id === user.id 
+          ? (data as any).seller_id 
+          : (data as any).buyer_id;
+        
+        setRevieweeId(revieweeUserId);
+        
+        const reviewStatusResult = await getTradeReviewStatus(tradeId, user.id);
+        if (reviewStatusResult.success) {
+          setHasReviewed(reviewStatusResult.userReviewed);
+          setOtherUserReviewed(reviewStatusResult.otherUserReviewed);
+          
+          const result = await canReviewUser(tradeId, user.id);
+          if (result.success) {
+            setCanReview(result.canReview === true);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching trade:', error);
+      Alert.alert('Error', 'Failed to load trade');
+    } finally {
+      setLoading(false);
+    }
+  }, [tradeId, user?.id]);
 
   useEffect(() => {
     fetchTrade();
@@ -55,7 +103,8 @@ export default function TradeTimelineScreen() {
         },
         (payload: any) => {
           console.log('[TradeTimeline] Trade updated:', payload.new);
-          setTrade(payload.new as Trade);
+          // Re-fetch to get any updated related data or full state
+          fetchTrade();
         }
       )
       .subscribe();
@@ -63,31 +112,23 @@ export default function TradeTimelineScreen() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tradeId]);
+  }, [tradeId, fetchTrade]);
 
-  const fetchTrade = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('trades')
-        .select('*, listing:items(title, price, images:item_images(id, url, thumbnail_url, display_order))')
-        .eq('id', tradeId)
-        .single();
-
-      if (error) throw error;
-      setTrade(data as any);
-    } catch (error) {
-      console.error('❌ Error fetching trade:', error);
-      Alert.alert('Error', 'Failed to load trade');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      fetchTrade();
+    }, [fetchTrade])
+  );
 
   const handleComplete = async () => {
+    const isSeller = trade?.seller_id === user?.id;
+    const confirmMessage = isSeller 
+      ? 'Are you sure you want to mark this trade as completed? The buyer will be notified to confirm.'
+      : 'Are you sure you want to mark this trade as completed? This will release Swap Points or cash to the seller.';
+
     Alert.alert(
       'Complete Trade',
-      'Mark this trade as completed? This confirms you have received/delivered the item.',
+      confirmMessage,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -99,7 +140,7 @@ export default function TradeTimelineScreen() {
               const result = await completeTradeV2(tradeId);
 
               if (result.success) {
-                Alert.alert('Success', result.message || 'Trade updated successfully');
+                Alert.alert('Success', result.message || 'Trade marked as completed!');
                 fetchTrade();
               } else {
                 Alert.alert('Error', result.error || 'Failed to complete trade');
@@ -114,35 +155,57 @@ export default function TradeTimelineScreen() {
   };
 
   const handleCancel = async () => {
-    Alert.alert(
-      'Cancel Trade',
-      'Are you sure you want to cancel this trade? Refunds will be processed if payment was made.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setSubmitting(true);
-              const result = await cancelTradeV2(tradeId, 'User requested cancellation');
-              if (result.success) {
-                Alert.alert('Cancelled', 'Trade has been cancelled. Refunds will be processed.');
-                navigation.goBack();
-              } else {
-                Alert.alert('Error', result.error || 'Failed to cancel trade');
-              }
-            } finally {
-              setSubmitting(false);
-            }
-          },
-        },
-      ]
-    );
+    setShowCancellationModal(true);
   };
 
-  const handleViewDetails = () => {
-    navigation.navigate('TradeDetail', { tradeId });
+  const handleCancellationConfirm = async (reason: string) => {
+    try {
+      setIsCancelling(true);
+      setShowCancellationModal(false);
+      
+      const result = await cancelTradeV2(tradeId, reason);
+      if (result.success) {
+        if (refreshSession) await refreshSession();
+        
+        Alert.alert(
+          'Trade Cancelled',
+          'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        Alert.alert(
+          'Cancellation Failed',
+          result.error || 'Failed to cancel trade. Please try again.',
+          [{ text: 'Try Again', onPress: () => setShowCancellationModal(true) }]
+        );
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleReviewPress = () => {
+    if (!user?.id || !trade) return;
+    
+    // Get the counterparty's name
+    const isBuyer = trade.buyer_id === user.id;
+    const counterpartyId = isBuyer ? trade.seller_id : trade.buyer_id;
+    const counterpartyName = isBuyer ? 'the seller' : 'the buyer';
+
+    navigation.navigate('SubmitReview', {
+      tradeId,
+      revieweeId: counterpartyId,
+      revieweeName: counterpartyName,
+    });
+  };
+
+  const handleItemDetailsPress = () => {
+    const listingId = (trade as any).listing?.id;
+    if (listingId) {
+      navigation.navigate('ListingDetail', { listing_id: listingId });
+    }
   };
 
   const handleOpenChat = () => {
@@ -190,7 +253,7 @@ export default function TradeTimelineScreen() {
 
           <Text style={styles.title}>Trade Timeline</Text>
 
-          <View style={styles.listingCard}>
+          <Pressable style={styles.listingCard} onPress={handleItemDetailsPress}>
             <View style={styles.imageContainer}>
               {listingImageUri ? (
                 <Image
@@ -212,11 +275,12 @@ export default function TradeTimelineScreen() {
               <Text style={styles.listingSubtitle}>
                 {isBuyer ? 'Buying' : 'Selling'}
                 {Number.isFinite(listingPriceNumber) && listingPriceNumber > 0
-                  ? ` · $${listingPriceNumber.toFixed(2)}`
+                  ? ` · ${listingPriceNumber.toFixed(2)}`
                   : ''}
               </Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+          </Pressable>
         </View>
 
         {/* Visual Progress Timeline */}
@@ -244,23 +308,21 @@ export default function TradeTimelineScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Payment Details</Text>
           <View style={styles.row}>
-            <Text style={styles.label}>Cash Amount:</Text>
+            <Text style={styles.label}>Cash Paid:</Text>
             <Text style={styles.value}>${(trade.cash_amount_cents / 100).toFixed(2)}</Text>
           </View>
-          {trade.sp_amount > 0 && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Swap Points Used:</Text>
-              <Text style={styles.value}>{trade.sp_amount} SP</Text>
-            </View>
-          )}
           <View style={styles.row}>
-            <Text style={styles.label}>Transaction Fee:</Text>
+            <Text style={styles.label}>Swap Points Used:</Text>
+            <Text style={styles.value}>{trade.sp_amount} SP</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>Platform Fee:</Text>
             <Text style={styles.value}>${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}</Text>
           </View>
           <View style={[styles.row, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total:</Text>
             <Text style={styles.totalValue}>
-              ${(trade.cash_amount_cents / 100).toFixed(2)}
+              ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents) / 100).toFixed(2)}
             </Text>
           </View>
         </View>
@@ -278,16 +340,30 @@ export default function TradeTimelineScreen() {
         {trade.status === 'in_progress' && (
           <View style={styles.actions}>
             <Pressable
-              style={[styles.button, styles.primaryButton]}
+              style={[
+                styles.button, 
+                styles.primaryButton, 
+                (submitting || (isSeller && !!trade.seller_marked_completed_at)) && styles.disabledButton
+              ]}
               onPress={handleComplete}
-              disabled={submitting}
+              disabled={submitting || (isSeller && !!trade.seller_marked_completed_at)}
             >
-              <Ionicons name="checkmark-circle" size={20} color="#fff" />
-              <Text style={styles.primaryButtonText}>Mark as Completed</Text>
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                  <Text style={styles.primaryButtonText}>
+                    {isSeller && trade.seller_marked_completed_at 
+                      ? 'Waiting for buyer' 
+                      : 'Mark as Completed'}
+                  </Text>
+                </>
+              )}
             </Pressable>
 
             <Pressable
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.button, styles.cancelButton, submitting && styles.disabledButton]}
               onPress={handleCancel}
               disabled={submitting}
             >
@@ -297,10 +373,10 @@ export default function TradeTimelineScreen() {
           </View>
         )}
 
-        {trade.status === 'pending' && (
+        {trade.status === 'pending' && (!isSeller || trade.cash_amount_cents === 0) && (
           <View style={styles.actions}>
             <Pressable
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.button, styles.cancelButton, submitting && styles.disabledButton]}
               onPress={handleCancel}
               disabled={submitting}
             >
@@ -310,12 +386,66 @@ export default function TradeTimelineScreen() {
           </View>
         )}
 
-        {/* View Full Details Link */}
-        <Pressable style={styles.linkButton} onPress={handleViewDetails}>
-          <Text style={styles.linkText}>View Full Details</Text>
-          <Ionicons name="chevron-forward" size={16} color="#007AFF" />
-        </Pressable>
+        {/* Review Section */}
+        {trade.status === 'completed' && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Reviews</Text>
+            <View style={styles.reviewStatusRow}>
+              <Ionicons
+                name={hasReviewed ? 'checkmark-circle' : 'ellipse-outline'}
+                size={20}
+                color={hasReviewed ? '#34C759' : '#8E8E93'}
+              />
+              <Text style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}>
+                {`You ${hasReviewed ? 'have' : "haven't"} reviewed ${isBuyer ? 'the seller' : 'the buyer'}`}
+              </Text>
+            </View>
+            <View style={[styles.reviewStatusRow, { marginTop: 8 }]}>
+              <Ionicons
+                name={otherUserReviewed ? 'checkmark-circle' : 'ellipse-outline'}
+                size={20}
+                color={otherUserReviewed ? '#34C759' : '#8E8E93'}
+              />
+              <Text style={[styles.reviewStatusText, otherUserReviewed && styles.reviewStatusTextComplete]}>
+                {`${isBuyer ? 'The seller' : 'The buyer'} ${otherUserReviewed ? 'has' : "hasn't"} reviewed you`}
+              </Text>
+            </View>
+
+            {canReview && !hasReviewed && (
+              <Pressable
+                style={[styles.button, styles.reviewButton, { marginTop: 16 }]}
+                onPress={handleReviewPress}
+              >
+                <Ionicons name="star" size={20} color="#fff" />
+                <Text style={styles.primaryButtonText}>
+                  Review {isBuyer ? 'the Seller' : 'the Buyer'}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
+        {/* Seller Progress Info Box */}
+        {isBuyer && trade.status === 'in_progress' && trade.seller_marked_completed_at && (
+          <View style={[styles.infoBox, styles.sellerCompletedBox]}>
+            <Ionicons name="information-circle" size={20} color="#065f46" style={{ marginRight: 8 }} />
+            <Text style={styles.sellerCompletedText}>
+              The seller has marked this trade as completed. Please confirm if you have received the item.
+            </Text>
+          </View>
+        )}
+
       </ScrollView>
+      <BottomNavBar />
+
+      {/* Cancellation Reason Modal */}
+      <CancellationReasonModal
+        visible={showCancellationModal}
+        itemTitle={listing?.title || 'Item'}
+        onConfirm={handleCancellationConfirm}
+        onCancel={() => setShowCancellationModal(false)}
+        isLoading={isCancelling}
+      />
     </SafeAreaView>
   );
 }
@@ -626,6 +756,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     gap: 4,
+  },
+  reviewStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  reviewStatusText: {
+    fontSize: 14,
+    color: '#8E8E93',
+    flex: 1,
+  },
+  reviewStatusTextComplete: {
+    color: '#34C759',
+    fontWeight: '500',
+  },
+  reviewButton: {
+    backgroundColor: '#FF9500',
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  infoBox: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  sellerCompletedBox: {
+    backgroundColor: '#d1fae5',
+    borderColor: '#6ee7b7',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sellerCompletedText: {
+    color: '#065f46',
+    fontSize: 14,
+    flex: 1,
   },
   linkText: {
     fontSize: 16,
