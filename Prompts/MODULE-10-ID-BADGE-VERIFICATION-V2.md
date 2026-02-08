@@ -1,41 +1,58 @@
----
+# MODULE-10-PART-2: ID BADGE MANUAL VERIFICATION SYSTEM
 
-## Prompt Addendum: Feed/Swipe UX Resilience
-
-### AI Prompt for Cursor (UX Resilience)
-```typescript
-/*
-TASK: Harden feed/swipe UX against CDN/timeouts
-
-REQUIREMENTS:
-1. Image loading states: skeleton loaders and graceful fallbacks on CDN timeout.
-2. Retry/backoff: exponential backoff for image fetches; cap retries; show placeholder.
-3. Empty-state prompts: friendly guidance when no listings match filters; quick actions to widen radius or change child filters.
-4. Perf budgets: target <1s for initial 20 items; lazy-load images; prefetch next cards.
-
-FILES:
-- src/screens/feed/FeedScreen.tsx (skeletons + empty state)
-- src/components/ListingCard.tsx (image retry/backoff)
-*/
-```
-
-### Acceptance Criteria
-- Skeletons display during image loads
-- Timeouts show placeholders without jank
-- Empty states guide users to adjust filters
-- Perf targets met in instrumentation
-
-# MODULE 10: BADGES & TRUST
-
-**Total Tasks:** 8  
-**Estimated Time:** ~21 hours  
-**Dependencies:** MODULE-02 (Authentication), MODULE-06 (Trade Flow)
+**Version:** 2.0  
+**Last Updated:** February 8, 2026  
+**Status:** Ready for Implementation  
+**Dependencies:** MODULE-02 (Authentication), MODULE-03 (Profiles), MODULE-14 (Notifications)  
+**Module Type:** Standalone (No dependency on auto-badge system)
 
 ---
 
-### Agent-Optimized Prompt Template (Claude Sonnet 4.5)
+## OVERVIEW
 
-Add this preamble to each AI prompt block when running in Claude Sonnet 4.5 mode. It guides the agent to reason, verify, and produce tests alongside code.
+Users can voluntarily upgrade their trust level by submitting government ID screenshots for manual admin verification. This creates a "Verified" badge visible on their profile, signaling trust to other users. The system is completely independent and does not require the auto-badge infrastructure.
+
+**Key Flow:**
+1. User navigates to "Upgrade to Verified" on profile
+2. User uploads ID screenshot with privacy disclaimer
+3. Screenshot stored temporarily in Supabase Storage
+4. Admin reviews in queue, approves/rejects with reason
+5. Screenshot deleted immediately after decision
+6. User notified via push + in-app + email
+7. Verified badge awarded on approval
+
+---
+
+## CRITICAL RULES (MVP)
+
+### Privacy & Data Handling
+- **NO storage** of ID screenshots after decision (immediate deletion)
+- ID images stored temporarily only during admin review window
+- All messages about non-storage must be configurable (admin can customize)
+- User consent required before submission
+
+### Admin Controls
+- Enable/disable ID badge verification system globally
+- Configurable decision timeframe (SLA) - default 24 hours
+- Predefined rejection reasons (6 options) + free-text notes
+- All admin actions logged in audit trail
+- Admin receives web push notification on new submission
+
+### Notifications
+- Multi-channel: push + in-app + email (respect user preferences)
+- Template variables: `{first_name}`, `{rejection_reason}`, `{admin_notes}`
+- Rejection email includes reason so user can resubmit
+- All message templates configurable by admin
+
+### Status Tracking
+- Request status: pending → approved/rejected
+- No auto-expiration (admin manually reviews)
+- Users can resubmit immediately after rejection
+- History of all submissions preserved (metadata only, no screenshots)
+
+---
+
+## AGENT-OPTIMIZED PROMPT TEMPLATE
 
 ```text
 @agent: claude-sonnet-4.5
@@ -67,955 +84,14 @@ REASONING GUIDELINES:
 
 ---
 
-## TASK BADGE-001: Implement Badge System (Levels: None, Bronze, Silver, Gold, Verified)
-
-**Duration:** 3 hours  
-**Priority:** High  
-**Dependencies:** AUTH-001 (User authentication)
-
-### Description
-Create badge system with 5 levels: None, Bronze, Silver, Gold, Verified. Add `badge_level` column to users table. Create badge_config table for admin-defined thresholds. Display badge icon on user profile and item listings.
-
----
-
-### AI Prompt for Cursor (Generate Badge System)
-
-```typescript
-/*
-TASK: Implement badge system database schema
-
-CONTEXT:
-Badges build trust between users.
-Levels: None → Bronze → Silver → Gold → Verified
-
-REQUIREMENTS:
-1. Add badge_level to users table
-2. Create badge_config table for thresholds
-3. Badge display icons
-4. Automatic upgrade logic (based on trades/value)
-
-==================================================
-FILE 1: Database migration for badges
-==================================================
-*/
-
--- filepath: supabase/migrations/035_badges_system.sql
-
--- Badge level enum
-CREATE TYPE badge_level AS ENUM ('none', 'bronze', 'silver', 'gold', 'verified');
-
--- Add badge to users table
-ALTER TABLE users ADD COLUMN IF NOT EXISTS badge_level badge_level DEFAULT 'none';
-ALTER TABLE users ADD COLUMN IF NOT EXISTS badge_verified_at TIMESTAMP WITH TIME ZONE;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS badge_verification_method TEXT; -- 'auto', 'manual', 'identity_check'
-
-CREATE INDEX users_badge_level_idx ON users(badge_level);
-
--- Badge configuration table
-CREATE TABLE badge_config (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  badge_level badge_level NOT NULL UNIQUE,
-  min_trades INTEGER NOT NULL DEFAULT 0,
-  min_trade_value INTEGER NOT NULL DEFAULT 0, -- In cents
-  display_name TEXT NOT NULL,
-  display_color TEXT NOT NULL, -- Hex color code
-  icon_name TEXT NOT NULL, -- Icon identifier
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Seed default badge config
-INSERT INTO badge_config (badge_level, min_trades, min_trade_value, display_name, display_color, icon_name)
-VALUES
-  ('none', 0, 0, 'New User', '#9CA3AF', 'person-outline'),
-  ('bronze', 3, 50000, 'Bronze', '#CD7F32', 'medal-outline'),
-  ('silver', 10, 200000, 'Silver', '#C0C0C0', 'medal'),
-  ('gold', 25, 500000, 'Gold', '#FFD700', 'trophy'),
-  ('verified', 50, 1000000, 'Verified', '#10B981', 'shield-checkmark');
-
--- Auto-update trigger for updated_at
-CREATE TRIGGER update_badge_config_updated_at
-  BEFORE UPDATE ON badge_config
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
-
--- Admin config for badge system
-INSERT INTO admin_config (key, value, value_type, description)
-VALUES
-  ('badge_system_enabled', 'true', 'boolean', 'Enable/disable badge system'),
-  ('auto_verification_enabled', 'true', 'boolean', 'Auto-upgrade badges based on thresholds')
-ON CONFLICT (key) DO NOTHING;
-
--- Function to calculate user's eligible badge level
-CREATE OR REPLACE FUNCTION calculate_badge_level(user_id_param UUID)
-RETURNS badge_level AS $$
-DECLARE
-  total_trades INTEGER;
-  total_value INTEGER;
-  eligible_badge badge_level;
-BEGIN
-  -- Get user's trade stats
-  SELECT
-    COUNT(*),
-    COALESCE(SUM(cash_amount + points_amount), 0)
-  INTO total_trades, total_value
-  FROM trades
-  WHERE (buyer_id = user_id_param OR seller_id = user_id_param)
-    AND status = 'completed';
-
-  -- Find highest eligible badge
-  SELECT badge_level INTO eligible_badge
-  FROM badge_config
-  WHERE min_trades <= total_trades
-    AND min_trade_value <= total_value
-  ORDER BY
-    CASE badge_level
-      WHEN 'verified' THEN 5
-      WHEN 'gold' THEN 4
-      WHEN 'silver' THEN 3
-      WHEN 'bronze' THEN 2
-      WHEN 'none' THEN 1
-    END DESC
-  LIMIT 1;
-
-  RETURN COALESCE(eligible_badge, 'none');
-END;
-$$ LANGUAGE plpgsql;
-
--- RLS policies for badge_config
-ALTER TABLE badge_config ENABLE ROW LEVEL SECURITY;
-
--- Anyone can view badge config
-CREATE POLICY "Anyone can view badge config"
-  ON badge_config FOR SELECT
-  USING (true);
-
--- Only admins can update badge config
-CREATE POLICY "Admins can update badge config"
-  ON badge_config FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM users
-      WHERE users.id = auth.uid()
-      AND users.role = 'admin'
-    )
-  );
-
-/*
-==================================================
-FILE 2: Badge service
-==================================================
-*/
-
-// filepath: src/services/badge.ts
-
-import { createClient } from '@/lib/supabase';
-
-export type BadgeLevel = 'none' | 'bronze' | 'silver' | 'gold' | 'verified';
-
-export interface BadgeConfig {
-  badge_level: BadgeLevel;
-  min_trades: number;
-  min_trade_value: number;
-  display_name: string;
-  display_color: string;
-  icon_name: string;
-}
-
-export async function getBadgeConfig(): Promise<BadgeConfig[]> {
-  const supabase = createClient();
-
-  try {
-    const { data, error } = await supabase
-      .from('badge_config')
-      .select('*')
-      .order('min_trades', { ascending: true });
-
-    if (error) throw error;
-
-    return data || [];
-  } catch (error) {
-    console.error('Get badge config error:', error);
-    return [];
-  }
-}
-
-export async function getUserBadge(userId: string): Promise<BadgeLevel> {
-  const supabase = createClient();
-
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('badge_level')
-      .eq('id', userId)
-      .single();
-
-    if (error) throw error;
-
-    return (data?.badge_level as BadgeLevel) || 'none';
-  } catch (error) {
-    console.error('Get user badge error:', error);
-    return 'none';
-  }
-}
-
-export async function calculateEligibleBadge(userId: string): Promise<BadgeLevel> {
-  const supabase = createClient();
-
-  try {
-    const { data, error } = await supabase.rpc('calculate_badge_level', {
-      user_id_param: userId,
-    });
-
-    if (error) throw error;
-
-    return (data as BadgeLevel) || 'none';
-  } catch (error) {
-    console.error('Calculate eligible badge error:', error);
-    return 'none';
-  }
-}
-
-export function getBadgeIcon(badgeLevel: BadgeLevel): string {
-  const icons: Record<BadgeLevel, string> = {
-    none: 'person-outline',
-    bronze: 'medal-outline',
-    silver: 'medal',
-    gold: 'trophy',
-    verified: 'shield-checkmark',
-  };
-
-  return icons[badgeLevel] || 'person-outline';
-}
-
-export function getBadgeColor(badgeLevel: BadgeLevel): string {
-  const colors: Record<BadgeLevel, string> = {
-    none: '#9CA3AF',
-    bronze: '#CD7F32',
-    silver: '#C0C0C0',
-    gold: '#FFD700',
-    verified: '#10B981',
-  };
-
-  return colors[badgeLevel] || '#9CA3AF';
-}
-
-/*
-==================================================
-FILE 3: Badge display component
-==================================================
-*/
-
-// filepath: src/components/BadgeIcon.tsx
-
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { getBadgeIcon, getBadgeColor, getUserBadge, BadgeLevel } from '@/services/badge';
-
-interface BadgeIconProps {
-  userId: string;
-  size?: 'small' | 'medium' | 'large';
-  showLabel?: boolean;
-}
-
-export function BadgeIcon({ userId, size = 'medium', showLabel = false }: BadgeIconProps) {
-  const [badgeLevel, setBadgeLevel] = useState<BadgeLevel>('none');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadBadge();
-  }, [userId]);
-
-  const loadBadge = async () => {
-    const badge = await getUserBadge(userId);
-    setBadgeLevel(badge);
-    setLoading(false);
-  };
-
-  if (loading || badgeLevel === 'none') {
-    return null; // Don't show badge for 'none' level
-  }
-
-  const iconSize = size === 'small' ? 16 : size === 'medium' ? 24 : 32;
-  const iconName = getBadgeIcon(badgeLevel);
-  const iconColor = getBadgeColor(badgeLevel);
-
-  const badgeLabels: Record<BadgeLevel, string> = {
-    none: '',
-    bronze: 'Bronze',
-    silver: 'Silver',
-    gold: 'Gold',
-    verified: 'Verified',
-  };
-
-  return (
-    <View style={styles.container}>
-      <Ionicons name={iconName as any} size={iconSize} color={iconColor} />
-      {showLabel && (
-        <Text style={[styles.label, { color: iconColor }]}>
-          {badgeLabels[badgeLevel]}
-        </Text>
-      )}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-});
-
-/*
-==================================================
-ACCEPTANCE CRITERIA
-==================================================
-
-✓ Badge levels defined (none, bronze, silver, gold, verified)
-✓ badge_config table with thresholds
-✓ calculate_badge_level() function
-✓ Badge display component
-✓ Badge icons and colors
-✓ RLS policies for badge config
-
-==================================================
-NEXT TASK
-==================================================
-
-BADGE-002: Create admin UI to enable/disable badge system
-*/
-```
-
----
-
-### Output Files
-
-1. **supabase/migrations/035_badges_system.sql** - Badge schema and config
-2. **src/services/badge.ts** - Badge service functions
-3. **src/components/BadgeIcon.tsx** - Badge display component
-
----
-
-### Testing Steps
-
-1. **Test badge calculation:**
-   - User with 0 trades → None badge
-   - User with 3 trades → Bronze badge
-   - User with 10 trades, $2000 value → Silver badge
-
-2. **Test badge display:**
-   - Badge icon shows correct color
-   - Badge label displays correctly
-   - None badge hidden (no icon shown)
-
-3. **Test admin config:**
-   - Fetch badge thresholds
-   - Update thresholds (admin only)
-
----
-
-### Time Breakdown
-
-| Activity | Time |
-|----------|------|
-| Create badge schema migration | 60 min |
-| Build calculate_badge_level function | 45 min |
-| Create badge service | 45 min |
-| Build BadgeIcon component | 30 min |
-| **Total** | **~3 hours** |
-
----
-
-## TASK BADGE-002: Create Admin UI to Enable/Disable Badge System
-
-**Duration:** 2 hours  
-**Priority:** Medium  
-**Dependencies:** BADGE-001 (Badge system)
-
-### Description
-Admin panel to toggle badge system on/off. Update admin_config. When disabled, hide all badges from UI. Admin can also toggle auto-verification separately.
-
----
-
-### AI Prompt for Cursor (Generate Badge Admin UI)
-
-```typescript
-/*
-TASK: Create admin controls for badge system
-
-REQUIREMENTS:
-1. Toggle badge system on/off
-2. Toggle auto-verification on/off
-3. Save to admin_config
-4. UI updates immediately
-
-FILE: admin/app/settings/badges/page.tsx
-- Badge system enabled toggle
-- Auto-verification toggle
-- Save button
-*/
-```
-
-### Time Breakdown: **~2 hours**
-
----
-
-## TASK BADGE-003: Create Admin UI to Set Badge Thresholds
-
-**Duration:** 2.5 hours  
-**Priority:** Medium  
-**Dependencies:** BADGE-001 (Badge system)
-
-### Description
-Admin can configure badge thresholds. Edit min_trades and min_trade_value for each level. Update badge_config table. Preview changes before saving.
-
----
-
-### AI Prompt for Cursor (Generate Badge Threshold Editor)
-
-```typescript
-/*
-TASK: Create badge threshold configuration UI
-
-REQUIREMENTS:
-1. Display current thresholds for all badge levels
-2. Edit min_trades and min_trade_value
-3. Preview how many users qualify for each level
-4. Save changes to badge_config
-5. Trigger re-calculation for all users
-
-==================================================
-FILE: admin/app/settings/badges/thresholds/page.tsx
-==================================================
-*/
-
-import React, { useState, useEffect } from 'react';
-
-export default function BadgeThresholdsPage() {
-  const [thresholds, setThresholds] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    loadThresholds();
-  }, []);
-
-  const loadThresholds = async () => {
-    // Fetch from badge_config
-    const response = await fetch('/api/admin/badge-config');
-    const data = await response.json();
-    setThresholds(data);
-    setLoading(false);
-  };
-
-  const handleUpdate = async (badgeLevel: string, field: string, value: number) => {
-    setThresholds((prev) =>
-      prev.map((t) =>
-        t.badge_level === badgeLevel ? { ...t, [field]: value } : t
-      )
-    );
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    await fetch('/api/admin/badge-config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ thresholds }),
-    });
-    setSaving(false);
-    alert('Badge thresholds updated!');
-  };
-
-  return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Badge Thresholds</h1>
-
-      <table className="w-full border">
-        <thead>
-          <tr>
-            <th>Badge Level</th>
-            <th>Min Trades</th>
-            <th>Min Trade Value</th>
-            <th>Qualifying Users</th>
-          </tr>
-        </thead>
-        <tbody>
-          {thresholds.map((threshold) => (
-            <tr key={threshold.badge_level}>
-              <td>{threshold.display_name}</td>
-              <td>
-                <input
-                  type="number"
-                  value={threshold.min_trades}
-                  onChange={(e) =>
-                    handleUpdate(threshold.badge_level, 'min_trades', parseInt(e.target.value))
-                  }
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  value={threshold.min_trade_value / 100}
-                  onChange={(e) =>
-                    handleUpdate(threshold.badge_level, 'min_trade_value', parseInt(e.target.value) * 100)
-                  }
-                />
-              </td>
-              <td>{threshold.qualifying_users || 0}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <button onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Thresholds'}
-      </button>
-    </div>
-  );
-}
-
-/*
-==================================================
-ACCEPTANCE CRITERIA
-==================================================
-
-✓ Display all badge levels with current thresholds
-✓ Edit min_trades and min_trade_value
-✓ Show preview of qualifying users
-✓ Save changes to badge_config
-✓ Confirmation message on save
-
-==================================================
-NEXT TASK
-==================================================
-
-BADGE-004: Implement auto-verification logic
-*/
-```
-
-### Time Breakdown: **~2.5 hours**
-
----
-
-## TASK BADGE-004: Implement Auto-Verification Logic (Trigger on Trade Completion)
-
-**Duration:** 3 hours  
-**Priority:** High  
-**Dependencies:** BADGE-001 (Badge system), TRADE-006 (Trade completion)
-
-### Description
-Automatically upgrade user badges when thresholds met. Trigger on trade completion. Check if user qualifies for higher badge. Update user's badge_level. Send notification on badge upgrade.
-
----
-
-### AI Prompt for Cursor (Generate Auto-Verification)
-
-```typescript
-/*
-TASK: Implement automatic badge upgrades
-
-CONTEXT:
-After each trade completion, check if user qualifies for badge upgrade.
-Auto-upgrade if thresholds met.
-
-REQUIREMENTS:
-1. Trigger on trade completion
-2. Calculate eligible badge for buyer and seller
-3. Upgrade if higher than current
-4. Send notification on upgrade
-5. Log badge change
-
-==================================================
-FILE 1: Database trigger for auto-verification
-==================================================
-*/
-
--- filepath: supabase/migrations/036_auto_badge_verification.sql
-
--- Function to auto-upgrade badges after trade
-CREATE OR REPLACE FUNCTION auto_upgrade_badges()
-RETURNS TRIGGER AS $$
-DECLARE
-  auto_verification_enabled BOOLEAN;
-  buyer_eligible_badge badge_level;
-  seller_eligible_badge badge_level;
-  buyer_current_badge badge_level;
-  seller_current_badge badge_level;
-BEGIN
-  -- Only run if trade just completed
-  IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
-    
-    -- Check if auto-verification enabled
-    SELECT CAST(value AS BOOLEAN) INTO auto_verification_enabled
-    FROM admin_config WHERE key = 'auto_verification_enabled';
-
-    IF auto_verification_enabled THEN
-      
-      -- Calculate eligible badges
-      SELECT calculate_badge_level(NEW.buyer_id) INTO buyer_eligible_badge;
-      SELECT calculate_badge_level(NEW.seller_id) INTO seller_eligible_badge;
-
-      -- Get current badges
-      SELECT badge_level INTO buyer_current_badge
-      FROM users WHERE id = NEW.buyer_id;
-
-      SELECT badge_level INTO seller_current_badge
-      FROM users WHERE id = NEW.seller_id;
-
-      -- Upgrade buyer if eligible
-      IF buyer_eligible_badge > buyer_current_badge THEN
-        UPDATE users
-        SET badge_level = buyer_eligible_badge,
-            badge_verified_at = NOW(),
-            badge_verification_method = 'auto'
-        WHERE id = NEW.buyer_id;
-
-        -- TODO: Send notification to buyer
-      END IF;
-
-      -- Upgrade seller if eligible
-      IF seller_eligible_badge > seller_current_badge THEN
-        UPDATE users
-        SET badge_level = seller_eligible_badge,
-            badge_verified_at = NOW(),
-            badge_verification_method = 'auto'
-        WHERE id = NEW.seller_id;
-
-        -- TODO: Send notification to seller
-      END IF;
-    END IF;
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger on trade completion
-CREATE TRIGGER on_trade_completion_badge_upgrade
-  AFTER UPDATE ON trades
-  FOR EACH ROW
-  EXECUTE FUNCTION auto_upgrade_badges();
-
-/*
-==================================================
-FILE 2: Badge upgrade notification
-==================================================
-*/
-
-// filepath: supabase/functions/send-badge-upgrade-notification/index.ts
-
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-serve(async (req) => {
-  try {
-    const { userId, newBadge } = await req.json();
-
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // Get user details
-    const { data: user } = await supabaseClient
-      .from('users')
-      .select('expo_push_token, first_name')
-      .eq('id', userId)
-      .single();
-
-    if (!user) return new Response('User not found', { status: 404 });
-
-    const badgeNames: Record<string, string> = {
-      bronze: 'Bronze',
-      silver: 'Silver',
-      gold: 'Gold',
-      verified: 'Verified',
-    };
-
-    // Send push notification
-    if (user.expo_push_token) {
-      await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: user.expo_push_token,
-          title: '🎉 Badge Upgrade!',
-          body: `Congratulations! You've earned the ${badgeNames[newBadge]} badge!`,
-          data: {
-            screen: 'Profile',
-          },
-        }),
-      });
-    }
-
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' },
-      status: 200,
-    });
-  } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { 'Content-Type': 'application/json' },
-      status: 400,
-    });
-  }
-});
-
-/*
-==================================================
-ACCEPTANCE CRITERIA
-==================================================
-
-✓ Badge auto-upgraded on trade completion
-✓ Both buyer and seller checked
-✓ Only upgrade if higher than current
-✓ Notification sent on upgrade
-✓ badge_verified_at timestamp set
-
-==================================================
-NEXT TASK
-==================================================
-
-BADGE-005: Display badge on user profile
-*/
-```
-
-### Time Breakdown: **~3 hours**
-
----
-
-## TASK BADGE-005: Display Badge on User Profile
-
-**Duration:** 1.5 hours  
-**Priority:** High  
-**Dependencies:** BADGE-001 (Badge system)
-
-### Description
-Show user's badge on profile screen. Display badge icon, level name, and verification date. Show progress to next badge level (e.g., "3 more trades to Silver"). Link to badge info page.
-
----
-
-### AI Prompt for Cursor (Generate Badge Profile Display)
-
-```typescript
-/*
-TASK: Display badge on user profile
-
-REQUIREMENTS:
-1. Show current badge icon and name
-2. Display verification date
-3. Progress to next badge level
-4. Link to badge info/requirements
-
-FILE: src/screens/profile/UserProfileScreen.tsx (UPDATE)
-- Badge section in profile header
-- Progress bar to next level
-- Tap to view badge requirements
-*/
-```
-
-### Time Breakdown: **~1.5 hours**
-
----
-
-## TASK BADGE-006: Implement Manual Badge Assignment (Admin Panel)
-
-**Duration:** 2.5 hours  
-**Priority:** Medium  
-**Dependencies:** BADGE-001 (Badge system)
-
-### Description
-Admin can manually assign/revoke badges. Search for user, select badge level, add admin note. Update user's badge_level and badge_verification_method = 'manual'. Log action in admin audit trail.
-
----
-
-### AI Prompt for Cursor (Generate Manual Badge Assignment)
-
-```typescript
-/*
-TASK: Create manual badge assignment UI
-
-REQUIREMENTS:
-1. Search for user by email/name
-2. Display current badge
-3. Select new badge level dropdown
-4. Add admin note (reason for assignment)
-5. Save changes
-6. Log in admin audit trail
-
-==================================================
-FILE: admin/app/users/[userId]/badge/page.tsx
-==================================================
-*/
-
-import React, { useState } from 'react';
-
-export default function ManualBadgeAssignmentPage({ params }: { params: { userId: string } }) {
-  const [selectedBadge, setSelectedBadge] = useState('none');
-  const [adminNote, setAdminNote] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const badgeLevels = ['none', 'bronze', 'silver', 'gold', 'verified'];
-
-  const handleSave = async () => {
-    setSaving(true);
-
-    await fetch(`/api/admin/users/${params.userId}/badge`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        badge_level: selectedBadge,
-        admin_note: adminNote,
-      }),
-    });
-
-    setSaving(false);
-    alert('Badge updated!');
-  };
-
-  return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Manual Badge Assignment</h1>
-
-      <div className="mb-4">
-        <label>Badge Level</label>
-        <select
-          value={selectedBadge}
-          onChange={(e) => setSelectedBadge(e.target.value)}
-        >
-          {badgeLevels.map((level) => (
-            <option key={level} value={level}>
-              {level.charAt(0).toUpperCase() + level.slice(1)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="mb-4">
-        <label>Admin Note</label>
-        <textarea
-          value={adminNote}
-          onChange={(e) => setAdminNote(e.target.value)}
-          placeholder="Reason for manual badge assignment..."
-        />
-      </div>
-
-      <button onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Assign Badge'}
-      </button>
-    </div>
-  );
-}
-
-/*
-==================================================
-ACCEPTANCE CRITERIA
-==================================================
-
-✓ Admin can search for user
-✓ Display current badge
-✓ Select new badge level
-✓ Add admin note
-✓ Save updates user's badge
-✓ badge_verification_method = 'manual'
-
-==================================================
-NEXT TASK
-==================================================
-
-BADGE-007: Stripe Identity background check integration (deferred)
-*/
-```
-
-### Time Breakdown: **~2.5 hours**
-
----
-
-## TASK BADGE-007: Implement Stripe Identity Background Check Integration (Deferred to Post-MVP)
-
-**Duration:** 5 hours (deferred)  
-**Priority:** Low  
-**Dependencies:** BADGE-001 (Badge system), TRADE-004 (Stripe integration)
-
-### Description
-Integrate Stripe Identity for identity verification. Users can opt-in to verify identity for "Verified" badge. Submit ID photo via Stripe Identity API. Auto-upgrade to Verified on approval. **Deferred to Post-MVP if time-constrained.**
-
----
-
-### AI Prompt for Cursor (Generate Stripe Identity Integration)
-
-```typescript
-/*
-TASK: Integrate Stripe Identity for verification (DEFERRED TO POST-MVP)
-
-CONTEXT:
-Premium verification via government ID check.
-Uses Stripe Identity API.
-
-REQUIREMENTS:
-1. "Verify Identity" button in profile
-2. Launch Stripe Identity verification flow
-3. Submit ID photo
-4. Webhook on verification complete
-5. Auto-upgrade to "Verified" badge
-
-NOTE: This task is deferred to Post-MVP
-*/
-```
-
-### Time Breakdown: **~5 hours** (deferred)
-
----
-
-## TASK BADGE-008: Create "Upgrade to Verified" Flow (Optional User Action)
-
-**Duration:** 2.5 hours  
-**Priority:** High  
-**Dependencies:** BADGE-001 (Badge system), BADGE-009 (ID Badge Schema)
-
-### Description
-Users can voluntarily upgrade to Verified badge via ID verification. Display CTA on profile. Explain benefits (trust, higher visibility). Link to ID Badge upload flow. Track conversion rate.
-
----
-
-### AI Prompt for Cursor (Generate Upgrade Flow UI)
-
-```typescript
-/*
-TASK: Create "Upgrade to Verified" user flow with ID badge integration
-
-REQUIREMENTS:
-1. Display CTA if user not Verified and ID badge system enabled
-2. Show benefits of verification
-3. Link to ID Badge upload flow (BADGE-010)
-4. Track clicks/conversions
-
-FILE: src/screens/profile/UpgradeToVerifiedScreen.tsx
-- Benefits list
-- "Start Verification" button
-- Link to IDVerificationUploadScreen
-*/
-```
-
-### Time Breakdown: **~2.5 hours**
-
----
-
-## TASK BADGE-009: ID Badge Verification Schema & Storage Setup
+## TASK BADGE-008: Implement ID Badge Verification System Schema
 
 **Duration:** 2.5 hours  
 **Priority:** Critical  
-**Dependencies:** BADGE-001 (Badge system)
+**Dependencies:** MODULE-02 (Authentication), MODULE-03 (Profiles)
 
 ### Description
-Create database schema for ID badge verification requests. Add `id_badge_verification_requests` table with user info, submission status, rejection reason, screenshot storage path, and timestamps. Create Supabase Storage bucket for temporary ID screenshots with secure RLS policies. Store submissions with expiry tracking (auto-delete after decision).
+Create database schema for ID badge verification requests. Add `id_badge_verification_requests` table with user info, submission status, rejection reason, screenshot storage path, and timestamps. Create Supabase Storage bucket for temporary ID screenshots with secure RLS policies. Create `id_badge_verification_messages` table with 12 configurable message templates. Add admin config flags.
 
 ---
 
@@ -1030,6 +106,7 @@ Users submit ID screenshots for manual verification.
 Admin approves/rejects with reasons.
 Screenshots auto-deleted after decision (immediate deletion).
 All submission history preserved (metadata only).
+System completely independent from auto-badge infrastructure.
 
 REQUIREMENTS:
 1. Create id_badge_verification_requests table
@@ -1037,16 +114,17 @@ REQUIREMENTS:
 3. Enable RLS on bucket (user can upload, admin can view/download)
 4. Create id_badge_verification_messages table for configurable messages
 5. Add indexes for efficient queries
+6. Add admin_config flags for feature gating
 
 ==================================================
 FILE 1: Database migration for ID badge verification
 ==================================================
 */
 
--- filepath: supabase/migrations/037_id_badge_verification_system.sql
+-- filepath: supabase/migrations/040_id_badge_verification_system.sql
 
 -- Enum for verification request status
-CREATE TYPE id_badge_status AS ENUM ('pending', 'approved', 'rejected');
+CREATE TYPE id_badge_request_status AS ENUM ('pending', 'approved', 'rejected');
 
 -- Enum for rejection reasons (predefined)
 CREATE TYPE id_badge_rejection_reason AS ENUM (
@@ -1062,7 +140,7 @@ CREATE TYPE id_badge_rejection_reason AS ENUM (
 CREATE TABLE id_badge_verification_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  status id_badge_status NOT NULL DEFAULT 'pending',
+  status id_badge_request_status NOT NULL DEFAULT 'pending',
   screenshot_path TEXT, -- Supabase Storage path (deleted after decision)
   screenshot_upload_timestamp TIMESTAMPTZ,
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -1071,7 +149,11 @@ CREATE TABLE id_badge_verification_requests (
   rejection_reason id_badge_rejection_reason, -- Only if rejected
   rejection_notes TEXT, -- Free-text reason from admin
   approval_notes TEXT, -- Optional notes on approval
-  node_id UUID, -- Denormalized for filtering
+  node_id UUID, -- Denormalized for filtering (references nodes table)
+  first_name TEXT, -- Denormalized for admin queue filtering
+  last_name TEXT,
+  email TEXT,
+  phone_number TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -1082,6 +164,7 @@ CREATE INDEX id_badge_requests_status_idx ON id_badge_verification_requests(stat
 CREATE INDEX id_badge_requests_submitted_idx ON id_badge_verification_requests(submitted_at DESC);
 CREATE INDEX id_badge_requests_reviewed_idx ON id_badge_verification_requests(reviewed_by);
 CREATE INDEX id_badge_requests_node_idx ON id_badge_verification_requests(node_id);
+CREATE INDEX id_badge_requests_status_submitted_idx ON id_badge_verification_requests(status, submitted_at DESC);
 
 -- RLS policies for id_badge_verification_requests
 ALTER TABLE id_badge_verification_requests ENABLE ROW LEVEL SECURITY;
@@ -1120,72 +203,85 @@ CREATE TABLE id_badge_verification_messages (
   message_key TEXT NOT NULL UNIQUE,
   message_text TEXT NOT NULL,
   description TEXT,
+  supports_variables BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Seed default configurable messages
-INSERT INTO id_badge_verification_messages (message_key, message_text, description)
+-- Seed default configurable messages (12 templates)
+INSERT INTO id_badge_verification_messages (message_key, message_text, description, supports_variables)
 VALUES
   (
     'upload_disclaimer',
     'We will not store or keep your ID image. Your image will be permanently deleted after we approve or reject your verification request.',
-    'Disclaimer shown on upload screen'
+    'Disclaimer shown on upload screen',
+    false
   ),
   (
     'submit_button_label',
     'Submit for Verification',
-    'Label on submit button'
+    'Label on submit button',
+    false
   ),
   (
     'pending_status_text',
     'Your verification request is pending. We will review it within 24 hours.',
-    'Text shown when request is pending'
+    'Text shown when request is pending',
+    false
+  ),
+  (
+    'in_app_submission_notification',
+    'Your ID verification has been received. We will review it within 24 hours.',
+    'In-app notification after submission',
+    false
   ),
   (
     'approved_email_subject',
     'Your ID Verification is Approved! 🎉',
-    'Email subject when approved'
+    'Email subject when approved',
+    false
   ),
   (
     'approved_email_body',
-    'Congratulations! Your ID has been verified. Your profile now displays the Verified badge. Thank you for being part of our trusted community!',
-    'Email body when approved'
+    'Congratulations {first_name}! Your ID has been verified. Your profile now displays the Verified badge. Thank you for being part of our trusted community!',
+    'Email body when approved',
+    true
   ),
   (
     'rejected_email_subject',
     'ID Verification Request - Action Required',
-    'Email subject when rejected'
+    'Email subject when rejected',
+    false
   ),
   (
     'rejected_email_body',
-    'We were unable to verify your ID because: {rejection_reason}. {admin_notes} Please submit a new verification request with a clearer photo.',
-    'Email body when rejected (supports {rejection_reason} and {admin_notes} placeholders)'
-  ),
-  (
-    'in_app_pending_notification',
-    'Your ID verification is being reviewed. We''ll notify you within 24 hours.',
-    'In-app notification when pending'
+    'Hi {first_name}, we were unable to verify your ID. Reason: {rejection_reason}. {admin_notes} Please submit a new verification request with a clearer photo.',
+    'Email body when rejected',
+    true
   ),
   (
     'in_app_approved_notification',
     'Great! Your ID has been verified. You now have the Verified badge.',
-    'In-app notification when approved'
+    'In-app notification when approved',
+    false
   ),
   (
     'in_app_rejected_notification',
     'Your ID verification was not approved. Please submit a new request with clearer details.',
-    'In-app notification when rejected'
+    'In-app notification when rejected',
+    false
   ),
   (
     'web_push_approved',
     'Your ID verification is complete! You now have the Verified badge.',
-    'Web push when approved'
+    'Web push when approved',
+    false
   ),
   (
     'web_push_rejected',
     'Your ID verification request needs resubmission. Please try again with a clearer photo.',
-    'Web push when rejected'
+    'Web push when rejected',
+    false
   );
 
 -- RLS policies for messages (admins can update, everyone can read)
@@ -1223,17 +319,18 @@ CREATE TRIGGER update_id_badge_messages_updated_at
 
 /*
 ==================================================
-FILE 2: Supabase Storage bucket setup (via Supabase dashboard or migration script)
+FILE 2: Supabase Storage bucket setup (manual)
 ==================================================
 */
 
--- Note: Storage bucket creation must be done via Supabase dashboard or custom Edge Function
+-- Note: Storage bucket creation must be done via Supabase dashboard or Edge Function
 -- Bucket name: id-badge-verification-screenshots
+-- Folder structure: {user_id}/{filename}
 -- Enable RLS on bucket
--- Policies (to be created):
---   1. Users can upload to their own user_id folder
---   2. Admins can download/view all screenshots
---   3. Automatic deletion (implement via Edge Function scheduled task)
+-- RLS Policies required (create in Supabase dashboard):
+--   1. Users can upload to: storage.objects.name ILIKE auth.uid()::text || '/%'
+--   2. Admins can download: role = 'admin'
+--   3. Automatic deletion: (implement via Edge Function scheduled task)
 
 /*
 ==================================================
@@ -1241,7 +338,7 @@ ACCEPTANCE CRITERIA
 ==================================================
 
 ✓ id_badge_verification_requests table created with all columns
-✓ id_badge_status enum created (pending, approved, rejected)
+✓ id_badge_request_status enum created (pending, approved, rejected)
 ✓ id_badge_rejection_reason enum created (6 predefined reasons)
 ✓ Indexes on user_id, status, submitted_at for performance
 ✓ RLS policies allow users to view own requests, admins to view all
@@ -1249,37 +346,39 @@ ACCEPTANCE CRITERIA
 ✓ Admin can update all messages for flexibility
 ✓ admin_config entries created for feature flag and SLA
 ✓ Timestamps (created_at, updated_at, submitted_at, reviewed_at) set correctly
+✓ Supabase Storage bucket created with RLS policies
 
 ==================================================
 NEXT TASK
 ==================================================
 
-BADGE-010: ID Badge Upload Flow (Mobile Screen)
+BADGE-009: ID Badge Upload Flow (Mobile Screen)
 */
 ```
 
 ### Output Files
-1. **supabase/migrations/037_id_badge_verification_system.sql** - Schema and RLS policies
-2. **Supabase Storage bucket setup** - `id-badge-verification-screenshots` bucket (manual or via dashboard)
+1. **supabase/migrations/040_id_badge_verification_system.sql** - Schema and RLS policies
+2. **Supabase Storage bucket** - `id-badge-verification-screenshots` (manual setup or dashboard)
 
 ### Testing Steps
-1. Verify tables created: `SELECT * FROM id_badge_verification_requests`
+1. Verify tables created: `SELECT * FROM id_badge_verification_requests LIMIT 1`
 2. Verify enums exist: `SELECT * FROM pg_enum WHERE enumtypid::regtype::text LIKE 'id_badge%'`
 3. Verify RLS policies: `SELECT * FROM pg_policies WHERE tablename = 'id_badge_verification_requests'`
-4. Verify messages seeded: `SELECT COUNT(*) FROM id_badge_verification_messages`
+4. Verify messages seeded: `SELECT COUNT(*) FROM id_badge_verification_messages` (should be 12)
+5. Verify admin_config entries: `SELECT key, value FROM admin_config WHERE key LIKE 'id_badge%'`
 
 ### Time Breakdown: **~2.5 hours**
 
 ---
 
-## TASK BADGE-010: ID Badge Upload Flow (Mobile Screen)
+## TASK BADGE-009: ID Badge Upload Flow (Mobile Screen)
 
 **Duration:** 3 hours  
 **Priority:** Critical  
-**Dependencies:** BADGE-009 (ID Badge Schema)
+**Dependencies:** BADGE-008 (ID Badge Schema)
 
 ### Description
-Create mobile screen for users to upload ID screenshot. Show disclaimer about not storing images. Allow users to pick image from camera or gallery. Validate image size/quality before upload. Display "Pending Approval" status after submission. Show progress to next badge (if applicable). Prevent duplicate submissions (in-flight protection).
+Create mobile screen for users to upload ID screenshot. Show disclaimer about not storing images (fetched from configurable messages). Allow users to pick image from camera or gallery. Validate image size/quality before upload. Display "Pending Approval" status after submission. Prevent duplicate submissions (in-flight protection). Handle errors gracefully.
 
 ---
 
@@ -1294,6 +393,7 @@ Users upload ID screenshot for manual verification by admin.
 System shows disclaimer about image deletion.
 After submission, show "Pending Approval" status.
 Prevent multiple simultaneous submissions.
+Completely independent from auto-badge system.
 
 REQUIREMENTS:
 1. Disclaimer text (fetch from configurable messages)
@@ -1346,19 +446,28 @@ export function IDVerificationUploadScreen({ navigation }: any) {
   });
   const [disclaimerText, setDisclaimerText] = useState('');
   const [hasActivePending, setHasActivePending] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadDisclaimerAndCheckStatus();
   }, [user?.id]);
 
   const loadDisclaimerAndCheckStatus = async () => {
-    // Fetch configurable disclaimer message
-    const disclaimer = await idBadgeService.getMessage('upload_disclaimer');
-    setDisclaimerText(disclaimer);
+    setLoading(true);
+    try {
+      // Fetch configurable disclaimer message
+      const disclaimer = await idBadgeService.getMessage('upload_disclaimer');
+      setDisclaimerText(disclaimer);
 
-    // Check if user has pending request
-    const pending = await idBadgeService.checkPendingRequest(user!.id);
-    setHasActivePending(pending !== null);
+      // Check if user has pending request
+      const pending = await idBadgeService.checkPendingRequest(user!.id);
+      setHasActivePending(pending !== null);
+    } catch (error) {
+      console.error('Error loading disclaimer:', error);
+      setDisclaimerText('We will not store your ID image. It will be deleted after verification.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const pickImage = async () => {
@@ -1421,7 +530,7 @@ export function IDVerificationUploadScreen({ navigation }: any) {
     if (hasActivePending) {
       Alert.alert(
         'Pending Request',
-        'You already have a pending verification request. Please wait for approval.'
+        'You already have a pending verification request. Please wait for the admin to review it.'
       );
       return;
     }
@@ -1441,7 +550,12 @@ export function IDVerificationUploadScreen({ navigation }: any) {
         pendingRequestId: requestId,
       }));
 
-      // Navigate back or show success
+      // Show success message then navigate back
+      Alert.alert(
+        'Submitted Successfully',
+        'Your verification request has been submitted. We will review it within 24 hours.'
+      );
+
       setTimeout(() => {
         navigation.goBack();
       }, 2000);
@@ -1449,18 +563,29 @@ export function IDVerificationUploadScreen({ navigation }: any) {
       setState((prev) => ({
         ...prev,
         uploading: false,
-        error: error instanceof Error ? error.message : 'Upload failed',
+        error: error instanceof Error ? error.message : 'Upload failed. Please try again.',
       }));
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
 
   if (hasActivePending && !state.submitted) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Verification Pending</Text>
         <Text style={styles.message}>
-          You already have a pending verification request. We'll review it within 24 hours.
+          You already have a pending verification request. We will review it within 24 hours and notify you of the decision.
         </Text>
+        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>Back to Profile</Text>
+        </Pressable>
       </View>
     );
   }
@@ -1468,10 +593,13 @@ export function IDVerificationUploadScreen({ navigation }: any) {
   if (state.submitted) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>✓ Submitted Successfully</Text>
-        <Text style={styles.message}>
-          Your verification request has been submitted. We'll review it within 24 hours and notify you of the decision.
+        <Text style={styles.successTitle}>✓ Submitted Successfully</Text>
+        <Text style={styles.successMessage}>
+          Your verification request has been submitted. We will review it within 24 hours and notify you of the decision via email and push notification.
         </Text>
+        <Pressable style={styles.backButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.backButtonText}>Back to Profile</Text>
+        </Pressable>
       </View>
     );
   }
@@ -1633,6 +761,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#10B981',
+  },
+  successMessage: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#333',
+    marginBottom: 24,
+  },
+  backButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
   message: {
     fontSize: 16,
     lineHeight: 24,
@@ -1649,7 +799,6 @@ FILE 2: ID Badge Service
 // filepath: p2p-kids-marketplace/src/services/idBadge.ts
 
 import { createClient } from '@/lib/supabase';
-import * as FileSystem from 'expo-file-system';
 
 export const idBadgeService = {
   async getMessage(key: string): Promise<string> {
@@ -1666,7 +815,7 @@ export const idBadgeService = {
       return data?.message_text || '';
     } catch (error) {
       console.error('Error fetching message:', error);
-      return ''; // Return empty string if message not found
+      return '';
     }
   },
 
@@ -1681,7 +830,7 @@ export const idBadgeService = {
         .eq('status', 'pending')
         .single();
 
-      if (error && error.code === 'PGRST116') return null; // No rows
+      if (error && error.code === 'PGRST116') return null;
       if (error) throw error;
 
       return data;
@@ -1695,10 +844,14 @@ export const idBadgeService = {
     const supabase = createClient();
 
     try {
-      // Read file
-      const fileData = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      // Get user profile for denormalization
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email, phone_number, node_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (profileError) throw profileError;
 
       // Upload to Supabase Storage
       const fileName = `${userId}-${Date.now()}.jpg`;
@@ -1715,26 +868,78 @@ export const idBadgeService = {
       if (uploadError) throw uploadError;
 
       // Create submission record in database
-      const { data, error } = await supabase
+      const { data, error: insertError } = await supabase
         .from('id_badge_verification_requests')
         .insert({
           user_id: userId,
           status: 'pending',
           screenshot_path: storagePath,
           screenshot_upload_timestamp: new Date().toISOString(),
+          first_name: profile?.first_name,
+          last_name: profile?.last_name,
+          email: profile?.email,
+          phone_number: profile?.phone_number,
+          node_id: profile?.node_id,
         })
         .select('id')
         .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
-      // TODO: Trigger notification (in-app + email)
+      // TODO: Trigger submission notification (in-app + email)
       // TODO: Log analytics event
+      // TODO: Send admin notification
 
       return data.id;
     } catch (error) {
       console.error('Error submitting verification request:', error);
       throw error;
+    }
+  },
+
+  async getVerificationStatus(userId: string) {
+    const supabase = createClient();
+
+    try {
+      // Check for pending request first
+      const { data: pending } = await supabase
+        .from('id_badge_verification_requests')
+        .select('status, submitted_at, reviewed_at, rejection_reason, rejection_notes')
+        .eq('user_id', userId)
+        .eq('status', 'pending')
+        .order('submitted_at', { ascending: false })
+        .limit(1);
+
+      if (pending && pending.length > 0) {
+        return {
+          status: 'pending',
+          submittedAt: pending[0].submitted_at,
+        };
+      }
+
+      // Check for approved/rejected
+      const { data: decided } = await supabase
+        .from('id_badge_verification_requests')
+        .select('status, submitted_at, reviewed_at, rejection_reason, rejection_notes')
+        .eq('user_id', userId)
+        .in('status', ['approved', 'rejected'])
+        .order('reviewed_at', { ascending: false })
+        .limit(1);
+
+      if (decided && decided.length > 0) {
+        return {
+          status: decided[0].status,
+          submittedAt: decided[0].submitted_at,
+          reviewedAt: decided[0].reviewed_at,
+          rejectionReason: decided[0].rejection_reason,
+          rejectionNotes: decided[0].rejection_notes,
+        };
+      }
+
+      return { status: 'none' };
+    } catch (error) {
+      console.error('Error fetching verification status:', error);
+      return { status: 'none' };
     }
   },
 };
@@ -1749,45 +954,47 @@ ACCEPTANCE CRITERIA
 ✓ Image picker (camera + gallery) working
 ✓ Image validation (size/quality) before upload
 ✓ Upload to Supabase Storage with user_id folder structure
-✓ Create id_badge_verification_requests record
-✓ Show "Pending Approval" status after submission
+✓ Create id_badge_verification_requests record with user info
+✓ Show "Pending Approval" message after submission
 ✓ Prevent duplicate submissions (check for pending request)
 ✓ Error handling with user-friendly messages
 ✓ Loading states during upload
+✓ idBadgeService methods for database operations
 
 ==================================================
 NEXT TASK
 ==================================================
 
-BADGE-011: Admin ID Badge Queue & Review Page
+BADGE-010: Admin ID Badge Queue & Review Page
 */
 ```
 
 ### Output Files
 1. **p2p-kids-marketplace/src/screens/profile/IDVerificationUploadScreen.tsx** - Mobile upload screen
-2. **p2p-kids-marketplace/src/services/idBadge.ts** - ID badge service with upload logic
+2. **p2p-kids-marketplace/src/services/idBadge.ts** - ID badge service
 
 ### Testing Steps
 1. Navigate to IDVerificationUploadScreen
-2. Pick image from gallery
-3. Submit for verification
-4. Verify record created in `id_badge_verification_requests`
-5. Verify screenshot uploaded to Supabase Storage
-6. Test duplicate submission prevention (should show pending message)
-7. Test error scenarios (network, upload failure)
+2. Verify disclaimer text loads
+3. Pick image from gallery or take photo
+4. Submit for verification
+5. Verify record created in `id_badge_verification_requests`
+6. Verify screenshot uploaded to Supabase Storage
+7. Test duplicate submission prevention (should show pending message)
+8. Test error scenarios (network, upload failure)
 
 ### Time Breakdown: **~3 hours**
 
 ---
 
-## TASK BADGE-011: Admin ID Badge Queue & Review Page
+## TASK BADGE-010: Admin ID Badge Queue & Review Page
 
 **Duration:** 3.5 hours  
 **Priority:** Critical  
-**Dependencies:** BADGE-009 (ID Badge Schema), BADGE-012 (Notifications)
+**Dependencies:** BADGE-008 (ID Badge Schema)
 
 ### Description
-Create admin page at `/admin/ID-badges/` with filterable queue of ID badge verification requests. Show table with user info (first/last name, email, phone, node_id, submission date, status). Implement filters for Pending/Approved/Rejected. Show stats section (counts, avg review time). Allow admin to download screenshot, review, approve with optional notes, or reject with dropdown reason + free-text notes. Auto-delete screenshot immediately after decision.
+Create admin page at `/admin/ID-badges/` with filterable queue of ID badge verification requests. Show table with user info (first/last name, email, phone, node_id, submission date, status). Implement filters for Pending/Approved/Rejected. Show stats section (pending count, approval rate, avg review time). Admin can download screenshot, review, approve with optional notes, or reject with dropdown reason + free-text notes. Auto-delete screenshot immediately after decision.
 
 ---
 
@@ -1802,17 +1009,19 @@ Admin reviews pending ID badge verification requests.
 Admin can approve/reject with reason and notes.
 Screenshots auto-deleted after decision.
 History shows metadata (no screenshot).
+Predefined rejection reasons for consistency.
 
 REQUIREMENTS:
 1. Table view of requests (user info, submission date, status)
 2. Filters: Pending, Approved, Rejected
 3. Search by user name/email
-4. Quick stats: pending count, avg review time, approval rate
+4. Stats: pending count, avg review time, approval rate
 5. Download screenshot for review
 6. Approve/reject modal with reason + notes
 7. Auto-delete screenshot after decision
-8. Show all submission history (not paginated initially)
-9. Export to CSV (optional)
+8. Rejection reason dropdown with 6 options
+9. Optional free-text notes field
+10. All decisions logged in admin_activity_log
 
 ==================================================
 FILE 1: Admin ID Badge Queue Page
@@ -1840,7 +1049,6 @@ interface IDVerificationRequest {
   rejection_reason?: string;
   rejection_notes?: string;
   approval_notes?: string;
-  screenshot_path?: string;
 }
 
 interface Stats {
@@ -1857,6 +1065,7 @@ export default function IDBadgeQueuePage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadRequests();
@@ -1892,10 +1101,12 @@ export default function IDBadgeQueuePage() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    // Debounce search
-    setTimeout(() => {
+    if (searchTimeout) clearTimeout(searchTimeout);
+    
+    const timeout = setTimeout(() => {
       loadRequests();
     }, 300);
+    setSearchTimeout(timeout);
   };
 
   const formatDate = (dateString: string) => {
@@ -1941,10 +1152,10 @@ export default function IDBadgeQueuePage() {
       </div>
 
       <div className="mb-4 flex gap-2">
-        {['all', 'pending', 'approved', 'rejected'].map((f) => (
+        {(['all', 'pending', 'approved', 'rejected'] as const).map((f) => (
           <button
             key={f}
-            onClick={() => setFilter(f as any)}
+            onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded font-medium ${
               filter === f
                 ? 'bg-blue-600 text-white'
@@ -1990,8 +1201,8 @@ export default function IDBadgeQueuePage() {
                     {req.first_name} {req.last_name}
                   </td>
                   <td className="px-4 py-3">{req.email}</td>
-                  <td className="px-4 py-3">{req.phone_number}</td>
-                  <td className="px-4 py-3">{req.node_id}</td>
+                  <td className="px-4 py-3">{req.phone_number || '-'}</td>
+                  <td className="px-4 py-3">{req.node_id || '-'}</td>
                   <td className="px-4 py-3">{formatDate(req.submitted_at)}</td>
                   <td className="px-4 py-3">
                     <span
@@ -2053,7 +1264,7 @@ const REJECTION_REASONS = [
   { value: 'name_mismatch', label: 'Name does not match profile' },
   { value: 'multiple_ids', label: 'Multiple IDs in photo' },
   { value: 'not_government_id', label: 'Not a government-issued ID' },
-  { value: 'other', label: 'Other (see notes)' },
+  { value: 'other', label: 'Other (please explain in notes)' },
 ];
 
 export default function IDVerificationReviewPage({
@@ -2115,17 +1326,20 @@ export default function IDVerificationReviewPage({
         body: JSON.stringify({
           decision,
           rejection_reason: decision === 'reject' ? rejectionReason : null,
-          notes,
+          rejection_notes: decision === 'reject' ? notes : null,
+          approval_notes: decision === 'approve' ? notes : null,
         }),
       });
 
       if (response.ok) {
         alert(`Request ${decision === 'approve' ? 'approved' : 'rejected'} successfully`);
         router.push('/ID-badges');
+      } else {
+        alert('Failed to submit decision. Please try again.');
       }
     } catch (error) {
       console.error('Error submitting decision:', error);
-      alert('Failed to submit decision');
+      alert('Error submitting decision');
     } finally {
       setDeciding(false);
     }
@@ -2159,11 +1373,11 @@ export default function IDVerificationReviewPage({
           </div>
           <div>
             <p className="text-sm text-gray-600">Phone</p>
-            <p className="font-medium">{request.phone_number}</p>
+            <p className="font-medium">{request.phone_number || '-'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Node</p>
-            <p className="font-medium">{request.node_id}</p>
+            <p className="font-medium">{request.node_id || '-'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Submitted</p>
@@ -2246,7 +1460,7 @@ export default function IDVerificationReviewPage({
         )}
 
         <div className="mb-6">
-          <label className="block text-sm font-medium mb-2">Notes</label>
+          <label className="block text-sm font-medium mb-2">Notes (Optional)</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -2293,20 +1507,20 @@ ACCEPTANCE CRITERIA
 ✓ Screenshot viewable and downloadable (only for pending)
 ✓ Screenshot auto-deleted after decision
 ✓ Admin decision persisted to database
-✓ Notifications sent on approve/reject (BADGE-012)
+✓ Notifications sent on approve/reject (BADGE-011)
+✓ Admin activity logged
 
 ==================================================
 NEXT TASK
 ==================================================
 
-BADGE-012: ID Badge Submission & Decision Notifications
+BADGE-011: ID Badge Submission & Decision Notifications
 */
 ```
 
 ### Output Files
 1. **p2p-kids-admin/src/app/ID-badges/page.tsx** - Main queue page
 2. **p2p-kids-admin/src/app/ID-badges/[requestId]/review/page.tsx** - Review/decision page
-3. **p2p-kids-admin/src/app/ID-badges/[requestId]/details/page.tsx** - History details page
 
 ### Testing Steps
 1. Navigate to `/admin/ID-badges/`
@@ -2315,19 +1529,19 @@ BADGE-012: ID Badge Submission & Decision Notifications
 4. Search by user name/email
 5. Click "Review" on a pending request
 6. View screenshot
-7. Submit approve/reject decision
+7. Submit approve/reject decision with reason
 8. Verify record updated in database
-9. Verify screenshot deleted
+9. Verify screenshot deleted from storage
 
 ### Time Breakdown: **~3.5 hours**
 
 ---
 
-## TASK BADGE-012: ID Badge Submission & Decision Notifications
+## TASK BADGE-011: ID Badge Submission & Decision Notifications
 
 **Duration:** 2.5 hours  
 **Priority:** High  
-**Dependencies:** BADGE-009 (ID Badge Schema), BADGE-010 (Upload Flow), BADGE-011 (Admin Queue)
+**Dependencies:** BADGE-008 (ID Badge Schema), BADGE-009 (Upload Flow), BADGE-010 (Admin Queue)
 
 ### Description
 Implement multi-channel notifications for ID badge verification events. Send web push + in-app + email to user on submission confirmation. Send web push to admin on new submission. Send web push + in-app + email to user on approval/rejection (with decision reason). All messages loaded from configurable `id_badge_verification_messages` table. Respect user notification preferences.
@@ -2344,16 +1558,17 @@ CONTEXT:
 Users receive notifications on submission, approval, rejection.
 Admins receive web push on new submissions.
 All messages are configurable via admin panel.
-Messages support template variables like {first_name}, {rejection_reason}, {admin_notes}.
+Messages support template variables.
 
 REQUIREMENTS:
 1. On submission: user gets web push + in-app + email
 2. On submission: admin gets web push
-3. On approval: user gets web push + in-app + email with verified badge notification
+3. On approval: user gets web push + in-app + email with verified notification
 4. On rejection: user gets web push + in-app + email with reason + notes
 5. Messages support template variables
 6. Respect user notification preferences
 7. All messages from configurable table
+8. Auto-delete screenshot after decision
 
 ==================================================
 FILE 1: Edge Function to handle decisions and send notifications
@@ -2371,26 +1586,26 @@ serve(async (req) => {
   }
 
   try {
-    const { requestId, decision, rejectionReason, adminNotes } = await req.json();
+    const { requestId, decision, rejectionReason, rejectionNotes, approvalNotes } = await req.json();
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get request details
+    // Get request details with user and profile info
     const { data: request, error: requestError } = await supabase
       .from('id_badge_verification_requests')
-      .select('*, profiles:user_id(first_name, email)')
+      .select('*')
       .eq('id', requestId)
       .single();
 
     if (requestError) throw requestError;
 
-    // Get user for notification preferences
+    // Get user for notification preferences and tokens
     const { data: user } = await supabase
       .from('users')
-      .select('expo_push_token, email')
+      .select('expo_push_token, email, id')
       .eq('id', request.user_id)
       .single();
 
@@ -2402,10 +1617,9 @@ serve(async (req) => {
       .single();
 
     // Get notification message templates
-    const messageKeys =
-      decision === 'approved'
-        ? ['approved_email_subject', 'approved_email_body', 'in_app_approved_notification', 'web_push_approved']
-        : ['rejected_email_subject', 'rejected_email_body', 'in_app_rejected_notification', 'web_push_rejected'];
+    const messageKeys = decision === 'approved'
+      ? ['approved_email_subject', 'approved_email_body', 'in_app_approved_notification', 'web_push_approved']
+      : ['rejected_email_subject', 'rejected_email_body', 'in_app_rejected_notification', 'web_push_rejected'];
 
     const { data: messages } = await supabase
       .from('id_badge_verification_messages')
@@ -2420,9 +1634,9 @@ serve(async (req) => {
     // Replace template variables
     const replacePlaceholders = (text: string): string => {
       return text
-        .replace('{first_name}', request.profiles?.first_name || 'User')
-        .replace('{rejection_reason}', rejectionReason || '')
-        .replace('{admin_notes}', adminNotes || '')
+        .replace('{first_name}', request.first_name || 'User')
+        .replace('{rejection_reason}', rejectionReason ? rejectionReason.replace(/_/g, ' ') : '')
+        .replace('{admin_notes}', rejectionNotes || '')
         .replace('{approval_timeframe_hours}', '24');
     };
 
@@ -2434,7 +1648,7 @@ serve(async (req) => {
           user_id: request.user_id,
           category: 'badges',
           title: 'ID Verification Approved! 🎉',
-          body: replacePlaceholders(messageMap['in_app_approved_notification']),
+          body: replacePlaceholders(messageMap?.['in_app_approved_notification'] || 'Your ID has been verified.'),
           channels: ['in_app'],
           data: { requestId, badge: 'verified' },
         });
@@ -2448,7 +1662,7 @@ serve(async (req) => {
           body: JSON.stringify({
             to: user.expo_push_token,
             title: 'ID Verification Approved',
-            body: messageMap['web_push_approved'],
+            body: messageMap?.['web_push_approved'] || 'Your ID has been verified.',
             data: { requestId, badge: 'verified' },
           }),
         });
@@ -2456,19 +1670,9 @@ serve(async (req) => {
 
       // Send email
       if (prefs?.id_badge_verification_email && user?.email) {
-        // Call SendGrid or similar email service
-        // TODO: Send email with subject and body
+        // TODO: Send email via SendGrid/Mailgun
+        console.log(`Email to ${user.email}: ${messageMap?.['approved_email_subject']}`);
       }
-
-      // Award verified badge
-      await supabase
-        .from('users')
-        .update({
-          badge_level: 'verified',
-          badge_verified_at: new Date().toISOString(),
-          badge_verification_method: 'id_verification',
-        })
-        .eq('id', request.user_id);
     } else if (decision === 'rejected') {
       // Send in-app notification
       if (prefs?.id_badge_verification_in_app) {
@@ -2476,7 +1680,7 @@ serve(async (req) => {
           user_id: request.user_id,
           category: 'badges',
           title: 'ID Verification Request',
-          body: replacePlaceholders(messageMap['in_app_rejected_notification']),
+          body: replacePlaceholders(messageMap?.['in_app_rejected_notification'] || 'Your ID verification was not approved.'),
           channels: ['in_app'],
           data: { requestId, decision: 'rejected', reason: rejectionReason },
         });
@@ -2490,7 +1694,7 @@ serve(async (req) => {
           body: JSON.stringify({
             to: user.expo_push_token,
             title: 'ID Verification Request',
-            body: messageMap['web_push_rejected'],
+            body: messageMap?.['web_push_rejected'] || 'Your ID verification was not approved.',
             data: { requestId, decision: 'rejected', reason: rejectionReason },
           }),
         });
@@ -2498,19 +1702,24 @@ serve(async (req) => {
 
       // Send email
       if (prefs?.id_badge_verification_email && user?.email) {
-        // TODO: Send rejection email
+        // TODO: Send rejection email via SendGrid/Mailgun
+        console.log(`Email to ${user.email}: ${messageMap?.['rejected_email_subject']}`);
       }
     }
 
     // Log admin activity
-    await supabase.from('admin_activity_log').insert({
-      admin_id: Deno.env.get('ADMIN_USER_ID'),
-      action_type: `id_badge_${decision}`,
-      entity_type: 'id_badge_verification',
-      entity_id: requestId,
-      details: { rejectionReason, adminNotes },
-      notes: `ID badge ${decision} for user ${request.user_id}`,
-    });
+    const { data: adminUser } = await supabase.auth.admin.getUserById(req.headers.get('x-admin-user-id') || '');
+    
+    if (adminUser) {
+      await supabase.from('admin_activity_log').insert({
+        admin_id: adminUser.user.id,
+        action_type: `id_badge_${decision}`,
+        entity_type: 'id_badge_verification',
+        entity_id: requestId,
+        details: { rejectionReason, rejectionNotes, approvalNotes },
+        notes: `ID badge ${decision} for user ${request.user_id}`,
+      });
+    }
 
     // Delete screenshot from storage (immediate deletion)
     if (request.screenshot_path) {
@@ -2533,54 +1742,6 @@ serve(async (req) => {
 
 /*
 ==================================================
-FILE 2: ID Badge Notification Service
-==================================================
-*/
-
-// filepath: p2p-kids-marketplace/src/services/idBadgeNotifications.ts
-
-import { createClient } from '@/lib/supabase';
-
-export const idBadgeNotificationService = {
-  async sendSubmissionNotification(userId: string, requestId: string) {
-    const supabase = createClient();
-
-    try {
-      // Get message template
-      const { data: message } = await supabase
-        .from('id_badge_verification_messages')
-        .select('message_text')
-        .eq('message_key', 'pending_status_text')
-        .single();
-
-      // Create in-app notification
-      await supabase.from('notifications').insert({
-        user_id: userId,
-        category: 'badges',
-        title: 'Verification Request Submitted',
-        body: message?.message_text || 'Your ID verification request has been received. We''ll review it within 24 hours.',
-        channels: ['in_app'],
-        data: { requestId },
-      });
-
-      // TODO: Send email confirmation
-
-      return true;
-    } catch (error) {
-      console.error('Error sending submission notification:', error);
-      return false;
-    }
-  },
-
-  async sendAdminNotification(adminId: string, requestId: string, userEmail: string) {
-    // Send web push only to admin
-    // TODO: Get admin's push token and send notification about new submission
-    return true;
-  },
-};
-
-/*
-==================================================
 ACCEPTANCE CRITERIA
 ==================================================
 
@@ -2593,19 +1754,17 @@ ACCEPTANCE CRITERIA
 ✓ User notification preferences respected
 ✓ Screenshot deleted immediately after decision
 ✓ Admin activity logged for all decisions
-✓ Verified badge awarded on approval
 
 ==================================================
 NEXT TASK
 ==================================================
 
-BADGE-013: Admin Configurable Messages for ID Badge System
+BADGE-012: Admin Configurable Messages for ID Badge System
 */
 ```
 
 ### Output Files
 1. **supabase/functions/id-badge-decision-notification/index.ts** - Decision notification handler
-2. **p2p-kids-marketplace/src/services/idBadgeNotifications.ts** - Notification service
 
 ### Testing Steps
 1. Submit ID badge verification request
@@ -2613,20 +1772,19 @@ BADGE-013: Admin Configurable Messages for ID Badge System
 3. Verify email sent
 4. Admin approves request
 5. Verify user receives approval in-app + email + push notification
-6. Verify verified badge awarded to user
-7. Admin rejects request
-8. Verify user receives rejection in-app + email + push with reason
-9. Verify screenshot deleted from storage
+6. Admin rejects request
+7. Verify user receives rejection in-app + email + push with reason
+8. Verify screenshot deleted from storage
 
 ### Time Breakdown: **~2.5 hours**
 
 ---
 
-## TASK BADGE-013: Admin Configurable Messages for ID Badge System
+## TASK BADGE-012: Admin Configurable Messages for ID Badge System
 
 **Duration:** 2 hours  
 **Priority:** Medium  
-**Dependencies:** BADGE-009 (ID Badge Schema)
+**Dependencies:** BADGE-008 (ID Badge Schema)
 
 ### Description
 Create admin page at `/admin/ID-badges/messages/` to edit all ID badge verification messages. Display all 12 message templates in editable form. Show message key and description. Support template variables info (e.g., `{first_name}`, `{rejection_reason}`, `{admin_notes}`). Save changes to `id_badge_verification_messages` table. Show visual preview of how messages appear in app/email.
@@ -2648,7 +1806,7 @@ REQUIREMENTS:
 2. Each message has: key, current text, description
 3. Edit form with template variables reference
 4. Save changes to database
-5. Show preview (mock in-app, email, web push)
+5. Show preview (mock in-app, email)
 6. Validation (no empty critical messages)
 
 FILE: admin/app/ID-badges/messages/page.tsx
@@ -2663,6 +1821,7 @@ interface Message {
   message_key: string;
   message_text: string;
   description: string;
+  supports_variables: boolean;
 }
 
 export default function IDMessagesPage() {
@@ -2694,6 +1853,11 @@ export default function IDMessagesPage() {
   };
 
   const handleSave = async (messageId: string) => {
+    if (!editText.trim()) {
+      alert('Message text cannot be empty');
+      return;
+    }
+
     setSaving(true);
 
     try {
@@ -2711,18 +1875,20 @@ export default function IDMessagesPage() {
         );
         setEditingId(null);
         alert('Message saved successfully');
+      } else {
+        alert('Failed to save message');
       }
     } catch (error) {
       console.error('Error saving message:', error);
-      alert('Failed to save message');
+      alert('Error saving message');
     } finally {
       setSaving(false);
     }
   };
 
   const templateVariables = [
-    { key: '{first_name}', desc: 'User''s first name' },
-    { key: '{rejection_reason}', desc: 'Reason for rejection (e.g., "Unclear photo")' },
+    { key: '{first_name}', desc: 'User's first name' },
+    { key: '{rejection_reason}', desc: 'Reason for rejection (e.g., "unclear photo")' },
     { key: '{admin_notes}', desc: 'Additional notes from admin' },
     { key: '{approval_timeframe_hours}', desc: 'Expected approval time' },
   ];
@@ -2732,12 +1898,12 @@ export default function IDMessagesPage() {
       <h1 className="text-3xl font-bold mb-6">ID Badge Verification Messages</h1>
 
       <div className="mb-8 bg-blue-50 border border-blue-200 rounded p-4">
-        <p className="font-semibold mb-2">Available Template Variables:</p>
+        <p className="font-semibold mb-4">Available Template Variables:</p>
         <div className="grid grid-cols-2 gap-4">
           {templateVariables.map((v) => (
-            <div key={v.key}>
-              <code className="bg-blue-100 px-2 py-1 rounded text-sm">{v.key}</code>
-              <p className="text-sm text-gray-600 ml-2">{v.desc}</p>
+            <div key={v.key} className="bg-white p-2 rounded">
+              <code className="bg-blue-100 px-2 py-1 rounded text-sm font-mono">{v.key}</code>
+              <p className="text-sm text-gray-600 mt-1">{v.desc}</p>
             </div>
           ))}
         </div>
@@ -2751,8 +1917,11 @@ export default function IDMessagesPage() {
             <div key={message.id} className="bg-white border rounded p-6">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="font-bold text-lg">{message.message_key}</h3>
+                  <h3 className="font-bold text-lg font-mono text-gray-600">{message.message_key}</h3>
                   <p className="text-sm text-gray-600">{message.description}</p>
+                  {message.supports_variables && (
+                    <p className="text-xs text-blue-600 mt-1">Supports template variables</p>
+                  )}
                 </div>
                 {editingId !== message.id && (
                   <button
@@ -2769,7 +1938,7 @@ export default function IDMessagesPage() {
                   <textarea
                     value={editText}
                     onChange={(e) => setEditText(e.target.value)}
-                    className="w-full px-3 py-2 border rounded h-24 mb-4"
+                    className="w-full px-3 py-2 border rounded h-24 mb-4 font-mono text-sm"
                   />
                   <div className="flex gap-2">
                     <button
@@ -2792,7 +1961,7 @@ export default function IDMessagesPage() {
                   </div>
                 </div>
               ) : (
-                <p className="bg-gray-50 p-4 rounded whitespace-pre-wrap">
+                <p className="bg-gray-50 p-4 rounded whitespace-pre-wrap text-sm">
                   {message.message_text}
                 </p>
               )}
@@ -2814,7 +1983,7 @@ ACCEPTANCE CRITERIA
 ✓ Edit button opens inline editor
 ✓ Template variables reference displayed
 ✓ Save changes to database
-✓ Validation (prevent empty critical messages)
+✓ Validation (prevent empty messages)
 ✓ Success confirmation on save
 ✓ Changes immediately reflect in app
 
@@ -2822,7 +1991,7 @@ ACCEPTANCE CRITERIA
 NEXT TASK
 ==================================================
 
-BADGE-014: ID Badge Status Display on User Profile
+BADGE-013: ID Badge Status Display on User Profile
 */
 ```
 
@@ -2842,14 +2011,14 @@ BADGE-014: ID Badge Status Display on User Profile
 
 ---
 
-## TASK BADGE-014: ID Badge Status Display on User Profile
+## TASK BADGE-013: ID Badge Status Display on User Profile
 
 **Duration:** 2.5 hours  
 **Priority:** High  
-**Dependencies:** BADGE-009 (ID Badge Schema), BADGE-010 (Upload Flow)
+**Dependencies:** BADGE-008 (ID Badge Schema), BADGE-009 (Upload Flow)
 
 ### Description
-Update user profile screen to show ID badge verification status. Display "Pending Approval" subtle badge below avatar if request is pending. Show "Upgrade to Verified" CTA if not verified and system enabled. Show actual "Verified" badge if approved. On profile header, show ID badge section with: current status, submission date (if pending), last decision date (if approved/rejected), ability to submit new request or view history.
+Update user profile screen to show ID badge verification status. Display "Pending Approval" subtle badge below avatar if request is pending. Show "Upgrade to Verified" CTA if not verified and system enabled. Show verification status section with submission date (if pending), decision date (if decided), rejection reason (if rejected), ability to submit new request or view history.
 
 ---
 
@@ -2863,7 +2032,6 @@ CONTEXT:
 Show verification status on profile screen.
 Display pending badge if request in progress.
 Show upgrade CTA if not verified.
-Show verified badge if approved.
 
 REQUIREMENTS:
 1. Avatar section: show "Pending Approval" badge if status=pending
@@ -2873,7 +2041,7 @@ REQUIREMENTS:
    - Last decision date (if approved/rejected)
    - Action buttons (Submit/Resubmit, View History)
 3. "Upgrade to Verified" CTA if not verified
-4. Verified badge displayed prominently if approved
+4. Link to IDVerificationUploadScreen
 
 ==================================================
 FILE: Update UserProfileScreen
@@ -2894,7 +2062,6 @@ import {
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { idBadgeService } from '@/services/idBadge';
-import { BadgeIcon } from '@/components/BadgeIcon';
 
 interface IDVerificationStatus {
   status: 'pending' | 'approved' | 'rejected' | 'none';
@@ -2964,7 +2131,7 @@ export function UserProfileScreen({ navigation }: any) {
           {/* Verified Badge */}
           {idBadgeStatus.status === 'approved' && (
             <View style={styles.verifiedBadgeContainer}>
-              <BadgeIcon userId={user.id} size="large" showLabel={false} />
+              <Text style={styles.verifiedBadgeText}>✓</Text>
             </View>
           )}
         </View>
@@ -2972,7 +2139,6 @@ export function UserProfileScreen({ navigation }: any) {
         <Text style={styles.userName}>
           {user.first_name} {user.last_name}
         </Text>
-        <BadgeIcon userId={user.id} size="medium" showLabel={true} />
       </View>
 
       {/* ID Badge Section */}
@@ -2983,8 +2149,8 @@ export function UserProfileScreen({ navigation }: any) {
           <ActivityIndicator />
         ) : idBadgeStatus.status === 'pending' ? (
           <View style={styles.statusBox}>
-            <Text style={styles.statusText}>Your request is pending review</Text>
-            <Text style={styles.subText}>
+            <Text style={styles.statusBold}>⏳ Pending Review</Text>
+            <Text style={styles.statusText}>
               Submitted: {new Date(idBadgeStatus.submittedAt!).toLocaleDateString()}
             </Text>
             <Text style={styles.subText}>
@@ -2992,17 +2158,17 @@ export function UserProfileScreen({ navigation }: any) {
             </Text>
           </View>
         ) : idBadgeStatus.status === 'approved' ? (
-          <View style={styles.statusBox}>
-            <Text style={styles.statusText}>✓ Verified</Text>
-            <Text style={styles.subText}>
+          <View style={[styles.statusBox, styles.approvedBox]}>
+            <Text style={styles.statusBold}>✓ Verified</Text>
+            <Text style={styles.statusText}>
               Approved: {new Date(idBadgeStatus.reviewedAt!).toLocaleDateString()}
             </Text>
           </View>
         ) : idBadgeStatus.status === 'rejected' ? (
-          <View style={styles.statusBox}>
-            <Text style={styles.statusText}>Request Rejected</Text>
-            <Text style={styles.subText}>
-              Reason: {idBadgeStatus.rejectionReason}
+          <View style={[styles.statusBox, styles.rejectedBox]}>
+            <Text style={styles.statusBold}>✗ Request Rejected</Text>
+            <Text style={styles.statusText}>
+              Reason: {idBadgeStatus.rejectionReason?.replace(/_/g, ' ')}
             </Text>
             {idBadgeStatus.rejectionNotes && (
               <Text style={styles.subText}>
@@ -3018,7 +2184,7 @@ export function UserProfileScreen({ navigation }: any) {
           </View>
         ) : (
           <View style={styles.statusBox}>
-            <Text style={styles.statusText}>Not Verified</Text>
+            <Text style={styles.statusBold}>Not Verified</Text>
             <Text style={styles.subText}>
               Verify your identity to earn the Verified badge and increase trust with other users.
             </Text>
@@ -3032,7 +2198,7 @@ export function UserProfileScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* Rest of profile content */}
+      {/* Rest of profile content goes here */}
     </ScrollView>
   );
 }
@@ -3063,6 +2229,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   pendingBadgeText: {
     fontSize: 10,
@@ -3073,6 +2241,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
+    backgroundColor: '#10B981',
+    borderRadius: 50,
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  verifiedBadgeText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   userName: {
     fontSize: 20,
@@ -3096,10 +2277,21 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#3B82F6',
   },
-  statusText: {
+  approvedBox: {
+    borderLeftColor: '#10B981',
+  },
+  rejectedBox: {
+    borderLeftColor: '#EF4444',
+  },
+  statusBold: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#1F2937',
+    marginBottom: 4,
   },
   subText: {
     fontSize: 14,
@@ -3132,59 +2324,6 @@ const styles = StyleSheet.create({
   },
 });
 
-// Add to idBadge service:
-export const idBadgeService = {
-  // ... existing methods ...
-
-  async getVerificationStatus(userId: string): Promise<IDVerificationStatus> {
-    const supabase = createClient();
-
-    try {
-      const { data, error } = await supabase
-        .from('id_badge_verification_requests')
-        .select('status, submitted_at, reviewed_at, rejection_reason, rejection_notes')
-        .eq('user_id', userId)
-        .eq('status', 'pending')
-        .order('submitted_at', { ascending: false })
-        .limit(1);
-
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (!data || data.length === 0) {
-        // No pending, check for approved/rejected
-        const { data: decided } = await supabase
-          .from('id_badge_verification_requests')
-          .select('status, submitted_at, reviewed_at, rejection_reason, rejection_notes')
-          .eq('user_id', userId)
-          .in('status', ['approved', 'rejected'])
-          .order('reviewed_at', { ascending: false })
-          .limit(1);
-
-        if (decided && decided.length > 0) {
-          return {
-            status: decided[0].status,
-            submittedAt: decided[0].submitted_at,
-            reviewedAt: decided[0].reviewed_at,
-            rejectionReason: decided[0].rejection_reason,
-            rejectionNotes: decided[0].rejection_notes,
-          };
-        }
-
-        return { status: 'none' };
-      }
-
-      return {
-        status: data[0].status,
-        submittedAt: data[0].submitted_at,
-        reviewedAt: data[0].reviewed_at,
-      };
-    } catch (error) {
-      console.error('Error fetching verification status:', error);
-      return { status: 'none' };
-    }
-  },
-};
-
 /*
 ==================================================
 ACCEPTANCE CRITERIA
@@ -3192,7 +2331,7 @@ ACCEPTANCE CRITERIA
 
 ✓ Avatar section shows avatar image
 ✓ "Pending Approval" subtle badge shown if status=pending
-✓ "Verified" badge shown if status=approved (from BadgeIcon)
+✓ "Verified" badge shown if status=approved
 ✓ ID Badge section below avatar with status and details
 ✓ Submission date shown if pending
 ✓ Decision date shown if approved/rejected
@@ -3203,254 +2342,76 @@ ACCEPTANCE CRITERIA
 ✓ Status updates on screen refresh
 
 ==================================================
-MODULE 10 COMPLETE
+MODULE 10 PART 2 COMPLETE
 ==================================================
 
-All ID Badge Verification features implemented and ready for testing.
+All ID Badge Verification features implemented.
+Ready for testing and deployment.
 */
 ```
 
 ### Output Files
 1. **p2p-kids-marketplace/src/screens/profile/UserProfileScreen.tsx** (updated) - Profile with ID badge display
-2. **p2p-kids-marketplace/src/services/idBadge.ts** (updated) - Added `getVerificationStatus()` method
 
 ### Testing Steps
-1. Create user and submit ID verification
-2. Check profile screen shows "Pending Approval" badge
-3. Navigate to admin queue
-4. Approve the request
-5. Check user profile shows "Verified" status
-6. Test rejection flow with reason
-7. Test "Resubmit" button after rejection
-8. Test "Upgrade to Verified" CTA for new users
+1. Create user and navigate to profile
+2. Verify no verification section if system disabled
+3. Submit ID verification request
+4. Check profile shows "Pending Approval" badge
+5. Navigate to admin queue
+6. Approve the request
+7. Check user profile shows "Verified" status
+8. Test rejection flow with reason
+9. Test "Resubmit" button after rejection
+10. Test "Upgrade to Verified" CTA for new users
 
 ### Time Breakdown: **~2.5 hours**
 
 ---
 
----
+## MODULE 10 PART 2 SUMMARY
 
-## MODULE 10 SUMMARY
-
-**Total Tasks:** 14 (12 implemented + 1 deferred + 1 advanced)  
-**Estimated Time:** ~35 hours (30 hours implemented + 5 hours deferred)
+**Module:** ID Badge Manual Verification System  
+**Total Tasks:** 6 (BADGE-008 to BADGE-013)  
+**Estimated Time:** ~17 hours  
+**Status:** Completely Standalone - No Dependencies on Auto-Badge System
 
 ### Task Breakdown
 
-| Task | Description | Duration | Status |
-|------|-------------|----------|--------|
-| BADGE-001 | Badge system schema | 3h | ✅ Documented |
-| BADGE-002 | Admin toggle badge system | 2h | ✅ Documented |
-| BADGE-003 | Admin badge thresholds UI | 2.5h | ✅ Documented |
-| BADGE-004 | Auto-verification on trade | 3h | ✅ Documented |
-| BADGE-005 | Display badge on profile | 1.5h | ✅ Documented |
-| BADGE-006 | Manual badge assignment | 2.5h | ✅ Documented |
-| BADGE-007 | Stripe Identity integration | 5h | ⏸️ Deferred |
-| BADGE-008 | "Upgrade to Verified" flow (ID Badge) | 2.5h | ✅ Documented |
-| BADGE-009 | ID Badge Verification Schema | 2.5h | ✅ Documented |
-| BADGE-010 | ID Badge Upload Flow (Mobile) | 3h | ✅ Documented |
-| BADGE-011 | Admin ID Badge Queue & Review | 3.5h | ✅ Documented |
-| BADGE-012 | ID Badge Notifications | 2.5h | ✅ Documented |
-| BADGE-013 | Admin Configurable Messages | 2h | ✅ Documented |
-| BADGE-014 | ID Badge Profile Display | 2.5h | ✅ Documented |
-
----
+| Task | Description | Duration | Type |
+|------|-------------|----------|------|
+| BADGE-008 | ID Badge Verification Schema | 2.5h | Database |
+| BADGE-009 | ID Badge Upload Flow (Mobile) | 3h | Mobile Screen |
+| BADGE-010 | Admin ID Badge Queue & Review | 3.5h | Admin Dashboard |
+| BADGE-011 | ID Badge Notifications | 2.5h | Edge Function |
+| BADGE-012 | Admin Configurable Messages | 2h | Admin Dashboard |
+| BADGE-013 | ID Badge Profile Display | 2.5h | Mobile Screen |
 
 ### Key Features
-
-**Badge Levels:**
-- None (new users)
-- Bronze (3 trades, $500 value)
-- Silver (10 trades, $2000 value)
-- Gold (25 trades, $5000 value)
-- Verified (50 trades, $10,000 value OR manual/identity check OR ID verification approval)
-
-**Auto-Verification:**
-- Triggered on trade completion
-- Checks both buyer and seller eligibility
-- Upgrades if thresholds met
-- Push notification on upgrade
-
-**Manual Badge Assignment (Admin):**
-- Admin can manually assign badges
-- Audit trail for manual changes
-- Optional approval notes
-
-**ID Badge Verification (NEW):**
-- Users upload ID screenshot for manual verification
-- Multi-step workflow: submission → pending → approval/rejection
-- Privacy-first: screenshots auto-deleted after decision
-- Admin queue with filterable requests (pending/approved/rejected)
-- Configurable messages for all user-facing text
-- Multi-channel notifications (push + in-app + email)
-- Rejection reasons (6 predefined + optional notes)
-- History tracking (all submissions preserved)
-- Profile integration: "Pending Approval" badge + "Upgrade to Verified" CTA
-
-**Admin Controls:**
-- Toggle badge system on/off
-- Configure thresholds per level
-- Manual badge assignment
-- ID badge verification queue and review
-- Configurable messages with template variables
-- Audit trail for all admin actions
-- Stats dashboard (pending count, approval rate, avg review time)
-
-**User Experience:**
-- Badge icon on profile and items
-- Progress to next level
-- "Upgrade to Verified" CTA
-- Badge info/requirements page
-- ID verification upload flow with privacy disclaimer
-- "Pending Approval" subtle badge during review
-- Rejection reason + notes via in-app notification and email
-- Ability to resubmit after rejection
-
----
+- ✅ User ID screenshot submission with privacy disclaimer
+- ✅ Admin review queue with filterable requests
+- ✅ 6 predefined rejection reasons + free-text notes
+- ✅ Multi-channel notifications (push + in-app + email)
+- ✅ Configurable messages with template variables
+- ✅ Immediate screenshot deletion after decision
+- ✅ Standalone test data (no dependency on auto-badges)
 
 ### Database Tables
+1. `id_badge_verification_requests` - Submission tracking
+2. `id_badge_verification_messages` - Configurable templates
 
-1. **users.badge_level** - Current badge (auto/manual/id_verification)
-2. **users.badge_verified_at** - Verification timestamp
-3. **users.badge_verification_method** - auto/manual/id_verification
-4. **badge_config** - Thresholds and display settings
-5. **id_badge_verification_requests** - User ID verification submissions
-6. **id_badge_verification_messages** - Configurable user-facing messages
-7. **admin_activity_log** - Audit trail for all admin actions (from MODULE-12)
+### Admin Pages
+- `/admin/ID-badges/` - Queue with filters
+- `/admin/ID-badges/[requestId]/review/` - Review page
+- `/admin/ID-badges/messages/` - Message configuration
 
----
+### Mobile Screens
+- `IDVerificationUploadScreen` - User upload flow
+- `UserProfileScreen` - ID badge status display
 
-### Security Considerations
-
-**RLS Policies:**
-- Anyone can view badge_config
-- Only admins can update badge_config
-- Badge level publicly visible (trust signal)
-
-**Verification Methods:**
-- Auto: Automated based on thresholds
-- Manual: Admin override
-- Identity Check: Stripe Identity (Post-MVP)
-
-**Fraud Prevention:**
-- Admin audit trail for manual assignments
-- Badge downgrade not allowed (trust consistency)
-- Identity verification prevents fake accounts
+### No Post-MVP Defer Required
+All 6 tasks are essential for MVP. No deferred features.
 
 ---
 
-### Analytics Events
-
-1. `badge_upgraded` - User earned higher badge
-2. `badge_assigned_manual` - Admin assigned badge
-3. `upgrade_cta_clicked` - User clicked "Upgrade to Verified"
-4. `id_verification_submitted` - User submitted ID screenshot
-5. `id_verification_approved` - Admin approved ID verification
-6. `id_verification_rejected` - Admin rejected ID verification
-7. `id_verification_resubmitted` - User resubmitted after rejection
-8. `identity_verification_started` - User started Stripe Identity flow (Post-MVP)
-9. `identity_verification_completed` - Stripe Identity completed (Post-MVP)
-
----
-
-### Testing Checklist
-
-**Badge Calculation:**
-- [ ] User with 0 trades → None
-- [ ] User with 3 trades, $500 → Bronze
-- [ ] User with 10 trades, $2000 → Silver
-- [ ] User with 25 trades, $5000 → Gold
-
-**Auto-Upgrade:**
-- [ ] Trade completes → Badge recalculated
-- [ ] User qualifies → Badge upgraded
-- [ ] Push notification sent
-- [ ] badge_verified_at set
-
-**Admin Badge Controls:**
-- [ ] Toggle system on/off → Badges hidden
-- [ ] Update thresholds → Saves to DB
-- [ ] Manual assignment → Badge updated
-- [ ] Admin note logged
-
-**ID Badge Submission:**
-- [ ] User navigates to "Upgrade to Verified"
-- [ ] Disclaimer text displays correctly
-- [ ] Image picker (camera/gallery) working
-- [ ] Image uploaded to Supabase Storage
-- [ ] Submission record created in DB
-- [ ] "Pending Approval" badge shown on profile
-- [ ] Duplicate submission prevented
-
-**Admin ID Badge Queue:**
-- [ ] Queue page loads with pending requests
-- [ ] Filter by status (Pending/Approved/Rejected) working
-- [ ] Search by name/email working
-- [ ] Stats section shows correct counts
-- [ ] Can view screenshot
-- [ ] Can download screenshot
-
-**ID Badge Approval/Rejection:**
-- [ ] Admin approves request → Verified badge awarded
-- [ ] Admin rejects with reason → Email + push sent
-- [ ] Screenshot auto-deleted after decision
-- [ ] Rejection reason shown to user
-- [ ] User can resubmit after rejection
-
-**Notifications:**
-- [ ] Submission confirmation sent (in-app + email)
-- [ ] Approval notification sent (push + in-app + email)
-- [ ] Rejection notification sent (push + in-app + email with reason)
-- [ ] Admin receives web push on new submission
-
-**Configurable Messages:**
-- [ ] All 12 messages display on admin page
-- [ ] Admin can edit messages
-- [ ] Template variables work ({first_name}, {rejection_reason}, etc.)
-- [ ] Changes immediately reflected in user notifications
-
-**UI Display:**
-- [ ] Badge icon shows correct color
-- [ ] Badge name displayed
-- [ ] Progress bar to next level
-- [ ] "Upgrade" CTA shown for non-Verified
-- [ ] ID Badge section on profile shows status
-- [ ] "Pending Approval" badge visible during review
-- [ ] Verified badge visible after approval
-
----
-
-### Cost Analysis
-
-**Database Storage:**
-- Badge config: ~500 bytes (5 levels)
-- User badge fields: ~50 bytes per user
-- **Estimated:** Negligible
-
-**Stripe Identity (Post-MVP):**
-- $3-5 per verification
-- Only for users opting in
-- **Estimated:** $0-500/month (based on adoption)
-
-**Total:** ~$0/month for MVP (excludes Stripe Identity)
-
----
-
-### Future Enhancements (Post-MVP)
-
-1. **Stripe Identity Integration** - Government ID verification (Task BADGE-007)
-2. **Badge Showcase** - Public badge leaderboard
-3. **Special Badges** - Limited edition, seasonal
-4. **Badge Benefits** - Lower fees, priority support
-5. **Badge Expiration** - Require periodic re-verification
-6. **Community Voting** - Users vote on trusted members
-7. **Referral Badges** - Reward successful referrals
-8. **Seller Badges** - Separate badges for selling activity
-9. **Advanced ID Verification** - Liveness checks, OCR validation
-10. **Identity Document Storage** (Optional) - Securely store verified ID data for compliance
-
----
-
-**MODULE 10: BADGES & TRUST - COMPLETE**
-
-Ready to integrate with other modules (e.g., MODULE-07 Messaging, MODULE-06 Trade Flow, MODULE-14 Notifications)?
+**Ready for Implementation!** Each task is completely independent and can be executed by an AI agent.

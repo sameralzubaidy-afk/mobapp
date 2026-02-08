@@ -44,20 +44,18 @@ Supabase: supabase/
 -----
 My Example 1
 
-## TASK SP-001: SP Database Schema & Wallet
+MODULE-10-ID-BADGE-VERIFICATION-V2.md
+MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md
 
 
-## **REF-V2-008**: SP bonus rewards on first listing
+## TASK BADGE-008: Implement ID Badge Verification System Schema 
 
-I’m working on the MODULE-11-REFERRALS-V2.md tasks
-Module: MODULE-11-REFERRALS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: 
-## **REF-V2-008**: SP bonus rewards on first listing
+I’m working on the  MODULE-10-ID-BADGE-VERIFICATION-V2.md tasks
+Module: MODULE-10-ID-BADGE-VERIFICATION-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: ## TASK BADGE-008: Implement ID Badge Verification System Schema
 
 scope is 
-- Implement referral bonus rewards that trigger when a referee creates their first *approved* listing (status = 'approved'). This mirrors REF-V2-002 but the trigger is listing approval instead of trade completion.
-- Make the feature admin-toggleable and configurable via admin config with dynamic SP amounts for both referrer and referee.
-- Surface the feature flag and amounts in admin `Configuration` (see REF-V2-007) and show values in user-facing screens and notifications.
+Create database schema for ID badge verification requests. Add `id_badge_verification_requests` table with user info, submission status, rejection reason, screenshot storage path, and timestamps. Create Supabase Storage bucket for temporary ID screenshots with secure RLS policies. Create `id_badge_verification_messages` table with 12 configurable message templates. Add admin config flags.
 
 Please
 
@@ -76,9 +74,9 @@ Please
    - You MUST NOT create a parallel implementation
 4.Forbidden: Re-implementing logic that already exists under a different name
 
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-11-REFERRALS-VERIFICATION-V2.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md
 6. Show me the files you create or edit with their full paths
-7. Tell me which items in MODULE-11-REFERRALS-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-11-REFERRALS-VERIFICATION-V2.md
+7. Tell me which items in MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 

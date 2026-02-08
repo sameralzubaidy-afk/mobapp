@@ -123,3 +123,93 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-20: Audit/Logging
 - Smoke: (manual)
+
+### FLOW-21: ID Verification — Manual ID Badge Verification
+
+- Purpose: Allow users to voluntarily submit a government ID image for manual admin review. On admin approval the user receives a Verified badge on their profile; on rejection they receive a reason and may resubmit. The flow is privacy-first: screenshots are stored only temporarily and deleted immediately after decision.
+
+- Smoke: (manual)
+  - User uploads ID from profile (`IDVerificationUploadScreen`) and receives an in-app confirmation + email.
+  - Submission creates a row in `id_badge_verification_requests` with `status='pending'` and a `screenshot_path` stored in the `id-badge-verification-screenshots` bucket.
+  - Admin sees the request in `/admin/ID-badges/` queue, can open the review page, view/download the screenshot, then Approve or Reject with a predefined reason and optional notes.
+  - On Approval:
+    - The screenshot is deleted from storage.
+    - The request `status` updates to `approved`, `reviewed_at` and `reviewed_by` are set.
+    - User profile updated (e.g., `profiles.is_verified=true` or `profiles.badge_level='verified'`).
+    - Notifications sent (in-app, web push, email) using `id_badge_verification_messages` templates.
+  - On Rejection:
+    - Screenshot is deleted from storage.
+    - Request `status` updates to `rejected` with `rejection_reason` and `rejection_notes` populated.
+    - User receives rejection notifications with reason and admin notes and may resubmit immediately.
+  - Upload UI must prevent duplicate submissions while a `pending` request exists for the same user.
+
+- Automated (offline):
+  - Unit tests for `idBadgeService` (submit, status checks), template replacement logic, and permission checks.
+  - Edge Function tests for decision/notification handler (`id-badge-decision-notification`).
+  - Migration tests for `id_badge_verification_requests` and `id_badge_verification_messages`.
+
+- API endpoints to smoke-test:
+  - `GET /api/admin/id-badges?status=&search=` — queue list with filters and pagination
+  - `GET /api/admin/id-badges/stats` — pending/approved/rejected counts and avg review time
+  - `GET /api/admin/id-badges/{requestId}` — request details
+  - `GET /api/admin/id-badges/{requestId}/screenshot-url` — signed URL for admin review
+  - `POST /api/admin/id-badges/{requestId}/decide` — approve/reject decision endpoint
+
+- Verification pointers:
+  - RLS: ensure `id_badge_verification_requests` has RLS enabling users to SELECT/INSERT their own rows and admins to SELECT/UPDATE all rows.
+  - Storage: bucket `id-badge-verification-screenshots` must be private; policy permits users to upload to `auth.uid()/*` and admins to read/delete.
+  - Messages: configurable templates live in `id_badge_verification_messages` and support `{first_name}`, `{rejection_reason}`, `{admin_notes}`, `{approval_timeframe_hours}`.
+  - SLA: admin_config key `id_badge_verification_approval_sla_hours` (default 24) should be seeded and respected in UI copy.
+
+- Quick manual test (happy path):
+  1. As normal user: navigate to profile → Upgrade to Verified → pick/take photo → Submit.
+  2. Verify a `pending` row is created and screenshot exists in storage under `{user_id}/`.
+  3. As admin: open `/admin/ID-badges/`, locate request, open review, approve.
+  4. Verify screenshot is deleted, request marked `approved`, profile shows Verified badge, and user received notifications.
+
+- Quick manual test (reject path):
+  1. Submit new request as user.
+  2. As admin: reject with reason `unclear_photo` and notes.
+  3. Verify screenshot deleted, request marked `rejected`, user notified, and resubmission is allowed.
+
+### FLOW-22: Seller Payouts & Withdrawals — Seller balance withdrawal lifecycle
+- Purpose: End-to-end seller payout lifecycle: request withdrawal, verify payout method, queue for processing, provider settlement, retry/failure handling, and audit trail. Includes admin overrides and idempotency for transfers.
+- Smoke: `scripts/smoke/payouts-withdrawals.mjs`
+- Tier: 2 (payments + DB changes)
+- Quick checks: verify `seller_payout_methods` (is_verified), withdrawal status transitions (`requires_action` → `processing` → `completed`/`failed`), and audit entries in `seller_payouts`.
+
+### FLOW-23: Payout Method Verification — Bank / PayPal / Plaid verification flow
+- Purpose: Verify a seller's payout method before it can be used for withdrawals; handle micro-deposits, provider callbacks, marking `payout_method.is_verified`, and rollback on failure.
+- Smoke: `scripts/smoke/payout-method-verification.mjs`
+- Tier: 2
+- Quick checks: simulate micro-deposit verification, PayPal verification callback, and ensure `is_verified` prevents/permits withdrawals as expected.
+
+### FLOW-24: MFA / Multi-Factor Enrollment & Assurance Level
+- Purpose: MFA enrollment (TOTP/SMS/WebAuthn), factor verification and management, and mapping to Authenticator Assurance Level (AAL). Includes recovery and factor removal flows.
+- Smoke: `scripts/smoke/mfa-enrollment.mjs`
+- Tier: 1 (escalate to Tier 2 for auth schema changes)
+- Quick checks: enroll a factor, verify factor becomes `verified`, and `getAuthenticatorAssuranceLevel()` returns expected values.
+
+### FLOW-25: Manual Payout / Admin Payout Processing — Admin-triggered payouts & overrides
+- Purpose: Admin queue for manual payouts, retry and override controls, manual settlement steps and finance audit logging.
+- Smoke: `scripts/smoke/admin-manual-payouts.mjs`
+- Tier: 2
+- Quick checks: create a manual payout, mark processed by admin, verify audit log and payout status change.
+
+### FLOW-26: Webhook Processing & Verification — External provider webhooks
+- Purpose: Reliable webhook ingestion (Stripe, PayPal, Plaid), verify signatures, idempotent processing, reconcile external events with internal state, and audit webhook receipts.
+- Smoke: `scripts/smoke/webhooks.mjs`
+- Tier: 2
+- Quick checks: send a signed test webhook, verify signature validation, idempotent handling, and resulting DB state change.
+
+### FLOW-27: Refunds & Cancellations — Refund settlement and state machine
+- Purpose: Buyer/seller cancellations and refund processing, linking refund events to transactions, reversing SP/state where applicable, and notifying parties.
+- Smoke: `scripts/smoke/refunds-cancellations.mjs`
+- Tier: 1 (Tier 2 if changing transaction/RPC logic)
+- Quick checks: trigger a cancellation, verify refund/hold logic, ensure platform fee treatment and SP reversal rules.
+
+### FLOW-28: Cron & Background Jobs — Scheduled tasks and maintenance
+- Purpose: Scheduled background jobs: release pending Swap Points, expire/inactivate stale data, cleanup temporary screenshots, run payout retries, and run maintenance smoke scripts.
+- Smoke: `scripts/smoke/cron-jobs.mjs`
+- Tier: 1 (Tier 2 if adding DB migrations or changing cron-critical logic)
+- Quick checks: run scheduled job locally or via runner, confirm SP pending→released transition and deletion of temporary screenshots.
