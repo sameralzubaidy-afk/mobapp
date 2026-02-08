@@ -46,12 +46,12 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
   const loadUserAndStatus = async () => {
     setLoading(true);
     try {
-      const currentUser = await getCurrentUser();
-      if (!currentUser) {
+      const { user: authUser, error: authError } = await getCurrentUser();
+      if (authError || !authUser) {
         navigation.goBack();
         return;
       }
-      setUser(currentUser);
+      setUser(authUser);
 
       // Fetch configurable disclaimer message
       const disclaimer = await idBadgeService.getMessage('upload_disclaimer');
@@ -61,7 +61,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
       );
 
       // Check if user has pending request
-      const pending = await idBadgeService.checkPendingRequest(currentUser.id);
+      const pending = await idBadgeService.checkPendingRequest(authUser.id);
       setHasActivePending(pending !== null);
     } catch (error) {
       console.error('Error loading:', error);
@@ -187,54 +187,66 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centeredContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+        </View>
       </SafeAreaView>
     );
   }
 
   if (hasActivePending && !state.submitted) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>Verification Pending</Text>
-        <Text style={styles.message}>
-          You already have a pending verification request. We will review it
-          within 24 hours and notify you of the decision.
-        </Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>Back to Profile</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centeredContainer}>
+          <Text style={styles.statusEmoji}>⏳</Text>
+          <Text style={[styles.title, { textAlign: 'center' }]}>Verification Pending</Text>
+          <Text style={[styles.message, { textAlign: 'center' }]}>
+            You already have a pending verification request. We will review it
+            within 24 hours and notify you of the decision.
+          </Text>
+          <TouchableOpacity
+            style={[styles.backButton, { width: '100%' }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>Back to Profile</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
   if (state.submitted) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.successTitle}>✓ Submitted Successfully</Text>
-        <Text style={styles.successMessage}>
-          Your verification request has been submitted. We will review it within
-          24 hours and notify you of the decision via email and push
-          notification.
-        </Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={styles.backButtonText}>Back to Profile</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centeredContainer}>
+          <Text style={styles.statusEmoji}>✅</Text>
+          <Text style={[styles.successTitle, { textAlign: 'center' }]}>Submitted Successfully</Text>
+          <Text style={[styles.successMessage, { textAlign: 'center' }]}>
+            Your verification request has been submitted. We will review it within
+            24 hours and notify you of the decision via email and push
+            notification.
+          </Text>
+          <TouchableOpacity
+            style={[styles.backButton, { width: '100%' }]}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>Back to Profile</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBackButton}>
+          <Text style={styles.headerBackText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Verify Your Identity</Text>
+      </View>
       <ScrollView style={styles.container}>
-        <Text style={styles.title}>Verify Your Identity</Text>
-
         <View style={styles.disclaimerBox}>
           <Text style={styles.disclaimerTitle}>Your Privacy is Important</Text>
           <Text style={styles.disclaimerText}>{disclaimerText}</Text>
@@ -310,6 +322,43 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     backgroundColor: '#fff',
+  },
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  statusEmoji: {
+    fontSize: 64,
+    marginBottom: 24,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    minHeight: 56,
+  },
+  headerBackButton: {
+    position: 'absolute',
+    left: 8,
+    zIndex: 10,
+    padding: 12,
+  },
+  headerBackText: {
+    fontSize: 16,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
   },
   title: {
     fontSize: 24,

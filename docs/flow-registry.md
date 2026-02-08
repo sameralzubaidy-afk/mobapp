@@ -98,6 +98,31 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-14: Messaging (Realtime)
   - Open Messages list -> unread badges reflect unread messages only.
+
+### FLOW-18: ID Badge Verification (Admin Queue & Review)
+- Purpose: Admin reviews and approves/rejects manual ID verification requests from users.
+- Smoke: (manual)
+  - Admin navigates to `/id-badges` queue page
+  - Stats section displays pending, approved, rejected counts and avg review time
+  - Filter by Pending/Approved/Rejected updates table correctly
+  - Search by user name or email filters results
+  - Click "Review" on pending request -> navigates to review page
+  - Screenshot displays in review page (if available)
+  - Admin approves request with optional notes
+  - Screenshot auto-deleted from storage after decision
+  - Request status updates to 'approved' in database
+  - `reviewed_at` timestamp set correctly
+  - Admin rejects request with reason + notes
+  - Rejection reason and notes saved to database
+  - Queue stats update after each decision
+  - Navigation link "ID Badges" visible in admin layout
+- Required checks:
+  - RLS policies: admin can view all requests
+  - Storage bucket: `id-badge-verification-screenshots` exists with proper RLS
+  - Screenshot deletion is idempotent (no error if already deleted)
+  - Signed URLs expire after 1 hour
+- Dependencies: BADGE-008 (schema), BADGE-009 (mobile upload flow)
+- Testing: Manual test guide at `/BADGE-010-MANUAL-TESTING-GUIDE.md`
   - Tap a conversation -> Chat opens and that conversation’s unread badge clears on returning to the list.
   - New incoming message (other user) increments unread badge until the conversation is opened again.
   - After a trade is completed, messages in that trade get an `expires_at` timestamp (trade completion + configured retention days) and are later soft-deleted by the MSG-004 expiration job.
@@ -124,53 +149,95 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-20: Audit/Logging
 - Smoke: (manual)
 
-### FLOW-21: ID Verification — Manual ID Badge Verification
+### FLOW-21: ID Verification — Manual ID Badge Verification (BADGE-009)
 
 - Purpose: Allow users to voluntarily submit a government ID image for manual admin review. On admin approval the user receives a Verified badge on their profile; on rejection they receive a reason and may resubmit. The flow is privacy-first: screenshots are stored only temporarily and deleted immediately after decision.
 
-- Smoke: (manual)
-  - User uploads ID from profile (`IDVerificationUploadScreen`) and receives an in-app confirmation + email.
-  - Submission creates a row in `id_badge_verification_requests` with `status='pending'` and a `screenshot_path` stored in the `id-badge-verification-screenshots` bucket.
-  - Admin sees the request in `/admin/ID-badges/` queue, can open the review page, view/download the screenshot, then Approve or Reject with a predefined reason and optional notes.
+- Smoke: `BADGE-009-MANUAL-TESTING-GUIDE.md` (20 test cases)
+  - Mobile upload screen (`IDVerificationUploadScreen`) functional with camera + gallery picker
+  - Disclaimer text loaded from `id_badge_verification_messages` table (configurable)
+  - User uploads ID and receives in-app confirmation + email
+  - Submission creates a row in `id_badge_verification_requests` with `status='pending'` and a `screenshot_path` stored in the `id-badge-verification-screenshots` bucket
+  - Duplicate submission prevention: users with pending requests cannot submit again (UI blocks with "Verification Pending" message)
+  - Admin sees the request in `/admin/ID-badges/` queue, can open the review page, view/download the screenshot, then Approve or Reject with a predefined reason and optional notes
   - On Approval:
-    - The screenshot is deleted from storage.
-    - The request `status` updates to `approved`, `reviewed_at` and `reviewed_by` are set.
-    - User profile updated (e.g., `profiles.is_verified=true` or `profiles.badge_level='verified'`).
-    - Notifications sent (in-app, web push, email) using `id_badge_verification_messages` templates.
+    - Screenshot is deleted from storage immediately
+    - Request `status` updates to `approved`, `reviewed_at` and `reviewed_by` are set
+    - User profile updated (e.g., `profiles.is_verified=true` or `profiles.badge_level='verified'`)
+    - Notifications sent (in-app, web push, email) using `id_badge_verification_messages` templates with variable substitution (`{first_name}`, `{rejection_reason}`, `{admin_notes}`)
   - On Rejection:
-    - Screenshot is deleted from storage.
-    - Request `status` updates to `rejected` with `rejection_reason` and `rejection_notes` populated.
-    - User receives rejection notifications with reason and admin notes and may resubmit immediately.
-  - Upload UI must prevent duplicate submissions while a `pending` request exists for the same user.
+    - Screenshot is deleted from storage immediately
+    - Request `status` updates to `rejected` with `rejection_reason` (6 predefined options) and `rejection_notes` populated
+    - User receives rejection notifications with reason and admin notes and may resubmit immediately
+    - Profile screen shows "Resubmit Verification" button
+  - Upload UI prevents duplicate submissions while a `pending` request exists for the same user (shows "Verification Pending" message instead)
+  - Navigation route: `IDVerificationUpload` added to AppNavigator (authenticated stack)
 
 - Automated (offline):
-  - Unit tests for `idBadgeService` (submit, status checks), template replacement logic, and permission checks.
-  - Edge Function tests for decision/notification handler (`id-badge-decision-notification`).
-  - Migration tests for `id_badge_verification_requests` and `id_badge_verification_messages`.
+  - Unit tests: `src/services/__tests__/idBadge.test.ts` (getMessage, checkPendingRequest, getVerificationStatus)
+  - E2E tests: `src/__tests__/e2e/idBadgeUpload.e2e.test.ts` (requires SUPABASE_E2E_ENABLED=true)
+    - Configurable messages fetch
+    - Pending request check logic
+    - Verification status retrieval
+    - Duplicate submission prevention
+    - RLS policy enforcement
+    - Message template seeding validation (12 required templates)
+  - Migration: `20260208000000_id_badge_verification_system.sql` creates tables, enums, RLS policies, and seeds messages
 
-- API endpoints to smoke-test:
-  - `GET /api/admin/id-badges?status=&search=` — queue list with filters and pagination
-  - `GET /api/admin/id-badges/stats` — pending/approved/rejected counts and avg review time
-  - `GET /api/admin/id-badges/{requestId}` — request details
-  - `GET /api/admin/id-badges/{requestId}/screenshot-url` — signed URL for admin review
-  - `POST /api/admin/id-badges/{requestId}/decide` — approve/reject decision endpoint
+- Admin API endpoints:
+  - `GET /api/admin/id-badges?status=&search=` — queue list with filters and pagination (implemented)
+  - `GET /api/admin/id-badges/stats` — pending/approved/rejected counts and avg review time (implemented)
+  - `GET /api/admin/id-badges/{requestId}` — request details (implemented)
+  - `GET /api/admin/id-badges/{requestId}/screenshot-url` — signed URL for admin review (implemented)
+  - `POST /api/admin/id-badges/{requestId}/decide` — approve/reject decision endpoint (implemented)
+  - `GET /api/admin/id-badges/messages` — fetch all configurable message templates (implemented)
+  - `PUT /api/admin/id-badges/messages/{messageId}` — update message template (implemented)
 
 - Verification pointers:
-  - RLS: ensure `id_badge_verification_requests` has RLS enabling users to SELECT/INSERT their own rows and admins to SELECT/UPDATE all rows.
-  - Storage: bucket `id-badge-verification-screenshots` must be private; policy permits users to upload to `auth.uid()/*` and admins to read/delete.
-  - Messages: configurable templates live in `id_badge_verification_messages` and support `{first_name}`, `{rejection_reason}`, `{admin_notes}`, `{approval_timeframe_hours}`.
-  - SLA: admin_config key `id_badge_verification_approval_sla_hours` (default 24) should be seeded and respected in UI copy.
+  - RLS policies verified in `20260208000000_id_badge_verification_system.sql`:
+    - Users can SELECT own requests, INSERT own requests
+    - Admins can SELECT all requests, UPDATE all requests
+    - Everyone can SELECT messages (read-only)
+    - Admins can UPDATE messages
+  - Storage bucket `id-badge-verification-screenshots` must be private:
+    - Users can upload to `auth.uid()/*` only
+    - Admins can read/delete all files
+    - Screenshot deleted immediately after admin decision (idempotent)
+  - Messages: 12 configurable templates in `id_badge_verification_messages`:
+    - `upload_disclaimer`, `submit_button_label`, `pending_status_text`, `in_app_submission_notification`
+    - `approved_email_subject`, `approved_email_body`, `rejected_email_subject`, `rejected_email_body`
+    - `in_app_approved_notification`, `in_app_rejected_notification`, `web_push_approved`, `web_push_rejected`
+    - Template variables: `{first_name}`, `{rejection_reason}`, `{admin_notes}`, `{approval_timeframe_hours}`
+  - SLA: admin_config key `id_badge_verification_approval_sla_hours` (default 24) seeded and used in UI copy
+  - Rejection reasons enum: `unclear_photo`, `id_expired`, `name_mismatch`, `multiple_ids`, `not_government_id`, `other`
 
-- Quick manual test (happy path):
-  1. As normal user: navigate to profile → Upgrade to Verified → pick/take photo → Submit.
-  2. Verify a `pending` row is created and screenshot exists in storage under `{user_id}/`.
-  3. As admin: open `/admin/ID-badges/`, locate request, open review, approve.
-  4. Verify screenshot is deleted, request marked `approved`, profile shows Verified badge, and user received notifications.
+- Quick manual test (happy path — detailed in BADGE-009-MANUAL-TESTING-GUIDE.md TC5, TC11):
+  1. As normal user: Profile → Upgrade to Verified → pick/take photo → Submit
+  2. Verify: pending row created in `id_badge_verification_requests`, screenshot exists in storage `{user_id}/{timestamp}.jpg`
+  3. As admin: `/admin/ID-badges/` → locate request → Review → Approve with optional notes
+  4. Verify: screenshot deleted, request status=`approved`, `reviewed_at`/`reviewed_by` set, profile shows Verified badge, user received notifications
 
-- Quick manual test (reject path):
-  1. Submit new request as user.
-  2. As admin: reject with reason `unclear_photo` and notes.
-  3. Verify screenshot deleted, request marked `rejected`, user notified, and resubmission is allowed.
+- Quick manual test (reject path — detailed in BADGE-009-MANUAL-TESTING-GUIDE.md TC13, TC14, TC15):
+  1. Submit request as user
+  2. As admin: Review → Reject with reason=`unclear_photo` and notes="Please retake with better lighting"
+  3. Verify: screenshot deleted, request status=`rejected`, `rejection_reason`/`rejection_notes` populated, user notified with reason+notes, "Resubmit Verification" button appears on profile
+  4. User resubmits: new request created with status=`pending`, old rejected request preserved as history
+
+- Tier 0 (always):
+  - TypeScript compile: `npm run typecheck` or `npx tsc -p tsconfig.json --noEmit` (must pass with no errors)
+  - ESLint: `npm run lint` (must pass with no warnings)
+  - Unit tests: `npm test -- idBadge.test.ts` (must pass all test cases)
+
+- Tier 1 (targeted regression when upload/admin review flow changes):
+  - Manual smoke: Run test cases TC1-TC8 (mobile upload), TC9-TC15 (admin review + notifications) from BADGE-009-MANUAL-TESTING-GUIDE.md
+  - E2E: `SUPABASE_E2E_ENABLED=true npm test -- idBadgeUpload.e2e.test.ts` (if Supabase prod credentials available)
+
+- Tier 2 (full regression when DB schema/RLS/migration changes):
+  - Rebuild database: `supabase db reset` (staging or test instance)
+  - Verify migration: confirm all tables/enums/indexes/policies created correctly
+  - Run all 20 test cases from BADGE-009-MANUAL-TESTING-GUIDE.md
+  - Verify RLS: users cannot see other users' requests (TC19)
+  - Verify stats calculation: admin stats match database query results (TC20)
 
 ### FLOW-22: Seller Payouts & Withdrawals — Seller balance withdrawal lifecycle
 - Purpose: End-to-end seller payout lifecycle: request withdrawal, verify payout method, queue for processing, provider settlement, retry/failure handling, and audit trail. Includes admin overrides and idempotency for transfers.

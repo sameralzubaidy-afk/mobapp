@@ -37,6 +37,7 @@ import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
+import IDVerificationUploadScreen from '@/screens/profile/IDVerificationUploadScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 
@@ -70,6 +71,7 @@ const linking = {
       EditListing: 'edit-listing',
       ListingDetail: 'listing/:listing_id',
       AdminDashboard: 'admin',
+      IDVerificationUpload: 'id-verification-upload',
     },
   },
 };
@@ -185,6 +187,8 @@ function RootNavigator() {
             <Stack.Screen name="SubmitReview" component={SubmitReviewScreen} />
             {/* MODULE-11: Referral screens */}
             <Stack.Screen name="ReferralDashboard" component={ReferralDashboardScreen} />
+            {/* MODULE-10: ID Badge Verification */}
+            <Stack.Screen name="IDVerificationUpload" component={IDVerificationUploadScreen} />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (

@@ -20,6 +20,7 @@ import { getCurrentUser } from '@/services/supabase/auth';
 import { supabase } from '@/services/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BadgeShowcase } from '@/components/BadgeShowcase';
+import { idBadgeService } from '@/services/idBadge';
 import { getUserReviews, getReviewStats, Review, ReviewStats } from '@/services/review';
 import { ReviewCard } from '@/components/ReviewCard';
 import { StarRating } from '@/components/StarRating';
@@ -37,6 +38,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<any>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -98,6 +100,14 @@ export default function ProfileScreen({ navigation }: any) {
         avatar_url: finalAvatar,
       });
       
+      // Load ID verification status
+      try {
+        const vStatus = await idBadgeService.getVerificationStatus(authUser.id);
+        setVerificationStatus(vStatus);
+      } catch (error) {
+        console.warn('Error loading verification status:', error);
+      }
+
       // Load referral code from ReferralCodeServiceV2 (same as dashboard)
       try {
         const code = await ReferralCodeServiceV2.getReferralCode(authUser.id);
@@ -287,6 +297,61 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.infoLabel}>Swap Points:</Text>
           <Text style={styles.infoValue}>{user.swap_points_balance || 0} SP</Text>
         </View>
+      </View>
+
+      {/* ID Verification Section */}
+      <View style={styles.verificationSection}>
+        <Text style={styles.sectionTitle}>Identity Verification</Text>
+        {verificationStatus?.status === 'approved' ? (
+          <View style={styles.verifiedContainer}>
+            <View style={styles.statusIconContainer}>
+              <Text style={{ fontSize: 24 }}>✅</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.verifiedText}>Identity Verified</Text>
+              <Text style={styles.verifiedSubtext}>Your account is shielded with ultimate trust</Text>
+            </View>
+          </View>
+        ) : verificationStatus?.status === 'pending' ? (
+          <TouchableOpacity 
+            style={styles.pendingContainer}
+            onPress={() => navigation.navigate('IDVerificationUpload')}
+          >
+            <View style={styles.statusIconContainer}>
+              <Text style={{ fontSize: 24 }}>⏳</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pendingText}>Verification Pending</Text>
+              <Text style={styles.pendingSubtext}>We're reviewing your ID. Usually within 24h.</Text>
+            </View>
+          </TouchableOpacity>
+        ) : verificationStatus?.status === 'rejected' ? (
+          <TouchableOpacity 
+            style={styles.rejectedContainer}
+            onPress={() => navigation.navigate('IDVerificationUpload')}
+          >
+            <View style={styles.statusIconContainer}>
+              <Text style={{ fontSize: 24 }}>❌</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rejectedText}>Verification Rejected</Text>
+              <Text style={styles.rejectedSubtext}>Reason: {verificationStatus.rejectionReason || 'Unknown'}. Tap to try again.</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={styles.upgradeButton}
+            onPress={() => navigation.navigate('IDVerificationUpload')}
+          >
+            <View style={styles.statusIconContainer}>
+              <Text style={{ fontSize: 24 }}>🛡️</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.upgradeButtonText}>Upgrade to Verified</Text>
+              <Text style={styles.upgradeButtonSubtext}>Build trust and unlock exclusive features</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Badges Section */}
@@ -744,4 +809,89 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  verificationSection: {
+    marginBottom: 24,
+  },
+  statusIconContainer: {
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  upgradeButton: {
+    flexDirection: 'row',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  upgradeButtonText: {
+    color: '#3B82F6',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  upgradeButtonSubtext: {
+    color: '#60A5FA',
+    fontSize: 12,
+  },
+  verifiedContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#10B981',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  verifiedText: {
+    color: '#10B981',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  verifiedSubtext: {
+    color: '#34D399',
+    fontSize: 12,
+  },
+  pendingContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  pendingText: {
+    color: '#D97706',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  pendingSubtext: {
+    color: '#FBBF24',
+    fontSize: 12,
+  },
+  rejectedContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  rejectedText: {
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  rejectedSubtext: {
+    color: '#F87171',
+    fontSize: 12,
+  },
+
 });

@@ -48,14 +48,15 @@ MODULE-10-ID-BADGE-VERIFICATION-V2.md
 MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md
 
 
-## TASK BADGE-008: Implement ID Badge Verification System Schema 
+## TASK BADGE-009: ID Badge Upload Flow (Mobile Screen)
+
 
 I’m working on the  MODULE-10-ID-BADGE-VERIFICATION-V2.md tasks
 Module: MODULE-10-ID-BADGE-VERIFICATION-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK BADGE-008: Implement ID Badge Verification System Schema
+Tasks: ## TASK BADGE-010: Admin ID Badge Queue & Review Page
 
 scope is 
-Create database schema for ID badge verification requests. Add `id_badge_verification_requests` table with user info, submission status, rejection reason, screenshot storage path, and timestamps. Create Supabase Storage bucket for temporary ID screenshots with secure RLS policies. Create `id_badge_verification_messages` table with 12 configurable message templates. Add admin config flags.
+Create admin page at `/admin/ID-badges/` with filterable queue of ID badge verification requests. Show table with user info (first/last name, email, phone, node_id, submission date, status). Implement filters for Pending/Approved/Rejected. Show stats section (pending count, approval rate, avg review time). Admin can download screenshot, review, approve with optional notes, or reject with dropdown reason + free-text notes. Auto-delete screenshot immediately after decision.
 
 Please
 

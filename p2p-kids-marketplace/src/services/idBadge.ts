@@ -3,7 +3,8 @@
 // Module: MODULE-10-ID-BADGE-VERIFICATION-V2.md
 
 import { supabase } from './supabase/client';
-import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { decode } from 'base64-arraybuffer';
 
 const STORAGE_BUCKET = 'id-badge-verification-screenshots';
 
@@ -72,30 +73,48 @@ export const idBadgeService = {
       // Get user profile for denormalization
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('first_name, last_name, email, phone, node_id, user_id')
+        .select('name, email, phone, node_id, user_id')
         .eq('user_id', userId)
         .single();
 
       if (profileError) throw profileError;
 
-      // Read file as base64
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      // Normalize the picked image into a small JPEG and convert to base64
+      // This avoided "Cannot read property 'Base64' of undefined" and also
+      // reduces upload size for faster submissions.
+      const manipulated = await ImageManipulator.manipulateAsync(
+        imageUri,
+        [{ resize: { width: 1024, height: 1024 } }], // Good quality but manageable size
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.JPEG,
+          base64: true,
+        }
+      );
 
-      // Convert to blob for upload
+      if (!manipulated.base64) {
+        throw new Error('Unable to process image for upload');
+      }
+
+      // Convert to blob for upload using base64-arraybuffer decode
       const fileName = `${userId}-${Date.now()}.jpg`;
       const storagePath = `${userId}/${fileName}`;
 
       // Upload to Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from(STORAGE_BUCKET)
-        .upload(storagePath, decode(base64), {
+        .upload(storagePath, decode(manipulated.base64), {
           contentType: 'image/jpeg',
           upsert: false,
         });
 
       if (uploadError) throw uploadError;
+
+      // Handle name splitting for denormalization
+      const fullName = profile?.name || '';
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0] || 'Unknown';
+      const lastName = nameParts.slice(1).join(' ') || '';
 
       // Create submission record in database
       const { data, error: insertError } = await supabase
@@ -105,8 +124,8 @@ export const idBadgeService = {
           status: 'pending',
           screenshot_path: storagePath,
           screenshot_upload_timestamp: new Date().toISOString(),
-          first_name: profile?.first_name,
-          last_name: profile?.last_name,
+          first_name: firstName,
+          last_name: lastName,
           email: profile?.email,
           phone_number: profile?.phone,
           node_id: profile?.node_id,
@@ -196,13 +215,3 @@ export const idBadgeService = {
     }
   },
 };
-
-// Helper to decode base64 to ArrayBuffer
-function decode(base64: string): ArrayBuffer {
-  const binaryString = atob(base64);
-  const bytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
