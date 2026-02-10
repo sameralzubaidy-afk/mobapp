@@ -96,6 +96,7 @@ I need to do E2E test in stage , locally I could not.
  ## MODULE-06-TRADE-FLOW-sellerpayouts.md
 ## TASK PAY-009 - make the required intergration to complete payout method validations. 
 
+  ## BEFORE GO live make create a martics to show what activiy in the app has what type of notifcations ( web, push or EMIL or SMS) groub by notfication channel to fix or assess what i need for go live what can wait or could be considred as noise. 
 payout needs FULL end to end testing with real money , check status on app and db BEFORE GO love 
 
  ## BEFORE GO live  I must test on physical devices the push notifcations reqs includes 

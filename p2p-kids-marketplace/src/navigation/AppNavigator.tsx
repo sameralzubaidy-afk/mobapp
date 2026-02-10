@@ -38,6 +38,8 @@ import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
 import IDVerificationUploadScreen from '@/screens/profile/IDVerificationUploadScreen';
+import SettingsScreen from '@/screens/profile/SettingsScreen';
+import NotificationPreferencesScreen from '@/screens/profile/NotificationPreferencesScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 
@@ -189,6 +191,8 @@ function RootNavigator() {
             <Stack.Screen name="ReferralDashboard" component={ReferralDashboardScreen} />
             {/* MODULE-10: ID Badge Verification */}
             <Stack.Screen name="IDVerificationUpload" component={IDVerificationUploadScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (

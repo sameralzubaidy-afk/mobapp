@@ -280,3 +280,166 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Smoke: `scripts/smoke/cron-jobs.mjs`
 - Tier: 1 (Tier 2 if adding DB migrations or changing cron-critical logic)
 - Quick checks: run scheduled job locally or via runner, confirm SP pending→released transition and deletion of temporary screenshots.
+
+### FLOW-29: ID Badge Submission & Decision Notifications (BADGE-011)
+
+- Purpose: Multi-channel notification system for ID badge verification events. Send web push + in-app + email notifications to users on submission confirmation and approval/rejection decisions. Send admin alerts on new submissions. All messages loaded from configurable `id_badge_verification_messages` table with template variable substitution. Respects user notification preferences.
+
+- Smoke: `BADGE-011-MANUAL-TESTING-GUIDE.md` (9 test cases + regression checks)
+  - User submits ID verification → receives submission confirmation via:
+    - In-app notification (visible in notification center)
+    - Email confirmation with 24-hour SLA message
+  - Admin receives alert on new submission:
+    - Web push notification (if admin has Expo push token)
+    - Admin notifications table entry (type: `id_badge_submission`)
+  - Admin approves request with optional notes → user receives:
+    - In-app notification: "ID Verification Approved! 🎉"
+    - Web push notification: "Your ID verification is complete!"
+    - Email: "Your ID Verification is Approved!" with congratulations message
+    - Template variables replaced: `{first_name}`, `{admin_notes}`
+  - Admin rejects request with reason and notes → user receives:
+    - In-app notification with rejection reason
+    - Web push notification with actionable message
+    - Email with rejection reason formatted: "Reason: [unclear photo]" and admin notes displayed
+    - Template variables replaced: `{first_name}`, `{rejection_reason}`, `{admin_notes}`
+  - Screenshot auto-deleted from storage immediately after decision (idempotent)
+  - Notification preferences respected: user can disable push/in-app/email per category (`id_badge_verification`)
+  - Admin activity logged in `admin_activity_log` with action types: `id_badge_approved`, `id_badge_rejected`
+  - Duplicate notification prevention: idempotent Edge Function execution
+
+- Edge Functions:
+  - `id-badge-submission-notification/index.ts` (180 lines)
+    - Handles submission confirmation notifications to user
+    - Creates admin alert notifications for all admin users
+    - Multi-channel delivery: in-app + email (+ push if available)
+  - `id-badge-notifications/index.ts` (265 lines)
+    - Handles approval/rejection decision notifications
+    - Status update + screenshot deletion + notification dispatch
+    - Template variable replacement: `{first_name}`, `{rejection_reason}`, `{admin_notes}`
+    - Activity logging for audit trail
+  - `send-email/index.ts` — Extended with 3 new email types:
+    - `id_badge_approved`: Approval email with congratulations message
+    - `id_badge_rejected`: Rejection email with formatted reason and notes
+    - `id_badge_submission`: Submission confirmation email
+    - `processIDBadgeEmail()` function (83 lines) generates HTML emails with styled rejection reason/notes divs
+
+- Mobile Services Updated:
+  - `p2p-kids-marketplace/src/services/idBadge.ts`
+    - Added submission notification invocation (lines 126-135)
+    - Calls `id-badge-submission-notification` Edge Function after successful ID upload
+    - Passes `requestId` and `userId` for notification processing
+
+- Database Dependencies:
+  - Tables: `id_badge_verification_requests`, `id_badge_verification_messages`, `notification_preferences`, `notifications`, `admin_notifications`, `admin_activity_log`
+  - Storage: `id-badge-verification-screenshots` bucket with RLS policies
+  - Message templates: 12 configurable templates with variable placeholders
+  - Notification categories: `id_badge_verification` preference category
+
+- Notification Channels:
+  - **Web Push**: Expo Push Notifications API (requires push token from `profiles.expo_push_token` or `push_tokens` table)
+  - **In-App**: Entries in `notifications` table (queried by mobile app notification center)
+  - **Email**: SendGrid API with HTML email generation (requires `SENDGRID_API_KEY` in Edge Function secrets)
+
+- Template Variables:
+  - `{first_name}`: User's first name from profile
+  - `{rejection_reason}`: Human-readable rejection reason (from enum)
+  - `{admin_notes}`: Custom admin notes (optional, max 500 chars)
+  - `{approval_timeframe_hours}`: SLA timeframe (default 24 hours from `admin_config`)
+
+- Automated (offline):
+  - Unit tests: `p2p-kids-marketplace/src/__tests__/services/idBadgeNotifications.test.ts` (270 lines, 7 test suites)
+    - Submission notification logic
+    - Approval/rejection notification flows
+    - Template variable replacement
+    - Admin notification creation
+    - Activity logging
+    - Multi-channel delivery
+    - Preference respect
+  - E2E tests: `p2p-kids-marketplace/src/__tests__/e2e/idBadgeNotifications.e2e.test.ts` (300 lines, 5 test suites)
+    - Complete notification flow from submission → decision
+    - Screenshot deletion verification
+    - Preference respect testing
+    - Idempotent execution
+    - Requires: `TEST_USER_ID` and `TEST_ADMIN_ID` environment variables
+
+- Tier 0 (always):
+  - TypeScript compile: `cd p2p-kids-marketplace && npm run typecheck` (must pass)
+  - ESLint: `cd p2p-kids-marketplace && npm run lint` (must pass)
+  - Unit tests: `cd p2p-kids-marketplace && npm test -- src/__tests__/services/idBadgeNotifications.test.ts` (all tests must pass)
+
+- Tier 1 (targeted regression when notification logic changes):
+  - Manual smoke: Run test cases TC1-TC9 from `BADGE-011-MANUAL-TESTING-GUIDE.md`
+    - TC1: Submission confirmation notifications
+    - TC2: Email notification on submission
+    - TC3: Approval notifications (multi-channel)
+    - TC4: Rejection notifications with reason
+    - TC5: Notification preferences respected
+    - TC6: Duplicate notification prevention
+    - TC7: Screenshot deletion verification
+    - TC8: Message template customization
+    - TC9: Admin activity logging
+  - E2E: `TEST_USER_ID=[uuid] TEST_ADMIN_ID=[uuid] npm test -- src/__tests__/e2e/idBadgeNotifications.e2e.test.ts` (if Supabase prod credentials available)
+
+- Tier 2 (full regression when Edge Functions/DB schema changes):
+  - Deploy Edge Functions: 
+    - `supabase functions deploy id-badge-notifications`
+    - `supabase functions deploy id-badge-submission-notification`
+  - Verify message templates exist: `SELECT COUNT(*) FROM id_badge_verification_messages;` (expect 12 rows)
+  - Verify notification preferences: `SELECT * FROM notification_preferences WHERE category = 'id_badge_verification';`
+  - Run all 9 test cases from `BADGE-011-MANUAL-TESTING-GUIDE.md`
+  - Verify push notification delivery (check Expo Push dashboard)
+  - Verify email delivery (check SendGrid dashboard logs)
+  - Verify screenshot deletion (query storage bucket after decision)
+
+- Quick manual test (submission flow):
+  1. User: Profile → Upgrade to Verified → Upload ID → Submit
+  2. Verify: In-app notification created, email sent to user, admin notification created
+  3. Query: `SELECT * FROM notifications WHERE user_id = '[user_id]' ORDER BY created_at DESC LIMIT 1;`
+  4. Expected: Title "ID Verification Submitted", body matches template
+
+- Quick manual test (approval flow):
+  1. Admin: `/id-badges` → Review pending request → Approve with notes
+  2. Verify: User receives 3 notifications (in-app + push + email), screenshot deleted
+  3. Query: `SELECT screenshot_path FROM id_badge_verification_requests WHERE id = '[request_id]';`
+  4. Expected: Screenshot path exists but file deleted from storage
+  5. Query: `SELECT * FROM admin_activity_log WHERE action_type = 'id_badge_approved' ORDER BY created_at DESC LIMIT 1;`
+  6. Expected: Activity log entry with approval notes in `details` JSON
+
+- Quick manual test (rejection flow):
+  1. Admin: Review pending request → Reject with reason "unclear_photo" and notes "Please retake with better lighting"
+  2. Verify: User receives rejection email with formatted reason and notes
+  3. Check email content: Should display "Reason: unclear photo" and notes in styled div
+  4. Query: `SELECT rejection_reason, rejection_notes FROM id_badge_verification_requests WHERE id = '[request_id]';`
+  5. Expected: Reason and notes populated, screenshot deleted
+
+- Dependencies:
+  - BADGE-008: Database schema for ID badge verification system
+  - BADGE-009: Mobile upload flow (`IDVerificationUploadScreen`)
+  - BADGE-010: Admin queue and review interface
+  - Existing notification infrastructure (profiles.expo_push_token, push_tokens table)
+  - SendGrid email service integration
+
+- Verification Checklist Mapping (MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md):
+  - ✅ **NOTIF-1**: Submission confirmation sent to user (in-app + email)
+  - ✅ **NOTIF-2**: Admin alert sent on new submission (push + admin_notifications table)
+  - ✅ **NOTIF-3**: Approval notifications sent (in-app + push + email)
+  - ✅ **NOTIF-4**: Rejection notifications sent with reason (in-app + push + email)
+  - ✅ **NOTIF-5**: Template variables replaced correctly (`{first_name}`, `{rejection_reason}`, `{admin_notes}`)
+  - ✅ **NOTIF-6**: User notification preferences respected (push/in-app/email toggles)
+  - ✅ **NOTIF-7**: Screenshot deleted immediately after decision
+  - ✅ **NOTIF-8**: Activity logged in `admin_activity_log`
+  - ✅ **NOTIF-9**: Configurable messages loaded from `id_badge_verification_messages` table
+  - ✅ **NOTIF-10**: Idempotent Edge Function execution (no duplicate notifications)
+
+- Known Limitations:
+  - Push notifications require valid Expo push token (gracefully skips if unavailable)
+  - Email delivery depends on SendGrid API key configuration
+  - Screenshot deletion is idempotent but logs warning if file not found (expected after first deletion)
+  - Admin push notifications require admin users to have push tokens registered
+
+- Testing Prerequisites:
+  - Supabase project with `id_badge_verification_messages` table seeded (12 templates)
+  - SendGrid API key configured in Edge Function secrets
+  - Test users with valid email addresses and push tokens
+  - Admin user with role='admin' in database
+  - Storage bucket `id-badge-verification-screenshots` with proper RLS policies

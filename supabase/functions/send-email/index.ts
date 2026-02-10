@@ -19,7 +19,7 @@ import { serve } from 'https://deno.land/std@0.182.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
 interface SendEmailRequest {
-  type: 'welcome' | 'password_reset' | 'trade_notification' | 'transaction_confirmation' | 'subscription_status';
+  type: 'welcome' | 'password_reset' | 'trade_notification' | 'transaction_confirmation' | 'subscription_status' | 'id_badge_approved' | 'id_badge_rejected' | 'id_badge_submission';
   to: string;
   data?: Record<string, any>;
 }
@@ -117,7 +117,7 @@ function validateRequest(req: SendEmailRequest): { valid: boolean; error?: strin
     return { valid: false, error: 'Invalid email address' };
   }
 
-  const validTypes = ['welcome', 'password_reset', 'trade_notification', 'transaction_confirmation', 'subscription_status'];
+  const validTypes = ['welcome', 'password_reset', 'trade_notification', 'transaction_confirmation', 'subscription_status', 'id_badge_approved', 'id_badge_rejected', 'id_badge_submission'];
   if (!validTypes.includes(req.type)) {
     return { valid: false, error: `Invalid email type: ${req.type}` };
   }
@@ -212,6 +212,92 @@ async function processSubscriptionStatusEmail(
   return { success: result.success, error: result.error };
 }
 
+/**
+ * Send ID badge verification email (submission, approval, rejection)
+ */
+async function processIDBadgeEmail(
+  to: string,
+  emailType: 'id_badge_approved' | 'id_badge_rejected' | 'id_badge_submission',
+  data?: Record<string, any>
+): Promise<{ success: boolean; error?: string }> {
+  if (!data?.subject || !data?.body) {
+    return { success: false, error: 'Missing subject or body in request data' };
+  }
+
+  // For ID badge emails, we send simple HTML emails (no template yet)
+  const htmlBody = `
+    <html>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #2563eb;">${data.subject}</h2>
+          <div style="white-space: pre-line;">
+            ${data.body}
+          </div>
+          ${emailType === 'id_badge_rejected' && data.rejectionReason ? `
+            <div style="margin-top: 20px; padding: 15px; background-color: #fef2f2; border-left: 4px solid #ef4444;">
+              <strong>Reason:</strong> ${data.rejectionReason}<br/>
+              ${data.adminNotes ? `<strong>Additional Notes:</strong> ${data.adminNotes}` : ''}
+            </div>
+          ` : ''}
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
+            <p>Best regards,<br/>P2P Kids Marketplace Team</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  if (!SENDGRID_API_KEY) {
+    console.error('SendGrid API key not configured');
+    return { success: false, error: 'SendGrid API key not configured' };
+  }
+
+  const payload = {
+    personalizations: [
+      {
+        to: [{ email: to }],
+      },
+    ],
+    from: { email: SENDGRID_FROM_EMAIL },
+    reply_to: { email: SENDGRID_REPLY_TO_EMAIL },
+    subject: data.subject,
+    content: [
+      {
+        type: 'text/html',
+        value: htmlBody,
+      },
+    ],
+  };
+
+  try {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`SendGrid API error: ${response.status}`, errorData);
+      return {
+        success: false,
+        error: `SendGrid API returned ${response.status}`,
+      };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('SendGrid request failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
 serve(async (req: Request) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -256,6 +342,11 @@ serve(async (req: Request) => {
         break;
       case 'subscription_status':
         result = await processSubscriptionStatusEmail(request.to, request.data);
+        break;
+      case 'id_badge_approved':
+      case 'id_badge_rejected':
+      case 'id_badge_submission':
+        result = await processIDBadgeEmail(request.to, request.type, request.data);
         break;
       default:
         return new Response(

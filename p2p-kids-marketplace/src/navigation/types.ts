@@ -42,6 +42,8 @@ export type RootStackParamList = {
   SpWalletScreen: undefined;
   // MODULE-11: Referral routes
   ReferralDashboard: undefined;
+  Settings: undefined;
+  NotificationPreferences: undefined;
   // MODULE-17: Notifications
   Notifications: undefined;
   NotificationDetail: { notificationId: string };

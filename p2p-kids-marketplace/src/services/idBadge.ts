@@ -135,9 +135,20 @@ export const idBadgeService = {
 
       if (insertError) throw insertError;
 
-      // TODO: Trigger submission notification (in-app + email)
+      // Trigger submission notification (in-app + email + admin notification)
+      try {
+        await supabase.functions.invoke('id-badge-submission-notification', {
+          body: {
+            requestId: data.id,
+            userId,
+          },
+        });
+      } catch (notifError) {
+        console.warn('Failed to send submission notification:', notifError);
+        // Don't fail the request if notification fails
+      }
+
       // TODO: Log analytics event
-      // TODO: Send admin notification
 
       return data.id;
     } catch (error) {

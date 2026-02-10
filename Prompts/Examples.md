@@ -48,15 +48,16 @@ MODULE-10-ID-BADGE-VERIFICATION-V2.md
 MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md
 
 
-## TASK BADGE-009: ID Badge Upload Flow (Mobile Screen)
+
+## TASK BADGE-011: ID Badge Submission & Decision Notifications
 
 
 I’m working on the  MODULE-10-ID-BADGE-VERIFICATION-V2.md tasks
 Module: MODULE-10-ID-BADGE-VERIFICATION-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK BADGE-010: Admin ID Badge Queue & Review Page
+Tasks: ## TASK BADGE-011: ID Badge Submission & Decision Notifications
 
 scope is 
-Create admin page at `/admin/ID-badges/` with filterable queue of ID badge verification requests. Show table with user info (first/last name, email, phone, node_id, submission date, status). Implement filters for Pending/Approved/Rejected. Show stats section (pending count, approval rate, avg review time). Admin can download screenshot, review, approve with optional notes, or reject with dropdown reason + free-text notes. Auto-delete screenshot immediately after decision.
+Implement multi-channel notifications for ID badge verification events. Send web push + in-app + email to user on submission confirmation. Send web push to admin on new submission. Send web push + in-app + email to user on approval/rejection (with decision reason). All messages loaded from configurable `id_badge_verification_messages` table. Respect user notification preferences.
 
 Please
 
@@ -86,6 +87,7 @@ Please
 13. provide steps to manaul test format it as test cases create md file for it. 
 14. I do not use yarn I use npm so give me all commend lines for npm. 
 15. update flow-registry.md if needed so that i keep this file up to date.
+16.  I am using ISO and Andriod simlators I do not use phsyical devices please consider this for manaul verfication.
 
 
 

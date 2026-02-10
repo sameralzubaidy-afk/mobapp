@@ -65,7 +65,7 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
         <NavItem
           emoji="⚙️"
           label="Settings"
-          onPress={() => (navigation as any).navigate('Profile')}
+          onPress={() => (navigation as any).navigate('Settings')}
         />
       )}
       {showHelp && (

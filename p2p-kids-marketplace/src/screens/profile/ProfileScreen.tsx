@@ -478,7 +478,9 @@ export default function ProfileScreen({ navigation }: any) {
         <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
           <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
         </TouchableOpacity>
-
+        <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>
+          <Text style={styles.settingsButtonText}>⚙️ Settings</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.logoutButton, loggingOut && styles.logoutButtonDisabled]}
           onPress={handleLogout}
@@ -610,6 +612,19 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  settingsButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  settingsButtonText: {
+    color: '#374151',
     fontSize: 18,
     fontWeight: '600',
   },
