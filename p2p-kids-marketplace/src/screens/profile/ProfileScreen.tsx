@@ -46,6 +46,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [pendingReferralNotice, setPendingReferralNotice] = useState<string | null>(null);
+  const [pendingBadgeText, setPendingBadgeText] = useState('We\'re reviewing your ID. Usually within 24h.');
 
   useEffect(() => {
     loadProfile();
@@ -104,6 +105,12 @@ export default function ProfileScreen({ navigation }: any) {
       try {
         const vStatus = await idBadgeService.getVerificationStatus(authUser.id);
         setVerificationStatus(vStatus);
+        
+        // Fetch dynamic pending text
+        const pendingText = await idBadgeService.getMessage('pending_status_text');
+        if (pendingText) {
+          setPendingBadgeText(pendingText);
+        }
       } catch (error) {
         console.warn('Error loading verification status:', error);
       }
@@ -322,7 +329,7 @@ export default function ProfileScreen({ navigation }: any) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.pendingText}>Verification Pending</Text>
-              <Text style={styles.pendingSubtext}>We're reviewing your ID. Usually within 24h.</Text>
+              <Text style={styles.pendingSubtext}>{pendingBadgeText}</Text>
             </View>
           </TouchableOpacity>
         ) : verificationStatus?.status === 'rejected' ? (

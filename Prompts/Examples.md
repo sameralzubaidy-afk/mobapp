@@ -44,20 +44,14 @@ Supabase: supabase/
 -----
 My Example 1
 
-MODULE-10-ID-BADGE-VERIFICATION-V2.md
-MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md
-
-
-
-## TASK BADGE-011: ID Badge Submission & Decision Notifications
 
 
 I’m working on the  MODULE-10-ID-BADGE-VERIFICATION-V2.md tasks
 Module: MODULE-10-ID-BADGE-VERIFICATION-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK BADGE-011: ID Badge Submission & Decision Notifications
+Tasks: ## TASK BADGE-012: Admin Configurable Messages for ID Badge System
 
 scope is 
-Implement multi-channel notifications for ID badge verification events. Send web push + in-app + email to user on submission confirmation. Send web push to admin on new submission. Send web push + in-app + email to user on approval/rejection (with decision reason). All messages loaded from configurable `id_badge_verification_messages` table. Respect user notification preferences.
+Create admin page at `/admin/ID-badges/messages/` to edit all ID badge verification messages. Display all 12 message templates in editable form. Show message key and description. Support template variables info (e.g., `{first_name}`, `{rejection_reason}`, `{admin_notes}`). Save changes to `id_badge_verification_messages` table. Show visual preview of how messages appear in app/email.
 
 Please
 

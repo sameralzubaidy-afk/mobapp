@@ -36,6 +36,9 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
     pendingRequestId: null,
   });
   const [disclaimerText, setDisclaimerText] = useState('');
+  const [submitButtonLabel, setSubmitButtonLabel] = useState('Submit for Verification');
+  const [pendingStatusText, setPendingStatusText] = useState('You already have a pending verification request. We will review it within 24 hours and notify you of the decision.');
+  const [submissionSuccessText, setSubmissionSuccessText] = useState('Your verification request has been submitted. We will review it within 24 hours and notify you of the decision via email and push notification.');
   const [hasActivePending, setHasActivePending] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -53,21 +56,27 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
       }
       setUser(authUser);
 
-      // Fetch configurable disclaimer message
-      const disclaimer = await idBadgeService.getMessage('upload_disclaimer');
-      setDisclaimerText(
-        disclaimer ||
-          'We will not store your ID image. It will be deleted after verification.'
-      );
+      // Fetch configurable messages
+      const [disclaimer, submitLabel, pendingText, successText] = await Promise.all([
+        idBadgeService.getMessage('upload_disclaimer'),
+        idBadgeService.getMessage('submit_button_label'),
+        idBadgeService.getMessage('pending_status_text'),
+        idBadgeService.getMessage('in_app_submission_notification'),
+      ]);
+
+      if (disclaimer) setDisclaimerText(disclaimer);
+      else setDisclaimerText('We will not store your ID image. It will be deleted after verification.');
+
+      if (submitLabel) setSubmitButtonLabel(submitLabel);
+      if (pendingText) setPendingStatusText(pendingText);
+      if (successText) setSubmissionSuccessText(successText);
 
       // Check if user has pending request
       const pending = await idBadgeService.checkPendingRequest(authUser.id);
       setHasActivePending(pending !== null);
     } catch (error) {
       console.error('Error loading:', error);
-      setDisclaimerText(
-        'We will not store your ID image. It will be deleted after verification.'
-      );
+      setDisclaimerText('We will not store your ID image. It will be deleted after verification.');
     } finally {
       setLoading(false);
     }
@@ -167,7 +176,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
 
       Alert.alert(
         'Submitted Successfully',
-        'Your verification request has been submitted. We will review it within 24 hours.'
+        submissionSuccessText
       );
 
       setTimeout(() => {
@@ -202,8 +211,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
           <Text style={styles.statusEmoji}>⏳</Text>
           <Text style={[styles.title, { textAlign: 'center' }]}>Verification Pending</Text>
           <Text style={[styles.message, { textAlign: 'center' }]}>
-            You already have a pending verification request. We will review it
-            within 24 hours and notify you of the decision.
+            {pendingStatusText}
           </Text>
           <TouchableOpacity
             style={[styles.backButton, { width: '100%' }]}
@@ -223,9 +231,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
           <Text style={styles.statusEmoji}>✅</Text>
           <Text style={[styles.successTitle, { textAlign: 'center' }]}>Submitted Successfully</Text>
           <Text style={[styles.successMessage, { textAlign: 'center' }]}>
-            Your verification request has been submitted. We will review it within
-            24 hours and notify you of the decision via email and push
-            notification.
+            {submissionSuccessText}
           </Text>
           <TouchableOpacity
             style={[styles.backButton, { width: '100%' }]}
@@ -300,7 +306,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
           {state.uploading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Submit for Verification</Text>
+            <Text style={styles.submitButtonText}>{submitButtonLabel}</Text>
           )}
         </TouchableOpacity>
 

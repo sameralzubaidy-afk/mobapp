@@ -115,14 +115,22 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Admin rejects request with reason + notes
   - Rejection reason and notes saved to database
   - Queue stats update after each decision
-  - Navigation link "ID Badges" visible in admin layout
+  - Navigation links "ID Badges" and "ID Messages" visible in admin layout
+  - Admin navigates to `/id-badges/messages` configuration page
+  - All 12 message templates load correctly with template variable reference
+  - Admin edits a message, saves, and change persists
+  - Template variables (`{first_name}`, `{rejection_reason}`, `{admin_notes}`, `{approval_timeframe_hours}`) preserved in saved messages
+  - Validation prevents saving empty messages
+  - Changes to messages reflected in actual notifications sent to users
 - Required checks:
   - RLS policies: admin can view all requests
   - Storage bucket: `id-badge-verification-screenshots` exists with proper RLS
   - Screenshot deletion is idempotent (no error if already deleted)
   - Signed URLs expire after 1 hour
-- Dependencies: BADGE-008 (schema), BADGE-009 (mobile upload flow)
-- Testing: Manual test guide at `/BADGE-010-MANUAL-TESTING-GUIDE.md`
+  - Messages table: admin can UPDATE, all users can SELECT
+  - API endpoints: GET `/api/admin/id-badges/messages` and PUT `/api/admin/id-badges/messages/:messageId` working
+- Dependencies: BADGE-008 (schema), BADGE-009 (mobile upload flow), BADGE-012 (messages configuration)
+- Testing: Manual test guides at `/BADGE-010-MANUAL-TESTING-GUIDE.md` and `/BADGE-012-MANUAL-TESTING-GUIDE.md`
   - Tap a conversation -> Chat opens and that conversation’s unread badge clears on returning to the list.
   - New incoming message (other user) increments unread badge until the conversation is opened again.
   - After a trade is completed, messages in that trade get an `expires_at` timestamp (trade completion + configured retention days) and are later soft-deleted by the MSG-004 expiration job.
