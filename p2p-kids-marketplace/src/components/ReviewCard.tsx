@@ -7,6 +7,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, Alert } from 'react-na
 import { Ionicons } from '@expo/vector-icons';
 import { Review, reportReview } from '@/services/review';
 import { StarRating } from '@/components/StarRating';
+import Avatar from '@/components/atoms/Avatar';
 
 interface ReviewCardProps {
   review: Review;
@@ -92,15 +93,13 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        {reviewerImage ? (
-          <Image source={{ uri: reviewerImage }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>
-              {reviewerName.charAt(0).toUpperCase()}
-            </Text>
-          </View>
-        )}
+        <Avatar
+          imageUrl={reviewerImage || undefined}
+          name={reviewerName}
+          size={40}
+          verificationStatus={(review.is_anonymous ? 'none' : review.reviewer?.verification_status) as any}
+          style={{ marginRight: 12 }}
+        />
 
         <View style={styles.headerInfo}>
           <Text style={styles.reviewerName}>{reviewerName}</Text>

@@ -20,6 +20,7 @@ export interface Review {
     first_name: string;
     last_name: string;
     profile_image_url: string | null;
+    verification_status?: 'none' | 'pending' | 'approved';
   };
 }
 
@@ -38,6 +39,7 @@ async function buildReviewerFromProfile(profile: any): Promise<Review['reviewer'
     first_name: firstName || 'User',
     last_name: rest.join(' '),
     profile_image_url: avatarUrl,
+    verification_status: profile?.verification_status || 'none',
   };
 }
 
@@ -162,6 +164,7 @@ export async function getUserReviews(userId: string): Promise<{
     let reviewerProfiles: any[] = [];
 
     if (reviewerIds.length) {
+      // Get profiles and verification status
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('user_id, name, avatar_url')
@@ -169,8 +172,20 @@ export async function getUserReviews(userId: string): Promise<{
 
       if (profileError) {
         console.error('Get reviewer profiles error:', profileError);
-      } else {
-        reviewerProfiles = profileData || [];
+      } else if (profileData) {
+        // Fetch verification status for these users
+        const { data: verificationData } = await supabase
+          .from('id_badge_verification_requests')
+          .select('user_id, status')
+          .in('user_id', reviewerIds)
+          .order('created_at', { ascending: false });
+        
+        reviewerProfiles = profileData.map(p => {
+          // Find latest verification request for this user
+          const userRequests = verificationData?.filter(v => v.user_id === p.user_id) || [];
+          const vStatus = userRequests.length > 0 ? userRequests[0].status : 'none';
+          return { ...p, verification_status: vStatus };
+        });
       }
     }
 

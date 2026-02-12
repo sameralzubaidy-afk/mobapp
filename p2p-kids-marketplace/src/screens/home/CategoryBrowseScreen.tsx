@@ -23,6 +23,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { fetchListingsByCategory } from '../../services/discovery';
 import { CategoryResult } from '../../types/discovery';
 import { trackEvent } from '../../services/analytics';
+import Avatar from '../../components/atoms/Avatar';
 
 type ParamList = {
   CategoryBrowse: {
@@ -102,6 +103,16 @@ export default function CategoryBrowseScreen() {
     >
       <View style={styles.imagePlaceholder}>
         <Text style={styles.placeholderEmoji}>📦</Text>
+        {item.seller && (
+          <View style={styles.sellerAvatarOverlay}>
+            <Avatar
+              imageUrl={item.seller.avatar_url || undefined}
+              name={item.seller.name}
+              size={32}
+              verificationStatus={item.seller.verification_status}
+            />
+          </View>
+        )}
       </View>
       
       <View style={styles.itemDetails}>
@@ -238,6 +249,14 @@ const styles = StyleSheet.create({
   },
   placeholderEmoji: {
     fontSize: 40,
+  },
+  sellerAvatarOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderRadius: 16,
+    padding: 2,
   },
   itemDetails: {
     padding: 10,

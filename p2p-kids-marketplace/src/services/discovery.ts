@@ -57,7 +57,14 @@ export async function searchListings(
       sp_eligible_only: spEligibleOnly,
     });
 
-    return (data as SearchResult[]) || [];
+    return (data || []).map((item: any) => ({
+      ...item,
+      seller: item.seller_name ? {
+        name: item.seller_name,
+        avatar_url: item.seller_avatar_url,
+        verification_status: item.seller_verification_status
+      } : undefined
+    }));
   } catch (err) {
     console.error('[searchListings] Error:', err);
     throw new Error(
@@ -110,7 +117,14 @@ export async function searchListingsByCategory(
       offset,
     });
 
-    return (data as CategoryResult[]) || [];
+    return (data || []).map((item: any) => ({
+      ...item,
+      seller: item.seller_name ? {
+        name: item.seller_name,
+        avatar_url: item.seller_avatar_url,
+        verification_status: item.seller_verification_status
+      } : undefined
+    }));
   } catch (err) {
     console.error('[searchListingsByCategory] Error:', err);
     throw new Error(
@@ -204,7 +218,14 @@ export async function searchListingsByCategoryAndQuery(
       sp_eligible_only: spEligibleOnly,
     });
 
-    return (data as SearchResult[]) || [];
+    return (data || []).map((item: any) => ({
+      ...item,
+      seller: item.seller_name ? {
+        name: item.seller_name,
+        avatar_url: item.seller_avatar_url,
+        verification_status: item.seller_verification_status
+      } : undefined
+    }));
   } catch (err) {
     console.error('[searchListingsByCategoryAndQuery] Error:', err);
     throw new Error(
@@ -256,7 +277,14 @@ export async function getRecommendations(
       limit,
     });
 
-    return (data as Recommendation[]) || [];
+    return (data || []).map((item: any) => ({
+      ...item,
+      seller: item.seller_name ? {
+        name: item.seller_name,
+        avatar_url: item.seller_avatar_url,
+        verification_status: item.seller_verification_status
+      } : undefined
+    }));
   } catch (err) {
     console.error('[getRecommendations] Error:', err);
     // Return empty array on error instead of throwing

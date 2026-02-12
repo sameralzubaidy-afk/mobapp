@@ -45,13 +45,14 @@ Supabase: supabase/
 My Example 1
 
 
+## TASK BADGE-013: ID Badge Status Display on User Profile
 
 I’m working on the  MODULE-10-ID-BADGE-VERIFICATION-V2.md tasks
 Module: MODULE-10-ID-BADGE-VERIFICATION-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK BADGE-012: Admin Configurable Messages for ID Badge System
+Tasks: ## TASK BADGE-013: ID Badge Status Display on User Profile
 
 scope is 
-Create admin page at `/admin/ID-badges/messages/` to edit all ID badge verification messages. Display all 12 message templates in editable form. Show message key and description. Support template variables info (e.g., `{first_name}`, `{rejection_reason}`, `{admin_notes}`). Save changes to `id_badge_verification_messages` table. Show visual preview of how messages appear in app/email.
+Update user profile screen to show ID badge verification status. Display "Pending Approval" subtle badge below avatar if request is pending. Show "Upgrade to Verified" CTA if not verified and system enabled. Show verification status section with submission date (if pending), decision date (if decided), rejection reason (if rejected), ability to submit new request or view history.
 
 Please
 

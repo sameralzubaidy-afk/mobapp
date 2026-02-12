@@ -50,6 +50,7 @@ export interface Item {
     name: string;
     avatar_url: string | null;
     node_id: string | null;
+    verification_status?: string;
     node?: {
       id: string;
       name: string;
@@ -137,10 +138,22 @@ export const getItems = async (
     const sellerIds = [...new Set(filteredItems.map((i: { seller_id: string }) => i.seller_id))];
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('user_id, name, avatar_url, node_id')
+      .select(`
+        user_id, 
+        name, 
+        avatar_url, 
+        node_id,
+        verification:id_badge_verification_requests(status)
+      `)
       .in('user_id', sellerIds);
 
-    const profileMap = new Map<string, any>((profiles || []).map((p: any) => [p.user_id, p]));
+    const profileMap = new Map<string, any>((profiles || []).map((p: any) => [
+      p.user_id, 
+      {
+        ...p,
+        verification_status: p.verification?.[0]?.status || 'none'
+      }
+    ]));
 
     // Step 3: Apply node filter (after fetching profiles)
     if (filters.node_id && !filters.include_all_nodes) {
@@ -199,6 +212,7 @@ export const getItems = async (
           avatar_url: profile.avatar_url,
           node_id: profile.node_id,
           node: node || null,
+          verification_status: profile.verification_status,
         } : undefined,
         category: category || null,
         images: itemImages,
@@ -335,10 +349,22 @@ export const getItemsWithinRadius = async (
     const itemSellerIds = [...new Set(itemsList.map((i: { seller_id: string }) => i.seller_id))];
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('user_id, name, avatar_url, node_id')
+      .select(`
+        user_id, 
+        name, 
+        avatar_url, 
+        node_id,
+        verification:id_badge_verification_requests(status)
+      `)
       .in('user_id', itemSellerIds);
 
-    const profileMap = new Map<string, any>((profiles || []).map((p: any) => [p.user_id, p]));
+    const profileMap = new Map<string, any>((profiles || []).map((p: any) => [
+      p.user_id, 
+      {
+        ...p,
+        verification_status: p.verification?.[0]?.status || 'none'
+      }
+    ]));
 
     // Fetch node details
     const nodeIdList = Array.from(profileMap.values()).map((p: any) => p.node_id).filter(Boolean) as string[];
@@ -384,6 +410,7 @@ export const getItemsWithinRadius = async (
           avatar_url: profile.avatar_url,
           node_id: profile.node_id,
           node: node || null,
+          verification_status: profile.verification_status,
         } : undefined,
         category: category || null,
         images: itemImages,
@@ -429,7 +456,8 @@ export const getItemById = async (itemId: string): Promise<Item | null> => {
             name,
             city,
             state
-          )
+          ),
+          verification:id_badge_verification_requests(status)
         ),
         category:categories(id, name, icon),
         images:item_images(id, url, thumbnail_url, display_order)
@@ -461,6 +489,13 @@ export const getItemById = async (itemId: string): Promise<Item | null> => {
         category: categoryRes.data,
         images: imagesRes.data || []
       } as Item;
+    }
+
+    if (data) {
+      const seller = (data as any).seller;
+      if (seller && seller.verification) {
+        seller.verification_status = seller.verification[0]?.status || 'none';
+      }
     }
 
     return data as Item;

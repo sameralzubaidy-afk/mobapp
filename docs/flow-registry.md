@@ -157,11 +157,13 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-20: Audit/Logging
 - Smoke: (manual)
 
-### FLOW-21: ID Verification — Manual ID Badge Verification (BADGE-009)
+### FLOW-21: ID Verification — Manual ID Badge Verification (BADGE-009, BADGE-013)
 
-- Purpose: Allow users to voluntarily submit a government ID image for manual admin review. On admin approval the user receives a Verified badge on their profile; on rejection they receive a reason and may resubmit. The flow is privacy-first: screenshots are stored only temporarily and deleted immediately after decision.
+- Purpose: Allow users to voluntarily submit a government ID image for manual admin review. On admin approval the user receives a Verified badge on their profile; on rejection they receive a reason and may resubmit. Profile screen displays verification status dynamically. The flow is privacy-first: screenshots are stored only temporarily and deleted immediately after decision.
 
-- Smoke: `BADGE-009-MANUAL-TESTING-GUIDE.md` (20 test cases)
+- Smoke: 
+  - `BADGE-009-MANUAL-TESTING-GUIDE.md` (20 test cases - Upload Flow)
+  - `BADGE-013-MANUAL-TESTING-GUIDE.md` (20 test cases - Profile Display)
   - Mobile upload screen (`IDVerificationUploadScreen`) functional with camera + gallery picker
   - Disclaimer text loaded from `id_badge_verification_messages` table (configurable)
   - User uploads ID and receives in-app confirmation + email
@@ -180,6 +182,18 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Profile screen shows "Resubmit Verification" button
   - Upload UI prevents duplicate submissions while a `pending` request exists for the same user (shows "Verification Pending" message instead)
   - Navigation route: `IDVerificationUpload` added to AppNavigator (authenticated stack)
+  - **BADGE-013: Profile Display Integration**
+    - `ProfileScreen.tsx` displays Identity Verification section with dynamic status badges
+    - Four status states: None (Upgrade CTA), Pending, Approved, Rejected
+    - Pending b
+    - `src/__tests__/e2e/idBadgeUpload.e2e.test.ts` (upload flow, requires SUPABASE_E2E_ENABLED=true)
+    - `src/__tests__/e2e/idBadgeProfileDisplay.e2e.test.ts` (profile status display, ynamic text from `pending_status_text` configurable message
+    - Approved badge: Green checkmark (✅), green background, "Identity Verified" permanent display
+    - Rejected badge: Red X (❌), red background, displays rejection reason (formatted with spaces), tappable to resubmit
+    - Default (None): Shield emoji (🛡️), blue background, "Upgrade to Verified" CTA, tappable to navigate to upload screen
+    - Status loads dynamically on profile mount and refresh (uses `idBadgeService.getVerificationStatus()`)
+    - Most recent verification request displayed (if multiple requests exist from same user)
+    - Status persists across app restarts (fetched from database)
 
 - Automated (offline):
   - Unit tests: `src/services/__tests__/idBadge.test.ts` (getMessage, checkPendingRequest, getVerificationStatus)
@@ -234,12 +248,18 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Tier 0 (always):
   - TypeScript compile: `npm run typecheck` or `npx tsc -p tsconfig.json --noEmit` (must pass with no errors)
   - ESLint: `npm run lint` (must pass with no warnings)
-  - Unit tests: `npm test -- idBadge.test.ts` (must pass all test cases)
-
-- Tier 1 (targeted regression when upload/admin review flow changes):
-  - Manual smoke: Run test cases TC1-TC8 (mobile upload), TC9-TC15 (admin review + notifications) from BADGE-009-MANUAL-TESTING-GUIDE.md
-  - E2E: `SUPABASE_E2E_ENABLED=true npm test -- idBadgeUpload.e2e.test.ts` (if Supabase prod credentials available)
-
+  - Unit tests: `npm test -- idBadge.test.ts` (must pa/profile display flow changes):
+  - Manual smoke: 
+    - BADGE-009: Run TC1-TC8 (mobile upload), TC9-TC15 (admin review + notifications) from `BADGE-009-MANUAL-TESTING-GUIDE.md`
+    - BADGE-013: Run TC1-TC10 (profile status display, navigation, status transitions) from `BADGE-013-MANUAL-TESTING-GUIDE.md`
+  - E2E: 
+    - `SUPABASE_E2E_ENABLED=true npm test -- idBadgeUpload.e2e.test.ts` (upload flow)
+    - `TEST_USER_ID=[uuid] SUPABASE_E2E_ENABLED=true npm test -- idBadgeProfileDisplay.e2e.test.ts` (profile display
+  - Manual smoke: Run test case`BADGE-009-MANUAL-TESTING-GUIDE.md` (upload + admin review)
+  - Run all 20 test cases from `BADGE-013-MANUAL-TESTING-GUIDE.md` (profile display + status transitions)
+  - Verify RLS: users cannot see other users' requests (BADGE-009 TC19, BADGE-013 RLS policy tests)
+  - Verify stats calculation: admin stats match database query results (BADGE-009 TC20)
+  - Verify profile status updates after admin approval/rejection (BADGE-013 TC5, TC7
 - Tier 2 (full regression when DB schema/RLS/migration changes):
   - Rebuild database: `supabase db reset` (staging or test instance)
   - Verify migration: confirm all tables/enums/indexes/policies created correctly

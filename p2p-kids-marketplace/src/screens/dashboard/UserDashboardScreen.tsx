@@ -17,6 +17,8 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
+import Avatar from '../../components/atoms/Avatar';
+import { idBadgeService } from '@/services/idBadge';
 
 import CategorySelector from '../../components/molecules/CategorySelector';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
@@ -32,12 +34,27 @@ export default function UserDashboardScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [daysUntilExpiry] = useState<number | null>(null); // TODO: show days until expiry when needed
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const hasRefreshedRef = useRef(false);
+
+  const loadVerificationStatus = async () => {
+    if (session?.user?.id) {
+      try {
+        const status = await idBadgeService.getVerificationStatus(session.user.id);
+        setVerificationStatus(status?.status || null);
+      } catch (error) {
+        console.warn('[Dashboard] Failed to load verification status:', error);
+      }
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await refreshSession();
+      await Promise.all([
+        refreshSession(),
+        loadVerificationStatus()
+      ]);
     } catch (error) {
       console.error('[Dashboard] Manual refresh failed:', error);
     } finally {
@@ -49,8 +66,9 @@ export default function UserDashboardScreen() {
   useEffect(() => {
     if (isFocused) {
       console.log('[Dashboard] Wallet hook data:', wallet);
+      loadVerificationStatus();
     }
-  }, [isFocused, wallet]);
+  }, [isFocused, wallet, session?.user?.id]);
 
   // Refresh data when screen comes into focus
   useEffect(() => {
@@ -160,25 +178,24 @@ export default function UserDashboardScreen() {
 
         {/* User Profile Card */}
         <View style={styles.profileCard}>
-          <View style={styles.profileContent}>
+          <TouchableOpacity 
+            style={styles.profileContent}
+            onPress={() => navigation.navigate('Profile')}
+          >
             <View style={styles.avatarContainer}>
-              {session.user.avatar_url ? (
-                <Image
-                  source={{ uri: session.user.avatar_url }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarEmoji}>👤</Text>
-                </View>
-              )}
+              <Avatar 
+                imageUrl={session.user.avatar_url} 
+                size={60} 
+                verificationStatus={verificationStatus as any}
+                name={session.user.display_name || session.user.email}
+              />
             </View>
 
             <View style={styles.profileInfo}>
               <Text style={styles.userName}>{session.user.display_name || session.user.email || 'User'}</Text>
               <Text style={styles.userEmail}>{session.user.email || ''}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Subscription Card */}

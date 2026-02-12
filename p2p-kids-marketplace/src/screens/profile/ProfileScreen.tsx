@@ -26,6 +26,7 @@ import { ReviewCard } from '@/components/ReviewCard';
 import { StarRating } from '@/components/StarRating';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 import { ReferralRewardsService } from '@/services/referralRewards';
+import Avatar from '@/components/atoms/Avatar';
 // generated `Database` types may be missing locally; use a permissive fallback
 // to avoid type errors until DB types are generated.
 import BottomNavBar from '@/components/organisms/BottomNavBar';
@@ -129,7 +130,7 @@ export default function ProfileScreen({ navigation }: any) {
         const eligibility = await ReferralCodeServiceV2.checkEligibility(authUser.id);
         if (eligibility.rewards_pending) {
           const config = await ReferralRewardsService.getConfiguredRewardAmounts();
-          const actions = [];
+          const actions: string[] = [];
           if (config.first_listing_enabled) actions.push("list your first item");
           if (config.first_trade_enabled) actions.push("complete one trade");
           
@@ -273,19 +274,12 @@ export default function ProfileScreen({ navigation }: any) {
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Avatar and Name */}
       <View style={styles.profileHeader}>
-        {profile.avatar_url ? (
-          <Image
-            key={profile.avatar_url}
-            source={{ uri: profile.avatar_url }}
-            style={styles.avatar}
-          />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarPlaceholderText}>
-              {profile.name?.charAt(0).toUpperCase() || '?'}
-            </Text>
-          </View>
-        )}
+        <Avatar 
+          imageUrl={profile.avatar_url} 
+          size={100} 
+          verificationStatus={verificationStatus?.status}
+          name={profile.name}
+        />
         <Text style={styles.displayName}>{profile.name || 'Anonymous User'}</Text>
         {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
       </View>

@@ -23,6 +23,12 @@ export interface SearchResult {
   updated_at: string;
   /** Relevance score from full-text search (0-1) */
   relevance: number;
+  /** Seller information for trust signals */
+  seller?: {
+    name: string;
+    avatar_url: string | null;
+    verification_status: 'none' | 'pending' | 'approved';
+  };
 }
 
 /**
@@ -40,6 +46,12 @@ export interface CategoryResult {
   condition: string | null;
   created_at: string;
   updated_at: string;
+  /** Seller information for trust signals */
+  seller?: {
+    name: string;
+    avatar_url: string | null;
+    verification_status: 'none' | 'pending' | 'approved';
+  };
 }
 
 /**
@@ -86,4 +98,10 @@ export interface Recommendation {
   updated_at: string;
   /** Score for recommendation (higher = better for user) */
   score: number;
+  /** Seller information for trust signals */
+  seller?: {
+    name: string;
+    avatar_url: string | null;
+    verification_status: 'none' | 'pending' | 'approved';
+  };
 }

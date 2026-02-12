@@ -228,6 +228,8 @@ export interface Conversation {
   trade_id: string;
   other_user_id: string;
   other_user_name: string;
+  other_user_avatar_url?: string | null;
+  other_user_verification_status?: 'none' | 'pending' | 'approved';
   listing_title: string;
   listing_price: number;
   last_message_content: string;
@@ -295,30 +297,37 @@ export async function getConversations(
         // Determine other user (the one we're chatting with)
         const otherUserId = trade.buyer_id === userId ? trade.seller_id : trade.buyer_id;
 
-        // Fetch other user's name from profiles table (main public table for names)
+        // Fetch other user's name, avatar and verification status
         let otherUserName = 'Unknown';
+        let otherUserAvatarUrl = null;
+        let otherUserVerificationStatus: 'none' | 'pending' | 'approved' = 'none';
+
         try {
           const { data: otherProfile } = await supabase
             .from('profiles')
-            .select('name')
+            .select('name, avatar_url')
             .eq('user_id', otherUserId)
             .single();
 
-          if (otherProfile?.name) {
-            otherUserName = otherProfile.name;
-          } else {
-            // Fallback to searching users table if first_name exists there
-            const { data: otherUser } = await supabase
-              .from('users')
-              .select('first_name')
-              .eq('id', otherUserId)
-              .single();
-            if (otherUser?.first_name) {
-              otherUserName = otherUser.first_name;
-            }
+          if (otherProfile) {
+            otherUserName = otherProfile.name || 'Unknown';
+            otherUserAvatarUrl = otherProfile.avatar_url;
           }
-        } catch {
-          console.warn('[chat.getConversations] Could not fetch profile name for', otherUserId);
+
+          // Fetch verification status from id_badge_verification_requests
+          const { data: verificationData } = await supabase
+            .from('id_badge_verification_requests')
+            .select('status')
+            .eq('user_id', otherUserId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (verificationData) {
+            otherUserVerificationStatus = verificationData.status as 'none' | 'pending' | 'approved';
+          }
+        } catch (error) {
+          console.warn('[chat.getConversations] Could not fetch profile or verification status for', otherUserId, error);
         }
 
         // Get unread count based on last time user viewed this trade
@@ -351,6 +360,8 @@ export async function getConversations(
           trade_id: trade.id,
           other_user_id: otherUserId,
           other_user_name: otherUserName,
+          other_user_avatar_url: otherUserAvatarUrl,
+          other_user_verification_status: otherUserVerificationStatus,
           listing_title: trade.listing?.title || 'Unknown Item',
           listing_price: trade.listing?.price || 0,
           last_message_content: lastMessage.content,

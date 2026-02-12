@@ -28,6 +28,7 @@ import { getConversations, markAsRead, Conversation } from '@/services/chat';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/config/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import Avatar from '@/components/atoms/Avatar';
 
 export default function ConversationsListScreen() {
   const navigation = useNavigation<any>();
@@ -152,11 +153,12 @@ export default function ConversationsListScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.avatarContainer}>
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarText}>
-              {item.other_user_name.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <Avatar
+            imageUrl={item.other_user_avatar_url || undefined}
+            name={item.other_user_name}
+            size={50}
+            verificationStatus={item.other_user_verification_status}
+          />
           {item.unread_count > 0 && (
             <View style={styles.unreadBadge}>
               <Text style={styles.unreadText}>
@@ -342,19 +344,6 @@ const styles = StyleSheet.create({
   avatarContainer: {
     position: 'relative',
     marginRight: 12,
-  },
-  avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#3B82F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
   unreadBadge: {
     position: 'absolute',

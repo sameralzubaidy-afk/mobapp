@@ -31,6 +31,7 @@ import { getItems, getItemsWithinRadius, type Item, type ItemFilters } from '@/s
 import { calculateDistanceBetweenNodes, getUserPreferredRadius, saveUserPreferredRadius } from '@/services/location';
 import { trackEvent } from '@/services/analytics';
 import RadiusSlider from '@/components/RadiusSlider';
+import Avatar from '@/components/atoms/Avatar';
 
 export default function BrowseItemsScreen() {
   const { user } = useUserStore();
@@ -345,11 +346,21 @@ export default function BrowseItemsScreen() {
           </View>
 
           {/* Swap Points Badge (MODULE-04) */}
-          {item.accepts_swap_points && (
-            <View style={styles.spBadge}>
-              <Text style={styles.spBadgeText}>⚡ SP Eligible</Text>
-            </View>
-          )}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+            {item.accepts_swap_points ? (
+              <View style={styles.spBadge}>
+                <Text style={styles.spBadgeText}>⚡ SP Eligible</Text>
+              </View>
+            ) : <View />}
+            {item.seller && (
+              <Avatar 
+                imageUrl={item.seller.avatar_url || undefined} 
+                name={item.seller.name} 
+                size={20} 
+                verificationStatus={item.seller.verification_status as any} 
+              />
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );

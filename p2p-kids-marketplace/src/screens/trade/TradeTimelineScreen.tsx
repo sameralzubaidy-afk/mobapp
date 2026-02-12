@@ -28,6 +28,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Ionicons } from '@expo/vector-icons';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
+import Avatar from '@/components/atoms/Avatar';
 
 type TradeTimelineRouteProp = RouteProp<RootStackParamList, 'TradeTimeline'>;
 
@@ -47,6 +48,7 @@ export default function TradeTimelineScreen() {
   const [hasReviewed, setHasReviewed] = useState(false);
   const [otherUserReviewed, setOtherUserReviewed] = useState(false);
   const [revieweeId, setRevieweeId] = useState<string>('');
+  const [counterpartyProfile, setCounterpartyProfile] = useState<any>(null);
 
   const fetchTrade = useCallback(async () => {
     try {
@@ -58,10 +60,28 @@ export default function TradeTimelineScreen() {
         .single();
 
       if (error) throw error;
-      setTrade(data as any);
+      const tradeData = data as any;
+      setTrade(tradeData);
+
+      // Fetch counterparty profile
+      const otherPersonId = user?.id === tradeData.buyer_id ? tradeData.seller_id : tradeData.buyer_id;
+      if (otherPersonId) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('user_id, name, avatar_url, verification:id_badge_verification_requests(status)')
+          .eq('user_id', otherPersonId)
+          .single();
+        
+        if (profile) {
+          setCounterpartyProfile({
+            ...profile,
+            verification_status: (profile as any).verification?.[0]?.status || 'none'
+          });
+        }
+      }
 
       // Check mutual review status (only for completed trades)
-      if (user?.id && (data as any).status === 'completed') {
+      if (user?.id && tradeData.status === 'completed') {
         const revieweeUserId = (data as any).buyer_id === user.id 
           ? (data as any).seller_id 
           : (data as any).buyer_id;
@@ -332,7 +352,16 @@ export default function TradeTimelineScreen() {
           style={[styles.button, styles.messageButton]}
           onPress={handleOpenChat}
         >
-          <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+          {counterpartyProfile ? (
+            <Avatar 
+              imageUrl={counterpartyProfile.avatar_url} 
+              name={counterpartyProfile.name} 
+              size={24} 
+              verificationStatus={counterpartyProfile.verification_status} 
+            />
+          ) : (
+            <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+          )}
           <Text style={styles.messageButtonText}>Message {isBuyer ? 'Seller' : 'Buyer'}</Text>
         </Pressable>
 

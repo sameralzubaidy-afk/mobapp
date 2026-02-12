@@ -92,7 +92,7 @@ export const ReferralDashboardScreen: React.FC = () => {
     let bonusText = '';
     
     if (rewardsConfig.program_enabled) {
-      const bonuses = [];
+      const bonuses: string[] = [];
       if (rewardsConfig.first_trade_enabled) {
         bonuses.push(`${rewardsConfig.referee_sp} SP for your first trade`);
       }
@@ -128,7 +128,7 @@ export const ReferralDashboardScreen: React.FC = () => {
   const getPendingActionMessage = () => {
     if (!rewardsConfig.program_enabled) return null;
     
-    const actions = [];
+    const actions: string[] = [];
     if (rewardsConfig.first_listing_enabled) actions.push("list your first item");
     if (rewardsConfig.first_trade_enabled) actions.push("complete one trade");
     

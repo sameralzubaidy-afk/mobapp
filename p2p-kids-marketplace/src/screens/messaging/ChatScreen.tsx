@@ -52,10 +52,15 @@ import {
   markTradeMessagesAsRead,
 } from '@/services/chat';
 
+import Avatar from '@/components/atoms/Avatar';
+import { idBadgeService } from '@/services/idBadge';
+
 type ChatScreenRouteProp = RouteProp<{ Chat: { tradeId: string } }, 'Chat'>;
 
 interface Trade {
   id: string;
+  buyer_id: string;
+  seller_id: string;
   listing?: {
     id: string;
     title: string;
@@ -85,6 +90,7 @@ export default function ChatScreen() {
   const [sendingImage, setSendingImage] = useState(false);
   const [trade, setTrade] = useState<Trade | null>(null);
   const [loadingTrade, setLoadingTrade] = useState(true);
+  const [partnerProfile, setPartnerProfile] = useState<{name: string, avatar_url: string, verification_status: any} | null>(null);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
   const [imageViewerImages, setImageViewerImages] = useState<{ uri: string }[]>([]);
@@ -135,14 +141,44 @@ export default function ChatScreen() {
       setLoadingTrade(true);
       const { data, error } = await supabase
         .from('trades')
-        .select('*, listing:items(id, title, price, images:item_images(id, url, thumbnail_url, display_order))')
+        .select(`
+          id,
+          buyer_id,
+          seller_id,
+          listing:items(id, title, price, images:item_images(id, url, thumbnail_url, display_order))
+        `)
         .eq('id', tradeId)
         .single();
 
       if (error) {
         console.error('[ChatScreen] Error fetching trade:', error);
       } else {
-        setTrade(data as any);
+        const tradeData = data as any;
+        setTrade(tradeData);
+
+        // Fetch partner profile information
+        const partnerId = tradeData.buyer_id === session?.user?.id 
+          ? tradeData.seller_id 
+          : tradeData.buyer_id;
+
+        if (partnerId) {
+          const [{ data: profileData }, vStatus] = await Promise.all([
+            supabase
+              .from('profiles')
+              .select('id, name, avatar_url')
+              .eq('id', partnerId)
+              .single(),
+            idBadgeService.getVerificationStatus(partnerId)
+          ]);
+
+          if (profileData) {
+            setPartnerProfile({
+              name: profileData.name || 'User',
+              avatar_url: profileData.avatar_url,
+              verification_status: vStatus?.status || null
+            });
+          }
+        }
       }
     } catch (error) {
       console.error('[ChatScreen] Unexpected error fetching trade:', error);
@@ -578,23 +614,33 @@ export default function ChatScreen() {
         {loadingTrade ? (
           <ActivityIndicator size="small" color="#3B82F6" />
         ) : listing ? (
-          <View style={styles.itemInfo}>
-            {listingImageUri ? (
-              <Image
-                source={{ uri: listingImageUri }}
-                style={styles.itemImage}
-                resizeMode="cover"
+          <View style={styles.headerInfo}>
+            {partnerProfile && (
+              <Avatar 
+                imageUrl={partnerProfile.avatar_url || undefined}
+                name={partnerProfile.name}
+                size={40}
+                verificationStatus={partnerProfile.verification_status as any}
               />
-            ) : (
-              <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
-                <Text style={styles.itemImagePlaceholderText}>📦</Text>
-              </View>
             )}
-            <View style={styles.itemDetails}>
-              <Text style={styles.itemTitle} numberOfLines={1}>
-                {listing.title}
-              </Text>
-              <Text style={styles.itemPrice}>${(listing.price).toFixed(2)}</Text>
+            <View style={styles.itemInfo}>
+              {listingImageUri ? (
+                <Image
+                  source={{ uri: listingImageUri }}
+                  style={styles.itemImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
+                  <Text style={styles.itemImagePlaceholderText}>📦</Text>
+                </View>
+              )}
+              <View style={styles.itemDetails}>
+                <Text style={styles.itemTitle} numberOfLines={1}>
+                  {listing.title}
+                </Text>
+                <Text style={styles.itemPrice}>${(listing.price).toFixed(2)}</Text>
+              </View>
             </View>
           </View>
         ) : null}
@@ -802,6 +848,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    gap: 12,
+  },
+  headerInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
   backButton: {

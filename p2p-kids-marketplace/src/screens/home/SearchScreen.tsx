@@ -18,7 +18,7 @@ import {
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
-// import { useFocusEffect } from '@react-navigation/native'; // not needed here
+import Avatar from '../../components/atoms/Avatar';
 import { searchListings } from '../../services/discovery';
 import { SearchResult } from '../../types/discovery';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -107,34 +107,47 @@ export const SearchScreen: React.FC<Props> = ({ navigation }) => {
       style={styles.resultCard}
       onPress={() => handleItemPress(item.id)}
     >
-      <View style={styles.resultContent}>
-        <Text style={styles.itemTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-
-        {item.description && (
-          <Text style={styles.itemDescription} numberOfLines={2}>
-            {item.description}
-          </Text>
-        )}
-
-        <View style={styles.resultMeta}>
-          <Text style={styles.priceText}>
-            ${(item.price as number).toFixed(2)}
+      <View style={styles.resultRow}>
+        <View style={styles.resultContent}>
+          <Text style={styles.itemTitle} numberOfLines={2}>
+            {item.title}
           </Text>
 
-          {item.accepts_swap_points && (
-            <Text style={styles.spBadge}>✓ SP Eligible</Text>
+          {item.description && (
+            <Text style={styles.itemDescription} numberOfLines={2}>
+              {item.description}
+            </Text>
           )}
+
+          <View style={styles.resultMeta}>
+            <Text style={styles.priceText}>
+              ${(item.price as number).toFixed(2)}
+            </Text>
+
+            {item.accepts_swap_points && (
+              <Text style={styles.spBadge}>✓ SP Eligible</Text>
+            )}
+          </View>
         </View>
 
-        {/* Dev mode: Show relevance score */}
+        {item.seller && (
+          <View style={styles.sellerContainer}>
+            <Avatar
+              imageUrl={item.seller.avatar_url || undefined}
+              name={item.seller.name}
+              size={40}
+              verificationStatus={item.seller.verification_status}
+            />
+          </View>
+        )}
+      </View>
+
+      {/* Dev mode: Show relevance score */}
         {__DEV__ && (
           <Text style={styles.relevanceText}>
             Relevance: {(item.relevance * 100).toFixed(0)}%
           </Text>
         )}
-      </View>
     </Pressable>
   );
 
@@ -338,8 +351,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   resultContent: {
+    flex: 1,
     gap: 8,
+  },
+  sellerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   itemTitle: {
     fontSize: 16,

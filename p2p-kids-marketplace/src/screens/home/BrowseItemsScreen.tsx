@@ -25,6 +25,7 @@ import RadiusSlider from '@/components/RadiusSlider';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
+import Avatar from '@/components/atoms/Avatar';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -492,9 +493,19 @@ export default function BrowseItemsScreen() {
           )}
 
           {/* Condition */}
-          <Text style={{ fontSize: 11, color: '#999' }}>
-            {item.condition ? item.condition.charAt(0).toUpperCase() + item.condition.slice(1) : 'Good'}
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ fontSize: 11, color: '#999' }}>
+              {item.condition ? item.condition.charAt(0).toUpperCase() + item.condition.slice(1) : 'Good'}
+            </Text>
+            {item.seller && (
+              <Avatar 
+                imageUrl={item.seller.avatar_url || undefined} 
+                name={item.seller.name} 
+                size={20} 
+                verificationStatus={item.seller.verification_status as any} 
+              />
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );

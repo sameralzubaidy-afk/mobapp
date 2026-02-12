@@ -39,6 +39,8 @@ import { trackEvent } from '@/services/analytics';
 import { RootStackParamList } from '@/navigation/types';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import StarRating from '@/components/molecules/StarRating';
+import Avatar from '@/components/atoms/Avatar';
+import { idBadgeService } from '@/services/idBadge';
 
 type ItemDetailScreenRouteProp = RouteProp<RootStackParamList, 'ListingDetail'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -69,6 +71,7 @@ export default function ItemDetailScreen() {
   // Seller info masking (TASK-ITEM-DETAILS-001)
   const [hasActiveTrade, setHasActiveTrade] = useState(false);
   const [sellerRating, setSellerRating] = useState<SellerRatingInfo | null>(null);
+  const [sellerVerificationStatus, setSellerVerificationStatus] = useState<string | null>(null);
   const [loadingSellerInfo, setLoadingSellerInfo] = useState(false);
 
   useEffect(() => {
@@ -96,6 +99,10 @@ export default function ItemDetailScreen() {
       // Get seller rating (always shown)
       const rating = await getSellerRating(listing.seller_id);
       setSellerRating(rating);
+
+      // Get seller verification status
+      const vStatus = await idBadgeService.getVerificationStatus(listing.seller_id);
+      setSellerVerificationStatus(vStatus?.status || null);
     } catch (err) {
       console.error('[ItemDetailScreen] Error loading trade status/rating:', err);
     } finally {
@@ -451,15 +458,12 @@ export default function ItemDetailScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>👤 Seller Info</Text>
               <View style={styles.sellerCard}>
-                {listing.seller.avatar_url ? (
-                  <Image source={{ uri: listing.seller.avatar_url }} style={styles.sellerAvatar} />
-                ) : (
-                  <View style={styles.sellerAvatarPlaceholder}>
-                    <Text style={styles.sellerAvatarText}>
-                      {shouldShowSellerName ? listing.seller.name?.charAt(0).toUpperCase() : '?'}
-                    </Text>
-                  </View>
-                )}
+                <Avatar 
+                  imageUrl={listing.seller.avatar_url || undefined} 
+                  size={50} 
+                  verificationStatus={sellerVerificationStatus as any}
+                  name={shouldShowSellerName ? listing.seller.name : 'Seller'}
+                />
                 
                 <View style={styles.sellerInfo}>
                   {/* Seller Name (Masked if no active trade) */}
