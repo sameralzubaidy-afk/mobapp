@@ -45,14 +45,16 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK BADGE-013: ID Badge Status Display on User Profile
+## TASK SUB-001: Kids Club+ Subscription Tier Schema
 
-I’m working on the  MODULE-10-ID-BADGE-VERIFICATION-V2.md tasks
-Module: MODULE-10-ID-BADGE-VERIFICATION-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK BADGE-013: ID Badge Status Display on User Profile
+
+I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
+Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: ## TASK SUB-001: Kids Club+ Subscription Tier Schema
 
 scope is 
-Update user profile screen to show ID badge verification status. Display "Pending Approval" subtle badge below avatar if request is pending. Show "Upgrade to Verified" CTA if not verified and system enabled. Show verification status section with submission date (if pending), decision date (if decided), rejection reason (if rejected), ability to submit new request or view history.
+Create the subscription tier configuration. For MVP, we have a **single tier** (Kids Club+) but the schema supports future multi-tier expansion. The tier defines pricing, trial period, features, and is admin-configurable.
+
 
 Please
 
@@ -71,9 +73,9 @@ Please
    - You MUST NOT create a parallel implementation
 4.Forbidden: Re-implementing logic that already exists under a different name
 
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-11-VERIFICATION-V2.md
 6. Show me the files you create or edit with their full paths
-7. Tell me which items in MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-10-ID-BADGE-VERIFICATION-VERIFICATION.md
+7. Tell me which items in MODULE-11-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-11-VERIFICATION-V2.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 
@@ -85,10 +87,10 @@ Please
 16.  I am using ISO and Andriod simlators I do not use phsyical devices please consider this for manaul verfication.
 
 
-
+MODULE-11-VERIFICATION-V2.md
 
 my example 2 - to verify
-I want to verify what’s already implemented for MODULE-08-REVIEWS-RATINGS by exeucting the steps in MODULE-08-REVIEWS & RATINGS-VERIFICATION.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/
+I want to verify what’s already implemented for MODULE-08-REVIEWS-RATINGS by exeucting the steps in  MODULE-11-VERIFICATION-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/
  My requirements listed in   /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-08-REVIEWS-RATINGS.md
 
 Please:

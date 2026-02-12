@@ -91,8 +91,23 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Fail-safe: If auth.users signup trigger was missing, a profiles AFTER INSERT trigger applies referral from auth metadata.
   - Back-compat: apply can resolve codes from `referral_codes.code` OR legacy `profiles.referral_code`.
 
-### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period
-- Smoke: (manual)
+### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period + Tier Configuration
+- Smoke: scripts/smoke/subscriptions.mjs (TODO: implement)
+- Manual checks:
+  - **SUB-001 Foundation:**
+    - `subscription_tiers` table exists with Kids Club+ tier seeded correctly ($4.99, 30d trial, 90d grace).
+    - All 7 features seeded: `can_earn_sp`, `can_spend_sp`, `can_donate`, `reduced_fee`, `priority_matching`, `early_access`, `priority_support`.
+    - RLS policies allow public SELECT for active tiers and features.
+    - Service layer: `getActiveSubscriptionTiers()`, `getKidsClubPlusTier()`, `checkTierFeature()` work correctly.
+    - TypeScript types compile without errors.
+  - **Subscription Lifecycle (TODO: SUB-002+):**
+    - User starts trial -> `user_subscriptions.status = 'trial'`.
+    - Trial expires without payment -> transitions to `grace_period`.
+    - User cancels active subscription -> keeps access until period end, then moves to `grace_period`.
+    - Grace period expires (90 days) -> SP wallet permanently deleted, status becomes `expired`.
+- Automated (offline): 
+  - Unit tests: `subscriptionTiers.test.ts` validates service layer functions.
+  - E2E tests: `sub-001-subscription-tiers.e2e.ts` validates database schema and RLS policies.
 
 <!-- Removed duplicate FLOW-13 placeholder; FLOW-13 above is canonical. -->
 

@@ -1,16 +1,25 @@
 # MODULE 11: SUBSCRIPTIONS (Kids Club+)
 
-**Total Tasks:** 12  
-**Estimated Time:** ~30 hours  
+**Total Tasks:** 19  
+**Estimated Time:** ~50 hours  
 **Dependencies:** MODULE-02 (Authentication), MODULE-09 (Points & Gamification)  
-**Version:** 2.0 - Aligned with SYSTEM_REQUIREMENTS_V2.md and BRD V2
+**Version:** 2.1 - Aligned with SYSTEM_REQUIREMENTS_V2.md and BRD V2 + Enhanced Billing (V2.1)
 
 ---
 
-## Changelog (Updated for V2)
+## Changelog (Updated for V2.1)
 
 - **Kids Club+ rebrand** from generic "Swap Club" to subscription-gated SP model
-- **$7.99/month pricing** (changed from $9.99)
+- **$4.99/month pricing** (optimized for kids' market)
+- **V2.1 Additions - Complete Billing Implementation:**
+  - Stripe Payment Sheet integration for in-app payment collection
+  - Payment method storage with SetupIntent for seamless re-subscribe
+  - Smart cancellation flow with "pause" option for better retention
+  - Billing history tracking in new `billing_history` table
+  - Payment failure retry logic (3 retries over 14 days)
+  - Auto-renewal management with toggle in Manage UI
+  - Anniversary billing cycle (charge on subscription date)
+  - Re-subscribe from grace period with existing payment method
 
 ---
 
@@ -3030,3 +3039,572 @@ NEXT TASK: 11-E (Cancellation & Grace Period - SUB-008, SUB-009)
 MICRO-TASK 11-D COMPLETE
 Next: 11-E (Cancellation & Grace Period - SUB-008, SUB-009)
 -->
+
+---
+
+## TASK SUB-014: Enhanced User Subscriptions Schema (Billing & Payment Fields)
+
+**Duration:** 2 hours  
+**Priority:** High  
+**Dependencies:** SUB-002 (User Subscriptions Table), Schema Migration tools
+
+### Description
+
+Extend `user_subscriptions` table with additional fields required for payment management, billing history, and renewal control:
+
+1. **Payment Method Storage:** `stripe_payment_method_id` – securely linked to user's saved payment method
+2. **Billing History:** Fields to track recent charges: `last_payment_date`, `last_payment_amount`, `next_billing_date`
+3. **Payment Retry Logic:** `payment_failed_at`, `payment_retry_count` – track failed charges and auto-retry status
+4. **Auto-Renewal Control:** `auto_renew_enabled` (boolean, default true) – allow users to pause auto-renew
+5. **Cancellation Feedback:** `cancelled_reason` (text) – capture why user cancelled for analytics
+6. **Pause Feature:** `paused_until` (timestamp) – support "pause subscription" instead of cancel
+
+Create companion `billing_history` table to track all transactions:
+- `id`, `user_id`, `subscription_id`, `charge_id` (Stripe reference), `amount`, `currency`, `status` (succeeded/failed/refunded), `charged_at`, `description`
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Extend user_subscriptions schema with billing & payment fields
+
+CONTEXT:
+We have the basic user_subscriptions table. Now we need to add fields
+for payment method storage, billing history tracking, payment failures,
+and auto-renewal control.
+
+REQUIREMENTS:
+1. Add new columns to user_subscriptions:
+   - stripe_payment_method_id (text, nullable)
+   - last_payment_date (timestamp, nullable)
+   - last_payment_amount (integer cents)
+   - next_billing_date (timestamp, nullable)
+   - payment_failed_at (timestamp, nullable)
+   - payment_retry_count (integer, default 0)
+   - auto_renew_enabled (boolean, default true)
+   - paused_until (timestamp, nullable)
+   
+2. Create billing_history table:
+   - id (UUID, pk)
+   - user_id (UUID, FK to auth.users)
+   - subscription_id (UUID, FK to user_subscriptions)
+   - charge_id (text, Stripe invoice ID)
+   - amount (integer, in cents)
+   - currency (text, default 'usd')
+   - status (enum: succeeded, failed, refunded)
+   - charged_at (timestamp)
+   - description (text)
+   - created_at (timestamp, default now)
+   - indexes: (user_id, subscription_id, status, charged_at)
+   - RLS: Users can only view their own billing history
+
+3. Create migration file: supabase/migrations/[timestamp]_add_billing_fields.sql
+
+ACCEPTANCE CRITERIA:
+✓ user_subscriptions has all new billing fields
+✓ billing_history table created with proper indexes
+✓ RLS policies allow users to view own billing history only
+✓ Migration is idempotent (uses IF NOT EXISTS)
+✓ Existing rows work with default values for new columns
+*/\n```
+
+---
+
+## TASK SUB-015: Stripe Payment Sheet Integration (Initial Subscribe & Renew)
+
+**Duration:** 4 hours  
+**Priority:** High  
+**Dependencies:** SUB-002, SUB-006, `@stripe/stripe-react-native` library
+
+### Description
+
+Implement Stripe Payment Sheet for in-app payment collection (mobile-first experience):
+
+1. **Payment Sheet Modal** – Allows users to:
+   - Enter card details securely (or use Apple Pay / Google Pay on iOS/Android)
+   - Save payment method for future charges
+   - See clear subscription details ($4.99/month, 30-day free trial shown, etc.)
+
+2. **SetupIntent Flow**:
+   - When user clicks "Subscribe" or "Re-subscribe", call edge function to create SetupIntent
+   - Edge function returns `client_secret` and `publishable_key`
+   - Payment Sheet collects payment method and confirms setup
+   - Post-confirm, save `payment_method_id` in `user_subscriptions`
+
+3. **Create Subscription Post-Payment**:
+   - After successful payment, call edge function with `payment_method_id`
+   - Edge function creates Stripe subscription with saved payment method
+   - Webhook syncs subscription to DB with status `active`
+   - Webhook creates first `billing_history` entry
+
+4. **Error Handling**:
+   - Show clear error messages for declined cards, network issues
+   - Offer retry option (Payment Sheet can be re-opened)
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Implement Stripe Payment Sheet for subscribe & renew flows
+
+CONTEXT:
+Users need a secure, native way to enter payment on mobile.
+Stripe Payment Sheet handles card collection, Apple Pay, Google Pay.
+
+REQUIREMENTS:
+
+FILE 1: React Native hook - usePaymentSheet.ts
+- Export setupPaymentSheet(price, isRenewal?)
+  Returns: { presentPaymentSheet, loading, error, resetError }
+- Handles InitPaymentSheet setup with Stripe
+- On payment success: returns { paymentMethodId, clientSecret }
+- Handles all errors gracefully
+
+FILE 2: Edge Function - create-payment-setup-intent
+- Creates Stripe SetupIntent (not Subscription yet)
+- Returns { clientSecret, publishable_key, ephemeralKeySecret }
+- Input: { user_id, for_renewal: boolean }
+- Stores intent_id in session for reference
+
+FILE 3: Edge Function - create-subscription-from-payment-method
+- Input: { user_id, payment_method_id, is_renewal: boolean }
+- If is_renewal: update existing sub with payment method
+- If new: create new Stripe subscription
+- Create billing_history entry for first charge
+- Return: { subscription_id, status }
+
+FILE 4: React Native Component - SubscribeButton.tsx
+- Shows "Subscribe to Kids Club+" or "Re-subscribe Now" button
+- On press:
+  1. setupPaymentSheet(799 cents)
+  2. presentPaymentSheet()
+  3. On success: call create-subscription-from-payment-method
+  4. On error: show retry modal
+  5. After success: navigate to success screen
+
+ACCEPTANCE CRITERIA:
+✓ Payment Sheet opens and collects card details
+✓ Payment method saved to user_subscriptions
+✓ First charge processed immediately
+✓ Stripe subscription created with payment method attached
+✓ billing_history record created
+✓ Proper error handling & retry flow
+✓ Works on both iOS & Android
+*/\n```
+
+---
+
+## TASK SUB-016: Renew Subscription from Grace Period (Re-Subscribe Flow)
+
+**Duration:** 3 hours  
+**Priority:** High  
+**Dependencies:** SUB-014, SUB-015, SUB-009 (grace period logic)
+
+### Description
+
+Allow users in `grace_period` or `expired` status to easily re-subscribe:
+
+1. **Show Re-Subscribe CTA** in:
+   - Grace Period Banner (countdown showing)
+   - Manage Kids Club+ Screen ("Your subscription expired. Re-subscribe to restore Swap Points")
+   - Home screen banner for unsubscribed users
+
+2. **Re-Subscribe Flow**:
+   - If user has saved payment method: pre-fill, ask to confirm → charge immediately
+   - If no saved method: show Payment Sheet to add one
+   - Charge $4.99 immediately upon confirmation
+   - Create new Stripe subscription (anniversary date = today + 30 days)
+   - Update `user_subscriptions`: status = `active`, unfreeze SP, set new period_end
+
+3. **SP Restoration**:
+   - On successful re-subscribe: call MODULE-09 API to unfreeze SP wallet
+   - SP points remain from previous subscription (they're not lost if within 90-day grace)
+   - Show "✅ Your Swap Points are unfrozen!" message
+
+4. **Handle Payment Failures**:
+   - Retry same logic as initial subscribe
+   - After 3 failures: stay in grace period, show "Update Payment Method" prompt
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Implement re-subscribe flow for grace_period users
+
+CONTEXT:
+Users who cancelled (now in grace_period) should easily be able to
+re-subscribe and restore their SP without confusion.
+
+REQUIREMENTS:
+
+FILE 1: React Native Screen - ReSubscribeScreen.tsx
+- Shows:
+  * "Your subscription has ended"
+  * Days remaining in grace period (countdown)
+  * "If you re-subscribe now, your Swap Points will be restored"
+  * Saved payment method (if exists) with "Change" option
+  * [Re-Subscribe Now] button
+
+- On Re-Subscribe Now:
+  1. If saved method: call renew-subscription edge function
+  2. If no saved method: show Payment Sheet
+  3. After success: call MODULE-09 unfreeze-sp API
+  4. Show success modal
+  5. Navigate to dashboard / Manage screen
+
+FILE 2: Edge Function - renew-subscription
+- Input: { user_id, use_saved_method: boolean, new_payment_method_id?: string }
+- Fetch current user_subscriptions record (should be grace_period)
+- If use_saved_method: use existing stripe_payment_method_id
+- Else: use new_payment_method_id
+- Create new Stripe subscription with payment method
+- Update user_subscriptions:
+  * status = 'active'
+  * stripe_subscription_id = new subscription ID
+  * current_period_start = now
+  * current_period_end = now + 30 days
+  * payment_retry_count = 0
+- Create billing_history entry
+- Return: { success: true, next_billing_date }
+
+FILE 3: Modal - PaymentMethodSelector.tsx
+- Show saved payment method by default
+- "Change payment method" links to Payment Sheet
+- Confirm button after user selects/enters method
+
+ACCEPTANCE CRITERIA:
+✓ Grace period users can re-subscribe with saved card (1-click)
+✓ Can add new payment method if none saved
+✓ SP wallet unfrozen immediately on success
+✓ Billing history created
+✓ Payment failure shows retry flow
+✓ Next billing date calculated correctly
+*/\n```
+
+---
+
+## TASK SUB-017: Payment Method Management & Auto-Renew Toggle
+
+**Duration:** 2.5 hours  
+**Priority:** Medium  
+**Dependencies:** SUB-014, SUB-015, SUB-010 (Manage UI)
+
+### Description
+
+Add payment method management to Manage Kids Club+ screen:
+
+1. **View Saved Payment Method**:
+   - Show card last four digits, brand (Visa, Mastercard), and expiry
+   - Display next billing date
+
+2. **Change Payment Method**:
+   - "Update Payment Method" button → Stripe Payment Sheet
+   - On success: update `stripe_payment_method_id` and `next_billing_date`
+
+3. **Auto-Renewal Toggle**:
+   - Toggle: "Auto-renew subscription" (ON by default)
+   - When OFF: update `auto_renew_enabled = false`
+     - Subscription still active until period end
+     - No auto-charge on period end
+     - Show warning: "Subscription will end on [date]"
+   - When toggled back ON: resume auto-renew
+
+4. **View Billing History**:
+   - Tab or link in Manage screen: "Billing History"
+   - Show table of past charges: Date, Amount, Status
+   - Allow "Download Invoice" for successful charges
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Add payment method & auto-renew management to Manage UI
+
+CONTEXT:
+Users should be able to update their payment method and control
+auto-renewal directly from the app.
+
+REQUIREMENTS:
+
+FILE 1: React Native Component - PaymentMethodCard.tsx
+- Display:
+  * Card brand icon (Visa, Mastercard, Amex via Stripe SVG)
+  * Last 4 digits
+  * Expiry (MM/YY)
+  * "Update Payment Method" button
+- On button press: open Payment Sheet to update
+- After success: refresh subscription data & show toast
+
+FILE 2: React Native Component - AutoRenewToggle.tsx
+- Toggle switch: "Automatically renew on [date]"
+- Label below: "Turn off to cancel at end of billing period"
+- On toggle:
+  1. API call to update-auto-renew edge function
+  2. Show loading state
+  3. On success: show toast, update local state
+
+FILE 3: React Native Component - BillingHistoryTab.tsx
+- Show table with columns: Date | Amount | Status
+- Query billing_history for user_id
+- Sort by charged_at DESC
+- Show "Download Invoice" action for succeeded charges
+- Add filtering: "Last 3 months", "Last Year", "All"
+
+FILE 4: Edge Function - update-auto-renew
+- Input: { user_id, auto_renew_enabled: boolean }
+- Update user_subscriptions.auto_renew_enabled
+- If disabling: 
+  * Call Stripe to set cancel_at_period_end = true
+  * Show return message with period_end date
+- Return: { success: true, next_renewal_date? }
+
+ACCEPTANCE CRITERIA:
+✓ Can view saved payment method clearly
+✓ Can update payment method with Payment Sheet
+✓ Auto-renew toggle works & syncs to Stripe
+✓ Disabling auto-renew sets cancel_at_period_end
+✓ Billing history shows past charges
+✓ Invoice download works for completed charges
+*/\n```
+
+---
+
+## TASK SUB-018: Payment Failure Handling & Automatic Retry
+
+**Duration:** 3 hours  
+**Priority:** High  
+**Dependencies:** SUB-014, SUB-007 (Webhooks), SUB-015 (Payment Sheet)
+
+### Description
+
+Handle payment failures gracefully with automatic retry logic:
+
+1. **Stripe Webhook: `invoice.payment_failed`**:
+   - On failed charge: webhook increments `payment_retry_count`
+   - Schedule automatic retries:
+     - Retry 1: 3 days later (Stripe handles auto-retry by default)
+     - Retry 2: 7 days later  
+     - Retry 3: 14 days later
+   - After 3 failed retries: move user to `grace_period` (SP frozen)
+
+2. **User Notifications**:
+   - After 1st failure: In-app banner "Payment Failed – Update Payment Method"
+   - After 2nd failure: Push notification "Your subscription payment declined. Please update your card."
+   - After 3rd failure: Banner + notification "Your Kids Club+ access has been paused. Re-subscribe to restore Swap Points."
+
+3. **Update Payment Method on Failure**:
+   - Banner includes "Update Payment Method" button → Payment Sheet
+   - On success: retry charge immediately via edge function
+   - Refresh subscription status
+
+4. **Grace Period Entry**:
+   - If 3 retries fail: webhook moves user to `grace_period`
+   - Call MODULE-09 to freeze SP wallet
+   - Show 90-day countdown in app
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Implement payment failure handling with retry logic
+
+CONTEXT:
+Payment failures are common (card expired, insufficient funds, etc).
+We need automatic retries and clear UX to help users fix issues.
+
+REQUIREMENTS:
+
+FILE 1: Update - stripe-webhook-subscriptions edge function
+- Add handler for invoice.payment_failed event:
+  1. Find user_subscriptions by stripe_subscription_id
+  2. Increment payment_retry_count
+  3. Update payment_failed_at timestamp
+  4. Check if >= 3 retries:
+     * If yes: set status = 'grace_period', schedule SP freeze
+     * If no: set status = 'active' (still can use while retry pending), schedule retry notification
+
+- Stripe schedules automatic retries (3, 7, 14 days)
+- We just need to handle the webhook and track the count
+
+FILE 2: React Native Hook - usePaymentFailureNotification.ts
+- Check subscription.payment_failed_at on app startup
+- If within last 24h: show banner
+- Banner: "Payment Declined – Update Payment Method"
+- Button: calls openUpdatePaymentSheet() or navigates to Manage screen
+
+FILE 3: React Native Component - PaymentFailureBanner.tsx
+- Shows different messages based on payment_retry_count:
+  * Count 1: "Your payment was declined. Update your payment method."
+  * Count 2: "Payment declined again. Your subscription is at risk."
+  * Count 3 + in grace: "Your subscription has been paused (grace period)."
+- [Update Payment Method] button
+- [Learn More] link to help article
+
+FILE 4: React Native Component - UpdatePaymentSheet.tsx
+- Modal wrapper around Stripe Payment Sheet
+- On success: calls retry-failed-payment edge function
+- Shows "Retrying charge..." loading state
+- On success: "Payment successful! Subscription renewed."
+
+FILE 5: Edge Function - retry-failed-payment
+- Input: { user_id }
+- Find user_subscriptions with payment_failed_at
+- Call Stripe invoices.retryPayment (if API available)
+- Or: Create new subscription with updated payment method
+- On success: reset payment_retry_count = 0
+- Return: { success, next_retry_date? }
+
+ACCEPTANCE CRITERIA:
+✓ Payment failure creates billing_history record with status='failed'
+✓ payment_retry_count increments in user_subscriptions
+✓ User notified after each failed attempt
+✓ Can update payment method from failure banner
+✓ Charge retried automatically via Stripe & webhook
+✓ After 3 failures: user moved to grace_period
+✓ SP frozen (via MODULE-09) when entering grace_period
+*/\n```
+
+---
+
+## TASK SUB-019: Smart Cancellation with Pause Option & Retention Flow
+
+**Duration:** 3 hours  
+**Priority:** High  
+**Dependencies:** SUB-008, SUB-010 (Manage UI), SUB-017 (Auto-renew)
+
+### Description
+
+Enhance cancellation experience with retention logic and pause option:
+
+1. **Pause Instead of Cancel**:
+   - Before showing "Cancel" directly, offer "Pause subscription" for 1 month
+   - On pause: set `paused_until = now + 30 days`, `auto_renew_enabled = false`
+   - User keeps access for full 30 days, no charge during pause
+   - After pause ends: allow easy resume (1-click re-enable auto-renew)
+
+2. **Cancellation Intent Collection**:
+   - If user still wants to cancel after pause offer, show modal:
+     - "Why are you cancelling?" (multi-select):
+       - Too expensive
+       - Not using it
+       - Found alternative
+       - Temporary issue (links to help)
+       - Other (free text)
+   - Store selection in `cancelled_reason` for analytics
+
+3. **Exit Intent - Show Value Before Cancelling**:
+   - Modal before confirming cancel:
+     - "You're about to lose: [list of benefits]"
+     - Option to pause (1 month free)
+     - "Keep Kids Club+" with discount offer placeholder
+
+4. **Clear Explanation for Cancellation Effects**:
+   - "Your subscription ends on [period_end_date]"
+   - "Your Swap Points will be frozen for 90 days after"
+   - "You can re-subscribe anytime and restore your SP"
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Implement smart cancellation with pause & retention
+
+CONTEXT:
+Churn reduction is critical. Most cancellations are impulsive
+or due to temporary issues. Pause + retention flow helps.
+
+REQUIREMENTS:
+
+FILE 1: React Native Modal - CancellationFlowModal.tsx
+- Step 1: Offer "Pause for 1 month" vs "Cancel"
+  * Clear description: "Pause keeps your access but stops charges"
+  * [Pause] [Cancel] buttons
+  
+- Step 2 (if user chooses Cancel):
+  * Show "Before you go..." retention message
+  * Pause offer again with emphasis
+  * List what they'll lose (benefits)
+  
+- Step 3 (if still wants to cancel):
+  * "Why are you leaving?" survey
+  * Options: Too expensive | Not using | Found alt | Help needed | Other
+  * Optional text input for "Other"
+  * [Cancel Subscription] [Go Back]
+  
+- On Pause confirmation:
+  * Call pause-subscription edge function
+  * Show "Paused until [date]. Charge will resume then."
+  * Navigate back to Manage screen
+  
+- On Cancel confirmation:
+  * Call cancel-subscription edge function
+  * Show "Your subscription ends [date]"
+  * Navigate back to Manage screen
+
+FILE 2: Edge Function - pause-subscription
+- Input: { user_id }
+- Find user_subscriptions
+- Set:
+  * paused_until = now + 30 days
+  * auto_renew_enabled = false
+  * cancel_at_period_end = false (keep subscription active)
+- Call Stripe to ensure auto_renew is off
+- Return: { success: true, paused_until }
+
+FILE 3: Edge Function - cancel-subscription (UPDATED)
+- Input: { user_id, reason?: string }
+- Find user_subscriptions
+- Set:
+  * cancelled_reason = reason
+  * cancelled_at = now
+  * status = 'cancelled' (or 'grace_period' if ready to end)
+  * cancel_at_period_end = true
+- Call Stripe to set cancel_at_period_end
+- If status is 'cancelled': schedule SP freeze at period_end
+- Return: { success: true, period_end_date, grace_period_start_date }
+
+FILE 4: React Native Component - ResumeFromPauseButton.tsx
+- Show in Manage screen if paused_until > now
+- Button: "Resume Auto-Renew ([paused_until date])" or "Resume Now"
+- On press: call resume-pause edge function
+- Shows "Auto-renew resumed. Next charge: [next_billing_date]"
+
+FILE 5: Edge Function - resume-from-pause
+- Input: { user_id }
+- Find user_subscriptions with paused_until > now
+- Set:
+  * paused_until = null
+  * auto_renew_enabled = true
+- Call Stripe to ensure subscription set to renew
+- Return: { success: true, next_billing_date }
+
+ACCEPTANCE CRITERIA:
+✓ Pause option shown before cancel
+✓ Pause keeps subscription active but stops auto-charge
+✓ Cancel collects reason for analytics
+✓ Users can resume from pause with 1 click
+✓ Clear messaging around end date & grace period
+✓ Stripe updated to match pause/cancel state
+✓ cancelled_reason stored for analytics
+*/\n```
+
+---
+
+## V2.1 Integration Summary
+
+These new tasks (SUB-014 through SUB-019) add complete billing lifecycle support:
+
+- **SUB-014**: Schema foundation (new fields in user_subscriptions + billing_history table)
+- **SUB-015**: Payment collection (Stripe Payment Sheet, SetupIntent for secure payment method storage)
+- **SUB-016**: Re-subscribe flow (easy renewal from grace period to restore SP)
+- **SUB-017**: Payment management (change card, toggle auto-renew, view billing history)
+- **SUB-018**: Failure recovery (3-retry automatic logic, user notifications, grace period entry)
+- **SUB-019**: Churn reduction (pause option, retention messaging, cancel reason collection)
+
+**Key V2.1 Design Principles**:
+- ✅ Mobile-first UX (in-app Payment Sheet, no redirects)
+- ✅ Minimal friction (1-click re-subscribe if card saved)
+- ✅ Retention-focused (pause before cancel, exit-intent)
+- ✅ Transparent billing (clear dates, next charge amounts, history)
+- ✅ Graceful failures (retries, user control, helpful messaging)
+- ✅ Analytics-ready (reason tracking, metric collection)

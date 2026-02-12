@@ -11,7 +11,23 @@ jest.mock('../supabase/client', () => ({
     storage: {
       from: jest.fn(),
     },
+    functions: {
+      invoke: jest.fn(),
+    },
   },
+}));
+
+// Mock ImageManipulator
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn(),
+  SaveFormat: {
+    JPEG: 'jpeg',
+  },
+}));
+
+// Mock base64-arraybuffer
+jest.mock('base64-arraybuffer', () => ({
+  decode: jest.fn().mockReturnValue(new ArrayBuffer(8)),
 }));
 
 describe('idBadgeService', () => {
@@ -188,6 +204,72 @@ describe('idBadgeService', () => {
       const result = await idBadgeService.getVerificationStatus('user-123');
 
       expect(result.status).toBe('none');
+    });
+  });
+
+  describe('submitVerificationRequest', () => {
+    const mockUserId = 'user-123';
+    const mockImageUri = 'file://path/to/image.jpg';
+
+    it('should successfully submit a verification request', async () => {
+      // Mock profile fetch
+      const mockProfile = {
+        name: 'John Doe',
+        email: 'john@example.com',
+        phone: '1234567890',
+        node_id: 'node-123',
+        user_id: mockUserId,
+      };
+
+      // Mock ImageManipulator
+      require('expo-image-manipulator').manipulateAsync.mockResolvedValue({
+        base64: 'mock-base64-data',
+      });
+
+      // Mock storage upload
+      const mockStorageFrom = {
+        upload: jest.fn().mockResolvedValue({ data: { path: 'path' }, error: null }),
+      };
+      (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);
+
+      // Mock DB insert
+      const mockInsertResult = { id: 'request-123' };
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn()
+          .mockResolvedValueOnce({ data: mockProfile, error: null }) // Profile fetch
+          .mockResolvedValueOnce({ data: mockInsertResult, error: null }), // Request insert
+        insert: jest.fn().mockReturnThis(),
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      // Mock functions invoke
+      (require('../supabase/client').supabase.functions.invoke) = jest.fn().mockResolvedValue({ data: null, error: null });
+
+      const result = await idBadgeService.submitVerificationRequest(mockUserId, mockImageUri);
+
+      expect(result).toBe('request-123');
+      expect(supabase.from).toHaveBeenCalledWith('profiles');
+      expect(supabase.from).toHaveBeenCalledWith('id_badge_verification_requests');
+      expect(mockFrom.insert).toHaveBeenCalledWith(expect.objectContaining({
+        user_id: mockUserId,
+        status: 'pending',
+        first_name: 'John',
+        last_name: 'Doe',
+      }));
+    });
+
+    it('should throw error if profile fetch fails', async () => {
+      const mockFrom = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: null, error: new Error('Profile error') }),
+      };
+      (supabase.from as jest.Mock).mockReturnValue(mockFrom);
+
+      await expect(idBadgeService.submitVerificationRequest(mockUserId, mockImageUri))
+        .rejects.toThrow('Profile error');
     });
   });
 });

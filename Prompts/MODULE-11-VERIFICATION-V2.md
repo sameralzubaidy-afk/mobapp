@@ -1,8 +1,8 @@
-# MODULE 11 VERIFICATION V2: SUBSCRIPTIONS (Kids Club+)
+# MODULE 11 VERIFICATION V2.1: SUBSCRIPTIONS (Kids Club+)
 
 **Target Module:** `MODULE-11-SUBSCRIPTIONS-V2.md`  
-**Scope:** Kids Club+ subscription lifecycle, SP gating, fees, trials, grace period, Stripe integration, and related UI/admin flows.  
-**Status:** Draft for V2 – aligned with SYSTEM_REQUIREMENTS_V2 and MODULE-09-POINTS-GAMIFICATION-V2.
+**Scope:** Kids Club+ subscription lifecycle, SP gating, fees, trials, grace period, Stripe integration, payment collection, billing history, and related UI/admin flows.  
+**Status:** Draft for V2.1 – Enhanced with complete payment/billing implementation (tasks SUB-014 through SUB-019)
 
 ---
 
@@ -10,17 +10,30 @@
 
 ### 1.1 Core Product Rules
 
-Verify that the implementation reflects these V2 rules:
+Verify that the implementation reflects these V2.1 rules:
 
-- [ ] Single subscription tier **Kids Club+** at **$7.99/month**.
+- [ ] Single subscription tier **Kids Club+** at **$4.99/month** (updated V2.1 price).
 - [ ] **30-day free trial** with **no credit card required** to start.
+- [ ] **Payment collection via Stripe Payment Sheet** (in-app, mobile-first experience).
+- [ ] **Payment method storage** using Stripe SetupIntent for seamless re-subscribe (saved card = 1-click renewal).
+- [ ] **Anniversary billing cycle** – charges on subscription date (e.g., /day 15 every month).
+- [ ] **Automatic retry logic for failed payments**:
+  - [ ] Retry 1: 3 days after failure
+  - [ ] Retry 2: 7 days after failure
+  - [ ] Retry 3: 14 days after failure
+  - [ ] After 3 failures → move to grace_period and freeze SP
+- [ ] **Auto-renewal control** – users can toggle `auto_renew_enabled` to pause subscription (keeps access but no charge).
+- [ ] **Pause option** instead of direct cancel (retention feature – 1-month pause before full cancellation).
 - [ ] **90-day grace period** after loss of Kids Club+ access before SP are permanently deleted.
-- [ ] Subscription status states: `free`, `trial`, `active`, `cancelled`, `grace_period`, `expired`.
+- [ ] **Subscription status states:** `free`, `trial`, `active`, `cancelled`, `paused`, `grace_period`, `expired`.
+- [ ] **Billing history tracking** – all charges logged in `billing_history` table for invoice/receipt functionality.
+- [ ] **Cancellation feedback** – collect `cancelled_reason` for analytics and churn analysis.
 - [ ] Only `trial` and `active` users can **earn** and **spend** Swap Points.
-- [ ] `cancelled` users keep reduced fee and access to features until period end; SP remains usable until they transition to `grace_period`.
+- [ ] `paused` users keep access until pause ends, then auto-resume unless cancelled.
+- [ ] `cancelled` users keep access until period end; SP remains usable until transition to `grace_period`.
 - [ ] `grace_period` users have their SP wallet **frozen** (no earn/spend), with clear countdown.
 - [ ] `expired` means SP are **permanently deleted** and wallet closed.
-- [ ] Transaction fee is **$0.99** for subscribers (trial, active, cancelled) and **$2.99** for free, grace_period, and expired users.
+- [ ] Transaction fee is **$0.99** for subscribers (trial, active, paused) and **$2.99** for free, grace_period, and expired users.
 
 ### 1.2 Cross-Module Consistency
 
@@ -40,20 +53,37 @@ Confirm alignment with other modules:
 
 - [ ] `subscription_tiers`
   - [ ] Columns: `id`, `name`, `display_name`, `description`, `price_cents`, `currency`, `trial_days`, `grace_period_days`, `stripe_price_id`, `is_active`, `is_default`, `sort_order`, timestamps.
-  - [ ] Seed row for `name = 'kids_club_plus'` with `price_cents = 799`, `trial_days = 30`, `grace_period_days = 90`, `is_active = true`, `is_default = true`.
+  - [ ] Seed row for `name = 'kids_club_plus'` with `price_cents = 499`, `trial_days = 30`, `grace_period_days = 90`, `is_active = true`, `is_default = true`.
   - [ ] Indexes on `is_active`, `is_default` exist.
 
 - [ ] `subscription_features`
   - [ ] Columns: `id`, `tier_id` (FK → `subscription_tiers.id`), `feature_key`, `feature_name`, `feature_description`, `is_enabled`, `sort_order`, timestamps.
   - [ ] Seeded features for Kids Club+ (e.g., `can_earn_sp`, `can_spend_sp`, `can_donate`, `reduced_fee`, `priority_matching`, `early_access`, `priority_support`).
 
-- [ ] `user_subscriptions`
-  - [ ] Columns for user link, tier, and core status: `id`, `user_id`, `tier_id`, `status`, `has_used_trial`.
+- [ ] `user_subscriptions` (ENHANCED V2.1)
+  - [ ] Core columns: `id`, `user_id`, `tier_id`, `status` (enum: `free`, `trial`, `active`, `cancelled`, `paused`, `grace_period`, `expired`), `has_used_trial`.
   - [ ] Trial fields: `trial_started_at`, `trial_ends_at`, reminder booleans (day 23/28/29).
-  - [ ] Billing fields: `stripe_customer_id`, `stripe_subscription_id`, `stripe_payment_method_id`, `current_period_start`, `current_period_end`, `monthly_price_cents`.
-  - [ ] Cancellation & grace fields: `cancel_reason`, `cancelled_at`, `grace_period_ends_at`.
-  - [ ] Payment failure fields: `payment_failed_at`, `payment_retry_count`.
-  - [ ] Check `status` enum includes `free`, `trial`, `active`, `cancelled`, `grace_period`, `expired`.
+  - [ ] **Billing fields (V2.1)**:
+    - [ ] `stripe_customer_id`, `stripe_subscription_id`, `stripe_payment_method_id` (the saved payment method)
+    - [ ] `current_period_start`, `current_period_end`, `monthly_price_cents`
+    - [ ] `last_payment_date`, `last_payment_amount` (track recent charge)
+    - [ ] `next_billing_date` (when next charge will occur)
+  - [ ] **Payment failure fields (V2.1)**:
+    - [ ] `payment_failed_at`, `payment_retry_count` (0–3, increments on failed charge)
+  - [ ] **Cancellation & pause fields (V2.1)**:
+    - [ ] `cancelled_at`, `cancel_reason` (text, why user cancelled – feedback)
+    - [ ] `paused_until` (timestamp, nullable – when pause ends)
+    - [ ] `auto_renew_enabled` (boolean, default true – can toggle to pause auto-charge)
+  - [ ] **Grace period field**:
+    - [ ] `grace_period_ends_at` (when grace period ends and SP expire)
+
+- [ ] **NEW: `billing_history` table (V2.1)**
+  - [ ] Columns: `id` (UUID, pk), `user_id` (UUID, FK to auth.users), `subscription_id` (UUID, FK to user_subscriptions)
+  - [ ] `charge_id` (text, unique, Stripe invoice ID), `amount` (integer, cents), `currency` (text, default 'usd')
+  - [ ] `status` (enum: `succeeded`, `failed`, `refunded`), `charged_at` (timestamp), `description` (text, optional)
+  - [ ] `created_at` (timestamp, default now), `updated_at` (timestamp, auto-update on refund/status changes)
+  - [ ] **Indexes**: `(user_id, created_at DESC)`, `(subscription_id, created_at DESC)`, `(charge_id)` [unique], `(status)`
+  - [ ] **RLS**: Users can SELECT their own rows; updates/inserts only via trusted edge functions
 
 ### 2.2 RLS & Policies
 
@@ -176,6 +206,73 @@ For each function, confirm:
   - [ ] Sets status to `expired`.
   - [ ] Calls SP expiry handler (`SP_SUBSCRIPTION_EXPIRE_URL`) to permanently delete SP and close wallet.
 
+### 4.8 `create-payment-setup-intent` (V2.1)
+
+- [ ] Accepts POST request with `user_id` and optional `for_renewal` flag.
+- [ ] Creates Stripe SetupIntent for securely collecting payment method.
+- [ ] Returns `{ clientSecret, publishable_key, ephemeral_key_secret }` for Stripe Payment Sheet initialization.
+- [ ] Handles Stripe API errors gracefully and returns actionable messages (e.g., card declined, network timeout).
+- [ ] **Idempotency:** Returns same intent if called again within 5 minutes (handles Payment Sheet reopening without creating duplicate intents).
+
+### 4.9 `create-subscription-from-payment-method` (V2.1)
+
+- [ ] Accepts POST with `user_id`, `payment_method_id`, and `is_renewal` boolean.
+- [ ] If `is_renewal = false`: Creates new Stripe subscription with payment method as default.
+- [ ] If `is_renewal = true`: Updates existing subscription with payment method if re-subscribing after failure.
+- [ ] Creates `billing_history` entry with `status = 'succeeded'`, `amount = monthly_price_cents`, and payment date.
+- [ ] Updates `user_subscriptions`:
+  - [ ] `stripe_payment_method_id` set to provided payment method ID
+  - [ ] `status = 'active'`
+  - [ ] `last_payment_date = now`, `last_payment_amount = monthly_price_cents`
+  - [ ] `next_billing_date = current_period_end + 30 days` (anniversary billing)
+  - [ ] `payment_retry_count = 0` (resets if renewing after failure)
+- [ ] Returns `{ subscription_id, status, next_billing_date }`.
+- [ ] On payment collection failure: returns error message and does NOT create subscription record.
+
+### 4.10 `renew-subscription` (V2.1)
+
+- [ ] Accepts POST with `user_id`, optional `new_payment_method_id`.
+- [ ] Finds current `user_subscriptions` in `grace_period` or `expired` status.
+- [ ] Uses provided `new_payment_method_id` or existing `stripe_payment_method_id` from DB.
+- [ ] Creates NEW Stripe subscription (not resuming old one) with anniversary billing date = today.
+- [ ] Updates `user_subscriptions`:
+  - [ ] `status = 'active'`
+  - [ ] `stripe_subscription_id = new_subscription_id`
+  - [ ] `current_period_start = now`, `current_period_end = now + 30 days`
+  - [ ] `paused_until = null`, `auto_renew_enabled = true`
+- [ ] Calls MODULE-09 `unfreeze_sp` API to restore SP wallet access.
+- [ ] Creates `billing_history` entry for reactivation charge.
+- [ ] Returns `{ success: true, next_billing_date }`.
+
+### 4.11 `update-auto-renew` (V2.1)
+
+- [ ] Accepts POST with `user_id` and `auto_renew_enabled` boolean.
+- [ ] Updates `user_subscriptions.auto_renew_enabled`.
+- [ ] If disabling (`false`): calls Stripe to set `cancel_at_period_end = true` on subscription.
+- [ ] If enabling (`true`): calls Stripe to remove `cancel_at_period_end` flag.
+- [ ] Updates `next_billing_date` calculation after toggle.
+- [ ] Returns `{ success: true, auto_renew_enabled, next_billing_date }`.
+
+### 4.12 `pause-subscription` (V2.1)
+
+- [ ] Accepts POST with `user_id`.
+- [ ] Finds active subscription and sets:
+  - [ ] `paused_until = now + 30 days`
+  - [ ] `auto_renew_enabled = false`
+- [ ] Does NOT change Stripe subscription status; keeps active but with no auto-charge.
+- [ ] User retains full access to Kids Club+ benefits during pause.
+- [ ] In UI, shows clear resume option ("Resume Auto-Renew on [date]").
+- [ ] Returns `{ success: true, paused_until, next_billing_date }`.
+
+### 4.13 `resume-from-pause` (V2.1)
+
+- [ ] Accepts POST with `user_id`.
+- [ ] Finds subscription with `paused_until > now`.
+- [ ] Clears `paused_until = null`, sets `auto_renew_enabled = true`.
+- [ ] Calls Stripe to ensure subscription will renew at period end.
+- [ ] Recalculates `next_billing_date`.
+- [ ] Returns `{ success: true, next_billing_date }`.
+
 ---
 
 ## 5. Mobile UI & UX Verification
@@ -268,40 +365,107 @@ Verify navigation, copy, and state-aware behavior for:
 
 Use this as a **test script** for end-to-end QA in staging:
 
-1. **Happy Path – Free → Trial → Active**
+1. **Happy Path – Free → Trial → Active → Payment**
    - [ ] New user starts on `free` tier, sees correct banner and trial messaging.
    - [ ] User starts 30-day free trial; status becomes `trial`, SP earning/spending enabled, fee reduces to $0.99.
-   - [ ] Before trial ends, user adds card and converts; after trial end, status becomes `active` and billing begins.
+   - [ ] Before trial ends, user adds card via Stripe Payment Sheet; payment method saved to `stripe_payment_method_id`.
+   - [ ] User confirms subscription; `billing_history` entry created with status `succeeded`.
+   - [ ] After conversion, status becomes `active`, billing begins on anniversary date.
 
-2. **Trial → Non-Conversion → Grace → Expired**
-   - [ ] User starts trial but does not add payment method.
-   - [ ] After trial end, cron moves user to `grace_period`, SP wallet is frozen, countdown appears in UI.
-   - [ ] At grace end, cron moves user to `expired`, SP wallet is permanently deleted.
+2. **Payment Collection – Trial to Active with Card**
+   - [ ] Initiate conversion, tap "Add Payment Method".
+   - [ ] Stripe Payment Sheet opens (no redirect), collects card details.
+   - [ ] On success: saved payment method shown in Manage screen (e.g., "Visa ending in 4242").
+   - [ ] First charge processed immediately; next charge scheduled for +30 days.
 
-3. **Active → Cancel at Period End**
-   - [ ] Active subscriber cancels via Manage screen; UI explains timing and SP consequences.
-   - [ ] Status becomes `cancelled`, benefits continue until period end, SP still usable.
-   - [ ] At period end, webhook/cron transitions to `grace_period` and SP is frozen.
+3. **Saved Card – One-Click Re-Subscribe**
+   - [ ] User in grace_period taps "Re-Subscribe Now".
+   - [ ] Saved payment method pre-filled; user taps "Confirm" (no re-entry).
+   - [ ] Status returns to `active`, SP unfrozen immediately.
+   - [ ] Verify `billing_history` entry created for reactivation charge.
 
-4. **Trial Cancellation With/Without SP Activity**
-   - [ ] Trial user with no SP activity cancels; status returns to `free`, wallet behavior is consistent with MODULE-09.
-   - [ ] Trial user with SP activity cancels; status becomes `grace_period`, SP frozen with 90-day countdown.
+4. **Payment Method Update**
+   - [ ] In Manage screen, tap "Update Payment Method".
+   - [ ] Stripe Payment Sheet opens, new card entered & saved.
+   - [ ] Old payment method replaced in `stripe_payment_method_id`.
+   - [ ] Next charge uses new card.
 
-5. **Payment Failures**
-   - [ ] Simulate 1–2 failed invoices; user remains `active` with retries incremented.
-   - [ ] On 3rd failure, status becomes `grace_period` and SP is frozen.
+5. **Auto-Renew Toggle**
+   - [ ] In Manage screen, toggle "Auto-renew subscription" OFF.
+   - [ ] Verify Stripe `cancel_at_period_end = true` set.
+   - [ ] Warning shown: "Subscription ends on [date]".
+   - [ ] Toggle ON again; subscription resumes normal renewal.
 
-6. **Admin View Sanity Check**
-   - [ ] AdminSubscriptionsPage shows plausible counts and MRR after exercising the above scenarios.
-   - [ ] Numbers reconcile with Stripe Dashboard for a sample of users.
+6. **Payment Failure – Automatic Retry**
+   - [ ] Use test card that declines (e.g., Stripe test card `4000000000000002`).
+   - [ ] At period end, charge fails; `payment_retry_count` increments to 1.
+   - [ ] Banner appears: "Payment Declined – Update Payment Method".
+   - [ ] User taps banner, updates card, charge retried immediately.
+   - [ ] On success: `payment_retry_count` reset to 0, `billing_history` shows succeeded charge.
+
+7. **Triple-Failure → Grace Period**
+   - [ ] Simulate 3 failed payment attempts (using Stripe test declined cards).
+   - [ ] After 3rd failure: status transitions to `grace_period`, SP frozen, countdown appears.
+   - [ ] `billing_history` shows status `failed` for all 3 attempts.
+   - [ ] User must re-subscribe to restore access.
+
+8. **Trial Cancellation With SP Activity**
+   - [ ] Trial user with SP earned cancels mid-trial.
+   - [ ] Cancellation modal offers "Pause for 1 month" as first option.
+   - [ ] If user confirms cancel: status becomes `grace_period`, SP frozen, 90-day countdown starts.
+
+9. **Pause vs Cancel**
+   - [ ] Active subscriber in Manage screen taps "Cancel".
+   - [ ] Modal shows "Want to pause instead?" with benefits list.
+   - [ ] If user chooses "Pause", subscription paused for 1 month, access continues, no charge.
+   - [ ] If user chooses "Cancel", cancellation reason collected, status → `cancelled`.
+   - [ ] Both flows show clear end/resume dates.
+
+10. **Grace Period – Reminders & Expiry**
+    - [ ] User in `grace_period` with 63 days remaining.
+    - [ ] Countdown banner shows: "60 days to re-subscribe".
+    - [ ] Verify reminders at 60, 30, 7, 1 days appear as in-app messages.
+    - [ ] On day 91: cron moves status to `expired`, SP permanently deleted.
+
+11. **Billing History Screen**
+    - [ ] In Manage screen, tap "Billing History" or similar.
+    - [ ] Table shows past charges: Date, Amount ($4.99), Status (Succeeded/Failed).
+    - [ ] Sort by recent; pagination works if > 10 entries.
+    - [ ] User can see full invoice history of their subscription.
+
+12. **Admin View – New Metrics**
+    - [ ] AdminSubscriptionsPage shows:
+      - [ ] Total active subscribers
+      - [ ] MRR (sum of `monthly_price_cents * active_count / 100`)
+      - [ ] Grace period count, expired count
+      - [ ] Payment failure rate (failed attempts ÷ total attempts)
+    - [ ] Reconcile metrics with sample of users in Stripe Dashboard.
+
+---
 
 ---
 
 ## 9. Sign-Off
 
-- [ ] Product Owner review completed (requirements and flows match BRD V2).  
+- [ ] Product Owner review completed (requirements and flows match BRD V2 + V2.1 billing features).  
 - [ ] Engineering lead review completed (schemas, functions, and edge behaviors are feasible and consistent).  
 - [ ] QA lead review completed (test coverage and manual QA plan sufficient for launch).  
-- [ ] Compliance/legal review completed for subscription, billing, and retention flows.
+- [ ] Compliance/legal review completed for subscription, billing, payment retry, and retention flows.
+- [ ] Payment processor (Stripe) integration reviewed and test keys verified.
+- [ ] Data privacy (PCI compliance, payment data handling) verified.
 
-**V2 MODULE-11 Verification Status:** ☐ Pending  ☐ In Progress  ☐ Complete
+**V2.1 MODULE-11 Verification Status:** ☐ Pending  ☐ In Progress  ☐ Complete
+
+---
+
+## 10. V2.1 Key Enhancements Summary
+
+- **Payment Collection:** Stripe Payment Sheet for secure, in-app card collection (no redirects).
+- **Payment Method Storage:** SetupIntent + `stripe_payment_method_id` for 1-click re-subscribe.
+- **Billing History:** `billing_history` table tracking all charges, failures, and receipts.
+- **Auto-Renewal Control:** `auto_renew_enabled` toggle to pause subscription without full cancellation.
+- **Payment Retry Logic:** Automatic 3-retry system (3, 7, 14 days) with user notifications.
+- **Smart Cancellation:** Pause option before cancel, cancellation reason collection for analytics.
+- **Re-Subscribe:** Easy renewal from grace period with saved payment method.
+- **Anniversary Billing:** Charges on subscription date (consistent 30-day cycles).
+- **Pause Feature:** Temporary suspension (1 month) for retention without losing data.
