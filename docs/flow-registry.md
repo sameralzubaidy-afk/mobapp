@@ -93,6 +93,9 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period + Tier Configuration
 - Smoke: scripts/smoke/subscriptions.mjs (TODO: implement)
+- **SUB-003 Manual Test Guide:** SUB-003-MANUAL-TESTING-GUIDE.md
+- **SUB-003 Unit Tests:** p2p-kids-marketplace/src/__tests__/services/subscription-sub-003.unit.test.ts
+- **SUB-003 E2E Tests:** p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-003.e2e.ts
 - Manual checks:
   - **SUB-001 Foundation:**
     - `subscription_tiers` table exists with Kids Club+ tier seeded correctly ($4.99, 30d trial, 90d grace).

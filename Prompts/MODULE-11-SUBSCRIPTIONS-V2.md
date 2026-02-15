@@ -959,6 +959,8 @@ Next: 11-G (Tests + Module Summary - SUB-012)
 -->
 
 ---
+## 013 >> Test Case 2: Trial Eligibility Check (One Trial Per User)
+need better UX if user used trial , they should not see option to re use trail they should see option to pay to subs. 
 
 ## TASK SUB-012: Tests, Observability & Module Summary
 
@@ -1187,7 +1189,7 @@ MODULE-11 defines **Kids Club+ subscriptions** as the gatekeeper for Swap Points
 - During implementation, keep observability consistent (structured logs, TODOs for metrics + dashboards) so subscription health can be monitored from day one.
 
 ---
-
+## 013 Test Case 2: Trial Eligibility Check (One Trial Per User)
 <!-- 
 MICRO-TASK 11-G COMPLETE
 Next: MODULE-11-VERIFICATION-V2.md and PHASE 1 CHECKPOINT

@@ -45,18 +45,21 @@ Supabase: supabase/
 My Example 1
 
 
-
-## TASK SUB-002: User Subscriptions Table & Status Management
-
-Create the user_subscriptions table to track each user's subscription status, billing dates, trial info, and grace period. This is the core table that gates SP access.
+## TASK SUB-003: Start 30-Day Free Trial (No Card Required)
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SUB-002: User Subscriptions Table & Status Management
+Tasks: ## TASK SUB-003: Start 30-Day Free Trial (No Card Required) 
 
 scope is 
-Create the user_subscriptions table to track each user's subscription status, billing dates, trial info, and grace period. This is the core table that gates SP access.
 
+Implement the "Try Kids Club+ Free" entry point that:
+
+1. Verifies user is **trial eligible** (one trial per user)
+2. Creates or updates a `user_subscriptions` row
+3. Sets `status = 'trial'` and 30-day window
+4. Initializes reminder flags (Day 23, 28, 29)
+5. Does **NOT** require payment method up front
 
 
 Please
