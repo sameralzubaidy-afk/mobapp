@@ -1,164 +1,208 @@
 /**
  * File: p2p-kids-marketplace/src/services/subscription.ts
- * MODULE-11 Subscription Service (Stub for MODULE-04 dependency)
+ * MODULE-11 Subscription Service (TASK SUB-002 Implementation)
  * 
- * TODO(MODULE-11): This is a temporary stub to unblock MODULE-04.
- * Full implementation will come from MODULE-11-SUBSCRIPTIONS-V2.md
- * 
- * For now, provides basic subscription checks for listing creation.
+ * Enhanced subscription service with full MODULE-11 V2.1 support:
+ * - Complete subscription status tracking
+ * - Grace period management
+ * - Payment retry logic
+ * - Cancellation and pause support
+ * - Tier linkage
  */
 
 import { supabase } from '../config/supabase';
 
 /**
- * Subscription status enum
- * Maps to subscription lifecycle states
+ * Subscription status enum (V2.1)
+ * Maps to complete subscription lifecycle states
  */
 export type SubscriptionStatus = 
   | 'free'           // No subscription (free user)
-  | 'trial'          // Active trial period
-  | 'active'         // Active paid subscription
-  | 'grace'          // Canceled but still within grace period
-  | 'canceled'       // Canceled and no longer in grace period
-  | 'expired';       // Subscription expired
+  | 'trial'          // Active 30-day trial period
+  | 'active'         // Active paid subscription (Kids Club+)
+  | 'paused'         // Subscription paused (retention feature - keeps access)
+  | 'cancelled'      // Canceled - still has access until period end
+  | 'grace_period'   // Grace period - SP wallet frozen, 90-day countdown
+  | 'grace'          // Legacy alias for grace_period
+  | 'canceled'       // Legacy spelling
+  | 'expired';       // Subscription expired - SP permanently deleted
 
 /**
- * Subscription summary returned by getSubscriptionSummary
- * Used to check feature access for SP-related features
+ * Enhanced subscription summary (V2.1)
+ * Complete status information for feature gating and UI display
  */
 export interface SubscriptionSummary {
+  // Core status
   status: SubscriptionStatus;
-  is_subscriber: boolean;  // Whether user is currently subscribed (trial or active)
+  is_subscriber: boolean;  // Whether user has active subscription benefits (trial, active, paused)
+  
+  // Feature gates
   can_earn_sp: boolean;   // Can earn Swap Points from sales
   can_spend_sp: boolean;  // Can spend Swap Points on purchases
+  transaction_fee_cents: number; // Transaction fee in cents (99 or 299)
+  
+  // Tier info
   subscription_tier_id: string | null;
+  tier_name: string | null; // e.g., 'Kids Club+'
+  
+  // Dates
   subscription_expires_at: string | null;
+  trial_ends_at: string | null;
+  grace_ends_at: string | null;
+  next_billing_date: string | null;
+  cancelled_at: string | null;
+  paused_until: string | null;
+  
+  // Flags
+  has_used_trial: boolean;
+  auto_renew_enabled: boolean;
+  payment_retry_count: number;
+  
+  // Stripe IDs
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_payment_method_id: string | null;
 }
 
 /**
- * Get subscription summary for a user
+ * Complete subscription details from RPC
+ */
+export interface SubscriptionDetails {
+  id: string;
+  user_id: string;
+  tier_id: string | null;
+  status: SubscriptionStatus;
+  has_used_trial: boolean;
+  trial_started_at: string | null;
+  trial_ends_at: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  next_billing_date: string | null;
+  grace_started_at: string | null;
+  grace_ends_at: string | null;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  paused_until: string | null;
+  auto_renew_enabled: boolean;
+  payment_retry_count: number;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_payment_method_id: string | null;
+}
+
+/**
+ * Get complete subscription summary for a user (V2.1)
  * 
- * TODO(MODULE-11): Replace with full subscription RPC when MODULE-11 is implemented.
- * Current implementation checks subscriptions table for active/trial status
+ * MODULE-11 TASK SUB-002 implementation using enhanced subscriptions table
+ * Includes all status fields, grace period, cancellation, and billing info
  * 
  * @param userId - User ID to check subscription for
- * @returns SubscriptionSummary with feature flags
+ * @returns SubscriptionSummary with all feature flags and status details
  */
 export async function getSubscriptionSummary(userId: string): Promise<SubscriptionSummary> {
   try {
-    // 1. Try to fetch from RPC first (consistent with AuthContext)
-    const { data: subData, error: subError } = await supabase.rpc(
-      'get_subscription_summary',
+    // Call enhanced RPC function from TASK SUB-002
+    const { data, error } = await supabase.rpc(
+      'get_subscription_status',
       { p_user_id: userId }
     );
 
-    if (!subError && subData) {
-      const summary = Array.isArray(subData) ? subData[0] : subData;
-
-      if (!summary || typeof summary !== 'object') {
-        console.warn(
-          '[subscription] ⚠️ get_subscription_summary returned no data, falling back to free status'
-        );
-      } else if (!summary.status) {
-        console.warn(
-          '[subscription] ⚠️ get_subscription_summary missing status field, falling back to free status'
-        );
-      } else {
-        const status = summary.status as SubscriptionStatus;
-        const canSpend = Boolean(summary.can_spend_sp);
-        const isActive = ['active', 'trial', 'grace'].includes(status);
-
-        return {
-          status,
-          is_subscriber: isActive,
-          can_earn_sp: canSpend,
-          can_spend_sp: canSpend,
-          subscription_tier_id: null,
-          subscription_expires_at: summary.trial_end_date || summary.current_period_end || null,
-        };
-      }
-    }
-
-    // 2. Fallback to direct query if RPC fails or is missing
-    console.warn('[subscription] ⚠️ Falling back to direct query for getSubscriptionSummary');
-    const { data: subscription, error } = await supabase
-      .from('subscriptions')
-      .select('user_id,status,created_at,updated_at,trial_end_date,current_period_end')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
     if (error) {
-      console.error('[subscription] ❌ Error fetching user subscription:', error.message);
+      console.error('[subscription] ❌ Error calling get_subscription_status:', error.message);
       throw new Error(`Failed to fetch subscription: ${error.message}`);
     }
 
-    // Check if subscription array is empty or null
-    if (!subscription || subscription.length === 0) {
-      // No subscription found - free user
+    // Handle no subscription found (free user)
+    if (!data || (Array.isArray(data) && data.length === 0)) {
       console.log('[subscription] ℹ️ No subscription found for user', userId, '- treating as free user');
-      return {
-        status: 'free',
-        is_subscriber: false,
-        can_earn_sp: false,
-        can_spend_sp: false,
-        subscription_tier_id: null,
-        subscription_expires_at: null,
-      };
+      return createFreeTierSummary();
     }
 
-    const sub = subscription[0];
+    // Extract subscription details
+    const sub = Array.isArray(data) ? data[0] : data;
     
-    // Guard against undefined sub (should not happen, but defensive)
-    if (!sub || typeof sub !== 'object') {
-      console.warn('[subscription] ⚠️ Invalid subscription record retrieved, treating as free user');
-      return {
-        status: 'free',
-        is_subscriber: false,
-        can_earn_sp: false,
-        can_spend_sp: false,
-        subscription_tier_id: null,
-        subscription_expires_at: null,
-      };
+    if (!sub || typeof sub !== 'object' || !sub.status) {
+      console.warn('[subscription] ⚠️ Invalid subscription data, treating as free user');
+      return createFreeTierSummary();
     }
 
-    // Guard against missing status field
-    if (!sub.status) {
-      console.warn('[subscription] ⚠️ Subscription record missing status field, treating as free user');
-      return {
-        status: 'free',
-        is_subscriber: false,
-        can_earn_sp: false,
-        can_spend_sp: false,
-        subscription_tier_id: null,
-        subscription_expires_at: null,
-      };
+    // Determine subscriber status (active benefits)
+    const status = sub.status as SubscriptionStatus;
+    const isSubscriber = ['trial', 'active', 'paused'].includes(status);
+    
+    // SP feature gates (trial, active, paused can use SP; grace_period cannot)
+    const canEarnSpend = ['trial', 'active', 'paused'].includes(status);
+    
+    // Transaction fee: Read dynamically from admin_config via RPC (V2.1 enhancement)
+    // This allows admins to adjust fees without code changes
+    let transactionFeeCents = 299; // Default fallback
+    try {
+      transactionFeeCents = await getTransactionFee(userId);
+    } catch (err) {
+      // If dynamic fee fetch fails, use fallback based on subscriber status
+      console.warn('[subscription] ⚠️ Failed to fetch dynamic fee, using fallback:', err);
+      transactionFeeCents = isSubscriber ? 99 : 299;
     }
-
-    // Check if user has an active or trial subscription (include grace)
-    const isActive = ['active', 'trial', 'grace'].includes(sub.status);
+    
+    // Determine expiration date based on status
+    let expiresAt = sub.trial_ends_at || sub.current_period_end || null;
     
     return {
-      status: sub.status as SubscriptionStatus,
-      is_subscriber: isActive,
-      can_earn_sp: isActive,
-      can_spend_sp: isActive,
-      subscription_tier_id: null, 
-      subscription_expires_at: sub.trial_end_date || sub.current_period_end || null,
+      status,
+      is_subscriber: isSubscriber,
+      can_earn_sp: canEarnSpend,
+      can_spend_sp: canEarnSpend,
+      transaction_fee_cents: transactionFeeCents,
+      subscription_tier_id: sub.tier_id || null,
+      tier_name: isSubscriber ? 'Kids Club+' : 'Free',
+      subscription_expires_at: expiresAt,
+      trial_ends_at: sub.trial_ends_at || null,
+      grace_ends_at: sub.grace_ends_at || null,
+      next_billing_date: sub.next_billing_date || null,
+      cancelled_at: sub.cancelled_at || null,
+      paused_until: sub.paused_until || null,
+      has_used_trial: Boolean(sub.has_used_trial),
+      auto_renew_enabled: Boolean(sub.auto_renew_enabled),
+      payment_retry_count: sub.payment_retry_count || 0,
+      stripe_customer_id: sub.stripe_customer_id || null,
+      stripe_subscription_id: sub.stripe_subscription_id || null,
+      stripe_payment_method_id: sub.stripe_payment_method_id || null,
     };
   } catch (error) {
     const err = error as Error;
     console.error('[subscription] ❌ getSubscriptionSummary failed:', err.message);
-    // Return free user status on error to avoid blocking the flow
-    return {
-      status: 'free',
-      is_subscriber: false,
-      can_earn_sp: false,
-      can_spend_sp: false,
-      subscription_tier_id: null,
-      subscription_expires_at: null,
-    };
+    // Return free tier on error to avoid blocking the flow
+    return createFreeTierSummary();
   }
+}
+
+/**
+ * Create default free tier summary
+ * Used as fallback when no subscription exists or on error
+ * Note: Transaction fee is dynamically fetched from admin_config via getTransactionFee()
+ */
+function createFreeTierSummary(): SubscriptionSummary {
+  return {
+    status: 'free',
+    is_subscriber: false,
+    can_earn_sp: false,
+    can_spend_sp: false,
+    transaction_fee_cents: 299, // Fallback: $2.99 for non-subscribers (overridden by dynamic fetch)
+    subscription_tier_id: null,
+    tier_name: 'Free',
+    subscription_expires_at: null,
+    trial_ends_at: null,
+    grace_ends_at: null,
+    next_billing_date: null,
+    cancelled_at: null,
+    paused_until: null,
+    has_used_trial: false,
+    auto_renew_enabled: true,
+    payment_retry_count: 0,
+    stripe_customer_id: null,
+    stripe_subscription_id: null,
+    stripe_payment_method_id: null,
+  };
 }
 
 /**
@@ -183,4 +227,91 @@ export async function canAcceptSwapPoints(userId: string): Promise<boolean> {
 export async function getSubscriptionStatusString(userId: string): Promise<string> {
   const summary = await getSubscriptionSummary(userId);
   return summary.status;
+}
+
+/**
+ * Check if user is eligible for free trial (V2.1)
+ * One trial per user lifetime
+ * 
+ * @param userId - User ID to check
+ * @returns true if user has not used their trial yet
+ */
+export async function isTrialEligible(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc(
+      'is_user_trial_eligible',
+      { p_user_id: userId }
+    );
+    
+    if (error) {
+      console.error('[subscription] ❌ Error checking trial eligibility:', error.message);
+      return false; // Default to not eligible on error
+    }
+    
+    return Boolean(data);
+  } catch (error) {
+    const err = error as Error;
+    console.error('[subscription] ❌ isTrialEligible failed:', err.message);
+    return false;
+  }
+}
+
+/**
+ * Get transaction fee for a user based on subscription status (V2.1)
+ * $0.99 for Kids Club+ subscribers (trial, active, paused)
+ * $2.99 for non-subscribers (free, grace_period, expired, cancelled)
+ * 
+ * @param userId - User ID
+ * @returns Transaction fee in cents
+ */
+export async function getTransactionFee(userId: string): Promise<number> {
+  try {
+    const { data, error } = await supabase.rpc(
+      'get_user_transaction_fee',
+      { p_user_id: userId }
+    );
+    
+    if (error) {
+      console.error('[subscription] ❌ Error getting transaction fee:', error.message);
+      return 299; // Default to non-subscriber fee on error
+    }
+    
+    return data || 299;
+  } catch (error) {
+    const err = error as Error;
+    console.error('[subscription] ❌ getTransactionFee failed:', err.message);
+    return 299;
+  }
+}
+
+/**
+ * Get complete subscription details for a user (V2.1)
+ * Returns full SubscriptionDetails object with all fields
+ * 
+ * @param userId - User ID
+ * @returns SubscriptionDetails or null if not found
+ */
+export async function getSubscriptionDetails(userId: string): Promise<SubscriptionDetails | null> {
+  try {
+    const { data, error } = await supabase.rpc(
+      'get_subscription_status',
+      { p_user_id: userId }
+    );
+
+    if (error) {
+      console.error('[subscription] ❌ Error getting subscription details:', error.message);
+      return null;
+    }
+
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      return null;
+    }
+
+    const sub = Array.isArray(data) ? data[0] : data;
+    return sub as SubscriptionDetails;
+  } catch (error) {
+    const err = error as Error;
+    console.error('[subscription] ❌ getSubscriptionDetails failed:', err.message);
+    return null;
+  }
 }

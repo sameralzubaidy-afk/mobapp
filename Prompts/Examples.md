@@ -45,15 +45,18 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK SUB-001: Kids Club+ Subscription Tier Schema
 
+## TASK SUB-002: User Subscriptions Table & Status Management
+
+Create the user_subscriptions table to track each user's subscription status, billing dates, trial info, and grace period. This is the core table that gates SP access.
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SUB-001: Kids Club+ Subscription Tier Schema
+Tasks: ## TASK SUB-002: User Subscriptions Table & Status Management
 
 scope is 
-Create the subscription tier configuration. For MVP, we have a **single tier** (Kids Club+) but the schema supports future multi-tier expansion. The tier defines pricing, trial period, features, and is admin-configurable.
+Create the user_subscriptions table to track each user's subscription status, billing dates, trial info, and grace period. This is the core table that gates SP access.
+
 
 
 Please

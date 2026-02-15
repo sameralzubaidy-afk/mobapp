@@ -37,6 +37,7 @@ import { hasActiveTradeBetween, getSellerRating } from '@/services/trade';
 import { Listing } from '@/types/listing';
 import { trackEvent } from '@/services/analytics';
 import { RootStackParamList } from '@/navigation/types';
+import { Ionicons } from '@expo/vector-icons';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import StarRating from '@/components/molecules/StarRating';
 import Avatar from '@/components/atoms/Avatar';
@@ -456,7 +457,24 @@ export default function ItemDetailScreen() {
           {/* Seller Info Section (TASK-ITEM-DETAILS-001: Masking & Ratings) */}
           {listing.seller && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>👤 Seller Info</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>👤 Seller Info</Text>
+                {(sellerVerificationStatus === 'approved' || sellerVerificationStatus === 'verified') && (
+                  <View style={styles.verifiedBadge}>
+                    <Ionicons name="checkmark-circle" size={14} color="#1d4ed8" />
+                    <Ionicons
+                      name="shield-checkmark"
+                      size={18}
+                      color="#2563EB"
+                      style={styles.verifiedIcon}
+                    />
+                    <View style={styles.verifiedTextBlock}>
+                      <Text style={styles.verifiedBadgeTitle}>Trusted Seller</Text>
+                      <Text style={styles.verifiedBadgeSubtitle}>ID verified</Text>
+                    </View>
+                  </View>
+                  )}
+              </View>
               <View style={styles.sellerCard}>
                 <Avatar 
                   imageUrl={listing.seller.avatar_url || undefined} 
@@ -780,6 +798,43 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 12,
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  verifiedIcon: {
+    marginLeft: 6,
+    marginRight: 4,
+  },
+  verifiedTextBlock: {
+    marginLeft: 2,
+  },
+  verifiedBadgeTitle: {
+    fontSize: 12,
+    color: '#1d4ed8',
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+  verifiedBadgeSubtitle: {
+    fontSize: 10,
+    color: '#1e40af',
+    fontWeight: '600',
+    lineHeight: 12,
+    textTransform: 'uppercase',
+  },
+  verifiedText: {
+    fontSize: 11,
+    color: '#1d4ed8',
+    fontWeight: '700',
+    marginLeft: 4,
+    textTransform: 'uppercase',
   },
   sellerCard: {
     flexDirection: 'row',

@@ -100,7 +100,22 @@ This file is the canonical registry of end-to-end flows and their required regre
     - RLS policies allow public SELECT for active tiers and features.
     - Service layer: `getActiveSubscriptionTiers()`, `getKidsClubPlusTier()`, `checkTierFeature()` work correctly.
     - TypeScript types compile without errors.
-  - **Subscription Lifecycle (TODO: SUB-002+):**
+  - **SUB-002 Subscription Table & Status Management (COMPLETED):**
+    - `subscriptions` table enhanced with grace period tracking (`grace_started_at`, `grace_ends_at`).
+    - Cancellation fields added: `cancelled_at`, `cancel_reason`, `cancel_at_period_end`.
+    - Billing cycle fields: `monthly_price_cents`, `last_payment_date`, `last_payment_amount`, `next_billing_date`.
+    - Payment retry tracking: `payment_failed_at`, `payment_retry_count` (0-3).
+    - Pause feature: `paused_until` (retention - keeps access during pause).
+    - Auto-renewal control: `auto_renew_enabled` (user can toggle).
+    - Trial abuse prevention: `has_used_trial` flag.
+    - Saved payment method: `stripe_payment_method_id` (for seamless re-subscribe).
+    - Status constraint updated with V2.1 states: 'free', 'trial', 'active', 'paused', 'cancelled', 'grace_period', 'expired'.
+    - RPC functions: `get_subscription_status`, `can_user_earn_sp`, `can_user_spend_sp`, `get_user_transaction_fee`, `is_user_trial_eligible`, `update_subscription_status`, `record_payment_attempt`.
+    - TypeScript service: Enhanced `getSubscriptionSummary()` with all V2.1 fields, `isTrialEligible()`, `getTransactionFee()`, `getSubscriptionDetails()`.
+    - Unit tests: `/src/services/__tests__/subscription.test.ts` (covers all statuses and feature gates).
+    - E2E tests: `/src/__tests__/e2e/subscription-sub-002.e2e.ts` (verifies RPC functions and status transitions).
+    - Manual test cases: `SUB-002-MANUAL-TEST-CASES.md` (20 test cases for simulators).
+  - **Subscription Lifecycle (TODO: SUB-003+):**
     - User starts trial -> `user_subscriptions.status = 'trial'`.
     - Trial expires without payment -> transitions to `grace_period`.
     - User cancels active subscription -> keeps access until period end, then moves to `grace_period`.
