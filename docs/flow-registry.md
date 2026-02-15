@@ -118,6 +118,20 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Unit tests: `/src/services/__tests__/subscription.test.ts` (covers all statuses and feature gates).
     - E2E tests: `/src/__tests__/e2e/subscription-sub-002.e2e.ts` (verifies RPC functions and status transitions).
     - Manual test cases: `SUB-002-MANUAL-TEST-CASES.md` (20 test cases for simulators).
+
+  - **SUB-004 Trial Reminder Notifications (COMPLETED):**
+    - Edge Function: `supabase/functions/trial-reminders/index.ts` - Daily cron job to send reminders at Day 23, 28, 29.
+    - Database flags: `trial_reminder_day_23_sent`, `trial_reminder_day_28_sent`, `trial_reminder_day_29_sent` prevent duplicates.
+    - Reminder schedule: Day 23 (7 days remaining), Day 28 (2 days remaining), Day 29 (1 day remaining).
+    - Notification content: Unique title and message for each reminder day with increasing urgency.
+    - Integration: Calls existing `send-push-notification` Edge Function for delivery.
+    - TypeScript service: `trialReminders.ts` with `getTrialReminderStatus()`, `calculateDaysRemaining()`, `getTrialReminderMessage()`.
+    - UI Component: `TrialReminderBanner.tsx` displays reminders on Dashboard with color-coded urgency (blue/orange/red).
+    - Idempotency: Flags ensure reminders are sent exactly once per milestone.
+    - Unit tests: `p2p-kids-marketplace/src/services/subscriptions/__tests__/trialReminders.test.ts`.
+    - E2E tests: `p2p-kids-marketplace/e2e/trial-reminders.e2e.ts`.
+    - Manual testing guide: `SUB-004-MANUAL-TESTING-GUIDE.md`.
+
   - **Subscription Lifecycle (TODO: SUB-003+):**
     - User starts trial -> `user_subscriptions.status = 'trial'`.
     - Trial expires without payment -> transitions to `grace_period`.

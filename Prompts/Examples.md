@@ -45,21 +45,17 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK SUB-003: Start 30-Day Free Trial (No Card Required)
+
+
+## TASK SUB-004: Trial Reminder Notifications (Day 23, 28, 29)
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SUB-003: Start 30-Day Free Trial (No Card Required) 
+Tasks: ## TASK SUB-004: Trial Reminder Notifications (Day 23, 28, 29)
 
 scope is 
-
-Implement the "Try Kids Club+ Free" entry point that:
-
-1. Verifies user is **trial eligible** (one trial per user)
-2. Creates or updates a `user_subscriptions` row
-3. Sets `status = 'trial'` and 30-day window
-4. Initializes reminder flags (Day 23, 28, 29)
-5. Does **NOT** require payment method up front
+Create a daily job that scans `user_subscriptions` where `status = 'trial'` and sends
+reminders at **Day 23, 28, and 29** of the trial, with flags to avoid duplicates
 
 
 Please

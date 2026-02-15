@@ -19,6 +19,7 @@ import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
 import Avatar from '../../components/atoms/Avatar';
 import { idBadgeService } from '@/services/idBadge';
+import { TrialReminderBanner } from '../../components/TrialReminderBanner';
 
 import CategorySelector from '../../components/molecules/CategorySelector';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
@@ -165,6 +166,9 @@ export default function UserDashboardScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Trial Reminder Banner (SUB-004) */}
+        <TrialReminderBanner />
 
         {/* DISCOVERY-V2-003: Category Browsing */}
         <View style={{ marginBottom: 20 }}>
