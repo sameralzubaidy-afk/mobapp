@@ -285,6 +285,70 @@ export async function getTransactionFee(userId: string): Promise<number> {
 }
 
 /**
+ * Check trial eligibility with reason (SUB-003 E2E)
+ * Returns structured eligibility data for UI
+ */
+export async function checkTrialEligibility(userId: string): Promise<{ eligible: boolean; reason?: string }> {
+  try {
+    const { data, error } = await supabase.rpc('is_user_trial_eligible', { p_user_id: userId });
+    
+    if (error) {
+      console.error('[subscription] ❌ Error checking trial eligibility RPC:', error.message);
+      return { eligible: false, reason: error.message };
+    }
+    
+    if (data === true) {
+      return { eligible: true };
+    } else {
+      return { 
+        eligible: false, 
+        reason: 'Trial already used or user not eligible for Kids Club+ trial' 
+      };
+    }
+  } catch (error) {
+    console.error('[subscription] ❌ checkTrialEligibility failed:', error);
+    return { eligible: false, reason: (error as Error).message || 'Eligibility check failed' };
+  }
+}
+
+/**
+ * Enroll User in Kids Club+ Trial
+ * Activates the trial subscription and initializes the SP wallet.
+ */
+export async function enrollInTrialSubscription(userId: string): Promise<{
+  success: boolean;
+  subscription: any;
+  error?: { message: string; code?: string };
+}> {
+  try {
+    const { data, error } = await supabase.rpc('create_trial_subscription', {
+      p_user_id: userId,
+    });
+
+    if (error) {
+      console.error('[enrollInTrialSubscription] ❌ RPC error:', error);
+      return { 
+        success: false, 
+        subscription: null,
+        error: { message: error.message, code: error.code } 
+      };
+    }
+
+    return { 
+      success: true, 
+      subscription: data 
+    };
+  } catch (error) {
+    console.error('[enrollInTrialSubscription] ❌ Unexpected error:', error);
+    return { 
+      success: false, 
+      subscription: null,
+      error: { message: (error as Error).message } 
+    };
+  }
+}
+
+/**
  * Get complete subscription details for a user (V2.1)
  * Returns full SubscriptionDetails object with all fields
  * 

@@ -217,8 +217,8 @@ export class ReferralRewardsService {
       const config = Array.isArray(data) ? data[0] : data;
 
       return {
-        referrer_sp: config.referrer_sp ?? 25,
-        referee_sp: config.referee_sp ?? 10,
+        referrer_sp: config.referrer_sp ?? 50,
+        referee_sp: config.referee_sp ?? 25,
         referrer_listing_sp: config.referrer_listing_sp ?? 25,
         referee_listing_sp: config.referee_listing_sp ?? 10,
         program_enabled: config.program_enabled ?? true,
@@ -228,8 +228,8 @@ export class ReferralRewardsService {
     } catch (err) {
       console.error('[ReferralRewards] Get config error:', err);
       return { 
-        referrer_sp: 25, 
-        referee_sp: 10,
+        referrer_sp: 50, 
+        referee_sp: 25, 
         referrer_listing_sp: 25,
         referee_listing_sp: 10,
         program_enabled: true,

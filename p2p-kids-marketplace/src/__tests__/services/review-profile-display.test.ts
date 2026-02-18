@@ -18,7 +18,7 @@ const { supabase } = require('@/services/supabase');
 
 describe('REVIEW-005: Profile Rating Display', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('getUserReviews', () => {
@@ -76,9 +76,16 @@ describe('REVIEW-005: Profile Rating Display', () => {
         in: jest.fn().mockResolvedValue({ data: mockProfiles, error: null }),
       };
 
+      const mockVerificationQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+
       supabase.from
         .mockReturnValueOnce(mockReviewsQuery)
-        .mockReturnValueOnce(mockProfilesQuery);
+        .mockReturnValueOnce(mockProfilesQuery)
+        .mockReturnValueOnce(mockVerificationQuery);
 
       const result = await getUserReviews('user-1');
 
@@ -103,10 +110,19 @@ describe('REVIEW-005: Profile Rating Display', () => {
         order: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
       };
 
-      supabase.from.mockReturnValueOnce(mockQuery).mockReturnValueOnce({
+      const mockVerificationQuery = {
         select: jest.fn().mockReturnThis(),
-        in: jest.fn().mockResolvedValue({ data: [], error: null }),
-      });
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+
+      supabase.from
+        .mockReturnValueOnce(mockQuery)
+        .mockReturnValueOnce({
+          select: jest.fn().mockReturnThis(),
+          in: jest.fn().mockResolvedValue({ data: [], error: null }),
+        })
+        .mockReturnValueOnce(mockVerificationQuery);
 
       const result = await getUserReviews('user-1');
 
@@ -121,7 +137,21 @@ describe('REVIEW-005: Profile Rating Display', () => {
         order: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
 
-      supabase.from.mockReturnValue(mockQuery);
+      const mockProfilesQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+
+      const mockVerificationQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+
+      supabase.from
+        .mockReturnValueOnce(mockQuery)
+        .mockReturnValueOnce(mockProfilesQuery)
+        .mockReturnValueOnce(mockVerificationQuery);
 
       await getUserReviews('user-1');
 
@@ -153,9 +183,16 @@ describe('REVIEW-005: Profile Rating Display', () => {
         in: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
 
+      const mockVerificationQuery = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+
       supabase.from
         .mockReturnValueOnce(mockReviewsQuery)
-        .mockReturnValueOnce(mockProfilesQuery);
+        .mockReturnValueOnce(mockProfilesQuery)
+        .mockReturnValueOnce(mockVerificationQuery);
 
       const result = await getUserReviews('user-1');
 

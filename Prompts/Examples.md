@@ -44,21 +44,22 @@ Supabase: supabase/
 -----
 My Example 1
 
-
-
-## TASK SUB-005: Trial Conversion & Downgrade Rules
-
+## TASK SUB-006: Stripe Subscription Creation (Post-Trial Conversion)
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SUB-005: Trial Conversion & Downgrade Rules
+Tasks: ## TASK SUB-006: Stripe Subscription Creation (Post-Trial Conversion)
 
 scope is 
-Define and implement what happens when the **30-day trial ends**:
 
-- If user **adds payment method and accepts billing** → convert to `active`
-- If user **does not convert** → downgrade to `free`, freeze SP wallet, start 90-day grace
-- Mark `has_used_trial = true` to prevent a second trial
+Implement the **paid conversion** flow when a trial user decides to continue Kids Club+:
+
+1. User taps "Continue Kids Club+" before trial end
+2. User enters payment details in a Stripe-hosted flow
+3. Stripe Subscription created for Kids Club+ tier
+4. `user_subscriptions` updated with Stripe IDs and billing period
+5. Status becomes `active` (or remains `trial` until Day 30, depending on config)
+
 
 i want you to 
 

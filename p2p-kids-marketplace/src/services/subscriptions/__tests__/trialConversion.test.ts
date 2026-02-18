@@ -43,7 +43,7 @@ describe('Trial Conversion Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+            maybeSingle: jest.fn().mockResolvedValue({
               data: {
                 status: 'trial',
                 trial_end_date: mockTrialEndDate.toISOString(),
@@ -75,7 +75,7 @@ describe('Trial Conversion Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+            maybeSingle: jest.fn().mockResolvedValue({
               data: {
                 status: 'trial',
                 trial_end_date: mockTrialEndDate.toISOString(),
@@ -113,7 +113,7 @@ describe('Trial Conversion Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+            maybeSingle: jest.fn().mockResolvedValue({
               data: null,
               error: new Error('Not found'),
             }),
@@ -139,7 +139,7 @@ describe('Trial Conversion Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+            maybeSingle: jest.fn().mockResolvedValue({
               data: {
                 status: 'trial',
                 trial_end_date: expiredDate.toISOString(),
@@ -166,7 +166,7 @@ describe('Trial Conversion Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+            maybeSingle: jest.fn().mockResolvedValue({
               data: {
                 status: 'trial',
                 trial_end_date: futureDate.toISOString(),
@@ -192,7 +192,7 @@ describe('Trial Conversion Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
+            maybeSingle: jest.fn().mockResolvedValue({
               data: {
                 status: 'active',
                 trial_end_date: null,

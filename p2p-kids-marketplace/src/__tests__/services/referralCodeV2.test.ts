@@ -8,6 +8,7 @@ jest.mock('@/services/supabase/client', () => ({
   supabase: {
     from: jest.fn(() => ({
       select: jest.fn().mockReturnThis(),
+      update: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       single: jest.fn().mockReturnThis(),
@@ -26,7 +27,7 @@ describe('ReferralCodeServiceV2', () => {
 
   describe('getReferralCode', () => {
     it('should return existing referral code', async () => {
-      const mockData = { code: 'ABC123XY' };
+      const mockData = { referral_code: 'ABC123XY' };
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -37,12 +38,12 @@ describe('ReferralCodeServiceV2', () => {
       const result = await ReferralCodeServiceV2.getReferralCode('user-123');
       
       expect(result).toBe('ABC123XY');
-      expect(supabase.from).toHaveBeenCalledWith('referral_codes');
+      expect(supabase.from).toHaveBeenCalledWith('profiles');
     });
 
     it('should create new code if none exists', async () => {
-      // Mock first call returns PGRST116 (no data found)
-      (supabase.from as jest.Mock).mockReturnValue({
+      // First call: getReferralCode select returns no rows
+      (supabase.from as jest.Mock).mockImplementationOnce(() => ({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
@@ -50,7 +51,16 @@ describe('ReferralCodeServiceV2', () => {
           data: null, 
           error: { code: 'PGRST116', message: 'No rows returned' } 
         }),
-      });
+      }));
+
+      // Second call: createReferralCode update fails so service falls back to RPC
+      (supabase.from as jest.Mock).mockImplementationOnce(() => ({
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({
+            error: { message: 'update failed' },
+          }),
+        }),
+      }));
 
       // Mock RPC call for creating new code
       (supabase.rpc as jest.Mock).mockResolvedValue({
@@ -85,6 +95,14 @@ describe('ReferralCodeServiceV2', () => {
 
   describe('createReferralCode', () => {
     it('should create new referral code via RPC', async () => {
+      (supabase.from as jest.Mock).mockReturnValue({
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({
+            error: { message: 'update failed' },
+          }),
+        }),
+      });
+
       const mockRpcResponse = {
         data: { code: 'GHI789UV', created: true },
         error: null,
@@ -100,6 +118,14 @@ describe('ReferralCodeServiceV2', () => {
     });
 
     it('should throw error if RPC fails', async () => {
+      (supabase.from as jest.Mock).mockReturnValue({
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockResolvedValue({
+            error: { message: 'update failed' },
+          }),
+        }),
+      });
+
       (supabase.rpc as jest.Mock).mockResolvedValue({
         data: null,
         error: { message: 'RPC failed' },

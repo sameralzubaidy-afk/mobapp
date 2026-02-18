@@ -81,6 +81,10 @@ describe('Subscription Service - TASK SUB-002', () => {
       mockRpc.mockResolvedValueOnce({
         data: [mockTrialData],
         error: null,
+      } as any)
+      .mockResolvedValueOnce({
+        data: 99,
+        error: null,
       } as any);
 
       const result = await getSubscriptionSummary('user-123');
@@ -122,6 +126,10 @@ describe('Subscription Service - TASK SUB-002', () => {
       mockRpc.mockResolvedValueOnce({
         data: [mockActiveData],
         error: null,
+      } as any)
+      .mockResolvedValueOnce({
+        data: 99,
+        error: null,
       } as any);
 
       const result = await getSubscriptionSummary('user-123');
@@ -159,6 +167,10 @@ describe('Subscription Service - TASK SUB-002', () => {
 
       mockRpc.mockResolvedValueOnce({
         data: [mockGraceData],
+        error: null,
+      } as any)
+      .mockResolvedValueOnce({
+        data: 299,
         error: null,
       } as any);
 
@@ -200,6 +212,10 @@ describe('Subscription Service - TASK SUB-002', () => {
 
       mockRpc.mockResolvedValueOnce({
         data: [mockPausedData],
+        error: null,
+      } as any)
+      .mockResolvedValueOnce({
+        data: 99,
         error: null,
       } as any);
 

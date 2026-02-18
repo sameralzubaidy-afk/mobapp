@@ -386,9 +386,11 @@ describe('SubscriptionTiers Service - SUB-001', () => {
                   data: mockTier,
                   error: null,
                 }),
-                maybeSingle: jest.fn().mockResolvedValue({
-                  data: mockFeature,
-                  error: null,
+                eq: jest.fn().mockReturnValue({
+                  maybeSingle: jest.fn().mockResolvedValue({
+                    data: mockFeature,
+                    error: null,
+                  }),
                 }),
               }),
             }),

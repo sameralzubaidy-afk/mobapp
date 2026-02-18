@@ -68,6 +68,28 @@ describeSupabase('AUTH-V2: Complete Signup → Trial Flow', () => {
       throw new Error('Failed to provision test user. Ensure SUPABASE_SERVICE_ROLE_KEY is set.');
     }
     createdUserIds.push(created.userId);
+
+    const service = getServiceClient();
+    if (!service) {
+      throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+    }
+
+    const { error: profileUpsertError } = await service
+      .from('profiles')
+      .upsert(
+        {
+          user_id: created.userId,
+          name: input.name,
+          phone_verified: false,
+          profile_completed: false,
+        } as any,
+        { onConflict: 'user_id' } as any
+      );
+
+    if (profileUpsertError) {
+      throw profileUpsertError;
+    }
+
     return { userId: created.userId, email: input.email, password: input.password };
   }
 
@@ -146,7 +168,10 @@ describeSupabase('AUTH-V2: Complete Signup → Trial Flow', () => {
     const { userId } = await provisionUser();
 
     // Verify profile was created
-    const { data: profile } = await supabase
+    const service = getServiceClient();
+    if (!service) throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+
+    const { data: profile } = await service
       .from('profiles')
       .select('*')
       .eq('user_id', userId)

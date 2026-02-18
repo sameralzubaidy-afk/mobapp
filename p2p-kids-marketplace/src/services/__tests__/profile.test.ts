@@ -81,16 +81,30 @@ describe('Profile Service', () => {
         distanceMiles: 0,
       });
 
-      // Mock Supabase update
-      (supabase.from as jest.Mock).mockReturnValue({
-        upsert: jest.fn().mockReturnValue({
+      // Mock profiles lookup + upsert chain used by setupUserProfile
+      (supabase.from as jest.Mock).mockImplementation((table: string) => {
+        if (table !== 'profiles') {
+          return null;
+        }
+
+        return {
           select: jest.fn().mockReturnValue({
-            single: jest.fn().mockResolvedValue({
-              data: mockUser,
-              error: null,
+            eq: jest.fn().mockReturnValue({
+              maybeSingle: jest.fn().mockResolvedValue({
+                data: null,
+                error: null,
+              }),
             }),
           }),
-        }),
+          upsert: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: mockUser,
+                error: null,
+              }),
+            }),
+          }),
+        };
       });
 
       const result = await setupUserProfile('user-1', {

@@ -135,6 +135,8 @@ describe('chat.ts - Conversation Functions', () => {
         trade_id: 'trade-1',
         other_user_id: 'user-456',
         other_user_name: 'Seller',
+        other_user_avatar_url: undefined,
+        other_user_verification_status: 'none',
         listing_title: 'Test Item',
         listing_price: 25.50,
         last_message_content: 'Hello!',

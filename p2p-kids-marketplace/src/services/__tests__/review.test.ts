@@ -20,9 +20,9 @@ describe('Review Service', () => {
     it('should successfully submit a review', async () => {
       const mockReview = {
         id: '123',
-        trade_id: 'trade-1',
-        reviewer_id: 'user-1',
-        reviewee_id: 'user-2',
+        trade_id: '00000000-0000-0000-0000-000000000011',
+        reviewer_id: '00000000-0000-0000-0000-000000000001',
+        reviewee_id: '00000000-0000-0000-0000-000000000002',
         rating: 5,
         comment: 'Great experience!',
         is_anonymous: false,
@@ -41,9 +41,9 @@ describe('Review Service', () => {
       });
 
       const result = await submitReview({
-        tradeId: 'trade-1',
-        reviewerId: 'user-1',
-        revieweeId: 'user-2',
+        tradeId: '00000000-0000-0000-0000-000000000011',
+        reviewerId: '00000000-0000-0000-0000-000000000001',
+        revieweeId: '00000000-0000-0000-0000-000000000002',
         rating: 5,
         comment: 'Great experience!',
         isAnonymous: false,
@@ -256,7 +256,7 @@ describe('Review Service', () => {
   });
 
   describe('getUserReviews', () => {
-    const buildUserReviewMocks = (mockReviews: any[], mockProfiles: any[] = []) => {
+    const buildUserReviewMocks = (mockReviews: any[], mockProfiles: any[] = [], mockVerifications: any[] = []) => {
       const reviewsChain: any = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -268,19 +268,20 @@ describe('Review Service', () => {
         in: jest.fn().mockResolvedValue({ data: mockProfiles, error: null }),
       };
 
+      const verificationChain: any = {
+        select: jest.fn().mockReturnThis(),
+        in: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: mockVerifications, error: null }),
+      };
+
       (supabase.from as jest.Mock).mockImplementation((table: string) => {
-        if (table === 'reviews') {
-          return reviewsChain;
-        }
-
-        if (table === 'profiles') {
-          return profilesChain;
-        }
-
+        if (table === 'reviews') return reviewsChain;
+        if (table === 'profiles') return profilesChain;
+        if (table === 'id_badge_verification_requests') return verificationChain;
         return null;
       });
 
-      return { reviewsChain, profilesChain };
+      return { reviewsChain, profilesChain, verificationChain };
     };
 
     it('should fetch user reviews successfully', async () => {
