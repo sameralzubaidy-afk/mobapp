@@ -96,6 +96,13 @@ This file is the canonical registry of end-to-end flows and their required regre
 - **SUB-003 Manual Test Guide:** SUB-003-MANUAL-TESTING-GUIDE.md
 - **SUB-003 Unit Tests:** p2p-kids-marketplace/src/__tests__/services/subscription-sub-003.unit.test.ts
 - **SUB-003 E2E Tests:** p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-003.e2e.ts
+- **SUB-005 Trial Conversion & Downgrade:**
+  - **Manual Test Guide:** SUB-005-MANUAL-TESTING-GUIDE.md
+  - **Unit Tests:** p2p-kids-marketplace/src/services/subscriptions/__tests__/trialConversion.test.ts
+  - **E2E Tests:** p2p-kids-marketplace/e2e/trial-conversion.e2e.test.ts
+  - **Migration:** supabase/migrations/20260215000001_trial_conversion_rpcs.sql
+  - **Edge Function:** supabase/functions/trial-conversion/index.ts
+  - **Test Screen:** p2p-kids-marketplace/src/screens/admin/TrialConversionTestScreen.tsx
 - Manual checks:
   - **SUB-001 Foundation:**
     - `subscription_tiers` table exists with Kids Club+ tier seeded correctly ($4.99, 30d trial, 90d grace).

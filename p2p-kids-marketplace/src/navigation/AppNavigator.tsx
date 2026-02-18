@@ -35,6 +35,7 @@ import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
 import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
+import TrialConversionTestScreen from '@/screens/admin/TrialConversionTestScreen';
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
 import IDVerificationUploadScreen from '@/screens/profile/IDVerificationUploadScreen';
@@ -181,6 +182,7 @@ function RootNavigator() {
             <Stack.Screen name="SellerEarnings" component={SellerEarningsScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
             <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
+            <Stack.Screen name="TrialConversionTest" component={TrialConversionTestScreen} options={{ title: 'Trial Conversion Test - SUB-005' }} />
             <Stack.Screen name="Badges" component={BadgesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
             {/* MODULE-09: Swap Points screens */}

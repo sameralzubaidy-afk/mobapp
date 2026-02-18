@@ -31,10 +31,15 @@ export async function getTrialReminderStatus(): Promise<TrialReminderStatus | nu
       )
       .eq('user_id', user.id)
       .eq('status', 'trial')
-      .single();
+      .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
       console.error('Error fetching trial reminder status:', error);
+      return null;
+    }
+
+    // User doesn't have an active trial - return null (not an error)
+    if (!data) {
       return null;
     }
 

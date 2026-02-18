@@ -482,6 +482,10 @@ export default function ProfileScreen({ navigation }: any) {
         <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>
           <Text style={styles.settingsButtonText}>⚙️ Settings</Text>
         </TouchableOpacity>
+        {/* Admin Dashboard - MODULE-11 SUB-005 */}
+        <TouchableOpacity style={styles.adminDashboardButton} onPress={() => navigation.navigate('AdminDashboard')}>
+          <Text style={styles.adminDashboardButtonText}>⏱️ Admin Dashboard</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.logoutButton, loggingOut && styles.logoutButtonDisabled]}
           onPress={handleLogout}
@@ -626,6 +630,19 @@ const styles = StyleSheet.create({
   },
   settingsButtonText: {
     color: '#374151',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  adminDashboardButton: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  adminDashboardButtonText: {
+    color: '#92400E',
     fontSize: 18,
     fontWeight: '600',
   },

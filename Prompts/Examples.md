@@ -46,19 +46,21 @@ My Example 1
 
 
 
+## TASK SUB-005: Trial Conversion & Downgrade Rules
 
-## TASK SUB-004: Trial Reminder Notifications (Day 23, 28, 29)
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SUB-004: Trial Reminder Notifications (Day 23, 28, 29)
+Tasks: ## TASK SUB-005: Trial Conversion & Downgrade Rules
 
 scope is 
-Create a daily job that scans `user_subscriptions` where `status = 'trial'` and sends
-reminders at **Day 23, 28, and 29** of the trial, with flags to avoid duplicates
+Define and implement what happens when the **30-day trial ends**:
 
+- If user **adds payment method and accepts billing** → convert to `active`
+- If user **does not convert** → downgrade to `free`, freeze SP wallet, start 90-day grace
+- Mark `has_used_trial = true` to prevent a second trial
 
-Please
+i want you to 
 
 1- Search the codebase for existing implementations using:
    - Feature keywords

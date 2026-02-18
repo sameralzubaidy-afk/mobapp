@@ -32,6 +32,7 @@ export type RootStackParamList = {
   // Admin routes
   AdminDashboard: undefined;
   ReviewModeration: undefined;
+  TrialConversionTest: undefined;
   // MODULE-08: Badge routes
   Badges: undefined;
   Leaderboard: undefined;

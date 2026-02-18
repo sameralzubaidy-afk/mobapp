@@ -55,6 +55,21 @@ export default function AdminDashboardScreen() {
         </View>
         <Ionicons name="chevron-forward" size={24} color="#ccc" />
       </TouchableOpacity>
+
+      {/* Trial Conversion Test Card - MODULE-11 SUB-005 */}
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate('TrialConversionTest')}
+      >
+        <View style={[styles.cardIconContainer, { backgroundColor: '#E3F2FD' }]}>
+          <Ionicons name="time" size={28} color="#007AFF" />
+        </View>
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle}>Trial Conversion Test</Text>
+          <Text style={styles.cardDescription}>Test trial expiration & conversion logic (SUB-005)</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color="#ccc" />
+      </TouchableOpacity>
       
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Trade Monitoring (TASK TRADE-V2-007)</Text>
