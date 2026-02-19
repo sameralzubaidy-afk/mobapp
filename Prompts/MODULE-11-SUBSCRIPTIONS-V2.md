@@ -964,6 +964,7 @@ need better UX if user used trial , they should not see option to re use trail t
 
 ## TASK SUB-012: Tests, Observability & Module Summary
 
+
 **Duration:** 3 hours  
 **Priority:** High  
 **Dependencies:** SUB-001–SUB-011, MODULE-09
@@ -1190,6 +1191,11 @@ MODULE-11 defines **Kids Club+ subscriptions** as the gatekeeper for Swap Points
 
 ---
 ## 013 Test Case 2: Trial Eligibility Check (One Trial Per User)
+
+## 014 
+how to cancel sub, 
+how to show expire date for the sub , when is the next payment due. 
+how the user automaticly shcudle payment and get ntofications. 
 <!-- 
 MICRO-TASK 11-G COMPLETE
 Next: MODULE-11-VERIFICATION-V2.md and PHASE 1 CHECKPOINT

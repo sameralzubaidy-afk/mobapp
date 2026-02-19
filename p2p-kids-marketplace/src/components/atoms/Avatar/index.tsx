@@ -85,8 +85,8 @@ export default function Avatar({
           width: badgeSize, 
           height: badgeSize, 
           borderRadius: badgeSize / 2,
-          bottom: 0,
-          right: 0,
+          bottom: Math.max(0, size * 0.03),
+          right: Math.max(0, size * 0.03),
           zIndex: 99,
           elevation: 10, // Higher elevation for Android to ensure it's on top
           backgroundColor: '#FFFFFF', // Required for filling the transparent checkmark cutout
@@ -96,7 +96,6 @@ export default function Avatar({
           name="checkmark-circle" 
           size={badgeSize} 
           color={badgeColor} 
-          style={{ position: 'absolute' }}
         />
       </View>
     );

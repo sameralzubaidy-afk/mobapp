@@ -98,6 +98,16 @@ This file is the canonical registry of end-to-end flows and their required regre
 - **SUB-003 E2E Tests:** p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-003.e2e.ts
 - **SUB-005 Trial Conversion & Downgrade:**
   - **Manual Test Guide:** SUB-005-MANUAL-TESTING-GUIDE.md
+- **SUB-006 Trial-to-Paid Conversion (Stripe Payment):**
+  - **Manual Test Guide:** SUB-006-MANUAL-TESTING-GUIDE.md
+  - **Unit Tests:** p2p-kids-marketplace/src/__tests__/services/subscription-sub-006.unit.test.ts
+  - **E2E Tests:** p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-006.e2e.ts
+  - **Edge Functions:** 
+    - `supabase/functions/setup-subscription-payment/index.ts` (SetupIntent for payment collection)
+    - `supabase/functions/create-subscription-payment/index.ts` (Create Stripe subscription with payment)
+  - **Mobile Screen:** `p2p-kids-marketplace/src/screens/subscription/ContinueKidsClubScreen.tsx`
+  - **Service:** `p2p-kids-marketplace/src/services/subscriptions/trialToPaidConversion.ts`
+  - **Flow:** User taps "Start/Continue Kids Club+" from Profile → Stripe Payment Sheet → Payment method collected → Subscription created with trial window → First charge occurs after free period ends (unless canceled)
   - **Unit Tests:** p2p-kids-marketplace/src/services/subscriptions/__tests__/trialConversion.test.ts
   - **E2E Tests:** p2p-kids-marketplace/e2e/trial-conversion.e2e.test.ts
   - **Migration:** supabase/migrations/20260215000001_trial_conversion_rpcs.sql
@@ -210,6 +220,12 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-20: Audit/Logging
 - Smoke: (manual)
+- Cron Observability Addendum:
+  - Use `public.get_cron_jobs_with_last_run(false, '<TZ>')` to guarantee one status row per job.
+  - Use `public.get_cron_recent_runs(48, 500, '<TZ>')` for run history with UTC+local timestamps.
+  - Admin API endpoints:
+    - `GET /api/admin/cron-jobs?includeInactive=false&timezone=America/Los_Angeles`
+    - `GET /api/admin/cron-runs?lookbackHours=48&limit=500&timezone=America/Los_Angeles`
 
 ### FLOW-21: ID Verification — Manual ID Badge Verification (BADGE-009, BADGE-013)
 

@@ -21,6 +21,7 @@ import { supabase } from '@/services/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BadgeShowcase } from '@/components/BadgeShowcase';
 import { idBadgeService } from '@/services/idBadge';
+import { getTrialStatus, TrialStatus } from '@/services/subscriptions/trialConversion';
 import { getUserReviews, getReviewStats, Review, ReviewStats } from '@/services/review';
 import { ReviewCard } from '@/components/ReviewCard';
 import { StarRating } from '@/components/StarRating';
@@ -48,6 +49,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [pendingReferralNotice, setPendingReferralNotice] = useState<string | null>(null);
   const [pendingBadgeText, setPendingBadgeText] = useState('We\'re reviewing your ID. Usually within 24h.');
+  const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -162,6 +164,14 @@ export default function ProfileScreen({ navigation }: any) {
       
       // Load reviews and stats
       await loadReviewsData(authUser.id);
+
+      // Load trial status (MODULE-11 SUB-006)
+      try {
+        const tStatus = await getTrialStatus();
+        setTrialStatus(tStatus);
+      } catch (error) {
+        console.warn('Error loading trial status:', error);
+      }
     } catch (error: any) {
       console.error('Load profile error:', error);
       Alert.alert('Error', 'Failed to load profile. Please try again.');
@@ -479,6 +489,15 @@ export default function ProfileScreen({ navigation }: any) {
         <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
           <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
         </TouchableOpacity>
+
+        {trialStatus?.status !== 'active' && (
+          <TouchableOpacity 
+            style={[styles.settingsButton, { backgroundColor: '#6366F1', borderColor: '#4F46E5', flexDirection: 'row', justifyContent: 'center' }]} 
+            onPress={() => navigation.navigate('ContinueKidsClub')}
+          >
+            <Text style={[styles.settingsButtonText, { color: '#FFFFFF' }]}>✨ Start/Continue Kids Club+</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>
           <Text style={styles.settingsButtonText}>⚙️ Settings</Text>
         </TouchableOpacity>
