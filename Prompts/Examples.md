@@ -44,21 +44,22 @@ Supabase: supabase/
 -----
 My Example 1
 
-## TASK SUB-006: Stripe Subscription Creation (Post-Trial Conversion)
+
+## TASK SUB-007: Stripe Webhook Handling (Status & Billing Updates)
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SUB-006: Stripe Subscription Creation (Post-Trial Conversion)
+Tasks: 
+## TASK SUB-007: Stripe Webhook Handling (Status & Billing Updates)
 
 scope is 
 
-Implement the **paid conversion** flow when a trial user decides to continue Kids Club+:
+Handle Stripe webhooks to keep `user_subscriptions` in sync with billing events:
 
-1. User taps "Continue Kids Club+" before trial end
-2. User enters payment details in a Stripe-hosted flow
-3. Stripe Subscription created for Kids Club+ tier
-4. `user_subscriptions` updated with Stripe IDs and billing period
-5. Status becomes `active` (or remains `trial` until Day 30, depending on config)
+- `customer.subscription.updated` → update status and periods
+- `invoice.payment_failed` → mark `past_due`, increment retry count
+- `customer.subscription.deleted` → move to `grace_period` or `expired` depending on context
+
 
 
 i want you to 

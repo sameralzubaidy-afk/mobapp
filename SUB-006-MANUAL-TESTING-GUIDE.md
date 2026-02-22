@@ -13,10 +13,16 @@
 ### Database Setup
 Run in Supabase SQL Editor:
 ```sql
--- Verify Kids Club+ tier exists
-SELECT * FROM subscription_tiers WHERE name = 'kids_club_plus';
+-- Verify charge source-of-truth values (used by setup/create subscription functions)
+SELECT key, value, data_type, is_active
+FROM admin_config
+WHERE key IN ('subscription_price_monthly', 'trial_period_days')
+ORDER BY key;
 
--- Should show: price_cents = 499 ($4.99), is_active = true
+-- Verify Kids Club+ tier row exists for Stripe product metadata mapping
+SELECT id, name, stripe_product_id, is_active
+FROM subscription_tiers
+WHERE name = 'kids_club_plus';
 ```
 
 ### Environment Variables
@@ -52,14 +58,14 @@ npx supabase functions deploy create-subscription-payment
 1. Open simulator: `npm run start:android` or `npm run start:ios`
 2. Login as test user: `trial-test@test.com`
 3. Navigate to "Continue Kids Club+" screen
-   - Via app menu → Profile → "Continue Kids Club+"
-   - Or via deep link: `navigation.navigate('ContinueKidsClub')`
+  - Via app menu → Profile → "Continue Kids Club+"
+  - Or via deep link: `navigation.navigate('ContinueKidsClub')`
 
 **Expected Results:**
 - ✅ Screen loads showing "Continue Kids Club+" title
 - ✅ Shows trial days remaining badge (if < 7 days)
 - ✅ Shows benefits list with 5 items
-- ✅ Shows pricing card: "$4.99 per month"
+- ✅ Shows pricing card using `admin_config.subscription_price_monthly`
 - ✅ Shows primary CTA: "Continue Kids Club+" button
 - ✅ No errors in console
 
@@ -97,7 +103,7 @@ WHERE s.user_id = '<YOUR_TEST_USER_ID>';
   - Expiration date
   - CVC
   - ZIP code
-- ✅ Shows "Pay $4.99" button (or "Subscribe" depending on Stripe config)
+- ✅ Shows "Pay $X.XX" (or "Subscribe") where amount follows `admin_config.subscription_price_monthly`
 
 **Console Output (Success):**
 ```
@@ -167,7 +173,7 @@ WHERE s.user_id = '<YOUR_TEST_USER_ID>';
 2. Find subscription by customer email
 3. Verify:
    - Status: `active` or `trialing`
-   - Amount: $4.99/month
+  - Amount: matches `admin_config.subscription_price_monthly`
    - Payment method attached
 
 ---
@@ -263,7 +269,7 @@ WHERE user_id = '<YOUR_TEST_USER_ID>';
 
 ---
 
-### TEST CASE SUB-006-007: Non-Trial User Can Start 30-Day Free Period
+### TEST CASE SUB-006-007: Non-Trial User Can Start Admin-Configured Free Period
 
 **Objective:** Verify non-trial users can access Kids Club+ and add payment without immediate charge
 
@@ -273,14 +279,14 @@ WHERE user_id = '<YOUR_TEST_USER_ID>';
 **Steps:**
 1. Login as free user: `free-test@test.com`
 2. Navigate to "Continue Kids Club+" screen from Profile
-3. Tap primary CTA (e.g., "Start 30-Day Free Trial")
+3. Tap primary CTA (e.g., "Start X-Day Free Trial")
 4. Complete Payment Sheet with Stripe test card `4242 4242 4242 4242`
 5. Confirm Payment Sheet closes and success alert appears
 
 **Expected Results:**
 - ✅ Profile shows Kids Club+ action button for non-active users
 - ✅ Continue Kids Club+ screen is accessible for non-trial users
-- ✅ Screen shows 30-day free period messaging (no charge today)
+- ✅ Screen shows free-period messaging using `admin_config.trial_period_days`
 - ✅ Payment Sheet opens and accepts payment method
 - ✅ User is not charged immediately
 - ✅ Subscription is saved with trial window and payment method for future billing
@@ -299,7 +305,7 @@ WHERE s.user_id = '<YOUR_TEST_USER_ID>';
 
 **Expected DB State:**
 - `status`: `'trial'`
-- `trial_end_date`: NOT NULL and in the future (about 30 days)
+- `trial_end_date`: NOT NULL and in the future (about configured trial days)
 - `stripe_subscription_id`: NOT NULL
 - `stripe_payment_method_id`: NOT NULL
 
@@ -340,14 +346,15 @@ RUN_SUPABASE_E2E=true npm run test:e2e -- --testPathPattern=subscription-sub-006
 ```
 PASS  src/__tests__/e2e/subscription-sub-006.e2e.ts
   SUB-006 E2E: Trial-to-Paid Conversion
-    ✓ should verify subscription_tiers table has Kids Club+ tier
+    ✓ should verify admin_config has subscription pricing/trial keys used by charge logic
+    ✓ should verify subscription_tiers row still exists for metadata/product mapping
     ✓ should verify setup-subscription-payment function is deployed
     ✓ should verify create-subscription-payment function is deployed
     ✓ should verify subscriptions table has stripe columns
     ✓ should verify user has trial subscription
     ✓ should verify Stripe payment method can be attached
 
-Tests: 6 passed, 6 total
+Tests: 7 passed, 7 total
 ```
 
 ---
@@ -367,13 +374,24 @@ Tests: 6 passed, 6 total
 1. Verify user is logged in: `supabase.auth.getUser()`
 2. Check auth token in request headers
 
-### Issue: "Kids Club+ tier not found"
-**Cause:** subscription_tiers table not seeded  
+### Issue: "Missing required admin_config key: subscription_price_monthly" (or trial_period_days)
+**Cause:** required `admin_config` rows missing/inactive  
 **Fix:**
 ```sql
 -- Run this in Supabase SQL Editor
-INSERT INTO subscription_tiers (name, display_name, price_cents, is_active, is_default)
-VALUES ('kids_club_plus', 'Kids Club+', 499, true, true);
+INSERT INTO admin_config (key, value, data_type, category, is_active, editable)
+VALUES
+  ('subscription_price_monthly', '15.00', 'number', 'subscription', true, true),
+  ('trial_period_days', '30', 'number', 'subscription', true, true)
+ON CONFLICT (key) DO UPDATE SET
+  value = EXCLUDED.value,
+  is_active = true,
+  updated_at = NOW();
+
+-- Ensure metadata tier row exists for Stripe product mapping
+INSERT INTO subscription_tiers (name, display_name, is_active, is_default)
+VALUES ('kids_club_plus', 'Kids Club+', true, true)
+ON CONFLICT (name) DO UPDATE SET is_active = true;
 ```
 
 ### Issue: Subscription created but status still "trial"
@@ -394,7 +412,7 @@ All test cases must pass with:
 - ✅ User receives success confirmation
 - ✅ No console errors
 - ✅ Unit tests: 7/7 passing
-- ✅ E2E tests: 6/6 passing
+- ✅ E2E tests: 7/7 passing
 
 ---
 
@@ -410,7 +428,7 @@ These test cases satisfy the following verification items:
 | VER-SUB-006-004: Payment cancellation handled | TC SUB-006-004 | ✅ |
 | VER-SUB-006-005: Payment decline handled | TC SUB-006-005 | ✅ |
 | VER-SUB-006-006: 3DS authentication works | TC SUB-006-006 | ✅ |
-| VER-SUB-006-007: Non-trial users can start Kids Club+ with 30 free days | TC SUB-006-007 | ✅ |
+| VER-SUB-006-007: Non-trial users can start Kids Club+ with configured free days | TC SUB-006-007 | ✅ |
 | VER-SUB-006-008: Stripe IDs saved to DB | TC SUB-006-003 Verification | ✅ |
 | VER-SUB-006-009: Mobile UI "Continue Kids Club+" button | TC SUB-006-001 | ✅ |
 

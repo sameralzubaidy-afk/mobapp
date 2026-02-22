@@ -102,6 +102,16 @@ This file is the canonical registry of end-to-end flows and their required regre
   - **Manual Test Guide:** SUB-006-MANUAL-TESTING-GUIDE.md
   - **Unit Tests:** p2p-kids-marketplace/src/__tests__/services/subscription-sub-006.unit.test.ts
   - **E2E Tests:** p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-006.e2e.ts
+- **SUB-007 Stripe Webhook Handling (Status & Billing Updates):**
+  - **Edge Function:** supabase/functions/stripe-webhook-subscriptions/index.ts
+  - **Events:** customer.subscription.updated, customer.subscription.deleted, invoice.payment_failed
+  - **State transitions:** active → cancelled (cancel_at_period_end), active → grace_period (deleted/3 retries), payment_retry_count 0→3 → grace_period
+  - **Manual Test Guide:** SUB-007-MANUAL-TESTING-GUIDE.md
+  - **Unit Tests (Deno):** supabase/functions/stripe-webhook-subscriptions/__tests__/webhook.unit.test.ts
+  - **E2E Tests (Jest):** p2p-kids-marketplace/src/__tests__/e2e/sub-007-webhook.e2e.ts
+  - **UI Verification Screen:** SubscriptionStatus (navigate from UserDashboard subscription card, AdminDashboard, or Settings)
+  - **Tier:** 1 for webhook logic changes; Tier 2 if DB migrations or RPC changes touched
+  - **Env Required:** STRIPE_WEBHOOK_SUBSCRIPTIONS_SECRET (separate from trade webhook secret)
   - **Edge Functions:** 
     - `supabase/functions/setup-subscription-payment/index.ts` (SetupIntent for payment collection)
     - `supabase/functions/create-subscription-payment/index.ts` (Create Stripe subscription with payment)

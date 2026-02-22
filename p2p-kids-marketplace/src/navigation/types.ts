@@ -18,6 +18,8 @@ export type RootStackParamList = {
   // Subscription routes
   Subscription: undefined;
   SubscriptionChoice: undefined;
+  // MODULE-11 SUB-007: Subscription status/billing screen (manual verification)
+  SubscriptionStatus: undefined;
   // Trade routes
   TradeInitiation: { itemId: string };
   TradeTimeline: { tradeId: string };

@@ -20,6 +20,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+async function getAdminConfigNumber(
+  supabase: ReturnType<typeof createClient>,
+  key: string,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('admin_config')
+    .select('value')
+    .eq('key', key)
+    .eq('is_active', true)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Missing required admin_config key: ${key}`);
+  }
+
+  const parsed = Number(data.value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid numeric admin_config value for key: ${key}`);
+  }
+
+  return parsed;
+}
+
 serve(async (req) => {
   // CORS headers
   if (req.method === 'OPTIONS') {
@@ -58,21 +81,8 @@ serve(async (req) => {
 
     console.log(`[setup-subscription-payment] Setting up for user: ${user.id}`);
 
-    // 2. Get subscription tier price
-    const { data: tier, error: tierError } = await supabase
-      .from('subscription_tiers')
-      .select('price_cents')
-      .eq('name', 'kids_club_plus')
-      .eq('is_active', true)
-      .single();
-
-    if (tierError || !tier) {
-      console.error('[setup-subscription-payment] Tier fetch error:', tierError);
-      return new Response(
-        JSON.stringify({ error: 'Kids Club+ tier not found' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const adminTrialDays = await getAdminConfigNumber(supabase, 'trial_period_days');
+    const normalizedTrialDays = Math.max(Math.round(adminTrialDays), 0);
 
     // 3. Get or create Stripe Customer
     const { data: subscription, error: subError } = await supabase
@@ -83,7 +93,7 @@ serve(async (req) => {
 
     let customerId = subscription?.stripe_customer_id;
     const now = new Date();
-    const defaultTrialEndIso = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const defaultTrialEndIso = new Date(now.getTime() + normalizedTrialDays * 24 * 60 * 60 * 1000).toISOString();
 
     if (!customerId) {
       console.log('[setup-subscription-payment] Creating Stripe customer...');
@@ -111,7 +121,7 @@ serve(async (req) => {
       }
     }
 
-    // Non-trial users should receive a 30-day free period before first charge
+    // Non-trial users should receive admin-configured free period before first charge
     // when they start Kids Club+ from profile.
     if (subscription && !subscription.stripe_subscription_id) {
       const trialEndDate = subscription.trial_end_date ? new Date(subscription.trial_end_date) : null;

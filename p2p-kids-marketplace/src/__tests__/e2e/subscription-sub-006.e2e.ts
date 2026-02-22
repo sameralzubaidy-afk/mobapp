@@ -6,7 +6,7 @@
  * - RUN_SUPABASE_E2E=true
  * - Valid Supabase credentials in .env
  * - Stripe test keys configured
- * - subscription_tiers table seeded
+ * - admin_config seeded with subscription_price_monthly + trial_period_days
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
@@ -58,7 +58,33 @@ describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
     }
   });
 
-  it('should verify subscription_tiers table has Kids Club+ tier', async () => {
+  it('should verify admin_config has subscription pricing/trial keys used by charge logic', async () => {
+    if (process.env.RUN_SUPABASE_E2E !== 'true') {
+      console.log('⏭️  Skipping');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('admin_config')
+      .select('key, value, data_type')
+      .in('key', ['subscription_price_monthly', 'trial_period_days'])
+      .eq('is_active', true);
+
+    expect(error).toBeNull();
+    expect(data).toBeTruthy();
+    expect((data ?? []).length).toBe(2);
+
+    const monthlyPriceRow = (data ?? []).find((row: any) => row.key === 'subscription_price_monthly');
+    const trialDaysRow = (data ?? []).find((row: any) => row.key === 'trial_period_days');
+
+    expect(monthlyPriceRow).toBeTruthy();
+    expect(trialDaysRow).toBeTruthy();
+    expect(Number(monthlyPriceRow?.value)).toBeGreaterThan(0);
+    expect(Number(trialDaysRow?.value)).toBeGreaterThanOrEqual(0);
+    console.log('✅ admin_config keys exist and are valid for charge logic');
+  });
+
+  it('should verify subscription_tiers row still exists for metadata/product mapping', async () => {
     if (process.env.RUN_SUPABASE_E2E !== 'true') {
       console.log('⏭️  Skipping');
       return;
@@ -66,15 +92,14 @@ describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
 
     const { data, error } = await supabase
       .from('subscription_tiers')
-      .select('*')
+      .select('id, name, is_active')
       .eq('name', 'kids_club_plus')
       .eq('is_active', true)
       .single();
 
     expect(error).toBeNull();
     expect(data).toBeTruthy();
-    expect(data?.price_cents).toBe(499); // $4.99
-    console.log('✅ Kids Club+ tier exists with correct price');
+    console.log('✅ kids_club_plus tier exists for Stripe product metadata mapping');
   });
 
   it('should verify setup-subscription-payment function is deployed', async () => {

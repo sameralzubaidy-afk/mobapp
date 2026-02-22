@@ -21,6 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getTrialStatus, TrialStatus } from '../../services/subscriptions/trialConversion';
 import { useTrialToPaidConversion } from '../../services/subscriptions/trialToPaidConversion';
+import { getSubscriptionPrice, getTrialDays } from '../../services/adminConfig';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -30,6 +31,8 @@ export default function ContinueKidsClubScreen() {
 
   const [loading, setLoading] = useState(false);
   const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
+  const [monthlyPrice, setMonthlyPrice] = useState<number>(4.99);
+  const [trialDays, setTrialDays] = useState<number>(30);
   const [loadingStatus, setLoadingStatus] = useState(true);
 
   const isActiveSubscription = trialStatus?.status === 'active';
@@ -41,8 +44,15 @@ export default function ContinueKidsClubScreen() {
 
   const loadStatus = async () => {
     try {
-      const status = await getTrialStatus();
+      const [status, subscriptionPriceMonthly, trialPeriodDays] = await Promise.all([
+        getTrialStatus(),
+        getSubscriptionPrice(true),
+        getTrialDays(true),
+      ]);
+
       setTrialStatus(status);
+      setMonthlyPrice(subscriptionPriceMonthly);
+      setTrialDays(trialPeriodDays);
     } catch (error) {
       console.error('[ContinueKidsClub] Error loading status:', error);
       Alert.alert('Error', 'Failed to load trial status');
@@ -121,6 +131,8 @@ export default function ContinueKidsClubScreen() {
   const trialEnding = daysRemaining <= 7;
   const showDefaultTrialBadge = !isTrialSubscription;
 
+  const priceFormatted = `$${monthlyPrice.toFixed(2)}`;
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
@@ -137,7 +149,7 @@ export default function ContinueKidsClubScreen() {
           )}
           {showDefaultTrialBadge && (
             <View style={styles.urgencyBadge}>
-              <Text style={styles.urgencyText}>30 free days • no charge today</Text>
+              <Text style={styles.urgencyText}>{trialDays} free days • no charge today</Text>
             </View>
           )}
         </View>
@@ -156,7 +168,7 @@ export default function ContinueKidsClubScreen() {
 
         {/* Pricing */}
         <View style={styles.pricingCard}>
-          <Text style={styles.pricingAmount}>$4.99</Text>
+          <Text style={styles.pricingAmount}>{priceFormatted}</Text>
           <Text style={styles.pricingPeriod}>per month</Text>
           <Text style={styles.pricingNote}>Cancel anytime</Text>
         </View>
@@ -170,7 +182,7 @@ export default function ContinueKidsClubScreen() {
           {loading ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={styles.primaryButtonText}>{isTrialSubscription ? 'Continue Kids Club+' : 'Start 30-Day Free Trial'}</Text>
+            <Text style={styles.primaryButtonText}>{isTrialSubscription ? 'Continue Kids Club+' : `Start ${trialDays}-Day Free Trial`}</Text>
           )}
         </TouchableOpacity>
 
@@ -186,8 +198,8 @@ export default function ContinueKidsClubScreen() {
         {/* Fine Print */}
         <Text style={styles.finePrint}>
           {isTrialSubscription
-            ? "By continuing, you'll be charged $4.99/month starting when your trial ends. You can cancel anytime before the trial ends to avoid charges."
-            : "By adding a payment method, your Kids Club+ membership starts now with 30 free days. Your first $4.99 charge happens after the free period unless you cancel."}
+            ? `By continuing, you'll be charged ${priceFormatted}/month starting when your trial ends. You can cancel anytime before the trial ends to avoid charges.`
+            : `By adding a payment method, your Kids Club+ membership starts now with ${trialDays} free days. Your first ${priceFormatted} charge happens after the free period unless you cancel.`}
         </Text>
       </View>
     </ScrollView>

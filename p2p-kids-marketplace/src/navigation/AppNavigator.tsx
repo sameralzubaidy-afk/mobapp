@@ -37,6 +37,7 @@ import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
 import TrialConversionTestScreen from '@/screens/admin/TrialConversionTestScreen';
 import ContinueKidsClubScreen from '@/screens/subscription/ContinueKidsClubScreen';
+import SubscriptionStatusScreen from '@/screens/subscription/SubscriptionStatusScreen';
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
 import IDVerificationUploadScreen from '@/screens/profile/IDVerificationUploadScreen';
@@ -185,6 +186,7 @@ function RootNavigator() {
             <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
             <Stack.Screen name="TrialConversionTest" component={TrialConversionTestScreen} options={{ title: 'Trial Conversion Test - SUB-005' }} />
             <Stack.Screen name="ContinueKidsClub" component={ContinueKidsClubScreen} options={{ title: 'Continue Kids Club+ - SUB-006' }} />
+            <Stack.Screen name="SubscriptionStatus" component={SubscriptionStatusScreen} options={{ title: 'Subscription Status - SUB-007' }} />
             <Stack.Screen name="Badges" component={BadgesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
             {/* MODULE-09: Swap Points screens */}

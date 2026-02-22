@@ -18,6 +18,29 @@ interface CreateSubscriptionRequest {
   paymentMethodId: string;
 }
 
+async function getAdminConfigNumber(
+  supabase: ReturnType<typeof createClient>,
+  key: string,
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('admin_config')
+    .select('value')
+    .eq('key', key)
+    .eq('is_active', true)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Missing required admin_config key: ${key}`);
+  }
+
+  const parsed = Number(data.value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`Invalid numeric admin_config value for key: ${key}`);
+  }
+
+  return parsed;
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -72,7 +95,7 @@ serve(async (req) => {
       );
     }
 
-    // 3. Get subscription tier info (Kids Club+)
+    // 3. Get subscription tier info (Kids Club+) and admin-config subscription values
     const { data: tier, error: tierError } = await supabase
       .from('subscription_tiers')
       .select('*')
@@ -87,6 +110,14 @@ serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const [adminMonthlyPrice, adminTrialDays] = await Promise.all([
+      getAdminConfigNumber(supabase, 'subscription_price_monthly'),
+      getAdminConfigNumber(supabase, 'trial_period_days'),
+    ]);
+
+    const adminMonthlyPriceCents = Math.round(adminMonthlyPrice * 100);
+    const normalizedTrialDays = Math.max(Math.round(adminTrialDays), 0);
 
     // 4. Get user's current subscription
     const { data: existingSubscription, error: subError } = await supabase
@@ -111,7 +142,7 @@ serve(async (req) => {
         .insert({
           user_id: user.id,
           status: 'trial',
-          trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          trial_end_date: new Date(Date.now() + normalizedTrialDays * 24 * 60 * 60 * 1000).toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
@@ -136,14 +167,14 @@ serve(async (req) => {
       );
     }
 
-    // For non-trial users (e.g. free), initialize a 30-day free period before first charge.
+    // For non-trial users (e.g. free), initialize admin-configured free-trial period before first charge.
     const now = new Date();
     let trialEndDate = subscription.trial_end_date ? new Date(subscription.trial_end_date) : null;
     const hasFutureTrial = trialEndDate && !Number.isNaN(trialEndDate.getTime()) && trialEndDate > now;
     const shouldInitializeTrial = subscription.status !== 'trial' || !hasFutureTrial;
 
     if (shouldInitializeTrial) {
-      trialEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      trialEndDate = new Date(now.getTime() + normalizedTrialDays * 24 * 60 * 60 * 1000);
       const { error: trialInitError } = await supabase
         .from('subscriptions')
         .update({
@@ -154,7 +185,7 @@ serve(async (req) => {
         .eq('id', subscription.id);
 
       if (trialInitError) {
-        console.error('[create-subscription-payment] Failed to initialize 30-day trial:', trialInitError);
+        console.error('[create-subscription-payment] Failed to initialize admin-configured trial window:', trialInitError);
         return new Response(
           JSON.stringify({ success: false, error: 'Failed to initialize free trial window' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -241,17 +272,12 @@ serve(async (req) => {
     const normalizedTrialEndDate = subscription.trial_end_date ? new Date(subscription.trial_end_date) : null;
     
     // If trial is active and hasn't ended, set trial_end on Stripe sub
-    const stripePriceId =
-      typeof (tier as any).stripe_price_id === 'string' && (tier as any).stripe_price_id.trim() !== ''
-        ? (tier as any).stripe_price_id.trim()
-        : null;
-
     let stripeProductId =
       typeof (tier as any).stripe_product_id === 'string' && (tier as any).stripe_product_id.trim() !== ''
         ? (tier as any).stripe_product_id.trim()
         : null;
 
-    if (!stripePriceId && !stripeProductId) {
+    if (!stripeProductId) {
       console.log('[create-subscription-payment] No stripe_product_id found on tier; creating fallback product...');
       const createdProduct = await stripe.products.create({
         name:
@@ -268,22 +294,21 @@ serve(async (req) => {
 
     const subscriptionParams: Stripe.SubscriptionCreateParams = {
       customer: customerId,
-      items: stripePriceId
-        ? [{ price: stripePriceId }]
-        : [{ 
-            price_data: {
-              currency: 'usd',
-              product: stripeProductId!,
-              recurring: {
-                interval: 'month',
-              },
-              unit_amount: tier.price_cents,
-            },
-          }],
+      items: [{
+        price_data: {
+          currency: 'usd',
+          product: stripeProductId!,
+          recurring: {
+            interval: 'month',
+          },
+          unit_amount: adminMonthlyPriceCents,
+        },
+      }],
       default_payment_method: paymentMethodId,
       metadata: {
         supabase_user_id: user.id,
         tier_id: tier.id,
+        admin_price_monthly: adminMonthlyPrice.toFixed(2),
       },
       expand: ['latest_invoice.payment_intent'],
     };

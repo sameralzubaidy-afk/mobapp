@@ -199,12 +199,12 @@ export function invalidateConfigCache(): void {
 /**
  * Convenience functions for common config values
  */
-export async function getSubscriptionPrice(): Promise<number> {
-  return getConfigValue('subscription_price_monthly');
+export async function getSubscriptionPrice(forceRefresh = false): Promise<number> {
+  return getConfigValue('subscription_price_monthly', forceRefresh);
 }
 
-export async function getTrialDays(): Promise<number> {
-  return getConfigValue('trial_period_days');
+export async function getTrialDays(forceRefresh = false): Promise<number> {
+  return getConfigValue('trial_period_days', forceRefresh);
 }
 
 export async function isTrialEnabled(): Promise<boolean> {

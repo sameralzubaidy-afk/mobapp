@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
+import { supabase } from '@/config/supabase';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
 import Avatar from '../../components/atoms/Avatar';
 import { idBadgeService } from '@/services/idBadge';
@@ -34,9 +35,67 @@ export default function UserDashboardScreen() {
   const wallet = useSPWallet();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [daysUntilExpiry] = useState<number | null>(null); // TODO: show days until expiry when needed
+  const [daysUntilExpiry] = useState<number | null>(null);
+  const [nextChangeLabel, setNextChangeLabel] = useState<string>('Next Change');
+  const [nextChangeDateText, setNextChangeDateText] = useState<string>('—');
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const hasRefreshedRef = useRef(false);
+
+  const formatShortDate = (value: string | null | undefined): string => {
+    if (!value) return '—';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '—';
+    return parsed.toLocaleDateString();
+  };
+
+  const loadSubscriptionTimeline = async () => {
+    if (!session?.user?.id) {
+      setNextChangeLabel('Next Change');
+      setNextChangeDateText('—');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('status, trial_end_date, current_period_end, grace_ends_at')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data) {
+        setNextChangeLabel('Next Change');
+        setNextChangeDateText('—');
+        return;
+      }
+
+      if (data.status === 'trial' && data.trial_end_date) {
+        setNextChangeLabel('Trial Ends');
+        setNextChangeDateText(formatShortDate(data.trial_end_date));
+        return;
+      }
+
+      if (data.status === 'active' && data.current_period_end) {
+        setNextChangeLabel('Renews On');
+        setNextChangeDateText(formatShortDate(data.current_period_end));
+        return;
+      }
+
+      if ((data.status === 'grace' || data.status === 'grace_period') && data.grace_ends_at) {
+        setNextChangeLabel('Grace Ends');
+        setNextChangeDateText(formatShortDate(data.grace_ends_at));
+        return;
+      }
+
+      setNextChangeLabel('Next Change');
+      setNextChangeDateText('—');
+    } catch (error) {
+      console.warn('[Dashboard] Failed to load subscription timeline:', error);
+      setNextChangeLabel('Next Change');
+      setNextChangeDateText('—');
+    }
+  };
 
   const loadVerificationStatus = async () => {
     if (session?.user?.id) {
@@ -54,7 +113,8 @@ export default function UserDashboardScreen() {
     try {
       await Promise.all([
         refreshSession(),
-        loadVerificationStatus()
+        loadVerificationStatus(),
+        loadSubscriptionTimeline(),
       ]);
     } catch (error) {
       console.error('[Dashboard] Manual refresh failed:', error);
@@ -68,6 +128,7 @@ export default function UserDashboardScreen() {
     if (isFocused) {
       console.log('[Dashboard] Wallet hook data:', wallet);
       loadVerificationStatus();
+      loadSubscriptionTimeline();
     }
   }, [isFocused, wallet, session?.user?.id]);
 
@@ -133,6 +194,10 @@ export default function UserDashboardScreen() {
       default:
         return 'Free User';
     }
+  };
+
+  const handleOpenSubscriptionDetails = () => {
+    navigation.navigate('SubscriptionStatus');
   };
 
   return (
@@ -203,7 +268,7 @@ export default function UserDashboardScreen() {
         </View>
 
         {/* Subscription Card */}
-        <View style={styles.card}>
+        <TouchableOpacity style={styles.card} onPress={handleOpenSubscriptionDetails} activeOpacity={0.8}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Subscription</Text>
             <View
@@ -258,7 +323,7 @@ export default function UserDashboardScreen() {
               <Text style={styles.featureText}>SP Wallet Unlocked</Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
 
         {/* Swap Points Wallet Card */}
         {subscription.canSpendSP && (
@@ -476,7 +541,6 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    // gap is not supported in React Native StyleSheet
   },
   headerButton: {
     flexDirection: 'row',
@@ -644,6 +708,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#007AFF',
+  },
+  cardTapHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: '#666',
   },
 
   // Points Wallet
