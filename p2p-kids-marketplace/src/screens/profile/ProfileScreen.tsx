@@ -490,12 +490,20 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
         </TouchableOpacity>
 
-        {trialStatus?.status !== 'active' && (
+        {(trialStatus?.status !== 'active' && trialStatus?.status !== 'trial') && (
           <TouchableOpacity 
             style={[styles.settingsButton, { backgroundColor: '#6366F1', borderColor: '#4F46E5', flexDirection: 'row', justifyContent: 'center' }]} 
             onPress={() => navigation.navigate('ContinueKidsClub')}
           >
             <Text style={[styles.settingsButtonText, { color: '#FFFFFF' }]}>✨ Start/Continue Kids Club+</Text>
+          </TouchableOpacity>
+        )}
+        {(trialStatus?.status === 'active' || trialStatus?.status === 'trial') && (
+          <TouchableOpacity
+            style={[styles.settingsButton, { backgroundColor: '#8B5CF6', borderColor: '#7C3AED', flexDirection: 'row', justifyContent: 'center' }]} 
+            onPress={() => navigation.navigate('ManageKidsClub')}
+          >
+            <Text style={[styles.settingsButtonText, { color: '#FFFFFF' }]}>⚙️ Manage Kids Club+</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>

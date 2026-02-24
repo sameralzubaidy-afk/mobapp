@@ -110,6 +110,18 @@ This file is the canonical registry of end-to-end flows and their required regre
   - **Unit Tests (Deno):** supabase/functions/stripe-webhook-subscriptions/__tests__/webhook.unit.test.ts
   - **E2E Tests (Jest):** p2p-kids-marketplace/src/__tests__/e2e/sub-007-webhook.e2e.ts
   - **UI Verification Screen:** SubscriptionStatus (navigate from UserDashboard subscription card, AdminDashboard, or Settings)
+- **SUB-008 User-Initiated Cancellation Flow:**
+  - **Edge Function:** supabase/functions/cancel-subscription/index.ts
+  - **State transitions:** active → cancelled (benefits until period end), trial+SP → grace_period (dynamic admin-config grace days), trial-SP → free
+  - **Grace-period source of truth:** `admin_config.grace_period_days` (with backward-compatible fallback paths in service/function)
+  - **Mobile Screen:** p2p-kids-marketplace/src/screens/subscription/ManageKidsClubScreen.tsx
+  - **Service:** p2p-kids-marketplace/src/services/subscription.ts (cancelSubscription function)
+  - **Manual Test Guide:** SUB-008-MANUAL-TEST-CASES.md
+  - **Unit Tests:** p2p-kids-marketplace/src/__tests__/services/subscription-sub-008.unit.test.ts
+  - **E2E Tests:** p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-008.e2e.ts
+  - **Deep Link:** p2pkidsmarketplace://manage-kids-club
+  - **Features:** Cancel reason analytics, SP wallet freeze for grace_period, re-subscribe CTA
+  - **Tier:** 1 for cancellation logic; Tier 2 if SP wallet freeze or grace period logic changed
   - **Tier:** 1 for webhook logic changes; Tier 2 if DB migrations or RPC changes touched
   - **Env Required:** STRIPE_WEBHOOK_SUBSCRIPTIONS_SECRET (separate from trade webhook secret)
   - **Edge Functions:** 
@@ -125,7 +137,7 @@ This file is the canonical registry of end-to-end flows and their required regre
   - **Test Screen:** p2p-kids-marketplace/src/screens/admin/TrialConversionTestScreen.tsx
 - Manual checks:
   - **SUB-001 Foundation:**
-    - `subscription_tiers` table exists with Kids Club+ tier seeded correctly ($4.99, 30d trial, 90d grace).
+    - `subscription_tiers` table exists with Kids Club+ tier seeded correctly ($4.99, 30d trial, grace period is dynamic from admin config).
     - All 7 features seeded: `can_earn_sp`, `can_spend_sp`, `can_donate`, `reduced_fee`, `priority_matching`, `early_access`, `priority_support`.
     - RLS policies allow public SELECT for active tiers and features.
     - Service layer: `getActiveSubscriptionTiers()`, `getKidsClubPlusTier()`, `checkTierFeature()` work correctly.
@@ -163,7 +175,7 @@ This file is the canonical registry of end-to-end flows and their required regre
     - User starts trial -> `user_subscriptions.status = 'trial'`.
     - Trial expires without payment -> transitions to `grace_period`.
     - User cancels active subscription -> keeps access until period end, then moves to `grace_period`.
-    - Grace period expires (90 days) -> SP wallet permanently deleted, status becomes `expired`.
+    - Grace period expires (`admin_config.grace_period_days`) -> SP wallet permanently deleted, status becomes `expired`.
 - Automated (offline): 
   - Unit tests: `subscriptionTiers.test.ts` validates service layer functions.
   - E2E tests: `sub-001-subscription-tiers.e2e.ts` validates database schema and RLS policies.

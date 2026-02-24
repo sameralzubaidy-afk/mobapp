@@ -965,13 +965,51 @@ need better UX if user used trial , they should not see option to re use trail t
 ## TASK SUB-012: Tests, Observability & Module Summary
 
 
-**Duration:** 3 hours  
+**Duration:** 8 hours (comprehensive test suite for all 20 tasks)  
 **Priority:** High  
-**Dependencies:** SUB-001–SUB-011, MODULE-09
+**Dependencies:** SUB-001–SUB-020, MODULE-09, MODULE-14 (notifications)
 
 ### Description
 
-Define a **minimal but high-signal test and observability plan** and capture a concise module summary and file list so downstream agents/engineers know exactly what to verify and where everything lives.
+Define a **comprehensive test and observability strategy** covering all 20 subscription tasks and provide a complete module summary, file inventory, and cross-module dependencies.
+
+This task encompasses:
+
+1. **Unit Tests by Task** (organized as `sub-001.test.ts` through `sub-020.test.ts`)
+   - Schema validation and type safety tests
+   - Business logic: trial logic, SP gating, fee calculations, grace period rules, trial limits
+   - Helper functions: formatting, date calculations, permission checks
+   - Error handling and edge cases
+
+2. **Integration Tests**
+   - Edge Function contract validation (Zod schemas)
+   - RPC function behavior testing
+   - Database state transitions
+   - Stripe webhook payload validation
+   - Payment method storage and retrieval
+
+3. **E2E Tests**
+   - Core flows: signup → trial → conversion → subscription → cancellation → grace period
+   - Payment flows: Payment Sheet → charge → billing history
+   - Payment failures: retry logic, grace period entry, SP freeze
+   - Renewal flows: re-subscribe, pause/resume, payment method update
+   - Trial limit enforcement: max trials set by admin, blocking after limit, clear messaging
+   - Edge cases: multiple trial attempts, trial limit overrides, state machine transitions
+
+4. **Observability & Logging**
+   - Request/response logging patterns for Edge Functions
+   - Error tracking and structured logging for critical paths
+   - Metrics placeholders: Stripe events, trial conversion rate, churn rate, trial exhaustion rate
+   - Analytics event mappings for key subscription events
+   - Admin audit logging for configuration changes and user overrides
+
+5. **Module Summary & Documentation**
+   - Complete task list and dependencies (all 20 tasks)
+   - Schema overview with ER diagram
+   - API contract specifications
+   - Deployment and migration checklist
+   - Known limitations and future enhancements
+   - Troubleshooting guide for common issues
 
 ### AI Prompt for Cursor
 
@@ -3595,6 +3633,189 @@ ACCEPTANCE CRITERIA:
 ✓ Stripe updated to match pause/cancel state
 ✓ cancelled_reason stored for analytics
 */\n```
+
+---
+## TASK SUB-020: Trial Limit Control (Prevent Trial Reuse - Globally Configured)
+
+**Duration:** 3.5 hours  
+**Priority:** High  
+**Dependencies:** SUB-001, SUB-002, SUB-003, SUB-005, SUB-011 (Admin Controls)
+
+### Description
+
+Implement **global trial limit enforcement** to prevent users from abusing the free trial system. This feature allows admins to set a **lifetime trial limit** (e.g., "users can start 1 free trial, ever") and prevents users from exceeding that limit.
+
+Key behaviors:
+
+1. **Admin Configuration**:
+   - Admin Config screen has a new field: `max_trial_uses` (integer, default 1)
+   - Admins can adjust this setting (e.g., set to 2, 3, unlimited)
+   - Value is stored in `admin_config` table (same pattern as fees)
+
+2. **Trial Limit Enforcement**:
+   - When user attempts to start a trial: check `profiles.trial_uses_count` against `admin_config.max_trial_uses`
+   - `trial_uses_count` increments each time trial is started (success only, not attempts)
+   - If `trial_uses_count >= max_trial_uses`:
+     - Show warning modal: "You've used your free trial. Subscribe to Kids Club+ to continue."
+     - Disable "Start Trial" button
+     - Show CTA: "Subscribe Now" → Payment Sheet or Paywall
+
+3. **Tracking Trial Usage**:
+   - Add `trial_uses_count` column to `profiles` table (integer, default 0)
+   - RPC function `increment_trial_uses(p_user_id)` increments counter after successful trial creation
+   - Maintains audit trail in `subscription_events` table (optional, for analytics)
+
+4. **Admin Override** (optional for fairness):
+   - Admins can manually set `trial_uses_count` to 0 for a user (grants extra trial)
+   - Action is logged in audit table
+   - Shows notification to user: "Your trial has been reset by support"
+
+5. **User Messaging**:
+   - **Before limit**: "Start your free 30-day trial" (no warning)
+   - **At limit**: "You've already used your free trial. Subscribe now to access Kids Club+." (modal)
+   - **After failed attempt**: "Trial limit reached. Please subscribe or contact support."
+   - Android notifications for users who approach the limit (e.g., "Your trial is ending in 3 days")
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Implement global trial limit control (prevent trial reuse)
+
+CONTEXT:
+Admins need to prevent users from repeatedly starting new trials.
+We should track trial usage count and block new trials when limit is reached.
+The limit is global (admin-configurable) but enforced per-user.
+
+REQUIREMENTS:
+
+FILE 1: Database Migration - Add trial_uses_count to profiles
+- Add column: trial_uses_count INTEGER NOT NULL DEFAULT 0
+- Verify existing rows are seeded with 0
+- Comment: "Tracks how many times user has started a trial (lifetime)"
+
+FILE 2: Update admin_config Table
+- Add column: max_trial_uses INTEGER NOT NULL DEFAULT 1
+- Comment: "Global limit for trial starts per user (set by admin)"
+- Existing rows should default to 1
+
+FILE 3: RPC Function - increment_trial_uses
+- Input: { p_user_id UUID }
+- Increment profiles.trial_uses_count by 1 for given user
+- Return: { success: true, new_count: integer, limit: integer }
+- On error: return { success: false, error: string }
+
+FILE 4: RPC Function - get_trial_eligibility
+- Input: { p_user_id UUID }
+- Return:
+  ```typescript
+  {
+    can_start_trial: boolean,
+    trial_uses_count: integer,
+    max_trial_uses: integer,
+    message: string // "Ready to start trial" or "Trial limit reached"
+  }
+  ```
+- Query: profiles.trial_uses_count and admin_config.max_trial_uses
+- Logic: can_start_trial = (trial_uses_count < max_trial_uses)
+
+FILE 5: Edge Function - start-trial (UPDATE)
+- Before creating trial:
+  1. Call get_trial_eligibility RPC
+  2. If can_start_trial === false: return 400 with error
+     ```json
+     {
+       "success": false,
+       "error": {
+         "code": "TRIAL_LIMIT_EXCEEDED",
+         "message": "You've already used your free trial. Subscribe to continue."
+       }
+     }
+     ```
+  3. If can_start_trial === true:
+     - Create trial (existing logic)
+     - Call increment_trial_uses RPC
+     - Return success with new subscription
+
+FILE 6: React Native Component - TrialEligibilityCheck.tsx
+- Props: { onEligible: fn, onLimitReached: fn }
+- On mount: call get-trial-eligibility edge function
+- If eligible: show "Start Free Trial" button, call onEligible()
+- If not eligible: show modal with message, call onLimitReached()
+  Modal:
+  - Title: "Free Trial Limit Reached"
+  - Message: "You've already used your free trial."
+  - [Subscribe Now] button → Payment Sheet
+  - [Contact Support] link
+
+FILE 7: React Native Hook - useTrialEligibility.ts
+- Export async fn: checkTrialEligibility(userId): Promise<TrialEligibility>
+- Returns: { canStart: bool, usesCount: int, maxUses: int, message: string }
+- Caches result for 5 minutes (useCallback)
+- On trial start success: reset cache so next check is fresh
+
+FILE 8: Admin Config Update - AdminConfigScreen.tsx (UPDATE)
+- Add input field: "Max Trial Uses (global)"
+- Value: admin_config.max_trial_uses
+- On change: call update-admin-config edge function
+- Shows current number of users who have used trial count
+- Info text: "Set to 1 to allow one trial per user. Set to 0 to disable trials."
+
+FILE 9: Admin Override Endpoint - admin-reset-trial-count (Optional)
+- Input: { p_admin_user_id, p_target_user_id, p_new_count: 0 }
+- Auth: Must be admin user
+- Action: Set profiles.trial_uses_count = p_new_count for p_target_user_id
+- Logging: Insert into audit_logs table with action='reset_trial_count'
+- Return: { success: true, user_id, new_count }
+- Webhook/notification: Notify user that trial was reset by support
+
+FILE 10: Unit Tests - trial-limit-control.test.ts
+- Test increment_trial_uses increments counter
+- Test get_trial_eligibility with count < max (returns true)
+- Test get_trial_eligibility with count >= max (returns false)
+- Test start-trial edge function rejects when limit exceeded
+- Test start-trial increments counter on success
+- Test admin override resets counter
+- Test error handling (invalid user, DB errors)
+
+FILE 11: E2E Test - trial-limit-enforcement.e2e.ts
+- Create test user
+- Scenario 1: Start trial (should succeed), increment should work
+- Scenario 2: Attempt to start new trial (should fail with 400 & TRIAL_LIMIT_EXCEEDED)
+- Scenario 3: Call admin-reset-trial-count, then try again (should succeed)
+- Scenario 4: Verify audit log has admin override entry
+- Scenario 5: Set max_trial_uses to 0 (disable trials) and verify block
+- Scenario 6: Set max_trial_uses to 2 and verify two trials allowed, third blocked
+
+FILE 12: Manual Test Cases - TRIAL-LIMIT-MANUAL-TESTS.md
+- TC-TL-001: User sees "Start Trial" on first visit
+- TC-TL-002: User starts trial successfully
+- TC-TL-003: Trial completes normally
+- TC-TL-004: User attempts to start new trial → blocked with "Trial limit reached" modal
+- TC-TL-005: User taps "Subscribe Now" → Payment Sheet opens
+- TC-TL-006: Admin checks User Management, sees trial_uses_count = 1
+- TC-TL-007: Admin changes max_trial_uses from 1 to 2
+- TC-TL-008: Create new test user, can start trial twice, third blocked
+- TC-TL-009: Admin uses "Reset Trial" feature on user, messages appear
+- TC-TL-010: Set max_trial_uses to 0 (disabled), all users blocked from trial
+
+ACCEPTANCE CRITERIA:
+✓ trial_uses_count column exists on profiles table
+✓ max_trial_uses can be set in admin_config
+✓ get_trial_eligibility RPC returns correct boolean
+✓ start-trial edge function blocks when limit exceeded
+✓ increment_trial_uses called on successful trial creation
+✓ Client-side UI shows correct messaging (eligible vs blocked)
+✓ Admin can view and manage trial limits for users
+✓ Admin can reset trial count for a specific user
+✓ Audit trail records all trial count changes
+✓ All unit + E2E tests passing
+✓ Manual test cases passed on iOS/Android simulators
+✓ Feature flag (if applicable) allows canary rollout
+*/
+```
+
+---
 
 ---
 

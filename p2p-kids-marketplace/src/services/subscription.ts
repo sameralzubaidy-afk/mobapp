@@ -379,3 +379,126 @@ export async function getSubscriptionDetails(userId: string): Promise<Subscripti
     return null;
   }
 }
+
+/**
+ * Result of a subscription cancellation request
+ * MODULE-11 TASK SUB-008
+ */
+export interface CancelSubscriptionResult {
+  success: boolean;
+  new_status?: 'cancelled' | 'grace_period' | 'free';
+  message: string;
+  current_period_end?: string;
+  grace_period_ends_at?: string;
+}
+
+/**
+ * Cancel the current user's Kids Club+ subscription
+ * MODULE-11 TASK SUB-008: User-Initiated Cancellation Flow
+ *
+ * For 'active' users: Sets Stripe cancel_at_period_end, keeps benefits until period end
+ * For 'trial' users with SP activity: Immediate move to grace_period
+ * For 'trial' users without SP activity: Move to free
+ *
+ * @param cancelReason - Reason for cancellation (for analytics)
+ * @returns CancelSubscriptionResult with new status and messaging
+ */
+export async function cancelSubscription(
+  cancelReason?: string
+): Promise<CancelSubscriptionResult> {
+  try {
+    console.log('[subscription] 📤 Requesting subscription cancellation...');
+
+    // Get current session
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    if (authError || !session) {
+      console.error('[subscription] ❌ No active session for cancellation');
+      return {
+        success: false,
+        message: 'You must be logged in to cancel your subscription',
+      };
+    }
+
+    let accessToken = session.access_token;
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    if (session.expires_at && session.expires_at <= nowEpoch + 60) {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshData?.session?.access_token) {
+        console.error('[subscription] ❌ Session refresh failed before cancellation');
+        return {
+          success: false,
+          message: 'Your session expired. Please log in again and retry.',
+        };
+      }
+      accessToken = refreshData.session.access_token;
+    }
+
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    // Call the cancel-subscription Edge Function
+    const { data, error } = await supabase.functions.invoke('cancel-subscription', {
+      body: { cancel_reason: cancelReason || 'User requested cancellation' },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(anonKey ? { apikey: anonKey } : {}),
+      },
+    });
+
+    if (error) {
+      console.error('[subscription] ❌ Edge Function error:', error.message);
+
+      let detailedMessage = error.message || 'Failed to cancel subscription. Please try again.';
+      const errorContext = (error as any)?.context;
+      if (errorContext && typeof errorContext.json === 'function') {
+        try {
+          const errorPayload = await errorContext.json();
+          if (errorPayload?.details) {
+            detailedMessage = `${errorPayload.error || 'Cancellation failed'}: ${errorPayload.details}`;
+          } else if (errorPayload?.error) {
+            detailedMessage = String(errorPayload.error);
+          }
+        } catch (parseError) {
+          console.warn('[subscription] Could not parse edge error payload:', parseError);
+        }
+      }
+
+      return {
+        success: false,
+        message: detailedMessage,
+      };
+    }
+
+    if (!data) {
+      console.error('[subscription] ❌ No data returned from Edge Function');
+      return {
+        success: false,
+        message: 'Unexpected error during cancellation. Please try again.',
+      };
+    }
+
+    // Parse response
+    if (data.success) {
+      console.log('[subscription] ✅ Cancellation successful:', data.new_status);
+      return {
+        success: true,
+        new_status: data.new_status,
+        message: data.message || 'Your subscription has been cancelled.',
+        current_period_end: data.current_period_end,
+        grace_period_ends_at: data.grace_period_ends_at,
+      };
+    } else {
+      console.error('[subscription] ❌ Cancellation failed:', data.error);
+      return {
+        success: false,
+        message: data.error || 'Failed to cancel subscription. Please try again.',
+      };
+    }
+  } catch (error) {
+    const err = error as Error;
+    console.error('[subscription] ❌ cancelSubscription error:', err.message);
+    return {
+      success: false,
+      message: 'An unexpected error occurred. Please try again.',
+    };
+  }
+}

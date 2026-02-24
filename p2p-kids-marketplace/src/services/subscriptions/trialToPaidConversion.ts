@@ -142,15 +142,30 @@ export function useTrialToPaidConversion() {
         };
       }
 
+      if (!setupResult.setupIntent) {
+        return {
+          success: false,
+          error: 'Setup intent secret missing from setup response',
+        };
+      }
+
+      const setupIntentClientSecret = setupResult.setupIntent;
+
       // Step 2: Initialize Stripe Payment Sheet
-      const { error: initError } = await initPaymentSheet({
+      const paymentSheetConfig = {
         merchantDisplayName: 'Kids Marketplace',
-        customerId: setupResult.customer || undefined,
-        customerEphemeralKeySecret: setupResult.ephemeralKey || undefined,
-        setupIntentClientSecret: setupResult.setupIntent || undefined,
+        setupIntentClientSecret,
         allowsDelayedPaymentMethods: false,
         returnURL: 'kids-marketplace://payment-return',
-      });
+        ...(setupResult.customer && setupResult.ephemeralKey
+          ? {
+              customerId: setupResult.customer,
+              customerEphemeralKeySecret: setupResult.ephemeralKey,
+            }
+          : {}),
+      };
+
+      const { error: initError } = await initPaymentSheet(paymentSheetConfig);
 
       if (initError) {
         console.error('[useTrialToPaid] Payment sheet init error:', initError);
@@ -184,14 +199,7 @@ export function useTrialToPaidConversion() {
       // Step 4: Payment successful - we need to get the payment method ID from the SetupIntent
       console.log('[useTrialToPaid] Payment sheet successful. Retrieving setup intent...');
       
-      if (!setupResult.setupIntent) {
-        return {
-          success: false,
-          error: 'Setup intent secret missing after payment',
-        };
-      }
-
-      const { setupIntent, error: retrieveError } = await retrieveSetupIntent(setupResult.setupIntent);
+      const { setupIntent, error: retrieveError } = await retrieveSetupIntent(setupIntentClientSecret);
 
       if (retrieveError) {
         console.error('[useTrialToPaid] Error retrieving setup intent:', retrieveError);

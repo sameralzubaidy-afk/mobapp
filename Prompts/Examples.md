@@ -45,21 +45,25 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK SUB-007: Stripe Webhook Handling (Status & Billing Updates)
+## TASK SUB-008: User-Initiated Cancellation Flow (Move to `cancelled` → `grace_period`)
+
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: 
-## TASK SUB-007: Stripe Webhook Handling (Status & Billing Updates)
-
+## TASK SUB-008: User-Initiated Cancellation Flow (Move to `cancelled` → `grace_period`)
 scope is 
 
-Handle Stripe webhooks to keep `user_subscriptions` in sync with billing events:
 
-- `customer.subscription.updated` → update status and periods
-- `invoice.payment_failed` → mark `past_due`, increment retry count
-- `customer.subscription.deleted` → move to `grace_period` or `expired` depending on context
+Implement a **user-facing cancellation flow** that respects V2 rules:
 
+1. A subscribed user (status `active` or `trial`) can open **Manage Kids Club+** screen.
+2. They can tap **"Cancel Kids Club+"** and confirm via a clear, parent-friendly explanation.
+3. If they are `active`, they keep Kids Club+ benefits until the current billing period ends, then move to `grace_period`.
+4. When they move into `grace_period`, their SP wallet is frozen (handled via MODULE-09 API) and a 90-day countdown starts.
+5. If they are in `trial`, cancellation ends trial immediately and moves them to `grace_period` (no SP access) or back to `free` depending on product decision; for V2, we choose **`grace_period` with frozen SP** if they used SP during trial, else `free`.
+
+This task focuses on: (1) **API to request cancellation**, (2) **updating `user_subscriptions`** to mark `cancel_at_period_end` semantics in Stripe and our DB, and (3) **basic mobile UI** for cancellation confirmation.
 
 
 i want you to 

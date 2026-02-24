@@ -74,15 +74,31 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
   }
 
   try {
-    const { data: configRows, error } = await supabase
+    let configRows: Array<{ key: string; value: string | boolean | number; data_type: string }> | null = null;
+
+    const { data: keyValueRows, error: keyValueError } = await supabase
       .from('admin_config')
       .select('key, value, data_type')
       .eq('is_active', true);
 
-    if (error) {
-      console.warn('⚠️ Failed to fetch admin config:', error.message);
-      // Return defaults if fetch fails
-      return getDefaultConfig();
+    if (!keyValueError && keyValueRows) {
+      configRows = keyValueRows as Array<{ key: string; value: string | boolean | number; data_type: string }>;
+    } else {
+      const { data: legacyRows, error: legacyError } = await supabase
+        .from('admin_config')
+        .select('config_key, config_value, data_type')
+        .eq('is_active', true);
+
+      if (legacyError) {
+        console.warn('⚠️ Failed to fetch admin config:', legacyError.message);
+        return getDefaultConfig();
+      }
+
+      configRows = (legacyRows ?? []).map((row: { config_key: string; config_value: string | boolean | number; data_type: string }) => ({
+        key: row.config_key,
+        value: row.config_value,
+        data_type: row.data_type,
+      }));
     }
 
     const config = getDefaultConfig();
@@ -219,6 +235,21 @@ export async function getPlatformFeePercentage(): Promise<number> {
   return getConfigValue('platform_fee_buyer_percentage');
 }
 
-export async function getGracePeriodDays(): Promise<number> {
-  return getConfigValue('grace_period_days');
+export async function getGracePeriodDays(forceRefresh = false): Promise<number> {
+  try {
+    const { data, error } = await supabase.rpc('get_config_value', {
+      p_key: 'grace_period_days',
+    });
+
+    if (!error && data != null) {
+      const parsed = Number(data);
+      if (Number.isFinite(parsed)) {
+        return Math.max(parsed, 0);
+      }
+    }
+  } catch (err) {
+    console.warn('⚠️ getGracePeriodDays RPC failed, falling back to table config fetch:', (err as Error).message);
+  }
+
+  return getConfigValue('grace_period_days', forceRefresh);
 }
