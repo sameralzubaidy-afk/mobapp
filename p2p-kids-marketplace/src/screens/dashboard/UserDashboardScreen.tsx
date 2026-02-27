@@ -21,6 +21,7 @@ import RecommendationsCarousel from '../../components/organisms/RecommendationsC
 import Avatar from '../../components/atoms/Avatar';
 import { idBadgeService } from '@/services/idBadge';
 import { TrialReminderBanner } from '../../components/TrialReminderBanner';
+import GracePeriodBanner from '../../components/GracePeriodBanner';
 
 import CategorySelector from '../../components/molecules/CategorySelector';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
@@ -36,6 +37,7 @@ export default function UserDashboardScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [daysUntilExpiry] = useState<number | null>(null);
+  const [graceEndDate, setGraceEndDate] = useState<string | null>(null);
   const [nextChangeLabel, setNextChangeLabel] = useState<string>('Next Change');
   const [nextChangeDateText, setNextChangeDateText] = useState<string>('—');
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
@@ -71,27 +73,32 @@ export default function UserDashboardScreen() {
       }
 
       if (data.status === 'trial' && data.trial_end_date) {
+        setGraceEndDate(null);
         setNextChangeLabel('Trial Ends');
         setNextChangeDateText(formatShortDate(data.trial_end_date));
         return;
       }
 
       if (data.status === 'active' && data.current_period_end) {
+        setGraceEndDate(null);
         setNextChangeLabel('Renews On');
         setNextChangeDateText(formatShortDate(data.current_period_end));
         return;
       }
 
       if ((data.status === 'grace' || data.status === 'grace_period') && data.grace_ends_at) {
+        setGraceEndDate(data.grace_ends_at);
         setNextChangeLabel('Grace Ends');
         setNextChangeDateText(formatShortDate(data.grace_ends_at));
         return;
       }
 
+      setGraceEndDate(null);
       setNextChangeLabel('Next Change');
       setNextChangeDateText('—');
     } catch (error) {
       console.warn('[Dashboard] Failed to load subscription timeline:', error);
+      setGraceEndDate(null);
       setNextChangeLabel('Next Change');
       setNextChangeDateText('—');
     }
@@ -234,6 +241,20 @@ export default function UserDashboardScreen() {
 
         {/* Trial Reminder Banner (SUB-004) */}
         <TrialReminderBanner />
+
+        {/* MODULE-11 SUB-009: Grace Period Countdown Banner */}
+        {(subscription.status === 'grace' && graceEndDate) && (() => {
+          const gracePeriodEndsAt = graceEndDate;
+          const daysRemaining = Math.ceil(
+            (new Date(gracePeriodEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+          );
+          return daysRemaining > 0 ? (
+            <GracePeriodBanner
+              gracePeriodEndsAt={gracePeriodEndsAt}
+              daysRemaining={daysRemaining}
+            />
+          ) : null;
+        })()}
 
         {/* DISCOVERY-V2-003: Category Browsing */}
         <View style={{ marginBottom: 20 }}>

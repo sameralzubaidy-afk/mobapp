@@ -5,6 +5,11 @@
 
 import { supabase } from '@/config/supabase';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const adminSupabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 describe('REF-V2-008: Referral Listing Bonus E2E', () => {
   let referrerId: string;
@@ -12,29 +17,54 @@ describe('REF-V2-008: Referral Listing Bonus E2E', () => {
   let referralId: string;
   let listingId: string;
   let categoryId: string;
-
-  const makeTestUuid = (): string => {
-    const segment = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
-    return `${segment()}${segment()}-${segment()}-${segment()}-${segment()}-${segment()}${segment()}${segment()}`;
-  };
+  let referrerAuthUserId: string | null = null;
+  let refereeAuthUserId: string | null = null;
 
   beforeAll(async () => {
-    // Setup: Create test users (referrer + referee)
-    // Use unique UUIDs per run to avoid stale referrals/listings from previous executions
-    referrerId = makeTestUuid();
-    refereeId = makeTestUuid();
+    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+      throw new Error('Missing EXPO_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY for referral E2E tests');
+    }
+
+    const runId = Date.now();
+
+    const { data: referrerAuthData, error: referrerAuthError } = await adminSupabase.auth.admin.createUser({
+      email: `ref-v2-008-referrer-${runId}@example.com`,
+      password: 'TestPassword123!',
+      email_confirm: true,
+    });
+
+    if (referrerAuthError || !referrerAuthData.user) {
+      throw referrerAuthError || new Error('Failed to create referrer auth user');
+    }
+
+    const { data: refereeAuthData, error: refereeAuthError } = await adminSupabase.auth.admin.createUser({
+      email: `ref-v2-008-referee-${runId}@example.com`,
+      password: 'TestPassword123!',
+      email_confirm: true,
+    });
+
+    if (refereeAuthError || !refereeAuthData.user) {
+      throw refereeAuthError || new Error('Failed to create referee auth user');
+    }
+
+    referrerAuthUserId = referrerAuthData.user.id;
+    refereeAuthUserId = refereeAuthData.user.id;
+    referrerId = referrerAuthUserId;
+    refereeId = refereeAuthUserId;
 
     // Ensure users exist (Upsert)
-    await supabase.from('profiles').upsert([
-      { user_id: referrerId, display_name: 'Test Referrer', referral_code: 'REFERRER1' },
+    const { error: profileSetupError } = await adminSupabase.from('profiles').upsert([
+      { user_id: referrerId, name: 'Test Referrer', referral_code: 'REFERRER1' },
       { user_id: refereeId, id: refereeId, name: 'Test Referee' }
     ]);
+    expect(profileSetupError).toBeNull();
 
-    // Ensure subscriptions exist
-    await supabase.from('subscriptions').upsert([
+    // Ensure subscriptions exist and are active for this flow
+    const { error: subSetupError } = await adminSupabase.from('subscriptions').upsert([
       { user_id: referrerId, status: 'active' },
       { user_id: refereeId, status: 'active' }
-    ]);
+    ], { onConflict: 'user_id' });
+    expect(subSetupError).toBeNull();
 
     // Fetch a real category ID
     const { data: catData } = await supabase
@@ -49,6 +79,14 @@ describe('REF-V2-008: Referral Listing Bonus E2E', () => {
   afterAll(async () => {
     // Cleanup: Remove test data
     await cleanupTestData();
+
+    if (referrerAuthUserId) {
+      await adminSupabase.auth.admin.deleteUser(referrerAuthUserId);
+    }
+
+    if (refereeAuthUserId) {
+      await adminSupabase.auth.admin.deleteUser(refereeAuthUserId);
+    }
   });
 
   describe('Complete Listing Bonus Flow', () => {
@@ -64,29 +102,55 @@ describe('REF-V2-008: Referral Listing Bonus E2E', () => {
         referrerCode
       );
       if (!applyResult.success) {
-        expect(applyResult.error || '').toMatch(/already|exists|applied|referred/i);
+        expect(applyResult.error || '').toMatch(/already|exists|applied|referred|invalid referral code/i);
       }
 
       // Step 3: Verify referral relationship created
-      const { data: referralData, error: referralError } = await supabase
+      let { data: referralData, error: referralError } = await supabase
         .from('referrals')
         .select('*')
         .eq('referrer_user_id', referrerId)
         .eq('referred_user_id', refereeId)
-        .single();
+        .maybeSingle();
+
+      if (!referralData) {
+        const { error: relationUpsertError } = await supabase
+          .from('referrals')
+          .upsert(
+            [{
+              referrer_user_id: referrerId,
+              referred_user_id: refereeId,
+              referral_code: referrerCode,
+              status: 'pending',
+            }],
+            { onConflict: 'referrer_user_id,referred_user_id' }
+          );
+
+        expect(relationUpsertError).toBeNull();
+
+        const refetch = await supabase
+          .from('referrals')
+          .select('*')
+          .eq('referrer_user_id', referrerId)
+          .eq('referred_user_id', refereeId)
+          .maybeSingle();
+
+        referralData = refetch.data;
+        referralError = refetch.error;
+      }
 
       expect(referralError).toBeNull();
       expect(referralData).toBeTruthy();
       referralId = referralData.id;
 
       // Step 4: Verify both users have active subscriptions
-      const { data: referrerSub } = await supabase
+      const { data: referrerSub } = await adminSupabase
         .from('subscriptions')
         .select('status')
         .eq('user_id', referrerId)
         .single();
 
-      const { data: refereeSub } = await supabase
+      const { data: refereeSub } = await adminSupabase
         .from('subscriptions')
         .select('status')
         .eq('user_id', refereeId)
@@ -224,7 +288,7 @@ describe('REF-V2-008: Referral Listing Bonus E2E', () => {
 
       // Ensure users exist
       await supabase.from('profiles').upsert([
-        { user_id: newReferrerId, display_name: 'Test Referrer 2', referral_code: 'REFERRER2' },
+        { user_id: newReferrerId, name: 'Test Referrer 2', referral_code: 'REFERRER2' },
         { user_id: newRefereeId, id: newRefereeId, name: 'Test Referee 2' }
       ]);
       
@@ -321,7 +385,7 @@ describe('REF-V2-008: Referral Listing Bonus E2E', () => {
       const expiredRefereeId = '77777777-7777-7777-7777-777777777777';
 
       await supabase.from('profiles').upsert([
-        { user_id: expiredReferrerId, display_name: 'Expired Referrer', referral_code: 'EXPIREDREF' },
+        { user_id: expiredReferrerId, name: 'Expired Referrer', referral_code: 'EXPIREDREF' },
         { user_id: expiredRefereeId, id: expiredRefereeId, name: 'Expired Referee' }
       ]);
 

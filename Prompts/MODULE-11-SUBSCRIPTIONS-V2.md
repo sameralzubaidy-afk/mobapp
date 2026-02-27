@@ -109,6 +109,14 @@ serve(async (req) => {
 
     const { reason } = await req.json();
 
+    // Fetch admin-configured grace period duration
+    const { data: adminConfig } = await supabaseClient
+      .from('admin_config')
+      .select('grace_period_days')
+      .single();
+
+    const gracePeriodDays = adminConfig?.grace_period_days || 90; // Default to 90 days
+
     const { data: sub, error: subError } = await supabaseClient
       .from('user_subscriptions')
       .select('id, status, stripe_subscription_id, trial_ends_at, current_period_end')
@@ -155,7 +163,7 @@ serve(async (req) => {
 
     if (newStatus === 'grace_period') {
       const now = new Date();
-      const graceEnd = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
+      const graceEnd = new Date(now.getTime() + gracePeriodDays * 24 * 60 * 60 * 1000).toISOString();
       updates.grace_period_ends_at = graceEnd;
     }
 
@@ -304,11 +312,11 @@ NEXT TASK: SUB-009 (Grace Period Countdown & Expiry)
 
 ### Description
 
-Implement the **90-day grace period mechanics** after a user loses Kids Club+ access:
+Implement the **admin-configurable grace period mechanics** after a user loses Kids Club+ access:
 
-1. When a user transitions to `grace_period` (via webhook, trial-conversion, or cancellation), we set `grace_period_ends_at` to 90 days out and freeze their SP wallet (MODULE-09 handler).
-2. Show a clear countdown in the app ("You have 63 days to re-subscribe before your Swap Points are deleted.").
-3. Send **reminder notifications** as the grace period approaches expiry (e.g., 60, 30, 7, 1 days remaining).
+1. When a user transitions to `grace_period` (via webhook, trial-conversion, or cancellation), we set `grace_period_ends_at` based on the **admin-configured grace period duration** (fetched from `admin_config` table) and freeze their SP wallet (MODULE-09 handler).
+2. Show a clear countdown in the app ("You have X days to re-subscribe before your Swap Points are deleted.").
+3. Send **reminder notifications** at admin-configured thresholds (e.g., admin can set reminders at 60, 30, 7, 1 days remaining or any custom intervals).
 4. When `grace_period_ends_at` passes, set status to `expired`, permanently delete SP and close the wallet per MODULE-09.
 
 This task wires together cron, DB updates, SP wallet actions, and simple UI surface.
@@ -320,16 +328,32 @@ This task wires together cron, DB updates, SP wallet actions, and simple UI surf
 TASK: Implement grace period countdown, reminders, and expiry
 
 CONTEXT:
-Users in status `grace_period` have 90 days to re-subscribe before
-their Swap Points are permanently deleted. We must:
+Users in status `grace_period` have a configurable number of days
+(set by admin) to re-subscribe before their Swap Points are permanently
+deleted. We must:
+- Fetch grace period duration from admin_config table
 - Keep a clear single source of truth in user_subscriptions
-- Send scheduled reminders
+- Send scheduled reminders at admin-configured thresholds
 - Expire and wipe SP at grace_period_ends_at
 
 REQUIREMENTS:
 1. Edge Function: grace-period-cron (daily)
-2. UI helper to show days remaining and status messaging
-3. Integration call to MODULE-09 SP wallet expiry handler
+2. Admin config fields: grace_period_days, grace_reminder_thresholds (JSON array)
+3. UI helper to show days remaining and status messaging
+4. Integration call to MODULE-09 SP wallet expiry handler
+
+### Admin Config Schema Requirements
+
+Add these fields to the `admin_config` table (or update existing schema):
+
+- **`grace_period_days`**: INTEGER (default: 90)
+  - Number of days users have to re-subscribe before SP deletion
+  - Configurable via admin portal
+  
+- **`grace_reminder_thresholds`**: JSONB (default: [60, 30, 7, 1])
+  - Array of integers representing days before expiry to send reminders
+  - Admin can customize this via admin portal (e.g., [90, 60, 30, 14, 7, 3, 1])
+  - System will send a notification when `days_remaining` matches any value in this array
 
 ==================================================
 FILE 1: Edge Function - grace-period-cron
@@ -348,6 +372,20 @@ serve(async (_req) => {
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
+
+  // Fetch admin-configured grace period settings
+  const { data: adminConfig, error: configError } = await supabaseClient
+    .from('admin_config')
+    .select('grace_period_days, grace_reminder_thresholds')
+    .single();
+
+  if (configError || !adminConfig) {
+    console.error('grace-period-cron: error fetching admin config', configError);
+    return new Response(JSON.stringify({ error: 'Failed to fetch admin config' }), { status: 500 });
+  }
+
+  const gracePeriodDays = adminConfig.grace_period_days || 90; // Default to 90
+  const reminderThresholds = adminConfig.grace_reminder_thresholds || [60, 30, 7, 1];
 
   const { data: subs, error } = await supabaseClient
     .from('user_subscriptions')
@@ -375,7 +413,7 @@ serve(async (_req) => {
     const status: GraceStatus =
       daysRemaining <= 1 ? 'expired_today' : daysRemaining <= 7 ? 'expiring_soon' : 'grace_active';
 
-    await maybeSendGraceReminder(supabaseClient, sub.user_id, daysRemaining, status);
+    await maybeSendGraceReminder(supabaseClient, sub.user_id, daysRemaining, status, reminderThresholds);
   }
 
   return new Response(JSON.stringify({ success: true, processed: subs.length }), {
@@ -409,14 +447,14 @@ async function maybeSendGraceReminder(
   supabaseClient: any,
   userId: string,
   daysRemaining: number,
-  status: GraceStatus
+  status: GraceStatus,
+  reminderThresholds: number[]
 ) {
   // This function is a placeholder for a real notification system.
   // For now, we just insert into a notifications table if thresholds hit.
+  // Admin can configure thresholds via admin_config.grace_reminder_thresholds
 
-  const thresholds = [60, 30, 7, 1];
-
-  if (!thresholds.includes(daysRemaining)) {
+  if (!reminderThresholds.includes(daysRemaining)) {
     return;
   }
 
@@ -488,8 +526,10 @@ ACCEPTANCE CRITERIA
 ==================================================
 
 ✓ Users in grace_period have a clear days-remaining message
+✓ Grace period duration fetched from admin_config.grace_period_days
 ✓ Daily cron checks all grace_period users
-✓ Reminders sent at 60, 30, 7, and 1 days remaining
+✓ Reminders sent at admin-configured thresholds (grace_reminder_thresholds)
+✓ Admin can configure reminder thresholds (e.g., [60, 30, 7, 1] or custom values)
 ✓ At grace_period_ends_at, status transitions to expired
 ✓ SP wallet expiry handler called to permanently delete SP
 
@@ -796,21 +836,41 @@ NEXT TASK: SUB-011 (Admin Subscription Management Views)
 
 ---
 
-## TASK SUB-011: Admin Subscription Management & Analytics
+## TASK SUB-011: Admin Subscription Management & Analytics + Grace Period Config
 
-**Duration:** 3 hours  
+**Duration:** 4 hours  
 **Priority:** Medium  
-**Dependencies:** SUB-001–SUB-010, Admin auth (MODULE-02)
+**Dependencies:** SUB-001–SUB-010, SUB-009 (Grace Period), Admin auth (MODULE-02)
 
 ### Description
 
-Define minimal admin-facing tooling to monitor and manage Kids Club+:
+Define minimal admin-facing tooling to monitor and manage Kids Club+, including **grace period configuration management**:
 
-1. View list of current subscribers, trials, grace-period users, and expired users.
-2. See key metrics: MRR, active subs, trials started, churn, grace → re-subscribe rate.
-3. Perform safe admin actions: manually cancel, extend trial, or re-activate in edge cases.
+1. **Subscription Monitoring:**
+   - View list of current subscribers, trials, grace-period users, and expired users.
+   - See key metrics: MRR, active subs, trials started, churn, grace → re-subscribe rate.
+   - Perform safe admin actions: manually cancel, extend trial, or re-activate in edge cases.
 
-Admin will mostly rely on Stripe Dashboard for billing operations; app admin UI is for **at-a-glance visibility** and a few controlled overrides.
+2. **Grace Period Configuration (NEW):**
+   - Manage `grace_period_days`: How many days users have to re-subscribe before SP deletion (default: 90)
+   - Manage `grace_reminder_thresholds`: JSON array of day thresholds for reminder notifications (default: [60, 30, 7, 1])
+   - Real-time validation and save feedback for admin config changes
+   - Clear descriptions of each setting to guide admin behavior
+
+Admin will mostly rely on Stripe Dashboard for billing operations; app admin UI is for **at-a-glance visibility**, grace period config tuning, and controlled overrides.
+
+### Implementation Scope
+
+**Subscription Monitoring (Part A):**
+- Read-only list/dashboard of subscriptions by status
+- MRR and metrics calculation
+- Minimal admin action buttons (if needed)
+
+**Grace Period Configuration (Part B) — For Deferred Implementation:**
+- Form fields to update `grace_period_days` and `grace_reminder_thresholds` in admin_config
+- Validation and save logic
+- Real-time feedback
+- See "IMPLEMENTATION NOTE: Grace Period Config Fields" section below for detailed UI spec
 
 ### AI Prompt for Cursor
 
@@ -944,6 +1004,41 @@ ACCEPTANCE CRITERIA
 ✓ Summary endpoint reads from user_subscriptions
 ✓ Cancelled/active users contribute to MRR
 ✓ Page explains that Stripe remains the source of truth for billing ops
+
+✓ Grace period admin config form visible in admin config page
+✓ Admin can update grace_period_days (validates 1–365 days)
+✓ Admin can update grace_reminder_thresholds (validates JSON array of integers)
+✓ Changes saved to admin_config table via upsert_admin_config RPC
+✓ Real-time descriptions explain each setting's impact on user experience
+✓ Validation errors prevent invalid values (clear error messages)
+✓ Success feedback confirms when settings are saved
+✓ TC-009 passes: Cron job reads and respects custom thresholds from admin_config
+
+==================================================
+IMPLEMENTATION NOTE: Grace Period Config Fields
+==================================================
+
+Add these form fields to `p2p-kids-admin/src/app/config/page.tsx`:
+
+**1. grace_period_days**
+   - Type: Number input (1–365)
+   - Default: 90
+   - Description: "Number of days users have to re-subscribe after cancellation before Swap Points are deleted. Minimum 1 day, maximum 365 days."
+   - Validation: Must be integer, >= 1, <= 365
+   - Save behavior: Call upsert_admin_config with key='grace_period_days'
+
+**2. grace_reminder_thresholds**
+   - Type: JSON array textarea (or comma-separated input)
+   - Default: [60, 30, 7, 1]
+   - Description: "Array of day thresholds when reminder notifications are sent. For example, [60, 30, 7, 1] sends reminders at 60 days, 30 days, 7 days, and 1 day remaining. Can be customized to any values (e.g., [45, 14, 3] for different thresholds)."
+   - Validation: Must be valid JSON array of integers > 0
+   - Save behavior: Call upsert_admin_config with key='grace_reminder_thresholds'
+
+Example UI entry:
+```
+Grace Period Duration (days): [ 90 ]  [Save]
+Grace Reminder Thresholds:     [ [60, 30, 7, 1] ]  [Save]
+```
 
 ==================================================
 NEXT TASK: 11-G (Tests + Module Summary - SUB-012)

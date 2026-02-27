@@ -45,26 +45,23 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK SUB-008: User-Initiated Cancellation Flow (Move to `cancelled` → `grace_period`)
 
+## TASK SUB-009: Grace Period Countdown, Reminders & Expiry
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: 
-## TASK SUB-008: User-Initiated Cancellation Flow (Move to `cancelled` → `grace_period`)
+## TASK SUB-009: Grace Period Countdown, Reminders & Expiry
 scope is 
 
+Implement the **admin-configurable grace period mechanics** after a user loses Kids Club+ access:
 
-Implement a **user-facing cancellation flow** that respects V2 rules:
+1. When a user transitions to `grace_period` (via webhook, trial-conversion, or cancellation), we set `grace_period_ends_at` based on the **admin-configured grace period duration** (fetched from `admin_config` table) and freeze their SP wallet (MODULE-09 handler).
+2. Show a clear countdown in the app ("You have X days to re-subscribe before your Swap Points are deleted.").
+3. Send **reminder notifications** at admin-configured thresholds (e.g., admin can set reminders at 60, 30, 7, 1 days remaining or any custom intervals).
+4. When `grace_period_ends_at` passes, set status to `expired`, permanently delete SP and close the wallet per MODULE-09.
 
-1. A subscribed user (status `active` or `trial`) can open **Manage Kids Club+** screen.
-2. They can tap **"Cancel Kids Club+"** and confirm via a clear, parent-friendly explanation.
-3. If they are `active`, they keep Kids Club+ benefits until the current billing period ends, then move to `grace_period`.
-4. When they move into `grace_period`, their SP wallet is frozen (handled via MODULE-09 API) and a 90-day countdown starts.
-5. If they are in `trial`, cancellation ends trial immediately and moves them to `grace_period` (no SP access) or back to `free` depending on product decision; for V2, we choose **`grace_period` with frozen SP** if they used SP during trial, else `free`.
-
-This task focuses on: (1) **API to request cancellation**, (2) **updating `user_subscriptions`** to mark `cancel_at_period_end` semantics in Stripe and our DB, and (3) **basic mobile UI** for cancellation confirmation.
-
+This task wires together cron, DB updates, SP wallet actions, and simple UI surface.
 
 i want you to 
 
@@ -95,7 +92,6 @@ i want you to
 14. I do not use yarn I use npm so give me all commend lines for npm. 
 15. update flow-registry.md if needed so that i keep this file up to date.
 16.  I am using ISO and Andriod simlators I do not use phsyical devices please consider this for manaul verfication.
-
 
 MODULE-11-VERIFICATION-V2.md
 

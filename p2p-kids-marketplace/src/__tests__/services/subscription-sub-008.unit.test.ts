@@ -88,9 +88,12 @@ describe('MODULE-11 SUB-008: cancelSubscription', () => {
       expect(result.success).toBe(true);
       expect(result.new_status).toBe('cancelled');
       expect(result.current_period_end).toBeDefined();
-      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('cancel-subscription', {
-        body: { cancel_reason: 'Too expensive' },
-      });
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith(
+        'cancel-subscription',
+        expect.objectContaining({
+          body: { cancel_reason: 'Too expensive' },
+        })
+      );
     });
 
     it('should use default reason if none provided', async () => {
@@ -101,9 +104,12 @@ describe('MODULE-11 SUB-008: cancelSubscription', () => {
 
       await cancelSubscription();
 
-      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('cancel-subscription', {
-        body: { cancel_reason: 'User requested cancellation' },
-      });
+      expect(mockSupabase.functions.invoke).toHaveBeenCalledWith(
+        'cancel-subscription',
+        expect.objectContaining({
+          body: { cancel_reason: 'User requested cancellation' },
+        })
+      );
     });
   });
 
@@ -305,16 +311,22 @@ describe('Cancellation reason analytics', () => {
   it('should pass cancel reason to Edge Function', async () => {
     await cancelSubscription('Too expensive');
 
-    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('cancel-subscription', {
-      body: { cancel_reason: 'Too expensive' },
-    });
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith(
+      'cancel-subscription',
+      expect.objectContaining({
+        body: { cancel_reason: 'Too expensive' },
+      })
+    );
   });
 
   it('should handle custom/other reason', async () => {
     await cancelSubscription('Moving to a different city and no longer need the service');
 
-    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith('cancel-subscription', {
-      body: { cancel_reason: 'Moving to a different city and no longer need the service' },
-    });
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledWith(
+      'cancel-subscription',
+      expect.objectContaining({
+        body: { cancel_reason: 'Moving to a different city and no longer need the service' },
+      })
+    );
   });
 });

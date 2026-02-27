@@ -5,6 +5,20 @@
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { supabase } from '../../config/supabase';
+
+jest.mock('@stripe/stripe-react-native', () => ({
+  useStripe: jest.fn(() => ({
+    retrieveSetupIntent: jest.fn(),
+  })),
+  usePaymentSheet: jest.fn(() => ({
+    initPaymentSheet: jest.fn(),
+    presentPaymentSheet: jest.fn(),
+  })),
+  PaymentSheetError: {
+    Canceled: 'Canceled',
+  },
+}));
+
 import {
   setupSubscriptionPaymentSheet,
   convertTrialToPaidSubscription,

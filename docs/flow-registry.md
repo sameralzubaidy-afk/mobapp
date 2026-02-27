@@ -135,6 +135,19 @@ This file is the canonical registry of end-to-end flows and their required regre
   - **Migration:** supabase/migrations/20260215000001_trial_conversion_rpcs.sql
   - **Edge Function:** supabase/functions/trial-conversion/index.ts
   - **Test Screen:** p2p-kids-marketplace/src/screens/admin/TrialConversionTestScreen.tsx
+- **SUB-009 Grace Period Countdown, Reminders & Expiry:**
+  - **Edge Function:** supabase/functions/grace-period-cron/index.ts
+  - **UI Component:** p2p-kids-marketplace/src/components/GracePeriodBanner.tsx
+  - **Dashboard Integration:** UserDashboardScreen renders GracePeriodBanner for grace_period users
+  - **Features:** 
+    - Daily cron checks grace_period subscriptions
+    - Reminders at 60, 30, 7, 1 days remaining
+    - Countdown banner with urgency levels (warning >7d, urgent 1-7d, critical ≤1d)
+    - Expiry triggers SP wallet deletion and status → expired
+  - **Manual Test Guide:** SUB-009-MANUAL-TEST-CASES-UPDATED.md
+  - **Unit Tests (Deno):** supabase/functions/grace-period-cron/__tests__/index.test.ts
+  - **E2E Tests (Jest):** p2p-kids-marketplace/src/__tests__/e2e/sub-009-grace-period.e2e.ts
+  - **Tier:** 1 for reminder thresholds; Tier 2 if cron logic or SP expiry logic changes
 - Manual checks:
   - **SUB-001 Foundation:**
     - `subscription_tiers` table exists with Kids Club+ tier seeded correctly ($4.99, 30d trial, grace period is dynamic from admin config).
