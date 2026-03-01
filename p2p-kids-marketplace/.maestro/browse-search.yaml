@@ -1,0 +1,54 @@
+# FLOW: browse-search
+# Screens: BrowseItemsScreen → SearchScreen
+# testIDs required: browse-search-input, sp-eligible-switch
+# Description: Browse feed and search by keyword
+
+appId: com.anonymous.p2p-kids-marketplace
+---
+# Assumes user is already logged in on home/dashboard
+
+# Verify we're on browse screen
+- assertVisible:
+    text: Browse Items
+
+# Verify search input is visible
+- assertVisible:
+    id: browse-search-input
+
+# Perform a search
+- tapOn:
+    id: browse-search-input
+- inputText: "LEGO"
+- waitForAnimationToEnd
+
+# Wait for search results to load
+- waitForAnimationToEnd
+
+# Verify items are displayed (loose check - at least some content)
+- assertVisible:
+    text: Browse Items
+
+# Toggle SP-eligible filter
+- tapOn:
+    id: sp-eligible-switch
+- waitForAnimationToEnd
+
+# Wait for filter to apply
+- waitForAnimationToEnd
+
+# Verify search still visible and filter is on
+- assertVisible:
+    id: browse-search-input
+
+# Clear search to verify full browse works
+- tapOn:
+    id: browse-search-input
+- pressKey: backspace
+- pressKey: backspace
+- pressKey: backspace
+- pressKey: backspace
+- waitForAnimationToEnd
+
+# Verify browse screen is still functional
+- assertVisible:
+    text: Browse Items

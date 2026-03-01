@@ -490,22 +490,22 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
         </TouchableOpacity>
 
-        {(trialStatus?.status !== 'active' && trialStatus?.status !== 'trial') && (
-          <TouchableOpacity 
-            style={[styles.settingsButton, { backgroundColor: '#6366F1', borderColor: '#4F46E5', flexDirection: 'row', justifyContent: 'center' }]} 
-            onPress={() => navigation.navigate('ContinueKidsClub')}
-          >
-            <Text style={[styles.settingsButtonText, { color: '#FFFFFF' }]}>✨ Start/Continue Kids Club+</Text>
-          </TouchableOpacity>
-        )}
-        {(trialStatus?.status === 'active' || trialStatus?.status === 'trial') && (
-          <TouchableOpacity
-            style={[styles.settingsButton, { backgroundColor: '#8B5CF6', borderColor: '#7C3AED', flexDirection: 'row', justifyContent: 'center' }]} 
-            onPress={() => navigation.navigate('ManageKidsClub')}
-          >
-            <Text style={[styles.settingsButtonText, { color: '#FFFFFF' }]}>⚙️ Manage Kids Club+</Text>
-          </TouchableOpacity>
-        )}
+        {/* Consolidated Subscription/Club Button */}
+        <TouchableOpacity 
+          style={[styles.clubButton, { 
+            backgroundColor: (trialStatus?.status === 'active' || trialStatus?.status === 'trial') ? '#F3E8FF' : '#E0E7FF', 
+            borderColor: (trialStatus?.status === 'active' || trialStatus?.status === 'trial') ? '#D8B4FE' : '#C7D2FE', 
+          }]} 
+          onPress={() => navigation.navigate('KidsClubOverview')}
+        >
+          <Text style={[styles.clubButtonText, {
+            color: (trialStatus?.status === 'active' || trialStatus?.status === 'trial') ? '#7C3AED' : '#4338CA'
+          }]}>
+            {(trialStatus?.status === 'active' || trialStatus?.status === 'trial') ? '👑 Manage Kid\'s Club' : '👑 Join Kid\'s Club'}
+          </Text>
+        </TouchableOpacity>
+
+
         <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>
           <Text style={styles.settingsButtonText}>⚙️ Settings</Text>
         </TouchableOpacity>
@@ -659,6 +659,18 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 18,
     fontWeight: '600',
+  },
+  clubButton: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  clubButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
   },
   adminDashboardButton: {
     backgroundColor: '#FEF3C7',

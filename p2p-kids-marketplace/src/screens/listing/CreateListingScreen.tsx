@@ -143,6 +143,7 @@ export default function CreateListingScreen({ navigation }: any) {
         {/* Title */}
         <Text style={styles.label}>Title *</Text>
         <TextInput
+          testID="create-listing-title-input"
           style={styles.input}
           placeholder="e.g., LEGO Star Wars Set"
           value={title}
@@ -154,6 +155,7 @@ export default function CreateListingScreen({ navigation }: any) {
         {/* Description */}
         <Text style={styles.label}>Description</Text>
         <TextInput
+          testID="create-listing-description-input"
           style={[styles.input, styles.textArea]}
           placeholder="Describe your item..."
           value={description}
@@ -166,6 +168,7 @@ export default function CreateListingScreen({ navigation }: any) {
         {/* Price */}
         <Text style={styles.label}>Price ($) *</Text>
         <TextInput
+          testID="create-listing-price-input"
           style={styles.input}
           placeholder="0.00"
           value={priceText}
@@ -234,6 +237,7 @@ export default function CreateListingScreen({ navigation }: any) {
 
         {/* Create Button */}
         <TouchableOpacity
+          testID="create-listing-submit-button"
           style={[styles.createButton, loading && styles.createButtonDisabled]}
           onPress={handleCreateListing}
           disabled={loading}

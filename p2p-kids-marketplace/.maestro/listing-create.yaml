@@ -1,0 +1,53 @@
+# FLOW: listing-create
+# Screens: CreateListingScreen
+# testIDs required: create-listing-title-input, create-listing-description-input, 
+#                   create-listing-price-input, create-listing-submit-button
+# Description: Create a new listing (item for sale/swap)
+
+appId: com.anonymous.p2p-kids-marketplace
+---
+# Assumes user is already logged in and on home/dashboard screen
+
+# Navigate to create listing screen
+- tapOn:
+    text: Create Listing
+- waitForAnimationToEnd
+
+# Verify we're on create listing screen
+- assertVisible:
+    text: Item Details
+
+# Fill title
+- tapOn:
+    id: create-listing-title-input
+- inputText: "LEGO Star Wars Set"
+- waitForAnimationToEnd
+
+# Fill description
+- tapOn:
+    id: create-listing-description-input
+- inputText: "Complete and unopened LEGO set"
+- waitForAnimationToEnd
+
+# Fill price
+- tapOn:
+    id: create-listing-price-input
+- inputText: "49.99"
+- waitForAnimationToEnd
+
+# Select condition (tap on 'good' button)
+- tapOn:
+    text: GOOD
+- waitForAnimationToEnd
+
+# Submit listing
+- tapOn:
+    id: create-listing-submit-button
+- waitForAnimationToEnd
+
+# Wait for submission and success message
+- waitForAnimationToEnd
+
+# Verify success alert
+- assertVisible:
+    text: Listing created successfully

@@ -136,6 +136,7 @@ export const LoginScreen: React.FC = () => {
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="your.email@example.com"
+              testID="login-email-input"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -154,6 +155,7 @@ export const LoginScreen: React.FC = () => {
             <TextInput
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="Enter your password"
+              testID="login-password-input"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -169,6 +171,7 @@ export const LoginScreen: React.FC = () => {
           {/* Login Button */}
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
+            testID="login-submit-button"
             onPress={handleLogin}
             disabled={loading}
           >
@@ -184,6 +187,7 @@ export const LoginScreen: React.FC = () => {
             <Text style={styles.footerText}>Don't have an account? </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('Signup' as any)}
+              testID="login-signup-link"
               disabled={loading}
             >
               <Text style={styles.linkText}>Sign Up</Text>
@@ -193,6 +197,7 @@ export const LoginScreen: React.FC = () => {
           {/* Forgot Password Link */}
           <TouchableOpacity
             style={styles.forgotPassword}
+            testID="login-forgot-password-link"
             onPress={() => navigation.navigate('ForgotPassword' as any)}
             disabled={loading}
           >

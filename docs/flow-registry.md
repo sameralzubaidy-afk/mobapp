@@ -37,6 +37,7 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Admin approves listing -> `items.status` transitions `pending` -> `available` and listing becomes visible.
   - Seller edits an approved listing (e.g., title/price/photos) -> `items.status` transitions `available` -> `pending` and requires admin re-approval.
 - Automated (offline): Jest covers listing service lifecycle + SP gating.
+- E2E (Supabase prod): `p2p-kids-marketplace/src/__tests__/e2e/referral-listing-bonus.e2e.ts` covers referral listing bonus awarding end-to-end.
 
 ### FLOW-05: Media Upload (Storage) – Listing Photos
 - Smoke: (manual)
@@ -93,6 +94,8 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period + Tier Configuration
 - Smoke: scripts/smoke/subscriptions.mjs (TODO: implement)
+- Unit/UI: `p2p-kids-marketplace/src/components/subscription/__tests__/SubscriptionBanner.test.tsx` covers banner CTA routing.
+- Hooks: `p2p-kids-marketplace/src/hooks/__tests__/useSubscription.test.ts` and `p2p-kids-marketplace/src/hooks/__tests__/useGracePeriodStatus.test.ts` cover subscription/grace-period derived UI state.
 - **SUB-003 Manual Test Guide:** SUB-003-MANUAL-TESTING-GUIDE.md
 - **SUB-003 Unit Tests:** p2p-kids-marketplace/src/__tests__/services/subscription-sub-003.unit.test.ts
 - **SUB-003 E2E Tests:** p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-003.e2e.ts
@@ -148,6 +151,31 @@ This file is the canonical registry of end-to-end flows and their required regre
   - **Unit Tests (Deno):** supabase/functions/grace-period-cron/__tests__/index.test.ts
   - **E2E Tests (Jest):** p2p-kids-marketplace/src/__tests__/e2e/sub-009-grace-period.e2e.ts
   - **Tier:** 1 for reminder thresholds; Tier 2 if cron logic or SP expiry logic changes
+
+- **SUB-010 Subscription UI Components (Member-Facing):**
+  - **Mobile Screens:**
+    - `p2p-kids-marketplace/src/screens/subscription/KidsClubOverviewScreen.tsx` (marketing + benefits + status + CTA)
+  - **Reusable Components:**
+    - `p2p-kids-marketplace/src/components/subscription/SubscriptionStatusCard.tsx` (status card with tier, price, dates)
+    - `p2p-kids-marketplace/src/components/subscription/SubscriptionBanner.tsx` (thin banner for home/wallet/listing flows)
+  - **Hooks:**
+    - `p2p-kids-marketplace/src/hooks/useSubscription.ts` (fetches subscription data)
+    - `p2p-kids-marketplace/src/hooks/useGracePeriodStatus.ts` (calculates grace period countdown + messaging)
+  - **Utils:**
+    - `p2p-kids-marketplace/src/utils/formatPrice.ts` (formats cents to dollar strings)
+  - **Deep Link:** p2pkidsmarketplace://kids-club-overview
+  - **Features:** State-aware CTAs (free→trial, trial→payment, active→manage, grace→resubscribe), benefit list, "How It Works" section, grace period warnings
+  - **Manual Test Guide:** SUB-010-MANUAL-TESTING-GUIDE.md
+  - **Unit Tests:**
+    - p2p-kids-marketplace/src/utils/__tests__/formatPrice.test.ts
+    - p2p-kids-marketplace/src/hooks/__tests__/useSubscription.test.ts
+    - p2p-kids-marketplace/src/hooks/__tests__/useGracePeriodStatus.test.ts
+    - p2p-kids-marketplace/src/components/subscription/__tests__/SubscriptionStatusCard.test.tsx
+    - p2p-kids-marketplace/src/components/subscription/__tests__/SubscriptionBanner.test.tsx
+  - **E2E Tests:** p2p-kids-marketplace/src/__tests__/e2e/sub-010-subscription-ui.e2e.ts
+  - **Navigation:** Routes added to AppNavigator.tsx + linking config
+  - **Tier:** 1 for UI/component changes; no DB/RPC changes required
+
 - Manual checks:
   - **SUB-001 Foundation:**
     - `subscription_tiers` table exists with Kids Club+ tier seeded correctly ($4.99, 30d trial, grace period is dynamic from admin config).

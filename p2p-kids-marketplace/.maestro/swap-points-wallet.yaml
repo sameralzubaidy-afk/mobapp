@@ -1,0 +1,48 @@
+# FLOW: swap-points-wallet
+# Screens: SpWalletScreen
+# testIDs required: sp-wallet-back-button
+# Description: View SP wallet balance, transaction history, and expiration warnings
+
+appId: com.anonymous.p2p-kids-marketplace
+---
+# Assumes user is already logged in and on home/dashboard
+
+# Navigate to SP Wallet (typically via menu/tab)
+- tapOn:
+    text: Swap Points
+- waitForAnimationToEnd
+
+# Alternative: if menu navigation doesn't work, look for wallet/SP link
+- assertVisible:
+    text: Wallet
+
+# Or navigate via test ID if added to navigation
+- waitForAnimationToEnd
+
+# Verify SP wallet screen loaded
+- assertVisible:
+    text: Swap Points Wallet
+
+# Wait for wallet data to load
+- waitForAnimationToEnd
+
+# Verify balance section is visible
+- assertVisible:
+    text: Available Balance
+
+# Verify sub-balances are visible (Pending, Lifetime Earned, Lifetime Spent)
+- assertVisible:
+    text: Pending
+
+# Verify ledger history section is present (may need to scroll to see in production)
+- assertVisible:
+    text: Transaction
+
+# Test back button
+- tapOn:
+    id: sp-wallet-back-button
+- waitForAnimationToEnd
+
+# Verify we're back on previous screen (home/dashboard)
+- assertVisible:
+    text: Browse Items

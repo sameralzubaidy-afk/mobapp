@@ -1,0 +1,3 @@
+# Maestro global config
+flows:
+  - "*.yaml"

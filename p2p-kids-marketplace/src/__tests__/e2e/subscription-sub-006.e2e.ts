@@ -12,6 +12,9 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { supabase } from '../../config/supabase';
 
+// Increase timeout for these E2E tests (network + function calls can be slow)
+jest.setTimeout(20000);
+
 describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
   let testUserEmail: string;
   let testUserId: string;

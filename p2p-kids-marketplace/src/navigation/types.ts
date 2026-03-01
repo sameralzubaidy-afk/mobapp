@@ -18,6 +18,12 @@ export type RootStackParamList = {
   // Subscription routes
   Subscription: undefined;
   SubscriptionChoice: undefined;
+  // MODULE-11 SUB-006: Trial conversion
+  ContinueKidsClub: undefined;
+  // MODULE-11 SUB-008: Manage subscription
+  ManageKidsClub: undefined;
+  // MODULE-11 SUB-010: Kids Club+ overview
+  KidsClubOverview: undefined;
   // MODULE-11 SUB-007: Subscription status/billing screen (manual verification)
   SubscriptionStatus: undefined;
   // Trade routes

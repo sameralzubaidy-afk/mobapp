@@ -332,7 +332,7 @@ export default function UserDashboardScreen() {
           {(subscription.status === 'free' || subscription.status === 'canceled') && (
             <TouchableOpacity
               style={styles.upgradeButton}
-              onPress={() => navigation.navigate('SubscriptionChoice')}
+              onPress={() => navigation.navigate('KidsClubOverview')}
             >
               <Text style={styles.upgradeButtonText}>Upgrade to Kids Club+</Text>
             </TouchableOpacity>

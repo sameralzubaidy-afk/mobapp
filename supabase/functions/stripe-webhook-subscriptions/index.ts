@@ -26,17 +26,47 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 // ─── Max payment retries before entering grace period ─────────────────────────
 const MAX_PAYMENT_RETRIES = 3;
 
-// ─── Grace-period duration (fetched from subscription_tiers, default 90 days) ──
+// ─── Grace-period duration (fetched from admin_config, then tier fallback) ──
 const DEFAULT_GRACE_PERIOD_DAYS = 90;
 
 // ============================================================================
-// HELPER: Fetch grace period days from user's subscription tier
+// HELPER: Fetch grace period days from admin_config (primary), then subscription tier
 // ============================================================================
 async function getGracePeriodDays(
   supabase: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<number> {
   try {
+    // 1) Preferred source: admin_config.grace_period_days (dynamic admin-controlled setting)
+    const { data: configData, error: configError } = await supabase
+      .from('admin_config')
+      .select('key, value')
+      .eq('is_active', true)
+      .eq('key', 'grace_period_days')
+      .maybeSingle();
+
+    if (!configError && configData?.value != null) {
+      const parsed = Number(configData.value);
+      if (Number.isFinite(parsed)) {
+        return Math.max(parsed, 0);
+      }
+    }
+
+    // 2) Legacy schema fallback: config_key/config_value
+    const { data: legacyConfigData, error: legacyConfigError } = await supabase
+      .from('admin_config')
+      .select('config_key, config_value')
+      .eq('is_active', true)
+      .eq('config_key', 'grace_period_days')
+      .maybeSingle();
+
+    if (!legacyConfigError && legacyConfigData?.config_value != null) {
+      const parsed = Number(legacyConfigData.config_value);
+      if (Number.isFinite(parsed)) {
+        return Math.max(parsed, 0);
+      }
+    }
+
     // Fetch user's subscription to get tier_id
     const { data: sub, error: subError } = await supabase
       .from('subscriptions')
@@ -52,7 +82,7 @@ async function getGracePeriodDays(
       return DEFAULT_GRACE_PERIOD_DAYS;
     }
 
-    // Fetch tier configuration
+    // 3) Tier fallback
     const { data: tier, error: tierError } = await supabase
       .from('subscription_tiers')
       .select('grace_period_days')

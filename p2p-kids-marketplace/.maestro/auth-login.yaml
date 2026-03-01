@@ -1,0 +1,39 @@
+# FLOW: auth-login
+# Screens: LoginScreen → HomeScreen/Dashboard
+# testIDs required: login-email-input, login-password-input, login-submit-button
+# Description: Existing user login and session restore
+
+appId: com.anonymous.p2p-kids-marketplace
+---
+- launchApp
+
+# Wait for app to initialize and navigate to login if needed
+- waitForAnimationToEnd
+
+# Check if we're on login screen
+- assertVisible:
+    text: Welcome Back\!
+
+# Fill email
+- tapOn:
+    id: login-email-input
+- inputText: "testuser@example.com"
+- waitForAnimationToEnd
+
+# Fill password
+- tapOn:
+    id: login-password-input
+- inputText: "TestPassword123!"
+- waitForAnimationToEnd
+
+# Submit login
+- tapOn:
+    id: login-submit-button
+- waitForAnimationToEnd
+
+# Wait for authentication and navigation
+- waitForAnimationToEnd
+
+# Verify successful login - should see home/dashboard UI
+- assertVisible:
+    text: Browse Items

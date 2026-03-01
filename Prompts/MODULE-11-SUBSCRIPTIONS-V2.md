@@ -1041,7 +1041,7 @@ Grace Reminder Thresholds:     [ [60, 30, 7, 1] ]  [Save]
 ```
 
 ==================================================
-NEXT TASK: 11-G (Tests + Module Summary - SUB-012)
+NEXT TASK: 11-G (Tests + Module Summary - SUB-021)
 ==================================================
 */
 ```
@@ -1050,14 +1050,14 @@ NEXT TASK: 11-G (Tests + Module Summary - SUB-012)
 
 <!-- 
 MICRO-TASK 11-F COMPLETE
-Next: 11-G (Tests + Module Summary - SUB-012)
+Next: 11-G (Tests + Module Summary - SUB-021)
 -->
 
 ---
 ## 013 >> Test Case 2: Trial Eligibility Check (One Trial Per User)
 need better UX if user used trial , they should not see option to re use trail they should see option to pay to subs. 
 
-## TASK SUB-012: Tests, Observability & Module Summary
+## TASK SUB-021: Tests, Observability & Module Summary
 
 
 **Duration:** 8 hours (comprehensive test suite for all 20 tasks)  
@@ -1323,9 +1323,9 @@ MODULE-11 defines **Kids Club+ subscriptions** as the gatekeeper for Swap Points
 - During implementation, keep observability consistent (structured logs, TODOs for metrics + dashboards) so subscription health can be monitored from day one.
 
 ---
-## 013 Test Case 2: Trial Eligibility Check (One Trial Per User)
+## 022 Test Case 2: Trial Eligibility Check (One Trial Per User)
 
-## 014 
+## 023
 how to cancel sub, 
 how to show expire date for the sub , when is the next payment due. 
 how the user automaticly shcudle payment and get ntofications. 
@@ -3730,6 +3730,8 @@ ACCEPTANCE CRITERIA:
 */\n```
 
 ---
+
+
 ## TASK SUB-020: Trial Limit Control (Prevent Trial Reuse - Globally Configured)
 
 **Duration:** 3.5 hours  
@@ -3770,6 +3772,8 @@ Key behaviors:
    - **At limit**: "You've already used your free trial. Subscribe now to access Kids Club+." (modal)
    - **After failed attempt**: "Trial limit reached. Please subscribe or contact support."
    - Android notifications for users who approach the limit (e.g., "Your trial is ending in 3 days")
+   ## ensure you cover the test cases form TC-8-10: SubscriptionBanner from  SUB-010-MANUAL-TESTING-GUIDE.md
+
 
 ### AI Prompt for Cursor
 

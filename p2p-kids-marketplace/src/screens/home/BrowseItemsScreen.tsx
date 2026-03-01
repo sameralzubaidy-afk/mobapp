@@ -736,6 +736,7 @@ export default function BrowseItemsScreen() {
         >
           <Text style={{ fontSize: 16, marginRight: 8 }}>🔎</Text>
           <TextInput
+            testID="browse-search-input"
             style={{
               flex: 1,
               fontSize: 14,

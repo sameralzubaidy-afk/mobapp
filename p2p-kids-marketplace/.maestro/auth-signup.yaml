@@ -1,0 +1,72 @@
+# FLOW: auth-signup
+# Screens: SignupScreen → Home/Dashboard
+# testIDs required: signup-email-input, signup-password-input, signup-confirm-password-input, 
+#                   signup-display-name-input, signup-age-input, signup-zip-input, signup-submit-button
+# Description: New user signup with trial activation end-to-end
+
+appId: com.anonymous.p2p-kids-marketplace
+---
+- launchApp
+
+# Clear any previous state
+- clearKeychain
+
+# Wait for app to initialize
+- waitForAnimationToEnd
+
+# Verify we're on signup screen
+- assertVisible:
+    text: Join Kids Club\+
+
+# Fill email
+- tapOn:
+    id: signup-email-input
+- inputText: "testuser@example.com"
+- waitForAnimationToEnd
+
+# Fill password
+- tapOn:
+    id: signup-password-input
+- inputText: "TestPassword123!"
+- waitForAnimationToEnd
+
+# Fill confirm password
+- tapOn:
+    id: signup-confirm-password-input
+- inputText: "TestPassword123!"
+- waitForAnimationToEnd
+
+# Fill display name
+- tapOn:
+    id: signup-display-name-input
+- inputText: "Test User"
+- waitForAnimationToEnd
+
+# Fill age (10 - no parental consent required)
+- tapOn:
+    id: signup-age-input
+- inputText: "10"
+- waitForAnimationToEnd
+
+# Fill ZIP code
+- tapOn:
+    id: signup-zip-input
+- inputText: "12345"
+- waitForAnimationToEnd
+
+# Submit signup
+- tapOn:
+    id: signup-submit-button
+- waitForAnimationToEnd
+
+# Wait for trial activation and navigation
+- waitForAnimationToEnd
+
+# Verify success - should see either welcome alert or home screen
+- assertVisible:
+    text: Welcome to Kids Club\+
+
+# Dismiss alert if present
+- tapOn:
+    text: Get Started
+- waitForAnimationToEnd

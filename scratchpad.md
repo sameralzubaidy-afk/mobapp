@@ -1,0 +1,1 @@
+I'll read the file `p2p-kids-marketplace/src/screens/profile/ProfileScreen.tsx` to understand the current layout and implementation of subscription management buttons.

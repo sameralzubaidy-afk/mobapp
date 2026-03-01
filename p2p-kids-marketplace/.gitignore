@@ -44,3 +44,5 @@ supabase/.temp
 # generated native folders
 /ios
 /android
+.maestro/recordings/
+.maestro/screenshots/

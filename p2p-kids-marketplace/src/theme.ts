@@ -1,0 +1,1 @@
+export const theme = { colors: { primary: 'blue', text: { primary: 'black', secondary: 'gray' }, background: 'white', surface: 'white', border: 'gray', success: 'green', error: 'red' } };

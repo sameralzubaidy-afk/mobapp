@@ -46,22 +46,31 @@ My Example 1
 
 
 
-## TASK SUB-009: Grace Period Countdown, Reminders & Expiry
+## TASK SUB-010: Subscription UI Components (Member-Facing)
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: 
-## TASK SUB-009: Grace Period Countdown, Reminders & Expiry
+## TASK SUB-010: Subscription UI Components (Member-Facing)
 scope is 
+Define and implement core **member-facing subscription UI** for Kids Club+ within the mobile app. The goal is to:
 
-Implement the **admin-configurable grace period mechanics** after a user loses Kids Club+ access:
+1. Clearly explain the value of Kids Club+ to parents.
+2. Show current subscription state, SP access, and key dates.
+3. Offer clear CTAs for **Try Free**, **Continue**, **Re-subscribe**, and **Manage** based on state.
 
-1. When a user transitions to `grace_period` (via webhook, trial-conversion, or cancellation), we set `grace_period_ends_at` based on the **admin-configured grace period duration** (fetched from `admin_config` table) and freeze their SP wallet (MODULE-09 handler).
-2. Show a clear countdown in the app ("You have X days to re-subscribe before your Swap Points are deleted.").
-3. Send **reminder notifications** at admin-configured thresholds (e.g., admin can set reminders at 60, 30, 7, 1 days remaining or any custom intervals).
-4. When `grace_period_ends_at` passes, set status to `expired`, permanently delete SP and close the wallet per MODULE-09.
+This task does not re-spec every pixel; it creates **clear, generator-ready specs** for a minimal but polished V1 experience.
 
-This task wires together cron, DB updates, SP wallet actions, and simple UI surface.
+Screens & Components
+
+We will implement:
+
+1. `KidsClubOverviewScreen` – Marketing + benefit explanation and primary entry point.
+2. `SubscriptionStatusCard` – Reusable card summarizing current state, SP access, and fees.
+3. `SubscriptionBanner` – Thin banner shown in key screens (home, SP wallet, listing flow) encouraging upgrade or resubscribe.
+
+`ManageKidsClubScreen` was already introduced in SUB-008; SUB-010 just references it.
+
 
 i want you to 
 
@@ -78,8 +87,7 @@ i want you to
 3. If similar logic exists:
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
-4.Forbidden: Re-implementing logic that already exists under a different name
-
+4. Forbidden: Re-implementing logic that already exists under a different name
 5. Follow the module and task exactly, and cross-check with the verification file in MODULE-11-VERIFICATION-V2.md
 6. Show me the files you create or edit with their full paths
 7. Tell me which items in MODULE-11-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-11-VERIFICATION-V2.md

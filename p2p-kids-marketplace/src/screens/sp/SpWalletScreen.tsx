@@ -103,6 +103,7 @@ export default function SpWalletScreen() {
         {/* Header with Back Button */}
         <View style={styles.header}>
           <TouchableOpacity
+            testID="sp-wallet-back-button"
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >

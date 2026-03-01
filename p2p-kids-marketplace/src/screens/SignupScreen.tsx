@@ -191,6 +191,7 @@ export const SignupScreen: React.FC = () => {
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="your.email@example.com"
+              testID="signup-email-input"
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
@@ -209,6 +210,7 @@ export const SignupScreen: React.FC = () => {
             <TextInput
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="At least 8 characters"
+              testID="signup-password-input"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -230,6 +232,7 @@ export const SignupScreen: React.FC = () => {
                 errors.confirmPassword && styles.inputError,
               ]}
               placeholder="Re-enter password"
+              testID="signup-confirm-password-input"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry
@@ -248,6 +251,7 @@ export const SignupScreen: React.FC = () => {
             <TextInput
               style={[styles.input, errors.displayName && styles.inputError]}
               placeholder="How should we call you?"
+              testID="signup-display-name-input"
               value={displayName}
               onChangeText={setDisplayName}
               autoCapitalize="words"
@@ -265,6 +269,7 @@ export const SignupScreen: React.FC = () => {
             <TextInput
               style={[styles.input, errors.age && styles.inputError]}
               placeholder="Your age"
+              testID="signup-age-input"
               value={age}
               onChangeText={setAge}
               keyboardType="number-pad"
@@ -280,6 +285,7 @@ export const SignupScreen: React.FC = () => {
             <TextInput
               style={[styles.input, errors.zipCode && styles.inputError]}
               placeholder="12345"
+              testID="signup-zip-input"
               value={zipCode}
               onChangeText={setZipCode}
               keyboardType="number-pad"
@@ -305,6 +311,7 @@ export const SignupScreen: React.FC = () => {
                   errors.parentalEmail && styles.inputError,
                 ]}
                 placeholder="parent@example.com"
+                testID="signup-parent-email-input"
                 value={parentalEmail}
                 onChangeText={setParentalEmail}
                 autoCapitalize="none"
@@ -321,6 +328,7 @@ export const SignupScreen: React.FC = () => {
           {/* Submit Button */}
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
+            testID="signup-submit-button"
             onPress={handleSignup}
             disabled={loading}
           >
@@ -336,6 +344,7 @@ export const SignupScreen: React.FC = () => {
             <Text style={styles.footerText}>Already have an account? </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('Login')}
+              testID="signup-login-link"
               disabled={loading}
             >
               <Text style={styles.linkText}>Log In</Text>
