@@ -218,6 +218,21 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Reminder schedule: Day 23 (7 days remaining), Day 28 (2 days remaining), Day 29 (1 day remaining).
     - Notification content: Unique title and message for each reminder day with increasing urgency.
     - Integration: Calls existing `send-push-notification` Edge Function for delivery.
+  
+  - **SUB-014 Billing History Tracking (COMPLETED - 2026-03-03):**
+    - Database: `billing_history` table created to log all subscription charges, failures, and refunds.
+    - Migration: `supabase/migrations/20260303000000_create_billing_history_sub_014.sql`
+    - Schema: Tracks `charge_id` (Stripe), `stripe_invoice_id`, `amount`, `currency`, `status` (succeeded/failed/refunded/pending), `charged_at`, `description`, `error_message`.
+    - RLS: Users can view their own billing history; service role has full access for webhooks.
+    - Indexes: 5 performance indexes on user_id, subscription_id, charge_id, status, charged_at.
+    - TypeScript Types: `src/types/billingHistory.types.ts` - BillingHistory, BillingStatus, CreateBillingHistoryParams, BillingHistorySummary.
+    - Service Layer: `src/services/billingHistory.ts` - getBillingHistory(), createBillingRecord(), updateBillingRecordStatus(), getBillingHistorySummary().
+    - Unit Tests: `src/services/__tests__/billingHistory.test.ts` (13 tests - all CRUD operations, summary calculations).
+    - E2E Tests: `src/__tests__/e2e/billing-history-sub-014.e2e.ts` (18 tests - real Supabase, verify table, RLS, CRUD).
+    - Manual Test Guide: `SUB-014-MANUAL-TEST-CASES.md` (20 test cases for iOS/Android simulators).
+    - Purpose: Immutable audit trail for all billing events, supports receipt/invoice functionality, reconciliation with Stripe.
+    - Integration Points: Ready for webhook integration (SUB-015), billing history UI (SUB-016), admin dashboard (SUB-017).
+    - Tier: 0 for new billing logic; Tier 1 for webhook integration; Tier 2 if billing_history schema changes.
     - TypeScript service: `trialReminders.ts` with `getTrialReminderStatus()`, `calculateDaysRemaining()`, `getTrialReminderMessage()`.
     - UI Component: `TrialReminderBanner.tsx` displays reminders on Dashboard with color-coded urgency (blue/orange/red).
     - Idempotency: Flags ensure reminders are sent exactly once per milestone.

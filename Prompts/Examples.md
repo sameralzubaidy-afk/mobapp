@@ -46,43 +46,25 @@ My Example 1
 
 
 
-## TASK SUB-011: Admin Subscription Management & Analytics + Grace Period Config
+## TASK SUB-014: Enhanced User Subscriptions Schema (Billing & Payment Fields)
+
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: 
-## TASK SUB-011: Admin Subscription Management & Analytics + Grace Period Config
+## TASK SUB-014: Enhanced User Subscriptions Schema (Billing & Payment Fields)
 scope is 
+Extend `user_subscriptions` table with additional fields required for payment management, billing history, and renewal control:
 
-Define minimal admin-facing tooling to monitor and manage Kids Club+, including **grace period configuration management**:
+1. **Payment Method Storage:** `stripe_payment_method_id` – securely linked to user's saved payment method
+2. **Billing History:** Fields to track recent charges: `last_payment_date`, `last_payment_amount`, `next_billing_date`
+3. **Payment Retry Logic:** `payment_failed_at`, `payment_retry_count` – track failed charges and auto-retry status
+4. **Auto-Renewal Control:** `auto_renew_enabled` (boolean, default true) – allow users to pause auto-renew
+5. **Cancellation Feedback:** `cancelled_reason` (text) – capture why user cancelled for analytics
+6. **Pause Feature:** `paused_until` (timestamp) – support "pause subscription" instead of cancel
 
-1. **Subscription Monitoring:**
-   - View list of current subscribers, trials, grace-period users, and expired users.
-   - See key metrics: MRR, active subs, trials started, churn, grace → re-subscribe rate.
-   - Perform safe admin actions: manually cancel, extend trial, or re-activate in edge cases.
-   - ensure the data on this dashboard is accurate for biz review
-
-2. **Grace Period Configuration (NEW):**
-   - Manage `grace_period_days`: How many days users have to re-subscribe before SP deletion (default: 90)
-   - Manage `grace_reminder_thresholds`: JSON array of day thresholds for reminder notifications (default: [60, 30, 7, 1])
-   - Real-time validation and save feedback for admin config changes
-   - Clear descriptions of each setting to guide admin behavior
-
-Admin will mostly rely on Stripe Dashboard for billing operations; app admin UI is for **at-a-glance visibility**, grace period config tuning, and controlled overrides.
-
-### Implementation Scope
-
-**Subscription Monitoring (Part A):**
-- Read-only list/dashboard of subscriptions by status
-- MRR and metrics calculation
-- Minimal admin action buttons (if needed)
-
-**Grace Period Configuration (Part B) — For Deferred Implementation:**
-- Form fields to update `grace_period_days` and `grace_reminder_thresholds` in admin_config
-- Validation and save logic
-- Real-time feedback
-- See "IMPLEMENTATION NOTE: Grace Period Config Fields" section below for detailed UI spec
-
+Create companion `billing_history` table to track all transactions:
+- `id`, `user_id`, `subscription_id`, `charge_id` (Stripe reference), `amount`, `currency`, `status` (succeeded/failed/refunded), `charged_at`, `description`
 
 
 i want you to 
