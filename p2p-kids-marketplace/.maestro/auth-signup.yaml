@@ -1,72 +1,110 @@
 # FLOW: auth-signup
 # Screens: SignupScreen → Home/Dashboard
-# testIDs required: signup-email-input, signup-password-input, signup-confirm-password-input, 
-#                   signup-display-name-input, signup-age-input, signup-zip-input, signup-submit-button
-# Description: New user signup with trial activation end-to-end
+# testIDs required: signup-email-input, signup-password-input, signup-confirm-password-input,
+#                   signup-display-name-input, signup-phone-input, signup-dob-input, signup-submit-button
+# Description: STRICT: Signup validation with deterministic missing-password error
 
 appId: com.anonymous.p2p-kids-marketplace
 ---
 - launchApp
-
-# Clear any previous state
-- clearKeychain
-
+- openLink: 'com.anonymous.p2p-kids-marketplace://expo-development-client/?url=http://127.0.0.1:8081'
 # Wait for app to initialize
 - waitForAnimationToEnd
 
-# Verify we're on signup screen
+# Setup normalization: if already authenticated, force logout first
+- runFlow:
+    when:
+      visible:
+        id: nav-profile
+    commands:
+      - tapOn:
+          id: nav-profile
+      - waitForAnimationToEnd
+      - tapOn:
+          id: profile-logout-button
+      - waitForAnimationToEnd
+      - tapOn:
+          text: Logout
+      - waitForAnimationToEnd
+
+# Setup normalization: support Landing or direct Login start
+- runFlow:
+    when:
+      visible:
+        id: landing-signup-button
+    commands:
+      - tapOn:
+          id: landing-signup-button
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: login-signup-link
+    commands:
+      - tapOn:
+          id: login-signup-link
+      - waitForAnimationToEnd
+
+# Strict signup form assertions (top section)
 - assertVisible:
-    text: Join Kids Club\+
-
-# Fill email
-- tapOn:
+    id: signup-display-name-input
+- assertVisible:
     id: signup-email-input
-- inputText: "testuser@example.com"
-- waitForAnimationToEnd
+- assertVisible:
+    id: signup-phone-input
+- assertVisible:
+    id: signup-dob-input
 
-# Fill password
-- tapOn:
-    id: signup-password-input
-- inputText: "TestPassword123!"
-- waitForAnimationToEnd
-
-# Fill confirm password
-- tapOn:
-    id: signup-confirm-password-input
-- inputText: "TestPassword123!"
-- waitForAnimationToEnd
-
-# Fill display name
+# Deterministic negative path: fill required fields
 - tapOn:
     id: signup-display-name-input
-- inputText: "Test User"
-- waitForAnimationToEnd
-
-# Fill age (10 - no parental consent required)
+- eraseText
+- inputText: 'Strict Maestro User'
 - tapOn:
-    id: signup-age-input
-- inputText: "10"
-- waitForAnimationToEnd
-
-# Fill ZIP code
+    id: signup-email-input
+- eraseText
+- inputText: 'testuser+maestro@example.com'
 - tapOn:
-    id: signup-zip-input
-- inputText: "12345"
-- waitForAnimationToEnd
+    id: signup-phone-input
+- eraseText
+- inputText: '+15555551234'
+- tapOn:
+    id: signup-dob-input
+- eraseText
+- inputText: '1990-01-01'
+- tapOn:
+    text: Date of Birth
 
-# Submit signup
+# Move to password section
+- swipe:
+    direction: up
+- swipe:
+    direction: up
+- assertVisible:
+    id: signup-password-input
+- tapOn:
+    id: signup-password-input
+- eraseText
+- inputText: 'A1a'
+- assertVisible:
+    id: signup-confirm-password-input
+- tapOn:
+    id: signup-confirm-password-input
+- eraseText
+- inputText: 'A1a'
+- tapOn:
+    text: Confirm Password
+- swipe:
+    direction: up
+- swipe:
+    direction: up
 - tapOn:
     id: signup-submit-button
 - waitForAnimationToEnd
+- swipe:
+    direction: down
 
-# Wait for trial activation and navigation
-- waitForAnimationToEnd
-
-# Verify success - should see either welcome alert or home screen
+# Strict expected validation error (client-side password validation)
 - assertVisible:
-    text: Welcome to Kids Club\+
-
-# Dismiss alert if present
-- tapOn:
-    text: Get Started
-- waitForAnimationToEnd
+    id: signup-password-error

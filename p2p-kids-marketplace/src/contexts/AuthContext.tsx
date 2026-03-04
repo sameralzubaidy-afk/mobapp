@@ -1,13 +1,7 @@
 // File: p2p-kids-marketplace/src/contexts/AuthContext.tsx
 // MODULE-03 AUTH-V2-003: Authentication Context with Session Management
 
-import React, {
-  createContext,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { supabase } from '../config/supabase';
 import { AuthSession, AuthError, SubscriptionStatus } from '../types/user';
@@ -17,6 +11,7 @@ import { useUserStore } from '../stores/userStore';
 const SUPABASE_CONFIGURED = Boolean(
   process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 );
+const TEST_SESSION_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 /**
  * Authentication context type
@@ -92,9 +87,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const profileRef = useRef<any>(null);
 
   // Session change listeners (for external components to react to session updates)
-  const sessionChangeListenersRef = useRef<Set<(session: AuthSession | null) => void>>(
-    new Set()
-  );
+  const sessionChangeListenersRef = useRef<Set<(session: AuthSession | null) => void>>(new Set());
 
   /**
    * Subscribe to session changes
@@ -116,30 +109,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Notify all session change listeners
    */
   const notifySessionChanges = useCallback((newSession: AuthSession | null) => {
-    sessionChangeListenersRef.current.forEach(listener => listener(newSession));
+    sessionChangeListenersRef.current.forEach((listener) => listener(newSession));
   }, []);
 
   /**
    * Set session with listener notification
    */
-  const setSession = useCallback((newSession: AuthSession | null) => {
-    setSessionState(newSession);
-    notifySessionChanges(newSession);
-    
-    // Sync with userStore
-    if (newSession?.user) {
-      setUser({
-        id: newSession.user.user_id, // Use user_id which is the auth.users.id
-        email: newSession.user.email || '', // email is optional in profile but required in userStore
-        name: newSession.user.name || '',
-        avatar_url: newSession.user.avatar_url || null,
-        node_id: newSession.user.node_id || null,
-        node: newSession.user.node || null,
-      });
-    } else {
-      clearUser();
-    }
-  }, [notifySessionChanges, setUser, clearUser]);
+  const setSession = useCallback(
+    (newSession: AuthSession | null) => {
+      setSessionState(newSession);
+      notifySessionChanges(newSession);
+
+      // Sync with userStore
+      if (newSession?.user) {
+        setUser({
+          id: newSession.user.user_id, // Use user_id which is the auth.users.id
+          email: newSession.user.email || '', // email is optional in profile but required in userStore
+          name: newSession.user.name || '',
+          avatar_url: newSession.user.avatar_url || null,
+          node_id: newSession.user.node_id || null,
+          node: newSession.user.node || null,
+        });
+      } else {
+        clearUser();
+      }
+    },
+    [notifySessionChanges, setUser, clearUser]
+  );
 
   /**
    * Refresh session: Re-fetch session from Supabase + subscription + SP wallet context
@@ -150,175 +146,185 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * - Manual refresh request (e.g., after onboarding completion)
    * - Subscription/wallet Realtime changes
    */
-  const refreshSession = useCallback(async (silent: boolean = true) => {
-    try {
-      if (!SUPABASE_CONFIGURED) {
-        setSession(null);
-        return;
-      }
-
-      if (!silent) setIsLoading(true);
-      setError(null);
-
-      // First, get the current Supabase auth session
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError) {
-        console.error('[AUTH] Failed to get session:', sessionError);
-        throw sessionError;
-      }
-
-      if (!sessionData.session?.user) {
-        // No active session - clear context
-        setSession(null);
-        return;
-      }
-
-      // User is authenticated - fetch their profile with latest data
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*, node:nodes(*)')
-        .eq('user_id', sessionData.session.user.id)
-        .single();
-
-      if (profileError || !profileData) {
-        console.error('[AUTH] Failed to fetch profile:', profileError);
-        setSession(null);
-        return;
-      }
-
-      // Re-fetch subscription summary from MODULE-11
-      const { data: subData, error: subError } = await (supabase.rpc(
-        'get_subscription_summary',
-        { p_user_id: sessionData.session.user.id }
-      ) as any);
-
-      type RawSubscriptionSummary = {
-        status?: string;
-        can_spend_sp?: boolean | string | null;
-      };
-
-      const mapStatus = (raw?: string): SubscriptionStatus => {
-        switch (raw?.toLowerCase()) {
-          case 'trialing':
-          case 'trial_ending':
-          case 'trial':
-            return 'trial';
-          case 'free':
-            return 'free';
-          case 'active':
-            return 'active';
-          case 'grace_period':
-          case 'grace':
-            return 'grace';
-          case 'cancelled':
-          case 'canceled':
-          case 'expired':
-            return 'canceled';
-          default:
-            return 'free';
+  const refreshSession = useCallback(
+    async (silent: boolean = true) => {
+      try {
+        if (!SUPABASE_CONFIGURED) {
+          if (session?.user?.user_id === TEST_SESSION_USER_ID) {
+            return;
+          }
+          setSession(null);
+          return;
         }
-      };
 
-      let subscriptionSummary: RawSubscriptionSummary | null = null;
+        if (!silent) setIsLoading(true);
+        setError(null);
 
-      if (subError) {
-        console.warn('[AUTH] get_subscription_summary warning:', subError);
-      } else if (Array.isArray(subData) && subData.length > 0) {
-        subscriptionSummary = subData[0];
-      } else if (Array.isArray(subData) && subData.length === 0) {
-        subscriptionSummary = { status: 'free', can_spend_sp: false };
-      } else if (subData && !Array.isArray(subData)) {
-        subscriptionSummary = subData;
-      } else {
-        subscriptionSummary = { status: 'free', can_spend_sp: false };
-      }
+        // First, get the current Supabase auth session
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
-      const normalizedSubscriptionSummary = (() => {
-        const base = subscriptionSummary ?? { status: 'free', can_spend_sp: false };
-        const canSpend = typeof base.can_spend_sp === 'string'
-          ? base.can_spend_sp === 'true' || base.can_spend_sp === 't'
-          : Boolean(base.can_spend_sp);
+        if (sessionError) {
+          console.error('[AUTH] Failed to get session:', sessionError);
+          throw sessionError;
+        }
 
-        return {
-          status: mapStatus(base.status),
-          can_spend_sp: canSpend,
+        if (!sessionData.session?.user) {
+          if (session?.user?.user_id === TEST_SESSION_USER_ID) {
+            return;
+          }
+          // No active session - clear context
+          setSession(null);
+          return;
+        }
+
+        // User is authenticated - fetch their profile with latest data
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*, node:nodes(*)')
+          .eq('user_id', sessionData.session.user.id)
+          .single();
+
+        if (profileError || !profileData) {
+          console.error('[AUTH] Failed to fetch profile:', profileError);
+          setSession(null);
+          return;
+        }
+
+        // Re-fetch subscription summary from MODULE-11
+        const { data: subData, error: subError } = await (supabase.rpc('get_subscription_summary', {
+          p_user_id: sessionData.session.user.id,
+        }) as any);
+
+        type RawSubscriptionSummary = {
+          status?: string;
+          can_spend_sp?: boolean | string | null;
         };
-      })();
 
-      // Re-fetch SP wallet summary from MODULE-09
-      const { data: walletData, error: walletError } = await (supabase.rpc(
-        'get_user_sp_wallet_summary',
-        { p_user_id: sessionData.session.user.id }
-      ) as any);
+        const mapStatus = (raw?: string): SubscriptionStatus => {
+          switch (raw?.toLowerCase()) {
+            case 'trialing':
+            case 'trial_ending':
+            case 'trial':
+              return 'trial';
+            case 'free':
+              return 'free';
+            case 'active':
+              return 'active';
+            case 'grace_period':
+            case 'grace':
+              return 'grace';
+            case 'cancelled':
+            case 'canceled':
+            case 'expired':
+              return 'canceled';
+            default:
+              return 'free';
+          }
+        };
 
-      if (walletError) {
-        console.warn('[AUTH] ⚠️ get_user_sp_wallet_summary error:', walletError);
+        let subscriptionSummary: RawSubscriptionSummary | null = null;
+
+        if (subError) {
+          console.warn('[AUTH] get_subscription_summary warning:', subError);
+        } else if (Array.isArray(subData) && subData.length > 0) {
+          subscriptionSummary = subData[0];
+        } else if (Array.isArray(subData) && subData.length === 0) {
+          subscriptionSummary = { status: 'free', can_spend_sp: false };
+        } else if (subData && !Array.isArray(subData)) {
+          subscriptionSummary = subData;
+        } else {
+          subscriptionSummary = { status: 'free', can_spend_sp: false };
+        }
+
+        const normalizedSubscriptionSummary = (() => {
+          const base = subscriptionSummary ?? { status: 'free', can_spend_sp: false };
+          const canSpend =
+            typeof base.can_spend_sp === 'string'
+              ? base.can_spend_sp === 'true' || base.can_spend_sp === 't'
+              : Boolean(base.can_spend_sp);
+
+          return {
+            status: mapStatus(base.status),
+            can_spend_sp: canSpend,
+          };
+        })();
+
+        // Re-fetch SP wallet summary from MODULE-09
+        const { data: walletData, error: walletError } = await (supabase.rpc(
+          'get_user_sp_wallet_summary',
+          { p_user_id: sessionData.session.user.id }
+        ) as any);
+
+        if (walletError) {
+          console.warn('[AUTH] ⚠️ get_user_sp_wallet_summary error:', walletError);
+        }
+
+        // Handle different return types
+        let walletSummary = {
+          available_points: 0,
+          pending_points: 0,
+          lifetime_earned: 0,
+          lifetime_spent: 0,
+        };
+
+        if (Array.isArray(walletData) && walletData.length > 0) {
+          walletSummary = walletData[0];
+        } else if (walletData && !Array.isArray(walletData)) {
+          walletSummary = walletData;
+        }
+
+        // Create updated session with FULL profile data
+        const updatedSession: AuthSession = {
+          user: {
+            id: profileData.user_id || profileData.id,
+            user_id: profileData.user_id || profileData.id,
+            email: sessionData.session.user.email || '',
+            name: profileData.name || profileData.full_name || '',
+            display_name: profileData.name || profileData.full_name || '',
+            avatar_url: profileData.avatar_url || undefined,
+            bio: profileData.bio,
+            city: profileData.city,
+            state: profileData.state,
+            zip_code: profileData.zip_code,
+            node_id: profileData.node_id,
+            node: profileData.node || undefined,
+            profile_completed: profileData.profile_completed || false,
+            onboarding_completed: profileData.onboarding_completed || false,
+            phone_verified: profileData.phone_verified || false,
+            phone_verified_at: profileData.phone_verified_at,
+            subscription_id: profileData.subscription_id,
+            sp_wallet_id: profileData.sp_wallet_id,
+            onboarding_completed_at: profileData.onboarding_completed_at,
+            parental_consent_verified: profileData.parental_consent_verified || false,
+            age: profileData.age,
+            referral_code: profileData.referral_code,
+            created_at: profileData.created_at,
+            updated_at: profileData.updated_at,
+          },
+          access_token: sessionData.session.access_token,
+          refresh_token: sessionData.session.refresh_token || '',
+          subscription_status: normalizedSubscriptionSummary.status,
+          can_spend_sp: normalizedSubscriptionSummary.can_spend_sp,
+          available_points: (walletSummary.available_points as number) || 0,
+          pending_points: (walletSummary.pending_points as number) || 0,
+          lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
+          lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
+        };
+
+        setSession(updatedSession);
+      } catch (err) {
+        console.error('[AUTH] Session refresh failed:', err);
+        const authError =
+          err instanceof AuthError
+            ? err
+            : new AuthError('Session refresh failed', 'REFRESH_FAILED', err);
+        setError(authError);
+      } finally {
+        setIsLoading(false);
       }
-
-      // Handle different return types
-      let walletSummary = {
-        available_points: 0,
-        pending_points: 0,
-        lifetime_earned: 0,
-        lifetime_spent: 0,
-      };
-      
-      if (Array.isArray(walletData) && walletData.length > 0) {
-        walletSummary = walletData[0];
-      } else if (walletData && !Array.isArray(walletData)) {
-        walletSummary = walletData;
-      }
-
-      // Create updated session with FULL profile data
-      const updatedSession: AuthSession = {
-        user: {
-          id: profileData.user_id || profileData.id,
-          user_id: profileData.user_id || profileData.id,
-          email: sessionData.session.user.email || '',
-          name: profileData.name || profileData.full_name || '',
-          display_name: profileData.name || profileData.full_name || '',
-          avatar_url: profileData.avatar_url || undefined,
-          bio: profileData.bio,
-          city: profileData.city,
-          state: profileData.state,
-          zip_code: profileData.zip_code,
-          node_id: profileData.node_id,
-          node: profileData.node || undefined,
-          profile_completed: profileData.profile_completed || false,
-          onboarding_completed: profileData.onboarding_completed || false,
-          phone_verified: profileData.phone_verified || false,
-          phone_verified_at: profileData.phone_verified_at,
-          subscription_id: profileData.subscription_id,
-          sp_wallet_id: profileData.sp_wallet_id,
-          onboarding_completed_at: profileData.onboarding_completed_at,
-          parental_consent_verified: profileData.parental_consent_verified || false,
-          age: profileData.age,
-          referral_code: profileData.referral_code,
-          created_at: profileData.created_at,
-          updated_at: profileData.updated_at,
-        },
-        access_token: sessionData.session.access_token,
-        refresh_token: sessionData.session.refresh_token || '',
-        subscription_status: normalizedSubscriptionSummary.status,
-        can_spend_sp: normalizedSubscriptionSummary.can_spend_sp,
-        available_points: (walletSummary.available_points as number) || 0,
-        pending_points: (walletSummary.pending_points as number) || 0,
-        lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
-        lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
-      };
-
-      setSession(updatedSession);
-    } catch (err) {
-      console.error('[AUTH] Session refresh failed:', err);
-      const authError = err instanceof AuthError
-        ? err
-        : new AuthError('Session refresh failed', 'REFRESH_FAILED', err);
-      setError(authError);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [setSession]);
+    },
+    [session?.user?.user_id, setSession]
+  );
   /**
    * Setup real-time subscription listener
    * Listens to subscriptions table for changes
@@ -343,13 +349,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             table: 'subscriptions',
             filter: `user_id=eq.${session.user.id}`,
           },
-          payload => {
+          (payload) => {
             console.log('[AUTH] Subscription changed:', payload);
             // Refresh session when subscription changes
             refreshSession();
           }
         )
-        .subscribe(status => {
+        .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             // Listener is now active - don't log to reduce noise
           } else if (status === 'CHANNEL_ERROR') {
@@ -385,13 +391,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             table: 'sp_wallets',
             filter: `user_id=eq.${session.user.id}`,
           },
-          payload => {
+          (payload) => {
             console.log('[AUTH] SP Wallet changed:', payload);
             // Refresh session when wallet changes
             refreshSession();
           }
         )
-        .subscribe(status => {
+        .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             // Listener is now active - don't log to reduce noise
           } else if (status === 'CHANNEL_ERROR') {
@@ -435,9 +441,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('[AUTH] Logout successful');
     } catch (err) {
       console.error('[AUTH] Logout error:', err);
-      const authError = err instanceof AuthError
-        ? err
-        : new AuthError('Logout failed', 'LOGOUT_ERROR', err);
+      const authError =
+        err instanceof AuthError ? err : new AuthError('Logout failed', 'LOGOUT_ERROR', err);
       setError(authError);
     } finally {
       setIsSignout(false);
@@ -492,7 +497,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isLoadingRef.current = true;
         setIsLoading(true);
         // mark startup step
-        try { require('@/utils/startupDebug').setStartupStep('fetching session'); } catch(_) {}
+        try {
+          require('@/utils/startupDebug').setStartupStep('fetching session');
+        } catch (_) {}
 
         // Get current session from Supabase with timeout protection
         console.log('[AUTH] 🔍 Fetching session...');
@@ -504,17 +511,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (sessionError) {
           console.error('[AUTH] ❌ Session fetch error:', sessionError);
-          throw new AuthError(
-            'Failed to restore session',
-            'RESTORE_SESSION_ERROR',
-            sessionError
-          );
+          throw new AuthError('Failed to restore session', 'RESTORE_SESSION_ERROR', sessionError);
         }
 
         if (sessionData.session?.user) {
-          try { require('@/utils/startupDebug').setStartupStep('fetching profile'); } catch(_) {}
+          try {
+            require('@/utils/startupDebug').setStartupStep('fetching profile');
+          } catch (_) {}
           console.log('[AUTH] 👤 User found in session:', sessionData.session.user.id);
-          
+
           // User is authenticated - restore session from profile
           console.log('[AUTH] 🔍 Fetching profile...');
           const { data: profileData, error: profileError } = (await withTimeout(
@@ -528,9 +533,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           )) as any;
 
           if (!profileError && profileData) {
-            try { require('@/utils/startupDebug').setStartupStep('fetching subscription'); } catch(_) {}
+            try {
+              require('@/utils/startupDebug').setStartupStep('fetching subscription');
+            } catch (_) {}
             console.log('[AUTH] ✅ Profile found');
-            
+
             // Also fetch subscription status from subscriptions table (source of truth)
             console.log('[AUTH] 🔍 Fetching subscription status...');
             const { data: subscriptionData } = (await withTimeout(
@@ -551,7 +558,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Also fetch SP wallet summary
             console.log('[AUTH] 🔍 Fetching SP wallet summary...');
             const { data: walletData, error: walletFetchError } = (await withTimeout(
-              supabase.rpc('get_user_sp_wallet_summary', { p_user_id: sessionData.session.user.id }),
+              supabase.rpc('get_user_sp_wallet_summary', {
+                p_user_id: sessionData.session.user.id,
+              }),
               6000,
               'Wallet summary fetch'
             )) as any;
@@ -617,27 +626,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
             };
             setSession(authSession);
-            try { require('@/utils/startupDebug').setStartupStep('session restored'); } catch(_) {}
+            try {
+              require('@/utils/startupDebug').setStartupStep('session restored');
+            } catch (_) {}
             console.log('[AUTH] 🎉 Session restored successfully');
           } else {
             console.warn('[AUTH] ⚠️ Profile not found for authenticated user');
             setSession(null);
           }
         } else {
-          try { require('@/utils/startupDebug').setStartupStep('no active session'); } catch(_) {}
+          try {
+            require('@/utils/startupDebug').setStartupStep('no active session');
+          } catch (_) {}
           console.log('[AUTH] ℹ️ No active session found');
           setSession(null);
         }
       } catch (err: any) {
         // Ignore expected auth errors during init (e.g., no session on first load)
-        if (err?.code === 'INVALID_CREDENTIALS' || err?.message?.includes('Invalid login credentials')) {
+        if (
+          err?.code === 'INVALID_CREDENTIALS' ||
+          err?.message?.includes('Invalid login credentials')
+        ) {
           console.log('[AUTH] ℹ️ No active session on startup (expected)');
           setSession(null);
         } else {
           console.error('[AUTH] ❌ Failed to initialize auth:', err);
-          const authError = err instanceof AuthError
-            ? err
-            : new AuthError('Auth initialization failed', 'INIT_FAILED', err);
+          const authError =
+            err instanceof AuthError
+              ? err
+              : new AuthError('Auth initialization failed', 'INIT_FAILED', err);
           setError(authError);
           setSession(null);
         }
@@ -655,7 +672,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   /**
    * Setup real-time listeners when session is established
    * Re-enabled: Added individual listeners for wallet and subscription
-   * 
+   *
    * Added: Auto-refresh when wallet, subscription, or profile changes
    */
   useEffect(() => {

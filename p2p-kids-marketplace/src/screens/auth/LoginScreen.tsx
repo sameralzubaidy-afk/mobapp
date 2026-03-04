@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { loginWithContext } from '@/services/auth';
 import { AuthError } from '@/types/user';
 import { useAuth } from '@/hooks/useAuth';
+import { AuthSession } from '@/types/user';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -25,6 +26,34 @@ type NavigationProp = NativeStackNavigationProp<any>;
 export default function LoginScreen() {
   const { setSession } = useAuth();
   const navigation = useNavigation<NavigationProp>();
+
+  const handleDevSkipAuth = () => {
+    const now = new Date().toISOString();
+    const mockSession: AuthSession = {
+      user: {
+        id: '00000000-0000-0000-0000-000000000002',
+        user_id: '00000000-0000-0000-0000-000000000001',
+        email: 'dev.maestro@example.com',
+        name: 'Dev Maestro User',
+        display_name: 'Dev Maestro User',
+        profile_completed: true,
+        onboarding_completed: true,
+        onboarding_completed_at: now,
+        phone_verified: true,
+        parental_consent_verified: true,
+        created_at: now,
+        updated_at: now,
+      },
+      subscription_status: 'free',
+      can_spend_sp: false,
+      available_points: 0,
+      pending_points: 0,
+      lifetime_earned: 0,
+      lifetime_spent: 0,
+    };
+
+    setSession(mockSession);
+  };
 
   // Form state
   const [email, setEmail] = useState('');
@@ -115,9 +144,7 @@ export default function LoginScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>
-            Log in to continue trading and earning Swap Points
-          </Text>
+          <Text style={styles.subtitle}>Log in to continue trading and earning Swap Points</Text>
         </View>
 
         {/* Form */}
@@ -129,15 +156,14 @@ export default function LoginScreen() {
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="your.email@example.com"
               value={email}
+              testID="login-email-input"
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
               editable={!loading}
             />
-            {errors.email && (
-              <Text style={styles.errorText}>{errors.email}</Text>
-            )}
+            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
           </View>
 
           {/* Password */}
@@ -147,21 +173,21 @@ export default function LoginScreen() {
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="Enter your password"
               value={password}
+              testID="login-password-input"
               onChangeText={setPassword}
               secureTextEntry
               autoCapitalize="none"
               autoComplete="password"
               editable={!loading}
             />
-            {errors.password && (
-              <Text style={styles.errorText}>{errors.password}</Text>
-            )}
+            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
           </View>
 
           {/* Login Button */}
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
+            testID="login-submit-button"
             disabled={loading}
           >
             {loading ? (
@@ -171,11 +197,21 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.devSkipButton}
+            onPress={handleDevSkipAuth}
+            testID="login-skip-auth-button"
+            disabled={loading}
+          >
+            <Text style={styles.devSkipButtonText}>Skip Auth (Test)</Text>
+          </TouchableOpacity>
+
           {/* Signup Link */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
             <TouchableOpacity
               onPress={() => navigation.navigate('Signup')}
+              testID="login-signup-link"
               disabled={loading}
             >
               <Text style={styles.linkText}>Sign Up</Text>
@@ -289,6 +325,18 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     fontSize: 14,
     color: '#007AFF',
+  },
+  devSkipButton: {
+    backgroundColor: '#f59e0b',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  devSkipButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

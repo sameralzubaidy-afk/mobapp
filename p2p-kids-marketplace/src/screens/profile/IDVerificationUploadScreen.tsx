@@ -14,7 +14,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { idBadgeService } from '@/services/idBadge';
 import { getCurrentUser } from '@/services/supabase/auth';
 
@@ -84,6 +83,8 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
 
   const pickImage = async () => {
     try {
+      const ImagePicker = await import('expo-image-picker');
+
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please allow access to your photos.');
@@ -114,6 +115,8 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
 
   const takePhoto = async () => {
     try {
+      const ImagePicker = await import('expo-image-picker');
+
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please allow camera access.');

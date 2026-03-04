@@ -13,7 +13,6 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { updateUserProfile, getUserProfile, uploadProfileAvatar, resolveAvatarUrl } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { addToWaitlist } from '@/services/waitlist';
@@ -146,6 +145,8 @@ export default function EditProfileScreen({ navigation }: any) {
 
   const handlePickImage = async () => {
     try {
+      const ImagePicker = await import('expo-image-picker');
+
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Please allow access to your photos to upload a profile picture.');

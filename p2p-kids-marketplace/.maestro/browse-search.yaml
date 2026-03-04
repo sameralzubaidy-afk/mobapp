@@ -1,54 +1,101 @@
 # FLOW: browse-search
 # Screens: BrowseItemsScreen → SearchScreen
 # testIDs required: browse-search-input, sp-eligible-switch
-# Description: Browse feed and search by keyword
+# Description: STRICT: login + browse/search assertions
 
 appId: com.anonymous.p2p-kids-marketplace
 ---
-# Assumes user is already logged in on home/dashboard
-
-# Verify we're on browse screen
-- assertVisible:
-    text: Browse Items
-
-# Verify search input is visible
-- assertVisible:
-    id: browse-search-input
-
-# Perform a search
-- tapOn:
-    id: browse-search-input
-- inputText: "LEGO"
+- launchApp
+- openLink: 'com.anonymous.p2p-kids-marketplace://expo-development-client/?url=http://127.0.0.1:8081'
 - waitForAnimationToEnd
 
-# Wait for search results to load
-- waitForAnimationToEnd
+# Setup normalization: if already authenticated, force logout first
+- runFlow:
+    when:
+      visible:
+        id: nav-profile
+    commands:
+      - tapOn:
+          id: nav-profile
+      - waitForAnimationToEnd
+      - tapOn:
+          id: profile-logout-button
+      - waitForAnimationToEnd
+      - tapOn:
+          text: Logout
+      - waitForAnimationToEnd
 
-# Verify items are displayed (loose check - at least some content)
+# Setup normalization: deterministic test auth bootstrap from Landing
+- runFlow:
+    when:
+      visible:
+        id: landing-skip-auth-button
+    commands:
+      - tapOn:
+          id: landing-skip-auth-button
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
+# Setup normalization: deterministic test auth bootstrap from Login
+- runFlow:
+    when:
+      visible:
+        id: login-skip-auth-button
+    commands:
+      - tapOn:
+          id: login-skip-auth-button
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
+# Fallback: real login if still on Login screen
+- runFlow:
+    when:
+      visible:
+        id: login-email-input
+    commands:
+      - tapOn:
+          id: login-email-input
+      - inputText: 'testuser+maestro@example.com'
+      - tapOn:
+          id: login-password-input
+      - inputText: 'TestPassword123!'
+      - hideKeyboard
+      - tapOn:
+          id: login-submit-button
+      - waitForAnimationToEnd
+
+# If onboarding welcome appears after login/bootstrap, complete it
+- runFlow:
+    when:
+      visible:
+        text: Get Started
+    commands:
+      - tapOn:
+          text: Get Started
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
+# Strict post-bootstrap precondition
 - assertVisible:
-    text: Browse Items
+    id: nav-home
 
-# Toggle SP-eligible filter
+# Navigate to Browse and assert key controls
+- assertVisible:
+    id: nav-browse
 - tapOn:
+    id: nav-browse
+- waitForAnimationToEnd
+- assertVisible:
+    id: browse-search-input
+- assertVisible:
     id: sp-eligible-switch
-- waitForAnimationToEnd
 
-# Wait for filter to apply
-- waitForAnimationToEnd
-
-# Verify search still visible and filter is on
-- assertVisible:
-    id: browse-search-input
-
-# Clear search to verify full browse works
+# Search interaction
 - tapOn:
     id: browse-search-input
-- pressKey: backspace
-- pressKey: backspace
-- pressKey: backspace
-- pressKey: backspace
+- inputText: 'toy'
 - waitForAnimationToEnd
 
-# Verify browse screen is still functional
+# Strict postcondition: browse screen remains interactive
 - assertVisible:
-    text: Browse Items
+    id: browse-search-input

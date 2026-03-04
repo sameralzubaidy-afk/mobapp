@@ -15,17 +15,54 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
+import { AuthSession } from '@/types/user';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
 export default function LandingScreen() {
   const navigation = useNavigation<NavigationProp>();
   const isFocused = useIsFocused();
-  const { session, isLoading, refreshSession } = useAuth();
+  const { session, refreshSession, setSession } = useAuth();
+
+  const handleSkipAuth = () => {
+    if (!__DEV__) {
+      (navigation as any).navigate('Login');
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const mockSession: AuthSession = {
+      user: {
+        id: '00000000-0000-0000-0000-000000000002',
+        user_id: '00000000-0000-0000-0000-000000000001',
+        email: 'dev.maestro@example.com',
+        name: 'Dev Maestro User',
+        display_name: 'Dev Maestro User',
+        profile_completed: true,
+        onboarding_completed: true,
+        onboarding_completed_at: now,
+        phone_verified: true,
+        parental_consent_verified: true,
+        created_at: now,
+        updated_at: now,
+      },
+      subscription_status: 'free',
+      can_spend_sp: false,
+      available_points: 0,
+      pending_points: 0,
+      lifetime_earned: 0,
+      lifetime_spent: 0,
+    };
+
+    setSession(mockSession);
+  };
 
   // Refresh session when screen comes into focus
   useEffect(() => {
     if (isFocused && session) {
+      if (session.user?.user_id === '00000000-0000-0000-0000-000000000001') {
+        return;
+      }
       refreshSession();
     }
   }, [isFocused, session, refreshSession]);
@@ -67,6 +104,7 @@ export default function LandingScreen() {
           <TouchableOpacity
             style={styles.signupButton}
             onPress={() => (navigation as any).navigate('Signup')}
+            testID="landing-signup-button"
           >
             <Text style={styles.signupButtonText}>Sign Up</Text>
           </TouchableOpacity>
@@ -74,6 +112,7 @@ export default function LandingScreen() {
           <TouchableOpacity
             style={styles.loginButton}
             onPress={() => (navigation as any).navigate('Login')}
+            testID="landing-login-button"
           >
             <Text style={styles.loginButtonText}>Log In</Text>
           </TouchableOpacity>
@@ -81,7 +120,8 @@ export default function LandingScreen() {
           {/* Test button to skip auth */}
           <TouchableOpacity
             style={styles.testButton}
-            onPress={() => (navigation as any).navigate('Home')}
+            onPress={handleSkipAuth}
+            testID="landing-skip-auth-button"
           >
             <Text style={styles.testButtonText}>Skip Auth (Test)</Text>
           </TouchableOpacity>
@@ -90,8 +130,7 @@ export default function LandingScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            By continuing, you agree to our{' '}
-            <Text style={styles.footerLink}>Terms</Text> and{' '}
+            By continuing, you agree to our <Text style={styles.footerLink}>Terms</Text> and{' '}
             <Text style={styles.footerLink}>Privacy Policy</Text>
           </Text>
         </View>

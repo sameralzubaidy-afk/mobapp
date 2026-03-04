@@ -118,11 +118,7 @@ export default function UserDashboardScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        refreshSession(),
-        loadVerificationStatus(),
-        loadSubscriptionTimeline(),
-      ]);
+      await Promise.all([refreshSession(), loadVerificationStatus(), loadSubscriptionTimeline()]);
     } catch (error) {
       console.error('[Dashboard] Manual refresh failed:', error);
     } finally {
@@ -210,254 +206,265 @@ export default function UserDashboardScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={{ flex: 1, flexDirection: 'column' }}>
-        <ScrollView 
+        <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Dashboard</Text>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => navigation.navigate('Conversations')}
-            >
-              <Text style={styles.headerButtonIcon}>💬</Text>
-              <Text style={styles.headerButtonText}>Messages</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => navigation.navigate('PayoutSettings')}
-            >
-              <Text style={styles.headerButtonIcon}>💳</Text>
-              <Text style={styles.headerButtonText}>Payouts</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Trial Reminder Banner (SUB-004) */}
-        <TrialReminderBanner />
-
-        {/* MODULE-11 SUB-009: Grace Period Countdown Banner */}
-        {(subscription.status === 'grace' && graceEndDate) && (() => {
-          const gracePeriodEndsAt = graceEndDate;
-          const daysRemaining = Math.ceil(
-            (new Date(gracePeriodEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-          );
-          return daysRemaining > 0 ? (
-            <GracePeriodBanner
-              gracePeriodEndsAt={gracePeriodEndsAt}
-              daysRemaining={daysRemaining}
-            />
-          ) : null;
-        })()}
-
-        {/* DISCOVERY-V2-003: Category Browsing */}
-        <View style={{ marginBottom: 20 }}>
-          <CategorySelector />
-        </View>
-
-        {/* DISCOVERY-V2-002: Personalized Recommendations */}
-        <View style={styles.recommendationsSection}>
-          <RecommendationsCarousel limit={10} />
-        </View>
-
-        {/* User Profile Card */}
-        <View style={styles.profileCard}>
-          <TouchableOpacity 
-            style={styles.profileContent}
-            onPress={() => navigation.navigate('Profile')}
-          >
-            <View style={styles.avatarContainer}>
-              <Avatar 
-                imageUrl={session.user.avatar_url} 
-                size={60} 
-                verificationStatus={verificationStatus as any}
-                name={session.user.display_name || session.user.email}
-              />
-            </View>
-
-            <View style={styles.profileInfo}>
-              <Text style={styles.userName}>{session.user.display_name || session.user.email || 'User'}</Text>
-              <Text style={styles.userEmail}>{session.user.email || ''}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Subscription Card */}
-        <TouchableOpacity style={styles.card} onPress={handleOpenSubscriptionDetails} activeOpacity={0.8}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Subscription</Text>
-            <View
-              style={[
-                styles.subscriptionBadge,
-                { backgroundColor: getSubscriptionBadgeColor() },
-              ]}
-            >
-              <Text style={styles.badgeText}>{getSubscriptionLabel()}</Text>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Dashboard</Text>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={() => navigation.navigate('Conversations')}
+              >
+                <Text style={styles.headerButtonIcon}>💬</Text>
+                <Text style={styles.headerButtonText}>Messages</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={() => navigation.navigate('PayoutSettings')}
+              >
+                <Text style={styles.headerButtonIcon}>💳</Text>
+                <Text style={styles.headerButtonText}>Payouts</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
-          {subscription.status === 'trial' && daysUntilExpiry !== null && (
-            <View style={styles.cardRow}>
-              <Text style={styles.label}>Trial Ends In:</Text>
-              <Text style={styles.value}>
-                {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
-              </Text>
-            </View>
-          )}
+          {/* Trial Reminder Banner (SUB-004) */}
+          <TrialReminderBanner />
 
-          {subscription.status === 'active' && daysUntilExpiry !== null && (
-            <View style={styles.cardRow}>
-              <Text style={styles.label}>Renews In:</Text>
-              <Text style={styles.value}>
-                {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
-              </Text>
-            </View>
-          )}
+          {/* MODULE-11 SUB-009: Grace Period Countdown Banner */}
+          {subscription.status === 'grace' &&
+            graceEndDate &&
+            (() => {
+              const gracePeriodEndsAt = graceEndDate;
+              const daysRemaining = Math.ceil(
+                (new Date(gracePeriodEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+              );
+              return daysRemaining > 0 ? (
+                <GracePeriodBanner
+                  gracePeriodEndsAt={gracePeriodEndsAt}
+                  daysRemaining={daysRemaining}
+                />
+              ) : null;
+            })()}
 
-          {subscription.status === 'grace' && daysUntilExpiry !== null && (
-            <View style={styles.cardRow}>
-              <Text style={styles.label}>Grace Period Ends In:</Text>
-              <Text style={[styles.value, { color: '#FF3B30' }]}>
-                {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
-              </Text>
-            </View>
-          )}
+          {/* DISCOVERY-V2-003: Category Browsing */}
+          <View style={{ marginBottom: 20 }}>
+            <CategorySelector />
+          </View>
 
-          {(subscription.status === 'free' || subscription.status === 'canceled') && (
+          {/* DISCOVERY-V2-002: Personalized Recommendations */}
+          <View style={styles.recommendationsSection}>
+            <RecommendationsCarousel limit={10} />
+          </View>
+
+          {/* User Profile Card */}
+          <View style={styles.profileCard}>
             <TouchableOpacity
-              style={styles.upgradeButton}
-              onPress={() => navigation.navigate('KidsClubOverview')}
+              style={styles.profileContent}
+              onPress={() => navigation.navigate('Profile')}
             >
-              <Text style={styles.upgradeButtonText}>Upgrade to Kids Club+</Text>
+              <View style={styles.avatarContainer}>
+                <Avatar
+                  imageUrl={session.user.avatar_url}
+                  size={60}
+                  verificationStatus={verificationStatus as any}
+                  name={session.user.display_name || session.user.email}
+                />
+              </View>
+
+              <View style={styles.profileInfo}>
+                <Text style={styles.userName}>
+                  {session.user.display_name || session.user.email || 'User'}
+                </Text>
+                <Text style={styles.userEmail}>{session.user.email || ''}</Text>
+              </View>
             </TouchableOpacity>
-          )}
+          </View>
 
-          {subscription.canSpendSP && (
-            <View style={styles.featureBadge}>
-              <Text style={styles.featureEmoji}>✨</Text>
-              <Text style={styles.featureText}>SP Wallet Unlocked</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* Swap Points Wallet Card */}
-        {subscription.canSpendSP && (
-          <TouchableOpacity 
+          {/* Subscription Card */}
+          <TouchableOpacity
             style={styles.card}
-            onPress={() => navigation.navigate('SpWallet')}
-            activeOpacity={0.7}
+            onPress={handleOpenSubscriptionDetails}
+            activeOpacity={0.8}
           >
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Swap Points Wallet</Text>
-              <Text style={styles.viewDetailsText}>View Details →</Text>
-            </View>
-
-            {/* Available Points */}
-            <View style={styles.pointsRow}>
-              <View style={styles.pointsItem}>
-                <Text style={styles.pointsEmoji}>💰</Text>
-                <Text style={styles.pointsLabel}>Available</Text>
-                <Text style={styles.pointsValue}>{wallet.available}</Text>
-              </View>
-
-              <View style={styles.pointsDivider} />
-
-              {/* Pending Points */}
-              <View style={styles.pointsItem}>
-                <Text style={styles.pointsEmoji}>⏳</Text>
-                <Text style={styles.pointsLabel}>Pending</Text>
-                <Text style={styles.pointsValue}>{wallet.pending}</Text>
-              </View>
-            </View>
-
-            {/* Lifetime Stats */}
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Lifetime Earned</Text>
-                <Text style={styles.statValue}>{wallet.lifetime_earned}</Text>
-              </View>
-
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Lifetime Spent</Text>
-                <Text style={styles.statValue}>{wallet.lifetime_spent}</Text>
-              </View>
-            </View>
-
-            {/* Wallet Actions */}
-            <View style={styles.actionsRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.earnButton]}
-                onPress={() => {
-                  // TODO: Navigate to earn SP flows (sell items, refer, etc.)
-                  alert('Earn SP by selling items, referring friends, or completing tasks');
-                }}
+              <Text style={styles.cardTitle}>Subscription</Text>
+              <View
+                style={[styles.subscriptionBadge, { backgroundColor: getSubscriptionBadgeColor() }]}
               >
-                <Text style={styles.actionEmoji}>🎁</Text>
-                <Text style={styles.actionLabel}>How to Earn</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.actionButton, styles.spendButton]}
-                onPress={() => {
-                  // TODO: Navigate to spending flow (checkout with SP)
-                  alert('Use SP at checkout when buying items (max 50% of price)');
-                }}
-              >
-                <Text style={styles.actionEmoji}>🛍️</Text>
-                <Text style={styles.actionLabel}>Spend Points</Text>
-              </TouchableOpacity>
+                <Text style={styles.badgeText}>{getSubscriptionLabel()}</Text>
+              </View>
             </View>
 
-            {wallet.pending > 0 && (
-              <View style={styles.infoBox}>
-                <Text style={styles.infoLabel}>💡 Pending Note</Text>
-                <Text style={styles.infoText}>
-                  Pending points will be released in 3 days. They're locked while your sale is
-                  protected.
+            {subscription.status === 'trial' && daysUntilExpiry !== null && (
+              <View style={styles.cardRow}>
+                <Text style={styles.label}>Trial Ends In:</Text>
+                <Text style={styles.value}>
+                  {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
                 </Text>
               </View>
             )}
-          </TouchableOpacity>
-        )}
 
-        {/* SP Locked for Free Users */}
-        {!subscription.canSpendSP && (
-          <View style={styles.card}>
-            <View style={styles.lockedCard}>
-              <Text style={styles.lockedEmoji}>🔒</Text>
-              <Text style={styles.lockedTitle}>Swap Points Locked</Text>
-              <Text style={styles.lockedText}>
-                Upgrade to Kids Club+ to start earning and spending Swap Points
-              </Text>
+            {subscription.status === 'active' && daysUntilExpiry !== null && (
+              <View style={styles.cardRow}>
+                <Text style={styles.label}>Renews In:</Text>
+                <Text style={styles.value}>
+                  {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
+                </Text>
+              </View>
+            )}
+
+            {subscription.status === 'grace' && daysUntilExpiry !== null && (
+              <View style={styles.cardRow}>
+                <Text style={styles.label}>Grace Period Ends In:</Text>
+                <Text style={[styles.value, { color: '#FF3B30' }]}>
+                  {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
+                </Text>
+              </View>
+            )}
+
+            {(subscription.status === 'free' || subscription.status === 'canceled') && (
               <TouchableOpacity
-                style={styles.unlockButton}
-                onPress={() => navigation.navigate('SubscriptionChoice')}
+                style={styles.upgradeButton}
+                onPress={() => navigation.navigate('KidsClubOverview')}
               >
-                <Text style={styles.unlockButtonText}>Unlock Now</Text>
+                <Text style={styles.upgradeButtonText}>Upgrade to Kids Club+</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        )}
+            )}
 
-        {/* Recent Trade Quick Link */}
-        <RecentTradeCard navigation={navigation} session={session} />
-
-        <View style={{ marginTop: 8, marginBottom: 16 }}>
-          <TouchableOpacity
-            style={[styles.upgradeButton, { alignSelf: 'stretch', paddingVertical: 12 }]}
-            onPress={() => navigation.navigate('TradeList')}
-          >
-            <Text style={[styles.upgradeButtonText, { textAlign: 'center' }]}>View All Trades</Text>
+            {subscription.canSpendSP && (
+              <View style={styles.featureBadge}>
+                <Text style={styles.featureEmoji}>✨</Text>
+                <Text style={styles.featureText}>SP Wallet Unlocked</Text>
+              </View>
+            )}
           </TouchableOpacity>
-        </View>
 
-        {/* Navigation handled by BottomNavBar below */}
+          {/* Swap Points Wallet Card */}
+          {subscription.canSpendSP && (
+            <TouchableOpacity
+              testID="sp-wallet-card"
+              style={styles.card}
+              onPress={() => navigation.navigate('SpWallet')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.cardHeader}>
+                <Text testID="sp-wallet-title" style={styles.cardTitle}>
+                  Swap Points Wallet
+                </Text>
+                <Text style={styles.viewDetailsText}>View Details →</Text>
+              </View>
+
+              {/* Available Points */}
+              <View style={styles.pointsRow}>
+                <View style={styles.pointsItem}>
+                  <Text style={styles.pointsEmoji}>💰</Text>
+                  <Text style={styles.pointsLabel}>Available</Text>
+                  <Text style={styles.pointsValue}>{wallet.available}</Text>
+                </View>
+
+                <View style={styles.pointsDivider} />
+
+                {/* Pending Points */}
+                <View style={styles.pointsItem}>
+                  <Text style={styles.pointsEmoji}>⏳</Text>
+                  <Text style={styles.pointsLabel}>Pending</Text>
+                  <Text style={styles.pointsValue}>{wallet.pending}</Text>
+                </View>
+              </View>
+
+              {/* Lifetime Stats */}
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Lifetime Earned</Text>
+                  <Text style={styles.statValue}>{wallet.lifetime_earned}</Text>
+                </View>
+
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Lifetime Spent</Text>
+                  <Text style={styles.statValue}>{wallet.lifetime_spent}</Text>
+                </View>
+              </View>
+
+              {/* Wallet Actions */}
+              <View style={styles.actionsRow}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.earnButton]}
+                  onPress={() => {
+                    // TODO: Navigate to earn SP flows (sell items, refer, etc.)
+                    alert('Earn SP by selling items, referring friends, or completing tasks');
+                  }}
+                >
+                  <Text style={styles.actionEmoji}>🎁</Text>
+                  <Text style={styles.actionLabel}>How to Earn</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.spendButton]}
+                  onPress={() => {
+                    // TODO: Navigate to spending flow (checkout with SP)
+                    alert('Use SP at checkout when buying items (max 50% of price)');
+                  }}
+                >
+                  <Text style={styles.actionEmoji}>🛍️</Text>
+                  <Text style={styles.actionLabel}>Spend Points</Text>
+                </TouchableOpacity>
+              </View>
+
+              {wallet.pending > 0 && (
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoLabel}>💡 Pending Note</Text>
+                  <Text style={styles.infoText}>
+                    Pending points will be released in 3 days. They're locked while your sale is
+                    protected.
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* SP Locked for Free Users */}
+          {!subscription.canSpendSP && (
+            <View style={styles.card}>
+              <View style={styles.lockedCard}>
+                <Text style={styles.lockedEmoji}>🔒</Text>
+                <Text testID="sp-wallet-locked-title" style={styles.lockedTitle}>
+                  Swap Points Locked
+                </Text>
+                <Text style={styles.lockedText}>
+                  Upgrade to Kids Club+ to start earning and spending Swap Points
+                </Text>
+                <TouchableOpacity
+                  testID="sp-wallet-unlock-button"
+                  style={styles.unlockButton}
+                  onPress={() => navigation.navigate('SubscriptionChoice')}
+                >
+                  <Text style={styles.unlockButtonText}>Unlock Now</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Recent Trade Quick Link */}
+          <RecentTradeCard navigation={navigation} session={session} />
+
+          <View style={{ marginTop: 8, marginBottom: 16 }}>
+            <TouchableOpacity
+              style={[styles.upgradeButton, { alignSelf: 'stretch', paddingVertical: 12 }]}
+              onPress={() => navigation.navigate('TradeList')}
+            >
+              <Text style={[styles.upgradeButtonText, { textAlign: 'center' }]}>
+                View All Trades
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Navigation handled by BottomNavBar below */}
         </ScrollView>
         <BottomNavBar />
       </View>
@@ -587,7 +594,7 @@ const styles = StyleSheet.create({
   settingsIcon: {
     fontSize: 24,
   },
-  
+
   // Recommendations Section
   recommendationsSection: {
     marginBottom: 20,
@@ -899,6 +906,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-
-
 });

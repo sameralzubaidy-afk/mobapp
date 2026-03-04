@@ -1,5 +1,4 @@
-# MODULE-11 TASK SUB-002: Manual Testing Guide
-## User Subscriptions Table & Status Management
+ ## User Subscriptions Table & Status Management
 
 **Test Environment:** iOS Simulator / Android Emulator  
 **Prerequisites:**

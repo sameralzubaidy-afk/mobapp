@@ -47,6 +47,7 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
       <TouchableOpacity
         style={[styles.navItem, active && styles.navItemActive]}
         onPress={handlePress}
+        testID={"nav-" + label.replace(/\s+/g, '-').toLowerCase()}
       >
         <Text style={styles.emoji}>{emoji}</Text>
         <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>

@@ -39,7 +39,6 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/config/supabase';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import {
   getMessages,
   sendMessage,
@@ -427,6 +426,8 @@ export default function ChatScreen() {
 
   const handleImagePicker = async () => {
     try {
+      const ImagePicker = await import('expo-image-picker');
+
       // Request camera roll permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {

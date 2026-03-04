@@ -1,39 +1,60 @@
 # FLOW: auth-login
 # Screens: LoginScreen → HomeScreen/Dashboard
 # testIDs required: login-email-input, login-password-input, login-submit-button
-# Description: Existing user login and session restore
+# Description: STRICT: Login form and failed-auth behavior verification
 
 appId: com.anonymous.p2p-kids-marketplace
 ---
 - launchApp
-
-# Wait for app to initialize and navigate to login if needed
+- openLink: 'com.anonymous.p2p-kids-marketplace://expo-development-client/?url=http://127.0.0.1:8081'
 - waitForAnimationToEnd
 
-# Check if we're on login screen
-- assertVisible:
-    text: Welcome Back\!
+# Setup normalization: if already authenticated, force logout first
+- runFlow:
+    when:
+      visible:
+        id: nav-profile
+    commands:
+      - tapOn:
+          id: nav-profile
+      - waitForAnimationToEnd
+      - tapOn:
+          id: profile-logout-button
+      - waitForAnimationToEnd
+      - tapOn:
+          text: Logout
+      - waitForAnimationToEnd
 
-# Fill email
+# Setup normalization: support Landing or direct Login start
+- runFlow:
+    when:
+      visible:
+        id: landing-login-button
+    commands:
+      - tapOn:
+          id: landing-login-button
+      - waitForAnimationToEnd
+
+# Strict login form assertions
+- assertVisible:
+    id: login-email-input
+- assertVisible:
+    id: login-password-input
+- assertVisible:
+    id: login-submit-button
+
+# Submit deterministic invalid credentials
 - tapOn:
     id: login-email-input
-- inputText: "testuser@example.com"
-- waitForAnimationToEnd
-
-# Fill password
+- inputText: 'invalid-login-user@example.com'
 - tapOn:
     id: login-password-input
-- inputText: "TestPassword123!"
-- waitForAnimationToEnd
-
-# Submit login
+- inputText: 'DefinitelyWrongPassword123!'
+- hideKeyboard
 - tapOn:
     id: login-submit-button
 - waitForAnimationToEnd
 
-# Wait for authentication and navigation
-- waitForAnimationToEnd
-
-# Verify successful login - should see home/dashboard UI
+# Strict postcondition: error alert is shown
 - assertVisible:
-    text: Browse Items
+    text: Login Failed

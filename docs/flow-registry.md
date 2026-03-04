@@ -98,6 +98,19 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Hooks: `p2p-kids-marketplace/src/hooks/__tests__/useSubscription.test.ts` and `p2p-kids-marketplace/src/hooks/__tests__/useGracePeriodStatus.test.ts` cover subscription/grace-period derived UI state.
 - **SUB-003 Manual Test Guide:** SUB-003-MANUAL-TESTING-GUIDE.md
 - **SUB-003 Unit Tests:** p2p-kids-marketplace/src/__tests__/services/subscription-sub-003.unit.test.ts
+- **SUB-011 Admin Management:**
+  - **Admin UI:** p2p-kids-admin/src/app/subscriptions/manage/page.tsx - subscription monitoring dashboard with metrics (MRR, active subs, churn rate), grace period configuration, and admin actions (cancel, extend trial, reactivate)
+  - **Admin API:** p2p-kids-admin/src/app/api/admin/subscriptions/route.ts (GET) and p2p-kids-admin/src/app/api/admin/subscriptions/actions/route.ts (POST)
+  - **Unit Tests:** p2p-kids-admin/src/__tests__/api/admin/subscriptions.test.ts - metrics calculation, admin action validation
+  - **E2E Tests:** p2p-kids-admin/src/__tests__/e2e/subscription-admin-management.e2e.ts - full admin workflow testing
+  - **Manual Test Guide:** SUB-011-MANUAL-TESTING-GUIDE.md - comprehensive test cases for admin portal
+  - **Key Features:**
+    - View subscription list filtered by status (trial, active, grace_period, cancelled, expired)
+    - Display key metrics: MRR, active subscribers, trial users, grace period users, churn rate
+    - Configure grace period duration (default: 90 days) and reminder thresholds (e.g., [60, 30, 7, 1])
+    - Admin actions: manually cancel subscriptions, extend trial periods, reactivate cancelled/expired subscriptions
+    - Audit logging for all admin actions
+    - Real-time validation and feedback for configuration changes
 - **SUB-003 E2E Tests:** p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-003.e2e.ts
 - **SUB-005 Trial Conversion & Downgrade:**
   - **Manual Test Guide:** SUB-005-MANUAL-TESTING-GUIDE.md

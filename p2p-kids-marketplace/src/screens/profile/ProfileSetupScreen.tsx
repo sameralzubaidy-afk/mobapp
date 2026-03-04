@@ -13,7 +13,6 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { setupUserProfile, uploadProfileAvatar } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { upsertZipWaitlist } from '@/services/waitlist';
@@ -52,6 +51,8 @@ export default function ProfileSetupScreen({ navigation }: any) {
 
   const handlePickImage = async () => {
     try {
+      const ImagePicker = await import('expo-image-picker');
+
       // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {

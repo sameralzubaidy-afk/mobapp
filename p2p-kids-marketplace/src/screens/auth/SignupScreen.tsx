@@ -109,19 +109,19 @@ export default function SignupScreen() {
     if (!code || code.trim().length === 0) {
       return null;
     }
-    
+
     const trimmedCode = code.trim().toLowerCase();
-    
+
     // Must be 8 characters
     if (trimmedCode.length !== 8) {
       return 'Referral code must be exactly 8 characters';
     }
-    
+
     // Must contain only lowercase letters and numbers
     if (!/^[a-z0-9]+$/.test(trimmedCode)) {
       return 'Referral code must contain only letters and numbers';
     }
-    
+
     return null;
   };
 
@@ -140,7 +140,10 @@ export default function SignupScreen() {
     const passwordError = validatePassword(formData.password);
     if (passwordError) newErrors.password = passwordError;
 
-    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+    const confirmPasswordError = validateConfirmPassword(
+      formData.password,
+      formData.confirmPassword
+    );
     if (confirmPasswordError) newErrors.confirmPassword = confirmPasswordError;
 
     const dobError = validateDob(formData.dob);
@@ -196,17 +199,17 @@ export default function SignupScreen() {
                 style: 'cancel',
                 onPress: () => {
                   // Do nothing, let user edit
-                }
+                },
               },
               {
                 text: 'Continue anyway',
                 onPress: async () => {
-                   // Proceed without the referral code
-                   setFormData(prev => ({ ...prev, referralCode: '' }));
-                   // We need to trigger handleSignup again but without the code
-                   await runFinalSignup('');
-                }
-              }
+                  // Proceed without the referral code
+                  setFormData((prev) => ({ ...prev, referralCode: '' }));
+                  // We need to trigger handleSignup again but without the code
+                  await runFinalSignup('');
+                },
+              },
             ]
           );
           return;
@@ -214,7 +217,6 @@ export default function SignupScreen() {
       }
 
       await runFinalSignup(formData.referralCode.trim().toLowerCase());
-
     } catch (error: any) {
       handleSignupError(error);
     } finally {
@@ -271,7 +273,7 @@ export default function SignupScreen() {
 
     // Show user-friendly error message
     let errorMessage = 'Signup failed. Please try again.';
-    
+
     if (error.message?.includes('already registered')) {
       errorMessage = 'This email is already registered. Please log in instead.';
     } else if (error.message?.includes('weak password')) {
@@ -279,9 +281,11 @@ export default function SignupScreen() {
     } else if (error.message?.includes('network')) {
       errorMessage = 'Network error. Please check your connection and try again.';
     } else if (error.message?.includes('Invalid referral code')) {
-      errorMessage = 'The referral code you entered is invalid. Please check the code and try again.';
+      errorMessage =
+        'The referral code you entered is invalid. Please check the code and try again.';
     } else if (error.message?.includes('Referral code')) {
-      errorMessage = 'There was an error applying the referral code. Please try again or skip this step.';
+      errorMessage =
+        'There was an error applying the referral code. Please try again or skip this step.';
     } else if (error.message?.includes('Database error saving new user')) {
       errorMessage =
         'Signup failed due to a backend database trigger error. Please check Supabase Auth logs for the underlying SQL error (often caused by a failing auth.users trigger).';
@@ -310,10 +314,7 @@ export default function SignupScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Join the Kids P2P Marketplace</Text>
@@ -327,7 +328,7 @@ export default function SignupScreen() {
               style={[styles.input, errors.name && styles.inputError]}
               placeholder="Enter your full name"
               value={formData.name}
-              testID="name-input"
+              testID="signup-display-name-input"
               onChangeText={(text) => {
                 setFormData({ ...formData, name: text });
                 if (errors.name) {
@@ -347,7 +348,7 @@ export default function SignupScreen() {
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="Enter your email"
               value={formData.email}
-              testID="email-input"
+              testID="signup-email-input"
               onChangeText={(text) => {
                 setFormData({ ...formData, email: text });
                 if (errors.email) {
@@ -368,7 +369,7 @@ export default function SignupScreen() {
               style={[styles.input, errors.phone && styles.inputError]}
               placeholder="+1234567890"
               value={formData.phone}
-              testID="phone-input"
+              testID="signup-phone-input"
               onChangeText={(text) => {
                 setFormData({ ...formData, phone: text });
                 if (errors.phone) {
@@ -388,7 +389,7 @@ export default function SignupScreen() {
               style={[styles.input, errors.dob && styles.inputError]}
               placeholder="YYYY-MM-DD"
               value={formData.dob}
-              testID="dob-input"
+              testID="signup-dob-input"
               onChangeText={(text) => {
                 setFormData({ ...formData, dob: text });
                 if (errors.dob) {
@@ -409,7 +410,7 @@ export default function SignupScreen() {
                 style={[styles.input, errors.password && styles.inputError, styles.inputWithIcon]}
                 placeholder="Enter your password"
                 value={formData.password}
-                testID="password-input"
+                testID="signup-password-input"
                 onChangeText={(text) => {
                   setFormData({ ...formData, password: text });
                   if (errors.password) {
@@ -431,7 +432,11 @@ export default function SignupScreen() {
                 <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
               </TouchableOpacity>
             </View>
-            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+            {errors.password && (
+              <Text testID="signup-password-error" style={styles.errorText}>
+                {errors.password}
+              </Text>
+            )}
             <Text style={styles.helperText}>
               Must be 8+ characters with uppercase, lowercase, and number
             </Text>
@@ -442,10 +447,14 @@ export default function SignupScreen() {
             <Text style={styles.label}>Confirm Password</Text>
             <View style={styles.inputWrapper}>
               <TextInput
-                style={[styles.input, errors.confirmPassword && styles.inputError, styles.inputWithIcon]}
+                style={[
+                  styles.input,
+                  errors.confirmPassword && styles.inputError,
+                  styles.inputWithIcon,
+                ]}
                 placeholder="Confirm your password"
                 value={formData.confirmPassword}
-                testID="confirmPassword-input"
+                testID="signup-confirm-password-input"
                 onChangeText={(text) => {
                   setFormData({ ...formData, confirmPassword: text });
                   if (errors.confirmPassword) {
@@ -466,7 +475,9 @@ export default function SignupScreen() {
                 <Text style={styles.eyeIconText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
               </TouchableOpacity>
             </View>
-            {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+            {errors.confirmPassword && (
+              <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+            )}
           </View>
 
           {/* Referral Code Input (Optional) */}
@@ -478,15 +489,15 @@ export default function SignupScreen() {
               value={formData.referralCode}
               testID="referralCode-input"
               onChangeText={(text) => {
-                  setFormData({ ...formData, referralCode: text });
+                setFormData({ ...formData, referralCode: text });
                 if (errors.referralCode) {
                   setErrors({ ...errors, referralCode: '' });
                 }
               }}
-                autoCapitalize="none"
+              autoCapitalize="none"
               maxLength={8}
               autoCorrect={false}
-                autoComplete="off"
+              autoComplete="off"
             />
             {errors.referralCode && <Text style={styles.errorText}>{errors.referralCode}</Text>}
             <Text style={styles.helperText}>
@@ -505,16 +516,18 @@ export default function SignupScreen() {
                 >
                   <Text>Fill Random</Text>
                 </TouchableOpacity>
-                {getAllTestUsers().slice(0, 3).map((u) => (
-                  <TouchableOpacity
-                    key={u.id}
-                    testID={`dev-fill-${u.id}`}
-                    style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 6 }}
-                    onPress={() => applyTestUser(u)}
-                  >
-                    <Text>{u.firstName}</Text>
-                  </TouchableOpacity>
-                ))}
+                {getAllTestUsers()
+                  .slice(0, 3)
+                  .map((u) => (
+                    <TouchableOpacity
+                      key={u.id}
+                      testID={`dev-fill-${u.id}`}
+                      style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 6 }}
+                      onPress={() => applyTestUser(u)}
+                    >
+                      <Text>{u.firstName}</Text>
+                    </TouchableOpacity>
+                  ))}
               </View>
             </View>
           )}
@@ -524,6 +537,7 @@ export default function SignupScreen() {
             style={[styles.signupButton, loading && styles.signupButtonDisabled]}
             onPress={handleSignup}
             disabled={loading}
+            testID="signup-submit-button"
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -543,10 +557,8 @@ export default function SignupScreen() {
           {/* Terms and Privacy */}
           <View style={styles.terms}>
             <Text style={styles.termsText}>
-              By signing up, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms of Service</Text>
-              {' '}and{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
+              By signing up, you agree to our <Text style={styles.termsLink}>Terms of Service</Text>{' '}
+              and <Text style={styles.termsLink}>Privacy Policy</Text>
             </Text>
           </View>
         </View>

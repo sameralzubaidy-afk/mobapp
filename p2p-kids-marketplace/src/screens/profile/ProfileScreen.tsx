@@ -514,6 +514,7 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.adminDashboardButtonText}>⏱️ Admin Dashboard</Text>
         </TouchableOpacity>
         <TouchableOpacity
+          testID="profile-logout-button"
           style={[styles.logoutButton, loggingOut && styles.logoutButtonDisabled]}
           onPress={handleLogout}
           disabled={loggingOut}

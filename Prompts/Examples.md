@@ -46,30 +46,43 @@ My Example 1
 
 
 
-## TASK SUB-010: Subscription UI Components (Member-Facing)
+## TASK SUB-011: Admin Subscription Management & Analytics + Grace Period Config
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: 
-## TASK SUB-010: Subscription UI Components (Member-Facing)
+## TASK SUB-011: Admin Subscription Management & Analytics + Grace Period Config
 scope is 
-Define and implement core **member-facing subscription UI** for Kids Club+ within the mobile app. The goal is to:
 
-1. Clearly explain the value of Kids Club+ to parents.
-2. Show current subscription state, SP access, and key dates.
-3. Offer clear CTAs for **Try Free**, **Continue**, **Re-subscribe**, and **Manage** based on state.
+Define minimal admin-facing tooling to monitor and manage Kids Club+, including **grace period configuration management**:
 
-This task does not re-spec every pixel; it creates **clear, generator-ready specs** for a minimal but polished V1 experience.
+1. **Subscription Monitoring:**
+   - View list of current subscribers, trials, grace-period users, and expired users.
+   - See key metrics: MRR, active subs, trials started, churn, grace → re-subscribe rate.
+   - Perform safe admin actions: manually cancel, extend trial, or re-activate in edge cases.
+   - ensure the data on this dashboard is accurate for biz review
 
-Screens & Components
+2. **Grace Period Configuration (NEW):**
+   - Manage `grace_period_days`: How many days users have to re-subscribe before SP deletion (default: 90)
+   - Manage `grace_reminder_thresholds`: JSON array of day thresholds for reminder notifications (default: [60, 30, 7, 1])
+   - Real-time validation and save feedback for admin config changes
+   - Clear descriptions of each setting to guide admin behavior
 
-We will implement:
+Admin will mostly rely on Stripe Dashboard for billing operations; app admin UI is for **at-a-glance visibility**, grace period config tuning, and controlled overrides.
 
-1. `KidsClubOverviewScreen` – Marketing + benefit explanation and primary entry point.
-2. `SubscriptionStatusCard` – Reusable card summarizing current state, SP access, and fees.
-3. `SubscriptionBanner` – Thin banner shown in key screens (home, SP wallet, listing flow) encouraging upgrade or resubscribe.
+### Implementation Scope
 
-`ManageKidsClubScreen` was already introduced in SUB-008; SUB-010 just references it.
+**Subscription Monitoring (Part A):**
+- Read-only list/dashboard of subscriptions by status
+- MRR and metrics calculation
+- Minimal admin action buttons (if needed)
+
+**Grace Period Configuration (Part B) — For Deferred Implementation:**
+- Form fields to update `grace_period_days` and `grace_reminder_thresholds` in admin_config
+- Validation and save logic
+- Real-time feedback
+- See "IMPLEMENTATION NOTE: Grace Period Config Fields" section below for detailed UI spec
+
 
 
 i want you to 

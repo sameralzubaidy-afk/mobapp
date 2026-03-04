@@ -17,7 +17,6 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '@/services/supabase';
 
 interface RouteParams {
@@ -37,6 +36,8 @@ export default function ProfileCompletionScreen() {
 
   const handlePickImage = async () => {
     try {
+      const ImagePicker = await import('expo-image-picker');
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
