@@ -29,6 +29,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/config/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import Avatar from '@/components/atoms/Avatar';
+import BottomNavBar from '@/components/organisms/BottomNavBar';
 
 export default function ConversationsListScreen() {
   const navigation = useNavigation<any>();
@@ -257,6 +258,7 @@ export default function ConversationsListScreen() {
           }
         />
       )}
+      <BottomNavBar />
     </SafeAreaView>
   );
 }

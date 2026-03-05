@@ -25,6 +25,7 @@ import { cancelSubscription } from '../../services/subscription';
 import { AuthContext } from '@/contexts/AuthContext';
 import { formatPrice } from '@/utils/formatPrice';
 import { useEffect } from 'react';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 /**
  * Kids Club+ overview screen
@@ -336,6 +337,8 @@ export default function KidsClubOverviewScreen() {
           </View>
         </View>
       </Modal>
+
+      <BottomNavBar showHelp={true} />
     </SafeAreaView>
   );
 }

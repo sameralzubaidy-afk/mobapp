@@ -51,9 +51,10 @@ export function useGracePeriodStatus({
     const gracePeriodEnd = new Date(grace_period_ends_at);
     const timeDiff = gracePeriodEnd.getTime() - now.getTime();
     const daysRemaining = Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)));
+    const endsToday = gracePeriodEnd.toDateString() === now.toDateString();
 
     let message: string;
-    if (daysRemaining === 0) {
+    if (daysRemaining === 0 || endsToday) {
       message =
         'Your grace period ends today! Re-subscribe now to keep your Swap Points.';
     } else if (daysRemaining === 1) {

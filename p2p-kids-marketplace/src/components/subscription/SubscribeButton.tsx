@@ -1,0 +1,218 @@
+// File: p2p-kids-marketplace/src/components/subscription/SubscribeButton.tsx
+// MODULE-11 SUB-015: Subscribe button with integrated payment flow
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+  Pressable,
+  Alert,
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { usePaymentSheet } from '../../hooks/usePaymentSheet';
+import { supabase } from '../../config/supabase';
+import type { RootStackParamList } from '@/navigation/types';
+
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+
+interface SubscribeButtonProps {
+  /** Whether this is a renewal from grace_period/expired */
+  isRenewal?: boolean;
+  /** Price in cents (default: 499 for $4.99/month) */
+  priceCents?: number;
+  /** Custom label */
+  label?: string;
+  /** Callback after successful subscription creation */
+  onSuccess?: () => void;
+  /** Test ID for Maestro */
+  testID?: string;
+}
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+export function SubscribeButton({
+  isRenewal = false,
+  priceCents = 499,
+  label,
+  onSuccess,
+  testID = 'subscribe-button',
+}: SubscribeButtonProps) {
+  const navigation = useNavigation<NavigationProp>();
+  const { setupPaymentSheet, presentSheet, loading, error, resetError } = usePaymentSheet();
+  const [processing, setProcessing] = useState(false);
+
+  const buttonLabel =
+    label ||
+    (isRenewal ? 'Re-subscribe Now' : 'Subscribe to Kids Club+');
+
+  const handleSubscribe = async () => {
+    try {
+      setProcessing(true);
+      resetError();
+
+      // Step 1: Setup Payment Sheet
+      console.log('[SubscribeButton] Setting up payment sheet...');
+      await setupPaymentSheet({
+        amount: priceCents,
+        isRenewal,
+      });
+
+      // Step 2: Present Payment Sheet
+      console.log('[SubscribeButton] Presenting payment sheet...');
+      const result = await presentSheet();
+
+      if (!result.success) {
+        if (result.error === 'Payment cancelled') {
+          // User cancelled - don't show error
+          console.log('[SubscribeButton] User cancelled payment');
+          return;
+        }
+
+        throw new Error(result.error || 'Payment failed');
+      }
+
+      // Step 3: Create subscription with payment method
+      console.log('[SubscribeButton] Payment method collected, creating subscription...');
+
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        throw new Error('Not authenticated');
+      }
+
+      // Note: We need to get the actual payment_method_id from the SetupIntent
+      // For now, we'll let the webhook handle the subscription creation
+      // Alternative: retrieve SetupIntent and get payment_method from it
+
+      const response = await fetch(
+        `${SUPABASE_URL}/functions/v1/create-subscription-from-payment-method`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            user_id: session.user.id,
+            payment_method_id: result.paymentMethodId, // This should come from SetupIntent
+            is_renewal: isRenewal,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create subscription');
+      }
+
+      const subscriptionData = await response.json();
+
+      console.log('[SubscribeButton] Subscription created:', subscriptionData);
+
+      // Show success message
+      Alert.alert(
+        'Success!',
+        isRenewal
+          ? 'Welcome back to Kids Club+! Your Swap Points have been unfrozen.'
+          : 'Welcome to Kids Club+! Your 30-day free trial has started.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (onSuccess) {
+                onSuccess();
+              } else {
+                // Navigate to subscription status screen
+                navigation.navigate('SubscriptionStatus');
+              }
+            },
+          },
+        ]
+      );
+    } catch (err: any) {
+      console.error('[SubscribeButton] Error:', err);
+
+      Alert.alert(
+        'Payment Error',
+        err.message || 'Unable to process payment. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const isLoading = loading || processing;
+
+  return (
+    <View style={styles.container}>
+      <Pressable
+        style={[styles.button, isLoading && styles.buttonDisabled]}
+        onPress={handleSubscribe}
+        disabled={isLoading}
+        testID={testID}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#FFFFFF" testID={`${testID}-loading`} />
+        ) : (
+          <Text style={styles.buttonText} testID={`${testID}-label`}>
+            {buttonLabel}
+          </Text>
+        )}
+      </Pressable>
+
+      {error && (
+        <Text style={styles.errorText} testID={`${testID}-error`}>
+          {error}
+        </Text>
+      )}
+
+      <Text style={styles.disclaimer} testID={`${testID}-disclaimer`}>
+        {isRenewal
+          ? 'Your card will be charged $4.99/month. Cancel anytime.'
+          : '$4.99/month after 30-day free trial. Cancel anytime.'}
+      </Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 56,
+  },
+  buttonDisabled: {
+    backgroundColor: '#999999',
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  disclaimer: {
+    color: '#8E8E93',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+});

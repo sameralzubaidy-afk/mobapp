@@ -26,6 +26,10 @@ export type RootStackParamList = {
   KidsClubOverview: undefined;
   // MODULE-11 SUB-007: Subscription status/billing screen (manual verification)
   SubscriptionStatus: undefined;
+  // MODULE-11 SUB-015: Subscription payment screen (Stripe Payment Sheet integration)
+  SubscriptionPayment: { isRenewal?: boolean } | undefined;
+  // MODULE-11 SUB-015: Transaction History screen
+  TransactionHistory: undefined;
   // Trade routes
   TradeInitiation: { itemId: string };
   TradeTimeline: { tradeId: string };

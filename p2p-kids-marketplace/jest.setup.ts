@@ -40,6 +40,19 @@ if ((globalThis as any).jest?.mock) {
 	});
 }
 
+if ((globalThis as any).jest?.mock) {
+	jest.mock('@stripe/stripe-react-native', () => {
+		const { fn } = require('jest-mock');
+		return {
+			__esModule: true,
+			useStripe: fn(),
+			initPaymentSheet: fn(async () => ({ error: null })),
+			presentPaymentSheet: fn(async () => ({ error: null })),
+			PaymentSheetError: {},
+		};
+	});
+}
+
 // Provide dummy Supabase env vars for unit tests so creating the client doesn't throw
 // When RUN_SUPABASE_E2E=true, these will be loaded from .env file
 process.env.EXPO_PUBLIC_SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'http://localhost';

@@ -37,6 +37,7 @@ import {
   CancelSubscriptionResult,
 } from '@/services/subscription';
 import { getGracePeriodDays } from '@/services/adminConfig';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 // ─── Cancellation Reason Options ──────────────────────────────────────────────
 const CANCELLATION_REASONS = [
@@ -418,6 +419,8 @@ export default function ManageKidsClubScreen() {
           </View>
         </View>
       </Modal>
+
+      <BottomNavBar showHelp={true} />
     </SafeAreaView>
   );
 }

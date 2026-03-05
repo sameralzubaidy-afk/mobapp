@@ -1,0 +1,17 @@
+appId: com.p2pkidsmarketplace.app
+---
+- tapOn:
+    text: "Re-subscribe Now"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "subscription-payment-screen"
+- assertVisible:
+    text: "Re-subscribe to Kids Club+"
+- tapOn:
+    id: "subscription-payment-button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Welcome back"
+- tapOn: "OK"
+- assertVisible:
+    text: "active"

@@ -42,6 +42,7 @@ import ContinueKidsClubScreen from '@/screens/subscription/ContinueKidsClubScree
 import SubscriptionStatusScreen from '@/screens/subscription/SubscriptionStatusScreen';
 import ManageKidsClubScreen from '@/screens/subscription/ManageKidsClubScreen';
 import KidsClubOverviewScreen from '@/screens/subscription/KidsClubOverviewScreen';
+import TransactionHistoryScreen from '@/screens/profile/TransactionHistoryScreen';
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
 const IDVerificationUploadScreen = require('@/screens/profile/IDVerificationUploadScreen').default;
@@ -83,6 +84,7 @@ const linking = {
       IDVerificationUpload: 'id-verification-upload',
       ManageKidsClub: 'manage-kids-club',
       KidsClubOverview: 'kids-club-overview',
+      TransactionHistory: 'billing-history',
     },
   },
 };
@@ -195,6 +197,7 @@ function RootNavigator() {
             <Stack.Screen name="SubscriptionStatus" component={SubscriptionStatusScreen} options={{ title: 'Subscription Status - SUB-007' }} />
             <Stack.Screen name="ManageKidsClub" component={ManageKidsClubScreen} options={{ title: 'Manage Kids Club+ - SUB-008' }} />
             <Stack.Screen name="KidsClubOverview" component={KidsClubOverviewScreen} options={{ title: 'Kids Club+ - SUB-010' }} />
+            <Stack.Screen name="TransactionHistory" component={TransactionHistoryScreen} options={{ title: 'Billing History - SUB-015' }} />
             <Stack.Screen name="Badges" component={BadgesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
             {/* MODULE-09: Swap Points screens */}

@@ -36,6 +36,7 @@ import {
 } from 'react-native';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/config/supabase';
 import { Ionicons } from '@expo/vector-icons';
@@ -103,6 +104,7 @@ export default function ChatScreen() {
   const seenMessageIdsRef = useRef(new Set<string>());
   // MSG-009: Typing state refs
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const markAsReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const typingSubscriptionRef = useRef<any>(null);
   const lastTypingBroadcastRef = useRef<number>(0);
   // MSG-009: Animated typing dots
@@ -203,7 +205,7 @@ export default function ChatScreen() {
         });
 
       // MSG-008: Mark as read after 3 second delay
-      setTimeout(() => {
+      markAsReadTimeoutRef.current = setTimeout(() => {
         markTradeMessagesAsRead(tradeId, session.user.id)
           .then(() => {
             console.log('[ChatScreen] Marked trade messages as read');
@@ -287,6 +289,9 @@ export default function ChatScreen() {
       }
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+      }
+      if (markAsReadTimeoutRef.current) {
+        clearTimeout(markAsReadTimeoutRef.current);
       }
     };
   }, [tradeId, session?.user?.id]);
@@ -426,8 +431,6 @@ export default function ChatScreen() {
 
   const handleImagePicker = async () => {
     try {
-      const ImagePicker = await import('expo-image-picker');
-
       // Request camera roll permissions
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
@@ -448,7 +451,7 @@ export default function ChatScreen() {
 
       if (!result.canceled && result.assets?.[0]) {
         const imageAsset = result.assets[0];
-        handleSendImage(imageAsset.uri);
+        await handleSendImage(imageAsset.uri);
       }
     } catch (error) {
       console.error('[ChatScreen.handleImagePicker] Error:', error);
@@ -473,7 +476,7 @@ export default function ChatScreen() {
 
       if (!result.success) {
         console.error('[ChatScreen.handleSendImage] Send failed:', result.error);
-        Alert.alert('Error', result.error || 'Failed to send image');
+        Alert.alert('Error', result.error || 'Failed to upload image');
       } else {
         console.log('[ChatScreen.handleSendImage] Image sent successfully:', result.message?.id);
         if (result.message) {
@@ -482,7 +485,7 @@ export default function ChatScreen() {
       }
     } catch (error: any) {
       console.error('[ChatScreen.handleSendImage] Error:', error);
-      Alert.alert('Error', 'Failed to send image');
+      Alert.alert('Error', error?.message || 'Failed to upload image');
     } finally {
       setSendingImage(false);
     }

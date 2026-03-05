@@ -46,26 +46,38 @@ My Example 1
 
 
 
-## TASK SUB-014: Enhanced User Subscriptions Schema (Billing & Payment Fields)
+
+## TASK SUB-015: Stripe Payment Sheet Integration (Initial Subscribe & Renew)
 
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: 
-## TASK SUB-014: Enhanced User Subscriptions Schema (Billing & Payment Fields)
+## TASK SUB-015: Stripe Payment Sheet Integration (Initial Subscribe & Renew)
 scope is 
-Extend `user_subscriptions` table with additional fields required for payment management, billing history, and renewal control:
 
-1. **Payment Method Storage:** `stripe_payment_method_id` – securely linked to user's saved payment method
-2. **Billing History:** Fields to track recent charges: `last_payment_date`, `last_payment_amount`, `next_billing_date`
-3. **Payment Retry Logic:** `payment_failed_at`, `payment_retry_count` – track failed charges and auto-retry status
-4. **Auto-Renewal Control:** `auto_renew_enabled` (boolean, default true) – allow users to pause auto-renew
-5. **Cancellation Feedback:** `cancelled_reason` (text) – capture why user cancelled for analytics
-6. **Pause Feature:** `paused_until` (timestamp) – support "pause subscription" instead of cancel
+Implement Stripe Payment Sheet for in-app payment collection (mobile-first experience):
 
-Create companion `billing_history` table to track all transactions:
-- `id`, `user_id`, `subscription_id`, `charge_id` (Stripe reference), `amount`, `currency`, `status` (succeeded/failed/refunded), `charged_at`, `description`
+1. **Payment Sheet Modal** – Allows users to:
+   - Enter card details securely (or use Apple Pay / Google Pay on iOS/Android)
+   - Save payment method for future charges
+   - See clear subscription details ($4.99/month, 30-day free trial shown, etc.)
 
+2. **SetupIntent Flow**:
+   - When user clicks "Subscribe" or "Re-subscribe", call edge function to create SetupIntent
+   - Edge function returns `client_secret` and `publishable_key`
+   - Payment Sheet collects payment method and confirms setup
+   - Post-confirm, save `payment_method_id` in `user_subscriptions`
+
+3. **Create Subscription Post-Payment**:
+   - After successful payment, call edge function with `payment_method_id`
+   - Edge function creates Stripe subscription with saved payment method
+   - Webhook syncs subscription to DB with status `active`
+   - Webhook creates first `billing_history` entry
+
+4. **Error Handling**:
+   - Show clear error messages for declined cards, network issues
+   - Offer retry option (Payment Sheet can be re-opened)
 
 i want you to 
 
@@ -95,6 +107,42 @@ i want you to
 14. I do not use yarn I use npm so give me all commend lines for npm. 
 15. update flow-registry.md if needed so that i keep this file up to date.
 16.  I am using ISO and Andriod simlators I do not use phsyical devices please consider this for manaul verfication.
+17. 
+
+### Testing Requirements (All Mandatory)
+
+> ⚠️ RULE 1: Tests required regardless of change size. No exceptions.
+
+#### Unit Tests
+- Location: `__tests__/`
+- One test per function/hook/service
+- One render test per row in state matrix (if conditional UI)
+- Mock all Supabase and external dependencies
+- Run: `npm run test:unit` → must PASS ✅
+
+#### Integration Tests
+- Location: `__tests__/integration/` or `e2e/*.integration.test.ts`
+- Run against staging Supabase
+- Run: `RUN_SUPABASE_E2E=true npm run test:e2e` → must PASS ✅
+- List any required SQL separately and wait for confirmation
+
+#### Maestro UI Flow Tests
+> ⚠️ RULE 3: Maestro YAML must be delivered in same response as TC markdown.
+
+- Check `.maestro/` for existing flow — update if exists, create if not
+- File: `.maestro/{{flow-name}}.yaml`
+- Requirements:
+  - `testID` locators on all interactive elements (add missing `testID` props to source)
+  - `assertVisible` after each major step
+  - `waitForAnimationToEnd` for async loading
+  - Cover ALL rows in state matrix — one flow block per state
+  - Cover happy path + at least one error state
+  - Enforce RULE 5 strictness: deterministic preconditions + hard final assertion
+  - No skip-based success (conditional blocks cannot be the only validation path)
+  - Comment header: `# FLOW: <name> | TASK: {{TASK_ID}} | States covered: <list>`
+- Update `maestro-flows-registry.md`
+- Run: `npm run test:maestro:ios` AND `npm run test:maestro:android` → both PASS ✅
+
 
 MODULE-11-VERIFICATION-V2.md
 

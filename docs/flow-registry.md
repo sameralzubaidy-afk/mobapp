@@ -98,6 +98,27 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Hooks: `p2p-kids-marketplace/src/hooks/__tests__/useSubscription.test.ts` and `p2p-kids-marketplace/src/hooks/__tests__/useGracePeriodStatus.test.ts` cover subscription/grace-period derived UI state.
 - **SUB-003 Manual Test Guide:** SUB-003-MANUAL-TESTING-GUIDE.md
 - **SUB-003 Unit Tests:** p2p-kids-marketplace/src/__tests__/services/subscription-sub-003.unit.test.ts
+
+### FLOW-12A: Subscription Payment Collection (Stripe Payment Sheet) — SUB-015
+- Purpose: Collect payment method securely via Stripe Payment Sheet for new subscriptions and renewals
+- Covers:
+  - SetupIntent creation for payment method collection
+  - Stripe Payment Sheet modal (native iOS/Android)
+  - Payment method storage for future charges
+  - Subscription creation with saved payment method
+  - Error handling (card declined, network issues)
+  - Re-subscribe from grace period with saved payment method
+  - Billing history entry creation
+- Automated Tests:
+  - Unit: `p2p-kids-marketplace/src/hooks/__tests__/usePaymentSheet.test.ts`
+  - Unit: `p2p-kids-marketplace/src/components/subscription/__tests__/SubscribeButton.test.tsx`
+  - Integration: `p2p-kids-marketplace/e2e/subscription-payment-flow.integration.test.ts`
+  - Maestro: `p2p-kids-marketplace/.maestro/subscription-payment-flow.yaml`
+- Manual Verification: `docs/manual-verification/SUB-015-verification.md`
+- Edge Functions:
+  - `create-payment-setup-intent` (SetupIntent creation)
+  - `create-subscription-from-payment-method` (Subscription creation post-payment)
+- Note: Stripe Payment Sheet requires manual testing with real test cards (cannot be fully automated)
 - **SUB-011 Admin Management:**
   - **Admin UI:** p2p-kids-admin/src/app/subscriptions/manage/page.tsx - subscription monitoring dashboard with metrics (MRR, active subs, churn rate), grace period configuration, and admin actions (cancel, extend trial, reactivate)
   - **Admin API:** p2p-kids-admin/src/app/api/admin/subscriptions/route.ts (GET) and p2p-kids-admin/src/app/api/admin/subscriptions/actions/route.ts (POST)

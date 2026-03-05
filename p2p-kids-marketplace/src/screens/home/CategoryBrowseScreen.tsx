@@ -24,6 +24,7 @@ import { fetchListingsByCategory } from '../../services/discovery';
 import { CategoryResult } from '../../types/discovery';
 import { trackEvent } from '../../services/analytics';
 import Avatar from '../../components/atoms/Avatar';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type ParamList = {
   CategoryBrowse: {
@@ -162,6 +163,7 @@ export default function CategoryBrowseScreen() {
           }
         />
       )}
+      <BottomNavBar />
     </SafeAreaView>
   );
 }

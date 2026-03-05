@@ -1,0 +1,113 @@
+# FLOW: Subscribe Payment Flow | TASK: SUB-015 | States covered: free, grace_period, active
+# MODULE-11 SUB-015: Maestro test for Stripe Payment Sheet integration
+
+appId: com.p2pkidsmarketplace.app
+---
+
+# Precondition: Clear app state and start fresh
+- clearState
+
+# =====================================
+# SCENARIO 1: New Subscription (Trial)
+# =====================================
+- runFlow:
+    file: auth-signup.yaml  # Ensures user is authenticated
+
+- tapOn:
+    id: "home-tab"
+- assertVisible: "Home"
+
+# Navigate to subscription overview
+- tapOn: "Kids Club+"
+- assertVisible:
+    id: "kids-club-overview-screen"
+- assertVisible: "Join Kids Club+"
+
+# Open payment screen
+- tapOn:
+    id: "subscribe-cta-button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "subscription-payment-screen"
+
+# Verify payment screen content
+- assertVisible:
+    id: "payment-title"
+- assertVisible:
+    text: "Join Kids Club+"
+- assertVisible:
+    text: "30-day free trial"
+- assertVisible:
+    text: "$4.99/month"
+
+# Verify benefits displayed
+- assertVisible:
+    text: "Earn & Spend Swap Points"
+- assertVisible:
+    text: "Lower Transaction Fees"
+- assertVisible:
+    text: "Priority Matching"
+
+# Press subscribe button
+- tapOn:
+    id: "subscription-payment-button"
+- waitForAnimationToEnd
+
+# NOTE: Stripe Payment Sheet cannot be automated in Maestro
+# The following assertions assume payment sheet completes successfully
+
+# After payment success, should show success alert
+- assertVisible:
+    text: "Success!"
+
+# Dismiss alert
+- tapOn: "OK"
+- waitForAnimationToEnd
+
+# Should navigate to subscription status screen
+- assertVisible:
+    id: "subscription-status-screen"  
+- assertVisible:
+    text: "Kids Club+"
+
+# Verify status shows trial
+- assertVisible:
+    text: "trial"
+
+# =====================================
+# SCENARIO 2: Re-Subscribe from Grace Period
+# =====================================
+
+# NOTE: To test re-subscribe, user must be in grace_period status
+# This requires manual DB setup or completing a cancellation flow first
+
+- runFlow:
+    when:
+      visible: "grace_period"  # Only run if grace period status visible
+    file: re-subscribe-from-grace.yaml
+
+# =====================================
+# SCENARIO 3: Error Handling (Card Declined)
+# =====================================
+
+# This scenario requires a test card that will decline
+# Cannot be fully automated without Stripe test mode controls
+
+# =====================================  
+# FINAL ASSERTIONS
+# =====================================
+
+# Verify user has subscription access
+- tapOn:
+    id: "profile-tab"
+- assertVisible: "Profile"
+- assertVisible:
+    text: "Kids Club+"  # Badge or indicator of subscription
+
+# Verify Swap Points wallet is accessible (subscriber-only feature)
+- tapOn:
+    id: "sp-wallet-button"
+- assertVisible:
+    id: "sp-wallet-screen"
+- assertVisible:
+    text: "Available Balance"

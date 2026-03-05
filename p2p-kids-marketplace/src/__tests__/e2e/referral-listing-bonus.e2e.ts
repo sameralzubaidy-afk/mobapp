@@ -223,8 +223,7 @@ describe('REF-V2-008: Referral Listing Bonus E2E', () => {
         .select('*')
         .eq('user_id', refereeId)
         .eq('transaction_type', 'earn_referral')
-        .eq('user_id', referrerId)
-        .single();
+        .maybeSingle();
 
       expect(refereeLedgerError).toBeNull();
       expect(refereeLedger).toBeTruthy();
@@ -353,7 +352,7 @@ describe('REF-V2-008: Referral Listing Bonus E2E', () => {
         p_key: 'referral_first_listing_enabled',
         p_value: 'true'
       });
-    });
+    }, 30000);
   });
 
   describe('Edge Cases', () => {

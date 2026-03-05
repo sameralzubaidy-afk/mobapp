@@ -24,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -270,6 +271,9 @@ export default function SubscriptionStatusScreen() {
           SUB-007: Pull down to refresh after triggering webhook events via Stripe CLI or Dashboard
         </Text>
       </ScrollView>
+
+      {/* MODULE-09: Universal Bottom Navigation */}
+      <BottomNavBar showHelp={true} />
     </SafeAreaView>
   );
 }

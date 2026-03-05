@@ -48,6 +48,10 @@ export function SubscriptionStatusCard({
     subscription_expires_at,
     grace_ends_at,
   } = subscription;
+  const legacyCurrentPeriodEnd = (subscription as any).current_period_end as string | null | undefined;
+  const legacyGracePeriodEndsAt = (subscription as any).grace_period_ends_at as string | null | undefined;
+  const explicitPriceCents = (subscription as any).price_cents as number | undefined;
+  const displayPriceCents = explicitPriceCents ?? subscriptionPrice;
   const tierName = 'Kids Club+'; // Single tier for now
 
   // Determine status label
@@ -74,9 +78,9 @@ export function SubscriptionStatusCard({
   const displayDate =
     status === 'trial' && trial_ends_at
       ? trial_ends_at
-      : status === 'grace_period' && grace_ends_at
-      ? grace_ends_at
-      : next_billing_date || subscription_expires_at;
+      : status === 'grace_period' && (grace_ends_at || legacyGracePeriodEndsAt)
+      ? grace_ends_at || legacyGracePeriodEndsAt
+      : next_billing_date || legacyCurrentPeriodEnd || subscription_expires_at;
 
   // Determine date label
   const dateLabel = (() => {
@@ -123,7 +127,7 @@ export function SubscriptionStatusCard({
       {/* Pricing (for active/cancelled subscribers) */}
       {(status === 'active' || status === 'cancelled') && (
         <Text style={styles.price}>
-          {formatPrice(subscriptionPrice)} <Text style={styles.pricePeriod}>/ month</Text>
+          {formatPrice(displayPriceCents)} <Text style={styles.pricePeriod}>/ month</Text>
         </Text>
       )}
 

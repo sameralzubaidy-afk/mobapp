@@ -16,6 +16,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { getWallet, getLedgerHistory, getExpiringBatches, getSPConfig, type SPWallet, type SPLedgerEntry } from '@/services/sp/wallet';
 import { supabase } from '@/config/supabase';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 export default function SpWalletScreen() {
   const navigation = useNavigation();
@@ -192,6 +193,7 @@ export default function SpWalletScreen() {
         <Text style={styles.footerText}>🔒 SP can only be used for item purchases</Text>
       </View>
     </ScrollView>
+        <BottomNavBar />
       </View>
     </SafeAreaView>
   );

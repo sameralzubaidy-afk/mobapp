@@ -491,20 +491,18 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
 
         {/* Consolidated Subscription/Club Button */}
-        <TouchableOpacity 
-          style={[styles.clubButton, { 
-            backgroundColor: (trialStatus?.status === 'active' || trialStatus?.status === 'trial') ? '#F3E8FF' : '#E0E7FF', 
-            borderColor: (trialStatus?.status === 'active' || trialStatus?.status === 'trial') ? '#D8B4FE' : '#C7D2FE', 
-          }]} 
-          onPress={() => navigation.navigate('KidsClubOverview')}
-        >
-          <Text style={[styles.clubButtonText, {
-            color: (trialStatus?.status === 'active' || trialStatus?.status === 'trial') ? '#7C3AED' : '#4338CA'
-          }]}>
+        <TouchableOpacity style={styles.clubButton} onPress={() => navigation.navigate('KidsClubOverview')}>
+          <Text style={styles.clubButtonText}>
             {(trialStatus?.status === 'active' || trialStatus?.status === 'trial') ? '👑 Manage Kid\'s Club' : '👑 Join Kid\'s Club'}
           </Text>
         </TouchableOpacity>
 
+        <TouchableOpacity 
+          style={styles.billingButton} 
+          onPress={() => navigation.navigate('TransactionHistory')}
+        >
+          <Text style={styles.billingButtonText}>📜 Billing History</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>
           <Text style={styles.settingsButtonText}>⚙️ Settings</Text>
@@ -672,6 +670,19 @@ const styles = StyleSheet.create({
   clubButtonText: {
     fontSize: 18,
     fontWeight: '700',
+  },
+  billingButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  billingButtonText: {
+    color: '#374151',
+    fontSize: 18,
+    fontWeight: '600',
   },
   adminDashboardButton: {
     backgroundColor: '#FEF3C7',

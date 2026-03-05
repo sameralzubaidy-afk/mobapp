@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { monitorMidTradeSubscriptionChanges } from '../../services/trade';
 import { Ionicons } from '@expo/vector-icons';
+import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -38,6 +39,7 @@ export default function AdminDashboardScreen() {
   };
 
   return (
+    <View style={styles.fullContainer}>
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Admin Dashboard</Text>
       
@@ -104,10 +106,15 @@ export default function AdminDashboardScreen() {
         </View>
       </View>
     </ScrollView>
+    <BottomNavBar />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  fullContainer: {
+    flex: 1,
+  },
   container: {
     flexGrow: 1,
     padding: 20,
