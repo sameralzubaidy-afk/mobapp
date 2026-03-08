@@ -57,11 +57,15 @@ export default function KidsClubOverviewScreen() {
     grace_period_ends_at: subscription?.grace_ends_at || null,
   });
 
-  const [monthlyPrice, setMonthlyPrice] = useState(4.99);
+  // NO HARDCODED PRICE - fetch from admin_config on mount
+  const [monthlyPrice, setMonthlyPrice] = useState<number | null>(null);
 
   useEffect(() => {
     import('../../services/adminConfig').then(service => {
-      service.getSubscriptionPrice(true).then(setMonthlyPrice).catch(console.error);
+      service.getSubscriptionPrice(true).then(setMonthlyPrice).catch((err) => {
+        console.error('[KidsClubOverview] Failed to load price:', err);
+        setMonthlyPrice(0); // Show 0 if config missing
+      });
     });
   }, []);
 
@@ -144,19 +148,20 @@ export default function KidsClubOverviewScreen() {
           primaryCtaRoute: '',
         };
       case 'cancelled':
+      case 'canceled':
         return {
           primaryCtaLabel: 'Reactivate Membership',
-          primaryCtaRoute: 'ContinueKidsClub',
+          primaryCtaRoute: 'ManageKidsClub',
         };
       case 'grace_period':
         return {
           primaryCtaLabel: 'Re-subscribe and Unlock SP',
-          primaryCtaRoute: 'ContinueKidsClub',
+          primaryCtaRoute: 'ManageKidsClub',
         };
       case 'expired':
         return {
           primaryCtaLabel: 'Re-subscribe (SP will start fresh)',
-          primaryCtaRoute: 'ContinueKidsClub',
+          primaryCtaRoute: 'ManageKidsClub',
         };
       default:
         return {
@@ -236,7 +241,7 @@ export default function KidsClubOverviewScreen() {
           <View style={styles.managementSection}>
             <TouchableOpacity
               style={[styles.actionButton, styles.secondaryButton]}
-              onPress={() => Alert.alert('Coming Soon', 'Payment method updates will be available soon.')}
+              onPress={() => navigation.navigate('ManageKidsClub' as never)}
             >
               <Text style={styles.secondaryButtonText}>Update Payment Method</Text>
             </TouchableOpacity>
@@ -253,7 +258,7 @@ export default function KidsClubOverviewScreen() {
         <View style={styles.finePrintSection}>
           <Text style={styles.finePrintTitle}>Fine print</Text>
           <Text style={styles.finePrint}>
-            After your free trial, Kids Club+ is just {formatPrice(monthlyPrice * 100)}/month. Cancel anytime with no penalty. Your Swap Points remain frozen for {gracePeriodDays} days if you cancel.
+            After your free trial, Kids Club+ is just {monthlyPrice ? formatPrice(monthlyPrice * 100) : 'loading...'}/month. Cancel anytime with no penalty. Your Swap Points remain frozen for {gracePeriodDays} days if you cancel.
           </Text>
         </View>
       </ScrollView>

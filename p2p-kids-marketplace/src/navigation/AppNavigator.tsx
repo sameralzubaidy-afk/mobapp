@@ -39,7 +39,9 @@ import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
 import TrialConversionTestScreen from '@/screens/admin/TrialConversionTestScreen';
 import ContinueKidsClubScreen from '@/screens/subscription/ContinueKidsClubScreen';
+import { SubscriptionPaymentScreen } from '@/screens/subscription/SubscriptionPaymentScreen';
 import SubscriptionStatusScreen from '@/screens/subscription/SubscriptionStatusScreen';
+import SubscriptionSuccessScreen from '@/screens/subscription/SubscriptionSuccessScreen';
 import ManageKidsClubScreen from '@/screens/subscription/ManageKidsClubScreen';
 import KidsClubOverviewScreen from '@/screens/subscription/KidsClubOverviewScreen';
 import TransactionHistoryScreen from '@/screens/profile/TransactionHistoryScreen';
@@ -194,6 +196,8 @@ function RootNavigator() {
             <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
             <Stack.Screen name="TrialConversionTest" component={TrialConversionTestScreen} options={{ title: 'Trial Conversion Test - SUB-005' }} />
             <Stack.Screen name="ContinueKidsClub" component={ContinueKidsClubScreen} options={{ title: 'Continue Kids Club+ - SUB-006' }} />
+            <Stack.Screen name="SubscriptionPayment" component={SubscriptionPaymentScreen} options={{ title: 'Subscription Payment - SUB-015' }} />
+            <Stack.Screen name="SubscriptionSuccess" component={SubscriptionSuccessScreen} options={{ title: 'Subscription Success - SUB-016/017', headerShown: false }} />
             <Stack.Screen name="SubscriptionStatus" component={SubscriptionStatusScreen} options={{ title: 'Subscription Status - SUB-007' }} />
             <Stack.Screen name="ManageKidsClub" component={ManageKidsClubScreen} options={{ title: 'Manage Kids Club+ - SUB-008' }} />
             <Stack.Screen name="KidsClubOverview" component={KidsClubOverviewScreen} options={{ title: 'Kids Club+ - SUB-010' }} />

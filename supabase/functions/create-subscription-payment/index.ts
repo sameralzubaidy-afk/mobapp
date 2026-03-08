@@ -18,6 +18,15 @@ interface CreateSubscriptionRequest {
   paymentMethodId: string;
 }
 
+type ResolvedTier = {
+  id: string;
+  name: string;
+  display_name: string;
+  currency: string;
+  stripe_price_id: string | null;
+  stripe_product_id?: string | null;
+};
+
 async function getAdminConfigNumber(
   supabase: ReturnType<typeof createClient>,
   key: string,
@@ -39,6 +48,58 @@ async function getAdminConfigNumber(
   }
 
   return parsed;
+}
+
+function normalizeAdminPriceToCents(rawValue: number): number {
+  if (!Number.isFinite(rawValue) || rawValue <= 0) {
+    throw new Error(
+      `Invalid subscription price in admin_config: ${rawValue}. ` +
+      'Set subscription_price_monthly to a positive number. ' +
+      'Values >= 100 are cents (e.g., 1500 = $15), values < 100 are dollars (e.g., 15 = $15)'
+    );
+  }
+
+  if (rawValue >= 100) {
+    return Math.round(rawValue);
+  }
+
+  return Math.round(rawValue * 100);
+}
+
+async function resolveTierConfig(
+  supabase: ReturnType<typeof createClient>,
+): Promise<ResolvedTier> {
+  const selection = '*';
+  const attempts: Array<Promise<{ data: any; error: any }>> = [
+    supabase.from('subscription_tiers').select(selection).eq('name', 'kids_club_plus').eq('is_active', true).maybeSingle(),
+    supabase.from('subscription_tiers').select(selection).eq('name', 'kids_club_plus').maybeSingle(),
+    supabase.from('subscription_tiers').select(selection).eq('is_default', true).eq('is_active', true).maybeSingle(),
+    supabase.from('subscription_tiers').select(selection).eq('is_active', true).order('is_default', { ascending: false }).order('sort_order', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('subscription_tiers').select(selection).order('is_default', { ascending: false }).order('sort_order', { ascending: true }).limit(1).maybeSingle(),
+  ];
+
+  for (const attempt of attempts) {
+    const { data } = await attempt;
+    if (data) {
+      return {
+        id: String(data.id),
+        name: typeof data.name === 'string' && data.name.trim() !== '' ? data.name : 'kids_club_plus',
+        display_name: typeof data.display_name === 'string' && data.display_name.trim() !== '' ? data.display_name : 'Kids Club+',
+        currency: typeof data.currency === 'string' && data.currency.trim() !== '' ? data.currency : 'usd',
+        stripe_price_id: typeof data.stripe_price_id === 'string' ? data.stripe_price_id : null,
+        stripe_product_id: typeof data.stripe_product_id === 'string' ? data.stripe_product_id : null,
+      };
+    }
+  }
+
+  return {
+    id: 'admin-config-fallback',
+    name: 'kids_club_plus',
+    display_name: 'Kids Club+',
+    currency: 'usd',
+    stripe_price_id: null,
+    stripe_product_id: null,
+  };
 }
 
 const corsHeaders = {
@@ -96,27 +157,14 @@ serve(async (req) => {
     }
 
     // 3. Get subscription tier info (Kids Club+) and admin-config subscription values
-    const { data: tier, error: tierError } = await supabase
-      .from('subscription_tiers')
-      .select('*')
-      .eq('name', 'kids_club_plus')
-      .eq('is_active', true)
-      .single();
-
-    if (tierError || !tier) {
-      console.error('[create-subscription-payment] Tier fetch error:', tierError);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Kids Club+ tier not found' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const tier = await resolveTierConfig(supabase);
 
     const [adminMonthlyPrice, adminTrialDays] = await Promise.all([
       getAdminConfigNumber(supabase, 'subscription_price_monthly'),
       getAdminConfigNumber(supabase, 'trial_period_days'),
     ]);
 
-    const adminMonthlyPriceCents = Math.round(adminMonthlyPrice * 100);
+    const adminMonthlyPriceCents = normalizeAdminPriceToCents(adminMonthlyPrice);
     const normalizedTrialDays = Math.max(Math.round(adminTrialDays), 0);
 
     // 4. Get user's current subscription

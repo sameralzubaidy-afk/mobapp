@@ -47,38 +47,67 @@ My Example 1
 
 
 
-## TASK SUB-015: Stripe Payment Sheet Integration (Initial Subscribe & Renew)
+
+## TASK SUB-016: Renew Subscription from Grace Period (Re-Subscribe Flow) and
+## TASK SUB-017: Payment Method Management & Auto-Renew Toggle
 
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: 
-## TASK SUB-015: Stripe Payment Sheet Integration (Initial Subscribe & Renew)
-scope is 
+## TASK SUB-016: Renew Subscription from Grace Period (Re-Subscribe Flow) and
+## TASK SUB-017: Payment Method Management & Auto-Renew Toggle
+scope is for ## TASK SUB-016: Renew Subscription from Grace Period (Re-Subscribe Flow) and
 
-Implement Stripe Payment Sheet for in-app payment collection (mobile-first experience):
+Allow users in `grace_period` or `expired` status to easily re-subscribe:
 
-1. **Payment Sheet Modal** – Allows users to:
-   - Enter card details securely (or use Apple Pay / Google Pay on iOS/Android)
-   - Save payment method for future charges
-   - See clear subscription details ($4.99/month, 30-day free trial shown, etc.)
+1. **Show Re-Subscribe CTA** in:
+   - Grace Period Banner (countdown showing)
+   - Manage Kids Club+ Screen ("Your subscription expired. Re-subscribe to restore Swap Points")
+   - Home screen banner for unsubscribed users
 
-2. **SetupIntent Flow**:
-   - When user clicks "Subscribe" or "Re-subscribe", call edge function to create SetupIntent
-   - Edge function returns `client_secret` and `publishable_key`
-   - Payment Sheet collects payment method and confirms setup
-   - Post-confirm, save `payment_method_id` in `user_subscriptions`
+2. **Re-Subscribe Flow**:
+   - If user has saved payment method: pre-fill, ask to confirm → charge immediately
+   - If no saved method: show Payment Sheet to add one
+   - Charge $4.99 immediately upon confirmation
+   - Create new Stripe subscription (anniversary date = today + 30 days)
+   - Update `user_subscriptions`: status = `active`, unfreeze SP, set new period_end
 
-3. **Create Subscription Post-Payment**:
-   - After successful payment, call edge function with `payment_method_id`
-   - Edge function creates Stripe subscription with saved payment method
-   - Webhook syncs subscription to DB with status `active`
-   - Webhook creates first `billing_history` entry
+3. **SP Restoration**:
+   - On successful re-subscribe: call MODULE-09 API to unfreeze SP wallet
+   - SP points remain from previous subscription (they're not lost if within 90-day grace)
+   - Show "✅ Your Swap Points are unfrozen!" message
 
-4. **Error Handling**:
-   - Show clear error messages for declined cards, network issues
-   - Offer retry option (Payment Sheet can be re-opened)
+4. **Handle Payment Failures**:
+   - Retry same logic as initial subscribe
+   - After 3 failures: stay in grace period, show "Update Payment Method" prompt
 
+scope is for ## TASK SUB-017: Payment Method Management & Auto-Renew Toggle 
+
+
+Add payment method management to Manage Kids Club+ screen:
+
+1. **View Saved Payment Method**:
+   - Show card last four digits, brand (Visa, Mastercard), and expiry
+   - Display next billing date
+
+2. **Change Payment Method**:
+   - "Update Payment Method" button → Stripe Payment Sheet
+   - On success: update `stripe_payment_method_id` and `next_billing_date`
+
+3. **Auto-Renewal Toggle**:
+   - Toggle: "Auto-renew subscription" (ON by default)
+   - When OFF: update `auto_renew_enabled = false`
+     - Subscription still active until period end
+     - No auto-charge on period end
+     - Show warning: "Subscription will end on [date]"
+   - When toggled back ON: resume auto-renew
+
+4. **View Billing History**:
+   - Tab or link in Manage screen: "Billing History"
+   - Show table of past charges: Date, Amount, Status
+   - Allow "Download Invoice" for successful charges
+   
 i want you to 
 
 1- Search the codebase for existing implementations using:
@@ -107,9 +136,7 @@ i want you to
 14. I do not use yarn I use npm so give me all commend lines for npm. 
 15. update flow-registry.md if needed so that i keep this file up to date.
 16.  I am using ISO and Andriod simlators I do not use phsyical devices please consider this for manaul verfication.
-17. 
-
-### Testing Requirements (All Mandatory)
+17. Testing Requirements (All Mandatory)
 
 > ⚠️ RULE 1: Tests required regardless of change size. No exceptions.
 

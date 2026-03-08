@@ -1,10 +1,12 @@
 // File: p2p-kids-marketplace/src/hooks/usePaymentSheet.ts
 // MODULE-11 SUB-015: Hook for Stripe Payment Sheet integration
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../config/supabase';
+import { useStripe } from '@stripe/stripe-react-native';
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 interface PaymentSheetOptions {
   amount: number; // Amount in cents (for display only)
@@ -34,7 +36,7 @@ export interface UsePaymentSheetReturn {
  * const { setupPaymentSheet, presentSheet, loading, error } = usePaymentSheet();
  * 
  * // When user clicks "Subscribe"
- * await setupPaymentSheet({ amount: 499, isRenewal: false });
+ * await setupPaymentSheet({ amount: dynamicPriceCents, isRenewal: false });
  * const result = await presentSheet();
  * if (result.success) {
  *   // Call create-subscription-from-payment-method with result.paymentMethodId
@@ -42,14 +44,18 @@ export interface UsePaymentSheetReturn {
  * ```
  */
 export function usePaymentSheet(): UsePaymentSheetReturn {
+  const { retrieveSetupIntent } = useStripe();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const paymentSheetReadyRef = useRef(false);
+  const setupIntentClientSecretRef = useRef<string | null>(null);
 
   const setupPaymentSheet = useCallback(
     async (options: PaymentSheetOptions): Promise<void> => {
       setLoading(true);
       setError(null);
+      paymentSheetReadyRef.current = false;
+      setupIntentClientSecretRef.current = null;
 
       try {
         // Get current session
@@ -71,6 +77,7 @@ export function usePaymentSheet(): UsePaymentSheetReturn {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${accessToken}`,
+            ...(SUPABASE_ANON_KEY ? { apikey: SUPABASE_ANON_KEY } : {}),
           },
           body: JSON.stringify({
             user_id: userId,
@@ -78,12 +85,24 @@ export function usePaymentSheet(): UsePaymentSheetReturn {
           }),
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create payment setup');
+        const rawBody = await response.text();
+        let data: any = null;
+        try {
+          data = rawBody ? JSON.parse(rawBody) : null;
+        } catch {
+          data = null;
         }
 
-        const data = await response.json();
+        if (!response.ok) {
+          const serverMessage = data?.error || data?.message || rawBody;
+          throw new Error(serverMessage || 'Failed to create payment setup');
+        }
+
+        if (!data?.client_secret || !data?.customer_id || !data?.ephemeral_key_secret) {
+          throw new Error('Payment setup response missing required Stripe fields');
+        }
+
+        setupIntentClientSecretRef.current = data.client_secret;
 
         const { initPaymentSheet } = require('@stripe/stripe-react-native');
 
@@ -116,11 +135,13 @@ export function usePaymentSheet(): UsePaymentSheetReturn {
           throw new Error(initError.message || 'Failed to initialize payment sheet');
         }
 
-        setIsInitialized(true);
+        paymentSheetReadyRef.current = true;
         console.log('[usePaymentSheet] Payment sheet initialized successfully');
       } catch (err: any) {
         console.error('[usePaymentSheet] Setup error:', err);
         setError(err.message || 'Failed to setup payment');
+        paymentSheetReadyRef.current = false;
+        setupIntentClientSecretRef.current = null;
         throw err;
       } finally {
         setLoading(false);
@@ -130,7 +151,7 @@ export function usePaymentSheet(): UsePaymentSheetReturn {
   );
 
   const presentSheet = useCallback(async (): Promise<PaymentSheetResult> => {
-    if (!isInitialized) {
+    if (!paymentSheetReadyRef.current) {
       const errorMsg = 'Payment sheet not initialized. Call setupPaymentSheet first.';
       setError(errorMsg);
       return { success: false, error: errorMsg };
@@ -154,16 +175,29 @@ export function usePaymentSheet(): UsePaymentSheetReturn {
         throw new Error(presentError.message || 'Payment failed');
       }
 
-      // Payment method collected successfully
-      // NOTE: With SetupIntent, we don't get payment_method_id directly from presentPaymentSheet
-      // We need to retrieve it from the SetupIntent after confirmation
-      // The webhook or subsequent API call will handle this
+      if (!setupIntentClientSecretRef.current) {
+        throw new Error('Setup intent client secret missing after payment sheet completion');
+      }
+
+      const { setupIntent, error: retrieveError } = await retrieveSetupIntent(
+        setupIntentClientSecretRef.current
+      );
+
+      if (retrieveError) {
+        throw new Error(retrieveError.message || 'Failed to verify payment method');
+      }
+
+      const paymentMethodId = setupIntent?.paymentMethodId;
+
+      if (!paymentMethodId) {
+        throw new Error('Payment method was not returned from Stripe');
+      }
 
       console.log('[usePaymentSheet] Payment sheet completed successfully');
 
       return {
         success: true,
-        paymentMethodId: 'retrieved_from_setup_intent', // Placeholder - actual ID comes from webhook
+        paymentMethodId,
       };
     } catch (err: any) {
       console.error('[usePaymentSheet] Present error:', err);
@@ -172,9 +206,10 @@ export function usePaymentSheet(): UsePaymentSheetReturn {
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
-      setIsInitialized(false); // Reset after presentation
+      paymentSheetReadyRef.current = false;
+      setupIntentClientSecretRef.current = null;
     }
-  }, [isInitialized]);
+  }, [retrieveSetupIntent]);
 
   const resetError = useCallback(() => {
     setError(null);

@@ -1,38 +1,98 @@
 // File: p2p-kids-marketplace/src/screens/subscription/SubscriptionPaymentScreen.tsx
 // MODULE-11 SUB-015: Full subscription payment flow screen
 
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
-import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SubscribeButton } from '../../components/subscription/SubscribeButton';
 import { useSubscription } from '../../hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
+import {
+  getSubscriptionPrice,
+  getTrialDays,
+  invalidateConfigCache,
+} from '@/services/adminConfig';
 
-type SubscriptionPaymentRouteProp = RouteProp<RootStackParamList, 'SubscriptionPayment'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+// NO HARDCODED PRICES - all values must come from admin_config
+const DEFAULT_TRIAL_DAYS = 30;
+
+function formatMonthlyPrice(dollars: number): string {
+  return `$${dollars.toFixed(2)}/month`;
+}
+
+function toPriceCents(dollars: number): number {
+  return Math.max(0, Math.round(dollars * 100));
+}
+
 export function SubscriptionPaymentScreen() {
-  const route = useRoute<SubscriptionPaymentRouteProp>();
   const navigation = useNavigation<NavigationProp>();
   const { subscription, refetch } = useSubscription();
+  // NO HARDCODED PRICE - fetch from admin_config on mount
+  const [monthlyPriceDollars, setMonthlyPriceDollars] = useState<number>(0);
+  const [trialDays, setTrialDays] = useState<number>(DEFAULT_TRIAL_DAYS);
+  const [configLoading, setConfigLoading] = useState<boolean>(true);
+
+  const loadPricingConfig = useCallback(async () => {
+    setConfigLoading(true);
+    try {
+      invalidateConfigCache();
+      const [price, days] = await Promise.all([
+        getSubscriptionPrice(true),
+        getTrialDays(true),
+      ]);
+
+      if (Number.isFinite(price) && price > 0) {
+        setMonthlyPriceDollars(price);
+      } else {
+        // If admin_config is not set, show 0 and log error
+        console.error('[SubscriptionPaymentScreen] Invalid subscription price from admin_config:', price);
+        setMonthlyPriceDollars(0);
+      }
+
+      if (Number.isFinite(days) && days > 0) {
+        setTrialDays(days);
+      } else {
+        setTrialDays(DEFAULT_TRIAL_DAYS);
+      }
+    } catch (error) {
+      console.error('[SubscriptionPaymentScreen] Failed to load pricing config:', error);
+      // Show 0 to indicate configuration error
+      setMonthlyPriceDollars(0);
+      setTrialDays(DEFAULT_TRIAL_DAYS);
+    } finally {
+      setConfigLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPricingConfig();
+    }, [loadPricingConfig])
+  );
 
   // Determine if this is a renewal
   const isRenewal =
     subscription?.status === 'grace_period' || subscription?.status === 'expired';
 
+  const monthlyPriceLabel = formatMonthlyPrice(monthlyPriceDollars);
+  const monthlyPriceCents = toPriceCents(monthlyPriceDollars);
+
   const handleSuccess = async () => {
     // Refresh subscription data
     await refetch();
 
-    // Navigate to success or status screen
-    navigation.navigate('SubscriptionStatus');
+    // Navigate to success celebration screen
+    navigation.navigate('SubscriptionSuccess', { isRenewal });
   };
 
   return (
@@ -103,12 +163,16 @@ export function SubscriptionPaymentScreen() {
         <View style={styles.pricingCard}>
           <View style={styles.pricingRow}>
             <Text style={styles.pricingLabel}>Monthly subscription</Text>
-            <Text style={styles.pricingValue}>$4.99/month</Text>
+            {configLoading ? (
+              <ActivityIndicator size="small" color="#007AFF" />
+            ) : (
+              <Text style={styles.pricingValue}>{monthlyPriceLabel}</Text>
+            )}
           </View>
 
           {!isRenewal && (
             <View style={styles.trialBadge}>
-              <Text style={styles.trialBadgeText}>30-day free trial</Text>
+              <Text style={styles.trialBadgeText}>{`${trialDays}-day free trial`}</Text>
             </View>
           )}
         </View>
@@ -117,7 +181,8 @@ export function SubscriptionPaymentScreen() {
         <View style={styles.subscribeButtonContainer}>
           <SubscribeButton
             isRenewal={isRenewal}
-            priceCents={499}
+            priceCents={monthlyPriceCents}
+            trialDays={trialDays}
             onSuccess={handleSuccess}
             testID="subscription-payment-button"
           />

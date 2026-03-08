@@ -21,23 +21,30 @@ const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 interface SubscribeButtonProps {
   /** Whether this is a renewal from grace_period/expired */
   isRenewal?: boolean;
-  /** Price in cents (default: 499 for $4.99/month) */
-  priceCents?: number;
+  /** Price in cents, sourced from admin config/tier settings */
+  priceCents: number;
   /** Custom label */
   label?: string;
   /** Callback after successful subscription creation */
   onSuccess?: () => void;
+  /** Trial days for copy text when not renewal */
+  trialDays?: number;
   /** Test ID for Maestro */
   testID?: string;
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+function formatPriceLabel(priceCents: number): string {
+  return `$${(priceCents / 100).toFixed(2)}/month`;
+}
+
 export function SubscribeButton({
   isRenewal = false,
-  priceCents = 499,
+  priceCents,
   label,
   onSuccess,
+  trialDays = 30,
   testID = 'subscribe-button',
 }: SubscribeButtonProps) {
   const navigation = useNavigation<NavigationProp>();
@@ -47,6 +54,7 @@ export function SubscribeButton({
   const buttonLabel =
     label ||
     (isRenewal ? 'Re-subscribe Now' : 'Subscribe to Kids Club+');
+  const priceLabel = formatPriceLabel(priceCents);
 
   const handleSubscribe = async () => {
     try {
@@ -175,8 +183,8 @@ export function SubscribeButton({
 
       <Text style={styles.disclaimer} testID={`${testID}-disclaimer`}>
         {isRenewal
-          ? 'Your card will be charged $4.99/month. Cancel anytime.'
-          : '$4.99/month after 30-day free trial. Cancel anytime.'}
+          ? `Your card will be charged ${priceLabel}. Cancel anytime.`
+          : `${priceLabel} after ${trialDays}-day free trial. Cancel anytime.`}
       </Text>
     </View>
   );

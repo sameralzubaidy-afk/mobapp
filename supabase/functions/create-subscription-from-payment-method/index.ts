@@ -22,6 +22,156 @@ interface CreateSubscriptionResponse {
   trial_end?: string | null;
 }
 
+type SubscriptionCustomerRow = {
+  stripe_customer_id: string | null;
+};
+
+type ProfileCustomerRow = {
+  stripe_customer_id?: string | null;
+};
+
+type ResolvedTier = {
+  id: string;
+  name: string;
+  display_name: string;
+  currency: string;
+  stripe_price_id: string | null;
+  stripe_product_id?: string | null;
+  price_cents: number;
+  trial_days: number;
+};
+
+function isValidStripeProductId(productId: string): boolean {
+  return /^prod_[A-Za-z0-9]+$/.test(productId);
+}
+
+async function getAdminConfigNumber(
+  supabaseClient: ReturnType<typeof createClient>,
+  key: string,
+  fallbackValue: number,
+): Promise<number> {
+  const { data, error } = await supabaseClient
+    .from('admin_config')
+    .select('value')
+    .eq('key', key)
+    .eq('is_active', true)
+    .maybeSingle();
+
+  if (error || !data) {
+    return fallbackValue;
+  }
+
+  const parsed = Number(data.value);
+  return Number.isFinite(parsed) ? parsed : fallbackValue;
+}
+
+/**
+ * Normalize admin_config price to cents.
+ * Convention: values >= 100 are treated as cents, values < 100 as dollars.
+ * Example: 1500 → 1500 cents ($15.00), 15.00 → 1500 cents ($15.00)
+ * For $1500/month, set admin_config to 150000 (cents).
+ * @throws Error if value is invalid - NO SILENT FALLBACK TO $4.99
+ */
+function normalizeAdminPriceToCents(rawValue: number): number {
+  if (!Number.isFinite(rawValue) || rawValue <= 0) {
+    throw new Error(
+      `Invalid subscription price in admin_config: ${rawValue}. ` +
+      'Set subscription_price_monthly to a positive number. ' +
+      'Values >= 100 are cents (e.g., 1500 = $15), values < 100 are dollars (e.g., 15 = $15)'
+    );
+  }
+
+  // Treat as cents if >= 100, otherwise as dollars
+  if (rawValue >= 100) {
+    return Math.round(rawValue);
+  }
+
+  return Math.round(rawValue * 100);
+}
+
+async function createAdminBackedMonthlyPriceId(params: {
+  tier: ResolvedTier;
+  adminPriceCents: number;
+}): Promise<string> {
+  const tierProductId = typeof params.tier.stripe_product_id === 'string'
+    ? params.tier.stripe_product_id.trim()
+    : '';
+  let productId = isValidStripeProductId(tierProductId) ? tierProductId : '';
+
+  if (!productId) {
+    const product = await stripe.products.create({
+      name: params.tier.display_name || 'Kids Club+',
+      metadata: {
+        source: 'admin-price-enforced',
+        tier_id: String(params.tier.id || ''),
+      },
+    });
+    productId = product.id;
+  }
+
+  const createdPrice = await stripe.prices.create({
+    currency: String(params.tier.currency || 'usd').toLowerCase(),
+    product: productId,
+    recurring: { interval: 'month' },
+    unit_amount: params.adminPriceCents,
+    metadata: {
+      source: 'create-subscription-from-payment-method',
+      tier_id: String(params.tier.id || ''),
+      admin_price_cents: String(params.adminPriceCents),
+    },
+  });
+
+  return createdPrice.id;
+}
+
+async function resolveTierConfig(
+  supabaseClient: ReturnType<typeof createClient>,
+): Promise<ResolvedTier> {
+  const selection = '*';
+
+  const attempts: Array<Promise<{ data: any; error: any }>> = [
+    supabaseClient.from('subscription_tiers').select(selection).eq('name', 'kids_club_plus').eq('is_active', true).maybeSingle(),
+    supabaseClient.from('subscription_tiers').select(selection).eq('name', 'kids_club_plus').maybeSingle(),
+    supabaseClient.from('subscription_tiers').select(selection).eq('is_default', true).eq('is_active', true).maybeSingle(),
+    supabaseClient.from('subscription_tiers').select(selection).eq('is_active', true).order('is_default', { ascending: false }).order('sort_order', { ascending: true }).limit(1).maybeSingle(),
+    supabaseClient.from('subscription_tiers').select(selection).order('is_default', { ascending: false }).order('sort_order', { ascending: true }).limit(1).maybeSingle(),
+  ];
+
+  for (const attempt of attempts) {
+    const { data } = await attempt;
+    if (data) {
+      return {
+        id: String(data.id),
+        name: typeof data.name === 'string' && data.name.trim() !== '' ? data.name : 'kids_club_plus',
+        display_name: typeof data.display_name === 'string' && data.display_name.trim() !== '' ? data.display_name : 'Kids Club+',
+        currency: typeof data.currency === 'string' && data.currency.trim() !== '' ? data.currency : 'usd',
+        stripe_price_id: typeof data.stripe_price_id === 'string' ? data.stripe_price_id : null,
+        stripe_product_id: typeof data.stripe_product_id === 'string' ? data.stripe_product_id : null,
+        price_cents: Number.isFinite(Number(data.price_cents)) && Number(data.price_cents) > 0 ? Number(data.price_cents) : 0,
+        trial_days: Number.isFinite(Number(data.trial_days)) && Number(data.trial_days) >= 0 ? Number(data.trial_days) : 30,
+      };
+    }
+  }
+
+  // Fetch from admin_config - NO HARDCODED FALLBACK
+  // If admin_config is missing, this will return 0 and normalizeAdminPriceToCents will throw
+  const [adminMonthlyPriceRaw, adminTrialDaysRaw] = await Promise.all([
+    getAdminConfigNumber(supabaseClient, 'subscription_price_monthly', 0),
+    getAdminConfigNumber(supabaseClient, 'trial_period_days', 30),
+  ]);
+
+  return {
+    id: 'admin-config-fallback',
+    name: 'kids_club_plus',
+    display_name: 'Kids Club+',
+    currency: 'usd',
+    stripe_price_id: null,
+    stripe_product_id: null,
+    price_cents: normalizeAdminPriceToCents(adminMonthlyPriceRaw),
+    trial_days: Math.max(Math.round(adminTrialDaysRaw), 0),
+  };
+}
+
 serve(async (req) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
@@ -92,24 +242,7 @@ serve(async (req) => {
       });
     }
 
-    // Get user profile and subscription  
-    const { data: profile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('stripe_customer_id')
-      .eq('user_id', userId)
-      .single();
-
-    if (profileError || !profile || !profile.stripe_customer_id) {
-      console.error('[create-subscription-from-payment-method] Profile/customer error:', profileError);
-      return new Response(JSON.stringify({ error: 'Customer not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    const customerId = profile.stripe_customer_id;
-
-    // Get user subscription record
+    // Get user subscription record (canonical source for stripe_customer_id)
     const { data: subscription, error: subError } = await supabaseClient
       .from('user_subscriptions')
       .select('*')
@@ -124,21 +257,57 @@ serve(async (req) => {
       });
     }
 
-    // Get Kids Club+ tier
-    const { data: tier, error: tierError } = await supabaseClient
-      .from('subscription_tiers')
-      .select('id, stripe_price_id, price_cents, trial_days')
-      .eq('name', 'kids_club_plus')
-      .eq('is_active', true)
-      .single();
+    let customerId = (subscription as SubscriptionCustomerRow).stripe_customer_id;
 
-    if (tierError || !tier) {
-      console.error('[create-subscription-from-payment-method] Tier fetch error:', tierError);
-      return new Response(JSON.stringify({ error: 'Subscription tier not found' }), {
+    // Backward compatibility fallback in case some legacy rows still store customer ID in profiles.
+    if (!customerId) {
+      const { data: profile } = await supabaseClient
+        .from('profiles')
+        .select('stripe_customer_id')
+        .eq('user_id', userId)
+        .maybeSingle<ProfileCustomerRow>();
+
+      customerId = profile?.stripe_customer_id || null;
+    }
+
+    if (!customerId) {
+      console.error('[create-subscription-from-payment-method] Customer missing for user:', userId);
+      return new Response(JSON.stringify({ error: 'Customer not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    // Get Kids Club+ tier and required admin monthly price
+    const tier = await resolveTierConfig(supabaseClient);
+    const adminMonthlyPriceRaw = await getAdminConfigNumber(
+      supabaseClient,
+      'subscription_price_monthly',
+      0,
+    );
+    const adminMonthlyPriceCents = normalizeAdminPriceToCents(adminMonthlyPriceRaw);
+
+    if (!Number.isFinite(adminMonthlyPriceCents) || adminMonthlyPriceCents <= 0) {
+      return new Response(
+        JSON.stringify({
+          error: 'Kids Club+ billing price is missing in admin configuration.',
+          code: 'ADMIN_PRICE_MISSING',
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    // Always charge admin-configured amount, never tier stripe_price_id.
+    const enforcedPriceId = await createAdminBackedMonthlyPriceId({
+      tier,
+      adminPriceCents: adminMonthlyPriceCents,
+    });
 
     // Attach payment method to customer and set as default
     await stripe.paymentMethods.attach(paymentMethodId, {
@@ -153,46 +322,34 @@ serve(async (req) => {
 
     let stripeSubscription: Stripe.Subscription;
 
-    // Check if renewal (updating existing subscription)
+    // For renewal paths, retire existing Stripe subscription and create a fresh one
+    // so the current admin-configured price is always charged.
     if (isRenewal && subscription.stripe_subscription_id) {
-      // Update existing subscription with new payment method
-      stripeSubscription = await stripe.subscriptions.update(subscription.stripe_subscription_id, {
-        default_payment_method: paymentMethodId,
-        cancel_at_period_end: false, // Resume if it was set to cancel
-      });
+      try {
+        const existingStripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+        if (existingStripeSubscription.status !== 'canceled') {
+          await stripe.subscriptions.cancel(subscription.stripe_subscription_id, {
+            prorate: false,
+          });
+          console.log('[create-subscription-from-payment-method] Canceled previous Stripe subscription before renewal:', subscription.stripe_subscription_id);
+        }
+      } catch (cancelErr) {
+        console.warn('[create-subscription-from-payment-method] Failed to cancel previous subscription, proceeding with fresh create:', cancelErr);
+      }
+    }
 
-      console.log('[create-subscription-from-payment-method] Updated existing subscription:', {
-        subscription_id: stripeSubscription.id,
-        status: stripeSubscription.status,
-      });
-    } else {
-      // Create new subscription
+    {
+      // Create new subscription and enforce admin-configured monthly price.
       const subscriptionParams: Stripe.SubscriptionCreateParams = {
         customer: customerId,
-        items: [
-          {
-            price: tier.stripe_price_id || undefined,
-            price_data: tier.stripe_price_id
-              ? undefined
-              : {
-                  currency: 'usd',
-                  product_data: {
-                    name: 'Kids Club+',
-                    description: 'Monthly subscription with Swap Points access',
-                  },
-                  recurring: {
-                    interval: 'month',
-                  },
-                  unit_amount: tier.price_cents,
-                },
-          },
-        ],
+        items: [{ price: enforcedPriceId }],
         default_payment_method: paymentMethodId,
-        payment_behavior: 'default_incomplete',
+        payment_behavior: isRenewal ? 'error_if_incomplete' : 'default_incomplete',
         expand: ['latest_invoice.payment_intent'],
         metadata: {
           user_id: userId,
           tier_id: tier.id,
+          admin_price_cents: String(adminMonthlyPriceCents),
         },
       };
 
@@ -208,6 +365,36 @@ serve(async (req) => {
         subscription_id: stripeSubscription.id,
         status: stripeSubscription.status,
       });
+    }
+
+    const latestInvoice = stripeSubscription.latest_invoice as Stripe.Invoice | null;
+    const paymentIntent = latestInvoice?.payment_intent as Stripe.PaymentIntent | null;
+    const isActivatableStatus = ['active', 'trialing'].includes(stripeSubscription.status);
+    const hasSuccessfulPayment =
+      stripeSubscription.status === 'trialing' ||
+      latestInvoice?.status === 'paid' ||
+      paymentIntent?.status === 'succeeded';
+
+    if (isRenewal && (!isActivatableStatus || !hasSuccessfulPayment)) {
+      console.error('[create-subscription-from-payment-method] Renewal payment incomplete', {
+        subscriptionStatus: stripeSubscription.status,
+        invoiceStatus: latestInvoice?.status,
+        paymentIntentStatus: paymentIntent?.status,
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: 'Payment could not be completed. Please update your payment method and try again.',
+          code: 'PAYMENT_REQUIRED',
+        }),
+        {
+          status: 402,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
     }
 
     // Update user_subscriptions with Stripe IDs
@@ -251,7 +438,6 @@ serve(async (req) => {
     }
 
     // Create billing history entry if charge succeeded immediately
-    const latestInvoice = stripeSubscription.latest_invoice as Stripe.Invoice;
     if (latestInvoice && latestInvoice.status === 'paid') {
       const { error: billingError } = await supabaseClient.from('billing_history').insert({
         user_id: userId,

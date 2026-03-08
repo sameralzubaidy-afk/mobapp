@@ -23,6 +23,15 @@ interface SetupIntentResponse {
   customer_id: string;
 }
 
+type SubscriptionCustomerRow = {
+  stripe_customer_id: string | null;
+};
+
+type ProfileRow = {
+  email: string | null;
+  name: string | null;
+};
+
 serve(async (req) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
@@ -84,28 +93,35 @@ serve(async (req) => {
       });
     }
 
-    // Get or create Stripe customer
-    const { data: profile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('stripe_customer_id, email, full_name')
+    // Read Stripe customer from canonical subscription table first.
+    const { data: subRow, error: subFetchError } = await supabaseClient
+      .from('user_subscriptions')
+      .select('stripe_customer_id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle<SubscriptionCustomerRow>();
 
-    if (profileError || !profile) {
-      console.error('[create-payment-setup-intent] Profile fetch error:', profileError);
-      return new Response(JSON.stringify({ error: 'Profile not found' }), {
-        status: 404,
+    if (subFetchError) {
+      console.error('[create-payment-setup-intent] Subscription fetch error:', subFetchError);
+      return new Response(JSON.stringify({ error: 'Failed to read subscription record' }), {
+        status: 500,
         headers: { 'Content-Type': 'application/json' },
       });
     }
 
-    let customerId = profile.stripe_customer_id;
+    // Profile is only used for display metadata when creating a new Stripe customer.
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('email, name')
+      .eq('user_id', userId)
+      .maybeSingle<ProfileRow>();
+
+    let customerId = subRow?.stripe_customer_id || null;
 
     // Create Stripe customer if doesn't exist
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: profile.email || user.email || '',
-        name: profile.full_name || '',
+        name: profile?.name || '',
         metadata: {
           user_id: userId,
           supabase_user_id: userId,
@@ -114,15 +130,21 @@ serve(async (req) => {
 
       customerId = customer.id;
 
-      // Save customer ID to profile
+      // Persist customer ID to subscription table.
       const { error: updateError } = await supabaseClient
-        .from('profiles')
-        .update({ stripe_customer_id: customerId })
-        .eq('user_id', userId);
+        .from('user_subscriptions')
+        .upsert(
+          {
+            user_id: userId,
+            stripe_customer_id: customerId,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
 
       if (updateError) {
-        console.error('[create-payment-setup-intent] Failed to save customer ID:', updateError);
-        // Continue anyway - customer exists in Stripe
+        console.error('[create-payment-setup-intent] Failed to save customer ID to user_subscriptions:', updateError);
+        // Continue anyway - customer exists in Stripe and setup intent can still proceed.
       }
     }
 

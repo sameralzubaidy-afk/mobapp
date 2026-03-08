@@ -63,6 +63,19 @@ let configCache: AdminConfig | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+function normalizeSubscriptionPriceMonthly(rawValue: number): number {
+  if (!Number.isFinite(rawValue) || rawValue <= 0) {
+    return 0;
+  }
+
+  // Some environments have this value stored as cents (e.g. 1500 for $15.00).
+  if (rawValue >= 100) {
+    return rawValue / 100;
+  }
+
+  return rawValue;
+}
+
 /**
  * Fetch all admin config values from Supabase
  * Uses in-memory cache with 5-minute TTL
@@ -150,8 +163,8 @@ export async function getConfigValue<K extends keyof AdminConfig>(
 function getDefaultConfig(): AdminConfig {
   return {
     // Subscription
-    subscription_price_monthly: 7.99,
-    subscription_price_yearly: 79.99,
+    subscription_price_monthly: 0,
+    subscription_price_yearly: 0,
     trial_period_days: 30,
     trial_enabled: true,
     grace_period_days: 90,
@@ -216,7 +229,8 @@ export function invalidateConfigCache(): void {
  * Convenience functions for common config values
  */
 export async function getSubscriptionPrice(forceRefresh = false): Promise<number> {
-  return getConfigValue('subscription_price_monthly', forceRefresh);
+  const rawValue = await getConfigValue('subscription_price_monthly', forceRefresh);
+  return normalizeSubscriptionPriceMonthly(rawValue);
 }
 
 export async function getTrialDays(forceRefresh = false): Promise<number> {

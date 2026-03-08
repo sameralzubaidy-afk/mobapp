@@ -11,7 +11,6 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { enrollInTrialSubscription } from '@/services/auth';
@@ -23,7 +22,6 @@ import {
   getSubscriptionPrice,
   getTrialDays,
   isTrialEnabled,
-  getAdminConfig,
   invalidateConfigCache,
   getSPMaxPercentage,
 } from '@/services/adminConfig';
@@ -42,11 +40,10 @@ export default function SubscriptionChoiceScreen() {
 
   const [loading, setLoading] = useState(false);
   const [trialEnabled, setTrialEnabled] = useState(true);
-  const [subscriptionPrice, setSubscriptionPrice] = useState('7.99');
+  const [subscriptionPrice, setSubscriptionPrice] = useState('0.00');
   const [trialDays, setTrialDays] = useState(30);
   const [spMaxPercentage, setSpMaxPercentage] = useState(50);
   const [isReferred, setIsReferred] = useState(false);
-  const [bonusAmount, setBonusAmount] = useState(0);
 
   // Fetch config every time screen is focused (ensures fresh values from admin changes)
   useFocusEffect(
@@ -63,17 +60,7 @@ export default function SubscriptionChoiceScreen() {
       setIsReferred(eligibility.rewards_pending);
       
       if (eligibility.rewards_pending) {
-        const config = await ReferralRewardsService.getConfiguredRewardAmounts();
-        // Calculate potential bonus based on what's enabled
-        let total = 0;
-        if (config.first_listing_enabled && config.first_trade_enabled) {
-          total = config.referee_sp + config.referee_listing_sp;
-        } else if (config.first_listing_enabled) {
-          total = config.referee_listing_sp;
-        } else if (config.first_trade_enabled) {
-          total = config.referee_sp;
-        }
-        setBonusAmount(total);
+        await ReferralRewardsService.getConfiguredRewardAmounts();
       }
     } catch (error) {
       console.warn('Error checking referral status:', error);
@@ -99,8 +86,8 @@ export default function SubscriptionChoiceScreen() {
       console.log('Config loaded:', { price, days, trialEnabledStatus, spMaxPercent });
     } catch (error) {
       console.error('Error loading config settings:', error);
-      // Use defaults on error - these should always be set
-      setSubscriptionPrice('7.99');
+      // Keep price dynamic; do not fall back to a hardcoded tier price.
+      setSubscriptionPrice('0.00');
       setTrialDays(30);
       setTrialEnabled(true);
       setSpMaxPercentage(50);
@@ -205,7 +192,7 @@ export default function SubscriptionChoiceScreen() {
 
         // Upgrade free subscription to trial using RPC
         // (This is the same function used for mid-session upgrades)
-        const { data: upgradeResult, error: upgradeError } = await (supabase.rpc(
+        const { error: upgradeError } = await (supabase.rpc(
           'upgrade_free_subscription_to_trial',
           { p_user_id: userId }
         ) as any);

@@ -90,6 +90,24 @@ export interface SubscriptionDetails {
   stripe_payment_method_id: string | null;
 }
 
+function normalizeSubscriptionStatus(rawStatus: unknown): SubscriptionStatus {
+  if (rawStatus === 'canceled') return 'cancelled';
+  if (rawStatus === 'grace') return 'grace_period';
+  if (
+    rawStatus === 'free' ||
+    rawStatus === 'trial' ||
+    rawStatus === 'active' ||
+    rawStatus === 'paused' ||
+    rawStatus === 'cancelled' ||
+    rawStatus === 'grace_period' ||
+    rawStatus === 'expired'
+  ) {
+    return rawStatus;
+  }
+
+  return 'free';
+}
+
 /**
  * Get complete subscription summary for a user (V2.1)
  * 
@@ -127,11 +145,14 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     }
 
     // Determine subscriber status (active benefits)
-    const status = sub.status as SubscriptionStatus;
-    const isSubscriber = ['trial', 'active', 'paused'].includes(status);
+    const status = normalizeSubscriptionStatus(sub.status);
+
+    // Business rule: cancelled users remain active subscribers until period end,
+    // then transition to grace_period/expired via backend lifecycle jobs.
+    const isSubscriber = ['trial', 'active', 'paused', 'cancelled'].includes(status);
     
     // SP feature gates (trial, active, paused can use SP; grace_period cannot)
-    const canEarnSpend = ['trial', 'active', 'paused'].includes(status);
+    const canEarnSpend = ['trial', 'active', 'paused', 'cancelled'].includes(status);
     
     // Transaction fee: Read dynamically from admin_config via RPC (V2.1 enhancement)
     // This allows admins to adjust fees without code changes
@@ -496,6 +517,286 @@ export async function cancelSubscription(
   } catch (error) {
     const err = error as Error;
     console.error('[subscription] ❌ cancelSubscription error:', err.message);
+    return {
+      success: false,
+      message: 'An unexpected error occurred. Please try again.',
+    };
+  }
+}
+
+/**
+ * MODULE-11 TASK SUB-016: Renew Subscription from Grace Period
+ * 
+ * Allows users in grace_period or expired status to re-subscribe.
+ * Uses saved payment method if available, otherwise requires payment_method_id.
+ * Calls MODULE-09 SP unfreeze handler on success.
+ * 
+ * @param paymentMethodId - Optional new payment method ID (uses saved if omitted)
+ * @returns ResubscribeResult with success status and details
+ */
+export interface ResubscribeResult {
+  success: boolean;
+  message: string;
+  subscription_status?: SubscriptionStatus;
+  next_billing_date?: string;
+  error?: string;
+}
+
+export async function resubscribe(paymentMethodId?: string): Promise<ResubscribeResult> {
+  try {
+    console.log('[subscription] 📤 Requesting subscription renewal...');
+
+    // Get current session
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    if (authError || !session) {
+      console.error('[subscription] ❌ No active session for renewal');
+      return {
+        success: false,
+        message: 'You must be logged in to renew your subscription',
+      };
+    }
+
+    let accessToken = session.access_token;
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    if (session.expires_at && session.expires_at <= nowEpoch + 60) {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshData?.session?.access_token) {
+        console.error('[subscription] ❌ Session refresh failed before renewal');
+        return {
+          success: false,
+          message: 'Your session expired. Please log in again and retry.',
+        };
+      }
+      accessToken = refreshData.session.access_token;
+    }
+
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    // Call the renew-subscription Edge Function
+    const { data, error } = await supabase.functions.invoke('renew-subscription', {
+      body: paymentMethodId ? { payment_method_id: paymentMethodId } : {},
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(anonKey ? { apikey: anonKey } : {}),
+      },
+    });
+
+    if (error) {
+      console.error('[subscription] ❌ Renewal Edge Function error:', error.message);
+
+      let detailedMessage = error.message || 'Failed to renew subscription. Please try again.';
+      let errorCode: string | undefined;
+      const errorContext = (error as any)?.context;
+      if (errorContext && typeof errorContext.json === 'function') {
+        try {
+          const errorPayload = await errorContext.json();
+          if (errorPayload?.error) {
+            detailedMessage = String(errorPayload.error);
+          }
+          if (errorPayload?.code) {
+            errorCode = String(errorPayload.code);
+          }
+        } catch (parseError) {
+          console.warn('[subscription] Could not parse renewal edge error payload:', parseError);
+        }
+      }
+
+      return {
+        success: false,
+        message: detailedMessage,
+        error: errorCode || error.message,
+      };
+    }
+
+    if (!data) {
+      console.error('[subscription] ❌ No data returned from renewal Edge Function');
+      return {
+        success: false,
+        message: 'Unexpected error during renewal. Please try again.',
+      };
+    }
+
+    if (data.success) {
+      console.log('[subscription] ✅ Renewal successful');
+      return {
+        success: true,
+        message: data.message || 'Your subscription has been renewed!',
+        subscription_status: data.subscription_status,
+        next_billing_date: data.next_billing_date,
+      };
+    } else {
+      console.error('[subscription] ❌ Renewal failed:', data.error);
+      return {
+        success: false,
+        message: data.error || 'Failed to renew subscription. Please try again.',
+        error: data.code,
+      };
+    }
+  } catch (error) {
+    const err = error as Error;
+    console.error('[subscription] ❌ resubscribe error:', err.message);
+    return {
+      success: false,
+      message: 'An unexpected error occurred. Please try again.',
+      error: err.message,
+    };
+  }
+}
+
+/**
+ * MODULE-11 TASK SUB-017: Get Payment Method Details
+ * 
+ * Retrieves saved payment method information from Stripe.
+ * Returns formatted card details (brand, last 4, expiry).
+ * 
+ * @returns PaymentMethodInfo or null if no payment method saved
+ */
+export interface PaymentMethodInfo {
+  id: string;
+  brand: string;
+  last4: string;
+  exp_month: number;
+  exp_year: number;
+}
+
+export async function getPaymentMethod(): Promise<PaymentMethodInfo | null> {
+  try {
+    console.log('[subscription] 📤 Fetching payment method...');
+
+    // Get current session
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    if (authError || !session) {
+      console.error('[subscription] ❌  No active session');
+      return null;
+    }
+
+    let accessToken = session.access_token;
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    if (session.expires_at && session.expires_at <= nowEpoch + 60) {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshData?.session?.access_token) {
+        console.error('[subscription] ❌ Session refresh failed');
+        return null;
+      }
+      accessToken = refreshData.session.access_token;
+    }
+
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    // Call the get-payment-method Edge Function
+    const { data, error } = await supabase.functions.invoke('get-payment-method', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(anonKey ? { apikey: anonKey } : {}),
+      },
+    });
+
+    if (error) {
+      console.error('[subscription] ❌ Get payment method error:', error.message);
+      return null;
+    }
+
+    if (!data || !data.payment_method) {
+      console.log('[subscription] ℹ️ No payment method found');
+      return null;
+    }
+
+    console.log('[subscription] ✅ Payment method retrieved');
+    return data.payment_method as PaymentMethodInfo;
+  } catch (error) {
+    const err = error as Error;
+    console.error('[subscription] ❌ getPaymentMethod error:', err.message);
+    return null;
+  }
+}
+
+/**
+ * MODULE-11 TASK SUB-017: Update Auto-Renew Setting
+ * 
+ * Toggles auto-renewal for active subscriptions.
+ * Updates both Stripe and database.
+ * 
+ * @param autoRenewEnabled - Whether auto-renew should be enabled
+ * @returns AutoRenewResult with success status and message
+ */
+export interface AutoRenewResult {
+  success: boolean;
+  message: string;
+  auto_renew_enabled?: boolean;
+}
+
+export async function updateAutoRenew(autoRenewEnabled: boolean): Promise<AutoRenewResult> {
+  try {
+    console.log('[subscription] 📤 Updating auto-renew to:', autoRenewEnabled);
+
+    // Get current session
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    if (authError || !session) {
+      console.error('[subscription] ❌ No active session');
+      return {
+        success: false,
+        message: 'You must be logged in to update auto-renew settings',
+      };
+    }
+
+    let accessToken = session.access_token;
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    if (session.expires_at && session.expires_at <= nowEpoch + 60) {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshData?.session?.access_token) {
+        console.error('[subscription] ❌ Session refresh failed');
+        return {
+          success: false,
+          message: 'Your session expired. Please log in again and retry.',
+        };
+      }
+      accessToken = refreshData.session.access_token;
+    }
+
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    // Call the update-auto-renew Edge Function
+    const { data, error } = await supabase.functions.invoke('update-auto-renew', {
+      body: { auto_renew_enabled: autoRenewEnabled },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(anonKey ? { apikey: anonKey } : {}),
+      },
+    });
+
+    if (error) {
+      console.error('[subscription] ❌ Update auto-renew error:', error.message);
+      return {
+        success: false,
+        message: error.message || 'Failed to update auto-renew. Please try again.',
+      };
+    }
+
+    if (!data) {
+      console.error('[subscription] ❌ No data returned');
+      return {
+        success: false,
+        message: 'Unexpected error updating auto-renew. Please try again.',
+      };
+    }
+
+    if (data.success) {
+      console.log('[subscription] ✅ Auto-renew updated successfully');
+      return {
+        success: true,
+        message: data.message,
+        auto_renew_enabled: data.auto_renew_enabled,
+      };
+    } else {
+      console.error('[subscription] ❌ Auto-renew update failed:', data.error);
+      return {
+        success: false,
+        message: data.error || 'Failed to update auto-renew. Please try again.',
+      };
+    }
+  } catch (error) {
+    const err = error as Error;
+    console.error('[subscription] ❌ updateAutoRenew error:', err.message);
     return {
       success: false,
       message: 'An unexpected error occurred. Please try again.',

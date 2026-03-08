@@ -28,6 +28,8 @@ export type RootStackParamList = {
   SubscriptionStatus: undefined;
   // MODULE-11 SUB-015: Subscription payment screen (Stripe Payment Sheet integration)
   SubscriptionPayment: { isRenewal?: boolean } | undefined;
+  // MODULE-11 SUB-016/017: Subscription success screen (post-payment confirmation)
+  SubscriptionSuccess: { isRenewal?: boolean } | undefined;
   // MODULE-11 SUB-015: Transaction History screen
   TransactionHistory: undefined;
   // Trade routes

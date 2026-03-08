@@ -126,7 +126,7 @@ export default function TransactionHistoryScreen() {
         )}
       </View>
 
-      <BottomNavBar navigation={navigation} />
+      <BottomNavBar />
     </SafeAreaView>
   );
 }

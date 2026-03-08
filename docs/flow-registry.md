@@ -119,6 +119,10 @@ This file is the canonical registry of end-to-end flows and their required regre
   - `create-payment-setup-intent` (SetupIntent creation)
   - `create-subscription-from-payment-method` (Subscription creation post-payment)
 - Note: Stripe Payment Sheet requires manual testing with real test cards (cannot be fully automated)
+- SUB-016/SUB-017 coverage additions:
+  - Re-subscribe from `grace_period` and `expired` is handled in `ManageKidsClubScreen` via `resubscribe()` and `renew-subscription`.
+  - Missing saved payment method path now routes to `SubscriptionPaymentScreen` (manual test: `SUB-016-017-MANUAL-TEST-CASES.md`, TC-016-03).
+  - Billing history screen uses `getBillingHistory` service and is reachable from manage/subscription flows.
 - **SUB-011 Admin Management:**
   - **Admin UI:** p2p-kids-admin/src/app/subscriptions/manage/page.tsx - subscription monitoring dashboard with metrics (MRR, active subs, churn rate), grace period configuration, and admin actions (cancel, extend trial, reactivate)
   - **Admin API:** p2p-kids-admin/src/app/api/admin/subscriptions/route.ts (GET) and p2p-kids-admin/src/app/api/admin/subscriptions/actions/route.ts (POST)

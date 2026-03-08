@@ -62,6 +62,7 @@ export function SubscriptionStatusCard({
       case 'active':
         return 'Kids Club+ is active';
       case 'cancelled':
+      case 'canceled':
         return 'Kids Club+ will end soon';
       case 'grace_period':
         return 'Grace period (SP frozen)';
@@ -85,7 +86,7 @@ export function SubscriptionStatusCard({
   // Determine date label
   const dateLabel = (() => {
     if (status === 'trial') return 'Trial ends';
-    if (status === 'cancelled') return 'Access until';
+    if (status === 'cancelled' || status === 'canceled') return 'Access until';
     if (status === 'active') return 'Next billing';
     if (status === 'grace_period') return 'Grace ends';
     return 'Period end';
@@ -106,6 +107,7 @@ export function SubscriptionStatusCard({
       case 'active':
         return styles.cardActive;
       case 'cancelled':
+      case 'canceled':
         return styles.cardCancelled;
       case 'grace_period':
         return styles.cardGrace;
@@ -125,7 +127,7 @@ export function SubscriptionStatusCard({
       <Text style={styles.statusLabel}>{statusLabel}</Text>
 
       {/* Pricing (for active/cancelled subscribers) */}
-      {(status === 'active' || status === 'cancelled') && (
+      {(status === 'active' || status === 'cancelled' || status === 'canceled') && (
         <Text style={styles.price}>
           {formatPrice(displayPriceCents)} <Text style={styles.pricePeriod}>/ month</Text>
         </Text>

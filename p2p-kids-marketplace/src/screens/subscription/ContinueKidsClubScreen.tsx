@@ -31,7 +31,8 @@ export default function ContinueKidsClubScreen() {
 
   const [loading, setLoading] = useState(false);
   const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
-  const [monthlyPrice, setMonthlyPrice] = useState<number>(4.99);
+  // NO HARDCODED PRICE - fetch from admin_config on mount
+  const [monthlyPrice, setMonthlyPrice] = useState<number>(0);
   const [trialDays, setTrialDays] = useState<number>(30);
   const [loadingStatus, setLoadingStatus] = useState(true);
 

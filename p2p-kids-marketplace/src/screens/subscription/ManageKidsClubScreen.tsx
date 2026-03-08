@@ -33,11 +33,15 @@ import { AuthContext } from '@/contexts/AuthContext';
 import {
   getSubscriptionSummary,
   cancelSubscription,
+  getPaymentMethod,
+  resubscribe,
   SubscriptionSummary,
-  CancelSubscriptionResult,
 } from '@/services/subscription';
 import { getGracePeriodDays } from '@/services/adminConfig';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { PaymentMethodSection } from '@/components/subscription/PaymentMethodSection';
+import { AutoRenewToggle } from '@/components/subscription/AutoRenewToggle';
+import { BillingHistoryLink } from '@/components/subscription/BillingHistoryLink';
 
 // ─── Cancellation Reason Options ──────────────────────────────────────────────
 const CANCELLATION_REASONS = [
@@ -90,10 +94,38 @@ export default function ManageKidsClubScreen() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [customReason, setCustomReason] = useState('');
-  const [cancelResult, setCancelResult] = useState<CancelSubscriptionResult | null>(null);
   const [gracePeriodDays, setGracePeriodDays] = useState<number>(90); // Default 90, fetched dynamically
+  const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
+  const [checkingPaymentMethod, setCheckingPaymentMethod] = useState(false);
+  const [renewing, setRenewing] = useState(false);
 
   // Fetch subscription on mount
+  const fetchPaymentMethodStatus = useCallback(
+    async (currentSummary?: SubscriptionSummary) => {
+      if (!userId) {
+        setHasPaymentMethod(false);
+        return;
+      }
+
+      setCheckingPaymentMethod(true);
+      try {
+        const paymentMethod = await getPaymentMethod();
+        if (paymentMethod) {
+          setHasPaymentMethod(true);
+          return;
+        }
+
+        setHasPaymentMethod(Boolean(currentSummary?.stripe_payment_method_id));
+      } catch (error) {
+        console.warn('[ManageKidsClub] Failed fetching payment method:', error);
+        setHasPaymentMethod(Boolean(currentSummary?.stripe_payment_method_id));
+      } finally {
+        setCheckingPaymentMethod(false);
+      }
+    },
+    [userId]
+  );
+
   const fetchSubscription = useCallback(async () => {
     if (!userId) {
       setLoading(false);
@@ -107,13 +139,14 @@ export default function ManageKidsClubScreen() {
       ]);
       setSubscription(summary);
       setGracePeriodDays(graceDays);
+      await fetchPaymentMethodStatus(summary);
     } catch (error) {
       console.error('[ManageKidsClub] Error fetching subscription:', error);
       Alert.alert('Error', 'Failed to load subscription details');
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, fetchPaymentMethodStatus]);
 
   useEffect(() => {
     fetchSubscription();
@@ -139,7 +172,6 @@ export default function ManageKidsClubScreen() {
 
     try {
       const result = await cancelSubscription(reason);
-      setCancelResult(result);
 
       if (result.success) {
         // Refresh subscription data
@@ -172,6 +204,71 @@ export default function ManageKidsClubScreen() {
       setCancelling(false);
     }
   };
+
+  const showAddPaymentAlert = useCallback(() => {
+    Alert.alert(
+      'Payment Method Required',
+      'Please add a payment method to renew your subscription.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Add Payment',
+          onPress: () => {
+            navigation.navigate('SubscriptionPayment' as never);
+          },
+        },
+      ]
+    );
+  }, [navigation]);
+
+  const handleResubscribePress = useCallback(async () => {
+    if (checkingPaymentMethod || renewing) {
+      return;
+    }
+
+    if (!hasPaymentMethod) {
+      showAddPaymentAlert();
+      return;
+    }
+
+    setRenewing(true);
+
+    try {
+      const result = await resubscribe();
+
+      if (result.success) {
+        await fetchSubscription();
+        await refreshSession(false);
+
+        Alert.alert(
+          'Subscription Renewed',
+          result.message || 'Successfully renewed your Kids Club+ subscription!',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      if (result.error === 'NO_PAYMENT_METHOD') {
+        showAddPaymentAlert();
+        return;
+      }
+
+      if (result.error === 'PAYMENT_REQUIRED' || result.error === 'CARD_DECLINED') {
+        Alert.alert(
+          'Payment Failed',
+          result.message || 'Your card was declined. Please update your payment method and try again.'
+        );
+        return;
+      }
+
+      Alert.alert('Renewal Failed', result.message || 'Please try again later.');
+    } catch (error) {
+      console.error('[ManageKidsClub] Renewal error:', error);
+      Alert.alert('Error', 'Failed to renew subscription. Please try again.');
+    } finally {
+      setRenewing(false);
+    }
+  }, [checkingPaymentMethod, renewing, hasPaymentMethod, showAddPaymentAlert, fetchSubscription, refreshSession]);
 
   // ─── Render Loading ─────────────────────────────────────────────────────────
   if (loading) {
@@ -210,8 +307,10 @@ export default function ManageKidsClubScreen() {
   // ─── Render Active/Trial Subscription ───────────────────────────────────────
   const isTrial = subscription.status === 'trial';
   const isActive = subscription.status === 'active';
-  const isCancelled = subscription.status === 'cancelled';
+  const isCancelled =
+    subscription.status === 'cancelled' || subscription.status === 'canceled';
   const isGracePeriod = subscription.status === 'grace_period';
+  const isExpired = subscription.status === 'expired';
   const canCancel = isTrial || isActive;
 
   const periodEndDate = subscription.subscription_expires_at || subscription.trial_ends_at;
@@ -276,6 +375,15 @@ export default function ManageKidsClubScreen() {
             </View>
           )}
 
+          {isExpired && (
+            <View style={styles.infoBox}>
+              <Text style={styles.infoBoxTitle}>Your subscription has expired</Text>
+              <Text style={styles.infoBoxText}>
+                Re-subscribe to restore Kids Club+ access and unfreeze any remaining Swap Points.
+              </Text>
+            </View>
+          )}
+
           {/* Cancelled Status Info */}
           {isCancelled && (
             <View style={styles.infoBox}>
@@ -287,6 +395,20 @@ export default function ManageKidsClubScreen() {
             </View>
           )}
         </View>
+
+        {/* Management Section (Payment Method & Auto-Renew) */}
+        {(isActive || isTrial || isCancelled) && (
+          <View style={styles.card}>
+            <PaymentMethodSection onPaymentMethodUpdated={fetchSubscription} />
+            <AutoRenewToggle
+              initialValue={isActive || isTrial}
+              onToggled={fetchSubscription}
+            />
+          </View>
+        )}
+
+        {/* Billing History */}
+        <BillingHistoryLink />
 
         {/* Benefits Reminder (only for active/trial) */}
         {canCancel && (
@@ -323,14 +445,19 @@ export default function ManageKidsClubScreen() {
           </View>
         )}
 
-        {/* Re-subscribe Button (for cancelled/grace_period) */}
-        {(isCancelled || isGracePeriod) && (
+        {/* Re-subscribe Button (for grace_period/expired only) */}
+        {(isGracePeriod || isExpired) && (
           <View style={styles.resubscribeSection}>
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => navigation.navigate('ContinueKidsClub' as never)}
+              onPress={handleResubscribePress}
+              disabled={checkingPaymentMethod || renewing}
             >
-              <Text style={styles.primaryButtonText}>Re-subscribe to Kids Club+</Text>
+              {checkingPaymentMethod || renewing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Re-subscribe to Kids Club+</Text>
+              )}
             </TouchableOpacity>
           </View>
         )}

@@ -57,8 +57,8 @@ export function SubscriptionBanner() {
     } else if (isTrial) {
       navigation.navigate('ContinueKidsClub' as never);
     } else {
-      // grace_period or expired
-      navigation.navigate('KidsClubOverview' as never);
+      // grace_period or expired routes through ManageKidsClub for the correct renewal logic
+      navigation.navigate('ManageKidsClub' as never);
     }
   };
 
