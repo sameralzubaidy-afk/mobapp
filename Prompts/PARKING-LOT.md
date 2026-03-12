@@ -106,6 +106,9 @@ payout needs FULL end to end testing with real money , check status on app and d
  ## BEFORE GO live  I must test on physical devices the push notifcations reqs includes 
  new trades, unread messeges and what no 
 
+ ## BEFORE GO live push notfication must be tested for all cases in   ## TASK SUB-018: Payment Failure Handling & Automatic Retry 
+
+
  ## BEFORE GO live  I must test on physical devices the email notifcations for read messeges. 
  ## BEFORE GO live update the how buyer and seller can intracted with and without active trade to limit the chance of doing trades out side the platfrom at same time increase the buyer trust about the seller. 
 
