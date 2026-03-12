@@ -381,9 +381,73 @@ async function handleInvoicePaymentFailed(
     `[stripe-webhook-subscriptions] handleInvoicePaymentFailed: user=${sub.user_id} retry_count=${retryCount} max=${maxRetriesReached} event=${eventId}`,
   );
 
+  // ── Send payment failure notification to user ──────────────────────────────
+  await sendPaymentFailureNotification(sub.user_id, retryCount);
+
   // ── Freeze SP if 3rd failure → grace period ────────────────────────────────
   if (maxRetriesReached && sub.status !== 'grace_period') {
     await triggerSpFreeze(sub.user_id, 'payment_failed_max_retries');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Send payment failure notification (MODULE-11 TASK SUB-018)
+// Calls send-push-notification Edge Function to notify user of payment issue
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendPaymentFailureNotification(userId: string, retryCount: number): Promise<void> {
+  const notificationUrl = Deno.env.get('SEND_PUSH_NOTIFICATION_URL');
+
+  // Determine notification message based on retry count
+  let body = '';
+  switch (retryCount) {
+    case 1:
+      body = 'Your payment was declined. Please update your payment method to keep your subscription active.';
+      break;
+    case 2:
+      body = 'Your subscription payment was declined again. Please update your card or it will be paused.';
+      break;
+    case 3:
+      body = 'Your Kids Club+ access has been paused. Re-subscribe to restore your Swap Points.';
+      break;
+    default:
+      body = 'There was an issue with your subscription payment. Please update your payment method.';
+  }
+
+  if (!notificationUrl) {
+    // TODO(MODULE-14): Configure SEND_PUSH_NOTIFICATION_URL once push notification system is deployed
+    console.warn(
+      `[stripe-webhook-subscriptions] SEND_PUSH_NOTIFICATION_URL not set — skipping notification for user=${userId} retry=${retryCount}`,
+    );
+    return;
+  }
+
+  try {
+    const resp = await fetch(notificationUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        title: 'Payment Failed',
+        body,
+        data: {
+          type: 'payment_failure',
+          retry_count: retryCount.toString(),
+          action: 'update_payment_method',
+        },
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error(
+        `[stripe-webhook-subscriptions] Payment failure notification failed user=${userId} status=${resp.status} body=${text}`,
+      );
+    } else {
+      console.log(`[stripe-webhook-subscriptions] Payment failure notification sent user=${userId} retry=${retryCount}`);
+    }
+  } catch (err: any) {
+    // Non-blocking: Notification failure must not prevent subscription state update
+    console.error(`[stripe-webhook-subscriptions] Notification error user=${userId}:`, err.message);
   }
 }
 

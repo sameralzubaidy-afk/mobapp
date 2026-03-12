@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/hooks/__tests__/usePaymentSheet.test.ts
 // MODULE-11 SUB-015: Unit tests for usePaymentSheet hook
 
-import { renderHook, act, waitFor } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { usePaymentSheet } from '../usePaymentSheet';
 import * as StripeReactNative from '@stripe/stripe-react-native';
 import { supabase } from '../../config/supabase';
@@ -42,8 +42,21 @@ describe('usePaymentSheet', () => {
     customer_id: 'cus_test_123',
   };
 
+  const mockFetchResponse = (body: any, ok = true) => ({
+    ok,
+    text: async () => JSON.stringify(body),
+    json: async () => body,
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (StripeReactNative.useStripe as jest.Mock).mockReturnValue({
+      retrieveSetupIntent: jest.fn().mockResolvedValue({
+        setupIntent: { paymentMethodId: 'pm_test_123' },
+        error: null,
+      }),
+    });
 
     // Mock supabase session
     (supabase.auth.getSession as jest.Mock).mockResolvedValue({
@@ -63,10 +76,9 @@ describe('usePaymentSheet', () => {
 
   describe('setupPaymentSheet', () => {
     it('should initialize payment sheet successfully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockSetupIntentResponse,
-      });
+      (global.fetch as jest.Mock).mockResolvedValueOnce(
+        mockFetchResponse(mockSetupIntentResponse, true)
+      );
 
       const { result } = renderHook(() => usePaymentSheet());
 
@@ -104,10 +116,9 @@ describe('usePaymentSheet', () => {
     });
 
     it('should handle API error gracefully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({ error: 'API error' }),
-      });
+      (global.fetch as jest.Mock).mockResolvedValueOnce(
+        mockFetchResponse({ error: 'API error' }, false)
+      );
 
       const { result } = renderHook(() => usePaymentSheet());
 
@@ -122,10 +133,9 @@ describe('usePaymentSheet', () => {
     });
 
     it('should handle Stripe initialization error', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockSetupIntentResponse,
-      });
+      (global.fetch as jest.Mock).mockResolvedValueOnce(
+        mockFetchResponse(mockSetupIntentResponse, true)
+      );
 
       (StripeReactNative.initPaymentSheet as jest.Mock).mockResolvedValueOnce({
         error: { message: 'Stripe initialization failed' },
@@ -164,10 +174,9 @@ describe('usePaymentSheet', () => {
 
   describe('presentSheet', () => {
     it('should present payment sheet successfully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockSetupIntentResponse,
-      });
+      (global.fetch as jest.Mock).mockResolvedValueOnce(
+        mockFetchResponse(mockSetupIntentResponse, true)
+      );
 
       const { result } = renderHook(() => usePaymentSheet());
 
@@ -193,10 +202,9 @@ describe('usePaymentSheet', () => {
     });
 
     it('should handle user cancellation', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockSetupIntentResponse,
-      });
+      (global.fetch as jest.Mock).mockResolvedValueOnce(
+        mockFetchResponse(mockSetupIntentResponse, true)
+      );
 
       (StripeReactNative.presentPaymentSheet as jest.Mock).mockResolvedValueOnce({
         error: { code: 'Canceled', message: 'User cancelled' },
@@ -242,10 +250,9 @@ describe('usePaymentSheet', () => {
 
   describe('resetError', () => {
     it('should clear error state', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({ error: 'Test error' }),
-      });
+      (global.fetch as jest.Mock).mockResolvedValueOnce(
+        mockFetchResponse({ error: 'Test error' }, false)
+      );
 
       const { result } = renderHook(() => usePaymentSheet());
 
@@ -256,7 +263,7 @@ describe('usePaymentSheet', () => {
             amount: 499,
             isRenewal: false,
           });
-        } catch (e) {
+        } catch {
           // Expected
         }
       });

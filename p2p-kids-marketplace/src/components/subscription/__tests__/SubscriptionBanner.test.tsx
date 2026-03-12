@@ -136,7 +136,7 @@ describe('SubscriptionBanner', () => {
     expect(mockNavigate).toHaveBeenCalledWith('ContinueKidsClub');
   });
 
-  it('should navigate to KidsClubOverview when grace_period user taps banner', () => {
+  it('should navigate to ManageKidsClub when grace_period user taps banner', () => {
     mockUseSubscription.mockReturnValue({
       subscription: { status: 'grace_period' } as any,
       loading: false,
@@ -148,7 +148,7 @@ describe('SubscriptionBanner', () => {
 
     fireEvent.press(getByText('Re-subscribe'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('KidsClubOverview');
+    expect(mockNavigate).toHaveBeenCalledWith('ManageKidsClub');
   });
 
   it('should handle null subscription (default to free)', () => {

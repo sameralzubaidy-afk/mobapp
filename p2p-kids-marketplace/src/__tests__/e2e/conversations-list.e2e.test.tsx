@@ -33,6 +33,22 @@ jest.mock('@/services/chat', () => ({
   markAsRead: jest.fn(),
 }));
 
+jest.mock('@/components/atoms/Avatar', () => {
+  const React = require('react');
+  const { Text } = require('react-native');
+  return function MockAvatar() {
+    return React.createElement(Text, null, 'Avatar');
+  };
+});
+
+jest.mock('@/components/organisms/BottomNavBar', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return function MockBottomNavBar() {
+    return React.createElement(View, { testID: 'mock-bottom-nav' });
+  };
+});
+
 jest.mock('@/config/supabase', () => ({
   supabase: {
     channel: jest.fn(() => ({
@@ -95,11 +111,9 @@ describe('ConversationsListScreen E2E', () => {
 
     const { getByText } = renderScreen();
 
-    await waitFor(() => {
-      expect(getByText('No Messages Yet')).toBeTruthy();
-      expect(getByText('Start a trade and chat with other users!')).toBeTruthy();
-      expect(getByText('Browse Items')).toBeTruthy();
-    });
+    expect(await waitFor(() => getByText('No Messages Yet'))).toBeTruthy();
+    expect(getByText('Start a trade and chat with other users!')).toBeTruthy();
+    expect(getByText('Browse Items')).toBeTruthy();
   });
 
   it('should display conversations list with last message preview', async () => {
@@ -121,10 +135,8 @@ describe('ConversationsListScreen E2E', () => {
 
     const { getByText } = renderScreen();
 
-    await waitFor(() => {
-      expect(getByText('John Doe')).toBeTruthy();
-      expect(getByText('Is this still available?')).toBeTruthy();
-    });
+    expect(await waitFor(() => getByText('John Doe'))).toBeTruthy();
+    expect(getByText('Is this still available?')).toBeTruthy();
   });
 
   it('should navigate to chat screen on conversation tap', async () => {
@@ -146,9 +158,10 @@ describe('ConversationsListScreen E2E', () => {
 
     const { getByText } = renderScreen();
 
+    await waitFor(() => expect(getByText('Jane Smith')).toBeTruthy());
+    fireEvent.press(getByText('Jane Smith'));
     await waitFor(() => {
-      fireEvent.press(getByText('Jane Smith'));
-      expect(mockNavigate).toHaveBeenCalled();
+      expect(mockNavigate).toHaveBeenCalledWith('Chat', { tradeId: 'trade-001' });
     });
   });
 });

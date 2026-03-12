@@ -57,6 +57,7 @@ export interface SubscriptionSummary {
   has_used_trial: boolean;
   auto_renew_enabled: boolean;
   payment_retry_count: number;
+  payment_failed_at: string | null;
   
   // Stripe IDs
   stripe_customer_id: string | null;
@@ -185,6 +186,7 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
       has_used_trial: Boolean(sub.has_used_trial),
       auto_renew_enabled: Boolean(sub.auto_renew_enabled),
       payment_retry_count: sub.payment_retry_count || 0,
+      payment_failed_at: sub.payment_failed_at || null,
       stripe_customer_id: sub.stripe_customer_id || null,
       stripe_subscription_id: sub.stripe_subscription_id || null,
       stripe_payment_method_id: sub.stripe_payment_method_id || null,
@@ -220,6 +222,7 @@ function createFreeTierSummary(): SubscriptionSummary {
     has_used_trial: false,
     auto_renew_enabled: true,
     payment_retry_count: 0,
+    payment_failed_at: null,
     stripe_customer_id: null,
     stripe_subscription_id: null,
     stripe_payment_method_id: null,

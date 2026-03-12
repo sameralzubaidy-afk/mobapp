@@ -45,69 +45,39 @@ Supabase: supabase/
 My Example 1
 
 
-
-
-
-## TASK SUB-016: Renew Subscription from Grace Period (Re-Subscribe Flow) and
-## TASK SUB-017: Payment Method Management & Auto-Renew Toggle
-
+## TASK SUB-018: Payment Failure Handling & Automatic Retry
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: 
-## TASK SUB-016: Renew Subscription from Grace Period (Re-Subscribe Flow) and
-## TASK SUB-017: Payment Method Management & Auto-Renew Toggle
-scope is for ## TASK SUB-016: Renew Subscription from Grace Period (Re-Subscribe Flow) and
+Tasks: ## TASK SUB-018: Payment Failure Handling & Automatic Retry
 
-Allow users in `grace_period` or `expired` status to easily re-subscribe:
+scope is 
 
-1. **Show Re-Subscribe CTA** in:
-   - Grace Period Banner (countdown showing)
-   - Manage Kids Club+ Screen ("Your subscription expired. Re-subscribe to restore Swap Points")
-   - Home screen banner for unsubscribed users
+Handle payment failures gracefully with automatic retry logic:
 
-2. **Re-Subscribe Flow**:
-   - If user has saved payment method: pre-fill, ask to confirm → charge immediately
-   - If no saved method: show Payment Sheet to add one
-   - Charge $4.99 immediately upon confirmation
-   - Create new Stripe subscription (anniversary date = today + 30 days)
-   - Update `user_subscriptions`: status = `active`, unfreeze SP, set new period_end
+1. **Stripe Webhook: `invoice.payment_failed`**:
+   - On failed charge: webhook increments `payment_retry_count`
+   - Schedule automatic retries:
+     - Retry 1: 3 days later (Stripe handles auto-retry by default)
+     - Retry 2: 7 days later  
+     - Retry 3: 14 days later
+   - After 3 failed retries: move user to `grace_period` (SP frozen)
 
-3. **SP Restoration**:
-   - On successful re-subscribe: call MODULE-09 API to unfreeze SP wallet
-   - SP points remain from previous subscription (they're not lost if within 90-day grace)
-   - Show "✅ Your Swap Points are unfrozen!" message
+2. **User Notifications**:
+   - After 1st failure: In-app banner "Payment Failed – Update Payment Method"
+   - After 2nd failure: Push notification "Your subscription payment declined. Please update your card."
+   - After 3rd failure: Banner + notification "Your Kids Club+ access has been paused. Re-subscribe to restore Swap Points."
 
-4. **Handle Payment Failures**:
-   - Retry same logic as initial subscribe
-   - After 3 failures: stay in grace period, show "Update Payment Method" prompt
+3. **Update Payment Method on Failure**:
+   - Banner includes "Update Payment Method" button → Payment Sheet
+   - On success: retry charge immediately via edge function
+   - Refresh subscription status
 
-scope is for ## TASK SUB-017: Payment Method Management & Auto-Renew Toggle 
+4. **Grace Period Entry**:
+   - If 3 retries fail: webhook moves user to `grace_period`
+   - Call MODULE-09 to freeze SP wallet
+   - Show countdown in app as showen in admin site
 
-
-Add payment method management to Manage Kids Club+ screen:
-
-1. **View Saved Payment Method**:
-   - Show card last four digits, brand (Visa, Mastercard), and expiry
-   - Display next billing date
-
-2. **Change Payment Method**:
-   - "Update Payment Method" button → Stripe Payment Sheet
-   - On success: update `stripe_payment_method_id` and `next_billing_date`
-
-3. **Auto-Renewal Toggle**:
-   - Toggle: "Auto-renew subscription" (ON by default)
-   - When OFF: update `auto_renew_enabled = false`
-     - Subscription still active until period end
-     - No auto-charge on period end
-     - Show warning: "Subscription will end on [date]"
-   - When toggled back ON: resume auto-renew
-
-4. **View Billing History**:
-   - Tab or link in Manage screen: "Billing History"
-   - Show table of past charges: Date, Amount, Status
-   - Allow "Download Invoice" for successful charges
-   
 i want you to 
 
 1- Search the codebase for existing implementations using:
@@ -168,7 +138,7 @@ i want you to
   - No skip-based success (conditional blocks cannot be the only validation path)
   - Comment header: `# FLOW: <name> | TASK: {{TASK_ID}} | States covered: <list>`
 - Update `maestro-flows-registry.md`
-- Run: `npm run test:maestro:ios` AND `npm run test:maestro:android` → both PASS ✅
+- Run: `npm run test:maestro:ios` AND `npm run test:maestro:android` → both PASS
 
 
 MODULE-11-VERIFICATION-V2.md

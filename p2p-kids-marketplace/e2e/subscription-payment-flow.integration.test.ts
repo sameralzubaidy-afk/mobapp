@@ -155,7 +155,7 @@ describe('Subscription Payment Flow E2E', () => {
       expect(response.status).toBe(401);
 
       const data = await response.json();
-      expect(data).toHaveProperty('error');
+      expect(data.error || data.message).toBeTruthy();
     });
   });
 

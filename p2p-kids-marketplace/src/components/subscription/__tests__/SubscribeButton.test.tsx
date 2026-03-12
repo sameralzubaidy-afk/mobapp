@@ -18,7 +18,9 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 // Mock usePaymentSheet
-jest.mock('../../../hooks/usePaymentSheet');
+jest.mock('../../../hooks/usePaymentSheet', () => ({
+  usePaymentSheet: jest.fn(),
+}));
 
 // Mock supabase
 jest.mock('../../../config/supabase', () => ({
@@ -62,7 +64,7 @@ describe('SubscribeButton', () => {
 
   describe('Initial render', () => {
     it('should render subscribe button with default label', () => {
-      const { getByTestId } = render(<SubscribeButton />);
+      const { getByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const button = getByTestId('subscribe-button');
       const label = getByTestId('subscribe-button-label');
@@ -72,28 +74,28 @@ describe('SubscribeButton', () => {
     });
 
     it('should render re-subscribe label when isRenewal=true', () => {
-      const { getByTestId } = render(<SubscribeButton isRenewal />);
+      const { getByTestId } = render(<SubscribeButton isRenewal priceCents={499} />);
 
       const label = getByTestId('subscribe-button-label');
       expect(label.props.children).toBe('Re-subscribe Now');
     });
 
     it('should render custom label', () => {
-      const { getByTestId } = render(<SubscribeButton label="Custom Label" />);
+      const { getByTestId } = render(<SubscribeButton label="Custom Label" priceCents={499} />);
 
       const label = getByTestId('subscribe-button-label');
       expect(label.props.children).toBe('Custom Label');
     });
 
     it('should display trial disclaimer for new subscription', () => {
-      const { getByTestId } = render(<SubscribeButton />);
+      const { getByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const disclaimer = getByTestId('subscribe-button-disclaimer');
       expect(disclaimer.props.children).toContain('30-day free trial');
     });
 
     it('should display renewal disclaimer for re-subscription', () => {
-      const { getByTestId } = render(<SubscribeButton isRenewal />);
+      const { getByTestId } = render(<SubscribeButton isRenewal priceCents={499} />);
 
       const disclaimer = getByTestId('subscribe-button-disclaimer');
       expect(disclaimer.props.children).toContain('Your card will be charged');
@@ -116,7 +118,7 @@ describe('SubscribeButton', () => {
         }),
       });
 
-      const { getByTestId } = render(<SubscribeButton />);
+      const { getByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const button = getByTestId('subscribe-button');
       fireEvent.press(button);
@@ -156,7 +158,7 @@ describe('SubscribeButton', () => {
         error: 'Payment cancelled',
       });
 
-      const { getByTestId } = render(<SubscribeButton />);
+      const { getByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const button = getByTestId('subscribe-button');
       fireEvent.press(button);
@@ -175,7 +177,7 @@ describe('SubscribeButton', () => {
         error: 'Card declined',
       });
 
-      const { getByTestId } = render(<SubscribeButton />);
+      const { getByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const button = getByTestId('subscribe-button');
       fireEvent.press(button);
@@ -200,7 +202,7 @@ describe('SubscribeButton', () => {
         json: async () => ({ error: 'Subscription creation failed' }),
       });
 
-      const { getByTestId } = render(<SubscribeButton />);
+      const { getByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const button = getByTestId('subscribe-button');
       fireEvent.press(button);
@@ -230,7 +232,7 @@ describe('SubscribeButton', () => {
         }),
       });
 
-      const { getByTestId } = render(<SubscribeButton onSuccess={onSuccess} />);
+      const { getByTestId } = render(<SubscribeButton onSuccess={onSuccess} priceCents={499} />);
 
       const button = getByTestId('subscribe-button');
       fireEvent.press(button);
@@ -255,7 +257,7 @@ describe('SubscribeButton', () => {
         loading: true,
       });
 
-      const { getByTestId, queryByTestId } = render(<SubscribeButton />);
+      const { getByTestId, queryByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const loadingIndicator = getByTestId('subscribe-button-loading');
       const label = queryByTestId('subscribe-button-label');
@@ -270,7 +272,7 @@ describe('SubscribeButton', () => {
         loading: true,
       });
 
-      const { getByTestId } = render(<SubscribeButton />);
+      const { getByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const button = getByTestId('subscribe-button');
 
@@ -286,14 +288,14 @@ describe('SubscribeButton', () => {
         error: 'Test error message',
       });
 
-      const { getByTestId } = render(<SubscribeButton />);
+      const { getByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const error = getByTestId('subscribe-button-error');
       expect(error.props.children).toBe('Test error message');
     });
 
     it('should reset error when button pressed', async () => {
-      const { getByTestId } = render(<SubscribeButton />);
+      const { getByTestId } = render(<SubscribeButton priceCents={499} />);
 
       const button = getByTestId('subscribe-button');
       fireEvent.press(button);

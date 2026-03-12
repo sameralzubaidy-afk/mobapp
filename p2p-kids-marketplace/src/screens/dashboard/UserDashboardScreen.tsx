@@ -9,19 +9,20 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
+import { useAuth, useSPWallet } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
+import { useSubscription } from '@/hooks/useSubscription';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
 import Avatar from '../../components/atoms/Avatar';
 import { idBadgeService } from '@/services/idBadge';
 import { TrialReminderBanner } from '../../components/TrialReminderBanner';
 import GracePeriodBanner from '../../components/GracePeriodBanner';
+import { PaymentFailureBanner } from '../../components/subscription/PaymentFailureBanner';
 
 import CategorySelector from '../../components/molecules/CategorySelector';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
@@ -32,28 +33,26 @@ export default function UserDashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const isFocused = useIsFocused();
   const { session, refreshSession, isLoading } = useAuth();
-  const subscription = useSubscriptionStatus();
+  const {
+    subscription: subscriptionSummary,
+    loading: subscriptionLoading,
+    refetch: refetchSubscription,
+  } = useSubscription();
   const wallet = useSPWallet();
+
+  const subscription = {
+    status: subscriptionSummary?.status ?? 'free',
+    canSpendSP: subscriptionSummary?.can_spend_sp ?? false,
+  };
 
   const [refreshing, setRefreshing] = useState(false);
   const [daysUntilExpiry] = useState<number | null>(null);
   const [graceEndDate, setGraceEndDate] = useState<string | null>(null);
-  const [nextChangeLabel, setNextChangeLabel] = useState<string>('Next Change');
-  const [nextChangeDateText, setNextChangeDateText] = useState<string>('—');
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const hasRefreshedRef = useRef(false);
 
-  const formatShortDate = (value: string | null | undefined): string => {
-    if (!value) return '—';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '—';
-    return parsed.toLocaleDateString();
-  };
-
   const loadSubscriptionTimeline = async () => {
     if (!session?.user?.id) {
-      setNextChangeLabel('Next Change');
-      setNextChangeDateText('—');
       return;
     }
 
@@ -67,40 +66,28 @@ export default function UserDashboardScreen() {
         .maybeSingle();
 
       if (error || !data) {
-        setNextChangeLabel('Next Change');
-        setNextChangeDateText('—');
         return;
       }
 
       if (data.status === 'trial' && data.trial_end_date) {
         setGraceEndDate(null);
-        setNextChangeLabel('Trial Ends');
-        setNextChangeDateText(formatShortDate(data.trial_end_date));
         return;
       }
 
       if (data.status === 'active' && data.current_period_end) {
         setGraceEndDate(null);
-        setNextChangeLabel('Renews On');
-        setNextChangeDateText(formatShortDate(data.current_period_end));
         return;
       }
 
       if ((data.status === 'grace' || data.status === 'grace_period') && data.grace_ends_at) {
         setGraceEndDate(data.grace_ends_at);
-        setNextChangeLabel('Grace Ends');
-        setNextChangeDateText(formatShortDate(data.grace_ends_at));
         return;
       }
 
       setGraceEndDate(null);
-      setNextChangeLabel('Next Change');
-      setNextChangeDateText('—');
     } catch (error) {
       console.warn('[Dashboard] Failed to load subscription timeline:', error);
       setGraceEndDate(null);
-      setNextChangeLabel('Next Change');
-      setNextChangeDateText('—');
     }
   };
 
@@ -118,7 +105,12 @@ export default function UserDashboardScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refreshSession(), loadVerificationStatus(), loadSubscriptionTimeline()]);
+      await Promise.all([
+        refreshSession(),
+        refetchSubscription(),
+        loadVerificationStatus(),
+        loadSubscriptionTimeline(),
+      ]);
     } catch (error) {
       console.error('[Dashboard] Manual refresh failed:', error);
     } finally {
@@ -140,16 +132,18 @@ export default function UserDashboardScreen() {
     if (isFocused) {
       if (!hasRefreshedRef.current) {
         console.log('[Dashboard] First focus refresh, refreshing session data...');
-        refreshSession();
+          Promise.all([refreshSession(), refetchSubscription()]).catch((error) => {
+            console.warn('[Dashboard] Focus refresh failed:', error);
+          });
         hasRefreshedRef.current = true;
       }
     } else {
       // Reset ref when screen loses focus so it can refresh again when user returns
       hasRefreshedRef.current = false;
     }
-  }, [isFocused, refreshSession]);
+  }, [isFocused, refreshSession, refetchSubscription]);
 
-  if (isLoading) {
+  if (isLoading || subscriptionLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>
@@ -175,8 +169,10 @@ export default function UserDashboardScreen() {
         return '#FF9500'; // Orange
       case 'active':
         return '#34C759'; // Green
+      case 'grace_period':
       case 'grace':
         return '#FF3B30'; // Red
+      case 'cancelled':
       case 'canceled':
       case 'free':
       default:
@@ -190,8 +186,10 @@ export default function UserDashboardScreen() {
         return 'Kids Club+ Trial';
       case 'active':
         return 'Kids Club+ Active';
+      case 'grace_period':
       case 'grace':
         return 'Grace Period';
+      case 'cancelled':
       case 'canceled':
         return 'Canceled';
       default:
@@ -236,8 +234,11 @@ export default function UserDashboardScreen() {
           {/* Trial Reminder Banner (SUB-004) */}
           <TrialReminderBanner />
 
+          {/* SUB-018: Payment Failure Handling Banner */}
+          <PaymentFailureBanner subscription={subscriptionSummary} loading={subscriptionLoading} />
+
           {/* MODULE-11 SUB-009: Grace Period Countdown Banner */}
-          {subscription.status === 'grace' &&
+          {(subscription.status === 'grace' || subscription.status === 'grace_period') &&
             graceEndDate &&
             (() => {
               const gracePeriodEndsAt = graceEndDate;
@@ -319,7 +320,8 @@ export default function UserDashboardScreen() {
               </View>
             )}
 
-            {subscription.status === 'grace' && daysUntilExpiry !== null && (
+            {(subscription.status === 'grace' || subscription.status === 'grace_period') &&
+              daysUntilExpiry !== null && (
               <View style={styles.cardRow}>
                 <Text style={styles.label}>Grace Period Ends In:</Text>
                 <Text style={[styles.value, { color: '#FF3B30' }]}>
@@ -328,7 +330,9 @@ export default function UserDashboardScreen() {
               </View>
             )}
 
-            {(subscription.status === 'free' || subscription.status === 'canceled') && (
+            {(subscription.status === 'free' ||
+              subscription.status === 'canceled' ||
+              subscription.status === 'cancelled') && (
               <TouchableOpacity
                 style={styles.upgradeButton}
                 onPress={() => navigation.navigate('KidsClubOverview')}

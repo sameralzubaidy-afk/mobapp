@@ -1,0 +1,4 @@
+
+> p2p-kids-marketplace@1.0.0 typecheck
+> tsc -p tsconfig.json --noEmit
+

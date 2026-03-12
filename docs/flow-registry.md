@@ -248,6 +248,30 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Database: `billing_history` table created to log all subscription charges, failures, and refunds.
     - Migration: `supabase/migrations/20260303000000_create_billing_history_sub_014.sql`
     - Schema: Tracks `charge_id` (Stripe), `stripe_invoice_id`, `amount`, `currency`, `status` (succeeded/failed/refunded/pending), `charged_at`, `description`, `error_message`.
+
+  - **SUB-018 Payment Failure Handling & Automatic Retry (COMPLETED - 2026-03-07):**
+    - **Edge Function:** `supabase/functions/retry-failed-payment/index.ts` - Allows user to manually retry failed payment
+    - **Webhook Handler:** `supabase/functions/stripe-webhook-subscriptions/index.ts` - Updated to handle `invoice.payment_failed` event
+    - **Mobile Components:**
+      - `p2p-kids-marketplace/src/components/subscription/PaymentFailureBanner.tsx` - In-app banner showing payment failure status
+      - `p2p-kids-marketplace/src/hooks/usePaymentFailure.ts` - Hook to detect and manage payment failure states
+    - **Service:** `p2p-kids-marketplace/src/services/paymentRetry.ts` - Service layer for retry logic and notifications
+    - **Features:**
+      - Automatic retry tracking: payment_retry_count (0-3) increments on each `invoice.payment_failed` webhook
+      - Retry schedule: Day 3, Day 7, Day 14 (Stripe handles auto-retry)
+      - Escalating notifications: Push notifications sent after each failure (retry 1, 2, 3)
+      - User banners: Different urgency levels (medium for retry 1, high for retry 2+)
+      - Grace period entry: After 3 failures, user transitions to `grace_period` and SP wallet is frozen
+      - Manual retry: User can update payment method and manually retry via ManageKidsClub screen
+      - Banner dismissal: Users can temporarily dismiss banner (reappears on app restart if issue persists)
+    - **Manual Test Guide:** SUB-018-MANUAL-TEST-CASES.md (11 test cases)
+    - **Unit Tests:**
+      - p2p-kids-marketplace/src/hooks/__tests__/usePaymentFailure.test.ts
+      - p2p-kids-marketplace/src/components/subscription/__tests__/PaymentFailureBanner.test.tsx
+      - p2p-kids-marketplace/src/services/__tests__/paymentRetry.test.ts
+    - **E2E Tests:** p2p-kids-marketplace/e2e/sub-018-payment-failure.integration.test.ts
+    - **Maestro Flow:** p2p-kids-marketplace/.maestro/payment-failure-handling.yaml
+    - **Tier:** 1 for UI/banner changes; Tier 2 if webhook handler or RPC logic changes
     - RLS: Users can view their own billing history; service role has full access for webhooks.
     - Indexes: 5 performance indexes on user_id, subscription_id, charge_id, status, charged_at.
     - TypeScript Types: `src/types/billingHistory.types.ts` - BillingHistory, BillingStatus, CreateBillingHistoryParams, BillingHistorySummary.

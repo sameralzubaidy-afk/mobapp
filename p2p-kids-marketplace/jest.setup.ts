@@ -43,9 +43,15 @@ if ((globalThis as any).jest?.mock) {
 if ((globalThis as any).jest?.mock) {
 	jest.mock('@stripe/stripe-react-native', () => {
 		const { fn } = require('jest-mock');
+		const retrieveSetupIntent = fn(async () => ({
+			setupIntent: { paymentMethodId: 'pm_test_default' },
+			error: null,
+		}));
 		return {
 			__esModule: true,
-			useStripe: fn(),
+			useStripe: fn(() => ({
+				retrieveSetupIntent,
+			})),
 			initPaymentSheet: fn(async () => ({ error: null })),
 			presentPaymentSheet: fn(async () => ({ error: null })),
 			PaymentSheetError: {},

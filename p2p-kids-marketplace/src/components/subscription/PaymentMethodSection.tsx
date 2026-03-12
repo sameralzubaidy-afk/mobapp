@@ -17,9 +17,11 @@ import {
 } from 'react-native';
 import { getPaymentMethod, PaymentMethodInfo } from '@/services/subscription';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
+import { retryFailedPayment } from '@/services/paymentRetry';
+import { supabase } from '@/config/supabase';
 
 interface PaymentMethodSectionProps {
-  onPaymentMethodUpdated?: () => void;
+  onPaymentMethodUpdated?: () => void | Promise<void>;
 }
 
 export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSectionProps) {
@@ -60,12 +62,41 @@ export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSe
       const result = await presentSheet();
 
       if (result.success) {
+        // Resolve current user for optional retry flow
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
         // 3. Refresh payment method details from database
         await fetchPaymentMethod();
-        
+
         // 4. Notify parent if callback provided
-        onPaymentMethodUpdated?.();
-        
+        await onPaymentMethodUpdated?.();
+
+        // 5. Try immediate charge retry to clear payment-failure state after card update
+        if (session?.user?.id) {
+          const retryResult = await retryFailedPayment(session.user.id, {
+            resolveWithoutInvoice: true,
+          });
+
+          if (retryResult.success) {
+            await onPaymentMethodUpdated?.();
+            Alert.alert('Success', 'Payment method updated and payment retry succeeded.');
+            return;
+          }
+
+          const retryCode = retryResult.error?.code;
+          if (retryCode === 'NO_OPEN_INVOICE' || retryCode === 'NOT_FOUND') {
+            Alert.alert(
+              'Payment Method Saved',
+              retryCode === 'NOT_FOUND'
+                ? 'Your card was updated. Immediate retry is unavailable in this environment, but your next billing retry will run automatically.'
+                : 'Your card was updated. There is no open invoice to charge right now, and your next retry will run automatically.'
+            );
+            return;
+          }
+        }
+
         Alert.alert('Success', 'Payment method updated successfully.');
       } else if (result.error) {
         // Only show error if it's not a user cancellation

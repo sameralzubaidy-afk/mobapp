@@ -1,0 +1,247 @@
+// File: supabase/functions/retry-failed-payment/index.ts
+// MODULE-11 TASK SUB-018: Payment Failure Handling - Retry Failed Payment
+//
+// Allows user to manually retry a failed subscription payment after updating payment method.
+// Resets retry count and payment_failed_at on success.
+//
+// SECURITY: Uses user JWT to ensure user can only retry their own payment.
+// HP-3: User auth enforced. No service role bypass needed.
+
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import Stripe from 'https://esm.sh/stripe@14.11.0';
+
+// ─── Stripe client ────────────────────────────────────────────────────────────
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+  apiVersion: '2023-10-16',
+});
+
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Request/Response Types
+// ─────────────────────────────────────────────────────────────────────────────
+interface RetryPaymentRequest {
+  user_id: string; // Required for authorization check
+  resolve_without_invoice?: boolean; // Optional: clear stale failure flags after card update
+}
+
+interface RetryPaymentResponse {
+  success: boolean;
+  message: string;
+  subscription?: {
+    status: string;
+    payment_retry_count: number;
+    current_period_end: string | null;
+  };
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Handler
+// ─────────────────────────────────────────────────────────────────────────────
+serve(async (req: Request): Promise<Response> => {
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+
+  // ── Extract user from JWT ──────────────────────────────────────────────────
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader) {
+    return jsonResponse(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Missing authorization header' } },
+      { status: 401 }
+    );
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
+  const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+
+  if (authError || !user) {
+    console.error('[retry-failed-payment] Auth error:', authError);
+    return jsonResponse(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
+      { status: 401 }
+    );
+  }
+
+  const authenticatedUserId = user.id;
+
+  // ── Parse request body ─────────────────────────────────────────────────────
+  let body: RetryPaymentRequest;
+  try {
+    body = await req.json();
+  } catch (err) {
+    return jsonResponse(
+      { success: false, error: { code: 'INVALID_REQUEST', message: 'Invalid JSON body' } },
+      { status: 400 }
+    );
+  }
+
+  const { user_id, resolve_without_invoice } = body;
+
+  // ── Authorization: User can only retry their own payment ──────────────────
+  if (user_id !== authenticatedUserId) {
+    return jsonResponse(
+      { success: false, error: { code: 'FORBIDDEN', message: 'You can only retry your own payment' } },
+      { status: 403 }
+    );
+  }
+
+  // ── Fetch user subscription ────────────────────────────────────────────────
+  const { data: sub, error: fetchError } = await supabaseClient
+    .from('subscriptions')
+    .select('id, user_id, status, payment_retry_count, payment_failed_at, stripe_subscription_id, stripe_customer_id, stripe_payment_method_id')
+    .eq('user_id', user_id)
+    .maybeSingle();
+
+  if (fetchError || !sub) {
+    console.error('[retry-failed-payment] Subscription fetch error:', fetchError);
+    return jsonResponse(
+      { success: false, error: { code: 'SUBSCRIPTION_NOT_FOUND', message: 'No subscription found for user' } },
+      { status: 404 }
+    );
+  }
+
+  // ── Validate subscription state ────────────────────────────────────────────
+  if (!sub.payment_failed_at || sub.payment_retry_count === 0) {
+    return jsonResponse({
+      success: false,
+      error: { code: 'NO_FAILED_PAYMENT', message: 'No failed payment to retry' },
+    }, { status: 400 });
+  }
+
+  if (!sub.stripe_subscription_id || !sub.stripe_customer_id) {
+    return jsonResponse({
+      success: false,
+      error: { code: 'MISSING_STRIPE_DATA', message: 'Subscription missing Stripe identifiers' },
+    }, { status: 400 });
+  }
+
+  // ── Attempt to retry the invoice payment via Stripe ───────────────────────
+  try {
+    console.log(`[retry-failed-payment] Retrying payment for user=${user_id} stripe_sub=${sub.stripe_subscription_id}`);
+
+    // Get the latest open invoice for the subscription
+    const invoices = await stripe.invoices.list({
+      subscription: sub.stripe_subscription_id,
+      status: 'open',
+      limit: 1,
+    });
+
+    if (invoices.data.length === 0) {
+      // No open invoice — subscription may have been manually fixed/deleted,
+      // or user just updated card between retry windows.
+      if (resolve_without_invoice === true) {
+        await supabaseClient.rpc('record_payment_attempt', {
+          p_user_id: user_id,
+          p_success: true,
+        });
+
+        console.log(
+          `[retry-failed-payment] Cleared stale payment failure flags without open invoice for user=${user_id}`
+        );
+
+        return jsonResponse({
+          success: true,
+          message:
+            'Payment method updated successfully. No open invoice was found, and payment failure flags were cleared.',
+          subscription: {
+            status: sub.status,
+            payment_retry_count: 0,
+            current_period_end: null,
+          },
+        });
+      }
+
+      return jsonResponse({
+        success: false,
+        error: { code: 'NO_OPEN_INVOICE', message: 'No open invoice found to retry' },
+      }, { status: 400 });
+    }
+
+    const invoice = invoices.data[0];
+
+    // Retry the invoice payment (this will use the default payment method on customer)
+    const retriedInvoice = await stripe.invoices.pay(invoice.id, {
+      paid_out_of_band: false, // Attempt real charge
+    });
+
+    if (retriedInvoice.status === 'paid') {
+      // ── Success: Reset retry count and failure timestamp ────────────────────
+      const { error: updateError } = await supabaseClient
+        .from('subscriptions')
+        .update({
+          payment_retry_count: 0,
+          payment_failed_at: null,
+          status: 'active', // Move back to active if they were in grace_period
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', sub.id);
+
+      if (updateError) {
+        console.error('[retry-failed-payment] DB update error after successful payment:', updateError);
+        // Payment succeeded but DB update failed — log for manual intervention
+      }
+
+      // ── Call record_payment_attempt RPC to reset state cleanly ──────────────
+      await supabaseClient.rpc('record_payment_attempt', {
+        p_user_id: user_id,
+        p_success: true,
+      });
+
+      console.log(`[retry-failed-payment] ✅ Payment retry succeeded for user=${user_id}`);
+
+      return jsonResponse({
+        success: true,
+        message: 'Payment successful! Your subscription has been renewed.',
+        subscription: {
+          status: 'active',
+          payment_retry_count: 0,
+          current_period_end: retriedInvoice.period_end ? new Date(retriedInvoice.period_end * 1000).toISOString() : null,
+        },
+      });
+    } else {
+      // Payment still failed
+      console.warn(`[retry-failed-payment] Payment retry failed again for user=${user_id} invoice_status=${retriedInvoice.status}`);
+
+      return jsonResponse({
+        success: false,
+        error: {
+          code: 'PAYMENT_FAILED_AGAIN',
+          message: 'Your card was declined again. Please check with your bank or try a different payment method.',
+        },
+      }, { status: 400 });
+    }
+  } catch (error: any) {
+    console.error('[retry-failed-payment] Stripe error:', error?.message, error?.code);
+
+    // Stripe error (card declined, insufficient funds, etc.)
+    let errorMessage = 'Payment could not be completed. Please update your payment method and try again.';
+    if (error?.decline_code) {
+      errorMessage = `Payment declined: ${error.decline_code}. Please contact your bank.`;
+    }
+
+    return jsonResponse({
+      success: false,
+      error: {
+        code: 'STRIPE_ERROR',
+        message: errorMessage,
+      },
+    }, { status: 400 });
+  }
+});
+
+// ─── Helper: JSON response ────────────────────────────────────────────────────
+function jsonResponse(data: RetryPaymentResponse, options: { status?: number } = {}): Response {
+  return new Response(JSON.stringify(data), {
+    status: options.status || 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}

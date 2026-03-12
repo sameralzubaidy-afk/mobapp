@@ -1,0 +1,165 @@
+# FLOW: Payment Failure Handling | TASK: SUB-018 | States covered: first_failure, second_failure, max_retries, recovery
+
+appId: com.kidsmarketplace.p2p
+
+---
+
+# Preconditions: User logged in with active subscription
+
+- launchApp
+- tapOn:
+    id: "loginButton"
+- inputText: "test-payment-failure@example.com"
+- tapOn:
+    id: "passwordInput"
+- inputText: "TestPassword123!"
+- tapOn:
+    id: "loginSubmit"
+- assertVisible: "Dashboard"
+
+---
+
+# STATE 1: First Payment Failure (retry_count = 1)
+# Simulate first payment failure and verify banner appears
+
+- runScript:
+    file: ./scripts/simulate-payment-failure.js
+    env:
+      USER_EMAIL: test-payment-failure@example.com
+      RETRY_COUNT: 1
+
+- tapOn: "Refresh"
+- waitForAnimationToEnd
+
+# Verify payment failure banner appears
+- assertVisible:
+    id: "paymentFailureBanner"
+- assertVisible: "Payment Failed"
+- assertVisible: "Your payment was declined"
+- assertVisible:
+    id: "paymentFailureBanner-updatePayment"
+- assertVisible: "Retry 1 of 3"
+
+# Verify banner styling (medium urgency)
+- assertVisible: "Update Payment Method"
+
+---
+
+# STATE 2: Navigate to Manage Subscription from Banner
+
+- tapOn:
+    id: "paymentFailureBanner-updatePayment"
+- waitForAnimationToEnd
+- assertVisible: "Manage Kids Club+"
+- assertVisible: "Update Payment Method"
+
+# Go back to dashboard
+- tapOn: "Back"
+- assertVisible: "Dashboard"
+
+---
+
+# STATE 3: Dismiss Payment Failure Banner
+
+- tapOn:
+    id: "paymentFailureBanner-dismiss"
+- waitForAnimationToEnd
+
+# Banner should disappear
+- assertNotVisible:
+    id: "paymentFailureBanner"
+
+---
+
+# STATE 4: Second Payment Failure (retry_count = 2)
+# Simulate second failure - should show high urgency
+
+- runScript:
+    file: ./scripts/simulate-payment-failure.js
+    env:
+      USER_EMAIL: test-payment-failure@example.com
+      RETRY_COUNT: 2
+
+- tapOn: "Refresh"
+- waitForAnimationToEnd
+
+# Verify escalated message
+- assertVisible:
+    id: "paymentFailureBanner"
+- assertVisible: "Payment declined again"
+- assertVisible: "Your subscription is at risk"
+- assertVisible: "Retry 2 of 3"
+
+---
+
+# STATE 5: Max Retries Reached (retry_count = 3, grace_period)
+# Simulate third failure - should show grace period message
+
+- runScript:
+    file: ./scripts/simulate-payment-failure.js
+    env:
+      USER_EMAIL: test-payment-failure@example.com
+      RETRY_COUNT: 3
+
+- tapOn: "Refresh"
+- waitForAnimationToEnd
+
+# Verify grace period message
+- assertVisible:
+    id: "paymentFailureBanner"
+- assertVisible: "access has been paused"
+- assertVisible: "Re-subscribe to restore Swap Points"
+
+# Should NOT show retry count when max reached
+- assertNotVisible: "Retry 3 of 3"
+
+---
+
+# STATE 6: Successful Payment Retry
+# Simulate successful payment - banner should disappear
+
+- runScript:
+    file: ./scripts/simulate-payment-success.js
+    env:
+      USER_EMAIL: test-payment-failure@example.com
+
+- tapOn: "Refresh"
+- waitForAnimationToEnd
+
+# Banner should not be visible
+- assertNotVisible:
+    id: "paymentFailureBanner"
+
+# Subscription should be active
+- tapOn:
+    id: "profileTab"
+- tapOn: "Manage Kids Club+"
+- assertVisible: "Status: Active"
+- assertNotVisible: "Payment Failed"
+
+---
+
+# ERROR STATE: Non-recent failure (>24 hours old)
+# Banner should not show for old failures
+
+- runScript:
+    file: ./scripts/simulate-old-payment-failure.js
+    env:
+      USER_EMAIL: test-payment-failure@example.com
+      HOURS_AGO: 26
+
+- tapOn: "Refresh"
+- waitForAnimationToEnd
+
+# Banner should NOT appear for old failures
+- assertNotVisible:
+    id: "paymentFailureBanner"
+
+---
+
+# Final verification: Logout
+
+- tapOn:
+    id: "profileTab"
+- tapOn: "Logout"
+- assertVisible: "Welcome"

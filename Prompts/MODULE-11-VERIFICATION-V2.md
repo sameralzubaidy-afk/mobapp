@@ -17,11 +17,11 @@ Verify that the implementation reflects these V2.1 rules:
 - [ ] **Payment collection via Stripe Payment Sheet** (in-app, mobile-first experience).
 - [ ] **Payment method storage** using Stripe SetupIntent for seamless re-subscribe (saved card = 1-click renewal).
 - [ ] **Anniversary billing cycle** – charges on subscription date (e.g., /day 15 every month).
-- [ ] **Automatic retry logic for failed payments**:
-  - [ ] Retry 1: 3 days after failure
-  - [ ] Retry 2: 7 days after failure
-  - [ ] Retry 3: 14 days after failure
-  - [ ] After 3 failures → move to grace_period and freeze SP
+- [x] **Automatic retry logic for failed payments** ✅ SUB-018 (2026-03-07):
+  - [x] Retry 1: 3 days after failure (Stripe Smart Retries)
+  - [x] Retry 2: 7 days after failure (Stripe Smart Retries)
+  - [x] Retry 3: 14 days after failure (Stripe Smart Retries)
+  - [x] After 3 failures → move to grace_period and freeze SP (`record_payment_attempt` RPC)
 - [ ] **Auto-renewal control** – users can toggle `auto_renew_enabled` to pause subscription (keeps access but no charge).
 - [ ] **Pause option** instead of direct cancel (retention feature – 1-month pause before full cancellation).
 - [ ] **90-day grace period** after loss of Kids Club+ access before SP are permanently deleted.
@@ -68,8 +68,8 @@ Confirm alignment with other modules:
     - [ ] `current_period_start`, `current_period_end`, `monthly_price_cents`
     - [ ] `last_payment_date`, `last_payment_amount` (track recent charge)
     - [ ] `next_billing_date` (when next charge will occur)
-  - [ ] **Payment failure fields (V2.1)**:
-    - [ ] `payment_failed_at`, `payment_retry_count` (0–3, increments on failed charge)
+  - [x] **Payment failure fields (V2.1)** ✅ SUB-018 (2026-03-07):
+    - [x] `payment_failed_at`, `payment_retry_count` (0–3, increments on failed charge)
   - [ ] **Cancellation & pause fields (V2.1)**:
     - [ ] `cancelled_at`, `cancel_reason` (text, why user cancelled – feedback)
     - [ ] `paused_until` (timestamp, nullable – when pause ends)
@@ -180,9 +180,10 @@ For each function, confirm:
   - [ ] Finds the corresponding `user_subscriptions` row by `stripe_subscription_id`.
   - [ ] Sets `status = 'grace_period'`, `grace_period_ends_at ≈ now + 90 days`.
   - [ ] Calls SP wallet freeze handler (`SP_SUBSCRIPTION_LAPSE_URL`).
-- [ ] On `invoice.payment_failed`:
-  - [ ] Increments `payment_retry_count` and sets `payment_failed_at`.
-  - [ ] After **3 failures**, sets status to `grace_period` and (if not already handled) ensures wallet freeze is triggered.
+- [x] On `invoice.payment_failed` ✅ SUB-018 (2026-03-07):
+  - [x] Increments `payment_retry_count` and sets `payment_failed_at`.
+  - [x] Sends push notification to user with retry-count-specific message.
+  - [x] After **3 failures**, sets status to `grace_period` and (if not already handled) ensures wallet freeze is triggered.
 
 ### 4.6 `cancel-kids-club-subscription`
 
@@ -309,6 +310,13 @@ Verify navigation, copy, and state-aware behavior for:
   - [ ] Appears for non-active users in key flows (home, SP wallet, listing flow) per design.
   - [ ] Message and CTA label adjust based on `status` (`free`, `trial`, `grace_period`, `expired`).
   - [ ] Tapping banner routes to appropriate screen (`KidsClubOverview`, `AddPaymentForKidsClub`).
+- [x] `PaymentFailureBanner` ✅ SUB-018 (2026-03-07):
+  - [x] Appears for subscribers with recent payment failures (within 24 hours).
+  - [x] Shows retry count (1 of 3, 2 of 3, 3 of 3) with urgency-based styling (medium=orange, high=red).
+  - [x] Displays next retry timing and clear call-to-action ("Update Payment Method").
+  - [x] Tapping "Update Payment Method" routes to `ManageKidsClub` screen.
+  - [x] Users can dismiss banner temporarily (reappears on app restart if issue persists).
+  - [x] Does NOT show for non-recent failures (>24 hours old) to avoid alarm fatigue.
 - [ ] `useGracePeriodStatus`:
   - [ ] Returns `isInGrace`, `daysRemaining`, and a message consistent with grace-period rules.
   - [ ] Handles edge cases around same-day expiry (`daysRemaining = 0`).
