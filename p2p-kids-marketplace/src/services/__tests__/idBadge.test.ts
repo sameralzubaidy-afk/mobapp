@@ -75,6 +75,8 @@ describe('idBadgeService', () => {
       const mockFrom = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         maybeSingle: jest.fn().mockResolvedValue({ data: mockData, error: null }),
       };
 
@@ -91,6 +93,8 @@ describe('idBadgeService', () => {
       const mockFrom = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
         maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       };
 
@@ -117,9 +121,7 @@ describe('idBadgeService', () => {
         eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn()
-          .mockResolvedValueOnce({ data: mockData, error: null }) // First call (pending)
-          .mockResolvedValueOnce({ data: null, error: null }), // Second call (decided)
+        maybeSingle: jest.fn().mockResolvedValue({ data: mockData, error: null }),
       };
 
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
@@ -142,12 +144,9 @@ describe('idBadgeService', () => {
       const mockFrom = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        in: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn()
-          .mockResolvedValueOnce({ data: null, error: null }) // No pending
-          .mockResolvedValueOnce({ data: mockData, error: null }), // Approved
+        maybeSingle: jest.fn().mockResolvedValue({ data: mockData, error: null }),
       };
 
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
@@ -170,12 +169,9 @@ describe('idBadgeService', () => {
       const mockFrom = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        in: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn()
-          .mockResolvedValueOnce({ data: null, error: null }) // No pending
-          .mockResolvedValueOnce({ data: mockData, error: null }), // Rejected
+        maybeSingle: jest.fn().mockResolvedValue({ data: mockData, error: null }),
       };
 
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
@@ -191,12 +187,9 @@ describe('idBadgeService', () => {
       const mockFrom = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        in: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn()
-          .mockResolvedValueOnce({ data: null, error: null }) // No pending
-          .mockResolvedValueOnce({ data: null, error: null }), // No decided
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
       };
 
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);

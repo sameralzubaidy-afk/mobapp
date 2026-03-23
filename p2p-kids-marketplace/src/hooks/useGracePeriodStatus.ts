@@ -29,7 +29,7 @@ export function useGracePeriodStatus({
   status,
   grace_period_ends_at,
 }: UseGracePeriodStatusParams): UseGracePeriodStatusReturn {
-  const [gracePeriodDays, setGracePeriodDays] = useState(90);
+  const [gracePeriodDays, setGracePeriodDays] = useState(0);
 
   useEffect(() => {
     getGracePeriodDays(true).then(setGracePeriodDays).catch(console.error);

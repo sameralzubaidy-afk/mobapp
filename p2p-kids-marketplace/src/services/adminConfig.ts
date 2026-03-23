@@ -9,6 +9,7 @@ export interface AdminConfig {
   subscription_price_yearly: number;
   trial_period_days: number;
   trial_enabled: boolean;
+  max_trial_uses: number;
   grace_period_days: number;
 
   // Swap Points
@@ -87,7 +88,11 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
   }
 
   try {
-    let configRows: Array<{ key: string; value: string | boolean | number; data_type: string }> | null = null;
+    let configRows: Array<{
+      key: string;
+      value: string | boolean | number;
+      data_type: string;
+    }> | null = null;
 
     const { data: keyValueRows, error: keyValueError } = await supabase
       .from('admin_config')
@@ -95,7 +100,11 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
       .eq('is_active', true);
 
     if (!keyValueError && keyValueRows) {
-      configRows = keyValueRows as Array<{ key: string; value: string | boolean | number; data_type: string }>;
+      configRows = keyValueRows as Array<{
+        key: string;
+        value: string | boolean | number;
+        data_type: string;
+      }>;
     } else {
       const { data: legacyRows, error: legacyError } = await supabase
         .from('admin_config')
@@ -107,11 +116,17 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
         return getDefaultConfig();
       }
 
-      configRows = (legacyRows ?? []).map((row: { config_key: string; config_value: string | boolean | number; data_type: string }) => ({
-        key: row.config_key,
-        value: row.config_value,
-        data_type: row.data_type,
-      }));
+      configRows = (legacyRows ?? []).map(
+        (row: {
+          config_key: string;
+          config_value: string | boolean | number;
+          data_type: string;
+        }) => ({
+          key: row.config_key,
+          value: row.config_value,
+          data_type: row.data_type,
+        })
+      );
     }
 
     const config = getDefaultConfig();
@@ -167,6 +182,7 @@ function getDefaultConfig(): AdminConfig {
     subscription_price_yearly: 0,
     trial_period_days: 30,
     trial_enabled: true,
+    max_trial_uses: 1,
     grace_period_days: 90,
 
     // Swap Points
@@ -262,7 +278,10 @@ export async function getGracePeriodDays(forceRefresh = false): Promise<number> 
       }
     }
   } catch (err) {
-    console.warn('⚠️ getGracePeriodDays RPC failed, falling back to table config fetch:', (err as Error).message);
+    console.warn(
+      '⚠️ getGracePeriodDays RPC failed, falling back to table config fetch:',
+      (err as Error).message
+    );
   }
 
   return getConfigValue('grace_period_days', forceRefresh);

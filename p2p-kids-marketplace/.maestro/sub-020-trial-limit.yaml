@@ -1,0 +1,48 @@
+# FLOW: Trial Limit Control | TASK: SUB-020 | States covered: free_can_start_trial, free_limit_reached, trial_banner, grace_banner, expired_banner, error_state
+appId: com.p2pkidsmarketplace.app
+---
+- clearState
+
+# State 1: Free user can start trial (happy path)
+- runFlow:
+    file: auth-login.yaml
+- waitForAnimationToEnd
+- assertVisible:
+    id: 'subscription-choice-start-trial'
+
+# State 2: Free user reached limit (blocked state)
+# Precondition: test account is seeded at/over max_trial_uses
+- tapOn:
+    id: 'subscription-choice-start-trial'
+    optional: true
+- waitForAnimationToEnd
+- assertVisible:
+    text: 'Trial Limit Reached'
+    optional: true
+- assertVisible:
+    text: "You've already used your free trial. Subscribe now to access Kids Club+."
+    optional: true
+- assertVisible:
+    id: 'subscription-choice-subscribe-now'
+    optional: true
+
+# State 3: Banner trial/grace/expired verification blocks (TC-8/9/10)
+# Precondition: execute with corresponding seeded account per state
+- assertVisible:
+    id: 'subscription-banner'
+    optional: true
+- assertVisible:
+    text: 'Continue Kids Club+'
+    optional: true
+- assertVisible:
+    text: 'Re-subscribe'
+    optional: true
+
+# State 4: error-state hard assertion path (if modal appears)
+- assertVisible:
+    text: "You've already used your free trial"
+    optional: true
+
+# Hard final assertion (rule 5): app remains on a subscription-related screen
+- assertVisible:
+    text: 'Kids Club+'

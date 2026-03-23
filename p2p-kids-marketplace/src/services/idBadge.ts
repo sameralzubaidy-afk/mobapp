@@ -44,11 +44,15 @@ export const idBadgeService = {
    */
   async checkPendingRequest(userId: string) {
     try {
-      const { data, error } = await supabase
+      const query = supabase
         .from('id_badge_verification_requests')
         .select('id, status, submitted_at')
         .eq('user_id', userId)
-        .eq('status', 'pending')
+        .eq('status', 'pending');
+
+      const { data, error } = await query
+        .order('submitted_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
@@ -163,40 +167,36 @@ export const idBadgeService = {
    */
   async getVerificationStatus(userId: string): Promise<IDVerificationStatus> {
     try {
-      // Check for pending request first
-      const { data: pending } = await supabase
+      const { data: latest, error } = await supabase
         .from('id_badge_verification_requests')
         .select('status, submitted_at, reviewed_at, rejection_reason, rejection_notes')
         .eq('user_id', userId)
-        .eq('status', 'pending')
         .order('submitted_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (pending) {
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      if (!latest) {
+        return { status: 'none' };
+      }
+
+      if (latest.status === 'pending') {
         return {
           status: 'pending',
-          submittedAt: pending.submitted_at,
+          submittedAt: latest.submitted_at,
         };
       }
 
-      // Check for approved/rejected
-      const { data: decided } = await supabase
-        .from('id_badge_verification_requests')
-        .select('status, submitted_at, reviewed_at, rejection_reason, rejection_notes')
-        .eq('user_id', userId)
-        .in('status', ['approved', 'rejected'])
-        .order('reviewed_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (decided) {
+      if (latest.status === 'approved' || latest.status === 'rejected') {
         return {
-          status: decided.status as 'approved' | 'rejected',
-          submittedAt: decided.submitted_at,
-          reviewedAt: decided.reviewed_at || undefined,
-          rejectionReason: decided.rejection_reason || undefined,
-          rejectionNotes: decided.rejection_notes || undefined,
+          status: latest.status as 'approved' | 'rejected',
+          submittedAt: latest.submitted_at,
+          reviewedAt: latest.reviewed_at || undefined,
+          rejectionReason: latest.rejection_reason || undefined,
+          rejectionNotes: latest.rejection_notes || undefined,
         };
       }
 

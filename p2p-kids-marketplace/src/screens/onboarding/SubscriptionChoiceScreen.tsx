@@ -24,17 +24,19 @@ import {
   isTrialEnabled,
   invalidateConfigCache,
   getSPMaxPercentage,
+  getConfigValue,
 } from '@/services/adminConfig';
+import { getTrialLimitStatus, TrialLimitStatus } from '@/services/subscription';
 
 export default function SubscriptionChoiceScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { session } = useAuth();
-  
+
   // Get userId from route params (during onboarding) or from session (when navigating from app)
   const userIdFromParams = (route.params as any)?.userId;
   const userId = userIdFromParams || session?.user?.id;
-  
+
   // Determine if we're in onboarding flow (has userId param) or authenticated app flow (no userId param)
   const isOnboardingFlow = !!userIdFromParams;
 
@@ -44,21 +46,38 @@ export default function SubscriptionChoiceScreen() {
   const [trialDays, setTrialDays] = useState(30);
   const [spMaxPercentage, setSpMaxPercentage] = useState(50);
   const [isReferred, setIsReferred] = useState(false);
+  const [trialLimitStatus, setTrialLimitStatus] = useState<TrialLimitStatus | null>(null);
 
   // Fetch config every time screen is focused (ensures fresh values from admin changes)
   useFocusEffect(
     React.useCallback(() => {
       loadConfigSettings();
       checkReferralStatus();
+      loadTrialLimitStatus();
     }, [userId])
   );
+
+  const loadTrialLimitStatus = async () => {
+    if (!userId) {
+      setTrialLimitStatus(null);
+      return;
+    }
+
+    try {
+      const status = await getTrialLimitStatus(userId);
+      setTrialLimitStatus(status);
+    } catch (error) {
+      console.warn('Error loading trial limit status:', error);
+      setTrialLimitStatus(null);
+    }
+  };
 
   const checkReferralStatus = async () => {
     if (!userId) return;
     try {
       const eligibility = await ReferralCodeServiceV2.checkEligibility(userId);
       setIsReferred(eligibility.rewards_pending);
-      
+
       if (eligibility.rewards_pending) {
         await ReferralRewardsService.getConfiguredRewardAmounts();
       }
@@ -77,13 +96,20 @@ export default function SubscriptionChoiceScreen() {
       const days = await getTrialDays();
       const trialEnabledStatus = await isTrialEnabled();
       const spMaxPercent = await getSPMaxPercentage();
+      const maxTrialUses = await getConfigValue('max_trial_uses');
 
       setSubscriptionPrice(price.toFixed(2));
       setTrialDays(days);
       setTrialEnabled(trialEnabledStatus);
       setSpMaxPercentage(spMaxPercent);
 
-      console.log('Config loaded:', { price, days, trialEnabledStatus, spMaxPercent });
+      console.log('Config loaded:', {
+        price,
+        days,
+        trialEnabledStatus,
+        spMaxPercent,
+        maxTrialUses,
+      });
     } catch (error) {
       console.error('Error loading config settings:', error);
       // Keep price dynamic; do not fall back to a hardcoded tier price.
@@ -128,7 +154,7 @@ export default function SubscriptionChoiceScreen() {
       setLoading(true);
 
       console.log('🎯 SUBSCRIPTION FLOW: User chose FREE tier');
-      
+
       // Mark profile as complete
       // Note: User already has free subscription from signup (create_free_subscription RPC)
       // No need to modify subscription - it's already 'free' status
@@ -159,7 +185,25 @@ export default function SubscriptionChoiceScreen() {
       setLoading(true);
 
       if (!trialEnabled) {
-        Alert.alert('Trial Unavailable', 'Trial subscription is not currently available. Please choose Free Tier.');
+        Alert.alert(
+          'Trial Unavailable',
+          'Trial subscription is not currently available. Please choose Free Tier.'
+        );
+        return;
+      }
+
+      if (trialLimitStatus && !trialLimitStatus.can_start_trial) {
+        Alert.alert(
+          "You've already used your free trial",
+          "You've used your free trial. Subscribe to Kids Club+ to continue.",
+          [
+            { text: 'Contact Support', style: 'cancel' },
+            {
+              text: 'Subscribe Now',
+              onPress: () => (navigation as any).navigate('ContinueKidsClub'),
+            },
+          ]
+        );
         return;
       }
 
@@ -176,7 +220,7 @@ export default function SubscriptionChoiceScreen() {
       // We need to upgrade it to 'trial'
       if (existingSubscription?.status === 'free') {
         console.log('🔄 SUBSCRIPTION FLOW: Upgrading free subscription to trial');
-        
+
         // Mark profile as complete first
         const { error: updateError } = await supabase
           .from('profiles')
@@ -192,10 +236,9 @@ export default function SubscriptionChoiceScreen() {
 
         // Upgrade free subscription to trial using RPC
         // (This is the same function used for mid-session upgrades)
-        const { error: upgradeError } = await (supabase.rpc(
-          'upgrade_free_subscription_to_trial',
-          { p_user_id: userId }
-        ) as any);
+        const { error: upgradeError } = await (supabase.rpc('upgrade_free_subscription_to_trial', {
+          p_user_id: userId,
+        }) as any);
 
         if (upgradeError) {
           console.error('❌ SUBSCRIPTION FLOW: Upgrade failed:', upgradeError);
@@ -231,7 +274,7 @@ export default function SubscriptionChoiceScreen() {
       if (existingSubscription?.status === 'trial') {
         // Already in trial (shouldn't happen with new flow, but handle it)
         console.log('✅ SUBSCRIPTION FLOW: User already in trial');
-        
+
         const { error: updateError } = await supabase
           .from('profiles')
           .update({
@@ -268,7 +311,7 @@ export default function SubscriptionChoiceScreen() {
       // Fallback: subscription doesn't exist yet (shouldn't happen)
       // Try to create trial subscription
       console.warn('⚠️ SUBSCRIPTION FLOW: No existing subscription, creating trial from scratch');
-      
+
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -306,7 +349,9 @@ export default function SubscriptionChoiceScreen() {
                 }, 100);
               } else {
                 // User upgraded mid-listing creation, go back to continue
-                console.log('[SubscriptionChoice] ✅ Returning to listing creation, subscription should refresh on focus');
+                console.log(
+                  '[SubscriptionChoice] ✅ Returning to listing creation, subscription should refresh on focus'
+                );
                 navigation.goBack();
               }
             },
@@ -343,7 +388,11 @@ export default function SubscriptionChoiceScreen() {
             onPress={handleChooseFree}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color="#333" /> : <Text style={styles.freeButtonText}>Choose Free</Text>}
+            {loading ? (
+              <ActivityIndicator color="#333" />
+            ) : (
+              <Text style={styles.freeButtonText}>Choose Free</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -364,14 +413,44 @@ export default function SubscriptionChoiceScreen() {
               <FeatureItem text="No credit card required" included={true} />
             </View>
             <TouchableOpacity
-              style={[styles.button, styles.premiumButton]}
+              style={[
+                styles.button,
+                styles.premiumButton,
+                trialLimitStatus && !trialLimitStatus.can_start_trial
+                  ? styles.premiumButtonDisabled
+                  : null,
+              ]}
               onPress={handleChooseTrial}
-              disabled={loading}
+              disabled={loading || Boolean(trialLimitStatus && !trialLimitStatus.can_start_trial)}
+              testID="subscription-choice-start-trial"
             >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.premiumButtonText}>Start Free Trial</Text>}
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.premiumButtonText}>
+                  {trialLimitStatus && !trialLimitStatus.can_start_trial
+                    ? 'Trial Limit Reached'
+                    : 'Start Free Trial'}
+                </Text>
+              )}
             </TouchableOpacity>
+            {trialLimitStatus && !trialLimitStatus.can_start_trial ? (
+              <View style={styles.trialLimitWarning}>
+                <Text style={styles.trialLimitWarningTitle}>
+                  You've already used your free trial. Subscribe now to access Kids Club+.
+                </Text>
+                <TouchableOpacity
+                  style={styles.trialLimitSubscribeButton}
+                  onPress={() => (navigation as any).navigate('ContinueKidsClub')}
+                  testID="subscription-choice-subscribe-now"
+                >
+                  <Text style={styles.trialLimitSubscribeButtonText}>Subscribe Now</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
             <Text style={styles.trialDisclaimer}>
-              Your trial will automatically end in {trialDays} days. Cancel anytime, no charges until trial ends.
+              Your trial will automatically end in {trialDays} days. Cancel anytime, no charges
+              until trial ends.
             </Text>
           </View>
         )}
@@ -379,8 +458,12 @@ export default function SubscriptionChoiceScreen() {
         {/* Error state if trial disabled */}
         {!trialEnabled && (
           <View style={styles.trialDisabledCard}>
-            <Text style={styles.trialDisabledText}>Trial subscriptions are temporarily unavailable.</Text>
-            <Text style={styles.trialDisabledSubtext}>You can choose Free Tier, or check back later for Kids Club+ availability.</Text>
+            <Text style={styles.trialDisabledText}>
+              Trial subscriptions are temporarily unavailable.
+            </Text>
+            <Text style={styles.trialDisabledSubtext}>
+              You can choose Free Tier, or check back later for Kids Club+ availability.
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -517,10 +600,40 @@ const styles = StyleSheet.create({
   premiumButton: {
     backgroundColor: '#4a90e2',
   },
+  premiumButtonDisabled: {
+    opacity: 0.55,
+  },
   premiumButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  trialLimitWarning: {
+    backgroundColor: '#FFF1F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  trialLimitWarningTitle: {
+    color: '#9F1239',
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  trialLimitSubscribeButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1D4ED8',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  trialLimitSubscribeButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 12,
   },
   trialDisclaimer: {
     fontSize: 12,

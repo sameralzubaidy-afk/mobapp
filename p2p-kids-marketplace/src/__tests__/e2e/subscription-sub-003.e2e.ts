@@ -9,6 +9,19 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
   const TEST_USER_PASSWORD = 'TestPassword123!';
   let testUserId: string;
 
+  const hasExpectedTrialLimitReason = (reason?: string): boolean => {
+    if (!reason) {
+      return false;
+    }
+
+    const normalized = reason.toLowerCase();
+    return (
+      normalized.includes('already used') ||
+      normalized.includes('trial limit reached') ||
+      normalized.includes('trial_limit_reached')
+    );
+  };
+
   beforeAll(async () => {
     console.log('🧪 SUB-003 E2E Test: Setup');
     
@@ -88,7 +101,7 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
       const eligibility = await checkTrialEligibility(isolatedUserId);
 
       expect(eligibility.eligible).toBe(false);
-      expect(eligibility.reason).toContain('already used');
+      expect(hasExpectedTrialLimitReason(eligibility.reason)).toBe(true);
 
       await supabase.from('subscriptions').delete().eq('user_id', isolatedUserId);
     });
@@ -158,7 +171,7 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
-      expect(result.error!.message).toContain('TRIAL_ALREADY_USED');
+      expect(hasExpectedTrialLimitReason(result.error!.message)).toBe(true);
 
       await supabase.from('subscriptions').delete().eq('user_id', isolatedUserId);
     });

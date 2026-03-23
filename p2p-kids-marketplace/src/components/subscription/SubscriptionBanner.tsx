@@ -67,6 +67,7 @@ export function SubscriptionBanner() {
       style={styles.container}
       onPress={handlePress}
       activeOpacity={0.8}
+      testID="subscription-banner"
       accessibilityRole="button"
       accessibilityLabel={`${ctaLabel} banner`}
     >

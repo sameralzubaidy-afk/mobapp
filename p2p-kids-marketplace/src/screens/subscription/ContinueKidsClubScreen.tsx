@@ -71,7 +71,10 @@ export default function ContinueKidsClubScreen() {
     setLoading(true);
 
     try {
-      const result = await convertWithPaymentSheet();
+      const isRenewal = ['grace_period', 'expired', 'cancelled'].includes(
+        trialStatus?.status ?? ''
+      );
+      const result = await convertWithPaymentSheet({ isRenewal });
 
       if (result.success) {
         Alert.alert(

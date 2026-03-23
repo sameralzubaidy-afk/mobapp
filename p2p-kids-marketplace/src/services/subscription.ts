@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/subscription.ts
  * MODULE-11 Subscription Service (TASK SUB-002 Implementation)
- * 
+ *
  * Enhanced subscription service with full MODULE-11 V2.1 support:
  * - Complete subscription status tracking
  * - Grace period management
@@ -16,16 +16,16 @@ import { supabase } from '../config/supabase';
  * Subscription status enum (V2.1)
  * Maps to complete subscription lifecycle states
  */
-export type SubscriptionStatus = 
-  | 'free'           // No subscription (free user)
-  | 'trial'          // Active 30-day trial period
-  | 'active'         // Active paid subscription (Kids Club+)
-  | 'paused'         // Subscription paused (retention feature - keeps access)
-  | 'cancelled'      // Canceled - still has access until period end
-  | 'grace_period'   // Grace period - SP wallet frozen, 90-day countdown
-  | 'grace'          // Legacy alias for grace_period
-  | 'canceled'       // Legacy spelling
-  | 'expired';       // Subscription expired - SP permanently deleted
+export type SubscriptionStatus =
+  | 'free' // No subscription (free user)
+  | 'trial' // Active 30-day trial period
+  | 'active' // Active paid subscription (Kids Club+)
+  | 'paused' // Subscription paused (retention feature - keeps access)
+  | 'cancelled' // Canceled - still has access until period end
+  | 'grace_period' // Grace period - SP wallet frozen, 90-day countdown
+  | 'grace' // Legacy alias for grace_period
+  | 'canceled' // Legacy spelling
+  | 'expired'; // Subscription expired - SP permanently deleted
 
 /**
  * Enhanced subscription summary (V2.1)
@@ -34,17 +34,17 @@ export type SubscriptionStatus =
 export interface SubscriptionSummary {
   // Core status
   status: SubscriptionStatus;
-  is_subscriber: boolean;  // Whether user has active subscription benefits (trial, active, paused)
-  
+  is_subscriber: boolean; // Whether user has active subscription benefits (trial, active, paused)
+
   // Feature gates
-  can_earn_sp: boolean;   // Can earn Swap Points from sales
-  can_spend_sp: boolean;  // Can spend Swap Points on purchases
+  can_earn_sp: boolean; // Can earn Swap Points from sales
+  can_spend_sp: boolean; // Can spend Swap Points on purchases
   transaction_fee_cents: number; // Transaction fee in cents (99 or 299)
-  
+
   // Tier info
   subscription_tier_id: string | null;
   tier_name: string | null; // e.g., 'Kids Club+'
-  
+
   // Dates
   subscription_expires_at: string | null;
   trial_ends_at: string | null;
@@ -52,13 +52,13 @@ export interface SubscriptionSummary {
   next_billing_date: string | null;
   cancelled_at: string | null;
   paused_until: string | null;
-  
+
   // Flags
   has_used_trial: boolean;
   auto_renew_enabled: boolean;
   payment_retry_count: number;
   payment_failed_at: string | null;
-  
+
   // Stripe IDs
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
@@ -91,6 +91,26 @@ export interface SubscriptionDetails {
   stripe_payment_method_id: string | null;
 }
 
+export interface TrialLimitStatus {
+  trial_uses_count: number;
+  max_trial_uses: number;
+  unlimited: boolean;
+  limit_reached: boolean;
+  remaining_uses: number | null;
+  can_start_trial: boolean;
+}
+
+function isTrialLimitReachedMessage(message: string | undefined): boolean {
+  if (!message) {
+    return false;
+  }
+
+  return (
+    message.includes('TRIAL_LIMIT_REACHED') ||
+    message.toLowerCase().includes('trial limit reached')
+  );
+}
+
 function normalizeSubscriptionStatus(rawStatus: unknown): SubscriptionStatus {
   if (rawStatus === 'canceled') return 'cancelled';
   if (rawStatus === 'grace') return 'grace_period';
@@ -111,20 +131,17 @@ function normalizeSubscriptionStatus(rawStatus: unknown): SubscriptionStatus {
 
 /**
  * Get complete subscription summary for a user (V2.1)
- * 
+ *
  * MODULE-11 TASK SUB-002 implementation using enhanced subscriptions table
  * Includes all status fields, grace period, cancellation, and billing info
- * 
+ *
  * @param userId - User ID to check subscription for
  * @returns SubscriptionSummary with all feature flags and status details
  */
 export async function getSubscriptionSummary(userId: string): Promise<SubscriptionSummary> {
   try {
     // Call enhanced RPC function from TASK SUB-002
-    const { data, error } = await supabase.rpc(
-      'get_subscription_status',
-      { p_user_id: userId }
-    );
+    const { data, error } = await supabase.rpc('get_subscription_status', { p_user_id: userId });
 
     if (error) {
       console.error('[subscription] ❌ Error calling get_subscription_status:', error.message);
@@ -133,13 +150,17 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
 
     // Handle no subscription found (free user)
     if (!data || (Array.isArray(data) && data.length === 0)) {
-      console.log('[subscription] ℹ️ No subscription found for user', userId, '- treating as free user');
+      console.log(
+        '[subscription] ℹ️ No subscription found for user',
+        userId,
+        '- treating as free user'
+      );
       return createFreeTierSummary();
     }
 
     // Extract subscription details
     const sub = Array.isArray(data) ? data[0] : data;
-    
+
     if (!sub || typeof sub !== 'object' || !sub.status) {
       console.warn('[subscription] ⚠️ Invalid subscription data, treating as free user');
       return createFreeTierSummary();
@@ -151,10 +172,10 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     // Business rule: cancelled users remain active subscribers until period end,
     // then transition to grace_period/expired via backend lifecycle jobs.
     const isSubscriber = ['trial', 'active', 'paused', 'cancelled'].includes(status);
-    
+
     // SP feature gates (trial, active, paused can use SP; grace_period cannot)
     const canEarnSpend = ['trial', 'active', 'paused', 'cancelled'].includes(status);
-    
+
     // Transaction fee: Read dynamically from admin_config via RPC (V2.1 enhancement)
     // This allows admins to adjust fees without code changes
     let transactionFeeCents = 299; // Default fallback
@@ -165,10 +186,10 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
       console.warn('[subscription] ⚠️ Failed to fetch dynamic fee, using fallback:', err);
       transactionFeeCents = isSubscriber ? 99 : 299;
     }
-    
+
     // Determine expiration date based on status
     let expiresAt = sub.trial_ends_at || sub.current_period_end || null;
-    
+
     return {
       status,
       is_subscriber: isSubscriber,
@@ -232,7 +253,7 @@ function createFreeTierSummary(): SubscriptionSummary {
 /**
  * Check if user can accept Swap Points on listings
  * Convenience wrapper for listing creation flow
- * 
+ *
  * @param userId - User ID to check
  * @returns true if user can enable accepts_swap_points on their listings
  */
@@ -244,7 +265,7 @@ export async function canAcceptSwapPoints(userId: string): Promise<boolean> {
 /**
  * Get user's subscription status string
  * Used for audit trail (seller_subscription_status_at_creation)
- * 
+ *
  * @param userId - User ID
  * @returns Subscription status string for audit
  */
@@ -256,22 +277,19 @@ export async function getSubscriptionStatusString(userId: string): Promise<strin
 /**
  * Check if user is eligible for free trial (V2.1)
  * One trial per user lifetime
- * 
+ *
  * @param userId - User ID to check
  * @returns true if user has not used their trial yet
  */
 export async function isTrialEligible(userId: string): Promise<boolean> {
   try {
-    const { data, error } = await supabase.rpc(
-      'is_user_trial_eligible',
-      { p_user_id: userId }
-    );
-    
+    const { data, error } = await supabase.rpc('is_user_trial_eligible', { p_user_id: userId });
+
     if (error) {
       console.error('[subscription] ❌ Error checking trial eligibility:', error.message);
       return false; // Default to not eligible on error
     }
-    
+
     return Boolean(data);
   } catch (error) {
     const err = error as Error;
@@ -280,26 +298,69 @@ export async function isTrialEligible(userId: string): Promise<boolean> {
   }
 }
 
+export async function getTrialLimitStatus(userId: string): Promise<TrialLimitStatus> {
+  try {
+    // TODO(SUB-020): Product confirmation needed for "approaching limit" push timing.
+    // Current implementation exposes status for UI gating; notification scheduling remains in trial reminder jobs.
+    const { data, error } = await supabase.rpc('get_trial_limit_status', {
+      p_user_id: userId,
+    });
+
+    if (error) {
+      console.error('[subscription] ❌ Error getting trial limit status:', error.message);
+      return {
+        trial_uses_count: 0,
+        max_trial_uses: 1,
+        unlimited: false,
+        limit_reached: false,
+        remaining_uses: 1,
+        can_start_trial: true,
+      };
+    }
+
+    const status = Array.isArray(data) ? data[0] : data;
+
+    return {
+      trial_uses_count: Number(status?.trial_uses_count ?? 0),
+      max_trial_uses: Number(status?.max_trial_uses ?? 1),
+      unlimited: Boolean(status?.unlimited),
+      limit_reached: Boolean(status?.limit_reached),
+      remaining_uses:
+        status?.remaining_uses === null || status?.remaining_uses === undefined
+          ? null
+          : Number(status.remaining_uses),
+      can_start_trial: Boolean(status?.can_start_trial ?? true),
+    };
+  } catch (error) {
+    console.error('[subscription] ❌ getTrialLimitStatus failed:', error);
+    return {
+      trial_uses_count: 0,
+      max_trial_uses: 1,
+      unlimited: false,
+      limit_reached: false,
+      remaining_uses: 1,
+      can_start_trial: true,
+    };
+  }
+}
+
 /**
  * Get transaction fee for a user based on subscription status (V2.1)
  * $0.99 for Kids Club+ subscribers (trial, active, paused)
  * $2.99 for non-subscribers (free, grace_period, expired, cancelled)
- * 
+ *
  * @param userId - User ID
  * @returns Transaction fee in cents
  */
 export async function getTransactionFee(userId: string): Promise<number> {
   try {
-    const { data, error } = await supabase.rpc(
-      'get_user_transaction_fee',
-      { p_user_id: userId }
-    );
-    
+    const { data, error } = await supabase.rpc('get_user_transaction_fee', { p_user_id: userId });
+
     if (error) {
       console.error('[subscription] ❌ Error getting transaction fee:', error.message);
       return 299; // Default to non-subscriber fee on error
     }
-    
+
     return data || 299;
   } catch (error) {
     const err = error as Error;
@@ -312,21 +373,36 @@ export async function getTransactionFee(userId: string): Promise<number> {
  * Check trial eligibility with reason (SUB-003 E2E)
  * Returns structured eligibility data for UI
  */
-export async function checkTrialEligibility(userId: string): Promise<{ eligible: boolean; reason?: string }> {
+export async function checkTrialEligibility(
+  userId: string
+): Promise<{ eligible: boolean; reason?: string }> {
   try {
-    const { data, error } = await supabase.rpc('is_user_trial_eligible', { p_user_id: userId });
-    
+    const [eligibilityResult, trialLimitStatus] = await Promise.all([
+      supabase.rpc('is_user_trial_eligible', { p_user_id: userId }),
+      getTrialLimitStatus(userId),
+    ]);
+
+    const { data, error } = eligibilityResult;
+
     if (error) {
       console.error('[subscription] ❌ Error checking trial eligibility RPC:', error.message);
       return { eligible: false, reason: error.message };
     }
-    
+
     if (data === true) {
       return { eligible: true };
     } else {
-      return { 
-        eligible: false, 
-        reason: 'Trial already used or user not eligible for Kids Club+ trial' 
+      if (trialLimitStatus.limit_reached) {
+        return {
+          eligible: false,
+          reason:
+            'Trial limit reached. Trial already used (TRIAL_LIMIT_REACHED). Please subscribe or contact support.',
+        };
+      }
+
+      return {
+        eligible: false,
+        reason: 'Trial already used or user not eligible for Kids Club+ trial',
       };
     }
   } catch (error) {
@@ -351,23 +427,28 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
 
     if (error) {
       console.error('[enrollInTrialSubscription] ❌ RPC error:', error);
-      return { 
-        success: false, 
+
+      const normalizedMessage = isTrialLimitReachedMessage(error.message)
+        ? `TRIAL_ALREADY_USED: ${error.message}`
+        : error.message;
+
+      return {
+        success: false,
         subscription: null,
-        error: { message: error.message, code: error.code } 
+        error: { message: normalizedMessage, code: error.code },
       };
     }
 
-    return { 
-      success: true, 
-      subscription: data 
+    return {
+      success: true,
+      subscription: data,
     };
   } catch (error) {
     console.error('[enrollInTrialSubscription] ❌ Unexpected error:', error);
-    return { 
-      success: false, 
+    return {
+      success: false,
       subscription: null,
-      error: { message: (error as Error).message } 
+      error: { message: (error as Error).message },
     };
   }
 }
@@ -375,16 +456,13 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
 /**
  * Get complete subscription details for a user (V2.1)
  * Returns full SubscriptionDetails object with all fields
- * 
+ *
  * @param userId - User ID
  * @returns SubscriptionDetails or null if not found
  */
 export async function getSubscriptionDetails(userId: string): Promise<SubscriptionDetails | null> {
   try {
-    const { data, error } = await supabase.rpc(
-      'get_subscription_status',
-      { p_user_id: userId }
-    );
+    const { data, error } = await supabase.rpc('get_subscription_status', { p_user_id: userId });
 
     if (error) {
       console.error('[subscription] ❌ Error getting subscription details:', error.message);
@@ -427,14 +505,15 @@ export interface CancelSubscriptionResult {
  * @param cancelReason - Reason for cancellation (for analytics)
  * @returns CancelSubscriptionResult with new status and messaging
  */
-export async function cancelSubscription(
-  cancelReason?: string
-): Promise<CancelSubscriptionResult> {
+export async function cancelSubscription(cancelReason?: string): Promise<CancelSubscriptionResult> {
   try {
     console.log('[subscription] 📤 Requesting subscription cancellation...');
 
     // Get current session
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession();
     if (authError || !session) {
       console.error('[subscription] ❌ No active session for cancellation');
       return {
@@ -529,11 +608,11 @@ export async function cancelSubscription(
 
 /**
  * MODULE-11 TASK SUB-016: Renew Subscription from Grace Period
- * 
+ *
  * Allows users in grace_period or expired status to re-subscribe.
  * Uses saved payment method if available, otherwise requires payment_method_id.
  * Calls MODULE-09 SP unfreeze handler on success.
- * 
+ *
  * @param paymentMethodId - Optional new payment method ID (uses saved if omitted)
  * @returns ResubscribeResult with success status and details
  */
@@ -550,7 +629,10 @@ export async function resubscribe(paymentMethodId?: string): Promise<Resubscribe
     console.log('[subscription] 📤 Requesting subscription renewal...');
 
     // Get current session
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession();
     if (authError || !session) {
       console.error('[subscription] ❌ No active session for renewal');
       return {
@@ -648,10 +730,10 @@ export async function resubscribe(paymentMethodId?: string): Promise<Resubscribe
 
 /**
  * MODULE-11 TASK SUB-017: Get Payment Method Details
- * 
+ *
  * Retrieves saved payment method information from Stripe.
  * Returns formatted card details (brand, last 4, expiry).
- * 
+ *
  * @returns PaymentMethodInfo or null if no payment method saved
  */
 export interface PaymentMethodInfo {
@@ -667,7 +749,10 @@ export async function getPaymentMethod(): Promise<PaymentMethodInfo | null> {
     console.log('[subscription] 📤 Fetching payment method...');
 
     // Get current session
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession();
     if (authError || !session) {
       console.error('[subscription] ❌  No active session');
       return null;
@@ -715,10 +800,10 @@ export async function getPaymentMethod(): Promise<PaymentMethodInfo | null> {
 
 /**
  * MODULE-11 TASK SUB-017: Update Auto-Renew Setting
- * 
+ *
  * Toggles auto-renewal for active subscriptions.
  * Updates both Stripe and database.
- * 
+ *
  * @param autoRenewEnabled - Whether auto-renew should be enabled
  * @returns AutoRenewResult with success status and message
  */
@@ -733,7 +818,10 @@ export async function updateAutoRenew(autoRenewEnabled: boolean): Promise<AutoRe
     console.log('[subscription] 📤 Updating auto-renew to:', autoRenewEnabled);
 
     // Get current session
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error: authError,
+    } = await supabase.auth.getSession();
     if (authError || !session) {
       console.error('[subscription] ❌ No active session');
       return {

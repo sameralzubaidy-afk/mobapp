@@ -7,6 +7,9 @@ import { createConfirmedTestUser, deleteTestUser } from '@/test-helpers/authTest
 describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
   let testUserId: string;
 
+  const hasExpectedTrialLimitError = (message: string): boolean =>
+    message.includes('TRIAL_ALREADY_USED') || message.includes('TRIAL_LIMIT_REACHED');
+
   async function createRealTestUser(suffix: string): Promise<string> {
     const email = `sub-003-${suffix}-${Date.now()}-${Math.floor(Math.random() * 10000)}@example.com`;
     const created = await createConfirmedTestUser({
@@ -98,7 +101,7 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
 
       // Assert: should fail
       expect(secondError).toBeDefined();
-      expect(secondError!.message).toContain('TRIAL_ALREADY_USED');
+      expect(hasExpectedTrialLimitError(secondError!.message)).toBe(true);
       expect(secondTrial).toBeNull();
     });
 
@@ -144,7 +147,7 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
         .rpc('create_trial_subscription', { p_user_id: testUserId });
 
       if (secondError) {
-        expect(secondError.message).toContain('TRIAL_ALREADY_USED');
+        expect(hasExpectedTrialLimitError(secondError.message)).toBe(true);
       } else {
         expect(second.id).toBe(firstTrialId); // Same subscription
         expect(second.status).toBe('trial');
@@ -195,7 +198,7 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
         .rpc('create_trial_subscription', { p_user_id: testUserId });
 
       if (error) {
-        expect(error.message).toContain('TRIAL_ALREADY_USED');
+        expect(hasExpectedTrialLimitError(error.message)).toBe(true);
       }
 
       // Re-query to verify flag was preserved
@@ -231,7 +234,7 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
         .rpc('create_trial_subscription', { p_user_id: testUserId });
 
       if (error) {
-        expect(error.message).toContain('TRIAL_ALREADY_USED');
+        expect(hasExpectedTrialLimitError(error.message)).toBe(true);
       } else {
         expect(data).toBeDefined();
         expect(data?.user_id).toBe(testUserId);

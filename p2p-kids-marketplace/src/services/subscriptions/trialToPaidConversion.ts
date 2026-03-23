@@ -57,18 +57,47 @@ export async function setupSubscriptionPaymentSheet(): Promise<PaymentSheetSetup
  * @returns Conversion result
  */
 export async function convertTrialToPaidSubscription(
-  paymentMethodId: string
+  paymentMethodId: string,
+  isRenewal = false
 ): Promise<ConversionResult> {
   try {
     console.log('[trialToPaid] Converting trial to paid with payment method:', paymentMethodId);
 
-    const { data, error } = await supabase.functions.invoke(
-      'create-subscription-payment',
-      {
-        method: 'POST',
-        body: { paymentMethodId },
+    let sessionUserId: string | null = null;
+    if (isRenewal) {
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        return {
+          success: false,
+          error: 'Not authenticated',
+        };
       }
-    );
+
+      sessionUserId = session.user.id;
+    }
+
+    const functionName = isRenewal
+      ? 'create-subscription-from-payment-method'
+      : 'create-subscription-payment';
+
+    const requestBody = isRenewal
+      ? {
+          user_id: sessionUserId,
+          payment_method_id: paymentMethodId,
+          is_renewal: true,
+        }
+      : {
+          paymentMethodId,
+        };
+
+    const { data, error } = await supabase.functions.invoke(functionName, {
+      method: 'POST',
+      body: requestBody,
+    });
 
     if (error) {
       console.error('[trialToPaid] Error creating subscription:', error);
@@ -97,6 +126,17 @@ export async function convertTrialToPaidSubscription(
     }
 
     if (!data || !data.success) {
+      if (isRenewal && data?.subscription_id) {
+        return {
+          success: true,
+          subscription: {
+            id: data.subscription_id,
+            status: data.status || 'active',
+            current_period_end: new Date(data.current_period_end).getTime() / 1000,
+          },
+        };
+      }
+
       return {
         success: false,
         error: data?.error || 'Unknown error',
@@ -129,7 +169,11 @@ export function useTrialToPaidConversion() {
   /**
    * Initialize and present payment sheet, then convert trial to paid
    */
-  const convertWithPaymentSheet = async (): Promise<ConversionResult> => {
+  const convertWithPaymentSheet = async ({
+    isRenewal = false,
+  }: {
+    isRenewal?: boolean;
+  } = {}): Promise<ConversionResult> => {
     try {
       // Step 1: Setup payment sheet
       console.log('[useTrialToPaid] Setting up payment sheet...');
@@ -223,7 +267,7 @@ export function useTrialToPaidConversion() {
       
       // Step 5: Convert trial to paid subscription using the retrieved payment method
       console.log('[useTrialToPaid] Creating subscription...');
-      return await convertTrialToPaidSubscription(paymentMethodId);
+      return await convertTrialToPaidSubscription(paymentMethodId, isRenewal);
       
     } catch (error) {
       console.error('[useTrialToPaid] Unexpected error:', error);

@@ -45,6 +45,10 @@ function isValidStripeProductId(productId: string): boolean {
   return /^prod_[A-Za-z0-9]+$/.test(productId);
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 async function getAdminConfigNumber(
   supabaseClient: ReturnType<typeof createClient>,
   key: string,
@@ -404,10 +408,15 @@ serve(async (req) => {
       current_period_start: new Date(stripeSubscription.current_period_start * 1000).toISOString(),
       current_period_end: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
       next_billing_date: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
-      monthly_price_cents: tier.price_cents,
+      monthly_price_cents: adminMonthlyPriceCents,
+      last_payment_amount: adminMonthlyPriceCents,
       auto_renew_enabled: !stripeSubscription.cancel_at_period_end,
       updated_at: new Date().toISOString(),
     };
+
+    if (isUuid(tier.id)) {
+      updateData.tier_id = tier.id;
+    }
 
     // If creating from grace/expired, reactivate
     if (isRenewal && (subscription.status === 'grace_period' || subscription.status === 'expired')) {
@@ -437,19 +446,45 @@ serve(async (req) => {
       // Continue anyway - webhook will sync status
     }
 
-    // Create billing history entry if charge succeeded immediately
-    if (latestInvoice && latestInvoice.status === 'paid') {
-      const { error: billingError } = await supabaseClient.from('billing_history').insert({
-        user_id: userId,
-        subscription_id: subscription.id,
-        charge_id: latestInvoice.charge as string,
-        stripe_invoice_id: latestInvoice.id,
-        amount: latestInvoice.amount_paid,
-        currency: latestInvoice.currency,
-        status: 'succeeded',
-        charged_at: new Date(latestInvoice.status_transitions.paid_at! * 1000).toISOString(),
-        description: 'Kids Club+ Subscription - Initial Payment',
-      });
+    // Create billing history entry when payment succeeded (renewal or immediate paid activation).
+    const chargeId =
+      (typeof latestInvoice?.charge === 'string' ? latestInvoice.charge : null) ||
+      (typeof paymentIntent?.latest_charge === 'string' ? paymentIntent.latest_charge : null) ||
+      paymentIntent?.id ||
+      latestInvoice?.id ||
+      null;
+
+    const paidAtUnix = latestInvoice?.status_transitions?.paid_at || paymentIntent?.created || null;
+    const chargedAtIso = paidAtUnix
+      ? new Date(paidAtUnix * 1000).toISOString()
+      : new Date().toISOString();
+
+    const paidAmount =
+      latestInvoice?.amount_paid ??
+      paymentIntent?.amount_received ??
+      paymentIntent?.amount ??
+      adminMonthlyPriceCents;
+
+    if (hasSuccessfulPayment && chargeId) {
+      const { error: billingError } = await supabaseClient.from('billing_history').upsert(
+        {
+          user_id: userId,
+          subscription_id: subscription.id,
+          charge_id: chargeId,
+          stripe_invoice_id: latestInvoice?.id || null,
+          amount: paidAmount,
+          currency: latestInvoice?.currency || 'usd',
+          status: 'succeeded',
+          charged_at: chargedAtIso,
+          description: isRenewal
+            ? 'Kids Club+ Subscription - Renewal Payment'
+            : 'Kids Club+ Subscription - Initial Payment',
+        },
+        {
+          onConflict: 'charge_id',
+          ignoreDuplicates: true,
+        }
+      );
 
       if (billingError) {
         console.error('[create-subscription-from-payment-method] Billing history insert failed:', billingError);

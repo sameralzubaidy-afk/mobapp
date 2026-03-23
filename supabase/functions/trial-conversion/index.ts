@@ -113,9 +113,10 @@ serve(async (req) => {
           }
         }
 
-        // Decision: Convert to active or downgrade to grace
-        if (hasActiveStripeSubscription || trial.v_has_payment_method) {
-          // User has payment method → Convert to active
+        // Decision: Convert to active only when Stripe confirms active subscription.
+        // A saved payment method alone is not proof of successful paid enrollment.
+        if (hasActiveStripeSubscription) {
+          // User has active paid Stripe subscription → Convert to active
           console.log(`[trial-conversion] Converting user ${trial.v_user_id} to active`);
 
           const { data: convertResult, error: convertError } = await supabase
@@ -137,8 +138,10 @@ serve(async (req) => {
             converted++;
           }
         } else {
-          // User has no payment method → Downgrade to grace period
-          console.log(`[trial-conversion] Downgrading user ${trial.v_user_id} to grace period`);
+          // User has no active Stripe subscription → Downgrade to grace period
+          console.log(
+            `[trial-conversion] Downgrading user ${trial.v_user_id} to grace period (active Stripe subscription not found)`
+          );
 
           const { data: downgradeResult, error: downgradeError } = await supabase
             .rpc('downgrade_trial_to_grace', {

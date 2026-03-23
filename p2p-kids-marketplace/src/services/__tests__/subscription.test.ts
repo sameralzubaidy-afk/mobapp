@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/__tests__/subscription.test.ts
  * MODULE-11 TASK SUB-002: Unit Tests for Subscription Service
- * 
+ *
  * Tests cover:
  * - Subscription status retrieval
  * - Feature gates (SP earn/spend)
@@ -17,6 +17,8 @@ import {
   canAcceptSwapPoints,
   getSubscriptionStatusString,
   isTrialEligible,
+  getTrialLimitStatus,
+  checkTrialEligibility,
   getTransactionFee,
   getSubscriptionDetails,
   type SubscriptionStatus,
@@ -78,14 +80,15 @@ describe('Subscription Service - TASK SUB-002', () => {
         stripe_payment_method_id: null,
       };
 
-      mockRpc.mockResolvedValueOnce({
-        data: [mockTrialData],
-        error: null,
-      } as any)
-      .mockResolvedValueOnce({
-        data: 99,
-        error: null,
-      } as any);
+      mockRpc
+        .mockResolvedValueOnce({
+          data: [mockTrialData],
+          error: null,
+        } as any)
+        .mockResolvedValueOnce({
+          data: 99,
+          error: null,
+        } as any);
 
       const result = await getSubscriptionSummary('user-123');
 
@@ -123,14 +126,15 @@ describe('Subscription Service - TASK SUB-002', () => {
         stripe_payment_method_id: 'pm_123',
       };
 
-      mockRpc.mockResolvedValueOnce({
-        data: [mockActiveData],
-        error: null,
-      } as any)
-      .mockResolvedValueOnce({
-        data: 99,
-        error: null,
-      } as any);
+      mockRpc
+        .mockResolvedValueOnce({
+          data: [mockActiveData],
+          error: null,
+        } as any)
+        .mockResolvedValueOnce({
+          data: 99,
+          error: null,
+        } as any);
 
       const result = await getSubscriptionSummary('user-123');
 
@@ -165,14 +169,15 @@ describe('Subscription Service - TASK SUB-002', () => {
         stripe_payment_method_id: 'pm_123',
       };
 
-      mockRpc.mockResolvedValueOnce({
-        data: [mockGraceData],
-        error: null,
-      } as any)
-      .mockResolvedValueOnce({
-        data: 299,
-        error: null,
-      } as any);
+      mockRpc
+        .mockResolvedValueOnce({
+          data: [mockGraceData],
+          error: null,
+        } as any)
+        .mockResolvedValueOnce({
+          data: 299,
+          error: null,
+        } as any);
 
       const result = await getSubscriptionSummary('user-123');
 
@@ -210,14 +215,15 @@ describe('Subscription Service - TASK SUB-002', () => {
         stripe_payment_method_id: 'pm_123',
       };
 
-      mockRpc.mockResolvedValueOnce({
-        data: [mockPausedData],
-        error: null,
-      } as any)
-      .mockResolvedValueOnce({
-        data: 99,
-        error: null,
-      } as any);
+      mockRpc
+        .mockResolvedValueOnce({
+          data: [mockPausedData],
+          error: null,
+        } as any)
+        .mockResolvedValueOnce({
+          data: 99,
+          error: null,
+        } as any);
 
       const result = await getSubscriptionSummary('user-123');
 
@@ -246,10 +252,12 @@ describe('Subscription Service - TASK SUB-002', () => {
   describe('canAcceptSwapPoints', () => {
     it('should return true for subscribers', async () => {
       mockRpc.mockResolvedValueOnce({
-        data: [{
-          status: 'active',
-          can_spend_sp: true,
-        }],
+        data: [
+          {
+            status: 'active',
+            can_spend_sp: true,
+          },
+        ],
         error: null,
       } as any);
 
@@ -297,6 +305,103 @@ describe('Subscription Service - TASK SUB-002', () => {
 
       const result = await isTrialEligible('user-123');
       expect(result).toBe(false);
+    });
+  });
+
+  describe('getTrialLimitStatus', () => {
+    it('should return parsed trial-limit status from RPC', async () => {
+      mockRpc.mockResolvedValueOnce({
+        data: {
+          trial_uses_count: 1,
+          max_trial_uses: 1,
+          unlimited: false,
+          limit_reached: true,
+          remaining_uses: 0,
+          can_start_trial: false,
+        },
+        error: null,
+      } as any);
+
+      const result = await getTrialLimitStatus('user-123');
+
+      expect(result.trial_uses_count).toBe(1);
+      expect(result.max_trial_uses).toBe(1);
+      expect(result.limit_reached).toBe(true);
+      expect(result.can_start_trial).toBe(false);
+    });
+
+    it('should return safe defaults when RPC errors', async () => {
+      mockRpc.mockResolvedValueOnce({
+        data: null,
+        error: { message: 'RPC failed', details: '', hint: '', code: '' },
+      } as any);
+
+      const result = await getTrialLimitStatus('user-123');
+
+      expect(result.trial_uses_count).toBe(0);
+      expect(result.max_trial_uses).toBe(1);
+      expect(result.can_start_trial).toBe(true);
+    });
+
+    it('should parse unlimited status when max_trial_uses is <= 0', async () => {
+      mockRpc.mockResolvedValueOnce({
+        data: {
+          trial_uses_count: 10,
+          max_trial_uses: 0,
+          unlimited: true,
+          limit_reached: false,
+          remaining_uses: null,
+          can_start_trial: true,
+        },
+        error: null,
+      } as any);
+
+      const result = await getTrialLimitStatus('user-123');
+
+      expect(result.unlimited).toBe(true);
+      expect(result.limit_reached).toBe(false);
+      expect(result.can_start_trial).toBe(true);
+      expect(result.remaining_uses).toBeNull();
+    });
+  });
+
+  describe('checkTrialEligibility', () => {
+    it('should return explicit limit-reached reason when max trial uses is reached', async () => {
+      mockRpc.mockResolvedValueOnce({ data: false, error: null } as any).mockResolvedValueOnce({
+        data: {
+          trial_uses_count: 1,
+          max_trial_uses: 1,
+          unlimited: false,
+          limit_reached: true,
+          remaining_uses: 0,
+          can_start_trial: false,
+        },
+        error: null,
+      } as any);
+
+      const result = await checkTrialEligibility('user-123');
+
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toContain('Trial limit reached');
+    });
+
+    it('should return generic ineligible reason when limit is not reached', async () => {
+      mockRpc.mockResolvedValueOnce({ data: false, error: null } as any).mockResolvedValueOnce({
+        data: {
+          trial_uses_count: 0,
+          max_trial_uses: 1,
+          unlimited: false,
+          limit_reached: false,
+          remaining_uses: 1,
+          can_start_trial: true,
+        },
+        error: null,
+      } as any);
+
+      const result = await checkTrialEligibility('user-123');
+
+      expect(result.eligible).toBe(false);
+      expect(result.reason).toContain('Trial already used or user not eligible');
     });
   });
 

@@ -75,6 +75,7 @@ const linking = {
       Welcome: 'welcome',
       ProfileCompletion: 'profile-completion',
       SubscriptionChoice: 'subscription-choice',
+      ContinueKidsClub: 'continue-kids-club',
       LocationPicker: 'location-picker',
       NodeSelection: 'node-selection',
       FeatureHighlights: 'feature-highlights',
@@ -93,9 +94,9 @@ const linking = {
 
 /**
  * MODULE-03 AUTH-V2-003: RootNavigator
- * 
+ *
  * Handles both authenticated and unauthenticated state transitions
- * 
+ *
  * KEY FIX: Check BOTH session AND onboarding_completed status
  * - If session exists BUT onboarding not complete → show onboarding stack
  * - If session exists AND onboarding complete → show authenticated/dashboard stack
@@ -146,7 +147,9 @@ function RootNavigator() {
 
   if (isLoading && !forceRender) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+      <View
+        style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}
+      >
         <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
@@ -182,26 +185,67 @@ function RootNavigator() {
             <Stack.Screen name="EditListing" component={EditListingScreen} />
             <Stack.Screen name="ListingDetail" component={ItemDetailScreen} />
             <Stack.Screen name="TradeInitiation" component={TradeInitiationScreen} />
-            <Stack.Screen name="TradeList" component={require('@/screens/trade/TradeListScreen').default} />
+            <Stack.Screen
+              name="TradeList"
+              component={require('@/screens/trade/TradeListScreen').default}
+            />
             <Stack.Screen name="TradeDetail" component={TradeTimelineScreen} />
             <Stack.Screen name="TradeTimeline" component={TradeTimelineScreen} />
             <Stack.Screen name="TradeSuccess" component={TradeSuccessScreen} />
             {/* MODULE-07: Messaging screens */}
-            <Stack.Screen name="Conversations" component={require('@/screens/messaging/ConversationsListScreen').default} />
-            <Stack.Screen name="Chat" component={require('@/screens/messaging/ChatScreen').default} />
+            <Stack.Screen
+              name="Conversations"
+              component={require('@/screens/messaging/ConversationsListScreen').default}
+            />
+            <Stack.Screen
+              name="Chat"
+              component={require('@/screens/messaging/ChatScreen').default}
+            />
             {/* MODULE-06 (EXT): Seller Payout screens */}
             <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} />
             <Stack.Screen name="SellerEarnings" component={SellerEarningsScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
             <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
-            <Stack.Screen name="TrialConversionTest" component={TrialConversionTestScreen} options={{ title: 'Trial Conversion Test - SUB-005' }} />
-            <Stack.Screen name="ContinueKidsClub" component={ContinueKidsClubScreen} options={{ title: 'Continue Kids Club+ - SUB-006' }} />
-            <Stack.Screen name="SubscriptionPayment" component={SubscriptionPaymentScreen} options={{ title: 'Subscription Payment - SUB-015' }} />
-            <Stack.Screen name="SubscriptionSuccess" component={SubscriptionSuccessScreen} options={{ title: 'Subscription Success - SUB-016/017', headerShown: false }} />
-            <Stack.Screen name="SubscriptionStatus" component={SubscriptionStatusScreen} options={{ title: 'Subscription Status - SUB-007' }} />
-            <Stack.Screen name="ManageKidsClub" component={ManageKidsClubScreen} options={{ title: 'Manage Kids Club+ - SUB-008' }} />
-            <Stack.Screen name="KidsClubOverview" component={KidsClubOverviewScreen} options={{ title: 'Kids Club+ - SUB-010' }} />
-            <Stack.Screen name="TransactionHistory" component={TransactionHistoryScreen} options={{ title: 'Billing History - SUB-015' }} />
+            <Stack.Screen
+              name="TrialConversionTest"
+              component={TrialConversionTestScreen}
+              options={{ title: 'Trial Conversion Test - SUB-005' }}
+            />
+            <Stack.Screen
+              name="ContinueKidsClub"
+              component={ContinueKidsClubScreen}
+              options={{ title: 'Continue Kids Club+ - SUB-006' }}
+            />
+            <Stack.Screen
+              name="SubscriptionPayment"
+              component={SubscriptionPaymentScreen}
+              options={{ title: 'Subscription Payment - SUB-015' }}
+            />
+            <Stack.Screen
+              name="SubscriptionSuccess"
+              component={SubscriptionSuccessScreen}
+              options={{ title: 'Subscription Success - SUB-016/017', headerShown: false }}
+            />
+            <Stack.Screen
+              name="SubscriptionStatus"
+              component={SubscriptionStatusScreen}
+              options={{ title: 'Subscription Status - SUB-007' }}
+            />
+            <Stack.Screen
+              name="ManageKidsClub"
+              component={ManageKidsClubScreen}
+              options={{ title: 'Manage Kids Club+ - SUB-008' }}
+            />
+            <Stack.Screen
+              name="KidsClubOverview"
+              component={KidsClubOverviewScreen}
+              options={{ title: 'Kids Club+ - SUB-010' }}
+            />
+            <Stack.Screen
+              name="TransactionHistory"
+              component={TransactionHistoryScreen}
+              options={{ title: 'Billing History - SUB-015' }}
+            />
             <Stack.Screen name="Badges" component={BadgesScreen} />
             <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
             {/* MODULE-09: Swap Points screens */}
@@ -213,7 +257,10 @@ function RootNavigator() {
             {/* MODULE-10: ID Badge Verification */}
             <Stack.Screen name="IDVerificationUpload" component={IDVerificationUploadScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="NotificationPreferences" component={NotificationPreferencesScreen} />
+            <Stack.Screen
+              name="NotificationPreferences"
+              component={NotificationPreferencesScreen}
+            />
             {/* Add more authenticated screens as needed */}
           </>
         ) : (

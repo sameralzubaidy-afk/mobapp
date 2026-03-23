@@ -44,39 +44,48 @@ Supabase: supabase/
 -----
 My Example 1
 
+## TASK SUB-020: Trial Limit Control (Prevent Trial Reuse - Globally Configured)
 
-## TASK SUB-018: Payment Failure Handling & Automatic Retry
 
 I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
 Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SUB-018: Payment Failure Handling & Automatic Retry
+Tasks: ## TASK SUB-020: Trial Limit Control (Prevent Trial Reuse - Globally Configured)
 
 scope is 
 
-Handle payment failures gracefully with automatic retry logic:
+Implement **global trial limit enforcement** to prevent users from abusing the free trial system. This feature allows admins to set a **lifetime trial limit** (e.g., "users can start 1 free trial, ever") and prevents users from exceeding that limit.
 
-1. **Stripe Webhook: `invoice.payment_failed`**:
-   - On failed charge: webhook increments `payment_retry_count`
-   - Schedule automatic retries:
-     - Retry 1: 3 days later (Stripe handles auto-retry by default)
-     - Retry 2: 7 days later  
-     - Retry 3: 14 days later
-   - After 3 failed retries: move user to `grace_period` (SP frozen)
+Key behaviors:
 
-2. **User Notifications**:
-   - After 1st failure: In-app banner "Payment Failed – Update Payment Method"
-   - After 2nd failure: Push notification "Your subscription payment declined. Please update your card."
-   - After 3rd failure: Banner + notification "Your Kids Club+ access has been paused. Re-subscribe to restore Swap Points."
+1. **Admin Configuration**:
+   - Admin Config screen has a new field: `max_trial_uses` (integer, default 1)
+   - Admins can adjust this setting (e.g., set to 2, 3, unlimited)
+   - Value is stored in `admin_config` table (same pattern as fees)
 
-3. **Update Payment Method on Failure**:
-   - Banner includes "Update Payment Method" button → Payment Sheet
-   - On success: retry charge immediately via edge function
-   - Refresh subscription status
+2. **Trial Limit Enforcement**:
+   - When user attempts to start a trial: check `profiles.trial_uses_count` against `admin_config.max_trial_uses`
+   - `trial_uses_count` increments each time trial is started (success only, not attempts)
+   - If `trial_uses_count >= max_trial_uses`:
+     - Show warning modal: "You've used your free trial. Subscribe to Kids Club+ to continue."
+     - Disable "Start Trial" button
+     - Show CTA: "Subscribe Now" → Payment Sheet or Paywall
 
-4. **Grace Period Entry**:
-   - If 3 retries fail: webhook moves user to `grace_period`
-   - Call MODULE-09 to freeze SP wallet
-   - Show countdown in app as showen in admin site
+3. **Tracking Trial Usage**:
+   - Add `trial_uses_count` column to `profiles` table (integer, default 0)
+   - RPC function `increment_trial_uses(p_user_id)` increments counter after successful trial creation
+   - Maintains audit trail in `subscription_events` table (optional, for analytics)
+
+4. **Admin Override** (optional for fairness):
+   - Admins can manually set `trial_uses_count` to 0 for a user (grants extra trial)
+   - Action is logged in audit table
+   - Shows notification to user: "Your trial has been reset by support"
+
+5. **User Messaging**:
+   - **Before limit**: "Start your free 30-day trial" (no warning)
+   - **At limit**: "You've already used your free trial. Subscribe now to access Kids Club+." (modal)
+   - **After failed attempt**: "Trial limit reached. Please subscribe or contact support."
+   - Android and IOS notifications for users who approach the limit (e.g., "Your trial is ending in 3 days")
+   ## ensure you cover the test cases form TC-8-10: SubscriptionBanner from  SUB-010-MANUAL-TESTING-GUIDE.md
 
 i want you to 
 

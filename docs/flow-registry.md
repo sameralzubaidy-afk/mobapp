@@ -94,6 +94,20 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period + Tier Configuration
 - Smoke: scripts/smoke/subscriptions.mjs (TODO: implement)
+- **SUB-020 Regression Fix (2026-03-12):**
+  - Renewal path from `ContinueKidsClub` now routes grace/expired users through `create-subscription-from-payment-method` (paid renewal path) instead of legacy `create-subscription-payment`.
+  - Billing writes now persist admin-configured amount and upsert billing history on successful payment in `supabase/functions/create-subscription-from-payment-method/index.ts`.
+  - Hardcoded grace window removed from admin manual-cancel API and trial conversion downgrade RPC (`20260312000001_fix_dynamic_grace_period_trial_conversion.sql`).
+- **SUB-020 Trial Limit Control (NEW):**
+  - DB migration: `supabase/migrations/20260312000000_sub_020_trial_limit_control.sql`
+  - New RPCs: `get_trial_limit_status`, `increment_trial_uses`, `admin_reset_trial_uses`
+  - Updated RPCs: `is_user_trial_eligible`, `create_trial_subscription`, `upgrade_free_subscription_to_trial`
+  - Mobile UI: `p2p-kids-marketplace/src/screens/onboarding/SubscriptionChoiceScreen.tsx`
+  - Service: `p2p-kids-marketplace/src/services/subscription.ts`
+  - Manual tests: `docs/manual-verification/SUB-020-TRIAL-LIMIT-MANUAL-TEST-CASES.md`
+  - Maestro: `p2p-kids-marketplace/.maestro/sub-020-trial-limit.yaml`
+  - E2E (Supabase): `p2p-kids-marketplace/src/__tests__/e2e/sub-020-trial-limit.e2e.ts`
+  - Unit: `p2p-kids-marketplace/src/services/__tests__/subscription.test.ts` (trial-limit section)
 - Unit/UI: `p2p-kids-marketplace/src/components/subscription/__tests__/SubscriptionBanner.test.tsx` covers banner CTA routing.
 - Hooks: `p2p-kids-marketplace/src/hooks/__tests__/useSubscription.test.ts` and `p2p-kids-marketplace/src/hooks/__tests__/useGracePeriodStatus.test.ts` cover subscription/grace-period derived UI state.
 - **SUB-003 Manual Test Guide:** SUB-003-MANUAL-TESTING-GUIDE.md
