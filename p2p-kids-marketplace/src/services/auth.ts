@@ -376,6 +376,7 @@ export async function loginWithContext(
       pending_points: 0,
       lifetime_earned: 0,
       lifetime_spent: 0,
+      wallet_state: 'inactive', // ADMIN-V2-003
     };
 
     // Step 5: Build enriched session
@@ -392,6 +393,7 @@ export async function loginWithContext(
       pending_points: (walletSummary.pending_points as number) || 0,
       lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
       lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
+      wallet_state: (walletSummary.wallet_state as 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive') || 'inactive', // ADMIN-V2-003
     };
 
     return session;
@@ -476,6 +478,7 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
       pending_points: 0,
       lifetime_earned: 0,
       lifetime_spent: 0,
+      wallet_state: 'inactive', // ADMIN-V2-003
     };
 
     return {
@@ -491,6 +494,7 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
       pending_points: (walletSummary.pending_points as number) || 0,
       lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
       lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
+      wallet_state: (walletSummary.wallet_state as 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive') || 'inactive', // ADMIN-V2-003
     };
   } catch (error) {
     console.error('Failed to build session:', error);

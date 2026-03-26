@@ -16,17 +16,19 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { getWallet, getLedgerHistory, getExpiringBatches, getSPConfig, type SPWallet, type SPLedgerEntry } from '@/services/sp/wallet';
 import { supabase } from '@/config/supabase';
+import { useAuth } from '@/hooks/useAuth';
+import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 export default function SpWalletScreen() {
   const navigation = useNavigation();
+  const { session } = useAuth();
   
   const [wallet, setWallet] = useState<SPWallet | null>(null);
   const [expiringSoonTotal, setExpiringSoonTotal] = useState(0); 
   const [ledgerHistory, setLedgerHistory] = useState<SPLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
   const [expirationDays, setExpirationDays] = useState(90); // Will be updated from config
 
   useEffect(() => {
@@ -40,8 +42,6 @@ export default function SpWalletScreen() {
         console.error('[SpWallet] User not authenticated');
         return;
       }
-
-      setUserId(user.id);
 
       // Load SP expiration config (default 90 days if not set)
       try {
@@ -98,6 +98,8 @@ export default function SpWalletScreen() {
     );
   }
 
+  const walletState = ((session?.wallet_state as WalletState | undefined) ?? (wallet.state as WalletState) ?? 'inactive') as WalletState;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -120,6 +122,8 @@ export default function SpWalletScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
+        <WalletWarningBanner walletState={walletState} />
+
         {/* Balance Card */}
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Available Balance</Text>
@@ -188,7 +192,7 @@ export default function SpWalletScreen() {
       {/* Footer Info */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          💡 Swap Points expire after 365 days of inactivity
+          💡 Swap Points expire after {expirationDays} days of inactivity
         </Text>
         <Text style={styles.footerText}>🔒 SP can only be used for item purchases</Text>
       </View>

@@ -44,48 +44,23 @@ Supabase: supabase/
 -----
 My Example 1
 
-## TASK SUB-020: Trial Limit Control (Prevent Trial Reuse - Globally Configured)
 
+## TASK ADMIN-V2-003: SP Wallet Admin Operations
 
-I’m working on the  MODULE-11-SUBSCRIPTIONS-V2.md tasks
-Module: MODULE-11-SUBSCRIPTIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SUB-020: Trial Limit Control (Prevent Trial Reuse - Globally Configured)
+I’m working on the  MODULE-12-ADMIN-V2.md tasks
+Module: MODULE-12-ADMIN-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: ## TASK ADMIN-V2-003: SP Wallet Admin Operations
 
 scope is 
+Create admin tools for SP wallet management. Enable wallet inspection (view balance, ledger history). Implement manual SP adjustments (add/deduct points with reason). Create SP audit log for all admin modifications. Display SP economy metrics (total circulation, earning rate, spending rate).
 
-Implement **global trial limit enforcement** to prevent users from abusing the free trial system. This feature allows admins to set a **lifetime trial limit** (e.g., "users can start 1 free trial, ever") and prevents users from exceeding that limit.
-
-Key behaviors:
-
-1. **Admin Configuration**:
-   - Admin Config screen has a new field: `max_trial_uses` (integer, default 1)
-   - Admins can adjust this setting (e.g., set to 2, 3, unlimited)
-   - Value is stored in `admin_config` table (same pattern as fees)
-
-2. **Trial Limit Enforcement**:
-   - When user attempts to start a trial: check `profiles.trial_uses_count` against `admin_config.max_trial_uses`
-   - `trial_uses_count` increments each time trial is started (success only, not attempts)
-   - If `trial_uses_count >= max_trial_uses`:
-     - Show warning modal: "You've used your free trial. Subscribe to Kids Club+ to continue."
-     - Disable "Start Trial" button
-     - Show CTA: "Subscribe Now" → Payment Sheet or Paywall
-
-3. **Tracking Trial Usage**:
-   - Add `trial_uses_count` column to `profiles` table (integer, default 0)
-   - RPC function `increment_trial_uses(p_user_id)` increments counter after successful trial creation
-   - Maintains audit trail in `subscription_events` table (optional, for analytics)
-
-4. **Admin Override** (optional for fairness):
-   - Admins can manually set `trial_uses_count` to 0 for a user (grants extra trial)
-   - Action is logged in audit table
-   - Shows notification to user: "Your trial has been reset by support"
-
-5. **User Messaging**:
-   - **Before limit**: "Start your free 30-day trial" (no warning)
-   - **At limit**: "You've already used your free trial. Subscribe now to access Kids Club+." (modal)
-   - **After failed attempt**: "Trial limit reached. Please subscribe or contact support."
-   - Android and IOS notifications for users who approach the limit (e.g., "Your trial is ending in 3 days")
-   ## ensure you cover the test cases form TC-8-10: SubscriptionBanner from  SUB-010-MANUAL-TESTING-GUIDE.md
+### Acceptance Criteria
+- [ ] Admin can view any user's SP wallet details
+- [ ] Admin can manually add/deduct SP with mandatory reason
+- [ ] All SP adjustments create ledger entries with 'admin_adjustment' reason
+- [ ] SP adjustments logged in admin_activity_log
+- [ ] Wallet inspection shows full ledger history
+- [ ] SP economy dashboard displays total earned/spent/circulation
 
 i want you to 
 
@@ -103,9 +78,9 @@ i want you to
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
 4. Forbidden: Re-implementing logic that already exists under a different name
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-11-VERIFICATION-V2.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-12-VERIFICATION-V2.md
 6. Show me the files you create or edit with their full paths
-7. Tell me which items in MODULE-11-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-11-VERIFICATION-V2.md
+7. Tell me which items in MODULE-12-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-12-VERIFICATION-V2.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 
@@ -150,7 +125,7 @@ i want you to
 - Run: `npm run test:maestro:ios` AND `npm run test:maestro:android` → both PASS
 
 
-MODULE-11-VERIFICATION-V2.md
+MODULE-12-VERIFICATION-V2.md
 
 my example 2 - to verify
 I want to verify what’s already implemented for MODULE-08-REVIEWS-RATINGS by exeucting the steps in  MODULE-11-VERIFICATION-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/

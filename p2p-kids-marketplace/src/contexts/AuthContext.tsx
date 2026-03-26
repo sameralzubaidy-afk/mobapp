@@ -265,6 +265,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           pending_points: 0,
           lifetime_earned: 0,
           lifetime_spent: 0,
+          wallet_state: 'inactive' as 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive', // ADMIN-V2-003
         };
 
         if (Array.isArray(walletData) && walletData.length > 0) {
@@ -309,6 +310,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           pending_points: (walletSummary.pending_points as number) || 0,
           lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
           lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
+          wallet_state: walletSummary.wallet_state || 'inactive', // ADMIN-V2-003
         };
 
         setSession(updatedSession);
@@ -553,9 +555,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             )) as any;
 
             const subscriptionStatus = subscriptionData?.status || 'free';
-            const canSpendSP = subscriptionStatus === 'trial' || subscriptionStatus === 'active';
-
-            // Also fetch SP wallet summary
+            
+            // Also fetch SP wallet summary (now includes wallet_state)
             console.log('[AUTH] 🔍 Fetching SP wallet summary...');
             const { data: walletData, error: walletFetchError } = (await withTimeout(
               supabase.rpc('get_user_sp_wallet_summary', {
@@ -576,6 +577,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               pending_points: 0,
               lifetime_earned: 0,
               lifetime_spent: 0,
+              wallet_state: 'inactive' as 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive', // ADMIN-V2-003: default state
             };
 
             if (Array.isArray(walletData) && walletData.length > 0) {
@@ -587,6 +589,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             } else {
               console.warn('[AUTH] ⚠️ No wallet data received, using defaults');
             }
+
+            // ADMIN-V2-003: can_spend_sp now checks BOTH subscription AND wallet state
+            const canSpendSP = 
+              (subscriptionStatus === 'trial' || subscriptionStatus === 'active') &&
+              (walletSummary.wallet_state === 'active');
+            
+            console.log('[AUTH] 💰 SP spending eligibility:', {
+              subscriptionStatus,
+              wallet_state: walletSummary.wallet_state,
+              canSpendSP,
+            });
 
             // Create a session with FULL profile data (including onboarding_completed)
             const authSession: AuthSession = {
@@ -624,6 +637,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               pending_points: (walletSummary.pending_points as number) || 0,
               lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
               lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
+              wallet_state: walletSummary.wallet_state || 'inactive', // ADMIN-V2-003
             };
             setSession(authSession);
             try {

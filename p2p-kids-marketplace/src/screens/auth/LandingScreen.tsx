@@ -52,6 +52,7 @@ export default function LandingScreen() {
       pending_points: 0,
       lifetime_earned: 0,
       lifetime_spent: 0,
+      wallet_state: 'inactive', // ADMIN-V2-003
     };
 
     setSession(mockSession);

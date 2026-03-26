@@ -29,6 +29,7 @@ import { initiateTradeV2, processTradePayment } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
+import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 
 type TradeInitiationRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -105,9 +106,7 @@ export default function TradeInitiationScreen() {
   
   const availableSp = walletStats.available;
   const maxSpToUse = Math.min(maxSpAllowed, availableSp);
-  
-  // SP is only available for subscribers and if item accepts SP
-  const canUseSp = isSubscriber && item.accepts_swap_points;
+  const walletState = (session?.wallet_state ?? 'inactive') as WalletState;
 
   const spDiscountCents = spAmount * spToCashRate;
   // Stripe charge: item price (after SP discount) + platform fee - BOTH must be paid
@@ -240,6 +239,8 @@ export default function TradeInitiationScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>Confirm Your Trade</Text>
 
+        <WalletWarningBanner walletState={walletState} />
+
         {/* Item Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Item</Text>
@@ -270,6 +271,16 @@ export default function TradeInitiationScreen() {
                 <Text style={styles.upgradeButtonText}>Upgrade to Kids Club+</Text>
               </Pressable>
             </View>
+          ) : !subStatus.canSpendSP ? (
+            <Text style={styles.infoText}>
+              {walletState === 'frozen'
+                ? 'Your Swap Points wallet is frozen. Renew your subscription to restore SP spending.'
+                : walletState === 'suspended'
+                ? 'Your Swap Points wallet is suspended. Please contact support for assistance.'
+                : walletState === 'grace_period'
+                ? 'Your wallet is in grace period. Renew your subscription to spend Swap Points.'
+                : 'Swap Points are currently unavailable.'}
+            </Text>
           ) : !item.accepts_swap_points ? (
             <Text style={styles.infoText}>
               This seller does not accept Swap Points for this item.

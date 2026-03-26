@@ -268,6 +268,69 @@ describe('trade service', () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe('Payment failed');
     });
+
+    it('should parse structured FunctionsHttpError payload for frozen wallet message', async () => {
+      jest.clearAllMocks();
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUser }, error: null });
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: null,
+        error: {
+          message: 'Edge Function returned a non-2xx status code',
+          context: {
+            clone: () => ({
+              text: async () =>
+                JSON.stringify({
+                  error: 'Cannot spend SP: wallet is frozen. Please renew your subscription to restore access.',
+                  code: 'SP_DEBIT_FAILED',
+                }),
+            }),
+          },
+        },
+      });
+
+      const { processTradePayment } = require('../trade');
+      const result = await processTradePayment('trade-123', 'pm_123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Cannot spend SP: wallet is frozen. Please renew your subscription to restore access.');
+    });
+
+    it('should log warning instead of error for handled wallet-state block', async () => {
+      jest.clearAllMocks();
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      (supabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: mockUser }, error: null });
+      (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+        data: null,
+        error: {
+          message: 'Edge Function returned a non-2xx status code',
+          context: {
+            clone: () => ({
+              text: async () =>
+                JSON.stringify({
+                  error: 'Cannot spend SP: wallet is frozen. Please renew your subscription to restore access.',
+                  code: 'SP_DEBIT_FAILED',
+                }),
+            }),
+          },
+        },
+      });
+
+      const { processTradePayment } = require('../trade');
+      const result = await processTradePayment('trade-123', 'pm_123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Cannot spend SP: wallet is frozen. Please renew your subscription to restore access.');
+      expect(warnSpy).toHaveBeenCalled();
+      expect(errorSpy).not.toHaveBeenCalledWith(
+        '[trade] Edge Function error:',
+        expect.anything()
+      );
+
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
   });
 
   describe('cancelTradeV2', () => {

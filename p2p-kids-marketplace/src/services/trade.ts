@@ -7,7 +7,7 @@
  */
 
 import { supabase } from '../config/supabase';
-import { Trade, TradeStatus } from '../types/trade';
+import { Trade } from '../types/trade';
 import { getSubscriptionSummary } from './subscription';
 import { getAdminConfig } from './adminConfig';
 import { getUserReviews } from './review';
@@ -122,6 +122,107 @@ export function mapStripeErrorToMessage(error?: string): string {
 
   // Pass through non-Stripe errors as-is
   return error;
+}
+
+function extractMessageFromPayload(payload: unknown): string | null {
+  if (!payload) {
+    return null;
+  }
+
+  if (typeof payload === 'string') {
+    return payload.trim() || null;
+  }
+
+  if (typeof payload !== 'object') {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const directError = record.error;
+
+  if (typeof directError === 'string' && directError.trim()) {
+    return directError;
+  }
+
+  if (directError && typeof directError === 'object') {
+    const nestedMessage = (directError as Record<string, unknown>).message;
+    if (typeof nestedMessage === 'string' && nestedMessage.trim()) {
+      return nestedMessage;
+    }
+  }
+
+  const message = record.message;
+  if (typeof message === 'string' && message.trim()) {
+    return message;
+  }
+
+  return null;
+}
+
+async function extractEdgeInvokeErrorMessage(
+  invokeError: unknown,
+  invokeData: unknown,
+  fallbackMessage: string
+): Promise<string> {
+  const messageFromData = extractMessageFromPayload(invokeData);
+  if (messageFromData) {
+    return messageFromData;
+  }
+
+  const anyError = invokeError as any;
+  const context = anyError?.context;
+
+  const messageFromContext = extractMessageFromPayload(context);
+  if (messageFromContext) {
+    return messageFromContext;
+  }
+
+  const messageFromBody = extractMessageFromPayload(context?.body);
+  if (messageFromBody) {
+    return messageFromBody;
+  }
+
+  const responseCandidates = [context, context?.response].filter(Boolean);
+
+  for (const candidate of responseCandidates) {
+    try {
+      const readable = typeof candidate.clone === 'function' ? candidate.clone() : candidate;
+
+      if (typeof readable.json === 'function') {
+        const jsonPayload = await readable.json();
+        const jsonMessage = extractMessageFromPayload(jsonPayload);
+        if (jsonMessage) {
+          return jsonMessage;
+        }
+      }
+
+      if (typeof readable.text === 'function') {
+        const rawText = await readable.text();
+        if (rawText) {
+          try {
+            const parsed = JSON.parse(rawText);
+            const parsedMessage = extractMessageFromPayload(parsed);
+            if (parsedMessage) {
+              return parsedMessage;
+            }
+          } catch {
+            const textMessage = extractMessageFromPayload(rawText);
+            if (textMessage) {
+              return textMessage;
+            }
+          }
+        }
+      }
+    } catch {
+      // Continue trying other candidates.
+    }
+  }
+
+  if (typeof anyError?.message === 'string' && anyError.message.trim()) {
+    return anyError.message;
+  }
+
+  return fallbackMessage;
 }
 
 export interface InitiateTradeInput {
@@ -464,10 +565,32 @@ export async function processTradePayment(
     });
 
     if (error) {
-      console.error('[trade] Edge Function error:', error);
+      const errorMessage = await extractEdgeInvokeErrorMessage(error, data, 'Payment failed');
+
+      const normalizedMessage = errorMessage.toLowerCase();
+      const isHandledBusinessBlock =
+        normalizedMessage.includes('cannot spend sp') ||
+        normalizedMessage.includes('cannot earn sp') ||
+        normalizedMessage.includes('wallet is frozen') ||
+        normalizedMessage.includes('wallet is suspended') ||
+        normalizedMessage.includes('insufficient balance');
+
+      if (isHandledBusinessBlock) {
+        console.warn('[trade] Payment blocked by business rule:', {
+          tradeId,
+          errorMessage,
+        });
+      } else {
+        console.error('[trade] Edge Function error:', {
+          tradeId,
+          error,
+          errorMessage,
+        });
+      }
+      
       return {
         success: false,
-        error: error.message || 'Payment failed',
+        error: errorMessage,
       };
     }
 

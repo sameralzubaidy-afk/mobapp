@@ -638,6 +638,83 @@ This file is the canonical registry of end-to-end flows and their required regre
     - `supabase functions deploy id-badge-submission-notification`
   - Verify message templates exist: `SELECT COUNT(*) FROM id_badge_verification_messages;` (expect 12 rows)
   - Verify notification preferences: `SELECT * FROM notification_preferences WHERE category = 'id_badge_verification';`
+
+### FLOW-30: SP Wallet Admin Operations — ADMIN-V2-003
+
+- Purpose: Admin tools for manual Swap Points management — view SP economy metrics, inspect individual user wallets, adjust SP balances (add/deduct) with mandatory audit reason, toggle wallet status (active/frozen/suspended), and view full ledger history. Dashboard card on admin home page shows SP economy summary.
+
+- Covers:
+  - SP economy metrics dashboard (total earned/spent, circulation, active wallets, avg balance, admin adjustments)
+  - Wallet lookup by user_id
+  - Add SP (`earn_admin_grant` ledger entries)
+  - Deduct SP (`admin_deduct` ledger entries)
+  - Prevent deduction below zero balance
+  - Mandatory reason enforcement on every adjustment
+  - Wallet status toggle (active / frozen / suspended) with audit log
+  - Full ledger history display (last 100, colour-coded by type)
+  - Audit logging in `admin_audit_logs` for all admin actions
+  - SP Economy summary card on admin home page
+
+- Automated Tests:
+  - Unit (Vitest): `p2p-kids-admin/src/__tests__/api/admin/sp-wallet.test.ts`
+    - `npm test -- --testPathPattern=sp-wallet`
+  - E2E (Jest, Supabase prod): `p2p-kids-admin/src/__tests__/e2e/sp-wallet-admin.e2e.ts`
+    - `RUN_SUPABASE_E2E=true npm run test:e2e -- --testPathPattern=sp-wallet-admin`
+
+- Manual Test Guide: `docs/manual-verification/ADMIN-V2-003-SP-WALLET-MANUAL-TEST-CASES.md` (20 test cases)
+
+- Admin Portal Pages:
+  - `/sp-wallet` — `p2p-kids-admin/src/app/sp-wallet/page.tsx`
+  - Home card — `p2p-kids-admin/src/app/components/SPEconomySummary.tsx`
+  - Home page updated — `p2p-kids-admin/src/app/page.tsx`
+
+- Admin API Routes:
+  - `GET /api/admin/sp-wallet` — economy metrics (no params) or wallet detail (`?user_id=<uuid>`)
+  - `POST /api/admin/sp-wallet/actions` — `{ action: 'adjust', user_id, amount, reason, notes }` or `{ action: 'toggle_status', user_id, new_status, notes }`
+
+- SQL Migration: `supabase/migrations/20260322000001_admin_v2_003_sp_wallet_rpcs.sql`
+
+- **Wallet State Enforcement (2026-03-23):**
+  - Backend enforcement: `debit_sp_for_trade()`, `earn_sp_for_trade()`, `can_user_spend_sp()` now check wallet state before allowing transactions (frozen/suspended/grace_period = blocked)
+  - Mobile enforcement: `AuthContext.can_spend_sp` now queries wallet state from `get_user_sp_wallet_summary()` RPC and blocks SP spending if wallet is not active
+  - UX: `WalletWarningBanner` component displays state-specific warnings (frozen = blue, suspended = red, grace_period = yellow)
+  - SQL Migration: `supabase/migrations/20260323000001_enforce_wallet_state_on_spend_earn.sql`
+  - Verification: Freeze wallet via admin → attempt SP purchase in mobile app → expect backend error "Cannot spend SP: wallet is frozen"
+  - Regression: TC-011 (freeze wallet) and TC-013 (suspend wallet) must prevent SP transactions end-to-end
+  - RPCs: `admin_adjust_sp_wallet`, `admin_toggle_sp_wallet_status`, `admin_get_sp_wallet_detail`, `get_sp_economy_metrics`
+
+- TypeScript Types: `p2p-kids-admin/src/types/sp-wallet.ts`
+
+- Dependencies:
+  - `sp_wallets` (20251215100000_auth_v2_schema.sql)
+  - `sp_ledger` (061_sp_ledger_and_trade_rpcs.sql)
+  - `admin_audit_logs` (20251227_admin_trade_tools.sql)
+  - `profiles` (profile query for user info in wallet detail)
+
+- Tier 0 (always):
+  - `cd p2p-kids-admin && npm run typecheck` (must pass with no errors)
+  - `cd p2p-kids-admin && npm run lint` (must pass)
+  - `cd p2p-kids-admin && npm test -- --testPathPattern=sp-wallet` (all unit tests pass)
+
+- Tier 1 (when admin API / UI changes):
+  - Manual: Run TC-001 to TC-018 from `ADMIN-V2-003-SP-WALLET-MANUAL-TEST-CASES.md`
+
+- Tier 2 (when SQL migration or RPC changes):
+  - `supabase db reset` on staging → re-apply migration
+  - Run TC-001 to TC-020 from manual test guide
+  - Verify SQL objects: `SELECT proname FROM pg_proc WHERE proname LIKE 'admin_%_sp%' OR proname = 'get_sp_economy_metrics';`
+
+- Quick Manual Smoke (happy path):
+  1. Admin home page → "SP Economy" card visible → click → lands on `/sp-wallet`
+  2. Economy metrics grid shows 7 cards with non-negative integers
+  3. Paste a valid user UUID → "Load Wallet" → wallet detail panel appears
+  4. Amount=`10`, Reason=`Smoke test +10` → "Apply Adjustment" → success + balance +10
+  5. Amount=`-10`, Reason=`Smoke test -10` → success + balance restored
+  6. Click "Frozen" → wallet status changes → click "Active" → restored
+  7. Supabase: `admin_audit_logs` has 3 new rows for the above actions
+
+- Change Classification: A (DB/RPC), B (API), C (UI), H (Admin config/controls)
+- Required Tiers: 0 (always) + 1 (API/UI) + 2 (SQL migration applied)
   - Run all 9 test cases from `BADGE-011-MANUAL-TESTING-GUIDE.md`
   - Verify push notification delivery (check Expo Push dashboard)
   - Verify email delivery (check SendGrid dashboard logs)

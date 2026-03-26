@@ -78,13 +78,14 @@ export interface AuthSession {
   
   // V2: Subscription context (from MODULE-11)
   subscription_status: SubscriptionStatus;
-  can_spend_sp: boolean; // True for trial/active, false otherwise
+  can_spend_sp: boolean; // True for trial/active AND wallet active, false otherwise
   
   // V2: SP wallet context (from MODULE-09)
   available_points: number;
   pending_points: number;
   lifetime_earned: number;
   lifetime_spent: number;
+  wallet_state: 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive'; // ADMIN-V2-003: wallet state enforcement
 }
 
 /**
@@ -125,7 +126,8 @@ export interface SubscriptionSummary {
 export interface SPWalletSummary {
   id: string;
   user_id: string;
-  status: 'active' | 'frozen' | 'suspended';
+  state: 'active' | 'frozen' | 'suspended' | 'grace_period'; // ADMIN-V2-003: renamed from status to match DB
+  status?: 'active' | 'frozen' | 'suspended'; // deprecated: use state
   available_balance: number;
   pending_balance: number;
   lifetime_earned: number;

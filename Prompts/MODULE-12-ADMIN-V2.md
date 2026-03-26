@@ -3715,14 +3715,2825 @@ const MetricCard: React.FC<{
 
 ---
 
+## TASK ADMIN-V2-006: User Management Dashboard
+
+**Duration:** 5 hours  
+**Priority:** High  
+**Dependencies:** ADMIN-V2-001, ADMIN-V2-002, MODULE-03 (Authentication V2), MODULE-11 (Subscriptions V2), MODULE-09 (Swap Points V2)
+
+### Description
+Create a comprehensive user management dashboard for the admin panel. Display top-level user analytics (total users, active users, new signups, suspended accounts). Provide a paginated, searchable, filterable table showing every user's profile data including name, email, phone, subscription status, registration date, and last login date. Enable admin actions: suspend/unsuspend account, view full user profile, inspect trade and listing history, view SP wallet, trigger a password-reset email, and soft-delete an account. Log every admin action against the user in `admin_activity_log`.
+
+### Acceptance Criteria
+- [ ] Dashboard displays user counts broken down by status (total, active, new this month, suspended)
+- [ ] Dashboard displays user breakdown by subscription tier (trial/active/grace/cancelled/free)
+- [ ] User table shows: avatar, full name, email, phone, subscription status, node, registered date, last login, account status
+- [ ] Table supports search by name, email, or phone
+- [ ] Table supports filter by subscription status, account status, and node
+- [ ] Table is paginated (20 users per page) with total count displayed
+- [ ] Admin can suspend a user with a mandatory reason
+- [ ] Admin can unsuspend a user with a mandatory reason
+- [ ] Admin can trigger a password-reset email for any user
+- [ ] Admin can soft-delete a user account with confirmation and mandatory reason
+- [ ] Admin can click a user row to open a full user detail panel
+- [ ] User detail panel shows profile info, subscription history, trade history (count + last trade), SP wallet summary, badge count, and recent activity log
+- [ ] All admin actions on users logged in `admin_activity_log`
+- [ ] Non-admin users cannot call any user-management RPCs
+
+---
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: User management dashboard with admin controls
+
+CONTEXT:
+Admin needs a single dashboard to inspect, search, and manage all users.
+Common use cases: CS requests, abuse/trust-and-safety, account recovery.
+
+V2 USER MODEL:
+- Users exist in `users` table with role, subscription, SP wallet, badges
+- Account status: 'active' | 'suspended' | 'banned'
+- Subscription status comes from `subscriptions` table
+- Last login tracked via Supabase auth.users.last_sign_in_at
+- Node assignment from user_preferences or node_members table
+
+ADMIN ACTIONS:
+1. View user list with filters/search/pagination
+2. View full user detail (profile + sub + SP + trades + badges)
+3. Suspend / unsuspend user (with reason, logged)
+4. Trigger password-reset email (via Supabase admin API)
+5. Soft-delete account (sets deleted_at, logged)
+
+SECURITY:
+- All RPCs verify admin role (role = 'admin')
+- Soft-delete only — no hard deletes
+- Every action logged in admin_activity_log
+
+==================================================
+FILE 1: Database migration for user management
+==================================================
+*/
+
+-- filepath: supabase/migrations/125_admin_user_management.sql
+
+-- -----------------------------------------------
+-- BLOCK 1: Schema changes
+-- -----------------------------------------------
+
+-- Account status enum
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'account_status') THEN
+    CREATE TYPE account_status AS ENUM ('active', 'suspended', 'banned');
+  END IF;
+END $$;
+
+-- Add account-management columns to users table
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS account_status account_status DEFAULT 'active',
+  ADD COLUMN IF NOT EXISTS suspended_at    TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS suspended_by    UUID REFERENCES users(id),
+  ADD COLUMN IF NOT EXISTS suspension_reason TEXT,
+  ADD COLUMN IF NOT EXISTS deleted_at      TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS deleted_by      UUID REFERENCES users(id),
+  ADD COLUMN IF NOT EXISTS deletion_reason TEXT;
+
+-- Index for status-based admin queries
+CREATE INDEX IF NOT EXISTS users_account_status_idx ON users(account_status);
+CREATE INDEX IF NOT EXISTS users_deleted_at_idx     ON users(deleted_at) WHERE deleted_at IS NULL;
+
+-- -----------------------------------------------
+-- BLOCK 2: RPC — paginated user list with filters
+-- -----------------------------------------------
+CREATE OR REPLACE FUNCTION admin_list_users(
+  p_admin_id         UUID,
+  p_search           TEXT    DEFAULT NULL,
+  p_account_status   TEXT    DEFAULT NULL,   -- 'active' | 'suspended' | 'banned'
+  p_subscription_status TEXT DEFAULT NULL,   -- 'trial' | 'active' | 'grace_period' | 'cancelled' | 'none'
+  p_node_id          UUID    DEFAULT NULL,
+  p_page             INTEGER DEFAULT 1,
+  p_page_size        INTEGER DEFAULT 20
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_offset     INTEGER;
+  v_total      INTEGER;
+  v_users      JSONB;
+BEGIN
+  -- Verify admin role
+  IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = p_admin_id AND u.role = 'admin') THEN
+    RAISE EXCEPTION 'User % is not an admin', p_admin_id;
+  END IF;
+
+  v_offset := (p_page - 1) * p_page_size;
+
+  -- Total count (for pagination header)
+  SELECT COUNT(*)
+  INTO   v_total
+  FROM   users u
+  LEFT   JOIN subscriptions s ON s.user_id = u.id
+                              AND s.id = (
+                                SELECT id FROM subscriptions s2
+                                WHERE  s2.user_id = u.id
+                                ORDER  BY s2.created_at DESC LIMIT 1
+                              )
+  LEFT   JOIN auth.users au ON au.id = u.id
+  WHERE  u.deleted_at IS NULL
+    AND  (
+           p_search IS NULL
+           OR u.full_name ILIKE '%' || p_search || '%'
+           OR u.email     ILIKE '%' || p_search || '%'
+           OR u.phone     ILIKE '%' || p_search || '%'
+         )
+    AND  (p_account_status  IS NULL OR u.account_status::TEXT = p_account_status)
+    AND  (
+           p_subscription_status IS NULL
+           OR (p_subscription_status = 'none' AND s.id IS NULL)
+           OR s.status::TEXT = p_subscription_status
+         );
+
+  -- Paginated data
+  SELECT jsonb_agg(row_to_json(t))
+  INTO   v_users
+  FROM (
+    SELECT
+      u.id,
+      u.full_name,
+      u.email,
+      u.phone,
+      u.avatar_url,
+      u.account_status,
+      u.role,
+      u.created_at                          AS registered_at,
+      au.last_sign_in_at                    AS last_login_at,
+      s.status                              AS subscription_status,
+      s.trial_ends_at,
+      s.current_period_end,
+      COALESCE(sp.balance, 0)               AS sp_balance,
+      COALESCE(trades.trade_count, 0)       AS trade_count,
+      COALESCE(badges.badge_count, 0)       AS badge_count
+    FROM   users u
+    LEFT   JOIN auth.users au ON au.id = u.id
+    LEFT   JOIN subscriptions s ON s.user_id = u.id
+                                AND s.id = (
+                                  SELECT id FROM subscriptions s2
+                                  WHERE  s2.user_id = u.id
+                                  ORDER  BY s2.created_at DESC LIMIT 1
+                                )
+    LEFT   JOIN sp_wallets sp ON sp.user_id = u.id
+    LEFT   JOIN (
+                  SELECT seller_id AS user_id, COUNT(*) AS trade_count
+                  FROM   transactions
+                  WHERE  status = 'completed'
+                  GROUP  BY seller_id
+                ) trades ON trades.user_id = u.id
+    LEFT   JOIN (
+                  SELECT user_id, COUNT(*) AS badge_count
+                  FROM   user_badges
+                  WHERE  revoked_at IS NULL
+                  GROUP  BY user_id
+                ) badges ON badges.user_id = u.id
+    WHERE  u.deleted_at IS NULL
+      AND  (
+             p_search IS NULL
+             OR u.full_name ILIKE '%' || p_search || '%'
+             OR u.email     ILIKE '%' || p_search || '%'
+             OR u.phone     ILIKE '%' || p_search || '%'
+           )
+      AND  (p_account_status IS NULL OR u.account_status::TEXT = p_account_status)
+      AND  (
+             p_subscription_status IS NULL
+             OR (p_subscription_status = 'none' AND s.id IS NULL)
+             OR s.status::TEXT = p_subscription_status
+           )
+    ORDER  BY u.created_at DESC
+    LIMIT  p_page_size
+    OFFSET v_offset
+  ) t;
+
+  RETURN jsonb_build_object(
+    'users',      COALESCE(v_users, '[]'::JSONB),
+    'total',      v_total,
+    'page',       p_page,
+    'page_size',  p_page_size,
+    'total_pages', CEIL(v_total::FLOAT / p_page_size)
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- -----------------------------------------------
+-- BLOCK 3: RPC — full user detail
+-- -----------------------------------------------
+CREATE OR REPLACE FUNCTION admin_get_user_detail(
+  p_admin_id UUID,
+  p_user_id  UUID
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_user        JSONB;
+  v_sub         JSONB;
+  v_sp          JSONB;
+  v_trades      JSONB;
+  v_badges      JSONB;
+  v_activity    JSONB;
+BEGIN
+  -- Verify admin role
+  IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = p_admin_id AND u.role = 'admin') THEN
+    RAISE EXCEPTION 'User % is not an admin', p_admin_id;
+  END IF;
+
+  -- Core profile
+  SELECT row_to_json(t) INTO v_user
+  FROM (
+    SELECT
+      u.id,
+      u.full_name,
+      u.email,
+      u.phone,
+      u.avatar_url,
+      u.account_status,
+      u.role,
+      u.dob,
+      u.created_at          AS registered_at,
+      u.suspended_at,
+      u.suspension_reason,
+      au.last_sign_in_at    AS last_login_at,
+      au.email_confirmed_at,
+      au.phone_confirmed_at
+    FROM  users u
+    LEFT  JOIN auth.users au ON au.id = u.id
+    WHERE u.id = p_user_id
+  ) t;
+
+  IF v_user IS NULL THEN
+    RAISE EXCEPTION 'User % not found', p_user_id;
+  END IF;
+
+  -- Latest subscription
+  SELECT row_to_json(t) INTO v_sub
+  FROM (
+    SELECT s.id, s.status, s.trial_ends_at, s.current_period_end,
+           s.cancelled_at, s.created_at
+    FROM   subscriptions s
+    WHERE  s.user_id = p_user_id
+    ORDER  BY s.created_at DESC
+    LIMIT  1
+  ) t;
+
+  -- SP wallet summary
+  SELECT row_to_json(t) INTO v_sp
+  FROM (
+    SELECT sw.balance, sw.status,
+           COALESCE(
+             (SELECT SUM(amount) FROM sp_transactions st
+              WHERE  st.wallet_id = sw.id AND st.type = 'earned'), 0
+           ) AS lifetime_earned,
+           COALESCE(
+             (SELECT SUM(ABS(amount)) FROM sp_transactions st
+              WHERE  st.wallet_id = sw.id AND st.type = 'spent'), 0
+           ) AS lifetime_spent
+    FROM   sp_wallets sw
+    WHERE  sw.user_id = p_user_id
+  ) t;
+
+  -- Trade summary (last 5 + totals)
+  SELECT jsonb_build_object(
+    'total_completed',
+    COALESCE((
+      SELECT COUNT(*) FROM transactions
+      WHERE  (buyer_id = p_user_id OR seller_id = p_user_id)
+        AND  status = 'completed'
+    ), 0),
+    'total_as_seller',
+    COALESCE((
+      SELECT COUNT(*) FROM transactions
+      WHERE  seller_id = p_user_id AND status = 'completed'
+    ), 0),
+    'total_as_buyer',
+    COALESCE((
+      SELECT COUNT(*) FROM transactions
+      WHERE  buyer_id = p_user_id AND status = 'completed'
+    ), 0),
+    'last_trade_at',
+    (
+      SELECT MAX(completed_at) FROM transactions
+      WHERE  (buyer_id = p_user_id OR seller_id = p_user_id)
+        AND  status = 'completed'
+    )
+  ) INTO v_trades;
+
+  -- Badge count
+  SELECT jsonb_build_object(
+    'total', COALESCE((
+      SELECT COUNT(*) FROM user_badges
+      WHERE  user_id = p_user_id AND revoked_at IS NULL
+    ), 0),
+    'badges', COALESCE((
+      SELECT jsonb_agg(jsonb_build_object(
+        'badge_id', ub.badge_id,
+        'badge_name', b.name,
+        'awarded_at', ub.awarded_at
+      ))
+      FROM   user_badges ub
+      JOIN   badges b ON b.id = ub.badge_id
+      WHERE  ub.user_id = p_user_id AND ub.revoked_at IS NULL
+      ORDER  BY ub.awarded_at DESC
+    ), '[]'::JSONB)
+  ) INTO v_badges;
+
+  -- Recent admin activity log for this user (last 10)
+  SELECT COALESCE(jsonb_agg(row_to_json(t) ORDER BY t.created_at DESC), '[]'::JSONB)
+  INTO   v_activity
+  FROM (
+    SELECT al.id, al.action_type, al.details, al.notes, al.created_at,
+           u.email AS performed_by_email
+    FROM   admin_activity_log al
+    JOIN   users u ON u.id = al.admin_id
+    WHERE  al.entity_type = 'user'
+      AND  al.entity_id   = p_user_id
+    ORDER  BY al.created_at DESC
+    LIMIT  10
+  ) t;
+
+  RETURN jsonb_build_object(
+    'user',         v_user,
+    'subscription', v_sub,
+    'sp_wallet',    v_sp,
+    'trades',       v_trades,
+    'badges',       v_badges,
+    'activity_log', v_activity
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- -----------------------------------------------
+-- BLOCK 4: RPC — suspend / unsuspend user
+-- -----------------------------------------------
+CREATE OR REPLACE FUNCTION admin_suspend_user(
+  p_admin_id UUID,
+  p_user_id  UUID,
+  p_reason   TEXT
+)
+RETURNS JSONB AS $$
+BEGIN
+  -- Verify admin role
+  IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = p_admin_id AND u.role = 'admin') THEN
+    RAISE EXCEPTION 'User % is not an admin', p_admin_id;
+  END IF;
+
+  IF p_reason IS NULL OR TRIM(p_reason) = '' THEN
+    RAISE EXCEPTION 'Suspension reason is required';
+  END IF;
+
+  UPDATE users
+  SET    account_status    = 'suspended',
+         suspended_at      = now(),
+         suspended_by      = p_admin_id,
+         suspension_reason = p_reason
+  WHERE  id = p_user_id AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User % not found or already deleted', p_user_id;
+  END IF;
+
+  PERFORM log_admin_action(
+    p_admin_id, 'user_suspend', 'user', p_user_id,
+    jsonb_build_object('reason', p_reason),
+    p_reason
+  );
+
+  RETURN jsonb_build_object('success', true, 'account_status', 'suspended');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE FUNCTION admin_unsuspend_user(
+  p_admin_id UUID,
+  p_user_id  UUID,
+  p_reason   TEXT
+)
+RETURNS JSONB AS $$
+BEGIN
+  -- Verify admin role
+  IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = p_admin_id AND u.role = 'admin') THEN
+    RAISE EXCEPTION 'User % is not an admin', p_admin_id;
+  END IF;
+
+  IF p_reason IS NULL OR TRIM(p_reason) = '' THEN
+    RAISE EXCEPTION 'Unsuspension reason is required';
+  END IF;
+
+  UPDATE users
+  SET    account_status    = 'active',
+         suspended_at      = NULL,
+         suspended_by      = NULL,
+         suspension_reason = NULL
+  WHERE  id = p_user_id AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User % not found or already deleted', p_user_id;
+  END IF;
+
+  PERFORM log_admin_action(
+    p_admin_id, 'user_unsuspend', 'user', p_user_id,
+    jsonb_build_object('reason', p_reason),
+    p_reason
+  );
+
+  RETURN jsonb_build_object('success', true, 'account_status', 'active');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- -----------------------------------------------
+-- BLOCK 5: RPC — soft-delete user
+-- -----------------------------------------------
+CREATE OR REPLACE FUNCTION admin_delete_user(
+  p_admin_id UUID,
+  p_user_id  UUID,
+  p_reason   TEXT
+)
+RETURNS JSONB AS $$
+BEGIN
+  -- Verify admin role
+  IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = p_admin_id AND u.role = 'admin') THEN
+    RAISE EXCEPTION 'User % is not an admin', p_admin_id;
+  END IF;
+
+  -- Prevent admin self-delete
+  IF p_admin_id = p_user_id THEN
+    RAISE EXCEPTION 'Admin cannot delete their own account via this RPC';
+  END IF;
+
+  IF p_reason IS NULL OR TRIM(p_reason) = '' THEN
+    RAISE EXCEPTION 'Deletion reason is required';
+  END IF;
+
+  UPDATE users
+  SET    deleted_at      = now(),
+         deleted_by      = p_admin_id,
+         deletion_reason = p_reason,
+         account_status  = 'banned'
+  WHERE  id = p_user_id AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User % not found or already deleted', p_user_id;
+  END IF;
+
+  -- Freeze SP wallet on deletion
+  UPDATE sp_wallets
+  SET    status = 'suspended'
+  WHERE  user_id = p_user_id;
+
+  PERFORM log_admin_action(
+    p_admin_id, 'user_delete', 'user', p_user_id,
+    jsonb_build_object('reason', p_reason, 'soft_delete', true),
+    p_reason
+  );
+
+  RETURN jsonb_build_object('success', true, 'deleted', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+-- -----------------------------------------------
+-- BLOCK 6: RPC — user analytics summary
+-- -----------------------------------------------
+CREATE OR REPLACE FUNCTION admin_get_user_analytics(
+  p_admin_id UUID
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_total           INTEGER;
+  v_active          INTEGER;
+  v_suspended       INTEGER;
+  v_new_this_month  INTEGER;
+  v_deleted         INTEGER;
+  v_by_subscription JSONB;
+  v_dau             INTEGER;
+  v_mau             INTEGER;
+BEGIN
+  -- Verify admin role
+  IF NOT EXISTS (SELECT 1 FROM users u WHERE u.id = p_admin_id AND u.role = 'admin') THEN
+    RAISE EXCEPTION 'User % is not an admin', p_admin_id;
+  END IF;
+
+  SELECT COUNT(*) INTO v_total      FROM users WHERE deleted_at IS NULL;
+  SELECT COUNT(*) INTO v_active     FROM users WHERE account_status = 'active'    AND deleted_at IS NULL;
+  SELECT COUNT(*) INTO v_suspended  FROM users WHERE account_status = 'suspended' AND deleted_at IS NULL;
+  SELECT COUNT(*) INTO v_deleted    FROM users WHERE deleted_at IS NOT NULL;
+
+  SELECT COUNT(*) INTO v_new_this_month
+  FROM   users
+  WHERE  created_at >= date_trunc('month', now())
+    AND  deleted_at IS NULL;
+
+  SELECT COUNT(*) INTO v_dau
+  FROM   auth.users
+  WHERE  last_sign_in_at >= now() - INTERVAL '1 day';
+
+  SELECT COUNT(*) INTO v_mau
+  FROM   auth.users
+  WHERE  last_sign_in_at >= now() - INTERVAL '30 days';
+
+  -- Breakdown by latest subscription status
+  SELECT jsonb_object_agg(COALESCE(sub_status, 'none'), cnt)
+  INTO   v_by_subscription
+  FROM (
+    SELECT
+      COALESCE(s.status::TEXT, 'none') AS sub_status,
+      COUNT(u.id)                       AS cnt
+    FROM   users u
+    LEFT   JOIN subscriptions s ON s.user_id = u.id
+                                AND s.id = (
+                                  SELECT id FROM subscriptions s2
+                                  WHERE  s2.user_id = u.id
+                                  ORDER  BY s2.created_at DESC LIMIT 1
+                                )
+    WHERE  u.deleted_at IS NULL
+    GROUP  BY sub_status
+  ) t;
+
+  RETURN jsonb_build_object(
+    'total_users',       v_total,
+    'active_users',      v_active,
+    'suspended_users',   v_suspended,
+    'deleted_users',     v_deleted,
+    'new_this_month',    v_new_this_month,
+    'dau',               v_dau,
+    'mau',               v_mau,
+    'by_subscription',   v_by_subscription
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+/*
+==================================================
+FILE 2: TypeScript types for user management
+==================================================
+*/
+
+// filepath: src/types/adminUsers.ts
+
+export type AccountStatus = 'active' | 'suspended' | 'banned';
+
+export type SubscriptionStatusFilter =
+  | 'trial'
+  | 'active'
+  | 'grace_period'
+  | 'cancelled'
+  | 'none';
+
+export interface AdminUserRow {
+  id: string;
+  full_name: string | null;
+  email: string;
+  phone: string | null;
+  avatar_url: string | null;
+  account_status: AccountStatus;
+  role: string;
+  registered_at: string;
+  last_login_at: string | null;
+  subscription_status: SubscriptionStatusFilter | null;
+  trial_ends_at: string | null;
+  current_period_end: string | null;
+  sp_balance: number;
+  trade_count: number;
+  badge_count: number;
+}
+
+export interface AdminUserListResult {
+  users: AdminUserRow[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface AdminUserDetail {
+  user: {
+    id: string;
+    full_name: string | null;
+    email: string;
+    phone: string | null;
+    avatar_url: string | null;
+    account_status: AccountStatus;
+    role: string;
+    dob: string | null;
+    registered_at: string;
+    suspended_at: string | null;
+    suspension_reason: string | null;
+    last_login_at: string | null;
+    email_confirmed_at: string | null;
+    phone_confirmed_at: string | null;
+  };
+  subscription: {
+    id: string;
+    status: string;
+    trial_ends_at: string | null;
+    current_period_end: string | null;
+    cancelled_at: string | null;
+    created_at: string;
+  } | null;
+  sp_wallet: {
+    balance: number;
+    status: string;
+    lifetime_earned: number;
+    lifetime_spent: number;
+  } | null;
+  trades: {
+    total_completed: number;
+    total_as_seller: number;
+    total_as_buyer: number;
+    last_trade_at: string | null;
+  };
+  badges: {
+    total: number;
+    badges: { badge_id: string; badge_name: string; awarded_at: string }[];
+  };
+  activity_log: {
+    id: string;
+    action_type: string;
+    details: Record<string, any> | null;
+    notes: string | null;
+    created_at: string;
+    performed_by_email: string;
+  }[];
+}
+
+export interface UserAnalytics {
+  total_users: number;
+  active_users: number;
+  suspended_users: number;
+  deleted_users: number;
+  new_this_month: number;
+  dau: number;
+  mau: number;
+  by_subscription: Record<string, number>;
+}
+
+export interface UserListFilters {
+  search?: string;
+  account_status?: AccountStatus;
+  subscription_status?: SubscriptionStatusFilter;
+  node_id?: string;
+  page?: number;
+  page_size?: number;
+}
+
+/*
+==================================================
+FILE 3: Admin user management service
+==================================================
+*/
+
+// filepath: src/services/admin/userManagement.ts
+
+import { supabase } from '@/lib/supabase';
+import type {
+  AdminUserListResult,
+  AdminUserDetail,
+  UserAnalytics,
+  UserListFilters,
+  AccountStatus,
+} from '@/types/adminUsers';
+
+export class AdminUserManagementService {
+  /**
+   * Get paginated user list with optional filters
+   */
+  static async listUsers(filters: UserListFilters = {}): Promise<AdminUserListResult> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No authenticated admin');
+
+    const { data, error } = await supabase.rpc('admin_list_users', {
+      p_admin_id:           user.id,
+      p_search:             filters.search             ?? null,
+      p_account_status:     filters.account_status     ?? null,
+      p_subscription_status: filters.subscription_status ?? null,
+      p_node_id:            filters.node_id            ?? null,
+      p_page:               filters.page               ?? 1,
+      p_page_size:          filters.page_size          ?? 20,
+    });
+
+    if (error) throw new Error(`Failed to fetch users: ${error.message}`);
+    return data as AdminUserListResult;
+  }
+
+  /**
+   * Get full detail for a single user
+   */
+  static async getUserDetail(userId: string): Promise<AdminUserDetail> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No authenticated admin');
+
+    const { data, error } = await supabase.rpc('admin_get_user_detail', {
+      p_admin_id: user.id,
+      p_user_id:  userId,
+    });
+
+    if (error) throw new Error(`Failed to fetch user detail: ${error.message}`);
+    return data as AdminUserDetail;
+  }
+
+  /**
+   * Suspend a user account
+   */
+  static async suspendUser(userId: string, reason: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No authenticated admin');
+
+    const { error } = await supabase.rpc('admin_suspend_user', {
+      p_admin_id: user.id,
+      p_user_id:  userId,
+      p_reason:   reason,
+    });
+
+    if (error) throw new Error(`Failed to suspend user: ${error.message}`);
+  }
+
+  /**
+   * Unsuspend a user account
+   */
+  static async unsuspendUser(userId: string, reason: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No authenticated admin');
+
+    const { error } = await supabase.rpc('admin_unsuspend_user', {
+      p_admin_id: user.id,
+      p_user_id:  userId,
+      p_reason:   reason,
+    });
+
+    if (error) throw new Error(`Failed to unsuspend user: ${error.message}`);
+  }
+
+  /**
+   * Soft-delete a user account
+   */
+  static async deleteUser(userId: string, reason: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No authenticated admin');
+
+    const { error } = await supabase.rpc('admin_delete_user', {
+      p_admin_id: user.id,
+      p_user_id:  userId,
+      p_reason:   reason,
+    });
+
+    if (error) throw new Error(`Failed to delete user: ${error.message}`);
+  }
+
+  /**
+   * Trigger a password-reset email for a user (uses Supabase admin API from Edge Function)
+   */
+  static async triggerPasswordReset(userId: string): Promise<void> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('No authenticated admin');
+
+    const response = await fetch(
+      `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/admin-trigger-password-reset`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ target_user_id: userId }),
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err?.error?.message ?? 'Failed to trigger password reset');
+    }
+  }
+
+  /**
+   * Get top-level user analytics
+   */
+  static async getAnalytics(): Promise<UserAnalytics> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No authenticated admin');
+
+    const { data, error } = await supabase.rpc('admin_get_user_analytics', {
+      p_admin_id: user.id,
+    });
+
+    if (error) throw new Error(`Failed to fetch user analytics: ${error.message}`);
+    return data as UserAnalytics;
+  }
+}
+
+/*
+==================================================
+FILE 4: Edge Function — admin-trigger-password-reset
+         (uses service-role key to call auth admin API)
+==================================================
+*/
+
+// filepath: supabase/functions/admin-trigger-password-reset/index.ts
+// SECURITY DEFINER equivalent for Edge Functions.
+// Uses service role to call Supabase Auth Admin API.
+// Authorization: verifies caller is admin via DB role check.
+
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+serve(async (req) => {
+  try {
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'Missing authorization header' } }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify caller JWT with anon client
+    const anonClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user: callerUser }, error: callerErr } = await anonClient.auth.getUser();
+    if (callerErr || !callerUser) {
+      return new Response(
+        JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify admin role in DB
+    const { data: adminCheck } = await anonClient
+      .from('users')
+      .select('role')
+      .eq('id', callerUser.id)
+      .single();
+
+    if (adminCheck?.role !== 'admin') {
+      return new Response(
+        JSON.stringify({ error: { code: 'FORBIDDEN', message: 'Admin privileges required' } }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { target_user_id } = await req.json();
+    if (!target_user_id) {
+      return new Response(
+        JSON.stringify({ error: { code: 'INVALID_INPUT', message: 'target_user_id is required' } }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Use service role to fetch user email and send reset
+    const serviceClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    // Get target user email
+    const { data: targetUserData, error: targetErr } = await serviceClient.auth.admin.getUserById(target_user_id);
+    if (targetErr || !targetUserData.user?.email) {
+      return new Response(
+        JSON.stringify({ error: { code: 'USER_NOT_FOUND', message: 'Target user not found or has no email' } }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Trigger password reset using public client (uses email template)
+    const publicClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!
+    );
+    await publicClient.auth.resetPasswordForEmail(targetUserData.user.email);
+
+    // Log audit event
+    await anonClient.rpc('log_admin_action', {
+      p_admin_id:    callerUser.id,
+      p_action_type: 'user_password_reset',
+      p_entity_type: 'user',
+      p_entity_id:   target_user_id,
+      p_details:     { triggered_by_admin: true },
+      p_notes:       'Admin-triggered password reset email',
+    });
+
+    console.log('[admin-trigger-password-reset]', {
+      admin_id: callerUser.id,
+      target_user_id,
+    });
+
+    return new Response(
+      JSON.stringify({ success: true }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (err) {
+    console.error('[admin-trigger-password-reset] error', err);
+    return new Response(
+      JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'Unexpected server error' } }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+});
+
+/*
+==================================================
+FILE 5: User Management Dashboard UI
+==================================================
+*/
+
+// filepath: src/app/users/page.tsx  (Next.js admin panel)
+
+'use client';
+
+import React, { useEffect, useState, useCallback } from 'react';
+import { AdminUserManagementService } from '@/services/admin/userManagement';
+import type {
+  AdminUserRow,
+  AdminUserDetail,
+  UserAnalytics,
+  UserListFilters,
+  AccountStatus,
+  SubscriptionStatusFilter,
+} from '@/types/adminUsers';
+
+// ─── Analytics header ───────────────────────────────────────────────────────
+
+const UserAnalyticsHeader: React.FC<{ analytics: UserAnalytics }> = ({ analytics }) => (
+  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-8">
+    <MetricCard title="Total Users"       value={analytics.total_users}      color="bg-blue-600" />
+    <MetricCard title="Active"            value={analytics.active_users}     color="bg-green-600" />
+    <MetricCard title="Suspended"         value={analytics.suspended_users}  color="bg-orange-500" />
+    <MetricCard title="Deleted"           value={analytics.deleted_users}    color="bg-red-600" />
+    <MetricCard title="New This Month"    value={analytics.new_this_month}   color="bg-purple-600" />
+    <MetricCard title="DAU"               value={analytics.dau}              color="bg-indigo-500" />
+    <MetricCard title="MAU"               value={analytics.mau}              color="bg-cyan-600" />
+  </div>
+);
+
+const SubscriptionBreakdown: React.FC<{ bySubscription: Record<string, number> }> = ({ bySubscription }) => {
+  const colorMap: Record<string, string> = {
+    trial:        'bg-yellow-500',
+    active:       'bg-green-500',
+    grace_period: 'bg-orange-400',
+    cancelled:    'bg-red-400',
+    none:         'bg-gray-400',
+  };
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      {Object.entries(bySubscription).map(([status, count]) => (
+        <MetricCard
+          key={status}
+          title={`Subscription: ${status.replace('_', ' ')}`}
+          value={count}
+          color={colorMap[status] ?? 'bg-gray-500'}
+        />
+      ))}
+    </div>
+  );
+};
+
+const MetricCard: React.FC<{ title: string; value: string | number; color: string }> = ({
+  title, value, color,
+}) => (
+  <div className={`${color} text-white rounded-lg shadow p-5`}>
+    <h3 className="text-xs font-medium opacity-90 uppercase tracking-wide">{title}</h3>
+    <p className="text-3xl font-bold mt-2">{value}</p>
+  </div>
+);
+
+// ─── Filter bar ─────────────────────────────────────────────────────────────
+
+const FilterBar: React.FC<{
+  filters: UserListFilters;
+  onChange: (f: UserListFilters) => void;
+}> = ({ filters, onChange }) => (
+  <div className="flex flex-wrap gap-3 mb-4">
+    <input
+      type="text"
+      placeholder="Search name, email, phone…"
+      value={filters.search ?? ''}
+      onChange={(e) => onChange({ ...filters, search: e.target.value || undefined, page: 1 })}
+      className="flex-1 min-w-[200px] rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:ring-blue-500 focus:border-blue-500"
+    />
+
+    <select
+      value={filters.account_status ?? ''}
+      onChange={(e) => onChange({ ...filters, account_status: (e.target.value as AccountStatus) || undefined, page: 1 })}
+      className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm"
+    >
+      <option value="">All statuses</option>
+      <option value="active">Active</option>
+      <option value="suspended">Suspended</option>
+      <option value="banned">Banned</option>
+    </select>
+
+    <select
+      value={filters.subscription_status ?? ''}
+      onChange={(e) =>
+        onChange({ ...filters, subscription_status: (e.target.value as SubscriptionStatusFilter) || undefined, page: 1 })
+      }
+      className="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm"
+    >
+      <option value="">All subscriptions</option>
+      <option value="trial">Trial</option>
+      <option value="active">Active</option>
+      <option value="grace_period">Grace Period</option>
+      <option value="cancelled">Cancelled</option>
+      <option value="none">Free (no sub)</option>
+    </select>
+  </div>
+);
+
+// ─── User table ─────────────────────────────────────────────────────────────
+
+const subscriptionBadge = (status: string | null) => {
+  const map: Record<string, string> = {
+    trial:        'bg-yellow-100 text-yellow-800',
+    active:       'bg-green-100 text-green-800',
+    grace_period: 'bg-orange-100 text-orange-800',
+    cancelled:    'bg-red-100 text-red-800',
+    none:         'bg-gray-100 text-gray-600',
+  };
+  const key = status ?? 'none';
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[key] ?? map.none}`}>
+      {key.replace('_', ' ')}
+    </span>
+  );
+};
+
+const accountStatusBadge = (status: AccountStatus) => {
+  const map: Record<AccountStatus, string> = {
+    active:    'bg-green-100 text-green-800',
+    suspended: 'bg-orange-100 text-orange-800',
+    banned:    'bg-red-100 text-red-800',
+  };
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[status]}`}>
+      {status}
+    </span>
+  );
+};
+
+const UserTable: React.FC<{
+  users: AdminUserRow[];
+  onSelectUser: (u: AdminUserRow) => void;
+}> = ({ users, onSelectUser }) => (
+  <div className="overflow-x-auto">
+    <table className="min-w-full divide-y divide-gray-200 text-sm">
+      <thead className="bg-gray-50">
+        <tr>
+          {['User', 'Email', 'Phone', 'Subscription', 'Account', 'Registered', 'Last Login', 'Trades', 'SP', 'Badges'].map(
+            (h) => (
+              <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {h}
+              </th>
+            )
+          )}
+          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {users.map((u) => (
+          <tr key={u.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => onSelectUser(u)}>
+            <td className="px-4 py-3 whitespace-nowrap">
+              <div className="flex items-center gap-2">
+                {u.avatar_url ? (
+                  <img src={u.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-bold">
+                    {(u.full_name ?? u.email)[0].toUpperCase()}
+                  </div>
+                )}
+                <span className="font-medium text-gray-900">{u.full_name ?? '—'}</span>
+              </div>
+            </td>
+            <td className="px-4 py-3 text-gray-600">{u.email}</td>
+            <td className="px-4 py-3 text-gray-600">{u.phone ?? '—'}</td>
+            <td className="px-4 py-3">{subscriptionBadge(u.subscription_status)}</td>
+            <td className="px-4 py-3">{accountStatusBadge(u.account_status)}</td>
+            <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+              {new Date(u.registered_at).toLocaleDateString()}
+            </td>
+            <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+              {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : '—'}
+            </td>
+            <td className="px-4 py-3 text-center text-gray-700">{u.trade_count}</td>
+            <td className="px-4 py-3 text-center text-gray-700">{u.sp_balance.toLocaleString()}</td>
+            <td className="px-4 py-3 text-center text-gray-700">{u.badge_count}</td>
+            <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => onSelectUser(u)}
+                className="text-blue-600 hover:text-blue-800 text-xs font-medium mr-2"
+              >
+                Details
+              </button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+// ─── Pagination ──────────────────────────────────────────────────────────────
+
+const Pagination: React.FC<{
+  page: number;
+  totalPages: number;
+  total: number;
+  pageSize: number;
+  onChange: (p: number) => void;
+}> = ({ page, totalPages, total, pageSize, onChange }) => (
+  <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
+    <span>
+      Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} users
+    </span>
+    <div className="flex gap-2">
+      <button
+        disabled={page === 1}
+        onClick={() => onChange(page - 1)}
+        className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50"
+      >
+        ← Prev
+      </button>
+      <span className="px-3 py-1">Page {page} of {totalPages}</span>
+      <button
+        disabled={page === totalPages}
+        onClick={() => onChange(page + 1)}
+        className="px-3 py-1 rounded border border-gray-300 disabled:opacity-40 hover:bg-gray-50"
+      >
+        Next →
+      </button>
+    </div>
+  </div>
+);
+
+// ─── User detail panel ───────────────────────────────────────────────────────
+
+const UserDetailPanel: React.FC<{
+  userId: string;
+  onClose: () => void;
+  onRefresh: () => void;
+}> = ({ userId, onClose, onRefresh }) => {
+  const [detail, setDetail] = useState<AdminUserDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [reasonInput, setReasonInput] = useState('');
+
+  useEffect(() => {
+    AdminUserManagementService.getUserDetail(userId)
+      .then(setDetail)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [userId]);
+
+  const handleSuspend = async () => {
+    if (!reasonInput.trim()) {
+      alert('Reason is required to suspend this account.');
+      return;
+    }
+    if (!confirm('Suspend this user?')) return;
+    setActionLoading(true);
+    try {
+      await AdminUserManagementService.suspendUser(userId, reasonInput);
+      setReasonInput('');
+      onRefresh();
+      onClose();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Action failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUnsuspend = async () => {
+    if (!reasonInput.trim()) {
+      alert('Reason is required to unsuspend this account.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await AdminUserManagementService.unsuspendUser(userId, reasonInput);
+      setReasonInput('');
+      onRefresh();
+      onClose();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Action failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!reasonInput.trim()) {
+      alert('Reason is required to delete this account.');
+      return;
+    }
+    if (!confirm('⚠️ This will permanently soft-delete the account. Are you sure?')) return;
+    setActionLoading(true);
+    try {
+      await AdminUserManagementService.deleteUser(userId, reasonInput);
+      setReasonInput('');
+      onRefresh();
+      onClose();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Action failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    if (!confirm('Send a password reset email to this user?')) return;
+    setActionLoading(true);
+    try {
+      await AdminUserManagementService.triggerPasswordReset(userId);
+      alert('Password reset email sent.');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Action failed');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-8 w-full max-w-2xl shadow-2xl">
+        <p className="text-center text-gray-500">Loading user details…</p>
+      </div>
+    </div>
+  );
+
+  if (!detail) return null;
+  const { user, subscription, sp_wallet, trades, badges, activity_log } = detail;
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl w-full max-w-3xl shadow-2xl overflow-y-auto max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <div className="flex items-center gap-3">
+            {user.avatar_url ? (
+              <img src={user.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-lg font-bold">
+                {(user.full_name ?? user.email)[0].toUpperCase()}
+              </div>
+            )}
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">{user.full_name ?? '(no name)'}</h2>
+              <p className="text-sm text-gray-500">{user.email}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl font-light">&times;</button>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          {/* Identity */}
+          <Section title="Identity & Status">
+            <InfoGrid items={[
+              { label: 'User ID',       value: user.id },
+              { label: 'Phone',         value: user.phone ?? '—' },
+              { label: 'Date of Birth', value: user.dob ?? '—' },
+              { label: 'Role',          value: user.role },
+              { label: 'Account Status', value: <span>{accountStatusBadge(user.account_status)}</span> },
+              { label: 'Registered',    value: new Date(user.registered_at).toLocaleString() },
+              { label: 'Last Login',    value: user.last_login_at ? new Date(user.last_login_at).toLocaleString() : '—' },
+              { label: 'Email Verified', value: user.email_confirmed_at ? '✅' : '❌' },
+              { label: 'Phone Verified', value: user.phone_confirmed_at ? '✅' : '❌' },
+            ]} />
+            {user.account_status === 'suspended' && user.suspension_reason && (
+              <p className="mt-3 text-sm text-orange-700 bg-orange-50 rounded p-3">
+                <strong>Suspension reason:</strong> {user.suspension_reason}
+                {user.suspended_at && ` (since ${new Date(user.suspended_at).toLocaleDateString()})`}
+              </p>
+            )}
+          </Section>
+
+          {/* Subscription */}
+          <Section title="Subscription">
+            {subscription ? (
+              <InfoGrid items={[
+                { label: 'Status',       value: subscriptionBadge(subscription.status) },
+                { label: 'Started',      value: new Date(subscription.created_at).toLocaleDateString() },
+                { label: 'Trial Ends',   value: subscription.trial_ends_at ? new Date(subscription.trial_ends_at).toLocaleDateString() : '—' },
+                { label: 'Period End',   value: subscription.current_period_end ? new Date(subscription.current_period_end).toLocaleDateString() : '—' },
+                { label: 'Cancelled At', value: subscription.cancelled_at ? new Date(subscription.cancelled_at).toLocaleDateString() : '—' },
+              ]} />
+            ) : (
+              <p className="text-sm text-gray-500">No subscription record found (Free user).</p>
+            )}
+          </Section>
+
+          {/* SP Wallet */}
+          <Section title="Swap Points Wallet">
+            {sp_wallet ? (
+              <InfoGrid items={[
+                { label: 'Balance',        value: sp_wallet.balance.toLocaleString() + ' SP' },
+                { label: 'Wallet Status',  value: sp_wallet.status },
+                { label: 'Lifetime Earned', value: sp_wallet.lifetime_earned.toLocaleString() + ' SP' },
+                { label: 'Lifetime Spent', value: sp_wallet.lifetime_spent.toLocaleString() + ' SP' },
+              ]} />
+            ) : (
+              <p className="text-sm text-gray-500">No SP wallet found.</p>
+            )}
+          </Section>
+
+          {/* Trades */}
+          <Section title="Trade Activity">
+            <InfoGrid items={[
+              { label: 'Completed Trades', value: trades.total_completed },
+              { label: 'As Seller',        value: trades.total_as_seller },
+              { label: 'As Buyer',         value: trades.total_as_buyer },
+              { label: 'Last Trade',       value: trades.last_trade_at ? new Date(trades.last_trade_at).toLocaleDateString() : '—' },
+            ]} />
+          </Section>
+
+          {/* Badges */}
+          <Section title={`Badges (${badges.total})`}>
+            {badges.badges.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {badges.badges.map((b) => (
+                  <span key={b.badge_id} className="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full text-xs">
+                    {b.badge_name}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No badges earned yet.</p>
+            )}
+          </Section>
+
+          {/* Recent admin log */}
+          <Section title="Recent Admin Activity">
+            {activity_log.length > 0 ? (
+              <ul className="space-y-2 text-sm">
+                {activity_log.map((entry) => (
+                  <li key={entry.id} className="border rounded p-2 bg-gray-50">
+                    <span className="font-medium">{entry.action_type}</span>
+                    {' · '}
+                    <span className="text-gray-500">{entry.performed_by_email}</span>
+                    {' · '}
+                    <span className="text-gray-400">{new Date(entry.created_at).toLocaleString()}</span>
+                    {entry.notes && <p className="text-gray-600 mt-0.5 italic">"{entry.notes}"</p>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">No admin actions recorded for this user.</p>
+            )}
+          </Section>
+
+          {/* Admin Actions */}
+          <Section title="Admin Actions">
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Reason (required for suspend / unsuspend / delete)
+              </label>
+              <textarea
+                value={reasonInput}
+                onChange={(e) => setReasonInput(e.target.value)}
+                rows={2}
+                placeholder="Enter a reason for this admin action…"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {user.account_status === 'active' ? (
+                <ActionButton
+                  label="Suspend User"
+                  color="bg-orange-500 hover:bg-orange-600"
+                  disabled={actionLoading}
+                  onClick={handleSuspend}
+                />
+              ) : (
+                <ActionButton
+                  label="Unsuspend User"
+                  color="bg-green-600 hover:bg-green-700"
+                  disabled={actionLoading}
+                  onClick={handleUnsuspend}
+                />
+              )}
+              <ActionButton
+                label="Send Password Reset"
+                color="bg-blue-500 hover:bg-blue-600"
+                disabled={actionLoading}
+                onClick={handlePasswordReset}
+              />
+              <ActionButton
+                label="Delete Account"
+                color="bg-red-600 hover:bg-red-700"
+                disabled={actionLoading}
+                onClick={handleDelete}
+              />
+            </div>
+          </Section>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <div>
+    <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2 border-b pb-1">{title}</h3>
+    {children}
+  </div>
+);
+
+const InfoGrid: React.FC<{ items: { label: string; value: React.ReactNode }[] }> = ({ items }) => (
+  <dl className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2">
+    {items.map(({ label, value }) => (
+      <div key={label}>
+        <dt className="text-xs text-gray-500">{label}</dt>
+        <dd className="text-sm font-medium text-gray-900 mt-0.5">{value}</dd>
+      </div>
+    ))}
+  </dl>
+);
+
+const ActionButton: React.FC<{
+  label: string;
+  color: string;
+  disabled: boolean;
+  onClick: () => void;
+}> = ({ label, color, disabled, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`${color} text-white text-sm px-4 py-2 rounded-md disabled:opacity-50 transition-colors`}
+  >
+    {label}
+  </button>
+);
+
+// ─── Page entry ──────────────────────────────────────────────────────────────
+
+export default function UsersPage() {
+  const [analytics, setAnalytics] = useState<UserAnalytics | null>(null);
+  const [listResult, setListResult] = useState<AdminUserListResult | null>(null);
+  const [filters, setFilters] = useState<UserListFilters>({ page: 1, page_size: 20 });
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [analyticsData, listData] = await Promise.all([
+        AdminUserManagementService.getAnalytics(),
+        AdminUserManagementService.listUsers(filters),
+      ]);
+      setAnalytics(analyticsData);
+      setListResult(listData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load users');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  if (error) return <div className="p-8 text-red-600">Error: {error}</div>;
+
+  return (
+    <div className="p-6">
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">User Management</h1>
+
+      {analytics && (
+        <>
+          <UserAnalyticsHeader analytics={analytics} />
+          <SubscriptionBreakdown bySubscription={analytics.by_subscription} />
+        </>
+      )}
+
+      <div className="bg-white rounded-xl shadow p-5">
+        <FilterBar filters={filters} onChange={setFilters} />
+
+        {isLoading ? (
+          <div className="py-12 text-center text-gray-500">Loading users…</div>
+        ) : listResult && listResult.users.length > 0 ? (
+          <>
+            <UserTable
+              users={listResult.users}
+              onSelectUser={(u) => setSelectedUserId(u.id)}
+            />
+            <Pagination
+              page={listResult.page}
+              totalPages={listResult.total_pages}
+              total={listResult.total}
+              pageSize={listResult.page_size}
+              onChange={(p) => setFilters((f) => ({ ...f, page: p }))}
+            />
+          </>
+        ) : (
+          <div className="py-12 text-center text-gray-500">No users match the current filters.</div>
+        )}
+      </div>
+
+      {selectedUserId && (
+        <UserDetailPanel
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+          onRefresh={loadData}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+### Testing Checklist
+- [ ] User analytics counts match raw DB counts (total, active, suspended, new this month)
+- [ ] Subscription breakdown totals match subscription dashboard counts
+- [ ] DAU / MAU derived from `auth.users.last_sign_in_at` correctly
+- [ ] User table search matches on full_name, email, and phone (case-insensitive)
+- [ ] Filtering by account_status returns only matching records
+- [ ] Filtering by subscription_status includes 'none' (no subscription row)
+- [ ] Pagination returns correct page size and total count
+- [ ] User detail panel shows all sections: identity, subscription, SP, trades, badges, admin log
+- [ ] Suspend action sets `account_status = 'suspended'` and logs in `admin_activity_log`
+- [ ] Unsuspend action sets `account_status = 'active'` and clears suspension columns
+- [ ] Delete action sets `deleted_at`, freezes SP wallet, and logs in `admin_activity_log`
+- [ ] Password reset Edge Function rejects non-admin callers with 403
+- [ ] Password reset Edge Function sends email and logs admin action
+- [ ] Admin cannot delete their own account via the RPC
+- [ ] Deleted users are excluded from the user list
+- [ ] Non-admin callers receive EXCEPTION from all user-management RPCs
+
+### Deployment Notes
+1. Run `supabase db reset` locally and confirm migration `125_admin_user_management.sql` applies cleanly.
+2. Deploy Edge Function: `supabase functions deploy admin-trigger-password-reset`.
+3. Set `SUPABASE_SERVICE_ROLE_KEY` secret in Supabase dashboard for the Edge Function.
+4. Add nav link to `/users` in admin sidebar (e.g., `AdminNav.tsx`).
+5. Confirm `auth.users` is accessible from `SECURITY DEFINER` function context — if not, use service-role Edge Function for `last_sign_in_at`.
+6. `// TODO(UX): refine user table column ordering and card layout once Figma design is available`
+7. `// TODO(PERF): add DB indexes on sp_wallets(user_id) and transactions(seller_id, buyer_id, status) if not already present`
+
+---
+
+## TASK ADMIN-V2-007: Admin Panel UI Theme & Layout Redesign
+
+**Duration:** 4 hours  
+**Priority:** High  
+**Dependencies:** ADMIN-V2-001 through ADMIN-V2-006 (feature pages must exist before styling them)  
+**Target App:** `p2p-kids-admin/` (Next.js)  
+**Design Reference:** Screenshot — CalmUI-style dashboard with deep purple sidebar, white topbar, light lavender content background, white metric cards, chart cards.
+
+---
+
+### Overview
+
+Redesign the entire admin panel visual layer to match the provided reference design. The layout consists of:
+- **Fixed left sidebar** (deep purple, collapsible) with icon + label navigation
+- **Fixed top navbar** (white) with search, brand logo, notification bell, user profile
+- **Scrollable main content** on a light lavender/gray background
+- **Metric cards** (white, subtle shadow) with colored icons, large numbers, and trend labels
+- **Chart cards** (white, subtle shadow) wrapping Recharts components
+- **Consistent design tokens** enforced via Tailwind extended config + CSS variables
+
+This task covers **only presentation and layout** — no business logic or DB changes.
+
+---
+
+### Design Tokens (Source of Truth)
+
+All values below must be implemented as both **Tailwind config extensions** and **CSS custom properties** so they can be used interchangeably in Tailwind classes and in inline JSX `style={}` props.
+
+```
+Color palette:
+  sidebar-bg:       #3D1073   (deep purple — sidebar background)
+  sidebar-active:   #5A2D9C   (lighter purple — active/hover nav item)
+  sidebar-text:     #FFFFFF   (sidebar text + icons)
+  sidebar-muted:    #C4A8E8   (muted sidebar label)
+
+  topbar-bg:        #FFFFFF   (top navbar background)
+  topbar-border:    #F0EDF9   (bottom border of topbar)
+
+  brand-primary:    #6C3CE1   (primary purple — buttons, badges, charts)
+  brand-accent:     #FF6B35   (orange accent — icons, highlights, charts)
+  brand-green:      #28A745   (positive trend labels)
+  brand-blue:       #17A2B8   (neutral/online trend labels)
+
+  content-bg:       #F2F0FB   (main content area background)
+  card-bg:          #FFFFFF   (all metric and chart cards)
+  card-border:      #F0EDF9   (card border, very subtle)
+
+  text-primary:     #2D2D4E   (page headings, large numbers)
+  text-secondary:   #6B6B8F   (subtext, labels)
+  text-muted:       #9B97B5   (timestamps, placeholders)
+
+Typography:
+  font-sans:        'Inter', system-ui, sans-serif
+  heading-xl:       2rem / 700   (metric numbers like "45679")
+  heading-lg:       1.25rem / 600
+  heading-md:       1rem / 600
+  body-sm:          0.875rem / 400
+  label:            0.75rem / 500 uppercase tracking-wide
+
+Spacing scale (used consistently):
+  card-padding:     p-6 (24px)
+  section-gap:      gap-6 (24px)
+  sidebar-width:    256px (w-64)
+  topbar-height:    64px (h-16)
+
+Shadows:
+  card-shadow:      0 1px 3px rgba(109, 60, 225, 0.06), 0 4px 16px rgba(109, 60, 225, 0.04)
+  sidebar-shadow:   2px 0 8px rgba(61, 16, 115, 0.12)
+```
+
+---
+
+### File 1: `tailwind.config.js` (update — extend colors + fontFamily)
+
+```javascript
+// File: p2p-kids-admin/tailwind.config.js
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
+      colors: {
+        sidebar: {
+          bg:     '#3D1073',
+          active: '#5A2D9C',
+          text:   '#FFFFFF',
+          muted:  '#C4A8E8',
+        },
+        brand: {
+          primary: '#6C3CE1',
+          accent:  '#FF6B35',
+          green:   '#28A745',
+          blue:    '#17A2B8',
+        },
+        content: {
+          bg: '#F2F0FB',
+        },
+        card: {
+          bg:     '#FFFFFF',
+          border: '#F0EDF9',
+        },
+        text: {
+          primary:   '#2D2D4E',
+          secondary: '#6B6B8F',
+          muted:     '#9B97B5',
+        },
+        topbar: {
+          bg:     '#FFFFFF',
+          border: '#F0EDF9',
+        },
+      },
+      boxShadow: {
+        card: '0 1px 3px rgba(109, 60, 225, 0.06), 0 4px 16px rgba(109, 60, 225, 0.04)',
+        sidebar: '2px 0 8px rgba(61, 16, 115, 0.12)',
+      },
+      width: {
+        sidebar: '256px',
+      },
+      height: {
+        topbar: '64px',
+      },
+    },
+  },
+  plugins: [],
+};
+```
+
+---
+
+### File 2: `src/app/globals.css` (update — CSS variables + base resets)
+
+```css
+/* File: p2p-kids-admin/src/app/globals.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Sidebar */
+  --sidebar-bg:       #3D1073;
+  --sidebar-active:   #5A2D9C;
+  --sidebar-text:     #FFFFFF;
+  --sidebar-muted:    #C4A8E8;
+  --sidebar-width:    256px;
+
+  /* Topbar */
+  --topbar-bg:        #FFFFFF;
+  --topbar-border:    #F0EDF9;
+  --topbar-height:    64px;
+
+  /* Brand */
+  --brand-primary:    #6C3CE1;
+  --brand-accent:     #FF6B35;
+  --brand-green:      #28A745;
+  --brand-blue:       #17A2B8;
+
+  /* Content */
+  --content-bg:       #F2F0FB;
+
+  /* Cards */
+  --card-bg:          #FFFFFF;
+  --card-border:      #F0EDF9;
+  --card-shadow:      0 1px 3px rgba(109, 60, 225, 0.06), 0 4px 16px rgba(109, 60, 225, 0.04);
+
+  /* Text */
+  --text-primary:     #2D2D4E;
+  --text-secondary:   #6B6B8F;
+  --text-muted:       #9B97B5;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--content-bg);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar styling (sidebar + main content) */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--sidebar-muted);
+  border-radius: 999px;
+}
+
+/* Sidebar transition */
+.sidebar-collapsed {
+  width: 64px !important;
+}
+.sidebar-collapsed .nav-label,
+.sidebar-collapsed .nav-arrow,
+.sidebar-collapsed .sidebar-brand-text {
+  display: none;
+}
+```
+
+---
+
+### File 3: `src/styles/theme.ts` (create — TypeScript design tokens)
+
+```typescript
+// File: p2p-kids-admin/src/styles/theme.ts
+// Single source of truth for design tokens.
+// Use Tailwind classes first; use these when inline styles are needed.
+
+export const theme = {
+  colors: {
+    sidebar: {
+      bg:     '#3D1073',
+      active: '#5A2D9C',
+      text:   '#FFFFFF',
+      muted:  '#C4A8E8',
+    },
+    brand: {
+      primary: '#6C3CE1',
+      accent:  '#FF6B35',
+      green:   '#28A745',
+      blue:    '#17A2B8',
+    },
+    content: {
+      bg: '#F2F0FB',
+    },
+    card: {
+      bg:     '#FFFFFF',
+      border: '#F0EDF9',
+    },
+    text: {
+      primary:   '#2D2D4E',
+      secondary: '#6B6B8F',
+      muted:     '#9B97B5',
+    },
+    topbar: {
+      bg:     '#FFFFFF',
+      border: '#F0EDF9',
+    },
+  },
+
+  spacing: {
+    sidebarWidth:  '256px',
+    topbarHeight:  '64px',
+    cardPadding:   '24px',
+    sectionGap:    '24px',
+  },
+
+  shadow: {
+    card:    '0 1px 3px rgba(109, 60, 225, 0.06), 0 4px 16px rgba(109, 60, 225, 0.04)',
+    sidebar: '2px 0 8px rgba(61, 16, 115, 0.12)',
+  },
+
+  /** Metric card icon colors — maps to icon wrapper bg */
+  iconColors: {
+    purple: { bg: '#EDE7F6', icon: '#6C3CE1' },
+    orange: { bg: '#FFF3EC', icon: '#FF6B35' },
+    green:  { bg: '#E8F5E9', icon: '#28A745' },
+    blue:   { bg: '#E3F2FD', icon: '#17A2B8' },
+  },
+
+  /** Subscription tier badge colors */
+  subscriptionColors: {
+    trial:        { bg: '#FFF8E1', text: '#F59E0B' },
+    active:       { bg: '#E8F5E9', text: '#28A745' },
+    grace_period: { bg: '#FFF3EC', text: '#FF6B35' },
+    cancelled:    { bg: '#FEEBEE', text: '#E53935' },
+    none:         { bg: '#F0EDF9', text: '#9B97B5' },
+  },
+
+  /** Account status colors */
+  accountStatusColors: {
+    active:    { bg: '#E8F5E9', text: '#28A745' },
+    suspended: { bg: '#FFF3EC', text: '#FF6B35' },
+    banned:    { bg: '#FEEBEE', text: '#E53935' },
+  },
+} as const;
+
+export type ThemeColor = typeof theme.colors;
+export type IconColorKey = keyof typeof theme.iconColors;
+```
+
+---
+
+### File 4: `src/components/layout/Sidebar.tsx` (create)
+
+The sidebar must:
+- Be fixed to the left, full height
+- Have a deep purple background (`var(--sidebar-bg)`)
+- Show the app brand name at the top (with optional icon)
+- Have a hamburger toggle button that collapses it to icon-only mode (`w-16`)
+- Render navigation items, each with an SVG icon + text label
+- Highlight the active route with `sidebar-active` background
+- Support optional sub-menu arrows on expandable sections (collapsed = no expand)
+- All nav items use `next/link` (no `router.push` hardcoding)
+
+```typescript
+// File: p2p-kids-admin/src/components/layout/Sidebar.tsx
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import {
+  LayoutDashboard,
+  Users,
+  CreditCard,
+  Coins,
+  Award,
+  BarChart2,
+  MapPin,
+  Settings,
+  Menu,
+  ChevronRight,
+} from 'lucide-react';
+
+interface NavItem {
+  label:    string;
+  href:     string;
+  icon:     React.ReactNode;
+  /** If true, show a chevron arrow (purely decorative for now) */
+  hasSubmenu?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { label: 'Dashboard',     href: '/',               icon: <LayoutDashboard size={18} /> },
+  { label: 'Users',         href: '/users',           icon: <Users          size={18} /> },
+  { label: 'Subscriptions', href: '/subscriptions',   icon: <CreditCard     size={18} /> },
+  { label: 'SP Wallet',     href: '/sp-wallet',       icon: <Coins          size={18} /> },
+  { label: 'Badges',        href: '/badges',          icon: <Award          size={18} /> },
+  { label: 'Revenue',       href: '/revenue',         icon: <BarChart2      size={18} /> },
+  { label: 'Nodes',         href: '/nodes',           icon: <MapPin         size={18} /> },
+  { label: 'Config',        href: '/config',          icon: <Settings       size={18} />, hasSubmenu: true },
+];
+
+interface SidebarProps {
+  collapsed:    boolean;
+  onToggle:     () => void;
+}
+
+export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const pathname = usePathname();
+
+  return (
+    <aside
+      className="fixed top-0 left-0 h-screen flex flex-col z-30 transition-all duration-300"
+      style={{
+        width:      collapsed ? '64px' : 'var(--sidebar-width)',
+        background: 'var(--sidebar-bg)',
+        boxShadow:  'var(--card-shadow)',
+      }}
+    >
+      {/* Brand header */}
+      <div className="flex items-center h-16 px-4 flex-shrink-0 border-b border-white/10">
+        <button
+          onClick={onToggle}
+          aria-label="Toggle sidebar"
+          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-white/10 transition-colors text-white flex-shrink-0"
+        >
+          <Menu size={20} />
+        </button>
+        {!collapsed && (
+          <div className="ml-3 flex items-center gap-2">
+            {/* Brand logo circle — orange/purple gradient matching design */}
+            <div className="w-7 h-7 rounded-full flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-accent) 100%)' }}
+            />
+            <span className="nav-label font-semibold text-white text-sm tracking-wide">
+              Kids Admin
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
+        {NAV_ITEMS.map((item) => {
+          const isActive =
+            item.href === '/'
+              ? pathname === '/'
+              : pathname.startsWith(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group"
+              style={{
+                background: isActive ? 'var(--sidebar-active)' : 'transparent',
+                color:      'var(--sidebar-text)',
+              }}
+              title={collapsed ? item.label : undefined}
+              onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              {/* Icon */}
+              <span className="flex-shrink-0">{item.icon}</span>
+
+              {/* Label — hidden when collapsed */}
+              {!collapsed && (
+                <>
+                  <span className="nav-label flex-1 text-sm font-medium">{item.label}</span>
+                  {item.hasSubmenu && (
+                    <ChevronRight size={14} className="nav-arrow opacity-60" />
+                  )}
+                </>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer spacer */}
+      <div className="h-4 flex-shrink-0" />
+    </aside>
+  );
+}
+```
+
+---
+
+### File 5: `src/components/layout/TopNavbar.tsx` (create)
+
+The top navbar must:
+- Be fixed to the top, spanning the full width minus the sidebar
+- Have a white background with a subtle bottom border
+- Show a search input on the left (search icon inside input)
+- Show the brand name in the center (gradient circle + "Kids Admin")
+- Show notification bell (with orange dot indicator) on the right
+- Show admin user avatar + name + dropdown arrow
+- Show a 3-dot "more" menu icon
+- Use `next-auth` session or Supabase `useUser` to show the logged-in admin's name
+
+```typescript
+// File: p2p-kids-admin/src/components/layout/TopNavbar.tsx
+'use client';
+
+import { useState } from 'react';
+import { Bell, Search, MoreHorizontal, ChevronDown } from 'lucide-react';
+
+interface TopNavbarProps {
+  /** Pixel offset from left to account for sidebar width */
+  sidebarWidth: number;
+  adminName?:   string;
+  adminAvatar?: string;
+}
+
+export function TopNavbar({ sidebarWidth, adminName = 'Admin', adminAvatar }: TopNavbarProps) {
+  const [searchValue, setSearchValue] = useState('');
+
+  return (
+    <header
+      className="fixed top-0 right-0 z-20 flex items-center px-6 gap-4 transition-all duration-300"
+      style={{
+        left:        `${sidebarWidth}px`,
+        height:      'var(--topbar-height)',
+        background:  'var(--topbar-bg)',
+        borderBottom: '1px solid var(--topbar-border)',
+      }}
+    >
+      {/* Search */}
+      <div className="relative flex-shrink-0">
+        <Search
+          size={16}
+          className="absolute left-3 top-1/2 -translate-y-1/2"
+          style={{ color: 'var(--text-muted)' }}
+        />
+        <input
+          type="text"
+          placeholder="Search…"
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          className="pl-9 pr-4 py-2 rounded-full text-sm outline-none transition-shadow"
+          style={{
+            width:      '220px',
+            background: 'var(--content-bg)',
+            border:     '1px solid var(--card-border)',
+            color:      'var(--text-primary)',
+          }}
+          // TODO(UX): wire to global search across users/subscriptions/badges
+        />
+      </div>
+
+      {/* Spacer → push brand to center */}
+      <div className="flex-1" />
+
+      {/* Brand logo (center) */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div
+          className="w-7 h-7 rounded-full"
+          style={{ background: 'linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-accent) 100%)' }}
+        />
+        <span className="font-bold text-base" style={{ color: 'var(--text-primary)' }}>
+          Kids<span style={{ color: 'var(--brand-primary)' }}>Admin</span>
+        </span>
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Right actions */}
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Notification bell with orange dot */}
+        <button
+          className="relative w-9 h-9 rounded-full flex items-center justify-center hover:bg-content-bg transition-colors"
+          style={{ background: 'var(--content-bg)' }}
+          aria-label="Notifications"
+          // TODO(NOTIF): hook to admin_activity_log unread count
+        >
+          <Bell size={18} style={{ color: 'var(--text-secondary)' }} />
+          <span
+            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
+            style={{ background: 'var(--brand-accent)' }}
+          />
+        </button>
+
+        {/* User profile pill */}
+        <button
+          className="flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-content-bg transition-colors"
+          style={{ background: 'var(--content-bg)' }}
+          aria-label="Admin profile"
+          // TODO(AUTH): wire to admin logout / profile dropdown
+        >
+          {adminAvatar ? (
+            <img src={adminAvatar} alt={adminName} className="w-7 h-7 rounded-full object-cover" />
+          ) : (
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
+              style={{ background: 'var(--brand-primary)' }}
+            >
+              {adminName.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+            {adminName}
+          </span>
+          <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
+        </button>
+
+        {/* 3-dot more menu */}
+        <button
+          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-content-bg transition-colors"
+          aria-label="More options"
+        >
+          <MoreHorizontal size={18} style={{ color: 'var(--text-secondary)' }} />
+        </button>
+      </div>
+    </header>
+  );
+}
+```
+
+---
+
+### File 6: `src/app/layout.tsx` (update — wrap content with sidebar + topbar shell)
+
+This is the root layout that renders for every admin page. It:
+- Renders `<Sidebar>` (fixed left) and `<TopNavbar>` (fixed top)
+- Manages `collapsed` state via `useState`
+- Passes dynamic `sidebarWidth` to both components
+- Wraps `{children}` in a `<main>` that has left padding = sidebar width and top padding = topbar height
+- Sources the logged-in admin's name from Supabase client session (`useUser`) and passes it to `TopNavbar`
+
+```typescript
+// File: p2p-kids-admin/src/app/layout.tsx
+import type { Metadata } from 'next';
+import './globals.css';
+import { AdminShell } from '@/components/layout/AdminShell';
+
+export const metadata: Metadata = {
+  title:       'Kids Marketplace Admin',
+  description: 'Admin panel for Kids P2P Marketplace',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <AdminShell>{children}</AdminShell>
+      </body>
+    </html>
+  );
+}
+```
+
+**Note:** The `AdminShell` is a separate `'use client'` component that owns the collapsed state, because `layout.tsx` must be a Server Component for metadata export. This avoids the "useState in Server Component" error.
+
+```typescript
+// File: p2p-kids-admin/src/components/layout/AdminShell.tsx
+'use client';
+
+import { useState } from 'react';
+import { Sidebar }    from './Sidebar';
+import { TopNavbar }  from './TopNavbar';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+
+const COLLAPSED_WIDTH = 64;
+const EXPANDED_WIDTH  = 256;
+
+export function AdminShell({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const sidebarWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
+
+  // TODO(AUTH): replace with proper admin session hook once auth is wired
+  const adminName   = 'Admin';
+  const adminAvatar = undefined;
+
+  return (
+    <>
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((c) => !c)}
+      />
+      <TopNavbar
+        sidebarWidth={sidebarWidth}
+        adminName={adminName}
+        adminAvatar={adminAvatar}
+      />
+      <main
+        className="min-h-screen transition-all duration-300"
+        style={{
+          paddingLeft: `${sidebarWidth}px`,
+          paddingTop:  'var(--topbar-height)',
+          background:  'var(--content-bg)',
+        }}
+      >
+        <div className="p-6">
+          {children}
+        </div>
+      </main>
+    </>
+  );
+}
+```
+
+---
+
+### File 7: `src/components/ui/MetricCard.tsx` (create/update)
+
+Each dashboard section (Users, Revenue, SP, Subscriptions) has a row of metric cards. This component must match the screenshot exactly:
+- White card with `card-shadow`
+- Colored icon in a soft-tinted rounded square at top-left
+- Colored/bold category label beneath the icon
+- Large number in `text-primary`
+- Small subtitle (trend label or description) in `text-secondary`
+- Optional trend indicator (+/- percentage with green/red coloring)
+
+```typescript
+// File: p2p-kids-admin/src/components/ui/MetricCard.tsx
+import type { IconColorKey } from '@/styles/theme';
+import { theme } from '@/styles/theme';
+
+interface MetricCardProps {
+  /** Label shown below icon in the card accent color */
+  label:        string;
+  /** The large primary number/value */
+  value:        string | number;
+  /** Supporting text below the value */
+  subtitle?:    string;
+  /** Icon element (Lucide icon or SVG) */
+  icon:         React.ReactNode;
+  /** Determines icon wrapper background and icon color */
+  color:        IconColorKey;
+  /** Optional: "+20%" → shown with green; "-2%" → shown with red */
+  trend?:       string;
+  trendDir?:    'up' | 'down' | 'neutral';
+  className?:   string;
+}
+
+export function MetricCard({
+  label,
+  value,
+  subtitle,
+  icon,
+  color,
+  trend,
+  trendDir = 'neutral',
+  className = '',
+}: MetricCardProps) {
+  const iconStyle = theme.iconColors[color];
+
+  const trendColor =
+    trendDir === 'up'   ? theme.colors.brand.green  :
+    trendDir === 'down' ? '#E53935'                  :
+    theme.colors.text.muted;
+
+  return (
+    <div
+      className={`rounded-xl p-6 flex flex-col gap-3 ${className}`}
+      style={{
+        background: theme.colors.card.bg,
+        border:     `1px solid ${theme.colors.card.border}`,
+        boxShadow:  theme.shadow.card,
+      }}
+    >
+      {/* Icon wrapper */}
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ background: iconStyle.bg, color: iconStyle.icon }}
+      >
+        {icon}
+      </div>
+
+      {/* Colored label */}
+      <span
+        className="text-xs font-semibold uppercase tracking-wider"
+        style={{ color: iconStyle.icon }}
+      >
+        {label}
+      </span>
+
+      {/* Large value */}
+      <span
+        className="text-3xl font-bold leading-none"
+        style={{ color: theme.colors.text.primary }}
+      >
+        {value}
+      </span>
+
+      {/* Subtitle row */}
+      <div className="flex items-center gap-2">
+        {trend && (
+          <span className="text-sm font-semibold" style={{ color: trendColor }}>
+            {trend}
+          </span>
+        )}
+        {subtitle && (
+          <span className="text-xs" style={{ color: theme.colors.text.secondary }}>
+            {subtitle}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+### File 8: `src/components/ui/ChartCard.tsx` (create)
+
+Wrapper for any chart (Recharts `AreaChart`, `LineChart`, `PieChart`, etc.) that provides:
+- White card with shadow, matching MetricCard visual style
+- Card header row: title (bold, `text-primary`) + optional period filter dropdown on the right
+- Configurable height for the chart content area
+- Children rendered inside (caller passes the chart component)
+
+```typescript
+// File: p2p-kids-admin/src/components/ui/ChartCard.tsx
+'use client';
+
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { theme } from '@/styles/theme';
+
+type Period = 'Today' | 'This week' | 'This month' | 'This year';
+const PERIODS: Period[] = ['Today', 'This week', 'This month', 'This year'];
+
+interface ChartCardProps {
+  title:             string;
+  /** Show a period dropdown next to the title */
+  showPeriodFilter?: boolean;
+  onPeriodChange?:  (period: Period) => void;
+  /** Height of the chart container in px (default 220) */
+  chartHeight?:      number;
+  children:          React.ReactNode;
+  className?:        string;
+}
+
+export function ChartCard({
+  title,
+  showPeriodFilter = false,
+  onPeriodChange,
+  chartHeight = 220,
+  children,
+  className = '',
+}: ChartCardProps) {
+  const [period, setPeriod]   = useState<Period>('This week');
+  const [open,   setOpen]     = useState(false);
+
+  function selectPeriod(p: Period) {
+    setPeriod(p);
+    setOpen(false);
+    onPeriodChange?.(p);
+  }
+
+  return (
+    <div
+      className={`rounded-xl p-6 flex flex-col gap-4 ${className}`}
+      style={{
+        background: theme.colors.card.bg,
+        border:     `1px solid ${theme.colors.card.border}`,
+        boxShadow:  theme.shadow.card,
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold" style={{ color: theme.colors.text.primary }}>
+          {title}
+        </h3>
+
+        {showPeriodFilter && (
+          <div className="relative">
+            <button
+              onClick={() => setOpen((o) => !o)}
+              className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium border transition-colors hover:opacity-80"
+              style={{
+                border:     `1px solid ${theme.colors.card.border}`,
+                color:      theme.colors.text.secondary,
+                background: theme.colors.content.bg,
+              }}
+            >
+              {period}
+              <ChevronDown size={12} />
+            </button>
+
+            {open && (
+              <ul
+                className="absolute right-0 top-8 z-10 rounded-lg overflow-hidden"
+                style={{
+                  background: theme.colors.card.bg,
+                  border:     `1px solid ${theme.colors.card.border}`,
+                  boxShadow:  theme.shadow.card,
+                  minWidth:   '120px',
+                }}
+              >
+                {PERIODS.map((p) => (
+                  <li key={p}>
+                    <button
+                      onClick={() => selectPeriod(p)}
+                      className="w-full text-left px-4 py-2 text-xs transition-colors hover:opacity-80"
+                      style={{
+                        color:      p === period ? theme.colors.brand.primary : theme.colors.text.secondary,
+                        fontWeight: p === period ? 600 : 400,
+                        background: p === period ? '#EDE7F6' : 'transparent',
+                      }}
+                    >
+                      {p}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Chart area */}
+      <div style={{ height: `${chartHeight}px` }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+### File 9: `src/app/page.tsx` (update — Dashboard home page with new components)
+
+The main dashboard (`/`) must show the "at a glance" view matching the screenshot layout:
+- **Row 1** (4 metric cards): Total Users, Active Subscriptions, Total Revenue (this month), SP Circulating
+- **Row 2** (2 wide + 1 panel): Trade Activity pie/donut chart, Platform Visits line chart, Revenue summary panel with area chart
+- All data loaded via the existing admin RPCs (`admin_get_user_analytics`, `get_revenue_metrics`, `get_sp_economy_metrics`)
+- Use `Promise.all` for parallel fetches
+- Loading skeleton (pulsing gray blocks) while data loads
+- Recharts used for all charts (`AreaChart`, `LineChart`, `PieChart` from `recharts`)
+
+```typescript
+// File: p2p-kids-admin/src/app/page.tsx
+import 'server-only';
+import { Suspense }          from 'react';
+import { DashboardContent }  from '@/components/dashboard/DashboardContent';
+import { DashboardSkeleton } from '@/components/dashboard/DashboardSkeleton';
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardContent />
+    </Suspense>
+  );
+}
+```
+
+```typescript
+// File: p2p-kids-admin/src/components/dashboard/DashboardContent.tsx
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { Users, CreditCard, TrendingUp, Coins } from 'lucide-react';
+import {
+  AreaChart, Area, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, Tooltip, ResponsiveContainer,
+} from 'recharts';
+
+import { MetricCard } from '@/components/ui/MetricCard';
+import { ChartCard  } from '@/components/ui/ChartCard';
+import { theme      } from '@/styles/theme';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface DashboardMetrics {
+  totalUsers:           number;
+  activeSubscriptions:  number;
+  revenueThisMonth:     number;
+  spCirculating:        number;
+  userTrend:            string;   // e.g. "+1900"
+  subTrend:             string;   // e.g. "+12%"
+  revenueTrend:         string;   // e.g. "+40%"
+  spTrend:              string;   // e.g. "+23.6%"
+  tradesBreakdown: Array<{ name: string; value: number; color: string }>;
+  revenueTimeSeries:    Array<{ label: string; subscription: number; fees: number }>;
+  visitTimeSeries:      Array<{ label: string; visits: number }>;
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatCurrency(n: number): string {
+  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export function DashboardContent() {
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      // TODO(API): replace with actual parallel RPC calls:
+      //   admin_get_user_analytics, get_revenue_metrics, get_sp_economy_metrics
+      // Placeholder stub data shown for UI completeness:
+      const stub: DashboardMetrics = {
+        totalUsers:          45679,
+        activeSubscriptions: 80927,
+        revenueThisMonth:    36568,
+        spCirculating:       124300,
+        userTrend:           '+1,900',
+        subTrend:            '+60%',
+        revenueTrend:        '+40%',
+        spTrend:             '+23.6%',
+        tradesBreakdown: [
+          { name: 'Completed',  value: 542,  color: theme.colors.brand.primary },
+          { name: 'Pending',    value: 211,  color: theme.colors.brand.accent  },
+          { name: 'Cancelled',  value: 88,   color: '#C4A8E8' },
+          { name: 'Disputed',   value: 34,   color: '#E0DCF0' },
+        ],
+        revenueTimeSeries: [
+          { label: 'Mon', subscription: 900,  fees: 400  },
+          { label: 'Tue', subscription: 1200, fees: 600  },
+          { label: 'Wed', subscription: 800,  fees: 350  },
+          { label: 'Thu', subscription: 1500, fees: 750  },
+          { label: 'Fri', subscription: 1300, fees: 520  },
+          { label: 'Sat', subscription: 700,  fees: 280  },
+          { label: 'Sun', subscription: 1100, fees: 490  },
+        ],
+        visitTimeSeries: [
+          { label: 'Mon', visits: 320 },
+          { label: 'Tue', visits: 580 },
+          { label: 'Wed', visits: 410 },
+          { label: 'Thu', visits: 700 },
+          { label: 'Fri', visits: 490 },
+          { label: 'Sat', visits: 380 },
+          { label: 'Sun', visits: 460 },
+        ],
+      };
+      setMetrics(stub);
+    } catch (err) {
+      console.error('[DashboardContent] load error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  if (loading || !metrics) return <DashboardLoadingSkeleton />;
+
+  return (
+    <div className="flex flex-col gap-6">
+
+      {/* ── Row 1: Metric cards ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        <MetricCard
+          label="Total Users"
+          value={metrics.totalUsers.toLocaleString()}
+          subtitle="Steady growth"
+          icon={<Users size={20} />}
+          color="purple"
+          trend={metrics.userTrend}
+          trendDir="up"
+        />
+        <MetricCard
+          label="Subscriptions"
+          value={metrics.activeSubscriptions.toLocaleString()}
+          icon={<CreditCard size={20} />}
+          color="orange"
+          trend={metrics.subTrend}
+          trendDir="up"
+        />
+        <MetricCard
+          label="Revenue"
+          value={formatCurrency(metrics.revenueThisMonth)}
+          subtitle="This month"
+          icon={<TrendingUp size={20} />}
+          color="green"
+          trend={metrics.revenueTrend}
+          trendDir="up"
+        />
+        <MetricCard
+          label="SP Circulating"
+          value={metrics.spCirculating.toLocaleString()}
+          subtitle="Swap Points"
+          icon={<Coins size={20} />}
+          color="blue"
+          trend={metrics.spTrend}
+          trendDir="up"
+        />
+      </div>
+
+      {/* ── Row 2: Charts ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* Trade breakdown — donut/pie chart */}
+        <ChartCard title="Trade Categories" chartHeight={240}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={metrics.tradesBreakdown}
+                dataKey="value"
+                nameKey="name"
+                cx="40%"
+                cy="50%"
+                innerRadius={55}
+                outerRadius={90}
+                paddingAngle={3}
+              >
+                {metrics.tradesBreakdown.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{ background: theme.colors.card.bg, border: `1px solid ${theme.colors.card.border}`, borderRadius: '8px', fontSize: '12px' }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          {/* Legend */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+            {metrics.tradesBreakdown.map((item) => (
+              <div key={item.name} className="flex items-center gap-1.5 text-xs" style={{ color: theme.colors.text.secondary }}>
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: item.color }} />
+                {item.name}
+              </div>
+            ))}
+          </div>
+        </ChartCard>
+
+        {/* Platform visits — line chart */}
+        <ChartCard title="Platform Visits" showPeriodFilter chartHeight={200}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={metrics.visitTimeSeries} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <XAxis
+                dataKey="label"
+                tick={{ fill: theme.colors.text.muted, fontSize: 11 }}
+                axisLine={false} tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: theme.colors.text.muted, fontSize: 11 }}
+                axisLine={false} tickLine={false}
+              />
+              <Tooltip
+                contentStyle={{ background: theme.colors.card.bg, border: `1px solid ${theme.colors.card.border}`, borderRadius: '8px', fontSize: '12px' }}
+              />
+              <Line
+                type="monotone"
+                dataKey="visits"
+                stroke={theme.colors.brand.primary}
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: theme.colors.brand.accent, strokeWidth: 0 }}
+                activeDot={{ r: 5 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Revenue area chart */}
+        <ChartCard title="Revenue" showPeriodFilter chartHeight={200}>
+          {/* Revenue summary stats */}
+          <div className="mb-2">
+            <div className="text-2xl font-bold" style={{ color: theme.colors.text.primary }}>
+              {formatCurrency(metrics.revenueThisMonth)}
+            </div>
+            <div className="text-xs" style={{ color: theme.colors.text.secondary }}>Total revenue</div>
+            <div className="flex gap-4 mt-2">
+              <span className="text-xs font-semibold" style={{ color: theme.colors.brand.green  }}>{metrics.revenueTrend} Growth</span>
+              <span className="text-xs font-semibold" style={{ color: theme.colors.brand.accent }}>2.5% Refund</span>
+              <span className="text-xs font-semibold" style={{ color: theme.colors.brand.blue   }}>+23.6% Online</span>
+            </div>
+          </div>
+
+          <ResponsiveContainer width="100%" height="120">
+            <AreaChart data={metrics.revenueTimeSeries} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gradSub" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={theme.colors.brand.primary} stopOpacity={0.4} />
+                  <stop offset="95%" stopColor={theme.colors.brand.primary} stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="gradFees" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={theme.colors.brand.accent} stopOpacity={0.5} />
+                  <stop offset="95%" stopColor={theme.colors.brand.accent} stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="label" hide />
+              <YAxis hide />
+              <Tooltip
+                contentStyle={{ background: theme.colors.card.bg, border: `1px solid ${theme.colors.card.border}`, borderRadius: '8px', fontSize: '12px' }}
+              />
+              <Area type="monotone" dataKey="subscription" stroke={theme.colors.brand.primary} fill="url(#gradSub)"  strokeWidth={2} stackId="1" />
+              <Area type="monotone" dataKey="fees"         stroke={theme.colors.brand.accent}  fill="url(#gradFees)" strokeWidth={2} stackId="1" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+      </div>
+    </div>
+  );
+}
+
+// ─── Loading skeleton ─────────────────────────────────────────────────────────
+
+function DashboardLoadingSkeleton() {
+  return (
+    <div className="flex flex-col gap-6 animate-pulse">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-36 rounded-xl" style={{ background: '#EDE7F6' }} />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-72 rounded-xl" style={{ background: '#EDE7F6' }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+*(The `DashboardSkeleton` server component referenced in `page.tsx` can be a re-export of `DashboardLoadingSkeleton` or a matching static placeholder.)*
+
+---
+
+### Package Dependencies
+
+Ensure these packages are installed in `p2p-kids-admin/`:
+
+```bash
+# Chart library (already likely present — verify)
+yarn add recharts
+
+# Icon library (already likely present — verify)
+yarn add lucide-react
+
+# Supabase auth helpers for Next.js (already present — verify)
+yarn add @supabase/auth-helpers-nextjs
+```
+
+Verify in `p2p-kids-admin/package.json`:
+```json
+{
+  "dependencies": {
+    "recharts":                     "^2.x",
+    "lucide-react":                 "^0.x",
+    "@supabase/auth-helpers-nextjs": "^0.x"
+  }
+}
+```
+
+If any are missing, add them before running the UI.
+
+---
+
+### Testing Checklist
+- [ ] Sidebar renders with deep purple background (`#3D1073`) — visually verify
+- [ ] Sidebar collapses to icon-only when hamburger is clicked
+- [ ] Active route is visually highlighted in the sidebar (`#5A2D9C`)
+- [ ] Sidebar hover state shows subtle white overlay
+- [ ] All nav links navigate to correct routes without a full page reload
+- [ ] Top navbar is fixed and does not scroll with content
+- [ ] Top navbar shows search input, brand name, notification bell (with orange dot), admin name
+- [ ] Content area background is light lavender (`#F2F0FB`)
+- [ ] Metric cards have white background, `card-shadow`, rounded corners
+- [ ] Metric card icons have soft-tinted backgrounds (muted purple/orange/green/blue)
+- [ ] MetricCard trend colors: green for positive, red for negative
+- [ ] ChartCard period filter dropdown opens and closes cleanly
+- [ ] Donut/pie chart renders with correct color segments and legend
+- [ ] Line chart renders platform visits data with orange dots on brand-primary line
+- [ ] Area chart stacks subscription + fee revenue with gradient fills
+- [ ] Loading skeleton shows pulsing placeholder blocks while data loads
+- [ ] No layout shift when sidebar collapses/expands
+- [ ] Sidebar collapsed width is exactly 64px; expanded is 256px
+- [ ] Main content left-padding transitions smoothly with sidebar width change
+- [ ] Design is responsive: on small screens, sidebar collapses by default
+- [ ] Tailwind config `brand`, `sidebar`, `content`, `card`, `text`, `topbar` color keys are usable in all pages
+- [ ] CSS custom properties (`--sidebar-bg`, `--brand-primary`, etc.) are available globally
+- [ ] No TypeScript compile errors (`yarn typecheck` passes)
+- [ ] No ESLint errors (`yarn lint` passes)
+
+### Deployment Notes
+1. Run `yarn lint && yarn typecheck` (or `npx tsc --noEmit`) in `p2p-kids-admin/` — must pass before any manual testing.
+2. Run `yarn build` in `p2p-kids-admin/` to confirm Next.js SSR/SSG compile succeeds before deploying.
+3. Verify Google Fonts (`Inter`) is loading — or swap to `next/font/google` for self-hosted font to avoid CORS/CSP issues.
+4. Confirm `recharts` and `lucide-react` are in `package.json` (not just `devDependencies`).
+5. Remove any existing hardcoded color values (e.g., `bg-gray-100`, `text-gray-700`) from pre-existing admin pages — replace with new design tokens.
+6. `// TODO(UX): Apply MetricCard and ChartCard components to all existing feature pages (users, subscriptions, sp-wallet, badges, revenue) once base layout is confirmed`
+7. `// TODO(RESP): Add mobile-responsive sidebar drawer (slide-in overlay) for screens < 768px`
+8. `// TODO(A11Y): Ensure keyboard focus styles are visible against the purple sidebar background`
+9. `// TODO(THEME): Consider adding a light/dark mode toggle using CSS custom property overrides`
+
+---
+
 ## MODULE SUMMARY
 
-### Total Tasks: 5
+### Total Tasks: 7
 1. **ADMIN-V2-001**: Admin role schema & authentication ✅
 2. **ADMIN-V2-002**: Subscription management dashboard ✅
 3. **ADMIN-V2-003**: SP wallet admin operations ✅
 4. **ADMIN-V2-004**: Badge administration ✅
 5. **ADMIN-V2-005**: Revenue & analytics dashboard ✅
+6. **ADMIN-V2-006**: User management dashboard ✅
+7. **ADMIN-V2-007**: Admin panel UI theme & layout redesign ✅
 
 ### Key Features Delivered
 - **Admin Authentication**: Role-based access control with activity logging
@@ -3730,30 +6541,39 @@ const MetricCard: React.FC<{
 - **SP Wallet Operations**: Manual adjustments, wallet freeze/unfreeze, economy metrics
 - **Badge Administration**: Manual award/revoke, distribution analytics, rarity tracking
 - **Revenue Dashboard**: MRR/ARR, transaction fees, ARPU, DAU/MAU with cohort analysis
+- **User Management**: Paginated user directory with search/filter, full detail panel, suspend/unsuspend/delete, password reset trigger, and user analytics (total, active, suspended, new this month, DAU/MAU, by-subscription breakdown)
+- **UI Theme & Layout**: Deep purple collapsible sidebar, white fixed topbar, light lavender content background, MetricCard and ChartCard design system, Recharts integration, full design token system (Tailwind config + CSS custom properties)
 
 ### Cross-Module Integration
-- **MODULE-11 (Subscriptions)**: Admin can extend trial, cancel, view analytics
-- **MODULE-09 (Swap Points)**: Admin can adjust wallets, view economy metrics
-- **MODULE-08 (Badges)**: Admin can award/revoke, view distribution
-- **MODULE-06 (Trade Flow)**: Transaction fee revenue tracking
-- **MODULE-03 (Authentication)**: Admin role verification for all operations
+- **MODULE-11 (Subscriptions)**: Admin can extend trial, cancel, view analytics; user detail shows subscription status
+- **MODULE-09 (Swap Points)**: Admin can adjust wallets, view economy metrics; user detail shows SP balance and wallet status
+- **MODULE-08 (Badges)**: Admin can award/revoke, view distribution; user detail shows all earned badges
+- **MODULE-06 (Trade Flow)**: Transaction fee revenue tracking; user detail shows trade counts (as buyer/seller)
+- **MODULE-03 (Authentication)**: Admin role verification for all operations; user management uses `auth.users.last_sign_in_at` for last login tracking
 
 ### Security Considerations
 - All admin RPCs verify role before execution
 - All admin actions logged in admin_activity_log
-- Soft delete for badge revocations (audit trail preserved)
+- Soft delete for badge revocations and user deletions (audit trail preserved)
 - Admin metadata stored in ledger/badge entries
 - Separate admin authentication flow from mobile app
+- Password reset Edge Function uses service role key only after verifying caller is admin via JWT + DB role check
+- Admin self-delete is explicitly blocked at the RPC level
+- Mandatory reason required for suspend, unsuspend, and delete actions
 
 ### Performance Notes
 - Badge distribution query optimized with GROUP BY
 - Revenue metrics use COALESCE for null handling
 - Admin activity log indexed by admin_id, entity_type, created_at
 - SP wallet queries indexed by user_id and status
+- User list query uses correlated subquery to join only the latest subscription per user; add index on `subscriptions(user_id, created_at DESC)` if volume is high
+- `admin_list_users` runs a dual-pass (COUNT + paginated SELECT); consider materialized view for very large user bases
 
 ### Next Steps
 1. Implement time-series charts for revenue trends
-2. Add CSV export functionality for analytics
+2. Add CSV export functionality for all analytics dashboards (users, subscriptions, revenue)
 3. Create admin notification system for critical events
 4. Build scheduled reports (weekly/monthly) via email
+5. Add bulk admin actions to user table (e.g., bulk suspend selected users)
+6. Add node/location column and filter to user management table once node assignment is fully wired
 

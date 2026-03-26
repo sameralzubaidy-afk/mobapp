@@ -382,6 +382,9 @@ serve(async (req) => {
       if (debitError || !ledgerIdFromResult) {
         console.error('[trade-payment] SP debit failed or returned unexpected result. Cancelling Stripe payment.', { debitError, ledgerIdFromResult, debitResult });
         
+        // Extract the actual error message from Postgres (e.g., frozen/suspended wallet)
+        const errorMessage = debitError?.message || 'Swap Points debit failed or returned invalid response. Payment cancelled.';
+        
         // ATOMIC FAILURE: Cancel Stripe PaymentIntent because SP debit failed
         try {
           await stripe.paymentIntents.cancel(paymentIntent.id);
@@ -399,7 +402,10 @@ serve(async (req) => {
           .eq('id', trade.id);
 
         return new Response(
-          JSON.stringify({ error: 'Swap Points debit failed or returned invalid response. Payment cancelled.' }),
+          JSON.stringify({ 
+            error: errorMessage,
+            code: 'SP_DEBIT_FAILED'
+          }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } else {
