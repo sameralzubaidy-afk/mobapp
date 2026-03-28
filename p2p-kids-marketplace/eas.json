@@ -13,6 +13,22 @@
         "gradleCommand": ":app:assembleDebug"
       }
     },
+    "internal": {
+      "distribution": "internal",
+      "channel": "staging",
+      "env": {
+        "APP_ENV": "staging",
+        "EXPO_PUBLIC_ENVIRONMENT": "staging"
+      },
+      "ios": {
+        "buildConfiguration": "Release",
+        "simulator": false
+      },
+      "android": {
+        "buildType": "apk"
+      },
+      "resourceClass": "default"
+    },
     "staging": {
       "distribution": "internal",
       "channel": "staging",
@@ -22,7 +38,6 @@
       },
       "ios": {
         "buildConfiguration": "Release",
-        "bundleIdentifier": "com.p2pkids.marketplace.staging",
         "enterpriseProvisioning": "adhoc",
         "simulator": false
       },
@@ -41,11 +56,10 @@
       },
       "ios": {
         "buildConfiguration": "Release",
-        "bundleIdentifier": "com.p2pkids.marketplace",
         "simulator": false
       },
       "android": {
-        "buildType": "appBundle",
+        "buildType": "app-bundle",
         "gradleCommand": ":app:bundleRelease"
       },
       "resourceClass": "large"
@@ -53,8 +67,8 @@
   },
   "submit": {
     "production": {
-      "ios": false,
-      "android": false
+      "ios": {},
+      "android": {}
     }
   }
 }

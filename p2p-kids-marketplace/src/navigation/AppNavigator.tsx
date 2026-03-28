@@ -12,6 +12,7 @@ import LoginScreen from '@/screens/auth/LoginScreen';
 import SignupScreen from '@/screens/auth/SignupScreen';
 import PhoneVerificationScreen from '@/screens/auth/PhoneVerificationScreen';
 import LandingScreen from '@/screens/auth/LandingScreen';
+import SuspendedAccountScreen from '@/screens/auth/SuspendedAccountScreen';
 // NOTE: Some profile/onboarding screens use expo-image-picker.
 // Require them lazily to avoid startup crash when native module is unavailable.
 const ProfileSetupScreen = require('@/screens/profile/ProfileSetupScreen').default;
@@ -68,6 +69,7 @@ const linking = {
       BrowseItems: 'browse',
       Search: 'search',
       PhoneVerification: 'phone-verification',
+      SuspendedAccount: 'suspended-account',
       ProfileSetup: 'profile-setup',
       Profile: 'profile',
       EditProfile: 'edit-profile',
@@ -157,6 +159,7 @@ function RootNavigator() {
 
   // Determine which stack to show based on session + onboarding status
   const isAuthenticated = session !== null;
+  const isSuspended = session?.user?.account_status === 'suspended';
   const isOnboardingComplete = session?.user?.onboarding_completed === true;
 
   return (
@@ -167,7 +170,10 @@ function RootNavigator() {
       onStateChange={logRouteChange}
     >
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isAuthenticated && isOnboardingComplete ? (
+        {isAuthenticated && isSuspended ? (
+          // Authenticated + Suspended -> blocked account screen
+          <Stack.Screen name="SuspendedAccount" component={SuspendedAccountScreen} />
+        ) : isAuthenticated && isOnboardingComplete ? (
           // Authenticated + Onboarding Complete → Dashboard stack
           <>
             <Stack.Screen name="Home" component={UserDashboardScreen} />

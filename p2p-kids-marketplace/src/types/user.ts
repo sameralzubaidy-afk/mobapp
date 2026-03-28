@@ -49,6 +49,12 @@ export interface UserProfile {
   // Verification
   phone_verified: boolean;
   phone_verified_at?: string;
+
+  // Admin account controls
+  account_status?: 'active' | 'suspended' | 'banned' | 'deleted';
+  deleted_at?: string | null;
+  suspended_at?: string | null;
+  suspension_reason?: string | null;
   
   // V2 fields
   subscription_id?: string;

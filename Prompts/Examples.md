@@ -44,23 +44,23 @@ Supabase: supabase/
 -----
 My Example 1
 
-
-## TASK ADMIN-V2-003: SP Wallet Admin Operations
+## TASK ADMIN-V2-007: Admin Panel UI Theme & Layout Redesign
 
 I’m working on the  MODULE-12-ADMIN-V2.md tasks
 Module: MODULE-12-ADMIN-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK ADMIN-V2-003: SP Wallet Admin Operations
+Tasks: ## TASK ADMIN-V2-006: User Management Dashboard
 
 scope is 
-Create admin tools for SP wallet management. Enable wallet inspection (view balance, ledger history). Implement manual SP adjustments (add/deduct points with reason). Create SP audit log for all admin modifications. Display SP economy metrics (total circulation, earning rate, spending rate).
 
-### Acceptance Criteria
-- [ ] Admin can view any user's SP wallet details
-- [ ] Admin can manually add/deduct SP with mandatory reason
-- [ ] All SP adjustments create ledger entries with 'admin_adjustment' reason
-- [ ] SP adjustments logged in admin_activity_log
-- [ ] Wallet inspection shows full ledger history
-- [ ] SP economy dashboard displays total earned/spent/circulation
+Redesign the entire admin panel visual layer to match the provided reference design. The layout consists of:
+- **Fixed left sidebar** (deep purple, collapsible) with icon + label navigation
+- **Fixed top navbar** (white) with search, brand logo, notification bell, user profile
+- **Scrollable main content** on a light lavender/gray background
+- **Metric cards** (white, subtle shadow) with colored icons, large numbers, and trend labels
+- **Chart cards** (white, subtle shadow) wrapping Recharts components
+- **Consistent design tokens** enforced via Tailwind extended config + CSS variables
+
+This task covers **only presentation and layout** — no business logic or DB changes.
 
 i want you to 
 

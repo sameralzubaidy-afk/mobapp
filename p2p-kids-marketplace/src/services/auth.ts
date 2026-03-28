@@ -342,6 +342,14 @@ export async function loginWithContext(
       );
     }
 
+    if ((profile as UserProfile & { deleted_at?: string | null }).deleted_at) {
+      await supabase.auth.signOut();
+      throw new AuthError(
+        'Your account has been deleted. Please contact admin-support@kidsmarketplace.app.',
+        'ACCOUNT_DELETED'
+      );
+    }
+
     // Step 3: Fetch subscription summary (MODULE-11)
     const { data: subData } = await supabase.rpc('get_subscription_summary', {
       p_user_id: userId,
@@ -444,6 +452,11 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
       .single();
 
     if (!profile) {
+      return null;
+    }
+
+    if ((profile as UserProfile & { deleted_at?: string | null }).deleted_at) {
+      await supabase.auth.signOut();
       return null;
     }
 

@@ -190,6 +190,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
+        if (profileData.deleted_at) {
+          console.warn('[AUTH] Soft-deleted account detected during refresh; signing out');
+          await supabase.auth.signOut();
+          setSession(null);
+          return;
+        }
+
         // Re-fetch subscription summary from MODULE-11
         const { data: subData, error: subError } = await (supabase.rpc('get_subscription_summary', {
           p_user_id: sessionData.session.user.id,
@@ -293,6 +300,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             onboarding_completed: profileData.onboarding_completed || false,
             phone_verified: profileData.phone_verified || false,
             phone_verified_at: profileData.phone_verified_at,
+            account_status: profileData.account_status || 'active',
+            suspended_at: profileData.suspended_at || null,
+            suspension_reason: profileData.suspension_reason || null,
             subscription_id: profileData.subscription_id,
             sp_wallet_id: profileData.sp_wallet_id,
             onboarding_completed_at: profileData.onboarding_completed_at,
@@ -535,6 +545,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           )) as any;
 
           if (!profileError && profileData) {
+            if (profileData.deleted_at) {
+              console.warn('[AUTH] Soft-deleted account detected on startup; signing out');
+              await supabase.auth.signOut();
+              setSession(null);
+              return;
+            }
+
             try {
               require('@/utils/startupDebug').setStartupStep('fetching subscription');
             } catch (_) {}
@@ -620,6 +637,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 onboarding_completed: profileData.onboarding_completed || false,
                 phone_verified: profileData.phone_verified || false,
                 phone_verified_at: profileData.phone_verified_at,
+                account_status: profileData.account_status || 'active',
+                suspended_at: profileData.suspended_at || null,
+                suspension_reason: profileData.suspension_reason || null,
                 subscription_id: profileData.subscription_id,
                 sp_wallet_id: profileData.sp_wallet_id,
                 onboarding_completed_at: profileData.onboarding_completed_at,

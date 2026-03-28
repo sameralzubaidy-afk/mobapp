@@ -98,6 +98,149 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Renewal path from `ContinueKidsClub` now routes grace/expired users through `create-subscription-from-payment-method` (paid renewal path) instead of legacy `create-subscription-payment`.
   - Billing writes now persist admin-configured amount and upsert billing history on successful payment in `supabase/functions/create-subscription-from-payment-method/index.ts`.
   - Hardcoded grace window removed from admin manual-cancel API and trial conversion downgrade RPC (`20260312000001_fix_dynamic_grace_period_trial_conversion.sql`).
+
+### FLOW-18: Admin Controls – Config + Overrides + Revenue Analytics + User Management
+- Purpose: Admin can configure platform settings, view revenue metrics, analytics, and manage users
+- Smoke: (manual)
+  - Admin can navigate to `/analytics` dashboard
+  - Revenue metrics display: MRR, ARR, transaction fees, ARPU
+  - Engagement metrics display: DAU, MAU, DAU/MAU ratio
+  - Time series data loads for day/week/month intervals
+  - Date range filters work (7D, 30D, 90D, 1Y)
+  - All metrics calculate correctly based on subscriptions and trades
+  - **ADMIN-V2-005 (2026-03-25):** Revenue & Analytics Dashboard
+    - RPCs: `get_revenue_metrics`, `get_engagement_metrics`, `get_revenue_time_series`
+    - API: `/api/admin/analytics/revenue`
+    - UI: `/analytics` page with comprehensive metrics and charts
+  - **ADMIN-V2-006 (2026-03-26):** User Management Dashboard
+    - Purpose: Admin can view, search, filter, suspend, unsuspend, delete users, reset passwords
+    - Migration: `supabase/migrations/126_admin_user_management.sql`
+    - RPCs: `admin_list_users`, `admin_get_user_analytics`, `admin_get_user_detail`, `admin_suspend_user`, `admin_unsuspend_user`, `admin_delete_user`
+    - Edge Function: `supabase/functions/admin-trigger-password-reset/index.ts`
+    - Admin API Routes:
+      - `/api/admin/users` (GET - paginated list with search/filters)
+      - `/api/admin/users/analytics` (GET - user analytics)
+      - `/api/admin/users/[id]` (GET detail / DELETE soft delete)
+      - `/api/admin/users/[id]/suspend` (POST)
+      - `/api/admin/users/[id]/unsuspend` (POST)
+      - `/api/admin/users/[id]/reset-password` (POST)
+    - Admin UI: `p2p-kids-admin/src/app/users/page.tsx` (comprehensive user management dashboard)
+    - Features:
+      - User analytics: total users, active, suspended, new this month, DAU, MAU, deleted, subscribers
+      - Paginated user list with search (name/email/phone)
+      - Filters: account status (active/suspended/deleted), subscription status
+      - User detail panel: identity, subscription, SP wallet, trade activity, badges, admin activity log
+      - Admin actions: suspend, unsuspend, soft delete, trigger password reset
+      - Audit logging: all actions logged to `admin_activity_log`
+      - Security: admin role verification, self-deletion prevention
+      - Soft delete: SP wallet freezing, user cannot login
+    - Manual Test Guide: `ADMIN-V2-006-MANUAL-TESTING-GUIDE.md` (23 test cases)
+    - Unit Tests: `p2p-kids-admin/src/__tests__/admin-user-management.unit.test.ts`
+    - E2E Tests: `p2p-kids-admin/src/__tests__/integration/admin-user-management.e2e.test.ts`
+    - Tier: Tier 1 for user management changes; Tier 2 if auth/RLS/audit system changes
+    - **ADMIN-V2-006 Hotfix Chain (2026-03-28):** RPC schema alignment + delete action stability
+      - Migrations: `20260328000016` through `20260328000023`
+      - Fixes covered:
+        - aggregate ordering in list/detail RPC JSON aggregation
+        - profile DOB source (`profiles.dob`)
+        - SP wallet state source (`sp_wallets.state`)
+        - badge icon source (`badges.icon_url`)
+        - recent activity entity comparison cast safety (`entity_id::TEXT`)
+        - delete flow wallet freeze column (`state`, not `status`)
+        - admin activity log writes UUID `entity_id` values for suspend/unsuspend/delete
+      - Smoke verification:
+        - `admin_list_users` RPC returns paginated users without schema errors
+        - `admin_get_user_detail` RPC returns identity/subscription/wallet/activity payload
+        - `admin_delete_user`, `admin_suspend_user`, `admin_unsuspend_user` RPCs return success payloads
+    - **ADMIN-V2-006 Hotfix (2026-03-28):** Deleted account-status filter support
+      - Migration: `20260328000025_fix_admin_list_users_deleted_filter.sql`
+      - Fixes covered:
+        - account-status filter now supports `deleted` and returns soft-deleted users (`profiles.deleted_at IS NOT NULL`)
+        - list rows returned for deleted users are labeled with `account_status = 'deleted'` for UI badge rendering
+      - Smoke verification:
+        - `admin_list_users(p_account_status => 'deleted')` returns deleted users
+        - Users page Account Status dropdown `Deleted` option returns deleted rows
+    - **ADMIN-V2-006 Hotfix (2026-03-28):** Null account-status regression guard
+      - Migration: `20260328000026_fix_admin_list_users_null_status_filter.sql`
+      - Fixes covered:
+        - `admin_list_users` now treats null `p_account_status` as non-deleted list mode (prevents empty "All users" result)
+      - Smoke verification:
+        - `admin_list_users(p_account_status => NULL)` returns active user list
+        - `admin_list_users(p_account_status => 'deleted')` still returns soft-deleted users
+    - **ADMIN-V2-006 Hotfix (2026-03-28):** Mandatory identity fallback + profile backfill for TC-009
+      - Migration: `20260328000027_fix_admin_identity_phone_dob_backfill.sql`
+      - Fixes covered:
+        - `admin_get_user_detail` identity now falls back to `auth.users.raw_user_meta_data` when `profiles.phone/dob` are missing
+        - profile backfill updates missing/blank `profiles.phone` and missing `profiles.dob` from `auth.users` metadata
+      - Smoke verification:
+        - `admin_get_user_detail` returns non-null `identity.phone` and `identity.date_of_birth` for users with metadata values
+        - post-backfill query shows reduced null/blank phone and null DOB counts in `profiles`
+    - **ADMIN-V2-006 Mobile Gate (2026-03-28):** Suspended account blocked screen
+      - App files:
+        - `p2p-kids-marketplace/src/navigation/AppNavigator.tsx`
+        - `p2p-kids-marketplace/src/contexts/AuthContext.tsx`
+        - `p2p-kids-marketplace/src/screens/auth/SuspendedAccountScreen.tsx`
+      - Behavior:
+        - suspended users can authenticate but are routed to `SuspendedAccount`
+        - blocked screen shows contact-admin message with placeholder support email
+      - Smoke verification:
+        - after admin suspend, user login lands on suspended screen (no normal app access)
+        - after unsuspend, user login returns to normal auth/onboarding/dashboard route logic
+    - **ADMIN-V2-006 Mobile Gate (2026-03-28):** Soft-deleted users blocked from login
+      - App files:
+        - `p2p-kids-marketplace/src/services/auth.ts`
+        - `p2p-kids-marketplace/src/contexts/AuthContext.tsx`
+        - `p2p-kids-marketplace/src/screens/auth/LoginScreen.tsx`
+      - Behavior:
+        - login is rejected when `profiles.deleted_at IS NOT NULL`
+        - existing sessions for deleted users are signed out during startup/refresh
+      - Smoke verification:
+        - after admin soft delete, target user cannot log in and receives deleted-account message
+        - `sp_wallets.state` is `frozen` for deleted user when wallet exists
+  - **ADMIN-V2-007 (2026-03-25):** Admin Panel UI Theme & Layout Redesign (PRESENTATION ONLY)
+    - Purpose: Redesign admin panel visual layer with consistent design system
+    - Scope: **UI-ONLY** (no backend, no DB, no RLS changes)
+    - Design Tokens:
+      - Tailwind config extended with admin theme colors (deep purple sidebar, lavender content bg)
+      - CSS custom properties for consistent theming
+      - TypeScript theme.ts for inline style access
+    - Components Created:
+      - `Sidebar.tsx` - Fixed left sidebar (collapsible 256px → 64px, deep purple #3D1073)
+      - `TopNavbar.tsx` - Fixed top navbar (white, 64px height, search/brand/notifications/profile)
+      - `AdminShell.tsx` - Layout wrapper managing sidebar/topbar/main content positioning
+      - `MetricCard.tsx` - Reusable metric display cards with icon colors + trends
+      - `ChartCard.tsx` - Chart wrapper cards with period filters
+    - Files Updated:
+      - `tailwind.config.js` - Design token colors + shadows
+      - `globals.css` - CSS variables + custom scrollbar styling
+      - `layout.tsx` - Uses AdminShell instead of ProtectedLayout
+    - Visual Features:
+      - Deep purple sidebar (#3D1073) with gradient brand logo
+      - White topbar with centered branding + search + notifications
+      - Light lavender content background (#F2F0FB)
+      - White metric/chart cards with subtle purple shadows
+      - Smooth collapse/expand transitions (300ms)
+      - Custom scrollbar (4px, purple)
+      - Hover effects on nav items and interactive elements
+    - Navigation Items: Dashboard, Users, Subscriptions, SP Wallet, Badges, Listings, Trades, Reviews, Analytics, Payouts, Referrals, ID Badges, Nodes, Config
+    - Manual Test Guide: `ADMIN-V2-007-MANUAL-TESTING-GUIDE.md` (23 test cases)
+    - Unit Tests:
+      - `__tests__/components/layout/Sidebar.test.tsx`
+      - `__tests__/components/layout/TopNavbar.test.tsx`
+      - `__tests__/components/ui/MetricCard.test.tsx`
+      - `__tests__/components/ui/ChartCard.test.tsx`
+      - `__tests__/theme/design-tokens.test.ts`
+    - Integration Test: `__tests__/integration/admin-ui-theme.integration.test.tsx`
+    - Tier: Tier 0 (lint + typecheck + build) required; Tier 1 for UI smoke test
+    - Dependencies: `lucide-react` (icons must be installed)
+    - Backward Compat: Existing admin pages work with new theme; old ProtectedLayout replaced cleanly
+- Automated:
+  - Unit tests: `p2p-kids-admin/src/lib/__tests__/revenueAnalytics.test.ts`
+  - E2E tests: `p2p-kids-admin/src/__tests__/e2e/revenue-analytics.e2e.ts`
+  - User Management Unit tests: `p2p-kids-admin/src/__tests__/admin-user-management.unit.test.ts`
+  - User Management E2E tests: `p2p-kids-admin/src/__tests__/integration/admin-user-management.e2e.test.ts`
+  - **ADMIN-V2-007** Unit tests: 5 unit test files + 1 integration test (see above)
+
 - **SUB-020 Trial Limit Control (NEW):**
   - DB migration: `supabase/migrations/20260312000000_sub_020_trial_limit_control.sql`
   - New RPCs: `get_trial_limit_status`, `increment_trial_uses`, `admin_reset_trial_uses`

@@ -3,6 +3,7 @@ export type RootStackParamList = {
   Home: undefined;
   Login: undefined;
   Signup: undefined;
+  SuspendedAccount: undefined;
   PhoneVerification: undefined;
   ProfileSetup: undefined;
   Profile: { userId?: string } | undefined;

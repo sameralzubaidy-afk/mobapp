@@ -125,6 +125,10 @@ export default function LoginScreen() {
           case 'PROFILE_NOT_FOUND':
             errorMessage = 'Profile not found. Please contact support.';
             break;
+          case 'ACCOUNT_DELETED':
+            errorMessage =
+              'Your account has been deleted. Please contact admin-support@kidsmarketplace.app.';
+            break;
           default:
             errorMessage = error.message;
         }

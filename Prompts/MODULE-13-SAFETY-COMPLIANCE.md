@@ -28,9 +28,11 @@ FILES:
 
 # MODULE 13: SAFETY & COMPLIANCE
 
-**Total Tasks:** 12  
-**Estimated Time:** ~32 hours  
+**Total Tasks:** 15 (3 prerequisite + 12 safety)  
+**Estimated Time:** ~40 hours  
 **Dependencies:** MODULE-02 (Authentication), MODULE-04 (Item Listing), MODULE-12 (Admin Panel)
+
+> **⚠️ PREREQUISITE TASKS (SAFETY-P001 → P003)** must be completed BEFORE SAFETY-001. They close critical infrastructure gaps (storage bucket, image upload in listing screen, item-status schema) that downstream tasks depend on.
 
 ---
 
@@ -65,6 +67,832 @@ REASONING GUIDELINES:
 - Provide brief chain-of-thought before producing complex SQL or payment flows.
 - Flag performance, security, and privacy concerns.
 ```
+
+---
+
+---
+
+## PREREQUISITE TASKS (must be completed before any SAFETY-0xx task)
+
+These tasks close infrastructure gaps that MODULE-13 depends on.
+
+---
+
+## TASK SAFETY-P001: Create `item-images` Storage Bucket with RLS Policies (Supabase Migration)
+
+**Duration:** 1.5 hours  
+**Priority:** Critical (Blocker for SAFETY-004, SAFETY-005, SAFETY-008)  
+**Dependencies:** INFRA-001 (Supabase setup), items table must exist (20251217000002 migration)
+
+### Description
+The `item_images` DB table and `storage.ts` service already reference an `item-images` bucket, but **no migration creates the Supabase Storage bucket or its RLS policies**. Without this bucket, users cannot upload listing photos, and SAFETY-004 (image moderation) has nothing to moderate.
+
+Create an idempotent migration that:
+1. Creates the `item-images` storage bucket (public, 5 MB file size limit)
+2. Adds RLS policies so sellers can upload/delete their own listing images
+3. Allows authenticated users to read any item image (listings are public)
+4. Allows service_role full access (for moderation/admin)
+
+---
+
+### AI Prompt for Cursor (Generate item-images Storage Bucket)
+
+```sql
+/*
+TASK: Create item-images storage bucket with RLS policies
+
+CONTEXT:
+- The `item_images` table already exists (migration 20251217000002).
+- The `storage.ts` service in the mobile app already references bucket name 'item-images'.
+- Other buckets exist as reference patterns: 'user-avatars' (migration 20241215000004),
+  'chat-images' (migration 082), 'badge-icons' (migration 20260112000000).
+- This migration MUST be idempotent (safe to re-run).
+
+REQUIREMENTS:
+1. Create `item-images` public storage bucket (5 MB max file size)
+2. RLS policies:
+   a. Authenticated users can upload to path `{user_id}/*` (own folder)
+   b. Authenticated users can update/delete only their own files (`{user_id}/*`)
+   c. Anyone (anon + authenticated) can read all item images (listings are public)
+   d. Service role has full access (for moderation cleanup)
+3. Bucket must be public (getPublicUrl works without signed URLs)
+4. Allowed MIME types: image/jpeg, image/png, image/webp, image/gif
+
+==================================================
+FILE: Supabase migration for item-images bucket
+==================================================
+*/
+
+-- filepath: supabase/migrations/300_create_item_images_bucket.sql
+-- Mode: idempotent (safe to re-run)
+
+-- STEP 1: Create the bucket (if not exists)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'item-images',
+  'item-images',
+  TRUE,
+  5242880,  -- 5 MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = EXCLUDED.public,
+  file_size_limit = EXCLUDED.file_size_limit,
+  allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+-- STEP 2: Drop existing policies (idempotent reset)
+DROP POLICY IF EXISTS "Authenticated users can upload item images" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can update own item images" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can delete own item images" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view item images" ON storage.objects;
+DROP POLICY IF EXISTS "Service role full access item images" ON storage.objects;
+
+-- STEP 3: Create RLS policies
+
+-- 3a. Upload: users can upload to their own folder
+CREATE POLICY "Authenticated users can upload item images"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'item-images'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+-- 3b. Update: users can update their own files
+CREATE POLICY "Authenticated users can update own item images"
+  ON storage.objects FOR UPDATE
+  TO authenticated
+  USING (
+    bucket_id = 'item-images'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+-- 3c. Delete: users can delete their own files
+CREATE POLICY "Authenticated users can delete own item images"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'item-images'
+    AND (storage.foldername(name))[1] = auth.uid()::TEXT
+  );
+
+-- 3d. Read: anyone can view item images (listings are public)
+CREATE POLICY "Anyone can view item images"
+  ON storage.objects FOR SELECT
+  TO public
+  USING (bucket_id = 'item-images');
+
+-- 3e. Service role: full access for moderation/admin
+CREATE POLICY "Service role full access item images"
+  ON storage.objects FOR ALL
+  TO service_role
+  USING (bucket_id = 'item-images');
+
+/*
+==================================================
+VERIFICATION QUERIES (run after migration)
+==================================================
+*/
+
+-- Verify bucket exists
+-- SELECT id, name, public, file_size_limit, allowed_mime_types
+-- FROM storage.buckets WHERE id = 'item-images';
+
+-- Verify policies exist
+-- SELECT policyname, cmd, roles
+-- FROM pg_policies WHERE tablename = 'objects' AND policyname LIKE '%item images%';
+
+/*
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ item-images bucket exists in Supabase Storage
+✓ Bucket is public (getPublicUrl works)
+✓ 5 MB file size limit enforced
+✓ Only jpeg/png/webp/gif allowed
+✓ Authenticated users can upload to their own folder
+✓ Users can only delete their own uploads
+✓ Anyone can view item images
+✓ Service role has full access
+
+==================================================
+NEXT TASK
+==================================================
+
+SAFETY-P002: Add image picker to CreateListingScreen
+*/
+```
+
+---
+
+### Output Files
+
+1. **supabase/migrations/300_create_item_images_bucket.sql** — Storage bucket + RLS policies
+
+---
+
+### Testing Steps
+
+1. **Verify bucket creation:**
+   - Run migration in Supabase SQL Editor
+   - Check Storage tab → `item-images` bucket should appear
+   - Verify public flag, file size limit, MIME types
+
+2. **Test upload as authenticated user:**
+   - Upload a JPEG via Supabase client to `{user_id}/test.jpg`
+   - Verify upload succeeds
+   - Verify `getPublicUrl` returns accessible URL
+
+3. **Test RLS:**
+   - Try uploading to another user's folder → should fail
+   - Try deleting another user's image → should fail
+   - Anonymous read → should succeed
+
+---
+
+### Time Breakdown
+
+| Activity | Time |
+|----------|------|
+| Write migration SQL | 30 min |
+| Test in Supabase Studio | 30 min |
+| Verify RLS policies (upload/read/delete) | 30 min |
+| **Total** | **~1.5 hours** |
+
+---
+
+## TASK SAFETY-P002: Add Image Picker and Upload to CreateListingScreen (Mobile App)
+
+**Duration:** 3 hours  
+**Priority:** Critical (Blocker for SAFETY-004)  
+**Dependencies:** SAFETY-P001 (item-images bucket), MODULE-04 (CreateListingScreen must exist)
+
+### Description
+The `CreateListingScreen` currently has a form for title, description, price, condition, and SP toggle — but **no image picker**. Users cannot attach photos to listings. This blocks SAFETY-004 (Google Vision image moderation) which requires images to exist.
+
+Add:
+1. Image picker component using `expo-image-picker` (already used in avatar upload flow)
+2. Multi-image support (up to 5 photos)
+3. Image preview with reorder and delete
+4. Upload images to `item-images` bucket on listing creation
+5. Insert image URLs into `item_images` table after item is created
+6. Show upload progress indicator
+
+---
+
+### AI Prompt for Cursor (Generate Image Picker for Listings)
+
+```typescript
+/*
+TASK: Add image picker and upload to CreateListingScreen
+
+CONTEXT:
+- CreateListingScreen exists at: p2p-kids-marketplace/src/screens/listing/CreateListingScreen.tsx
+- Storage service exists at: p2p-kids-marketplace/src/services/supabase/storage.ts
+  - Has uploadImage(bucket, path, fileUri) and uploadMultipleImages()
+  - Bucket type 'item-images' is already defined in StorageBucket type
+- item_images table exists with columns: id, item_id, url, thumbnail_url, display_order, created_at
+- Avatar upload example in ProfileCompletionScreen.tsx uses expo-image-picker
+- Maximum 5 images per listing
+- First image = primary/cover image (display_order = 0)
+
+REQUIREMENTS:
+1. Add image picker using expo-image-picker (camera + gallery)
+2. Allow up to 5 images per listing
+3. Show image previews in a horizontal scroll with:
+   - Tap to view full size (optional)
+   - "X" button to remove
+   - Drag-to-reorder (stretch goal: skip for MVP, use display_order from array index)
+4. On listing creation:
+   a. First create the item in DB (existing flow)
+   b. Upload all images to item-images/{seller_id}/{item_id}/{index}.jpg
+   c. Insert rows into item_images table with public URLs
+5. Show upload progress (ActivityIndicator per image or overall progress)
+6. Handle errors: if upload fails, still save listing but warn user about missing images
+7. Validate: only image/* MIME types, max 5 MB per image
+
+==================================================
+FILE 1: Image picker component (reusable)
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/components/molecules/ImagePickerGrid.tsx
+
+import React from 'react';
+import {
+  View,
+  Image,
+  TouchableOpacity,
+  Text,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+
+const MAX_IMAGES = 5;
+const MAX_FILE_SIZE_MB = 5;
+
+export interface SelectedImage {
+  uri: string;
+  width: number;
+  height: number;
+  fileSize?: number;
+}
+
+interface ImagePickerGridProps {
+  images: SelectedImage[];
+  onImagesChange: (images: SelectedImage[]) => void;
+  uploading?: boolean;
+  maxImages?: number;
+}
+
+export default function ImagePickerGrid({
+  images,
+  onImagesChange,
+  uploading = false,
+  maxImages = MAX_IMAGES,
+}: ImagePickerGridProps) {
+  const pickImage = async (source: 'camera' | 'gallery') => {
+    if (images.length >= maxImages) {
+      Alert.alert('Limit Reached', `Maximum ${maxImages} images allowed`);
+      return;
+    }
+
+    // Request permission
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Camera access is needed to take photos');
+        return;
+      }
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Photo library access is needed to select images');
+        return;
+      }
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: maxImages - images.length,
+      quality: 0.8,
+      // Note: use launchCameraAsync for camera source
+    });
+
+    if (source === 'camera') {
+      const cameraResult = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+      });
+
+      if (!cameraResult.canceled && cameraResult.assets.length > 0) {
+        const asset = cameraResult.assets[0];
+        // Validate file size
+        if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE_MB * 1024 * 1024) {
+          Alert.alert('File Too Large', `Images must be under ${MAX_FILE_SIZE_MB} MB`);
+          return;
+        }
+        onImagesChange([
+          ...images,
+          { uri: asset.uri, width: asset.width, height: asset.height, fileSize: asset.fileSize ?? undefined },
+        ]);
+      }
+      return;
+    }
+
+    if (!result.canceled && result.assets.length > 0) {
+      const validAssets = result.assets
+        .filter((a) => {
+          if (a.fileSize && a.fileSize > MAX_FILE_SIZE_MB * 1024 * 1024) {
+            return false; // Skip oversized
+          }
+          return true;
+        })
+        .map((a) => ({ uri: a.uri, width: a.width, height: a.height, fileSize: a.fileSize ?? undefined }));
+
+      if (validAssets.length < result.assets.length) {
+        Alert.alert('Some Skipped', `${result.assets.length - validAssets.length} image(s) exceeded ${MAX_FILE_SIZE_MB} MB and were skipped`);
+      }
+
+      onImagesChange([...images, ...validAssets].slice(0, maxImages));
+    }
+  };
+
+  const removeImage = (index: number) => {
+    onImagesChange(images.filter((_, i) => i !== index));
+  };
+
+  return (
+    <View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scrollRow}>
+        {images.map((img, idx) => (
+          <View key={idx} style={styles.imageWrapper}>
+            <Image source={{ uri: img.uri }} style={styles.thumbnail} />
+            {idx === 0 && (
+              <View style={styles.coverBadge}>
+                <Text style={styles.coverBadgeText}>Cover</Text>
+              </View>
+            )}
+            {!uploading && (
+              <TouchableOpacity style={styles.removeBtn} onPress={() => removeImage(idx)}>
+                <Text style={styles.removeBtnText}>✕</Text>
+              </TouchableOpacity>
+            )}
+            {uploading && (
+              <View style={styles.uploadingOverlay}>
+                <ActivityIndicator size="small" color="#fff" />
+              </View>
+            )}
+          </View>
+        ))}
+
+        {images.length < maxImages && !uploading && (
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              Alert.alert('Add Photo', 'Choose a source', [
+                { text: 'Camera', onPress: () => pickImage('camera') },
+                { text: 'Photo Library', onPress: () => pickImage('gallery') },
+                { text: 'Cancel', style: 'cancel' },
+              ]);
+            }}
+          >
+            <Text style={styles.addButtonIcon}>📷</Text>
+            <Text style={styles.addButtonText}>{images.length}/{maxImages}</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+
+      {images.length === 0 && (
+        <Text style={styles.hint}>Add at least one photo of your item</Text>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  scrollRow: { flexDirection: 'row', marginVertical: 8 },
+  imageWrapper: { width: 100, height: 100, marginRight: 8, borderRadius: 8, overflow: 'hidden', position: 'relative' },
+  thumbnail: { width: '100%', height: '100%' },
+  coverBadge: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,122,255,0.8)', paddingVertical: 2 },
+  coverBadgeText: { color: '#fff', fontSize: 10, textAlign: 'center', fontWeight: '600' },
+  removeBtn: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
+  removeBtnText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  uploadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
+  addButton: { width: 100, height: 100, borderRadius: 8, borderWidth: 2, borderColor: '#ddd', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f9f9f9' },
+  addButtonIcon: { fontSize: 28 },
+  addButtonText: { fontSize: 12, color: '#888', marginTop: 4 },
+  hint: { color: '#888', fontSize: 12, marginTop: 4, fontStyle: 'italic' },
+});
+
+/*
+==================================================
+FILE 2: Update CreateListingScreen to use ImagePickerGrid
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/screens/listing/CreateListingScreen.tsx (UPDATE)
+
+// ADD to imports:
+// import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
+// import { uploadMultipleImages } from '../../services/supabase/storage';
+// import { supabase } from '../../config/supabase';
+
+// ADD to state:
+// const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
+// const [uploadingImages, setUploadingImages] = useState(false);
+
+// ADD to JSX (after "Item Details" section title, before Title input):
+// <Text style={styles.label}>Photos *</Text>
+// <ImagePickerGrid
+//   images={selectedImages}
+//   onImagesChange={setSelectedImages}
+//   uploading={uploadingImages}
+// />
+
+// UPDATE handleCreateListing to upload images after item creation:
+// async function handleCreateListing() {
+//   ... existing validation ...
+//   if (selectedImages.length === 0) {
+//     Alert.alert('Required', 'Please add at least one photo');
+//     return;
+//   }
+//   ... create listing (existing code) ...
+//   // After listing created successfully, upload images:
+//   if (selectedImages.length > 0 && data?.id) {
+//     setUploadingImages(true);
+//     try {
+//       const files = selectedImages.map((img, idx) => ({
+//         path: `${session.user.id}/${data.id}/${idx}.jpg`,
+//         fileUri: img.uri,
+//       }));
+//       const uploadResults = await uploadMultipleImages('item-images', files);
+//       // Insert into item_images table
+//       const imageRows = uploadResults
+//         .filter((r) => r.url !== null)
+//         .map((r, idx) => ({
+//           item_id: data.id,
+//           url: r.url!,
+//           thumbnail_url: r.url, // TODO(UX): generate actual thumbnails
+//           display_order: idx,
+//         }));
+//       if (imageRows.length > 0) {
+//         await supabase.from('item_images').insert(imageRows);
+//       }
+//     } catch (imgError) {
+//       console.error('[CreateListing] Image upload error:', imgError);
+//       Alert.alert('Warning', 'Listing created but some images failed to upload.');
+//     } finally {
+//       setUploadingImages(false);
+//     }
+//   }
+// }
+
+/*
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ Image picker appears on CreateListingScreen
+✓ User can select up to 5 images from gallery or camera
+✓ Image previews shown in horizontal scroll
+✓ Cover image badge on first image
+✓ Remove button works
+✓ Images uploaded to item-images/{user_id}/{item_id}/ path
+✓ item_images rows created with public URLs
+✓ Upload progress shown
+✓ File size validation (max 5 MB)
+✓ Error handling: listing saved even if image upload fails
+
+==================================================
+NEXT TASK
+==================================================
+
+SAFETY-P003: Extend items.status CHECK constraint
+*/
+```
+
+---
+
+### Output Files
+
+1. **p2p-kids-marketplace/src/components/molecules/ImagePickerGrid.tsx** — Reusable image picker component
+2. **p2p-kids-marketplace/src/screens/listing/CreateListingScreen.tsx** — Updated with image picker integration
+
+---
+
+### Testing Steps
+
+1. **Image picker:**
+   - Open CreateListingScreen → image picker section visible
+   - Tap add → choose Camera or Gallery
+   - Select images → previews appear
+   - First image shows "Cover" badge
+   - Tap ✕ → image removed
+   - Try to add > 5 → "Limit Reached" alert
+
+2. **Upload:**
+   - Create listing with 2-3 images
+   - Images uploaded to item-images bucket
+   - item_images table has rows with correct URLs
+   - Public URLs accessible in browser
+
+3. **Error handling:**
+   - Disconnect network mid-upload → listing created, warning shown
+   - Upload 6 MB image → rejected with alert
+
+---
+
+### Time Breakdown
+
+| Activity | Time |
+|----------|------|
+| Build ImagePickerGrid component | 1 hour |
+| Integrate into CreateListingScreen | 1 hour |
+| Test upload flow + item_images insert | 45 min |
+| Error handling + edge cases | 15 min |
+| **Total** | **~3 hours** |
+
+---
+
+## TASK SAFETY-P003: Extend `items.status` CHECK Constraint + Add Seller Notification for Flagged/Rejected Items
+
+**Duration:** 2 hours  
+**Priority:** Critical (Blocker for SAFETY-002, SAFETY-004, SAFETY-005, SAFETY-008, SAFETY-009)  
+**Dependencies:** items table must exist (20251217000002 migration)
+
+### Description
+The `items.status` CHECK constraint currently allows: `'draft', 'available', 'pending', 'sold', 'deleted', 'paused'`. MODULE-13 requires two additional statuses:
+- `'flagged'` — Item flagged by CPSC match or AI moderation, under review
+- `'rejected'` — Item rejected by admin after review
+
+Also adds:
+1. `items.flagged_at` and `items.rejected_at` timestamp columns for audit
+2. `items.rejection_reason` text column for admin feedback
+3. `items.appeal_count` integer for tracking seller resubmissions
+4. A DB trigger-based notification that inserts into the `notifications` table when an item is flagged or rejected, so the seller is notified via push/in-app
+5. Updates `ListingStatus` TypeScript type to include new statuses
+6. Updates RLS: flagged/rejected items visible to seller + admins only
+
+---
+
+### AI Prompt for Cursor (Extend items.status + Seller Notifications)
+
+```typescript
+/*
+TASK: Extend items.status CHECK constraint + add flagged/rejected support
+
+CONTEXT:
+- items table created in migration 20251217000002 with status CHECK:
+  ('draft', 'available', 'pending', 'sold', 'deleted', 'paused')
+- MODULE-13 SAFETY tasks need 'flagged' and 'rejected' statuses
+- notifications table exists (migration 201_notifications_schema_v2.sql)
+- send-push-notification Edge Function exists
+- ListingStatus type in p2p-kids-marketplace/src/types/listing.ts needs updating
+
+REQUIREMENTS:
+1. ALTER items table: drop old CHECK, add new CHECK with 'flagged' + 'rejected'
+2. Add columns: flagged_at, rejected_at, rejection_reason, appeal_count
+3. Update RLS: flagged/rejected items visible to item owner + admins only
+4. Create trigger: on status change to 'flagged' or 'rejected', insert notification
+5. Update TypeScript ListingStatus type
+
+==================================================
+FILE 1: Migration to extend items.status
+==================================================
+*/
+
+-- filepath: supabase/migrations/301_extend_items_status_for_safety.sql
+-- Mode: idempotent (safe to re-run)
+
+-- STEP 1: Drop the old CHECK constraint and add the extended one
+-- The constraint name from 20251217000002 is auto-generated; find it dynamically.
+DO $$
+DECLARE
+  v_constraint_name TEXT;
+BEGIN
+  SELECT con.conname INTO v_constraint_name
+  FROM pg_constraint con
+    JOIN pg_class rel ON rel.oid = con.conrelid
+    JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+  WHERE nsp.nspname = 'public'
+    AND rel.relname = 'items'
+    AND con.contype = 'c'
+    AND pg_get_constraintdef(con.oid) ILIKE '%status%';
+
+  IF v_constraint_name IS NOT NULL THEN
+    EXECUTE format('ALTER TABLE public.items DROP CONSTRAINT %I', v_constraint_name);
+  END IF;
+END
+$$;
+
+-- Add new CHECK with 'flagged' + 'rejected'
+ALTER TABLE public.items
+  ADD CONSTRAINT items_status_check
+  CHECK (status IN ('draft', 'available', 'pending', 'sold', 'deleted', 'paused', 'flagged', 'rejected'));
+
+-- STEP 2: Add safety-related columns (idempotent)
+ALTER TABLE public.items ADD COLUMN IF NOT EXISTS flagged_at TIMESTAMPTZ;
+ALTER TABLE public.items ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ;
+ALTER TABLE public.items ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE public.items ADD COLUMN IF NOT EXISTS appeal_count INTEGER DEFAULT 0;
+
+-- STEP 3: Update RLS policy for flagged/rejected visibility
+-- Currently: "Anyone can view available items" ON items FOR SELECT
+--   USING (status = 'available' OR seller_id = auth.uid())
+-- This already lets the owner see their own flagged/rejected items.
+-- Admins need access too:
+
+DROP POLICY IF EXISTS "Admins can view all items" ON public.items;
+CREATE POLICY "Admins can view all items" ON public.items
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.user_id = auth.uid()
+      AND p.role IN ('admin', 'moderator')
+    )
+  );
+
+-- Admins can update item status (for approve/reject actions)
+DROP POLICY IF EXISTS "Admins can update item status" ON public.items;
+CREATE POLICY "Admins can update item status" ON public.items
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles p
+      WHERE p.user_id = auth.uid()
+      AND p.role IN ('admin', 'moderator')
+    )
+  );
+
+-- STEP 4: Trigger to notify seller when item is flagged or rejected
+CREATE OR REPLACE FUNCTION public.fn_notify_seller_on_item_flag()
+RETURNS TRIGGER AS $$
+-- SECURITY DEFINER needed because: inserts into notifications table on behalf of system
+BEGIN
+  -- Only fire when status changes TO 'flagged' or 'rejected'
+  IF (OLD.status IS DISTINCT FROM NEW.status) AND NEW.status IN ('flagged', 'rejected') THEN
+
+    -- Set timestamp columns
+    IF NEW.status = 'flagged' THEN
+      NEW.flagged_at := NOW();
+    END IF;
+    IF NEW.status = 'rejected' THEN
+      NEW.rejected_at := NOW();
+    END IF;
+
+    -- Insert in-app notification for seller
+    INSERT INTO public.notifications (user_id, type, title, body, data)
+    VALUES (
+      NEW.seller_id,
+      CASE
+        WHEN NEW.status = 'flagged' THEN 'item_flagged'
+        WHEN NEW.status = 'rejected' THEN 'item_rejected'
+      END,
+      CASE
+        WHEN NEW.status = 'flagged' THEN 'Item Under Review'
+        WHEN NEW.status = 'rejected' THEN 'Item Rejected'
+      END,
+      CASE
+        WHEN NEW.status = 'flagged' THEN 'Your listing "' || LEFT(NEW.title, 50) || '" has been flagged for review.'
+        WHEN NEW.status = 'rejected' THEN 'Your listing "' || LEFT(NEW.title, 50) || '" has been rejected. ' || COALESCE(NEW.rejection_reason, 'Please review our guidelines.')
+      END,
+      jsonb_build_object('item_id', NEW.id, 'status', NEW.status, 'reason', COALESCE(NEW.rejection_reason, ''))
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS tr_notify_seller_on_item_flag ON public.items;
+CREATE TRIGGER tr_notify_seller_on_item_flag
+  BEFORE UPDATE ON public.items
+  FOR EACH ROW
+  EXECUTE FUNCTION public.fn_notify_seller_on_item_flag();
+
+/*
+==================================================
+VERIFICATION QUERIES (run after migration)
+==================================================
+*/
+
+-- Verify new CHECK constraint
+-- SELECT conname, pg_get_constraintdef(oid)
+-- FROM pg_constraint
+-- WHERE conrelid = 'public.items'::regclass AND contype = 'c';
+
+-- Verify new columns
+-- SELECT column_name, data_type, column_default
+-- FROM information_schema.columns
+-- WHERE table_name = 'items' AND column_name IN ('flagged_at', 'rejected_at', 'rejection_reason', 'appeal_count');
+
+-- Verify trigger
+-- SELECT trigger_name, event_manipulation, action_statement
+-- FROM information_schema.triggers
+-- WHERE trigger_schema = 'public' AND trigger_name = 'tr_notify_seller_on_item_flag';
+
+-- Verify RLS policies
+-- SELECT policyname, cmd, permissive, roles, qual
+-- FROM pg_policies WHERE tablename = 'items';
+
+/*
+==================================================
+FILE 2: Update TypeScript types
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/types/listing.ts (UPDATE)
+
+// CHANGE:
+// export type ListingStatus = 'draft' | 'available' | 'pending' | 'sold' | 'deleted';
+// TO:
+// export type ListingStatus = 'draft' | 'available' | 'pending' | 'sold' | 'deleted' | 'paused' | 'flagged' | 'rejected';
+
+// ADD to Listing interface:
+// flagged_at: string | null;
+// rejected_at: string | null;
+// rejection_reason: string | null;
+// appeal_count: number;
+
+/*
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ items.status CHECK allows 'flagged' and 'rejected'
+✓ flagged_at, rejected_at, rejection_reason, appeal_count columns added
+✓ Admins can view/update all items (including flagged/rejected)
+✓ Seller sees their own flagged/rejected items
+✓ Notification inserted when item flagged or rejected
+✓ Trigger sets timestamp columns automatically
+✓ ListingStatus TypeScript type updated
+✓ Migration is idempotent (safe to re-run)
+
+==================================================
+NEXT TASK
+==================================================
+
+SAFETY-001: CPSC API daily batch import
+*/
+```
+
+---
+
+### Output Files
+
+1. **supabase/migrations/301_extend_items_status_for_safety.sql** — Schema changes + trigger + RLS
+2. **p2p-kids-marketplace/src/types/listing.ts** — Updated `ListingStatus` type
+
+---
+
+### Testing Steps
+
+1. **Verify status constraint:**
+   - Insert item with status='flagged' → should succeed
+   - Insert item with status='rejected' → should succeed
+   - Insert item with status='invalid' → should fail
+
+2. **Verify trigger:**
+   - Update item status from 'available' to 'flagged'
+   - Check notifications table → notification for seller exists
+   - Verify flagged_at is set
+   - Update item status from 'flagged' to 'rejected' with rejection_reason
+   - Check notifications table → rejection notification exists
+   - Verify rejected_at is set
+
+3. **Verify RLS:**
+   - As admin: can see flagged/rejected items
+   - As seller (item owner): can see own flagged/rejected items
+   - As other user: cannot see flagged/rejected items
+
+4. **Verify TypeScript:**
+   - `yarn typecheck` passes with updated ListingStatus
+
+---
+
+### Time Breakdown
+
+| Activity | Time |
+|----------|------|
+| Write migration SQL | 45 min |
+| Test CHECK constraint + columns | 20 min |
+| Test trigger + notifications | 30 min |
+| Update TypeScript types | 10 min |
+| Verify RLS policies | 15 min |
+| **Total** | **~2 hours** |
+
+---
+
+---
+
+## SAFETY TASKS (depend on prerequisites above)
 
 ---
 
@@ -1187,24 +2015,27 @@ Add liability disclaimer in settings. Display disclaimer on trade confirmation. 
 
 ## MODULE 13 SUMMARY
 
-**Total Tasks:** 12  
-**Estimated Time:** ~32 hours
+**Total Tasks:** 15 (3 prerequisite + 12 safety)  
+**Estimated Time:** ~38.5 hours
 
 ### Task Breakdown
 
-| Task | Description | Duration | Status |
-|------|-------------|----------|--------|
-| SAFETY-001 | CPSC API daily batch import | 4h | ✅ Documented |
-| SAFETY-002 | CPSC recall matching logic | 3h | ✅ Documented |
-| SAFETY-003 | Auto-flagging for CPSC matches | 1.5h | ✅ Documented |
-| SAFETY-004 | Google Vision image moderation | 3.5h | ✅ Documented |
-| SAFETY-005 | Custom AI text moderation | 4h | ✅ Documented |
-| SAFETY-006 | AI moderation logging | 1h | ✅ Documented |
-| SAFETY-007 | GPT-4 fallback for low confidence | 2.5h | ✅ Documented |
-| SAFETY-008 | Admin review workflow | 3h | ✅ Documented |
-| SAFETY-009 | Seller appeal workflow | 2.5h | ✅ Documented |
-| SAFETY-010 | Terms of Service placeholder | 1h | ✅ Documented |
-| SAFETY-011 | Privacy Policy placeholder | 1h | ✅ Documented |
+| Task | Description | Duration | Status | Blocks |
+|------|-------------|----------|--------|--------|
+| **SAFETY-P001** | **Create item-images storage bucket** | **1.5h** | ✅ Documented | P002, SAFETY-004 |
+| **SAFETY-P002** | **Image picker in CreateListingScreen** | **3h** | ✅ Documented | SAFETY-004 |
+| **SAFETY-P003** | **Extend items.status + seller notifications** | **2h** | ✅ Documented | SAFETY-002→009 |
+| SAFETY-001 | CPSC API daily batch import | 4h | ✅ Documented | |
+| SAFETY-002 | CPSC recall matching logic | 3h | ✅ Documented | |
+| SAFETY-003 | Auto-flagging for CPSC matches | 1.5h | ✅ Documented | |
+| SAFETY-004 | Google Vision image moderation | 3.5h | ✅ Documented | |
+| SAFETY-005 | Custom AI text moderation | 4h | ✅ Documented | |
+| SAFETY-006 | AI moderation logging | 1h | ✅ Documented | |
+| SAFETY-007 | GPT-4 fallback for low confidence | 2.5h | ✅ Documented | |
+| SAFETY-008 | Admin review workflow | 3h | ✅ Documented | |
+| SAFETY-009 | Seller appeal workflow | 2.5h | ✅ Documented | |
+| SAFETY-010 | Terms of Service placeholder | 1h | ✅ Documented | |
+| SAFETY-011 | Privacy Policy placeholder | 1h | ✅ Documented | |
 | SAFETY-012 | Liability disclaimer placeholder | 1h | ✅ Documented |
 
 ---
@@ -1238,10 +2069,12 @@ Add liability disclaimer in settings. Display disclaimer on trade confirmation. 
 
 ### Database Tables
 
+0. **storage.buckets: item-images** - Storage bucket for listing photos (SAFETY-P001)
 1. **cpsc_recalls** - CPSC recall database
 2. **cpsc_import_log** - Import status tracking
 3. **item_safety_flags** - Flagged items queue
 4. **ai_moderation_logs** - AI moderation decisions
+5. **items (altered)** - Added 'flagged'/'rejected' statuses, flagged_at, rejected_at, rejection_reason, appeal_count (SAFETY-P003)
 
 ---
 
