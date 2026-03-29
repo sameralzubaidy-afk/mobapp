@@ -11,8 +11,9 @@
 /**
  * Listing status enum
  * Matches items.status column in database
+ * MODULE-13 SAFETY-P003: Added 'flagged' and 'rejected' statuses
  */
-export type ListingStatus = 'draft' | 'available' | 'pending' | 'sold' | 'deleted';
+export type ListingStatus = 'draft' | 'available' | 'pending' | 'sold' | 'deleted' | 'paused' | 'flagged' | 'rejected';
 
 /**
  * Item condition enum
@@ -37,6 +38,14 @@ export interface Listing {
   // V2 fields:
   accepts_swap_points: boolean; // Whether seller accepts SP payment
   seller_subscription_status_at_creation: string | null; // Audit: seller sub status when created
+  
+  // MODULE-13 SAFETY-P003: Safety/moderation fields
+  flagged_at: string | null;
+  rejected_at: string | null;
+  rejection_reason: string | null;
+  appeal_count: number;
+  appeal_reason?: string | null;
+  appealed_at?: string | null;
   
   // Timestamps:
   created_at: string;

@@ -45,24 +45,24 @@ Supabase: supabase/
 My Example 1
 
 
-
-## TASK SAFETY-P002: Add Image Picker and Upload to CreateListingScreen (Mobile App)
-
+## TASK SAFETY-P003: Extend `items.status` CHECK Constraint + Add Seller Notification for Flagged/Rejected Items
 
 I’m working on the  MODULE-13-SAFETY-COMPLIANCE.md tasks
 Module: MODULE-13-SAFETY-COMPLIANCE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SAFETY-P002: Add Image Picker and Upload to CreateListingScreen (Mobile App)
+Tasks: ## TASK SAFETY-P003: Extend `items.status` CHECK Constraint + Add Seller Notification for Flagged/Rejected Items
 
 scope is 
-The `CreateListingScreen` currently has a form for title, description, price, condition, and SP toggle — but **no image picker**. Users cannot attach photos to listings. This blocks SAFETY-004 (Google Vision image moderation) which requires images to exist.
+The `items.status` CHECK constraint currently allows: `'draft', 'available', 'pending', 'sold', 'deleted', 'paused'`. MODULE-13 requires two additional statuses:
+- `'flagged'` — Item flagged by CPSC match or AI moderation, under review
+- `'rejected'` — Item rejected by admin after review
 
-Add:
-1. Image picker component using `expo-image-picker` (already used in avatar upload flow)
-2. Multi-image support (up to 5 photos)
-3. Image preview with reorder and delete
-4. Upload images to `item-images` bucket on listing creation
-5. Insert image URLs into `item_images` table after item is created
-6. Show upload progress indicator
+Also adds:
+1. `items.flagged_at` and `items.rejected_at` timestamp columns for audit
+2. `items.rejection_reason` text column for admin feedback
+3. `items.appeal_count` integer for tracking seller resubmissions
+4. A DB trigger-based notification that inserts into the `notifications` table when an item is flagged or rejected, so the seller is notified via push/in-app
+5. Updates `ListingStatus` TypeScript type to include new statuses
+6. Updates RLS: flagged/rejected items visible to seller + admins only
 
 i want you to 
 

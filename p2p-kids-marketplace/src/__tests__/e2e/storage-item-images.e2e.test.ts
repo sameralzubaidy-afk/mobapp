@@ -12,9 +12,14 @@
  * 3. Test item must exist owned by test user
  */
 
-import { supabase } from '../../src/config/supabase';
+import { supabase } from '../../config/supabase';
 
-const SKIP_E2E = !process.env.RUN_SUPABASE_E2E;
+const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL;
+const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD;
+const SKIP_E2E =
+  !process.env.RUN_SUPABASE_E2E ||
+  !TEST_USER_EMAIL ||
+  !TEST_USER_PASSWORD;
 
 (SKIP_E2E ? describe.skip : describe)('E2E: Item Images Storage Bucket', () => {
   let testUserId: string;
@@ -24,8 +29,8 @@ const SKIP_E2E = !process.env.RUN_SUPABASE_E2E;
   beforeAll(async () => {
     // Authenticate as test user
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: process.env.TEST_USER_EMAIL || 'testuser+e2e@kidsp2p.com',
-      password: process.env.TEST_USER_PASSWORD || 'TestPassword123!',
+      email: TEST_USER_EMAIL!,
+      password: TEST_USER_PASSWORD!,
     });
 
     if (authError || !authData.user) {

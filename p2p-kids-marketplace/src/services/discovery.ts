@@ -33,20 +33,22 @@ const attachListingImages = async <T extends { id: string }>(
     return [];
   }
 
-  const rowsWithEmptyImages = rows.map((row) => ({ ...row, images: [] as DiscoveryListingImageView[] }));
   const fromResult = (supabase as unknown as { from?: (table: string) => any }).from?.('item_images');
   if (!fromResult || typeof fromResult.select !== 'function') {
-    return rowsWithEmptyImages;
+    return rows as (T & { images: DiscoveryListingImageView[] })[];
   }
 
   const listingIds = rows.map((row) => row.id);
-  const { data: images, error } = await fromResult
-    .select('id, item_id, url, thumbnail_url, display_order')
-    .in('item_id', listingIds);
+  const selected = fromResult.select('id, item_id, url, thumbnail_url, display_order');
+  if (!selected || typeof selected.in !== 'function') {
+    return rows as (T & { images: DiscoveryListingImageView[] })[];
+  }
+
+  const { data: images, error } = await selected.in('item_id', listingIds);
 
   if (error) {
     console.warn('[discovery] Failed to attach listing images:', error.message);
-    return rowsWithEmptyImages;
+    return rows as (T & { images: DiscoveryListingImageView[] })[];
   }
 
   const imageMap = new Map<string, DiscoveryListingImageView[]>();

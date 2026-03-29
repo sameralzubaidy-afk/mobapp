@@ -18,10 +18,14 @@
 import { supabase } from '../../config/supabase';
 import { uploadListingImages } from '../../services/listing';
 import { createListing } from '../../services/listing';
-import { v4 as uuidv4 } from 'react-native-uuid';
 
 // Only run E2E tests when explicitly enabled
-const describeE2E = process.env.RUN_SUPABASE_E2E === 'true' ? describe : describe.skip;
+const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL;
+const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD;
+const describeE2E =
+  process.env.RUN_SUPABASE_E2E === 'true' && TEST_USER_EMAIL && TEST_USER_PASSWORD
+    ? describe
+    : describe.skip;
 
 describeE2E('Listing Image Upload - E2E Tests', () => {
   let testUserId: string;
@@ -29,8 +33,17 @@ describeE2E('Listing Image Upload - E2E Tests', () => {
 
   // Create a test user and listing before each test
   beforeEach(async () => {
-    // Create test user (reuse existing test user for CI/CD stability)
-    testUserId = process.env.TEST_USER_ID || uuidv4();
+    // Authenticate as reusable E2E user for RLS-compliant inserts/uploads
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: TEST_USER_EMAIL!,
+      password: TEST_USER_PASSWORD!,
+    });
+
+    if (authError || !authData.user) {
+      throw new Error(`E2E auth failed: ${authError?.message}`);
+    }
+
+    testUserId = authData.user.id;
 
     // Create a test listing
     try {
@@ -82,6 +95,8 @@ describeE2E('Listing Image Upload - E2E Tests', () => {
         console.error('[E2E] Cleanup error:', error);
       }
     }
+
+    await supabase.auth.signOut();
   });
 
   it('should upload a single image to listing', async () => {

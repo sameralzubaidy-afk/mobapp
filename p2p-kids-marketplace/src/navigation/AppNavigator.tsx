@@ -31,6 +31,7 @@ import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScree
 import CreateListingScreen from '@/screens/listing/CreateListingScreen';
 import EditListingScreen from '@/screens/listing/EditListingScreen';
 import MyListingsScreen from '@/screens/listing/MyListingsScreen';
+import ListingSafetyReviewScreen from '@/screens/listing/ListingSafetyReviewScreen';
 import TradeInitiationScreen from '@/screens/trade/TradeInitiationScreen';
 import TradeSuccessScreen from '@/screens/trade/TradeSuccessScreen';
 import TradeTimelineScreen from '@/screens/trade/TradeTimelineScreen';
@@ -85,6 +86,7 @@ const linking = {
       CreateListing: 'create-listing',
       EditListing: 'edit-listing',
       ListingDetail: 'listing/:listing_id',
+      ListingSafetyReview: 'listing-safety/:listing_id',
       AdminDashboard: 'admin',
       IDVerificationUpload: 'id-verification-upload',
       ManageKidsClub: 'manage-kids-club',
@@ -190,6 +192,7 @@ function RootNavigator() {
             <Stack.Screen name="CreateListing" component={CreateListingScreen} />
             <Stack.Screen name="EditListing" component={EditListingScreen} />
             <Stack.Screen name="ListingDetail" component={ItemDetailScreen} />
+            <Stack.Screen name="ListingSafetyReview" component={ListingSafetyReviewScreen} />
             <Stack.Screen name="TradeInitiation" component={TradeInitiationScreen} />
             <Stack.Screen
               name="TradeList"

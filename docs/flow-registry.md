@@ -67,6 +67,41 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Manual test guide: `SAFETY-P002-MANUAL-TESTING-GUIDE.md` (18 test cases)
     - Maestro flow: `.maestro/listing-create.yaml` (updated to test image picker, reorder, delete, multi-image upload)
     - Verification: TC-001 to TC-018 in manual test guide
+  - **SAFETY-P003 (2026-03-29):** Item Flagged/Rejected Status + Seller Notification
+    - Migration: `supabase/migrations/301_items_flagged_rejected_statuses.sql`
+    - Features:
+      - Extend `items.status` CHECK constraint to include 'flagged' and 'rejected' statuses
+      - Add audit columns: `flagged_at`, `rejected_at`, `rejection_reason`, `appeal_count`
+      - DB trigger: `on_item_status_change_notify_seller` inserts into `user_notifications` when item flagged/rejected
+      - RLS update: flagged/rejected items visible only to seller + admins
+      - Seller receives push/in-app notification with rejection reason
+      - Appeal count tracks seller resubmissions
+    - TypeScript: `ListingStatus` type updated to include 'flagged' | 'rejected' in `src/types/listing.ts`
+    - Admin UI: `p2p-kids-admin/src/app/items/flagged/page.tsx` - review/approve/reject flagged items
+    - Unit Tests: `p2p-kids-marketplace/src/__tests__/services/safety-p003.unit.test.ts`
+    - E2E Tests: `e2e/safety-p003-item-flagging.integration.test.ts`
+    - Manual Test Guide: `SAFETY-P003-MANUAL-TEST-GUIDE.md` (10 test cases)
+    - Maestro Flow: `.maestro/safety-p003-item-flagging.yaml`
+    - Verification: TC-001 to TC-010 in manual test guide
+    - Tier: Tier 1 (targeted smoke); Tier 2 if DB trigger/RLS changes
+    - **SAFETY-P003 Mobile Hotfix (2026-03-29):** My Listings tap opens Item Details for flagged/rejected
+      - App file: `p2p-kids-marketplace/src/screens/listing/MyListingsScreen.tsx`
+      - Change: tapping listing card now opens review/detail route with `listing_id`
+      - Scope: seller can open details for non-active statuses (`flagged`, `rejected`) while keeping Edit/Delete for active listings
+      - Unit test: `p2p-kids-marketplace/src/__tests__/screens/MyListingsScreen.test.tsx`
+    - **SAFETY-P003 UX Enhancement (2026-03-29):** Dedicated Seller Safety Review + Appeal screen
+      - App file: `p2p-kids-marketplace/src/screens/listing/ListingSafetyReviewScreen.tsx`
+      - Navigation: `ListingSafetyReview` route in `src/navigation/types.ts` and `src/navigation/AppNavigator.tsx`
+      - My Listings behavior: rejected/flagged cards open safety review screen; other statuses open listing detail
+      - Appeal action: `submitListingAppeal()` in `src/services/listing.ts` transitions `rejected` -> `flagged`
+      - **Appeal Context Enhancement (2026-03-29):** Seller must provide appeal reason text
+        - Migration: `supabase/migrations/302_safety_p003_add_appeal_reason.sql`
+        - DB fields: `items.appeal_reason`, `items.appealed_at`
+        - Mobile UX: appeal text area on safety review screen before submit
+        - Admin UX: flagged review page shows latest seller appeal note and appealed timestamp
+      - Unit tests:
+        - `p2p-kids-marketplace/src/services/__tests__/listing-appeal.test.ts`
+        - `p2p-kids-marketplace/src/__tests__/screens/MyListingsScreen.test.tsx`
 - Automated (offline): Jest covers listing service lifecycle + SP gating.
 - E2E (Supabase prod): `p2p-kids-marketplace/src/__tests__/e2e/referral-listing-bonus.e2e.ts` covers referral listing bonus awarding end-to-end.
 

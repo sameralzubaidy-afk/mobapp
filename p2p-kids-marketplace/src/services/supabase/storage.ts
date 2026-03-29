@@ -20,6 +20,18 @@ const readImageAsArrayBuffer = async (
   fileUri: string,
   path: string
 ): Promise<{ data: ArrayBuffer; contentType: string }> => {
+  if (fileUri.startsWith('data:')) {
+    const dataUriMatch = fileUri.match(/^data:([^;]+);base64,(.+)$/);
+    if (!dataUriMatch) {
+      throw new Error('Invalid data URI image format');
+    }
+
+    return {
+      data: decode(dataUriMatch[2]),
+      contentType: dataUriMatch[1],
+    };
+  }
+
   try {
     const base64 = await FileSystem.readAsStringAsync(fileUri, {
       encoding: 'base64',

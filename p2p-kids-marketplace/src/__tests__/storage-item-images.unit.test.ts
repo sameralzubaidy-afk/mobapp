@@ -8,6 +8,18 @@
  */
 
 import { uploadImage, uploadMultipleImages, deleteImage, deleteMultipleImages } from '../../src/services/supabase/storage';
+import * as FileSystem from 'expo-file-system';
+
+jest.mock('expo-file-system', () => ({
+  readAsStringAsync: jest.fn(),
+}));
+
+jest.mock('expo-image-manipulator', () => ({
+  manipulateAsync: jest.fn(),
+  SaveFormat: {
+    JPEG: 'jpeg',
+  },
+}));
 
 // Mock Supabase client
 jest.mock('../../src/services/supabase/client', () => ({
@@ -31,15 +43,13 @@ describe('Storage Service - Item Images', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (global.fetch as jest.Mock).mockReset();
+    (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue('dGVzdA==');
+    delete process.env.SUPABASE_PURGE_ENDPOINT;
+    delete process.env.SUPABASE_PURGE_X_API_KEY;
   });
 
   describe('uploadImage', () => {
     it('should successfully upload an image to item-images bucket', async () => {
-      const mockBlob = new Blob(['test'], { type: 'image/jpeg' });
-      (global.fetch as jest.Mock).mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(mockBlob),
-      });
-
       const mockUpload = jest.fn().mockResolvedValue({
         data: { path: 'test-item-id/photo1.jpg' },
         error: null,
@@ -63,8 +73,8 @@ describe('Storage Service - Item Images', () => {
       expect(supabase.storage.from).toHaveBeenCalledWith('item-images');
       expect(mockUpload).toHaveBeenCalledWith(
         'test-item-id/photo1.jpg',
-        mockBlob,
-        { cacheControl: '3600', upsert: false }
+        expect.any(ArrayBuffer),
+        { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' }
       );
       expect(result.error).toBeNull();
       expect(result.path).toBe('test-item-id/photo1.jpg');
@@ -72,11 +82,6 @@ describe('Storage Service - Item Images', () => {
     });
 
     it('should handle upload errors gracefully', async () => {
-      const mockBlob = new Blob(['test'], { type: 'image/jpeg' });
-      (global.fetch as jest.Mock).mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(mockBlob),
-      });
-
       const mockError = new Error('Storage quota exceeded');
       const mockUpload = jest.fn().mockResolvedValue({
         data: null,
@@ -100,12 +105,6 @@ describe('Storage Service - Item Images', () => {
     });
 
     it('should respect 5MB file size limit (enforced by Supabase)', async () => {
-      // Simulate a 6MB file upload attempt
-      const largeBlob = new Blob([new ArrayBuffer(6 * 1024 * 1024)], { type: 'image/jpeg' });
-      (global.fetch as jest.Mock).mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(largeBlob),
-      });
-
       const mockError = { message: 'File size exceeds bucket limit of 5242880 bytes' };
       const mockUpload = jest.fn().mockResolvedValue({
         data: null,
@@ -127,11 +126,6 @@ describe('Storage Service - Item Images', () => {
     });
 
     it('should allow upsert when specified', async () => {
-      const mockBlob = new Blob(['test'], { type: 'image/jpeg' });
-      (global.fetch as jest.Mock).mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(mockBlob),
-      });
-
       const mockUpload = jest.fn().mockResolvedValue({
         data: { path: 'test-item-id/photo1.jpg' },
         error: null,
@@ -155,19 +149,14 @@ describe('Storage Service - Item Images', () => {
 
       expect(mockUpload).toHaveBeenCalledWith(
         'test-item-id/photo1.jpg',
-        mockBlob,
-        { cacheControl: '3600', upsert: true }
+        expect.any(ArrayBuffer),
+        { cacheControl: '3600', upsert: true, contentType: 'image/jpeg' }
       );
     });
   });
 
   describe('uploadMultipleImages', () => {
     it('should upload multiple images in parallel', async () => {
-      const mockBlob = new Blob(['test'], { type: 'image/jpeg' });
-      (global.fetch as jest.Mock).mockResolvedValue({
-        blob: jest.fn().mockResolvedValue(mockBlob),
-      });
-
       const mockUpload = jest.fn()
         .mockResolvedValueOnce({
           data: { path: 'test-item-id/photo1.jpg' },
@@ -178,13 +167,9 @@ describe('Storage Service - Item Images', () => {
           error: null,
         });
 
-      const mockGetPublicUrl = jest.fn()
-        .mockReturnValueOnce({
-          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg' },
-        })
-        .mockReturnValueOnce({
-          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo2.jpg' },
-        });
+      const mockGetPublicUrl = jest.fn((path: string) => ({
+        data: { publicUrl: `https://supabase.co/storage/v1/object/public/item-images/${path}` },
+      }));
 
       supabase.storage.from.mockReturnValue({
         upload: mockUpload,
@@ -214,6 +199,9 @@ describe('Storage Service - Item Images', () => {
 
       supabase.storage.from.mockReturnValue({
         remove: mockRemove,
+        getPublicUrl: jest.fn().mockReturnValue({
+          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg' },
+        }),
       });
 
       const result = await deleteImage('item-images', 'test-item-id/photo1.jpg');
@@ -232,6 +220,9 @@ describe('Storage Service - Item Images', () => {
 
       supabase.storage.from.mockReturnValue({
         remove: mockRemove,
+        getPublicUrl: jest.fn().mockReturnValue({
+          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/nonexistent.jpg' },
+        }),
       });
 
       const result = await deleteImage('item-images', 'test-item-id/nonexistent.jpg');
@@ -250,6 +241,9 @@ describe('Storage Service - Item Images', () => {
 
       supabase.storage.from.mockReturnValue({
         remove: mockRemove,
+        getPublicUrl: jest.fn().mockReturnValue({
+          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg' },
+        }),
       });
 
       (global.fetch as jest.Mock).mockResolvedValue({
@@ -282,6 +276,9 @@ describe('Storage Service - Item Images', () => {
 
       supabase.storage.from.mockReturnValue({
         remove: mockRemove,
+        getPublicUrl: jest.fn().mockReturnValue({
+          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg' },
+        }),
       });
 
       const paths = [

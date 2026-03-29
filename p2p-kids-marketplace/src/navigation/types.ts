@@ -15,6 +15,7 @@ export type RootStackParamList = {
   CreateListing: undefined;
   EditListing: { listing_id: string };
   ListingDetail: { listing_id: string };
+  ListingSafetyReview: { listing_id: string };
   CategoryBrowse: { category: string };
   // Subscription routes
   Subscription: undefined;

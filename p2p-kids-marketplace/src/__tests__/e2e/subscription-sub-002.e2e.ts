@@ -318,6 +318,7 @@ describe('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', (
     it('should return true for user who has not used trial', async () => {
       // Update to has_used_trial = false using RPC
       const { error: updateError } = await updateSubscriptionRow({
+        status: 'free',
         has_used_trial: false,
       });
       expect(updateError).toBeNull();
@@ -330,7 +331,10 @@ describe('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', (
       expect(data).toBe(true);
 
       // Restore to has_used_trial = true
-      await updateSubscriptionRow({ has_used_trial: true });
+      await updateSubscriptionRow({
+        status: 'trial',
+        has_used_trial: true,
+      });
     });
   });
 

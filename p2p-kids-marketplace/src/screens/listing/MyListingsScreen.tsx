@@ -96,6 +96,15 @@ export default function MyListingsScreen({ navigation }: any) {
     );
   };
 
+  const handleOpenListing = (listing: Listing) => {
+    if (listing.status === 'flagged' || listing.status === 'rejected') {
+      navigation.navigate('ListingSafetyReview', { listing_id: listing.id });
+      return;
+    }
+
+    navigation.navigate('ListingDetail', { listing_id: listing.id });
+  };
+
   const renderListingItem = ({ item }: { item: Listing }) => {
     const isActive = item.status === 'available';
     const isSold = item.status === 'sold';
@@ -106,6 +115,12 @@ export default function MyListingsScreen({ navigation }: any) {
 
     return (
       <View style={styles.listingCard}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => handleOpenListing(item)}
+          accessibilityRole="button"
+          accessibilityLabel={`Open details for ${item.title}`}
+        >
         <View style={styles.listingImageContainer}>
           {firstImageUrl ? (
             <Image source={{ uri: firstImageUrl }} style={styles.listingImage} resizeMode="cover" />
@@ -145,6 +160,7 @@ export default function MyListingsScreen({ navigation }: any) {
             {new Date(item.created_at).toLocaleDateString()}
           </Text>
         </View>
+        </TouchableOpacity>
 
         {isActive && (
           <View style={styles.actions}>

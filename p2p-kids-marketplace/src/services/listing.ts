@@ -465,6 +465,76 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
 }
 
 /**
+ * SAFETY-P003: Seller appeal flow for rejected listings
+ *
+ * Rules:
+ * 1. Only listing owner can submit an appeal
+ * 2. Listing must currently be in 'rejected' status
+ * 3. Appeal requires seller reason text for admin context
+ * 4. Appeal transitions listing back to 'flagged' for admin re-review
+ */
+export async function submitListingAppeal(
+  listing_id: string,
+  seller_id: string,
+  appeal_reason: string
+): Promise<Listing> {
+  const trimmedAppealReason = appeal_reason.trim();
+  if (!trimmedAppealReason) {
+    throw new Error('Appeal reason is required');
+  }
+
+  if (trimmedAppealReason.length < 10) {
+    throw new Error('Appeal reason must be at least 10 characters');
+  }
+
+  const { data: listing, error: fetchError } = await supabase
+    .from('items')
+    .select('id, seller_id, status, appeal_count, appeal_reason')
+    .eq('id', listing_id)
+    .single();
+
+  if (fetchError || !listing) {
+    throw new Error('Listing not found');
+  }
+
+  if (listing.seller_id !== seller_id) {
+    throw new Error('You are not authorized to appeal this listing');
+  }
+
+  if (listing.status !== 'rejected') {
+    throw new Error('Only rejected listings can be appealed');
+  }
+
+  const { data, error } = await supabase
+    .from('items')
+    .update({
+      status: 'flagged',
+      flagged_at: new Date().toISOString(),
+      appealed_at: new Date().toISOString(),
+      appeal_reason: trimmedAppealReason,
+    })
+    .eq('id', listing_id)
+    .eq('seller_id', seller_id)
+    .select()
+    .single();
+
+  if (error) {
+    const err = error as Error;
+    console.error('[listing] submitListingAppeal error:', err.message);
+    throw new Error(`Failed to submit appeal: ${error.message}`);
+  }
+
+  await trackEvent('listing_appeal_submitted', {
+    listing_id,
+    seller_id,
+    appeal_count: data.appeal_count ?? listing.appeal_count ?? 0,
+    appeal_reason_length: trimmedAppealReason.length,
+  });
+
+  return data as Listing;
+}
+
+/**
  * LISTING-V2-003: Delete a listing (soft delete)
  * 
  * V2 Rules:

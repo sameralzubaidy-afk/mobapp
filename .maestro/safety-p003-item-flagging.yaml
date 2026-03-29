@@ -1,0 +1,193 @@
+# FLOW: Item Flagging and Rejection Review | TASK: SAFETY-P003
+# States covered: flagged, rejected, approved (back to available)
+# Precondition: Item exists with status 'available' or 'flagged' or 'rejected'
+
+appId: com.kidsp2pmarketplace.app
+---
+
+# ========================================
+# PRECONDITION: Ensure test data exists
+# ========================================
+- runScript:
+    file: scripts/setup_flagged_item_test_data.js
+    env:
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
+
+# ========================================
+# TEST FLOW 1: Seller views flagged item notification
+# ========================================
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to Notifications screen
+- tapOn:
+    id: "tab-profile"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "button-notifications"
+- waitForAnimationToEnd
+
+# Assert flagged item notification appears
+- assertVisible:
+    text: "Item Under Review"
+- assertVisible:
+    text: "is under safety review"
+
+# Tap notification to navigate to item details
+- tapOn:
+    text: "Item Under Review"
+- waitForAnimationToEnd
+
+# Assert item details show flagged status
+- assertVisible:
+    id: "item-status-badge"
+- assertVisible:
+    text: "flagged"
+
+# ========================================
+# TEST FLOW 2: Seller views rejected item with reason
+# ========================================
+- tapOn:
+    id: "button-back"
+- waitForAnimationToEnd
+
+# Go back to notifications
+- tapOn:
+    text: "Item Rejected"
+- waitForAnimationToEnd
+
+# Assert rejection reason is displayed
+- assertVisible:
+    id: "rejection-reason-text"
+- assertVisible:
+    text: "Safety recall match"
+
+# Assert appeal option is available
+- assertVisible:
+    id: "button-appeal"
+
+# ========================================
+# TEST FLOW 3: Admin reviews flagged items
+# ========================================
+# (This flow requires admin user authentication)
+# Switch to admin context
+- runScript:
+    file: scripts/switch_to_admin_user.js
+
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to flagged items (admin-only)
+- tapOn:
+    id: "tab-admin"
+- waitForAnimationToEnd
+
+- tapOn:
+    text: "Flagged Items"
+- waitForAnimationToEnd
+
+# Assert flagged items list appears
+- assertVisible:
+    id: "flagged-items-list"
+
+# Tap on first flagged item to review
+- tapOn:
+    id: "flagged-item-card-0"
+- waitForAnimationToEnd
+
+# Assert review modal appears
+- assertVisible:
+    id: "review-modal"
+- assertVisible:
+    id: "button-approve"
+- assertVisible:
+    id: "button-reject"
+
+# Test rejection flow
+- tapOn:
+    id: "button-reject"
+- waitForAnimationToEnd
+
+# Enter rejection reason
+- tapOn:
+    id: "input-rejection-reason"
+- inputText: "Item matches CPSC safety recall for choking hazard"
+- hideKeyboard
+
+# Confirm rejection
+- tapOn:
+    id: "button-confirm-reject"
+- waitForAnimationToEnd
+
+# Assert success message
+- assertVisible:
+    text: "Item rejected successfully"
+
+# ========================================
+# TEST FLOW 4: Admin approves flagged item
+# ========================================
+# Navigate back to flagged items list
+- tapOn:
+    id: "button-close-modal"
+- waitForAnimationToEnd
+
+# Tap on another flagged item
+- tapOn:
+    id: "flagged-item-card-1"
+- waitForAnimationToEnd
+
+# Approve the item
+- tapOn:
+    id: "button-approve"
+- waitForAnimationToEnd
+
+# Confirm approval
+- tapOn:
+    id: "button-confirm-approve"
+- waitForAnimationToEnd
+
+# Assert success message
+- assertVisible:
+    text: "Item approved successfully"
+
+# Verify item is no longer in flagged list
+- tapOn:
+    id: "button-close-modal"
+- waitForAnimationToEnd
+
+- assertNotVisible:
+    id: "flagged-item-card-1"
+
+# ========================================
+# TEST FLOW 5: Verify RLS - Non-seller cannot view flagged items
+# ========================================
+# Switch to regular user (buyer)
+- runScript:
+    file: scripts/switch_to_buyer_user.js
+
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to browse listings
+- tapOn:
+    id: "tab-home"
+- waitForAnimationToEnd
+
+# Search for the flagged item by title
+- tapOn:
+    id: "search-input"
+- inputText: "Test Flagged Item"
+- hideKeyboard
+- waitForAnimationToEnd
+
+# Assert flagged item is NOT visible in search results
+- assertNotVisible:
+    text: "Test Flagged Item"
+
+# ========================================
+# FINAL ASSERTION: All flows completed
+# ========================================
+- assertVisible:
+    id: "tab-home"
