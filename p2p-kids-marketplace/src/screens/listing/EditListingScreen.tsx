@@ -24,8 +24,15 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { getSubscriptionSummary } from '../../services/subscription';
 import { updateListing, getListingById, syncListingImages } from '../../services/listing';
+import { getCategories } from '../../services/items';
 import { Listing, ListingCondition } from '../../types/listing';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
+
+interface ListingCategory {
+  id: string;
+  name: string;
+  icon: string | null;
+}
 
 export default function EditListingScreen({ route, navigation }: any) {
   const { listing_id } = route.params;
@@ -40,9 +47,11 @@ export default function EditListingScreen({ route, navigation }: any) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priceText, setPriceText] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [condition, setCondition] = useState<ListingCondition>('good');
   const [acceptsSwapPoints, setAcceptsSwapPoints] = useState(false);
   const [images, setImages] = useState<SelectedImage[]>([]);
+  const [categories, setCategories] = useState<ListingCategory[]>([]);
   
   // Subscription state
   const [canAcceptSP, setCanAcceptSP] = useState(false);
@@ -86,6 +95,7 @@ export default function EditListingScreen({ route, navigation }: any) {
       setTitle(listing.title);
       setDescription(listing.description || '');
       setPriceText(listing.price.toString());
+      setCategoryId(listing.category_id || '');
       setCondition(listing.condition || 'good');
       setAcceptsSwapPoints(listing.accepts_swap_points);
       setImages(
@@ -102,6 +112,12 @@ export default function EditListingScreen({ route, navigation }: any) {
       // Check subscription
       const summary = await getSubscriptionSummary(session.user.id);
       setCanAcceptSP(summary.can_spend_sp);
+
+      const categoryRows = (await getCategories()) as ListingCategory[];
+      setCategories(categoryRows || []);
+      if (!listing.category_id && categoryRows.length > 0) {
+        setCategoryId(categoryRows[0].id);
+      }
     } catch (error) {
       console.error('[EditListing] loadData error:', error);
       Alert.alert('Error', 'Failed to load listing');
@@ -132,6 +148,11 @@ export default function EditListingScreen({ route, navigation }: any) {
       return;
     }
 
+    if (!categoryId) {
+      Alert.alert('Required', 'Please select a category');
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -141,6 +162,7 @@ export default function EditListingScreen({ route, navigation }: any) {
         title: title.trim(),
         description: description.trim(),
         price,
+        category_id: categoryId,
         condition,
         accepts_swap_points: canAcceptSP ? acceptsSwapPoints : false,
       });
@@ -213,6 +235,28 @@ export default function EditListingScreen({ route, navigation }: any) {
           onChangeText={setPriceText}
           keyboardType="decimal-pad"
         />
+
+        {/* Category */}
+        <Text style={styles.label}>Category *</Text>
+        {categories.length === 0 ? (
+          <Text style={styles.errorText}>No active categories found. Please contact support.</Text>
+        ) : (
+          <View style={styles.categoryButtons}>
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[styles.categoryButton, categoryId === category.id && styles.categoryButtonActive]}
+                onPress={() => setCategoryId(category.id)}
+                testID={`edit-listing-category-${category.name.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                <Text style={[styles.categoryButtonText, categoryId === category.id && styles.categoryButtonTextActive]}>
+                  {category.icon ? `${category.icon} ` : ''}
+                  {category.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Condition */}
         <Text style={styles.label}>Condition *</Text>
@@ -354,6 +398,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 4,
+  },
+  errorText: {
+    color: '#D32F2F',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  categoryButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  categoryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  categoryButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  categoryButtonText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
+  categoryButtonTextActive: {
+    color: '#fff',
   },
   conditionButtons: {
     flexDirection: 'row',

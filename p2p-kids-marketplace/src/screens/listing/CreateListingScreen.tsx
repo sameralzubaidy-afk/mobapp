@@ -29,9 +29,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { getSubscriptionSummary } from '../../services/subscription';
 import { createListing, uploadListingImages } from '../../services/listing';
+import { getCategories } from '../../services/items';
 import { ListingCondition } from '../../types/listing';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
+
+interface ListingCategory {
+  id: string;
+  name: string;
+  icon: string | null;
+}
 
 export default function CreateListingScreen({ navigation }: any) {
   const { session } = useAuth();
@@ -43,9 +50,12 @@ export default function CreateListingScreen({ navigation }: any) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priceText, setPriceText] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [condition, setCondition] = useState<ListingCondition>('good');
   const [acceptsSwapPoints, setAcceptsSwapPoints] = useState(false);
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
+  const [categories, setCategories] = useState<ListingCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   
   // Subscription state
   const [canAcceptSP, setCanAcceptSP] = useState(false);
@@ -54,8 +64,26 @@ export default function CreateListingScreen({ navigation }: any) {
   useFocusEffect(
     React.useCallback(() => {
       loadSubscription();
+      loadCategories();
     }, [session?.user?.id])
   );
+
+  const loadCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const data = (await getCategories()) as ListingCategory[];
+      setCategories(data || []);
+
+      if (!categoryId && data && data.length > 0) {
+        setCategoryId(data[0].id);
+      }
+    } catch (error) {
+      console.error('[CreateListing] ❌ loadCategories error:', error);
+      setCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
 
   const loadSubscription = async () => {
     if (!session?.user?.id) return;
@@ -99,6 +127,11 @@ export default function CreateListingScreen({ navigation }: any) {
       return;
     }
 
+    if (!categoryId) {
+      Alert.alert('Required', 'Please select a category');
+      return;
+    }
+
     if (!session?.user?.id) {
       Alert.alert('Error', 'You must be logged in to create a listing');
       return;
@@ -115,6 +148,7 @@ export default function CreateListingScreen({ navigation }: any) {
         title: title.trim(),
         description: description.trim(),
         price,
+        category_id: categoryId,
         condition,
         accepts_swap_points: canAcceptSP ? acceptsSwapPoints : false,
       });
@@ -215,6 +249,33 @@ export default function CreateListingScreen({ navigation }: any) {
           onChangeText={setPriceText}
           keyboardType="decimal-pad"
         />
+
+        {/* Category */}
+        <Text style={styles.label}>Category *</Text>
+        {loadingCategories ? (
+          <View style={styles.inlineLoader}>
+            <ActivityIndicator size="small" color="#007AFF" />
+            <Text style={styles.hint}>Loading categories...</Text>
+          </View>
+        ) : categories.length === 0 ? (
+          <Text style={styles.errorText}>No active categories found. Please contact support.</Text>
+        ) : (
+          <View style={styles.categoryButtons}>
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[styles.categoryButton, categoryId === category.id && styles.categoryButtonActive]}
+                onPress={() => setCategoryId(category.id)}
+                testID={`create-listing-category-${category.name.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                <Text style={[styles.categoryButtonText, categoryId === category.id && styles.categoryButtonTextActive]}>
+                  {category.icon ? `${category.icon} ` : ''}
+                  {category.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Condition */}
         <Text style={styles.label}>Condition *</Text>
@@ -358,6 +419,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     marginTop: 4,
+  },
+  inlineLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  errorText: {
+    color: '#D32F2F',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  categoryButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  categoryButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  categoryButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  categoryButtonText: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '600',
+  },
+  categoryButtonTextActive: {
+    color: '#fff',
   },
   conditionButtons: {
     flexDirection: 'row',

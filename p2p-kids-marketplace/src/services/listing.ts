@@ -19,6 +19,7 @@ import {
 } from '../types/listing';
 import { trackEvent } from './analytics';
 import { uploadImage, deleteImage } from './supabase/storage';
+import { checkItemSafety, isCpscCheckEnabled } from './safety';
 
 export interface ListingImageDraft {
   id?: string;
@@ -195,6 +196,31 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
     category_id: category_id || 'none',
     seller_subscription_status: sellerSubStatus,
   });
+
+  // MODULE-13 SAFETY-002: Check item against CPSC recalls
+  // This runs async and may flag the item after creation
+  // We don't block listing creation, but the item may be flagged shortly after
+  const cpscEnabled = await isCpscCheckEnabled();
+  if (cpscEnabled) {
+    console.log(`[listing] 🔍 Initiating CPSC safety check for listing ${data.id}`);
+    
+    // Fire-and-forget safety check (don't block return)
+    checkItemSafety(data.id, title, description || undefined)
+      .then((result) => {
+        if (result.flagged) {
+          console.warn(`[listing] ⚠️ Listing ${data.id} flagged for CPSC recall match:`, result.reason);
+          console.warn(`[listing] Match: ${result.match?.product_name} (confidence: ${result.confidence})`);
+        } else {
+          console.log(`[listing] ✅ Listing ${data.id} passed CPSC safety check`);
+        }
+      })
+      .catch((error) => {
+        console.error(`[listing] ❌ CPSC safety check failed for listing ${data.id}:`, error);
+        // Don't throw - safety check failure shouldn't prevent listing creation
+      });
+  } else {
+    console.log('[listing] CPSC recall checking is disabled via admin config');
+  }
 
   return data as Listing;
 }

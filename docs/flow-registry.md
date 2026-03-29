@@ -631,8 +631,54 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 - Smoke: (manual)
 
-### FLOW-16: CPSC Recall Check (if implemented)
-- Smoke: (manual)
+### FLOW-16: CPSC Recall Matching – Item Safety Check Against Recall Database (SAFETY-002)
+- Purpose: Automatically check new listing titles/descriptions against CPSC recalls database using fuzzy matching; flag items that match recalled products for admin review before listing goes live
+- Covers:
+  - Fuzzy text matching using PostgreSQL pg_trgm (trigram similarity)
+  - Full-text search using tsvector for comprehensive recall detection
+  - Automatic item flagging when match confidence >= threshold (default 0.5)
+  - Safety flag creation with confidence score and recall reference
+  - Seller notification of potential safety match
+  - Admin queue for reviewing flagged items
+  - Feature flag control via admin_config (cpsc_check_enabled)
+  - Configurable match threshold via admin_config (cpsc_match_threshold)
+- Database:
+  - Tables: `item_safety_flags` (NEW - stores flagged items with match metadata)
+  - Function: `check_cpsc_recalls(p_title, p_description)` (NEW - returns matching recalls with similarity scores)
+  - RLS: Admins view all flags, item owners view own flags, service role can insert
+  - Indexes: item_id, status, flag_type for performance
+- Edge Function: `supabase/functions/check-item-safety/index.ts` (NEW)
+- Mobile Service: `src/services/safety.ts` (NEW - checkItemSafety, getItemSafetyFlags, isCpscCheckEnabled, getCpscMatchThreshold)
+- Integration: `src/services/listing.ts` createListing() fires async CPSC check after listing creation (fire-and-forget pattern)
+- Migration: `supabase/migrations/305_item_safety_flags_and_cpsc_matching.sql`
+- Manual Test Guide: `SAFETY-002-MANUAL-TESTING-GUIDE.md` (7 test cases)
+- Unit Tests:
+  - `p2p-kids-marketplace/src/services/__tests__/safety.test.ts` (safety service functions)
+  - `supabase/functions/check-item-safety/__tests__/index.unit.test.ts` (Edge Function logic)
+- E2E Tests: `p2p-kids-marketplace/src/__tests__/e2e/cpsc-recall-matching.e2e.test.ts`
+- Maestro Flow: `p2p-kids-marketplace/.maestro/safety-002-cpsc-recall-matching.yaml`
+- Smoke: (manual via SAFETY-002 guide + automated via Maestro)
+  - User creates listing with safe product name -> listing created successfully, no safety flags
+  - User creates listing with recalled product name (e.g., "Fisher-Price Rock 'n Play") -> item automatically flagged, safety flag row created with confidence score >= 0.5
+  - Flagged item status transitions to 'flagged' in items table
+  - Seller receives notification about potential safety match
+  - Admin views flagged items queue and sees match details
+  - CPSC check can be disabled via admin_config.cpsc_check_enabled = false
+  - Match threshold can be adjusted via admin_config.cpsc_match_threshold
+  - Fire-and-forget: CPSC check failures don't block listing creation
+  - check_cpsc_recalls() function returns matches with similarity_score, recall_id, recall_number, product_name, hazards
+- Manual Verification:
+  - Create test listing with known recalled product name from cpsc_recalls table
+  - Verify item_safety_flags row created with correct recall_id reference
+  - Verify items.status changed to 'flagged' and flagged_at timestamp set
+  - Verify confidence score calculated correctly (trigram similarity)
+  - Admin can view flagged items and recall details
+  - Seller can view safety flag reason on their listing
+- Tier: Tier 1 for Edge Function/service changes; Tier 2 if database function or RLS policies change
+- Dependencies: 
+  - SAFETY-001 (CPSC Recall Imports - requires cpsc_recalls table populated)
+  - SAFETY-P003 (Item Flagged/Rejected Status - requires items.status extension)
+  - INFRA-001 (Supabase setup), pg_trgm extension enabled
 
 ### FLOW-17: Notifications
 - Smoke: (manual)

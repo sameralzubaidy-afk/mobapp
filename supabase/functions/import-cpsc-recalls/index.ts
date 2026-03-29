@@ -13,10 +13,14 @@ interface CPSCRecall {
   RecallNumber: string;
   RecallDate: string;
   RecallDescription: string;
+  Description?: string;
   Products?: Array<{
     Name: string;
     Description?: string;
     Manufacturer?: string;
+  }>;
+  Manufacturers?: Array<{
+    Name?: string;
   }>;
   Title?: string;
   Hazards?: Array<{
@@ -32,9 +36,26 @@ interface CPSCRecall {
 }
 
 interface CPSCApiResponse {
-  Success: boolean;
+  Success?: boolean;
   Message?: string;
   Recalls?: CPSCRecall[];
+}
+
+type CPSCRawResponse = CPSCRecall[] | CPSCApiResponse | Record<string, unknown>;
+
+function extractRecalls(payload: CPSCRawResponse): CPSCRecall[] {
+  if (Array.isArray(payload)) {
+    return payload as CPSCRecall[];
+  }
+
+  if (payload && typeof payload === 'object') {
+    const maybeWrapped = payload as CPSCApiResponse;
+    if (Array.isArray(maybeWrapped.Recalls)) {
+      return maybeWrapped.Recalls;
+    }
+  }
+
+  return [];
 }
 
 serve(async (req: Request) => {
@@ -57,8 +78,10 @@ serve(async (req: Request) => {
 
     console.log('[CPSC Import] Starting recall import...');
 
-    // Fetch last 30 days of recalls (configurable via query param)
-    const daysBack = 30;
+    // Fetch recalls with configurable lookback; default 30 days
+    const requestUrl = new URL(req.url);
+    const daysBackParam = Number(requestUrl.searchParams.get('days_back') || '30');
+    const daysBack = Number.isFinite(daysBackParam) && daysBackParam > 0 ? Math.floor(daysBackParam) : 30;
     const fromDate = new Date();
     fromDate.setDate(fromDate.getDate() - daysBack);
     const fromDateStr = fromDate.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -77,9 +100,27 @@ serve(async (req: Request) => {
       throw new Error(`CPSC API error: ${response.status} ${response.statusText}`);
     }
 
-    const data = await response.json() as CPSCApiResponse;
+    const rawData = await response.json() as CPSCRawResponse;
+    let recalls = extractRecalls(rawData);
 
-    if (!data.Success || !data.Recalls || data.Recalls.length === 0) {
+    // If filtered query returns 0, retry once without date filter (useful for API filter quirks)
+    if (recalls.length === 0) {
+      const fallbackUrl = `${CPSC_API_URL}?format=json`;
+      console.log(`[CPSC Import] No results for ${daysBack} days, retrying fallback: ${fallbackUrl}`);
+      const fallbackRes = await fetch(fallbackUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Kids P2P Marketplace Safety Scanner/1.0'
+        }
+      });
+
+      if (fallbackRes.ok) {
+        const fallbackRaw = await fallbackRes.json() as CPSCRawResponse;
+        recalls = extractRecalls(fallbackRaw);
+      }
+    }
+
+    if (recalls.length === 0) {
       console.log('[CPSC Import] No new recalls found');
       
       await supabaseClient.from('cpsc_import_log').insert({
@@ -102,7 +143,6 @@ serve(async (req: Request) => {
       );
     }
 
-    const recalls = data.Recalls;
     console.log(`[CPSC Import] Found ${recalls.length} recalls to process`);
 
     let importedCount = 0;
@@ -121,8 +161,8 @@ serve(async (req: Request) => {
         const recallData = {
           recall_number: recall.RecallNumber,
           product_name: product?.Name || recall.Title || 'Unknown Product',
-          product_description: product?.Description || recall.RecallDescription || null,
-          manufacturer: product?.Manufacturer || null,
+          product_description: product?.Description || recall.RecallDescription || recall.Description || null,
+          manufacturer: product?.Manufacturer || recall.Manufacturers?.[0]?.Name || null,
           hazard: recall.Hazards && recall.Hazards.length > 0 
             ? recall.Hazards.map(h => h.Name).join('; ') 
             : null,
