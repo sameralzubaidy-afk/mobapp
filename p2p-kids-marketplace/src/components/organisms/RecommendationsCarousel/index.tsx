@@ -16,6 +16,7 @@ import {
   FlatList,
   Pressable,
   ActivityIndicator,
+  Image,
   StyleSheet,
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -138,6 +139,19 @@ export default function RecommendationsCarousel({
             style={styles.card}
             onPress={() => handleItemPress(item.id)}
           >
+            <View style={styles.cardImageContainer}>
+              {item.images && item.images.length > 0 ? (
+                <Image
+                  source={{ uri: item.images[0].thumbnail_url || item.images[0].url }}
+                  style={styles.cardImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.cardImagePlaceholder}>
+                  <Text style={styles.cardImagePlaceholderText}>📷</Text>
+                </View>
+              )}
+            </View>
             <View style={styles.cardContent}>
               {/* Item Title */}
               <Text style={styles.itemTitle} numberOfLines={2}>
@@ -202,6 +216,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  cardImageContainer: {
+    width: '100%',
+    height: 110,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#f3f4f6',
+    marginBottom: 10,
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardImagePlaceholderText: {
+    fontSize: 22,
   },
   cardContent: {
     flex: 1,

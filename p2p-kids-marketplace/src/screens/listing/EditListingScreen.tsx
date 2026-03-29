@@ -23,14 +23,16 @@ import {
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { getSubscriptionSummary } from '../../services/subscription';
-import { updateListing, getListingById } from '../../services/listing';
+import { updateListing, getListingById, syncListingImages } from '../../services/listing';
 import { Listing, ListingCondition } from '../../types/listing';
+import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
 
 export default function EditListingScreen({ route, navigation }: any) {
   const { listing_id } = route.params;
   const { session } = useAuth();
   
   const [loading, setLoading] = useState(false);
+  const [syncingImages, setSyncingImages] = useState(false);
   const [loadingListing, setLoadingListing] = useState(true);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
   
@@ -40,6 +42,7 @@ export default function EditListingScreen({ route, navigation }: any) {
   const [priceText, setPriceText] = useState('');
   const [condition, setCondition] = useState<ListingCondition>('good');
   const [acceptsSwapPoints, setAcceptsSwapPoints] = useState(false);
+  const [images, setImages] = useState<SelectedImage[]>([]);
   
   // Subscription state
   const [canAcceptSP, setCanAcceptSP] = useState(false);
@@ -85,6 +88,16 @@ export default function EditListingScreen({ route, navigation }: any) {
       setPriceText(listing.price.toString());
       setCondition(listing.condition || 'good');
       setAcceptsSwapPoints(listing.accepts_swap_points);
+      setImages(
+        [...(listing.images ?? [])]
+          .sort((a, b) => a.display_order - b.display_order)
+          .map((image) => ({
+            id: image.id,
+            uri: image.url,
+            width: 0,
+            height: 0,
+          }))
+      );
 
       // Check subscription
       const summary = await getSubscriptionSummary(session.user.id);
@@ -132,6 +145,13 @@ export default function EditListingScreen({ route, navigation }: any) {
         accepts_swap_points: canAcceptSP ? acceptsSwapPoints : false,
       });
 
+      setSyncingImages(true);
+      await syncListingImages(
+        listing_id,
+        session.user.id,
+        images.map((image) => ({ id: image.id, uri: image.uri }))
+      );
+
       Alert.alert('Success', 'Listing updated successfully!', [
         {
           text: 'OK',
@@ -143,6 +163,7 @@ export default function EditListingScreen({ route, navigation }: any) {
       Alert.alert('Error', error.message || 'Failed to update listing');
     } finally {
       setLoading(false);
+      setSyncingImages(false);
     }
   };
 
@@ -211,6 +232,17 @@ export default function EditListingScreen({ route, navigation }: any) {
           ))}
         </View>
 
+        {/* Listing Photos */}
+        <Text style={styles.label}>Photos</Text>
+        <ImagePickerGrid
+          images={images}
+          onImagesChange={setImages}
+          uploading={loading || syncingImages}
+          maxImages={5}
+          testID="edit-listing-image-picker"
+        />
+        <Text style={styles.hint}>Add up to 5 photos. The first photo is the cover image.</Text>
+
         {/* V2: Swap Points Payment Preference */}
         <View style={styles.spSection}>
           <Text style={styles.sectionTitle}>Payment Preference</Text>
@@ -248,12 +280,15 @@ export default function EditListingScreen({ route, navigation }: any) {
 
         {/* Save Button */}
         <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          style={[styles.saveButton, (loading || syncingImages) && styles.saveButtonDisabled]}
           onPress={handleSaveChanges}
-          disabled={loading}
+          disabled={loading || syncingImages}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
+          {loading || syncingImages ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.saveButtonText}>{syncingImages ? 'Saving photos...' : 'Saving...'}</Text>
+            </View>
           ) : (
             <Text style={styles.saveButtonText}>Save Changes</Text>
           )}
@@ -399,6 +434,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   cancelButton: {
     marginTop: 12,

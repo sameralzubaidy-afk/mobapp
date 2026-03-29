@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Image,
   StyleSheet,
   RefreshControl,
   SafeAreaView,
@@ -98,9 +99,23 @@ export default function MyListingsScreen({ navigation }: any) {
   const renderListingItem = ({ item }: { item: Listing }) => {
     const isActive = item.status === 'available';
     const isSold = item.status === 'sold';
+    const firstImage = item.images && item.images.length > 0 ? item.images[0] : null;
+    const firstImageUrl = firstImage
+      ? firstImage.thumbnail_url || firstImage.url
+      : null;
 
     return (
       <View style={styles.listingCard}>
+        <View style={styles.listingImageContainer}>
+          {firstImageUrl ? (
+            <Image source={{ uri: firstImageUrl }} style={styles.listingImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.listingImagePlaceholder}>
+              <Text style={styles.listingImagePlaceholderText}>📷 No Image</Text>
+            </View>
+          )}
+        </View>
+
         <View style={styles.listingHeader}>
           <View style={styles.listingInfo}>
             <Text style={styles.listingTitle}>{item.title}</Text>
@@ -281,6 +296,29 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  listingImageContainer: {
+    width: '100%',
+    height: 160,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+    marginBottom: 12,
+  },
+  listingImage: {
+    width: '100%',
+    height: '100%',
+  },
+  listingImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listingImagePlaceholderText: {
+    color: '#8c8c8c',
+    fontSize: 12,
+    fontWeight: '600',
   },
   listingHeader: {
     flexDirection: 'row',

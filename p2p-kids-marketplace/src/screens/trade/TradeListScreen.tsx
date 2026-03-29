@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView, Pressable, Image } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
@@ -29,7 +29,7 @@ export default function TradeListScreen({ navigation }: any) {
     try {
       const { data, error } = await supabase
         .from('trades')
-        .select('id, status, created_at, listing:items(title, price)')
+        .select('id, status, created_at, listing:items(title, price, images:item_images(id, url, thumbnail_url, display_order))')
         .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
         .order('created_at', { ascending: false });
 
@@ -44,10 +44,20 @@ export default function TradeListScreen({ navigation }: any) {
   };
 
   const renderItem = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.item}
-      onPress={() => navigation.navigate('TradeDetail', { tradeId: item.id })}
-    >
+    <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('TradeDetail', { tradeId: item.id })}>
+      <View style={styles.tradeImageContainer}>
+        {Array.isArray(item.listing?.images) && item.listing.images.length > 0 ? (
+          <Image
+            source={{ uri: item.listing.images[0].thumbnail_url || item.listing.images[0].url }}
+            style={styles.tradeImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.tradeImagePlaceholder}>
+            <Text style={styles.tradeImagePlaceholderText}>📷</Text>
+          </View>
+        )}
+      </View>
       <View style={styles.itemLeft}>
         <Text style={styles.title}>{item.listing?.title || 'Untitled'}</Text>
         <Text style={styles.subtitle}>{item.status.replace('_', ' ').toUpperCase()}</Text>
@@ -113,7 +123,36 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   empty: { padding: 24, borderRadius: 12, backgroundColor: '#fff' },
   emptyText: { color: '#6B7280', textAlign: 'center' },
-  item: { flexDirection: 'row', justifyContent: 'space-between', padding: 16, borderRadius: 10, backgroundColor: '#fff', marginBottom: 12 },
+  item: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    marginBottom: 12,
+  },
+  tradeImageContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#f3f4f6',
+    marginRight: 12,
+  },
+  tradeImage: {
+    width: '100%',
+    height: '100%',
+  },
+  tradeImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tradeImagePlaceholderText: {
+    fontSize: 18,
+  },
   itemLeft: { flex: 1 },
   title: { fontWeight: '600', fontSize: 16 },
   subtitle: { color: '#6B7280', marginTop: 4 },

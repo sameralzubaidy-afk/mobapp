@@ -63,6 +63,7 @@ export default function ItemDetailScreen() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Buyer subscription context (MODULE-11 dependency)
   const [buyerCanSpendSP, setBuyerCanSpendSP] = useState(false);
@@ -86,6 +87,10 @@ export default function ItemDetailScreen() {
       loadTradeStatusAndRating();
     }
   }, [listing, user?.id]);
+
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [listing?.id]);
 
   const loadTradeStatusAndRating = async () => {
     try {
@@ -322,6 +327,8 @@ export default function ItemDetailScreen() {
   const sellerDisplayName = shouldShowSellerName 
     ? (listing.seller?.name || 'Seller')
     : '🔒 Seller Info Hidden';
+  const listingImages = [...(listing.images ?? [])].sort((a, b) => a.display_order - b.display_order);
+  const activeImage = listingImages[activeImageIndex] ?? listingImages[0] ?? null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -336,15 +343,39 @@ export default function ItemDetailScreen() {
             <View style={{ width: 60 }} />
           </View>
 
-          {/* Image Placeholder */}
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>📷 No Image</Text>
-            <Text style={styles.imagePlaceholderSubtext}>
-              {listing.images && listing.images.length > 0
-                ? `${listing.images.length} images`
-                : 'Image upload coming soon'}
-            </Text>
-          </View>
+          {activeImage ? (
+            <View style={styles.imageGallery}>
+              <Image source={{ uri: activeImage.url }} style={styles.mainImage} />
+              <View style={styles.imageCountBadge}>
+                <Text style={styles.imageCountBadgeText}>{`${activeImageIndex + 1}/${listingImages.length}`}</Text>
+              </View>
+
+              {listingImages.length > 1 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailsContainer}>
+                  {listingImages.map((image, index) => (
+                    <TouchableOpacity
+                      key={image.id}
+                      style={[
+                        styles.thumbnailButton,
+                        activeImageIndex === index && styles.thumbnailButtonActive,
+                      ]}
+                      onPress={() => setActiveImageIndex(index)}
+                    >
+                      <Image
+                        source={{ uri: image.thumbnail_url || image.url }}
+                        style={styles.thumbnailImage}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imagePlaceholderText}>📷 No Image</Text>
+              <Text style={styles.imagePlaceholderSubtext}>No listing photos available</Text>
+            </View>
+          )}
 
           {/* Item Info Section */}
           <View style={styles.section}>
@@ -617,6 +648,49 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0e0e0',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  imageGallery: {
+    width: '100%',
+    backgroundColor: '#f2f2f2',
+  },
+  mainImage: {
+    width: '100%',
+    height: 300,
+    backgroundColor: '#e0e0e0',
+  },
+  imageCountBadge: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  imageCountBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  thumbnailsContainer: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#fff',
+  },
+  thumbnailButton: {
+    marginRight: 10,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  thumbnailButtonActive: {
+    borderColor: '#007AFF',
+  },
+  thumbnailImage: {
+    width: 64,
+    height: 64,
+    backgroundColor: '#ddd',
   },
   imagePlaceholderText: {
     fontSize: 48,

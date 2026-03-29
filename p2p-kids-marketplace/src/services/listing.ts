@@ -18,6 +18,80 @@ import {
   ListingSummary,
 } from '../types/listing';
 import { trackEvent } from './analytics';
+import { uploadImage, deleteImage } from './supabase/storage';
+
+export interface ListingImageDraft {
+  id?: string;
+  uri: string;
+}
+
+const isRlsPolicyError = (message: string | undefined): boolean => {
+  const lower = (message ?? '').toLowerCase();
+  return lower.includes('row-level security policy') || lower.includes('violates row-level security');
+};
+
+const isLocalImageUri = (uri: string): boolean => {
+  return (
+    uri.startsWith('file://') ||
+    uri.startsWith('content://') ||
+    uri.startsWith('ph://') ||
+    uri.startsWith('assets-library://') ||
+    uri.startsWith('data:image/')
+  );
+};
+
+const extractStorageObjectPath = (publicUrl: string): string | null => {
+  const marker = '/item-images/';
+  const idx = publicUrl.indexOf(marker);
+  if (idx === -1) {
+    return null;
+  }
+
+  return publicUrl.substring(idx + marker.length);
+};
+
+const uploadListingImageWithFallback = async (
+  listingId: string,
+  sellerId: string,
+  imageUri: string,
+  index: number,
+  total: number
+): Promise<{ publicUrl: string; storagePath: string }> => {
+  const fileName = `${index}.jpg`;
+  const preferredStoragePath = `${sellerId}/${listingId}/${fileName}`;
+  const legacyStoragePath = `${listingId}/${fileName}`;
+  let storagePathUsed = preferredStoragePath;
+
+  console.log(`[listing] 📤 Uploading image ${index + 1}/${total}:`);
+  console.log(`[listing]    URI: ${imageUri.substring(0, 80)}...`);
+  console.log(`[listing]    Preferred path: item-images/${preferredStoragePath}`);
+
+  let uploadResult = await uploadImage('item-images', preferredStoragePath, imageUri, { upsert: true });
+
+  // Backward compatibility for environments still using legacy item-images RLS path checks.
+  if (uploadResult.error && isRlsPolicyError(uploadResult.error.message)) {
+    console.warn('[listing] ⚠️ Preferred storage path denied by RLS, trying legacy path format');
+    console.warn(`[listing]    Legacy path: item-images/${legacyStoragePath}`);
+    storagePathUsed = legacyStoragePath;
+    uploadResult = await uploadImage('item-images', legacyStoragePath, imageUri, { upsert: true });
+  }
+
+  if (uploadResult.error) {
+    console.error(`[listing] ❌ Failed to upload image ${index}:`, uploadResult.error);
+    console.error(`[listing]    Error type: ${uploadResult.error.name}`);
+    console.error(`[listing]    Error message: ${uploadResult.error.message}`);
+    throw new Error(`Failed to upload image ${index + 1}: ${uploadResult.error.message}`);
+  }
+
+  if (!uploadResult.url) {
+    throw new Error(`Failed to get public URL for image ${index + 1}`);
+  }
+
+  return {
+    publicUrl: uploadResult.url,
+    storagePath: storagePathUsed,
+  };
+};
 
 /**
  * LISTING-V2-002: Create a new listing with SP payment preference
@@ -123,6 +197,189 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
   });
 
   return data as Listing;
+}
+
+/**
+ * SAFETY-P002: Upload images for a listing
+ * 
+ * Rules:
+ * 1. Upload to item-images/{seller_id}/{listing_id}/{index}.jpg
+ * 2. Insert rows into item_images table with public URLs
+ * 3. First image (index 0) is the primary/cover image
+ * 4. Support up to 5 images per listing
+ * 
+ * @param listing_id - The listing ID to attach images to
+ * @param seller_id - The seller user ID (for storage path)
+ * @param imageUris - Array of local image URIs to upload
+ * @returns Array of uploaded image URLs with display_order
+ * @throws Error if upload fails
+ */
+export async function uploadListingImages(
+  listing_id: string,
+  seller_id: string,
+  imageUris: string[]
+): Promise<{ url: string; display_order: number }[]> {
+  if (imageUris.length === 0) {
+    return [];
+  }
+
+  if (imageUris.length > 5) {
+    throw new Error('Maximum 5 images allowed per listing');
+  }
+
+  const uploadedImages: { url: string; display_order: number }[] = [];
+
+  try {
+    console.log(`[listing] 📤 Starting upload of ${imageUris.length} images for listing ${listing_id}`);
+    
+    // Upload each image to storage
+    for (let i = 0; i < imageUris.length; i++) {
+      const imageUri = imageUris[i];
+      const upload = await uploadListingImageWithFallback(
+        listing_id,
+        seller_id,
+        imageUri,
+        i,
+        imageUris.length
+      );
+
+      // Insert into item_images table
+      const { error: insertError } = await supabase
+        .from('item_images')
+        .insert({
+          item_id: listing_id,
+          url: upload.publicUrl,
+          thumbnail_url: upload.publicUrl, // TODO: Generate actual thumbnails in future
+          display_order: i,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error(`[listing] ❌ Failed to insert image ${i} into DB:`, insertError);
+        // Try to clean up uploaded file
+        await deleteImage('item-images', upload.storagePath);
+        throw new Error(`Failed to save image ${i + 1} reference: ${insertError.message}`);
+      }
+
+      uploadedImages.push({
+        url: upload.publicUrl,
+        display_order: i,
+      });
+
+      console.log(`[listing] ✅ Image ${i + 1} uploaded successfully`);
+    }
+
+    console.log(`[listing] ✅ All ${uploadedImages.length} images uploaded successfully`);
+    return uploadedImages;
+  } catch (error) {
+    console.error('[listing] ❌ uploadListingImages error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Sync listing images during edit flow.
+ * Supports adding new photos, removing existing photos, and reordering all photos.
+ */
+export async function syncListingImages(
+  listing_id: string,
+  seller_id: string,
+  images: ListingImageDraft[]
+): Promise<void> {
+  if (images.length > 5) {
+    throw new Error('Maximum 5 images allowed per listing');
+  }
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from('item_images')
+    .select('id, url, display_order')
+    .eq('item_id', listing_id)
+    .order('display_order', { ascending: true });
+
+  if (existingError) {
+    throw new Error(`Failed to load listing images: ${existingError.message}`);
+  }
+
+  const currentRows = (existingRows ?? []) as { id: string; url: string; display_order: number }[];
+  const existingById = new Map(currentRows.map((row) => [row.id, row]));
+  const finalExistingIds = new Set(images.filter((img) => img.id).map((img) => img.id as string));
+
+  // Delete images removed by user.
+  const rowsToDelete = currentRows.filter((row) => !finalExistingIds.has(row.id));
+  if (rowsToDelete.length > 0) {
+    for (const row of rowsToDelete) {
+      const storagePath = extractStorageObjectPath(row.url);
+      if (storagePath) {
+        await deleteImage('item-images', storagePath);
+      }
+    }
+
+    const idsToDelete = rowsToDelete.map((row) => row.id);
+    const { error: deleteRowsError } = await supabase
+      .from('item_images')
+      .delete()
+      .in('id', idsToDelete);
+
+    if (deleteRowsError) {
+      throw new Error(`Failed to remove old listing images: ${deleteRowsError.message}`);
+    }
+  }
+
+  // Apply final order and upload any new local files.
+  for (let i = 0; i < images.length; i++) {
+    const image = images[i];
+
+    if (image.id && existingById.has(image.id)) {
+      const existing = existingById.get(image.id);
+      if (existing && existing.display_order !== i) {
+        const { error: reorderError } = await supabase
+          .from('item_images')
+          .update({ display_order: i })
+          .eq('id', image.id);
+
+        if (reorderError) {
+          throw new Error(`Failed to reorder listing images: ${reorderError.message}`);
+        }
+      }
+      continue;
+    }
+
+    if (!isLocalImageUri(image.uri)) {
+      const { error: insertRemoteError } = await supabase
+        .from('item_images')
+        .insert({
+          item_id: listing_id,
+          url: image.uri,
+          thumbnail_url: image.uri,
+          display_order: i,
+          created_at: new Date().toISOString(),
+        });
+
+      if (insertRemoteError) {
+        throw new Error(`Failed to save listing image reference: ${insertRemoteError.message}`);
+      }
+      continue;
+    }
+
+    const upload = await uploadListingImageWithFallback(listing_id, seller_id, image.uri, i, images.length);
+
+    const { error: insertError } = await supabase
+      .from('item_images')
+      .insert({
+        item_id: listing_id,
+        url: upload.publicUrl,
+        thumbnail_url: upload.publicUrl,
+        display_order: i,
+        created_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      await deleteImage('item-images', upload.storagePath);
+      throw new Error(`Failed to save image ${i + 1} reference: ${insertError.message}`);
+    }
+  }
 }
 
 /**
@@ -459,7 +716,8 @@ export async function getListingById(listing_id: string): Promise<Listing | null
     const { data: images = [] } = await supabase
       .from('item_images')
       .select('*')
-      .eq('item_id', listing_id);
+      .eq('item_id', listing_id)
+      .order('display_order', { ascending: true });
 
     // Combine all data into listing object
     const listing: Listing = {

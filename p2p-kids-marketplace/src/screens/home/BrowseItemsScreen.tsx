@@ -12,7 +12,6 @@ import {
   SafeAreaView,
   RefreshControl,
   Switch,
-  StyleSheet,
   TextInput,
 } from 'react-native';
 import { useUserStore } from '@/stores/userStore';
@@ -251,11 +250,6 @@ export default function BrowseItemsScreen() {
 
   const radiusChangeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Memoize loadItems so it can be used in other callbacks
-  const loadItemsCallback = useCallback(async () => {
-    await loadItems();
-  }, []);
-
   const handleRadiusChange = useCallback(async (newRadius: number) => {
     try {
       if (!user?.id) return;
@@ -381,6 +375,10 @@ export default function BrowseItemsScreen() {
 
   const renderItemCard = ({ item }: { item: Item }) => {
     const isOtherNode = showAllNodes && item.seller_node_id !== user?.node_id;
+    const firstImage = item.images && item.images.length > 0 ? item.images[0] : null;
+    const firstImageUrl = firstImage
+      ? firstImage.thumbnail_url || firstImage.url
+      : null;
 
     return (
       <TouchableOpacity
@@ -408,7 +406,15 @@ export default function BrowseItemsScreen() {
             alignItems: 'center',
           }}
         >
-          <Text style={{ color: '#999', fontSize: 12 }}>📷 No Image</Text>
+          {firstImageUrl ? (
+            <Image
+              source={{ uri: firstImageUrl }}
+              style={{ width: '100%', height: '100%' }}
+              resizeMode="cover"
+            />
+          ) : (
+            <Text style={{ color: '#999', fontSize: 12 }}>📷 No Image</Text>
+          )}
         </View>
 
         {/* Content */}
@@ -621,6 +627,8 @@ export default function BrowseItemsScreen() {
             sold_at: (result as any).sold_at || null,
             relevance: (result as any).relevance,
             seller_node_id: (result as any).seller_node_id,
+            images: Array.isArray((result as any).images) ? (result as any).images : [],
+            seller: (result as any).seller,
           };
           return item;
         });
@@ -702,7 +710,6 @@ export default function BrowseItemsScreen() {
     })();
   }, [spEligibleOnly, searchQuery, selectedCategory]);
 
-  /*
   if (loading && items.length === 0) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -712,7 +719,6 @@ export default function BrowseItemsScreen() {
       </SafeAreaView>
     );
   }
-  */
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f9f9f9' }}>

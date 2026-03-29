@@ -16,6 +16,7 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
+  Image,
   StyleSheet,
 } from 'react-native';
 import Avatar from '../../components/atoms/Avatar';
@@ -102,12 +103,27 @@ export const SearchScreen: React.FC<Props> = ({ navigation }) => {
     navigation.navigate('ItemDetail', { itemId });
   };
 
-  const renderSearchResult = ({ item }: { item: SearchResult }) => (
-    <Pressable
-      style={styles.resultCard}
-      onPress={() => handleItemPress(item.id)}
-    >
+  const renderSearchResult = ({ item }: { item: SearchResult }) => {
+    const firstImage = item.images && item.images.length > 0 ? item.images[0] : null;
+    const firstImageUrl = firstImage
+      ? firstImage.thumbnail_url || firstImage.url
+      : null;
+
+    return (
+      <Pressable
+        style={styles.resultCard}
+        onPress={() => handleItemPress(item.id)}
+      >
       <View style={styles.resultRow}>
+        <View style={styles.resultImageContainer}>
+          {firstImageUrl ? (
+            <Image source={{ uri: firstImageUrl }} style={styles.resultImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.resultImagePlaceholder}>
+              <Text>📷</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.resultContent}>
           <Text style={styles.itemTitle} numberOfLines={2}>
             {item.title}
@@ -148,8 +164,9 @@ export const SearchScreen: React.FC<Props> = ({ navigation }) => {
             Relevance: {(item.relevance * 100).toFixed(0)}%
           </Text>
         )}
-    </Pressable>
-  );
+      </Pressable>
+    );
+  };
 
   const renderEmptyState = () => {
     if (loading) {
@@ -354,8 +371,24 @@ const styles = StyleSheet.create({
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 12,
+  },
+  resultImageContainer: {
+    width: 72,
+    height: 72,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#f2f2f2',
+  },
+  resultImage: {
+    width: '100%',
+    height: '100%',
+  },
+  resultImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   resultContent: {
     flex: 1,

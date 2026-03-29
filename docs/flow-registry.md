@@ -36,16 +36,77 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Pending listing creates `admin_notifications` rows for all admins (notification type `listing_pending_approval`).
   - Admin approves listing -> `items.status` transitions `pending` -> `available` and listing becomes visible.
   - Seller edits an approved listing (e.g., title/price/photos) -> `items.status` transitions `available` -> `pending` and requires admin re-approval.
+  - **SAFETY-P001 (2026-03-28):** Item Images Storage Bucket
+    - Migration: `20260328000100_create_item_images_bucket.sql`
+    - Storage bucket: `item-images` (public, 5MB limit, allowed: JPEG/PNG/WebP/GIF)
+    - RLS policies:
+      - Sellers can upload/update/delete images for their own listings
+      - Public read access to all listing images
+      - Service role full access for moderation/admin
+    - Unit tests: `src/__tests__/storage-item-images.unit.test.ts`
+    - E2E tests: `src/__tests__/e2e/storage-item-images.e2e.test.ts`
+    - Manual test guide: `SAFETY-P001-MANUAL-TESTING.md` (12 test cases)
+    - Maestro flow: `.maestro/listing-create.yaml` (updated with image upload)
+    - Verification: TC-001 to TC-012 in manual test guide
+  - **SAFETY-P002 (2026-03-28):** Image Picker and Upload in CreateListingScreen
+    - Component: `src/components/molecules/ImagePickerGrid.tsx` (NEW)
+    - Service: `uploadListingImages()` added to `src/services/listing.ts`
+    - Features:
+      - Multi-image picker (up to 5 photos from gallery or camera)
+      - Image preview with reorder (← →) and delete (×) buttons
+      - First image = cover image (marked with "Cover" badge)
+      - File size validation (5 MB max per image)
+      - Upload progress indicator
+      - Graceful error handling (listing created even if image upload fails)
+    - Upload flow:
+      1. Create listing in DB
+      2. Upload images to `item-images/{seller_id}/{item_id}/{index}.jpg`
+      3. Insert rows into `item_images` table with public URLs and `display_order`
+    - Unit tests: `src/__tests__/components/ImagePickerGrid.test.tsx` (state matrix: empty, with images, at limit, uploading, permissions denied)
+    - E2E tests: `src/__tests__/e2e/listing-image-upload.e2e.test.ts` (upload 1, upload multiple, verify DB, verify public URLs, storage path convention)
+    - Manual test guide: `SAFETY-P002-MANUAL-TESTING-GUIDE.md` (18 test cases)
+    - Maestro flow: `.maestro/listing-create.yaml` (updated to test image picker, reorder, delete, multi-image upload)
+    - Verification: TC-001 to TC-018 in manual test guide
 - Automated (offline): Jest covers listing service lifecycle + SP gating.
 - E2E (Supabase prod): `p2p-kids-marketplace/src/__tests__/e2e/referral-listing-bonus.e2e.ts` covers referral listing bonus awarding end-to-end.
 
 ### FLOW-05: Media Upload (Storage) – Listing Photos
 - Smoke: (manual)
   - Upload photo -> visible via signed/public URL as intended.
+  - **SAFETY-P001 (2026-03-28):** Item Images Bucket Creation
+    - Bucket: `item-images` with 5MB file size limit
+    - Allowed MIME types: image/jpeg, image/jpg, image/png, image/webp, image/gif
+    - RLS policies enforce seller ownership for upload/delete
+    - Public read access for all users (listings are public)
+    - Service role bypass for admin/moderation operations
+    - CDN cache purge on delete (when configured)
+  - Upload verification:
+    - Multiple images can be uploaded to a single listing
+    - Images stored at path: `{item_id}/{filename}`
+    - Public URLs accessible without authentication
+    - File size >5MB rejected with clear error
+    - Unauthorized uploads/deletes rejected by RLS
+  - Integration: Storage service (`src/services/supabase/storage.ts`) uses bucket type safety
 
 ### FLOW-06: Discovery – Feed/Search/Filters/Favorites
 - Smoke: (manual)
   - Feed loads; search filters update results.
+  - **DISCOVERY-IMG-PARITY (2026-03-29):** Listing image rendering parity across discovery surfaces
+    - Fixed screens/components:
+      - `src/screens/home/BrowseItemsScreen.tsx`
+      - `src/screens/home/SearchScreen.tsx`
+      - `src/screens/home/CategoryBrowseScreen.tsx`
+      - `src/components/organisms/RecommendationsCarousel/index.tsx`
+      - `src/screens/listing/MyListingsScreen.tsx`
+      - `src/screens/trade/TradeListScreen.tsx`
+    - Service enrichment:
+      - `src/services/discovery.ts` now attaches sorted `item_images` rows to search/category/recommendation responses.
+      - `src/types/discovery.ts` includes optional `images` for `SearchResult`, `CategoryResult`, and `Recommendation`.
+    - Required manual checks:
+      - Search in Browse tab shows listing thumbnails (not placeholder-only) when images exist.
+      - Search screen rows show listing thumbnails.
+      - Category browse cards show listing thumbnails.
+      - Dashboard recommendations cards show listing thumbnails.
 - Automated (offline): Jest covers `getItems` node filtering and NODE-007 radius fetch.
 
 ### FLOW-07: Cart & Bundling (if implemented)

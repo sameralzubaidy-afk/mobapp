@@ -29,6 +29,12 @@ export interface SearchResult {
     avatar_url: string | null;
     verification_status: 'none' | 'pending' | 'approved';
   };
+  images?: {
+    id: string;
+    url: string;
+    thumbnail_url: string | null;
+    display_order: number;
+  }[];
 }
 
 /**
@@ -52,6 +58,12 @@ export interface CategoryResult {
     avatar_url: string | null;
     verification_status: 'none' | 'pending' | 'approved';
   };
+  images?: {
+    id: string;
+    url: string;
+    thumbnail_url: string | null;
+    display_order: number;
+  }[];
 }
 
 /**
@@ -104,4 +116,10 @@ export interface Recommendation {
     avatar_url: string | null;
     verification_status: 'none' | 'pending' | 'approved';
   };
+  images?: {
+    id: string;
+    url: string;
+    thumbnail_url: string | null;
+    display_order: number;
+  }[];
 }

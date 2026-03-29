@@ -47,6 +47,12 @@
         "projectId": "03d46492-d1d9-486c-bdc6-025df11c0479"
       }
     },
-    "owner": "samer.alzubaidy"
+    "owner": "samer.alzubaidy",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/03d46492-d1d9-486c-bdc6-025df11c0479"
+    }
   }
 }

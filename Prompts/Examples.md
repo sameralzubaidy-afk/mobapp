@@ -44,23 +44,25 @@ Supabase: supabase/
 -----
 My Example 1
 
-## TASK ADMIN-V2-007: Admin Panel UI Theme & Layout Redesign
 
-I’m working on the  MODULE-12-ADMIN-V2.md tasks
-Module: MODULE-12-ADMIN-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK ADMIN-V2-006: User Management Dashboard
+
+## TASK SAFETY-P002: Add Image Picker and Upload to CreateListingScreen (Mobile App)
+
+
+I’m working on the  MODULE-13-SAFETY-COMPLIANCE.md tasks
+Module: MODULE-13-SAFETY-COMPLIANCE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: ## TASK SAFETY-P002: Add Image Picker and Upload to CreateListingScreen (Mobile App)
 
 scope is 
+The `CreateListingScreen` currently has a form for title, description, price, condition, and SP toggle — but **no image picker**. Users cannot attach photos to listings. This blocks SAFETY-004 (Google Vision image moderation) which requires images to exist.
 
-Redesign the entire admin panel visual layer to match the provided reference design. The layout consists of:
-- **Fixed left sidebar** (deep purple, collapsible) with icon + label navigation
-- **Fixed top navbar** (white) with search, brand logo, notification bell, user profile
-- **Scrollable main content** on a light lavender/gray background
-- **Metric cards** (white, subtle shadow) with colored icons, large numbers, and trend labels
-- **Chart cards** (white, subtle shadow) wrapping Recharts components
-- **Consistent design tokens** enforced via Tailwind extended config + CSS variables
-
-This task covers **only presentation and layout** — no business logic or DB changes.
+Add:
+1. Image picker component using `expo-image-picker` (already used in avatar upload flow)
+2. Multi-image support (up to 5 photos)
+3. Image preview with reorder and delete
+4. Upload images to `item-images` bucket on listing creation
+5. Insert image URLs into `item_images` table after item is created
+6. Show upload progress indicator
 
 i want you to 
 
@@ -78,9 +80,9 @@ i want you to
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
 4. Forbidden: Re-implementing logic that already exists under a different name
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-12-VERIFICATION-V2.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-13-VERIFICATION.md
 6. Show me the files you create or edit with their full paths
-7. Tell me which items in MODULE-12-VERIFICATION-V2.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-12-VERIFICATION-V2.md
+7. Tell me which items in MODULE-13-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-13-VERIFICATION.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 

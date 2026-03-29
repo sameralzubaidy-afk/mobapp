@@ -103,7 +103,15 @@ export default function CategoryBrowseScreen() {
       onPress={() => (navigation as any).navigate('ItemDetailScreen', { listing_id: item.id })}
     >
       <View style={styles.imagePlaceholder}>
-        <Text style={styles.placeholderEmoji}>📦</Text>
+        {item.images && item.images.length > 0 ? (
+          <Image
+            source={{ uri: item.images[0].thumbnail_url || item.images[0].url }}
+            style={styles.itemImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text style={styles.placeholderEmoji}>📦</Text>
+        )}
         {item.seller && (
           <View style={styles.sellerAvatarOverlay}>
             <Avatar
@@ -248,6 +256,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  itemImage: {
+    width: '100%',
+    height: '100%',
   },
   placeholderEmoji: {
     fontSize: 40,

@@ -1,15 +1,18 @@
 /**
  * File: p2p-kids-marketplace/src/screens/listing/CreateListingScreen.tsx
  * MODULE-04 LISTING-V2-002: Create listing with SP payment preference
+ * MODULE-13 SAFETY-P002: Add image picker and upload functionality
  * 
  * Features:
  * - Form for title, description, price, category, condition
  * - SP payment toggle (only shown to subscribers)
  * - Subscription check before allowing SP
  * - Real-time form validation
+ * - Multi-image upload (up to 5 photos)
+ * - Image preview with reorder and delete
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -25,14 +28,16 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { getSubscriptionSummary } from '../../services/subscription';
-import { createListing } from '../../services/listing';
+import { createListing, uploadListingImages } from '../../services/listing';
 import { ListingCondition } from '../../types/listing';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
 
 export default function CreateListingScreen({ navigation }: any) {
   const { session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
+  const [uploadingImages, setUploadingImages] = useState(false);
   
   // Form state
   const [title, setTitle] = useState('');
@@ -40,6 +45,7 @@ export default function CreateListingScreen({ navigation }: any) {
   const [priceText, setPriceText] = useState('');
   const [condition, setCondition] = useState<ListingCondition>('good');
   const [acceptsSwapPoints, setAcceptsSwapPoints] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   
   // Subscription state
   const [canAcceptSP, setCanAcceptSP] = useState(false);
@@ -101,7 +107,10 @@ export default function CreateListingScreen({ navigation }: any) {
     try {
       setLoading(true);
 
-      await createListing({
+      console.log('[CreateListing] 📝 Creating listing...');
+      
+      // Step 1: Create the listing
+      const listing = await createListing({
         seller_id: session.user.id,
         title: title.trim(),
         description: description.trim(),
@@ -109,6 +118,36 @@ export default function CreateListingScreen({ navigation }: any) {
         condition,
         accepts_swap_points: canAcceptSP ? acceptsSwapPoints : false,
       });
+
+      console.log('[CreateListing] ✅ Listing created:', listing.id);
+
+      // Step 2: Upload images if any
+      if (selectedImages.length > 0) {
+        console.log(`[CreateListing] 📤 Uploading ${selectedImages.length} images...`);
+        setUploadingImages(true);
+        
+        try {
+          const imageUris = selectedImages.map((img) => img.uri);
+          await uploadListingImages(listing.id, session.user.id, imageUris);
+          console.log('[CreateListing] ✅ All images uploaded successfully');
+        } catch (imageError: any) {
+          console.error('[CreateListing] ⚠️ Image upload error:', imageError);
+          // Continue even if image upload fails - listing is already created
+          Alert.alert(
+            'Partial Success',
+            'Listing created but some images failed to upload. You can add images later by editing the listing.',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.goBack(),
+              },
+            ]
+          );
+          return;
+        } finally {
+          setUploadingImages(false);
+        }
+      }
 
       Alert.alert('Success', 'Listing created successfully!', [
         {
@@ -121,6 +160,7 @@ export default function CreateListingScreen({ navigation }: any) {
       Alert.alert('Error', error.message || 'Failed to create listing');
     } finally {
       setLoading(false);
+      setUploadingImages(false);
     }
   };
 
@@ -194,6 +234,15 @@ export default function CreateListingScreen({ navigation }: any) {
           ))}
         </View>
 
+        {/* V2 SAFETY-P002: Image Picker */}
+        <ImagePickerGrid
+          images={selectedImages}
+          onImagesChange={setSelectedImages}
+          uploading={uploadingImages}
+          maxImages={5}
+          testID="create-listing-image-picker"
+        />
+
         {/* V2: Swap Points Payment Preference */}
         <View style={styles.spSection}>
           <Text style={styles.sectionTitle}>Payment Preference</Text>
@@ -238,12 +287,17 @@ export default function CreateListingScreen({ navigation }: any) {
         {/* Create Button */}
         <TouchableOpacity
           testID="create-listing-submit-button"
-          style={[styles.createButton, loading && styles.createButtonDisabled]}
+          style={[styles.createButton, (loading || uploadingImages) && styles.createButtonDisabled]}
           onPress={handleCreateListing}
-          disabled={loading}
+          disabled={loading || uploadingImages}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
+          {(loading || uploadingImages) ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.createButtonText}>
+                {uploadingImages ? 'Uploading images...' : 'Creating...'}
+              </Text>
+            </View>
           ) : (
             <Text style={styles.createButtonText}>Create Listing</Text>
           )}
@@ -395,6 +449,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   // Navigation handled by BottomNavBar
 });

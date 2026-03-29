@@ -1,4 +1,7 @@
 import { supabase } from './client';
+import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { decode } from 'base64-arraybuffer';
 
 export type StorageBucket = 'item-images' | 'chat-images' | 'user-avatars';
 
@@ -10,8 +13,52 @@ export interface UploadResult {
 }
 
 /**
+ * Reads an image file URI and converts it to ArrayBuffer for React Native uploads.
+ * Falls back to image normalization when direct file reading fails on Android.
+ */
+const readImageAsArrayBuffer = async (
+  fileUri: string,
+  path: string
+): Promise<{ data: ArrayBuffer; contentType: string }> => {
+  try {
+    const base64 = await FileSystem.readAsStringAsync(fileUri, {
+      encoding: 'base64',
+    });
+    return {
+      data: decode(base64),
+      contentType: detectContentType(fileUri, path),
+    };
+  } catch (readError) {
+    console.warn('[storage] Direct file read failed, falling back to image normalization:', readError);
+
+    const manipulated = await ImageManipulator.manipulateAsync(fileUri, [], {
+      compress: 0.85,
+      format: ImageManipulator.SaveFormat.JPEG,
+      base64: true,
+    });
+
+    if (!manipulated.base64) {
+      throw new Error('Unable to read image data for upload (missing base64)');
+    }
+
+    return {
+      data: decode(manipulated.base64),
+      contentType: 'image/jpeg',
+    };
+  }
+};
+
+const detectContentType = (fileUri: string, path: string): string => {
+  const lower = `${fileUri} ${path}`.toLowerCase();
+  if (lower.includes('.png')) return 'image/png';
+  if (lower.includes('.webp')) return 'image/webp';
+  if (lower.includes('.gif')) return 'image/gif';
+  return 'image/jpeg';
+};
+
+/**
  * Uploads a single image to Supabase Storage from an image URI.
- * Note: In React Native we can fetch the file as a blob and upload.
+ * Note: In React Native we upload ArrayBuffer and retry transient network failures.
  */
 export const uploadImage = async (
   bucket: StorageBucket,
@@ -20,20 +67,57 @@ export const uploadImage = async (
   options?: { upsert?: boolean }
 ): Promise<UploadResult> => {
   try {
-    // Load file
-    const resp = await fetch(fileUri);
-    const blob = await resp.blob();
+    console.log(`[storage] 📤 Converting file URI to upload buffer: ${fileUri.substring(0, 70)}...`);
 
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(path, blob, { cacheControl: '3600', upsert: options?.upsert ?? false });
+    const { data: fileData, contentType } = await readImageAsArrayBuffer(fileUri, path);
 
-    if (error) return { url: null, path: null, error };
+    console.log(`[storage] ✅ Upload buffer created, bytes: ${fileData.byteLength}, contentType: ${contentType}`);
+    console.log(`[storage] 📤 Uploading to ${bucket}/${path}...`);
+
+    const maxAttempts = 3;
+    let data: { path: string } | null = null;
+    let error: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const uploadResult = await supabase.storage.from(bucket).upload(path, fileData, {
+        cacheControl: '3600',
+        upsert: options?.upsert ?? false,
+        contentType,
+      });
+
+      data = uploadResult.data;
+      error = (uploadResult.error as Error | null) ?? null;
+
+      if (!error) {
+        break;
+      }
+
+      const message = error.message?.toLowerCase() ?? '';
+      const isTransient = message.includes('network request failed') || message.includes('fetch failed');
+
+      console.warn(`[storage] ⚠️ Upload attempt ${attempt}/${maxAttempts} failed: ${error.message}`);
+
+      if (!isTransient || attempt === maxAttempts) {
+        console.error('[storage] ❌ Upload failed (final):', error);
+        return { url: null, path: null, error };
+      }
+
+      const waitMs = attempt * 600;
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+
+    if (!data) {
+      return { url: null, path: null, error: error ?? new Error('Upload failed: no storage path returned') };
+    }
 
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
     const cdnUrl = getCdnUrl(bucket, data.path);
+    
+    console.log(`[storage] ✅ Upload successful, public URL: ${urlData.publicUrl}`);
+    
     return { url: urlData.publicUrl, cdnUrl, path: data.path, error: null };
   } catch (e: any) {
+    console.error('[storage] ❌ uploadImage error:', e);
     return { url: null, path: null, error: e as Error };
   }
 };

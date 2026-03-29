@@ -16,6 +16,68 @@ import {
 } from '../types/discovery';
 import { trackEvent } from './analytics';
 
+interface DiscoveryListingImage {
+  id: string;
+  item_id: string;
+  url: string;
+  thumbnail_url: string | null;
+  display_order: number;
+}
+
+type DiscoveryListingImageView = Omit<DiscoveryListingImage, 'item_id'>;
+
+const attachListingImages = async <T extends { id: string }>(
+  rows: T[]
+): Promise<(T & { images: DiscoveryListingImageView[] })[]> => {
+  if (!rows.length) {
+    return [];
+  }
+
+  const rowsWithEmptyImages = rows.map((row) => ({ ...row, images: [] as DiscoveryListingImageView[] }));
+  const fromResult = (supabase as unknown as { from?: (table: string) => any }).from?.('item_images');
+  if (!fromResult || typeof fromResult.select !== 'function') {
+    return rowsWithEmptyImages;
+  }
+
+  const listingIds = rows.map((row) => row.id);
+  const { data: images, error } = await fromResult
+    .select('id, item_id, url, thumbnail_url, display_order')
+    .in('item_id', listingIds);
+
+  if (error) {
+    console.warn('[discovery] Failed to attach listing images:', error.message);
+    return rowsWithEmptyImages;
+  }
+
+  const imageMap = new Map<string, DiscoveryListingImageView[]>();
+  (images || []).forEach((image: DiscoveryListingImage) => {
+    const imageView: DiscoveryListingImageView = {
+      id: image.id,
+      url: image.url,
+      thumbnail_url: image.thumbnail_url,
+      display_order: image.display_order,
+    };
+
+    if (!imageMap.has(image.item_id)) {
+      imageMap.set(image.item_id, [imageView]);
+      return;
+    }
+
+    imageMap.get(image.item_id)?.push(imageView);
+  });
+
+  return rows.map((row) => {
+    const sortedImages = [...(imageMap.get(row.id) || [])].sort(
+      (a, b) => a.display_order - b.display_order
+    );
+
+    return {
+      ...row,
+      images: sortedImages,
+    };
+  });
+};
+
 /**
  * Search listings by full-text query
  * Returns results ranked by relevance (highest first)
@@ -57,7 +119,7 @@ export async function searchListings(
       sp_eligible_only: spEligibleOnly,
     });
 
-    return (data || []).map((item: any) => ({
+    const normalizedResults: SearchResult[] = (data || []).map((item: any) => ({
       ...item,
       seller: item.seller_name ? {
         name: item.seller_name,
@@ -65,6 +127,8 @@ export async function searchListings(
         verification_status: item.seller_verification_status
       } : undefined
     }));
+
+    return attachListingImages(normalizedResults);
   } catch (err) {
     console.error('[searchListings] Error:', err);
     throw new Error(
@@ -117,7 +181,7 @@ export async function searchListingsByCategory(
       offset,
     });
 
-    return (data || []).map((item: any) => ({
+    const normalizedResults: CategoryResult[] = (data || []).map((item: any) => ({
       ...item,
       seller: item.seller_name ? {
         name: item.seller_name,
@@ -125,6 +189,8 @@ export async function searchListingsByCategory(
         verification_status: item.seller_verification_status
       } : undefined
     }));
+
+    return attachListingImages(normalizedResults);
   } catch (err) {
     console.error('[searchListingsByCategory] Error:', err);
     throw new Error(
@@ -218,7 +284,7 @@ export async function searchListingsByCategoryAndQuery(
       sp_eligible_only: spEligibleOnly,
     });
 
-    return (data || []).map((item: any) => ({
+    const normalizedResults: SearchResult[] = (data || []).map((item: any) => ({
       ...item,
       seller: item.seller_name ? {
         name: item.seller_name,
@@ -226,6 +292,8 @@ export async function searchListingsByCategoryAndQuery(
         verification_status: item.seller_verification_status
       } : undefined
     }));
+
+    return attachListingImages(normalizedResults);
   } catch (err) {
     console.error('[searchListingsByCategoryAndQuery] Error:', err);
     throw new Error(
@@ -277,7 +345,7 @@ export async function getRecommendations(
       limit,
     });
 
-    return (data || []).map((item: any) => ({
+    const normalizedResults: Recommendation[] = (data || []).map((item: any) => ({
       ...item,
       seller: item.seller_name ? {
         name: item.seller_name,
@@ -285,6 +353,8 @@ export async function getRecommendations(
         verification_status: item.seller_verification_status
       } : undefined
     }));
+
+    return attachListingImages(normalizedResults);
   } catch (err) {
     console.error('[getRecommendations] Error:', err);
     // Return empty array on error instead of throwing
