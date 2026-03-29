@@ -45,24 +45,16 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK SAFETY-P003: Extend `items.status` CHECK Constraint + Add Seller Notification for Flagged/Rejected Items
+
+
+## TASK SAFETY-002: Create CPSC Recall Matching Logic (Check Item Title/Description Against Recall Database)
 
 I’m working on the  MODULE-13-SAFETY-COMPLIANCE.md tasks
 Module: MODULE-13-SAFETY-COMPLIANCE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SAFETY-P003: Extend `items.status` CHECK Constraint + Add Seller Notification for Flagged/Rejected Items
+Tasks: ## TASK SAFETY-002: Create CPSC Recall Matching Logic (Check Item Title/Description Against Recall Database)
 
 scope is 
-The `items.status` CHECK constraint currently allows: `'draft', 'available', 'pending', 'sold', 'deleted', 'paused'`. MODULE-13 requires two additional statuses:
-- `'flagged'` — Item flagged by CPSC match or AI moderation, under review
-- `'rejected'` — Item rejected by admin after review
-
-Also adds:
-1. `items.flagged_at` and `items.rejected_at` timestamp columns for audit
-2. `items.rejection_reason` text column for admin feedback
-3. `items.appeal_count` integer for tracking seller resubmissions
-4. A DB trigger-based notification that inserts into the `notifications` table when an item is flagged or rejected, so the seller is notified via push/in-app
-5. Updates `ListingStatus` TypeScript type to include new statuses
-6. Updates RLS: flagged/rejected items visible to seller + admins only
+When item is listed, check title/description against CPSC recalls. Use full-text search or fuzzy matching. If match found, flag item for review. Store match confidence score. Notify seller of potential match.
 
 i want you to 
 

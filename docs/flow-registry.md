@@ -195,6 +195,41 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Billing writes now persist admin-configured amount and upsert billing history on successful payment in `supabase/functions/create-subscription-from-payment-method/index.ts`.
   - Hardcoded grace window removed from admin manual-cancel API and trial conversion downgrade RPC (`20260312000001_fix_dynamic_grace_period_trial_conversion.sql`).
 
+### FLOW-16: CPSC Recall Imports – Daily Batch Import + Recall Database
+- Purpose: Automated daily imports of CPSC safety recalls for product safety checking
+- Covers:
+  - CPSC API daily batch import via Edge Function
+  - Recall data storage in cpsc_recalls table
+  - Import logging and error tracking
+  - pg_cron scheduled job execution at 2:00 AM UTC
+  - Recall deduplication by recall_number
+  - Full-text search capability for recall matching
+  - Public read access for safety transparency
+- Database:
+  - Tables: `cpsc_recalls` (recall data), `cpsc_import_log` (import history)
+  - Indexes: recall_number, recall_date, product_name (trgm), keywords (tsvector)
+  - RLS: Public read, service role write, admin manage
+- Edge Function: `supabase/functions/import-cpsc-recalls/index.ts`
+- Migration: `supabase/migrations/303_cpsc_recalls_schema.sql`
+- Scheduled Job: `supabase/migrations/304_schedule_cpsc_import.sql`
+- Manual Test Guide: `SAFETY-001-MANUAL-TESTING-GUIDE.md` (12 test cases)
+- Unit Tests: `supabase/functions/import-cpsc-recalls/__tests__/index.unit.test.ts`
+- E2E Tests: `p2p-kids-marketplace/src/__tests__/e2e/cpsc-import.e2e.test.ts`
+- Maestro Flow: `p2p-kids-marketplace/.maestro/cpsc-import-flow.yaml`
+- Smoke: (automated daily via pg_cron)
+  - Import runs at 2:00 AM UTC without manual intervention
+  - Successful imports log to cpsc_import_log with status='success'
+  - Failed imports log with status='failed' and error details
+  - Duplicates are skipped (upsert by recall_number)
+  - Recalls searchable via product name, date, keywords
+- Manual Verification:
+  - Admin can view import logs via Supabase SQL Editor
+  - Recalls are publicly readable (no auth required)
+  - Import can be manually triggered via Edge Function for testing
+  - Cron job execution logs visible in cron.job_run_details
+- Tier: Tier 1 for Edge Function changes; Tier 2 if database schema or RLS policies change
+- Dependencies: INFRA-001 (Supabase setup), pg_cron extension enabled
+
 ### FLOW-18: Admin Controls – Config + Overrides + Revenue Analytics + User Management
 - Purpose: Admin can configure platform settings, view revenue metrics, analytics, and manage users
 - Smoke: (manual)
