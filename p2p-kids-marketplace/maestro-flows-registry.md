@@ -11,3 +11,6 @@
 - `.maestro/payment-failure-handling.yaml` - Payment retry/failure flow (SUB-018).
 - `.maestro/re-subscribe-from-grace.yaml` - Grace period re-subscribe flow.
 - `.maestro/sub-020-trial-limit.yaml` - Trial limit enforcement states (SUB-020).
+- `.maestro/safety-p003-item-flagging.yaml` - Item flagging and rejection status (SAFETY-P003).
+- `.maestro/safety-002-cpsc-recall-matching.yaml` - CPSC recall matching on listing creation (SAFETY-002).
+- `.maestro/safety-004-image-moderation.yaml` - Google Vision AI image moderation (SAFETY-004).

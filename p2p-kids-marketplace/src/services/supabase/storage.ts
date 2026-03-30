@@ -1,5 +1,5 @@
 import { supabase } from './client';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'base64-arraybuffer';
 
@@ -34,7 +34,7 @@ const readImageAsArrayBuffer = async (
 
   try {
     const base64 = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: 'base64',
+      encoding: FileSystem.EncodingType.Base64,
     });
     return {
       data: decode(base64),

@@ -20,6 +20,7 @@ import {
 import { trackEvent } from './analytics';
 import { uploadImage, deleteImage } from './supabase/storage';
 import { checkItemSafety, isCpscCheckEnabled } from './safety';
+import { isImageModerationEnabled, moderateListingImages } from './imageModeration';
 
 export interface ListingImageDraft {
   id?: string;
@@ -298,6 +299,35 @@ export async function uploadListingImages(
     }
 
     console.log(`[listing] ✅ All ${uploadedImages.length} images uploaded successfully`);
+
+    // MODULE-13 SAFETY-004: Moderate images with Google Vision AI
+    // Run moderation async - don't block the return (fire-and-forget)
+    // If images are flagged, the item status will be updated to 'flagged' by the Edge Function
+    if (uploadedImages.length > 0) {
+      const aiModerationEnabled = await isImageModerationEnabled();
+
+      if (!aiModerationEnabled) {
+        console.log(`[listing] ⏭️ AI image moderation is disabled by admin config for listing ${listing_id}`);
+      } else {
+        console.log(`[listing] 🔍 Initiating AI image moderation for listing ${listing_id}`);
+        const imageUrls = uploadedImages.map((img) => img.url);
+
+        moderateListingImages(listing_id, imageUrls)
+          .then((results) => {
+            const flaggedCount = results.filter((r) => r.flagged).length;
+            if (flaggedCount > 0) {
+              console.warn(`[listing] ⚠️ ${flaggedCount}/${results.length} images flagged for listing ${listing_id}`);
+            } else {
+              console.log(`[listing] ✅ All ${results.length} images passed AI moderation for listing ${listing_id}`);
+            }
+          })
+          .catch((error) => {
+            console.error(`[listing] ❌ AI moderation failed for listing ${listing_id}:`, error);
+            // Don't throw - moderation failure shouldn't prevent listing creation
+          });
+      }
+    }
+
     return uploadedImages;
   } catch (error) {
     console.error('[listing] ❌ uploadListingImages error:', error);

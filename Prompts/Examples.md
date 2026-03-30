@@ -46,15 +46,14 @@ My Example 1
 
 
 
-
-## TASK SAFETY-002: Create CPSC Recall Matching Logic (Check Item Title/Description Against Recall Database)
+## TASK SAFETY-004: Implement Google Vision API Image Moderation (Supabase Edge Function)
 
 I’m working on the  MODULE-13-SAFETY-COMPLIANCE.md tasks
 Module: MODULE-13-SAFETY-COMPLIANCE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SAFETY-002: Create CPSC Recall Matching Logic (Check Item Title/Description Against Recall Database)
+Tasks: ## TASK SAFETY-004: Implement Google Vision API Image Moderation (Supabase Edge Function)
 
 scope is 
-When item is listed, check title/description against CPSC recalls. Use full-text search or fuzzy matching. If match found, flag item for review. Store match confidence score. Notify seller of potential match.
+Use Google Vision API to check images for unsafe content. Detect: adult, violence, racy content. Flag images with high likelihood. Run on image upload. Store moderation results.
 
 i want you to 
 

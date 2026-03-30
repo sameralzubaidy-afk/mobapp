@@ -1,7 +1,7 @@
 // filepath: p2p-kids-marketplace/src/services/badgeUtils.ts
 
 import { supabase } from '../config/supabase';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
 export interface BadgeIconUploadResult {
@@ -28,7 +28,7 @@ export async function uploadBadgeIcon(
 
     // Read file as base64
     const base64 = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: 'base64',
+      encoding: FileSystem.EncodingType.Base64,
     });
 
     // Convert to ArrayBuffer

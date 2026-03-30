@@ -108,6 +108,10 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-05: Media Upload (Storage) – Listing Photos
 - Smoke: (manual)
   - Upload photo -> visible via signed/public URL as intended.
+  - **SAFETY-004 Hotfix (2026-03-29):** Expo filesystem + moderation log schema drift
+    - Mobile storage service switched to `expo-file-system/legacy` to remove SDK 54 deprecation warnings in runtime uploads.
+    - Added migration: `supabase/migrations/20260329000002_fix_ai_moderation_logs_schema_drift.sql` to guarantee `ai_moderation_logs.image_url` exists and trigger PostgREST schema cache reload.
+    - Edge Function hardening: `supabase/functions/moderate-image/index.ts` now retries moderation log insert for legacy schemas (`image_url`/`url`/`image_uri`, `flagged` compatibility).
   - **SAFETY-P001 (2026-03-28):** Item Images Bucket Creation
     - Bucket: `item-images` with 5MB file size limit
     - Allowed MIME types: image/jpeg, image/jpg, image/png, image/webp, image/gif
@@ -229,6 +233,44 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Cron job execution logs visible in cron.job_run_details
 - Tier: Tier 1 for Edge Function changes; Tier 2 if database schema or RLS policies change
 - Dependencies: INFRA-001 (Supabase setup), pg_cron extension enabled
+
+### FLOW-17: Google Vision Image Moderation – AI Safety Check (SAFETY-004)
+- Purpose: Automated image moderation for listing photos using Google Vision Safe Search API
+- Covers:
+  - Google Vision API integration via Edge Function
+  - Safe Search detection (adult, violence, racy, medical, spoof)
+  - Moderation log storage (ai_moderation_logs table)
+  - Automatic item flagging for unsafe content (LIKELY/VERY_LIKELY)
+  - Safety flags creation (item_safety_flags table)
+  - Item status update to 'flagged' for review
+  - Fire-and-forget async moderation (non-blocking)
+- Database:
+  - Tables: `ai_moderation_logs` (moderation results), `item_safety_flags` (safety flags)
+  - Migration: `supabase/migrations/306_ai_moderation_logs_table.sql`
+  - RLS: Admin read logs, service role write logs
+- Edge Function: `supabase/functions/moderate-image/index.ts`
+- Mobile Integration:
+  - Service: `p2p-kids-marketplace/src/services/imageModeration.ts`
+  - Called from `uploadListingImages()` in `listing.ts`
+  - Moderation runs after image upload completes
+  - Errors do not block listing creation (fail-open)
+- Manual Test Guide: `SAFETY-004-MANUAL-TESTING-GUIDE.md` (10 test cases)
+- Unit Tests: `p2p-kids-marketplace/src/__tests__/services/imageModeration.test.ts`
+- E2E Tests: `p2p-kids-marketplace/src/__tests__/e2e/safety-004-image-moderation.e2e.test.ts`
+- Maestro Flow: `p2p-kids-marketplace/.maestro/safety-004-image-moderation.yaml`
+- Smoke: (automated on image upload)
+  - Safe images pass moderation (decision='approved', confidence <0.5)
+  - Flagged images create safety flag and update item status to 'flagged'
+  - All moderation results logged with confidence scores and details
+  - Multiple images moderated sequentially
+  - Moderation failures do not crash app or block listing
+- Manual Verification:
+  - Admin can view moderation logs in admin portal (future)
+  - Flagged items visible in My Listings with safety review UI
+  - Seller receives notification when item is flagged
+- Tier: Tier 1 for Edge Function or service changes; Tier 2 if database schema or RLS policies change
+- Dependencies: SAFETY-P001 (item-images bucket), SAFETY-P002 (image upload), GOOGLE_VISION_API_KEY configured
+- Prerequisites: Google Cloud Vision API enabled and API key configured in Supabase Edge Function secrets
 
 ### FLOW-18: Admin Controls – Config + Overrides + Revenue Analytics + User Management
 - Purpose: Admin can configure platform settings, view revenue metrics, analytics, and manage users

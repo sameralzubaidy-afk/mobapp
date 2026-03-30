@@ -1,6 +1,6 @@
 // filepath: p2p-kids-marketplace/src/services/__tests__/badgeUtils.test.ts
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { supabase } from '../../config/supabase';
 import {
   uploadBadgeIcon,
@@ -11,7 +11,7 @@ import {
 
 // Mock dependencies
 jest.mock('../../config/supabase');
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   readAsStringAsync: jest.fn(),
   EncodingType: {
     Base64: 'base64',
