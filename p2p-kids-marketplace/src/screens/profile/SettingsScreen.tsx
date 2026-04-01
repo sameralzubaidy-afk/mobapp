@@ -21,6 +21,30 @@ export default function SettingsScreen({ navigation }: any) {
       icon: 'notifications-outline',
       onPress: () => navigation.navigate('NotificationPreferences'),
     },
+    {
+      id: 'terms',
+      title: 'Terms of Service',
+      subtitle: 'View our terms and conditions',
+      icon: 'document-text-outline',
+      onPress: () => navigation.navigate('TermsOfService'),
+      testID: 'settings-tos-button',
+    },
+    {
+      id: 'privacy-policy',
+      title: 'Privacy Policy',
+      subtitle: 'View our privacy policy',
+      icon: 'document-text-outline',
+      onPress: () => navigation.navigate('PrivacyPolicy'),
+      testID: 'settings-privacy-policy-button',
+    },
+    {
+      id: 'liability-disclaimer',
+      title: 'Liability Disclaimer',
+      subtitle: 'View our liability disclaimer',
+      icon: 'shield-outline',
+      onPress: () => navigation.navigate('LiabilityDisclaimer'),
+      testID: 'settings-liability-disclaimer-button',
+    },
     // Future settings can be added here
     {
       id: 'privacy',
@@ -47,6 +71,7 @@ export default function SettingsScreen({ navigation }: any) {
               key={option.id}
               style={styles.optionItem}
               onPress={option.onPress}
+              testID={option.testID}
             >
               <View style={styles.optionIconContainer}>
                 <Ionicons name={option.icon as any} size={24} color="#3B82F6" />

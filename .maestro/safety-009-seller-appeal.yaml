@@ -1,0 +1,176 @@
+# FLOW: Seller Appeal Workflow | TASK: SAFETY-009 | States covered: rejected-no-appeal, rejected-appeal-submitted, flagged-after-appeal
+# Prerequisites:
+# - User logged in as seller
+# - At least one rejected listing exists for this seller
+# - Listing has rejection_reason set by admin
+
+appId: com.p2pkidsmarketplace.app
+---
+
+# ===== PRECONDITION: Login as Seller =====
+- launchApp
+- tapOn:
+    id: "login-email-input"
+- inputText: "seller-test@example.com"
+- tapOn:
+    id: "login-password-input"
+- inputText: "TestPassword123!"
+- tapOn:
+    id: "login-submit-button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "home-screen"
+
+# ===== STEP 1: Navigate to My Listings =====
+- tapOn:
+    id: "bottom-nav-my-listings"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "My Listings"
+
+# ===== STEP 2: Open a Rejected Listing =====
+- tapOn:
+    id: "listing-card-rejected-*"  # Wildcard for any rejected listing
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Listing Safety Review"
+
+# ==== STATE 1: Rejected Listing (No Appeal Yet) ====
+- assertVisible:
+    text: "REJECTED"
+- assertVisible:
+    text: "Rejection Reason"
+- assertVisible:
+    id: "appeal-reason-input"
+- assertVisible:
+    id: "appeal-submit-button"
+
+# Verify appeal button is disabled (no reason entered yet)
+- assertVisible:
+    id: "appeal-submit-button"
+    enabled: false
+
+# ===== STEP 3: Enter Too Short Appeal Reason =====
+- tapOn:
+    id: "appeal-reason-input"
+- inputText: "Fixed"  # Only 5 characters (min is 10)
+- hideKeyboard
+- tapOn:
+    id: "appeal-submit-button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Appeal Reason Too Short"
+
+# Dismiss alert
+- tapOn:
+    text: "OK"
+- waitForAnimationToEnd
+
+# ===== STEP 4: Enter Valid Appeal Reason =====
+- tapOn:
+    id: "appeal-reason-input"
+- clearText
+- inputText: "I have corrected the safety concerns and updated the listing details as requested by the admin review."
+- hideKeyboard
+- waitForAnimationToEnd
+
+# Verify character counter
+- assertVisible:
+    text: "110/500 characters"
+
+# Verify appeal button is now enabled
+- assertVisible:
+    id: "appeal-submit-button"
+    enabled: true
+
+# ==== STATE 2: Submit Appeal ====
+- tapOn:
+    id: "appeal-submit-button"
+- waitForAnimationToEnd
+
+# Confirm alert
+- assertVisible:
+    text: "Submit Appeal"
+- assertVisible:
+    text: "This will send your listing back for admin review."
+- tapOn:
+    text: "Submit Appeal"
+- waitForAnimationToEnd
+
+# ==== STATE 3: Appeal Submitted Success ====
+- assertVisible:
+    text: "Appeal Submitted"
+- assertVisible:
+    text: "Your listing is back under review."
+- tapOn:
+    text: "OK"
+- waitForAnimationToEnd
+
+# ===== STEP 5: Verify Listing Now Flagged =====
+# After appeal, listing status should transition from rejected → flagged
+- assertVisible:
+    text: "FLAGGED"
+- assertNotVisible:
+    text: "REJECTED"
+- assertNotVisible:
+    id: "appeal-submit-button"  # Appeal button should not show for flagged items
+
+# ==== STATE 4: Verify Appeal Count Incremented ====
+- assertVisible:
+    text: "Appeals submitted"
+- assertVisible:
+    text: "1"  # Appeal count should be 1
+
+# ===== STEP 6: Verify Edit Button Still Available =====
+- assertVisible:
+    id: "edit-listing-button"
+    enabled: true
+- tapOn:
+    id: "edit-listing-button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Edit Listing"
+
+# Navigate back to safety review screen
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+
+# ===== STEP 7: Navigate Back to My Listings =====
+- tapOn:
+    id: "back-to-my-listings-button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "My Listings"
+
+# ===== STEP 8: Verify Listing Shows Flagged Status =====
+# The rejected listing should now show as flagged in my listings
+- assertVisible:
+    text: "FLAGGED"
+- assertNotVisible:
+    text: "REJECTED"
+
+# ===== FINAL VALIDATION: Appeal History Tracked =====
+# Re-open listing to verify appeal history
+- tapOn:
+    id: "listing-card-flagged-*"  # Now flagged, not rejected
+- waitForAnimationToEnd
+- assertVisible:
+    text: "Listing Safety Review"
+- assertVisible:
+    text: "Appeals submitted"
+- assertVisible:
+    text: "1"
+- assertVisible:
+    text: "Last flagged at"
+- assertVisible:
+    text: "Last rejected at"  # Previous rejection timestamp should still be visible
+
+# ===== SUCCESS: All States Covered =====
+# ✅ Rejected listing with no appeal
+# ✅ Appeal reason validation (too short)
+# ✅ Valid appeal submission
+# ✅ Listing transitions rejected → flagged
+# ✅ Appeal count incremented
+# ✅ Edit button available throughout
+# ✅ Appeal history preserved

@@ -30,6 +30,8 @@ import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { supabase } from '@/config/supabase';
 
 type TradeInitiationRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -49,6 +51,7 @@ export default function TradeInitiationScreen() {
   const [spAmount, setSpAmount] = useState(0);
   const [maxSpPercentage, setMaxSpPercentage] = useState(50);
   const [cardComplete, setCardComplete] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -113,7 +116,18 @@ export default function TradeInitiationScreen() {
   const cashAmountCents = (itemPriceCents - spDiscountCents) + platformFeeCents;
   const cashAmount = cashAmountCents / 100;
 
-  const handleInitiateTrade = async () => {
+  const handleConfirmPurchase = () => {
+    // Show disclaimer modal before trade initiation
+    setShowDisclaimer(true);
+  };
+
+  const handleDisclaimerAccept = async (policyId: string) => {
+    setShowDisclaimer(false);
+    // Proceed with trade initiation
+    await handleInitiateTrade(policyId);
+  };
+
+  const handleInitiateTrade = async (policyId?: string) => {
     if (!cardComplete && cashAmountCents > 0) {
       Alert.alert('Payment Required', 'Please enter your card details to continue.');
       return;
@@ -121,7 +135,7 @@ export default function TradeInitiationScreen() {
 
     try {
       setSubmitting(true);
-      
+
       // 1. Initiate Trade (creates 'pending' trade)
       const result = await initiateTradeV2({
         item_id: item.id,
@@ -135,9 +149,25 @@ export default function TradeInitiationScreen() {
 
       const tradeId = result.trade_id;
 
-      // 2. Handle Payment if cash is due
+      // 2. Record disclaimer acknowledgment (best effort)
+      if (policyId) {
+        try {
+          const { error: disclaimerError } = await supabase.rpc('acknowledge_trade_disclaimer', {
+            p_trade_id: tradeId,
+            p_disclaimer_policy_id: policyId,
+          });
+          
+          if (disclaimerError) {
+            console.warn('⚠️ Failed to record disclaimer acknowledgment:', disclaimerError);
+            // Don't block the trade, but log the warning
+          }
+        } catch (disclaimerErr) {
+          console.warn('⚠️ Disclaimer acknowledgment error:', disclaimerErr);
+        }
+      }
+
+      // 3. Handle Payment if cash is due
       if (cashAmountCents > 0) {
-        // Create Stripe PaymentMethod
         try {
           const { paymentMethod, error: pmError } = await createPaymentMethod({
             paymentMethodType: 'Card',
@@ -158,13 +188,14 @@ export default function TradeInitiationScreen() {
                 'Payment system is not properly configured. Please contact support or try again later.',
                 [
                   { text: 'OK' },
-                  { 
-                    text: 'Try Development Build', 
-                    onPress: () => Alert.alert(
-                      'Development Build Required',
-                      'For full payment testing, run:\n\nexpo run:android\n\ninstead of Expo Go.'
-                    )
-                  }
+                  {
+                    text: 'Try Development Build',
+                    onPress: () =>
+                      Alert.alert(
+                        'Development Build Required',
+                        'For full payment testing, run:\n\nexpo run:android\n\ninstead of Expo Go.'
+                      ),
+                  },
                 ]
               );
             } else {
@@ -178,7 +209,6 @@ export default function TradeInitiationScreen() {
             return;
           }
 
-          // 3. Orchestrate Payment via Edge Function (Atomic Stripe + SP)
           const paymentResult = await processTradePayment(tradeId, paymentMethod.id);
 
           if (!paymentResult.success) {
@@ -195,7 +225,7 @@ export default function TradeInitiationScreen() {
         }
       }
 
-      // 4. Success!
+      // 4. Success
       navigation.replace('TradeSuccess', { tradeId });
     } catch (error: any) {
       Alert.alert('Error', error.message || 'An unexpected error occurred');
@@ -388,8 +418,9 @@ export default function TradeInitiationScreen() {
           </Text>
           <Pressable
             style={[styles.confirmButton, submitting && styles.confirmButtonDisabled]}
-            onPress={handleInitiateTrade}
+            onPress={handleConfirmPurchase}
             disabled={submitting}
+            testID="confirm-trade-button"
           >
             {submitting ? (
               <ActivityIndicator color="#fff" />
@@ -406,6 +437,14 @@ export default function TradeInitiationScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Disclaimer Modal */}
+      <DisclaimerModal
+        visible={showDisclaimer}
+        onAccept={handleDisclaimerAccept}
+        onCancel={() => setShowDisclaimer(false)}
+        testID="trade-disclaimer-modal"
+      />
     </SafeAreaView>
   );
 }

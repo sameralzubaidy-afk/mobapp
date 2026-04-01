@@ -14,3 +14,6 @@
 - `.maestro/safety-p003-item-flagging.yaml` - Item flagging and rejection status (SAFETY-P003).
 - `.maestro/safety-002-cpsc-recall-matching.yaml` - CPSC recall matching on listing creation (SAFETY-002).
 - `.maestro/safety-004-image-moderation.yaml` - Google Vision AI image moderation (SAFETY-004).
+- `.maestro/tos-system.yaml` - Terms of Service view from Settings and acceptance from Signup (SAFETY-010).
+- `.maestro/privacy-policy-system.yaml` - Privacy Policy view from Settings and Signup link navigation (SAFETY-011).
+- `.maestro/liability-disclaimer-flow.yaml` - Liability Disclaimer view from Settings and mandatory acknowledgment during trade (SAFETY-012).

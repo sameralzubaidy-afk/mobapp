@@ -102,6 +102,77 @@ This file is the canonical registry of end-to-end flows and their required regre
       - Unit tests:
         - `p2p-kids-marketplace/src/services/__tests__/listing-appeal.test.ts`
         - `p2p-kids-marketplace/src/__tests__/screens/MyListingsScreen.test.tsx`
+  - **SAFETY-008 (2026-03-30):** Admin review workflow includes Request Edits action
+    - Existing admin route retained: `/items/flagged`
+    - API route extended: `p2p-kids-admin/src/app/api/admin/items/[id]/status/route.ts`
+    - Admin UI extended in-place: `p2p-kids-admin/src/app/items/flagged/page.tsx`
+    - New status supported: `needs_edits`
+    - Seller notification trigger extended via migration: `supabase/migrations/20260330000001_safety_008_request_edits_status.sql`
+    - Unit tests: `p2p-kids-admin/src/lib/__tests__/itemModerationStatus.test.ts`
+    - E2E tests: `p2p-kids-admin/__tests__/e2e/items-flagged-status.e2e.test.ts`
+    - Maestro flow: `.maestro/safety-008-admin-review-request-edits.yaml`
+  - **SAFETY-009 (2026-03-31):** Seller Appeal Workflow (Resubmit with Changes)
+    - Purpose: Allow sellers to appeal rejected listings, edit and resubmit for admin review with tracking of appeal history
+    - Scope:
+      - Seller can view rejection reason on safety review screen for rejected listings
+      - Seller provides appeal reason text (min 10 chars) explaining why listing should be reviewed again
+      - Appeal transitions item from `rejected` → `flagged` (re-enters moderation queue)
+      - Admin sees appeal count and latest appeal note in moderation queue
+      - Appeal history tracked via `items.appeal_count`, `items.appeal_reason`, `items.appealed_at`
+    - Database:
+      - Tables: `items` (with `appeal_count`, `appeal_reason`, `appealed_at` columns added in migration 302)
+      - Migration: `supabase/migrations/302_safety_p003_add_appeal_reason.sql` (already exists from SAFETY-P003)
+      - Index: `idx_items_appealed_at_flagged` for admin review queue performance
+    - Mobile App:
+      - Service function: `submitListingAppeal(listing_id, seller_id, appeal_reason)` in `p2p-kids-marketplace/src/services/listing.ts`
+        - Validates appeal reason (not empty, min 10 chars)
+        - Checks listing exists and user is seller
+        - Validates status is 'rejected'
+        - Updates: `status='flagged'`, `flagged_at=NOW()`, `appealed_at=NOW()`, `appeal_reason=text`, increments `appeal_count`
+        - Returns updated listing
+      - UI screen: `p2p-kids-marketplace/src/screens/listing/ListingSafetyReviewScreen.tsx`
+        - Displays rejection reason for rejected listings
+        - Appeal text input with character counter (0/500)
+        - Submit appeal button (disabled when reason empty or too short)
+        - Confirmation alert before submission
+        - Success feedback after appeal submitted
+        - Edit Listing and Back to My Listings navigation buttons
+      - Navigation: `ListingSafetyReview` route in `src/navigation/types.ts` (with param `{ listing_id: string }`)
+    - Admin Portal:
+      - Route: `p2p-kids-admin/src/app/items/flagged/page.tsx`
+      - Displays: appeal count, latest appeal note in moderation queue table
+      - Actions: Review button opens modal with approve/reject options
+    - Unit Tests:
+      - `p2p-kids-marketplace/src/__tests__/screens/ListingSafetyReviewScreen.test.tsx`
+        - Coverage: loading state, error state (listing not found), flagged listing (no appeal UI), rejected listing (with appeal UI), appeal button enabled when reason valid, submitting appeal, edit listing navigation, back to my listings navigation, not owner error
+        - State matrix: 9 test cases covering all interaction states
+    - E2E Tests:
+      - `p2p-kids-marketplace/src/__tests__/integration/safety-009-seller-appeal.e2e.test.ts`
+        - Requires: `RUN_SUPABASE_E2E=true` environment variable
+        - Coverage: submit appeal and transition rejected→flagged, reject empty/short appeal reasons (validation), reject unauthorized appeals (not seller), track appeal history with multiple appeals, verify DB state after each operation
+        - 6 comprehensive test cases against real Supabase
+    - Maestro Flow:
+      - `.maestro/safety-009-seller-appeal.yaml`
+        - States covered: rejected-no-appeal, rejected-appeal-submitted, flagged-after-appeal
+        - Steps: login as seller → my listings → open rejected listing → validate too short appeal (5 chars) → submit valid appeal (110 chars) → verify status transition to flagged → verify appeal count incremented
+        - 8 major steps with assertions at each transition
+    - Manual Testing Guide:
+      - `SAFETY-009-MANUAL-TESTING-GUIDE.md`
+        - Preconditions: SQL to create test seller and rejected listing
+        - Test cases: TC-001 to TC-012 covering: view rejected listing, open safety review screen, rejection reason display, appeal validation (empty/too short), character counter, submit appeal, DB verification, admin queue visibility, multiple appeals, edit listing navigation
+        - Cleanup: SQL to remove test data
+        - Troubleshooting: common issues (Supabase connection, test user not found, rejected listing not visible)
+        - Sign-off checklist
+    - Dependencies:
+      - SAFETY-P003 (items.status extension to include 'flagged' and 'rejected')
+      - Migration 301 (status extension)
+      - Migration 302 (appeal metadata columns)
+    - Tier Classification:
+      - Tier 0: Always (lint + typecheck + unit tests)
+      - Tier 1: When service/UI changes (targeted E2E + Maestro)
+      - Tier 2: Not required (no DB migration changes; existing migrations 301/302 already applied)
+    - Module: MODULE-13-SAFETY-COMPLIANCE (TASK P009: Seller Appeal Workflow)
+    - Verification: See `Prompts/MODULE-13-VERIFICATION.md` for completion criteria
 - Automated (offline): Jest covers listing service lifecycle + SP gating.
 - E2E (Supabase prod): `p2p-kids-marketplace/src/__tests__/e2e/referral-listing-bonus.e2e.ts` covers referral listing bonus awarding end-to-end.
 
@@ -1134,3 +1205,536 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Test users with valid email addresses and push tokens
   - Admin user with role='admin' in database
   - Storage bucket `id-badge-verification-screenshots` with proper RLS policies
+
+### FLOW-31: Terms of Service (TOS) System — SAFETY-010
+
+- Purpose: Admin-managed Terms of Service system enabling version-controlled TOS publishing, user acceptance tracking, and legal compliance. Admins create, edit, and publish TOS versions; users accept during signup and can view in Settings. System tracks acceptance history with IP/user-agent for audit trail.
+
+- Covers:
+  - Admin TOS policy management (create, edit, publish, archive)
+  - Version-controlled policy storage (supports TOS, Privacy Policy, Liability Disclaimer types)
+  - User acceptance during signup flow (required before account creation)
+  - User TOS viewing from Settings (read-only mode)
+  - Acceptance tracking with IP address and user-agent metadata
+  - Status transitions: draft → published → archived
+  - RPC functions for policy retrieval and acceptance recording
+
+- Database Schema (Migration `304_platform_policies_tos.sql`):
+  - `platform_policies` table: `id`, `type` (enum: terms_of_service | privacy_policy | liability_disclaimer), `version`, `title`, `content` (Markdown), `status` (enum: draft | published | archived), `effective_date`, `created_at`, `updated_at`, `created_by`, UNIQUE constraint on (type, version)
+  - `policy_acceptances` table: `id`, `user_id` (FK to profiles), `policy_id` (FK to platform_policies), `policy_type`, `policy_version`, `accepted_at`, `ip_address`, `user_agent`, `device_info`
+  - RPC functions:
+    - `get_current_policy(p_policy_type)` → returns published policy for given type
+    - `has_accepted_current_policy(p_user_id, p_policy_type)` → boolean check
+    - `record_policy_acceptance(p_user_id, p_policy_id, p_ip_address, p_user_agent, p_device_info)` → insert acceptance with metadata
+    - `publish_policy(p_policy_id, p_published_by)` → status transition + archive old published versions
+  - RLS Policies:
+    - Published policies visible to all authenticated users
+    - Draft/archived policies visible to admins only
+    - Users can SELECT own acceptances
+    - Admins can SELECT all acceptances
+    - INSERT/UPDATE policies restricted to admins only
+
+- Admin Portal Pages:
+  - `/settings/policies` — `p2p-kids-admin/src/app/settings/policies/page.tsx` 
+    - Tabs for TOS, Privacy Policy, Liability Disclaimer
+    - List view with status badges, version numbers, effective dates
+    - Create, View, Edit, Publish actions per policy
+  - `/settings/policies/new` — `p2p-kids-admin/src/app/settings/policies/new/page.tsx`
+    - Form: policy type dropdown, version input (X.Y or X.Y.Z format), title, effective date, content (Markdown textarea)
+    - Validation: version format, required fields
+  - `/settings/policies/[id]` — `p2p-kids-admin/src/app/settings/policies/[id]/page.tsx`
+    - View policy details (metadata + content)
+    - Publish button for draft policies (calls `publish_policy` RPC)
+
+- Mobile App Integration:
+  - `TermsOfServiceScreen.tsx` — dual-mode screen:
+    - Read-only mode (from Settings): displays current TOS, no action buttons
+    - Acceptance mode (from Signup): displays TOS with Accept/Decline buttons
+    - Params: `{ requireAcceptance?: boolean; onAccept?: () => void }`
+    - ScrollView for full content display
+    - Accept button calls `TOSService.acceptTOS()` and invokes `onAccept()` callback
+    - Decline button navigates back (signup flow aborted)
+  - `TOSService` (`src/services/tos.ts`):
+    - `getCurrentTOS()` → fetch current published TOS
+    - `hasAcceptedCurrentTOS(userId)` → check acceptance status
+    - `acceptTOS(userId, policyId, metadata)` → record acceptance with IP/user-agent
+    - `getUserAcceptanceHistory(userId)` → fetch user's acceptance history
+    - `getAllPublishedPolicies()` → fetch all published policies (for settings)
+  - Navigation updates:
+    - `types.ts` — added `TermsOfService: { requireAcceptance?: boolean; onAccept?: () => void } | undefined`
+    - `AppNavigator.tsx` — registered `TermsOfService` screen in authenticated stack
+    - `SettingsScreen.tsx` — added "Terms of Service" menu item with testID `settings-tos-button`
+    - `SignupScreen.tsx` — made TOS link tappable (navigates to TermsOfService screen with requireAcceptance=true)
+
+- Automated Tests:
+  - Unit (Jest): `p2p-kids-marketplace/src/__tests__/services/tos.test.ts`
+    - 5 test suites covering all TOSService methods (15+ test cases)
+    - Mocked Supabase client for offline execution
+    - Run: `npm run test:unit -- tos.test.ts`
+  - E2E (Jest, Supabase prod): `e2e/tos-system.integration.test.ts`
+    - 5 test cases: admin CRUD, policy publish, user acceptance, RLS enforcement
+    - Requires `RUN_SUPABASE_E2E=true` and real Supabase credentials
+    - Run: `RUN_SUPABASE_E2E=true npm run test:e2e -- tos-system.integration.test.ts`
+  - Maestro UI Flow: `.maestro/tos-system.yaml`
+    - 4 flows: Settings view, Signup acceptance (happy path), Decline flow, Error state handling
+    - Uses testID locators: `settings-tos-button`, `tos-screen-title`, `tos-accept-button`, `tos-decline-button`
+    - Run: `npm run test:maestro:ios -- .maestro/tos-system.yaml` or `npm run test:maestro:android -- .maestro/tos-system.yaml`
+
+- Manual Test Guide: `SAFETY-010-MANUAL-TESTING-GUIDE.md`
+  - 20+ test cases across 6 sections:
+    - Pre-test Setup (SQL queries to seed initial TOS policy)
+    - Admin Portal TCs (7 cases): Create, Edit, Publish, Archive, Version validation, Multiple types, Search/filter
+    - Mobile App TCs (7 cases): Settings view, Signup acceptance, Decline flow, Acceptance tracking, Metadata capture, History view, Error handling
+    - Edge Cases (4 cases): Multiple versions, Concurrent publishes, Missing policy, Duplicate acceptance
+    - RPC Functions (4 cases): Direct RPC calls for get_current_policy, has_accepted_current_policy, record_policy_acceptance, publish_policy
+    - RLS Policies (3 cases): User visibility, Admin visibility, Write permissions
+  - Sign-off checklist with SQL verification queries
+  - Expected results documented for each test case
+
+- Tier 0 (always):
+  - Mobile: `cd p2p-kids-marketplace && npm run typecheck && npm run lint` (must pass)
+  - Admin: `cd p2p-kids-admin && npm run typecheck && npm run lint` (must pass)
+  - Unit tests: `cd p2p-kids-marketplace && npm run test:unit -- tos.test.ts` (all pass)
+
+- Tier 1 (when mobile UI or admin API changes):
+  - Run TC-01 to TC-14 from `SAFETY-010-MANUAL-TESTING-GUIDE.md`
+  - Verify navigation flows (Settings → TOS, Signup → TOS acceptance)
+  - Verify testID props render correctly for Maestro
+
+- Tier 2 (when SQL migration or RPC changes):
+  - Apply migration: `supabase/migrations/304_platform_policies_tos.sql`
+  - Verify tables: `SELECT table_name FROM information_schema.tables WHERE table_name IN ('platform_policies', 'policy_acceptances');`
+  - Verify RPC functions: `SELECT proname FROM pg_proc WHERE proname IN ('get_current_policy', 'has_accepted_current_policy', 'record_policy_acceptance', 'publish_policy');`
+  - Run all 20+ test cases from manual test guide
+  - Run E2E: `RUN_SUPABASE_E2E=true npm run test:e2e -- tos-system.integration.test.ts`
+
+- Quick Manual Smoke (happy path):
+  1. Admin: Log in to admin portal → `/settings/policies` → "Create New Policy"
+  2. Fill form: type=terms_of_service, version=1.0, title="Terms of Service", effective_date=today, content="Test TOS content"
+  3. Submit → verify policy created with status=draft
+  4. View policy → click "Publish" → verify status transitions to published
+  5. Query: `SELECT * FROM platform_policies WHERE type='terms_of_service' AND status='published' ORDER BY created_at DESC LIMIT 1;`
+  6. Mobile: Settings → "Terms of Service" → verify content displays
+  7. Mobile: Signup flow (new user) → tap TOS link → verify acceptance UI shows (Accept/Decline buttons)
+  8. Tap "Accept" → verify acceptance recorded
+  9. Query: `SELECT * FROM policy_acceptances WHERE user_id='[test_user_id]' ORDER BY accepted_at DESC LIMIT 1;`
+  10. Verify: `policy_id` matches published policy, `ip_address` and `user_agent` populated
+
+- Quick Manual Smoke (decline path):
+  1. Mobile: Signup → tap TOS link → tap "Decline" → verify navigates back to signup
+  2. Verify: No acceptance record created (signup aborted)
+
+- Change Classification: A (DB/RPC), B (Admin API), C (Mobile UI), G (Safety/compliance)
+- Required Tiers: 0 (always) + 1 (UI/API) + 2 (SQL migration applied)
+- Impacted Modules: MODULE-13-SAFETY-COMPLIANCE (SAFETY-010)
+
+- Dependencies:
+  - `auth.users` table (Supabase Auth)
+  - `profiles` table (user metadata)
+  - Admin authentication with role-based access
+  - Mobile navigation (React Navigation stack)
+
+- Verification Checklist Mapping (MODULE-13-VERIFICATION.md SAFETY-010):
+  - ✅ **TOS-1**: Database schema created (platform_policies, policy_acceptances tables)
+  - ✅ **TOS-2**: RPC functions implemented (4 functions with correct signatures)
+  - ✅ **TOS-3**: RLS policies enforced (admins full access, users see published only)
+  - ✅ **TOS-4**: Admin UI complete (create, edit, publish, archive workflows)
+  - ✅ **TOS-5**: Mobile TOS screen functional (dual-mode: read-only + acceptance)
+  - ✅ **TOS-6**: Signup integration (TOS link tappable, acceptance required)
+  - ✅ **TOS-7**: Settings integration (TOS menu item, read-only display)
+  - ✅ **TOS-8**: Acceptance tracking (IP, user-agent, device_info captured)
+  - ✅ **TOS-9**: Version control (UNIQUE constraint, publish workflow archives old versions)
+  - ✅ **TOS-10**: Unit tests (TOSService fully tested with mocked Supabase)
+  - ✅ **TOS-11**: E2E tests (5 scenarios covering admin CRUD and user acceptance)
+  - ✅ **TOS-12**: Maestro UI flows (4 flows covering all user paths)
+  - ✅ **TOS-13**: Manual test guide (20+ test cases with SQL verification)
+
+- Known Limitations:
+  - IP address capture depends on client providing it (defaults to null if unavailable)
+  - User-agent parsing done client-side (not validated server-side)
+  - No automatic TOS re-acceptance flow when new version published (user can continue using app)
+  - Markdown rendering in mobile app uses basic Text component (no rich Markdown parser)
+  - Admin portal uses textarea for content (no WYSIWYG editor)
+
+- Future Enhancements:
+  - Force re-acceptance flow when new TOS version published
+  - Rich Markdown editor in admin portal (with preview)
+  - Markdown renderer in mobile app (formatted display)
+  - Acceptance expiration/re-acceptance requirements
+  - User notification when new TOS published
+  - Admin analytics (acceptance rates, time-to-accept)
+
+---
+
+### FLOW-32: Privacy Policy System — SAFETY-011
+
+- Purpose: Admin-managed Privacy Policy system enabling version-controlled policy publishing, user acceptance tracking, and GDPR/CCPA compliance. Admins create, edit, and publish Privacy Policy versions; users view in Settings and can accept during signup (optional). System tracks acceptance history with IP/user-agent for audit trail. Reuses complete platform_policies infrastructure from SAFETY-010.
+
+- Covers:
+  - Admin Privacy Policy management (create, edit, publish, archive)
+  - Version-controlled policy storage (reuses `platform_policies` table with type='privacy_policy')
+  - User Privacy Policy viewing from Settings (read-only mode)
+  - Optional user acceptance during signup flow (configurable per flow)
+  - Acceptance tracking with IP address and user-agent metadata
+  - Status transitions: draft → published → archived
+  - RPC functions for policy retrieval and acceptance recording (shared with SAFETY-010)
+
+- Database Schema (Reuses Migration `304_platform_policies_tos.sql` from SAFETY-010):
+  - `platform_policies` table: Already supports `type='privacy_policy'` (enum includes: terms_of_service | privacy_policy | liability_disclaimer)
+  - `policy_acceptances` table: Tracks acceptances for all policy types including Privacy Policy
+  - RPC functions (shared with SAFETY-010):
+    - `get_current_policy(p_policy_type)` → returns published policy for given type (call with 'privacy_policy')
+    - `has_accepted_current_policy(p_user_id, p_policy_type)` → boolean check for Privacy Policy acceptance
+    - `record_policy_acceptance(p_user_id, p_policy_id, p_ip_address, p_user_agent, p_device_info)` → insert acceptance with metadata
+    - `publish_policy(p_policy_id, p_published_by)` → status transition + archive old published versions
+  - RLS Policies: Same as SAFETY-010 (published policies visible to all, draft/archived admin-only)
+
+- Admin Portal Pages (Reuses SAFETY-010 UI):
+  - `/settings/policies` — `p2p-kids-admin/src/app/settings/policies/page.tsx` 
+    - Already supports Privacy Policy tab (implemented in SAFETY-010)
+    - List view with status badges, version numbers, effective dates
+    - Create, View, Edit, Publish actions per policy
+  - `/settings/policies/new` — `p2p-kids-admin/src/app/settings/policies/new/page.tsx`
+    - Form: policy type dropdown includes 'privacy_policy' option
+    - Validation: version format, required fields
+  - `/settings/policies/[id]` — `p2p-kids-admin/src/app/settings/policies/[id]/page.tsx`
+    - View policy details (metadata + content)
+    - Publish button for draft policies (calls `publish_policy` RPC)
+
+- Mobile App Integration (NEW for SAFETY-011):
+  - `PrivacyPolicyScreen.tsx` — dual-mode screen (mirrors TOS pattern):
+    - Read-only mode (from Settings): displays current Privacy Policy, no action buttons
+    - Acceptance mode (optional): displays Privacy Policy with Accept button
+    - Params: `{ requireAcceptance?: boolean; onAccept?: () => void }`
+    - ScrollView for full content display
+    - Accept button calls `PrivacyPolicyService.acceptPrivacyPolicy()` and invokes `onAccept()` callback
+    - Uses `react-native-markdown-display` for Markdown rendering
+  - `PrivacyPolicyService` (`src/services/privacyPolicy.ts`):
+    - `getCurrentPrivacyPolicy()` → fetch current published Privacy Policy (calls `get_current_policy('privacy_policy')`)
+    - `hasAcceptedCurrentPrivacyPolicy(userId)` → check acceptance status (calls `has_accepted_current_policy(userId, 'privacy_policy')`)
+    - `acceptPrivacyPolicy(userId, policyId, metadata)` → record acceptance with IP/user-agent (calls `record_policy_acceptance`)
+    - `getUserAcceptanceHistory(userId)` → fetch user's Privacy Policy acceptance history
+  - Navigation updates:
+    - `types.ts` — added `PrivacyPolicy: { requireAcceptance?: boolean; onAccept?: () => void } | undefined`
+    - `AppNavigator.tsx` — registered `PrivacyPolicy` screen in authenticated stack (after TermsOfService)
+    - `SettingsScreen.tsx` — added "Privacy Policy" menu item with testID `settings-privacy-policy-button` (placed after TOS, before Privacy & Security)
+    - `SignupScreen.tsx` — fixed Privacy Policy link (was incorrectly pointing to TermsOfService screen) → now navigates to `PrivacyPolicy` screen with testID `privacy-policy-link`
+
+- Automated Tests:
+  - Unit (Jest): `p2p-kids-marketplace/src/__tests__/services/privacyPolicy.test.ts`
+    - 8 test cases covering all PrivacyPolicyService methods (getCurrentPrivacyPolicy, hasAcceptedCurrentPrivacyPolicy, acceptPrivacyPolicy, getUserAcceptanceHistory)
+    - Mocked Supabase client for offline execution
+    - Run: `npm run test:unit -- privacyPolicy.test.ts`
+  - Unit (Jest): `p2p-kids-marketplace/src/screens/profile/__tests__/PrivacyPolicyScreen.test.tsx`
+    - 4 test groups covering loading state, policy display, error states, acceptance flow
+    - Mocked navigation, PrivacyPolicyService, Markdown renderer
+    - Run: `npm run test:unit -- PrivacyPolicyScreen.test.tsx`
+  - E2E (Jest, Supabase prod): `e2e/safety-011-privacy-policy.integration.test.ts`
+    - 5 test groups: Privacy Policy Retrieval, Privacy Policy Acceptance, RPC Functions, Database Schema Validation
+    - Creates test user with dynamic email, cleans up after tests
+    - Requires `RUN_SUPABASE_E2E=true` and real Supabase credentials
+    - Run: `RUN_SUPABASE_E2E=true npm run test:e2e -- safety-011-privacy-policy.integration.test.ts`
+  - Maestro UI Flow: `.maestro/privacy-policy-system.yaml`
+    - 3 flows: Settings view, Signup link navigation, Error state handling (no policy available)
+    - Uses testID locators: `settings-privacy-policy-button`, `privacy-policy-link`, `privacy-policy-screen`, `privacy-policy-version`, `privacy-policy-content`, `privacy-policy-accept-button`
+    - Run: `npm run test:maestro:ios -- .maestro/privacy-policy-system.yaml` or `npm run test:maestro:android -- .maestro/privacy-policy-system.yaml`
+
+- Manual Test Guide: `SAFETY-011-PRIVACY-POLICY-MANUAL-TESTING-GUIDE.md`
+  - 10 test cases across 3 sections:
+    - Admin Portal (1 case): Create and publish Privacy Policy using admin UI
+    - Mobile App Navigation & Display (5 cases): Settings view, Signup link, Acceptance flow, Version management, Error handling
+    - Markdown Rendering & Cross-Platform (4 cases): Markdown formatting, navigation integrity, iOS/Android consistency, performance
+  - Pre-test Setup: SQL query to verify Privacy Policy exists (`SELECT * FROM platform_policies WHERE type='privacy_policy' AND status='published'`)
+  - Sign-off checklist with SQL verification queries
+  - Expected results documented for each test case with testIDs
+
+- Tier 0 (always):
+  - Mobile: `cd p2p-kids-marketplace && npm run typecheck && npm run lint` (must pass)
+  - Unit tests: `cd p2p-kids-marketplace && npm run test:unit -- privacyPolicy.test.ts` (all pass)
+  - Component tests: `cd p2p-kids-marketplace && npm run test:unit -- PrivacyPolicyScreen.test.tsx` (all pass)
+
+- Tier 1 (when mobile UI or service changes):
+  - Run TC-01 to TC-10 from `SAFETY-011-PRIVACY-POLICY-MANUAL-TESTING-GUIDE.md`
+  - Verify navigation flows (Settings → Privacy Policy, Signup → Privacy Policy link)
+  - Verify testID props render correctly for Maestro
+  - Run Maestro flows: `npm run test:maestro:ios -- .maestro/privacy-policy-system.yaml`
+
+- Tier 2 (when SQL migration or RPC changes — not applicable for SAFETY-011):
+  - No new migrations (reuses SAFETY-010 schema)
+  - If SAFETY-010 schema changes in future, run full regression for both TOS and Privacy Policy
+
+- Quick Manual Smoke (happy path):
+  1. Admin: Log in to admin portal → `/settings/policies` → "Create New Policy"
+  2. Fill form: type=privacy_policy, version=1.0, title="Privacy Policy", effective_date=today, content="Test Privacy Policy content"
+  3. Submit → verify policy created with status=draft
+  4. View policy → click "Publish" → verify status transitions to published
+  5. Query: `SELECT * FROM platform_policies WHERE type='privacy_policy' AND status='published' ORDER BY created_at DESC LIMIT 1;`
+  6. Mobile: Settings → "Privacy Policy" → verify content displays
+  7. Mobile: Signup flow → tap Privacy Policy link → verify Privacy Policy displays
+  8. Query: `SELECT * FROM policy_acceptances WHERE policy_type='privacy_policy' ORDER BY accepted_at DESC;`
+
+- Quick Manual Smoke (Settings navigation):
+  1. Mobile: Login → Settings → "Privacy Policy" → verify Privacy Policy screen renders
+  2. Verify: testID `privacy-policy-screen` exists, content visible, back button works
+  3. Verify: No acceptance button in read-only mode (requireAcceptance=false)
+
+- Change Classification: C (Mobile UI only — reuses existing DB/Admin infrastructure)
+- Required Tiers: 0 (always) + 1 (UI changes only)
+- Impacted Modules: MODULE-13-SAFETY-COMPLIANCE (SAFETY-011)
+
+- Dependencies:
+  - SAFETY-010 (TOS System) — reuses `platform_policies`, `policy_acceptances` tables and all RPC functions
+  - `auth.users` table (Supabase Auth)
+  - `profiles` table (user metadata)
+  - Admin authentication with role-based access (already implemented in SAFETY-010)
+  - Mobile navigation (React Navigation stack)
+  - `react-native-markdown-display` library for Markdown rendering
+
+- Verification Checklist Mapping (MODULE-13-VERIFICATION.md SAFETY-011):
+  - ✅ **PP-1**: Confirmed existing platform_policies table supports privacy_policy type (no schema changes)
+  - ✅ **PP-2**: Confirmed RPC functions accept policy_type parameter (get_current_policy, has_accepted_current_policy, record_policy_acceptance)
+  - ✅ **PP-3**: Confirmed admin UI supports Privacy Policy management (p2p-kids-admin/src/app/settings/policies/page.tsx)
+  - ✅ **PP-4**: Mobile Privacy Policy screen created (PrivacyPolicyScreen.tsx with dual-mode: read-only + acceptance)
+  - ✅ **PP-5**: Mobile service layer implemented (PrivacyPolicyService with 4 methods)
+  - ✅ **PP-6**: Settings integration (Privacy Policy menu item after TOS with testID `settings-privacy-policy-button`)
+  - ✅ **PP-7**: Signup link fixed (now navigates to PrivacyPolicy screen with testID `privacy-policy-link`)
+  - ✅ **PP-8**: Navigation configured (types.ts + AppNavigator.tsx with PrivacyPolicy route)
+  - ✅ **PP-9**: Unit tests for service (8 test cases in privacyPolicy.test.ts)
+  - ✅ **PP-10**: Unit tests for component (4 test groups in PrivacyPolicyScreen.test.tsx)
+  - ✅ **PP-11**: E2E integration tests (5 test groups in safety-011-privacy-policy.integration.test.ts)
+  - ✅ **PP-12**: Maestro UI flows (3 flows in privacy-policy-system.yaml)
+  - ✅ **PP-13**: Manual test guide (10 test cases with SQL verification)
+
+- Known Limitations:
+  - Acceptance is optional by default (not required for signup — differs from TOS)
+  - IP address capture depends on client providing it (defaults to null if unavailable)
+  - User-agent parsing done client-side (not validated server-side)
+  - No automatic re-acceptance flow when new version published
+  - Markdown rendering uses `react-native-markdown-display` (basic formatting only)
+
+- Future Enhancements:
+  - Required Privacy Policy acceptance hooks (if regulatory requirements change)
+  - User notification when new Privacy Policy published
+  - Diff view showing changes between versions
+  - Privacy Policy changelog/version history in mobile app
+  - Admin analytics (view rates, acceptance rates)
+
+---
+
+### FLOW-33: Liability Disclaimer System — SAFETY-012
+
+- Purpose: Admin-managed Liability Disclaimer system displayed during trade initiation requiring mandatory buyer acknowledgment before finalizing purchase. Admins create, edit, and publish Liability Disclaimer versions; users **must** acknowledge on each trade (modal with checkbox validation). System tracks per-transaction acknowledgment in trades table plus historical audit trail in policy_acceptances. Reuses complete platform_policies infrastructure from SAFETY-010.
+
+- Covers:
+  - Admin Liability Disclaimer management (create, edit, publish, archive)
+  - Version-controlled policy storage (reuses `platform_policies` table with type='liability_disclaimer')
+  - **Mandatory** user acknowledgment during trade initiation (blocking modal with checkbox)
+  - Per-transaction tracking in `trades` table (disclaimer_acknowledged, disclaimer_policy_id, disclaimer_acknowledged_at)
+  - Full audit trail in `policy_acceptances` table (with IP address and user-agent metadata)
+  - User Liability Disclaimer viewing from Settings (read-only reference mode)
+  - Status transitions: draft → published → archived
+  - RPC functions for policy retrieval and transaction-specific acknowledgment recording
+
+- Database Schema:
+  - Migration `307_liability_disclaimer_tracking.sql` (NEW for SAFETY-012):
+    - ALTER TABLE `trades` adds:
+      - `disclaimer_acknowledged` BOOLEAN NOT NULL DEFAULT FALSE
+      - `disclaimer_policy_id` UUID REFERENCES platform_policies(id) ON DELETE SET NULL
+      - `disclaimer_acknowledged_at` TIMESTAMPTZ
+    - Indexes: `idx_trades_disclaimer_policy_id`, `idx_trades_disclaimer_acknowledged`
+    - RPC function: `acknowledge_trade_disclaimer(p_trade_id UUID, p_disclaimer_policy_id UUID)`
+      - Validates: user owns trade (buyer_id = auth.uid()), policy exists and is published, trade is in 'pending' or 'confirmed' status
+      - Updates: trades table disclaimer columns
+      - Inserts: policy_acceptances row with IP/user-agent metadata
+      - Returns: success boolean with error messages
+      - Uses transaction for atomicity (BEGIN...COMMIT)
+  - Reuses from SAFETY-010 Migration `304_platform_policies_tos.sql`:
+    - `platform_policies` table: Already supports `type='liability_disclaimer'` (enum includes: terms_of_service | privacy_policy | liability_disclaimer)
+    - `policy_acceptances` table: Tracks acceptances for all policy types including Liability Disclaimer
+    - RPC functions:
+      - `get_current_policy(p_policy_type)` → returns published policy for given type (call with 'liability_disclaimer')
+      - `has_accepted_current_policy(p_user_id, p_policy_type)` → boolean check (optional for lifetime check)
+      - `record_policy_acceptance(p_user_id, p_policy_id, p_ip_address, p_user_agent, p_device_info)` → insert acceptance with metadata (called by acknowledge_trade_disclaimer)
+      - `publish_policy(p_policy_id, p_published_by)` → status transition + archive old published versions
+    - RLS Policies: Same as SAFETY-010 (published policies visible to all, draft/archived admin-only)
+
+- Admin Portal Pages (Reuses SAFETY-010 UI):
+  - `/settings/policies` — `p2p-kids-admin/src/app/settings/policies/page.tsx` 
+    - Already supports Liability Disclaimer tab (implemented in SAFETY-010)
+    - List view with status badges, version numbers, effective dates
+    - Create, View, Edit, Publish actions per policy
+  - `/settings/policies/new` — `p2p-kids-admin/src/app/settings/policies/new/page.tsx`
+    - Form: policy type dropdown includes 'liability_disclaimer' option
+    - Validation: version format, required fields
+  - `/settings/policies/[id]` — `p2p-kids-admin/src/app/settings/policies/[id]/page.tsx`
+    - View policy details (metadata + content)
+    - Publish button for draft policies (calls `publish_policy` RPC)
+
+- Mobile App Integration (NEW for SAFETY-012):
+  - `DisclaimerModal.tsx` — **blocking modal** displayed during trade initiation:
+    - Triggered: when user taps "Confirm Purchase" button on trade confirmation screen
+    - Displays: full disclaimer content with version badge and effective date
+    - Checkbox: "I have read and acknowledge this disclaimer" (unchecked by default)
+    - Buttons: "Cancel" (closes modal, returns to trade screen), "Accept" (disabled until checkbox checked)
+    - On Accept: calls `onAccept(disclaimerPolicyId)` callback → parent screen calls `acknowledge_trade_disclaimer` RPC → closes modal → proceeds with trade
+    - Checkbox Reset: resets to unchecked every time modal reopens (prevents accidental acceptance)
+    - Error Handling: loading spinner, error display with retry button, empty state if no policy exists
+    - Uses `react-native-markdown-display` for Markdown rendering
+    - TestID props: `disclaimer-modal`, `disclaimer-checkbox`, `disclaimer-accept-button`, `disclaimer-cancel-button`, `disclaimer-close-button`
+  - `LiabilityDisclaimerScreen.tsx` — read-only screen in Settings:
+    - Navigation: Settings → "Liability Disclaimer" menu item
+    - Displays: current published Liability Disclaimer, version badge, effective date
+    - Mode: read-only (no action buttons, no checkbox — differs from modal)
+    - Info notice: "This disclaimer is shown when you make a purchase"
+    - Error Handling: loading spinner, error with retry button
+    - TestID props: `liability-disclaimer-screen`, `liability-disclaimer-version`, `liability-disclaimer-content`
+  - `TradeInitiationScreen.tsx` — trade confirmation screen (MODIFIED):
+    - Added states: `showDisclaimer` (boolean), `disclaimerPolicyId` (UUID)
+    - Modified flow: "Confirm Purchase" button now calls `handleConfirmPurchase()` → shows DisclaimerModal
+    - On modal accept: `handleDisclaimerAccept(disclaimerPolicyId)` → closes modal → calls `handleInitiateTrade(disclaimerPolicyId)` → initiates trade → calls `acknowledge_trade_disclaimer` RPC with trade_id and policy_id
+    - On modal cancel/close: modal closes, no trade initiated, user returns to trade confirmation screen
+    - RPC call: `await supabase.rpc('acknowledge_trade_disclaimer', { p_trade_id, p_disclaimer_policy_id })`
+    - Error Handling: if disclaimer acknowledgment fails, show error alert, do NOT proceed with payment
+  - Navigation updates:
+    - `types.ts` — added `LiabilityDisclaimer: undefined` route
+    - `AppNavigator.tsx` — registered `LiabilityDisclaimerScreen` in authenticated stack (after PrivacyPolicy)
+    - `SettingsScreen.tsx` — added "Liability Disclaimer" menu item with shield-outline icon, testID `settings-liability-disclaimer-button` (placed after Privacy Policy)
+
+- Automated Tests:
+  - Unit (Jest): `p2p-kids-marketplace/src/__tests__/components/DisclaimerModal.test.tsx`
+    - 15 test cases covering:
+      - Loading state renders spinner
+      - Success state renders disclaimer content with checkbox and buttons
+      - Checkbox controls accept button disabled state
+      - Accept button calls onAccept with policy ID when checkbox is checked
+      - Cancel/Close buttons call onCancel callback
+      - Checkbox resets to unchecked when modal reopens
+      - Error state renders with retry button
+      - Retry button refetches disclaimer
+      - Accessibility labels present
+    - Mocked Supabase client for offline execution
+    - Run: `npm run test:unit -- DisclaimerModal.test.tsx`
+  - Unit (Jest): `p2p-kids-marketplace/src/__tests__/screens/LiabilityDisclaimerScreen.test.tsx`
+    - 10 test cases covering:
+      - Loading state with ActivityIndicator
+      - Success state with disclaimer content, version, effective date
+      - Back button navigation
+      - Error state with retry button
+      - Retry functionality refetches disclaimer
+    - Mocked navigation, SafeAreaView, Ionicons, Markdown renderer
+    - Run: `npm run test:unit -- LiabilityDisclaimerScreen.test.tsx`
+  - E2E (Jest, Supabase prod): `p2p-kids-marketplace/src/__tests__/integration/liability-disclaimer.integration.test.ts`
+    - 4 test groups:
+      - Disclaimer Retrieval (get_current_policy RPC)
+      - Disclaimer Acknowledgment (acknowledge_trade_disclaimer RPC)
+      - Policy Acceptances Audit Trail (policy_acceptances table)
+      - Trades Table Disclaimer Tracking (disclaimer_acknowledged, disclaimer_policy_id, disclaimer_acknowledged_at columns)
+    - Creates test user with dynamic email, creates test trade, cleans up after tests
+    - Requires `RUN_SUPABASE_E2E=true` and real Supabase credentials
+    - Run: `RUN_SUPABASE_E2E=true npm run test:e2e -- liability-disclaimer.integration.test.ts`
+  - Maestro UI Flow: `.maestro/liability-disclaimer-flow.yaml`
+    - 4 flows:
+      - Flow 1: View from Settings → navigate to Settings → tap "Liability Disclaimer" → verify content displays → tap back button
+      - Flow 2: Accept during trade (happy path) → navigate to trade confirmation → tap "Confirm Purchase" → modal appears → check checkbox → tap "Accept" → verify modal closes
+      - Flow 3: Cancel during trade → navigate to trade confirmation → tap "Confirm Purchase" → modal appears → tap "Cancel" → verify returns to trade screen
+      - Flow 4: Close button (X) → navigate to trade confirmation → tap "Confirm Purchase" → modal appears → tap close button → verify returns to trade screen
+    - TestID locators: `settings-liability-disclaimer-button`, `liability-disclaimer-screen`, `confirm-purchase-button`, `disclaimer-modal`, `disclaimer-checkbox`, `disclaimer-accept-button`, `disclaimer-cancel-button`, `disclaimer-close-button`
+    - Pre-test Setup: SQL queries to verify liability_disclaimer policy exists and trades table has disclaimer columns
+    - Run: `npm run test:maestro:ios -- .maestro/liability-disclaimer-flow.yaml` or `npm run test:maestro:android -- .maestro/liability-disclaimer-flow.yaml`
+
+- Manual Test Guide: `SAFETY-012-LIABILITY-DISCLAIMER-MANUAL-TESTING-GUIDE.md`
+  - 12 test cases across 5 sections:
+    - Settings Navigation (TC-001): View from Settings, verify content, back navigation
+    - Trade Flow Integration (TC-002 to TC-005): Accept flow, Cancel flow, Close button, Checkbox reset on reopen
+    - State Management & Error Handling (TC-006 to TC-008): Loading state, Error state with retry, Empty state (no policy)
+    - Admin Operations (TC-009): Create and publish liability_disclaimer using admin UI
+    - Cross-Platform & Accessibility (TC-010 to TC-012): Audit trail verification in database, Multiple acknowledgments per user, Scope validation (only trades show disclaimer)
+  - Pre-testing Setup: SQL queries to verify liability_disclaimer policy exists (`SELECT * FROM platform_policies WHERE type='liability_disclaimer' AND status='published'`)
+  - Expected results with SQL verification queries for each test case
+  - Sign-off checklist with database validation queries
+  - Issue reporting template with simulator logs and SQL queries
+
+- Tier 0 (always — BEFORE simulator testing):
+  - Mobile: `cd p2p-kids-marketplace && npm run typecheck && npm run lint` (must pass, catches duplicate exports and JSX syntax errors)
+  - Unit tests: `cd p2p-kids-marketplace && npm run test:unit -- DisclaimerModal.test.tsx` (15 tests must pass)
+  - Unit tests: `cd p2p-kids-marketplace && npm run test:unit -- LiabilityDisclaimerScreen.test.tsx` (10 tests must pass)
+  - **SQL Prerequisites**: Run migration `307_liability_disclaimer_tracking.sql` in Supabase SQL Editor BEFORE any mobile testing
+
+- Tier 1 (when mobile UI, service, or RPC changes):
+  - Run TC-001 to TC-012 from `SAFETY-012-LIABILITY-DISCLAIMER-MANUAL-TESTING-GUIDE.md`
+  - Verify navigation flows (Settings → Liability Disclaimer, Trade Confirmation → Disclaimer Modal)
+  - Verify testID props render correctly for Maestro
+  - Run Maestro flows: `npm run test:maestro:ios -- .maestro/liability-disclaimer-flow.yaml`
+  - Verify trade flow: Confirm Purchase button → modal displays → checkbox required → acceptance tracked in trades table
+
+- Tier 2 (when SQL migration or RPC changes — APPLICABLE for SAFETY-012):
+  - Run migration `307_liability_disclaimer_tracking.sql` in fresh Supabase instance (or use `supabase db reset` locally)
+  - Verify trades table schema: `SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name='trades' AND column_name LIKE 'disclaimer%';`
+  - Verify RPC function exists: `SELECT proname FROM pg_proc WHERE proname='acknowledge_trade_disclaimer';`
+  - Test RPC function directly: `SELECT acknowledge_trade_disclaimer('<test_trade_id>', '<test_policy_id>');`
+  - Run full E2E integration tests: `RUN_SUPABASE_E2E=true npm run test:e2e -- liability-disclaimer.integration.test.ts`
+  - Verify policy_acceptances audit trail: `SELECT * FROM policy_acceptances WHERE policy_type='liability_disclaimer' ORDER BY accepted_at DESC LIMIT 10;`
+
+- Quick Manual Smoke (happy path):
+  1. **Admin**: Log in to admin portal → `/settings/policies` → verify "Liability Disclaimer" tab exists
+  2. **Admin**: Create New Policy → type=liability_disclaimer, version=1.0, title="Liability Disclaimer", effective_date=today, content="Test liability content"
+  3. **Admin**: Submit → verify policy created with status=draft → View policy → click "Publish" → verify status=published
+  4. Query: `SELECT * FROM platform_policies WHERE type='liability_disclaimer' AND status='published' ORDER BY created_at DESC LIMIT 1;`
+  5. **Mobile**: Settings → "Liability Disclaimer" → verify content displays in read-only mode
+  6. **Mobile**: Navigate to trade confirmation screen (browse listing → select item → initiate trade)
+  7. **Mobile**: Tap "Confirm Purchase" → verify DisclaimerModal displays with checkbox unchecked
+  8. **Mobile**: Try tapping "Accept" without checking checkbox → verify button is disabled
+  9. **Mobile**: Check checkbox → tap "Accept" → verify modal closes and trade proceeds
+  10. Query: `SELECT disclaimer_acknowledged, disclaimer_policy_id, disclaimer_acknowledged_at FROM trades WHERE id='<trade_id>';` → verify disclaimer_acknowledged=TRUE
+  11. Query: `SELECT * FROM policy_acceptances WHERE policy_type='liability_disclaimer' AND user_id='<user_id>' ORDER BY accepted_at DESC;` → verify acceptance record exists
+
+- Quick Manual Smoke (cancel/close paths):
+  1. **Mobile**: Navigate to trade confirmation → tap "Confirm Purchase" → modal displays
+  2. **Mobile**: Tap "Cancel" button → verify modal closes, returns to trade screen, no trade initiated
+  3. **Mobile**: Tap "Confirm Purchase" again → modal displays → tap close button (X) → verify modal closes
+  4. **Mobile**: Tap "Confirm Purchase" again → check checkbox → tap "Accept" → verify checkbox resets to unchecked next time modal opens
+
+- Change Classification: B (Edge Functions/RPC) + C (Mobile UI) + A (DB Migration — trades table altered)
+- Required Tiers: 0 (always) + 1 (UI/service changes) + 2 (DB migration + RPC function)
+- Impacted Modules: MODULE-13-SAFETY-COMPLIANCE (SAFETY-012), MODULE-06-TRADE-FLOW (modified TradeInitiationScreen)
+
+- Dependencies:
+  - SAFETY-010 (TOS System) — reuses `platform_policies`, `policy_acceptances` tables and RPC functions (get_current_policy, record_policy_acceptance, publish_policy)
+  - Migration 060 (Trade Flow) — trades table must exist before applying migration 307
+  - Migration 304 (Platform Policies) — platform_policies table must exist and support liability_disclaimer type enum value
+  - `auth.users` table (Supabase Auth)
+  - `profiles` table (user metadata)
+  - Admin authentication with role-based access (already implemented in SAFETY-010)
+  - Mobile navigation (React Navigation stack)
+  - Trade flow (TradeInitiationScreen integration)
+  - `react-native-markdown-display` library for Markdown rendering
+
+- Verification Checklist Mapping (MODULE-13-VERIFICATION.md SAFETY-012):
+  - ✅ **LD-1**: Database schema for disclaimer tracking (migration 307 adds disclaimer_acknowledged, disclaimer_policy_id, disclaimer_acknowledged_at to trades table)
+  - ✅ **LD-2**: RPC function for acknowledgment (acknowledge_trade_disclaimer with transaction safety, user authorization, policy validation)
+  - ✅ **LD-3**: Mobile disclaimer component (DisclaimerModal.tsx with checkbox validation, loading/error/success states, testID props)
+  - ✅ **LD-4**: Settings screen link (SettingsScreen.tsx menu item "Liability Disclaimer" with shield-outline icon, testID `settings-liability-disclaimer-button`)
+  - ✅ **LD-5**: Trade flow integration (TradeInitiationScreen.tsx modified to show DisclaimerModal before trade completion, blocks trade until accepted)
+  - ✅ **LD-6**: Admin UI (reuses p2p-kids-admin/src/app/settings/policies UI with liability_disclaimer tab from SAFETY-010)
+  - ✅ **LD-7**: Audit trail (policy_acceptances table records with IP/user-agent, called by acknowledge_trade_disclaimer RPC)
+  - ✅ **LD-8**: Per-transaction tracking (trades table disclaimer columns updated atomically with audit record)
+  - ✅ **LD-9**: Unit tests for modal (15 test cases in DisclaimerModal.test.tsx covering checkbox, buttons, reset, error handling)
+  - ✅ **LD-10**: Unit tests for screen (10 test cases in LiabilityDisclaimerScreen.test.tsx covering display, navigation, retry)
+  - ✅ **LD-11**: E2E integration tests (liability-disclaimer.integration.test.ts with 4 test groups against real Supabase)
+  - ✅ **LD-12**: Maestro UI flows (liability-disclaimer-flow.yaml with 4 flows: Settings view, Accept, Cancel, Close)
+  - ✅ **LD-13**: Manual test guide (SAFETY-012-LIABILITY-DISCLAIMER-MANUAL-TESTING-GUIDE.md with 12 test cases, SQL verification)
+
+- Known Limitations:
+  - Disclaimer acknowledgment is trade-specific (not signup-wide like TOS — each trade requires separate acknowledgment)
+  - IP address capture depends on client providing it (defaults to null if unavailable)
+  - User-agent parsing done client-side (not validated server-side)
+  - If admin un-publishes or deletes disclaimer policy while user has modal open, acceptance will fail (error shown to user)
+  - Markdown rendering uses `react-native-markdown-display` (basic formatting only, no interactive elements)
+  - Modal checkbox must be manually checked each time (no "remember my choice" option to enforce explicit acknowledgment)
+
+- Future Enhancements:
+  - Disclaimer version tracking per trade (currently stores policy_id but no historical version snapshot)
+  - User notification when disclaimer changes (e.g., "Disclaimer updated since your last purchase")
+  - Diff view showing changes between disclaimer versions
+  - Admin analytics (acknowledgment rates, time-to-accept per trade type)
+  - Localized disclaimer content (multi-language support)

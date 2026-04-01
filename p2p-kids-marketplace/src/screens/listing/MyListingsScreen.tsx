@@ -9,7 +9,7 @@
  * - SP Eligible badge on listings that accept SP
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import {
   StyleSheet,
   RefreshControl,
   SafeAreaView,
+  ScrollView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
@@ -28,12 +29,15 @@ import { getMyListings, getListingSummary, deleteListing } from '../../services/
 import { Listing, ListingSummary } from '../../types/listing';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
+type StatusFilter = 'all' | 'pending' | 'needs_edits' | 'rejected' | 'available' | 'sold';
+
 export default function MyListingsScreen({ navigation }: any) {
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
   const [summary, setSummary] = useState<ListingSummary | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
 
   const loadListings = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -53,6 +57,14 @@ export default function MyListingsScreen({ navigation }: any) {
       setLoading(false);
     }
   }, [session?.user?.id]);
+
+  // Compute filtered listings based on selected status
+  const filteredListings = useMemo(() => {
+    if (selectedStatus === 'all') {
+      return listings;
+    }
+    return listings.filter((listing) => listing.status === selectedStatus);
+  }, [listings, selectedStatus]);
 
   // Reload listings when screen comes into focus
   useFocusEffect(
@@ -97,7 +109,7 @@ export default function MyListingsScreen({ navigation }: any) {
   };
 
   const handleOpenListing = (listing: Listing) => {
-    if (listing.status === 'flagged' || listing.status === 'rejected') {
+    if (listing.status === 'flagged' || listing.status === 'rejected' || listing.status === 'needs_edits') {
       navigation.navigate('ListingSafetyReview', { listing_id: listing.id });
       return;
     }
@@ -217,20 +229,60 @@ export default function MyListingsScreen({ navigation }: any) {
         </View>
       )}
 
+      {/* Status Filter */}
+      <View style={styles.filterWrapper}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterContainer}
+          contentContainerStyle={styles.filterContentContainer}
+        >
+          {(['all', 'available', 'pending', 'needs_edits', 'rejected', 'sold'] as StatusFilter[]).map(
+            (status) => (
+              <TouchableOpacity
+                key={status}
+                style={[
+                  styles.filterButton,
+                  selectedStatus === status && styles.filterButtonActive,
+                ]}
+                onPress={() => setSelectedStatus(status)}
+              >
+                <Text
+                  style={[
+                    styles.filterButtonText,
+                    selectedStatus === status && styles.filterButtonTextActive,
+                  ]}
+                >
+                  {status === 'all'
+                    ? 'All'
+                    : status === 'needs_edits'
+                      ? 'Needs Edits'
+                      : status.charAt(0).toUpperCase() + status.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            )
+          )}
+        </ScrollView>
+      </View>
+
       {/* Listings List */}
-      {listings.length === 0 ? (
+      {filteredListings.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No listings yet</Text>
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={() => navigation.navigate('CreateListing')}
-          >
-            <Text style={styles.createButtonText}>Create Your First Listing</Text>
-          </TouchableOpacity>
+          <Text style={styles.emptyText}>
+            {listings.length === 0 ? 'No listings yet' : 'No listings with this status'}
+          </Text>
+          {listings.length === 0 && (
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={() => navigation.navigate('CreateListing')}
+            >
+              <Text style={styles.createButtonText}>Create Your First Listing</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <FlatList
-          data={listings}
+          data={filteredListings}
           keyExtractor={(item) => item.id}
           renderItem={renderListingItem}
           contentContainerStyle={styles.listContent}
@@ -497,6 +549,44 @@ const styles = StyleSheet.create({
   },
   quickLink: {
     alignItems: 'center',
+  },
+  // Status Filter Styles
+  filterWrapper: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    paddingVertical: 12,
+  },
+  filterContainer: {
+    flexGrow: 0,
+  },
+  filterContentContainer: {
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#eee',
+    backgroundColor: '#fff',
+    minWidth: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterButtonActive: {
+    borderColor: '#007AFF',
+    backgroundColor: '#007AFF',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  filterButtonTextActive: {
+    color: '#fff',
   },
   quickLinkEmoji: {
     fontSize: 28,

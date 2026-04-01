@@ -557,8 +557,22 @@ export default function SignupScreen() {
           {/* Terms and Privacy */}
           <View style={styles.terms}>
             <Text style={styles.termsText}>
-              By signing up, you agree to our <Text style={styles.termsLink}>Terms of Service</Text>{' '}
-              and <Text style={styles.termsLink}>Privacy Policy</Text>
+              By signing up, you agree to our{' '}
+              <Text
+                style={styles.termsLink}
+                testID="tos-link"
+                onPress={() => (navigation as any).navigate('TermsOfService')}
+              >
+                Terms of Service
+              </Text>{' '}
+              and{' '}
+              <Text
+                style={styles.termsLink}
+                testID="privacy-policy-link"
+                onPress={() => (navigation as any).navigate('PrivacyPolicy')}
+              >
+                Privacy Policy
+              </Text>
             </Text>
           </View>
         </View>

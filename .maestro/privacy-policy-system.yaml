@@ -1,0 +1,57 @@
+# FLOW: Privacy Policy System | TASK: SAFETY-011 | States covered: View Privacy Policy, Navigate from Settings, Navigate from Signup
+# Module: MODULE-13-SAFETY-COMPLIANCE
+# Test: Privacy Policy system end-to-end flow
+
+appId: com.p2pkidsmarketplace.app
+---
+# Test 1: View Privacy Policy from Settings
+- launchApp
+- tapOn:
+    id: "settings-button"
+- assertVisible: "Settings"
+- tapOn:
+    id: "settings-privacy-policy-button"
+- assertVisible: "Privacy Policy"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "privacy-policy-screen"
+- assertVisible:
+    id: "privacy-policy-version"
+- assertVisible:
+    id: "privacy-policy-effective-date"
+- assertVisible:
+    id: "privacy-policy-content"
+- back
+
+---
+# Test 2: View Privacy Policy from Signup
+- launchApp
+- tapOn: "Sign Up"
+- assertVisible: "Create Account"
+- tapOn:
+    id: "privacy-policy-link"
+- assertVisible: "Privacy Policy"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "privacy-policy-screen"
+- assertVisible:
+    id: "privacy-policy-version"
+- assertVisible:
+    id: "privacy-policy-content"
+- back
+- assertVisible: "Create Account"
+
+---
+# Test 3: Error handling - No Privacy Policy available
+# This test simulates the error state when no privacy policy exists
+# Note: This requires the database to have no published privacy policy
+# In production, always ensure at least one published policy exists
+- launchApp
+- tapOn:
+    id: "settings-button"
+- tapOn:
+    id: "settings-privacy-policy-button"
+# If no policy exists, the system should show an error
+- assertVisible:
+    text: "Privacy Policy not available"
+- back

@@ -11,9 +11,9 @@
 /**
  * Listing status enum
  * Matches items.status column in database
- * MODULE-13 SAFETY-P003: Added 'flagged' and 'rejected' statuses
+ * MODULE-13 SAFETY-P003: Added 'flagged', 'rejected', 'needs_edits' statuses
  */
-export type ListingStatus = 'draft' | 'available' | 'pending' | 'sold' | 'deleted' | 'paused' | 'flagged' | 'rejected';
+export type ListingStatus = 'draft' | 'available' | 'pending' | 'sold' | 'deleted' | 'paused' | 'flagged' | 'rejected' | 'needs_edits';
 
 /**
  * Item condition enum
@@ -41,8 +41,10 @@ export interface Listing {
   
   // MODULE-13 SAFETY-P003: Safety/moderation fields
   flagged_at: string | null;
+  flagged_reason: string | null;
   rejected_at: string | null;
   rejection_reason: string | null;
+  moderation_note: string | null; // Admin's comment for needs_edits or rejection context
   appeal_count: number;
   appeal_reason?: string | null;
   appealed_at?: string | null;

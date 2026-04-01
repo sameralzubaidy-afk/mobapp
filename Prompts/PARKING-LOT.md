@@ -125,3 +125,9 @@ MODULE-08-BADGES-V2.md
 
   #  # # Analytics Configuration for all key actions in the app 
   https://app.amplitude.com/analytics/kidsapp/home user samer.alzubaidy 
+
+   #  # #  After go live
+
+  ## TASK SAFETY-005: Implement Custom AI Agent for Title/Description Review (Supabase Edge Function or External Service)
+  ## TASK SAFETY-006: Create AI Moderation Logging (Store All Decisions, Confidence Scores)
+  ## TASK SAFETY-007: Implement Fallback to GPT-4 for Low-Confidence Cases

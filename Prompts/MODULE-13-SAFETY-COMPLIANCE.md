@@ -1948,66 +1948,1883 @@ FILES:
 
 ---
 
-## TASK SAFETY-010: Add Placeholder for Terms of Service (TOS) in Settings
+## TASK SAFETY-010: Implement Admin-Managed Terms of Service (TOS) System
 
-**Duration:** 1 hour  
-**Priority:** Low  
-**Dependencies:** AUTH-001 (User authentication)
+**Duration:** 4.5 hours  
+**Priority:** High  
+**Dependencies:** AUTH-001 (User authentication), ADMIN-001 (Admin portal)
 
 ### Description
-Add TOS link in app settings. Display placeholder TOS page. Users must accept TOS on signup. Store acceptance in database.
+Create comprehensive TOS system with admin content management. Admin can create, edit, and publish TOS versions. Users must accept TOS on signup. Display TOS in app settings. Track acceptance history and version changes. Store TOS acceptance in database with timestamp and version.
 
 ---
 
-### AI Prompt for Cursor (Generate TOS Placeholder)
+### AI Prompt for Cursor (Generate Admin-Managed TOS System)
 
 ```typescript
 /*
-TASK: Add Terms of Service placeholder
+TASK: Implement admin-managed Terms of Service system
 
 REQUIREMENTS:
-1. TOS link in app settings
-2. Display TOS page (placeholder text)
-3. Require acceptance on signup
-4. Store acceptance in users table (tos_accepted_at)
+1. Database table for storing policy versions
+2. Admin UI to create/edit/publish TOS
+3. Mobile screen to display TOS
+4. Require TOS acceptance on signup
+5. Track acceptance with version and timestamp
+6. Support version history
 
-FILES:
-- src/screens/settings/TermsOfServiceScreen.tsx
-- src/screens/auth/SignupScreen.tsx (UPDATE - TOS checkbox)
+==================================================
+FILE 1: Platform policies table (stores all policy types)
+==================================================
+*/
+
+-- filepath: supabase/migrations/049_platform_policies.sql
+
+-- Platform policies table (TOS, Privacy Policy, Disclaimer)
+CREATE TABLE platform_policies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  policy_type TEXT NOT NULL CHECK (policy_type IN ('terms_of_service', 'privacy_policy', 'liability_disclaimer')),
+  version TEXT NOT NULL, -- e.g., "1.0", "1.1", "2.0"
+  title TEXT NOT NULL,
+  content TEXT NOT NULL, -- Full markdown/HTML content
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  effective_date TIMESTAMP WITH TIME ZONE,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  published_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  published_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(policy_type, version)
+);
+
+CREATE INDEX platform_policies_type_status_idx ON platform_policies(policy_type, status);
+CREATE INDEX platform_policies_effective_date_idx ON platform_policies(effective_date DESC);
+
+-- Policy acceptance tracking
+CREATE TABLE policy_acceptances (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  policy_id UUID NOT NULL REFERENCES platform_policies(id) ON DELETE CASCADE,
+  policy_type TEXT NOT NULL,
+  policy_version TEXT NOT NULL,
+  accepted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  ip_address INET,
+  user_agent TEXT,
+  UNIQUE(user_id, policy_id)
+);
+
+CREATE INDEX policy_acceptances_user_id_idx ON policy_acceptances(user_id);
+CREATE INDEX policy_acceptances_policy_id_idx ON policy_acceptances(policy_id);
+CREATE INDEX policy_acceptances_accepted_at_idx ON policy_acceptances(accepted_at DESC);
+
+-- RLS policies for platform_policies
+ALTER TABLE platform_policies ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view published policies"
+  ON platform_policies FOR SELECT
+  USING (status = 'published');
+
+CREATE POLICY "Admins can manage all policies"
+  ON platform_policies FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.role = 'admin'
+    )
+  );
+
+-- RLS policies for policy_acceptances
+ALTER TABLE policy_acceptances ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own acceptances"
+  ON policy_acceptances FOR SELECT
+  USING (user_id = auth.uid());
+
+CREATE POLICY "System can insert acceptances"
+  ON policy_acceptances FOR INSERT
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Admins can view all acceptances"
+  ON policy_acceptances FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM users
+      WHERE users.id = auth.uid()
+      AND users.role = 'admin'
+    )
+  );
+
+/*
+==================================================
+FILE 2: RPC functions for policy management
+==================================================
+*/
+
+-- filepath: supabase/migrations/050_policy_management_rpc.sql
+
+-- Get current published policy by type
+CREATE OR REPLACE FUNCTION get_current_policy(p_policy_type TEXT)
+RETURNS TABLE(
+  id UUID,
+  policy_type TEXT,
+  version TEXT,
+  title TEXT,
+  content TEXT,
+  effective_date TIMESTAMP WITH TIME ZONE
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    pp.id,
+    pp.policy_type,
+    pp.version,
+    pp.title,
+    pp.content,
+    pp.effective_date
+  FROM platform_policies pp
+  WHERE pp.policy_type = p_policy_type
+    AND pp.status = 'published'
+  ORDER BY pp.effective_date DESC
+  LIMIT 1;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Check if user has accepted current policy
+CREATE OR REPLACE FUNCTION has_accepted_current_policy(
+  p_user_id UUID,
+  p_policy_type TEXT
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_current_policy_id UUID;
+  v_acceptance_exists BOOLEAN;
+BEGIN
+  -- Get current published policy ID
+  SELECT id INTO v_current_policy_id
+  FROM platform_policies
+  WHERE policy_type = p_policy_type
+    AND status = 'published'
+  ORDER BY effective_date DESC
+  LIMIT 1;
+
+  -- Check if user has accepted this version
+  SELECT EXISTS(
+    SELECT 1 FROM policy_acceptances
+    WHERE user_id = p_user_id
+      AND policy_id = v_current_policy_id
+  ) INTO v_acceptance_exists;
+
+  RETURN COALESCE(v_acceptance_exists, FALSE);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Publish policy (admin only)
+CREATE OR REPLACE FUNCTION publish_policy(
+  p_policy_id UUID,
+  p_admin_id UUID
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- Verify admin role
+  IF NOT EXISTS (
+    SELECT 1 FROM users WHERE id = p_admin_id AND role = 'admin'
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized: Only admins can publish policies';
+  END IF;
+
+  -- Archive previous published version of same type
+  UPDATE platform_policies
+  SET status = 'archived'
+  WHERE policy_type = (SELECT policy_type FROM platform_policies WHERE id = p_policy_id)
+    AND status = 'published'
+    AND id != p_policy_id;
+
+  -- Publish new version
+  UPDATE platform_policies
+  SET
+    status = 'published',
+    published_by = p_admin_id,
+    published_at = NOW(),
+    effective_date = COALESCE(effective_date, NOW())
+  WHERE id = p_policy_id;
+
+  RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+/*
+==================================================
+FILE 3: Admin UI - Policy management page
+==================================================
+*/
+
+// filepath: p2p-kids-admin/src/app/settings/policies/page.tsx
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+type PolicyType = 'terms_of_service' | 'privacy_policy' | 'liability_disclaimer';
+
+interface Policy {
+  id: string;
+  policy_type: PolicyType;
+  version: string;
+  title: string;
+  content: string;
+  status: 'draft' | 'published' | 'archived';
+  effective_date: string | null;
+  created_at: string;
+  published_at: string | null;
+}
+
+export default function PoliciesPage() {
+  const [policies, setPolicies] = useState<Record<PolicyType, Policy[]>>({
+    terms_of_service: [],
+    privacy_policy: [],
+    liability_disclaimer: [],
+  });
+  const [loading, setLoading] = useState(true);
+  const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    fetchPolicies();
+  }, []);
+
+  const fetchPolicies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('platform_policies')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const grouped = (data || []).reduce((acc, policy) => {
+        if (!acc[policy.policy_type]) acc[policy.policy_type] = [];
+        acc[policy.policy_type].push(policy);
+        return acc;
+      }, {} as Record<PolicyType, Policy[]>);
+
+      setPolicies({
+        terms_of_service: grouped.terms_of_service || [],
+        privacy_policy: grouped.privacy_policy || [],
+        liability_disclaimer: grouped.liability_disclaimer || [],
+      });
+    } catch (error) {
+      console.error('Error fetching policies:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const publishPolicy = async (policyId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase.rpc('publish_policy', {
+        p_policy_id: policyId,
+        p_admin_id: user.id,
+      });
+
+      if (error) throw error;
+
+      alert('Policy published successfully');
+      fetchPolicies();
+    } catch (error) {
+      console.error('Error publishing policy:', error);
+      alert('Failed to publish policy');
+    }
+  };
+
+  const PolicyList = ({ policyType, title }: { policyType: PolicyType; title: string }) => (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold">{title}</h3>
+        <Button onClick={() => window.location.href = `/settings/policies/new?type=${policyType}`}>
+          Create New Version
+        </Button>
+      </div>
+
+      {policies[policyType].map((policy) => (
+        <Card key={policy.id}>
+          <CardHeader>
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="text-base">{policy.title}</CardTitle>
+                <p className="text-sm text-gray-500">Version {policy.version}</p>
+              </div>
+              <span
+                className={`px-2 py-1 rounded text-xs ${
+                  policy.status === 'published'
+                    ? 'bg-green-100 text-green-800'
+                    : policy.status === 'draft'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                {policy.status}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              <p>
+                <strong>Created:</strong> {new Date(policy.created_at).toLocaleDateString()}
+              </p>
+              {policy.published_at && (
+                <p>
+                  <strong>Published:</strong> {new Date(policy.published_at).toLocaleDateString()}
+                </p>
+              )}
+              {policy.effective_date && (
+                <p>
+                  <strong>Effective:</strong> {new Date(policy.effective_date).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.location.href = `/settings/policies/${policy.id}`}
+              >
+                View/Edit
+              </Button>
+              {policy.status === 'draft' && (
+                <Button
+                  size="sm"
+                  onClick={() => publishPolicy(policy.id)}
+                >
+                  Publish
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+
+      {policies[policyType].length === 0 && (
+        <p className="text-gray-500 text-center py-8">No policies created yet</p>
+      )}
+    </div>
+  );
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Platform Policies</h1>
+
+      <Tabs defaultValue="terms_of_service">
+        <TabsList>
+          <TabsTrigger value="terms_of_service">Terms of Service</TabsTrigger>
+          <TabsTrigger value="privacy_policy">Privacy Policy</TabsTrigger>
+          <TabsTrigger value="liability_disclaimer">Liability Disclaimer</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="terms_of_service" className="mt-6">
+          <PolicyList policyType="terms_of_service" title="Terms of Service" />
+        </TabsContent>
+
+        <TabsContent value="privacy_policy" className="mt-6">
+          <PolicyList policyType="privacy_policy" title="Privacy Policy" />
+        </TabsContent>
+
+        <TabsContent value="liability_disclaimer" className="mt-6">
+          <PolicyList policyType="liability_disclaimer" title="Liability Disclaimer" />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+/*
+==================================================
+FILE 4: Admin UI - Policy editor (create/edit)
+==================================================
+*/
+
+// filepath: p2p-kids-admin/src/app/settings/policies/[id]/page.tsx
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+export default function PolicyEditorPage() {
+  const params = useParams();
+  const router = useRouter();
+  const supabase = createClientComponentClient();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  const [policy, setPolicy] = useState({
+    policy_type: 'terms_of_service',
+    version: '',
+    title: '',
+    content: '',
+    effective_date: '',
+  });
+
+  useEffect(() => {
+    if (params.id && params.id !== 'new') {
+      fetchPolicy();
+    } else {
+      setLoading(false);
+    }
+  }, [params.id]);
+
+  const fetchPolicy = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('platform_policies')
+        .select('*')
+        .eq('id', params.id)
+        .single();
+
+      if (error) throw error;
+
+      setPolicy({
+        policy_type: data.policy_type,
+        version: data.version,
+        title: data.title,
+        content: data.content,
+        effective_date: data.effective_date || '',
+      });
+    } catch (error) {
+      console.error('Error fetching policy:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const savePolicy = async () => {
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      if (params.id === 'new') {
+        // Create new policy
+        const { error } = await supabase.from('platform_policies').insert({
+          ...policy,
+          created_by: user.id,
+          status: 'draft',
+        });
+
+        if (error) throw error;
+      } else {
+        // Update existing policy
+        const { error } = await supabase
+          .from('platform_policies')
+          .update({
+            version: policy.version,
+            title: policy.title,
+            content: policy.content,
+            effective_date: policy.effective_date || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', params.id);
+
+        if (error) throw error;
+      }
+
+      alert('Policy saved successfully');
+      router.push('/settings/policies');
+    } catch (error) {
+      console.error('Error saving policy:', error);
+      alert('Failed to save policy');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {params.id === 'new' ? 'Create New Policy' : 'Edit Policy'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Policy Type</label>
+            <select
+              className="w-full border rounded px-3 py-2"
+              value={policy.policy_type}
+              onChange={(e) => setPolicy({ ...policy, policy_type: e.target.value })}
+              disabled={params.id !== 'new'}
+            >
+              <option value="terms_of_service">Terms of Service</option>
+              <option value="privacy_policy">Privacy Policy</option>
+              <option value="liability_disclaimer">Liability Disclaimer</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Version</label>
+            <Input
+              placeholder="e.g., 1.0, 1.1, 2.0"
+              value={policy.version}
+              onChange={(e) => setPolicy({ ...policy, version: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Title</label>
+            <Input
+              placeholder="e.g., Terms of Service"
+              value={policy.title}
+              onChange={(e) => setPolicy({ ...policy, title: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Effective Date (optional)</label>
+            <Input
+              type="date"
+              value={policy.effective_date}
+              onChange={(e) => setPolicy({ ...policy, effective_date: e.target.value })}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Content (Markdown supported)</label>
+            <Textarea
+              rows={20}
+              placeholder="Enter policy content in Markdown format..."
+              value={policy.content}
+              onChange={(e) => setPolicy({ ...policy, content: e.target.value })}
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Use Markdown syntax for formatting. Preview will be shown in the mobile app.
+            </p>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button onClick={savePolicy} disabled={saving}>
+              {saving ? 'Saving...' : 'Save as Draft'}
+            </Button>
+            <Button variant="outline" onClick={() => router.push('/settings/policies')}>
+              Cancel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/*
+==================================================
+FILE 5: Mobile app - TOS screen
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/screens/settings/TermsOfServiceScreen.tsx
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '@/config/supabase';
+import Markdown from 'react-native-markdown-display';
+
+export default function TermsOfServiceScreen() {
+  const [loading, setLoading] = useState(true);
+  const [policy, setPolicy] = useState<any>(null);
+
+  useEffect(() => {
+    fetchTOS();
+  }, []);
+
+  const fetchTOS = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_current_policy', {
+        p_policy_type: 'terms_of_service',
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setPolicy(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching TOS:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" />
+      </SafeAreaView>
+    );
+  }
+
+  if (!policy) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.errorText}>Terms of Service not available</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>{policy.title}</Text>
+        <Text style={styles.version}>Version {policy.version}</Text>
+        {policy.effective_date && (
+          <Text style={styles.effectiveDate}>
+            Effective: {new Date(policy.effective_date).toLocaleDateString()}
+          </Text>
+        )}
+        
+        <View style={styles.contentContainer}>
+          <Markdown>{policy.content}</Markdown>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  version: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  effectiveDate: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  contentContainer: {
+    marginTop: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 32,
+  },
+});
+
+/*
+==================================================
+FILE 6: Mobile app - Update signup screen with TOS acceptance
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/screens/auth/SignupScreen.tsx (UPDATE)
+
+// Add to existing imports:
+import { Pressable } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+
+// Add state for TOS acceptance:
+const [tosAccepted, setTosAccepted] = useState(false);
+const [tosPolicy, setTosPolicy] = useState<any>(null);
+const navigation = useNavigation();
+
+// Add fetch TOS on mount:
+useEffect(() => {
+  fetchCurrentTOS();
+}, []);
+
+const fetchCurrentTOS = async () => {
+  try {
+    const { data, error } = await supabase.rpc('get_current_policy', {
+      p_policy_type: 'terms_of_service',
+    });
+
+    if (error) throw error;
+    if (data && data.length > 0) {
+      setTosPolicy(data[0]);
+    }
+  } catch (error) {
+    console.error('Error fetching TOS:', error);
+  }
+};
+
+// Add TOS acceptance tracking in signup function:
+const handleSignup = async () => {
+  if (!tosAccepted) {
+    alert('Please accept the Terms of Service to continue');
+    return;
+  }
+
+  try {
+    // ... existing signup logic ...
+
+    // After successful signup, record TOS acceptance
+    if (tosPolicy) {
+      await supabase.from('policy_acceptances').insert({
+        user_id: user.id,
+        policy_id: tosPolicy.id,
+        policy_type: 'terms_of_service',
+        policy_version: tosPolicy.version,
+        // Note: IP and user agent would need to be captured server-side for accuracy
+      });
+    }
+
+    // ... rest of signup logic ...
+  } catch (error) {
+    console.error('Signup error:', error);
+  }
+};
+
+// Add TOS checkbox in the JSX (before the signup button):
+<View style={styles.tosContainer}>
+  <Pressable
+    style={styles.checkbox}
+    onPress={() => setTosAccepted(!tosAccepted)}
+  >
+    <View style={[styles.checkboxInner, tosAccepted && styles.checkboxChecked]}>
+      {tosAccepted && <Text style={styles.checkmark}>✓</Text>}
+    </View>
+  </Pressable>
+  <Text style={styles.tosText}>
+    I accept the{' '}
+    <Text
+      style={styles.tosLink}
+      onPress={() => navigation.navigate('TermsOfService')}
+    >
+      Terms of Service
+    </Text>
+  </Text>
+</View>
+
+// Add styles:
+tosContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginTop: 16,
+  marginBottom: 8,
+},
+checkbox: {
+  marginRight: 8,
+},
+checkboxInner: {
+  width: 24,
+  height: 24,
+  borderWidth: 2,
+  borderColor: '#007AFF',
+  borderRadius: 4,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+checkboxChecked: {
+  backgroundColor: '#007AFF',
+},
+checkmark: {
+  color: '#fff',
+  fontSize: 16,
+  fontWeight: 'bold',
+},
+tosText: {
+  fontSize: 14,
+  color: '#333',
+  flex: 1,
+},
+tosLink: {
+  color: '#007AFF',
+  textDecorationLine: 'underline',
+},
+
+/*
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ platform_policies table created with versioning
+✓ policy_acceptances table tracks user consent
+✓ Admin can create/edit policy drafts
+✓ Admin can publish policies (archives previous versions)
+✓ RPC functions get current policy and check acceptance
+✓ Mobile app displays current TOS
+✓ Signup requires TOS acceptance
+✓ Acceptance logged with version and timestamp
+✓ Admin can view policy history and acceptance stats
+
+==================================================
+NEXT TASK
+==================================================
+
+SAFETY-011: Privacy Policy system
 */
 ```
 
-### Time Breakdown: **~1 hour**
+---
+
+### Output Files
+
+1. **supabase/migrations/049_platform_policies.sql** - Policies and acceptances tables
+2. **supabase/migrations/050_policy_management_rpc.sql** - Policy management functions
+3. **p2p-kids-admin/src/app/settings/policies/page.tsx** - Admin policy list
+4. **p2p-kids-admin/src/app/settings/policies/[id]/page.tsx** - Admin policy editor
+5. **p2p-kids-marketplace/src/screens/settings/TermsOfServiceScreen.tsx** - Mobile TOS viewer
+6. **p2p-kids-marketplace/src/screens/auth/SignupScreen.tsx** - Updated with TOS acceptance
 
 ---
 
-## TASK SAFETY-011: Add Placeholder for Privacy Policy in Settings
+### Testing Steps
 
-**Duration:** 1 hour  
-**Priority:** Low  
-**Dependencies:** AUTH-001 (User authentication)
+1. **Admin creates TOS:**
+   - Login to admin portal
+   - Navigate to Settings → Policies
+   - Create new TOS version
+   - Enter content in Markdown
+   - Save as draft → Verify saved
+
+2. **Admin publishes TOS:**
+   - Click "Publish" on draft
+   - Verify status changes to "published"
+   - Previous version archived
+
+3. **Mobile app displays TOS:**
+   - Open app settings
+   - Tap "Terms of Service"
+   - Verify current version displayed
+   - Verify Markdown renders correctly
+
+4. **Signup requires acceptance:**
+   - Start signup flow
+   - Attempt signup without checking TOS → Error
+   - Check TOS box → Signup succeeds
+   - Verify acceptance recorded in database
+
+5. **Acceptance tracking:**
+   - Query policy_acceptances table
+   - Verify user_id, policy_id, version, timestamp
+   - Admin can view acceptance stats
+
+---
+
+### Time Breakdown
+
+| Activity | Time |
+|----------|------|
+| Create platform_policies schema | 45 min |
+| Build RPC functions | 45 min |
+| Build admin policy list UI | 1 hour |
+| Build admin policy editor UI | 1 hour |
+| Build mobile TOS screen | 45 min |
+| Update signup with TOS acceptance | 30 min |
+| Testing and verification | 30 min |
+| **Total** | **~4.5 hours** |
+
+---
+
+## TASK SAFETY-011: Implement Admin-Managed Privacy Policy System
+
+**Duration:** 3.5 hours  
+**Priority:** High  
+**Dependencies:** SAFETY-010 (Platform policies table), AUTH-001 (User authentication)
 
 ### Description
-Add Privacy Policy link in settings. Display placeholder policy page. Link from signup screen.
+Create Privacy Policy system using the same platform_policies infrastructure from SAFETY-010. Admin can create, edit, and publish Privacy Policy versions. Users can view Privacy Policy in app settings and during signup. Display link from signup screen. Track acceptance history. Reuse existing database tables and RPC functions.
 
 ---
 
-### Time Breakdown: **~1 hour**
+### AI Prompt for Cursor (Generate Privacy Policy System)
+
+```typescript
+/*
+TASK: Implement admin-managed Privacy Policy system
+
+REQUIREMENTS:
+1. Reuse platform_policies table from SAFETY-010
+2. Admin UI to create/edit/publish Privacy Policy
+3. Mobile screen to display Privacy Policy
+4. Link from signup screen (optional acceptance)
+5. Track views and acceptances
+6. Support version history
+
+==================================================
+NOTE: Database tables already exist from SAFETY-010
+- platform_policies (stores all policy types)
+- policy_acceptances (tracks user consent)
+- RPC functions: get_current_policy, has_accepted_current_policy, publish_policy
+==================================================
+
+FILE 1: Mobile app - Privacy Policy screen
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/screens/settings/PrivacyPolicyScreen.tsx
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '@/config/supabase';
+import Markdown from 'react-native-markdown-display';
+
+export default function PrivacyPolicyScreen() {
+  const [loading, setLoading] = useState(true);
+  const [policy, setPolicy] = useState<any>(null);
+
+  useEffect(() => {
+    fetchPrivacyPolicy();
+  }, []);
+
+  const fetchPrivacyPolicy = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_current_policy', {
+        p_policy_type: 'privacy_policy',
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setPolicy(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching Privacy Policy:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" />
+      </SafeAreaView>
+    );
+  }
+
+  if (!policy) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.errorText}>Privacy Policy not available</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>{policy.title}</Text>
+        <Text style={styles.version}>Version {policy.version}</Text>
+        {policy.effective_date && (
+          <Text style={styles.effectiveDate}>
+            Effective: {new Date(policy.effective_date).toLocaleDateString()}
+          </Text>
+        )}
+        
+        <View style={styles.contentContainer}>
+          <Markdown>{policy.content}</Markdown>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  version: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  effectiveDate: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  contentContainer: {
+    marginTop: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 32,
+  },
+});
+
+/*
+==================================================
+FILE 2: Add Privacy Policy link to Settings screen
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/screens/settings/SettingsScreen.tsx (UPDATE)
+
+// Add Privacy Policy link in the settings menu:
+<Pressable
+  style={styles.settingItem}
+  onPress={() => navigation.navigate('PrivacyPolicy')}
+>
+  <Text style={styles.settingLabel}>Privacy Policy</Text>
+  <Text style={styles.settingChevron}>›</Text>
+</Pressable>
+
+/*
+==================================================
+FILE 3: Add Privacy Policy link to signup screen
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/screens/auth/SignupScreen.tsx (UPDATE)
+
+// Add below the TOS acceptance checkbox:
+<View style={styles.policyLinksContainer}>
+  <Text style={styles.policyText}>
+    By signing up, you agree to our{' '}
+    <Text
+      style={styles.policyLink}
+      onPress={() => navigation.navigate('TermsOfService')}
+    >
+      Terms of Service
+    </Text>
+    {' '}and{' '}
+    <Text
+      style={styles.policyLink}
+      onPress={() => navigation.navigate('PrivacyPolicy')}
+    >
+      Privacy Policy
+    </Text>
+  </Text>
+</View>
+
+// Add styles:
+policyLinksContainer: {
+  marginTop: 12,
+  marginBottom: 8,
+},
+policyText: {
+  fontSize: 12,
+  color: '#666',
+  textAlign: 'center',
+  lineHeight: 18,
+},
+policyLink: {
+  color: '#007AFF',
+  textDecorationLine: 'underline',
+},
+
+/*
+==================================================
+FILE 4: Add navigation route for Privacy Policy
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/navigation/types.ts (UPDATE)
+
+// Add to RootStackParamList:
+export type RootStackParamList = {
+  // ... existing routes
+  TermsOfService: undefined;
+  PrivacyPolicy: undefined; // ADD THIS
+  // ... rest of routes
+};
+
+// filepath: p2p-kids-marketplace/src/navigation/AppNavigator.tsx (UPDATE)
+
+import PrivacyPolicyScreen from '@/screens/settings/PrivacyPolicyScreen';
+
+// Add route in the Stack.Navigator:
+<Stack.Screen
+  name="PrivacyPolicy"
+  component={PrivacyPolicyScreen}
+  options={{ title: 'Privacy Policy' }}
+/>
+
+/*
+==================================================
+FILE 5: Admin UI already exists from SAFETY-010
+==================================================
+
+Admin can manage Privacy Policy using:
+- p2p-kids-admin/src/app/settings/policies/page.tsx
+- Select "Privacy Policy" tab
+- Create new version, edit, publish
+
+No additional admin UI needed - same interface handles all policy types.
+
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ Reuses platform_policies table from SAFETY-010
+✓ Admin can create/edit/publish Privacy Policy
+✓ Mobile app displays current Privacy Policy
+✓ Privacy Policy linked from settings
+✓ Privacy Policy linked from signup screen
+✓ Navigation routes configured
+✓ Markdown rendering works correctly
+✓ Version history maintained
+
+==================================================
+NEXT TASK
+==================================================
+
+SAFETY-012: Liability Disclaimer system
+*/
+```
 
 ---
 
-## TASK SAFETY-012: Add Placeholder for Insurance/Liability Disclaimer in Settings
+### Output Files
 
-**Duration:** 1 hour  
-**Priority:** Low  
-**Dependencies:** None
+1. **p2p-kids-marketplace/src/screens/settings/PrivacyPolicyScreen.tsx** - Mobile Privacy Policy viewer
+2. **p2p-kids-marketplace/src/screens/settings/SettingsScreen.tsx** - Updated with Privacy Policy link
+3. **p2p-kids-marketplace/src/screens/auth/SignupScreen.tsx** - Updated with Privacy Policy link
+4. **p2p-kids-marketplace/src/navigation/types.ts** - Added PrivacyPolicy route
+5. **p2p-kids-marketplace/src/navigation/AppNavigator.tsx** - Added PrivacyPolicy screen
+
+---
+
+### Testing Steps
+
+1. **Admin creates Privacy Policy:**
+   - Login to admin portal
+   - Navigate to Settings → Policies → Privacy Policy tab
+   - Create new version
+   - Enter content in Markdown
+   - Publish
+
+2. **Mobile app displays Privacy Policy:**
+   - Open app settings
+   - Tap "Privacy Policy"
+   - Verify current version displayed
+   - Verify Markdown renders correctly
+
+3. **Signup links to Privacy Policy:**
+   - Start signup flow
+   - Tap "Privacy Policy" link
+   - Verify screen opens
+   - Return to signup and complete
+
+4. **Version management:**
+   - Admin creates new version
+   - Publish → Previous version archived
+   - Mobile app shows latest version
+
+---
+
+### Time Breakdown
+
+| Activity | Time |
+|----------|------|
+| Build mobile Privacy Policy screen | 45 min |
+| Add settings link | 15 min |
+| Update signup screen with links | 30 min |
+| Configure navigation routes | 30 min |
+| Testing and verification | 45 min |
+| Documentation | 15 min |
+| **Total** | **~3.5 hours** |
+
+---
+
+## TASK SAFETY-012: Implement Admin-Managed Liability Disclaimer System
+
+**Duration:** 4 hours  
+**Priority:** Medium  
+**Dependencies:** SAFETY-010 (Platform policies table), TRADE-003 (Trade confirmation)
 
 ### Description
-Add liability disclaimer in settings. Display disclaimer on trade confirmation. Clarify platform not responsible for item quality/safety.
+Create Liability Disclaimer system using the same platform_policies infrastructure from SAFETY-010. Admin can create, edit, and publish Liability Disclaimer versions. Display disclaimer on trade confirmation screen before purchase. Users must acknowledge disclaimer to complete trade. Display in app settings. Track acknowledgments per transaction.
 
 ---
 
-### Time Breakdown: **~1 hour**
+### AI Prompt for Cursor (Generate Liability Disclaimer System)
+
+```typescript
+/*
+TASK: Implement admin-managed Liability Disclaimer system
+
+REQUIREMENTS:
+1. Reuse platform_policies table from SAFETY-010
+2. Admin UI to create/edit/publish Liability Disclaimer
+3. Mobile screen to display disclaimer
+4. Display on trade confirmation (before purchase)
+5. Require acknowledgment to complete trade
+6. Track acknowledgments per transaction
+7. Link from app settings
+
+==================================================
+NOTE: Database tables already exist from SAFETY-010
+- platform_policies (stores all policy types)
+- policy_acceptances (tracks user consent)
+- RPC functions: get_current_policy, has_accepted_current_policy, publish_policy
+==================================================
+
+FILE 1: Transaction disclaimer tracking
+==================================================
+*/
+
+-- filepath: supabase/migrations/051_transaction_disclaimer_tracking.sql
+
+-- Add disclaimer acknowledgment to transactions table
+ALTER TABLE transactions
+ADD COLUMN disclaimer_acknowledged BOOLEAN DEFAULT FALSE,
+ADD COLUMN disclaimer_policy_id UUID REFERENCES platform_policies(id) ON DELETE SET NULL,
+ADD COLUMN disclaimer_acknowledged_at TIMESTAMP WITH TIME ZONE;
+
+CREATE INDEX transactions_disclaimer_idx ON transactions(disclaimer_acknowledged);
+
+-- RPC function to acknowledge disclaimer and create transaction
+CREATE OR REPLACE FUNCTION create_transaction_with_disclaimer(
+  p_buyer_id UUID,
+  p_seller_id UUID,
+  p_item_id UUID,
+  p_total_amount DECIMAL,
+  p_disclaimer_policy_id UUID
+)
+RETURNS UUID AS $$
+DECLARE
+  v_transaction_id UUID;
+BEGIN
+  -- Verify disclaimer policy exists and is published
+  IF NOT EXISTS (
+    SELECT 1 FROM platform_policies
+    WHERE id = p_disclaimer_policy_id
+      AND policy_type = 'liability_disclaimer'
+      AND status = 'published'
+  ) THEN
+    RAISE EXCEPTION 'Invalid disclaimer policy';
+  END IF;
+
+  -- Create transaction with disclaimer acknowledgment
+  INSERT INTO transactions (
+    buyer_id,
+    seller_id,
+    item_id,
+    total_amount,
+    status,
+    disclaimer_acknowledged,
+    disclaimer_policy_id,
+    disclaimer_acknowledged_at
+  ) VALUES (
+    p_buyer_id,
+    p_seller_id,
+    p_item_id,
+    p_total_amount,
+    'pending',
+    TRUE,
+    p_disclaimer_policy_id,
+    NOW()
+  ) RETURNING id INTO v_transaction_id;
+
+  -- Also record in policy_acceptances for audit
+  INSERT INTO policy_acceptances (
+    user_id,
+    policy_id,
+    policy_type,
+    policy_version
+  ) SELECT
+    p_buyer_id,
+    p_disclaimer_policy_id,
+    'liability_disclaimer',
+    version
+  FROM platform_policies
+  WHERE id = p_disclaimer_policy_id;
+
+  RETURN v_transaction_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+/*
+==================================================
+FILE 2: Mobile app - Liability Disclaimer screen
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/screens/settings/LiabilityDisclaimerScreen.tsx
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '@/config/supabase';
+import Markdown from 'react-native-markdown-display';
+
+export default function LiabilityDisclaimerScreen() {
+  const [loading, setLoading] = useState(true);
+  const [policy, setPolicy] = useState<any>(null);
+
+  useEffect(() => {
+    fetchDisclaimer();
+  }, []);
+
+  const fetchDisclaimer = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_current_policy', {
+        p_policy_type: 'liability_disclaimer',
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setPolicy(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching disclaimer:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" />
+      </SafeAreaView>
+    );
+  }
+
+  if (!policy) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.errorText}>Liability Disclaimer not available</Text>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>{policy.title}</Text>
+        <Text style={styles.version}>Version {policy.version}</Text>
+        {policy.effective_date && (
+          <Text style={styles.effectiveDate}>
+            Effective: {new Date(policy.effective_date).toLocaleDateString()}
+          </Text>
+        )}
+        
+        <View style={styles.contentContainer}>
+          <Markdown>{policy.content}</Markdown>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  version: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  effectiveDate: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  contentContainer: {
+    marginTop: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 32,
+  },
+});
+
+/*
+==================================================
+FILE 3: Trade confirmation - Disclaimer modal/section
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/components/DisclaimerModal.tsx
+
+import React, { useState, useEffect } from 'react';
+import {
+  Modal,
+  View,
+  Text,
+  ScrollView,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
+import { supabase } from '@/config/supabase';
+import Markdown from 'react-native-markdown-display';
+
+interface DisclaimerModalProps {
+  visible: boolean;
+  onAccept: (policyId: string) => void;
+  onCancel: () => void;
+}
+
+export default function DisclaimerModal({
+  visible,
+  onAccept,
+  onCancel,
+}: DisclaimerModalProps) {
+  const [loading, setLoading] = useState(true);
+  const [policy, setPolicy] = useState<any>(null);
+  const [accepted, setAccepted] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      fetchDisclaimer();
+      setAccepted(false); // Reset on open
+    }
+  }, [visible]);
+
+  const fetchDisclaimer = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_current_policy', {
+        p_policy_type: 'liability_disclaimer',
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setPolicy(data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching disclaimer:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={false}
+      onRequestClose={onCancel}
+    >
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Liability Disclaimer</Text>
+          <Pressable onPress={onCancel}>
+            <Text style={styles.closeButton}>✕</Text>
+          </Pressable>
+        </View>
+
+        {loading ? (
+          <ActivityIndicator size="large" style={styles.loader} />
+        ) : !policy ? (
+          <Text style={styles.errorText}>Disclaimer not available</Text>
+        ) : (
+          <>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+              <Text style={styles.version}>Version {policy.version}</Text>
+              <View style={styles.contentContainer}>
+                <Markdown>{policy.content}</Markdown>
+              </View>
+            </ScrollView>
+
+            <View style={styles.footer}>
+              <Pressable
+                style={styles.checkbox}
+                onPress={() => setAccepted(!accepted)}
+              >
+                <View style={[styles.checkboxInner, accepted && styles.checkboxChecked]}>
+                  {accepted && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <Text style={styles.checkboxLabel}>
+                  I have read and understand this disclaimer
+                </Text>
+              </Pressable>
+
+              <View style={styles.buttonRow}>
+                <Pressable
+                  style={[styles.button, styles.cancelButton]}
+                  onPress={onCancel}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.button,
+                    styles.acceptButton,
+                    !accepted && styles.buttonDisabled,
+                  ]}
+                  onPress={() => accepted && onAccept(policy.id)}
+                  disabled={!accepted}
+                >
+                  <Text style={styles.acceptButtonText}>Accept & Continue</Text>
+                </Pressable>
+              </View>
+            </View>
+          </>
+        )}
+      </View>
+    </Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    fontSize: 24,
+    color: '#666',
+  },
+  loader: {
+    marginTop: 32,
+  },
+  scrollContent: {
+    padding: 16,
+  },
+  version: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+  },
+  contentContainer: {
+    marginBottom: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 32,
+  },
+  footer: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  checkbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checkboxInner: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  checkboxLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  button: {
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  acceptButton: {
+    backgroundColor: '#007AFF',
+  },
+  acceptButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+  },
+});
+
+/*
+==================================================
+FILE 4: Update Trade Confirmation Screen
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/screens/trade/TradeConfirmationScreen.tsx (UPDATE)
+
+import DisclaimerModal from '@/components/DisclaimerModal';
+
+// Add state for disclaimer:
+const [showDisclaimer, setShowDisclaimer] = useState(false);
+const [disclaimerPolicyId, setDisclaimerPolicyId] = useState<string | null>(null);
+
+// Update the confirm purchase function:
+const handleConfirmPurchase = () => {
+  // Show disclaimer before creating transaction
+  setShowDisclaimer(true);
+};
+
+const handleDisclaimerAccept = async (policyId: string) => {
+  setDisclaimerPolicyId(policyId);
+  setShowDisclaimer(false);
+  
+  try {
+    // Create transaction with disclaimer acknowledgment
+    const { data, error } = await supabase.rpc('create_transaction_with_disclaimer', {
+      p_buyer_id: currentUser.id,
+      p_seller_id: item.seller_id,
+      p_item_id: item.id,
+      p_total_amount: totalAmount,
+      p_disclaimer_policy_id: policyId,
+    });
+
+    if (error) throw error;
+
+    // Continue with payment flow...
+    navigation.navigate('PaymentScreen', { transactionId: data });
+  } catch (error) {
+    console.error('Error creating transaction:', error);
+    alert('Failed to create transaction');
+  }
+};
+
+// Add modal to JSX:
+<DisclaimerModal
+  visible={showDisclaimer}
+  onAccept={handleDisclaimerAccept}
+  onCancel={() => setShowDisclaimer(false)}
+/>
+
+/*
+==================================================
+FILE 5: Add disclaimer link to Settings screen
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/screens/settings/SettingsScreen.tsx (UPDATE)
+
+// Add Liability Disclaimer link in the settings menu:
+<Pressable
+  style={styles.settingItem}
+  onPress={() => navigation.navigate('LiabilityDisclaimer')}
+>
+  <Text style={styles.settingLabel}>Liability Disclaimer</Text>
+  <Text style={styles.settingChevron}>›</Text>
+</Pressable>
+
+/*
+==================================================
+FILE 6: Add navigation route
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/navigation/types.ts (UPDATE)
+
+// Add to RootStackParamList:
+export type RootStackParamList = {
+  // ... existing routes
+  TermsOfService: undefined;
+  PrivacyPolicy: undefined;
+  LiabilityDisclaimer: undefined; // ADD THIS
+  // ... rest of routes
+};
+
+// filepath: p2p-kids-marketplace/src/navigation/AppNavigator.tsx (UPDATE)
+
+import LiabilityDisclaimerScreen from '@/screens/settings/LiabilityDisclaimerScreen';
+
+// Add route in the Stack.Navigator:
+<Stack.Screen
+  name="LiabilityDisclaimer"
+  component={LiabilityDisclaimerScreen}
+  options={{ title: 'Liability Disclaimer' }}
+/>
+
+/*
+==================================================
+FILE 7: Admin UI already exists from SAFETY-010
+==================================================
+
+Admin can manage Liability Disclaimer using:
+- p2p-kids-admin/src/app/settings/policies/page.tsx
+- Select "Liability Disclaimer" tab
+- Create new version, edit, publish
+
+No additional admin UI needed - same interface handles all policy types.
+
+==================================================
+ACCEPTANCE CRITERIA
+==================================================
+
+✓ Reuses platform_policies table from SAFETY-010
+✓ Admin can create/edit/publish Liability Disclaimer
+✓ Mobile app displays current disclaimer
+✓ Disclaimer modal shown before trade confirmation
+✓ User must acknowledge disclaimer to continue
+✓ Acknowledgment tracked per transaction
+✓ Disclaimer linked from settings
+✓ Navigation routes configured
+✓ Markdown rendering works in modal
+✓ Transaction creation includes disclaimer_policy_id
+
+==================================================
+NEXT SECTION
+==================================================
+
+MODULE 13 SUMMARY (already exists below)
+*/
+```
+
+---
+
+### Output Files
+
+1. **supabase/migrations/051_transaction_disclaimer_tracking.sql** - Transaction disclaimer fields and RPC
+2. **p2p-kids-marketplace/src/screens/settings/LiabilityDisclaimerScreen.tsx** - Settings viewer
+3. **p2p-kids-marketplace/src/components/DisclaimerModal.tsx** - Trade confirmation modal
+4. **p2p-kids-marketplace/src/screens/trade/TradeConfirmationScreen.tsx** - Updated with disclaimer flow
+5. **p2p-kids-marketplace/src/screens/settings/SettingsScreen.tsx** - Updated with disclaimer link
+6. **p2p-kids-marketplace/src/navigation/types.ts** - Added LiabilityDisclaimer route
+7. **p2p-kids-marketplace/src/navigation/AppNavigator.tsx** - Added LiabilityDisclaimer screen
+
+---
+
+### Testing Steps
+
+1. **Admin creates Liability Disclaimer:**
+   - Login to admin portal
+   - Navigate to Settings → Policies → Liability Disclaimer tab
+   - Create new version
+   - Enter content (e.g., "Platform not responsible for item quality, safety, or condition...")
+   - Publish
+
+2. **Trade confirmation displays disclaimer:**
+   - Select item to purchase
+   - Proceed to checkout
+   - Click "Confirm Purchase"
+   - Verify disclaimer modal opens
+
+3. **Disclaimer acceptance required:**
+   - Try to accept without checking box → Button disabled
+   - Check "I have read and understand" box
+   - Click "Accept & Continue"
+   - Verify transaction created
+   - Verify disclaimer_acknowledged = TRUE in DB
+
+4. **Acknowledgment tracking:**
+   - Query transactions table
+   - Verify disclaimer_policy_id populated
+   - Verify disclaimer_acknowledged_at timestamp
+   - Query policy_acceptances table
+   - Verify audit record created
+
+5. **Settings link works:**
+   - Open app settings
+   - Tap "Liability Disclaimer"
+   - Verify current version displayed
+
+6. **Version updates:**
+   - Admin publishes new version
+   - Next trade shows updated disclaimer
+   - Previous transactions still reference old version
+
+---
+
+### Time Breakdown
+
+| Activity | Time |
+|----------|------|
+| Create transaction disclaimer fields + RPC | 1 hour |
+| Build mobile disclaimer screen | 45 min |
+| Build disclaimer modal component | 1 hour |
+| Update trade confirmation flow | 45 min |
+| Add settings link and navigation | 15 min |
+| Testing and verification | 45 min |
+| **Total** | **~4 hours** |
 
 ---
 
@@ -2016,7 +3833,7 @@ Add liability disclaimer in settings. Display disclaimer on trade confirmation. 
 ## MODULE 13 SUMMARY
 
 **Total Tasks:** 15 (3 prerequisite + 12 safety)  
-**Estimated Time:** ~38.5 hours
+**Estimated Time:** ~49 hours
 
 ### Task Breakdown
 
@@ -2034,9 +3851,9 @@ Add liability disclaimer in settings. Display disclaimer on trade confirmation. 
 | SAFETY-007 | GPT-4 fallback for low confidence | 2.5h | ✅ Documented | |
 | SAFETY-008 | Admin review workflow | 3h | ✅ Documented | |
 | SAFETY-009 | Seller appeal workflow | 2.5h | ✅ Documented | |
-| SAFETY-010 | Terms of Service placeholder | 1h | ✅ Documented | |
-| SAFETY-011 | Privacy Policy placeholder | 1h | ✅ Documented | |
-| SAFETY-012 | Liability disclaimer placeholder | 1h | ✅ Documented |
+| SAFETY-010 | Admin-managed Terms of Service system | 4.5h | ✅ Documented | |
+| SAFETY-011 | Admin-managed Privacy Policy system | 3.5h | ✅ Documented | |
+| SAFETY-012 | Admin-managed Liability Disclaimer system | 4h | ✅ Documented |
 
 ---
 
@@ -2074,7 +3891,10 @@ Add liability disclaimer in settings. Display disclaimer on trade confirmation. 
 2. **cpsc_import_log** - Import status tracking
 3. **item_safety_flags** - Flagged items queue
 4. **ai_moderation_logs** - AI moderation decisions
-5. **items (altered)** - Added 'flagged'/'rejected' statuses, flagged_at, rejected_at, rejection_reason, appeal_count (SAFETY-P003)
+5. **platform_policies** - All platform policies (TOS, Privacy, Disclaimer) with versioning (SAFETY-010)
+6. **policy_acceptances** - User policy acceptance tracking with version history (SAFETY-010)
+7. **items (altered)** - Added 'flagged'/'rejected' statuses, flagged_at, rejected_at, rejection_reason, appeal_count (SAFETY-P003)
+8. **transactions (altered)** - Added disclaimer_acknowledged, disclaimer_policy_id, disclaimer_acknowledged_at (SAFETY-012)
 
 ---
 
@@ -2167,6 +3987,10 @@ Add liability disclaimer in settings. Display disclaimer on trade confirmation. 
 5. `item_rejected_admin` - Admin rejected item
 6. `item_appeal_submitted` - Seller appealed rejection
 7. `tos_accepted` - User accepted Terms of Service
+8. `tos_viewed` - User viewed TOS (from settings or signup)
+9. `privacy_policy_viewed` - User viewed Privacy Policy
+10. `disclaimer_acknowledged` - User acknowledged Liability Disclaimer (during trade)
+11. `policy_published` - Admin published new policy version
 
 ---
 
@@ -2203,10 +4027,50 @@ Add liability disclaimer in settings. Display disclaimer on trade confirmation. 
 - [ ] Seller can edit and resubmit
 - [ ] Item re-enters moderation queue
 
-**Compliance:**
-- [ ] TOS displayed and accepted
-- [ ] Privacy Policy accessible
-- [ ] Liability disclaimer shown
+**Policy Management - Terms of Service:**
+- [ ] Admin can create TOS draft
+- [ ] Admin can edit TOS content (Markdown supported)
+- [ ] Admin can publish TOS (previous version archived)
+- [ ] Mobile app displays current published TOS
+- [ ] Signup requires TOS acceptance
+- [ ] TOS checkbox validation works
+- [ ] Acceptance recorded in policy_acceptances table
+- [ ] Policy version tracked with acceptance
+- [ ] TOS accessible from settings
+
+**Policy Management - Privacy Policy:**
+- [ ] Admin can create Privacy Policy draft
+- [ ] Admin can publish Privacy Policy
+- [ ] Mobile app displays current Privacy Policy
+- [ ] Privacy Policy linked from signup screen
+- [ ] Privacy Policy accessible from settings
+- [ ] Markdown rendering works correctly
+- [ ] Version history maintained
+
+**Policy Management - Liability Disclaimer:**
+- [ ] Admin can create Liability Disclaimer draft
+- [ ] Admin can publish Liability Disclaimer
+- [ ] Disclaimer modal appears before trade confirmation
+- [ ] Cannot proceed without acknowledging disclaimer
+- [ ] Acknowledgment tracked per transaction
+- [ ] Transaction includes disclaimer_policy_id
+- [ ] Disclaimer accessible from settings
+- [ ] Version changes reflected in modal
+
+**Policy Version Management:**
+- [ ] Multiple versions can exist (draft/published/archived)
+- [ ] Only one published version per policy type
+- [ ] Publishing new version archives previous
+- [ ] Admin can view all versions
+- [ ] Effective dates work correctly
+- [ ] Users always see latest published version
+
+**Policy Acceptance Tracking:**
+- [ ] Acceptance logged with user_id, policy_id, version
+- [ ] Timestamp recorded accurately
+- [ ] Admin can view acceptance statistics
+- [ ] RPC function has_accepted_current_policy works
+- [ ] Users can view their acceptance history
 
 ---
 

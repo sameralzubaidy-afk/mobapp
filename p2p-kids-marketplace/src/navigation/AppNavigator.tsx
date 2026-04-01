@@ -52,6 +52,9 @@ import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
 const IDVerificationUploadScreen = require('@/screens/profile/IDVerificationUploadScreen').default;
 import SettingsScreen from '@/screens/profile/SettingsScreen';
 import NotificationPreferencesScreen from '@/screens/profile/NotificationPreferencesScreen';
+import TermsOfServiceScreen from '@/screens/profile/TermsOfServiceScreen';
+import PrivacyPolicyScreen from '@/screens/profile/PrivacyPolicyScreen';
+import LiabilityDisclaimerScreen from '@/screens/settings/LiabilityDisclaimerScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 
@@ -269,6 +272,24 @@ function RootNavigator() {
             <Stack.Screen
               name="NotificationPreferences"
               component={NotificationPreferencesScreen}
+            />
+            {/* MODULE-13 SAFETY-010: TOS screen */}
+            <Stack.Screen
+              name="TermsOfService"
+              component={TermsOfServiceScreen}
+              options={{ title: 'Terms of Service' }}
+            />
+            {/* MODULE-13 SAFETY-011: Privacy Policy Screen */}
+            <Stack.Screen
+              name="PrivacyPolicy"
+              component={PrivacyPolicyScreen}
+              options={{ title: 'Privacy Policy' }}
+            />
+            {/* MODULE-13 SAFETY-012: Liability Disclaimer Screen */}
+            <Stack.Screen
+              name="LiabilityDisclaimer"
+              component={LiabilityDisclaimerScreen}
+              options={{ title: 'Liability Disclaimer' }}
             />
             {/* Add more authenticated screens as needed */}
           </>

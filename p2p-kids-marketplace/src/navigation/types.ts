@@ -64,4 +64,10 @@ export type RootStackParamList = {
   // MODULE-17: Notifications
   Notifications: undefined;
   NotificationDetail: { notificationId: string };
+  // MODULE-13 SAFETY-010: TOS
+  TermsOfService: { requireAcceptance?: boolean; onAccept?: () => void } | undefined;
+  // MODULE-13 SAFETY-011: Privacy Policy
+  PrivacyPolicy: { requireAcceptance?: boolean; onAccept?: () => void } | undefined;
+  // MODULE-13 SAFETY-012: Liability Disclaimer
+  LiabilityDisclaimer: undefined;
 };

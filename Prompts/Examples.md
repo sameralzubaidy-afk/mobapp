@@ -45,15 +45,14 @@ Supabase: supabase/
 My Example 1
 
 
-
-## TASK SAFETY-004: Implement Google Vision API Image Moderation (Supabase Edge Function)
+## TASK SAFETY-012: Implement Admin-Managed Liability Disclaimer System
 
 I’m working on the  MODULE-13-SAFETY-COMPLIANCE.md tasks
 Module: MODULE-13-SAFETY-COMPLIANCE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SAFETY-004: Implement Google Vision API Image Moderation (Supabase Edge Function)
+Tasks: ## TASK SAFETY-012: Implement Admin-Managed Liability Disclaimer System
 
 scope is 
-Use Google Vision API to check images for unsafe content. Detect: adult, violence, racy content. Flag images with high likelihood. Run on image upload. Store moderation results.
+Create Liability Disclaimer system using the same platform_policies infrastructure from SAFETY-010. Admin can create, edit, and publish Liability Disclaimer versions. Display disclaimer on trade confirmation screen before purchase. Users must acknowledge disclaimer to complete trade. Display in app settings. Track acknowledgments per transaction.
 
 i want you to 
 

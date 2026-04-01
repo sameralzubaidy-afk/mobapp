@@ -131,6 +131,9 @@ export default function ListingSafetyReviewScreen() {
   const firstImageUrl = firstImage ? firstImage.thumbnail_url || firstImage.url : null;
   const isRejected = listing.status === 'rejected';
   const isFlagged = listing.status === 'flagged';
+  const needsEdits = listing.status === 'needs_edits';
+  const adminNeedsEditsNote =
+    listing.moderation_note?.trim() || listing.rejection_reason?.trim() || null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -149,9 +152,9 @@ export default function ListingSafetyReviewScreen() {
           <Text style={styles.itemTitle}>{listing.title}</Text>
           <Text style={styles.itemPrice}>${listing.price.toFixed(2)}</Text>
 
-          <View style={[styles.statusBadge, isRejected ? styles.statusRejected : styles.statusFlagged]}>
-            <Text style={[styles.statusText, isRejected ? styles.statusTextRejected : styles.statusTextFlagged]}>
-              {listing.status.toUpperCase()}
+          <View style={[styles.statusBadge, isRejected ? styles.statusRejected : needsEdits ? styles.statusNeedsEdits : styles.statusFlagged]}>
+            <Text style={[styles.statusText, isRejected ? styles.statusTextRejected : needsEdits ? styles.statusTextNeedsEdits : styles.statusTextFlagged]}>
+              {listing.status === 'needs_edits' ? 'NEEDS EDITS' : listing.status.toUpperCase()}
             </Text>
           </View>
 
@@ -160,6 +163,15 @@ export default function ListingSafetyReviewScreen() {
               <Text style={styles.reasonTitle}>Rejection Reason</Text>
               <Text style={styles.reasonText}>
                 {listing.rejection_reason || 'No rejection reason provided by admin.'}
+              </Text>
+            </View>
+          )}
+
+          {needsEdits && (
+            <View style={styles.needsEditsBox}>
+              <Text style={styles.needsEditsTitle}>Admin's Edit Request</Text>
+              <Text style={styles.needsEditsText}>
+                {adminNeedsEditsNote || 'No edit request details provided by admin.'}
               </Text>
             </View>
           )}
@@ -191,6 +203,14 @@ export default function ListingSafetyReviewScreen() {
             </View>
           )}
 
+          {needsEdits && (
+            <View style={styles.infoBoxNeedsEdits}>
+              <Text style={styles.infoTextNeedsEdits}>
+                Please address the admin's edit request above and update your listing. Once you make the edits, your listing will be re-reviewed.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>Appeals submitted</Text>
             <Text style={styles.metaValue}>{listing.appeal_count}</Text>
@@ -216,8 +236,20 @@ export default function ListingSafetyReviewScreen() {
           onPress={() => navigation.navigate('EditListing', { listing_id: listing.id })}
           disabled={submitting}
         >
-          <Text style={styles.secondaryButtonText}>Edit Listing</Text>
+          <Text style={styles.secondaryButtonText}>
+            {needsEdits ? 'Make Edits Now' : 'Edit Listing'}
+          </Text>
         </TouchableOpacity>
+
+        {needsEdits && (
+          <TouchableOpacity
+            style={[styles.primaryButton, submitting && styles.disabledButton]}
+            onPress={() => navigation.navigate('MyListings')}
+            disabled={submitting}
+          >
+            <Text style={styles.primaryButtonText}>Submit for Re-Review</Text>
+          </TouchableOpacity>
+        )}
 
         {isRejected && (
           <TouchableOpacity
@@ -320,6 +352,9 @@ const styles = StyleSheet.create({
   statusRejected: {
     backgroundColor: '#FEE2E2',
   },
+  statusNeedsEdits: {
+    backgroundColor: '#FED7AA',
+  },
   statusText: {
     fontSize: 12,
     fontWeight: '700',
@@ -329,6 +364,9 @@ const styles = StyleSheet.create({
   },
   statusTextRejected: {
     color: '#991B1B',
+  },
+  statusTextNeedsEdits: {
+    color: '#9A3412',
   },
   reasonBox: {
     marginTop: 12,
@@ -346,6 +384,24 @@ const styles = StyleSheet.create({
   },
   reasonText: {
     color: '#7F1D1D',
+    lineHeight: 20,
+  },
+  needsEditsBox: {
+    marginTop: 12,
+    borderRadius: 10,
+    backgroundColor: '#FEFCE8',
+    borderWidth: 1,
+    borderColor: '#FDE047',
+    padding: 10,
+  },
+  needsEditsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#9A3412',
+    marginBottom: 4,
+  },
+  needsEditsText: {
+    color: '#92400E',
     lineHeight: 20,
   },
   appealBox: {
@@ -388,6 +444,18 @@ const styles = StyleSheet.create({
   },
   infoText: {
     color: '#1E40AF',
+    lineHeight: 20,
+  },
+  infoBoxNeedsEdits: {
+    marginTop: 12,
+    borderRadius: 10,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FBBF24',
+    padding: 10,
+  },
+  infoTextNeedsEdits: {
+    color: '#92400E',
     lineHeight: 20,
   },
   metaRow: {

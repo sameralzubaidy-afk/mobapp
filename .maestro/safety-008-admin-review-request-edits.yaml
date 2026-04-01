@@ -1,0 +1,41 @@
+# FLOW: Admin flagged item review with request-edits action
+# TASK: SAFETY-008
+
+appId: com.kidsp2pmarketplace.app
+---
+
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to admin flagged items queue (existing route/workflow)
+- tapOn:
+    text: "Admin"
+- waitForAnimationToEnd
+
+- tapOn:
+    text: "Flagged Items"
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Moderation Queue"
+
+# Open first row for review
+- tapOn:
+    text: "Review"
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Review Item"
+
+# Enter decision note and request edits
+- tapOn:
+    text: "Provide clear moderation feedback for seller..."
+- inputText: "Please update photo quality and remove prohibited accessories before resubmitting."
+- hideKeyboard
+
+- tapOn:
+    text: "Request Edits"
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Edit request sent to seller successfully"

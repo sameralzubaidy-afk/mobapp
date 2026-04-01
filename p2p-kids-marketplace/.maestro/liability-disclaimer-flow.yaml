@@ -1,0 +1,168 @@
+# FLOW: Liability Disclaimer | TASK: SAFETY-012 | States covered: View disclaimer screen, Accept disclaimer during trade, Disclaimer in Settings
+
+appId: com.kidsp2p.marketplace
+---
+
+# ==============================================================================
+# PRE-TEST SETUP (Manual - Run these SQL queries in Supabase before testing)
+# ==============================================================================
+# 1. Ensure a published liability_disclaimer exists:
+#    SELECT * FROM platform_policies WHERE policy_type='liability_disclaimer' AND status='published';
+# 2. If none exists, create one in Admin Panel or via SQL:
+#    INSERT INTO platform_policies (policy_type, version, title, content, status, effective_date)
+#    VALUES ('liability_disclaimer', '1.0', 'Liability Disclaimer', '# Disclaimer\n\nTest content', 'published', NOW());
+# ==============================================================================
+
+# ==============================================================================
+# Flow 1: View Liability Disclaimer from Settings
+# ==============================================================================
+- launchApp
+- tapOn:
+    id: "Profile"
+- tapOn:
+    id: "settings-button"
+- assertVisible: "Settings"
+
+- tapOn:
+    id: "settings-liability-disclaimer-button"
+- assertVisible: "Liability Disclaimer"
+- waitForAnimationToEnd
+
+# Should display disclaimer content
+- assertVisible: "Version"
+- assertVisible: "Effective"
+
+# Scroll to bottom of disclaimer
+- scrollUntilVisible:
+    element:
+      text: ".*disclaimer.*"
+    direction: DOWN
+
+# Back button should work
+- tapOn:
+    id: "back-button"
+- assertVisible: "Settings"
+
+# ==============================================================================
+# Flow 2: Disclaimer Modal During Trade Initiation (Happy Path)
+# ==============================================================================
+- tapOn:
+    point: "5%,5%"  # Back to home
+- assertVisible: "Browse"
+
+# Navigate to an active listing
+- tapOn:
+    id: "browse-tab"
+- waitForAnimationToEnd
+
+# Find and tap on first available item
+- tapOn:
+    id: "item-card-0"
+- assertVisible: "Item Details"
+
+# Initiate trade
+- tapOn:
+    id: "buy-now-button"
+- assertVisible: "Confirm Your Trade"
+
+# Fill in card details (if required - adjust based on test env)
+# - tapOn:
+#     id: "card-field"
+# - inputText: "4242424242424242"  # Test card number
+
+# Confirm purchase - should show disclaimer modal
+- tapOn:
+    id: "confirm-trade-button"
+- waitForAnimationToEnd
+
+# Disclaimer modal should appear
+- assertVisible: "Liability Disclaimer"
+- assertVisible:
+    id: "trade-disclaimer-modal"
+- assertVisible: "Accept & Continue"
+- assertVisible: "Cancel"
+
+# Scroll through disclaimer content
+- scrollUntilVisible:
+    element:
+      id: "trade-disclaimer-modal-scroll-view"
+    direction: DOWN
+    timeout: 3000
+
+# Accept button should be disabled initially
+- assertVisible:
+    id: "trade-disclaimer-modal-accept-button"
+
+# Check the "I understand" checkbox
+- tapOn:
+    id: "trade-disclaimer-modal-checkbox"
+- waitForAnimationToEnd
+
+# Accept button should now be enabled
+- tapOn:
+    id: "trade-disclaimer-modal-accept-button"
+- waitForAnimationToEnd
+
+# Modal should close and trade should proceed
+# (Next screens depend on payment flow - adjust as needed)
+- assertVisible: ".*Trade.*|.*Payment.*|.*Success.*"
+
+# ==============================================================================
+# Flow 3: Disclaimer Modal - Cancel Path
+# ==============================================================================
+- tapOn:
+    point: "5%,5%"  # Back to home
+- assertVisible: "Browse"
+
+# Navigate to item again
+- tapOn:
+    id: "browse-tab"
+- tapOn:
+    id: "item-card-0"
+- assertVisible: "Item Details"
+
+# Initiate trade
+- tapOn:
+    id: "buy-now-button"
+- assertVisible: "Confirm Your Trade"
+
+# Confirm purchase - show modal
+- tapOn:
+    id: "confirm-trade-button"
+- waitForAnimationToEnd
+
+# Modal appears
+- assertVisible:
+    id: "trade-disclaimer-modal"
+
+# User cancels
+- tapOn:
+    id: "trade-disclaimer-modal-cancel-button"
+- waitForAnimationToEnd
+
+# Should return to trade confirmation screen (trade NOT initiated)
+- assertVisible: "Confirm Your Trade"
+- assertVisible: "confirm-trade-button"
+
+# ==============================================================================
+# Flow 4: Disclaimer Modal - Close Button Path
+# ==============================================================================
+- tapOn:
+    id: "confirm-trade-button"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "trade-disclaimer-modal"
+
+# Close via X button
+- tapOn:
+    id: "trade-disclaimer-modal-close-button"
+- waitForAnimationToEnd
+
+# Should return to trade confirmation
+- assertVisible: "Confirm Your Trade"
+
+# ==============================================================================
+# FINAL ASSERTION: Verify we're back at a stable screen
+# ==============================================================================
+- assertVisible: "Browse|Profile|Wallet"
