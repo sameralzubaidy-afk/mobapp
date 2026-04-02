@@ -45,6 +45,40 @@ const toPositiveInteger = (rawValue: unknown, fallbackValue: number): number => 
   return integerValue;
 };
 
+const isSchemaDriftForEditedTracking = (
+  error: { code?: string; message?: string } | null
+): boolean => {
+  if (!error) {
+    return false;
+  }
+
+  const message = (error.message ?? '').toLowerCase();
+  if (error.code !== 'PGRST204') {
+    return false;
+  }
+
+  return (
+    message.includes('edited_since_rejection') || message.includes('edited_since_rejection_at')
+  );
+};
+
+const wasEditedAfterRejection = (
+  rejectedAt: string | null | undefined,
+  updatedAt: string | null | undefined
+): boolean => {
+  if (!rejectedAt || !updatedAt) {
+    return false;
+  }
+
+  const rejectedAtMs = Date.parse(rejectedAt);
+  const updatedAtMs = Date.parse(updatedAt);
+  if (!Number.isFinite(rejectedAtMs) || !Number.isFinite(updatedAtMs)) {
+    return false;
+  }
+
+  return updatedAtMs > rejectedAtMs;
+};
+
 const isRlsPolicyError = (message: string | undefined): boolean => {
   const lower = (message ?? '').toLowerCase();
   return (
@@ -574,13 +608,22 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
     updatePayload.edited_since_rejection_at = new Date().toISOString();
   }
 
+  const containsEditedTrackingFields =
+    Object.prototype.hasOwnProperty.call(updatePayload, 'edited_since_rejection') ||
+    Object.prototype.hasOwnProperty.call(updatePayload, 'edited_since_rejection_at');
+
+  const runUpdate = async (payload: Record<string, unknown>) =>
+    supabase.from('items').update(payload).eq('id', listing_id).select().single();
+
   // Update listing (updated_at is set by DB trigger)
-  const { data, error } = await supabase
-    .from('items')
-    .update(updatePayload)
-    .eq('id', listing_id)
-    .select()
-    .single();
+  let { data, error } = await runUpdate(updatePayload);
+
+  if (error && containsEditedTrackingFields && isSchemaDriftForEditedTracking(error)) {
+    const fallbackPayload = { ...updatePayload };
+    delete fallbackPayload.edited_since_rejection;
+    delete fallbackPayload.edited_since_rejection_at;
+    ({ data, error } = await runUpdate(fallbackPayload));
+  }
 
   if (error) {
     const err = error as Error;
@@ -620,15 +663,47 @@ export async function submitListingAppeal(
     throw new Error('Appeal reason must be at least 10 characters');
   }
 
-  const { data: listing, error: fetchError } = await supabase
+  let { data: listing, error: fetchError } = await supabase
     .from('items')
     .select(
-      'id, seller_id, status, appeal_count, appeal_reason, rejected_at, edited_since_rejection'
+      'id, seller_id, status, appeal_count, appeal_reason, rejected_at, edited_since_rejection, updated_at'
     )
     .eq('id', listing_id)
     .single();
 
-  if (fetchError || !listing) {
+  // Backward-compatibility fallback while migration/schema cache catches up.
+  if (fetchError && isSchemaDriftForEditedTracking(fetchError)) {
+    const fallbackResult = await supabase
+      .from('items')
+      .select('id, seller_id, status, appeal_count, appeal_reason, rejected_at, updated_at')
+      .eq('id', listing_id)
+      .single();
+
+    listing = fallbackResult.data as {
+      id: string;
+      seller_id: string;
+      status: string;
+      appeal_count: number | null;
+      appeal_reason: string | null;
+      rejected_at: string | null;
+      updated_at: string | null;
+      edited_since_rejection?: boolean;
+    } | null;
+    fetchError = fallbackResult.error;
+
+    if (!fetchError && listing) {
+      listing.edited_since_rejection = wasEditedAfterRejection(
+        listing.rejected_at,
+        listing.updated_at
+      );
+    }
+  }
+
+  if (fetchError) {
+    throw new Error(`Failed to load listing for appeal: ${fetchError.message}`);
+  }
+
+  if (!listing) {
     throw new Error('Listing not found');
   }
 
@@ -671,7 +746,11 @@ export async function submitListingAppeal(
     );
   }
 
-  if (!listing.edited_since_rejection) {
+  const editedSinceRejection =
+    listing.edited_since_rejection ??
+    wasEditedAfterRejection(listing.rejected_at, listing.updated_at);
+
+  if (!editedSinceRejection) {
     throw new Error('Please edit your listing before submitting an appeal.');
   }
 

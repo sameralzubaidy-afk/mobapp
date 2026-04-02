@@ -212,4 +212,66 @@ describe('submitListingAppeal', () => {
       'Please edit your listing before submitting an appeal.'
     );
   });
+
+  it('falls back when edited-tracking columns are missing and still submits appeal', async () => {
+    const fetchWithNewColumnsBuilder = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: {
+          code: 'PGRST204',
+          message:
+            "Could not find the 'edited_since_rejection' column of 'items' in the schema cache",
+        },
+      }),
+    } as any;
+
+    const fetchFallbackBuilder = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: {
+          id: 'listing-1',
+          seller_id: 'seller-1',
+          status: 'rejected',
+          appeal_count: 1,
+          rejected_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        error: null,
+      }),
+    } as any;
+
+    const updateBuilder = {
+      update: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: {
+          id: 'listing-1',
+          seller_id: 'seller-1',
+          status: 'flagged',
+          appeal_count: 1,
+          appeal_reason: validAppealReason,
+        },
+        error: null,
+      }),
+    } as any;
+
+    mockSupabase.from
+      .mockReturnValueOnce(fetchWithNewColumnsBuilder)
+      .mockReturnValueOnce(fetchFallbackBuilder)
+      .mockReturnValueOnce(updateBuilder);
+
+    const result = await submitListingAppeal('listing-1', 'seller-1', validAppealReason);
+
+    expect(result.status).toBe('flagged');
+    expect(fetchWithNewColumnsBuilder.select).toHaveBeenCalledWith(
+      expect.stringContaining('edited_since_rejection')
+    );
+    expect(fetchFallbackBuilder.select).toHaveBeenCalledWith(
+      expect.not.stringContaining('edited_since_rejection')
+    );
+  });
 });
