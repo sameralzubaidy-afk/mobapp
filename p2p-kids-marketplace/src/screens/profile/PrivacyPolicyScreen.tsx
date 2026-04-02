@@ -12,6 +12,8 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getPrivacyPolicyService } from '../../services/privacyPolicy';
@@ -87,36 +89,66 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer} testID="privacy-policy-loading">
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading Privacy Policy...</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Privacy Policy</Text>
+        </View>
+        <View style={styles.loadingContainer} testID="privacy-policy-loading">
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Loading Privacy Policy...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!policy) {
     return (
-      <View style={styles.container} testID="privacy-policy-error">
-        <Text style={styles.errorText}>Privacy Policy not available</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Privacy Policy</Text>
+        </View>
+        <View style={styles.container} testID="privacy-policy-error">
+          <Text style={styles.errorText}>Privacy Policy not available</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container} testID="privacy-policy-screen">
+    <SafeAreaView style={styles.container} edges={['top']} testID="privacy-policy-screen">
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          testID="back-button"
+        >
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Privacy Policy</Text>
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         testID="privacy-policy-content"
       >
         <Text style={styles.title}>{policy.title}</Text>
-        <Text style={styles.version} testID="privacy-policy-version">
-          Version {policy.version}
-        </Text>
-        {policy.effective_date && (
-          <Text style={styles.effectiveDate} testID="privacy-policy-effective-date">
-            Effective: {new Date(policy.effective_date).toLocaleDateString()}
-          </Text>
-        )}
+
+        <View style={styles.metaContainer}>
+          <View style={styles.versionBadge}>
+            <Text style={styles.versionText} testID="privacy-policy-version">Version {policy.version}</Text>
+          </View>
+          {policy.effective_date && (
+            <Text style={styles.effectiveDate} testID="privacy-policy-effective-date">
+              Effective: {new Date(policy.effective_date).toLocaleDateString()}
+            </Text>
+          )}
+        </View>
 
         <View style={styles.contentContainer}>
           <Markdown>{policy.content}</Markdown>
@@ -124,7 +156,7 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
 
         {requireAcceptance && (
           <TouchableOpacity
-            style={styles.acceptButton}
+            style={[styles.acceptButton, accepting && styles.acceptButtonDisabled]}
             onPress={handleAccept}
             disabled={accepting}
             testID="privacy-policy-accept-button"
@@ -137,14 +169,31 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  backButton: {
+    marginRight: 16,
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
   },
   loadingContainer: {
     flex: 1,
@@ -155,33 +204,47 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#666',
+    color: '#6B7280',
   },
   scrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  version: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
+  metaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  versionBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  versionText: {
+    fontSize: 12,
+    color: '#3B82F6',
+    fontWeight: '600',
   },
   effectiveDate: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
-    marginBottom: 24,
   },
   contentContainer: {
+    marginTop: 8,
     marginBottom: 24,
   },
   errorText: {
     fontSize: 16,
-    color: '#666',
+    color: '#EF4444',
     textAlign: 'center',
     marginTop: 32,
   },
@@ -191,6 +254,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 32,
+  },
+  acceptButtonDisabled: {
+    backgroundColor: '#93C5FD',
   },
   acceptButtonText: {
     color: '#FFFFFF',

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,13 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
-  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getTOSService } from '../../services/tos';
+import Markdown from 'react-native-markdown-display';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TermsOfService'>;
 
@@ -31,30 +32,6 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
 
   const requireAcceptance = route.params?.requireAcceptance || false;
   const onAccept = route.params?.onAccept;
-
-  useLayoutEffect(() => {
-    // Add custom back button for Android/iOS if needed, 
-    // or just rely on default header if possible.
-    // However, if the user sees "no back button", it might be due to 
-    // the screen being presented as a modal or in a specific stack state.
-    // We'll explicitly add a left button to ensure visibility.
-    navigation.setOptions({
-      headerLeft: () => (
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          testID="tos-back-button"
-        >
-          <Ionicons 
-            name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} 
-            size={24} 
-            color="#007AFF" 
-          />
-          {Platform.OS === 'ios' && <Text style={styles.backText}>Back</Text>}
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation]);
 
   useEffect(() => {
     loadPolicy();
@@ -109,44 +86,74 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading Terms of Service...</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Terms of Service</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Loading Terms of Service...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!policy) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Terms of Service not available</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Terms of Service</Text>
+        </View>
+        <View style={styles.container}>
+          <Text style={styles.errorText}>Terms of Service not available</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container} testID="tos-screen">
+    <SafeAreaView style={styles.container} edges={['top']} testID="tos-screen">
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          testID="back-button"
+        >
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Terms of Service</Text>
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         testID="tos-content-scroll"
       >
-        <View style={styles.header}>
-          <Text style={styles.title} testID="tos-title">
-            {policy.title}
-          </Text>
-          <Text style={styles.version} testID="tos-version">
-            Version {policy.version}
-          </Text>
-          <Text style={styles.effectiveDate}>
-            Effective: {new Date(policy.effective_date).toLocaleDateString()}
-          </Text>
+        <Text style={styles.title} testID="tos-title">
+          {policy.title}
+        </Text>
+
+        <View style={styles.metaContainer}>
+          <View style={styles.versionBadge}>
+            <Text style={styles.versionText} testID="tos-version">Version {policy.version}</Text>
+          </View>
+          {policy.effective_date && (
+            <Text style={styles.effectiveDate}>
+              Effective: {new Date(policy.effective_date).toLocaleDateString()}
+            </Text>
+          )}
         </View>
 
-        <View style={styles.contentSection}>
-          <Text style={styles.content} testID="tos-content">
+        <View style={styles.contentContainer}>
+          <Markdown testID="tos-content">
             {policy.content}
-          </Text>
+          </Markdown>
         </View>
       </ScrollView>
 
@@ -175,7 +182,7 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -183,6 +190,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  backButton: {
+    marginRight: 16,
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
   },
   loadingContainer: {
     flex: 1,
@@ -193,59 +217,52 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666',
+    color: '#6B7280',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  header: {
-    marginBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    paddingBottom: 16,
+    padding: 20,
+    paddingBottom: 120,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 8,
+    color: '#1F2937',
+    marginBottom: 16,
   },
-  version: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+  metaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    flexWrap: 'wrap',
+  },
+  versionBadge: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  versionText: {
+    fontSize: 12,
+    color: '#3B82F6',
+    fontWeight: '600',
   },
   effectiveDate: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 12,
+    color: '#6B7280',
   },
-  contentSection: {
+  contentContainer: {
+    marginTop: 8,
     marginBottom: 24,
-  },
-  content: {
-    fontSize: 15,
-    lineHeight: 24,
-    color: '#333',
   },
   errorText: {
     fontSize: 16,
-    color: '#d32f2f',
+    color: '#EF4444',
     textAlign: 'center',
     marginTop: 32,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: Platform.OS === 'ios' ? 0 : 8,
-  },
-  backText: {
-    color: '#007AFF',
-    fontSize: 17,
-    marginLeft: 2,
   },
   footer: {
     position: 'absolute',
@@ -254,19 +271,19 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: '#E5E7EB',
     padding: 16,
     paddingBottom: 32,
   },
   acceptButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#3B82F6',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginBottom: 12,
   },
   acceptButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#93C5FD',
   },
   acceptButtonText: {
     color: '#fff',
@@ -277,10 +294,10 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F3F4F6',
   },
   declineButtonText: {
-    color: '#666',
+    color: '#4B5563',
     fontSize: 16,
     fontWeight: '600',
   },
