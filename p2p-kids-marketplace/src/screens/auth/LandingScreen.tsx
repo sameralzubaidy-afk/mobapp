@@ -7,9 +7,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
-  ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -131,8 +128,20 @@ export default function LandingScreen() {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            By continuing, you agree to our <Text style={styles.footerLink}>Terms</Text> and{' '}
-            <Text style={styles.footerLink}>Privacy Policy</Text>
+            By continuing, you agree to our{' '}
+            <Text
+              style={styles.footerLink}
+              onPress={() => (navigation as any).navigate('TermsOfService')}
+            >
+              Terms
+            </Text>{' '}
+            and{' '}
+            <Text
+              style={styles.footerLink}
+              onPress={() => (navigation as any).navigate('PrivacyPolicy')}
+            >
+              Privacy Policy
+            </Text>
           </Text>
         </View>
       </View>

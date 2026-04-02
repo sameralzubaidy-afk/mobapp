@@ -289,6 +289,14 @@ export default function SignupScreen() {
     } else if (error.message?.includes('Database error saving new user')) {
       errorMessage =
         'Signup failed due to a backend database trigger error. Please check Supabase Auth logs for the underlying SQL error (often caused by a failing auth.users trigger).';
+    } else if (
+      error.message?.includes('POLICY_ACCEPTANCE_FAILED') ||
+      error.message?.includes('policy acceptance') ||
+      error.message?.includes('terms_of_service') ||
+      error.message?.includes('privacy_policy')
+    ) {
+      errorMessage =
+        'Signup could not save your policy agreement. Please try again in a moment.';
     } else if (error.message) {
       errorMessage = error.message;
     }

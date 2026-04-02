@@ -15,6 +15,7 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-01: Auth – Signup/Login/Logout/Session Restore
 - Smoke: (manual)
   - Signup -> logged in -> kill app -> relaunch -> session restores.
+  - Signup automatically records current `terms_of_service` and `privacy_policy` acceptance rows (if published) in `policy_acceptances`.
   - Logout returns to unauthenticated stack.
   - Cold launch does not hang indefinitely on a full-screen spinner even if profile/subscription fetches time out.
   - App launch does not get stuck in an auth refresh loop (no repeated profile realtime subscribe spam).
@@ -122,13 +123,21 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Database:
       - Tables: `items` (with `appeal_count`, `appeal_reason`, `appealed_at` columns added in migration 302)
       - Migration: `supabase/migrations/302_safety_p003_add_appeal_reason.sql` (already exists from SAFETY-P003)
+      - Migration: `supabase/migrations/20260402000001_safety_009_dynamic_appeal_limits_and_edit_tracking.sql`
+        - Adds: `items.edited_since_rejection`, `items.edited_since_rejection_at`
+        - Seeds moderation config keys:
+          - `moderation_appeal_max_attempts` (default: `3`)
+          - `moderation_appeal_window_days` (default: `14`)
       - Index: `idx_items_appealed_at_flagged` for admin review queue performance
     - Mobile App:
       - Service function: `submitListingAppeal(listing_id, seller_id, appeal_reason)` in `p2p-kids-marketplace/src/services/listing.ts`
         - Validates appeal reason (not empty, min 10 chars)
         - Checks listing exists and user is seller
         - Validates status is 'rejected'
-        - Updates: `status='flagged'`, `flagged_at=NOW()`, `appealed_at=NOW()`, `appeal_reason=text`, increments `appeal_count`
+        - Enforces max attempts from admin config (`moderation_appeal_max_attempts`)
+        - Enforces appeal window from admin config (`moderation_appeal_window_days`)
+        - Requires `edited_since_rejection=true` before allowing appeal submit
+        - Updates: `status='flagged'`, `flagged_at=NOW()`, `appealed_at=NOW()`, `appeal_reason=text` (appeal_count continues to increment on each admin rejection cycle)
         - Returns updated listing
       - UI screen: `p2p-kids-marketplace/src/screens/listing/ListingSafetyReviewScreen.tsx`
         - Displays rejection reason for rejected listings

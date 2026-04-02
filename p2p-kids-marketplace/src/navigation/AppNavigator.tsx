@@ -174,50 +174,141 @@ function RootNavigator() {
       onReady={logRouteChange}
       onStateChange={logRouteChange}
     >
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: true }}>
         {isAuthenticated && isSuspended ? (
           // Authenticated + Suspended -> blocked account screen
-          <Stack.Screen name="SuspendedAccount" component={SuspendedAccountScreen} />
+          <Stack.Screen
+            name="SuspendedAccount"
+            component={SuspendedAccountScreen}
+            options={{ headerShown: false }}
+          />
         ) : isAuthenticated && isOnboardingComplete ? (
           // Authenticated + Onboarding Complete → Dashboard stack
           <>
-            <Stack.Screen name="Home" component={UserDashboardScreen} />
+            <Stack.Screen
+              name="Home"
+              component={UserDashboardScreen}
+              options={{ headerShown: false }}
+            />
 
-            <Stack.Screen name="BrowseItems" component={BrowseItemsScreen} />
-            <Stack.Screen name="Search" component={SearchScreen} />
-            <Stack.Screen name="CategoryBrowse" component={CategoryBrowseScreen} />
-            <Stack.Screen name="ItemDetailScreen" component={ItemDetailScreen} />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
-            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-            <Stack.Screen name="SubscriptionChoice" component={SubscriptionChoiceScreen} />
+            <Stack.Screen
+              name="BrowseItems"
+              component={BrowseItemsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Search"
+              component={SearchScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CategoryBrowse"
+              component={CategoryBrowseScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ItemDetailScreen"
+              component={ItemDetailScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Profile"
+              component={ProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="EditProfile"
+              component={EditProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="SubscriptionChoice"
+              component={SubscriptionChoiceScreen}
+              options={{ headerShown: false }}
+            />
             {/* MODULE-04: Listing screens */}
-            <Stack.Screen name="MyListings" component={MyListingsScreen} />
-            <Stack.Screen name="CreateListing" component={CreateListingScreen} />
-            <Stack.Screen name="EditListing" component={EditListingScreen} />
-            <Stack.Screen name="ListingDetail" component={ItemDetailScreen} />
-            <Stack.Screen name="ListingSafetyReview" component={ListingSafetyReviewScreen} />
-            <Stack.Screen name="TradeInitiation" component={TradeInitiationScreen} />
+            <Stack.Screen
+              name="MyListings"
+              component={MyListingsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CreateListing"
+              component={CreateListingScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="EditListing"
+              component={EditListingScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ListingDetail"
+              component={ItemDetailScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ListingSafetyReview"
+              component={ListingSafetyReviewScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="TradeInitiation"
+              component={TradeInitiationScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="TradeList"
               component={require('@/screens/trade/TradeListScreen').default}
+              options={{ headerShown: false }}
             />
-            <Stack.Screen name="TradeDetail" component={TradeTimelineScreen} />
-            <Stack.Screen name="TradeTimeline" component={TradeTimelineScreen} />
-            <Stack.Screen name="TradeSuccess" component={TradeSuccessScreen} />
+            <Stack.Screen
+              name="TradeDetail"
+              component={TradeTimelineScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="TradeTimeline"
+              component={TradeTimelineScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="TradeSuccess"
+              component={TradeSuccessScreen}
+              options={{ headerShown: false }}
+            />
             {/* MODULE-07: Messaging screens */}
             <Stack.Screen
               name="Conversations"
               component={require('@/screens/messaging/ConversationsListScreen').default}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Chat"
               component={require('@/screens/messaging/ChatScreen').default}
+              options={{ headerShown: false }}
             />
             {/* MODULE-06 (EXT): Seller Payout screens */}
-            <Stack.Screen name="PayoutSettings" component={PayoutSettingsScreen} />
-            <Stack.Screen name="SellerEarnings" component={SellerEarningsScreen} />
-            <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
-            <Stack.Screen name="ReviewModeration" component={ReviewModerationScreen} />
+            <Stack.Screen
+              name="PayoutSettings"
+              component={PayoutSettingsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="SellerEarnings"
+              component={SellerEarningsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="AdminDashboard"
+              component={AdminDashboardScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ReviewModeration"
+              component={ReviewModerationScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="TrialConversionTest"
               component={TrialConversionTestScreen}
@@ -258,20 +349,49 @@ function RootNavigator() {
               component={TransactionHistoryScreen}
               options={{ title: 'Billing History - SUB-015' }}
             />
-            <Stack.Screen name="Badges" component={BadgesScreen} />
-            <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+            <Stack.Screen
+              name="Badges"
+              component={BadgesScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Leaderboard"
+              component={LeaderboardScreen}
+              options={{ headerShown: false }}
+            />
             {/* MODULE-09: Swap Points screens */}
-            <Stack.Screen name="SpWallet" component={SpWalletScreen} />
+            <Stack.Screen
+              name="SpWallet"
+              component={SpWalletScreen}
+              options={{ headerShown: false }}
+            />
             {/* MODULE-08: Review screens */}
-            <Stack.Screen name="SubmitReview" component={SubmitReviewScreen} />
+            <Stack.Screen
+              name="SubmitReview"
+              component={SubmitReviewScreen}
+              options={{ headerShown: false }}
+            />
             {/* MODULE-11: Referral screens */}
-            <Stack.Screen name="ReferralDashboard" component={ReferralDashboardScreen} />
+            <Stack.Screen
+              name="ReferralDashboard"
+              component={ReferralDashboardScreen}
+              options={{ headerShown: false }}
+            />
             {/* MODULE-10: ID Badge Verification */}
-            <Stack.Screen name="IDVerificationUpload" component={IDVerificationUploadScreen} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen
+              name="IDVerificationUpload"
+              component={IDVerificationUploadScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="NotificationPreferences"
               component={NotificationPreferencesScreen}
+              options={{ headerShown: false }}
             />
             {/* MODULE-13 SAFETY-010: TOS screen */}
             <Stack.Screen
@@ -296,19 +416,83 @@ function RootNavigator() {
         ) : (
           // Unauthenticated OR Onboarding Incomplete → Onboarding/Auth stack
           <>
-            <Stack.Screen name="Landing" component={LandingScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Signup" component={SignupScreen} />
-            <Stack.Screen name="PhoneVerification" component={PhoneVerificationScreen} />
-            <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            <Stack.Screen name="ProfileCompletion" component={ProfileCompletionScreen} />
-            <Stack.Screen name="SubscriptionChoice" component={SubscriptionChoiceScreen} />
-            <Stack.Screen name="LocationPicker" component={LocationPickerScreen} />
-            <Stack.Screen name="NodeSelection" component={NodeSelectionScreen} />
-            <Stack.Screen name="FeatureHighlights" component={FeatureHighlightsScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+            <Stack.Screen
+              name="Landing"
+              component={LandingScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Signup"
+              component={SignupScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PhoneVerification"
+              component={PhoneVerificationScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ProfileSetup"
+              component={ProfileSetupScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Welcome"
+              component={WelcomeScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ProfileCompletion"
+              component={ProfileCompletionScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="SubscriptionChoice"
+              component={SubscriptionChoiceScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="LocationPicker"
+              component={LocationPickerScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="NodeSelection"
+              component={NodeSelectionScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="FeatureHighlights"
+              component={FeatureHighlightsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ResetPassword"
+              component={ResetPasswordScreen}
+              options={{ headerShown: false }}
+            />
+            {/* MODULE-13 SAFETY-010: TOS screen (Unauthenticated access) */}
+            <Stack.Screen
+              name="TermsOfService"
+              component={TermsOfServiceScreen}
+              options={{ title: 'Terms of Service' }}
+            />
+            {/* MODULE-13 SAFETY-011: Privacy Policy Screen (Unauthenticated access) */}
+            <Stack.Screen
+              name="PrivacyPolicy"
+              component={PrivacyPolicyScreen}
+              options={{ title: 'Privacy Policy' }}
+            />
           </>
         )}
       </Stack.Navigator>

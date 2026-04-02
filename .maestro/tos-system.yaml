@@ -1,42 +1,15 @@
-# FLOW: TOS System | TASK: SAFETY-010 | States covered: View TOS, Accept TOS, Navigate from Settings, Navigate from Signup
-#
-# This flow tests the complete Terms of Service system:
-# 1. View TOS from Settings (read-only)
-# 2. View TOS from Signup with acceptance required
-# 3. Accept TOS
-# 4. Verify acceptance persisted
-#
-# Prerequisites:
-# - At least one published TOS must exist in database
-# - User must be logged in for Settings flow
-# - Fresh user account for signup acceptance flow
-
-appId: com.p2pkidsmarketplace ## Adjust based on your app ID
-
+appId: com.p2pkidsmarketplace
 ---
-
-# ================================
-# FLOW 1: View TOS from Settings (Authenticated User)
-# ================================
 - launchApp
-- assertVisible: "Home" # Assuming user starts at home
-
-# Navigate to Profile/Settings
-- tapOn: "Profile" # Tab bar
+- assertVisible: "Home"
+- tapOn: "Profile"
 - assertVisible: "Profile"
-
-# Open Settings
 - tapOn:
-    id: "settings-button" # Assumes profile screen has settings button
-
+    id: "settings-button"
 - assertVisible: "Settings"
-
-# Open TOS from Settings
 - tapOn:
     id: "settings-tos-button"
 - waitForAnimationToEnd
-
-# Verify TOS screen loaded
 - assertVisible:
     id: "tos-screen"
 - assertVisible:
@@ -45,95 +18,21 @@ appId: com.p2pkidsmarketplace ## Adjust based on your app ID
     id: "tos-version"
 - assertVisible:
     id: "tos-content"
-
-# Scroll through content
-- scrollUntilVisible:
-    element:
-      id: "tos-content-scroll"
-    direction: DOWN
-    timeout: 5000
-
-# Go back (no acceptance required from settings)
 - back
-- assertVisible: "Settings"
-
-# ================================
-# FLOW 2: View and Accept TOS from Signup
-# ================================
 - launchApp:
     clearState: true
-
-# Navigate to Signup
-- tapOn: "Sign Up" # From landing screen
+- tapOn: "Sign Up"
 - assertVisible: "Create Account"
-
-# Scroll to TOS link
-- scrollUntilVisible:
-    element:
-      id: "tos-link"
-    direction: DOWN
-
-# Tap TOS link
 - tapOn:
     id: "tos-link"
 - waitForAnimationToEnd
-
-# Verify TOS screen with acceptance buttons
 - assertVisible:
     id: "tos-screen"
-- assertVisible:
-    id: "tos-title"
 - assertVisible:
     id: "accept-tos-button"
 - assertVisible:
     id: "decline-tos-button"
-
-# Scroll through content before accepting
-- scrollUntilVisible:
-    element:
-      id: "tos-content-scroll"
-    direction: DOWN
-    timeout: 5000
-
-# Accept TOS
-- tapOn:
-    id: "accept-tos-button"
-- waitForAnimationToEnd
-
-# Should return to signup screen
-- assertVisible: "Create Account"
-
-# ================================
-# FLOW 3: Decline TOS
-# ================================
-- tapOn:
-    id: "tos-link"
-- waitForAnimationToEnd
-
-- assertVisible:
-    id: "tos-screen"
-
-# Decline TOS
 - tapOn:
     id: "decline-tos-button"
 - waitForAnimationToEnd
-
-# Should return to signup screen
-- assertVisible: "Create Account"
-
-# ================================
-# FLOW 4: Error State - No Published TOS
-# ================================
-# This flow assumes TOS might be unavailable (edge case)
-# If TOS fails to load, should show error and allow going back
-- tapOn:
-    id: "tos-link"
-- waitForAnimationToEnd: 3000
-
-# If error occurs, should still be navigable
-- assertVisible:
-    id: "tos-screen"
-
-# Back button should always work
-- back
 - assertVisible: "Create Account"

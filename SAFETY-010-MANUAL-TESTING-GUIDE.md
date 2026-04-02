@@ -208,25 +208,25 @@ WHERE policy_type = 'terms_of_service' AND status = 'published';
 **Expected Result:**
 - ✅ TOS screen opens
 - ✅ Policy content displayed
-- ✅ Accept and Decline buttons visible at bottom
+- ✅ NO "Accept" or "Decline" buttons visible (read-only policy view)
 - ✅ Content scrollable
+- ✅ Back button returns to Signup screen
 
 **Result:** □ PASS □ FAIL  
 **Notes:** _________________________________
 
 ---
 
-### TC-MOBILE-004: Accept TOS from Signup
-**Precondition:** TOS screen open from signup with acceptance required  
+### TC-MOBILE-004: Signup Implies Policy Agreement
+**Precondition:** Fresh app install or logged out  
 **Steps:**
-1. Scroll through TOS content
-2. Tap "I Accept" button
-3. Wait for processing
+1. Navigate to Signup screen
+2. Fill all required signup fields with valid values
+3. Tap "Create Account"
 
 **Expected Result:**
-- ✅ Button shows loading indicator briefly
-- ✅ Returns to Signup screen
-- ✅ Alert (optional): "You have accepted the Terms of Service"
+- ✅ Signup proceeds normally (for example, to phone verification)
+- ✅ No separate mandatory policy accept/decline dialog
 - ✅ No error displayed
 
 **Result:** □ PASS □ FAIL  
@@ -234,36 +234,41 @@ WHERE policy_type = 'terms_of_service' AND status = 'published';
 
 ---
 
-### TC-MOBILE-005: Decline TOS from Signup
-**Precondition:** TOS screen open from signup  
+### TC-MOBILE-005: No Explicit Decline Path From TOS Viewer
+**Precondition:** On signup screen  
 **Steps:**
-1. Tap "Decline" button
+1. Tap "Terms of Service" link
+2. Review content
+3. Tap back button
 
 **Expected Result:**
 - ✅ Returns to Signup screen immediately
-- ✅ No acceptance recorded
-- ✅ User can re-open TOS
+- ✅ User can continue signup later or leave without creating an account
+- ✅ No policy acceptance row is created unless signup is submitted
 
 **Result:** □ PASS □ FAIL  
 **Notes:** _________________________________
 
 ---
 
-### TC-MOBILE-006: TOS Acceptance Persisted
-**Precondition:** User accepted TOS from signup  
+### TC-MOBILE-006: Policy Acceptance Persisted On Signup
+**Precondition:** User account created via signup flow  
 **Steps:**
 1. Check database:
    ```sql
-   SELECT * FROM policy_acceptances 
+   SELECT policy_type, policy_id, policy_version, accepted_at
+   FROM policy_acceptances 
    WHERE user_id = '[USER_ID]' 
-   AND policy_type = 'terms_of_service';
+     AND policy_type IN ('terms_of_service', 'privacy_policy')
+   ORDER BY accepted_at DESC;
    ```
 
 **Expected Result:**
-- ✅ Record exists in policy_acceptances table
-- ✅ policy_id matches current published TOS
-- ✅ accepted_at timestamp is recent
-- ✅ policy_version matches current version
+- ✅ `terms_of_service` record exists in `policy_acceptances`
+- ✅ If a privacy policy is published, `privacy_policy` acceptance record exists too
+- ✅ `policy_id` values match current published policies
+- ✅ `accepted_at` timestamp is recent (near signup time)
+- ✅ `policy_version` matches current policy version(s)
 
 **Result:** □ PASS □ FAIL  
 **Notes:** _________________________________
@@ -320,14 +325,16 @@ WHERE policy_type = 'terms_of_service' AND status = 'published';
 
 ---
 
-### TC-EDGE-003: Accept TOS While Offline
-**Precondition:** TOS screen open, then enable airplane mode  
+### TC-EDGE-003: Signup While Offline Does Not Create Acceptance
+**Precondition:** Signup form open, then enable airplane mode  
 **Steps:**
-1. Tap "I Accept"
+1. Fill required signup fields with valid values
+2. Tap "Create Account"
+3. Verify no policy_acceptances row is created for the intended user/email
 
 **Expected Result:**
-- ✅ Error message: "Failed to record acceptance. Please try again."
-- ✅ Button re-enables for retry
+- ✅ Signup fails with a network/offline error
+- ✅ No partial/incorrect policy acceptance row is stored for a non-created user
 - ✅ App remains functional
 
 **Result:** □ PASS □ FAIL  

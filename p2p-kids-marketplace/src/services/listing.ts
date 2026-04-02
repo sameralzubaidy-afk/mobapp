@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/listing.ts
  * MODULE-04 LISTING-V2: Service functions for item listing management
- * 
+ *
  * Implements:
  * - LISTING-V2-002: Create listing with SP payment preference
  * - LISTING-V2-003: Edit and delete listing with V2 rules
@@ -18,6 +18,7 @@ import {
   ListingSummary,
 } from '../types/listing';
 import { trackEvent } from './analytics';
+import { getAdminConfig } from './adminConfig';
 import { uploadImage, deleteImage } from './supabase/storage';
 import { checkItemSafety, isCpscCheckEnabled } from './safety';
 import { isImageModerationEnabled, moderateListingImages } from './imageModeration';
@@ -27,9 +28,28 @@ export interface ListingImageDraft {
   uri: string;
 }
 
+const DEFAULT_MODERATION_APPEAL_MAX_ATTEMPTS = 3;
+const DEFAULT_MODERATION_APPEAL_WINDOW_DAYS = 14;
+
+const toPositiveInteger = (rawValue: unknown, fallbackValue: number): number => {
+  const parsed = Number(rawValue);
+  if (!Number.isFinite(parsed)) {
+    return fallbackValue;
+  }
+
+  const integerValue = Math.floor(parsed);
+  if (integerValue <= 0) {
+    return fallbackValue;
+  }
+
+  return integerValue;
+};
+
 const isRlsPolicyError = (message: string | undefined): boolean => {
   const lower = (message ?? '').toLowerCase();
-  return lower.includes('row-level security policy') || lower.includes('violates row-level security');
+  return (
+    lower.includes('row-level security policy') || lower.includes('violates row-level security')
+  );
 };
 
 const isLocalImageUri = (uri: string): boolean => {
@@ -68,7 +88,9 @@ const uploadListingImageWithFallback = async (
   console.log(`[listing]    URI: ${imageUri.substring(0, 80)}...`);
   console.log(`[listing]    Preferred path: item-images/${preferredStoragePath}`);
 
-  let uploadResult = await uploadImage('item-images', preferredStoragePath, imageUri, { upsert: true });
+  let uploadResult = await uploadImage('item-images', preferredStoragePath, imageUri, {
+    upsert: true,
+  });
 
   // Backward compatibility for environments still using legacy item-images RLS path checks.
   if (uploadResult.error && isRlsPolicyError(uploadResult.error.message)) {
@@ -97,26 +119,19 @@ const uploadListingImageWithFallback = async (
 
 /**
  * LISTING-V2-002: Create a new listing with SP payment preference
- * 
+ *
  * V2 Rules:
  * 1. Only subscribers (trial/active) can enable accepts_swap_points
  * 2. Price must be > 0
  * 3. Captures seller subscription status for audit trail
- * 
+ *
  * @param input - Listing creation data
  * @returns Created listing object
  * @throws Error if validation fails or user is not authorized
  */
 export async function createListing(input: CreateListingInput): Promise<Listing> {
-  const {
-    seller_id,
-    title,
-    description,
-    price,
-    category_id,
-    condition,
-    accepts_swap_points,
-  } = input;
+  const { seller_id, title, description, price, category_id, condition, accepts_swap_points } =
+    input;
 
   // Validate price
   if (price <= 0) {
@@ -204,13 +219,18 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
   const cpscEnabled = await isCpscCheckEnabled();
   if (cpscEnabled) {
     console.log(`[listing] 🔍 Initiating CPSC safety check for listing ${data.id}`);
-    
+
     // Fire-and-forget safety check (don't block return)
     checkItemSafety(data.id, title, description || undefined)
       .then((result) => {
         if (result.flagged) {
-          console.warn(`[listing] ⚠️ Listing ${data.id} flagged for CPSC recall match:`, result.reason);
-          console.warn(`[listing] Match: ${result.match?.product_name} (confidence: ${result.confidence})`);
+          console.warn(
+            `[listing] ⚠️ Listing ${data.id} flagged for CPSC recall match:`,
+            result.reason
+          );
+          console.warn(
+            `[listing] Match: ${result.match?.product_name} (confidence: ${result.confidence})`
+          );
         } else {
           console.log(`[listing] ✅ Listing ${data.id} passed CPSC safety check`);
         }
@@ -228,13 +248,13 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
 
 /**
  * SAFETY-P002: Upload images for a listing
- * 
+ *
  * Rules:
  * 1. Upload to item-images/{seller_id}/{listing_id}/{index}.jpg
  * 2. Insert rows into item_images table with public URLs
  * 3. First image (index 0) is the primary/cover image
  * 4. Support up to 5 images per listing
- * 
+ *
  * @param listing_id - The listing ID to attach images to
  * @param seller_id - The seller user ID (for storage path)
  * @param imageUris - Array of local image URIs to upload
@@ -257,8 +277,10 @@ export async function uploadListingImages(
   const uploadedImages: { url: string; display_order: number }[] = [];
 
   try {
-    console.log(`[listing] 📤 Starting upload of ${imageUris.length} images for listing ${listing_id}`);
-    
+    console.log(
+      `[listing] 📤 Starting upload of ${imageUris.length} images for listing ${listing_id}`
+    );
+
     // Upload each image to storage
     for (let i = 0; i < imageUris.length; i++) {
       const imageUri = imageUris[i];
@@ -307,7 +329,9 @@ export async function uploadListingImages(
       const aiModerationEnabled = await isImageModerationEnabled();
 
       if (!aiModerationEnabled) {
-        console.log(`[listing] ⏭️ AI image moderation is disabled by admin config for listing ${listing_id}`);
+        console.log(
+          `[listing] ⏭️ AI image moderation is disabled by admin config for listing ${listing_id}`
+        );
       } else {
         console.log(`[listing] 🔍 Initiating AI image moderation for listing ${listing_id}`);
         const imageUrls = uploadedImages.map((img) => img.url);
@@ -316,9 +340,13 @@ export async function uploadListingImages(
           .then((results) => {
             const flaggedCount = results.filter((r) => r.flagged).length;
             if (flaggedCount > 0) {
-              console.warn(`[listing] ⚠️ ${flaggedCount}/${results.length} images flagged for listing ${listing_id}`);
+              console.warn(
+                `[listing] ⚠️ ${flaggedCount}/${results.length} images flagged for listing ${listing_id}`
+              );
             } else {
-              console.log(`[listing] ✅ All ${results.length} images passed AI moderation for listing ${listing_id}`);
+              console.log(
+                `[listing] ✅ All ${results.length} images passed AI moderation for listing ${listing_id}`
+              );
             }
           })
           .catch((error) => {
@@ -361,10 +389,12 @@ export async function syncListingImages(
   const currentRows = (existingRows ?? []) as { id: string; url: string; display_order: number }[];
   const existingById = new Map(currentRows.map((row) => [row.id, row]));
   const finalExistingIds = new Set(images.filter((img) => img.id).map((img) => img.id as string));
+  let hasImageChanges = false;
 
   // Delete images removed by user.
   const rowsToDelete = currentRows.filter((row) => !finalExistingIds.has(row.id));
   if (rowsToDelete.length > 0) {
+    hasImageChanges = true;
     for (const row of rowsToDelete) {
       const storagePath = extractStorageObjectPath(row.url);
       if (storagePath) {
@@ -390,6 +420,7 @@ export async function syncListingImages(
     if (image.id && existingById.has(image.id)) {
       const existing = existingById.get(image.id);
       if (existing && existing.display_order !== i) {
+        hasImageChanges = true;
         const { error: reorderError } = await supabase
           .from('item_images')
           .update({ display_order: i })
@@ -403,15 +434,14 @@ export async function syncListingImages(
     }
 
     if (!isLocalImageUri(image.uri)) {
-      const { error: insertRemoteError } = await supabase
-        .from('item_images')
-        .insert({
-          item_id: listing_id,
-          url: image.uri,
-          thumbnail_url: image.uri,
-          display_order: i,
-          created_at: new Date().toISOString(),
-        });
+      hasImageChanges = true;
+      const { error: insertRemoteError } = await supabase.from('item_images').insert({
+        item_id: listing_id,
+        url: image.uri,
+        thumbnail_url: image.uri,
+        display_order: i,
+        created_at: new Date().toISOString(),
+      });
 
       if (insertRemoteError) {
         throw new Error(`Failed to save listing image reference: ${insertRemoteError.message}`);
@@ -419,40 +449,67 @@ export async function syncListingImages(
       continue;
     }
 
-    const upload = await uploadListingImageWithFallback(listing_id, seller_id, image.uri, i, images.length);
+    hasImageChanges = true;
+    const upload = await uploadListingImageWithFallback(
+      listing_id,
+      seller_id,
+      image.uri,
+      i,
+      images.length
+    );
 
-    const { error: insertError } = await supabase
-      .from('item_images')
-      .insert({
-        item_id: listing_id,
-        url: upload.publicUrl,
-        thumbnail_url: upload.publicUrl,
-        display_order: i,
-        created_at: new Date().toISOString(),
-      });
+    const { error: insertError } = await supabase.from('item_images').insert({
+      item_id: listing_id,
+      url: upload.publicUrl,
+      thumbnail_url: upload.publicUrl,
+      display_order: i,
+      created_at: new Date().toISOString(),
+    });
 
     if (insertError) {
       await deleteImage('item-images', upload.storagePath);
       throw new Error(`Failed to save image ${i + 1} reference: ${insertError.message}`);
     }
   }
+
+  if (hasImageChanges) {
+    const { error: markEditedError } = await supabase
+      .from('items')
+      .update({
+        edited_since_rejection: true,
+        edited_since_rejection_at: new Date().toISOString(),
+      })
+      .eq('id', listing_id)
+      .eq('seller_id', seller_id)
+      .eq('status', 'rejected');
+
+    if (markEditedError) {
+      console.warn(
+        '[listing] Unable to mark listing as edited since rejection:',
+        markEditedError.message
+      );
+    }
+  }
 }
 
 /**
  * LISTING-V2-003: Update an existing listing
- * 
+ *
  * V2 Rules:
  * 1. Only listing owner can edit
  * 2. Cannot edit listings with active trades (integrity constraint)
  * 3. If updating accepts_swap_points, re-validate seller subscription
  * 4. Updates updated_at timestamp automatically (DB trigger)
- * 
+ *
  * @param input - Listing update data with user_id for ownership check
  * @returns Updated listing object
  * @throws Error if not authorized or active trades exist
  */
 export async function updateListing(input: UpdateListingInput): Promise<Listing> {
   const { listing_id, user_id, ...updates } = input;
+  const updatePayload: Record<string, unknown> = Object.fromEntries(
+    Object.entries(updates).filter(([, value]) => value !== undefined)
+  );
 
   // Fetch listing to check ownership
   const { data: listing, error: fetchError } = await supabase
@@ -485,22 +542,42 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
   */
 
   // If updating accepts_swap_points, re-validate subscription
-  if (updates.accepts_swap_points !== undefined) {
+  if (typeof updatePayload.accepts_swap_points === 'boolean') {
     const sub = await getSubscriptionSummary(user_id);
-    if (updates.accepts_swap_points && !sub.can_spend_sp) {
+    if (updatePayload.accepts_swap_points && !sub.can_spend_sp) {
       throw new Error('Only Kids Club+ subscribers can accept Swap Points');
     }
   }
 
   // Validate price if being updated
-  if (updates.price !== undefined && updates.price <= 0) {
+  if (typeof updatePayload.price === 'number' && updatePayload.price <= 0) {
     throw new Error('Price must be greater than $0');
+  }
+
+  const editableFieldKeys = [
+    'title',
+    'description',
+    'price',
+    'category_id',
+    'condition',
+    'accepts_swap_points',
+  ] as const;
+
+  const hasSellerEdits = editableFieldKeys.some(
+    (field) =>
+      Object.prototype.hasOwnProperty.call(updatePayload, field) &&
+      updatePayload[field] !== listing[field]
+  );
+
+  if (hasSellerEdits && listing.status === 'rejected') {
+    updatePayload.edited_since_rejection = true;
+    updatePayload.edited_since_rejection_at = new Date().toISOString();
   }
 
   // Update listing (updated_at is set by DB trigger)
   const { data, error } = await supabase
     .from('items')
-    .update(updates)
+    .update(updatePayload)
     .eq('id', listing_id)
     .select()
     .single();
@@ -514,7 +591,7 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
   // Track analytics event
   await trackEvent('listing_updated', {
     listing_id,
-    fields_updated: Object.keys(updates),
+    fields_updated: Object.keys(updatePayload),
   });
 
   return data as Listing;
@@ -545,7 +622,9 @@ export async function submitListingAppeal(
 
   const { data: listing, error: fetchError } = await supabase
     .from('items')
-    .select('id, seller_id, status, appeal_count, appeal_reason')
+    .select(
+      'id, seller_id, status, appeal_count, appeal_reason, rejected_at, edited_since_rejection'
+    )
     .eq('id', listing_id)
     .single();
 
@@ -559,6 +638,41 @@ export async function submitListingAppeal(
 
   if (listing.status !== 'rejected') {
     throw new Error('Only rejected listings can be appealed');
+  }
+
+  const config = await getAdminConfig(true);
+  const maxAppealAttempts = toPositiveInteger(
+    config.moderation_appeal_max_attempts,
+    DEFAULT_MODERATION_APPEAL_MAX_ATTEMPTS
+  );
+  const appealWindowDays = toPositiveInteger(
+    config.moderation_appeal_window_days,
+    DEFAULT_MODERATION_APPEAL_WINDOW_DAYS
+  );
+
+  const currentAppealCount = Number(listing.appeal_count ?? 0);
+  if (currentAppealCount >= maxAppealAttempts) {
+    throw new Error(`Appeal limit reached. Maximum allowed appeals: ${maxAppealAttempts}.`);
+  }
+
+  if (!listing.rejected_at) {
+    throw new Error('Appeal window cannot be validated for this listing. Please contact support.');
+  }
+
+  const rejectedAtMs = Date.parse(listing.rejected_at);
+  if (!Number.isFinite(rejectedAtMs)) {
+    throw new Error('Appeal window cannot be validated for this listing. Please contact support.');
+  }
+
+  const appealDeadlineMs = rejectedAtMs + appealWindowDays * 24 * 60 * 60 * 1000;
+  if (Date.now() > appealDeadlineMs) {
+    throw new Error(
+      `Appeal window has expired. Appeals must be submitted within ${appealWindowDays} days of rejection.`
+    );
+  }
+
+  if (!listing.edited_since_rejection) {
+    throw new Error('Please edit your listing before submitting an appeal.');
   }
 
   const { data, error } = await supabase
@@ -585,6 +699,8 @@ export async function submitListingAppeal(
     seller_id,
     appeal_count: data.appeal_count ?? listing.appeal_count ?? 0,
     appeal_reason_length: trimmedAppealReason.length,
+    max_appeal_attempts: maxAppealAttempts,
+    appeal_window_days: appealWindowDays,
   });
 
   return data as Listing;
@@ -592,12 +708,12 @@ export async function submitListingAppeal(
 
 /**
  * LISTING-V2-003: Delete a listing (soft delete)
- * 
+ *
  * V2 Rules:
  * 1. Only listing owner can delete
  * 2. Soft delete: marks status as 'deleted' instead of removing row
  * 3. Preserves audit trail
- * 
+ *
  * @param listing_id - ID of listing to delete
  * @param user_id - User ID for ownership verification
  * @throws Error if not authorized
@@ -641,13 +757,13 @@ export async function deleteListing(listing_id: string, user_id: string): Promis
 
 /**
  * LISTING-V2-004: Fetch listings with filters
- * 
+ *
  * V2 Features:
  * - Filter by SP eligibility (accepts_swap_points = true)
  * - Filter by category, price range, condition
  * - Search by title/description
  * - Node-based filtering (if node_id provided)
- * 
+ *
  * @param filters - Filter criteria
  * @returns Array of listings matching filters
  */
@@ -718,43 +834,44 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<Listi
   }
 
   // Fetch all related data in parallel for performance
-  const categoryIds = [...new Set(items.filter((i: { category_id: string | null }) => i.category_id).map((i: { category_id: string | null }) => i.category_id as string))];
+  const categoryIds = [
+    ...new Set(
+      items
+        .filter((i: { category_id: string | null }) => i.category_id)
+        .map((i: { category_id: string | null }) => i.category_id as string)
+    ),
+  ];
   const sellerIds = [...new Set(items.map((i: { seller_id: string }) => i.seller_id))];
 
   const [categoriesData, sellersData] = await Promise.all([
-    categoryIds.length > 0 
-      ? supabase
-          .from('categories')
-          .select('*')
-          .in('id', categoryIds)
+    categoryIds.length > 0
+      ? supabase.from('categories').select('*').in('id', categoryIds)
       : Promise.resolve({ data: [] }),
     sellerIds.length > 0
-      ? supabase
-          .from('profiles')
-          .select('id, user_id, name, avatar_url')
-          .in('user_id', sellerIds)
+      ? supabase.from('profiles').select('id, user_id, name, avatar_url').in('user_id', sellerIds)
       : Promise.resolve({ data: [] }),
   ]);
 
-  const categoriesMap = new Map(
-    (categoriesData.data || []).map((c: { id: string }) => [c.id, c])
-  );
+  const categoriesMap = new Map((categoriesData.data || []).map((c: { id: string }) => [c.id, c]));
   const sellersMap = new Map(
     (sellersData.data || []).map((s: { user_id: string }) => [s.user_id, s])
   );
 
   // Combine data and return as Listing[]
-  return items.map((item: Record<string, unknown>) => ({
-    ...item,
-    category: categoriesMap.get(item.category_id as string) || null,
-    seller: sellersMap.get(item.seller_id as string) || null,
-    images: [],
-  } as unknown as Listing));
+  return items.map(
+    (item: Record<string, unknown>) =>
+      ({
+        ...item,
+        category: categoriesMap.get(item.category_id as string) || null,
+        seller: sellersMap.get(item.seller_id as string) || null,
+        images: [],
+      }) as unknown as Listing
+  );
 }
 
 /**
  * Fetch a single listing by ID
- * 
+ *
  * @param listing_id - Listing ID
  * @returns Listing object with related data
  */
@@ -785,7 +902,7 @@ export async function getListingById(listing_id: string): Promise<Listing | null
           .select('*')
           .eq('id', item.category_id)
           .single();
-        
+
         if (catError) {
           console.warn('[listing] ⚠️ Category fetch error:', catError.message);
         } else {
@@ -809,10 +926,14 @@ export async function getListingById(listing_id: string): Promise<Listing | null
           .select('id, name, avatar_url')
           .eq('user_id', item.seller_id)
           .single();
-        
-        let sellerData = result.data as { id: string; name: string; avatar_url: string | null } | null;
+
+        let sellerData = result.data as {
+          id: string;
+          name: string;
+          avatar_url: string | null;
+        } | null;
         const sellerError = result.error;
-        
+
         // If RLS blocks it, try with a more permissive approach
         if (sellerError?.code === 'PGRST116' || sellerError?.message?.includes('0 rows')) {
           // Query profiles table directly as a workaround for RLS issues
@@ -821,7 +942,7 @@ export async function getListingById(listing_id: string): Promise<Listing | null
             .from('profiles')
             .select('id, name, avatar_url')
             .eq('user_id', item.seller_id);
-          
+
           if (!fallbackError && profiles && profiles.length > 0) {
             sellerData = profiles[0] as { id: string; name: string; avatar_url: string | null };
           } else if (fallbackError) {
@@ -830,7 +951,7 @@ export async function getListingById(listing_id: string): Promise<Listing | null
         } else if (sellerError) {
           console.warn('[listing] ⚠️ Seller fetch error:', sellerError.message);
         }
-        
+
         seller = sellerData;
       } catch (err) {
         const error = err as Error;
@@ -864,7 +985,7 @@ export async function getListingById(listing_id: string): Promise<Listing | null
 /**
  * Fetch all listings for a specific seller
  * Used by "My Listings" screen
- * 
+ *
  * @param seller_id - Seller user ID
  * @returns Array of seller's listings (all statuses except deleted)
  */
@@ -888,7 +1009,7 @@ export async function getMyListings(seller_id: string): Promise<Listing[]> {
 /**
  * Get summary stats for a seller's listings
  * Used by "My Listings" screen header
- * 
+ *
  * @param seller_id - Seller user ID
  * @returns Summary statistics
  */

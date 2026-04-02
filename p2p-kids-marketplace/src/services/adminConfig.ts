@@ -44,6 +44,8 @@ export interface AdminConfig {
   moderation_ai_enabled: boolean;
   moderation_human_review_threshold: string; // low/medium/high
   moderation_auto_reject_high_risk: boolean;
+  moderation_appeal_max_attempts: number;
+  moderation_appeal_window_days: number;
 
   // Safety
   cpsc_recall_check_enabled: boolean;
@@ -217,6 +219,8 @@ function getDefaultConfig(): AdminConfig {
     moderation_ai_enabled: true,
     moderation_human_review_threshold: 'medium',
     moderation_auto_reject_high_risk: false,
+    moderation_appeal_max_attempts: 3,
+    moderation_appeal_window_days: 14,
 
     // Safety
     cpsc_recall_check_enabled: true,

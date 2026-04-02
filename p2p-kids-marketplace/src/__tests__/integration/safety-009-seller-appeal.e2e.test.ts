@@ -1,12 +1,12 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/integration/safety-009-seller-appeal.e2e.test.ts
  * TASK SAFETY-009: E2E tests for Seller Appeal Workflow
- * 
+ *
  * Prerequisites:
  * - Real Supabase connection (staging/prod)
  * - Test users seeded: seller-1 with rejected listing
  * - Admin user to reject listings
- * 
+ *
  * Run with: RUN_SUPABASE_E2E=true npm test safety-009-seller-appeal.e2e.test.ts
  */
 
@@ -56,6 +56,8 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
         rejection_reason: 'Item does not meet safety guidelines (test rejection)',
         rejected_at: new Date().toISOString(),
         appeal_count: 0,
+        edited_since_rejection: true,
+        edited_since_rejection_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -79,7 +81,8 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
       return;
     }
 
-    const appealReason = 'I have corrected the safety concerns and updated the listing details as requested.';
+    const appealReason =
+      'I have corrected the safety concerns and updated the listing details as requested.';
 
     // Submit appeal via service
     const result = await submitListingAppeal(testListingId, sellerId, appealReason);
@@ -109,9 +112,9 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
       return;
     }
 
-    await expect(
-      submitListingAppeal(testListingId, sellerId, '')
-    ).rejects.toThrow('Appeal reason is required');
+    await expect(submitListingAppeal(testListingId, sellerId, '')).rejects.toThrow(
+      'Appeal reason is required'
+    );
   });
 
   it('should reject appeal with reason too short', async () => {
@@ -119,9 +122,9 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
       return;
     }
 
-    await expect(
-      submitListingAppeal(testListingId, sellerId, 'Fixed')
-    ).rejects.toThrow('Appeal reason must be at least 10 characters');
+    await expect(submitListingAppeal(testListingId, sellerId, 'Fixed')).rejects.toThrow(
+      'Appeal reason must be at least 10 characters'
+    );
   });
 
   it('should reject appeal if listing is not in rejected status', async () => {
@@ -130,10 +133,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
     }
 
     // Update listing to available status
-    await supabase
-      .from('items')
-      .update({ status: 'available' })
-      .eq('id', testListingId);
+    await supabase.from('items').update({ status: 'available' }).eq('id', testListingId);
 
     await expect(
       submitListingAppeal(testListingId, sellerId, 'Test appeal reason for available item')
@@ -142,7 +142,12 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
     // Restore to rejected for other tests
     await supabase
       .from('items')
-      .update({ status: 'rejected' })
+      .update({
+        status: 'rejected',
+        rejected_at: new Date().toISOString(),
+        edited_since_rejection: true,
+        edited_since_rejection_at: new Date().toISOString(),
+      })
       .eq('id', testListingId);
   });
 
@@ -173,11 +178,17 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
         status: 'rejected',
         rejected_at: new Date().toISOString(),
         rejection_reason: 'Still does not meet standards',
+        edited_since_rejection: true,
+        edited_since_rejection_at: new Date().toISOString(),
       })
       .eq('id', testListingId);
 
     // Second appeal
-    await submitListingAppeal(testListingId, sellerId, 'Second appeal: made additional corrections');
+    await submitListingAppeal(
+      testListingId,
+      sellerId,
+      'Second appeal: made additional corrections'
+    );
 
     // Verify DB state
     const { data: dbListing } = await supabase
@@ -191,5 +202,29 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
     // Note: appeal_count must be incremented by DB trigger or service logic
     // For now, we verify it exists and is >= 0
     expect(dbListing?.appeal_count).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should reject appeal when seller has not edited after rejection', async () => {
+    if (!SHOULD_RUN || !supabase) {
+      return;
+    }
+
+    await supabase
+      .from('items')
+      .update({
+        status: 'rejected',
+        rejected_at: new Date().toISOString(),
+        edited_since_rejection: false,
+        edited_since_rejection_at: null,
+      })
+      .eq('id', testListingId);
+
+    await expect(
+      submitListingAppeal(
+        testListingId,
+        sellerId,
+        'I attempted to appeal without making edits first'
+      )
+    ).rejects.toThrow('Please edit your listing before submitting an appeal.');
   });
 });

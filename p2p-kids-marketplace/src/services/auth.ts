@@ -11,6 +11,54 @@ import {
 } from '../types/user';
 import { ReferralCodeServiceV2 } from './referralCodeV2';
 
+type SignupPolicyType = 'terms_of_service' | 'privacy_policy';
+
+const SIGNUP_POLICY_TYPES: SignupPolicyType[] = ['terms_of_service', 'privacy_policy'];
+
+interface PublishedPolicyLookupResult {
+  id: string;
+}
+
+async function recordSignupPolicyAcceptances(userId: string): Promise<void> {
+  for (const policyType of SIGNUP_POLICY_TYPES) {
+    const { data: policyRows, error: policyError } = await supabase.rpc('get_current_policy', {
+      p_policy_type: policyType,
+    });
+
+    if (policyError) {
+      throw new AuthError(
+        `Failed to load current ${policyType} policy: ${policyError.message}`,
+        'POLICY_LOOKUP_FAILED',
+        policyError
+      );
+    }
+
+    const currentPolicy = Array.isArray(policyRows)
+      ? (policyRows[0] as PublishedPolicyLookupResult | undefined)
+      : undefined;
+
+    // If there is no published policy of this type, nothing to record.
+    if (!currentPolicy?.id) {
+      continue;
+    }
+
+    const { error: acceptanceError } = await supabase.rpc('record_policy_acceptance', {
+      p_user_id: userId,
+      p_policy_id: currentPolicy.id,
+      p_ip_address: null,
+      p_user_agent: null,
+    });
+
+    if (acceptanceError) {
+      throw new AuthError(
+        `Failed to record ${policyType} acceptance: ${acceptanceError.message}`,
+        'POLICY_ACCEPTANCE_FAILED',
+        acceptanceError
+      );
+    }
+  }
+}
+
 /**
  * AUTH-V2-001: User Signup (No Trial Activation)
  * 
@@ -53,6 +101,10 @@ export async function signup(input: {
         authError.name || 'SIGNUP_FAILED',
         authError
       );
+    }
+
+    if (authData.user) {
+      await recordSignupPolicyAcceptances(authData.user.id);
     }
 
     return { user: authData.user, error: null };
@@ -125,6 +177,9 @@ export async function signupWithTrial(input: {
 
     const userId = authData.user.id;
 
+    // UX rule: creating an account implies agreement to published Terms and Privacy policies.
+    await recordSignupPolicyAcceptances(userId);
+
     // Step 2: Profile is auto-created by trigger on auth.users
     // The handle_new_user() trigger handles this.
     // We let the app apply the referral code next to handle errors gracefully.
@@ -158,7 +213,7 @@ export async function signupWithTrial(input: {
     // Step 4: Create FREE subscription (not trial yet)
     // User will choose Free or Trial on SubscriptionChoiceScreen
     // If they choose trial, it will be upgraded by enrollInTrialSubscription
-    const { data: subscription, error: subError } = await supabase.rpc(
+    const { error: subError } = await supabase.rpc(
       'create_free_subscription',
       { p_user_id: userId }
     );

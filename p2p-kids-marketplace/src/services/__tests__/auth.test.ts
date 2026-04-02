@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/services/__tests__/auth.test.ts
 // MODULE-03 AUTH-V2: Authentication Service Tests (REVISED)
 
-import { enrollInTrialSubscription, loginWithContext, getCurrentSession } from '../auth';
+import { enrollInTrialSubscription, loginWithContext, signupWithTrial } from '../auth';
 import { supabase } from '../../config/supabase';
 
 // Mock Supabase client
@@ -136,7 +136,7 @@ describe('AUTH-V2-002: enrollInTrialSubscription', () => {
       update: mockUpdate,
     });
 
-    const result = await enrollInTrialSubscription(mockUserId);
+    await enrollInTrialSubscription(mockUserId);
 
     // Verify profile was updated with links
     expect(mockUpdate).toHaveBeenCalledWith({
@@ -183,6 +183,86 @@ describe('AUTH-V2-002: enrollInTrialSubscription', () => {
     expect(result.wallet).toBeNull();
     expect(result.error).toBeDefined();
     expect(result.error.code).toBe('WALLET_CREATION_FAILED');
+  });
+});
+
+describe('AUTH-V2-001B: signupWithTrial policy acceptance', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('records terms and privacy acceptance when signup succeeds', async () => {
+    const mockUserId = '11111111-1111-1111-1111-111111111111';
+
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: {
+        user: { id: mockUserId },
+      },
+      error: null,
+    });
+
+    (supabase.rpc as jest.Mock)
+      .mockResolvedValueOnce({ data: [{ id: 'tos-policy-id' }], error: null })
+      .mockResolvedValueOnce({ data: 'acc-tos-id', error: null })
+      .mockResolvedValueOnce({ data: [{ id: 'privacy-policy-id' }], error: null })
+      .mockResolvedValueOnce({ data: 'acc-privacy-id', error: null })
+      .mockResolvedValueOnce({ data: { id: 'free-subscription-id' }, error: null });
+
+    const result = await signupWithTrial({
+      email: 'newuser@example.com',
+      password: 'StrongPass123',
+      name: 'New User',
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.user?.id).toBe(mockUserId);
+
+    expect(supabase.rpc).toHaveBeenCalledWith('get_current_policy', {
+      p_policy_type: 'terms_of_service',
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith('get_current_policy', {
+      p_policy_type: 'privacy_policy',
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith('record_policy_acceptance', {
+      p_user_id: mockUserId,
+      p_policy_id: 'tos-policy-id',
+      p_ip_address: null,
+      p_user_agent: null,
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith('record_policy_acceptance', {
+      p_user_id: mockUserId,
+      p_policy_id: 'privacy-policy-id',
+      p_ip_address: null,
+      p_user_agent: null,
+    });
+  });
+
+  it('returns POLICY_ACCEPTANCE_FAILED when acceptance recording fails', async () => {
+    const mockUserId = '22222222-2222-2222-2222-222222222222';
+
+    (supabase.auth.signUp as jest.Mock).mockResolvedValue({
+      data: {
+        user: { id: mockUserId },
+      },
+      error: null,
+    });
+
+    (supabase.rpc as jest.Mock)
+      .mockResolvedValueOnce({ data: [{ id: 'tos-policy-id' }], error: null })
+      .mockResolvedValueOnce({
+        data: null,
+        error: { message: 'acceptance insert failed' },
+      });
+
+    const result = await signupWithTrial({
+      email: 'failuser@example.com',
+      password: 'StrongPass123',
+      name: 'Fail User',
+    });
+
+    expect(result.user).toBeNull();
+    expect(result.error).toBeDefined();
+    expect(result.error?.code).toBe('POLICY_ACCEPTANCE_FAILED');
   });
 });
 

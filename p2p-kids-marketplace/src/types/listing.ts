@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/types/listing.ts
  * MODULE-04 LISTING-V2-001: TypeScript types for item listings
- * 
+ *
  * V2 Enhancements:
  * - accepts_swap_points: SP payment preference
  * - seller_subscription_status_at_creation: Audit trail
@@ -13,7 +13,16 @@
  * Matches items.status column in database
  * MODULE-13 SAFETY-P003: Added 'flagged', 'rejected', 'needs_edits' statuses
  */
-export type ListingStatus = 'draft' | 'available' | 'pending' | 'sold' | 'deleted' | 'paused' | 'flagged' | 'rejected' | 'needs_edits';
+export type ListingStatus =
+  | 'draft'
+  | 'available'
+  | 'pending'
+  | 'sold'
+  | 'deleted'
+  | 'paused'
+  | 'flagged'
+  | 'rejected'
+  | 'needs_edits';
 
 /**
  * Item condition enum
@@ -34,11 +43,11 @@ export interface Listing {
   category_id: string | null;
   condition: ListingCondition | null;
   status: ListingStatus;
-  
+
   // V2 fields:
   accepts_swap_points: boolean; // Whether seller accepts SP payment
   seller_subscription_status_at_creation: string | null; // Audit: seller sub status when created
-  
+
   // MODULE-13 SAFETY-P003: Safety/moderation fields
   flagged_at: string | null;
   flagged_reason: string | null;
@@ -48,12 +57,14 @@ export interface Listing {
   appeal_count: number;
   appeal_reason?: string | null;
   appealed_at?: string | null;
-  
+  edited_since_rejection?: boolean;
+  edited_since_rejection_at?: string | null;
+
   // Timestamps:
   created_at: string;
   updated_at: string; // Maps to 'last_edited_at' concept in spec
   sold_at: string | null;
-  
+
   // Related data (optional, from joins):
   seller?: {
     id: string;

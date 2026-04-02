@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Alert,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getTOSService } from '../../services/tos';
@@ -30,8 +32,33 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
   const requireAcceptance = route.params?.requireAcceptance || false;
   const onAccept = route.params?.onAccept;
 
+  useLayoutEffect(() => {
+    // Add custom back button for Android/iOS if needed, 
+    // or just rely on default header if possible.
+    // However, if the user sees "no back button", it might be due to 
+    // the screen being presented as a modal or in a specific stack state.
+    // We'll explicitly add a left button to ensure visibility.
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          testID="tos-back-button"
+        >
+          <Ionicons 
+            name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'} 
+            size={24} 
+            color="#007AFF" 
+          />
+          {Platform.OS === 'ios' && <Text style={styles.backText}>Back</Text>}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
   useEffect(() => {
     loadPolicy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadPolicy = async () => {
@@ -209,6 +236,16 @@ const styles = StyleSheet.create({
     color: '#d32f2f',
     textAlign: 'center',
     marginTop: 32,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: Platform.OS === 'ios' ? 0 : 8,
+  },
+  backText: {
+    color: '#007AFF',
+    fontSize: 17,
+    marginLeft: 2,
   },
   footer: {
     position: 'absolute',
