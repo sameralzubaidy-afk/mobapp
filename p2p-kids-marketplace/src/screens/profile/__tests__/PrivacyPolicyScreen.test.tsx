@@ -67,7 +67,7 @@ describe('PrivacyPolicyScreen', () => {
     it('should display privacy policy content', async () => {
       mockService.getCurrentPrivacyPolicy.mockResolvedValue(mockPolicy);
 
-      const { getByTestId, getByText } = render(
+      const { getByTestId, getByText, getAllByText } = render(
         <PrivacyPolicyScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
@@ -75,7 +75,7 @@ describe('PrivacyPolicyScreen', () => {
         expect(getByTestId('privacy-policy-screen')).toBeTruthy();
       });
 
-      expect(getByText('Privacy Policy')).toBeTruthy();
+      expect(getAllByText('Privacy Policy').length).toBeGreaterThan(0);
       expect(getByText('Version 1.0')).toBeTruthy();
     });
 

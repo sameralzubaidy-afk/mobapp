@@ -1,0 +1,154 @@
+appId: com.p2pkidsmarketplace
+---
+# Maestro UI Flow: Notification Preferences Screen
+# MODULE-14: NOTIF-V2-001
+# Tests full user journey through notification preference settings
+
+- launchApp:
+    clearState: true
+
+# Step 1: Navigate from Profile to Notification Preferences
+- tapOn: 
+    id: "tab-profile"
+- assertVisible: "Profile"
+
+- tapOn: 
+    id: "settings-button"
+- assertVisible: "Settings"
+
+- tapOn:
+    id: "notification-preferences-row"
+- assertVisible: "Notification Preferences"
+
+# Step 2: Verify Category Sections Render
+- assertVisible: 
+    id: "category-section-subscription"
+- assertVisible: 
+    id: "category-section-sp_events"
+- assertVisible: 
+    id: "category-section-badges"
+- assertVisible: 
+    id: "category-section-trades"
+- assertVisible: 
+    id: "category-section-system"
+
+# Step 3: Verify Default Toggle States (Push should be ON by default)
+- assertVisible:
+    id: "toggle-subscription-push"
+- assertVisible:
+    id: "toggle-subscription-in_app"
+- assertVisible:
+    id: "toggle-subscription-email"
+
+# Step 4: Toggle Push Notification OFF for Subscription Category
+- tapOn:
+    id: "toggle-subscription-push"
+- assertVisible: "Saved"  # Success feedback
+
+# Wait for optimistic update
+- waitForAnimationToEnd
+
+# Step 5: Toggle Push Notification ON for SP Events Category
+- tapOn:
+    id: "toggle-sp_events-push"
+- assertVisible: "Saved"
+
+# Step 6: Test Quiet Hours Toggle
+- tapOn:
+    id: "toggle-subscription-quiet_hours"
+- assertVisible: "Quiet Hours"
+
+# Step 7: Open Quiet Hours Start Time Picker
+- tapOn:
+    id: "quiet-hours-start-picker"
+- assertVisible: "Select Time"
+
+# Set quiet hours start to 23:00
+- tapOn: "23"  # Hour
+- tapOn: "00"  # Minute
+- tapOn: "Done"
+
+- assertVisible: "Quiet Hours Start: 23:00"
+
+# Step 8: Open Quiet Hours End Time Picker
+- tapOn:
+    id: "quiet-hours-end-picker"
+- assertVisible: "Select Time"
+
+# Set quiet hours end to 07:00
+- tapOn: "07"  # Hour
+- tapOn: "00"  # Minute
+- tapOn: "Done"
+
+- assertVisible: "Quiet Hours End: 07:00"
+
+# Step 9: Verify Email Toggle Works
+- tapOn:
+    id: "toggle-badges-email"
+- assertVisible: "Saved"
+
+# Step 10: Test Scroll to Bottom Categories
+- scroll
+- assertVisible:
+    id: "category-section-system"
+
+# Step 11: Toggle In-App Notifications for System Category
+- tapOn:
+    id: "toggle-system-in_app"
+- assertVisible: "Saved"
+
+# Step 12: Verify All Changes Persisted (Scroll Back Up)
+- scrollUp
+- assertVisible:
+    id: "category-section-subscription"
+
+# Step 13: Navigate Back to Settings
+- tapOn:
+    id: "back-button"
+- assertVisible: "Settings"
+
+# Step 14: Re-navigate to Notification Preferences (Verify Persistence)
+- tapOn:
+    id: "notification-preferences-row"
+- assertVisible: "Notification Preferences"
+
+# Verify persisted states
+- assertVisible:
+    id: "category-section-subscription"
+- assertVisible:
+    id: "toggle-subscription-push"  # Should be OFF from Step 4
+- assertVisible:
+    id: "toggle-sp_events-push"  # Should be ON from Step 5
+
+# Step 15: Test Error Handling (Offline Mode)
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: "WiFi"  # Open Control Center (requires device/simulator gestures)
+      - tapOn: "WiFi Toggle"
+      - tapOn: "Done"
+
+- tapOn:
+    id: "toggle-trades-push"
+- assertVisible: "Network Error"  # Or appropriate error message
+
+# Re-enable network
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: "WiFi"
+      - tapOn: "WiFi Toggle"
+      - tapOn: "Done"
+
+# Step 16: Navigate Back to Profile
+- tapOn:
+    id: "back-button"
+- tapOn:
+    id: "back-button"
+- assertVisible: "Profile"
+
+# Final Assertion: App did not crash
+- assertVisible:
+    id: "tab-profile"

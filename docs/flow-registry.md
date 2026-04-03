@@ -804,6 +804,32 @@ This file is the canonical registry of end-to-end flows and their required regre
 
 ### FLOW-17: Notifications
 - Smoke: (manual)
+- **NOTIF-V2-001 (MODULE-14): Notification Schema & Preferences**
+  - Purpose: Allow users to manage notification preferences per category (subscription, sp_events, badges, trades, system) and channel (push, in-app, email)
+  - Database:
+    - Migration: `supabase/migrations/201_notifications_schema_v2.sql`
+    - Tables: `notification_preferences` (user_id, category, push_enabled, in_app_enabled, email_enabled, quiet_hours_enabled, quiet_hours_start, quiet_hours_end)
+    - Enums: `notification_category` (5 types), `notification_status` (3 states)
+    - RLS policies: Users can read/update only their own preferences
+    - Trigger: `initialize_notification_preferences()` auto-creates 5 default preference rows for new users
+    - Default quiet hours: 22:00-08:00
+  - Mobile App:
+    - Service: `p2p-kids-marketplace/src/services/notificationPreferences.ts`
+      - Functions: `getNotificationPreferences()`, `updateNotificationPreference()`
+      - Self-healing: Auto-initializes if user has no preferences
+    - Screen: `p2p-kids-marketplace/src/screens/profile/NotificationPreferencesScreen.tsx`
+      - 5 category sections with icon + label
+      - 3 toggle switches per category (push/in-app/email)
+      - Quiet hours section with enable toggle + time pickers (start/end)
+      - Optimistic updates for immediate feedback
+      - Error handling with Alert dialogs
+    - Navigation: Route `NotificationPreferences` in AppNavigator (authenticated stack)
+  - Testing:
+    - Unit tests: `p2p-kids-marketplace/src/__tests__/services/notificationPreferences.test.ts` (12 test cases)
+    - E2E tests: `p2p-kids-marketplace/e2e/notificationPreferences.e2e.test.ts` (20+ integration tests with RLS verification)
+    - Maestro flow: `.maestro/notification-preferences.yaml` (16-step UI flow testing all toggles, quiet hours, persistence)
+    - Manual test guide: `p2p-kids-marketplace/docs/manual-tests/NOTIF-V2-001-Notification-Preferences-Manual-Tests.md` (12 test cases including security RLS tests)
+  - Verification: MODULE-14-VERIFICATION-V2.md checklist items 1.1-1.8 (Database, Functional, UI, Security sections)
 
 ### FLOW-18: Admin Controls
 - Smoke: (manual)

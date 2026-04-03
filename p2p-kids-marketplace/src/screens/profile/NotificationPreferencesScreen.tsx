@@ -96,7 +96,11 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity 
+            testID="back-button"
+            onPress={() => navigation.goBack()} 
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
           <Text style={styles.title}>Notification Settings</Text>
@@ -120,7 +124,11 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
             </View>
           ) : (
             preferences.map((pref) => (
-              <View key={pref.category} style={styles.categoryCard}>
+              <View 
+                key={pref.category} 
+                testID={`category-section-${pref.category}`}
+                style={styles.categoryCard}
+              >
                 <View style={styles.categoryHeader}>
                   <View style={styles.categoryIconContainer}>
                     <Ionicons name={CATEGORY_ICONS[pref.category] as any} size={20} color="#3B82F6" />
@@ -135,6 +143,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                       <Text style={styles.settingSublabel}>Receive alerts on your device</Text>
                     </View>
                     <Switch
+                      testID={`toggle-${pref.category}-push`}
                       value={pref.push_enabled}
                       onValueChange={(val) => handleToggle(pref.category, 'push_enabled', val)}
                       disabled={updating !== null}
@@ -149,6 +158,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                       <Text style={styles.settingSublabel}>Show badges inside the app</Text>
                     </View>
                     <Switch
+                      testID={`toggle-${pref.category}-in_app`}
                       value={pref.in_app_enabled}
                       onValueChange={(val) => handleToggle(pref.category, 'in_app_enabled', val)}
                       disabled={updating !== null}
@@ -163,6 +173,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                       <Text style={styles.settingSublabel}>Send updates to your email</Text>
                     </View>
                     <Switch
+                      testID={`toggle-${pref.category}-email`}
                       value={pref.email_enabled}
                       onValueChange={(val) => handleToggle(pref.category, 'email_enabled', val)}
                       disabled={updating !== null}

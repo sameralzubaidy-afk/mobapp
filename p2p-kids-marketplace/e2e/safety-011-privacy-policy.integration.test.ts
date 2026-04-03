@@ -3,11 +3,13 @@
 // Run against staging Supabase with: RUN_SUPABASE_E2E=true npm run test:e2e
 
 import { supabase } from '../src/config/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { getPrivacyPolicyService } from '../src/services/privacyPolicy';
 
 describe('SAFETY-011: Privacy Policy Integration Tests', () => {
   let canRun = process.env.RUN_SUPABASE_E2E === 'true';
   let skipReason = '';
+  let supabaseAdmin: any = null;
   let testUserId: string;
   let testEmail: string;
   let policyId: string;
@@ -27,6 +29,12 @@ describe('SAFETY-011: Privacy Policy Integration Tests', () => {
     if (!canRun) {
       console.log('Skipping E2E tests. Set RUN_SUPABASE_E2E=true to run.');
       return;
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    if (supabaseUrl && serviceRoleKey) {
+      supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
     }
 
     // Guard on required RPC availability in target database.
@@ -75,7 +83,9 @@ describe('SAFETY-011: Privacy Policy Integration Tests', () => {
       .eq('policy_type', 'privacy_policy');
 
     // Delete test user
-    if ((supabase.auth as any).admin?.deleteUser) {
+    if (supabaseAdmin?.auth?.admin?.deleteUser) {
+      await supabaseAdmin.auth.admin.deleteUser(testUserId);
+    } else if ((supabase.auth as any).admin?.deleteUser) {
       await (supabase.auth as any).admin.deleteUser(testUserId);
     }
   });
@@ -97,33 +107,45 @@ describe('SAFETY-011: Privacy Policy Integration Tests', () => {
     it('should return null if no published Privacy Policy exists', async () => {
       if (skipIfUnavailable()) return;
 
+      if (!supabaseAdmin) {
+        console.warn(
+          '[SAFETY-011] Skipping admin-only policy archival assertion: SUPABASE_SERVICE_ROLE_KEY not set.'
+        );
+        return;
+      }
+
       // Archive all policies temporarily
-      const { data } = await supabase
+      const { data, error: fetchError } = await supabaseAdmin
         .from('platform_policies')
         .select('id')
         .eq('policy_type', 'privacy_policy')
         .eq('status', 'published');
 
+      expect(fetchError).toBeNull();
+
       const policyIds = data?.map((p) => p.id) || [];
 
       if (policyIds.length > 0) {
-        await supabase
+        const { error: archiveError } = await supabaseAdmin
           .from('platform_policies')
           .update({ status: 'archived' })
           .in('id', policyIds);
+        expect(archiveError).toBeNull();
       }
 
       const service = getPrivacyPolicyService();
-      const policy = await service.getCurrentPrivacyPolicy();
-
-      expect(policy).toBeNull();
-
-      // Restore policies
-      if (policyIds.length > 0) {
-        await supabase
-          .from('platform_policies')
-          .update({ status: 'published' })
-          .in('id', policyIds);
+      try {
+        const policy = await service.getCurrentPrivacyPolicy();
+        expect(policy).toBeNull();
+      } finally {
+        // Restore policies
+        if (policyIds.length > 0) {
+          const { error: restoreError } = await supabaseAdmin
+            .from('platform_policies')
+            .update({ status: 'published' })
+            .in('id', policyIds);
+          expect(restoreError).toBeNull();
+        }
       }
     });
   });

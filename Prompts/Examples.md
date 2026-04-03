@@ -45,14 +45,22 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK SAFETY-012: Implement Admin-Managed Liability Disclaimer System
 
+## TASK NOTIF-V2-002: Subscription Event Notifications
 I’m working on the  MODULE-13-SAFETY-COMPLIANCE.md tasks
 Module: MODULE-13-SAFETY-COMPLIANCE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK SAFETY-012: Implement Admin-Managed Liability Disclaimer System
+Tasks: ## TASK NOTIF-V2-002: Subscription Event Notifications
 
 scope is 
-Create Liability Disclaimer system using the same platform_policies infrastructure from SAFETY-010. Admin can create, edit, and publish Liability Disclaimer versions. Display disclaimer on trade confirmation screen before purchase. Users must acknowledge disclaimer to complete trade. Display in app settings. Track acknowledgments per transaction.
+Implement notifications for subscription lifecycle events. Send trial expiration reminders (7 days, 3 days, 1 day before). Notify on subscription renewal success/failure. Send cancellation confirmation. Implement payment failure alerts with retry instructions.
+
+### Acceptance Criteria
+- [ ] Trial expiration reminders sent at 7d, 3d, 1d before expiration
+- [ ] Subscription renewal success notification sent
+- [ ] Payment failure notification sent with retry link
+- [ ] Cancellation confirmation notification sent
+- [ ] All subscription notifications respect user preferences
+- [ ] Critical payment notifications sent regardless of preferences
 
 i want you to 
 

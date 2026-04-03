@@ -54,6 +54,390 @@
 
 ---
 
+## PHYSICAL DEVICE TESTING SETUP (GOOGLE PIXEL)
+
+All notification features in this module **MUST** be tested on a physical Android device (Google Pixel recommended) because:
+- Push notifications do not work on emulators/simulators
+- Notification channels and system integration require real Android OS
+- Quiet hours and system notification settings need physical device testing
+- Deep linking behavior differs between emulator and physical device
+- Expo Go and standalone builds behave differently with notifications
+
+### Prerequisites
+
+**1. Enable Developer Mode on Google Pixel**
+1. Open **Settings** → **About phone**
+2. Tap **Build number** 7 times until you see "You are now a developer!"
+3. Go back to **Settings** → **System** → **Developer options**
+4. Enable **USB debugging**
+5. Enable **Stay awake** (keeps screen on while charging - helpful for testing)
+
+**2. Install Android Platform Tools (Your Mac)**
+```bash
+# Install via Homebrew
+brew install android-platform-tools
+
+# Verify installation
+adb version
+
+# Expected output: Android Debug Bridge version 1.0.41 or higher
+```
+
+**3. Connect Your Google Pixel**
+```bash
+# Connect Pixel via USB cable
+# On your Pixel, allow USB debugging when prompted
+
+# Verify device is connected
+adb devices
+
+# Expected output:
+# List of devices attached
+# 1A2B3C4D5E6F    device
+```
+
+---
+
+### Installation Methods
+
+#### **Method A: Expo Go (Fastest for Development)**
+
+**On Your Pixel:**
+1. Install **Expo Go** from Google Play Store
+2. Open Expo Go app
+3. Sign in with your Expo account (same as on your Mac)
+
+**On Your Mac:**
+```bash
+cd p2p-kids-marketplace
+
+# Start development server
+npx expo start
+
+# Scan QR code with Expo Go app on your Pixel
+# OR
+# Press 'a' to open on connected Android device via adb
+```
+
+**⚠️ Limitations with Expo Go:**
+- Push notifications work but require Expo push token (not FCM)
+- Some native modules may not work
+- Cannot test final production notification experience
+
+---
+
+#### **Method B: Development Build (Recommended for Full Testing)**
+
+**Build APK locally:**
+```bash
+cd p2p-kids-marketplace
+
+# Install EAS CLI if not already installed
+npm install -g eas-cli
+
+# Login to Expo
+eas login
+
+# Create development build
+eas build --profile development --platform android
+
+# Wait for build to complete (~10-15 minutes)
+# Download APK from Expo dashboard or use direct URL
+```
+
+**Install APK on Pixel:**
+```bash
+# Download APK to your Mac
+# Then install via ADB
+adb install path/to/your-app.apk
+
+# OR drag APK file to Android File Transfer and install from Pixel
+```
+
+---
+
+#### **Method C: Wireless Debugging (No USB Cable)**
+
+**One-time setup:**
+```bash
+# Connect Pixel via USB first
+adb tcpip 5555
+
+# Find your Pixel's IP address:
+# On Pixel: Settings → About → Status → IP address (e.g., 192.168.1.45)
+
+# Disconnect USB cable, then connect wirelessly:
+adb connect <PIXEL_IP_ADDRESS>:5555
+# Example: adb connect 192.168.1.45:5555
+
+# Verify connection
+adb devices
+# Should show: <IP>:5555    device
+```
+
+**Daily usage:**
+```bash
+# Just run this command (if Pixel is on same WiFi)
+adb connect <PIXEL_IP_ADDRESS>:5555
+```
+
+---
+
+### Notification Testing Setup on Google Pixel
+
+**1. Allow Notification Permissions**
+```bash
+# When app first requests notifications, tap "Allow" on your Pixel
+# If you accidentally denied, fix it:
+# Settings → Apps → Your App → Notifications → Enable
+```
+
+**2. Verify Notification Channels (Android 8+)**
+```bash
+# On Pixel:
+# Settings → Apps → Your App → Notifications
+# You should see separate channels for:
+# - Subscription & Billing
+# - Swap Points
+# - Badges & Achievements
+# - Trades
+# - System & Updates
+```
+
+**3. Test Quiet Hours (Do Not Disturb)**
+```bash
+# On Pixel:
+# Settings → Sound & vibration → Do Not Disturb
+# Schedule DND for testing quiet hours feature
+```
+
+**4. Clear Notification History (Between Tests)**
+```bash
+# Swipe down notification shade
+# Tap "Clear all" button
+# OR via ADB:
+adb shell cmd notification clear_all
+```
+
+---
+
+### Testing Workflows
+
+#### **Test 1: Push Notification Delivery**
+```bash
+# On Mac terminal:
+cd p2p-kids-marketplace
+
+# Start app on Pixel
+npx expo start --android
+
+# Trigger test notification from Supabase:
+# 1. Open Supabase SQL Editor
+# 2. Run:
+SELECT create_subscription_notification(
+  '<YOUR_USER_ID>'::uuid,
+  'trial_expiring_1d',
+  'Trial Ending Tomorrow',
+  'Your trial ends in 1 day. Subscribe to keep earning SP!',
+  '{"deep_link": "/subscription"}'::jsonb
+);
+
+# Expected: Notification appears on Pixel within 5-10 seconds
+```
+
+#### **Test 2: Deep Link Navigation**
+```bash
+# Step 1: Receive notification on Pixel
+# Step 2: Tap notification
+# Step 3: App should open to correct screen (e.g., /subscription)
+
+# Debug deep linking via logcat:
+adb logcat | grep -i "deep"
+```
+
+#### **Test 3: Notification Preferences**
+```bash
+# In app on Pixel:
+# 1. Navigate to Settings → Notification Preferences
+# 2. Disable "Swap Points" push notifications
+# 3. Trigger SP notification from Supabase
+# 4. Verify notification NOT sent to device (check in-app center only)
+```
+
+#### **Test 4: Quiet Hours**
+```bash
+# In app on Pixel:
+# 1. Set quiet hours: 10:00 PM - 8:00 AM
+# 2. Change device time to 11:00 PM (Settings → System → Date & time → Set time manually)
+# 3. Trigger notification
+# 4. Verify NO push notification received (should be in in-app center only)
+# 5. Change device time to 9:00 AM
+# 6. Trigger notification
+# 7. Verify push notification IS received
+```
+
+#### **Test 5: Notification Badge Count**
+```bash
+# On Pixel home screen:
+# Long-press app icon
+# Notification badge should show unread count
+
+# To test:
+# 1. Send 3 notifications
+# 2. Badge should show "3"
+# 3. Open app and mark 2 as read
+# 4. Badge should update to "1"
+```
+
+---
+
+### Useful ADB Commands for Testing
+
+```bash
+# View real-time logs from your app
+adb logcat | grep -i "expo\|notification\|push"
+
+# Take screenshot
+adb exec-out screencap -p > screenshot.png
+
+# Record screen video (max 180 seconds)
+adb shell screenrecord /sdcard/test_notifications.mp4
+# Ctrl+C to stop
+# Download video:
+adb pull /sdcard/test_notifications.mp4 .
+
+# View current notification shade
+adb shell dumpsys notification
+
+# Get app notification settings
+adb shell cmd notification list
+adb shell dumpsys notification <YOUR_PACKAGE_NAME>
+
+# Force stop app (for testing background notifications)
+adb shell am force-stop com.yourcompany.p2pkidsmarketplace
+
+# Restart app
+adb shell am start -n com.yourcompany.p2pkidsmarketplace/.MainActivity
+
+# Clear app data (reset to fresh state)
+adb shell pm clear com.yourcompany.p2pkidsmarketplace
+```
+
+---
+
+### Screen Mirroring to Your Mac (Optional but Recommended)
+
+**Install scrcpy (best Android screen mirroring tool):**
+```bash
+# Install via Homebrew
+brew install scrcpy
+
+# Run with Pixel connected
+scrcpy
+
+# Advanced options:
+scrcpy --window-title "Pixel 6" --stay-awake --turn-screen-off
+```
+
+**Benefits:**
+- View Pixel screen on your Mac monitor
+- Record videos of notification testing
+- Easier to demonstrate features during demos
+- Can control Pixel from Mac keyboard/mouse
+
+---
+
+### Troubleshooting
+
+**Issue: "No devices/emulators found"**
+```bash
+# Reconnect ADB
+adb kill-server
+adb start-server
+adb devices
+
+# Ensure USB debugging is enabled on Pixel
+# Try different USB cable (some are charge-only)
+```
+
+**Issue: "Notifications not appearing on Pixel"**
+```bash
+# Check notification permissions:
+adb shell dumpsys notification | grep -A 5 "p2pkidsmarketplace"
+
+# Verify push token is registered:
+# In Supabase, check push_tokens table:
+SELECT * FROM push_tokens WHERE user_id = '<YOUR_USER_ID>';
+
+# Check Expo push notification receipts:
+# In edge function logs, look for Expo API responses
+```
+
+**Issue: "Deep links not working"**
+```bash
+# Test deep link manually via ADB:
+adb shell am start -W -a android.intent.action.VIEW \
+  -d "kidsp2p://subscription" \
+  com.yourcompany.p2pkidsmarketplace
+
+# Check AndroidManifest.xml has correct intent filters
+```
+
+**Issue: "App crashes when receiving notification"**
+```bash
+# View crash logs:
+adb logcat | grep -i "error\|exception\|crash"
+
+# Save full log to file:
+adb logcat > notification_crash.log
+```
+
+**Issue: "Quiet hours not being respected"**
+```bash
+# Verify device timezone matches quiet hours timezone
+# Check notification preferences in database:
+SELECT * FROM notification_preferences WHERE user_id = '<YOUR_USER_ID>';
+
+# Ensure quiet_hours_enabled = true
+# Verify quiet_hours_start and quiet_hours_end are correct
+```
+
+---
+
+### Best Practices for Physical Device Testing
+
+1. **Keep Pixel Charged**: Enable "Stay awake" in Developer options
+2. **Use Real User Data**: Test with actual user accounts, not just test accounts
+3. **Test Different Android Versions**: If possible, test on Android 11, 12, 13, 14
+4. **Test Different Network Conditions**: WiFi, cellular, airplane mode
+5. **Test App States**: Foreground, background, killed state
+6. **Clear Cache Between Tests**: Ensures clean state for accurate results
+7. **Document Everything**: Take screenshots/videos of bugs for easier debugging
+8. **Test Notification Bundling**: Send multiple notifications and verify grouping
+9. **Test Notification Actions**: If you add action buttons, test them thoroughly
+10. **Monitor Battery Impact**: Excessive notifications can drain battery
+
+---
+
+### Required Testing Matrix
+
+For each notification feature, test ALL of these scenarios on Google Pixel:
+
+| Scenario | App State | Network | Device State | Expected Result |
+|----------|-----------|---------|--------------|-----------------|
+| Push notification delivery | Foreground | WiFi | Unlocked | Notification appears instantly |
+| Push notification delivery | Background | WiFi | Locked | Notification in notification shade |
+| Push notification delivery | Killed | WiFi | Locked | Notification wakes app |
+| Push notification delivery | Foreground | Cellular | Unlocked | Same as WiFi |
+| Deep link tap | Foreground | WiFi | Unlocked | Navigates to correct screen |
+| Deep link tap | Background | WiFi | Locked | Opens app to correct screen |
+| Deep link tap | Killed | WiFi | Locked | Launches app to correct screen |
+| Quiet hours | Any | WiFi | Any | No push notif (in-app only) |
+| Disabled category | Any | WiFi | Any | No push notif (in-app only) |
+| Badge count | Background | Any | Any | Badge shows unread count |
+
+---
+
 ## CRITICAL V2 RULES
 
 ### Notification Delivery
@@ -660,6 +1044,8 @@ export const NotificationPreferencesScreen: React.FC<{ userId: string }> = ({ us
 ```
 
 ### Testing Checklist
+
+**Database Tests:**
 - [ ] Notification preferences created for new users automatically
 - [ ] User can view all notification preferences
 - [ ] User can update preferences per category and channel
@@ -667,13 +1053,22 @@ export const NotificationPreferencesScreen: React.FC<{ userId: string }> = ({ us
 - [ ] RLS policies prevent users from viewing/editing others' preferences
 - [ ] Default preferences created with correct values
 
+**Physical Device Tests (Google Pixel):**
+- [ ] NotificationPreferencesScreen renders correctly on Pixel
+- [ ] Toggle switches update preferences in real-time
+- [ ] Quiet hours time picker works on Android
+- [ ] Changes persist after app restart on device
+- [ ] Notification channel settings appear in Android Settings → Apps → Notifications
+- [ ] Test with device in portrait and landscape orientation
+
 ### Deployment Notes
 1. Run migration to create notification tables
 2. Verify trigger creates default preferences for existing users
 3. Test notification preference updates
 4. Configure quiet hours UI with time picker
+5. **Physical Device Testing Required**: Follow Google Pixel setup guide above to test all notification permissions and channels
 
----
+--- 
 
 ## TASK NOTIF-V2-002: Subscription Event Notifications
 
@@ -988,6 +1383,8 @@ export class SubscriptionNotificationService {
 ```
 
 ### Testing Checklist
+
+**Edge Function Tests:**
 - [ ] Trial starting notification sent on subscription creation
 - [ ] Trial expiration reminders sent at correct intervals (7d, 3d, 1d)
 - [ ] Payment success notification sent after renewal
@@ -996,11 +1393,24 @@ export class SubscriptionNotificationService {
 - [ ] All notifications include deep link to subscription screen
 - [ ] Notifications respect user preferences (except payment_failed)
 
+**Physical Device Tests (Google Pixel):**
+- [ ] Push notification appears on Pixel lock screen with correct title/body
+- [ ] Notification sound/vibration works on device
+- [ ] Tapping notification navigates to subscription screen
+- [ ] Notification appears in notification shade
+- [ ] Test with app in foreground, background, and killed states
+- [ ] Trial reminder notification received at 11:00 PM is delayed until after quiet hours (8:00 AM)
+- [ ] Payment failure notification received during quiet hours (critical override)
+- [ ] Notification badge count increments on app icon
+- [ ] Multiple subscription notifications group correctly in notification shade
+- [ ] Take screenshot of notification on device for documentation
+
 ### Deployment Notes
 1. Deploy edge function `send-trial-reminders` to Supabase
 2. Set up cron job to run edge function daily (e.g., 10am UTC)
 3. Configure payment provider webhooks to call notification service
 4. Test trial reminder timing in staging environment
+5. **Physical Device Testing Required**: Test all subscription notifications on Google Pixel to verify push delivery and deep links
 
 ---
 
@@ -1272,6 +1682,8 @@ export class SPNotificationService {
 ```
 
 ### Testing Checklist
+
+**Database Trigger Tests:**
 - [ ] SP earned notification sent when ledger entry created (earned type)
 - [ ] SP spent notification sent when ledger entry created (spent type)
 - [ ] Notification body includes reason for transaction
@@ -1281,11 +1693,24 @@ export class SPNotificationService {
 - [ ] SP notifications only sent to trial/active subscribers
 - [ ] Notifications include current balance in data
 
+**Physical Device Tests (Google Pixel):**
+- [ ] Earn 10 SP by selling item → notification appears on Pixel within 5 seconds
+- [ ] Spend 5 SP on trade → notification appears on Pixel with updated balance
+- [ ] Low balance warning shows when balance drops to 9 SP
+- [ ] Wallet frozen notification appears when subscription expires
+- [ ] Tapping SP earned notification navigates to wallet screen
+- [ ] SP notification includes emoji (🎉) and displays correctly on Android
+- [ ] Test with "SP Events" notifications disabled in preferences → only in-app notification, no push
+- [ ] Test with quiet hours enabled → SP notification delayed until morning
+- [ ] Verify notification grouped under "Swap Points" channel in Android settings
+- [ ] Record screen video of SP earning flow with notification
+
 ### Deployment Notes
 1. Test SP transaction triggers in staging
 2. Verify low balance warning deduplication
 3. Test wallet frozen notification on subscription expiration
 4. Monitor notification volume for SP transactions
+5. **Physical Device Testing Required**: Test SP earned/spent notifications on Google Pixel to verify real-time delivery and balance updates
 
 ---
 
@@ -1661,6 +2086,8 @@ export const BadgeCelebrationModal: React.FC<BadgeCelebrationModalProps> = ({
 ```
 
 ### Testing Checklist
+
+**Database & UI Tests:**
 - [ ] Badge earned notification sent immediately on badge award
 - [ ] Notification includes badge icon, name, description
 - [ ] Milestone approaching notification sent when close to next badge
@@ -1669,11 +2096,25 @@ export const BadgeCelebrationModal: React.FC<BadgeCelebrationModalProps> = ({
 - [ ] Badge notifications sent regardless of subscription status
 - [ ] Deep link navigates to badge collection
 
+**Physical Device Tests (Google Pixel):**
+- [ ] Award badge manually → notification appears on Pixel immediately
+- [ ] Badge icon (emoji) displays correctly in push notification
+- [ ] Tapping badge notification opens app and shows celebration modal with confetti
+- [ ] Confetti animation plays smoothly on Pixel (60 fps)
+- [ ] Badge celebration modal auto-closes after 5 seconds
+- [ ] Test milestone notification when 5 SP away from next badge
+- [ ] Badge notification appears for free users (not subscription-gated)
+- [ ] Test with app killed → tapping notification launches app and shows celebration
+- [ ] Test badge notification grouping with multiple badges earned
+- [ ] Verify "Badges & Achievements" notification channel exists in Android settings
+- [ ] Record screen video of badge earning with celebration animation
+
 ### Deployment Notes
 1. Install canvas-confetti and framer-motion packages
 2. Test badge celebration animations on mobile devices
 3. Verify milestone calculation accuracy
 4. Test notification delivery for auto and manual badge awards
+5. **Physical Device Testing Required**: Test badge celebration modal and confetti animation on Google Pixel to ensure smooth performance
 
 ---
 
@@ -1998,6 +2439,32 @@ export class PushTokenService {
         return;
       }
 
+### Testing Checklist
+
+**Edge Function Tests:**
+- [ ] Push tokens stored and updated on login
+- [ ] Rate limiting enforced (10 notifications/hour per user)
+- [ ] Quiet hours respected (no push notifications 10pm-8am)
+- [ ] Duplicate notifications prevented (5-minute window)
+- [ ] Failed push deliveries retried up to 3 times
+- [ ] Push notification receipts tracked
+
+**Physical Device Tests (Google Pixel):**
+- [ ] Install app on Pixel → notification permission prompt appears
+- [ ] Grant permission → push token saved to push_tokens table in Supabase
+- [ ] Verify push token format is Expo token (ExponentPushToken[...])
+- [ ] Send 11 notifications within 1 hour → 11th notification not delivered (rate limit)
+- [ ] Set quiet hours 10pm-8am, send notification at 11pm → no push received
+- [ ] Send same notification twice within 5 minutes → second notification deduplicated
+- [ ] Force-stop app, send notification → notification appears on lock screen
+- [ ] Turn on airplane mode, send notification, turn off airplane mode → notification delivered when online
+- [ ] Uninstall and reinstall app → new push token registered
+- [ ] Test push notification with large body text (>200 chars) → text truncated correctly
+- [ ] Use adb logcat to monitor push notification delivery in real-time
+- [ ] Verify push notification receipt tracking in database (push_sent_at timestamp)
+- [ ] Test with multiple devices for same user → all devices receive push
+- [ ] Record screen video of rate limiting test (10 notifications delivered, 11th blocked)
+
       // Get push token
       const tokenData = await Notifications.getExpoPushTokenAsync();
       const token = tokenData.data;
@@ -2062,6 +2529,7 @@ export class PushTokenService {
 3. Install expo-notifications and expo-device packages
 4. Configure Expo push notification credentials (FCM for Android, APNs for iOS)
 5. Test push notifications on physical devices (iOS & Android)
+6. **Physical Device Testing Required**: Test rate limiting, quiet hours, and deduplication on Google Pixel using the testing workflows in the setup guide above
 
 ---
 
@@ -2170,6 +2638,36 @@ export class NotificationCenterService {
 
     return count || 0;
   }
+
+### Testing Checklist
+
+**UI Component Tests:**
+- [ ] Notification center screen renders with empty state
+- [ ] Notifications displayed in reverse chronological order
+- [ ] Unread notifications highlighted visually
+- [ ] Pull-to-refresh updates notification list
+- [ ] Mark as read works (tap notification)
+- [ ] Mark all as read works (button)
+- [ ] Badge count decrements when notification marked as read
+- [ ] Deep link navigation works from notification center
+- [ ] Pagination works for large notification history
+- [ ] Real-time updates when new notification received
+
+**Physical Device Tests (Google Pixel):**
+- [ ] Open notification center on Pixel → all notifications load correctly
+- [ ] Pull down to refresh → spinner appears and list updates
+- [ ] Tap unread notification → marked as read, background color changes
+- [ ] Verify unread notifications have blue indicator/bold text
+- [ ] Tap "Mark all as read" → all notifications change to read state
+- [ ] App icon badge count updates immediately when marking as read
+- [ ] Tap notification with deep link → navigates to correct screen
+- [ ] Scroll to bottom of 100+ notifications → pagination loads more smoothly
+- [ ] Receive new notification while viewing center → appears at top of list in real-time
+- [ ] Test with slow 3G network → loading indicator appears
+- [ ] Test empty state when no notifications exist → shows friendly message
+- [ ] Test notification center icon in tab bar shows badge count
+- [ ] Test notification categories filter (if implemented)
+- [ ] Record screen video of full notification center flow
 
   /**
    * Mark notification as read
@@ -2584,18 +3082,1329 @@ const styles = StyleSheet.create({
 2. Verify real-time subscription for new notifications
 3. Test mark as read functionality
 4. Ensure badge count updates across app tabs
+5. **Physical Device Testing Required**: Test pull-to-refresh, pagination, and real-time updates on Google Pixel
+
+---
+
+## TASK NOTIF-V2-007: Trade Event Notifications
+
+**Duration:** 2 hours  
+**Priority:** High  
+**Dependencies:** NOTIF-V2-001, MODULE-06 (Trade Flow V2)
+
+### Description
+Implement notifications for trade lifecycle events. Send trade request received notification to seller. Notify buyer when trade accepted/rejected. Alert both parties when trade completed. Send trade cancelled notification.
+
+### Acceptance Criteria
+- [ ] Trade request notification sent to seller when trade created
+- [ ] Trade accepted notification sent to buyer
+- [ ] Trade rejected notification sent to buyer
+- [ ] Trade completed notification sent to both buyer and seller
+- [ ] Trade cancelled notification sent to both parties
+- [ ] Trade notifications respect user preferences
+- [ ] Notifications include item details and deep link to trade screen
+
+---
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Trade event notifications
+
+CONTEXT:
+Notify buyers and sellers about trade state changes.
+Critical for trade flow transparency and user engagement.
+
+V2 TRADE EVENTS:
+- trade_request: New trade request received (seller)
+- trade_accepted: Trade accepted (buyer)
+- trade_rejected: Trade rejected (buyer)
+- trade_completed: Trade completed (both parties)
+- trade_cancelled: Trade cancelled (both parties)
+
+==================================================
+FILE 1: Trade notification triggers
+==================================================
+*/
+
+-- filepath: supabase/migrations/145_trade_notifications.sql
+
+-- Function to create trade notification
+CREATE OR REPLACE FUNCTION create_trade_notification(
+  p_user_id UUID,
+  p_notification_type TEXT,
+  p_title TEXT,
+  p_body TEXT,
+  p_data JSONB DEFAULT NULL
+)
+RETURNS UUID AS $$
+DECLARE
+  v_notification_id UUID;
+  v_channels notification_channel[];
+  v_prefs RECORD;
+BEGIN
+  -- Get user's trade notification preferences
+  SELECT * INTO v_prefs
+  FROM notification_preferences
+  WHERE user_id = p_user_id AND category = 'trades';
+
+  IF NOT FOUND THEN
+    v_channels := ARRAY['push', 'in_app']::notification_channel[];
+  ELSE
+    v_channels := ARRAY[]::notification_channel[];
+    IF v_prefs.push_enabled THEN
+      v_channels := array_append(v_channels, 'push'::notification_channel);
+    END IF;
+    IF v_prefs.in_app_enabled THEN
+      v_channels := array_append(v_channels, 'in_app'::notification_channel);
+    END IF;
+    IF v_prefs.email_enabled THEN
+      v_channels := array_append(v_channels, 'email'::notification_channel);
+    END IF;
+  END IF;
+
+  -- Create notification
+  INSERT INTO notifications (user_id, category, type, title, body, data, channels)
+  VALUES (p_user_id, 'trades', p_notification_type, p_title, p_body, p_data, v_channels)
+  RETURNING id INTO v_notification_id;
+
+  RETURN v_notification_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger: Send trade request notification
+CREATE OR REPLACE FUNCTION send_trade_request_notification()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_item RECORD;
+  v_buyer RECORD;
+BEGIN
+  -- Only notify on new trades
+  IF TG_OP = 'INSERT' THEN
+    -- Get item and buyer details
+    SELECT * INTO v_item FROM items WHERE id = NEW.item_id;
+    SELECT full_name INTO v_buyer FROM profiles WHERE user_id = NEW.buyer_id;
+
+    -- Notify seller
+    PERFORM create_trade_notification(
+      NEW.seller_id,
+      'trade_request',
+      'New Trade Request! 💬',
+      v_buyer.full_name || ' wants to trade for your "' || v_item.title || '"',
+      jsonb_build_object(
+        'trade_id', NEW.id,
+        'item_id', NEW.item_id,
+        'item_title', v_item.title,
+        'buyer_id', NEW.buyer_id,
+        'buyer_name', v_buyer.full_name,
+        'deep_link', '/trades/' || NEW.id
+      )
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trade_request_notification ON trades;
+CREATE TRIGGER trade_request_notification
+  AFTER INSERT ON trades
+  FOR EACH ROW
+  EXECUTE FUNCTION send_trade_request_notification();
+
+-- Trigger: Send trade status change notifications
+CREATE OR REPLACE FUNCTION send_trade_status_notification()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_item RECORD;
+  v_buyer_name TEXT;
+  v_seller_name TEXT;
+BEGIN
+  -- Get item and user names
+  SELECT * INTO v_item FROM items WHERE id = NEW.item_id;
+  SELECT full_name INTO v_buyer_name FROM profiles WHERE user_id = NEW.buyer_id;
+  SELECT full_name INTO v_seller_name FROM profiles WHERE user_id = NEW.seller_id;
+
+  -- Trade accepted
+  IF NEW.status = 'accepted' AND OLD.status = 'pending' THEN
+    PERFORM create_trade_notification(
+      NEW.buyer_id,
+      'trade_accepted',
+      'Trade Accepted! ✅',
+      v_seller_name || ' accepted your trade request for "' || v_item.title || '"',
+      jsonb_build_object(
+        'trade_id', NEW.id,
+        'item_id', NEW.item_id,
+        'item_title', v_item.title,
+        'deep_link', '/trades/' || NEW.id
+      )
+    );
+
+  -- Trade rejected
+  ELSIF NEW.status = 'rejected' AND OLD.status = 'pending' THEN
+    PERFORM create_trade_notification(
+      NEW.buyer_id,
+      'trade_rejected',
+      'Trade Declined',
+      v_seller_name || ' declined your trade request for "' || v_item.title || '"',
+      jsonb_build_object(
+        'trade_id', NEW.id,
+        'item_id', NEW.item_id,
+        'item_title', v_item.title,
+        'deep_link', '/browse'
+      )
+    );
+
+  -- Trade completed
+  ELSIF NEW.status = 'completed' AND OLD.status != 'completed' THEN
+    -- Notify buyer
+    PERFORM create_trade_notification(
+      NEW.buyer_id,
+      'trade_completed',
+      'Trade Complete! 🎉',
+      'Your trade for "' || v_item.title || '" is complete! Don\'t forget to leave a review.',
+      jsonb_build_object(
+        'trade_id', NEW.id,
+        'item_id', NEW.item_id,
+        'item_title', v_item.title,
+        'deep_link', '/trades/' || NEW.id || '/review'
+      )
+    );
+
+    -- Notify seller
+    PERFORM create_trade_notification(
+      NEW.seller_id,
+      'trade_completed',
+      'Trade Complete! 🎉',
+      'Your trade with ' || v_buyer_name || ' for "' || v_item.title || '" is complete!',
+      jsonb_build_object(
+        'trade_id', NEW.id,
+        'item_id', NEW.item_id,
+        'item_title', v_item.title,
+        'deep_link', '/trades/' || NEW.id || '/review'
+      )
+    );
+
+  -- Trade cancelled
+  ELSIF NEW.status = 'cancelled' AND OLD.status != 'cancelled' THEN
+    -- Notify both parties
+    PERFORM create_trade_notification(
+      NEW.buyer_id,
+      'trade_cancelled',
+      'Trade Cancelled',
+      'The trade for "' || v_item.title || '" has been cancelled.',
+      jsonb_build_object(
+        'trade_id', NEW.id,
+        'item_id', NEW.item_id,
+        'item_title', v_item.title,
+        'deep_link', '/trades'
+      )
+    );
+
+    IF NEW.buyer_id != NEW.seller_id THEN
+      PERFORM create_trade_notification(
+        NEW.seller_id,
+        'trade_cancelled',
+        'Trade Cancelled',
+        'The trade for "' || v_item.title || '" has been cancelled.',
+        jsonb_build_object(
+          'trade_id', NEW.id,
+          'item_id', NEW.item_id,
+          'item_title', v_item.title,
+          'deep_link', '/trades'
+        )
+      );
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trade_status_notification ON trades;
+CREATE TRIGGER trade_status_notification
+  AFTER UPDATE ON trades
+  FOR EACH ROW
+  EXECUTE FUNCTION send_trade_status_notification();
+```
+
+### Testing Checklist
+
+**Database Trigger Tests:**
+- [ ] Trade request notification sent to seller on trade creation
+- [ ] Trade accepted notification sent to buyer
+- [ ] Trade rejected notification sent to buyer
+- [ ] Trade completed notification sent to both parties
+- [ ] Trade cancelled notification sent to both parties
+- [ ] Notifications include item details and deep links
+- [ ] Trade notifications respect user preferences
+- [ ] Notifications not sent for trades in same status
+
+**Physical Device Tests (Google Pixel - 2 Devices):**
+- [ ] Device A (buyer): Create trade request → Device B (seller) receives notification
+- [ ] Device B: Accept trade → Device A receives "Trade Accepted ✅" notification
+- [ ] Device B: Reject trade → Device A receives "Trade Declined" notification
+- [ ] Device A & B: Complete trade → both devices receive "Trade Complete 🎉" notification
+- [ ] Tap trade notification → navigates to trade detail screen
+- [ ] Test trade cancelled notification sent to both parties
+- [ ] Verify trade notifications include item title and thumbnail
+- [ ] Test with "Trades" notifications disabled → only in-app, no push
+- [ ] Test rapid trade actions (create, accept, complete) → all notifications delivered in order
+- [ ] Verify notification grouping: multiple trade notifications group under "Trades" channel
+- [ ] Test with one device offline → receives notification when back online
+- [ ] Record screen video of full trade flow with notifications on both devices
+
+### Deployment Notes
+1. Test trade notification triggers with various trade states
+2. Verify buyer and seller receive correct notifications
+3. Test deep links navigate to trade detail screen
+4. Monitor notification volume for high-activity users
+5. **Physical Device Testing Required**: Test trade flow with 2 Google Pixels to verify both buyer and seller receive notifications correctly
+
+---
+
+## TASK NOTIF-V2-008: Notification Deep Linking
+
+**Duration:** 2 hours  
+**Priority:** High  
+**Dependencies:** NOTIF-V2-001 through NOTIF-V2-007
+
+### Description
+Implement deep linking for all notifications. Parse notification data to determine target screen. Handle notification taps from background, foreground, and killed app states. Implement navigation stack management for deep links. Add deep link testing utilities.
+
+### Acceptance Criteria
+- [ ] Notification taps navigate to correct screen
+- [ ] Deep links work from all app states (foreground, background, killed)
+- [ ] Navigation stack properly managed (back button works correctly)
+- [ ] Deep link parsing handles all notification types
+- [ ] Invalid deep links gracefully fallback to home screen
+- [ ] Deep link testing utility available
+
+---
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Notification deep linking
+
+CONTEXT:
+When users tap notifications, navigate them to the relevant screen.
+Must handle all app states and manage navigation stack properly.
+
+DEEP LINK PATTERNS:
+- /subscription - Subscription management screen
+- /wallet - SP wallet screen
+- /profile/badges - Badge collection
+- /trades/:tradeId - Trade detail screen
+- /trades/:tradeId/review - Review submission
+- /items/:itemId - Item detail screen
+
+==================================================
+FILE 1: Deep link navigation service
+==================================================
+*/
+
+// filepath: src/services/deepLinkNavigation.ts
+
+import { Linking } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import type { NavigationContainerRef } from '@react-navigation/native';
+
+export class DeepLinkNavigationService {
+  private static navigationRef: NavigationContainerRef<any> | null = null;
+
+  /**
+   * Set navigation reference for deep linking
+   */
+  static setNavigationRef(ref: NavigationContainerRef<any>) {
+    this.navigationRef = ref;
+  }
+
+  /**
+   * Initialize notification response listener
+   */
+  static initialize() {
+    // Handle notification taps
+    Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      
+      if (data.deep_link) {
+        this.navigateToDeepLink(data.deep_link as string);
+      }
+    });
+
+    // Handle URL scheme deep links (iOS/Android)
+    Linking.addEventListener('url', (event) => {
+      this.handleURL(event.url);
+    });
+
+    // Handle initial URL (app opened from killed state)
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        this.handleURL(url);
+      }
+    });
+
+    // Handle initial notification (app opened from killed state by tapping notification)
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response?.notification.request.content.data.deep_link) {
+        this.navigateToDeepLink(
+          response.notification.request.content.data.deep_link as string
+        );
+      }
+    });
+  }
+
+  /**
+   * Handle URL deep link
+   */
+  private static handleURL(url: string) {
+    // Parse URL (e.g., "kidsp2p://trades/123")
+    const path = url.replace(/.*?:\/\//g, '');
+    this.navigateToDeepLink(path);
+  }
+
+  /**
+   * Navigate to deep link path
+   */
+  static navigateToDeepLink(path: string) {
+    if (!this.navigationRef) {
+      console.warn('Navigation ref not set, cannot navigate to deep link:', path);
+      return;
+    }
+
+    // Wait for navigation to be ready
+    if (!this.navigationRef.isReady()) {
+      setTimeout(() => this.navigateToDeepLink(path), 100);
+      return;
+    }
+
+    try {
+      const route = this.parseDeepLink(path);
+      
+      if (route) {
+        this.navigationRef.navigate(route.screen, route.params);
+      } else {
+        // Fallback to home screen for invalid links
+        this.navigationRef.navigate('Home');
+      }
+    } catch (error) {
+      console.error('Deep link navigation error:', error);
+      this.navigationRef.navigate('Home');
+    }
+  }
+
+  /**
+   * Parse deep link path to navigation route
+   */
+  private static parseDeepLink(path: string): { screen: string; params?: any } | null {
+    // Remove leading slash
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    const segments = cleanPath.split('/');
+
+    // Subscription screen
+    if (cleanPath === 'subscription' || cleanPath === 'subscription/payment') {
+      return { screen: 'Subscription' };
+    }
+
+    // SP Wallet screen
+    if (cleanPath === 'wallet' || cleanPath === 'earn-sp') {
+      return { screen: 'Wallet' };
+    }
+
+    // Badge collection
+    if (cleanPath === 'profile/badges') {
+      return { screen: 'Badges' };
+    }
+
+    // Trade detail
+    if (segments[0] === 'trades' && segments[1]) {
+      const tradeId = segments[1];
+      
+      // Review submission
+      if (segments[2] === 'review') {
+        return { screen: 'TradeReview', params: { tradeId } };
+      }
+      
+      // Trade detail
+      return { screen: 'TradeDetail', params: { tradeId } };
+
+### Testing Checklist
+
+**Deep Link Logic Tests:**
+- [ ] Notification taps navigate to correct screen
+- [ ] Deep links work from all app states (foreground, background, killed)
+- [ ] Navigation stack properly managed (back button works correctly)
+- [ ] Deep link parsing handles all notification types
+- [ ] Invalid deep links gracefully fallback to home screen
+- [ ] Deep link testing utility available
+
+**Physical Device Tests (Google Pixel):**
+- [ ] App in FOREGROUND → tap subscription notification → navigates to subscription screen
+- [ ] App in BACKGROUND → tap wallet notification → app comes to foreground on wallet screen
+- [ ] App KILLED → tap trade notification → app launches directly to trade detail screen
+- [ ] Test back button after deep link → navigates to previous screen in stack (not app close)
+- [ ] Test deep link with parameters: /trades/abc123 → loads correct trade
+- [ ] Test invalid deep link /invalid/path → app opens to home screen
+- [ ] Test deep link with special characters in URL → parses correctly
+- [ ] Use adb to send test deep link manually:
+  ```bash
+  adb shell am start -W -a android.intent.action.VIEW \
+    -d "kidsp2p://wallet" com.yourcompany.p2pkidsmarketplace
+  ```
+- [ ] Test URL scheme deep link from browser (Chrome)
+- [ ] Test universal link (https://p2pkids.app/subscription) if configured
+- [ ] Test deep link navigation with back button: Trade Detail → Back → Home (correct stack)
+- [ ] Record screen video of deep links from all 3 app states (foreground/background/killed)
+    }
+
+    // Item detail
+    if (segments[0] === 'items' && segments[1]) {
+      return { screen: 'ItemDetail', params: { itemId: segments[1] } };
+    }
+
+    // Profile screen
+    if (cleanPath === 'profile') {
+      return { screen: 'Profile' };
+    }
+
+    // Notification center
+    if (cleanPath === 'notifications') {
+      return { screen: 'NotificationCenter' };
+    }
+
+    // Unknown path
+    console.warn('Unknown deep link path:', path);
+    return null;
+  }
+
+  /**
+   * Test deep link (development only)
+   */
+  static testDeepLink(path: string) {
+    console.log('Testing deep link:', path);
+    this.navigateToDeepLink(path);
+  }
+}
+
+/*
+==================================================
+FILE 2: Root navigation setup with deep linking
+==================================================
+*/
+
+// filepath: src/navigation/RootNavigator.tsx
+
+import React, { useEffect, useRef } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { DeepLinkNavigationService } from '@/services/deepLinkNavigation';
+
+const Stack = createNativeStackNavigator();
+
+export const RootNavigator: React.FC = () => {
+  const navigationRef = useRef(null);
+
+  useEffect(() => {
+    if (navigationRef.current) {
+      DeepLinkNavigationService.setNavigationRef(navigationRef.current);
+      DeepLinkNavigationService.initialize();
+    }
+  }, []);
+
+  // Define deep link configuration for React Navigation
+  const linking = {
+    prefixes: ['kidsp2p://', 'https://kidsp2p.com'],
+    config: {
+      screens: {
+        Home: '',
+        Subscription: 'subscription',
+        Wallet: 'wallet',
+        Badges: 'profile/badges',
+        TradeDetail: 'trades/:tradeId',
+        TradeReview: 'trades/:tradeId/review',
+        ItemDetail: 'items/:itemId',
+        Profile: 'profile',
+        NotificationCenter: 'notifications',
+      },
+    },
+  };
+
+  return (
+    <NavigationContainer ref={navigationRef} linking={linking}>
+      <Stack.Navigator>
+        {/* Define all your screens here */}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
+
+/*
+==================================================
+FILE 3: Deep link testing utility
+==================================================
+*/
+
+// filepath: src/utils/testDeepLinks.ts
+
+import { DeepLinkNavigationService } from '@/services/deepLinkNavigation';
+
+/**
+ * Test suite for deep link navigation
+ * Run in development mode to verify all deep links work
+ */
+export const testDeepLinks = () => {
+  const testCases = [
+    { name: 'Subscription', path: '/subscription' },
+    { name: 'Wallet', path: '/wallet' },
+    { name: 'Badges', path: '/profile/badges' },
+    { name: 'Trade Detail', path: '/trades/test-trade-id-123' },
+    { name: 'Trade Review', path: '/trades/test-trade-id-123/review' },
+    { name: 'Item Detail', path: '/items/test-item-id-456' },
+    { name: 'Profile', path: '/profile' },
+    { name: 'Notifications', path: '/notifications' },
+    { name: 'Invalid Link', path: '/invalid/path/here' },
+  ];
+
+  console.log('=== Deep Link Test Suite ===');
+  
+  testCases.forEach((testCase, index) => {
+    setTimeout(() => {
+      console.log(`\n[${index + 1}/${testCases.length}] Testing: ${testCase.name}`);
+      console.log(`Path: ${testCase.path}`);
+      DeepLinkNavigationService.testDeepLink(testCase.path);
+    }, index * 2000); // 2 second delay between tests
+  });
+};
+
+// Export individual test functions for manual testing
+export const testSubscriptionLink = () => {
+  DeepLinkNavigationService.testDeepLink('/subscription');
+};
+
+export const testWalletLink = () => {
+  DeepLinkNavigationService.testDeepLink('/wallet');
+};
+
+export const testTradeLink = (tradeId: string) => {
+  DeepLinkNavigationService.testDeepLink(`/trades/${tradeId}`);
+};
+```
+
+### Testing Checklist
+- [ ] Notification tap navigates to correct screen from foreground
+- [ ] Notification tap navigates to correct screen from background
+- [ ] Notification tap navigates to correct screen from killed app
+- [ ] Back button works correctly after deep link navigation
+- [ ] Invalid deep links fallback to home screen gracefully
+- [ ] Deep link testing utility runs all test cases
+- [ ] All notification types have correct deep link paths
+- [ ] Deep links include necessary parameters (IDs, etc.)
+
+### Deployment Notes
+1. Configure URL scheme in app.json (Expo) or Info.plist/AndroidManifest.xml
+2. Test deep links on both iOS and Android
+3. Verify universal links (https://) work correctly
+4. Test deep link navigation from all app states
+5. Add deep link testing to CI/CD pipeline
+6. **Physical Device Testing Required**: Test deep links from all app states on Google Pixel using adb commands from setup guide
+
+---
+
+## TASK NOTIF-V2-009: Email Notifications
+
+**Duration:** 3 hours  
+**Priority:** Medium  
+**Dependencies:** NOTIF-V2-001, NOTIF-V2-002
+
+### Description
+Implement email notification delivery for critical events. Create email templates for subscription events, payment failures, account security. Integrate with SendGrid or similar service. Implement email tracking (sent, opened, clicked). Add email notification settings.
+
+### Acceptance Criteria
+- [ ] Email notifications sent for critical events (payment failures, security alerts)
+- [ ] Email templates created for subscription events
+- [ ] Email delivery tracked (sent, bounced, failed)
+- [ ] Users can opt-out of non-critical emails
+- [ ] Email includes unsubscribe link
+- [ ] Email templates are mobile-responsive
+
+---
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Email notifications
+
+CONTEXT:
+Send transactional emails for critical events using SendGrid.
+Must respect user preferences and comply with email best practices.
+
+CRITICAL EMAIL EVENTS:
+- subscription_payment_failed
+- subscription_cancelled
+- account_security_alert
+- password_reset
+- email_verification
+
+NON-CRITICAL EMAIL EVENTS (opt-in):
+- subscription_trial_expiring
+- subscription_renewed
+- weekly_digest
+
+==================================================
+FILE 1: Email notification service
+==================================================
+*/
+
+// filepath: src/services/emailNotifications.ts
+
+import { supabase } from '@/lib/supabase';
+
+interface SendEmailParams {
+  to: string;
+  template: string;
+  data: Record<string, any>;
+  isCritical?: boolean;
+}
+
+export class EmailNotificationService {
+  /**
+   * Send email via edge function
+   */
+  static async sendEmail(params: SendEmailParams): Promise<void> {
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: params,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  /**
+   * Send payment failure email (critical, always sent)
+   */
+  static async sendPaymentFailureEmail(
+    userId: string,
+    email: string,
+    subscriptionId: string,
+    amount: number,
+    reason: string
+  ): Promise<void> {
+    await this.sendEmail({
+      to: email,
+      template: 'payment_failed',
+      data: {
+        subscription_id: subscriptionId,
+        amount,
+        reason,
+        retry_link: `https://app.kidsp2p.com/subscription/payment`,
+      },
+      isCritical: true,
+    });
+  }
+
+  /**
+   * Send trial expiring reminder email (non-critical)
+   */
+  static async sendTrialExpiringEmail(
+    userId: string,
+    email: string,
+    daysRemaining: number,
+    trialEndsAt: string
+  ): Promise<void> {
+    // Check if user has email notifications enabled for subscriptions
+    const { data: prefs } = await supabase
+      .from('notification_preferences')
+      .select('email_enabled')
+      .eq('user_id', userId)
+      .eq('category', 'subscription')
+      .single();
+
+    if (!prefs?.email_enabled) {
+      console.log('User has email notifications disabled for subscriptions');
+      return;
+    }
+
+    await this.sendEmail({
+      to: email,
+      template: 'trial_expiring',
+      data: {
+        days_remaining: daysRemaining,
+        trial_ends_at: new Date(trialEndsAt).toLocaleDateString(),
+        subscribe_link: `https://app.kidsp2p.com/subscription/payment`,
+      },
+      isCritical: false,
+    });
+  }
+
+  /**
+   * Send subscription cancelled confirmation email
+   */
+  static async sendSubscriptionCancelledEmail(
+    userId: string,
+    email: string,
+    gracePeriodEndsAt: string
+  ): Promise<void> {
+    await this.sendEmail({
+      to: email,
+      template: 'subscription_cancelled',
+      data: {
+        grace_period_ends_at: new Date(gracePeriodEndsAt).toLocaleDateString(),
+        reactivate_link: `https://app.kidsp2p.com/subscription`,
+      },
+      isCritical: true,
+    });
+  }
+}
+
+/*
+==================================================
+FILE 2: Edge function for email delivery
+==================================================
+*/
+
+// filepath: supabase/functions/send-email/index.ts
+
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY')!;
+const SENDGRID_FROM_EMAIL = Deno.env.get('SENDGRID_FROM_EMAIL') || 'noreply@kidsp2p.com';
+
+interface EmailTemplate {
+  subject: string;
+  html: string;
+  text: string;
+}
+
+const templates: Record<string, (data: any) => EmailTemplate> = {
+  payment_failed: (data) => ({
+    subject: 'Payment Failed - Kids Club+ Subscription',
+    html: `
+      <h1>Payment Failed</h1>
+      <p>We couldn't process your payment for Kids Club+ subscription.</p>
+      <p><strong>Amount:</strong> $${data.amount}</p>
+      <p><strong>Reason:</strong> ${data.reason}</p>
+      <p><a href="${data.retry_link}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Update Payment Method</a></p>
+      <p>If you don't update your payment method, your subscription will be cancelled.</p>
+    `,
+    text: `Payment Failed\n\nWe couldn't process your payment for Kids Club+ subscription.\nAmount: $${data.amount}\nReason: ${data.reason}\n\nUpdate payment method: ${data.retry_link}`,
+  }),
+  
+  trial_expiring: (data) => ({
+    subject: `Trial Expires in ${data.days_remaining} Days - Kids Club+`,
+    html: `
+      <h1>Your Trial is Expiring Soon</h1>
+      <p>Your Kids Club+ trial ends in <strong>${data.days_remaining} days</strong> on ${data.trial_ends_at}.</p>
+      <p>Subscribe now to keep your Swap Points active and continue enjoying premium features!</p>
+      <p><a href="${data.subscribe_link}" style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Subscribe Now</a></p>
+    `,
+    text: `Your Trial is Expiring Soon\n\nYour Kids Club+ trial ends in ${data.days_remaining} days on ${data.trial_ends_at}.\n\nSubscribe now: ${data.subscribe_link}`,
+  }),
+  
+  subscription_cancelled: (data) => ({
+    subject: 'Subscription Cancelled - Kids Club+',
+    html: `
+      <h1>Subscription Cancelled</h1>
+      <p>Your Kids Club+ subscription has been cancelled.</p>
+      <p>You have until <strong>${data.grace_period_ends_at}</strong> to reactivate your subscription and keep your Swap Points.</p>
+      <p><a href="${data.reactivate_link}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reactivate Subscription</a></p>
+    `,
+    text: `Subscription Cancelled\n\nYour Kids Club+ subscription has been cancelled.\nGrace period ends: ${data.grace_period_ends_at}\n\nReactivate: ${data.reactivate_link}`,
+  }),
+};
+
+serve(async (req: Request) => {
+  try {
+    const { to, template, data, isCritical } = await req.json();
+
+    if (!to || !template) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: to, template' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get email template
+    const emailTemplate = templates[template];
+    if (!emailTemplate) {
+      return new Response(
+        JSON.stringify({ error: `Unknown template: ${template}` }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+### Testing Checklist
+
+**SendGrid Integration Tests:**
+- [ ] Email templates created for critical notifications
+- [ ] SendGrid integration configured correctly
+- [ ] Payment failure emails sent with correct data
+- [ ] Trial expiring emails sent at correct intervals
+- [ ] Email deep links navigate to correct app screens
+- [ ] Email templates render correctly across email clients
+- [ ] Unsubscribe link works (for non-critical emails)
+- [ ] Email sending respects user preferences
+
+**Physical Device Tests (Google Pixel + Email):**
+- [ ] Trigger payment failure → check email on Gmail app on Pixel
+- [ ] Email renders correctly in Gmail app (images, formatting, buttons)
+- [ ] Tap "Update Payment Method" button in email → opens app to subscription screen
+- [ ] Test email deep link from Gmail on Pixel → app launches correctly
+- [ ] Test HTML email in Dark Mode on Android → still readable
+- [ ] Test trial expiring email with countdown timer → renders correctly
+- [ ] Tap unsubscribe link in email → opens browser with preference update
+- [ ] Verify email also sent to desktop Gmail for cross-platform check
+- [ ] Test email with attachment (if applicable) opens on Android
+- [ ] Test email from notification shade → opens in Gmail app
+- [ ] Verify email subject line not truncated on mobile
+- [ ] Test email on different Android email clients: Gmail, Outlook, Samsung Email
+
+    const { subject, html, text } = emailTemplate(data);
+
+    // Send via SendGrid
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{
+          to: [{ email: to }],
+          subject,
+        }],
+        from: { email: SENDGRID_FROM_EMAIL, name: 'Kids P2P Marketplace' },
+        content: [
+          { type: 'text/plain', value: text },
+          { type: 'text/html', value: html },
+        ],
+        tracking_settings: {
+          click_tracking: { enable: true },
+          open_tracking: { enable: true },
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`SendGrid API error: ${errorText}`);
+    }
+
+    return new Response(
+      JSON.stringify({ success: true }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Email send error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+});
+```
+
+### Testing Checklist
+- [ ] Payment failure email sent and received
+- [ ] Trial expiring email sent only if user has email notifications enabled
+- [ ] Subscription cancelled email sent
+- [ ] Email templates render correctly on mobile and desktop
+- [ ] Unsubscribe link works (if implemented)
+- [ ] Email tracking records sent/opened/clicked events
+- [ ] Critical emails sent regardless of user preferences
+- [ ] Email delivery failures logged and retried
+
+### Deployment Notes
+1. Configure SendGrid API key in Supabase secrets
+2. Verify sender email address in SendGrid
+3. Set up email domain authentication (SPF, DKIM, DMARC)
+4. Test emails in staging environment
+5. Monitor email delivery rates and bounce rates
+6. Set up webhook for SendGrid events (bounces, opens, clicks)
+7. **Physical Device Testing Required**: Test email rendering and deep links on Gmail app on Google Pixel
+
+---
+
+## TASK NOTIF-V2-010: Notification Analytics & Metrics
+
+**Duration:** 2.5 hours  
+**Priority:** Low (Nice to have)
+**Dependencies:** NOTIF-V2-001 through NOTIF-V2-009
+
+### Description
+Implement notification analytics tracking. Track notification delivery rates, open rates, click rates. Create admin dashboard for notification metrics. Add A/B testing framework for notification copy. Monitor notification performance by category.
+
+### Acceptance Criteria
+- [ ] Notification delivery tracked (pending/sent/failed)
+- [ ] Push notification open rates tracked
+- [ ] Deep link click rates tracked
+- [ ] Admin dashboard displays notification metrics
+- [ ] A/B testing framework for notification copy
+- [ ] Metrics segmented by category and notification type
+
+---
+
+### AI Prompt for Cursor
+
+```typescript
+/*
+TASK: Notification analytics & metrics
+
+CONTEXT:
+Track notification performance to optimize engagement.
+Help admins understand which notifications are effective.
+
+METRICS TO TRACK:
+- Delivery rate: % of notifications sent successfully
+- Open rate: % of push notifications opened
+- Click rate: % of notifications with deep link clicked
+- Category performance: Metrics by notification category
+- User engagement: Notifications per user, frequency
+
+==================================================
+FILE 1: Notification analytics schema
+==================================================
+*/
+
+-- filepath: supabase/migrations/146_notification_analytics.sql
+
+-- Notification events tracking table
+CREATE TABLE notification_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  notification_id UUID NOT NULL REFERENCES notifications(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('delivered', 'opened', 'clicked', 'failed')),
+  event_data JSONB,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX notification_events_notification_idx ON notification_events(notification_id);
+CREATE INDEX notification_events_type_idx ON notification_events(event_type);
+CREATE INDEX notification_events_created_idx ON notification_events(created_at DESC);
+
+-- RLS policies
+ALTER TABLE notification_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role can manage notification events"
+  ON notification_events FOR ALL
+  TO service_role
+  USING (true);
+
+-- Analytics view: Notification metrics by category
+CREATE OR REPLACE VIEW notification_metrics_by_category AS
+SELECT
+  n.category,
+  COUNT(*) as total_notifications,
+  COUNT(CASE WHEN n.status = 'sent' THEN 1 END) as delivered_count,
+  COUNT(CASE WHEN n.status = 'failed' THEN 1 END) as failed_count,
+  COUNT(DISTINCT CASE WHEN ne.event_type = 'opened' THEN n.id END) as opened_count,
+  COUNT(DISTINCT CASE WHEN ne.event_type = 'clicked' THEN n.id END) as clicked_count,
+  ROUND(100.0 * COUNT(CASE WHEN n.status = 'sent' THEN 1 END) / NULLIF(COUNT(*), 0), 2) as delivery_rate,
+  ROUND(100.0 * COUNT(DISTINCT CASE WHEN ne.event_type = 'opened' THEN n.id END) / NULLIF(COUNT(CASE WHEN n.status = 'sent' THEN 1 END), 0), 2) as open_rate,
+  ROUND(100.0 * COUNT(DISTINCT CASE WHEN ne.event_type = 'clicked' THEN n.id END) / NULLIF(COUNT(CASE WHEN n.status = 'sent' THEN 1 END), 0), 2) as click_rate
+FROM notifications n
+LEFT JOIN notification_events ne ON ne.notification_id = n.id
+GROUP BY n.category;
+
+-- RPC: Get notification analytics
+CREATE OR REPLACE FUNCTION get_notification_analytics(
+  p_start_date TIMESTAMPTZ DEFAULT (now() - INTERVAL '30 days'),
+  p_end_date TIMESTAMPTZ DEFAULT now()
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_result JSONB;
+BEGIN
+  SELECT jsonb_build_object(
+    'total_sent', COUNT(*),
+    'by_category', jsonb_agg(category_stats)
+  )
+  INTO v_result
+  FROM (
+    SELECT jsonb_build_object(
+      'category', category,
+      'total', total_notifications,
+      'delivered', delivered_count,
+      'failed', failed_count,
+      'opened', opened_count,
+      'clicked', clicked_count,
+      'delivery_rate', delivery_rate,
+      'open_rate', open_rate,
+      'click_rate', click_rate
+    ) as category_stats
+    FROM notification_metrics_by_category
+  ) stats;
+
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+/*
+==================================================
+FILE 2: Notification event tracking service
+==================================================
+*/
+
+// filepath: src/services/notificationAnalytics.ts
+
+import { supabase } from '@/lib/supabase';
+import * as Notifications from 'expo-notifications';
+
+export class NotificationAnalyticsService {
+  /**
+   * Track notification opened event
+   */
+  static async trackOpened(notificationId: string): Promise<void> {
+    await supabase.from('notification_events').insert({
+      notification_id: notificationId,
+      event_type: 'opened',
+      event_data: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
+  /**
+   * Track notification clicked event (deep link)
+   */
+  static async trackClicked(notificationId: string, deepLink: string): Promise<void> {
+    await supabase.from('notification_events').insert({
+      notification_id: notificationId,
+      event_type: 'clicked',
+      event_data: {
+        deep_link: deepLink,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
+  /**
+   * Track notification delivery event
+   */
+  static async trackDelivered(notificationId: string): Promise<void> {
+    await supabase.from('notification_events').insert({
+      notification_id: notificationId,
+      event_type: 'delivered',
+      event_data: {
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
+  /**
+   * Track notification failure event
+   */
+  static async trackFailed(notificationId: string, error: string): Promise<void> {
+    await supabase.from('notification_events').insert({
+      notification_id: notificationId,
+      event_type: 'failed',
+      event_data: {
+        error,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
+  /**
+   * Initialize analytics tracking
+   */
+  static initialize() {
+    // Track notification opens
+    Notifications.addNotificationResponseReceivedListener((response) => {
+      const notificationId = response.notification.request.content.data.notification_id;
+      if (notificationId) {
+        this.trackOpened(notificationId as string);
+
+        // Track click if deep link present
+        const deepLink = response.notification.request.content.data.deep_link;
+        if (deepLink) {
+          this.trackClicked(notificationId as string, deepLink as string);
+        }
+      }
+    });
+  }
+}
+
+/*
+==================================================
+FILE 3: Admin analytics dashboard component
+==================================================
+*/
+
+// filepath: p2p-kids-admin/src/app/analytics/notifications/page.tsx
+
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+
+interface NotificationMetrics {
+  total_sent: number;
+  by_category: Array<{
+    category: string;
+    total: number;
+    delivered: number;
+    failed: number;
+    opened: number;
+    clicked: number;
+    delivery_rate: number;
+    open_rate: number;
+    click_rate: number;
+  }>;
+}
+
+export default function NotificationAnalyticsPage() {
+  const [metrics, setMetrics] = useState<NotificationMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState(30); // days
+
+  useEffect(() => {
+    loadMetrics();
+  }, [dateRange]);
+
+  const loadMetrics = async () => {
+    setLoading(true);
+    
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - dateRange);
+
+    const { data, error } = await supabase.rpc('get_notification_analytics', {
+      p_start_date: startDate.toISOString(),
+      p_end_date: new Date().toISOString(),
+    });
+
+    if (!error && data) {
+      setMetrics(data);
+    }
+
+    setLoading(false);
+  };
+
+  if (loading) {
+    return <div className="p-8">Loading analytics...</div>;
+  }
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Notification Analytics</h1>
+        <div className="flex gap-4">
+          <button
+            onClick={() => setDateRange(7)}
+            className={`px-4 py-2 rounded ${dateRange === 7 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          >
+            Last 7 Days
+          </button>
+          <button
+            onClick={() => setDateRange(30)}
+            className={`px-4 py-2 rounded ${dateRange === 30 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          >
+            Last 30 Days
+          </button>
+          <button
+            onClick={() => setDateRange(90)}
+            className={`px-4 py-2 rounded ${dateRange === 90 ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+          >
+            Last 90 Days
+          </button>
+        </div>
+      </div>
+
+      {metrics && (
+        <>
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-semibold mb-4">Overview</h2>
+            <div className="text-4xl font-bold text-blue-600">
+              {metrics.total_sent.toLocaleString()}
+            </div>
+            <div className="text-gray-600">Total Notifications Sent</div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivered</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Rate</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Open Rate</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Click Rate</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {metrics.by_category.map((cat) => (
+                  <tr key={cat.category}>
+                    <td className="px-6 py-4 whitespace-nowrap font-medium">{cat.category}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{cat.total}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{cat.delivered}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{cat.delivery_rate.toFixed(1)}%</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{cat.open_rate.toFixed(1)}%</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{cat.click_rate.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+### Testing Checklist
+
+**Analytics Tracking Tests:**
+- [ ] Notification opened events tracked correctly
+- [ ] Deep link click events tracked correctly
+- [ ] Delivery/failure events tracked correctly
+- [ ] Analytics dashboard displays accurate metrics
+- [ ] Metrics update in real-time or near real-time
+- [ ] Date range filters work correctly
+- [ ] Performance acceptable with large dataset
+
+**Physical Device Tests (Google Pixel + Analytics):**
+- [ ] Send notification to Pixel → verify delivery event tracked in database
+- [ ] Tap notification on Pixel → verify "opened" event tracked with timestamp
+- [ ] Tap deep link in notification → verify click event tracked with target screen
+- [ ] Test failed notification (invalid token) → verify failure event tracked
+- [ ] Open analytics dashboard → verify metrics match actual test notifications
+- [ ] Send 10 notifications, open 7 → dashboard shows 70% open rate
+- [ ] Test analytics with different categories → each category tracked separately
+- [ ] Test real-time metrics update: send notification → dashboard updates within 10 seconds
+- [ ] Test date range filter: Last 7 Days → shows only notifications from last week
+- [ ] Test analytics export (if implemented): export data to CSV and verify
+- [ ] Verify analytics tracking works with app in background and killed states
+- [ ] Test analytics dashboard on mobile browser (responsive design)
+
+### Deployment Notes
+1. Test notification event tracking on mobile devices
+2. Verify analytics queries perform well with production data
+3. Set up monitoring for analytics data collection
+4. Create alerts for low delivery rates or high failure rates
+5. Document how to interpret metrics for stakeholders
+6. **Physical Device Testing Required**: Test analytics tracking on Google Pixel to ensure all notification events are captured correctly
 
 ---
 
 ## MODULE SUMMARY
 
-### Total Tasks: 6
+### Total Tasks: 10
 1. **NOTIF-V2-001**: Notification schema & preferences ✅
 2. **NOTIF-V2-002**: Subscription event notifications ✅
 3. **NOTIF-V2-003**: SP event notifications ✅
 4. **NOTIF-V2-004**: Badge award notifications ✅
 5. **NOTIF-V2-005**: Push notification delivery engine ✅
 6. **NOTIF-V2-006**: In-app notification center ✅
+7. **NOTIF-V2-007**: Trade event notifications 🆕
+8. **NOTIF-V2-008**: Notification deep linking 🆕
+9. **NOTIF-V2-009**: Email notifications 🆕
+10. **NOTIF-V2-010**: Notification analytics & metrics 🆕
 
 ### Key Features Delivered
 - **Multi-Channel Notifications**: Push, in-app, email with per-category preferences
@@ -2604,32 +4413,107 @@ const styles = StyleSheet.create({
 - **Badge Celebrations**: Immediate award notifications with confetti animation, milestone reminders
 - **Push Delivery Engine**: Rate limiting, quiet hours, deduplication, retry logic
 - **In-App Center**: Notification history, read/unread tracking, badge count
+- **Trade Notifications**: Request/accepted/rejected/completed/cancelled notifications
+- **Deep Linking**: Full navigation support from all notification types
+- **Email Delivery**: Transactional emails for critical events via SendGrid
+- **Analytics Dashboard**: Track delivery, open, and click rates by category
+
+### Implementation Status by Feature
+
+#### ✅ Fully Implemented (Code exists in repo)
+- Push token registration & management (push_tokens table)
+- Notification preferences system (notification_preferences table, user UI)
+- Trial reminder notifications (trial-reminders edge function, Day 23/28/29)
+- Referral notifications (175_referral_notifications_v2.sql)
+- Message notifications (notify_new_message trigger)
+- ID badge notifications (id-badge-submission-notification edge function)
+- Payment failure notifications (stripe-webhook-subscriptions integration)
+- Core notification services (notifications.ts, notificationPreferences.ts)
+- NotificationSetup component (registration flow)
+- NotificationPreferencesScreen (full user UI)
+- Generic send-push-notification edge function
+
+#### 🔶 Partially Implemented (Framework exists, needs completion)
+- Badge notifications (user_notifications table exists, triggers need enhancement)
+- Item status notifications (notify_seller_item_status_change exists)
+- SP wallet notifications (schema exists, transaction triggers needed)
+- Email notifications (sendgrid config exists in admin_config, templates needed)
+
+#### ⚠️ Not Yet Implemented (Defined in MODULE-14 but no code)
+- SP event notifications (earned/spent/low balance/frozen wallet)
+- Trade flow notifications (request/accept/reject/complete/cancel)
+- Notification center screen (in-app notification history UI)
+- Deep linking infrastructure (comprehensive navigation from notifications)
+- Email templates (payment failure, trial expiring, cancellation)
+- Notification analytics tracking (delivery/open/click rates)
+- Rate limiting enforcement (10 notifications/hour per user)
+- Quiet hours enforcement (push notification time filtering)
+- Notification deduplication (5-minute window)
 
 ### Cross-Module Integration
-- **MODULE-11 (Subscriptions)**: Trial expiration reminders, payment notifications
-- **MODULE-09 (Swap Points)**: SP earning/spending notifications, wallet status alerts
-- **MODULE-08 (Badges)**: Badge award celebrations, milestone approaching alerts
-- **MODULE-06 (Trade Flow)**: Trade request/completion notifications (ready for implementation)
-- **MODULE-03 (Authentication)**: User preferences initialized on signup
+- **MODULE-11 (Subscriptions)**: Trial expiration reminders ✅, payment notifications ✅
+- **MODULE-09 (Swap Points)**: SP earning/spending notifications ⚠️, wallet status alerts ⚠️
+- **MODULE-08 (Badges)**: Badge award celebrations 🔶, milestone approaching alerts ⚠️
+- **MODULE-06 (Trade Flow)**: Trade lifecycle notifications ⚠️
+- **MODULE-03 (Authentication)**: User preferences initialized on signup ✅
+- **MODULE-07 (Messaging)**: New message notifications ✅
 
 ### Privacy & Compliance
-- User consent required for push notifications
-- Per-category opt-in/opt-out controls
-- Quiet hours configurable (default 10pm-8am)
-- Critical notifications (payment failures) always sent
-- No PII in notification bodies
+- User consent required for push notifications ✅
+- Per-category opt-in/opt-out controls ✅
+- Quiet hours configurable (default 10pm-8am) 🔶 (schema exists, enforcement needed)
+- Critical notifications (payment failures) always sent 🔶 (logic exists, needs testing)
+- No PII in notification bodies ✅
 
 ### Performance Considerations
-- Rate limiting: 10 push notifications per user per hour
-- Deduplication: 5-minute window for identical notifications
-- Batch processing: Edge function handles 100 notifications per run
-- Real-time subscriptions: Instant in-app notification delivery
-- Efficient queries: Indexed by user_id, read_at, created_at
+- Rate limiting: 10 push notifications per user per hour ⚠️ (defined but not implemented)
+- Deduplication: 5-minute window for identical notifications ⚠️ (defined but not implemented)
+- Batch processing: Edge function handles notifications ✅ (trial-reminders implemented)
+- Real-time subscriptions: Instant in-app notification delivery 🔶 (framework exists)
+- Efficient queries: Indexed by user_id, read_at, created_at ✅ (indexes exist)
 
-### Next Steps
-1. Implement trade notification triggers (MODULE-06 integration)
-2. Add email notification delivery (transactional email service)
-3. Create notification analytics dashboard (open rates, click rates)
-4. Build A/B testing framework for notification copy
-5. Add rich push notifications with images/actions
+### Recommended Implementation Order
+1. **High Priority (Complete Core Flows)**:
+   - NOTIF-V2-007 (Trade notifications) - Critical for user engagement
+   - NOTIF-V2-003 (SP events) - Needed for SP engagement loop
+   - NOTIF-V2-006 (Notification center screen) - Core UX feature
+
+2. **Medium Priority (Enhance Experience)**:
+   - NOTIF-V2-008 (Deep linking) - Improves notification utility
+   - NOTIF-V2-009 (Email notifications) - Retention & revenue protection
+   - NOTIF-V2-004 (Badge notifications) - Gamification enhancement
+
+3. **Lower Priority (Optimization)**:
+   - NOTIF-V2-005 (Rate limiting & quiet hours enforcement) - Polish
+   - NOTIF-V2-010 (Analytics) - Measurement & iteration
+
+### Next Steps for Development Team
+1. **Immediate**: Implement NOTIF-V2-003 (SP notifications) and NOTIF-V2-007 (Trade notifications) to complete core user journeys
+2. **Short-term**: Build NOTIF-V2-006 (Notification center screen) as primary notification UI
+3. **Mid-term**: Add NOTIF-V2-008 (Deep linking) and NOTIF-V2-009 (Email templates)
+4. **Long-term**: Implement NOTIF-V2-010 (Analytics) for data-driven optimization
+
+### Physical Device Testing Requirements
+⚠️ **CRITICAL**: All notification features MUST be tested on a physical Google Pixel device (or equivalent Android device) before deployment. Push notifications do not work on emulators, and notification system integration can only be verified on real hardware.
+
+**Mandatory Testing:**
+- Push notification delivery in all app states (foreground, background, killed)
+- Deep linking navigation from notifications
+- Notification channels in Android Settings
+- Quiet hours enforcement
+- Rate limiting behavior
+- Badge count updates
+- Notification grouping/stacking
+
+Refer to "PHYSICAL DEVICE TESTING SETUP (GOOGLE PIXEL)" section above for complete setup instructions.
+
+---
+
+### Testing Gaps to Address
+- Comprehensive E2E testing for all notification triggers
+- Deep link navigation testing from all app states
+- Email template rendering across email clients
+- Rate limiting and quiet hours enforcement
+- Real-time notification delivery performance
+- Multi-device push token management
 
