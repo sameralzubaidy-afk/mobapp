@@ -16,7 +16,7 @@ import { supabase } from '@/config/supabase';
 import {
   registerForPushNotifications,
   savePushToken,
-  useNotificationObserver,
+  createNotificationObserver,
   sendLocalNotification,
 } from '@/services/notifications';
 
@@ -48,7 +48,7 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
 
   // Set up notification listeners when component mounts
   useEffect(() => {
-    const cleanup = useNotificationObserver();
+    const cleanup = createNotificationObserver();
     return cleanup;
   }, []);
 
@@ -72,6 +72,8 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
         setErrorMessage(
           Platform.OS === 'web'
             ? 'Push notifications are not available on web'
+            : Platform.OS === 'android'
+            ? 'Could not obtain push token. Ensure this is a development build (not Expo Go), add google-services.json, and rebuild Android.'
             : 'Could not obtain push notification token. Make sure you granted permissions.'
         );
         setLoading(false);

@@ -14,10 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.p2pkids.marketplace"
+      "bundleIdentifier": "com.sameralzubaidi.p2pmarketplace"
     },
     "android": {
-      "package": "com.p2pkids.marketplace",
+      "package": "com.sameralzubaidi.p2pmarketplace",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -53,6 +54,15 @@
     },
     "updates": {
       "url": "https://u.expo.dev/03d46492-d1d9-486c-bdc6-025df11c0479"
-    }
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#4CAF50"
+        }
+      ]
+    ]
   }
 }

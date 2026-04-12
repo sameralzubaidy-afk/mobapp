@@ -2,18 +2,20 @@
 // MODULE-14: Settings hub for user preferences
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function SettingsScreen({ navigation }: any) {
   const settingsOptions = [
+    {
+      id: 'enable-notifications',
+      title: 'Enable Push Notifications',
+      subtitle: 'Register to receive real-time alerts',
+      icon: 'notifications',
+      onPress: () => navigation.navigate('NotificationSetup'),
+      testID: 'settings-enable-notifications-button',
+    },
     {
       id: 'notifications',
       title: 'Notification Preferences',
@@ -51,15 +53,24 @@ export default function SettingsScreen({ navigation }: any) {
       title: 'Privacy & Security',
       subtitle: 'Manage your data and account security',
       icon: 'shield-checkmark-outline',
-      onPress: () => { /* TODO */ },
+      onPress: () => {
+        /* TODO */
+      },
     },
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            testID="settings-back-button"
+          >
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
           </TouchableOpacity>
           <Text style={styles.title}>Settings</Text>
@@ -100,13 +111,19 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   backButton: {
-    marginRight: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   title: {
     fontSize: 20,

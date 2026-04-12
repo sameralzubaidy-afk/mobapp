@@ -160,6 +160,7 @@ export default function LoginScreen() {
             <TextInput
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="your.email@example.com"
+              placeholderTextColor="#6B7280"
               value={email}
               testID="login-email-input"
               onChangeText={setEmail}
@@ -177,6 +178,7 @@ export default function LoginScreen() {
             <TextInput
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="Enter your password"
+              placeholderTextColor="#6B7280"
               value={password}
               testID="login-password-input"
               onChangeText={setPassword}
@@ -283,6 +285,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+    color: '#111827',
     backgroundColor: '#f9f9f9',
   },
   inputError: {

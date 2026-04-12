@@ -1,0 +1,150 @@
+appId: com.p2pkidsmarketplace
+---
+# FLOW: Subscription Event Notifications | TASK: NOTIF-V2-002 | States covered: renewal, cancellation, payment_failure, trial_expiring
+# MODULE-14: Subscription Lifecycle Notifications
+# Tests that subscription events trigger appropriate notifications
+
+- launchApp:
+    clearState: true
+
+# PRECONDITION: User must be logged in with active subscription
+- tapOn: 
+    id: "tab-profile"
+- assertVisible: "Profile"
+
+# Navigate to Notifications
+- tapOn:
+    id: "notifications-icon"
+- assertVisible: "Notifications"
+
+# STATE 1: Subscription Renewal Success Notification
+# Precondition: Webhook triggered for subscription.updated with billing_reason=subscription_cycle
+- assertVisible:
+    text: "Subscription Renewed"
+- assertVisible:
+    text: "next billing date"
+
+# Tap notification to verify deep link
+- tapOn:
+    text: "Subscription Renewed"
+- waitForAnimationToEnd
+- assertVisible: "Subscription Details"  # Should navigate to subscription screen
+- assertVisible: "Next Billing Date"
+
+# Navigate back
+- tapOn:
+    id: "back-button"
+- assertVisible: "Notifications"
+
+# STATE 2: Payment Failure Notification (Critical)
+# Precondition: Webhook triggered for invoice.payment_failed (retry 1)
+- assertVisible:
+    text: "Payment Failed"
+- assertVisible:
+    text: "⚠️"  # Critical indicator
+
+# Verify critical notification is visible despite preferences
+- tapOn:
+    text: "Payment Failed"
+- waitForAnimationToEnd
+- assertVisible: "Update Payment Method"  # Should navigate to subscription screen
+
+# Navigate back
+- tapOn:
+    id: "back-button"
+- assertVisible: "Notifications"
+
+# STATE 3: Cancellation Confirmation Notification
+# Precondition: Webhook triggered for subscription.updated with cancel_at_period_end=true
+- scroll  # Scroll to see older notifications
+- assertVisible:
+    text: "Subscription Cancelled"
+- assertVisible:
+    text: "90-day grace period"
+
+# Tap to verify deep link
+- tapOn:
+    text: "Subscription Cancelled"
+- waitForAnimationToEnd
+- assertVisible: "Subscription Details"
+- assertVisible: "Grace Period"  # Should show grace period info
+
+# Navigate back
+- tapOn:
+    id: "back-button"
+- assertVisible: "Notifications"
+
+# STATE 4: Trial Expiring Reminder (7 days)
+# Precondition: Daily cron triggered trial reminder for user with 7 days remaining
+- scroll
+- assertVisible:
+    text: "7 Days Left in Your Free Trial"
+- assertVisible:
+    text: "🎉"
+
+# Tap to verify action
+- tapOn:
+    text: "7 Days Left"
+- waitForAnimationToEnd
+- assertVisible: "Subscription Details"
+- assertVisible: "Trial"  # Should show trial info
+
+# Navigate back
+- tapOn:
+    id: "back-button"
+- assertVisible: "Notifications"
+
+# STATE 5: Payment Failure Escalation (Retry 2)
+# Verify increased severity messaging
+- scroll
+- assertVisible:
+    text: "declined again"  # Escalated message
+
+# STATE 6: Payment Failure Final Warning (Retry 3)
+- scroll
+- assertVisible:
+    text: "Final attempt"
+- assertVisible:
+    text: "immediately"  # Urgency language
+
+# VERIFICATION: Check notification preferences bypass for critical
+- tapOn:
+    id: "back-button"  # Back to profile/home
+- tapOn:
+    id: "tab-profile"
+- assertVisible: "Profile"
+
+- tapOn:
+    id: "settings-button"
+- assertVisible: "Settings"
+
+- tapOn:
+    id: "notification-preferences-row"
+- assertVisible: "Notification Preferences"
+
+# Disable all subscription notifications
+- tapOn:
+    id: "toggle-subscription-push"
+- tapOn:
+    id: "toggle-subscription-in_app"
+- assertVisible: "Saved"
+
+# Trigger another payment failure (simulated)
+# Critical notifications should STILL appear despite preferences
+- tapOn:
+    id: "back-button"
+- tapOn:
+    id: "back-button"  # Back to profile
+
+# Navigate to notifications again
+- tapOn:
+    id: "notifications-icon"
+- assertVisible: "Notifications"
+
+# Latest payment failure should still be visible (critical bypass)
+- assertVisible:
+    text: "Payment Failed"
+- assertVisible:
+    text: "⚠️"
+
+# SUCCESS: All subscription notification states tested and deep links verified

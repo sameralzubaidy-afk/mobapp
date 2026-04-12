@@ -150,8 +150,8 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
           )}
         </View>
 
-        <View style={styles.contentContainer}>
-          <Markdown testID="tos-content">
+        <View style={styles.contentContainer} testID="tos-content">
+          <Markdown>
             {policy.content}
           </Markdown>
         </View>

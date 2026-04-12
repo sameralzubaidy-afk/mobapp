@@ -279,7 +279,68 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Billing writes now persist admin-configured amount and upsert billing history on successful payment in `supabase/functions/create-subscription-from-payment-method/index.ts`.
   - Hardcoded grace window removed from admin manual-cancel API and trial conversion downgrade RPC (`20260312000001_fix_dynamic_grace_period_trial_conversion.sql`).
 
-### FLOW-16: CPSC Recall Imports – Daily Batch Import + Recall Database
+### FLOW-17: Subscription Event Notifications – Renewal, Cancellation, Payment Failure, Trial Reminders
+- Purpose: Notify users of subscription lifecycle events (MODULE-14 TASK NOTIF-V2-002)
+- Covers:
+  - Trial expiration reminders (7d, 3d, 1d before expiration)
+  - Subscription renewal success notification
+  - Payment failure alerts with retry instructions (CRITICAL - bypasses preferences)
+  - Cancellation confirmation with grace period details
+  - User notification preference enforcement (except critical notifications)
+- Database:
+  - Tables: `user_notifications`, `notification_preferences`, `push_tokens`
+  - `user_notifications`: Stores all subscription notifications with type, title, message, data (event, critical flag)
+  - `notification_preferences`: Per-category toggles (push, in_app, email) for 'subscription' category
+  - Critical notifications bypass ALL user preferences (payment_failed only)
+- Subscription Renewal (non-critical):
+  - Webhook: `customer.subscription.updated` with `billing_reason=subscription_cycle`
+  - Handler: `stripe-webhook-subscriptions/index.ts` → `sendSubscriptionRenewalNotification()`
+  - Notification: "Subscription Renewed ✅" with next billing date
+  - Channels: Push + In-App (respects preferences)
+- Cancellation Confirmation (non-critical):
+  - Webhook: `customer.subscription.updated` with `cancel_at_period_end=true`
+  - Handler: `stripe-webhook-subscriptions/index.ts` → `sendCancellationConfirmationNotification()`
+  - Notification: "Subscription Cancelled" with access end date + 90-day grace period info
+  - Channels: Push + In-App (respects preferences)
+- Payment Failure (CRITICAL):
+  - Webhook: `invoice.payment_failed`
+  - Handler: `stripe-webhook-subscriptions/index.ts` → `sendCriticalPaymentFailureNotification()`
+  - Notification: "⚠️ Payment Failed - Action Required" with retry-specific messaging
+  - Retry 1: "Your payment was declined. Please update your payment method..."
+  - Retry 2: "...declined again. Please update to avoid service interruption"
+  - Retry 3: "Final attempt failed. Your subscription will be paused soon..."
+  - Channels: **ALL (push + in-app + email) regardless of user preferences**
+  - Critical flag: `data.critical = true` marks notification as critical in DB
+- Trial Expiration Reminders (non-critical):
+  - Edge Function: `trial-reminders` (daily cron at 2:00 AM)
+  - Day 23 (7d remaining): "🎉 7 Days Left in Your Free Trial!"
+  - Day 28 (3d remaining): "⏰ 3 Days Left in Your Trial"
+  - Day 29 (1d remaining): "🚨 Last Day of Your Free Trial!"
+  - Channels: Push + In-App (respects preferences)
+  - DB flags: `trial_reminder_day_23_sent`, `trial_reminder_day_28_sent`, `trial_reminder_day_29_sent`
+- Mobile Service: `src/services/subscriptionNotifications.ts`
+  - `notifySubscriptionRenewed()` - renewal notification
+  - `notifyCancellationConfirmed()` - cancellation notification
+  - `notifyPaymentFailed()` - critical payment failure notification
+  - All notifications create records in `user_notifications` table
+  - All notifications invoke `send-push-notification` Edge Function
+- Manual Test Guide: `NOTIF-V2-002-MANUAL-TESTING-GUIDE.md` (7 test cases + 3 edge cases)
+- Unit Tests: `p2p-kids-marketplace/src/__tests__/services/subscriptionNotifications.test.ts`
+- Integration Tests: `p2p-kids-marketplace/e2e/subscriptionNotifications.integration.test.ts`
+- Maestro Flow: `.maestro/subscription-notifications.yaml`
+- Verification Checklist (MODULE-14-VERIFICATION-V2.md):
+  - ✅ Trial reminders sent at 7d, 3d, 1d before expiration
+  - ✅ Renewal success notification sent on successful payment
+  - ✅ Payment failure notification sent with escalating severity (retry 1, 2, 3)
+  - ✅ Cancellation notification sent with grace period details
+  - ✅ Non-critical notifications respect user preferences (push, in-app toggles)
+  - ✅ Critical payment notifications bypass ALL preferences
+  - ✅ Deep links navigate to subscription screen (`/profile/subscription`)
+  - ✅ Push notifications delivered via FCM (when push tokens registered)
+- Smoke: Manual test cases TC-N2-001 through TC-N2-007
+- Tier: Tier 1 (targeted smoke for notification flows), Tier 2 if webhook handler or critical bypass logic changes
+
+### FLOW-18: CPSC Recall Imports – Daily Batch Import + Recall Database
 - Purpose: Automated daily imports of CPSC safety recalls for product safety checking
 - Covers:
   - CPSC API daily batch import via Edge Function

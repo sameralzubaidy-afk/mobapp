@@ -18,7 +18,10 @@
       "channel": "staging",
       "env": {
         "APP_ENV": "staging",
-        "EXPO_PUBLIC_ENVIRONMENT": "staging"
+        "EXPO_PUBLIC_ENVIRONMENT": "staging",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://drntwgporzabmxdqykrp.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRybnR3Z3BvcnphYm14ZHF5a3JwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyNzc1NjUsImV4cCI6MjA4MDg1MzU2NX0.5lj-JNoBItZJCZgMV9DwFslmzud0PxcIjSS78TFRU0E",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51ShGft4I6kCJlvXo1QjxV2TmJhJICPzRkL37k6VEjHvfLbxSKkS3bKQaBXtSnUKqfAE0HGbASxmsW7V8EjKT4XGf008vNCqDvj"
       },
       "ios": {
         "buildConfiguration": "Release",
@@ -34,7 +37,10 @@
       "channel": "staging",
       "env": {
         "APP_ENV": "staging",
-        "EXPO_PUBLIC_ENVIRONMENT": "staging"
+        "EXPO_PUBLIC_ENVIRONMENT": "staging",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://drntwgporzabmxdqykrp.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRybnR3Z3BvcnphYm14ZHF5a3JwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyNzc1NjUsImV4cCI6MjA4MDg1MzU2NX0.5lj-JNoBItZJCZgMV9DwFslmzud0PxcIjSS78TFRU0E",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_51ShGft4I6kCJlvXo1QjxV2TmJhJICPzRkL37k6VEjHvfLbxSKkS3bKQaBXtSnUKqfAE0HGbASxmsW7V8EjKT4XGf008vNCqDvj"
       },
       "ios": {
         "buildConfiguration": "Release",

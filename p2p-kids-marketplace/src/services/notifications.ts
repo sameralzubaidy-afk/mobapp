@@ -56,12 +56,6 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
     return null;
   }
 
-  // Get push token for Expo
-  // TODO: Ensure EXPO_PUBLIC_EAS_PROJECT_ID is set in .env.local
-  const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId: Constants.expoConfig?.extra?.eas?.projectId,
-  });
-
   // Configure Android notification channel (required for Android 8+)
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
@@ -73,7 +67,27 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
     });
   }
 
-  return tokenData.data;
+  try {
+    // Get push token for Expo
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: Constants.expoConfig?.extra?.eas?.projectId,
+    });
+
+    return tokenData.data;
+  } catch (err) {
+    const error = err as Error;
+    const message = error.message || '';
+
+    if (Platform.OS === 'android' && message.toLowerCase().includes('default firebaseapp is not initialized')) {
+      console.error(
+        '[notifications] Android Firebase is not initialized. Add google-services.json and rebuild a development client.'
+      );
+    } else {
+      console.error('[notifications] Failed to get Expo push token:', message);
+    }
+
+    return null;
+  }
 };
 
 /**
@@ -88,13 +102,21 @@ export const savePushToken = async (userId: string, token: string): Promise<{ su
     const deviceId = Constants.deviceId || 'unknown';
 
     // Using any cast if push_tokens is not yet in generated database types
-    const { error } = await supabase.from('push_tokens' as never).upsert({
-      user_id: userId,
-      token,
-      device_id: deviceId,
-      platform: Platform.OS as 'ios' | 'android',
-      updated_at: new Date().toISOString(),
-    });
+    const { error } = await supabase
+      .from('push_tokens' as never)
+      .upsert(
+        {
+          user_id: userId,
+          token,
+          device_id: deviceId,
+          platform: Platform.OS as 'ios' | 'android',
+          updated_at: new Date().toISOString(),
+        } as never,
+        {
+          onConflict: 'user_id,device_id',
+          ignoreDuplicates: false,
+        }
+      );
 
     if (error) {
       console.warn('⚠️ Failed to save push token:', error.message);
@@ -190,7 +212,7 @@ export const cancelAllNotifications = async (): Promise<void> => {
  * 
  * @returns Cleanup function to remove listeners
  */
-export const useNotificationObserver = () => {
+export const createNotificationObserver = () => {
   // Listen for notifications received while app is open
   const notificationListener = Notifications.addNotificationReceivedListener(
     (_notification) => {
@@ -213,6 +235,9 @@ export const useNotificationObserver = () => {
     responseListener.remove();
   };
 };
+
+// Backward-compatible alias for existing imports.
+export const useNotificationObserver = createNotificationObserver;
 
 /**
  * Get the current push notification token

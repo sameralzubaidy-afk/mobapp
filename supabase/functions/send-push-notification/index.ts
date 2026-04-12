@@ -20,6 +20,7 @@ interface PushMessage {
 
 interface SendPushNotificationRequest {
   userId?: string; // Send to specific user
+  user_id?: string; // Backward-compatible snake_case alias
   token?: string; // Send to specific token
   title: string;
   body: string;
@@ -32,12 +33,16 @@ interface PushTokenRow {
 }
 
 interface ExpoResponse {
-  data?: {
-    id: string;
-  }[];
+  data?: Array<{
+    id?: string;
+    status?: 'ok' | 'error';
+    message?: string;
+    details?: { error?: string; [key: string]: unknown };
+  }>;
   errors?: Array<{
     code: string;
     message: string;
+    details?: unknown;
   }>;
 }
 
@@ -53,12 +58,15 @@ serve(async (req: Request) => {
   try {
     const {
       userId,
+      user_id,
       token,
       title,
       body,
       data,
       priority = 'high',
     }: SendPushNotificationRequest = await req.json();
+
+    const targetUserId = userId || user_id;
 
     // Validate required fields
     if (!title || !body) {
@@ -68,7 +76,7 @@ serve(async (req: Request) => {
       );
     }
 
-    if (!userId && !token) {
+    if (!targetUserId && !token) {
       return new Response(
         JSON.stringify({ error: 'Either userId or token must be provided' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
@@ -78,7 +86,7 @@ serve(async (req: Request) => {
     let tokens: string[] = [];
 
     // If userId provided, fetch all push tokens for that user
-    if (userId) {
+    if (targetUserId) {
       const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
       const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
@@ -87,7 +95,7 @@ serve(async (req: Request) => {
       const { data: pushTokens, error } = await supabase
         .from('push_tokens')
         .select('token')
-        .eq('user_id', userId);
+        .eq('user_id', targetUserId);
 
       if (error) {
         console.error('Error fetching push tokens:', error);
@@ -103,7 +111,7 @@ serve(async (req: Request) => {
       tokens = (pushTokens || []).map((pt: PushTokenRow) => pt.token);
 
       if (tokens.length === 0) {
-        console.warn(`No push tokens found for user ${userId}`);
+        console.warn(`No push tokens found for user ${targetUserId}`);
         return new Response(
           JSON.stringify({
             success: false,
@@ -140,24 +148,60 @@ serve(async (req: Request) => {
     });
 
     const result: ExpoResponse = await response.json();
+    const tickets = Array.isArray(result.data) ? result.data : [];
+    const ticketErrors = tickets
+      .map((ticket, index) => ({ ticket, index }))
+      .filter(({ ticket }) => ticket.status === 'error');
+    const okTickets = tickets.filter((ticket) => ticket.status === 'ok').length;
 
     // Check for errors in response
-    if (result.errors && result.errors.length > 0) {
-      console.error('Expo push API errors:', result.errors);
+    if (!response.ok || (result.errors && result.errors.length > 0) || (tickets.length > 0 && okTickets === 0)) {
+      console.error('Expo push API errors:', {
+        status: response.status,
+        errors: result.errors,
+        tickets,
+      });
       return new Response(
         JSON.stringify({
           success: false,
           message: 'Error sending notification',
+          status: response.status,
           errors: result.errors,
+          tickets,
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
+    const invalidTokens = ticketErrors
+      .filter(({ ticket }) => ticket.details?.error === 'DeviceNotRegistered')
+      .map(({ index }) => tokens[index])
+      .filter(Boolean);
+
+    if (invalidTokens.length > 0 && targetUserId) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+      const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+      const { error: cleanupError } = await supabase
+        .from('push_tokens')
+        .delete()
+        .eq('user_id', targetUserId)
+        .in('token', invalidTokens);
+
+      if (cleanupError) {
+        console.error('Failed to remove invalid push tokens:', cleanupError);
+      } else {
+        console.log(`Removed ${invalidTokens.length} invalid push token(s) for user ${targetUserId}`);
+      }
+    }
+
     console.log(`Push notification sent successfully to ${tokens.length} token(s)`, {
       title,
-      userId,
+      userId: targetUserId,
       tokensCount: tokens.length,
+      okTickets,
+      errorTickets: ticketErrors.length,
     });
 
     return new Response(
@@ -165,6 +209,9 @@ serve(async (req: Request) => {
         success: true,
         message: 'Notification sent',
         tokensCount: tokens.length,
+        okTickets,
+        errorTickets: ticketErrors.length,
+        tickets,
         expoResponse: result,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

@@ -61,6 +61,8 @@ export type RootStackParamList = {
   ReferralDashboard: undefined;
   Settings: undefined;
   NotificationPreferences: undefined;
+  // MODULE-14 NOTIF-V2-002: Push notification setup
+  NotificationSetup: undefined;
   // MODULE-17: Notifications
   Notifications: undefined;
   NotificationDetail: { notificationId: string };

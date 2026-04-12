@@ -202,6 +202,9 @@ async function handleSubscriptionUpdated(
   };
 
   const stripeSubId = subscription.id;
+  const stripeCustomerId = typeof subscription.customer === 'string'
+    ? subscription.customer
+    : subscription.customer?.id || null;
   const currentPeriodEnd = toIsoFromStripeSeconds(subscription.current_period_end);
   const currentPeriodStart = toIsoFromStripeSeconds(subscription.current_period_start);
 
@@ -220,11 +223,41 @@ async function handleSubscriptionUpdated(
   }
 
   // ── Fetch the subscription record ─────────────────────────────────────────
-  const { data: sub, error: fetchError } = await supabase
+  let { data: sub, error: fetchError } = await supabase
     .from('subscriptions')
-    .select('id, user_id, status')
+    .select('id, user_id, status, current_period_end')
     .eq('stripe_subscription_id', stripeSubId)
     .maybeSingle();
+
+  if ((!sub || fetchError) && stripeCustomerId) {
+    const fallback = await supabase
+      .from('subscriptions')
+      .select('id, user_id, status, current_period_end')
+      .eq('stripe_customer_id', stripeCustomerId)
+      .maybeSingle();
+
+    if (!fallback.error && fallback.data) {
+      sub = fallback.data;
+      fetchError = null;
+
+      // Keep canonical Stripe subscription id in sync for future webhooks.
+      const { error: syncError } = await supabase
+        .from('subscriptions')
+        .update({ stripe_subscription_id: stripeSubId, updated_at: new Date().toISOString() })
+        .eq('id', sub.id);
+
+      if (syncError) {
+        console.warn(
+          `[stripe-webhook-subscriptions] handleSubscriptionUpdated: matched by customer but failed to sync stripe_subscription_id`,
+          syncError,
+        );
+      } else {
+        console.log(
+          `[stripe-webhook-subscriptions] handleSubscriptionUpdated: matched by stripe_customer_id and synced stripe_subscription_id user=${sub.user_id}`,
+        );
+      }
+    }
+  }
 
   if (fetchError || !sub) {
     console.error(
@@ -268,6 +301,28 @@ async function handleSubscriptionUpdated(
   console.log(
     `[stripe-webhook-subscriptions] handleSubscriptionUpdated: user=${sub.user_id} status=${newStatus} event=${eventId}`,
   );
+
+  const previousPeriodEndMs = sub.current_period_end ? Date.parse(sub.current_period_end) : NaN;
+  const nextPeriodEndMs = currentPeriodEnd ? Date.parse(currentPeriodEnd) : NaN;
+  const periodAdvanced = Number.isFinite(nextPeriodEndMs)
+    && (!Number.isFinite(previousPeriodEndMs) || nextPeriodEndMs > previousPeriodEndMs);
+
+  // ── MODULE-14 NOTIF-V2-002: Send notifications for subscription events ────
+
+  // 1. Subscription renewed when active period moves forward (works for Stripe CLI + live renewal events)
+  if (
+    newStatus === 'active' &&
+    sub.status === 'active' &&
+    !subscription.cancel_at_period_end &&
+    periodAdvanced
+  ) {
+    await sendSubscriptionRenewalNotification(sub.user_id, currentPeriodEnd || '');
+  }
+
+  // 2. Subscription cancelled (cancel_at_period_end set to true)
+  if (subscription.cancel_at_period_end && sub.status !== 'canceled') {
+    await sendCancellationConfirmationNotification(sub.user_id, currentPeriodEnd || '');
+  }
 
   // If entering grace period, freeze SP wallet
   if (newStatus === 'grace_period' && sub.status !== 'grace_period') {
@@ -336,17 +391,58 @@ async function handleInvoicePaymentFailed(
   eventId: string,
 ): Promise<void> {
   const stripeSubId = invoice.subscription as string | null;
+  const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : null;
 
-  if (!stripeSubId) {
-    console.warn('[stripe-webhook-subscriptions] handleInvoicePaymentFailed: invoice has no subscription field');
-    return;
+  let sub: { id: string; user_id: string; status: string; payment_retry_count: number | null } | null = null;
+  let fetchError: { message?: string } | null = null;
+
+  if (stripeSubId) {
+    const primaryLookup = await supabase
+      .from('subscriptions')
+      .select('id, user_id, status, payment_retry_count')
+      .eq('stripe_subscription_id', stripeSubId)
+      .maybeSingle();
+
+    sub = primaryLookup.data;
+    fetchError = primaryLookup.error;
+  } else {
+    console.warn('[stripe-webhook-subscriptions] handleInvoicePaymentFailed: invoice.subscription missing, trying customer lookup');
   }
 
-  const { data: sub, error: fetchError } = await supabase
-    .from('subscriptions')
-    .select('id, user_id, status, payment_retry_count')
-    .eq('stripe_subscription_id', stripeSubId)
-    .maybeSingle();
+  if ((!sub || fetchError) && stripeCustomerId) {
+    const fallback = await supabase
+      .from('subscriptions')
+      .select('id, user_id, status, payment_retry_count')
+      .eq('stripe_customer_id', stripeCustomerId)
+      .maybeSingle();
+
+    if (!fallback.error && fallback.data) {
+      sub = fallback.data;
+      fetchError = null;
+
+      if (stripeSubId) {
+        const { error: syncError } = await supabase
+          .from('subscriptions')
+          .update({ stripe_subscription_id: stripeSubId, updated_at: new Date().toISOString() })
+          .eq('id', sub.id);
+
+        if (syncError) {
+          console.warn(
+            `[stripe-webhook-subscriptions] handleInvoicePaymentFailed: matched by customer but failed to sync stripe_subscription_id`,
+            syncError,
+          );
+        } else {
+          console.log(
+            `[stripe-webhook-subscriptions] handleInvoicePaymentFailed: matched by stripe_customer_id and synced stripe_subscription_id user=${sub.user_id}`,
+          );
+        }
+      } else {
+        console.log(
+          `[stripe-webhook-subscriptions] handleInvoicePaymentFailed: matched by stripe_customer_id with no subscription id in event user=${sub.user_id}`,
+        );
+      }
+    }
+  }
 
   if (fetchError || !sub) {
     console.error(
@@ -382,7 +478,8 @@ async function handleInvoicePaymentFailed(
   );
 
   // ── Send payment failure notification to user ──────────────────────────────
-  await sendPaymentFailureNotification(sub.user_id, retryCount);
+  // MODULE-14 NOTIF-V2-002: Critical notifications bypass user preferences
+  await sendCriticalPaymentFailureNotification(sub.user_id, retryCount);
 
   // ── Freeze SP if 3rd failure → grace period ────────────────────────────────
   if (maxRetriesReached && sub.status !== 'grace_period') {
@@ -391,8 +488,204 @@ async function handleInvoicePaymentFailed(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MODULE-14 NOTIF-V2-002: Subscription notification helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Send subscription renewal success notification
+ */
+async function sendSubscriptionRenewalNotification(userId: string, nextBillingDate: string): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('[stripe-webhook-subscriptions] Missing Supabase credentials for renewal notification');
+    return;
+  }
+
+  try {
+    const formattedDate = new Date(nextBillingDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    // Create notification in database
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const { error } = await supabase.from('user_notifications').insert({
+      user_id: userId,
+      category: 'subscription',
+      type: 'subscription',
+      title: 'Subscription Renewed ✅',
+      body: `Your Kids Club+ subscription has been renewed. Your next billing date is ${formattedDate}.`,
+      channels: ['push', 'in_app'],
+      data: {
+        event: 'subscription_renewed',
+        next_billing_date: nextBillingDate,
+        deep_link: '/profile/subscription',
+      },
+      is_read: false,
+    });
+
+    if (error) {
+      console.error('[stripe-webhook-subscriptions] Failed to create renewal notification:', error);
+      return;
+    }
+
+    // Send push notification
+    await supabase.functions.invoke('send-push-notification', {
+      body: {
+        user_id: userId,
+        title: 'Subscription Renewed ✅',
+        body: `Your Kids Club+ subscription has been renewed. Next billing: ${formattedDate}.`,
+        data: {
+          type: 'subscription',
+          event: 'subscription_renewed',
+        },
+      },
+    });
+
+    console.log(`[stripe-webhook-subscriptions] Renewal notification sent to user=${userId}`);
+  } catch (err: any) {
+    console.error('[stripe-webhook-subscriptions] Renewal notification error:', err.message);
+  }
+}
+
+/**
+ * Send cancellation confirmation notification
+ */
+async function sendCancellationConfirmationNotification(userId: string, accessUntil: string): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('[stripe-webhook-subscriptions] Missing Supabase credentials for cancellation notification');
+    return;
+  }
+
+  try {
+    const formattedDate = new Date(accessUntil).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    // Create notification in database
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const { error } = await supabase.from('user_notifications').insert({
+      user_id: userId,
+      category: 'subscription',
+      type: 'subscription',
+      title: 'Subscription Cancelled',
+      body: `Your Kids Club+ subscription has been cancelled. You'll have access until ${formattedDate}, then enter a 90-day grace period where your Swap Points will be frozen.`,
+      channels: ['push', 'in_app'],
+      data: {
+        event: 'subscription_cancelled',
+        access_until: accessUntil,
+        deep_link: '/profile/subscription',
+      },
+      is_read: false,
+    });
+
+    if (error) {
+      console.error('[stripe-webhook-subscriptions] Failed to create cancellation notification:', error);
+      return;
+    }
+
+    // Send push notification
+    await supabase.functions.invoke('send-push-notification', {
+      body: {
+        user_id: userId,
+        title: 'Subscription Cancelled',
+        body: `You'll have access until ${formattedDate}. Your Swap Points will be frozen after.`,
+        data: {
+          type: 'subscription',
+          event: 'subscription_cancelled',
+        },
+      },
+    });
+
+    console.log(`[stripe-webhook-subscriptions] Cancellation notification sent to user=${userId}`);
+  } catch (err: any) {
+    console.error('[stripe-webhook-subscriptions] Cancellation notification error:', err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Send payment failure notification (MODULE-11 TASK SUB-018)
 // Calls send-push-notification Edge Function to notify user of payment issue
+// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Send critical payment failure notification (MODULE-14 NOTIF-V2-002)
+ * CRITICAL notifications bypass user preferences and are always sent
+ */
+async function sendCriticalPaymentFailureNotification(userId: string, retryCount: number): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('[stripe-webhook-subscriptions] Missing Supabase credentials for payment failure notification');
+    return;
+  }
+
+  const messages = {
+    1: 'Your payment was declined. Please update your payment method to keep your subscription active.',
+    2: 'Your subscription payment was declined again. Please update your payment method to avoid service interruption.',
+    3: 'Final attempt failed. Your subscription will be paused soon. Please update your payment method immediately.',
+  };
+
+  const body = messages[retryCount as keyof typeof messages] || messages[1];
+
+  try {
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Create CRITICAL notification in database (bypasses preferences)
+    const { error } = await supabase.from('user_notifications').insert({
+      user_id: userId,
+      category: 'subscription',
+      type: 'subscription',
+      title: '⚠️ Payment Failed - Action Required',
+      body,
+      channels: ['push', 'in_app'],
+      data: {
+        event: 'payment_failed',
+        retry_count: retryCount,
+        action_required: true,
+        deep_link: '/profile/subscription',
+        critical: true, // Mark as critical
+      },
+      is_read: false,
+    });
+
+    if (error) {
+      console.error('[stripe-webhook-subscriptions] Failed to create payment failure notification:', error);
+      return;
+    }
+
+    // Send push notification (CRITICAL - always sent)
+    await supabase.functions.invoke('send-push-notification', {
+      body: {
+        user_id: userId,
+        title: '⚠️ Payment Failed - Action Required',
+        body,
+        data: {
+          type: 'subscription',
+          event: 'payment_failed',
+          retry_count: retryCount.toString(),
+          critical: true,
+        },
+      },
+    });
+
+    console.log(`[stripe-webhook-subscriptions] Critical payment failure notification sent to user=${userId} retry=${retryCount}`);
+  } catch (err: any) {
+    console.error('[stripe-webhook-subscriptions] Payment failure notification error:', err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DEPRECATED: Legacy payment failure notification (kept for backward compatibility)
+// Use sendCriticalPaymentFailureNotification() instead
 // ─────────────────────────────────────────────────────────────────────────────
 async function sendPaymentFailureNotification(userId: string, retryCount: number): Promise<void> {
   const notificationUrl = Deno.env.get('SEND_PUSH_NOTIFICATION_URL');

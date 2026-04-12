@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "528071064041",
+    "project_id": "p2pmarketplace-49437",
+    "storage_bucket": "p2pmarketplace-49437.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:528071064041:android:ce4ac87a817e903a94b378",
+        "android_client_info": {
+          "package_name": "com.sameralzubaidi.p2pmarketplace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBtEOL1J2A8cW-d2qqahSRYiBUdh9o7LM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

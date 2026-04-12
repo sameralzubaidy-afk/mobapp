@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import BrowseItemsScreen from '@/screens/home/BrowseItemsScreen';
 import SearchScreen from '@/screens/home/SearchScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
@@ -52,6 +53,7 @@ import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
 const IDVerificationUploadScreen = require('@/screens/profile/IDVerificationUploadScreen').default;
 import SettingsScreen from '@/screens/profile/SettingsScreen';
 import NotificationPreferencesScreen from '@/screens/profile/NotificationPreferencesScreen';
+import { NotificationSetup } from '@/components/NotificationSetup';
 import TermsOfServiceScreen from '@/screens/profile/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '@/screens/profile/PrivacyPolicyScreen';
 import LiabilityDisclaimerScreen from '@/screens/settings/LiabilityDisclaimerScreen';
@@ -95,6 +97,7 @@ const linking = {
       ManageKidsClub: 'manage-kids-club',
       KidsClubOverview: 'kids-club-overview',
       TransactionHistory: 'billing-history',
+      NotificationSetup: 'notification-setup',
     },
   },
 };
@@ -132,6 +135,60 @@ function RootNavigator() {
 
   const navigationRef = React.useRef(createNavigationContainerRef<any>()).current;
   const lastRouteNameRef = React.useRef<string | undefined>(undefined);
+  const pendingNotificationDataRef = React.useRef<Record<string, unknown> | null>(null);
+
+  const handleNotificationNavigation = React.useCallback(
+    (rawData: Record<string, unknown> | null | undefined) => {
+      if (!rawData) {
+        return;
+      }
+
+      if (!navigationRef.isReady()) {
+        pendingNotificationDataRef.current = rawData;
+        return;
+      }
+
+      const deepLink = typeof rawData.deep_link === 'string' ? rawData.deep_link : null;
+      const type = typeof rawData.type === 'string' ? rawData.type : null;
+      const event = typeof rawData.event === 'string' ? rawData.event : null;
+
+      const shouldOpenSubscription =
+        deepLink === '/profile/subscription' ||
+        type === 'trial_reminder' ||
+        type === 'subscription' ||
+        event === 'subscription_renewed' ||
+        event === 'subscription_cancelled' ||
+        event === 'payment_failed';
+
+      if (!shouldOpenSubscription) {
+        return;
+      }
+
+      navigationRef.navigate('ManageKidsClub');
+      pendingNotificationDataRef.current = null;
+    },
+    [navigationRef]
+  );
+
+  React.useEffect(() => {
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      handleNotificationNavigation(data);
+    });
+
+    // Handle cold-start notification taps after auth/navigation are mounted.
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) {
+        return;
+      }
+      const data = response.notification.request.content.data as Record<string, unknown>;
+      handleNotificationNavigation(data);
+    });
+
+    return () => {
+      responseSubscription.remove();
+    };
+  }, [handleNotificationNavigation]);
 
   const logRouteChange = React.useCallback(() => {
     try {
@@ -152,6 +209,14 @@ function RootNavigator() {
     }
   }, [navigationRef]);
 
+  const onNavigationReady = React.useCallback(() => {
+    logRouteChange();
+
+    if (pendingNotificationDataRef.current) {
+      handleNotificationNavigation(pendingNotificationDataRef.current);
+    }
+  }, [handleNotificationNavigation, logRouteChange]);
+
   if (isLoading && !forceRender) {
     return (
       <View
@@ -171,7 +236,7 @@ function RootNavigator() {
     <NavigationContainer
       ref={navigationRef}
       linking={linking}
-      onReady={logRouteChange}
+      onReady={onNavigationReady}
       onStateChange={logRouteChange}
     >
       <Stack.Navigator screenOptions={{ headerShown: true }}>
@@ -392,6 +457,12 @@ function RootNavigator() {
               name="NotificationPreferences"
               component={NotificationPreferencesScreen}
               options={{ headerShown: false }}
+            />
+            {/* MODULE-14 NOTIF-V2-002: Push notification setup screen */}
+            <Stack.Screen
+              name="NotificationSetup"
+              component={NotificationSetup}
+              options={{ title: 'Enable Notifications' }}
             />
             {/* MODULE-13 SAFETY-010: TOS screen */}
             <Stack.Screen
