@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase';
 import { assignNodeByZipCode, NodeAssignmentResult, incrementNodeMemberCount } from '@/services/location';
@@ -186,7 +187,7 @@ export default function LocationPickerScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* Progress Indicator */}
         <View style={styles.progressContainer}>
@@ -277,7 +278,7 @@ export default function LocationPickerScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

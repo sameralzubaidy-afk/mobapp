@@ -34,20 +34,16 @@ const skipTests = process.env.RUN_SUPABASE_E2E !== 'true';
     testUserId = signUpData.user!.id;
     console.log(`Created test user: ${testUserId}`);
 
-    // Initialize notification preferences
-    const { error: prefError } = await supabase
+    // Initialize notification preferences if the row already exists.
+    await supabase
       .from('notification_preferences')
-      .insert({
-        user_id: testUserId,
-        category: 'subscription',
+      .update({
         push_enabled: true,
         in_app_enabled: true,
         email_enabled: false,
-      });
-
-    if (prefError) {
-      console.warn('Failed to create preferences:', prefError);
-    }
+      })
+      .eq('user_id', testUserId)
+      .eq('category', 'subscription');
   });
 
   afterAll(async () => {

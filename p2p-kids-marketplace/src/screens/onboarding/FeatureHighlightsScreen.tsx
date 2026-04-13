@@ -7,6 +7,7 @@ import {
   Dimensions,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -75,7 +76,7 @@ export default function FeatureHighlightsScreen() {
   const isLastSlide = currentIndex === features.length - 1;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={[styles.progressBar, styles.progressActive]} />
@@ -128,7 +129,7 @@ export default function FeatureHighlightsScreen() {
           </View>
         ))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

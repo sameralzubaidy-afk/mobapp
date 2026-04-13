@@ -939,6 +939,42 @@ This file is the canonical registry of end-to-end flows and their required regre
     - MODULE-09 (Swap Points V2 - sp_ledger, sp_wallets tables)
     - MODULE-12 (Subscriptions - status check for gating)
 
+- **NOTIF-V2-004 (MODULE-14): Badge Award Notifications (2026-04-13)**
+  - Purpose: Celebrate user achievements with real-time badge notifications and in-app celebration animation
+  - Database:
+    - Migration: `supabase/migrations/143_badge_notifications.sql`
+    - Function: `create_badge_notification(user_id, type, title, body, data)` - Creates notification respecting user preferences
+    - Function: `check_badge_milestones(user_id)` - Checks proximity to badge unlock, sends milestone notifications
+    - Trigger: `badge_earned_notification` on `user_badges` table INSERT - Auto-creates notification when badge awarded
+    - Milestone thresholds: Within 5 SP for SP badges, within 2 trades for trade badges
+    - Deduplication: Milestone notifications sent once per badge per 7 days
+  - Mobile App:
+    - Service: `p2p-kids-marketplace/src/services/badgeNotifications.ts`
+      - Functions: `checkBadgeMilestones()`, `getBadgeNotifications()`, `markBadgeNotificationRead()`, `sendBadgeAwardPushNotification()`
+    - Component: `p2p-kids-marketplace/src/components/badges/BadgeCelebrationModal.tsx`
+      - Animated celebration modal with confetti effect (canvas-confetti library)
+      - Displays badge icon/emoji, name, description
+      - Auto-dismisses or closes on button/overlay press
+    - Hook: `useUserBadges` extended with `showCelebration`, `setShowCelebration` state
+    - Integration: ProfileScreen displays celebration modal when badge awarded
+    - Realtime: Badge awards trigger celebration via `useUserBadges` subscription
+  - Notification Rules:
+    - Sent to ALL users regardless of subscription status (not gated)
+    - Respects user notification preferences (per-category toggles)
+    - Includes badge visual (icon or emoji fallback) in notification
+    - Deep links to `/profile/badges` on tap
+  - Testing:
+    - Unit tests: `src/__tests__/services/badgeNotifications.test.ts` (8 test cases)
+    - Component tests: `src/__tests__/components/BadgeCelebrationModal.test.tsx` (12 test cases)
+    - Integration tests: `e2e/badgeNotifications.integration.test.ts` (6 test cases with RLS verification)
+    - Manual test guide: `NOTIF-V2-004-MANUAL-TESTING.md` (12 test cases including iOS/Android push notifications)
+    - Maestro flow: `.maestro/badge-notifications.yaml` (covers badge earned, milestone, no-badge states)
+  - Verification: MODULE-14-VERIFICATION-V2.md sections 4.1-4.4 (Badge notifications database, functional, service, UI)
+  - Tier: Tier 1 (targeted smoke for badge award flow)
+  - Dependencies:
+    - NOTIF-V2-001 (Notification Schema & Preferences)
+    - MODULE-08 (Badges V2 - user_badges, badges tables)
+
 ### FLOW-18: Admin Controls
 - Smoke: (manual)
   - Approving a pending listing succeeds and creates an audit row in `admin_activity_log`.

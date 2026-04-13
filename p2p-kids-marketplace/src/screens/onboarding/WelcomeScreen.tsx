@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/config/supabase';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -64,7 +65,7 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         {/* Logo/Illustration */}
         <Text style={styles.emoji}>🌟</Text>
@@ -94,7 +95,7 @@ export default function WelcomeScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

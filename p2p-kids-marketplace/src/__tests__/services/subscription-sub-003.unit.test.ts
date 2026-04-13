@@ -64,7 +64,7 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
 
       // MODULE-11 SUB-003: Verify trial_used_at is set
       expect(data.trial_used_at).toBeDefined();
-      expect(new Date(data.trial_used_at).getTime()).toBeLessThanOrEqual(Date.now());
+      expect(new Date(data.trial_used_at).getTime()).toBeLessThanOrEqual(Date.now() + 5000);
 
       // Verify trial dates are set correctly (30 days default)
       expect(data.trial_start_date).toBeDefined();

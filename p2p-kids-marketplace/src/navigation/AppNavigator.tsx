@@ -277,7 +277,7 @@ function RootNavigator() {
       onReady={onNavigationReady}
       onStateChange={onNavigationStateChange}
     >
-      <Stack.Navigator screenOptions={{ headerShown: true }}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated && isSuspended ? (
           // Authenticated + Suspended -> blocked account screen
           <Stack.Screen

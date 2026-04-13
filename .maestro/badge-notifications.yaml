@@ -1,0 +1,147 @@
+# FLOW: Badge Award Notifications | TASK: NOTIF-V2-004 | States covered: badge_earned, milestone_approaching, no_badge_yet
+
+appId: com.kidsp2p.marketplace
+---
+
+# Test user setup (replace with your test user credentials)
+- launchApp
+- assertVisible: "Welcome"
+- tapOn: "Sign In"
+- inputText: "test-badges@example.com"
+- tapOn: "Password"
+- inputText: "TestPassword123!"
+- tapOn: "Login"
+- waitForAnimationToEnd
+
+# Navigate to profile to establish baseline
+- tapOn:
+    id: "bottom-nav-profile"
+- waitForAnimationToEnd
+- assertVisible: "Profile"
+
+# State 1: No badges earned yet
+- assertNotVisible: "🎉 New Badge Earned! 🎉"
+- assertVisible:
+    id: "badge-showcase"
+
+# Award badge via external trigger (manual step - admin awards badge)
+# In production, this would be triggered by completing an action (trade, SP milestone, etc.)
+- extendedWaitUntil:
+    visible:
+      id: "badge-celebration-modal"
+    timeout: 10000
+    
+# State 2: Badge earned - celebration modal displayed
+- assertVisible: "🎉 New Badge Earned! 🎉"
+- assertVisible:
+    id: "badge-icon-container"
+- assertVisible:
+    id: "badge-name"
+- assertVisible:
+    id: "badge-description"
+- assertVisible:
+    id: "celebration-close-button"
+- assertVisible: "Awesome!"
+
+# Test: Modal closes on button press
+- tapOn:
+    id: "celebration-close-button"
+- waitForAnimationToEnd
+- assertNotVisible: "🎉 New Badge Earned! 🎉"
+
+# State 3: After dismissal - modal does not re-appear
+- tapOn:
+    id: "bottom-nav-home"
+- waitForAnimationToEnd
+- tapOn:
+    id: "bottom-nav-profile"
+- waitForAnimationToEnd
+- assertNotVisible:
+    id: "badge-celebration-modal"
+
+# Verify badge shows in showcase
+- assertVisible:
+    id: "badge-showcase"
+- scrollUntilVisible:
+    element:
+      id: "earned-badge-item"
+    direction: DOWN
+    timeout: 5000
+
+---
+
+# Test milestone approaching notification
+- tapOn:
+    id: "notification-center-button"
+- waitForAnimationToEnd
+
+# State 4: Milestone notification (if user within 5 SP of badge)
+- runFlow:
+    when:
+      visible:
+        text: "Almost There!"
+    commands:
+      - assertVisible: "Almost There!"
+      - assertVisible:
+        id: "milestone-notification"
+      - assertVisible:
+        text: ".* more SP .*"
+        
+# Test: Tap notification navigates to discovery
+- tapOn:
+    id: "milestone-notification"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "discovery-screen"
+
+---
+
+# Edge case: Modal closes on overlay tap
+- tapOn:
+    id: "bottom-nav-profile"
+- waitForAnimationToEnd
+
+# Re-award badge (for testing - admin action)
+- extendedWaitUntil:
+    visible:
+      id: "badge-celebration-modal"
+    timeout: 10000
+    
+- assertVisible:
+    id: "celebration-overlay"
+- tapOn:
+    id: "celebration-overlay"
+- waitForAnimationToEnd
+- assertNotVisible:
+    id: "badge-celebration-modal"
+
+---
+
+# Test: Badge image vs emoji fallback
+- runFlow:
+    when:
+      visible:
+        id: "badge-image"
+    commands:
+      - assertVisible:
+        id: "badge-image"
+      - assertNotVisible:
+        id: "badge-emoji"
+
+- runFlow:
+    when:
+      visible:
+        id: "badge-emoji"
+    commands:
+      - assertVisible:
+        id: "badge-emoji"
+      - assertNotVisible:
+        id: "badge-image"
+
+---
+
+# Negative test: No crash when badge data incomplete
+# This should never happen in production but ensures graceful handling
+- assertVisible: "Profile"
+- assertNotVisible:
+    text: "Error"

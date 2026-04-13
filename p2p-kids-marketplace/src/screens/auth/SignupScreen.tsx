@@ -14,6 +14,7 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { signupWithTrial } from '@/services/auth';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
@@ -319,17 +320,26 @@ export default function SignupScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join the Kids P2P Marketplace</Text>
-        </View>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+            testID="signup-back-button"
+          >
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
 
-        <View style={styles.form}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join the Kids P2P Marketplace</Text>
+          </View>
+
+          <View style={styles.form}>
           {/* Name Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Full Name</Text>
@@ -583,7 +593,8 @@ export default function SignupScreen() {
           </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -592,12 +603,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
     padding: 24,
   },
+  backButton: {
+    marginBottom: 0,
+    width: 40,
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#007AFF',
+    fontWeight: 'bold',
+  },
   header: {
-    marginTop: 40,
+    marginTop: 10,
     marginBottom: 32,
   },
   title: {

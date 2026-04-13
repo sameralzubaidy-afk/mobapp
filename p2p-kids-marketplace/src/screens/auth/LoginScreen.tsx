@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { loginWithContext } from '@/services/auth';
@@ -141,104 +142,110 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Log in to continue trading and earning Swap Points</Text>
-        </View>
-
-        {/* Form */}
-        <View style={styles.form}>
-          {/* Email */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
-              placeholder="your.email@example.com"
-              placeholderTextColor="#6B7280"
-              value={email}
-              testID="login-email-input"
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-              editable={!loading}
-            />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          {/* Password */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={[styles.input, errors.password && styles.inputError]}
-              placeholder="Enter your password"
-              placeholderTextColor="#6B7280"
-              value={password}
-              testID="login-password-input"
-              onChangeText={setPassword}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete="password"
-              editable={!loading}
-            />
-            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-          </View>
-
-          {/* Login Button */}
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleLogin}
-            testID="login-submit-button"
-            disabled={loading}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.content}>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => navigation.goBack()}
+            testID="login-back-button"
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Log In</Text>
-            )}
+            <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.devSkipButton}
-            onPress={handleDevSkipAuth}
-            testID="login-skip-auth-button"
-            disabled={loading}
-          >
-            <Text style={styles.devSkipButtonText}>Skip Auth (Test)</Text>
-          </TouchableOpacity>
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Welcome Back!</Text>
+            <Text style={styles.subtitle}>Log in to continue trading and earning Swap Points</Text>
+          </View>
 
-          {/* Signup Link */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
+          {/* Form */}
+          <View style={styles.form}>
+            {/* Email */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
+              <TextInput
+                style={[styles.input, errors.email && styles.inputError]}
+                placeholder="your.email@example.com"
+                placeholderTextColor="#6B7280"
+                value={email}
+                testID="login-email-input"
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+                editable={!loading}
+              />
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            </View>
+
+            {/* Password */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password</Text>
+              <TextInput
+                style={[styles.input, errors.password && styles.inputError]}
+                placeholder="Enter your password"
+                placeholderTextColor="#6B7280"
+                value={password}
+                testID="login-password-input"
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCapitalize="none"
+                autoComplete="password"
+                editable={!loading}
+              />
+              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+            </View>
+
+            {/* Login Button */}
             <TouchableOpacity
-              onPress={() => navigation.navigate('Signup')}
-              testID="login-signup-link"
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              testID="login-submit-button"
               disabled={loading}
             >
-              <Text style={styles.linkText}>Sign Up</Text>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Log In</Text>}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.devSkipButton}
+              onPress={handleDevSkipAuth}
+              testID="login-skip-auth-button"
+              disabled={loading}
+            >
+              <Text style={styles.devSkipButtonText}>Skip Auth (Test)</Text>
+            </TouchableOpacity>
+
+            {/* Signup Link */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Don't have an account? </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Signup')}
+                testID="login-signup-link"
+                disabled={loading}
+              >
+                <Text style={styles.linkText}>Sign Up</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Forgot Password Link */}
+            <TouchableOpacity
+              style={styles.forgotPassword}
+              onPress={() => {
+                // TODO: Navigate to forgot password screen
+                Alert.alert('Forgot Password', 'Feature coming soon!');
+              }}
+              disabled={loading}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Forgot Password Link */}
-          <TouchableOpacity
-            style={styles.forgotPassword}
-            onPress={() => {
-              // TODO: Navigate to forgot password screen
-              Alert.alert('Forgot Password', 'Feature coming soon!');
-            }}
-            disabled={loading}
-          >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -247,10 +254,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 24,
     justifyContent: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    padding: 10,
+    zIndex: 10,
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
   header: {
     marginBottom: 40,

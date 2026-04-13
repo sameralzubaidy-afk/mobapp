@@ -1,5 +1,6 @@
 // File: p2p-kids-marketplace/src/screens/profile/ProfileScreen.tsx
 // Profile screen with Edit and Logout functionality (AUTH-006, AUTH-007)
+// TASK NOTIF-V2-004: Badge celebration modal integration
 
 import React, { useState, useEffect, useCallback, useContext } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
@@ -28,6 +29,8 @@ import { StarRating } from '@/components/StarRating';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 import { ReferralRewardsService } from '@/services/referralRewards';
 import Avatar from '@/components/atoms/Avatar';
+import BadgeCelebrationModal from '@/components/badges/BadgeCelebrationModal';
+import { useUserBadges } from '@/hooks/useUserBadges';
 // generated `Database` types may be missing locally; use a permissive fallback
 // to avoid type errors until DB types are generated.
 import BottomNavBar from '@/components/organisms/BottomNavBar';
@@ -50,6 +53,21 @@ export default function ProfileScreen({ navigation }: any) {
   const [pendingReferralNotice, setPendingReferralNotice] = useState<string | null>(null);
   const [pendingBadgeText, setPendingBadgeText] = useState('We\'re reviewing your ID. Usually within 24h.');
   const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
+
+  // TASK NOTIF-V2-004: Badge celebration integration
+  const { newBadgeAwarded, clearNewBadge, showCelebration, setShowCelebration } = useUserBadges(user?.id);
+
+  // Auto-show celebration modal when new badge awarded
+  useEffect(() => {
+    if (newBadgeAwarded && !showCelebration) {
+      setShowCelebration(true);
+    }
+  }, [newBadgeAwarded]);
+
+  const handleCelebrationClose = () => {
+    setShowCelebration(false);
+    clearNewBadge();
+  };
 
   useEffect(() => {
     loadProfile();
@@ -526,6 +544,13 @@ export default function ProfileScreen({ navigation }: any) {
       </View>
         </ScrollView>
         <BottomNavBar />
+
+        {/* TASK NOTIF-V2-004: Badge Celebration Modal */}
+        <BadgeCelebrationModal
+          visible={showCelebration}
+          badge={newBadgeAwarded}
+          onClose={handleCelebrationClose}
+        />
       </View>
     </SafeAreaView>
   );
