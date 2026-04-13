@@ -57,6 +57,13 @@
     },
     "plugins": [
       [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.p2pkidsmarketplace",
+          "enableGooglePay": true
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",

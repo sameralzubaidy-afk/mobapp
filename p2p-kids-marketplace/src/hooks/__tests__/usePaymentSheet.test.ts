@@ -9,6 +9,7 @@ import { supabase } from '../../config/supabase';
 // Mock Stripe
 jest.mock('@stripe/stripe-react-native', () => ({
   useStripe: jest.fn(),
+  initStripe: jest.fn(),
   initPaymentSheet: jest.fn(),
   presentPaymentSheet: jest.fn(),
 }));
@@ -19,15 +20,15 @@ jest.mock('../../config/supabase', () => {
     auth: {
       getSession: jest.fn(),
     },
+    functions: {
+      invoke: jest.fn(),
+    },
   };
 
   return {
     supabase: mockSupabaseInstance,
   };
 });
-
-// Mock fetch
-global.fetch = jest.fn();
 
 describe('usePaymentSheet', () => {
   const mockSession = {
@@ -41,12 +42,6 @@ describe('usePaymentSheet', () => {
     ephemeral_key_secret: 'ek_test_secret',
     customer_id: 'cus_test_123',
   };
-
-  const mockFetchResponse = (body: any, ok = true) => ({
-    ok,
-    text: async () => JSON.stringify(body),
-    json: async () => body,
-  });
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -64,6 +59,13 @@ describe('usePaymentSheet', () => {
       error: null,
     });
 
+    (StripeReactNative.initStripe as jest.Mock).mockResolvedValue({});
+
+    (supabase.functions.invoke as jest.Mock).mockResolvedValue({
+      data: mockSetupIntentResponse,
+      error: null,
+    });
+
     // Mock Stripe functions
     (StripeReactNative.initPaymentSheet as jest.Mock).mockResolvedValue({
       error: null,
@@ -76,10 +78,6 @@ describe('usePaymentSheet', () => {
 
   describe('setupPaymentSheet', () => {
     it('should initialize payment sheet successfully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce(
-        mockFetchResponse(mockSetupIntentResponse, true)
-      );
-
       const { result } = renderHook(() => usePaymentSheet());
 
       expect(result.current.loading).toBe(false);
@@ -92,11 +90,14 @@ describe('usePaymentSheet', () => {
         });
       });
 
-      // Should call create-payment-setup-intent
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/functions/v1/create-payment-setup-intent'),
+      // Should call create-payment-setup-intent Edge Function
+      expect(supabase.functions.invoke).toHaveBeenCalledWith(
+        'create-payment-setup-intent',
         expect.objectContaining({
-          method: 'POST',
+          body: expect.objectContaining({
+            user_id: mockSession.user.id,
+            for_renewal: false,
+          }),
           headers: expect.objectContaining({
             Authorization: `Bearer ${mockSession.access_token}`,
           }),
@@ -116,9 +117,10 @@ describe('usePaymentSheet', () => {
     });
 
     it('should handle API error gracefully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce(
-        mockFetchResponse({ error: 'API error' }, false)
-      );
+      (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+        data: null,
+        error: { message: 'API error' },
+      });
 
       const { result } = renderHook(() => usePaymentSheet());
 
@@ -133,10 +135,6 @@ describe('usePaymentSheet', () => {
     });
 
     it('should handle Stripe initialization error', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce(
-        mockFetchResponse(mockSetupIntentResponse, true)
-      );
-
       (StripeReactNative.initPaymentSheet as jest.Mock).mockResolvedValueOnce({
         error: { message: 'Stripe initialization failed' },
       });
@@ -174,10 +172,6 @@ describe('usePaymentSheet', () => {
 
   describe('presentSheet', () => {
     it('should present payment sheet successfully', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce(
-        mockFetchResponse(mockSetupIntentResponse, true)
-      );
-
       const { result } = renderHook(() => usePaymentSheet());
 
       // Setup first
@@ -202,10 +196,6 @@ describe('usePaymentSheet', () => {
     });
 
     it('should handle user cancellation', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce(
-        mockFetchResponse(mockSetupIntentResponse, true)
-      );
-
       (StripeReactNative.presentPaymentSheet as jest.Mock).mockResolvedValueOnce({
         error: { code: 'Canceled', message: 'User cancelled' },
       });
@@ -250,9 +240,10 @@ describe('usePaymentSheet', () => {
 
   describe('resetError', () => {
     it('should clear error state', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce(
-        mockFetchResponse({ error: 'Test error' }, false)
-      );
+      (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Test error' },
+      });
 
       const { result } = renderHook(() => usePaymentSheet());
 

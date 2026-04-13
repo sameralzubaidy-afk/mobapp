@@ -148,23 +148,51 @@ function RootNavigator() {
         return;
       }
 
-      const deepLink = typeof rawData.deep_link === 'string' ? rawData.deep_link : null;
+      const deepLink =
+        typeof rawData.deep_link === 'string'
+          ? rawData.deep_link
+          : typeof rawData.deepLink === 'string'
+          ? rawData.deepLink
+          : null;
       const type = typeof rawData.type === 'string' ? rawData.type : null;
       const event = typeof rawData.event === 'string' ? rawData.event : null;
+      const normalizedDeepLink = deepLink?.toLowerCase();
 
-      const shouldOpenSubscription =
-        deepLink === '/profile/subscription' ||
-        type === 'trial_reminder' ||
-        type === 'subscription' ||
-        event === 'subscription_renewed' ||
-        event === 'subscription_cancelled' ||
-        event === 'payment_failed';
+      const canNavigateTo = (routeName: string) => {
+        const state = navigationRef.getRootState();
+        const routeNames = (state as { routeNames?: string[] } | undefined)?.routeNames ?? [];
+        return routeNames.includes(routeName);
+      };
 
-      if (!shouldOpenSubscription) {
+      const routeTarget =
+        normalizedDeepLink === '/wallet' ||
+        normalizedDeepLink === '/sp-wallet' ||
+        type === 'sp_earned' ||
+        type === 'sp_spent'
+          ? 'SpWallet'
+          : normalizedDeepLink === '/discover' || type === 'sp_balance_low'
+          ? 'BrowseItems'
+          : normalizedDeepLink === '/subscription' ||
+            normalizedDeepLink === '/profile/subscription' ||
+            type === 'sp_wallet_frozen' ||
+            type === 'trial_reminder' ||
+            type === 'subscription' ||
+            event === 'subscription_renewed' ||
+            event === 'subscription_cancelled' ||
+            event === 'payment_failed'
+          ? 'ManageKidsClub'
+          : null;
+
+      if (!routeTarget) {
         return;
       }
 
-      navigationRef.navigate('ManageKidsClub');
+      if (!canNavigateTo(routeTarget)) {
+        pendingNotificationDataRef.current = rawData;
+        return;
+      }
+
+      navigationRef.navigate(routeTarget);
       pendingNotificationDataRef.current = null;
     },
     [navigationRef]
@@ -209,6 +237,16 @@ function RootNavigator() {
     }
   }, [navigationRef]);
 
+  const onNavigationStateChange = React.useCallback(() => {
+    logRouteChange();
+
+    // Retry deferred notification navigation once target routes are available
+    // (common on cold-start push tap before auth stack is mounted).
+    if (pendingNotificationDataRef.current) {
+      handleNotificationNavigation(pendingNotificationDataRef.current);
+    }
+  }, [handleNotificationNavigation, logRouteChange]);
+
   const onNavigationReady = React.useCallback(() => {
     logRouteChange();
 
@@ -237,7 +275,7 @@ function RootNavigator() {
       ref={navigationRef}
       linking={linking}
       onReady={onNavigationReady}
-      onStateChange={logRouteChange}
+      onStateChange={onNavigationStateChange}
     >
       <Stack.Navigator screenOptions={{ headerShown: true }}>
         {isAuthenticated && isSuspended ? (

@@ -2,6 +2,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
+import {
+  redactPaymentMethodForLogs,
+  validateStripePaymentMethodId,
+} from '../_shared/stripe-payment-method-guard.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,15 +57,35 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    console.log('[trade-payment] Request body:', body);
-    const { tradeId, paymentMethodId } = body;
+    const { tradeId } = body;
+    const paymentMethodValidation = validateStripePaymentMethodId(body?.paymentMethodId);
 
-    if (!tradeId || !paymentMethodId) {
-      return new Response(JSON.stringify({ error: 'Missing tradeId or paymentMethodId' }), {
+    if (!tradeId) {
+      return new Response(JSON.stringify({ error: 'Missing tradeId' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    if (!paymentMethodValidation.ok) {
+      return new Response(
+        JSON.stringify({
+          error: paymentMethodValidation.message,
+          code: paymentMethodValidation.code,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const paymentMethodId = paymentMethodValidation.paymentMethodId;
+
+    console.log('[trade-payment] Request validated:', {
+      tradeId,
+      paymentMethodId: redactPaymentMethodForLogs(paymentMethodId),
+    });
 
     // stripeKey is validated above; Stripe client is ready.
 
@@ -183,26 +207,6 @@ serve(async (req) => {
     // 5) Attach payment method and set as default
     console.log('[trade-payment] Attaching payment method:', paymentMethodId, 'to customer:', customerId);
     try {
-      // Basic validation: expect a PaymentMethod id
-      if (typeof paymentMethodId !== 'string' || !paymentMethodId.startsWith('pm_')) {
-        console.error('[trade-payment] Invalid paymentMethodId format:', paymentMethodId);
-
-        // Mark trade as payment_failed for visibility
-        try {
-          await supabaseClient
-            .from('trades')
-            .update({ status: 'payment_failed', last_status_change_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-            .eq('id', trade.id);
-        } catch (upErr: any) {
-          console.error('[trade-payment] Failed to mark trade as payment_failed after invalid PM format:', upErr);
-        }
-
-        return new Response(JSON.stringify({ error: 'Invalid paymentMethodId format', details: 'Expected a Stripe PaymentMethod id (pm_...)' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
       // Retrieve the payment method to inspect its attachment
       let pm;
       try {

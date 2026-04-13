@@ -19,6 +19,7 @@ import { signupWithTrial } from '@/services/auth';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 import { isAtLeastAge } from '@/utils/age';
 import { getAllTestUsers, getRandomTestUser, TestUser } from '@/utils/testUsers';
+import { DateOfBirthPicker } from '@/components/DateOfBirthPicker';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
 // TODO: Integrate Sentry
@@ -393,19 +394,16 @@ export default function SignupScreen() {
           {/* DOB Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Date of Birth</Text>
-            <TextInput
-              style={[styles.input, errors.dob && styles.inputError]}
-              placeholder="YYYY-MM-DD"
+            <DateOfBirthPicker
               value={formData.dob}
-              testID="signup-dob-input"
               onChangeText={(text) => {
                 setFormData({ ...formData, dob: text });
                 if (errors.dob) {
                   setErrors({ ...errors, dob: '' });
                 }
               }}
-              keyboardType="numeric"
-              autoCorrect={false}
+              error={!!errors.dob}
+              testID="signup-dob-picker"
             />
             {errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
           </View>

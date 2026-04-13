@@ -1,0 +1,30 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FF9800;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="white"/>
+  
+  <!-- Central shopping bag with heart (takes up safe zone) -->
+  <g transform="translate(512, 512)">
+    <!-- Shopping bag outline -->
+    <path d="M -60 -80 L -60 -30 Q -60 -15 -45 -15 L 45 -15 Q 60 -15 60 -30 L 60 -80" 
+          fill="none" stroke="#2196F3" stroke-width="18" stroke-linecap="round"/>
+    
+    <!-- Bag body -->
+    <rect x="-80" y="-15" width="160" height="120" rx="15" fill="white"/>
+    
+    <!-- Heart in center -->
+    <path d="M 0,-35 C -18,-55 -45,-55 -45,-32 C -45,-8 0,25 0,25 C 0,25 45,-8 45,-32 C 45,-55 18,-55 0,-35 Z" 
+          fill="url(#accentGrad)"/>
+    
+    <!-- Decorative elements -->
+    <circle cx="-35" cy="50" r="18" fill="#4CAF50"/>
+    <circle cx="35" cy="50" r="18" fill="#FF6B9D"/>
+    <circle cx="0" cy="75" r="15" fill="#FFD93D"/>
+  </g>
+</svg>

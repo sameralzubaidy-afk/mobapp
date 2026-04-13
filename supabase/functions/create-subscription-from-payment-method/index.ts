@@ -4,6 +4,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@12.0.0';
+import { validateStripePaymentMethodId } from '../_shared/stripe-payment-method-guard.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -228,15 +229,20 @@ serve(async (req) => {
 
     const body: CreateSubscriptionRequest = await req.json();
     const userId = body.user_id || user.id;
-    const paymentMethodId = body.payment_method_id;
+    const paymentMethodValidation = validateStripePaymentMethodId(body.payment_method_id);
     const isRenewal = body.is_renewal || false;
 
-    if (!paymentMethodId) {
-      return new Response(JSON.stringify({ error: 'Missing payment_method_id' }), {
+    if (!paymentMethodValidation.ok) {
+      return new Response(JSON.stringify({
+        error: paymentMethodValidation.message,
+        code: paymentMethodValidation.code,
+      }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
+    const paymentMethodId = paymentMethodValidation.paymentMethodId;
 
     // Verify user matches token
     if (userId !== user.id) {

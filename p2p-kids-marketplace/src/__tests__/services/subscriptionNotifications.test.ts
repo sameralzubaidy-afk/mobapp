@@ -16,6 +16,7 @@ import { supabase } from '../../config/supabase';
 jest.mock('../../config/supabase', () => ({
   supabase: {
     from: jest.fn(),
+    rpc: jest.fn(),
     functions: {
       invoke: jest.fn(),
     },
@@ -49,9 +50,9 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
       });
 
+      (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({ error: null });
 
       const result = await sendSubscriptionNotification({
@@ -63,7 +64,15 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
 
       expect(result.success).toBe(true);
       expect(supabase.from).toHaveBeenCalledWith('notification_preferences');
-      expect(supabase.from).toHaveBeenCalledWith('user_notifications');
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'create_notification',
+        expect.objectContaining({
+          p_user_id: mockUserId,
+          p_type: 'subscription',
+          p_title: 'Test Notification',
+          p_body: 'Test body',
+        })
+      );
       expect(supabase.functions.invoke).toHaveBeenCalledWith('send-push-notification', expect.any(Object));
     });
 
@@ -85,9 +94,9 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
       });
 
+      (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({ error: null });
 
       const result = await sendSubscriptionNotification({
@@ -121,9 +130,10 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({
-          error: { message: 'Database error' },
-        }),
+      });
+
+      (supabase.rpc as jest.Mock).mockResolvedValue({
+        error: { message: 'Database error' },
       });
 
       const result = await sendSubscriptionNotification({
@@ -150,20 +160,19 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
       });
 
+      (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({ error: null });
 
       const result = await notifySubscriptionRenewed(mockUserId, mockNextBillingDate);
 
       expect(result.success).toBe(true);
-      expect(supabase.from).toHaveBeenCalledWith('user_notifications');
-      
-      const insertCall = (supabase.from as jest.Mock).mock.results[1].value.insert.mock.calls[0][0];
-      expect(insertCall.title).toContain('Renewed');
-      expect(insertCall.data.event).toBe('subscription_renewed');
-      expect(insertCall.data.next_billing_date).toBe(mockNextBillingDate);
+
+      const rpcCall = (supabase.rpc as jest.Mock).mock.calls[0][1];
+      expect(rpcCall.p_title).toContain('Renewed');
+      expect(rpcCall.p_data.event).toBe('subscription_renewed');
+      expect(rpcCall.p_data.next_billing_date).toBe(mockNextBillingDate);
     });
   });
 
@@ -180,20 +189,20 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
       });
 
+      (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({ error: null });
 
       const accessUntil = '2026-04-30T00:00:00Z';
       const result = await notifyCancellationConfirmed(mockUserId, accessUntil);
 
       expect(result.success).toBe(true);
-      
-      const insertCall = (supabase.from as jest.Mock).mock.results[1].value.insert.mock.calls[0][0];
-      expect(insertCall.title).toContain('Cancelled');
-      expect(insertCall.message).toContain('90-day grace period');
-      expect(insertCall.data.event).toBe('subscription_cancelled');
+
+      const rpcCall = (supabase.rpc as jest.Mock).mock.calls[0][1];
+      expect(rpcCall.p_title).toContain('Cancelled');
+      expect(rpcCall.p_body).toContain('90-day grace period');
+      expect(rpcCall.p_data.event).toBe('subscription_cancelled');
     });
   });
 
@@ -210,19 +219,19 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
       });
 
+      (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({ error: null });
 
       const result = await notifyPaymentFailed(mockUserId, 1);
 
       expect(result.success).toBe(true);
-      
-      const insertCall = (supabase.from as jest.Mock).mock.results[1].value.insert.mock.calls[0][0];
-      expect(insertCall.title).toContain('Payment Failed');
-      expect(insertCall.data.critical).toBe(true);
-      expect(insertCall.data.retry_count).toBe(1);
+
+      const rpcCall = (supabase.rpc as jest.Mock).mock.calls[0][1];
+      expect(rpcCall.p_title).toContain('Payment Failed');
+      expect(rpcCall.p_data.critical).toBe(true);
+      expect(rpcCall.p_data.retry_count).toBe(1);
       
       // Should send push despite preferences being disabled (critical notification)
       expect(supabase.functions.invoke).toHaveBeenCalledWith('send-push-notification', expect.any(Object));
@@ -240,17 +249,17 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
       });
 
+      (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({ error: null });
 
       const result = await notifyPaymentFailed(mockUserId, 2);
 
       expect(result.success).toBe(true);
-      
-      const insertCall = (supabase.from as jest.Mock).mock.results[1].value.insert.mock.calls[0][0];
-      expect(insertCall.message).toContain('declined again');
+
+      const rpcCall = (supabase.rpc as jest.Mock).mock.calls[0][1];
+      expect(rpcCall.p_body).toContain('declined again');
     });
 
     it('should send final warning for retry 3', async () => {
@@ -265,18 +274,18 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
       });
 
+      (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({ error: null });
 
       const result = await notifyPaymentFailed(mockUserId, 3);
 
       expect(result.success).toBe(true);
-      
-      const insertCall = (supabase.from as jest.Mock).mock.results[1].value.insert.mock.calls[0][0];
-      expect(insertCall.message).toContain('Final attempt');
-      expect(insertCall.message).toContain('immediately');
+
+      const rpcCall = (supabase.rpc as jest.Mock).mock.calls[0][1];
+      expect(rpcCall.p_body).toContain('Final attempt');
+      expect(rpcCall.p_body).toContain('immediately');
     });
   });
 
@@ -293,9 +302,9 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
       });
 
+      (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({ error: null });
 
       const result = await sendSubscriptionNotification({
@@ -321,9 +330,9 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
             }),
           }),
         }),
-        insert: jest.fn().mockResolvedValue({ error: null }),
       });
 
+      (supabase.rpc as jest.Mock).mockResolvedValue({ error: null });
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         error: { message: 'Push notification service unavailable' },
       });

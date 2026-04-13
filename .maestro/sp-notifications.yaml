@@ -1,0 +1,298 @@
+# FLOW: SP Event Notifications | TASK: NOTIF-V2-003 | States covered: earned, spent, frozen, low_balance
+
+appId: com.p2pkidsmarketplace
+---
+
+# ==================================================
+# PREREQUISITES
+# ==================================================
+- launchApp
+- tapOn:
+    id: "login-button"
+- inputText: "subscriber1@test.com"
+- tapOn:
+    id: "password-input"
+- inputText: "Test123!"
+- tapOn:
+    id: "login-submit-button"
+- assertVisible: "Dashboard"
+- waitForAnimationToEnd
+
+# ==================================================
+# STATE 1: SP Earned Notification
+# ==================================================
+- tapOn:
+    text: "Notifications"
+- assertVisible:
+    id: "notifications-screen"
+- waitForAnimationToEnd
+
+# Simulate SP earned (via backend trigger or test command)
+- runScript:
+    file: ../scripts/test-helpers/trigger-sp-earned.js
+    env:
+      USER_ID: "test-subscriber-1"
+      AMOUNT: "50"
+      REASON: "earn_starter_pack"
+
+# Wait for notification to arrive
+- waitForAnimationToEnd: 3000
+
+# Refresh notifications list
+- swipeDown
+
+# Verify earned notification appears
+- assertVisible:
+    text: "SP Earned"
+- assertVisible:
+    text: "50 SP"
+
+# Tap notification to open detail
+- tapOn:
+    text: "SP Earned"
+- assertVisible:
+    text: "You earned 50 SP"
+
+# Verify deep link works (should navigate to wallet)
+- tapOn:
+    id: "notification-action-button"
+- assertVisible:
+    text: "Swap Points Wallet"
+- assertVisible:
+    text: "Available Balance"
+
+# Return to notifications
+- tapOn:
+    id: "back-button"
+
+# ==================================================
+# STATE 2: SP Spent Notification
+# ==================================================
+- tapOn:
+    text: "Notifications"
+
+# Simulate SP spent
+- runScript:
+    file: ../scripts/test-helpers/trigger-sp-spent.js
+    env:
+      USER_ID: "test-subscriber-1"
+      AMOUNT: "-20"
+      REASON: "spend_purchase"
+
+- waitForAnimationToEnd: 3000
+- swipeDown
+
+# Verify spent notification appears
+- assertVisible:
+    text: "SP Spent"
+- assertVisible:
+    text: "20 SP"
+
+- tapOn:
+    text: "SP Spent"
+- assertVisible:
+    text: "You spent 20 SP on a purchase"
+
+- tapOn:
+    id: "notification-action-button"
+- assertVisible:
+    text: "Swap Points Wallet"
+
+- tapOn:
+    id: "back-button"
+
+# ==================================================
+# STATE 3: Wallet Frozen Notification
+# ==================================================
+- tapOn:
+    text: "Notifications"
+
+# Simulate wallet freeze (subscription expiration)
+- runScript:
+    file: ../scripts/test-helpers/trigger-wallet-frozen.js
+    env:
+      USER_ID: "test-subscriber-1"
+
+- waitForAnimationToEnd: 3000
+- swipeDown
+
+# Verify frozen notification appears
+- assertVisible:
+    text: "Frozen"
+- assertVisible:
+    text: "wallet"
+
+- tapOn:
+    text: "Frozen"
+- assertVisible:
+    text: "Renew your subscription"
+
+# Verify deep link to subscription screen
+- tapOn:
+    id: "notification-action-button"
+- assertVisible:
+    text: "Subscription"
+- assertVisible:
+    text: "Kids Club+"
+
+- tapOn:
+    id: "back-button"
+
+# ==================================================
+# STATE 4: Low Balance Warning
+# ==================================================
+- tapOn:
+    text: "Notifications"
+
+# Simulate low balance (balance drops below 10 SP)
+- runScript:
+    file: ../scripts/test-helpers/trigger-low-balance.js
+    env:
+      USER_ID: "test-subscriber-1"
+      BALANCE: "8"
+
+- waitForAnimationToEnd: 3000
+- swipeDown
+
+# Verify low balance notification appears
+- assertVisible:
+    text: "Low"
+- assertVisible:
+    text: "Balance"
+- assertVisible:
+    text: "8 SP"
+
+- tapOn:
+    text: "Low"
+- assertVisible:
+    text: "earn more"
+
+# Verify deep link to discovery screen
+- tapOn:
+    id: "notification-action-button"
+- assertVisible:
+    text: "Discover"
+- assertVisible:
+    id: "discovery-screen"
+
+# ==================================================
+# STATE 5: Non-Subscriber Gating (Negative Test)
+# ==================================================
+# Logout and login as free user
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "logout-button"
+- tapOn:
+    id: "confirm-logout"
+
+- tapOn:
+    id: "login-button"
+- inputText: "freeuser1@test.com"
+- tapOn:
+    id: "password-input"
+- inputText: "Test123!"
+- tapOn:
+    id: "login-submit-button"
+- assertVisible: "Dashboard"
+
+# Simulate SP earned for free user
+- runScript:
+    file: ../scripts/test-helpers/trigger-sp-earned.js
+    env:
+      USER_ID: "test-free-user-1"
+      AMOUNT: "10"
+      REASON: "earn_reward"
+
+- waitForAnimationToEnd: 3000
+
+# Navigate to notifications
+- tapOn:
+    text: "Notifications"
+- swipeDown
+
+# Verify NO SP earned notification for free user
+- assertNotVisible:
+    text: "10 SP"
+- assertNotVisible:
+    text: "SP Earned"
+
+# ==================================================
+# STATE 6: Notification Preferences Respected
+# ==================================================
+# Login back as subscriber
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "logout-button"
+- tapOn:
+    id: "confirm-logout"
+
+- tapOn:
+    id: "login-button"
+- inputText: "subscriber2@test.com"
+- tapOn:
+    id: "password-input"
+- inputText: "Test123!"
+- tapOn:
+    id: "login-submit-button"
+
+# Go to notification settings
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "settings-button"
+- tapOn:
+    text: "Notifications"
+
+# Disable SP events push notifications
+- tapOn:
+    id: "sp-events-push-toggle"
+- assertVisible:
+    id: "sp-events-push-toggle"
+    # Toggle should be off
+
+- tapOn:
+    id: "back-button"
+- tapOn:
+    id: "back-button"
+
+# Trigger SP earned
+- runScript:
+    file: ../scripts/test-helpers/trigger-sp-earned.js
+    env:
+      USER_ID: "test-subscriber-2"
+      AMOUNT: "15"
+      REASON: "earn_challenge"
+
+- waitForAnimationToEnd: 3000
+
+# Navigate to in-app notifications (should still show since in_app not disabled)
+- tapOn:
+    text: "Notifications"
+- swipeDown
+
+# Verify in-app notification exists (even though push disabled)
+- assertVisible:
+    text: "SP Earned"
+- assertVisible:
+    text: "15 SP"
+
+# ==================================================
+# FINAL ASSERTION: All States Covered
+# ==================================================
+# Final hard assertion - check notification history shows all types
+- scrollUntilVisible:
+    element:
+      text: "Wallet Frozen"
+    direction: DOWN
+
+- scrollUntilVisible:
+    element:
+      text: "Low"
+    direction: DOWN
+
+- assertVisible:
+    text: "SP Earned"
+
+# PASS - All notification states verified

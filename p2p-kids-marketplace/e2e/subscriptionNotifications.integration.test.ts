@@ -126,7 +126,7 @@ const skipTests = process.env.RUN_SUPABASE_E2E !== 'true';
       expect(error).toBeNull();
       expect(notifications).toHaveLength(1);
       expect(notifications![0].title).toContain('Cancelled');
-      expect(notifications![0].message).toContain('90-day grace period');
+      expect(notifications![0].body).toContain('90-day grace period');
       expect(notifications![0].data.event).toBe('subscription_cancelled');
     });
   });
@@ -218,9 +218,9 @@ const skipTests = process.env.RUN_SUPABASE_E2E !== 'true';
       expect(data).toHaveLength(3);
 
       // Most recent (retry 3) should be most urgent
-      expect(data![0].message).toContain('Final');
-      expect(data![1].message).toContain('again');
-      expect(data![2].message).toContain('declined');
+      expect(data![0].body).toContain('Final');
+      expect(data![1].body).toContain('again');
+      expect(data![2].body).toContain('declined');
     });
   });
 

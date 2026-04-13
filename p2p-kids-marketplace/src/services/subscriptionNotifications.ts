@@ -61,21 +61,19 @@ export async function sendSubscriptionNotification(
       }
     }
 
-    // Create notification in database
-    const { error: insertError } = await supabase
-      .from('user_notifications')
-      .insert({
-        user_id: userId,
-        type: 'subscription',
-        title,
-        message: body,
-        data: {
-          ...data,
-          critical: critical || undefined,
-        },
-        read: false,
-        created_at: new Date().toISOString(),
-      });
+    const notificationData = {
+      ...data,
+      critical: critical || undefined,
+    };
+
+    // Use security-definer RPC so server-side notification creation works under RLS.
+    const { error: insertError } = await supabase.rpc('create_notification', {
+      p_user_id: userId,
+      p_type: 'subscription',
+      p_title: title,
+      p_body: body,
+      p_data: notificationData,
+    });
 
     if (insertError) {
       console.error('[subscriptionNotifications] Failed to create notification:', insertError);
@@ -90,9 +88,8 @@ export async function sendSubscriptionNotification(
           title,
           body,
           data: {
-            ...data,
+            ...notificationData,
             type: 'subscription',
-            critical: critical || undefined,
           },
         },
       });

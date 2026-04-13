@@ -1,0 +1,2 @@
+- Stripe card/payment UI can differ between simulator and physical builds when EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY is missing/placeholder in build env; runtime initStripe fallback is needed.
+- Trade buy flow uses CardField in TradeInitiationScreen, separate from subscription PaymentSheet flow.

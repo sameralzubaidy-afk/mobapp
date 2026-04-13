@@ -5,6 +5,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.5.0?target=deno';
+import { validateStripePaymentMethodId } from '../_shared/stripe-payment-method-guard.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -147,14 +148,20 @@ serve(async (req) => {
 
     // 2. Parse request body
     const body: CreateSubscriptionRequest = await req.json();
-    const { paymentMethodId } = body;
+    const paymentMethodValidation = validateStripePaymentMethodId(body.paymentMethodId);
 
-    if (!paymentMethodId) {
+    if (!paymentMethodValidation.ok) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Missing paymentMethodId' }),
+        JSON.stringify({
+          success: false,
+          error: paymentMethodValidation.message,
+          code: paymentMethodValidation.code,
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const paymentMethodId = paymentMethodValidation.paymentMethodId;
 
     // 3. Get subscription tier info (Kids Club+) and admin-config subscription values
     const tier = await resolveTierConfig(supabase);

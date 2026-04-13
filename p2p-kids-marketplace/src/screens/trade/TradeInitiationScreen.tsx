@@ -1,12 +1,12 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeInitiationScreen.tsx
  * TASK TRADE-V2-002: Initiate Trade with Subscription & SP Context
- * 
+ *
  * UI for initiating a trade:
  * - Shows item summary
  * - Shows SP wallet balance
  * - Allows SP discount selection (capped at 50%)
- * - Shows fee breakdown ($0.99 for subscribers, $2.99 for others)
+ * - Shows fee breakdown using admin-config-driven transaction fee
  * - Handles trade initiation
  */
 
@@ -21,6 +21,8 @@ import {
   TextInput,
   Pressable,
   SafeAreaView,
+  NativeModules,
+  Platform,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
@@ -28,7 +30,8 @@ import { getItemById, Item } from '@/services/items';
 import { initiateTradeV2, processTradePayment } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
-import { CardField, useStripe } from '@stripe/stripe-react-native';
+import { getTransactionFee } from '@/services/subscription';
+import { CardForm, useStripe, initStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { supabase } from '@/config/supabase';
@@ -50,21 +53,128 @@ export default function TradeInitiationScreen() {
   const [item, setItem] = useState<Item | null>(null);
   const [spAmount, setSpAmount] = useState(0);
   const [maxSpPercentage, setMaxSpPercentage] = useState(50);
+  const [transactionFeeCents, setTransactionFeeCents] = useState(299);
   const [cardComplete, setCardComplete] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [stripeReady, setStripeReady] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeError, setStripeError] = useState<string | null>(null);
+
+  const hasStripeNativeModule = Boolean(
+    (NativeModules as any)?.StripeSdk ||
+    (NativeModules as any)?.Stripe ||
+    (NativeModules as any)?.RNStripe ||
+    (NativeModules as any)?.StripeReactNative
+  );
 
   useEffect(() => {
     fetchData();
   }, [itemId, user?.id]);
 
+  useEffect(() => {
+    if (user?.id) {
+      initializeStripeForTrade(user.id).catch((error) => {
+        console.error('❌ Stripe trade init failed:', error);
+      });
+    }
+  }, [user?.id]);
+
+  const resolveInvokeErrorMessage = (error: any): string => {
+    const contextStatusText = error?.context?.statusText;
+    const contextBody = error?.context?.body;
+    if (typeof contextStatusText === 'string' && contextStatusText.length > 0) {
+      return contextStatusText;
+    }
+    if (typeof contextBody === 'string' && contextBody.length > 0) {
+      return contextBody;
+    }
+    if (typeof error?.message === 'string' && error.message.length > 0) {
+      return error.message;
+    }
+    return 'Failed to prepare secure payment fields';
+  };
+
+  const initializeStripeForTrade = async (userId: string, force = false): Promise<void> => {
+    if (!force && (stripeLoading || stripeReady)) {
+      return;
+    }
+
+    if (!hasStripeNativeModule) {
+      setStripeReady(false);
+      setStripeError(
+        'This app build does not include Stripe native components. Please install the latest staging build.'
+      );
+      return;
+    }
+
+    setStripeLoading(true);
+    setStripeError(null);
+
+    try {
+      const envKey = (process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').trim();
+      const envKeyLooksValid =
+        envKey.startsWith('pk_') &&
+        !envKey.includes('YOUR_KEY_HERE') &&
+        !envKey.includes('your-key');
+
+      let publishableKey = envKey;
+
+      if (!envKeyLooksValid) {
+        const accessToken = session?.access_token;
+        if (!accessToken) {
+          throw new Error('Missing auth session for Stripe initialization');
+        }
+
+        const { data, error: invokeError } = await supabase.functions.invoke(
+          'create-payment-setup-intent',
+          {
+            body: {
+              user_id: userId,
+              for_renewal: false,
+            },
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+
+        if (invokeError) {
+          throw new Error(resolveInvokeErrorMessage(invokeError));
+        }
+
+        if (typeof data?.publishable_key !== 'string' || !data.publishable_key.startsWith('pk_')) {
+          throw new Error('Stripe publishable key is unavailable in payment setup response');
+        }
+
+        publishableKey = data.publishable_key;
+      }
+
+      await initStripe({
+        publishableKey,
+        merchantIdentifier: Platform.OS === 'ios' ? 'merchant.com.p2pkidsmarketplace' : undefined,
+        urlScheme: 'p2pkidsmarketplace',
+      });
+
+      setStripeReady(true);
+      setStripeError(null);
+    } catch (error: any) {
+      console.error('❌ Stripe init for trade failed:', error);
+      setStripeReady(false);
+      setStripeError(error?.message || 'Failed to initialize Stripe payment fields');
+    } finally {
+      setStripeLoading(false);
+    }
+  };
+
   const fetchData = async () => {
     if (!user?.id) return;
-    
+
     try {
       setLoading(true);
-      const [itemData, config] = await Promise.all([
+      const [itemData, config, feeCents] = await Promise.all([
         getItemById(itemId),
         getAdminConfig(),
+        getTransactionFee(user.id),
       ]);
 
       if (!itemData) {
@@ -77,6 +187,9 @@ export default function TradeInitiationScreen() {
       await refreshSession();
 
       setItem(itemData);
+      if (Number.isFinite(feeCents) && feeCents >= 0) {
+        setTransactionFeeCents(Math.round(feeCents));
+      }
       if (config?.sp_max_percentage_per_purchase) {
         setMaxSpPercentage(config.sp_max_percentage_per_purchase);
       }
@@ -98,22 +211,23 @@ export default function TradeInitiationScreen() {
   }
 
   // Business Rules using standardized hooks
-  const isSubscriber = subStatus.status === 'active' || subStatus.status === 'trial' || subStatus.status === 'grace';
-  const platformFeeCents = isSubscriber ? 99 : 299; // Platform fee
+  const isSubscriber =
+    subStatus.status === 'active' || subStatus.status === 'trial' || subStatus.status === 'grace';
+  const platformFeeCents = transactionFeeCents;
   const itemPriceCents = Math.round(item.price * 100);
-  
+
   // V2: 1 SP = $1.00 (100 cents)
   const spToCashRate = 100;
   const maxDiscountCents = Math.floor(itemPriceCents * (maxSpPercentage / 100));
   const maxSpAllowed = maxDiscountCents / spToCashRate;
-  
+
   const availableSp = walletStats.available;
   const maxSpToUse = Math.min(maxSpAllowed, availableSp);
   const walletState = (session?.wallet_state ?? 'inactive') as WalletState;
 
   const spDiscountCents = spAmount * spToCashRate;
   // Stripe charge: item price (after SP discount) + platform fee - BOTH must be paid
-  const cashAmountCents = (itemPriceCents - spDiscountCents) + platformFeeCents;
+  const cashAmountCents = itemPriceCents - spDiscountCents + platformFeeCents;
   const cashAmount = cashAmountCents / 100;
 
   const handleConfirmPurchase = () => {
@@ -128,6 +242,14 @@ export default function TradeInitiationScreen() {
   };
 
   const handleInitiateTrade = async (policyId?: string) => {
+    if (cashAmountCents > 0 && !stripeReady) {
+      Alert.alert(
+        'Payment Setup Required',
+        stripeError || 'Secure payment fields are still loading. Please try again.'
+      );
+      return;
+    }
+
     if (!cardComplete && cashAmountCents > 0) {
       Alert.alert('Payment Required', 'Please enter your card details to continue.');
       return;
@@ -156,7 +278,7 @@ export default function TradeInitiationScreen() {
             p_trade_id: tradeId,
             p_disclaimer_policy_id: policyId,
           });
-          
+
           if (disclaimerError) {
             console.warn('⚠️ Failed to record disclaimer acknowledgment:', disclaimerError);
             // Don't block the trade, but log the warning
@@ -180,11 +302,11 @@ export default function TradeInitiationScreen() {
 
           if (pmError) {
             console.error('❌ Stripe PaymentMethod error:', pmError);
-            
+
             // Check for common issues
             if (pmError.message?.includes('API key') || pmError.code === 'Failed') {
               Alert.alert(
-                'Payment Setup Error', 
+                'Payment Setup Error',
                 'Payment system is not properly configured. Please contact support or try again later.',
                 [
                   { text: 'OK' },
@@ -218,7 +340,7 @@ export default function TradeInitiationScreen() {
         } catch (stripeError: any) {
           console.error('❌ Stripe initialization error:', stripeError);
           Alert.alert(
-            'Payment System Error', 
+            'Payment System Error',
             'Stripe payment system is not available. This might be due to running in Expo Go. For full payment testing, use a development build.'
           );
           return;
@@ -236,20 +358,20 @@ export default function TradeInitiationScreen() {
 
   const incrementSp = () => {
     if (spAmount < maxSpToUse) {
-      setSpAmount(prev => Math.min(prev + 1, maxSpToUse));
+      setSpAmount((prev) => Math.min(prev + 1, maxSpToUse));
     }
   };
 
   const decrementSp = () => {
     if (spAmount > 0) {
-      setSpAmount(prev => Math.max(prev - 1, 0));
+      setSpAmount((prev) => Math.max(prev - 1, 0));
     }
   };
 
   const handleSpInputChange = (text: string) => {
     // Allow only numbers and one decimal point
     const cleaned = text.replace(/[^0-9.]/g, '');
-    
+
     // Ensure only one decimal point
     const parts = cleaned.split('.');
     const formatted = parts[0] + (parts.length > 1 ? '.' + parts[1].slice(0, 2) : '');
@@ -292,9 +414,10 @@ export default function TradeInitiationScreen() {
           {!isSubscriber ? (
             <View style={styles.upgradeContainer}>
               <Text style={styles.upgradeText}>
-                Swap Points are a Kids Club+ feature. Join now to save up to {maxSpPercentage}% on every trade!
+                Swap Points are a Kids Club+ feature. Join now to save up to {maxSpPercentage}% on
+                every trade!
               </Text>
-              <Pressable 
+              <Pressable
                 style={styles.upgradeButton}
                 onPress={() => navigation.navigate('SubscriptionChoice')}
               >
@@ -306,10 +429,10 @@ export default function TradeInitiationScreen() {
               {walletState === 'frozen'
                 ? 'Your Swap Points wallet is frozen. Renew your subscription to restore SP spending.'
                 : walletState === 'suspended'
-                ? 'Your Swap Points wallet is suspended. Please contact support for assistance.'
-                : walletState === 'grace_period'
-                ? 'Your wallet is in grace period. Renew your subscription to spend Swap Points.'
-                : 'Swap Points are currently unavailable.'}
+                  ? 'Your Swap Points wallet is suspended. Please contact support for assistance.'
+                  : walletState === 'grace_period'
+                    ? 'Your wallet is in grace period. Renew your subscription to spend Swap Points.'
+                    : 'Swap Points are currently unavailable.'}
             </Text>
           ) : !item.accepts_swap_points ? (
             <Text style={styles.infoText}>
@@ -317,15 +440,15 @@ export default function TradeInitiationScreen() {
             </Text>
           ) : maxSpToUse === 0 ? (
             <Text style={styles.infoText}>
-              {availableSp === 0 
-                ? "You don't have any Swap Points yet." 
-                : "This item is too cheap to use Swap Points."}
+              {availableSp === 0
+                ? "You don't have any Swap Points yet."
+                : 'This item is too cheap to use Swap Points.'}
             </Text>
           ) : (
             <View style={styles.spControls}>
               <View style={styles.spRow}>
-                <Pressable 
-                  onPress={decrementSp} 
+                <Pressable
+                  onPress={decrementSp}
                   style={[styles.spButton, spAmount === 0 && styles.spButtonDisabled]}
                   disabled={spAmount === 0}
                 >
@@ -343,8 +466,8 @@ export default function TradeInitiationScreen() {
                   />
                   <Text style={styles.spLabel}>SP</Text>
                 </View>
-                <Pressable 
-                  onPress={incrementSp} 
+                <Pressable
+                  onPress={incrementSp}
                   style={[styles.spButton, spAmount >= maxSpToUse && styles.spButtonDisabled]}
                   disabled={spAmount >= maxSpToUse}
                 >
@@ -365,7 +488,7 @@ export default function TradeInitiationScreen() {
             <Text style={styles.breakdownLabel}>Item Price</Text>
             <Text style={styles.breakdownValue}>${item.price.toFixed(2)}</Text>
           </View>
-          
+
           {spAmount > 0 && (
             <View style={styles.breakdownRow}>
               <Text style={styles.breakdownLabel}>SP Discount</Text>
@@ -379,7 +502,7 @@ export default function TradeInitiationScreen() {
             <View>
               <Text style={styles.breakdownLabel}>Platform Fee</Text>
               <Text style={styles.feeSubtext}>
-                {isSubscriber ? 'Kids Club+ Rate' : 'Standard Rate'}
+                {subStatus.canSpendSP ? 'Kids Club+ Rate' : 'Standard Rate'}
               </Text>
             </View>
             <Text style={styles.breakdownValue}>${(platformFeeCents / 100).toFixed(2)}</Text>
@@ -395,20 +518,37 @@ export default function TradeInitiationScreen() {
         {cashAmountCents > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Payment Method</Text>
-            <CardField
-              postalCodeEnabled={true}
-              placeholders={{
-                number: 'Card Number',
-              }}
-              cardStyle={{
-                backgroundColor: '#FFFFFF',
-                textColor: '#000000',
-              }}
-              style={styles.cardField}
-              onCardChange={(cardDetails) => {
-                setCardComplete(cardDetails.complete);
-              }}
-            />
+            {stripeLoading ? (
+              <View style={styles.paymentLoadingContainer}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+                <Text style={styles.paymentLoadingText}>Loading secure card fields...</Text>
+              </View>
+            ) : stripeReady ? (
+              <CardForm
+                style={{ width: '100%', height: 300, marginVertical: 10 }}
+                onFormComplete={(cardDetails) => {
+                  setCardComplete(cardDetails.complete);
+                }}
+              />
+            ) : (
+              <View style={styles.paymentErrorContainer}>
+                <Text style={styles.paymentErrorText}>
+                  {stripeError || 'Unable to load card fields.'}
+                </Text>
+                <Pressable
+                  style={styles.retryPaymentButton}
+                  onPress={() => {
+                    if (user?.id) {
+                      initializeStripeForTrade(user.id, true).catch((error) => {
+                        console.error('❌ Stripe retry init failed:', error);
+                      });
+                    }
+                  }}
+                >
+                  <Text style={styles.retryPaymentButtonText}>Retry Payment Fields</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
         )}
 
@@ -650,8 +790,43 @@ const styles = StyleSheet.create({
   },
   cardField: {
     width: '100%',
-    height: 50,
+    height: 52,
     marginVertical: 10,
+  },
+  paymentLoadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  paymentLoadingText: {
+    fontSize: 14,
+    color: '#4b5563',
+  },
+  paymentErrorContainer: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#fecaca',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    gap: 10,
+  },
+  paymentErrorText: {
+    fontSize: 13,
+    color: '#991b1b',
+    lineHeight: 18,
+  },
+  retryPaymentButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  retryPaymentButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   footer: {
     marginTop: 8,

@@ -7,6 +7,7 @@
 - `.maestro/listing-create.yaml` - Listing creation with image upload (SAFETY-P001).
 - `.maestro/browse-search.yaml` - Browse and search listings.
 - `.maestro/swap-points-wallet.yaml` - SP wallet display and transactions.
+- `.maestro/sp-notifications.yaml` - SP event notifications (earned, spent, frozen, low_balance) with subscription gating (NOTIF-V2-003).
 - `.maestro/subscription-payment-flow.yaml` - Subscription payment flow (SUB-015).
 - `.maestro/payment-failure-handling.yaml` - Payment retry/failure flow (SUB-018).
 - `.maestro/re-subscribe-from-grace.yaml` - Grace period re-subscribe flow.

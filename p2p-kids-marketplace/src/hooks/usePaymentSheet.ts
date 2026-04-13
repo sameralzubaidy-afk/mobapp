@@ -3,10 +3,8 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '../config/supabase';
-import { useStripe } from '@stripe/stripe-react-native';
-
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+import { Platform } from 'react-native';
+import { useStripe, initStripe } from '@stripe/stripe-react-native';
 
 interface PaymentSheetOptions {
   amount: number; // Amount in cents (for display only)
@@ -71,35 +69,39 @@ export function usePaymentSheet(): UsePaymentSheetReturn {
         const accessToken = session.access_token;
         const userId = options.userId || session.user.id;
 
-        // Call edge function to create SetupIntent
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/create-payment-setup-intent`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-            ...(SUPABASE_ANON_KEY ? { apikey: SUPABASE_ANON_KEY } : {}),
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            for_renewal: options.isRenewal || false,
-          }),
-        });
+        // Call edge function to create SetupIntent.
+        // Using supabase.functions.invoke avoids physical-device env URL drift.
+        const { data, error: invokeError } = await supabase.functions.invoke(
+          'create-payment-setup-intent',
+          {
+            body: {
+              user_id: userId,
+              for_renewal: options.isRenewal || false,
+            },
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
 
-        const rawBody = await response.text();
-        let data: any = null;
-        try {
-          data = rawBody ? JSON.parse(rawBody) : null;
-        } catch {
-          data = null;
-        }
-
-        if (!response.ok) {
-          const serverMessage = data?.error || data?.message || rawBody;
-          throw new Error(serverMessage || 'Failed to create payment setup');
+        if (invokeError) {
+          const message =
+            (invokeError as any)?.context?.statusText || invokeError.message || 'Failed to create payment setup';
+          throw new Error(message);
         }
 
         if (!data?.client_secret || !data?.customer_id || !data?.ephemeral_key_secret) {
           throw new Error('Payment setup response missing required Stripe fields');
+        }
+
+        // Runtime publishable key alignment prevents physical-device key mismatch
+        // between app bundle env and edge-function Stripe mode.
+        if (typeof data.publishable_key === 'string' && data.publishable_key.startsWith('pk_')) {
+          await initStripe({
+            publishableKey: data.publishable_key,
+            merchantIdentifier: 'merchant.com.p2pkidsmarketplace',
+            urlScheme: 'p2pkidsmarketplace',
+          });
         }
 
         setupIntentClientSecretRef.current = data.client_secret;
@@ -120,15 +122,23 @@ export function usePaymentSheet(): UsePaymentSheetReturn {
               background: '#FFFFFF',
             },
           },
-          // Show price in payment sheet (for display only with SetupIntent)
-          applePay: {
-            merchantCountryCode: 'US',
-          },
-          googlePay: {
-            merchantCountryCode: 'US',
-            testEnv: __DEV__,
-            currencyCode: 'USD',
-          },
+          // Keep wallet methods platform-specific to avoid device-specific rendering issues.
+          ...(Platform.OS === 'ios'
+            ? {
+                applePay: {
+                  merchantCountryCode: 'US',
+                },
+              }
+            : {}),
+          ...(Platform.OS === 'android'
+            ? {
+                googlePay: {
+                  merchantCountryCode: 'US',
+                  testEnv: __DEV__,
+                  currencyCode: 'USD',
+                },
+              }
+            : {}),
         });
 
         if (initError) {

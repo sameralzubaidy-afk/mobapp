@@ -28,14 +28,14 @@ jest.mock('../../../config/supabase', () => ({
     auth: {
       getSession: jest.fn(),
     },
+    functions: {
+      invoke: jest.fn(),
+    },
   },
 }));
 
 // Mock Alert
 jest.spyOn(Alert, 'alert');
-
-// Mock fetch
-global.fetch = jest.fn();
 
 describe('SubscribeButton', () => {
   const mockSession = {
@@ -109,13 +109,13 @@ describe('SubscribeButton', () => {
         paymentMethodId: 'pm_test_123',
       });
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+        data: {
           subscription_id: 'sub_test_123',
           status: 'active',
           current_period_end: '2024-04-01T00:00:00Z',
-        }),
+        },
+        error: null,
       });
 
       const { getByTestId } = render(<SubscribeButton priceCents={499} />);
@@ -135,10 +135,12 @@ describe('SubscribeButton', () => {
       });
 
       await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining('/functions/v1/create-subscription-from-payment-method'),
+        expect(supabase.functions.invoke).toHaveBeenCalledWith(
+          'create-subscription-from-payment-method',
           expect.objectContaining({
-            method: 'POST',
+            body: expect.objectContaining({
+              payment_method_id: 'pm_test_123',
+            }),
           })
         );
       });
@@ -197,9 +199,9 @@ describe('SubscribeButton', () => {
         paymentMethodId: 'pm_test_123',
       });
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({ error: 'Subscription creation failed' }),
+      (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+        data: null,
+        error: { message: 'Subscription creation failed' },
       });
 
       const { getByTestId } = render(<SubscribeButton priceCents={499} />);
@@ -224,12 +226,12 @@ describe('SubscribeButton', () => {
         paymentMethodId: 'pm_test_123',
       });
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
+      (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+        data: {
           subscription_id: 'sub_test_123',
           status: 'active',
-        }),
+        },
+        error: null,
       });
 
       const { getByTestId } = render(<SubscribeButton onSuccess={onSuccess} priceCents={499} />);
@@ -244,6 +246,7 @@ describe('SubscribeButton', () => {
       // Simulate pressing OK on alert
       const alertCalls = (Alert.alert as jest.Mock).mock.calls;
       const okButton = alertCalls[0][2][0]; // First alert, third arg (buttons), first button
+      expect(typeof okButton.onPress).toBe('function');
       okButton.onPress();
 
       expect(onSuccess).toHaveBeenCalled();

@@ -16,8 +16,6 @@ import { usePaymentSheet } from '../../hooks/usePaymentSheet';
 import { supabase } from '../../config/supabase';
 import type { RootStackParamList } from '@/navigation/types';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-
 interface SubscribeButtonProps {
   /** Whether this is a renewal from grace_period/expired */
   isRenewal?: boolean;
@@ -98,28 +96,23 @@ export function SubscribeButton({
       // For now, we'll let the webhook handle the subscription creation
       // Alternative: retrieve SetupIntent and get payment_method from it
 
-      const response = await fetch(
-        `${SUPABASE_URL}/functions/v1/create-subscription-from-payment-method`,
+      const { data: subscriptionData, error: createSubError } = await supabase.functions.invoke(
+        'create-subscription-from-payment-method',
         {
-          method: 'POST',
+          body: {
+            user_id: session.user.id,
+            payment_method_id: result.paymentMethodId,
+            is_renewal: isRenewal,
+          },
           headers: {
-            'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({
-            user_id: session.user.id,
-            payment_method_id: result.paymentMethodId, // This should come from SetupIntent
-            is_renewal: isRenewal,
-          }),
         }
       );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create subscription');
+      if (createSubError) {
+        throw new Error(createSubError.message || 'Failed to create subscription');
       }
-
-      const subscriptionData = await response.json();
 
       console.log('[SubscribeButton] Subscription created:', subscriptionData);
 

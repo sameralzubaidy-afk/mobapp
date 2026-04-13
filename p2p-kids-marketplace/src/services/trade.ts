@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/trade.ts
  * MODULE-06 TRADE-FLOW-V2: Service functions for trade lifecycle
- * 
+ *
  * Implements:
  * - TRADE-V2-002: Initiate Trade with Subscription & SP Context
  */
@@ -15,7 +15,7 @@ import { getUserReviews } from './review';
 /**
  * Check if there is an active trade between buyer and seller
  * Active trades include: pending, in_progress statuses
- * 
+ *
  * @param buyerId - Current user (buyer)
  * @param sellerId - Seller of the item
  * @returns True if active trade exists
@@ -45,7 +45,7 @@ export async function hasActiveTradeBetween(buyerId: string, sellerId: string): 
 /**
  * Get seller rating summary
  * Returns average rating and total reviews
- * 
+ *
  * @param sellerId - Seller user ID
  * @returns Rating info with average and count
  */
@@ -56,7 +56,7 @@ export async function getSellerRating(sellerId: string): Promise<{
 }> {
   try {
     const result = await getUserReviews(sellerId);
-    
+
     if (!result.success || result.reviews.length === 0) {
       return {
         averageRating: null,
@@ -67,10 +67,10 @@ export async function getSellerRating(sellerId: string): Promise<{
     const reviews = result.reviews;
     const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
     const averageRating = totalRating / reviews.length;
-    
+
     // Build rating breakdown
     const breakdown: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    reviews.forEach(review => {
+    reviews.forEach((review) => {
       breakdown[review.rating] = (breakdown[review.rating] || 0) + 1;
     });
 
@@ -241,17 +241,38 @@ export interface InitiateTradeResult {
   buyerSubscriptionStatus?: string;
 }
 
+async function resolveSellerUserIdForTrade(rawSellerId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, user_id')
+    .or(`user_id.eq.${rawSellerId},id.eq.${rawSellerId}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[trade] Error resolving seller profile mapping:', error);
+    return null;
+  }
+
+  const profile = data as { id?: string; user_id?: string } | null;
+  if (!profile?.user_id) {
+    return null;
+  }
+
+  return profile.user_id;
+}
+
 /**
  * TASK TRADE-V2-002: Initiate Trade with Subscription & SP Context
- * 
+ *
  * V2 Rules:
  * 1. Validates item availability and self-purchase.
- * 2. Integrates MODULE-11 subscription summary to determine fee ($0.99 vs $2.99).
+ * 2. Integrates MODULE-11 subscription summary to determine dynamic fee from admin config.
  * 3. Integrates MODULE-09 SP wallet summary to validate SP balance if SP is used.
  * 4. Enforces the 50% SP cap (SP cannot exceed 50% of item price).
  * 5. Creates the trade record in 'pending' status.
  * 6. Non-subscribers cannot apply SP discounts (clamped to 0).
- * 
+ *
  * @param input - Trade initiation input
  * @returns Trade initiation result
  * @throws Error if validation fails
@@ -260,7 +281,9 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
   const { item_id, sp_amount } = input;
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }
@@ -282,7 +305,13 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       return { success: false, error: 'Item not found' };
     }
 
-    const itemData = item as { id: string; status: string; seller_id: string; price: number; accepts_swap_points: boolean };
+    const itemData = item as {
+      id: string;
+      status: string;
+      seller_id: string;
+      price: number;
+      accepts_swap_points: boolean;
+    };
 
     if (itemData.status !== 'available') {
       return { success: false, error: 'Item is no longer available' };
@@ -316,7 +345,9 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       }
 
       // RPC returns an array or single object depending on implementation
-      const wallet = (Array.isArray(walletSummary) ? walletSummary[0] : walletSummary) as { available_points?: number } | null;
+      const wallet = (Array.isArray(walletSummary) ? walletSummary[0] : walletSummary) as {
+        available_points?: number;
+      } | null;
       availablePoints = wallet?.available_points ?? 0;
     }
 
@@ -330,7 +361,7 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
       // Convert item price cents to dollars, apply percentage, get SP cap
       const itemPriceDollars = itemPriceCents / 100;
       const spCapPoints = Math.round((spCapPercentage / 100) * itemPriceDollars);
-      
+
       // Cap: cannot exceed available points, cannot exceed SP cap, cannot exceed requested amount
       appliedPoints = Math.min(sp_amount, availablePoints, spCapPoints);
     }
@@ -339,22 +370,36 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
     // SP units are converted to cents (1 SP = $1 = 100 cents)
     const spAmountCents = appliedPoints * 100;
     const cashBeforeFee = itemPriceCents - spAmountCents;
-    
-    // Transaction fee: fixed amounts (99¢ for subscribers, 299¢ for non-subscribers)
-    const transactionFeeCents = (buyerStatus === 'active') ? 99 : 299;
-    
+
+    // Transaction fee is resolved dynamically from admin config via subscription summary RPC.
+    const transactionFeeCentsRaw = Number(subscriptionSummary.transaction_fee_cents);
+    const transactionFeeCents =
+      Number.isFinite(transactionFeeCentsRaw) && transactionFeeCentsRaw >= 0
+        ? Math.round(transactionFeeCentsRaw)
+        : 299;
+
     // Total cash amount includes fee (for display to user)
     const cashAmountCents = cashBeforeFee + transactionFeeCents;
 
-    // 7. Create trade record
+    // 7. Resolve seller ID to canonical auth user ID before insert.
+    const sellerUserId = await resolveSellerUserIdForTrade(itemData.seller_id);
+    if (!sellerUserId) {
+      return {
+        success: false,
+        error: 'This listing is no longer linked to an active seller account.',
+      };
+    }
+
+    // 8. Create trade record
     const { data: tradeData, error: tradeError } = await supabase
       .from('trades')
       .insert({
         buyer_id: buyerId,
-        seller_id: itemData.seller_id,
+        seller_id: sellerUserId,
         listing_id: item_id,
         sp_amount: appliedPoints,
         cash_amount_cents: cashBeforeFee,
+        buyer_subscription_status: buyerStatus,
         buyer_transaction_fee_cents: transactionFeeCents,
         cash_currency: 'usd',
         status: 'pending',
@@ -364,6 +409,18 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
 
     if (tradeError) {
       console.error('[trade] Error creating trade:', tradeError);
+
+      if (
+        tradeError.code === '23503' &&
+        typeof tradeError.message === 'string' &&
+        tradeError.message.includes('fk_trades_seller_id')
+      ) {
+        return {
+          success: false,
+          error: 'This listing seller account could not be verified. Please try another listing.',
+        };
+      }
+
       return { success: false, error: 'Failed to create trade' };
     }
 
@@ -387,20 +444,26 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
 
 /**
  * TASK TRADE-V2-004: Complete a trade (mark as completed/delivered)
- * 
+ *
  * Rules:
  * 1. Buyer or seller can mark as completed
  * 2. If seller initiates: records seller_marked_completed_at, awaits buyer confirmation
  * 3. If buyer initiates OR seller already marked: completes trade, updates item to 'sold', awards SP to seller
  * 4. Calls complete_trade_v2 RPC for atomic transaction handling
- * 
+ *
  * @param tradeId - Trade UUID
  * @returns { success: boolean, error?: string, message?: string }
  */
-export async function completeTradeV2(tradeId: string): Promise<{ success: boolean; error?: string; message?: string }> {
+export async function completeTradeV2(
+  tradeId: string
+): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
     if (!user || !session) {
       return { success: false, error: 'User not authenticated' };
@@ -421,7 +484,7 @@ export async function completeTradeV2(tradeId: string): Promise<{ success: boole
       console.error('[trade] Error details:', {
         message: error.message,
         code: error.code,
-        details: error
+        details: error,
       });
 
       // Best-effort: FunctionsHttpError sometimes contains a Response in error.context
@@ -436,7 +499,8 @@ export async function completeTradeV2(tradeId: string): Promise<{ success: boole
 
         const response: Response | undefined = context?.response;
         if (response) {
-          const resForRead = typeof (response as any).clone === 'function' ? (response as any).clone() : response;
+          const resForRead =
+            typeof (response as any).clone === 'function' ? (response as any).clone() : response;
           const text = await resForRead.text();
           console.error('[trade] Edge Function response body (response.text):', text);
         }
@@ -444,12 +508,12 @@ export async function completeTradeV2(tradeId: string): Promise<{ success: boole
         console.error('[trade] Failed to read Edge Function error body:', parseErr);
       }
 
-      return { 
-        success: false, 
-        error: error.message || 'Failed to complete trade'
+      return {
+        success: false,
+        error: error.message || 'Failed to complete trade',
       };
     }
-    
+
     console.log('[trade] Trade completion response:', data);
 
     if (!data.success) {
@@ -468,29 +532,34 @@ export async function completeTradeV2(tradeId: string): Promise<{ success: boole
     };
   } catch (error) {
     console.error('[trade] Error completing trade:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to complete trade' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to complete trade',
     };
   }
 }
 
 /**
  * TASK TRADE-V2-005: Cancel a trade
- * 
+ *
  * Rules:
  * 1. Can cancel before payment (pending status): no refunds needed
  * 2. Can cancel after payment (in_progress status): refund cash + re-credit SP
  * 3. Cancellation reason is tracked in audit logs
  * 4. Calls cancel-trade Edge Function for atomic transaction handling
- * 
+ *
  * @param tradeId - Trade UUID
  * @param reason - Cancellation reason
  * @returns { success: boolean, error?: string, message?: string }
  */
-export async function cancelTradeV2(tradeId: string, reason?: string): Promise<{ success: boolean; error?: string; message?: string; sp_refunded?: boolean }> {
+export async function cancelTradeV2(
+  tradeId: string,
+  reason?: string
+): Promise<{ success: boolean; error?: string; message?: string; sp_refunded?: boolean }> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       return { success: false, error: 'User not authenticated' };
     }
@@ -507,12 +576,12 @@ export async function cancelTradeV2(tradeId: string, reason?: string): Promise<{
 
     if (error) {
       console.error('[trade] Cancel trade error:', error);
-      return { 
-        success: false, 
-        error: error.message || 'Failed to cancel trade' 
+      return {
+        success: false,
+        error: error.message || 'Failed to cancel trade',
       };
     }
-    
+
     console.log('[trade] Trade cancellation response:', data);
 
     return {
@@ -523,23 +592,23 @@ export async function cancelTradeV2(tradeId: string, reason?: string): Promise<{
     };
   } catch (error) {
     console.error('[trade] Error cancelling trade:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to cancel trade' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to cancel trade',
     };
   }
 }
 
 /**
  * TASK TRADE-V2-003: Process Trade Payment via Stripe
- * 
+ *
  * Calls the trade-payment Edge Function to:
  * 1. Create/attach Stripe PaymentMethod to customer
  * 2. Create PaymentIntent and authorize (manual capture)
  * 3. Debit SP wallet if applicable (atomic)
  * 4. Capture Stripe payment
  * 5. Transition trade from 'pending' → 'in_progress'
- * 
+ *
  * @param tradeId - Trade UUID
  * @param paymentMethodId - Stripe PaymentMethod ID (pm_...)
  * @returns Success status with error message if failed
@@ -549,7 +618,9 @@ export async function processTradePayment(
   paymentMethodId: string
 ): Promise<{ success: boolean; error?: string; status?: string }> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       return { success: false, error: 'Not authenticated' };
     }
@@ -587,7 +658,7 @@ export async function processTradePayment(
           errorMessage,
         });
       }
-      
+
       return {
         success: false,
         error: errorMessage,
@@ -615,15 +686,21 @@ export async function processTradePayment(
  * Scans active trades and flags those where buyer/seller subscription status changed
  * Returns result with flagged count for admin dashboard
  */
-export async function monitorMidTradeSubscriptionChanges(): Promise<{ success: boolean; flagged_count?: number; error?: string }> {
+export async function monitorMidTradeSubscriptionChanges(): Promise<{
+  success: boolean;
+  flagged_count?: number;
+  error?: string;
+}> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }
 
     console.log('[trade] Monitoring subscription changes for user:', user.id);
-    
+
     // TODO: Implement subscription change monitoring logic
     // For now, return a placeholder response
     return {

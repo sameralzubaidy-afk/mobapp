@@ -274,21 +274,16 @@ Important:
    stripe subscriptions retrieve sub_1T2NO44I6kCJlvXo9rj26jW9
    ```
    - Copy `customer` value (`cus_...`).
-2. Create a decline test payment method:
+2. Use Stripe's built-in decline test PaymentMethod ID (no raw card number input):
    ```bash
-   stripe payment_methods create \
-     -d type=card \
-     -d "card[number]=4000000000000002" \
-     -d "card[exp_month]=12" \
-     -d "card[exp_year]=2030" \
-     -d "card[cvc]=123"
+   export PM_DECLINE=pm_card_chargeDeclined
    ```
-   - Copy `pm_...`.
+   - This avoids passing full PAN data to Stripe API.
 3. Attach + set as default:
    ```bash
-   stripe payment_methods attach <pm_decline> -d customer=<cus_id>
-   stripe customers update <cus_id> -d "invoice_settings[default_payment_method]=<pm_decline>"
-   stripe subscriptions update sub_1T2NO44I6kCJlvXo9rj26jW9 -d default_payment_method=<pm_decline> -d cancel_at_period_end=false
+   stripe payment_methods attach "$PM_DECLINE" -d customer=<cus_id>
+   stripe customers update <cus_id> -d "invoice_settings[default_payment_method]=$PM_DECLINE"
+   stripe subscriptions update sub_1T2NO44I6kCJlvXo9rj26jW9 -d default_payment_method=$PM_DECLINE -d cancel_at_period_end=false
    ```
 4. Create/finalize/pay invoice to force first `invoice.payment_failed`:
    ```bash

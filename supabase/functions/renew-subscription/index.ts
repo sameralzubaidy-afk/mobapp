@@ -18,6 +18,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.5.0?target=deno';
+import { validateStripePaymentMethodId } from '../_shared/stripe-payment-method-guard.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -284,17 +285,21 @@ serve(async (req) => {
     }
 
     // 3. Determine payment method to use
-    const paymentMethodId = payment_method_id || sub.stripe_payment_method_id;
+    const paymentMethodValidation = validateStripePaymentMethodId(
+      payment_method_id || sub.stripe_payment_method_id,
+    );
 
-    if (!paymentMethodId) {
+    if (!paymentMethodValidation.ok) {
       return jsonResponse(
         {
-          error: 'No payment method available. Please provide payment_method_id.',
-          code: 'NO_PAYMENT_METHOD',
+          error: paymentMethodValidation.message,
+          code: paymentMethodValidation.code,
         },
         400,
       );
     }
+
+    const paymentMethodId = paymentMethodValidation.paymentMethodId;
 
     // 4. Fetch subscription tier and required admin-configured price
     const tier = await resolveTierConfig(supabaseClient);
@@ -342,13 +347,13 @@ serve(async (req) => {
     }
 
     // 6. Attach payment method to customer if new
-    if (payment_method_id && payment_method_id !== sub.stripe_payment_method_id) {
-      await stripe.paymentMethods.attach(payment_method_id, { customer: customerId });
+    if (payment_method_id && paymentMethodId !== sub.stripe_payment_method_id) {
+      await stripe.paymentMethods.attach(paymentMethodId, { customer: customerId });
       await stripe.customers.update(customerId, {
-        invoice_settings: { default_payment_method: payment_method_id },
+        invoice_settings: { default_payment_method: paymentMethodId },
       });
 
-      console.log('[renew-subscription] Attached new payment method:', payment_method_id);
+      console.log('[renew-subscription] Attached new payment method:', paymentMethodId);
     }
 
     // 7. Always create a fresh Stripe subscription for renewals.

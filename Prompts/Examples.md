@@ -46,21 +46,24 @@ My Example 1
 
 
 
-## TASK NOTIF-V2-002: Subscription Event Notifications
+
+
+## TASK NOTIF-V2-003: SP Event Notifications
 I’m working on the  MODULE-13-SAFETY-COMPLIANCE.md tasks
 Module: MODULE-13-SAFETY-COMPLIANCE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK NOTIF-V2-002: Subscription Event Notifications
+Tasks: ## TASK NOTIF-V2-003: SP Event Notifications
 
 scope is 
-Implement notifications for subscription lifecycle events. Send trial expiration reminders (7 days, 3 days, 1 day before). Notify on subscription renewal success/failure. Send cancellation confirmation. Implement payment failure alerts with retry instructions.
+Implement notifications for Swap Points events. Send "You earned X SP" notifications when points are credited. Send "You spent X SP" notifications after purchases. Alert when SP wallet frozen due to subscription expiration. Warn when balance is low (< 10 SP).
 
 ### Acceptance Criteria
-- [ ] Trial expiration reminders sent at 7d, 3d, 1d before expiration
-- [ ] Subscription renewal success notification sent
-- [ ] Payment failure notification sent with retry link
-- [ ] Cancellation confirmation notification sent
-- [ ] All subscription notifications respect user preferences
-- [ ] Critical payment notifications sent regardless of preferences
+- [ ] SP earned notification sent on ledger insert (earned transaction)
+- [ ] SP spent notification sent on ledger insert (spent transaction)
+- [ ] Wallet frozen notification sent when status changes to frozen
+- [ ] Low balance warning sent when balance drops below 10 SP
+- [ ] SP notifications only sent to trial/active subscribers
+- [ ] Notifications include SP amount and reason
+
 
 i want you to 
 

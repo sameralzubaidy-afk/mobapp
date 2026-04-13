@@ -241,6 +241,7 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Completing a trade does not hard-fail if the seller is missing an `sp_wallets` row; the DB layer must auto-create the wallet and proceed.
   - Completing a trade does not hard-fail if payout-related `admin_config` values are malformed (e.g., JSON-quoted strings). The system must fall back to safe defaults and return a warning in `payout_result`.
   - If buyer uses SP to cover 100% of item price, buyer still pays platform fee by card; Stripe charge amount = `trades.cash_amount_cents + trades.buyer_transaction_fee_cents`.
+  - Trade fee snapshot (`trades.buyer_transaction_fee_cents`) is sourced from `get_user_transaction_fee` (admin-config-driven), with no hardcoded member/non-member constants in trade initiation logic.
   - With `enable_automatic_seller_payout=false`: completing a trade increases seller "Available to Withdraw" by `trades.cash_amount_cents` and increases "Lifetime Earnings"; "Pending (In Progress)" reflects any withdrawals in `pending/processing`.
   - When `STRIPE_SECRET_KEY` is missing/blank: payment fails with a clear server config error (not a Stripe runtime error).
   - Seller Stripe Connect onboarding completes -> `seller_payout_methods.stripe_onboarding_complete=true` and (once Stripe enables payouts) `stripe_payouts_enabled=true`.
@@ -251,6 +252,7 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-09: Fees & Pricing Engine
 - Smoke: (manual)
   - Subscriber fee vs non-subscriber fee matches configuration.
+  - Changing admin fee config updates new trade fee snapshots without mobile code changes.
 
 ### FLOW-10: Swap Points Wallet – Read + Ledger Integrity
 - Smoke: (manual)
@@ -891,6 +893,51 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Maestro flow: `.maestro/notification-preferences.yaml` (16-step UI flow testing all toggles, quiet hours, persistence)
     - Manual test guide: `p2p-kids-marketplace/docs/manual-tests/NOTIF-V2-001-Notification-Preferences-Manual-Tests.md` (12 test cases including security RLS tests)
   - Verification: MODULE-14-VERIFICATION-V2.md checklist items 1.1-1.8 (Database, Functional, UI, Security sections)
+
+- **NOTIF-V2-003 (MODULE-14): SP Event Notifications**
+  - Purpose: Notify subscribers about Swap Points events (earned, spent, wallet frozen, low balance)
+  - Database:
+    - Migration: `supabase/migrations/142_sp_notifications.sql`
+    - RPC: `create_sp_notification(p_user_id, p_notification_type, p_title, p_body, p_data, p_check_subscription)`
+      - Subscription gating: Only send SP earned/spent/low balance to trial/active subscribers
+      - Exception: Wallet frozen notifications sent to ALL users
+      - Respects notification_preferences for sp_events category
+      - Returns NULL if all channels disabled or subscription check fails
+    - Triggers:
+      - `trigger_sp_transaction_notification` on `sp_ledger` (AFTER INSERT)
+        - Fires for transaction_type LIKE 'earn_%' OR 'spend_%'
+        - Generates dynamic title/body based on transaction type
+        - Includes SP amount, transaction type, balance_after in notification data
+        - Deep link: '/wallet'
+      - `trigger_sp_wallet_frozen_notification` on `sp_wallets` (AFTER UPDATE)
+        - Fires when status changes to 'frozen'
+        - Sent to all users (no subscription gate)
+        - Deep link: '/subscription'
+      - `trigger_sp_low_balance_notification` on `sp_wallets` (AFTER UPDATE)
+        - Fires when available_balance < 10 SP
+        - Deduplication: Only once per 24 hours
+        - Subscription gated (trial/active only)
+        - Deep link: '/discover'
+  - Notification Types & Templates:
+    - `sp_earned`: "🎉 +{amount} SP Earned!" → Dynamic body based on transaction type (starter_pack, referral, challenge, etc.)
+    - `sp_spent`: "✨ {amount} SP Spent" → Dynamic body (purchase, boost, fee)
+    - `sp_wallet_frozen`: "SP Wallet Frozen ❄️" → "Renew subscription to reactivate"
+    - `sp_balance_low`: "Low SP Balance ⚠️" → "You have only {balance} SP remaining"
+  - Testing:
+    - Unit tests: `p2p-kids-marketplace/src/__tests__/services/spNotifications.test.ts` (70+ test cases covering RPC logic, subscription gating, title/body generation, channels)
+    - E2E tests: `p2p-kids-marketplace/e2e/sp-notifications.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Verify trigger fires on ledger insert (earn/spend)
+      - Verify wallet frozen notification on status change
+      - Verify low balance warning with 24h deduplication
+      - Verify subscription gating (free users get NO SP earned/spent/low balance, but DO get frozen)
+    - Maestro flow: `.maestro/sp-notifications.yaml` (6-state flow: earned, spent, frozen, low_balance, non-subscriber gating, preferences)
+    - Manual test guide: `NOTIF-V2-003-MANUAL-TESTING.md` (12 test cases with SQL snippets to trigger notifications)
+  - Verification: MODULE-14-VERIFICATION-V2.md checklist items 3.1-3.8 (SP Event Notifications section)
+  - Tier: Tier 1 for trigger changes; Tier 2 if RPC/DB function logic changes
+  - Dependencies:
+    - NOTIF-V2-001 (Notification Schema & Preferences)
+    - MODULE-09 (Swap Points V2 - sp_ledger, sp_wallets tables)
+    - MODULE-12 (Subscriptions - status check for gating)
 
 ### FLOW-18: Admin Controls
 - Smoke: (manual)
