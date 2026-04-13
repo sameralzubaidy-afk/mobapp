@@ -46,23 +46,28 @@ My Example 1
 
 
 
+## TASK NOTIF-V2-004: Badge Award Notifications
+
+### Description
 
 
-## TASK NOTIF-V2-003: SP Event Notifications
+
+
+## TASK NOTIF-V2-004: Badge Award Notifications
 I’m working on the  MODULE-13-SAFETY-COMPLIANCE.md tasks
-Module: MODULE-13-SAFETY-COMPLIANCE.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK NOTIF-V2-003: SP Event Notifications
+Module: MODULE-14-NOTIFICATIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
+Tasks: ## TASK NOTIF-V2-004: Badge Award Notifications
 
 scope is 
-Implement notifications for Swap Points events. Send "You earned X SP" notifications when points are credited. Send "You spent X SP" notifications after purchases. Alert when SP wallet frozen due to subscription expiration. Warn when balance is low (< 10 SP).
+Implement celebratory notifications when users earn badges. Include badge icon, name, and description in notification. Add milestone approaching notifications (e.g., "5 more SP to earn next badge"). Create visual celebration in app when badge awarded.
+
 
 ### Acceptance Criteria
-- [ ] SP earned notification sent on ledger insert (earned transaction)
-- [ ] SP spent notification sent on ledger insert (spent transaction)
-- [ ] Wallet frozen notification sent when status changes to frozen
-- [ ] Low balance warning sent when balance drops below 10 SP
-- [ ] SP notifications only sent to trial/active subscribers
-- [ ] Notifications include SP amount and reason
+- [ ] Badge award notification sent immediately when badge earned
+- [ ] Notification includes badge icon, name, description
+- [ ] Milestone approaching notifications sent at appropriate thresholds
+- [ ] In-app celebration animation shown for badge awards
+- [ ] Badge notifications sent to all users (not gated by subscription)
 
 
 i want you to 
