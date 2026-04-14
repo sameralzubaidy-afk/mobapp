@@ -1,12 +1,72 @@
 // File: p2p-kids-marketplace/src/screens/profile/SettingsScreen.tsx
 // MODULE-14: Settings hub for user preferences
 
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { sendTestPushNotification } from '../../services/pushDelivery';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function SettingsScreen({ navigation }: any) {
+  const { user } = useAuth();
+  const [testingPush, setTestingPush] = useState(false);
+
+  const handleTestPushNotification = async () => {
+    const authUserId = user?.user_id || user?.id;
+
+    if (!authUserId) {
+      Alert.alert('Error', 'You must be logged in to test push notifications');
+      return;
+    }
+
+    setTestingPush(true);
+    try {
+      const result = await sendTestPushNotification(authUserId);
+      
+      if (result.success && result.sent) {
+        Alert.alert(
+          'Test Notification Sent ✅',
+          'Check your device for the push notification. It should arrive within a few seconds.',
+          [{ text: 'OK' }]
+        );
+      } else if (result.rateLimited) {
+        Alert.alert(
+          'Rate Limited ⏱️',
+          'You have sent 10 notifications in the last hour. Please wait and try again later.',
+          [{ text: 'OK' }]
+        );
+      } else if (result.inQuietHours) {
+        Alert.alert(
+          'Quiet Hours 🌙',
+          'You are currently in quiet hours. Push notifications are deferred during this time.',
+          [{ text: 'OK' }]
+        );
+      } else if (result.error) {
+        Alert.alert(
+          'Send Failed ❌',
+          `Failed to send test notification: ${result.error}`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Notification Queued 📬',
+          'The notification was queued but not sent immediately. This may happen if quiet hours or rate limits apply.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('[SettingsScreen] Test push notification error:', error);
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred while sending the test notification.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
   const settingsOptions = [
     {
       id: 'enable-notifications',
@@ -15,6 +75,15 @@ export default function SettingsScreen({ navigation }: any) {
       icon: 'notifications',
       onPress: () => navigation.navigate('NotificationSetup'),
       testID: 'settings-enable-notifications-button',
+    },
+    {
+      id: 'test-push-notification',
+      title: 'Test Push Notification',
+      subtitle: 'Send a test push notification (NOTIF-V2-005)',
+      icon: 'send',
+      onPress: handleTestPushNotification,
+      testID: 'settings-test-push-notification-button',
+      loading: testingPush,
     },
     {
       id: 'notifications',
@@ -81,17 +150,24 @@ export default function SettingsScreen({ navigation }: any) {
             <TouchableOpacity
               key={option.id}
               style={styles.optionItem}
-              onPress={option.onPress}
+              onPress={option.onPress as any}
               testID={option.testID}
+              disabled={(option as any).loading}
             >
               <View style={styles.optionIconContainer}>
-                <Ionicons name={option.icon as any} size={24} color="#3B82F6" />
+                {(option as any).loading ? (
+                  <ActivityIndicator size="small" color="#3B82F6" />
+                ) : (
+                  <Ionicons name={option.icon as any} size={24} color="#3B82F6" />
+                )}
               </View>
               <View style={styles.optionTextContainer}>
                 <Text style={styles.optionTitle}>{option.title}</Text>
                 <Text style={styles.optionSubtitle}>{option.subtitle}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              {!(option as any).loading && (
+                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+              )}
             </TouchableOpacity>
           ))}
         </ScrollView>

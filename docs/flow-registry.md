@@ -975,6 +975,86 @@ This file is the canonical registry of end-to-end flows and their required regre
     - NOTIF-V2-001 (Notification Schema & Preferences)
     - MODULE-08 (Badges V2 - user_badges, badges tables)
 
+- **NOTIF-V2-005 (MODULE-14): Push Notification Delivery Engine (2026-04-13)**
+  - Purpose: Centralized push notification delivery with rate limiting, quiet hours, deduplication, retry mechanism, and receipt tracking
+  - Database:
+    - Migration: `supabase/migrations/202_push_delivery_engine_v2.sql`
+    - Tables:
+      - `push_delivery_log` - Tracks every push attempt with Expo receipt ID, status, retry count
+      - `notification_deduplication` - Prevents duplicate notifications within 5-minute window
+      - `notification_retry_queue` - Manages failed deliveries for retry (up to 3 attempts with exponential backoff)
+    - RPCs:
+      - `check_push_rate_limit(user_id)` - Returns true if user under 10 notifications/hour
+      - `is_in_quiet_hours(user_id)` - Returns true if current time within user's quiet hours
+      - `is_duplicate_notification(user_id, type, fingerprint)` - Checks 5-minute dedup window
+      - `record_notification_dedup(user_id, type, fingerprint)` - Records fingerprint with 5-min expiry
+      - `log_push_delivery(user_id, notification_id, push_token_id, receipt_id, status, message, details, retry_count)` - Logs delivery attempt
+      - `add_to_retry_queue(notification_id, user_id, error, error_details)` - Adds failed notification to retry queue
+      - `remove_from_retry_queue(notification_id)` - Removes notification after successful delivery
+      - `cleanup_expired_deduplications()` - Maintenance function to delete expired dedup entries
+    - View: `v_pending_retries` - Shows notifications pending retry with metadata
+    - Indexes: Optimized for rate limit queries (user_id, sent_at), receipt lookups, retry filtering
+  - Mobile App:
+    - Service: `p2p-kids-marketplace/src/services/pushDelivery.ts`
+      - Functions:
+        - `sendPushNotification(options)` - Main delivery engine with all checks
+        - `sendTestPushNotification(userId)` - Test notification for manual verification
+        - `processPushReceipts(ticketIds)` - Fetches and updates Expo receipt status
+        - `retryFailedDeliveries()` - Processes retry queue (called by cron/interval)
+      - Features:
+        - Rate limiting: Max 10 push/hour per user (configurable)
+        - Quiet hours: Respects user's quiet hours (default 10pm-8am)
+        - Deduplication: Prevents duplicate notifications within 5 minutes
+        - Retry mechanism: Up to 3 attempts with exponential backoff (1min, 5min, 15min)
+        - Critical bypass: Critical notifications (payment failures) bypass rate limits and quiet hours
+        - Multi-device: Sends to all user's registered push tokens
+        - Receipt tracking: Updates delivery status based on Expo API receipts
+    - UI Integration:
+      - Settings screen: "Test Push Notification" button added for manual testing
+      - Alert feedback: Rate limited, quiet hours, send success/failure states
+      - Loading indicator during send
+  - Notification Rules:
+    - Rate limit: 10 notifications/hour (enforced server-side)
+    - Quiet hours: Default 10pm-8am (user-configurable)
+    - Deduplication window: 5 minutes (same type + fingerprint)
+    - Retry attempts: 3 max with exponential backoff
+    - Critical notifications bypass all limits
+    - Invalid/expired tokens are removed automatically
+  - Testing:
+    - Unit tests: `p2p-kids-marketplace/src/services/__tests__/pushDelivery.test.ts` (20+ test cases)
+      - Rate limiting logic
+      - Quiet hours enforcement
+      - Deduplication prevention
+      - Retry queue management
+      - Critical notification bypass
+      - Multi-device handling
+      - Error handling
+    - E2E integration tests: `p2p-kids-marketplace/e2e/notif-v2-005-push-delivery.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Rate limit enforcement (10/hour)
+      - Quiet hours blocking non-critical
+      - Duplicate notification prevention
+      - Delivery log tracking
+      - Receipt tracking
+      - Retry queue operations
+      - RPC function validation
+    - Manual test guide: `NOTIF-V2-005-MANUAL-TESTING-GUIDE.md` (10 comprehensive test cases)
+      - TC1: Token storage & update on login
+      - TC2: Rate limiting (10/hour)
+      - TC3: Quiet hours enforcement
+      - TC4: Duplicate prevention (5-min)
+      - TC5: Failed delivery retry (3 attempts)
+      - TC6: Receipt tracking
+      - TC7: Critical notifications bypass
+      - TC8: Multiple devices support
+      - TC9: Cleanup expired dedup entries
+      - TC10: End-to-end flow
+  - Verification: MODULE-14-VERIFICATION-V2.md section 5 (Push Notification Delivery entire section)
+  - Tier: Tier 1 for delivery logic changes; Tier 2 if database schemas/RPCs change
+  - Dependencies:
+    - NOTIF-V2-001 (Notification Schema & Preferences - quiet hours settings)
+    - `push_tokens` table (from earlier migration 20241213000000_add_push_tokens_table.sql)
+    - Expo Push Notifications SDK (expo-server-sdk)
+
 ### FLOW-18: Admin Controls
 - Smoke: (manual)
   - Approving a pending listing succeeds and creates an audit row in `admin_activity_log`.

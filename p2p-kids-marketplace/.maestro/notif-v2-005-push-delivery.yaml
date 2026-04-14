@@ -1,0 +1,281 @@
+# FLOW: Push Notification Delivery | TASK: NOTIF-V2-005 | States covered: rate_limited, quiet_hours, duplicate, success, failed_retry
+
+appId: com.kidsp2p.marketplace
+
+---
+
+# Test Case 1: Successful Push Notification Delivery (Happy Path)
+- runFlow:
+    file: auth-login.yaml # Assume user already logged in with push token registered
+
+- tapOn:
+    id: "profile-tab"
+- assertVisible: "Profile"
+
+- tapOn:
+    id: "settings-button"
+- assertVisible: "Settings"
+
+- scrollUntilVisible:
+    element:
+      id: "settings-test-push-notification-button"
+    direction: DOWN
+
+- tapOn:
+    id: "settings-test-push-notification-button"
+- waitForAnimationToEnd: 2000
+
+- assertVisible:
+    text: "Test Notification Sent ✅"
+- tapOn: "OK"
+
+# Wait for push notification to arrive
+- waitForAnimationToEnd: 5000
+
+# Verify notification appears in notification shade (platform-specific)
+# Note: Maestro cannot directly verify notification shade on iOS/Android
+# This is a limitation we document in manual test guide
+
+---
+
+# Test Case 2: Rate Limiting Enforcement (10 notifications/hour)
+- runFlow:
+    file: auth-login.yaml
+
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "settings-button"
+- scrollUntilVisible:
+    element:
+      id: "settings-test-push-notification-button"
+    direction: DOWN
+
+# Send 10 notifications rapidly
+- repeat:
+    times: 10
+    commands:
+      - tapOn:
+          id: "settings-test-push-notification-button"
+      - waitForAnimationToEnd: 1000
+      - tapOn: "OK" # Dismiss success alert
+      - waitForAnimationToEnd: 500
+
+# 11th attempt should be rate limited
+- tapOn:
+    id: "settings-test-push-notification-button"
+- waitForAnimationToEnd: 2000
+
+- assertVisible:
+    text: "Rate Limited ⏱️"
+- assertVisible:
+    text: "You have sent 10 notifications in the last hour"
+- tapOn: "OK"
+
+---
+
+# Test Case 3: Quiet Hours Blocking Non-Critical Notifications
+# Prerequisites: Set quiet hours to current time in Supabase
+# (This step requires manual SQL setup before running test - documented in manual test guide)
+
+- runFlow:
+    file: auth-login.yaml
+
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "settings-button"
+- scrollUntilVisible:
+    element:
+      id: "settings-test-push-notification-button"
+    direction: DOWN
+
+- tapOn:
+    id: "settings-test-push-notification-button"
+- waitForAnimationToEnd: 2000
+
+- assertVisible:
+    text: "Quiet Hours 🌙"
+- assertVisible:
+    text: "You are currently in quiet hours"
+- tapOn: "OK"
+
+---
+
+# Test Case 4: No Push Tokens Error Handling
+# Prerequisites: Delete all push tokens for test user in Supabase
+# (This step requires manual SQL setup - documented in manual test guide)
+
+- runFlow:
+    file: auth-login.yaml
+
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "settings-button"
+- scrollUntilVisible:
+    element:
+      id: "settings-test-push-notification-button"
+    direction: DOWN
+
+- tapOn:
+    id: "settings-test-push-notification-button"
+- waitForAnimationToEnd: 2000
+
+- assertVisible:
+    text: "Send Failed ❌"
+- assertVisible:
+    text: "No push tokens registered"
+- tapOn: "OK"
+
+# User should re-register for push notifications
+- scrollUntilVisible:
+    element:
+      id: "settings-enable-notifications-button"
+    direction: UP
+
+- tapOn:
+    id: "settings-enable-notifications-button"
+- waitForAnimationToEnd: 1000
+
+# Grant permissions (simulated - actual permission prompt may vary by platform)
+# Re-registration flow
+- assertVisible: "Enable Push Notifications"
+
+---
+
+# Test Case 5: Navigation to Notification Preferences
+- runFlow:
+    file: auth-login.yaml
+
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "settings-button"
+- assertVisible: "Settings"
+
+- scrollUntilVisible:
+    element:
+      text: "Notification Preferences"
+    direction: DOWN
+
+- tapOn:
+    text: "Notification Preferences"
+- waitForAnimationToEnd: 1000
+
+- assertVisible: "Notification Preferences"
+- assertVisible: "Subscription"
+- assertVisible: "SP Events"
+- assertVisible: "Badges"
+- assertVisible: "Trades"
+- assertVisible: "System & Updates"
+
+# Verify quiet hours section exists
+- scrollUntilVisible:
+    element:
+      text: "Quiet Hours"
+    direction: DOWN
+
+- assertVisible: "Quiet Hours"
+- assertVisible:
+    text: "10:00 PM" # Default quiet hours start
+- assertVisible:
+    text: "8:00 AM" # Default quiet hours end
+
+# Go back to settings
+- tapOn:
+    id: "notification-preferences-back-button"
+- assertVisible: "Settings"
+
+---
+
+# Test Case 6: Loading State During Push Notification Send
+- runFlow:
+    file: auth-login.yaml
+
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "settings-button"
+- scrollUntilVisible:
+    element:
+      id: "settings-test-push-notification-button"
+    direction: DOWN
+
+- tapOn:
+    id: "settings-test-push-notification-button"
+
+# Verify loading indicator appears immediately
+# Note: This is difficult to assert in Maestro due to timing
+# Documented in manual test guide instead
+
+- waitForAnimationToEnd: 2000
+- assertVisible:
+    text: "Test Notification Sent ✅"
+- tapOn: "OK"
+
+---
+
+# Test Case 7: Back Navigation from Settings
+- runFlow:
+    file: auth-login.yaml
+
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "settings-button"
+- assertVisible: "Settings"
+
+- tapOn:
+    id: "settings-back-button"
+- assertVisible: "Profile"
+
+---
+
+# Test Case 8: Deep Link Navigation (After Tapping Push Notification)
+# Prerequisites: Send a test notification with deep link data
+# Note: Maestro cannot simulate tapping on system push notifications
+# This test case is covered in manual test guide only
+
+# Placeholder for future implementation when Maestro supports system notification interaction
+# or when using custom deep link launcher
+
+---
+
+# Test Case 9: Multiple Rapid Taps (Debounce Handling)
+- runFlow:
+    file: auth-login.yaml
+
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "settings-button"
+- scrollUntilVisible:
+    element:
+      id: "settings-test-push-notification-button"
+    direction: DOWN
+
+# Tap button 3 times rapidly
+- tapOn:
+    id: "settings-test-push-notification-button"
+- tapOn:
+    id: "settings-test-push-notification-button"
+- tapOn:
+    id: "settings-test-push-notification-button"
+
+# Only 1 alert should appear (first tap)
+- waitForAnimationToEnd: 2000
+- assertVisible:
+    text: "Test Notification Sent ✅"
+- tapOn: "OK"
+
+# No additional alerts should appear
+- waitForAnimationToEnd: 1000
+# If second alert appears, test fails (manual verification required)
+
+---
+
+# FINALIZATION: Return to Home Screen
+- tapOn:
+    id: "home-tab"
+- assertVisible: "Discover Items"

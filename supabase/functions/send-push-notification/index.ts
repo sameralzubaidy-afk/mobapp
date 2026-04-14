@@ -21,6 +21,8 @@ interface PushMessage {
 interface SendPushNotificationRequest {
   userId?: string; // Send to specific user
   user_id?: string; // Backward-compatible snake_case alias
+  notificationId?: string;
+  notification_id?: string;
   token?: string; // Send to specific token
   title: string;
   body: string;
@@ -29,6 +31,7 @@ interface SendPushNotificationRequest {
 }
 
 interface PushTokenRow {
+  id: string;
   token: string;
 }
 
@@ -46,6 +49,39 @@ interface ExpoResponse {
   }>;
 }
 
+interface PushDeliveryLogRow {
+  user_id: string;
+  notification_id: string | null;
+  push_token_id: string | null;
+  expo_receipt_id: string | null;
+  receipt_status:
+    | 'ok'
+    | 'error'
+    | 'DeviceNotRegistered'
+    | 'MessageTooBig'
+    | 'MessageRateExceeded'
+    | 'MismatchSenderId'
+    | 'InvalidCredentials';
+  receipt_message: string | null;
+  receipt_details: Record<string, unknown> | null;
+  retry_count: number;
+}
+
+const KNOWN_RECEIPT_STATUSES = new Set([
+  'DeviceNotRegistered',
+  'MessageTooBig',
+  'MessageRateExceeded',
+  'MismatchSenderId',
+  'InvalidCredentials',
+]);
+
+function mapReceiptStatus(errorCode?: string): PushDeliveryLogRow['receipt_status'] {
+  if (errorCode && KNOWN_RECEIPT_STATUSES.has(errorCode)) {
+    return errorCode as PushDeliveryLogRow['receipt_status'];
+  }
+  return 'error';
+}
+
 serve(async (req: Request) => {
   // Only accept POST requests
   if (req.method !== 'POST') {
@@ -59,6 +95,8 @@ serve(async (req: Request) => {
     const {
       userId,
       user_id,
+      notificationId,
+      notification_id,
       token,
       title,
       body,
@@ -83,18 +121,61 @@ serve(async (req: Request) => {
       );
     }
 
-    let tokens: string[] = [];
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    let tokenRows: Array<{ id: string | null; token: string }> = [];
+    let resolvedNotificationId: string | null =
+      notificationId || notification_id || (typeof data?.notificationId === 'string' ? data.notificationId : null);
+
+    // Ensure we always have a notification row to link logs to when user-based delivery is used.
+    if (targetUserId && !resolvedNotificationId) {
+      const { data: existingNotification } = await supabase
+        .from('user_notifications')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .eq('title', title)
+        .eq('body', body)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingNotification?.id) {
+        resolvedNotificationId = existingNotification.id as string;
+      } else {
+        const notificationType =
+          typeof data?.type === 'string' && data.type.trim().length > 0 ? data.type : 'system_push';
+        const notificationCategory =
+          typeof data?.category === 'string' && data.category.trim().length > 0 ? data.category : 'system';
+
+        const { data: createdNotification, error: createNotificationError } = await supabase
+          .from('user_notifications')
+          .insert({
+            user_id: targetUserId,
+            category: notificationCategory,
+            type: notificationType,
+            title,
+            body,
+            channels: ['push'],
+            data: data || {},
+          })
+          .select('id')
+          .single();
+
+        if (createNotificationError) {
+          console.error('Failed to auto-create notification row for push logging:', createNotificationError);
+        } else {
+          resolvedNotificationId = (createdNotification as { id: string }).id;
+        }
+      }
+    }
 
     // If userId provided, fetch all push tokens for that user
     if (targetUserId) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-
-      const supabase = createClient(supabaseUrl, serviceRoleKey);
-
       const { data: pushTokens, error } = await supabase
         .from('push_tokens')
-        .select('token')
+        .select('id, token')
         .eq('user_id', targetUserId);
 
       if (error) {
@@ -108,22 +189,46 @@ serve(async (req: Request) => {
         );
       }
 
-      tokens = (pushTokens || []).map((pt: PushTokenRow) => pt.token);
+      tokenRows = (pushTokens || []).map((pt: PushTokenRow) => ({ id: pt.id, token: pt.token }));
 
-      if (tokens.length === 0) {
+      if (tokenRows.length === 0) {
         console.warn(`No push tokens found for user ${targetUserId}`);
+
+        const noTokenLog: PushDeliveryLogRow = {
+          user_id: targetUserId,
+          notification_id: resolvedNotificationId,
+          push_token_id: null,
+          expo_receipt_id: null,
+          receipt_status: 'error',
+          receipt_message: 'No active push tokens for user',
+          receipt_details: {
+            reason: 'no_push_tokens',
+            source: 'send-push-notification',
+          },
+          retry_count: 0,
+        };
+
+        const { error: noTokenLogError } = await supabase.from('push_delivery_log').insert(noTokenLog);
+        if (noTokenLogError) {
+          console.error('Failed to write no-token delivery log:', noTokenLogError);
+        }
+
         return new Response(
           JSON.stringify({
             success: false,
             message: 'No active push tokens for user',
             tokensCount: 0,
+            notificationId: resolvedNotificationId,
+            deliveryLogsWritten: noTokenLogError ? 0 : 1,
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } }
         );
       }
     } else if (token) {
-      tokens = [token];
+      tokenRows = [{ id: null, token }];
     }
+
+    const tokens = tokenRows.map((tr) => tr.token);
 
     // Build Expo push notification message
     const message: PushMessage = {
@@ -178,11 +283,67 @@ serve(async (req: Request) => {
       .map(({ index }) => tokens[index])
       .filter(Boolean);
 
-    if (invalidTokens.length > 0 && targetUserId) {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-      const supabase = createClient(supabaseUrl, serviceRoleKey);
+    let deliveryLogsWritten = 0;
+    if (targetUserId) {
+      const deliveryRows: PushDeliveryLogRow[] = tokenRows.map((tokenRow, index) => {
+        const ticket = tickets[index];
 
+        if (!ticket) {
+          return {
+            user_id: targetUserId,
+            notification_id: resolvedNotificationId,
+            push_token_id: tokenRow.id,
+            expo_receipt_id: null,
+            receipt_status: 'error',
+            receipt_message: 'Missing Expo ticket for push token',
+            receipt_details: {
+              token: tokenRow.token,
+              token_index: index,
+            },
+            retry_count: 0,
+          };
+        }
+
+        if (ticket.status === 'ok') {
+          return {
+            user_id: targetUserId,
+            notification_id: resolvedNotificationId,
+            push_token_id: tokenRow.id,
+            expo_receipt_id: ticket.id || null,
+            receipt_status: 'ok',
+            receipt_message: ticket.message || 'Sent to Expo successfully',
+            receipt_details: {
+              ticket,
+            },
+            retry_count: 0,
+          };
+        }
+
+        return {
+          user_id: targetUserId,
+          notification_id: resolvedNotificationId,
+          push_token_id: tokenRow.id,
+          expo_receipt_id: ticket.id || null,
+          receipt_status: mapReceiptStatus(ticket.details?.error),
+          receipt_message: ticket.message || 'Expo push ticket returned error status',
+          receipt_details: {
+            ticket,
+          },
+          retry_count: 0,
+        };
+      });
+
+      if (deliveryRows.length > 0) {
+        const { error: deliveryLogError } = await supabase.from('push_delivery_log').insert(deliveryRows);
+        if (deliveryLogError) {
+          console.error('Failed to write delivery logs:', deliveryLogError);
+        } else {
+          deliveryLogsWritten = deliveryRows.length;
+        }
+      }
+    }
+
+    if (invalidTokens.length > 0 && targetUserId) {
       const { error: cleanupError } = await supabase
         .from('push_tokens')
         .delete()
@@ -208,9 +369,11 @@ serve(async (req: Request) => {
       JSON.stringify({
         success: true,
         message: 'Notification sent',
+        notificationId: resolvedNotificationId,
         tokensCount: tokens.length,
         okTickets,
         errorTickets: ticketErrors.length,
+        deliveryLogsWritten,
         tickets,
         expoResponse: result,
       }),

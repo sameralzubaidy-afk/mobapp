@@ -46,28 +46,23 @@ My Example 1
 
 
 
-## TASK NOTIF-V2-004: Badge Award Notifications
-
-### Description
 
 
-
-
-## TASK NOTIF-V2-004: Badge Award Notifications
-I’m working on the  MODULE-13-SAFETY-COMPLIANCE.md tasks
+## TASK NOTIF-V2-005: Push Notification Delivery Engine
+I’m working on the  MODULE-14-NOTIFICATIONS-V2.md tasks
 Module: MODULE-14-NOTIFICATIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
 Tasks: ## TASK NOTIF-V2-004: Badge Award Notifications
 
 scope is 
-Implement celebratory notifications when users earn badges. Include badge icon, name, and description in notification. Add milestone approaching notifications (e.g., "5 more SP to earn next badge"). Create visual celebration in app when badge awarded.
-
+Implement push notification delivery using Expo Push Notifications. Store user push tokens. Implement rate limiting (max 10 notifications per hour). Add quiet hours enforcement. Create deduplication logic. Build retry mechanism for failed deliveries.
 
 ### Acceptance Criteria
-- [ ] Badge award notification sent immediately when badge earned
-- [ ] Notification includes badge icon, name, description
-- [ ] Milestone approaching notifications sent at appropriate thresholds
-- [ ] In-app celebration animation shown for badge awards
-- [ ] Badge notifications sent to all users (not gated by subscription)
+- [ ] Push tokens stored and updated on login
+- [ ] Rate limiting enforced (10 notifications/hour per user)
+- [ ] Quiet hours respected (no push notifications 10pm-8am)
+- [ ] Duplicate notifications prevented (5-minute window)
+- [ ] Failed push deliveries retried up to 3 times
+- [ ] Push notification receipts tracked
 
 
 i want you to 

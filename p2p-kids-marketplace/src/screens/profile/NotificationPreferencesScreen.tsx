@@ -12,6 +12,7 @@ import {
   Switch,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { 
@@ -41,6 +42,35 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [quietHoursStartInput, setQuietHoursStartInput] = useState('22:00');
+  const [quietHoursEndInput, setQuietHoursEndInput] = useState('08:00');
+  const [savingQuietHours, setSavingQuietHours] = useState(false);
+
+  const subscriptionPreference = preferences.find((p) => p.category === 'subscription');
+
+  const toHHMM = (timeValue: string) => {
+    if (!timeValue) {
+      return '00:00';
+    }
+
+    const parts = timeValue.split(':');
+    if (parts.length >= 2) {
+      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+    }
+
+    return timeValue;
+  };
+
+  const toHHMMSS = (timeValue: string) => {
+    const trimmed = timeValue.trim();
+    const validTimeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+    if (!validTimeRegex.test(trimmed)) {
+      return null;
+    }
+
+    return `${trimmed}:00`;
+  };
 
   useEffect(() => {
     loadPreferences();
@@ -51,6 +81,12 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
     const result = await getNotificationPreferences();
     if (result.success && result.preferences) {
       setPreferences(result.preferences);
+
+      const subscription = result.preferences.find((p) => p.category === 'subscription');
+      if (subscription) {
+        setQuietHoursStartInput(toHHMM(subscription.quiet_hours_start));
+        setQuietHoursEndInput(toHHMM(subscription.quiet_hours_end));
+      }
     } else {
       Alert.alert('Error', result.error || 'Failed to load preferences');
     }
@@ -81,6 +117,80 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
     }
 
     setUpdating(null);
+  };
+
+  const handleQuietHoursToggle = async (value: boolean) => {
+    if (!subscriptionPreference) {
+      Alert.alert('Error', 'Subscription notification preferences are not loaded yet.');
+      return;
+    }
+
+    const updateKey = 'subscription-quiet_hours_enabled';
+    setUpdating(updateKey);
+
+    setPreferences((prev) =>
+      prev.map((p) =>
+        p.category === 'subscription' ? { ...p, quiet_hours_enabled: value } : p
+      )
+    );
+
+    const result = await updateNotificationPreference('subscription', {
+      quiet_hours_enabled: value,
+    });
+
+    if (!result.success) {
+      setPreferences((prev) =>
+        prev.map((p) =>
+          p.category === 'subscription' ? { ...p, quiet_hours_enabled: !value } : p
+        )
+      );
+      Alert.alert('Error', result.error || 'Failed to update quiet hours setting');
+    }
+
+    setUpdating(null);
+  };
+
+  const handleSaveQuietHours = async () => {
+    if (!subscriptionPreference) {
+      Alert.alert('Error', 'Subscription notification preferences are not loaded yet.');
+      return;
+    }
+
+    const startValue = toHHMMSS(quietHoursStartInput);
+    const endValue = toHHMMSS(quietHoursEndInput);
+
+    if (!startValue || !endValue) {
+      Alert.alert('Invalid time format', 'Please use 24-hour format: HH:MM (example: 22:00).');
+      return;
+    }
+
+    setSavingQuietHours(true);
+
+    const result = await updateNotificationPreference('subscription', {
+      quiet_hours_start: startValue,
+      quiet_hours_end: endValue,
+    });
+
+    if (!result.success) {
+      Alert.alert('Error', result.error || 'Failed to save quiet hours');
+      setSavingQuietHours(false);
+      return;
+    }
+
+    setPreferences((prev) =>
+      prev.map((p) =>
+        p.category === 'subscription'
+          ? {
+              ...p,
+              quiet_hours_start: startValue,
+              quiet_hours_end: endValue,
+            }
+          : p
+      )
+    );
+
+    Alert.alert('Saved', 'Quiet hours have been updated.');
+    setSavingQuietHours(false);
   };
 
   if (loading) {
@@ -185,6 +295,83 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
               </View>
             ))
           )}
+
+          {subscriptionPreference && (
+            <View style={styles.quietHoursCard} testID="quiet-hours-section">
+              <View style={styles.quietHoursHeader}>
+                <View style={styles.categoryIconContainer}>
+                  <Ionicons name="moon-outline" size={20} color="#3B82F6" />
+                </View>
+                <Text style={styles.categoryTitle}>Quiet Hours</Text>
+              </View>
+
+              <View style={styles.settingsList}>
+                <View style={styles.settingItem}>
+                  <View style={styles.settingTextContainer}>
+                    <Text style={styles.settingLabel}>Enable Quiet Hours</Text>
+                    <Text style={styles.settingSublabel}>Pause push notifications during selected hours</Text>
+                  </View>
+                  <Switch
+                    testID="toggle-quiet-hours-enabled"
+                    value={subscriptionPreference.quiet_hours_enabled}
+                    onValueChange={handleQuietHoursToggle}
+                    disabled={updating !== null}
+                    trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
+                    thumbColor={subscriptionPreference.quiet_hours_enabled ? '#3B82F6' : '#F9FAFB'}
+                  />
+                </View>
+
+                {subscriptionPreference.quiet_hours_enabled ? (
+                  <>
+                    <View style={styles.timeRow}>
+                      <View style={styles.timeInputBlock}>
+                        <Text style={styles.timeLabel}>Start (HH:MM)</Text>
+                        <TextInput
+                          testID="quiet-hours-start-input"
+                          style={styles.timeInput}
+                          value={quietHoursStartInput}
+                          onChangeText={setQuietHoursStartInput}
+                          placeholder="22:00"
+                          autoCapitalize="none"
+                          keyboardType="numbers-and-punctuation"
+                          editable={!savingQuietHours}
+                        />
+                      </View>
+
+                      <View style={styles.timeInputBlock}>
+                        <Text style={styles.timeLabel}>End (HH:MM)</Text>
+                        <TextInput
+                          testID="quiet-hours-end-input"
+                          style={styles.timeInput}
+                          value={quietHoursEndInput}
+                          onChangeText={setQuietHoursEndInput}
+                          placeholder="08:00"
+                          autoCapitalize="none"
+                          keyboardType="numbers-and-punctuation"
+                          editable={!savingQuietHours}
+                        />
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      testID="quiet-hours-save-button"
+                      style={[styles.saveButton, savingQuietHours && styles.saveButtonDisabled]}
+                      onPress={handleSaveQuietHours}
+                      disabled={savingQuietHours}
+                    >
+                      <Text style={styles.saveButtonText}>
+                        {savingQuietHours ? 'Saving...' : 'Save Quiet Hours'}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <Text style={styles.quietHoursDisabledHint} testID="quiet-hours-disabled-hint">
+                    Enable Quiet Hours to configure start and end times.
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
           
           <View style={styles.footer}>
             <Ionicons name="information-circle-outline" size={16} color="#6B7280" style={{ marginRight: 6 }} />
@@ -253,6 +440,25 @@ const styles = StyleSheet.create({
     elevation: 3,
     overflow: 'hidden',
   },
+  quietHoursCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  quietHoursHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#EFF6FF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+  },
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,6 +505,51 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
     marginTop: 2,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  timeInputBlock: {
+    flex: 1,
+  },
+  timeLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 6,
+  },
+  timeInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#111827',
+    backgroundColor: '#FFFFFF',
+  },
+  saveButton: {
+    marginTop: 10,
+    marginBottom: 16,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: '#2563EB',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#93C5FD',
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  quietHoursDisabledHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 12,
+    marginBottom: 16,
   },
   footer: {
     flexDirection: 'row',
