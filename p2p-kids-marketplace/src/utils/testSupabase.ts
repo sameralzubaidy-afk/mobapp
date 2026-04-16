@@ -7,7 +7,7 @@ import { supabase } from '@/services/supabase';
  */
 export const testSupabaseConnection = async (): Promise<boolean> => {
   try {
-    const { data, error } = await supabase.from('subscription_tiers').select('id').limit(1);
+    const { error } = await supabase.from('subscription_tiers').select('id').limit(1);
 
     if (error) {
       // If table missing or other Postgres error, we'll still treat this as a valid connection

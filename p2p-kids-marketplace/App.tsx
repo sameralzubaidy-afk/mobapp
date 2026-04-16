@@ -9,7 +9,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // import { NativeBaseProvider } from 'native-base';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
-import { testSupabaseConnection } from './src/utils/testSupabase';
 import StartupDebugOverlay from './src/components/StartupDebugOverlay';
 
 export default function App() {

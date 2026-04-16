@@ -61,7 +61,7 @@ describe('Trade Milestone Badges', () => {
     // For now, we'll test the RPC function directly
 
     // Simulate: user has completed 1 trade
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId1,
       p_category: 'trades',
       p_current_value: 1,
@@ -84,7 +84,7 @@ describe('Trade Milestone Badges', () => {
   it('should award "10 Trades" badge when user completes 10 trades', async () => {
     if (runtimeSkip) return;
 
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId1,
       p_category: 'trades',
       p_current_value: 10,
@@ -105,7 +105,7 @@ describe('Trade Milestone Badges', () => {
   it('should award "50 Trades" badge when user completes 50 trades', async () => {
     if (runtimeSkip) return;
 
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId2,
       p_category: 'trades',
       p_current_value: 50,
@@ -156,7 +156,7 @@ describe('Trade Milestone Badges', () => {
     if (runtimeSkip) return;
 
     // User with 50 completed trades should get all badges (1, 10, 50)
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId2,
       p_category: 'trades',
       p_current_value: 50,

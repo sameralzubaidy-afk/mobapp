@@ -46,7 +46,7 @@ describe('Subscription Tenure Badges', () => {
   it('should award "Trial Member" badge for trial status', async () => {
     if (runtimeSkip) return;
 
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
       p_category: 'subscription',
       p_current_value: 0, // Trial = 0 days threshold
@@ -68,7 +68,7 @@ describe('Subscription Tenure Badges', () => {
   it('should award "1-Month Subscriber" badge after 30 days', async () => {
     if (runtimeSkip) return;
 
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
       p_category: 'subscription',
       p_current_value: 30,
@@ -89,7 +89,7 @@ describe('Subscription Tenure Badges', () => {
   it('should award "6-Month Subscriber" badge after 180 days', async () => {
     if (runtimeSkip) return;
 
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
       p_category: 'subscription',
       p_current_value: 180,
@@ -110,7 +110,7 @@ describe('Subscription Tenure Badges', () => {
   it('should award "1-Year Subscriber" badge after 365 days', async () => {
     if (runtimeSkip) return;
 
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
       p_category: 'subscription',
       p_current_value: 365,
@@ -132,7 +132,7 @@ describe('Subscription Tenure Badges', () => {
     if (runtimeSkip) return;
 
     // User with 365 days should get all badges (Trial, 1-Month, 6-Month, 1-Year)
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
       p_category: 'subscription',
       p_current_value: 365,
@@ -153,7 +153,7 @@ describe('Subscription Tenure Badges', () => {
   it('should not award badges for negative days', async () => {
     if (runtimeSkip) return;
 
-    const { data, error } = await supabase!.rpc('award_badge_if_eligible', {
+    const { error } = await supabase!.rpc('award_badge_if_eligible', {
       p_user_id: testUserId,
       p_category: 'subscription',
       p_current_value: -10, // Invalid
