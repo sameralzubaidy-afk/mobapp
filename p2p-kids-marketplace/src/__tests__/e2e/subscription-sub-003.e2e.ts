@@ -4,6 +4,9 @@
 import { supabase } from '@/config/supabase';
 import { enrollInTrialSubscription, checkTrialEligibility } from '@/services/subscription';
 
+// Increase timeout for E2E tests that may involve slow RPC calls
+jest.setTimeout(15000);
+
 describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
   const TEST_USER_EMAIL = `sub003-e2e-${Date.now()}@test.com`;
   const TEST_USER_PASSWORD = 'TestPassword123!';

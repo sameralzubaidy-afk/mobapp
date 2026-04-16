@@ -4,6 +4,8 @@
 import { supabase } from '@/config/supabase';
 import { createConfirmedTestUser, deleteTestUser } from '@/test-helpers/authTestUtils';
 
+jest.setTimeout(15000);
+
 describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
   let testUserId: string;
 

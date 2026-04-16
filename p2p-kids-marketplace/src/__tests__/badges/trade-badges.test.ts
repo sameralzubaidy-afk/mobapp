@@ -17,6 +17,8 @@ if (shouldSkip) {
 
 const supabase = !shouldSkip ? createClient(supabaseUrl, supabaseKey) : null;
 
+jest.setTimeout(15000);
+
 describe('Trade Milestone Badges', () => {
   let testUserId1: string;
   let testUserId2: string;

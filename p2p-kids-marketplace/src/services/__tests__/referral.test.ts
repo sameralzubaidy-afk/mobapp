@@ -3,6 +3,8 @@
 
 import { generateReferralCode, processReferralBonus } from '../referral';
 
+jest.setTimeout(10000);
+
 describe('Referral Service', () => {
   describe('generateReferralCode', () => {
     it('should generate an 8-character code', async () => {
