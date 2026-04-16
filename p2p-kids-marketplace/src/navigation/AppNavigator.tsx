@@ -54,11 +54,19 @@ const IDVerificationUploadScreen = require('@/screens/profile/IDVerificationUplo
 import SettingsScreen from '@/screens/profile/SettingsScreen';
 import NotificationPreferencesScreen from '@/screens/profile/NotificationPreferencesScreen';
 import { NotificationSetup } from '@/components/NotificationSetup';
+import NotificationCenterScreen from '@/screens/notifications/NotificationCenterScreen';
 import TermsOfServiceScreen from '@/screens/profile/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '@/screens/profile/PrivacyPolicyScreen';
 import LiabilityDisclaimerScreen from '@/screens/settings/LiabilityDisclaimerScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
+import {
+  parseNotificationDeepLink,
+  getFallbackRoute,
+  canNavigateToRoute as checkRouteAvailability,
+  logDeepLinkNavigation,
+  type NotificationDeepLinkData,
+} from '@/services/deepLink';
 
 const Stack = createStackNavigator();
 
@@ -98,9 +106,12 @@ const linking = {
       KidsClubOverview: 'kids-club-overview',
       TransactionHistory: 'billing-history',
       NotificationSetup: 'notification-setup',
+      Notifications: 'notifications',
     },
   },
 };
+
+const navigationRef = createNavigationContainerRef<any>();
 
 /**
  * MODULE-03 AUTH-V2-003: RootNavigator
@@ -133,84 +144,92 @@ function RootNavigator() {
     return () => clearTimeout(timer);
   }, [isLoading]);
 
-  const navigationRef = React.useRef(createNavigationContainerRef<any>()).current;
   const lastRouteNameRef = React.useRef<string | undefined>(undefined);
-  const pendingNotificationDataRef = React.useRef<Record<string, unknown> | null>(null);
+  const pendingNotificationDataRef = React.useRef<NotificationDeepLinkData | null>(null);
+  const notificationSourceRef = React.useRef<'push' | 'in_app' | 'cold_start'>('push');
 
+  /**
+   * MODULE-14 TASK NOTIF-V2-008: Enhanced notification navigation handler
+   * Supports all notification types, deep link parsing, and stack management
+   */
   const handleNotificationNavigation = React.useCallback(
-    (rawData: Record<string, unknown> | null | undefined) => {
+    (
+      rawData: NotificationDeepLinkData | null | undefined,
+      source: 'push' | 'in_app' | 'cold_start' = 'push'
+    ) => {
       if (!rawData) {
         return;
       }
 
+      // Queue notification if navigator not ready (cold start scenario)
       if (!navigationRef.isReady()) {
         pendingNotificationDataRef.current = rawData;
+        notificationSourceRef.current = source;
         return;
       }
 
-      const deepLink =
-        typeof rawData.deep_link === 'string'
-          ? rawData.deep_link
-          : typeof rawData.deepLink === 'string'
-          ? rawData.deepLink
-          : null;
-      const type = typeof rawData.type === 'string' ? rawData.type : null;
-      const event = typeof rawData.event === 'string' ? rawData.event : null;
-      const normalizedDeepLink = deepLink?.toLowerCase();
+      // Parse notification data to deep link target
+      const target = parseNotificationDeepLink(rawData);
 
-      const canNavigateTo = (routeName: string) => {
-        const state = navigationRef.getRootState();
-        const routeNames = (state as { routeNames?: string[] } | undefined)?.routeNames ?? [];
-        return routeNames.includes(routeName);
-      };
+      // Log navigation for debugging and analytics
+      logDeepLinkNavigation(source, rawData, target);
 
-      const routeTarget =
-        normalizedDeepLink === '/wallet' ||
-        normalizedDeepLink === '/sp-wallet' ||
-        type === 'sp_earned' ||
-        type === 'sp_spent'
-          ? 'SpWallet'
-          : normalizedDeepLink === '/discover' || type === 'sp_balance_low'
-          ? 'BrowseItems'
-          : normalizedDeepLink === '/subscription' ||
-            normalizedDeepLink === '/profile/subscription' ||
-            type === 'sp_wallet_frozen' ||
-            type === 'trial_reminder' ||
-            type === 'subscription' ||
-            event === 'subscription_renewed' ||
-            event === 'subscription_cancelled' ||
-            event === 'payment_failed'
-          ? 'ManageKidsClub'
-          : null;
-
-      if (!routeTarget) {
+      // No valid target - use fallback to home
+      if (!target) {
+        console.warn('[NAV] Invalid deep link, falling back to Home');
+        const fallback = getFallbackRoute();
+        if (checkRouteAvailability(fallback.route, navigationRef.getRootState())) {
+          navigationRef.navigate(fallback.route as never);
+        }
+        pendingNotificationDataRef.current = null;
         return;
       }
 
-      if (!canNavigateTo(routeTarget)) {
+      // Check if target route is available in current navigation state
+      if (!checkRouteAvailability(target.route, navigationRef.getRootState())) {
+        // Route not available yet (e.g., auth screen not mounted) - queue for later
         pendingNotificationDataRef.current = rawData;
+        notificationSourceRef.current = source;
         return;
       }
 
-      navigationRef.navigate(routeTarget);
+      // Navigate based on action type
+      if (target.action === 'reset') {
+        // Reset navigation stack (e.g., for post-logout onboarding reminders)
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: target.route, params: target.params } as never],
+        });
+      } else {
+        // Standard navigation (push to stack)
+        if (target.params) {
+          (navigationRef as any).navigate(target.route, target.params);
+        } else {
+          (navigationRef as any).navigate(target.route);
+        }
+      }
+
+      // Clear pending notification
       pendingNotificationDataRef.current = null;
     },
-    [navigationRef]
+    []
   );
 
+  // Handle notification taps while app is running (foreground/background)
   React.useEffect(() => {
     const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as Record<string, unknown>;
-      handleNotificationNavigation(data);
+      const data = response.notification.request.content.data as NotificationDeepLinkData;
+      handleNotificationNavigation(data, 'push');
     });
 
-    // Handle cold-start notification taps after auth/navigation are mounted.
+    // Handle cold-start notification taps (app was killed, opened via notification)
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       if (!response) {
         return;
       }
-      const data = response.notification.request.content.data as Record<string, unknown>;
-      handleNotificationNavigation(data);
+
+      const data = response.notification.request.content.data as NotificationDeepLinkData;
+      handleNotificationNavigation(data, 'cold_start');
     });
 
     return () => {
@@ -231,27 +250,30 @@ function RootNavigator() {
         // eslint-disable-next-line no-console
         console.log('[NAV] route:', name);
       }
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn('[NAV] Failed to read current route', e);
+    } catch (error) {
+      console.warn('[NAV] route logging failed', error);
     }
-  }, [navigationRef]);
-
-  const onNavigationStateChange = React.useCallback(() => {
-    logRouteChange();
-
-    // Retry deferred notification navigation once target routes are available
-    // (common on cold-start push tap before auth stack is mounted).
-    if (pendingNotificationDataRef.current) {
-      handleNotificationNavigation(pendingNotificationDataRef.current);
-    }
-  }, [handleNotificationNavigation, logRouteChange]);
+  }, []);
 
   const onNavigationReady = React.useCallback(() => {
     logRouteChange();
 
     if (pendingNotificationDataRef.current) {
-      handleNotificationNavigation(pendingNotificationDataRef.current);
+      handleNotificationNavigation(
+        pendingNotificationDataRef.current,
+        notificationSourceRef.current
+      );
+    }
+  }, [handleNotificationNavigation, logRouteChange]);
+
+  const onNavigationStateChange = React.useCallback(() => {
+    logRouteChange();
+
+    if (pendingNotificationDataRef.current) {
+      handleNotificationNavigation(
+        pendingNotificationDataRef.current,
+        notificationSourceRef.current
+      );
     }
   }, [handleNotificationNavigation, logRouteChange]);
 
@@ -501,6 +523,12 @@ function RootNavigator() {
               name="NotificationSetup"
               component={NotificationSetup}
               options={{ title: 'Enable Notifications' }}
+            />
+            {/* MODULE-14 NOTIF-V2-006: In-App Notification Center */}
+            <Stack.Screen
+              name="Notifications"
+              component={NotificationCenterScreen}
+              options={{ headerShown: false }}
             />
             {/* MODULE-13 SAFETY-010: TOS screen */}
             <Stack.Screen

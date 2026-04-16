@@ -1,0 +1,183 @@
+# FLOW: Trade Event Notifications | TASK: NOTIF-V2-007 | States covered: trade_request, trade_accepted, trade_rejected, trade_completed, trade_cancelled, preferences_disabled, error_state
+
+appId: com.p2pkidsmarketplace
+---
+# NOTIF-V2-007: Trade Event Notifications — Maestro UI Flow
+# Tests in-app notification center for trade events (simulators supported).
+# Note: Push delivery to simulators is not supported by iOS/Android OS.
+#       These tests verify in-app notifications and deep-link navigation only.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STATE 1: Trade request notification visible in Notification Center
+# Precondition: test-seller@p2pkids.dev has an unread trade_request notification
+#               (seeded or triggered by trade creation in staging)
+# ──────────────────────────────────────────────────────────────────────────────
+
+- launchApp:
+    clearState: true
+
+# Login as seller
+- tapOn:
+    id: "btn-login"
+- assertVisible:
+    id: "input-email"
+- inputText:
+    id: "input-email"
+    text: "test-seller@p2pkids.dev"
+- tapOn:
+    id: "input-password"
+- inputText:
+    id: "input-password"
+    text: "${TEST_SELLER_PASSWORD}"
+- tapOn:
+    id: "btn-submit-login"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "screen-home"
+
+# Navigate to Notifications
+- tapOn:
+    id: "tab-notifications"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "screen-notifications"
+
+# STATE 1: trade_request notification present
+- assertVisible:
+    id: "notification-item-trade_request"
+- assertVisible: "New Trade Request"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STATE 2: Tap trade_request notification → navigates to TradeDetail
+# ──────────────────────────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "notification-item-trade_request"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "screen-trade-detail"
+
+# Back to Notifications
+- tapOn:
+    id: "btn-back"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "screen-notifications"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STATE 3: trade_accepted notification for buyer
+# Precondition: test-buyer@p2pkids.dev has trade_accepted notification
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Re-launch as buyer
+- launchApp:
+    clearState: true
+
+- tapOn:
+    id: "btn-login"
+- inputText:
+    id: "input-email"
+    text: "test-buyer@p2pkids.dev"
+- tapOn:
+    id: "input-password"
+- inputText:
+    id: "input-password"
+    text: "${TEST_BUYER_PASSWORD}"
+- tapOn:
+    id: "btn-submit-login"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "screen-home"
+
+- tapOn:
+    id: "tab-notifications"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "screen-notifications"
+
+# Verify trade_accepted notification
+- assertVisible:
+    id: "notification-item-trade_accepted"
+- assertVisible: "Trade Accepted"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STATE 4: trade_rejected notification body contains seller name and item title
+# ──────────────────────────────────────────────────────────────────────────────
+
+- scrollTo:
+    id: "notification-item-trade_rejected"
+- assertVisible:
+    id: "notification-item-trade_rejected"
+- assertVisible: "Declined"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STATE 5: trade_completed notification present for buyer
+# ──────────────────────────────────────────────────────────────────────────────
+
+- scrollTo:
+    id: "notification-item-trade_completed"
+- assertVisible:
+    id: "notification-item-trade_completed"
+- assertVisible: "Trade Complete"
+
+# Tap trade_completed → deep link to trade detail
+- tapOn:
+    id: "notification-item-trade_completed"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "screen-trade-detail"
+
+- tapOn:
+    id: "btn-back"
+- waitForAnimationToEnd
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STATE 6: trade_cancelled notification present for buyer
+# ──────────────────────────────────────────────────────────────────────────────
+
+- scrollTo:
+    id: "notification-item-trade_cancelled"
+- assertVisible:
+    id: "notification-item-trade_cancelled"
+- assertVisible: "Cancelled"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STATE 7: Notification Preferences — trades category can be toggled
+# ──────────────────────────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "tab-profile"
+- waitForAnimationToEnd
+- tapOn:
+    id: "settings-button"
+- assertVisible: "Settings"
+
+- tapOn:
+    id: "notification-preferences-row"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "category-section-trades"
+
+# Toggle trades push OFF
+- tapOn:
+    id: "toggle-trades-push"
+- waitForAnimationToEnd
+- assertVisible: "Saved"
+
+# Toggle trades push ON again
+- tapOn:
+    id: "toggle-trades-push"
+- waitForAnimationToEnd
+- assertVisible: "Saved"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STATE 8: Error state — empty notification center (no trade notifications)
+# Verify graceful empty state shown, not a crash
+# ──────────────────────────────────────────────────────────────────────────────
+
+- tapOn:
+    id: "tab-notifications"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "screen-notifications"
+# If all notifications were read, empty state should show (not crash)

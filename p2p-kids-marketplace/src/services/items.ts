@@ -555,7 +555,7 @@ export const createItem = async (itemData: {
     );
 
     if (eligibilityError) {
-      console.warn('⚠️ SP eligibility check failed, defaulting to available:', eligibilityError);
+      console.warn('⚠️ SP eligibility check failed, continuing with pending review:', eligibilityError);
     }
 
     // Get current subscription status for audit trail
@@ -567,7 +567,7 @@ export const createItem = async (itemData: {
         {
           seller_id: user.id,
           ...itemData,
-          status: isEligible ? 'pending' : 'available',
+          status: 'pending',
           eligible_for_starter_pack: isEligible || false,
           seller_subscription_status_at_creation: sellerSubStatus,
         },

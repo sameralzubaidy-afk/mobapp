@@ -118,14 +118,22 @@ export default function UserDashboardScreen() {
     }
   };
 
-  // DEBUG: Log session and wallet data on mount and when focused
+  // Load verification + subscription data when screen gains focus or user changes.
+  // CRITICAL FIX: wallet is NOT in deps - useSPWallet() returns a new object reference
+  // every render, which caused an infinite re-render loop on Android.
   useEffect(() => {
     if (isFocused) {
-      console.log('[Dashboard] Wallet hook data:', wallet);
       loadVerificationStatus();
       loadSubscriptionTimeline();
     }
-  }, [isFocused, wallet, session?.user?.id]);
+  }, [isFocused, session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Log wallet data separately (read-only - does NOT call setState so no loop risk)
+  useEffect(() => {
+    if (isFocused) {
+      console.log('[Dashboard] Wallet hook data:', wallet);
+    }
+  }, [isFocused, wallet.available, wallet.pending, wallet.lifetime_earned, wallet.lifetime_spent]);
 
   // Refresh data when screen comes into focus
   useEffect(() => {

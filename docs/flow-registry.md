@@ -15,6 +15,18 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-01: Auth – Signup/Login/Logout/Session Restore
 - Smoke: (manual)
   - Signup -> logged in -> kill app -> relaunch -> session restores.
+  - **AUTH-SIGNUP-HOTFIX (2026-04-15):** Harden auth signup trigger against migration drift
+    - Migration: `supabase/migrations/20260415000001_auth_signup_trigger_stabilization_hotfix.sql`
+    - Fixes: `AuthApiError: Database error saving new user` during `supabase.auth.signUp`
+    - DB changes:
+      - Drops legacy duplicate auth trigger `trigger_initialize_notification_preferences` on `auth.users`
+      - Replaces `public.handle_new_user()` with fail-safe logic that never aborts auth user creation
+      - Re-attaches canonical `on_auth_user_created` trigger only
+      - Logs all signup-trigger stages/failures to `public.debug_logs`
+    - Required verification after apply:
+      - `auth.signUp` returns user/session (no 500)
+      - `pg_trigger` shows only expected auth signup trigger(s)
+      - `debug_logs` contains `handle_new_user: SUCCESS` for newly created user
   - Signup automatically records current `terms_of_service` and `privacy_policy` acceptance rows (if published) in `policy_acceptances`.
   - Logout returns to unauthenticated stack.
   - Cold launch does not hang indefinitely on a full-screen spinner even if profile/subscription fetches time out.
@@ -33,6 +45,16 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
 - Smoke: (manual)
   - Create listing -> appears in listings feed for same node.
+  - **LISTING-REVIEW-HOTFIX (2026-04-15):** Force all user-created listings into admin review
+    - Migration: `supabase/migrations/20260415000002_enforce_pending_review_for_all_user_listings.sql`
+    - App service changes:
+      - `p2p-kids-marketplace/src/services/listing.ts` now inserts all new listings with `status='pending'`
+      - `p2p-kids-marketplace/src/services/items.ts` now inserts all new items with `status='pending'`
+    - DB enforcement:
+      - `public.fn_items_enforce_pending_for_starter_pack()` updated to force `NEW.status='pending'` for authenticated seller inserts
+      - strict `items_insert_pending_review` RLS policy requires `auth.uid() = seller_id` and `status='pending'`
+      - permissive legacy insert policies dropped (`items_insert_authenticated`, `Users can insert own items`)
+    - Expected result: no user-created listing can bypass admin review by posting `status='available'`
   - If seller enabled "Accept Swap Points" and is Starter Pack eligible: listing is created with `status='pending'` (not visible in public feed until approved).
   - Pending listing creates `admin_notifications` rows for all admins (notification type `listing_pending_approval`).
   - Admin approves listing -> `items.status` transitions `pending` -> `available` and listing becomes visible.
@@ -1054,6 +1076,25 @@ This file is the canonical registry of end-to-end flows and their required regre
     - NOTIF-V2-001 (Notification Schema & Preferences - quiet hours settings)
     - `push_tokens` table (from earlier migration 20241213000000_add_push_tokens_table.sql)
     - Expo Push Notifications SDK (expo-server-sdk)
+
+- **NOTIF-V2-006 (MODULE-14): In-App Notification Center**
+  - Purpose: Full notification history UI with unread/read distinction, badge count, mark as read (individual + all), pull-to-refresh, infinite scroll (PAGE_SIZE=20), realtime subscription. Entry via BottomNavBar 🔔 Alerts tab or push notification deep link `/notifications`.
+  - No SQL migration required — reuses existing `user_notifications` table and RPCs: `mark_notification_read`, `mark_all_notifications_read`, `get_unread_notification_count`.
+  - New files:
+    - `p2p-kids-marketplace/src/screens/notifications/NotificationCenterScreen.tsx` (NEW — main screen)
+    - `p2p-kids-marketplace/src/hooks/useNotificationBadge.ts` (NEW — badge count hook with realtime)
+  - Edited files:
+    - `p2p-kids-marketplace/src/components/organisms/BottomNavBar/index.tsx` — 🔔 Alerts item with red badge
+    - `p2p-kids-marketplace/src/navigation/AppNavigator.tsx` — `Notifications` route + deep link `notifications`
+  - Service layer: Reuses functions from `p2p-kids-marketplace/src/services/referralNotifications.ts` (no new service file created)
+  - Unit tests: `p2p-kids-marketplace/src/__tests__/screens/NotificationCenterScreen.test.tsx` (14 screen + 4 hook test cases)
+  - E2E tests: `p2p-kids-marketplace/src/__tests__/e2e/notification-center.e2e.ts` (RUN_SUPABASE_E2E=true, 6 test cases: fetch, unread count, mark single read, mark all read, pagination, RLS)
+  - Maestro flow: `.maestro/notif-v2-006-notification-center.yaml` (states: list, unread indicators, mark-all-read, pull-to-refresh, empty state, back navigation)
+  - Manual test guide: `NOTIF-V2-006-MANUAL-TESTING.md`
+  - testIDs: `notification-center-screen`, `notification-list`, `screen-title`, `back-button`, `mark-all-read-button`, `loading-indicator`, `loading-state`, `empty-state`, `error-state`, `retry-button`, `load-more-indicator`, `notification-item-{id}`, `unread-indicator-{id}`, `notification-badge` (in BottomNavBar)
+  - Deep link: `p2pkidsmarketplace://notifications` → navigates to `Notifications` stack route
+  - Tier: Tier 0 always; Tier 1 when service/realtime logic changes; Tier 2 if `user_notifications` schema or RPCs change
+  - Dependencies: NOTIF-V2-001 (schema), NOTIF-V2-003 (SP notifications), `referralNotifications.ts` service layer
 
 ### FLOW-18: Admin Controls
 - Smoke: (manual)

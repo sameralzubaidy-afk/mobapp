@@ -46,7 +46,7 @@ describe('listing service', () => {
         price: 29.99,
         category_id: 'cat-toys',
         condition: 'like_new',
-        status: 'available',
+        status: 'pending',
         accepts_swap_points: true,
         seller_subscription_status_at_creation: 'active',
         created_at: new Date().toISOString(),

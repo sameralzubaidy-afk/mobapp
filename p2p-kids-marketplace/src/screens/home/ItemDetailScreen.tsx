@@ -208,10 +208,18 @@ export default function ItemDetailScreen() {
       return;
     }
 
-    if (!listing) return;
+    if (!listing?.id) {
+      Alert.alert('Error', 'This listing is unavailable right now. Please try again.');
+      return;
+    }
 
-    // Navigate to trade initiation screen (MODULE-06)
-    navigation.navigate('TradeInitiation', { itemId: listing.id });
+    try {
+      // Navigate to trade initiation screen (MODULE-06)
+      navigation.navigate('TradeInitiation', { itemId: String(listing.id) });
+    } catch (err) {
+      console.error('[ItemDetailScreen] Failed to navigate to TradeInitiation:', err);
+      Alert.alert('Error', 'Unable to open checkout right now. Please try again.');
+    }
   };
 
   const handleContactSeller = () => {

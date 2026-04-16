@@ -29,12 +29,23 @@ export default function StripeProviderWrapper({
   publishableKey: string;
   merchantIdentifier?: string;
 }): React.ReactElement | React.ReactElement[] | null {
-  // Validate publishable key
-  if (!publishableKey || !publishableKey.startsWith('pk_')) {
+  // Validate publishable key. Always provide a fallback starting with 'pk_' 
+  // so that <StripeProvider> doesn't throw errors when hooks like useStripe() run.
+  const isValidFormat = publishableKey && 
+                        publishableKey.startsWith('pk_') && 
+                        !publishableKey.includes('YOUR_KEY') && 
+                        !publishableKey.includes('your-key');
+                        
+  const safePublishableKey = isValidFormat 
+    ? publishableKey 
+    : 'pk_test_TYaaAAAAAAAAAAAAAAAAAAAA'; // generic valid mock structure so Native SDK won't crash
+
+  if (!isValidFormat) {
     if (__DEV__) {
       console.error('[Stripe] Invalid or missing publishableKey:', publishableKey?.slice(0, 10));
     }
-    return <>{children}</>;
+    // We intentionally do NOT return <>{children}</> here, because downstream 
+    // components calling useStripe() would fatally crash due to missing StripeContext.
   }
 
   // Check for native module availability
@@ -54,7 +65,7 @@ export default function StripeProviderWrapper({
   try {
     return (
       <StripeProvider
-        publishableKey={publishableKey}
+        publishableKey={safePublishableKey}
         merchantIdentifier={merchantIdentifier}
       >
         {children}

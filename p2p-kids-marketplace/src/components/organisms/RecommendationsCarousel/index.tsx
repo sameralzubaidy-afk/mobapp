@@ -9,7 +9,7 @@
  * - Subscription status
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -41,19 +41,29 @@ export default function RecommendationsCarousel({
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Tracks whether we have already loaded once so the focus-based reload
+  // effect does NOT double-fire on initial mount (fixes analytics triple-fire).
+  const hasLoadedOnMountRef = useRef(false);
 
-  // Load recommendations on initial mount
+  // Load recommendations on initial mount or when user / limit changes.
   useEffect(() => {
+    hasLoadedOnMountRef.current = false; // reset so focus effect allows next reload
     loadRecommendations();
-  }, [session?.user?.id, limit]);
+  }, [session?.user?.id, limit]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // BUG FIX #1: Reload recommendations when screen comes back into focus
-  // This fixes the carousel disappearing when navigating away and returning
+  // Reload when screen returns to focus (e.g. navigate back from ItemDetail).
+  // CRITICAL FIX: skip the very first focused=true triggered by mounting,
+  // because the effect above already covers that case.
   useEffect(() => {
-    if (isFocused && session?.user?.id) {
-      loadRecommendations();
+    if (!isFocused) return;
+    if (!session?.user?.id) return;
+    if (!hasLoadedOnMountRef.current) {
+      // First focus event after mount - data already fetched above, just mark done.
+      hasLoadedOnMountRef.current = true;
+      return;
     }
-  }, [isFocused]);
+    loadRecommendations();
+  }, [isFocused]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadRecommendations = async () => {
     if (!session?.user?.id) {

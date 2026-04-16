@@ -45,24 +45,22 @@ Supabase: supabase/
 My Example 1
 
 
+## TASK NOTIF-V2-008: Notification Deep Linking
 
-
-
-## TASK NOTIF-V2-005: Push Notification Delivery Engine
 I’m working on the  MODULE-14-NOTIFICATIONS-V2.md tasks
 Module: MODULE-14-NOTIFICATIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK NOTIF-V2-004: Badge Award Notifications
+Tasks: ## TASK NOTIF-V2-008: Notification Deep Linking
 
 scope is 
-Implement push notification delivery using Expo Push Notifications. Store user push tokens. Implement rate limiting (max 10 notifications per hour). Add quiet hours enforcement. Create deduplication logic. Build retry mechanism for failed deliveries.
+Implement deep linking for all notifications. Parse notification data to determine target screen. Handle notification taps from background, foreground, and killed app states. Implement navigation stack management for deep links. Add deep link testing utilities.
 
 ### Acceptance Criteria
-- [ ] Push tokens stored and updated on login
-- [ ] Rate limiting enforced (10 notifications/hour per user)
-- [ ] Quiet hours respected (no push notifications 10pm-8am)
-- [ ] Duplicate notifications prevented (5-minute window)
-- [ ] Failed push deliveries retried up to 3 times
-- [ ] Push notification receipts tracked
+- [ ] Notification taps navigate to correct screen
+- [ ] Deep links work from all app states (foreground, background, killed)
+- [ ] Navigation stack properly managed (back button works correctly)
+- [ ] Deep link parsing handles all notification types
+- [ ] Invalid deep links gracefully fallback to home screen
+- [ ] Deep link testing utility available
 
 
 i want you to 

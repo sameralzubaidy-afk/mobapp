@@ -58,7 +58,7 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
             title: 'Nintendo Switch',
             price: 249.99,
             accepts_swap_points: true,
-            status: 'available',
+            status: 'pending',
           },
           error: null,
         }),
@@ -185,7 +185,6 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
 
   describe('E2E: Admin search → Force-delete', () => {
     it('should allow admin to search deleted items', async () => {
-      const adminId = 'admin-001';
       const listingId = 'listing-to-delete';
 
       // Admin searches for deleted items

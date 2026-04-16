@@ -19,3 +19,6 @@
 - `.maestro/privacy-policy-system.yaml` - Privacy Policy view from Settings and Signup link navigation (SAFETY-011).
 - `.maestro/liability-disclaimer-flow.yaml` - Liability Disclaimer view from Settings and mandatory acknowledgment during trade (SAFETY-012).
 - `.maestro/notif-v2-005-push-delivery.yaml` - Push notification delivery with rate limiting, quiet hours, deduplication, and retry (NOTIF-V2-005).
+- `.maestro/notif-v2-006-notification-center.yaml` - In-app notification center: list, read/unread indicators, mark single read, mark all read, pull-to-refresh, infinite scroll, empty state, back navigation (NOTIF-V2-006).
+- `.maestro/trade-notifications.yaml` - Trade event notifications: trade_request, trade_accepted, trade_rejected, trade_completed, trade_cancelled states in Notification Center + deep-link navigation to TradeDetail + notification preference toggle for trades category (NOTIF-V2-007).
+- `.maestro/notif-v2-008-deep-linking.yaml` - Notification deep linking: all notification types (SP, subscription, badges, trades, referrals, system) navigate to correct screens with params from foreground, background, and killed app states. Tests invalid deep link fallback to Home, navigation stack management (navigate vs reset), and multi-notification navigation sequences (NOTIF-V2-008).

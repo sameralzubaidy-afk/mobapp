@@ -7,6 +7,8 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAuth } from '@/hooks/useAuth';
+import { useNotificationBadge } from '@/hooks/useNotificationBadge';
 
 interface BottomNavBarProps {
   /**
@@ -19,6 +21,8 @@ interface BottomNavBarProps {
 export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
   const navigation = useNavigation();
   const route = useRoute();
+  const { session } = useAuth();
+  const { unreadCount } = useNotificationBadge(session?.user?.id);
 
   // Determine if a nav item is active
   const isActive = (routeName: string) => {
@@ -30,11 +34,13 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
     label,
     routeName,
     onPress,
+    badgeCount,
   }: {
     emoji: string;
     label: string;
     routeName?: string;
     onPress?: () => void;
+    badgeCount?: number;
   }) => {
     const active = routeName ? isActive(routeName) : false;
     const handlePress = onPress || (() => {
@@ -49,7 +55,16 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
         onPress={handlePress}
         testID={"nav-" + label.replace(/\s+/g, '-').toLowerCase()}
       >
-        <Text style={styles.emoji}>{emoji}</Text>
+        <View style={styles.emojiWrapper}>
+          <Text style={styles.emoji}>{emoji}</Text>
+          {typeof badgeCount === 'number' && badgeCount > 0 && (
+            <View testID="notification-badge" style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {badgeCount > 99 ? '99+' : String(badgeCount)}
+              </Text>
+            </View>
+          )}
+        </View>
         <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
       </TouchableOpacity>
     );
@@ -61,21 +76,18 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
       <NavItem emoji="🛍️" label="Browse" routeName="BrowseItems" />
       <NavItem emoji="📝" label="Create" routeName="CreateListing" />
       <NavItem emoji="📋" label="My Items" routeName="MyListings" />
+      <NavItem
+        emoji="🔔"
+        label="Alerts"
+        routeName="Notifications"
+        badgeCount={unreadCount}
+      />
       <NavItem emoji="👤" label="Profile" routeName="Profile" />
       {showHelp && (
         <NavItem
           emoji="⚙️"
           label="Settings"
           onPress={() => (navigation as any).navigate('Settings')}
-        />
-      )}
-      {showHelp && (
-        <NavItem
-          emoji="❓"
-          label="Help"
-          onPress={() => {
-            alert('Help & Support - coming soon');
-          }}
         />
       )}
     </View>
@@ -109,9 +121,29 @@ const styles = StyleSheet.create({
   navItemActive: {
     backgroundColor: '#F0F0F0',
   },
+  emojiWrapper: {
+    position: 'relative',
+    marginBottom: 4,
+  },
   emoji: {
     fontSize: 24,
-    marginBottom: 4,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#FF3B30',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
   label: {
     fontSize: 11,

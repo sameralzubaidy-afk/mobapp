@@ -31,7 +31,7 @@ import { initiateTradeV2, processTradePayment } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
 import { getTransactionFee } from '@/services/subscription';
-import { CardForm, useStripe, initStripe } from '@stripe/stripe-react-native';
+import { CardForm, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { supabase } from '@/config/supabase';
@@ -57,7 +57,6 @@ export default function TradeInitiationScreen() {
   const [cardComplete, setCardComplete] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [stripeReady, setStripeReady] = useState(false);
-  const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeError, setStripeError] = useState<string | null>(null);
 
   const hasStripeNativeModule = Boolean(
@@ -67,104 +66,48 @@ export default function TradeInitiationScreen() {
     (NativeModules as any)?.StripeReactNative
   );
 
+  const stripePublishableKey = (process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').trim();
+  const stripePublishableKeyLooksValid =
+    stripePublishableKey.startsWith('pk_') &&
+    !stripePublishableKey.includes('YOUR_KEY_HERE') &&
+    !stripePublishableKey.includes('your-key');
+
   useEffect(() => {
     fetchData();
   }, [itemId, user?.id]);
 
   useEffect(() => {
-    if (user?.id) {
-      initializeStripeForTrade(user.id).catch((error) => {
-        console.error('❌ Stripe trade init failed:', error);
-      });
-    }
-  }, [user?.id]);
-
-  const resolveInvokeErrorMessage = (error: any): string => {
-    const contextStatusText = error?.context?.statusText;
-    const contextBody = error?.context?.body;
-    if (typeof contextStatusText === 'string' && contextStatusText.length > 0) {
-      return contextStatusText;
-    }
-    if (typeof contextBody === 'string' && contextBody.length > 0) {
-      return contextBody;
-    }
-    if (typeof error?.message === 'string' && error.message.length > 0) {
-      return error.message;
-    }
-    return 'Failed to prepare secure payment fields';
-  };
-
-  const initializeStripeForTrade = async (userId: string, force = false): Promise<void> => {
-    if (!force && (stripeLoading || stripeReady)) {
-      return;
-    }
-
-    if (!hasStripeNativeModule) {
+    // If still loading trade data, keep Stripe unmounted.
+    if (loading || !item) {
       setStripeReady(false);
-      setStripeError(
-        'This app build does not include Stripe native components. Please install the latest staging build.'
-      );
       return;
     }
 
-    setStripeLoading(true);
-    setStripeError(null);
-
-    try {
-      const envKey = (process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').trim();
-      const envKeyLooksValid =
-        envKey.startsWith('pk_') &&
-        !envKey.includes('YOUR_KEY_HERE') &&
-        !envKey.includes('your-key');
-
-      let publishableKey = envKey;
-
-      if (!envKeyLooksValid) {
-        const accessToken = session?.access_token;
-        if (!accessToken) {
-          throw new Error('Missing auth session for Stripe initialization');
-        }
-
-        const { data, error: invokeError } = await supabase.functions.invoke(
-          'create-payment-setup-intent',
-          {
-            body: {
-              user_id: userId,
-              for_renewal: false,
-            },
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
+    // Delay mounting Stripe UI until AFTER the main screen layout has finished rendering.
+    // Mounting CardForm instantly when `loading` turns false causes Android FragmentManager crashes.
+    const timer = setTimeout(() => {
+      if (!hasStripeNativeModule) {
+        setStripeReady(false);
+        setStripeError(
+          'This app build does not include Stripe native components. Please install the latest staging build.'
         );
-
-        if (invokeError) {
-          throw new Error(resolveInvokeErrorMessage(invokeError));
-        }
-
-        if (typeof data?.publishable_key !== 'string' || !data.publishable_key.startsWith('pk_')) {
-          throw new Error('Stripe publishable key is unavailable in payment setup response');
-        }
-
-        publishableKey = data.publishable_key;
+        return;
       }
 
-      await initStripe({
-        publishableKey,
-        merchantIdentifier: Platform.OS === 'ios' ? 'merchant.com.p2pkidsmarketplace' : undefined,
-        urlScheme: 'p2pkidsmarketplace',
-      });
+      if (!stripePublishableKeyLooksValid) {
+        setStripeReady(false);
+        setStripeError('Stripe publishable key is missing or invalid in app configuration.');
+        return;
+      }
 
+      // StripeProvider is mounted at app root. Avoid re-initializing Stripe per-screen,
+      // which can cause instability on some physical devices.
       setStripeReady(true);
       setStripeError(null);
-    } catch (error: any) {
-      console.error('❌ Stripe init for trade failed:', error);
-      setStripeReady(false);
-      setStripeError(error?.message || 'Failed to initialize Stripe payment fields');
-    } finally {
-      setStripeLoading(false);
-    }
-  };
+    }, 600); // 600ms is enough to let screen layout complete
+
+    return () => clearTimeout(timer);
+  }, [loading, item, hasStripeNativeModule, stripePublishableKeyLooksValid]);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -518,18 +461,18 @@ export default function TradeInitiationScreen() {
         {cashAmountCents > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Payment Method</Text>
-            {stripeLoading ? (
-              <View style={styles.paymentLoadingContainer}>
-                <ActivityIndicator size="small" color="#3b82f6" />
-                <Text style={styles.paymentLoadingText}>Loading secure card fields...</Text>
-              </View>
-            ) : stripeReady ? (
+            {stripeReady ? (
               <CardForm
-                style={{ width: '100%', height: 300, marginVertical: 10 }}
+                style={{ width: '100%', height: Platform.OS === 'android' ? 330 : 300, marginVertical: 10 }}
                 onFormComplete={(cardDetails) => {
                   setCardComplete(cardDetails.complete);
                 }}
               />
+            ) : stripeError === null ? (
+              <View style={{ height: 100, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+                <Text style={{ marginTop: 8, color: '#6b7280' }}>Loading secure payment...</Text>
+              </View>
             ) : (
               <View style={styles.paymentErrorContainer}>
                 <Text style={styles.paymentErrorText}>
@@ -538,11 +481,22 @@ export default function TradeInitiationScreen() {
                 <Pressable
                   style={styles.retryPaymentButton}
                   onPress={() => {
-                    if (user?.id) {
-                      initializeStripeForTrade(user.id, true).catch((error) => {
-                        console.error('❌ Stripe retry init failed:', error);
-                      });
+                    if (!hasStripeNativeModule) {
+                      setStripeReady(false);
+                      setStripeError(
+                        'This app build does not include Stripe native components. Please install the latest staging build.'
+                      );
+                      return;
                     }
+
+                    if (!stripePublishableKeyLooksValid) {
+                      setStripeReady(false);
+                      setStripeError('Stripe publishable key is missing or invalid in app configuration.');
+                      return;
+                    }
+
+                    setStripeReady(true);
+                    setStripeError(null);
                   }}
                 >
                   <Text style={styles.retryPaymentButtonText}>Retry Payment Fields</Text>
@@ -557,7 +511,10 @@ export default function TradeInitiationScreen() {
             By confirming, you agree to the trade terms. Swap Points will be deducted immediately.
           </Text>
           <Pressable
-            style={[styles.confirmButton, submitting && styles.confirmButtonDisabled]}
+            style={[
+              styles.confirmButton,
+              submitting && styles.confirmButtonDisabled,
+            ]}
             onPress={handleConfirmPurchase}
             disabled={submitting}
             testID="confirm-trade-button"
@@ -578,13 +535,15 @@ export default function TradeInitiationScreen() {
         </View>
       </ScrollView>
 
-      {/* Disclaimer Modal */}
-      <DisclaimerModal
-        visible={showDisclaimer}
-        onAccept={handleDisclaimerAccept}
-        onCancel={() => setShowDisclaimer(false)}
-        testID="trade-disclaimer-modal"
-      />
+      {/* Disclaimer Modal - Conditional render to prevent aggressive native view parsing */}
+      {showDisclaimer && (
+        <DisclaimerModal
+          visible={showDisclaimer}
+          onAccept={handleDisclaimerAccept}
+          onCancel={() => setShowDisclaimer(false)}
+          testID="trade-disclaimer-modal"
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -814,6 +773,38 @@ const styles = StyleSheet.create({
   paymentErrorText: {
     fontSize: 13,
     color: '#991b1b',
+    lineHeight: 18,
+  },
+  paymentInfoContainer: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#bfdbfe',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+  },
+  paymentInfoText: {
+    fontSize: 14,
+    color: '#1d4ed8',
+    lineHeight: 20,
+  },
+  addPaymentButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    minWidth: 170,
+    alignItems: 'center',
+  },
+  addPaymentButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  paymentSuccessText: {
+    fontSize: 13,
+    color: '#166534',
     lineHeight: 18,
   },
   retryPaymentButton: {
