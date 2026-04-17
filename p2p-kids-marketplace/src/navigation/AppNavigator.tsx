@@ -55,6 +55,7 @@ import SettingsScreen from '@/screens/profile/SettingsScreen';
 import NotificationPreferencesScreen from '@/screens/profile/NotificationPreferencesScreen';
 import { NotificationSetup } from '@/components/NotificationSetup';
 import NotificationCenterScreen from '@/screens/notifications/NotificationCenterScreen';
+import UnsubscribeScreen from '@/screens/UnsubscribeScreen';
 import TermsOfServiceScreen from '@/screens/profile/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '@/screens/profile/PrivacyPolicyScreen';
 import LiabilityDisclaimerScreen from '@/screens/settings/LiabilityDisclaimerScreen';
@@ -107,6 +108,7 @@ const linking = {
       TransactionHistory: 'billing-history',
       NotificationSetup: 'notification-setup',
       Notifications: 'notifications',
+      Unsubscribe: 'unsubscribe',
     },
   },
 };
@@ -529,6 +531,12 @@ function RootNavigator() {
               name="Notifications"
               component={NotificationCenterScreen}
               options={{ headerShown: false }}
+            />
+            {/* MODULE-14 NOTIF-V2-009: Email Unsubscribe */}
+            <Stack.Screen
+              name="Unsubscribe"
+              component={UnsubscribeScreen}
+              options={{ title: 'Unsubscribe' }}
             />
             {/* MODULE-13 SAFETY-010: TOS screen */}
             <Stack.Screen

@@ -65,24 +65,36 @@ serve(async (req) => {
 
     console.log('[get-payment-method] Fetching payment method for user:', user_id);
 
-    // Fetch user subscription
-    const { data: sub, error: subError } = await supabaseClient
-      .from('user_subscriptions')
+    // Fetch from canonical subscriptions table first, then fallback to legacy user_subscriptions.
+    let paymentMethodId: string | null = null;
+
+    const { data: subscriptionRow, error: subscriptionError } = await supabaseClient
+      .from('subscriptions')
       .select('stripe_payment_method_id')
       .eq('user_id', user_id)
-      .single();
+      .maybeSingle();
 
-    if (subError || !sub) {
-      return new Response(
-        JSON.stringify({ payment_method: null }),
-        {
-          status: 200,
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        }
-      );
+    if (subscriptionError) {
+      console.warn('[get-payment-method] subscriptions lookup failed, falling back:', subscriptionError.message);
     }
 
-    const paymentMethodId = sub.stripe_payment_method_id;
+    if (subscriptionRow?.stripe_payment_method_id) {
+      paymentMethodId = subscriptionRow.stripe_payment_method_id;
+    }
+
+    if (!paymentMethodId) {
+      const { data: legacyRow, error: legacyError } = await supabaseClient
+        .from('user_subscriptions')
+        .select('stripe_payment_method_id')
+        .eq('user_id', user_id)
+        .maybeSingle();
+
+      if (legacyError) {
+        console.warn('[get-payment-method] user_subscriptions fallback lookup failed:', legacyError.message);
+      }
+
+      paymentMethodId = legacyRow?.stripe_payment_method_id ?? null;
+    }
 
     if (!paymentMethodId) {
       return new Response(

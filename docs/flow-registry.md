@@ -256,6 +256,11 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-08: Trade Flow – Checkout + Transaction State Machine
 - Smoke: scripts/smoke/transactions.mjs
 - Manual checks:
+  - **ANDROID-TRADE-CRASH-HOTFIX (2026-04-15):** Buy Now -> TradeInitiation must not crash on physical Android devices.
+    - `TradeInitiationScreen.tsx`: Android uses Stripe `CardField` (not `CardForm`) to avoid FragmentManager/UI-thread instability during route transitions.
+    - `TradeInitiationScreen.tsx`: Guard Stripe context initialization before payment field mount; show recoverable UI error instead of crashing.
+    - `DisclaimerModal.tsx`: render modal only when visible and use plain-text policy rendering on Android to avoid markdown layout-thread crashes.
+    - Required manual verification: open listing -> tap Buy Now -> wait for Payment Method section -> tap Confirm & Pay -> disclaimer modal opens/closes without process death.
   - Initiate trade -> payment succeeds -> trade status becomes `in_progress`.
   - Two-step completion is enforced regardless of `enable_automatic_seller_payout`.
   - Seller marks trade complete -> trade remains `in_progress`, `seller_marked_completed_at` is set, and NO funds/payouts are released yet (await buyer confirmation).
@@ -306,6 +311,11 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-17: Subscription Event Notifications – Renewal, Cancellation, Payment Failure, Trial Reminders
 - Purpose: Notify users of subscription lifecycle events (MODULE-14 TASK NOTIF-V2-002)
 - Covers:
+  - **NOTIF-REALTIME-CRASH-HOTFIX (2026-04-16):** prevent Android crash `cannot add postgres_changes callbacks ... after subscribe()` from notification badge and notification center subscriptions.
+    - Root cause: `subscribeToNotifications()` reused a fixed realtime topic (`notifications:<userId>`) and only called `unsubscribe()`, allowing stale subscribed channels to be reused during rapid remounts.
+    - Fix: create unique channel topic per subscriber instance and always cleanup with `supabase.removeChannel(channel)`.
+    - Files: `src/services/referralNotifications.ts` (subscription lifecycle hardening).
+    - Required manual verification: navigate across screens with `BottomNavBar` quickly (Home -> My Listings -> Item Detail -> Notifications) and confirm no JS fatal crash while realtime notifications continue updating unread badge.
   - Trial expiration reminders (7d, 3d, 1d before expiration)
   - Subscription renewal success notification
   - Payment failure alerts with retry instructions (CRITICAL - bypasses preferences)
@@ -343,6 +353,13 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Channels: Push + In-App (respects preferences)
   - DB flags: `trial_reminder_day_23_sent`, `trial_reminder_day_28_sent`, `trial_reminder_day_29_sent`
 - Mobile Service: `src/services/subscriptionNotifications.ts`
+- **NOTIF-V2-009 Email Channel (2026-04-16):**
+  - Email delivery added via `src/services/emailNotifications.ts` + `supabase/functions/send-email/index.ts`
+  - Email tracking: `email_logs` table (migration 308) – columns: email_type, status, is_critical, unsubscribe_token, sent_at
+  - Unsubscribe handler: `supabase/functions/email-unsubscribe/index.ts` (one-click token-based opt-out)
+  - Critical emails (payment_failed, subscription_cancelled, account_security_alert): always sent, unsubscribe link shows "required notice" instead
+  - Non-critical emails (trial_expiring, subscription_renewed): check `notification_preferences.email_enabled` for 'subscription' category before sending
+  - `subscriptionNotifications.ts` updated: `notifyPaymentFailed`, `notifyCancellationConfirmed`, `notifySubscriptionRenewed` all include non-blocking email call
   - `notifySubscriptionRenewed()` - renewal notification
   - `notifyCancellationConfirmed()` - cancellation notification
   - `notifyPaymentFailed()` - critical payment failure notification
@@ -1095,6 +1112,93 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Deep link: `p2pkidsmarketplace://notifications` → navigates to `Notifications` stack route
   - Tier: Tier 0 always; Tier 1 when service/realtime logic changes; Tier 2 if `user_notifications` schema or RPCs change
   - Dependencies: NOTIF-V2-001 (schema), NOTIF-V2-003 (SP notifications), `referralNotifications.ts` service layer
+
+- **NOTIF-V2-009 (MODULE-14): Email Notifications (2026-04-16)**
+  - Purpose: Implement email notification delivery for critical events (payment failures, subscription cancellations, security alerts) with tracking, unsubscribe management, and SendGrid integration
+  - Database:
+    - Migration: `supabase/migrations/209_email_notifications_tracking.sql`
+    - Tables:
+      - `email_logs` - Tracks every email sent with status (pending/sent/delivered/opened/clicked/bounced/failed), SendGrid message IDs, timestamps for each event, bounce reasons, template data
+      - `unsubscribe_tokens` - 365-day validity tokens linking user_id to notification category for unsubscribe links
+    - RPCs:
+      - `create_email_log(user_id, recipient_email, template_type, template_data, notification_id)` - Creates email log entry
+      - `update_email_log_status(log_id, status, message)` - Updates email status after delivery
+      - `track_email_event(sg_message_id, event, timestamp, reason, url)` - Updates log from SendGrid webhook events
+      - `generate_unsubscribe_token(user_id, category)` - Creates 365-day token for unsubscribe links
+      - `process_unsubscribe(token)` - Validates token, disables email preference, marks token used
+      - `get_email_delivery_stats(start_date, end_date)` - Returns email delivery metrics (sent, delivered, opened, clicked, bounced)
+    - Config: `admin_config` entries for SendGrid template IDs (payment_failed, trial_expiring, subscription_cancelled, security_alert, password_changed)
+  - Edge Functions:
+    - Extended: `supabase/functions/send-email/index.ts`
+      - Added email preference checking (respects `notification_preferences.email_enabled` per category)
+      - Critical emails (payment_failed, subscription_cancelled, security_alert, password_changed) bypass preferences
+      - Non-critical emails (trial_expiring) respect opt-out preferences
+      - Creates email log entry before sending
+      - Generates unsubscribe token for non-critical emails
+      - Updates email log status after SendGrid response
+      - Email processors for each template type with dynamic data
+    - Created: `supabase/functions/email-webhook/index.ts`
+      - Receives SendGrid webhook events (delivered, open, click, bounce, dropped, unsubscribe, spamreport)
+      - Calls `track_email_event` RPC with event data
+      - Special handling for unsubscribe events: disables all email preferences for user
+  - Mobile App:
+    - Service: `p2p-kids-marketplace/src/services/emailNotifications.ts`
+      - Functions:
+        - `sendPaymentFailureEmail(userId, email, subscriptionId, amount, reason)` - isCritical=true
+        - `sendTrialExpiringEmail(userId, email, daysRemaining, trialEndsAt)` - isCritical=false
+        - `sendSubscriptionCancelledEmail(userId, email, gracePeriodEndsAt)` - isCritical=true
+        - `sendSecurityAlertEmail(userId, email, alertType, alertMessage)` - isCritical=true
+        - `sendPasswordChangedEmail(userId, email)` - isCritical=true
+        - `getUserEmailStats(userId)` - Returns delivery statistics
+    - Screen: `p2p-kids-marketplace/src/screens/UnsubscribeScreen.tsx`
+      - Handles unsubscribe link clicks from emails
+      - Processes unsubscribe token via `process_unsubscribe` RPC
+      - Shows success/error states with loading indicator
+      - Displays category unsubscribed and navigation to settings
+      - testIDs: loading-indicator, success-title, error-title, go-home-button
+    - Navigation: `Unsubscribe` route added to AppNavigator with deep link `unsubscribe?token={TOKEN}`
+  - Email Templates (SendGrid):
+    - `payment_failed` - Payment failure notification with update payment method CTA
+    - `trial_expiring` - Trial expiration reminder with subscribe now CTA + unsubscribe link
+    - `subscription_cancelled` - Cancellation confirmation with grace period end date + reactivate CTA
+    - `security_alert` - Security event notification with alert details
+    - `password_changed` - Password change confirmation
+  - Email Rules:
+    - Critical emails: Bypass all preference checks, always delivered, no unsubscribe link
+    - Non-critical emails: Respect `notification_preferences.email_enabled` per category, include unsubscribe link
+    - Unsubscribe tokens: 365-day validity, one-time use only
+    - Tracking: All emails tracked in `email_logs` with SendGrid message ID for webhook correlation
+    - Webhook events: delivered, open, click, bounce, dropped, unsubscribe, spamreport
+  - Testing:
+    - Unit tests: `p2p-kids-marketplace/src/services/__tests__/emailNotifications.test.ts` (18 test cases)
+      - All 6 service functions tested with success/error paths
+      - Critical vs non-critical flag behavior
+      - Preference skipping logic
+      - Statistics aggregation
+    - E2E integration tests: `e2e/email-notifications.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Send payment failure and verify log entry
+      - Email preference enforcement (disabled category skips email)
+      - Email statistics accuracy
+      - Unsubscribe token generation and processing
+      - Invalid/expired token rejection
+    - Maestro flow: `.maestro/email-unsubscribe.yaml`
+      - States covered: valid-token (success), invalid-token (error), expired-token (error), re-enable-after-unsubscribe
+      - Deep link testing with `p2pkidsmarketplace://unsubscribe?token=TOKEN`
+    - Manual test guide: `NOTIF-V2-009-MANUAL-TESTING-GUIDE.md` (12 comprehensive test cases)
+      - TC1-TC6: Email delivery for each template type
+      - TC7: Email delivery tracking (sent → delivered → opened → clicked)
+      - TC8: SendGrid webhook event processing
+      - TC9: Email statistics accuracy
+      - TC10: Mobile responsiveness across email clients
+      - TC11: Invalid unsubscribe token handling
+      - TC12: Re-enable email notifications after unsubscribe
+  - Verification: MODULE-14-VERIFICATION-V2.md section 9 (Email Notifications)
+  - Tier: Tier 1 for edge function/service changes; Tier 2 if database schemas/RPCs change
+  - Dependencies:
+    - NOTIF-V2-001 (Notification Schema & Preferences - email_enabled per category)
+    - SendGrid API key configured in Supabase Edge Function secrets
+    - SendGrid webhook endpoint configured to point to `email-webhook` edge function
+    - SendGrid templates created and template IDs added to `admin_config`
 
 ### FLOW-18: Admin Controls
 - Smoke: (manual)
@@ -1879,7 +1983,7 @@ This file is the canonical registry of end-to-end flows and their required regre
     - On Accept: calls `onAccept(disclaimerPolicyId)` callback → parent screen calls `acknowledge_trade_disclaimer` RPC → closes modal → proceeds with trade
     - Checkbox Reset: resets to unchecked every time modal reopens (prevents accidental acceptance)
     - Error Handling: loading spinner, error display with retry button, empty state if no policy exists
-    - Uses `react-native-markdown-display` for Markdown rendering
+    - Uses `react-native-markdown-display` for iOS Markdown rendering; Android uses plain-text fallback for stability
     - TestID props: `disclaimer-modal`, `disclaimer-checkbox`, `disclaimer-accept-button`, `disclaimer-cancel-button`, `disclaimer-close-button`
   - `LiabilityDisclaimerScreen.tsx` — read-only screen in Settings:
     - Navigation: Settings → "Liability Disclaimer" menu item

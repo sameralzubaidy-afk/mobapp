@@ -45,23 +45,24 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK NOTIF-V2-008: Notification Deep Linking
+
+
+## TASK NOTIF-V2-010: Notification Analytics & Metrics
 
 I’m working on the  MODULE-14-NOTIFICATIONS-V2.md tasks
 Module: MODULE-14-NOTIFICATIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK NOTIF-V2-008: Notification Deep Linking
+Tasks: ## TASK NOTIF-V2-010: Notification Analytics & Metrics
 
 scope is 
-Implement deep linking for all notifications. Parse notification data to determine target screen. Handle notification taps from background, foreground, and killed app states. Implement navigation stack management for deep links. Add deep link testing utilities.
+Implement notification analytics tracking. Track notification delivery rates, open rates, click rates. Create admin dashboard for notification metrics. Add A/B testing framework for notification copy. Monitor notification performance by category.
 
 ### Acceptance Criteria
-- [ ] Notification taps navigate to correct screen
-- [ ] Deep links work from all app states (foreground, background, killed)
-- [ ] Navigation stack properly managed (back button works correctly)
-- [ ] Deep link parsing handles all notification types
-- [ ] Invalid deep links gracefully fallback to home screen
-- [ ] Deep link testing utility available
-
+- [ ] Notification delivery tracked (pending/sent/failed)
+- [ ] Push notification open rates tracked
+- [ ] Deep link click rates tracked
+- [ ] Admin dashboard displays notification metrics
+- [ ] A/B testing framework for notification copy
+- [ ] Metrics segmented by category and notification type
 
 i want you to 
 

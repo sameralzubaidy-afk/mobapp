@@ -15,6 +15,7 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { supabase } from '@/config/supabase';
 import Markdown from 'react-native-markdown-display';
@@ -33,6 +34,18 @@ interface DisclaimerPolicy {
   title: string;
   content: string;
   effective_date: string;
+}
+
+function markdownToPlainText(value: string): string {
+  return value
+    .replace(/\r\n/g, '\n')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\*(.*?)\*/g, '$1')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '$1')
+    .replace(/^\s*[-*]\s+/gm, '• ')
+    .trim();
 }
 
 export default function DisclaimerModal({
@@ -83,6 +96,10 @@ export default function DisclaimerModal({
       onAccept(policy.id);
     }
   };
+
+  if (!visible) {
+    return null;
+  }
 
   return (
     <Modal
@@ -142,7 +159,11 @@ export default function DisclaimerModal({
               )}
 
               <View style={styles.contentContainer}>
-                <Markdown>{policy.content}</Markdown>
+                {Platform.OS === 'android' ? (
+                  <Text style={styles.plainContentText}>{markdownToPlainText(policy.content)}</Text>
+                ) : (
+                  <Markdown>{policy.content}</Markdown>
+                )}
               </View>
             </ScrollView>
 
@@ -295,6 +316,11 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     marginTop: 8,
+  },
+  plainContentText: {
+    fontSize: 14,
+    color: '#111827',
+    lineHeight: 22,
   },
   footer: {
     padding: 16,

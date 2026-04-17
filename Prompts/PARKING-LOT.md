@@ -116,6 +116,8 @@ payout needs FULL end to end testing with real money , check status on app and d
 
  ## BEFORE GO live  ### TC-004: Prevent self-referral attempts
 
+ ## BEFORE GO live  make sure all emails , in app notfications and push notfications are production ready. 
+
  ## TASK MSG-010: create admin field for this change Implement Message Expiration (Delete After 30 Days Post-Trade)
 
 MODULE-08-BADGES-V2.md 

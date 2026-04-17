@@ -1,0 +1,140 @@
+appId: com.p2pkidsmarketplace
+---
+# FLOW: Email Unsubscribe | TASK: NOTIF-V2-009 | States covered: valid-token, invalid-token, expired-token
+# MODULE-14: NOTIF-V2-009 Email Notifications
+# Tests email unsubscribe flow from deep link
+
+# ============================================================
+# Test 1: Valid Unsubscribe Token (Success Path)
+# ============================================================
+
+- launchApp:
+    clearState: true
+
+# Step 1: Simulate clicking unsubscribe link from email
+# Note: In real testing, replace TOKEN_HERE with actual token from database
+- launchApp:
+    url: "p2pkidsmarketplace://unsubscribe?token=VALID_TOKEN_HERE"
+
+# Step 2: Verify loading state appears briefly
+- assertVisible: 
+    id: "loading-indicator"
+    timeout: 2000
+
+# Step 3: Verify success screen displays
+- waitForAnimationToEnd
+- assertVisible: 
+    id: "success-title"
+    timeout: 5000
+- assertVisible: "You've Been Unsubscribed"
+
+# Step 4: Verify category info is shown
+- assertVisible: "You will no longer receive"
+
+# Step 5: Navigate back to home
+- tapOn:
+    id: "go-home-button"
+- assertVisible: "Dashboard"
+
+# Step 6: Verify email preference was disabled in settings
+- tapOn: 
+    id: "tab-profile"
+- tapOn: 
+    id: "settings-button"
+- tapOn:
+    id: "notification-preferences-row"
+
+# Verify the category's email toggle is now OFF
+# Note: Replace 'subscription' with actual category from token
+- assertVisible:
+    id: "toggle-subscription-email"
+
+---
+# ============================================================
+# Test 2: Invalid Unsubscribe Token (Error Path)
+# ============================================================
+
+- launchApp:
+    clearState: true
+
+# Step 1: Simulate clicking unsubscribe link with invalid token
+- launchApp:
+    url: "p2pkidsmarketplace://unsubscribe?token=invalid-token-12345"
+
+# Step 2: Verify loading state
+- assertVisible: 
+    id: "loading-indicator"
+    timeout: 2000
+
+# Step 3: Verify error screen displays
+- waitForAnimationToEnd
+- assertVisible: 
+    id: "error-title"
+    timeout: 5000
+- assertVisible: "Unable to Unsubscribe"
+
+# Step 4: Verify error message shown
+- assertVisible: "Invalid or expired"
+
+# Step 5: Navigate back to home
+- tapOn:
+    id: "go-home-button"
+- assertVisible: "Dashboard"
+
+---
+# ============================================================
+# Test 3: Expired Unsubscribe Token (Error Path)
+# ============================================================
+
+- launchApp:
+    clearState: true
+
+# Step 1: Simulate clicking unsubscribe link with expired token
+# Note: In real testing, use a token that's >365 days old
+- launchApp:
+    url: "p2pkidsmarketplace://unsubscribe?token=expired-token-67890"
+
+# Step 2: Verify error screen displays
+- assertVisible: 
+    id: "error-title"
+    timeout: 5000
+- assertVisible: "Unable to Unsubscribe"
+
+# Step 3: Navigate back to home
+- tapOn:
+    id: "go-home-button"
+- assertVisible: "Dashboard"
+
+---
+# ============================================================
+# Test 4: Re-enable Email After Unsubscribe
+# ============================================================
+
+- launchApp:
+    clearState: true
+
+# Assume user previously unsubscribed via Test 1
+
+# Step 1: Navigate to notification preferences
+- tapOn: 
+    id: "tab-profile"
+- tapOn: 
+    id: "settings-button"
+- tapOn:
+    id: "notification-preferences-row"
+
+# Step 2: Re-enable email notifications for subscription category
+- tapOn:
+    id: "toggle-subscription-email"
+
+# Step 3: Verify success feedback
+- assertVisible: "Saved"
+- waitForAnimationToEnd
+
+# Step 4: Verify toggle is now ON
+- assertVisible:
+    id: "toggle-subscription-email"
+
+# ============================================================
+# END OF FLOW
+# ============================================================

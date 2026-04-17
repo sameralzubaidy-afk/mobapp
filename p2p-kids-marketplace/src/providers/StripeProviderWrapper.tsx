@@ -28,16 +28,17 @@ export default function StripeProviderWrapper({
   children: React.ReactElement | React.ReactElement[];
   publishableKey: string;
   merchantIdentifier?: string;
-}): React.ReactElement | React.ReactElement[] | null {
-  // Validate publishable key. Always provide a fallback starting with 'pk_' 
+}): React.ReactElement {
+  // Validate publishable key. Always provide a fallback starting with 'pk_'
   // so that <StripeProvider> doesn't throw errors when hooks like useStripe() run.
-  const isValidFormat = publishableKey && 
-                        publishableKey.startsWith('pk_') && 
-                        !publishableKey.includes('YOUR_KEY') && 
+  const isValidFormat =
+    publishableKey &&
+    publishableKey.startsWith('pk_') &&
+    !publishableKey.includes('YOUR_KEY') &&
                         !publishableKey.includes('your-key');
-                        
-  const safePublishableKey = isValidFormat 
-    ? publishableKey 
+
+  const safePublishableKey = isValidFormat
+    ? publishableKey
     : 'pk_test_TYaaAAAAAAAAAAAAAAAAAAAA'; // generic valid mock structure so Native SDK won't crash
 
   if (!isValidFormat) {
@@ -51,7 +52,7 @@ export default function StripeProviderWrapper({
   // Check for native module availability
   const hasNativeModule = hasStripeNativeModule();
   const inExpoGo = isExpoGo();
-  
+
   if (inExpoGo && !hasNativeModule) {
     if (__DEV__) {
       console.warn(
@@ -62,20 +63,12 @@ export default function StripeProviderWrapper({
     // Still try to provide Stripe context for basic operations
   }
 
-  try {
-    return (
-      <StripeProvider
-        publishableKey={safePublishableKey}
-        merchantIdentifier={merchantIdentifier}
-      >
-        {children}
-      </StripeProvider>
-    );
-  } catch (error) {
-    if (__DEV__) {
-      console.error('[Stripe] Failed to initialize StripeProvider:', error);
-    }
-    // Fallback: render children without Stripe context
-    return <React.Fragment>{children}</React.Fragment>;
-  }
+  return (
+    <StripeProvider
+      publishableKey={safePublishableKey}
+      merchantIdentifier={Platform.OS === 'ios' ? merchantIdentifier : undefined}
+    >
+      {children}
+    </StripeProvider>
+  );
 }

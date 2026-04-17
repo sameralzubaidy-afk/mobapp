@@ -1,3 +1,5 @@
 - Stripe card/payment UI can differ between simulator and physical builds when EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY is missing/placeholder in build env; runtime initStripe fallback is needed.
 - Trade buy flow uses CardField in TradeInitiationScreen, separate from subscription PaymentSheet flow.
+- Android Buy Now -> TradeInitiation is unstable when Stripe CardForm is used during route transition; prefer CardField on Android and gate Stripe context/module readiness before mounting payment fields.
+- Realtime crash `cannot add postgres_changes callbacks ... after subscribe()` is caused by reusing fixed channel topics; use unique topic per subscription instance and cleanup with `supabase.removeChannel(channel)`.
 - Trade notification triggers can silently no-op if SQL references legacy columns (`trades.item_id`, `profiles.full_name`) after schema moved to V2 (`trades.listing_id`, `profiles.name`); use schema-tolerant lookups + debug_logs instrumentation.

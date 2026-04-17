@@ -219,9 +219,16 @@ export const subscribeToNotifications = (
   userId: string,
   onNotification: (notification: UserNotification) => void
 ): (() => void) => {
-  const channel = supabase
-    .channel(`notifications:${userId}`)
-    .on(
+  try {
+    // Use a unique topic per subscriber instance so remounts cannot reuse an already
+    // subscribed channel and trigger "cannot add postgres_changes callbacks after subscribe".
+    const channelTopic = `notifications:${userId}:${Date.now()}:${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+
+    const channel = supabase.channel(channelTopic);
+
+    channel.on(
       'postgres_changes',
       {
         event: 'INSERT',
@@ -233,13 +240,25 @@ export const subscribeToNotifications = (
         const notification = payload.new as UserNotification;
         onNotification(notification);
       }
-    )
-    .subscribe();
+    );
 
-  // Return cleanup function
-  return () => {
-    channel.unsubscribe();
-  };
+    channel.subscribe((status) => {
+      if (status === 'CHANNEL_ERROR') {
+        console.error('[ReferralNotifications] Realtime channel error:', channelTopic);
+      }
+    });
+
+    // Return cleanup function
+    return () => {
+      // removeChannel ensures the channel is detached from the client registry,
+      // preventing stale topic reuse across screen transitions.
+      void supabase.removeChannel(channel);
+    };
+  } catch (err) {
+    const error = err as Error;
+    console.error('[ReferralNotifications] Failed to subscribe to realtime notifications:', error.message);
+    return () => {};
+  }
 };
 
 /**

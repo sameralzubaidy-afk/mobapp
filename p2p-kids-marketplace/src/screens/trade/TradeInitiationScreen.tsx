@@ -10,7 +10,7 @@
  * - Handles trade initiation
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import {
   Pressable,
   SafeAreaView,
   NativeModules,
+  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
@@ -30,8 +31,8 @@ import { getItemById, Item } from '@/services/items';
 import { initiateTradeV2, processTradePayment } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
-import { getTransactionFee } from '@/services/subscription';
-import { CardForm, useStripe } from '@stripe/stripe-react-native';
+import { getTransactionFee, getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
+import { CardField, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { supabase } from '@/config/supabase';
@@ -44,7 +45,14 @@ export default function TradeInitiationScreen() {
   const { session, refreshSession } = useAuth();
   const subStatus = useSubscriptionStatus();
   const walletStats = useSPWallet();
-  const { createPaymentMethod } = useStripe();
+  let createPaymentMethod: ReturnType<typeof useStripe>['createPaymentMethod'] | null = null;
+  let stripeContextError: string | null = null;
+  try {
+    const stripe = useStripe();
+    createPaymentMethod = stripe.createPaymentMethod;
+  } catch (error: any) {
+    stripeContextError = error?.message || 'Stripe context unavailable';
+  }
   const user = session?.user;
   const { itemId } = route.params;
 
@@ -58,6 +66,11 @@ export default function TradeInitiationScreen() {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [stripeReady, setStripeReady] = useState(false);
   const [stripeError, setStripeError] = useState<string | null>(null);
+  const [savedPaymentMethod, setSavedPaymentMethod] = useState<PaymentMethodInfo | null>(null);
+  const [loadingSavedPaymentMethod, setLoadingSavedPaymentMethod] = useState(false);
+  const [paymentInputMode, setPaymentInputMode] = useState<'saved' | 'new'>('new');
+  const scrollViewRef = useRef<ScrollView>(null);
+  const loadedSavedMethodKeyRef = useRef<string | null>(null);
 
   const hasStripeNativeModule = Boolean(
     (NativeModules as any)?.StripeSdk ||
@@ -78,14 +91,22 @@ export default function TradeInitiationScreen() {
 
   useEffect(() => {
     // If still loading trade data, keep Stripe unmounted.
-    if (loading || !item) {
+    if (loading || !item || paymentInputMode === 'saved') {
       setStripeReady(false);
       return;
     }
 
     // Delay mounting Stripe UI until AFTER the main screen layout has finished rendering.
-    // Mounting CardForm instantly when `loading` turns false causes Android FragmentManager crashes.
+    // Mounting Stripe card input instantly when `loading` turns false can cause Android native crashes.
     const timer = setTimeout(() => {
+      if (stripeContextError) {
+        setStripeReady(false);
+        setStripeError(
+          'Stripe context is not available in this build. Please reinstall the latest native build.'
+        );
+        return;
+      }
+
       if (!hasStripeNativeModule) {
         setStripeReady(false);
         setStripeError(
@@ -107,7 +128,55 @@ export default function TradeInitiationScreen() {
     }, 600); // 600ms is enough to let screen layout complete
 
     return () => clearTimeout(timer);
-  }, [loading, item, hasStripeNativeModule, stripePublishableKeyLooksValid]);
+  }, [
+    loading,
+    item,
+    hasStripeNativeModule,
+    stripePublishableKeyLooksValid,
+    stripeContextError,
+    paymentInputMode,
+  ]);
+
+  useEffect(() => {
+    if (!user?.id || !item || loading) {
+      return;
+    }
+
+    const loadKey = `${user.id}:${item.id}`;
+    if (loadedSavedMethodKeyRef.current === loadKey) {
+      return;
+    }
+    loadedSavedMethodKeyRef.current = loadKey;
+
+    let isCancelled = false;
+
+    const loadSavedPaymentMethod = async () => {
+      setLoadingSavedPaymentMethod(true);
+      const method = await getPaymentMethod();
+
+      if (isCancelled) {
+        return;
+      }
+
+      setSavedPaymentMethod(method);
+
+      if (method?.id) {
+        setPaymentInputMode('saved');
+        setCardComplete(true);
+      } else {
+        setPaymentInputMode('new');
+        setCardComplete(false);
+      }
+
+      setLoadingSavedPaymentMethod(false);
+    };
+
+    void loadSavedPaymentMethod();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, item, loading]);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -185,7 +254,7 @@ export default function TradeInitiationScreen() {
   };
 
   const handleInitiateTrade = async (policyId?: string) => {
-    if (cashAmountCents > 0 && !stripeReady) {
+    if (cashAmountCents > 0 && paymentInputMode === 'new' && !stripeReady) {
       Alert.alert(
         'Payment Setup Required',
         stripeError || 'Secure payment fields are still loading. Please try again.'
@@ -193,7 +262,12 @@ export default function TradeInitiationScreen() {
       return;
     }
 
-    if (!cardComplete && cashAmountCents > 0) {
+    if (cashAmountCents > 0 && paymentInputMode === 'saved' && !savedPaymentMethod?.id) {
+      Alert.alert('Payment Method Required', 'No saved card is available. Please add a new card.');
+      return;
+    }
+
+    if (!cardComplete && cashAmountCents > 0 && paymentInputMode === 'new') {
       Alert.alert('Payment Required', 'Please enter your card details to continue.');
       return;
     }
@@ -234,47 +308,66 @@ export default function TradeInitiationScreen() {
       // 3. Handle Payment if cash is due
       if (cashAmountCents > 0) {
         try {
-          const { paymentMethod, error: pmError } = await createPaymentMethod({
-            paymentMethodType: 'Card',
-            paymentMethodData: {
-              billingDetails: {
-                email: user?.email,
-              },
-            },
-          });
+          let selectedPaymentMethodId = savedPaymentMethod?.id || null;
 
-          if (pmError) {
-            console.error('❌ Stripe PaymentMethod error:', pmError);
-
-            // Check for common issues
-            if (pmError.message?.includes('API key') || pmError.code === 'Failed') {
+          if (paymentInputMode === 'new') {
+            if (!createPaymentMethod) {
               Alert.alert(
-                'Payment Setup Error',
-                'Payment system is not properly configured. Please contact support or try again later.',
-                [
-                  { text: 'OK' },
-                  {
-                    text: 'Try Development Build',
-                    onPress: () =>
-                      Alert.alert(
-                        'Development Build Required',
-                        'For full payment testing, run:\n\nexpo run:android\n\ninstead of Expo Go.'
-                      ),
-                  },
-                ]
+                'Payment System Error',
+                'Stripe payment context is unavailable. Please reinstall the latest build and try again.'
               );
-            } else {
-              Alert.alert('Payment Error', pmError.message || 'Card validation failed');
+              return;
             }
+
+            const { paymentMethod, error: pmError } = await createPaymentMethod({
+              paymentMethodType: 'Card',
+              paymentMethodData: {
+                billingDetails: {
+                  email: user?.email,
+                },
+              },
+            });
+
+            if (pmError) {
+              console.error('❌ Stripe PaymentMethod error:', pmError);
+
+              // Check for common issues
+              if (pmError.message?.includes('API key') || pmError.code === 'Failed') {
+                Alert.alert(
+                  'Payment Setup Error',
+                  'Payment system is not properly configured. Please contact support or try again later.',
+                  [
+                    { text: 'OK' },
+                    {
+                      text: 'Try Development Build',
+                      onPress: () =>
+                        Alert.alert(
+                          'Development Build Required',
+                          'For full payment testing, run:\n\nexpo run:android\n\ninstead of Expo Go.'
+                        ),
+                    },
+                  ]
+                );
+              } else {
+                Alert.alert('Payment Error', pmError.message || 'Card validation failed');
+              }
+              return;
+            }
+
+            if (!paymentMethod?.id) {
+              Alert.alert('Payment Error', 'Failed to create payment method');
+              return;
+            }
+
+            selectedPaymentMethodId = paymentMethod.id;
+          }
+
+          if (!selectedPaymentMethodId) {
+            Alert.alert('Payment Error', 'No valid payment method selected');
             return;
           }
 
-          if (!paymentMethod?.id) {
-            Alert.alert('Payment Error', 'Failed to create payment method');
-            return;
-          }
-
-          const paymentResult = await processTradePayment(tradeId, paymentMethod.id);
+          const paymentResult = await processTradePayment(tradeId, selectedPaymentMethodId);
 
           if (!paymentResult.success) {
             Alert.alert('Payment Failed', paymentResult.error || 'Could not process payment');
@@ -331,7 +424,17 @@ export default function TradeInitiationScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 24}
+      >
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
         <Text style={styles.title}>Confirm Your Trade</Text>
 
         <WalletWarningBanner walletState={walletState} />
@@ -461,11 +564,78 @@ export default function TradeInitiationScreen() {
         {cashAmountCents > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Payment Method</Text>
-            {stripeReady ? (
-              <CardForm
-                style={{ width: '100%', height: Platform.OS === 'android' ? 330 : 300, marginVertical: 10 }}
-                onFormComplete={(cardDetails) => {
-                  setCardComplete(cardDetails.complete);
+            {loadingSavedPaymentMethod && (
+              <View style={styles.paymentModeLoadingContainer}>
+                <ActivityIndicator size="small" color="#3b82f6" />
+                <Text style={styles.paymentModeLoadingText}>Checking saved cards...</Text>
+              </View>
+            )}
+
+            {!!savedPaymentMethod && (
+              <View style={styles.paymentModeSelector}>
+                <Pressable
+                  onPress={() => {
+                    setPaymentInputMode('saved');
+                    setCardComplete(true);
+                  }}
+                  style={[
+                    styles.paymentModeOption,
+                    paymentInputMode === 'saved' && styles.paymentModeOptionSelected,
+                  ]}
+                >
+                  <Text style={styles.paymentModeTitle}>Use Saved Card</Text>
+                  <Text style={styles.paymentModeSubtitle}>
+                    {savedPaymentMethod.brand?.toUpperCase()} •••• {savedPaymentMethod.last4}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    setPaymentInputMode('new');
+                    setCardComplete(false);
+                  }}
+                  style={[
+                    styles.paymentModeOption,
+                    paymentInputMode === 'new' && styles.paymentModeOptionSelected,
+                  ]}
+                >
+                  <Text style={styles.paymentModeTitle}>Use New Card</Text>
+                  <Text style={styles.paymentModeSubtitle}>Enter different card details</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {paymentInputMode === 'saved' && savedPaymentMethod ? (
+              <View style={styles.savedCardInfoContainer}>
+                <Text style={styles.savedCardInfoText}>
+                  Paying with {savedPaymentMethod.brand?.toUpperCase()} •••• {savedPaymentMethod.last4}
+                </Text>
+                <Text style={styles.savedCardInfoSubtext}>
+                  Expires {String(savedPaymentMethod.exp_month).padStart(2, '0')}/{savedPaymentMethod.exp_year}
+                </Text>
+              </View>
+            ) : stripeReady ? (
+              <CardField
+                postalCodeEnabled={true}
+                placeholders={{
+                  number: '4242 4242 4242 4242',
+                }}
+                cardStyle={{
+                  backgroundColor: '#FFFFFF',
+                  textColor: '#000000',
+                  placeholderColor: '#A0AEC0',
+                  borderColor: '#E5E7EB',
+                  borderWidth: 1,
+                  borderRadius: 8,
+                }}
+                style={styles.cardField}
+                onCardChange={(cardDetails) => {
+                  setCardComplete(cardDetails.complete ?? false);
+                }}
+                onFocus={() => {
+                  requestAnimationFrame(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  });
                 }}
               />
             ) : stripeError === null ? (
@@ -534,6 +704,7 @@ export default function TradeInitiationScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Disclaimer Modal - Conditional render to prevent aggressive native view parsing */}
       {showDisclaimer && (
@@ -553,8 +724,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f9fafb',
   },
+  keyboardAvoidingContainer: {
+    flex: 1,
+  },
   scrollContent: {
     padding: 20,
+    paddingBottom: 48,
   },
   loadingContainer: {
     flex: 1,
@@ -751,6 +926,59 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 52,
     marginVertical: 10,
+  },
+  paymentModeLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  paymentModeLoadingText: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  paymentModeSelector: {
+    gap: 8,
+    marginBottom: 10,
+  },
+  paymentModeOption: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: '#fff',
+  },
+  paymentModeOptionSelected: {
+    borderColor: '#3b82f6',
+    backgroundColor: '#eff6ff',
+  },
+  paymentModeTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  paymentModeSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  savedCardInfoContainer: {
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 8,
+    backgroundColor: '#eff6ff',
+    padding: 12,
+    marginVertical: 8,
+  },
+  savedCardInfoText: {
+    fontSize: 14,
+    color: '#1d4ed8',
+    fontWeight: '600',
+  },
+  savedCardInfoSubtext: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#1e40af',
   },
   paymentLoadingContainer: {
     alignItems: 'center',
