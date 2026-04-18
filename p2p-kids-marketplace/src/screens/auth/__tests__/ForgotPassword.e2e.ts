@@ -1,4 +1,4 @@
-import { by, element, expect, device, waitFor } from 'detox';
+import { by, element, expect, device, waitFor } from '../../../test-helpers/detoxCompat';
 
 const RUN_DETOX_E2E = process.env.RUN_DETOX_E2E === 'true';
 const describeDetox = describe;

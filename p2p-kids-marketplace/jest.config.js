@@ -1,6 +1,8 @@
 /**
  * Jest config for Expo / React Native
  */
+const runDetoxE2E = process.env.RUN_DETOX_E2E === 'true';
+
 module.exports = {
   preset: 'jest-expo',
   testEnvironment: 'node',
@@ -10,6 +12,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    ...(runDetoxE2E ? {} : { '^detox$': '<rootDir>/src/__mocks__/detox.ts' }),
   },
   // By default Jest ignores transforming node_modules. For Expo/React Native we must allow
   // transforming several packages that ship modern JS (ESM/TS) syntax.

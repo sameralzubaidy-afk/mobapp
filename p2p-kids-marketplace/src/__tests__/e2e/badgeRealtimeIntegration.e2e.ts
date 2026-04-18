@@ -2,14 +2,21 @@
 // E2E test for TASK BADGES-V2-009: Badge real-time integration
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { createClient } from '@supabase/supabase-js';
-import { createConfirmedTestUser } from '@/test-helpers/authTestUtils';
+import { createConfirmedTestUser } from '../../test-helpers/authTestUtils';
+
+const createClient = (() => {
+  try {
+    return require('@supabase/supabase-js').createClient;
+  } catch {
+    return null;
+  }
+})();
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
 // Skip tests if environment variables are missing
-const shouldSkip = !supabaseUrl || !supabaseKey;
+const shouldSkip = !supabaseUrl || !supabaseKey || !createClient;
 
 if (shouldSkip) {
   console.warn('⏭️  Skipping badge real-time integration tests: Missing SUPABASE_URL or SUPABASE_ANON_KEY');

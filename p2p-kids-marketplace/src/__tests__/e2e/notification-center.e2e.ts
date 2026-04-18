@@ -2,19 +2,31 @@
 // MODULE-14 TASK NOTIF-V2-006: Integration / E2E tests for In-App Notification Center
 // Runs against staging Supabase when RUN_SUPABASE_E2E=true
 
-import { createClient } from '@supabase/supabase-js';
+const createClient = (() => {
+  try {
+    return require('@supabase/supabase-js').createClient;
+  } catch {
+    return null;
+  }
+})();
 
 const RUN = process.env.RUN_SUPABASE_E2E === 'true';
 
 const describeE2E = RUN ? describe : describe.skip;
 
-const supabase = createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_ANON_KEY ?? '');
+const supabase = createClient
+  ? createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_ANON_KEY ?? '')
+  : null;
 
 // Test user credentials – must pre-exist in staging DB
 const TEST_EMAIL = process.env.TEST_USER_EMAIL ?? '';
 const TEST_PASSWORD = process.env.TEST_USER_PASSWORD ?? '';
 
 async function signIn() {
+  if (!supabase) {
+    throw new Error('Supabase client unavailable in test environment');
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({
     email: TEST_EMAIL,
     password: TEST_PASSWORD,
@@ -27,6 +39,10 @@ async function insertTestNotification(
   userId: string,
   overrides: Partial<Record<string, any>> = {}
 ) {
+  if (!supabase) {
+    throw new Error('Supabase client unavailable in test environment');
+  }
+
   const { data, error } = await supabase
     .from('user_notifications')
     .insert({
@@ -47,6 +63,10 @@ async function insertTestNotification(
 }
 
 async function cleanupTestNotifications(userId: string) {
+  if (!supabase) {
+    return;
+  }
+
   await supabase.from('user_notifications').delete().eq('user_id', userId).eq('type', 'e2e_test');
 }
 
@@ -64,6 +84,13 @@ describeE2E('Notification Center – E2E (Supabase Staging)', () => {
   };
 
   beforeAll(async () => {
+    if (!supabase) {
+      canRunSuite = false;
+      skipReason = 'Supabase client package could not be resolved for this environment.';
+      console.warn(`[notification-center.e2e] ${skipReason}`);
+      return;
+    }
+
     if (!TEST_EMAIL || !TEST_PASSWORD) {
       canRunSuite = false;
       skipReason = 'Set TEST_USER_EMAIL and TEST_USER_PASSWORD for staging E2E notification tests.';
