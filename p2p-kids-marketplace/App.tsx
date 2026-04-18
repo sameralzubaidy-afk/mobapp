@@ -10,10 +10,15 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import StartupDebugOverlay from './src/components/StartupDebugOverlay';
+import { NotificationAnalyticsService } from './src/services/notificationAnalytics';
 
 export default function App() {
   useEffect(() => {
     console.log('[APP] App mounted');
+    
+    // Initialize notification analytics tracking (NOTIF-V2-010)
+    NotificationAnalyticsService.initialize();
+    
     // Commented out: testSupabaseConnection can hang on Android
     // Connection is tested during auth initialization instead
     // testSupabaseConnection();

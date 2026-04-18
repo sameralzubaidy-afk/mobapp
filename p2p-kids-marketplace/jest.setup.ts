@@ -68,6 +68,43 @@ process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANO
 // Opt-in to real Supabase E2E by setting `RUN_SUPABASE_E2E=true`.
 const runSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Network-backed E2E tests can intermittently fail with transient socket resets.
+// Retry only short-lived transport errors to reduce flakiness without masking logic failures.
+if (runSupabaseE2E && typeof globalThis.fetch === 'function') {
+	const originalFetch = globalThis.fetch.bind(globalThis);
+
+	globalThis.fetch = async (...args: Parameters<typeof fetch>): Promise<Response> => {
+		let lastError: unknown;
+
+		for (let attempt = 1; attempt <= 3; attempt += 1) {
+			try {
+				const response = await originalFetch(...args);
+
+				if ([502, 503, 504].includes(response.status) && attempt < 3) {
+					await delay(attempt * 200);
+					continue;
+				}
+
+				return response;
+			} catch (error) {
+				lastError = error;
+				const message = error instanceof Error ? error.message : String(error);
+				const isTransient = /ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network/i.test(message);
+
+				if (!isTransient || attempt === 3) {
+					throw error;
+				}
+
+				await delay(attempt * 200);
+			}
+		}
+
+		throw lastError instanceof Error ? lastError : new Error('Fetch failed after retries');
+	};
+}
+
 if (!runSupabaseE2E && (globalThis as any).jest?.mock) {
 	jest.mock('@supabase/supabase-js', () => {
 		const { fn } = require('jest-mock');

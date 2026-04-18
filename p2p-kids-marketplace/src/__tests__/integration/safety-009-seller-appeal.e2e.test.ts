@@ -81,6 +81,19 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
       return;
     }
 
+    // Ensure the listing is in the required precondition state for this test.
+    const { error: prepError } = await supabase
+      .from('items')
+      .update({
+        status: 'rejected',
+        rejected_at: new Date().toISOString(),
+        edited_since_rejection: true,
+        edited_since_rejection_at: new Date().toISOString(),
+      })
+      .eq('id', testListingId);
+
+    expect(prepError).toBeNull();
+
     const appealReason =
       'I have corrected the safety concerns and updated the listing details as requested.';
 

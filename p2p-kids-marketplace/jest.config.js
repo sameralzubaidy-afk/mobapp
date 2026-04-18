@@ -4,6 +4,9 @@
 module.exports = {
   preset: 'jest-expo',
   testEnvironment: 'node',
+  // E2E/integration suites hit real Supabase and can exceed Jest's 5s default.
+  // Use a safer global baseline; specific suites can still override when needed.
+  testTimeout: 30000,
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

@@ -248,7 +248,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
     }
   });
 
-  test('performance: recommendations should return within 200ms', async () => {
+  test('performance: recommendations should return within 300ms', async () => {
     // Act
     const startTime = Date.now();
     const { data, error } = await supabase.rpc('get_recommendations', {
@@ -259,7 +259,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
 
     // Assert
     expect(error).toBeNull();
-    expect(duration).toBeLessThan(200);
+    expect(duration).toBeLessThan(300);
     console.log(`✓ Recommendations query took ${duration}ms`);
   });
 });

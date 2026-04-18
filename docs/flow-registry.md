@@ -454,6 +454,33 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Dependencies: SAFETY-P001 (item-images bucket), SAFETY-P002 (image upload), GOOGLE_VISION_API_KEY configured
 - Prerequisites: Google Cloud Vision API enabled and API key configured in Supabase Edge Function secrets
 
+- **FLOW-17d: Notification Analytics & Metrics (NOTIF-V2-010)**  
+  - Purpose: Track notification delivery, open, and click rates for analytics and A/B testing
+  - Migration: `supabase/migrations/214_notification_analytics.sql`
+  - Tables: `notification_events` (delivered/opened/clicked/failed events)
+  - Mobile Service: `p2p-kids-marketplace/src/services/notificationAnalytics.ts`
+  - Admin Dashboard: `p2p-kids-admin/src/app/analytics/notifications/page.tsx`
+  - Smoke: (manual + E2E)
+    - Send notification → verify delivered event tracked
+    - Tap notification → verify opened event tracked
+    - Follow deep link → verify clicked event tracked
+    - Admin dashboard displays metrics (delivery rate, open rate, click rate)
+    - A/B test tracking: create variants → verify separate metrics per variant
+  - E2E: `p2p-kids-marketplace/e2e/notification-analytics.e2e.test.ts`
+  - Manual test guide: `NOTIF-V2-010-MANUAL-TESTING-GUIDE.md`
+  - Maestro flow: `.maestro/notif-v2-010-analytics.yaml`
+  - Verification:
+    - Delivered events tracked on send (notification_events.event_type = 'delivered')
+    - Opened events tracked on tap (event_type = 'opened', notification marked as read)
+    - Clicked events tracked with deep link (event_type = 'clicked', deep_link captured)
+    - Failed events logged with error messages
+    - Analytics RPC `get_notification_analytics()` returns metrics by category and type
+    - Admin dashboard loads without errors, displays delivery/open/click rates
+    - Date range filters work (7d/30d/90d)
+    - Category filters work (subscription/sp_events/badges/trades/system)
+    - A/B test performance tracking works (`get_ab_test_performance()`)
+    - Performance acceptable with large datasets (1000+ notifications)
+
 ### FLOW-18: Admin Controls – Config + Overrides + Revenue Analytics + User Management
 - Purpose: Admin can configure platform settings, view revenue metrics, analytics, and manage users
 - Smoke: (manual)

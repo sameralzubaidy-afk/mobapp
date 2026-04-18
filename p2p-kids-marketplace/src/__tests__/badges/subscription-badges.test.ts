@@ -17,7 +17,7 @@ if (shouldSkip) {
 
 const supabase = !shouldSkip ? createClient(supabaseUrl, supabaseKey) : null;
 
-jest.setTimeout(15000);
+jest.setTimeout(45000);
 
 describe('Subscription Tenure Badges', () => {
   let testUserId: string;
