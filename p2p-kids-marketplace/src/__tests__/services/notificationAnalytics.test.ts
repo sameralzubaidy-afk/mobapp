@@ -181,6 +181,42 @@ describe('NotificationAnalyticsService', () => {
       trackOpenedSpy.mockRestore();
       trackClickedSpy.mockRestore();
     });
+
+    it('should support camelCase notification payload keys', async () => {
+      const trackOpenedSpy = jest.spyOn(NotificationAnalyticsService, 'trackOpened').mockResolvedValue();
+      const trackClickedSpy = jest.spyOn(NotificationAnalyticsService, 'trackClicked').mockResolvedValue();
+
+      let responseListener: any;
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((listener) => {
+        responseListener = listener;
+      });
+
+      NotificationAnalyticsService.initialize();
+
+      const mockResponse = {
+        notification: {
+          request: {
+            content: {
+              data: {
+                notificationId: 'test-notif-id-camel',
+                deepLink: 'app://wallet',
+              },
+            },
+          },
+        },
+        actionIdentifier: 'default',
+      };
+
+      responseListener(mockResponse);
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(trackOpenedSpy).toHaveBeenCalledWith('test-notif-id-camel');
+      expect(trackClickedSpy).toHaveBeenCalledWith('test-notif-id-camel', 'app://wallet');
+
+      trackOpenedSpy.mockRestore();
+      trackClickedSpy.mockRestore();
+    });
   });
 
   describe('getAnalytics', () => {

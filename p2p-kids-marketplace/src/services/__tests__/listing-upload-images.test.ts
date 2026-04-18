@@ -24,16 +24,44 @@ describe('uploadListingImages', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockSupabase.from = jest.fn().mockReturnValue({
-      insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({
-            data: { id: 'img-1' },
-            error: null,
+    mockSupabase.from = jest.fn((table: string) => {
+      if (table === 'admin_config') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: { value: false },
+                error: null,
+              }),
+            }),
+          }),
+        } as any;
+      }
+
+      return {
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: { id: 'img-1' },
+              error: null,
+            }),
           }),
         }),
+      } as any;
+    });
+
+    mockSupabase.functions = {
+      invoke: jest.fn().mockResolvedValue({
+        data: {
+          success: true,
+          decision: 'approved',
+          flagged: false,
+          categories: [],
+          confidence: 0.1,
+        },
+        error: null,
       }),
-    } as any);
+    } as any;
   });
 
   it('uploads successfully using preferred seller/listing path', async () => {
@@ -117,16 +145,31 @@ describe('uploadListingImages', () => {
         error: null,
       });
 
-    mockSupabase.from = jest.fn().mockReturnValue({
-      insert: jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          single: jest.fn().mockResolvedValue({
-            data: null,
-            error: { message: 'insert failed' },
+    mockSupabase.from = jest.fn((table: string) => {
+      if (table === 'admin_config') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: { value: false },
+                error: null,
+              }),
+            }),
+          }),
+        } as any;
+      }
+
+      return {
+        insert: jest.fn().mockReturnValue({
+          select: jest.fn().mockReturnValue({
+            single: jest.fn().mockResolvedValue({
+              data: null,
+              error: { message: 'insert failed' },
+            }),
           }),
         }),
-      }),
-    } as any);
+      } as any;
+    });
 
     mockDeleteImage.mockResolvedValue({ error: null });
 

@@ -9,7 +9,7 @@
  * - Navigation flows work correctly
  */
 
-import { test, expect, device } from 'detox';
+import { by, device, element, expect, waitFor } from 'detox';
 
 const RUN_DETOX_E2E = process.env.RUN_DETOX_E2E === 'true';
 

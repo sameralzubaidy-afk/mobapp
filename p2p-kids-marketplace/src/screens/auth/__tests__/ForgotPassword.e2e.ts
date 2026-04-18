@@ -1,4 +1,4 @@
-import { by, element, expect, device } from 'detox';
+import { by, element, expect, device, waitFor } from 'detox';
 
 const RUN_DETOX_E2E = process.env.RUN_DETOX_E2E === 'true';
 const describeDetox = describe;

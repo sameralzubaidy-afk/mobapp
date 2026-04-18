@@ -19,6 +19,38 @@ export interface NotificationEvent {
 export class NotificationAnalyticsService {
   private static initialized = false;
 
+  private static getNotificationId(
+    notificationData: Record<string, unknown> | undefined
+  ): string | null {
+    const snakeCaseId = notificationData?.notification_id;
+    if (typeof snakeCaseId === 'string' && snakeCaseId.length > 0) {
+      return snakeCaseId;
+    }
+
+    const camelCaseId = notificationData?.notificationId;
+    if (typeof camelCaseId === 'string' && camelCaseId.length > 0) {
+      return camelCaseId;
+    }
+
+    return null;
+  }
+
+  private static getDeepLink(
+    notificationData: Record<string, unknown> | undefined
+  ): string | null {
+    const snakeCaseDeepLink = notificationData?.deep_link;
+    if (typeof snakeCaseDeepLink === 'string' && snakeCaseDeepLink.length > 0) {
+      return snakeCaseDeepLink;
+    }
+
+    const camelCaseDeepLink = notificationData?.deepLink;
+    if (typeof camelCaseDeepLink === 'string' && camelCaseDeepLink.length > 0) {
+      return camelCaseDeepLink;
+    }
+
+    return null;
+  }
+
   /**
    * Track notification delivered event
    */
@@ -125,11 +157,13 @@ export class NotificationAnalyticsService {
 
     // Track notification opens and clicks
     Notifications.addNotificationResponseReceivedListener((response) => {
-      const notificationData = response.notification.request.content.data;
-      const notificationId = notificationData?.notification_id as string | undefined;
+      const notificationData = response.notification.request.content.data as
+        | Record<string, unknown>
+        | undefined;
+      const notificationId = this.getNotificationId(notificationData);
 
       if (!notificationId) {
-        console.warn('[NotificationAnalytics] No notification_id in response data');
+        console.warn('[NotificationAnalytics] No notification id in response data');
         return;
       }
 
@@ -142,7 +176,7 @@ export class NotificationAnalyticsService {
       this.trackOpened(notificationId);
 
       // Track click if deep link present
-      const deepLink = notificationData?.deep_link as string | undefined;
+      const deepLink = this.getDeepLink(notificationData);
       if (deepLink) {
         console.log('[NotificationAnalytics] Deep link detected:', deepLink);
         this.trackClicked(notificationId, deepLink);
@@ -151,8 +185,10 @@ export class NotificationAnalyticsService {
 
     // Track notification received while app is foregrounded
     Notifications.addNotificationReceivedListener((notification) => {
-      const notificationData = notification.request.content.data;
-      const notificationId = notificationData?.notification_id as string | undefined;
+      const notificationData = notification.request.content.data as
+        | Record<string, unknown>
+        | undefined;
+      const notificationId = this.getNotificationId(notificationData);
 
       if (notificationId) {
         console.log('[NotificationAnalytics] Notification received (foreground):', notificationId);

@@ -106,6 +106,16 @@ if (runSupabaseE2E && typeof globalThis.fetch === 'function') {
 }
 
 if (!runSupabaseE2E && (globalThis as any).jest?.mock) {
+	jest.mock(require.resolve('./src/config/supabase'), () => require('./src/__mocks__/supabase'));
+	jest.mock('@/config/supabase', () => require('./src/__mocks__/supabase'));
+
+	beforeEach(() => {
+		const { __resetSupabaseMocks } = require('./src/__mocks__/supabase');
+		if (typeof __resetSupabaseMocks === 'function') {
+			__resetSupabaseMocks();
+		}
+	});
+
 	jest.mock('@supabase/supabase-js', () => {
 		const { fn } = require('jest-mock');
 
@@ -156,6 +166,9 @@ if (!runSupabaseE2E && (globalThis as any).jest?.mock) {
 			},
 			from: fn(() => makeQueryBuilder()),
 			rpc: fn(async () => ({ data: null, error: null })),
+			functions: {
+				invoke: fn(async () => ({ data: { success: true }, error: null })),
+			},
 			channel: fn(() => makeChannel()),
 			removeChannel: fn(async () => ({ error: null })),
 		};
