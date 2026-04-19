@@ -12,19 +12,25 @@ const createClient = (() => {
   }
 })();
 
+const RUN = process.env.RUN_SUPABASE_E2E === 'true';
+
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Skip tests if environment variables are missing
-const shouldSkip = !supabaseUrl || !supabaseKey || !createClient;
+// Skip tests if E2E is not explicitly opted in or environment variables are missing.
+// Using an explicit RUN_SUPABASE_E2E flag prevents accidental execution in normal CI
+// where env vars may be partially set, and avoids worker crashes from realtime teardown.
+const shouldSkip = !RUN || !supabaseUrl || !supabaseKey || !createClient;
 
 if (shouldSkip) {
-  console.warn('⏭️  Skipping badge real-time integration tests: Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+  console.warn('⏭️  Skipping badge real-time integration tests: RUN_SUPABASE_E2E is not set or SUPABASE_URL/SUPABASE_ANON_KEY are missing');
 }
 
 const supabase = !shouldSkip ? createClient(supabaseUrl, supabaseKey) : null;
 
-describe('Badge Real-time Integration (E2E)', () => {
+const describeE2E = !shouldSkip ? describe : describe.skip;
+
+describeE2E('Badge Real-time Integration (E2E)', () => {
   let testUserId: string;
   let testBadgeId: string;
   let realtimeChannel: any;
