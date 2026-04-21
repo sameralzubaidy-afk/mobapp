@@ -187,18 +187,31 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
       const result = await searchListings('winter', { spEligibleOnly: false, limit: 20 });
 
       expect(result).toEqual(mockResults);
-      expect(supabase.rpc).toHaveBeenCalledWith('search_listings', {
-        p_query: 'winter',
-        p_sp_eligible_only: false,
-        p_limit: 20,
-      });
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          p_query: 'winter',
+          p_sp_eligible_only: false,
+          p_limit: 20,
+          p_offset: 0,
+          p_sort_by: 'relevance',
+        })
+      );
     });
 
-    it('should return empty array for empty query', async () => {
+    it('should call RPC for empty query and return normalized results', async () => {
+      (supabase.rpc as jest.Mock).mockResolvedValue({
+        data: [],
+        error: null,
+      });
+
       const result = await searchListings('', { spEligibleOnly: false });
 
       expect(result).toEqual([]);
-      expect(supabase.rpc).not.toHaveBeenCalled();
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({ p_query: '' })
+      );
     });
 
     it('should filter by SP-eligible when requested', async () => {
@@ -209,11 +222,16 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
 
       await searchListings('toy', { spEligibleOnly: true, limit: 20 });
 
-      expect(supabase.rpc).toHaveBeenCalledWith('search_listings', {
-        p_query: 'toy',
-        p_sp_eligible_only: true,
-        p_limit: 20,
-      });
+      expect(supabase.rpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          p_query: 'toy',
+          p_sp_eligible_only: true,
+          p_limit: 20,
+          p_offset: 0,
+          p_sort_by: 'relevance',
+        })
+      );
     });
   });
 

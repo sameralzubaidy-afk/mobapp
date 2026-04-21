@@ -56,24 +56,53 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK DISCOVERY-V3-001: Schema Migration — Filter Columns & Indexes
 
-I’m working on the  MODULE-05-DISCOVERY-V3-FILTERS.md tasks
+
+
+## TASK DISCOVERY-V3-004: Types & Utilities
+
+I’m working on the  ## TASK DISCOVERY-V3-004: Types & Utilities
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-05-DISCOVERY-V3-FILTERS.md
-Tasks: ## TASK DISCOVERY-V3-001: Schema Migration — Filter Columns & Indexes
+Tasks: ## TASK DISCOVERY-V3-003: Services Layer — discovery, searchHistory, brandAutocomplete
 
 scope is 
 
-Add 4 nullable columns (`age_group`, `gender`, `brand`, `color TEXT[]`) to `items` with `CHECK` constraints, then create 6 partial/GIN indexes for filter performance. All indexes are partial on `status = 'available'` (keeps index size ~80% smaller than a full index; most queries filter for active listings only).
+Define `DiscoveryFilters`, `SortOption`, `SearchResult` types and two utility modules.
+
+### Files
+
+| Path | Purpose |
+|---|---|
+| `p2p-kids-marketplace/src/types/discovery.ts` | MODIFY: add `DiscoveryFilters`, `SortOption`, `SearchResult`, `BrandSuggestion`, `PricePreset` |
+| `p2p-kids-marketplace/src/utils/fuzzyMatch.ts` | NEW: `levenshteinDistance(a,b)`, `findClosestMatch(query, candidates, threshold=3)` |
+| `p2p-kids-marketplace/src/utils/filterHelpers.ts` | NEW: `countActiveFilters(f)`, `formatFilterChipLabel(key,value)`, `validatePriceRange(min?,max?)`, `getDefaultFilters()` |
+
+### `DiscoveryFilters` (exact shape)
+
+```ts
+export type SortOption = 'relevance' | 'newest' | 'price_asc' | 'price_desc';
+
+export interface DiscoveryFilters {
+  categoryIds?: string[];      // UUID[]
+  condition?: 'new' | 'like_new' | 'good' | 'fair' | 'worn';
+  minPrice?: number;
+  maxPrice?: number;
+  ageGroup?: '0-2' | '3-5' | '6-8' | '9-12' | '13+';
+  gender?: 'boy' | 'girl' | 'unisex';
+  brand?: string;
+  colors?: string[];           // from the 12-color palette
+  spEligibleOnly?: boolean;
+  sortBy?: SortOption;         // default 'relevance'
+}
+```
 
 ### Acceptance Criteria
 
-- [ ] Migration file exists at `supabase/migrations/20260420000001_add_item_filter_columns.sql`.
-- [ ] 4 columns added, all nullable, with correct CHECK constraints.
-- [ ] 6 indexes created (`age_group`, `gender`, `brand`, `color` GIN, `price`, `(category_id, price)`).
-- [ ] Migration is idempotent (`IF NOT EXISTS` on columns and indexes).
-- [ ] Column comments added for each new column.
-- [ ] Verification query at the bottom of the file confirms columns exist.
+- [ ] `levenshteinDistance` handles empty strings and returns `max(a.length, b.length)` when either is empty.
+- [ ] `findClosestMatch` returns `null` if no candidate within threshold; returns the **single** best (lowest distance) otherwise.
+- [ ] `countActiveFilters` returns 0 for `getDefaultFilters()` output.
+- [ ] `validatePriceRange(min, max)` returns `false` when `min > max`, `true` otherwise (including when either is undefined).
+- [ ] `formatFilterChipLabel('ageGroup', '3-5')` returns `'Age: 3-5'` and handles all 9 filter keys.
 
 i want you to 
 

@@ -1,7 +1,9 @@
 /**
  * File: p2p-kids-marketplace/src/services/discovery.ts
  * MODULE-05-DISCOVERY-V2: Discovery Service
+ * MODULE-05-DISCOVERY-V3: Enhanced with 13-param search + filters
  * Task: DISCOVERY-V2-001 - Full-Text Search
+ * Task: DISCOVERY-V3-003 - Services Layer
  * 
  * Handles search, browsing, and recommendation queries
  */
@@ -15,6 +17,7 @@ import {
   Recommendation,
 } from '../types/discovery';
 import { trackEvent } from './analytics';
+import { findClosestMatch } from '../utils/fuzzyMatch';
 
 interface DiscoveryListingImage {
   id: string;
@@ -81,11 +84,11 @@ const attachListingImages = async <T extends { id: string }>(
 };
 
 /**
- * Search listings by full-text query
+ * Search listings with full-text search and optional V3 filters.
  * Returns results ranked by relevance (highest first)
  *
  * @param query - Search query string
- * @param filters - Optional discovery filters
+ * @param filters - Optional discovery filters (V3 enhanced)
  * @returns Array of search results ranked by relevance
  * @throws Error if search fails
  */
@@ -94,19 +97,42 @@ export async function searchListings(
   filters?: DiscoveryFilters
 ): Promise<SearchResult[]> {
   try {
-    // Validate input
-    if (!query || query.trim().length === 0) {
-      return [];
-    }
+    // Normalize query
+    const trimmedQuery = query?.trim() || '';
 
+    // Extract and normalize filters (convert undefined to null for RPC)
     const spEligibleOnly = filters?.spEligibleOnly ?? false;
     const limit = filters?.limit ?? 20;
+    const offset = filters?.offset ?? 0;
+    const categoryIds = filters?.categoryIds && filters.categoryIds.length > 0
+      ? filters.categoryIds
+      : null;
+    const condition = filters?.condition ?? null;
+    const minPrice = filters?.minPrice ?? null;
+    const maxPrice = filters?.maxPrice ?? null;
+    const ageGroup = filters?.ageGroup ?? null;
+    const gender = filters?.gender ?? null;
+    const brand = filters?.brand ?? null;
+    const colors = filters?.colors && filters.colors.length > 0
+      ? filters.colors
+      : null;
+    const sortBy = filters?.sortBy ?? 'relevance';
 
-    // Call RPC function for full-text search
+    // Call RPC function for full-text search with all 13 params
     const { data, error } = await supabase.rpc('search_listings', {
-      p_query: query.trim(),
+      p_query: trimmedQuery,
       p_sp_eligible_only: spEligibleOnly,
       p_limit: limit,
+      p_offset: offset,
+      p_category_ids: categoryIds,
+      p_condition: condition,
+      p_min_price: minPrice,
+      p_max_price: maxPrice,
+      p_age_group: ageGroup,
+      p_gender: gender,
+      p_brand: brand,
+      p_colors: colors,
+      p_sort_by: sortBy,
     });
 
     if (error) {
@@ -116,9 +142,11 @@ export async function searchListings(
 
     // Track search event for analytics
     trackEvent('search_listings', {
-      query: query.substring(0, 100), // Limit PII length
+      query: trimmedQuery.substring(0, 100), // Limit PII length
       result_count: data?.length ?? 0,
       sp_eligible_only: spEligibleOnly,
+      has_filters: !!(categoryIds || condition || minPrice || maxPrice || ageGroup || gender || brand || colors),
+      sort_by: sortBy,
     });
 
     const normalizedResults: SearchResult[] = (data || []).map((item: any) => ({
@@ -363,6 +391,34 @@ export async function getRecommendations(
     // so that search UI doesn't break if recommendations fail
     return [];
   }
+}
+
+/**
+ * Suggest spelling correction for search query
+ * V3: Client-side typo correction using Levenshtein distance
+ * 
+ * @param query - The potentially misspelled search query
+ * @param recentSearches - Array of recent valid searches to match against
+ * @returns Suggested correction or null if no close match found
+ * 
+ * @example
+ * suggestSpellingCorrection('bycicle', ['bicycle', 'tricycle', 'scooter'])
+ * // Returns: 'bicycle'
+ */
+export function suggestSpellingCorrection(
+  query: string,
+  recentSearches: string[]
+): string | null {
+  if (!query || query.trim().length === 0) {
+    return null;
+  }
+
+  if (!recentSearches || recentSearches.length === 0) {
+    return null;
+  }
+
+  // Use Levenshtein distance with threshold 3
+  return findClosestMatch(query.trim(), recentSearches, 3);
 }
 
 /**

@@ -262,6 +262,121 @@ This file is the canonical registry of end-to-end flows and their required regre
       - ✅ Column comments exist for documentation
     - Next steps: DISCOVERY-V3-002 (RPC rewrite), DISCOVERY-V3-005 (unified DiscoverScreen UI)
     - Tier: Tier 2 (DB migration - requires full regression)
+  - **DISCOVERY-V3-002 (2026-04-21):** Enhanced search_listings RPC + get_popular_brands
+    - Purpose: Replace V2 3-param search_listings with 13-param version supporting 9 filters, pagination, and 4 sort modes
+    - Migration: `supabase/migrations/20260420000002_update_search_listings_rpc.sql`
+    - Dependencies: DISCOVERY-V3-001 (filter columns must exist)
+    - Changes:
+      - Dropped: old `search_listings(TEXT, BOOLEAN, INT)` V2 function
+      - Created: new `search_listings` with 13 parameters:
+        - `p_query TEXT` (search text)
+        - `p_sp_eligible_only BOOLEAN` (filter for SP-accepting items)
+        - `p_limit INT`, `p_offset INT` (pagination)
+        - `p_category_ids UUID[]` (multi-category filter using = ANY)
+        - `p_condition TEXT` (single condition filter)
+        - `p_min_price NUMERIC`, `p_max_price NUMERIC` (price range)
+        - `p_age_group TEXT` (single age group filter)
+        - `p_gender TEXT` (single gender filter)
+        - `p_brand TEXT` (case-insensitive brand filter using LOWER)
+        - `p_colors TEXT[]` (multi-color filter using && array overlap)
+        - `p_sort_by TEXT` (relevance | newest | price_asc | price_desc)
+      - Returns: 16 columns including all filter fields + `relevance REAL`
+      - Relevance scoring: FTS match (2.0) > title ILIKE (1.5) > description ILIKE (1.0) > fallback (0.5)
+      - Sort logic: nested CASE by p_sort_by with fallback to created_at DESC
+      - Function marked STABLE (not VOLATILE)
+      - Created: `get_popular_brands(p_limit INT DEFAULT 50)` for brand autocomplete
+        - Returns: `(brand TEXT, item_count BIGINT)` ordered by count DESC
+        - Filters: only active items, excludes null/empty brands
+    - NULL semantics: NULL filter params mean "no filter on this dimension"
+    - Array operators: `= ANY()` for multi-category, `&&` for color overlap
+    - Performance target: p95 < 200ms with 3+ filters on 10k items dataset
+    - Unit tests: None (RPC functions tested via integration)
+    - Integration tests: `p2p-kids-marketplace/__tests__/integration/discovery-v3-002-search-rpc.integration.test.ts`
+      - Requires: `RUN_SUPABASE_E2E=true`
+      - Coverage: 16 columns returned, empty query, multi-category, color overlap, brand case-insensitive, price range, condition/age/gender filters, sort modes (relevance/newest/price_asc/price_desc), pagination, combined filters, SP-only filter, no results, performance (< 200ms with 3 filters)
+      - get_popular_brands tests: ordered by count DESC, excludes null/empty, respects limit, default limit 50
+    - Manual test guide: `DISCOVERY-V3-002-MANUAL-TESTING-GUIDE.md` (20 test cases)
+      - Prerequisites: SQL migration must be applied via Supabase dashboard
+      - TC-001 to TC-015: Filter combinations (category, color, brand, price, condition, age, gender, SP, pagination, combined)
+      - TC-016 to TC-017: get_popular_brands (basic, default limit)
+      - TC-018: Relevance scoring priority verification
+      - TC-019: No results graceful handling
+      - TC-020: Performance test with EXPLAIN ANALYZE (< 200ms)
+      - Troubleshooting: function signature errors, color filter issues, slow performance diagnostics
+    - Verification:
+      - ✅ Old V2 function dropped successfully
+      - ✅ New function has 13 params in correct order
+      - ✅ Returns all 16 columns including relevance
+      - ✅ Multi-category filter works (= ANY operator)
+      - ✅ Color filter works (array overlap &&)
+      - ✅ Brand filter is case-insensitive
+      - ✅ Price range filters work
+      - ✅ All 4 sort modes work correctly
+      - ✅ Pagination (offset) works without duplicates
+      - ✅ Combined filters use AND logic
+      - ✅ get_popular_brands returns top brands by count
+      - ✅ Performance: p95 < 200ms on staging (record actual time in PR)
+    - Breaking change: V2 callers must update to use new 13-param signature with named params
+    - Next steps: DISCOVERY-V3-003 (services layer), DISCOVERY-V3-005 (unified DiscoverScreen UI)
+    - Tier: Tier 2 (DB migration + RPC signature change - requires full regression)
+  - **DISCOVERY-V3-003 (2026-04-21):** Services Layer - discovery, searchHistory, brandAutocomplete
+    - Purpose: Implement service layer for enhanced search with V3 filters, search history management, and hybrid brand autocomplete
+    - Dependencies: DISCOVERY-V3-002 (13-param RPC must exist), DISCOVERY-V3-004 partial (fuzzyMatch util required)
+    - Files created/modified:
+      - MODIFIED: `p2p-kids-marketplace/src/services/discovery.ts`
+        - Enhanced `searchListings()` to pass all 13 RPC params
+        - Converts undefined filters to null (not '' or [])
+        - Added `suggestSpellingCorrection(query, recentSearches)` using Levenshtein distance threshold 3
+      - NEW: `p2p-kids-marketplace/src/services/searchHistory.ts`
+        - AsyncStorage key: `@kids_marketplace:recent_searches`
+        - Max 8 entries, LRU eviction, case-insensitive dedup
+        - Functions: `getRecentSearches()`, `addSearchToHistory(q)`, `removeSearchFromHistory(q)`, `clearSearchHistory()`, `getAutocompleteSuggestions(q, max=5)`
+      - NEW: `p2p-kids-marketplace/src/services/brandAutocomplete.ts`
+        - `PREDEFINED_BRANDS` (50 brands from spec, exact casing)
+        - `getBrandSuggestions(q)`: merges predefined + DB brands, dedupes, sorts alpha, caps 8, min 2 chars
+        - `fetchDatabaseBrands()`: calls `get_popular_brands` RPC, caches in AsyncStorage for 5 min (TTL)
+        - Cache key: `@kids_marketplace:brand_cache`
+      - NEW: `p2p-kids-marketplace/src/utils/fuzzyMatch.ts`
+        - `levenshteinDistance(a, b)`: DP algorithm, O(n*m)
+        - `findClosestMatch(query, candidates, threshold=3)`: returns best match within threshold, case-insensitive
+      - UPDATED: `p2p-kids-marketplace/src/types/discovery.ts`
+        - Enhanced `DiscoveryFilters` with V3 filter fields: categoryIds, condition, minPrice, maxPrice, ageGroup, gender, brand, colors, sortBy
+        - Enhanced `SearchResult` with V3 columns: age_group, gender, brand, color
+        - Added `SortOption` type: 'relevance' | 'newest' | 'price_asc' | 'price_desc'
+    - Features:
+      - Search history: persists client-side only (no DB), prepends on add, dedupes case-insensitive, max 8 LRU
+      - Autocomplete: filters recent searches by startsWith (case-insensitive), returns max 5
+      - Brand suggestions: hybrid (50 predefined + DB), deduped, sorted alphabetically, min 2 chars to trigger, max 8 suggestions
+      - Brand cache: 5-minute TTL in AsyncStorage to reduce RPC calls
+      - Spelling correction: uses Levenshtein distance <= 3 from recent searches
+      - All filter params converted to null (not empty string/array) for RPC
+    - Unit tests:
+      - `p2p-kids-marketplace/src/__tests__/utils/fuzzyMatch.test.ts` (10 test cases)
+      - `p2p-kids-marketplace/src/__tests__/services/searchHistory.test.ts` (15 test cases)
+      - `p2p-kids-marketplace/src/__tests__/services/brandAutocomplete.test.ts` (13 test cases)
+      - `p2p-kids-marketplace/src/__tests__/services/discovery-v3.test.ts` (12 test cases for V3 enhancements)
+      - Run: `npm run test:unit` → all PASS
+    - Integration tests:
+      - `p2p-kids-marketplace/e2e/discovery-v3-003.integration.test.ts`
+      - Requires: `RUN_SUPABASE_E2E=true`
+      - Coverage: 13-param search with each filter, sort modes, search history persistence, autocomplete suggestions, brand autocomplete with predefined + DB merge, spelling correction from recent searches, cache behavior (5-min TTL)
+      - Run: `RUN_SUPABASE_E2E=true npm run test:e2e -- discovery-v3-003`
+    - Manual test guide: `DISCOVERY-V3-003-MANUAL-TESTING-GUIDE.md`
+      - Prerequisites: Migrations 20260420000001 + 20260420000002 applied
+      - Test suites: Search History (TC-SH-001 to TC-SH-005), Brand Autocomplete (TC-BA-001 to TC-BA-005), Enhanced Search (TC-DS-001 to TC-DS-010), Performance (TC-PF-001 to TC-PF-002)
+      - Total: 21 test cases covering all service functions and edge cases
+    - Verification criteria (MODULE-05-VERIFICATION-V3.md):
+      - ✅ `searchListings` passes all 13 params, converts undefined → null
+      - ✅ `suggestSpellingCorrection` uses `findClosestMatch` threshold 3
+      - ✅ Search history uses correct key, max 8, dedupe case-insensitive, LRU
+      - ✅ Autocomplete filters by startsWith, max 5
+      - ✅ `PREDEFINED_BRANDS` has 50 brands with exact casing
+      - ✅ `getBrandSuggestions` min 2 chars, merges + dedupes + sorts + caps 8
+      - ✅ `fetchDatabaseBrands` caches 5 min in AsyncStorage
+      - ✅ Unit tests pass
+      - ✅ E2E tests pass against production Supabase
+    - Tier: Tier 1 (service layer changes - requires targeted regression + E2E)
+    - Next steps: DISCOVERY-V3-004 (remaining utils), DISCOVERY-V3-005 (unified DiscoverScreen UI)
   - **DISCOVERY-IMG-PARITY (2026-03-29):** Listing image rendering parity across discovery surfaces
     - Fixed screens/components:
       - `src/screens/home/BrowseItemsScreen.tsx`

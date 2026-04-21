@@ -55,16 +55,26 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       expect(results).toHaveLength(1);
       expect(results[0].title).toBe('Toy Car');
       expect(results[0].relevance).toBeGreaterThan(0);
-      expect(mockSupabase.rpc).toHaveBeenCalledWith('search_listings', {
-        p_query: query,
-        p_sp_eligible_only: false,
-        p_limit: 20,
-      });
-      expect(mockTrackEvent).toHaveBeenCalledWith('search_listings', {
-        query,
-        result_count: 1,
-        sp_eligible_only: false,
-      });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          p_query: query,
+          p_sp_eligible_only: false,
+          p_limit: 20,
+          p_offset: 0,
+          p_sort_by: 'relevance',
+        })
+      );
+      expect(mockTrackEvent).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          query,
+          result_count: 1,
+          sp_eligible_only: false,
+          has_filters: false,
+          sort_by: 'relevance',
+        })
+      );
     });
 
     test('should filter for SP-eligible items when requested', async () => {
@@ -82,11 +92,16 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       // Assert
       expect(results).toHaveLength(1);
       expect(results[0].accepts_swap_points).toBe(true);
-      expect(mockSupabase.rpc).toHaveBeenCalledWith('search_listings', {
-        p_query: query,
-        p_sp_eligible_only: true,
-        p_limit: 20,
-      });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          p_query: query,
+          p_sp_eligible_only: true,
+          p_limit: 20,
+          p_offset: 0,
+          p_sort_by: 'relevance',
+        })
+      );
     });
 
     test('should respect custom limit parameter', async () => {
@@ -102,29 +117,50 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       await searchListings(query, { limit: customLimit });
 
       // Assert
-      expect(mockSupabase.rpc).toHaveBeenCalledWith('search_listings', {
-        p_query: query,
-        p_sp_eligible_only: false,
-        p_limit: customLimit,
-      });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          p_query: query,
+          p_sp_eligible_only: false,
+          p_limit: customLimit,
+          p_offset: 0,
+          p_sort_by: 'relevance',
+        })
+      );
     });
 
-    test('should return empty array for empty query', async () => {
+    test('should call RPC for empty query and return results', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [],
+        error: null,
+      } as any);
+
       // Act
       const results = await searchListings('');
 
       // Assert
       expect(results).toEqual([]);
-      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({ p_query: '' })
+      );
     });
 
-    test('should return empty array for whitespace-only query', async () => {
+    test('should trim whitespace-only query and still call RPC', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [],
+        error: null,
+      } as any);
+
       // Act
       const results = await searchListings('   ');
 
       // Assert
       expect(results).toEqual([]);
-      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({ p_query: '' })
+      );
     });
 
     test('should trim query before searching', async () => {
@@ -139,11 +175,16 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       await searchListings(query);
 
       // Assert
-      expect(mockSupabase.rpc).toHaveBeenCalledWith('search_listings', {
-        p_query: 'toy',
-        p_sp_eligible_only: false,
-        p_limit: 20,
-      });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          p_query: 'toy',
+          p_sp_eligible_only: false,
+          p_limit: 20,
+          p_offset: 0,
+          p_sort_by: 'relevance',
+        })
+      );
     });
 
     test('should handle RPC errors gracefully', async () => {
@@ -188,11 +229,16 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       await searchListings(longQuery);
 
       // Assert
-      expect(mockTrackEvent).toHaveBeenCalledWith('search_listings', {
-        query: 'a'.repeat(100), // Truncated to 100 chars
-        result_count: 0,
-        sp_eligible_only: false,
-      });
+      expect(mockTrackEvent).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          query: 'a'.repeat(100), // Truncated to 100 chars
+          result_count: 0,
+          sp_eligible_only: false,
+          has_filters: false,
+          sort_by: 'relevance',
+        })
+      );
     });
 
     test('should only return active listings', async () => {
