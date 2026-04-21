@@ -232,6 +232,36 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-06: Discovery – Feed/Search/Filters/Favorites
 - Smoke: (manual)
   - Feed loads; search filters update results.
+  - **DISCOVERY-V3-001 (2026-04-21):** Filter Columns & Indexes Schema Migration
+    - Purpose: Add 4 nullable filter columns to items table for advanced discovery filtering
+    - Migration: `supabase/migrations/20260420000001_add_item_filter_columns.sql`
+    - Schema changes:
+      - Added columns: `age_group TEXT`, `gender TEXT`, `brand TEXT`, `color TEXT[]`
+      - CHECK constraints: age_group in ('0-2','3-5','6-8','9-12','13+'), gender in ('boy','girl','unisex'), brand max 100 chars
+      - 6 indexes created (all partial on `status='available'`):
+        - `idx_items_age_group` (B-tree)
+        - `idx_items_gender` (B-tree)
+        - `idx_items_brand` (B-tree)
+        - `idx_items_color` (GIN for array overlap queries)
+        - `idx_items_price` (B-tree for price range/sort)
+        - `idx_items_category_price` (composite for category browse + price sort)
+    - Backward compatibility: All columns nullable - existing items unaffected
+    - Performance: Partial indexes keep size ~80% smaller (only index available items)
+    - Unit tests: `src/__tests__/unit/schema/filter-columns.test.ts`
+    - E2E tests: `e2e/filter-schema.integration.test.ts` (requires `RUN_SUPABASE_E2E=true`)
+    - Manual test guide: `DISCOVERY-V3-001-MANUAL-TEST.md` (13 test cases)
+    - Verification:
+      - ✅ All 4 columns exist with correct types and nullable
+      - ✅ CHECK constraints enforce valid values
+      - ✅ All 6 indexes exist with partial WHERE clause
+      - ✅ GIN index on color for array queries
+      - ✅ Valid values accepted (age_group='6-8', gender='unisex', brand='LEGO', color=['blue','red'])
+      - ✅ Invalid values rejected (age_group='invalid', gender='other', brand=101 chars)
+      - ✅ NULL values accepted for backward compatibility
+      - ✅ Migration is idempotent (safe to re-run)
+      - ✅ Column comments exist for documentation
+    - Next steps: DISCOVERY-V3-002 (RPC rewrite), DISCOVERY-V3-005 (unified DiscoverScreen UI)
+    - Tier: Tier 2 (DB migration - requires full regression)
   - **DISCOVERY-IMG-PARITY (2026-03-29):** Listing image rendering parity across discovery surfaces
     - Fixed screens/components:
       - `src/screens/home/BrowseItemsScreen.tsx`

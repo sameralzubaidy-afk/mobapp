@@ -56,23 +56,24 @@ Supabase: supabase/
 My Example 1
 
 
+## TASK DISCOVERY-V3-001: Schema Migration — Filter Columns & Indexes
 
-## TASK NOTIF-V2-010: Notification Analytics & Metrics
-
-I’m working on the  MODULE-14-NOTIFICATIONS-V2.md tasks
-Module: MODULE-14-NOTIFICATIONS-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts
-Tasks: ## TASK NOTIF-V2-010: Notification Analytics & Metrics
+I’m working on the  MODULE-05-DISCOVERY-V3-FILTERS.md tasks
+Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-05-DISCOVERY-V3-FILTERS.md
+Tasks: ## TASK DISCOVERY-V3-001: Schema Migration — Filter Columns & Indexes
 
 scope is 
-Implement notification analytics tracking. Track notification delivery rates, open rates, click rates. Create admin dashboard for notification metrics. Add A/B testing framework for notification copy. Monitor notification performance by category.
+
+Add 4 nullable columns (`age_group`, `gender`, `brand`, `color TEXT[]`) to `items` with `CHECK` constraints, then create 6 partial/GIN indexes for filter performance. All indexes are partial on `status = 'available'` (keeps index size ~80% smaller than a full index; most queries filter for active listings only).
 
 ### Acceptance Criteria
-- [ ] Notification delivery tracked (pending/sent/failed)
-- [ ] Push notification open rates tracked
-- [ ] Deep link click rates tracked
-- [ ] Admin dashboard displays notification metrics
-- [ ] A/B testing framework for notification copy
-- [ ] Metrics segmented by category and notification type
+
+- [ ] Migration file exists at `supabase/migrations/20260420000001_add_item_filter_columns.sql`.
+- [ ] 4 columns added, all nullable, with correct CHECK constraints.
+- [ ] 6 indexes created (`age_group`, `gender`, `brand`, `color` GIN, `price`, `(category_id, price)`).
+- [ ] Migration is idempotent (`IF NOT EXISTS` on columns and indexes).
+- [ ] Column comments added for each new column.
+- [ ] Verification query at the bottom of the file confirms columns exist.
 
 i want you to 
 
@@ -90,9 +91,9 @@ i want you to
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
 4. Forbidden: Re-implementing logic that already exists under a different name
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-13-VERIFICATION.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-05-VERIFICATION-V3.md
 6. Show me the files you create or edit with their full paths
-7. Tell me which items in MODULE-13-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-13-VERIFICATION.md
+7. Tell me which items in MODULE-05-VERIFICATION-V3.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-05-VERIFICATION-V3.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 
