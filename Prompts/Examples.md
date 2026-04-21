@@ -41,10 +41,19 @@ Repo paths:
 App: p2p-kids-marketplace/
 
 Supabase: supabase/
+
+---
+
+## ask for new reqs 
+ we need to dooument the requirements for task 2 for Bulk Listing with AI auto-fill and also we need to improve the create one item UX as well. 
+  the outcome should be a md file in /Users/sameralzubaidi/Desktop/kids_marketplace_app/docx 
+ - start with what is the best for UX based on what compitors offer today for such feature. 
+ - ask me questions and ask me to review the functions before creating the file. 
+- for each suggestion give me your recommedation
+- read this md file for search and filter requiremnets , we need to take these functions into considration as we are enhaceing create new items feature 
+/Users/sameralzubaidi/Desktop/kids_marketplace_app/docx/SEARCH-FILTER-REQUIREMENTS.md
 -----
 My Example 1
-
-
 
 
 

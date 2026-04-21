@@ -88,9 +88,12 @@ Owner: @sameralzubaidy-afk // TODO: assign a team owner in the next sprint
 Notes / rationale:
 - The temporary stub helped unblock early frontend work and emulator verification — this task makes that fallback explicit and safe to keep in the codebase if desired, or easy to remove once Supabase config is required.
 
- ## TASK AUTH-005,6 and 7
+  ## BEFORE GO live ## TASK AUTH-005,6 and 7
  edit profile > zip code not avalaible and trigger the add to wish list. 
- ## TASK AUTH-008: Forgot Password Flow
+
+  ## BEFORE GO live I must test and fix usering adding inactive zip code and whaT THE UX look like 
+
+  ## BEFORE GO live ## TASK AUTH-008: Forgot Password Flow
 I need to do E2E test in stage , locally I could not. 
 
  ## MODULE-06-TRADE-FLOW-sellerpayouts.md
@@ -101,7 +104,8 @@ I need to do E2E test in stage , locally I could not.
   ## BEFORE GO live look at all cron jobs and make sure the system logs all of them when they ran on the detials table 
   
   ## BEFORE GO live make create a martics to show what activiy in the app has what type of notifcations ( web, push or EMIL or SMS) groub by notfication channel to fix or assess what i need for go live what can wait or could be considred as noise. and test notifcation center
-payout needs FULL end to end testing with real money , check status on app and db BEFORE GO love 
+
+  ## BEFORE GO live payout needs FULL end to end testing with real money , check status on app and db BEFORE GO love 
 
  ## BEFORE GO live  I must test on physical devices the push notifcations reqs includes 
  new trades, unread messeges and what no 
@@ -111,6 +115,7 @@ payout needs FULL end to end testing with real money , check status on app and d
  ## BEFORE GO live check if the size of the build will be a problem 
  
  ## BEFORE GO live  I must test on physical devices the email notifcations for read messeges. 
+ 
  ## BEFORE GO live update the how buyer and seller can intracted with and without active trade to limit the chance of doing trades out side the platfrom at same time increase the buyer trust about the seller. 
 
   ## BEFORE GO live make the search faster and more accessible , today there is a waiting time to load search 1 sec. 
