@@ -38,6 +38,7 @@ import { countActiveFilters, getDefaultFilters } from '@/utils/filterHelpers';
 import { SearchResult, DiscoveryFilters, SortOption } from '@/types/discovery';
 import { getCategories } from '@/services/items';
 import { ListingImage } from '@/components/atoms';
+import { SearchFilterModal } from '@/components/molecules';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -690,14 +691,13 @@ export default function DiscoverScreen({ navigation }: Props) {
         onEndReachedThreshold={0.5}
       />
 
-      {/* TODO: Add SearchFilterModal when implemented */}
-      {/* <SearchFilterModal
+      <SearchFilterModal
         visible={filterModalVisible}
         filters={filters}
         categories={categories}
         onApply={handleApplyFilters}
         onClose={handleCloseFilters}
-      /> */}
+      />
       
       <BottomNavBar />
     </SafeAreaView>

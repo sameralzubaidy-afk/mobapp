@@ -576,6 +576,136 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Tier: Tier 0 + Tier 1 (UI + discovery behavior change).
     - Smoke expectation:
       - With empty recent history, typing `bi` still shows dictionary terms such as `Bicycle`.
+  - **DISCOVERY-V3-006 (2026-04-22):** SearchFilterModal Component (8 Filter Sections)
+    - Purpose: Implement bottom-sheet filter modal with all 8 filter sections from SEARCH-FILTER-REQUIREMENTS.md for advanced discovery filtering
+    - Dependencies: DISCOVERY-V3-001 (filter columns), DISCOVERY-V3-003 (filter helpers), DISCOVERY-V3-004 (types/constants), DISCOVERY-V3-005 (DiscoverScreen integration)
+    - Files created/modified:
+      - NEW: `p2p-kids-marketplace/src/components/molecules/SearchFilterModal.tsx`
+        - Bottom-sheet modal with local draft state pattern (changes only apply on "Apply Filters" tap)
+        - 8 filter sections in exact order per SEARCH-FILTER-REQUIREMENTS.md:
+          1. Category (multi-select pills, fetched from `getCategories()`)
+          2. Condition (single-select: New/Like New/Good/Fair, deselect to clear)
+          3. Age Group (single-select: 0-2/3-5/6-8/9-12/13+)
+          4. Gender (single-select: Boy/Girl/Unisex/Any, "Any"=undefined/no filter)
+          5. Color (multi-select swatches from COLOR_PALETTE, 12 colors)
+          6. Brand (autocomplete input with 200ms debounce, min 2 chars, dropdown from `getBrandSuggestions()`)
+          7. Price Range (5 presets + custom min/max inputs, validation: min must not exceed max, error display)
+          8. Swap Points Only (toggle switch)
+        - Features:
+          - Local draft state: modal opens with copy of current filters, changes staged locally, "Apply Filters" commits changes
+          - Active filter count in title: "Filters (N)" updates live as user selects/deselects
+          - "Clear All" resets draft to defaults (`getDefaultFilters()`)
+          - Price validation: validates min <= max, shows red error text, disables "Apply" button when invalid
+          - Brand autocomplete: 200ms debounce, min 2 chars trigger, dropdown closes on selection or tap outside
+          - Close button (X): discards draft, modal closes without applying
+          - KeyboardAvoidingView: handles iOS/Android keyboard for brand/price inputs
+        - Accessibility:
+          - All pills have `accessibilityState={{selected}}` for screen readers
+          - Labels on all interactive elements (toggle, inputs, buttons)
+          - VoiceOver/TalkBack announce selected state and filter counts
+        - testID props for Maestro/E2E:
+          - `filter-modal-close`, `filter-modal-clear-all`, `filter-modal-apply`
+          - `filter-category-{id}`, `filter-condition-{value}`, `filter-age-{value}`, `filter-gender-{value}`
+          - `filter-color-{id}`, `filter-brand-input`, `brand-suggestion-{index}`
+          - `filter-price-preset-{id}`, `filter-price-min`, `filter-price-max`, `filter-price-error`
+          - `filter-sp-toggle`
+      - MODIFIED: `p2p-kids-marketplace/src/components/molecules/index.ts`
+        - Added export: `export { SearchFilterModal } from './SearchFilterModal';`
+      - MODIFIED: `p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx`
+        - Added import: `import { SearchFilterModal } from '@/components/molecules';`
+        - Replaced TODO comment with actual modal rendering (modal already had handler functions + state)
+        - Renders: `<SearchFilterModal visible={filterModalVisible} filters={filters} categories={categories} onApply={handleApplyFilters} onClose={handleCloseFilters} />`
+    - Unit tests: `p2p-kids-marketplace/src/__tests__/components/SearchFilterModal.test.tsx`
+      - Coverage: 22 test suites covering all 8 sections + behaviors
+        - Rendering: all sections visible, active filter count display, categories loaded
+        - Local draft state: reset on open, no apply until button tap, discard on close
+        - Category filter: multi-select toggle functionality
+        - Condition filter: single-select, deselect to clear
+        - Age group filter: single-select
+        - Gender filter: "Any" maps to undefined (no filter)
+        - Color filter: multi-select swatches
+        - Brand filter: autocomplete min 2 chars, 200ms debounce, dropdown close
+        - Price range: presets apply to inputs, custom input, validation (min>max error), error clears when fixed
+        - Swap Points: toggle on/off
+        - Clear all: resets to defaults
+        - Accessibility: labels, selected state announcements
+      - All tests pass ✅
+      - Mocks: `brandAutocomplete.getBrandSuggestions` for controlled testing
+      - Run: `npm run test:unit -- SearchFilterModal`
+    - Integration tests: `p2p-kids-marketplace/e2e/discovery-v3-006-filter-modal.integration.test.ts`
+      - Requires: `RUN_SUPABASE_E2E=true`
+      - Coverage:
+        - Category data loading from Supabase (`getCategories()`)
+        - Brand autocomplete: <2 chars returns empty, valid queries return suggestions, merge predefined+DB, dedupe+sort
+        - Filter helpers: `validatePriceRange`, `countActiveFilters`, `getDefaultFilters`
+        - Multi-filter complex scenarios (all 8 dimensions active)
+      - Run: `RUN_SUPABASE_E2E=true npm run test:e2e -- discovery-v3-006`
+    - Maestro flow: `.maestro/discovery-v3-006-filter-modal.yaml`
+      - Prerequisites: User logged in, >=3 categories, >=20 items
+      - Flow:
+        - Navigate to Discover tab, open filter modal
+        - Select filters from all 8 sections (category, condition, age, gender, color, brand, price, SP)
+        - Test price validation (invalid range: min 100, max 50) → error text appears, Apply disabled
+        - Clear all filters → all selections reset, count shows "Filters (0)"
+        - Re-apply filters and verify count updates correctly
+        - Test filter persistence: close modal → reopen → selections still active
+      - testID dependencies: All `filter-*` testIDs from component
+      - Run: `npm run test:maestro:ios -- .maestro/discovery-v3-006-filter-modal.yaml` (or `:android`)
+    - Manual test guide: `DISCOVERY-V3-006-MANUAL-TESTING-GUIDE.md`
+      - Prerequisites: App running, user logged in, 3+ categories, 20+ items
+      - Test cases: TC-001 to TC-022 covering:
+        - TC-001: Modal opens and displays all 8 sections in correct order
+        - TC-002: Category multi-select
+        - TC-003: Condition single-select
+        - TC-004: Age group single-select
+        - TC-005: Gender with "Any" option
+        - TC-006: Color multi-select with swatches
+        - TC-007: Brand autocomplete (min 2 chars, dropdown)
+        - TC-008 to TC-009: Price presets and custom input (valid)
+        - TC-010 to TC-011: Price validation (invalid min>max, fix error)
+        - TC-012: Swap Points toggle
+        - TC-013: Clear All resets to defaults
+        - TC-014: Local draft state (no apply until "Apply Filters")
+        - TC-015: Apply filters confirmed application
+        - TC-016 to TC-017: Keyboard awareness (iOS/Android)
+        - TC-018: Active filter count live update
+        - TC-019 to TC-020: Accessibility (VoiceOver/TalkBack)
+        - TC-021: Brand dropdown closes correctly
+        - TC-022: Complex multi-filter scenario (all 8 active)
+      - Includes commands: typecheck, lint, unit tests, E2E, Maestro
+    - Verification criteria (MODULE-05-VERIFICATION-V3.md § 6):
+      - ✅ Component renders 8 sections in exact order from SEARCH-FILTER-REQUIREMENTS.md
+      - ✅ Draft state is local (changes staged until "Apply Filters")
+      - ✅ "Clear All" resets to `getDefaultFilters()`
+      - ✅ Price validation: min > max shows error, disables "Apply" button
+      - ✅ Brand autocomplete: min 2 chars, 200ms debounce, dropdown closes on selection
+      - ✅ Active filter count visible in title, updates in real-time
+      - ✅ All interactive elements have accessibility labels + selected states
+      - ✅ All testID props implemented for Maestro
+      - ✅ Gender "Any" option maps to undefined (not a string value)
+      - ✅ Categories and colors each count as 1 filter (regardless of multi-select count)
+      - ✅ Price range (min+max) counts as 1 filter
+      - ✅ Modal integrated into DiscoverScreen with handler functions
+      - ✅ Export added to molecules/index.ts
+    - Tier 0 (preflight gate):
+      - ✅ Typecheck passes: `npm run typecheck`
+      - ✅ Lint passes: `npm run lint`
+      - No duplicate exports/identifiers
+      - No SyntaxError preventing app load
+    - Tier 1 (targeted regression):
+      - Run unit tests for SearchFilterModal (all pass ✅)
+      - Run E2E integration tests (RUN_SUPABASE_E2E=true)
+      - Run Maestro flow on iOS/Android simulators
+      - Manual smoke test: open modal → select filters → apply → verify filter state persists
+    - Tier 2 (not required):
+      - No DB migrations or RLS changes (uses existing filter columns from DISCOVERY-V3-001)
+    - Known limitations (TODO for future tasks):
+      - SearchFilterModal displays and stages filters, but DiscoverScreen does not yet pass filtered results to search RPC (requires DISCOVERY-V3-007 wiring)
+      - Active filter chips on DiscoverScreen not yet implemented (requires ActiveFilterChips component from DISCOVERY-V3-007)
+    - Next steps:
+      - DISCOVERY-V3-007: Supporting components (ActiveFilterChips, SortDropdown, SearchResultCard, etc.)
+      - Wire SearchFilterModal selections to `searchListings()` RPC call in DiscoverScreen
+      - Implement active filter chips display with tap-to-remove functionality
   - **DISCOVERY-IMG-PARITY (2026-03-29):** Listing image rendering parity across discovery surfaces
     - Fixed screens/components:
       - `src/screens/home/BrowseItemsScreen.tsx`

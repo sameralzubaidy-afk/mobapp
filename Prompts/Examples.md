@@ -56,42 +56,40 @@ Supabase: supabase/
 My Example 1
 
 
+## TASK DISCOVERY-V3-007: Supporting Components
 
+## TASK DISCOVERY-V3-007: Supporting Components
 
-## TASK DISCOVERY-V3-006: SearchFilterModal
-
-I’m working on the  ## TASK DISCOVERY-V3-004: Types & Utilities
+I’m working on the  MODULE-05-DISCOVERY-V3-FILTERS.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-05-DISCOVERY-V3-FILTERS.md
-Tasks: ## TASK DISCOVERY-V3-006: SearchFilterModal
+Tasks: ## TASK DISCOVERY-V3-007: Supporting Components
 
 scope is 
 
-Bottom-sheet modal exposing all 8 filter sections in the exact order defined in `SEARCH-FILTER-REQUIREMENTS.md` § Component Specifications.
+9 smaller components wired into `DiscoverScreen`.
 
-### File
+### Files
 
-`p2p-kids-marketplace/src/components/molecules/SearchFilterModal.tsx`
-
-### Sections (in order)
-
-1. **Category** — multi-select pills (horizontal scroll). Loaded from existing `getCategories()` service.
-2. **Condition** — single-select pills (`new | like_new | good | fair | worn`).
-3. **Age Group** — single-select pills (`0-2 | 3-5 | 6-8 | 9-12 | 13+`).
-4. **Gender** — single-select pills (`boy | girl | unisex | Any`). "Any" maps to `undefined`.
-5. **Color** — multi-select chips with 12-color swatches (`COLOR_PALETTE`).
-6. **Brand** — text input with dropdown using `getBrandSuggestions(q)` (min 2 chars).
-7. **Price Range** — 5 preset chips (`PRICE_PRESETS`) + custom `min` / `max` inputs.
-8. **Swap Points Only** — toggle switch (wraps `spEligibleOnly`).
+| Path | Role |
+|---|---|
+| `components/molecules/ActiveFilterChips.tsx` | Horizontal scroll of removable chips; renders only when `countActiveFilters > 0` |
+| `components/molecules/RecentSearchesPanel.tsx` | Shown when search focused + empty + history exists; tap = run; X = remove; "Clear All" |
+| `components/molecules/SearchAutocomplete.tsx` | Dropdown of `getAutocompleteSuggestions(q)`, max 5, tap fills & fires search |
+| `components/molecules/SearchResultCard.tsx` | 2-col grid card: square image, title (2 lines), price overlay bottom-left, SP badge |
+| `components/molecules/SearchEmptyState.tsx` | Conditional: filters-active vs typo-suggestion vs popular-items fallback |
+| `components/molecules/BrandAutocompleteInput.tsx` | Reusable text input + brand dropdown (used inside filter modal) |
+| `components/atoms/SortDropdown.tsx` | 4-option dropdown (relevance/newest/price_asc/price_desc) |
+| `components/atoms/SearchResultSkeleton.tsx` | Animated skeleton card + grid renderer |
+| `components/atoms/NetworkErrorBanner.tsx` | Top banner "Can't connect. Tap to retry" + onRetry |
 
 ### Acceptance Criteria
 
-- [ ] Local draft state — changes only apply to parent on "Apply Filters" tap.
-- [ ] "Clear All" button resets local draft to `getDefaultFilters()`.
-- [ ] Apply button disabled when `validatePriceRange(minPrice, maxPrice) === false`; shows inline error.
-- [ ] Brand autocomplete dropdown closes when user taps outside or selects.
-- [ ] Modal is keyboard-aware (avoids inputs being hidden).
-- [ ] Active filter count live-updated at top of modal (e.g. "3 filters").
-- [ ] Full a11y: each pill `accessibilityState={selected}`; toggle announced.
+- [ ] All components are function components with typed props.
+- [ ] No component imports from screen layer (keep layering clean).
+- [ ] `SearchResultCard` uses `expo-image` with `cachePolicy="memory-disk"`.
+- [ ] `SearchResultSkeleton` uses `Animated.Value` for shimmer (no external lib required).
+- [ ] `ActiveFilterChips` and `RecentSearchesPanel` gracefully handle empty state by returning `null`.
+- [ ] `SearchEmptyState` takes `{ hasActiveFilters: boolean; spellSuggestion: string | null; onClearFilters(); onTryCorrection(q) }` and renders the 3 variants.
 
 i want you to 
 
