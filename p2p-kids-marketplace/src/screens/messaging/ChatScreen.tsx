@@ -40,6 +40,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/config/supabase';
 import { Ionicons } from '@expo/vector-icons';
+import { Avatar, ListingImage } from '@/components/atoms';
 import {
   getMessages,
   sendMessage,
@@ -51,8 +52,6 @@ import {
   markTradeMessagesAsDelivered,
   markTradeMessagesAsRead,
 } from '@/services/chat';
-
-import Avatar from '@/components/atoms/Avatar';
 import { idBadgeService } from '@/services/idBadge';
 
 type ChatScreenRouteProp = RouteProp<{ Chat: { tradeId: string } }, 'Chat'>;
@@ -628,17 +627,12 @@ export default function ChatScreen() {
               />
             )}
             <View style={styles.itemInfo}>
-              {listingImageUri ? (
-                <Image
-                  source={{ uri: listingImageUri }}
-                  style={styles.itemImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
-                  <Text style={styles.itemImagePlaceholderText}>📦</Text>
-                </View>
-              )}
+              <ListingImage 
+                url={listingImageUri}
+                containerStyle={styles.itemImage}
+                imageStyle={styles.itemImage}
+                resizeMode="cover"
+              />
               <View style={styles.itemDetails}>
                 <Text style={styles.itemTitle} numberOfLines={1}>
                   {listing.title}

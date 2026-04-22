@@ -377,6 +377,205 @@ This file is the canonical registry of end-to-end flows and their required regre
       - ✅ E2E tests pass against production Supabase
     - Tier: Tier 1 (service layer changes - requires targeted regression + E2E)
     - Next steps: DISCOVERY-V3-004 (remaining utils), DISCOVERY-V3-005 (unified DiscoverScreen UI)
+  - **DISCOVERY-V3-004 (2026-04-21):** Types & Utilities - filterHelpers, type enhancements
+    - Purpose: Complete V3 discovery utilities (filter counting/formatting/validation) + add missing types/constants for UI components
+    - Dependencies: DISCOVERY-V3-003 (fuzzyMatch.ts already created there, services need filterHelpers)
+    - Files created/modified:
+      - NEW: `p2p-kids-marketplace/src/utils/filterHelpers.ts`
+        - `countActiveFilters(filters)`: counts # of active filters (0 for defaults, excludes sortBy/limit/offset)
+        - `formatFilterChipLabel(key, value)`: formats filter KV pair for chip display (e.g., 'ageGroup','3-5' → 'Age: 3-5')
+        - `validatePriceRange(min?, max?)`: returns false when min > max, true otherwise (including undefined)
+        - `getDefaultFilters()`: returns default DiscoveryFilters (sortBy='relevance', spEligibleOnly=false, all else undefined)
+      - MODIFIED: `p2p-kids-marketplace/src/types/discovery.ts`
+        - Added types: `BrandSuggestion` (name, source), `PricePreset` (id, label, min, max)
+        - Added constants: 
+          - `COLOR_PALETTE` (12 colors with id/label/hex from SEARCH-FILTER-REQUIREMENTS.md Appendix)
+          - `PRICE_PRESETS` (5 presets: Under $10, $10-$25, $25-$50, $50-$100, Over $100)
+          - `STORAGE_KEYS` (RECENT_SEARCHES, ACTIVE_FILTERS, BRAND_CACHE)
+    - Features:
+      - Filter counting: counts each dimension as 1 filter (multi-select categories/colors count as 1), ignores sort/pagination
+      - Chip label formatting: handles all 9 filter dimensions with proper casing/formatting (condition 'like_new' → 'Condition: Like New')
+      - Price validation: prevents invalid ranges (min > max), allows undefined (no filter)
+      - Default filters: ensures consistent starting state (relevance sort, no SP filter, all dimensions undefined)
+      - COLOR_PALETTE: 12 colors from spec (red/blue/green/yellow/pink/purple/black/white/gray/brown/orange/multicolor)
+  - **DISCOVERY-V3-005 (2026-04-22):** DiscoverScreen (Unified)
+    - Purpose: Replace SearchScreen + BrowseItemsScreen with single unified DiscoverScreen featuring 200ms debounce, optimistic UI, infinite scroll, and comprehensive UX
+    - Dependencies: DISCOVERY-V3-003 (services), DISCOVERY-V3-004 (utils/types)
+    - Files created/modified:
+      - NEW: `p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx`
+        - Unified discovery screen replacing both SearchScreen and BrowseItemsScreen
+        - Features:
+          - 200ms debounced search (constant `SEARCH_DEBOUNCE_MS = 200`)
+          - Optimistic UI: previous results stay visible during new fetch (no full-screen spinner after first load)
+          - Infinite scroll: `FlatList.onEndReached` (threshold 0.5), loads 20 per batch via `offset += 20`, guards against duplicate fetches
+          - Filter persistence: state survives navigation to ItemDetail and back (uses screen-scoped state)
+          - Recent searches panel: shown when input focused + empty + history exists
+          - Autocomplete panel: shown when typing (>= 2 chars) and suggestions available
+          - Network error banner: non-blocking, shows at top with retry action
+          - Empty states: 3 variants (initial/no-results-with-filters/spelling-suggestion)
+          - Pull-to-refresh: resets offset to 0
+          - Filter button: shows active count badge when filters applied
+          - Sort dropdown: 4 options (relevance/newest/price_asc/price_desc)
+        - State shape: query, debouncedQuery, filters, sortBy, results, loading, loadingMore, hasMore, error, filterModalVisible, recentSearches, autocompleteVisible, autocompleteSuggestions
+        - Lifecycle:
+          - On mount: load categories, recent searches, perform initial search with no filters
+          - Pre-warm brand cache via `fetchDatabaseBrands()`
+          - `useEffect` triggers search when debouncedQuery/filters/sortBy change
+          - `useFocusEffect` reloads recent searches when screen gains focus
+      - NEW: `p2p-kids-marketplace/src/hooks/useDebouncedValue.ts`
+        - Custom hook for value debouncing with configurable delay
+        - Usage: `const debouncedQuery = useDebouncedValue(query, 200)`
+      - MODIFIED: `p2p-kids-marketplace/src/navigation/HomeTabNavigator.tsx`
+        - Replaced "Browse" + "Search" tabs with single "Discover" tab
+        - Route: `Discover` → `DiscoverScreen`
+        - Tab icon updated from 🔍 to reflect unified experience
+      - DELETED: `p2p-kids-marketplace/src/screens/home/SearchScreen.tsx`
+      - DELETED: `p2p-kids-marketplace/src/screens/home/BrowseItemsScreen.tsx`
+      - KEPT: `p2p-kids-marketplace/src/screens/home/CategoryBrowseScreen.tsx` (for deep-linking by category)
+    - UX Behaviors:
+      - Debounce: search executes exactly 200ms after last keystroke
+      - Optimistic UI: previous results remain visible while new search loads (smooth transition)
+      - Autocomplete: appears when query.length >= 2, shows max 5 suggestions from recent searches filtered by `startsWith`
+      - Recent searches: appears when focused + query empty + history exists, supports tap-to-search and X-to-remove
+      - Spelling suggestion: when no results + no active filters, suggests closest match from recent searches (Levenshtein distance <= 3)
+      - Network error: shows banner with retry button, does NOT clear existing results (non-blocking)
+      - Empty states:
+        - Initial (no search): "Discover Items" / "Search or browse to find items near you"
+        - No results with filters: "No Results Found" / "Try adjusting your filters" + "Clear Filters" button
+        - No results with typo: "No Results Found" / "Did you mean '{suggestion}'?" + "Search for '{suggestion}'" button
+    - Accessibility:
+      - All interactive elements have `accessibilityLabel`
+      - Filter button announces active count: "Filters" or "Filters, X active"
+      - Sort button announces current option: "Sort by relevance"
+      - Result cards: "{Title}, ${Price}"
+      - All elements have `testID` for testing
+    - Unit tests:
+      - `p2p-kids-marketplace/src/screens/home/__tests__/DiscoverScreen.test.tsx`
+      - Coverage: 22 test cases across 10 test suites
+        - Initial render (search input, filter button, recent searches load, brand cache pre-warm, initial search)
+        - Search functionality (200ms debounce, add to history, display results, navigate to detail)
+        - Optimistic UI (previous results visible during search, no full-screen spinner)
+        - Infinite scroll (load more on end reached, loading indicator, guard against duplicates)
+        - Recent searches (show on focus, hide when typing, remove individual, clear all)
+        - Autocomplete (show for 2+ chars, hide for 1 char, fill on tap)
+        - Empty states (initial, no results, spelling suggestion)
+        - Error handling (network error banner, retry, do not clear results)
+        - Pull to refresh (reset offset, reload results)
+      - Run: `npm run test:unit -- --testPathPattern="DiscoverScreen"`
+    - E2E Integration tests:
+      - `p2p-kids-marketplace/e2e/discovery-v3-005.integration.test.ts`
+      - Requires: `RUN_SUPABASE_E2E=true`
+      - Coverage: 25 test cases across 7 test suites
+        - Search functionality (basic search, empty query, SP filter, category filter, price range, sort asc/desc, sort newest)
+        - Pagination (offset works, no overlap, limit respected)
+        - Search history (store/retrieve, dedupe and move to front, cap at 8, remove individual)
+        - Brand autocomplete (fetch DB brands, suggestions min 2 chars, empty for 1 char, merge predefined + DB)
+        - Spell suggestion (correction within threshold, null beyond threshold)
+        - Performance (search < 400ms, filtered search < 400ms)
+      - Run: `RUN_SUPABASE_E2E=true npm run test:e2e -- discovery-v3-005`
+    - Manual test guide:
+      - `DISCOVERY-V3-005-MANUAL-TEST-GUIDE.md`
+      - Prerequisites: Staging Supabase accessible, app running on iOS/Android simulator, 20+ items in DB
+      - Test cases: TC-001 to TC-022 covering all screen features
+        - TC-001: Initial screen load
+        - TC-002: Search with debounce (200ms)
+        - TC-003: Search results display
+        - TC-004: Navigate to item detail
+        - TC-005 to TC-008: Recent searches (show, tap, remove, clear all)
+        - TC-009 to TC-010: Autocomplete (2+ chars, single char)
+        - TC-011: Filter button (no active filters)
+        - TC-012 to TC-013: Infinite scroll (load more, end reached)
+        - TC-014: Pull to refresh
+        - TC-015: Network error banner
+        - TC-016 to TC-018: Empty states (with filters, spell suggestion, initial)
+        - TC-019: Optimistic UI during search
+        - TC-020 to TC-021: Filter state (persistence across navigation, reset on tab change)
+        - TC-022: Accessibility labels
+      - Troubleshooting: search doesn't execute, recent searches not showing, infinite scroll not loading, navigation broken
+    - Tier 0 (preflight gate):
+      - ✅ Typecheck passes: `npm run typecheck` (or `npx tsc -p tsconfig.json --noEmit`)
+      - ✅ Lint passes: `npm run lint` (or `npx eslint .`)
+      - No duplicate exports/identifiers
+      - No SyntaxError preventing app load
+    - Tier 1 (targeted regression):
+      - Run unit tests for DiscoverScreen
+      - Run E2E integration tests against staging
+      - Manual smoke test: search → results → detail → back (filter state persists)
+    - Tier 2 (not required):
+      - No DB migrations or RLS changes (uses existing V3 RPC from DISCOVERY-V3-002)
+    - Verification criteria (MODULE-05-VERIFICATION-V3.md § 5):
+      - ✅ `SEARCH_DEBOUNCE_MS === 200`
+      - ✅ Optimistic UI: old results visible while new search loads
+      - ✅ Infinite scroll loads next page on `onEndReached`
+      - ✅ No duplicate fetch while `loadingMore === true`
+      - ✅ Filter state persists after ItemDetail navigation
+      - ✅ Filter state resets on tab change (future: implement with tab navigator listeners)
+      - ✅ Navigator updated: `Discover` route → `DiscoverScreen`
+      - ✅ Old files deleted: `SearchScreen.tsx`, `BrowseItemsScreen.tsx`
+      - ✅ App builds and runs: `npm run typecheck`, `npm run lint`, `expo start`
+    - Known limitations (TODO for future tasks):
+      - SearchFilterModal not yet implemented (filter button placeholder)
+      - SortDropdown not yet implemented (sort button placeholder)
+      - SearchResultCard component is placeholder (needs proper image/layout from DISCOVERY-V3-007)
+      - Supporting components (ActiveFilterChips, RecentSearchesPanel, etc.) not yet extracted (inline in DiscoverScreen)
+    - Next steps:
+      - DISCOVERY-V3-006: SearchFilterModal (8 filter sections)
+      - DISCOVERY-V3-007: Supporting components (9 components)
+      - PRICE_PRESETS: 5 quick-select ranges aligned with typical kids item pricing
+      - STORAGE_KEYS: centralized AsyncStorage key definitions for search history, brand cache
+    - Unit tests: `p2p-kids-marketplace/src/__tests__/utils/filterHelpers.test.ts`
+      - Coverage: 44 tests (all 4 functions with edge cases)
+      - Tests: empty/single/multiple filters, all condition/age/gender values, price edge cases (0, negative, large), single vs multi formatting, boundary cases
+      - All tests pass ✅
+    - Integration tests: `p2p-kids-marketplace/src/__tests__/integration/discovery-v3-004.integration.test.ts`
+      - Coverage: 18 tests (real-world scenarios, COLOR_PALETTE/PRICE_PRESETS usage, fuzzy match + filters, full workflow, boundary/edge cases)
+      - Scenarios: typical user filter flow, invalid price handling, all filter chip formatting, preset selection, color typo correction, complete search workflow
+      - All tests pass ✅
+    - Manual test guide: `p2p-kids-marketplace/DISCOVERY-V3-004-MANUAL-TESTING-GUIDE.md` (12 test cases)
+      - TC-001: Verify types/constants exported and accessible
+      - TC-002 to TC-004: countActiveFilters (default, single, multiple)
+      - TC-005: formatFilterChipLabel common cases (9 filter types)
+      - TC-006 to TC-007: validatePriceRange (valid/invalid ranges)
+      - TC-008: getDefaultFilters structure
+      - TC-009: COLOR_PALETTE structure (12 colors)
+      - TC-010: PRICE_PRESETS structure (5 presets)
+      - TC-011: STORAGE_KEYS values
+      - TC-012: Fuzzy match integration with COLOR_PALETTE
+    - Verification:
+      - ✅ All types/constants exported from discovery.ts
+      - ✅ countActiveFilters returns 0 for getDefaultFilters()
+      - ✅ countActiveFilters correctly counts 1-9 active filters
+      - ✅ formatFilterChipLabel handles all 9 filter dimensions with correct formatting
+      - ✅ validatePriceRange returns false when min > max, true otherwise
+      - ✅ getDefaultFilters returns sortBy='relevance', spEligibleOnly=false
+      - ✅ COLOR_PALETTE has 12 colors with id/label/hex
+      - ✅ PRICE_PRESETS has 5 presets with id/label/min/max
+      - ✅ STORAGE_KEYS has 3 keys with correct values
+      - ✅ TypeScript compilation passes (npm run typecheck)
+      - ✅ 44 unit tests pass
+      - ✅ 18 integration tests pass
+    - Tier: Tier 0 (pure utility functions - requires unit tests only, no UI/DB changes)
+    - Next steps: DISCOVERY-V3-005 (DiscoverScreen UI), DISCOVERY-V3-006 (SearchFilterModal)
+  - **DISCOVERY-V3-005A (2026-04-22):** Dictionary-augmented autocomplete suggestions
+    - Purpose: Improve discovery search speed by showing autocomplete suggestions from shared dictionary terms, not just user-specific search history.
+    - Files modified:
+      - `p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx`
+      - `p2p-kids-marketplace/src/screens/home/__tests__/DiscoverScreen.test.tsx`
+      - `DISCOVERY-V3-005-MANUAL-TEST-GUIDE.md`
+    - Implementation:
+      - Autocomplete now merges two sources:
+        - History suggestions via `getAutocompleteSuggestions()`
+        - Dictionary suggestions (category/common terms + learned history)
+      - Ranking order: prefix matches first, then contains matches.
+      - De-duplication is case-insensitive across both sources.
+      - Output remains capped to 5 suggestions.
+    - Automated verification:
+      - Added unit test: `shows dictionary-based suggestions when history has no matches` in `src/screens/home/__tests__/DiscoverScreen.test.tsx`.
+    - Manual verification:
+      - Added test case `TC-023: Autocomplete - Dictionary Suggestions (Non-History)` in `DISCOVERY-V3-005-MANUAL-TEST-GUIDE.md`.
+    - Tier: Tier 0 + Tier 1 (UI + discovery behavior change).
+    - Smoke expectation:
+      - With empty recent history, typing `bi` still shows dictionary terms such as `Bicycle`.
   - **DISCOVERY-IMG-PARITY (2026-03-29):** Listing image rendering parity across discovery surfaces
     - Fixed screens/components:
       - `src/screens/home/BrowseItemsScreen.tsx`

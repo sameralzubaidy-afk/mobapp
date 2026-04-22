@@ -78,10 +78,10 @@ const DEEP_LINK_ROUTES: Record<string, keyof RootStackParamList> = {
   Chat: 'Chat',
 
   // Listings & Discovery
-  '/discover': 'BrowseItems',
-  '/browse': 'BrowseItems',
+  '/discover': 'Discover',
+  '/browse': 'Discover',
   '/my-listings': 'MyListings',
-  BrowseItems: 'BrowseItems',
+  Discover: 'Discover',
   MyListings: 'MyListings',
 
   // Referrals
@@ -120,7 +120,7 @@ const TYPE_TO_ROUTE_MAP: Record<
   // SP Events
   sp_earned: { route: 'SpWallet', action: 'navigate' },
   sp_spent: { route: 'SpWallet', action: 'navigate' },
-  sp_balance_low: { route: 'BrowseItems', action: 'navigate' },
+  sp_balance_low: { route: 'Discover', action: 'navigate' },
   sp_wallet_frozen: { route: 'ManageKidsClub', action: 'navigate' },
   sp_released: { route: 'SpWallet', action: 'navigate' },
 
@@ -243,7 +243,7 @@ export function parseNotificationDeepLink(
   }
 
   if (listingId) {
-    if (target.route === 'BrowseItems') {
+    if (target.route === 'Discover') {
       // If we have a specific listing ID, navigate to detail instead
       target.route = 'ListingDetail';
       target.params = { listing_id: listingId };

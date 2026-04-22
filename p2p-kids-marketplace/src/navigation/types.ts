@@ -1,7 +1,7 @@
 export type RootStackParamList = {
   Landing: undefined;
   Home: undefined;
-  BrowseItems: undefined;
+  Discover: undefined;
   Login: undefined;
   Signup: undefined;
   SuspendedAccount: undefined;

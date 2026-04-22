@@ -27,6 +27,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyListings, getListingSummary, deleteListing } from '../../services/listing';
 import { Listing, ListingSummary } from '../../types/listing';
+import { ListingImage } from '../../components/atoms';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type StatusFilter = 'all' | 'pending' | 'needs_edits' | 'rejected' | 'available' | 'sold';
@@ -134,13 +135,11 @@ export default function MyListingsScreen({ navigation }: any) {
           accessibilityLabel={`Open details for ${item.title}`}
         >
         <View style={styles.listingImageContainer}>
-          {firstImageUrl ? (
-            <Image source={{ uri: firstImageUrl }} style={styles.listingImage} resizeMode="cover" />
-          ) : (
-            <View style={styles.listingImagePlaceholder}>
-              <Text style={styles.listingImagePlaceholderText}>📷 No Image</Text>
-            </View>
-          )}
+          <ListingImage 
+            url={firstImage?.url}
+            containerStyle={styles.listingImage}
+            imageStyle={styles.listingImage}
+          />
         </View>
 
         <View style={styles.listingHeader}>

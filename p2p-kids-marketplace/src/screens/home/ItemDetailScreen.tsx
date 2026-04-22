@@ -41,6 +41,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import StarRating from '@/components/molecules/StarRating';
 import Avatar from '@/components/atoms/Avatar';
+import { ListingImage } from '@/components/atoms';
 import { idBadgeService } from '@/services/idBadge';
 
 type ItemDetailScreenRouteProp = RouteProp<RootStackParamList, 'ListingDetail'>;
@@ -353,7 +354,12 @@ export default function ItemDetailScreen() {
 
           {activeImage ? (
             <View style={styles.imageGallery}>
-              <Image source={{ uri: activeImage.url }} style={styles.mainImage} />
+              <ListingImage 
+                url={activeImage.url} 
+                containerStyle={styles.mainImage} 
+                imageStyle={styles.mainImage}
+                resizeMode="contain"
+              />
               <View style={styles.imageCountBadge}>
                 <Text style={styles.imageCountBadgeText}>{`${activeImageIndex + 1}/${listingImages.length}`}</Text>
               </View>
@@ -369,9 +375,11 @@ export default function ItemDetailScreen() {
                       ]}
                       onPress={() => setActiveImageIndex(index)}
                     >
-                      <Image
-                        source={{ uri: image.thumbnail_url || image.url }}
-                        style={styles.thumbnailImage}
+                      <ListingImage
+                        url={image.url}
+                        containerStyle={styles.thumbnailImage}
+                        imageStyle={styles.thumbnailImage}
+                        resizeMode="cover"
                       />
                     </TouchableOpacity>
                   ))}

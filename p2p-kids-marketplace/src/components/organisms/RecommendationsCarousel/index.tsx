@@ -23,6 +23,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { getRecommendations } from '../../../services/discovery';
 import { Recommendation } from '../../../types/discovery';
 import { useAuth } from '../../../hooks/useAuth';
+import { ListingImage } from '../../atoms';
 
 interface RecommendationsCarouselProps {
   /** Number of recommendations to fetch */
@@ -149,19 +150,12 @@ export default function RecommendationsCarousel({
             style={styles.card}
             onPress={() => handleItemPress(item.id)}
           >
-            <View style={styles.cardImageContainer}>
-              {item.images && item.images.length > 0 ? (
-                <Image
-                  source={{ uri: item.images[0].thumbnail_url || item.images[0].url }}
-                  style={styles.cardImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={styles.cardImagePlaceholder}>
-                  <Text style={styles.cardImagePlaceholderText}>📷</Text>
-                </View>
-              )}
-            </View>
+            <ListingImage 
+              url={item.images && item.images.length > 0 ? item.images[0].url : null}
+              containerStyle={styles.cardImageContainer}
+              imageStyle={styles.cardImage}
+              placeholderText="📷"
+            />
             <View style={styles.cardContent}>
               {/* Item Title */}
               <Text style={styles.itemTitle} numberOfLines={2}>

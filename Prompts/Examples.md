@@ -58,51 +58,40 @@ My Example 1
 
 
 
-
-## TASK DISCOVERY-V3-004: Types & Utilities
+## TASK DISCOVERY-V3-006: SearchFilterModal
 
 I’m working on the  ## TASK DISCOVERY-V3-004: Types & Utilities
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-05-DISCOVERY-V3-FILTERS.md
-Tasks: ## TASK DISCOVERY-V3-003: Services Layer — discovery, searchHistory, brandAutocomplete
+Tasks: ## TASK DISCOVERY-V3-006: SearchFilterModal
 
 scope is 
 
-Define `DiscoveryFilters`, `SortOption`, `SearchResult` types and two utility modules.
+Bottom-sheet modal exposing all 8 filter sections in the exact order defined in `SEARCH-FILTER-REQUIREMENTS.md` § Component Specifications.
 
-### Files
+### File
 
-| Path | Purpose |
-|---|---|
-| `p2p-kids-marketplace/src/types/discovery.ts` | MODIFY: add `DiscoveryFilters`, `SortOption`, `SearchResult`, `BrandSuggestion`, `PricePreset` |
-| `p2p-kids-marketplace/src/utils/fuzzyMatch.ts` | NEW: `levenshteinDistance(a,b)`, `findClosestMatch(query, candidates, threshold=3)` |
-| `p2p-kids-marketplace/src/utils/filterHelpers.ts` | NEW: `countActiveFilters(f)`, `formatFilterChipLabel(key,value)`, `validatePriceRange(min?,max?)`, `getDefaultFilters()` |
+`p2p-kids-marketplace/src/components/molecules/SearchFilterModal.tsx`
 
-### `DiscoveryFilters` (exact shape)
+### Sections (in order)
 
-```ts
-export type SortOption = 'relevance' | 'newest' | 'price_asc' | 'price_desc';
-
-export interface DiscoveryFilters {
-  categoryIds?: string[];      // UUID[]
-  condition?: 'new' | 'like_new' | 'good' | 'fair' | 'worn';
-  minPrice?: number;
-  maxPrice?: number;
-  ageGroup?: '0-2' | '3-5' | '6-8' | '9-12' | '13+';
-  gender?: 'boy' | 'girl' | 'unisex';
-  brand?: string;
-  colors?: string[];           // from the 12-color palette
-  spEligibleOnly?: boolean;
-  sortBy?: SortOption;         // default 'relevance'
-}
-```
+1. **Category** — multi-select pills (horizontal scroll). Loaded from existing `getCategories()` service.
+2. **Condition** — single-select pills (`new | like_new | good | fair | worn`).
+3. **Age Group** — single-select pills (`0-2 | 3-5 | 6-8 | 9-12 | 13+`).
+4. **Gender** — single-select pills (`boy | girl | unisex | Any`). "Any" maps to `undefined`.
+5. **Color** — multi-select chips with 12-color swatches (`COLOR_PALETTE`).
+6. **Brand** — text input with dropdown using `getBrandSuggestions(q)` (min 2 chars).
+7. **Price Range** — 5 preset chips (`PRICE_PRESETS`) + custom `min` / `max` inputs.
+8. **Swap Points Only** — toggle switch (wraps `spEligibleOnly`).
 
 ### Acceptance Criteria
 
-- [ ] `levenshteinDistance` handles empty strings and returns `max(a.length, b.length)` when either is empty.
-- [ ] `findClosestMatch` returns `null` if no candidate within threshold; returns the **single** best (lowest distance) otherwise.
-- [ ] `countActiveFilters` returns 0 for `getDefaultFilters()` output.
-- [ ] `validatePriceRange(min, max)` returns `false` when `min > max`, `true` otherwise (including when either is undefined).
-- [ ] `formatFilterChipLabel('ageGroup', '3-5')` returns `'Age: 3-5'` and handles all 9 filter keys.
+- [ ] Local draft state — changes only apply to parent on "Apply Filters" tap.
+- [ ] "Clear All" button resets local draft to `getDefaultFilters()`.
+- [ ] Apply button disabled when `validatePriceRange(minPrice, maxPrice) === false`; shows inline error.
+- [ ] Brand autocomplete dropdown closes when user taps outside or selects.
+- [ ] Modal is keyboard-aware (avoids inputs being hidden).
+- [ ] Active filter count live-updated at top of modal (e.g. "3 filters").
+- [ ] Full a11y: each pill `accessibilityState={selected}`; toggle announced.
 
 i want you to 
 

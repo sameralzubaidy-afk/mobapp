@@ -417,8 +417,18 @@ export function suggestSpellingCorrection(
     return null;
   }
 
+  const normalizedQuery = query.toLowerCase().trim();
+  const candidates = recentSearches
+    .filter((candidate) => !!candidate && candidate.trim().length > 0)
+    // Never suggest the exact same query back to the user.
+    .filter((candidate) => candidate.toLowerCase().trim() !== normalizedQuery);
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
   // Use Levenshtein distance with threshold 3
-  return findClosestMatch(query.trim(), recentSearches, 3);
+  return findClosestMatch(query.trim(), candidates, 3);
 }
 
 /**

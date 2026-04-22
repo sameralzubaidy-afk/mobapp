@@ -1,10 +1,11 @@
 // File: p2p-kids-marketplace/src/navigation/HomeTabNavigator.tsx
+// MODULE-05-DISCOVERY-V3: Updated to use unified DiscoverScreen
+// Task: DISCOVERY-V3-005 - Replace SearchScreen + BrowseItemsScreen with DiscoverScreen
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View } from 'react-native';
 import UserDashboardScreen from '@/screens/dashboard/UserDashboardScreen';
-import BrowseItemsScreen from '@/screens/home/BrowseItemsScreen';
-import SearchScreen from '@/screens/home/SearchScreen';
+import DiscoverScreen from '@/screens/home/DiscoverScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -12,8 +13,7 @@ const Tab = createBottomTabNavigator();
 const TabIcon = ({ name, focused }: { name: string; focused: boolean }) => {
   const icons: { [key: string]: string } = {
     Dashboard: '🏠',
-    Browse: '🔍',
-    Search: '🔎',
+    Discover: '🔍',
     Messages: '💬',
     Profile: '👤',
   };
@@ -67,10 +67,8 @@ export function HomeTabNavigator() {
           >
             {route.name === 'Dashboard'
               ? 'Dashboard'
-              : route.name === 'BrowseItems'
-              ? 'Browse'
-              : route.name === 'Search'
-              ? 'Search'
+              : route.name === 'Discover'
+              ? 'Discover'
               : route.name}
           </Text>
         ),
@@ -78,10 +76,8 @@ export function HomeTabNavigator() {
           const iconName =
             route.name === 'Dashboard'
               ? 'Dashboard'
-              : route.name === 'BrowseItems'
-              ? 'Browse'
-              : route.name === 'Search'
-              ? 'Search'
+              : route.name === 'Discover'
+              ? 'Discover'
               : route.name;
           return <TabIcon name={iconName} focused={focused} />;
         },
@@ -95,19 +91,14 @@ export function HomeTabNavigator() {
         }}
       />
       <Tab.Screen
-        name="BrowseItems"
-        component={BrowseItemsScreen}
+        name="Discover"
+        component={DiscoverScreen}
         options={{
-          title: 'Browse',
-        }}
-      />
-      <Tab.Screen
-        name="Search"
-        component={SearchScreen}
-        options={{
-          title: 'Search',
+          title: 'Discover',
         }}
       />
     </Tab.Navigator>
   );
 }
+
+export default HomeTabNavigator;

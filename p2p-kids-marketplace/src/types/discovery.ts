@@ -157,3 +157,67 @@ export interface Recommendation {
     display_order: number;
   }[];
 }
+
+/**
+ * Brand suggestion for autocomplete
+ * MODULE-05-DISCOVERY-V3: Task DISCOVERY-V3-004
+ */
+export interface BrandSuggestion {
+  name: string;
+  source: 'predefined' | 'database';
+}
+
+/**
+ * Price range preset for quick filtering
+ * MODULE-05-DISCOVERY-V3: Task DISCOVERY-V3-004
+ */
+export interface PricePreset {
+  id: string;
+  label: string;
+  min: number;
+  max: number;
+}
+
+/**
+ * 12-color palette for item filtering
+ * MODULE-05-DISCOVERY-V3: Task DISCOVERY-V3-004
+ * Source: SEARCH-FILTER-REQUIREMENTS.md § Appendix
+ */
+export const COLOR_PALETTE = [
+  { id: 'red', label: 'Red', hex: '#EF4444' },
+  { id: 'blue', label: 'Blue', hex: '#3B82F6' },
+  { id: 'green', label: 'Green', hex: '#10B981' },
+  { id: 'yellow', label: 'Yellow', hex: '#FBBF24' },
+  { id: 'pink', label: 'Pink', hex: '#EC4899' },
+  { id: 'purple', label: 'Purple', hex: '#8B5CF6' },
+  { id: 'black', label: 'Black', hex: '#1F2937' },
+  { id: 'white', label: 'White', hex: '#F9FAFB' },
+  { id: 'gray', label: 'Gray', hex: '#6B7280' },
+  { id: 'brown', label: 'Brown', hex: '#92400E' },
+  { id: 'orange', label: 'Orange', hex: '#F97316' },
+  { id: 'multicolor', label: 'Multicolor', hex: '#FFFFFF' }, // Placeholder for gradient
+] as const;
+
+/**
+ * 5 price range presets for quick filtering
+ * MODULE-05-DISCOVERY-V3: Task DISCOVERY-V3-004
+ * Source: SEARCH-FILTER-REQUIREMENTS.md § Appendix
+ */
+export const PRICE_PRESETS: PricePreset[] = [
+  { id: 'under-10', label: 'Under $10', min: 0, max: 10 },
+  { id: '10-25', label: '$10-$25', min: 10, max: 25 },
+  { id: '25-50', label: '$25-$50', min: 25, max: 50 },
+  { id: '50-100', label: '$50-$100', min: 50, max: 100 },
+  { id: 'over-100', label: 'Over $100', min: 100, max: 10000 },
+];
+
+/**
+ * AsyncStorage keys for discovery features
+ * MODULE-05-DISCOVERY-V3: Task DISCOVERY-V3-004
+ * Source: SEARCH-FILTER-REQUIREMENTS.md § Appendix
+ */
+export const STORAGE_KEYS = {
+  RECENT_SEARCHES: '@kids_marketplace:recent_searches',
+  ACTIVE_FILTERS: '@kids_marketplace:active_filters', // session only
+  BRAND_CACHE: '@kids_marketplace:brand_cache', // 5min TTL
+} as const;

@@ -238,7 +238,7 @@ export default function ConversationsListScreen() {
           </Text>
           <TouchableOpacity
             style={styles.browseButton}
-            onPress={() => navigation.navigate('BrowseItems')}
+            onPress={() => navigation.navigate('Discover')}
           >
             <Text style={styles.browseButtonText}>Browse Items</Text>
           </TouchableOpacity>

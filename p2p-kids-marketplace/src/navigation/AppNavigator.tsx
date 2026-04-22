@@ -3,8 +3,7 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import BrowseItemsScreen from '@/screens/home/BrowseItemsScreen';
-import SearchScreen from '@/screens/home/SearchScreen';
+import DiscoverScreen from '@/screens/home/DiscoverScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
 import UserDashboardScreen from '@/screens/dashboard/UserDashboardScreen';
@@ -81,8 +80,7 @@ const linking = {
       Login: 'login',
       Signup: 'signup',
       Home: 'home',
-      BrowseItems: 'browse',
-      Search: 'search',
+      Discover: 'discover',
       PhoneVerification: 'phone-verification',
       SuspendedAccount: 'suspended-account',
       ProfileSetup: 'profile-setup',
@@ -319,23 +317,13 @@ function RootNavigator() {
             />
 
             <Stack.Screen
-              name="BrowseItems"
-              component={BrowseItemsScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Search"
-              component={SearchScreen}
+              name="Discover"
+              component={DiscoverScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
               name="CategoryBrowse"
               component={CategoryBrowseScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="ItemDetailScreen"
-              component={ItemDetailScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

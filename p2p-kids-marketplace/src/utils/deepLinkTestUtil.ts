@@ -269,10 +269,10 @@ export function testAllScenarios(): {
   results.push({
     scenario: 'SP Balance Low',
     data: TEST_SCENARIOS.spBalanceLow(),
-    expectedRoute: 'BrowseItems',
+    expectedRoute: 'Discover',
     actualRoute: parseNotificationDeepLink(TEST_SCENARIOS.spBalanceLow())?.route ?? null,
     params: parseNotificationDeepLink(TEST_SCENARIOS.spBalanceLow())?.params,
-    passed: parseNotificationDeepLink(TEST_SCENARIOS.spBalanceLow())?.route === 'BrowseItems',
+    passed: parseNotificationDeepLink(TEST_SCENARIOS.spBalanceLow())?.route === 'Discover',
   });
 
   // Subscription Events

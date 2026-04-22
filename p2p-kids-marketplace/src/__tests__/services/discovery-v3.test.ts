@@ -226,10 +226,18 @@ describe('discovery service V3', () => {
       expect(result).toBe('scooter'); // distance 1, closer than others
     });
 
-    it('should handle exact matches', () => {
+    it('should not return the same typo when typo exists in history', () => {
+      const historyWithTypo = ['bycicle', 'bicycle', 'tricycle'];
+
+      const result = suggestSpellingCorrection('bycicle', historyWithTypo);
+
+      expect(result).toBe('bicycle');
+    });
+
+    it('should return null for exact matches (no correction needed)', () => {
       const result = suggestSpellingCorrection('LEGO', recentSearches);
 
-      expect(result).toBe('LEGO');
+      expect(result).toBeNull();
     });
   });
 });

@@ -24,6 +24,7 @@ import { fetchListingsByCategory } from '../../services/discovery';
 import { CategoryResult } from '../../types/discovery';
 import { trackEvent } from '../../services/analytics';
 import Avatar from '../../components/atoms/Avatar';
+import { ListingImage } from '../../components/atoms';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type ParamList = {
@@ -100,18 +101,14 @@ export default function CategoryBrowseScreen() {
   const renderItem = ({ item }: { item: CategoryResult }) => (
     <TouchableOpacity
       style={styles.itemCard}
-      onPress={() => (navigation as any).navigate('ItemDetailScreen', { listing_id: item.id })}
+      onPress={() => (navigation as any).navigate('ListingDetail', { listing_id: item.id })}
     >
       <View style={styles.imagePlaceholder}>
-        {item.images && item.images.length > 0 ? (
-          <Image
-            source={{ uri: item.images[0].thumbnail_url || item.images[0].url }}
-            style={styles.itemImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <Text style={styles.placeholderEmoji}>📦</Text>
-        )}
+        <ListingImage 
+          url={item.images && item.images.length > 0 ? item.images[0].url : null}
+          containerStyle={styles.itemImage}
+          imageStyle={styles.itemImage}
+        />
         {item.seller && (
           <View style={styles.sellerAvatarOverlay}>
             <Avatar
