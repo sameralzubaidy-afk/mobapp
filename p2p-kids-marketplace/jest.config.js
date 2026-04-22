@@ -2,6 +2,7 @@
  * Jest config for Expo / React Native
  */
 const runDetoxE2E = process.env.RUN_DETOX_E2E === 'true';
+const runSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
 
 module.exports = {
   preset: 'jest-expo',
@@ -14,6 +15,12 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
     ...(runDetoxE2E ? {} : { '^detox$': '<rootDir>/src/__mocks__/detox.ts' }),
   },
+  // Exclude Supabase E2E suites from the default test run; they require real
+  // Supabase credentials and must be opted in via RUN_SUPABASE_E2E=true.
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    ...(runSupabaseE2E ? [] : ['<rootDir>/src/__tests__/e2e/']),
+  ],
   // By default Jest ignores transforming node_modules. For Expo/React Native we must allow
   // transforming several packages that ship modern JS (ESM/TS) syntax.
   transformIgnorePatterns: [

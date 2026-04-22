@@ -14,9 +14,18 @@ const RUN = process.env.RUN_SUPABASE_E2E === 'true';
 
 const describeE2E = RUN ? describe : describe.skip;
 
-const supabase = createClient
-  ? createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_ANON_KEY ?? '')
-  : null;
+const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? '';
+const SUPABASE_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? '';
+
+// Only instantiate the client when E2E is explicitly enabled and env vars are present.
+// Eager instantiation with empty strings causes SupabaseClient to throw at module load,
+// crashing the Jest worker before describe.skip can suppress the suite.
+const supabase =
+  RUN && createClient && SUPABASE_URL && SUPABASE_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_KEY)
+    : null;
 
 // Test user credentials – must pre-exist in staging DB
 const TEST_EMAIL = process.env.TEST_USER_EMAIL ?? '';
