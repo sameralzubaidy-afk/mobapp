@@ -19,10 +19,9 @@ import {
   Switch,
   KeyboardAvoidingView,
   Platform,
-  FlatList,
   Pressable,
 } from 'react-native';
-import { DiscoveryFilters, SortOption, COLOR_PALETTE, PRICE_PRESETS } from '@/types/discovery';
+import { DiscoveryFilters, COLOR_PALETTE, PRICE_PRESETS } from '@/types/discovery';
 import { getDefaultFilters, validatePriceRange, countActiveFilters } from '@/utils/filterHelpers';
 import { getBrandSuggestions } from '@/services/brandAutocomplete';
 
@@ -265,7 +264,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
               contentContainerStyle={styles.pillRow}
             >
               {categories.map(category => {
-                const isSelected = draft.categoryIds?.includes(category.id);
+                const isSelected = !!draft.categoryIds?.includes(category.id);
                 return (
                   <TouchableOpacity
                     key={category.id}
@@ -361,7 +360,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             <Text style={styles.sectionTitle}>COLOR</Text>
             <View style={styles.colorGrid}>
               {COLOR_PALETTE.map(color => {
-                const isSelected = draft.colors?.includes(color.id);
+                const isSelected = !!draft.colors?.includes(color.id);
                 return (
                   <TouchableOpacity
                     key={color.id}

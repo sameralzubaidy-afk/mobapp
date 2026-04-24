@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/screens/home/__tests__/DiscoverScreen.test.tsx
  * MODULE-05-DISCOVERY-V3: DiscoverScreen Unit Tests
  * Task: DISCOVERY-V3-005 - DiscoverScreen (Unified)
- * 
+ *
  * Tests for the unified DiscoverScreen component
  */
 
@@ -74,7 +74,7 @@ const mockSearchResults = [
     id: '2',
     title: 'Test Item 2',
     description: 'Description 2',
-    price: 20.50,
+    price: 20.5,
     accepts_swap_points: false,
     status: 'available',
     seller_id: 'seller-2',
@@ -113,7 +113,9 @@ describe('DiscoverScreen', () => {
 
   describe('Initial Render', () => {
     it('renders the search input', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       await waitFor(() => {
         expect(getByTestId('discover-search-input')).toBeTruthy();
@@ -121,7 +123,9 @@ describe('DiscoverScreen', () => {
     });
 
     it('renders the filter button with active count', async () => {
-      const { getByTestId, queryByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, queryByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       await waitFor(() => {
         expect(getByTestId('discover-filter-button')).toBeTruthy();
@@ -131,7 +135,9 @@ describe('DiscoverScreen', () => {
     });
 
     it('loads recent searches on mount', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       // Focus search input to show recent searches
       const searchInput = getByTestId('discover-search-input');
@@ -159,12 +165,58 @@ describe('DiscoverScreen', () => {
     });
   });
 
+  describe('Sort Dropdown', () => {
+    it('opens sort dropdown and shows all 4 options', async () => {
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('discover-sort-button')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('discover-sort-button'));
+
+      await waitFor(() => {
+        expect(getByTestId('sort-dropdown-options')).toBeTruthy();
+        expect(getByTestId('sort-option-relevance')).toBeTruthy();
+        expect(getByTestId('sort-option-newest')).toBeTruthy();
+        expect(getByTestId('sort-option-price_asc')).toBeTruthy();
+        expect(getByTestId('sort-option-price_desc')).toBeTruthy();
+      });
+    });
+
+    it('updates sort and re-runs search when a sort option is selected', async () => {
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(() => {
+        expect(searchListings).toHaveBeenCalled();
+      });
+
+      const initialCalls = (searchListings as jest.Mock).mock.calls.length;
+
+      fireEvent.press(getByTestId('discover-sort-button'));
+      fireEvent.press(getByTestId('sort-option-price_desc'));
+
+      await waitFor(() => {
+        expect((searchListings as jest.Mock).mock.calls.length).toBeGreaterThan(initialCalls);
+      });
+
+      const calls = (searchListings as jest.Mock).mock.calls;
+      expect(calls.some((call) => call[1]?.sortBy === 'price_desc')).toBe(true);
+    });
+  });
+
   describe('Search Functionality', () => {
     it('debounces search input with 200ms delay', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
-      
+
       // Type query
       fireEvent.changeText(searchInput, 'bike');
 
@@ -183,10 +235,12 @@ describe('DiscoverScreen', () => {
     });
 
     it('adds search query to history after successful search', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
-      
+
       fireEvent.changeText(searchInput, 'bike');
 
       act(() => {
@@ -199,10 +253,12 @@ describe('DiscoverScreen', () => {
     });
 
     it('displays search results after successful search', async () => {
-      const { getByTestId, getByText } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, getByText } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
-      
+
       fireEvent.changeText(searchInput, 'test');
 
       act(() => {
@@ -216,7 +272,9 @@ describe('DiscoverScreen', () => {
     });
 
     it('navigates to item detail when result is tapped', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       await waitFor(() => {
         const result = getByTestId('search-result-1');
@@ -229,7 +287,9 @@ describe('DiscoverScreen', () => {
 
   describe('Optimistic UI', () => {
     it('keeps previous results visible during new search', async () => {
-      const { getByTestId, getByText } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, getByText } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       // Wait for initial results
       await waitFor(() => {
@@ -254,7 +314,9 @@ describe('DiscoverScreen', () => {
     });
 
     it('does not show full-screen spinner after first load', async () => {
-      const { getByTestId, queryByTestId, getByText } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, getByText } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       // Wait for initial results
       await waitFor(() => {
@@ -272,27 +334,72 @@ describe('DiscoverScreen', () => {
 
   describe('Infinite Scroll', () => {
     it('loads more results when reaching end of list', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const firstPageResults: SearchResult[] = Array.from({ length: 20 }, (_, index) => ({
+        ...mockSearchResults[0],
+        id: `${index + 1}`,
+        title: `Test Item ${index + 1}`,
+      }));
+
+      (searchListings as jest.Mock).mockImplementation((_query: string, options: any) => {
+        if ((options?.offset ?? 0) === 0) {
+          return Promise.resolve(firstPageResults);
+        }
+        if (options?.offset === 20) {
+          return Promise.resolve(mockSearchResults);
+        }
+        return Promise.resolve(mockSearchResults);
+      });
+
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       await waitFor(() => {
-        expect(searchListings).toHaveBeenCalledTimes(1);
+        expect(searchListings).toHaveBeenCalled();
       });
+
+      const initialCallCount = (searchListings as jest.Mock).mock.calls.length;
 
       // Trigger load more
       const resultsList = getByTestId('discover-results-list');
-      fireEvent(resultsList, 'endReached');
-
-      await waitFor(() => {
-        expect(searchListings).toHaveBeenCalledTimes(2);
+      act(() => {
+        resultsList.props.onEndReached();
       });
 
-      // Check offset was incremented
-      const lastCall = (searchListings as jest.Mock).mock.calls[1];
-      expect(lastCall[1].offset).toBe(20);
+      await waitFor(() => {
+        expect((searchListings as jest.Mock).mock.calls.length).toBeGreaterThan(initialCallCount);
+      });
+
+      // Check one of the new calls used offset=20 for next page
+      const calls = (searchListings as jest.Mock).mock.calls;
+      expect(calls.some((call) => call[1]?.offset === 20)).toBe(true);
     });
 
     it('shows loading more indicator when fetching next page', async () => {
-      const { getByTestId, queryByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const firstPageResults: SearchResult[] = Array.from({ length: 20 }, (_, index) => ({
+        ...mockSearchResults[0],
+        id: `${index + 1}`,
+        title: `Test Item ${index + 1}`,
+      }));
+
+      let resolveNextPage: ((value: SearchResult[]) => void) | undefined;
+      const pendingNextPage = new Promise<SearchResult[]>((resolve) => {
+        resolveNextPage = resolve;
+      });
+
+      (searchListings as jest.Mock).mockImplementation((_query: string, options: any) => {
+        if ((options?.offset ?? 0) === 0) {
+          return Promise.resolve(firstPageResults);
+        }
+        if (options?.offset === 20) {
+          return pendingNextPage;
+        }
+        return Promise.resolve(mockSearchResults);
+      });
+
+      const { getByTestId, queryByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       await waitFor(() => {
         expect(searchListings).toHaveBeenCalled();
@@ -300,22 +407,51 @@ describe('DiscoverScreen', () => {
 
       // Trigger load more
       const resultsList = getByTestId('discover-results-list');
-      fireEvent(resultsList, 'endReached');
+      act(() => {
+        resultsList.props.onEndReached();
+      });
+
+      await waitFor(() => {
+        const calls = (searchListings as jest.Mock).mock.calls;
+        expect(calls.some((call) => call[1]?.offset === 20)).toBe(true);
+      });
 
       await waitFor(() => {
         expect(queryByTestId('loading-more-indicator')).toBeTruthy();
       });
+
+      await act(async () => {
+        resolveNextPage?.(mockSearchResults);
+      });
     });
 
     it('guards against duplicate fetch during load more', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const firstPageResults: SearchResult[] = Array.from({ length: 20 }, (_, index) => ({
+        ...mockSearchResults[0],
+        id: `${index + 1}`,
+        title: `Test Item ${index + 1}`,
+      }));
+
+      (searchListings as jest.Mock).mockImplementation((_query: string, options: any) => {
+        if ((options?.offset ?? 0) === 0) {
+          return Promise.resolve(firstPageResults);
+        }
+        if (options?.offset === 20) {
+          return Promise.resolve(mockSearchResults);
+        }
+        return Promise.resolve(mockSearchResults);
+      });
+
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       await waitFor(() => {
         expect(searchListings).toHaveBeenCalledTimes(1);
       });
 
       const resultsList = getByTestId('discover-results-list');
-      
+
       // Trigger load more twice rapidly
       fireEvent(resultsList, 'endReached');
       fireEvent(resultsList, 'endReached');
@@ -329,7 +465,9 @@ describe('DiscoverScreen', () => {
 
   describe('Recent Searches', () => {
     it('shows recent searches when input is focused and empty', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent(searchInput, 'focus');
@@ -340,7 +478,9 @@ describe('DiscoverScreen', () => {
     });
 
     it('hides recent searches when typing', async () => {
-      const { getByTestId, queryByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, queryByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent(searchInput, 'focus');
@@ -355,7 +495,9 @@ describe('DiscoverScreen', () => {
     });
 
     it('allows removing a recent search', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent(searchInput, 'focus');
@@ -373,7 +515,9 @@ describe('DiscoverScreen', () => {
     });
 
     it('allows clearing all recent searches', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent(searchInput, 'focus');
@@ -395,7 +539,9 @@ describe('DiscoverScreen', () => {
     it('shows autocomplete suggestions when typing (>= 2 chars)', async () => {
       (getAutocompleteSuggestions as jest.Mock).mockReturnValue(['bike', 'bicycle']);
 
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent(searchInput, 'focus');
@@ -409,7 +555,9 @@ describe('DiscoverScreen', () => {
     it('shows dictionary-based suggestions when history has no matches', async () => {
       (getAutocompleteSuggestions as jest.Mock).mockReturnValue([]);
 
-      const { getByTestId, getByText } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, getByText } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent(searchInput, 'focus');
@@ -425,7 +573,9 @@ describe('DiscoverScreen', () => {
     });
 
     it('does not show autocomplete for single character', async () => {
-      const { getByTestId, queryByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, queryByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent(searchInput, 'focus');
@@ -439,7 +589,9 @@ describe('DiscoverScreen', () => {
     it('fills search input when autocomplete suggestion is tapped', async () => {
       (getAutocompleteSuggestions as jest.Mock).mockReturnValue(['bike']);
 
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent(searchInput, 'focus');
@@ -460,7 +612,9 @@ describe('DiscoverScreen', () => {
     it('shows initial empty state when no search performed', async () => {
       (searchListings as jest.Mock).mockResolvedValue([]);
 
-      const { getByText } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByText } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       await waitFor(() => {
         expect(getByText('Discover Items')).toBeTruthy();
@@ -471,7 +625,9 @@ describe('DiscoverScreen', () => {
     it('shows "no results" when search returns empty', async () => {
       (searchListings as jest.Mock).mockResolvedValue([]);
 
-      const { getByTestId, getByText } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, getByText } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent.changeText(searchInput, 'nonexistent');
@@ -489,7 +645,9 @@ describe('DiscoverScreen', () => {
       (searchListings as jest.Mock).mockResolvedValue([]);
       (suggestSpellingCorrection as jest.Mock).mockReturnValue('bicycle');
 
-      const { getByTestId, getByText } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, getByText } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent.changeText(searchInput, 'bycicle');
@@ -506,9 +664,13 @@ describe('DiscoverScreen', () => {
 
   describe('Error Handling', () => {
     it('shows network error banner when search fails', async () => {
-      (searchListings as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (searchListings as jest.Mock)
+        .mockResolvedValueOnce(mockSearchResults)
+        .mockRejectedValueOnce(new Error('Network error'));
 
-      const { getByTestId, getByText } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent.changeText(searchInput, 'test');
@@ -524,10 +686,13 @@ describe('DiscoverScreen', () => {
 
     it('retries search when error banner is tapped', async () => {
       (searchListings as jest.Mock)
+        .mockResolvedValueOnce(mockSearchResults)
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce(mockSearchResults);
 
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent.changeText(searchInput, 'test');
@@ -549,7 +714,9 @@ describe('DiscoverScreen', () => {
     });
 
     it('does not clear existing results when search fails', async () => {
-      const { getByTestId, getByText } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId, getByText } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       // Wait for initial successful results
       await waitFor(() => {
@@ -577,21 +744,28 @@ describe('DiscoverScreen', () => {
 
   describe('Pull to Refresh', () => {
     it('resets offset and refreshes results', async () => {
-      const { getByTestId } = render(<DiscoverScreen navigation={mockNavigation as any} route={{} as any} />);
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
 
       await waitFor(() => {
-        expect(searchListings).toHaveBeenCalledTimes(1);
+        expect(searchListings).toHaveBeenCalled();
       });
 
-      const refreshControl = getByTestId('discover-refresh-control');
-      fireEvent(refreshControl, 'refresh');
+      const initialCallCount = (searchListings as jest.Mock).mock.calls.length;
+
+      const resultsList = getByTestId('discover-results-list');
+      act(() => {
+        resultsList.props.refreshControl.props.onRefresh();
+      });
 
       await waitFor(() => {
-        expect(searchListings).toHaveBeenCalledTimes(2);
+        expect((searchListings as jest.Mock).mock.calls.length).toBeGreaterThan(initialCallCount);
       });
 
       // Check offset was reset to 0
-      const lastCall = (searchListings as jest.Mock).mock.calls[1];
+      const calls = (searchListings as jest.Mock).mock.calls;
+      const lastCall = calls[calls.length - 1];
       expect(lastCall[1].offset).toBe(0);
     });
   });

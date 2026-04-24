@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx
  * MODULE-05-DISCOVERY-V3: Unified Discover Screen
  * Task: DISCOVERY-V3-005 - DiscoverScreen (Unified)
- * 
+ *
  * Replaces SearchScreen and BrowseItemsScreen with a single unified discovery experience
  * Features: debounced search, 9 filters, 4 sort options, infinite scroll, optimistic UI
  */
@@ -18,7 +18,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
-  Image,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -37,13 +36,13 @@ import { suggestSpellingCorrection } from '@/services/discovery';
 import { countActiveFilters, getDefaultFilters } from '@/utils/filterHelpers';
 import { SearchResult, DiscoveryFilters, SortOption } from '@/types/discovery';
 import { getCategories } from '@/services/items';
-import { ListingImage } from '@/components/atoms';
+import { ListingImage, SortDropdown } from '@/components/atoms';
 import { SearchFilterModal } from '@/components/molecules';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { Ionicons } from '@expo/vector-icons';
 
-// Search debounce constants: 600ms for active typing, 0ms for filter/sort changes
-const KEYSTROKE_DEBOUNCE_MS = 600;
+// Search debounce constants: 200ms for active typing, 0ms for filter/sort changes
+const KEYSTROKE_DEBOUNCE_MS = 200;
 const FILTER_DEBOUNCE_MS = 0;
 
 // Pagination batch size
@@ -55,7 +54,7 @@ type Props = NativeStackScreenProps<any, 'Discover'>;
 
 /**
  * DiscoverScreen Component
- * 
+ *
  * Unified discovery experience with:
  * - 600ms debounced keystroke search (for better typing UX)
  * - 0ms debounce for 9-dimensional filtering (immediate feedback)
@@ -151,7 +150,9 @@ export default function DiscoverScreen({ navigation }: Props) {
         );
         const containsMatches = dictionary.filter((word) => {
           const normalizedWord = word.trim().toLowerCase();
-          return normalizedWord.includes(normalizedQuery) && !normalizedWord.startsWith(normalizedQuery);
+          return (
+            normalizedWord.includes(normalizedQuery) && !normalizedWord.startsWith(normalizedQuery)
+          );
         });
         const dictionarySuggestions = [...startsWithMatches, ...containsMatches];
 
@@ -204,22 +205,15 @@ export default function DiscoverScreen({ navigation }: Props) {
 
       // Build dictionary for spell correction (categories + common items)
       const categoryNames = (categoriesData || []).map((c: any) => c.name);
-      
+
       // Load recent searches
       const searches = await getRecentSearches();
       setRecentSearches(searches);
 
       // Combined dictionary: Categories + Recent Searches + Hardcoded defaults
       const commonWords = ['Bicycle', 'Tricycle', 'Scooter', 'Stroller', 'Monitor'];
-      const combinedDict = Array.from(new Set([
-        ...categoryNames, 
-        ...searches, 
-        ...commonWords
-      ]));
+      const combinedDict = Array.from(new Set([...categoryNames, ...searches, ...commonWords]));
       setDictionary(combinedDict);
-
-      // Initial search with no filters
-      await performSearch({ resetOffset: true });
     } catch (err) {
       console.error('[DiscoverScreen] Failed to load initial data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load');
@@ -237,7 +231,7 @@ export default function DiscoverScreen({ navigation }: Props) {
       setRecentSearches(searches);
 
       // Keep dictionary updated with any new searches
-      setDictionary(prev => Array.from(new Set([...prev, ...searches])));
+      setDictionary((prev) => Array.from(new Set([...prev, ...searches])));
     } catch (err) {
       console.warn('[DiscoverScreen] Failed to load recent searches:', err);
     }
@@ -248,9 +242,16 @@ export default function DiscoverScreen({ navigation }: Props) {
    * Optimistic UI: previous results stay visible until new ones arrive
    */
   const performSearch = useCallback(
-    async ({ resetOffset = false }: { resetOffset?: boolean } = {}) => {
+    async ({
+      resetOffset = false,
+      forcedOffset,
+    }: {
+      resetOffset?: boolean;
+      forcedOffset?: number;
+    } = {}) => {
       try {
-        const newOffset = resetOffset ? 0 : offset;
+        const newOffset =
+          typeof forcedOffset === 'number' ? forcedOffset : resetOffset ? 0 : offset;
 
         // For first page or filter change, show main loading indicator
         // For infinite scroll, show loadingMore indicator
@@ -278,6 +279,7 @@ export default function DiscoverScreen({ navigation }: Props) {
           setOffset(0);
         } else {
           setResults((prev) => [...prev, ...searchResults]);
+          setOffset(newOffset);
         }
 
         // Update hasMore flag
@@ -291,7 +293,7 @@ export default function DiscoverScreen({ navigation }: Props) {
       } catch (err) {
         console.error('[DiscoverScreen] Search failed:', err);
         setError(err instanceof Error ? err.message : 'Search failed');
-        
+
         // On error, do NOT clear existing results (non-blocking error)
       } finally {
         setLoading(false);
@@ -310,8 +312,7 @@ export default function DiscoverScreen({ navigation }: Props) {
     }
 
     const newOffset = offset + RESULTS_PER_PAGE;
-    setOffset(newOffset);
-    performSearch({ resetOffset: false });
+    performSearch({ resetOffset: false, forcedOffset: newOffset });
   }, [loadingMore, hasMore, loading, offset, performSearch]);
 
   /**
@@ -402,10 +403,10 @@ export default function DiscoverScreen({ navigation }: Props) {
   };
 
   /**
-   * Handle sort change
+   * Handle sort option change
    */
-  const handleSortChange = (newSort: SortOption) => {
-    setSortBy(newSort);
+  const handleSortChange = (nextSortBy: SortOption) => {
+    setSortBy(nextSortBy);
     setOffset(0);
   };
 
@@ -428,40 +429,33 @@ export default function DiscoverScreen({ navigation }: Props) {
   /**
    * Render a single search result card
    */
-  const renderResult = useCallback(
-    ({ item }: { item: SearchResult }) => {
-      const mainImageUrl = item.images && item.images.length > 0
-        ? item.images[0].url
-        : null;
+  const renderResult = useCallback(({ item }: { item: SearchResult }) => {
+    const mainImageUrl = item.images && item.images.length > 0 ? item.images[0].url : null;
 
-      return (
-        <Pressable
-          testID={`search-result-${item.id}`}
-          accessibilityLabel={`${item.title}, $${item.price}`}
-          style={styles.resultCard}
-          onPress={() => handleResultPress(item.id)}
-        >
-          <ListingImage 
-            url={mainImageUrl}
-            containerStyle={styles.resultImage}
-            imageStyle={styles.resultImage}
-          />
-          <View style={styles.resultContent}>
-            <Text style={styles.resultTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-            <View style={styles.priceRow}>
-              <Text style={styles.resultPrice}>${item.price.toFixed(2)}</Text>
-              {item.accepts_swap_points && (
-                <Text style={styles.spBadge}>SP ✓</Text>
-              )}
-            </View>
+    return (
+      <Pressable
+        testID={`search-result-${item.id}`}
+        accessibilityLabel={`${item.title}, $${item.price}`}
+        style={styles.resultCard}
+        onPress={() => handleResultPress(item.id)}
+      >
+        <ListingImage
+          url={mainImageUrl}
+          containerStyle={styles.resultImage}
+          imageStyle={styles.resultImage}
+        />
+        <View style={styles.resultContent}>
+          <Text style={styles.resultTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.resultPrice}>${item.price.toFixed(2)}</Text>
+            {item.accepts_swap_points && <Text style={styles.spBadge}>SP ✓</Text>}
           </View>
-        </Pressable>
-      );
-    },
-    []
-  );
+        </View>
+      </Pressable>
+    );
+  }, []);
 
   /**
    * Render list header (search input, filters, sort)
@@ -471,11 +465,7 @@ export default function DiscoverScreen({ navigation }: Props) {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           {navigation.canGoBack() && (
-            <Pressable
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-              hitSlop={8}
-            >
+            <Pressable onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={8}>
               <Ionicons name="arrow-back" size={24} color="#374151" />
             </Pressable>
           )}
@@ -513,27 +503,12 @@ export default function DiscoverScreen({ navigation }: Props) {
             )}
           </Pressable>
 
-          {/* Placeholder for SortDropdown */}
-          <Pressable
-            testID="discover-sort-button"
-            accessibilityLabel={`Sort by ${sortBy}`}
-            style={styles.sortButton}
-            onPress={() => {
-              // TODO: Implement sort dropdown
-              console.log('Sort button tapped');
-            }}
-          >
-            <Text style={styles.sortButtonText}>Sort: {sortBy}</Text>
-          </Pressable>
+          <SortDropdown value={sortBy} onChange={handleSortChange} />
         </View>
 
         {/* Network Error Banner */}
         {error && (
-          <Pressable
-            testID="network-error-banner"
-            style={styles.errorBanner}
-            onPress={handleRetry}
-          >
+          <Pressable testID="network-error-banner" style={styles.errorBanner} onPress={handleRetry}>
             <Text style={styles.errorBannerText}>⚠️ {error}. Tap to retry.</Text>
           </Pressable>
         )}
@@ -559,10 +534,7 @@ export default function DiscoverScreen({ navigation }: Props) {
           <View style={styles.recentSearchesPanel} testID="recent-searches-panel">
             <View style={styles.recentSearchesHeader}>
               <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
-              <Pressable
-                testID="clear-recent-searches"
-                onPress={handleClearAllRecentSearches}
-              >
+              <Pressable testID="clear-recent-searches" onPress={handleClearAllRecentSearches}>
                 <Text style={styles.clearAllText}>Clear All</Text>
               </Pressable>
             </View>
@@ -621,9 +593,7 @@ export default function DiscoverScreen({ navigation }: Props) {
         {activeFilterCount > 0 ? (
           <>
             <Text style={styles.emptyTitle}>No Results Found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try adjusting your filters
-            </Text>
+            <Text style={styles.emptySubtitle}>Try adjusting your filters</Text>
             <Pressable
               testID="clear-filters-button"
               style={styles.clearFiltersButton}
@@ -635,9 +605,7 @@ export default function DiscoverScreen({ navigation }: Props) {
         ) : spellSuggestion ? (
           <>
             <Text style={styles.emptyTitle}>No Results Found</Text>
-            <Text style={styles.emptySubtitle}>
-              Did you mean "{spellSuggestion}"?
-            </Text>
+            <Text style={styles.emptySubtitle}>Did you mean "{spellSuggestion}"?</Text>
             <Pressable
               testID="spell-suggestion-button"
               style={styles.spellSuggestionButton}
@@ -649,16 +617,12 @@ export default function DiscoverScreen({ navigation }: Props) {
         ) : debouncedQuery.trim().length > 0 ? (
           <>
             <Text style={styles.emptyTitle}>No Results Found</Text>
-            <Text style={styles.emptySubtitle}>
-              Try different keywords
-            </Text>
+            <Text style={styles.emptySubtitle}>Try different keywords</Text>
           </>
         ) : (
           <>
             <Text style={styles.emptyTitle}>Discover Items</Text>
-            <Text style={styles.emptySubtitle}>
-              Search or browse to find items near you
-            </Text>
+            <Text style={styles.emptySubtitle}>Search or browse to find items near you</Text>
           </>
         )}
       </View>
@@ -698,7 +662,7 @@ export default function DiscoverScreen({ navigation }: Props) {
         onApply={handleApplyFilters}
         onClose={handleCloseFilters}
       />
-      
+
       <BottomNavBar />
     </SafeAreaView>
   );

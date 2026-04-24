@@ -37,7 +37,7 @@ describe('DeepLink Service', () => {
         expect(result?.route).toBe('SpWallet');
       });
 
-      it('should parse sp_balance_low to BrowseItems', () => {
+      it('should parse sp_balance_low to Discover', () => {
         const data: NotificationDeepLinkData = {
           type: 'sp_balance_low',
         };
@@ -45,7 +45,7 @@ describe('DeepLink Service', () => {
         const result = parseNotificationDeepLink(data);
 
         expect(result).not.toBeNull();
-        expect(result?.route).toBe('BrowseItems');
+        expect(result?.route).toBe('Discover');
       });
 
       it('should parse sp_wallet_frozen to ManageKidsClub', () => {

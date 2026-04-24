@@ -154,7 +154,7 @@ describe('Deep Link Integration Tests', () => {
       const target = parseNotificationDeepLink(data);
 
       expect(target).not.toBeNull();
-      expect(target?.route).toBe('BrowseItems');
+      expect(target?.route).toBe('Discover');
     });
 
     it('should handle in-app notification tap (foreground)', () => {

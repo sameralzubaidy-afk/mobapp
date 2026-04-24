@@ -206,6 +206,130 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Verification: See `Prompts/MODULE-13-VERIFICATION.md` for completion criteria
 - Automated (offline): Jest covers listing service lifecycle + SP gating.
 - E2E (Supabase prod): `p2p-kids-marketplace/src/__tests__/e2e/referral-listing-bonus.e2e.ts` covers referral listing bonus awarding end-to-end.
+  - **LISTING-V3-001 (2026-04-22):** Bulk Listing & AI Auto-Fill Schema Preparation
+    - Purpose: Add database schema for bulk listing feature (MODULE-04 V3)
+    - Migration files:
+      - `20260420000003_create_item_bulk_uploads.sql` - tracks bulk upload sessions (max 30 photos, 15 items per session)
+      - `20260420000004_create_item_drafts.sql` - auto-saved drafts with 7-day TTL, max 5 per seller
+      - `20260420000005_add_bulk_listing_columns_to_items.sql` - links items to bulk uploads
+    - Schema changes:
+      - New table: `item_bulk_uploads` (id, seller_id, status, total_photos, total_items, published_items, created_at, completed_at)
+      - New table: `item_drafts` (id, seller_id, bulk_upload_id, draft_data JSONB, photo_urls TEXT[], ai_suggestions JSONB, step, created_at, updated_at, expires_at)
+      - New columns on `items`: `bulk_upload_id UUID` (FK), `requested_category_name TEXT` (for "Other" category admin review)
+    - Triggers:
+      - `update_item_drafts_updated_at` - auto-touch updated_at on every UPDATE
+      - `enforce_max_drafts` - keeps only 5 most-recently-updated drafts per seller
+    - RLS policies:
+      - Sellers can manage own bulk uploads and drafts
+      - Admins can view all bulk uploads (for review queue)
+    - Constraints:
+      - CHECK: `item_bulk_uploads.total_items <= 15`
+      - CHECK: `item_bulk_uploads.total_photos <= 30`
+      - CHECK: `items.requested_category_name` length <= 100
+    - Indexes:
+      - Partial indexes on `items.bulk_upload_id` and `items.requested_category_name` (WHERE NOT NULL)
+      - Composite indexes on `item_drafts` for seller+recency and expiry cleanup
+    - Tests:
+      - PgTAP: `supabase/tests/listing_v3_001_schema.test.sql` (50 test cases)
+      - Manual: `LISTING-V3-001-MANUAL-TESTING-GUIDE.md` (15 test cases)
+    - Verification:
+      - ✅ All migrations idempotent (safe to re-run)
+      - ✅ RLS enabled on both new tables
+      - ✅ Triggers fire correctly (updated_at auto-touch, max-5 enforcement)
+      - ✅ FK cascades work (ON DELETE SET NULL for items.bulk_upload_id)
+      - ✅ MODULE-05 V3 columns (age_group, gender, brand, color) not re-added
+    - Next steps: LISTING-V3-002 (Edge Functions for AI analysis), LISTING-V3-005 (photo-first UI)
+    - Tier: Tier 2 (DB migrations - requires full regression)
+    - Dependencies: MODULE-05 V3 migrations must be applied first
+  - **LISTING-V3-002 (2026-04-22):** AI Image Analysis Edge Functions
+    - Purpose: AI-powered item analysis using Google Vision API for bulk listing auto-fill (MODULE-04 V3 TASK LISTING-V3-002)
+    - Edge Functions:
+      - NEW: `supabase/functions/analyze-item-image/index.ts` - Single item analysis
+        - Request: `{ photoUrl, sellerId, requestFields? }`
+        - Response: `AIAnalysisResult` with 7 fields (title, category, condition, brand, color, age_group, gender)
+        - Features:
+          - Per-field confidence scores (0.0-1.0)
+          - Confidence threshold filtering: fields with confidence < 0.40 omitted from response
+          - Category fuzzy matching with Levenshtein distance (threshold ≤ 3) against DB categories
+          - Google Vision API retry logic: 429 rate limit → exponential backoff (1s / 2s / 4s, max 3 attempts)
+          - 5-minute category cache to reduce DB calls during cold starts
+          - Brand matching against PREDEFINED_BRANDS list (50 brands) from logos and labels
+          - Dominant color extraction (≥ 5% pixel fraction, top 3 colors, RGB→color name mapping)
+          - Age group & gender inference from keyword heuristics
+      - NEW: `supabase/functions/batch-analyze-items/index.ts` - Bulk parallel analysis
+        - Request: `{ items: [{ groupId, primaryPhotoUrl, allPhotoUrls }], sellerId }`
+        - Response: `{ results, totalProcessed, totalFailed }`
+        - Features:
+          - Semaphore-controlled concurrency: max 5 parallel calls to analyze-item-image
+          - Per-item timeout: 10 seconds (AbortController)
+          - Partial failure tolerance: failed items return `error` field, don't block siblings
+          - Uses Promise.allSettled for robust error handling
+          - Results maintain input order (groupId matching)
+      - NEW: `supabase/functions/_shared/aiTypes.ts` - Shared types
+        - Types: `AIAnalysisResult`, `AIFieldResult<T>`, `AnalyzeImageRequest`, `BatchAnalyzeRequest`, `BatchAnalyzeResponse`
+        - Must match client types in `p2p-kids-marketplace/src/types/listing.ts`
+    - Client-Side Types:
+      - UPDATED: `p2p-kids-marketplace/src/types/listing.ts`
+        - Added: `AIFieldResult<T>`, `AIAnalysisResult`, `PhotoAsset`, `PhotoGroup`, `DraftData`, `ItemDraft`, `BulkPublishResult`, `PriceTier`, `PriceSuggestion`, `ConditionGuide`
+        - Types match edge function types exactly for type safety
+    - AI Field Extraction:
+      - Title: extracted from top labels with product keywords, confidence based on label score
+      - Category: fuzzy matched to DB categories (exact=1.0, fuzzy=0.4-0.9 linear by distance), falls back to Vision label if no match
+      - Condition: keyword mapping ('new', 'nwt', 'like new', 'good', 'used', 'worn') from labels/OCR
+      - Brand: logo detection (0.90 confidence) or label matching against 50 predefined brands
+      - Color: RGB analysis from dominant colors (top 3), mapped to 12 standard color names
+      - Age Group: keyword inference ('baby', 'toddler', 'child', 'tween', 'teen') → 5 age ranges
+      - Gender: keyword detection ('boy', 'girl') → 3 values (boy/girl/unisex default)
+    - Configuration:
+      - Environment variable: `GOOGLE_VISION_API_KEY` (required in Edge Function secrets)
+      - Category cache TTL: 5 minutes
+      - Min confidence threshold: 0.40 (fields below this are omitted)
+      - High confidence threshold: 0.70 (for UI display logic)
+      - Max batch concurrency: 5 items
+      - Per-item timeout: 10,000ms
+    - Tests:
+      - Unit tests (Deno):
+        - `supabase/functions/analyze-item-image/index.test.ts` (10 test cases: title extraction, confidence filtering, brand matching, color extraction, condition inference, Levenshtein distance, age group/gender inference)
+        - `supabase/functions/batch-analyze-items/index.test.ts` (10 test cases: semaphore concurrency, timeout handling, Promise.allSettled, response format, partial failures, validation, ordering)
+      - Integration tests (Jest + staging Supabase):
+        - `p2p-kids-marketplace/e2e/listing-v3-002-ai-analysis.integration.test.ts` (9 test cases requiring `RUN_SUPABASE_E2E=true`)
+        - Coverage: single analysis, confidence filtering, selective fields, batch processing, concurrency limiting, error validation, invalid URLs, partial failures
+        - Test photos: publicly accessible URLs (Unsplash) for Google Vision API
+      - Manual test guide: `LISTING-V3-002-MANUAL-TESTING-GUIDE.md` (13 test cases)
+    - Deployment:
+      ```bash
+      npx supabase functions deploy analyze-item-image --project-ref <staging>
+      npx supabase functions deploy batch-analyze-items --project-ref <staging>
+      npx supabase secrets set GOOGLE_VISION_API_KEY=<key> --project-ref <staging>
+      ```
+    - Verification Criteria (from MODULE-04-VERIFICATION-V3.md § 2):
+      - ✅ `analyze-item-image` accepts `{ photoUrl, sellerId, requestFields? }`
+      - ✅ Response conforms to `AIAnalysisResult` with per-field confidence
+      - ✅ Fields with confidence < 0.40 omitted entirely (not set to null)
+      - ✅ Category matching via Levenshtein fuzzy match (distance ≤ 3), `categoryId` null if no match
+      - ✅ Google Vision 429 → exponential backoff (3 attempts: 1s / 2s / 4s)
+      - ✅ `batch-analyze-items` accepts `{ items, sellerId }` with array of `{ groupId, primaryPhotoUrl }`
+      - ✅ Response: `{ results, totalProcessed, totalFailed }` with per-item `analysis` or `error`
+      - ✅ Promise.allSettled with semaphore=5 concurrent calls
+      - ✅ 10s per-item timeout via AbortController; timed-out items return `error: 'timeout'`
+      - ✅ Both functions deployed successfully to staging
+      - ✅ Smoke test: invoke with test photo URLs → 200 OK with valid `AIAnalysisResult`
+    - Performance:
+      - Single image analysis: < 5 seconds (target)
+      - Batch 3 items: < 15 seconds (target)
+      - Batch 10 items: < 30 seconds (target with concurrency=5)
+      - Category cache reduces DB calls to 1 per 5 minutes per cold start
+    - Error Handling:
+      - Missing photoUrl/sellerId → 400 Bad Request with descriptive error
+      - Invalid photoUrl → returns `AIAnalysisResult` with `error` field (graceful)
+      - Google Vision API failure → retries with backoff, then returns error
+      - Rate limit (429) → automatic retry, then fails gracefully
+      - Timeout (batch) → returns `{ groupId, error: 'timeout' }` for that item only
+      - All errors logged with `[function-name]` prefix for debugging
+    - CORS: Both functions return `Access-Control-Allow-Origin: *` for client access
+    - Next steps: LISTING-V3-003 (Services Layer: aiService, photoService, draftService), LISTING-V3-005 (ItemCreateScreen photo-first rebuild)
+    - Tier: Tier 1 (Edge Functions only - no DB changes); Tier 2 if Google Vision quota/limits change
+    - Dependencies: GOOGLE_VISION_API_KEY configured, active categories in DB, LISTING-V3-001 schema (for drafts integration later)
 
 ### FLOW-05: Media Upload (Storage) – Listing Photos
 - Smoke: (manual)
@@ -248,6 +372,33 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Backward compatibility: All columns nullable - existing items unaffected
     - Performance: Partial indexes keep size ~80% smaller (only index available items)
     - Unit tests: `src/__tests__/unit/schema/filter-columns.test.ts`
+  - **DISCOVERY-V3-008 (2026-04-22):** Tests for Discovery V3 (Filters, Autocomplete, Unified Discover)
+    - Unit Tests:
+      - `src/__tests__/services/discovery-v3.test.ts` - searchListings with 13 RPC params, null vs empty handling
+      - `src/__tests__/services/searchHistory.test.ts` - max 8 LRU, dedupe case-insensitive, clear
+      - `src/__tests__/services/brandAutocomplete.test.ts` - merge/dedupe/sort, 5-min cache
+      - `src/__tests__/utils/fuzzyMatch.test.ts` - Levenshtein distance, closest match, threshold
+      - `src/__tests__/utils/filterHelpers.test.ts` - count active filters, validate price range, chip labels
+    - Integration Tests:
+      - `src/__tests__/integration/discovery-v3.integration.test.ts` - E2E tests against staging Supabase: category filter, condition filter, price range, color multi-select, sort options, pagination
+    - Performance Test:
+      - `scripts/perf-search.ts` - 20 searches with random filters, p95 < 200ms target on ≥10k staging items
+    - Maestro Flows:
+      - `.maestro/search-filters.yaml` - Multi-filter application, chip removal, clear all
+      - `.maestro/search-autocomplete.yaml` - Recent searches (max 8 LRU), autocomplete dropdown, brand autocomplete
+      - `.maestro/search-empty-state.yaml` - No results message, typo suggestions ("Did you mean..."), filter-specific empty states
+      - `.maestro/discovery-v3-006-filter-modal.yaml` - Filter modal with 8 sections, price validation, apply
+    - Manual Test Guide: `DISCOVERY-V3-008-MANUAL-TESTING-GUIDE.md` (20 test cases)
+    - Prerequisites:
+      - Migration: `20260420000002_update_search_listings_rpc.sql` (13-param search_listings RPC)
+      - Migration: `20260420000001_add_item_filter_columns.sql` (age_group, gender, brand, color columns)
+    - Verification:
+      - All unit tests pass with ≥85% coverage
+      - E2E integration tests pass against staging
+      - Performance test: p95 < 200ms
+      - 4 Maestro flows pass on iOS and Android
+      - 20 manual test cases verified
+    - Tier: Tier 1 (targeted smoke for discovery changes); Tier 2 if DB migrations or RPC changes
     - E2E tests: `e2e/filter-schema.integration.test.ts` (requires `RUN_SUPABASE_E2E=true`)
     - Manual test guide: `DISCOVERY-V3-001-MANUAL-TEST.md` (13 test cases)
     - Verification:

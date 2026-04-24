@@ -1,0 +1,326 @@
+# FLOW: LISTING-V3-002-AI-Analysis | TASK: LISTING-V3-002 | AI Auto-Fill from Photo Analysis
+# Prerequisites:
+# - GOOGLE_VISION_API_KEY configured in Supabase Edge Function secrets
+# - analyze-item-image function deployed to staging/prod
+# - batch-analyze-items function deployed to staging/prod
+# - Categories exist in DB (get_categories RPC working)
+# - MODULE-05 V3 migrations applied (age_group, gender, brand, color columns exist)
+
+appId: com.kidsp2p.marketplace
+---
+
+# ========================================
+# SETUP: Login as seller
+# ========================================
+- launchApp
+- tapOn: 
+    id: "login-email-input"
+- inputText: "seller@test.com"
+- tapOn:
+    id: "login-password-input"
+- inputText: "password123"
+- tapOn:
+    id: "login-submit-button"
+- assertVisible:
+    id: "home-screen"
+    
+# ========================================
+# STATE 1: Single Item AI Analysis - Happy Path
+# ========================================
+# Navigate to Create Listing (or Bulk Listing if that's the entry point)
+- tapOn:
+    id: "nav-tab-sell"
+- assertVisible:
+    id: "create-listing-screen"
+
+# Upload photo
+- tapOn:
+    id: "image-picker-button"
+- waitForAnimationToEnd
+
+# Select first image from gallery (toy/kids item)
+- tapOn:
+    index: 0  # First photo in gallery
+- waitForAnimationToEnd: 2000
+
+# Verify image appears in preview
+- assertVisible:
+    id: "image-preview-0"
+
+# Trigger AI analysis (button or automatic)
+- tapOn:
+    id: "ai-analyze-button"
+- waitForAnimationToEnd: 5000  # AI analysis may take 3-5 seconds
+
+# Verify AI suggestions appear
+- assertVisible:
+    id: "ai-suggestions-container"
+
+# Verify title suggestion (if provided by AI)
+- assertVisible:
+    id: "ai-suggestion-title"
+    
+# Verify category suggestion (if confidence >= 0.40)
+- assertVisible:
+    id: "ai-suggestion-category"
+
+# Verify condition suggestion (if available)
+- assertVisible:
+    id: "ai-suggestion-condition"
+
+# Verify brand suggestion (if detected)
+# Note: Brand may not be detected for all items, so we'll check if container exists
+- runScript:
+    script: |
+      const brandSuggestion = document.getElementById('ai-suggestion-brand');
+      if (brandSuggestion) {
+        console.log('Brand suggestion detected');
+      } else {
+        console.log('No brand suggestion (expected if not detected)');
+      }
+
+# Verify color suggestions (if detected)
+- assertVisible:
+    id: "ai-suggestion-color"
+
+# Verify age group (if detected)
+# Age group may not always be detected, depends on item
+- runScript:
+    script: |
+      const ageGroupSuggestion = document.getElementById('ai-suggestion-age-group');
+      if (ageGroupSuggestion) {
+        console.log('Age group suggestion detected');
+      } else {
+        console.log('No age group suggestion (expected for some items)');
+      }
+
+# Accept AI suggestions (tap "Use Suggestions" button)
+- tapOn:
+    id: "ai-accept-suggestions-button"
+- waitForAnimationToEnd
+
+# Verify form fields populated with AI values
+- assertVisible:
+    id: "listing-title-input"
+# Title should now be populated from AI (non-empty)
+- runScript:
+    script: |
+      const titleInput = document.getElementById('listing-title-input');
+      if (titleInput.value && titleInput.value.length > 0) {
+        console.log('✅ Title populated from AI:', titleInput.value);
+      } else {
+        throw new Error('❌ Title not populated from AI suggestions');
+      }
+
+# Verify category selected
+- runScript:
+    script: |
+      const categoryPicker = document.getElementById('listing-category-picker');
+      if (categoryPicker && categoryPicker.value) {
+        console.log('✅ Category selected from AI:', categoryPicker.value);
+      } else {
+        console.log('⚠️  Category not selected (may have low confidence)');
+      }
+
+# ========================================
+# STATE 2: Batch AI Analysis (Bulk Listing Flow)
+# ========================================
+# Go back to home
+- tapOn:
+    id: "nav-tab-home"
+- assertVisible:
+    id: "home-screen"
+
+# Navigate to Bulk Listing (if available)
+- tapOn:
+    id: "nav-tab-sell"
+- assertVisible:
+    id: "create-listing-screen"
+
+# Tap "Bulk Upload" button (if exists, otherwise skip this test)
+- tapOn:
+    id: "bulk-upload-button"
+    optional: true
+- waitForAnimationToEnd
+
+# Upload multiple photos (3 photos for batch test)
+- tapOn:
+    id: "bulk-image-picker-button"
+    optional: true
+- waitForAnimationToEnd
+
+# Select 3 images from gallery
+- tapOn:
+    index: 0
+- tapOn:
+    index: 1
+- tapOn:
+    index: 2
+- waitForAnimationToEnd: 2000
+
+# Trigger batch AI analysis
+- tapOn:
+    id: "batch-ai-analyze-button"
+    optional: true
+- waitForAnimationToEnd: 15000  # Batch of 3 may take 10-15 seconds
+
+# Verify AI suggestions for photo group 1
+- assertVisible:
+    id: "ai-suggestions-group-0"
+    optional: true
+
+# Verify AI suggestions for photo group 2
+- assertVisible:
+    id: "ai-suggestions-group-1"
+    optional: true
+
+# Verify AI suggestions for photo group 3
+- assertVisible:
+    id: "ai-suggestions-group-2"
+    optional: true
+
+# Verify progress indicator or completion message
+- assertVisible:
+    id: "batch-analysis-complete"
+    optional: true
+
+# ========================================
+# STATE 3: Error Handling - Network Failure
+# ========================================
+# Enable airplane mode to simulate network failure
+- setAirplaneMode: true
+- waitForAnimationToEnd: 1000
+
+# Go back to single item create
+- tapOn:
+    id: "nav-tab-sell"
+- assertVisible:
+    id: "create-listing-screen"
+
+# Upload photo
+- tapOn:
+    id: "image-picker-button"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+- waitForAnimationToEnd: 2000
+
+# Trigger AI analysis (should fail)
+- tapOn:
+    id: "ai-analyze-button"
+- waitForAnimationToEnd: 5000
+
+# Verify error message appears
+- assertVisible:
+    id: "ai-analysis-error"
+    
+# Verify error message contains helpful text
+- assertVisible:
+    text: "network"  # "Network error" or similar
+
+# Disable airplane mode
+- setAirplaneMode: false
+- waitForAnimationToEnd: 2000
+
+# Retry button should be visible
+- assertVisible:
+    id: "ai-retry-button"
+
+# Tap retry
+- tapOn:
+    id: "ai-retry-button"
+- waitForAnimationToEnd: 5000
+
+# Should succeed this time
+- assertVisible:
+    id: "ai-suggestions-container"
+
+# ========================================
+# STATE 4: Low Confidence Handling
+# ========================================
+# Test that fields with confidence < 0.40 are NOT shown
+# This is implicit - if AI doesn't suggest a field, it won't be visible
+# Already tested above with optional brand/age_group checks
+
+# ========================================
+# STATE 5: Manual Override of AI Suggestions
+# ========================================
+# Navigate to listing creation with AI suggestions
+- tapOn:
+    id: "nav-tab-sell"
+- assertVisible:
+    id: "create-listing-screen"
+
+# Upload photo and trigger AI
+- tapOn:
+    id: "image-picker-button"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+- waitForAnimationToEnd: 2000
+- tapOn:
+    id: "ai-analyze-button"
+- waitForAnimationToEnd: 5000
+
+# AI suggestions appear
+- assertVisible:
+    id: "ai-suggestions-container"
+
+# Instead of accepting all, manually change title
+- tapOn:
+    id: "listing-title-input"
+- clearText
+- inputText: "My Custom Title"
+
+# Manually select different category
+- tapOn:
+    id: "listing-category-picker"
+- tapOn:
+    text: "Toys"  # Select different category than AI suggested
+
+# Verify manual changes persist (AI doesn't overwrite)
+- assertVisible:
+    text: "My Custom Title"
+
+# ========================================
+# STATE 6: Confidence Score Display
+# ========================================
+# Verify that confidence scores are shown to user (if UI includes this)
+# This depends on UX design - typically shown as % or stars
+
+# Go back to AI suggestions view
+- tapOn:
+    id: "nav-tab-sell"
+- assertVisible:
+    id: "create-listing-screen"
+- tapOn:
+    id: "image-picker-button"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+- waitForAnimationToEnd: 2000
+- tapOn:
+    id: "ai-analyze-button"
+- waitForAnimationToEnd: 5000
+
+# Check if confidence indicator exists (e.g., "High confidence", "85%", etc.)
+- assertVisible:
+    id: "ai-confidence-indicator-title"
+    optional: true
+
+# Check for category confidence
+- assertVisible:
+    id: "ai-confidence-indicator-category"
+    optional: true
+
+# ========================================
+# CLEANUP: Logout
+# ========================================
+- tapOn:
+    id: "nav-tab-profile"
+- assertVisible:
+    id: "profile-screen"
+- tapOn:
+    id: "logout-button"
+- assertVisible:
+    id: "login-screen"

@@ -1,0 +1,241 @@
+# FLOW: Search Empty State + Typo Suggestion | TASK: DISCOVERY-V3-008 | States covered: no results, typo suggestion, filter fallback
+# MODULE-05-DISCOVERY-V3
+# 
+# Tests empty state when no results match filters, and typo suggestion via fuzzy matching
+#
+# Preconditions:
+# - User is logged in
+# - Database has items, but intentionally crafted queries will yield no results
+# - App is on Discover screen
+#
+# Flow coverage:
+# 1. Search with no results (obscure query)
+# 2. Verify empty state message
+# 3. Search with a typo (e.g., "bycicle" instead of "bicycle")
+# 4. Verify "Did you mean..." suggestion appears
+# 5. Tap suggestion and verify search updates
+# 6. Apply filters that yield no results
+# 7. Verify empty state with filter-specific message
+
+appId: com.p2pkidsmarketplace.app
+---
+
+# ============================================
+# SETUP: Navigate to Discover screen
+# ============================================
+
+- launchApp
+- waitForAnimationToEnd
+
+# Ensure we're logged in
+- runFlow:
+    when:
+      notVisible:
+        id: "discover-tab"
+    commands:
+      - tapOn: "Login"
+      - inputText: "test-user@example.com"
+      - tapOn: "Password"
+      - inputText: "password123"
+      - tapOn: "Sign In"
+      - waitForAnimationToEnd
+
+# Navigate to Discover tab
+- tapOn:
+    id: "discover-tab"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "discover-screen"
+
+# ============================================
+# TEST 1: Search with No Results (Obscure Query)
+# ============================================
+
+# Search for something very unlikely to exist
+- tapOn:
+    id: "discover-search-input"
+- inputText: "xyzabc123456"
+- waitForAnimationToEnd: 300ms
+
+# Verify empty state is shown
+- assertVisible:
+    id: "discover-empty-state"
+
+# Verify empty state message
+- assertVisible:
+    text: "No items found"
+
+# Verify suggested action (e.g., "Try different keywords" or "Clear filters")
+- assertVisible:
+    id: "discover-empty-state-suggestion"
+
+# ============================================
+# TEST 2: Search with Typo (Trigger "Did you mean...")
+# ============================================
+
+# First, populate search history with "bicycle" so fuzzy match can work
+- tapOn:
+    id: "discover-search-clear-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "discover-search-input"
+- inputText: "bicycle"
+- waitForAnimationToEnd: 300ms
+
+# Clear and now search with a typo
+- tapOn:
+    id: "discover-search-clear-button"
+- waitForAnimationToEnd
+
+# Search "bycicle" (missing 'i' → Levenshtein distance 1)
+- tapOn:
+    id: "discover-search-input"
+- inputText: "bycicle"
+- waitForAnimationToEnd: 300ms
+
+# Verify "Did you mean..." suggestion appears (if no results)
+# This is conditional: only shows if no results AND there's a close match in recent searches
+- runFlow:
+    when:
+      visible:
+        id: "discover-typo-suggestion"
+    commands:
+      # Verify the suggestion text includes "bicycle"
+      - assertVisible:
+          text: "Did you mean.*bicycle"
+      
+      # Tap the suggestion link/button
+      - tapOn:
+          id: "discover-typo-suggestion-link"
+      - waitForAnimationToEnd
+      
+      # Verify search input updated to "bicycle"
+      - assertVisible:
+          id: "discover-search-input"
+          text: "bicycle"
+      
+      # Verify results are now shown (or at least attempted search)
+      - assertVisible:
+          id: "discover-results-list"
+
+# ============================================
+# TEST 3: Apply Filters that Yield No Results
+# ============================================
+
+# Clear search
+- tapOn:
+    id: "discover-search-clear-button"
+- waitForAnimationToEnd
+
+# Open filter modal
+- tapOn:
+    id: "discover-filter-button"
+- waitForAnimationToEnd
+
+# Apply very restrictive filters that are unlikely to match
+# E.g., min price = 9999 (extremely high)
+- tapOn:
+    id: "filter-price-min-input"
+- inputText: "9999"
+- hideKeyboard
+
+# Apply filters
+- tapOn:
+    id: "filter-modal-apply-button"
+- waitForAnimationToEnd
+
+# Verify filter chip appears
+- assertVisible:
+    id: "filter-chip-price"
+
+# Verify empty state is shown
+- assertVisible:
+    id: "discover-empty-state"
+
+# Verify empty state message mentions filters
+- assertVisible:
+    text: "No items match your filters"
+
+# Verify "Clear filters" action is available
+- assertVisible:
+    id: "discover-empty-state-clear-filters-button"
+
+# ============================================
+# TEST 4: Clear Filters from Empty State
+# ============================================
+
+# Tap "Clear filters" button in empty state
+- tapOn:
+    id: "discover-empty-state-clear-filters-button"
+- waitForAnimationToEnd
+
+# Verify filter chip is removed
+- assertNotVisible:
+    id: "filter-chip-price"
+
+# Verify results list is back (showing available items)
+- assertVisible:
+    id: "discover-results-list"
+
+# Verify empty state is dismissed
+- assertNotVisible:
+    id: "discover-empty-state"
+
+# ============================================
+# TEST 5: Empty State with No Filters (Truly No Items)
+# ============================================
+
+# This test case is harder to simulate without DB control
+# But we can verify the empty state UI elements exist
+
+# If we somehow had zero items in DB, empty state would show:
+# - "No items available yet"
+# - "Check back soon" or similar message
+# We'll just verify the empty state can render without filters
+
+# For determinism, let's apply a filter we know will yield no results
+- tapOn:
+    id: "discover-filter-button"
+- waitForAnimationToEnd
+
+# Select a brand that doesn't exist (type in brand autocomplete)
+- tapOn:
+    id: "filter-brand-input"
+- inputText: "NonExistentBrand12345"
+- hideKeyboard
+
+- tapOn:
+    id: "filter-modal-apply-button"
+- waitForAnimationToEnd
+
+# Verify empty state
+- assertVisible:
+    id: "discover-empty-state"
+- assertVisible:
+    text: "No items match your filters"
+
+# ============================================
+# CLEANUP: Clear all filters and search
+# ============================================
+
+- tapOn:
+    id: "discover-clear-all-filters-button"
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "discover-search-clear-button"
+    commands:
+      - tapOn:
+          id: "discover-search-clear-button"
+      - waitForAnimationToEnd
+
+# Final assertion: Discover screen is in clean state
+- assertVisible:
+    id: "discover-screen"
+- assertNotVisible:
+    id: "discover-empty-state"
+- assertVisible:
+    id: "discover-results-list"

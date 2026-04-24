@@ -15,8 +15,10 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 describe('Notification Analytics E2E', () => {
   let supabase: SupabaseClient;
   let testNotificationId: string;
+  let testUserId: string | null = null;
+  let skipReason = '';
 
-  beforeAll(() => {
+  beforeAll(async () => {
     if (!process.env.RUN_SUPABASE_E2E) {
       console.log('Skipping E2E tests (RUN_SUPABASE_E2E not set)');
       return;
@@ -25,16 +27,46 @@ describe('Notification Analytics E2E', () => {
     supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
       auth: { persistSession: false },
     });
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .not('user_id', 'is', null)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !profile?.user_id) {
+      skipReason = 'No profile-linked user found for notification analytics E2E.';
+      console.warn(`[notification-analytics.e2e] ${skipReason}`);
+      return;
+    }
+
+    testUserId = profile.user_id;
   });
 
+  const shouldSkipCase = (): boolean => {
+    if (!process.env.RUN_SUPABASE_E2E) {
+      return true;
+    }
+
+    if (!testUserId) {
+      console.warn(
+        `[notification-analytics.e2e] Skipping test case: ${skipReason || 'missing test user context'}`
+      );
+      return true;
+    }
+
+    return false;
+  };
+
   beforeEach(async () => {
-    if (!process.env.RUN_SUPABASE_E2E) return;
+    if (shouldSkipCase()) return;
 
     // Create a test notification
     const { data, error } = await supabase
       .from('user_notifications')
       .insert({
-        user_id: (await supabase.auth.admin.listUsers()).data.users[0]?.id,
+        user_id: testUserId,
         category: 'system',
         type: 'test_notification',
         title: 'Test Analytics',
@@ -61,10 +93,7 @@ describe('Notification Analytics E2E', () => {
   });
 
   it('should track delivered event', async () => {
-    if (!process.env.RUN_SUPABASE_E2E) {
-      console.log('Skipping: RUN_SUPABASE_E2E not set');
-      return;
-    }
+    if (shouldSkipCase()) return;
 
     const { data, error } = await supabase.rpc('track_notification_event', {
       p_notification_id: testNotificationId,
@@ -87,10 +116,7 @@ describe('Notification Analytics E2E', () => {
   });
 
   it('should track opened event and mark notification as read', async () => {
-    if (!process.env.RUN_SUPABASE_E2E) {
-      console.log('Skipping: RUN_SUPABASE_E2E not set');
-      return;
-    }
+    if (shouldSkipCase()) return;
 
     const { data, error } = await supabase.rpc('track_notification_event', {
       p_notification_id: testNotificationId,
@@ -113,10 +139,7 @@ describe('Notification Analytics E2E', () => {
   });
 
   it('should track clicked event with deep link', async () => {
-    if (!process.env.RUN_SUPABASE_E2E) {
-      console.log('Skipping: RUN_SUPABASE_E2E not set');
-      return;
-    }
+    if (shouldSkipCase()) return;
 
     const deepLink = 'app://trade/123';
 
@@ -141,10 +164,7 @@ describe('Notification Analytics E2E', () => {
   });
 
   it('should track failed event with error message', async () => {
-    if (!process.env.RUN_SUPABASE_E2E) {
-      console.log('Skipping: RUN_SUPABASE_E2E not set');
-      return;
-    }
+    if (shouldSkipCase()) return;
 
     const errorMessage = 'Invalid push token';
 
@@ -168,10 +188,7 @@ describe('Notification Analytics E2E', () => {
   });
 
   it('should return analytics for date range', async () => {
-    if (!process.env.RUN_SUPABASE_E2E) {
-      console.log('Skipping: RUN_SUPABASE_E2E not set');
-      return;
-    }
+    if (shouldSkipCase()) return;
 
     // Track some events
     await supabase.rpc('track_notification_event', {
@@ -207,10 +224,7 @@ describe('Notification Analytics E2E', () => {
   });
 
   it('should filter analytics by category', async () => {
-    if (!process.env.RUN_SUPABASE_E2E) {
-      console.log('Skipping: RUN_SUPABASE_E2E not set');
-      return;
-    }
+    if (shouldSkipCase()) return;
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 7);
@@ -226,32 +240,72 @@ describe('Notification Analytics E2E', () => {
   });
 
   it('should return A/B test performance', async () => {
-    if (!process.env.RUN_SUPABASE_E2E) {
-      console.log('Skipping: RUN_SUPABASE_E2E not set');
-      return;
+    if (shouldSkipCase()) return;
+
+    let variantNotificationId: string | null = null;
+
+    // Seed at least one additional variant and events so RPC can aggregate non-null variants.
+    const { data: variantNotification, error: variantInsertError } = await supabase
+      .from('user_notifications')
+      .insert({
+        user_id: testUserId,
+        category: 'system',
+        type: 'test_notification',
+        title: 'Test Analytics Variant B',
+        body: 'Test notification for analytics variant B',
+        variant: 'variant_b',
+      })
+      .select()
+      .single();
+
+    if (variantInsertError) {
+      throw variantInsertError;
     }
+
+    variantNotificationId = variantNotification.id;
+
+    await supabase.rpc('track_notification_event', {
+      p_notification_id: testNotificationId,
+      p_event_type: 'delivered',
+      p_event_data: { seeded_for: 'ab_test' },
+    });
+
+    await supabase.rpc('track_notification_event', {
+      p_notification_id: testNotificationId,
+      p_event_type: 'opened',
+      p_event_data: { seeded_for: 'ab_test' },
+    });
+
+    await supabase.rpc('track_notification_event', {
+      p_notification_id: variantNotificationId,
+      p_event_type: 'delivered',
+      p_event_data: { seeded_for: 'ab_test' },
+    });
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 30);
 
-    const { data, error } = await supabase.rpc('get_ab_test_performance', {
-      p_notification_type: 'test_notification',
-      p_start_date: startDate.toISOString(),
-      p_end_date: new Date().toISOString(),
-    });
+    try {
+      const { data, error } = await supabase.rpc('get_ab_test_performance', {
+        p_notification_type: 'test_notification',
+        p_start_date: startDate.toISOString(),
+        p_end_date: new Date().toISOString(),
+      });
 
-    expect(error).toBeNull();
-    expect(data).toMatchObject({
-      notification_type: 'test_notification',
-      variants: expect.any(Array),
-    });
+      expect(error).toBeNull();
+      expect(data).toMatchObject({
+        notification_type: 'test_notification',
+      });
+      expect(Array.isArray(data?.variants)).toBe(true);
+    } finally {
+      if (variantNotificationId) {
+        await supabase.from('user_notifications').delete().eq('id', variantNotificationId);
+      }
+    }
   });
 
   it('should reject invalid event types', async () => {
-    if (!process.env.RUN_SUPABASE_E2E) {
-      console.log('Skipping: RUN_SUPABASE_E2E not set');
-      return;
-    }
+    if (shouldSkipCase()) return;
 
     const { data, error } = await supabase.rpc('track_notification_event', {
       p_notification_id: testNotificationId,
@@ -263,10 +317,7 @@ describe('Notification Analytics E2E', () => {
   });
 
   it('should calculate delivery and open rates consistently', async () => {
-    if (!process.env.RUN_SUPABASE_E2E) {
-      console.log('Skipping: RUN_SUPABASE_E2E not set');
-      return;
-    }
+    if (shouldSkipCase()) return;
 
     // Create 10 notifications, deliver 8, open 5
     const notifications: string[] = [];
@@ -277,7 +328,7 @@ describe('Notification Analytics E2E', () => {
         const { data } = await supabase
           .from('user_notifications')
           .insert({
-            user_id: (await supabase.auth.admin.listUsers()).data.users[0]?.id,
+            user_id: testUserId,
             category: 'system',
             type: rateTestType,
             title: `Test ${i}`,

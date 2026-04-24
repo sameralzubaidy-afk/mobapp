@@ -20,10 +20,16 @@ const SUPABASE_ANON_KEY =
 const RUN_E2E = process.env.RUN_SUPABASE_E2E === 'true';
 const SHOULD_RUN = RUN_E2E && Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
 
+function isAuthRateLimitError(message?: string): boolean {
+  return Boolean(message && /request rate limit reached/i.test(message));
+}
+
 describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   let supabase: SupabaseClient | null = null;
   let testListingId = '';
   let sellerId = '';
+  let canRunSuite = SHOULD_RUN;
+  let skipReason = '';
 
   beforeAll(async () => {
     if (!SHOULD_RUN) {
@@ -41,7 +47,16 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
       password: 'TestPassword123!',
     });
 
-    if (signupError) throw signupError;
+    if (signupError || !authData.user?.id) {
+      if (isAuthRateLimitError(signupError?.message)) {
+        canRunSuite = false;
+        skipReason = `Supabase auth rate limit while creating test seller: ${signupError?.message}`;
+        console.warn(`[SAFETY-009 E2E] ${skipReason}`);
+        return;
+      }
+      throw signupError || new Error('Failed to create seller for SAFETY-009 E2E');
+    }
+
     sellerId = authData.user!.id;
 
     // Create test listing in rejected status
@@ -67,7 +82,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   afterAll(async () => {
-    if (!SHOULD_RUN || !supabase || !testListingId) return;
+    if (!canRunSuite || !supabase || !testListingId) return;
 
     // Cleanup: delete test listing
     await supabase.from('items').delete().eq('id', testListingId);
@@ -77,7 +92,10 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should submit appeal and transition listing from rejected to flagged', async () => {
-    if (!SHOULD_RUN || !supabase) {
+    if (!canRunSuite || !supabase) {
+      if (skipReason) {
+        console.warn(`[SAFETY-009 E2E] Skipping case: ${skipReason}`);
+      }
       return;
     }
 
@@ -121,7 +139,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should reject appeal with empty reason', async () => {
-    if (!SHOULD_RUN) {
+    if (!canRunSuite) {
       return;
     }
 
@@ -131,7 +149,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should reject appeal with reason too short', async () => {
-    if (!SHOULD_RUN) {
+    if (!canRunSuite) {
       return;
     }
 
@@ -141,7 +159,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should reject appeal if listing is not in rejected status', async () => {
-    if (!SHOULD_RUN || !supabase) {
+    if (!canRunSuite || !supabase) {
       return;
     }
 
@@ -165,7 +183,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should reject appeal if user is not the seller', async () => {
-    if (!SHOULD_RUN) {
+    if (!canRunSuite) {
       return;
     }
 
@@ -177,7 +195,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should track appeal history with multiple appeals', async () => {
-    if (!SHOULD_RUN || !supabase) {
+    if (!canRunSuite || !supabase) {
       return;
     }
 
@@ -218,7 +236,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should reject appeal when seller has not edited after rejection', async () => {
-    if (!SHOULD_RUN || !supabase) {
+    if (!canRunSuite || !supabase) {
       return;
     }
 

@@ -56,40 +56,59 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK DISCOVERY-V3-007: Supporting Components
+## TASK LISTING-V3-002: Edge Functions — `analyze-item-image` (extend) + `batch-analyze-items` (new)
 
-## TASK DISCOVERY-V3-007: Supporting Components
-
-I’m working on the  MODULE-05-DISCOVERY-V3-FILTERS.md tasks
-Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-05-DISCOVERY-V3-FILTERS.md
-Tasks: ## TASK DISCOVERY-V3-007: Supporting Components
+I’m working on the  MODULE-04-ITEM-LISTING-V3.md tasks
+Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-04-ITEM-LISTING-V3.md
+Tasks: ## TASK LISTING-V3-001: Schema Migrations — Bulk Uploads, Drafts, Item Columns
 
 scope is 
 
-9 smaller components wired into `DiscoverScreen`.
+Extend the existing `analyze-item-image` edge function to return the 4 new fields with per-field confidence scores. Add a new `batch-analyze-items` function that parallelizes calls for the bulk flow (max concurrency 5, 10s per-item timeout, partial-failure tolerant).
 
+### Scope
+
+- MODIFY `analyze-item-image` to emit the 7-field `AIAnalysisResult` with per-field confidence.
+- NEW `batch-analyze-items` edge function (semaphore=5, per-item `AbortController`).
+- Shared `_shared/aiTypes.ts` for edge + client type parity.
+- Google Vision 429 retry policy (1s / 2s / 4s).
 ### Files
 
-| Path | Role |
+| Path | Action |
 |---|---|
-| `components/molecules/ActiveFilterChips.tsx` | Horizontal scroll of removable chips; renders only when `countActiveFilters > 0` |
-| `components/molecules/RecentSearchesPanel.tsx` | Shown when search focused + empty + history exists; tap = run; X = remove; "Clear All" |
-| `components/molecules/SearchAutocomplete.tsx` | Dropdown of `getAutocompleteSuggestions(q)`, max 5, tap fills & fires search |
-| `components/molecules/SearchResultCard.tsx` | 2-col grid card: square image, title (2 lines), price overlay bottom-left, SP badge |
-| `components/molecules/SearchEmptyState.tsx` | Conditional: filters-active vs typo-suggestion vs popular-items fallback |
-| `components/molecules/BrandAutocompleteInput.tsx` | Reusable text input + brand dropdown (used inside filter modal) |
-| `components/atoms/SortDropdown.tsx` | 4-option dropdown (relevance/newest/price_asc/price_desc) |
-| `components/atoms/SearchResultSkeleton.tsx` | Animated skeleton card + grid renderer |
-| `components/atoms/NetworkErrorBanner.tsx` | Top banner "Can't connect. Tap to retry" + onRetry |
+| `supabase/functions/analyze-item-image/index.ts` | MODIFY |
+| `supabase/functions/batch-analyze-items/index.ts` | NEW |
+| `supabase/functions/_shared/aiTypes.ts` | NEW (shared `AIAnalysisResult` type) |
+
+### `AIAnalysisResult` (exact shape — must match client `src/types/listing.ts`)
+
+```ts
+export interface AIFieldResult<T> { value: T; confidence: number; }
+
+export interface AIAnalysisResult {
+  title?:      AIFieldResult<string>;
+  category?:   AIFieldResult<{ label: string; categoryId: string | null }>;
+  condition?:  AIFieldResult<'new' | 'like_new' | 'good' | 'fair' | 'worn'>;
+  brand?:      AIFieldResult<string>;
+  color?:      AIFieldResult<string[]>;
+  age_group?:  AIFieldResult<'0-2' | '3-5' | '6-8' | '9-12' | '13+'>;
+  gender?:     AIFieldResult<'boy' | 'girl' | 'unisex'>;
+  rawLabels?:  string[];
+  error?:      string;
+}
+```
 
 ### Acceptance Criteria
 
-- [ ] All components are function components with typed props.
-- [ ] No component imports from screen layer (keep layering clean).
-- [ ] `SearchResultCard` uses `expo-image` with `cachePolicy="memory-disk"`.
-- [ ] `SearchResultSkeleton` uses `Animated.Value` for shimmer (no external lib required).
-- [ ] `ActiveFilterChips` and `RecentSearchesPanel` gracefully handle empty state by returning `null`.
-- [ ] `SearchEmptyState` takes `{ hasActiveFilters: boolean; spellSuggestion: string | null; onClearFilters(); onTryCorrection(q) }` and renders the 3 variants.
+- [ ] `analyze-item-image` request accepts `{ photoUrl, sellerId, requestFields? }`; `requestFields` defaults to all 7 fields.
+- [ ] Response conforms to `AIAnalysisResult`. Fields with confidence `< 0.40` are omitted entirely (not set to `null`).
+- [ ] Category matching: Vision label → `getCategories()` fuzzy match (use `findClosestMatch` from `@/utils/fuzzyMatch` on the server — or replicate the Levenshtein function inline since edge functions can't import RN code). If no match, `categoryId = null`, `label` kept.
+- [ ] Vision 429 → exponential backoff (3 attempts: 1s / 2s / 4s).
+- [ ] `batch-analyze-items` request: `{ items: Array<{ groupId, primaryPhotoUrl, allPhotoUrls }>, sellerId }`.
+- [ ] Response: `{ results: Array<{ groupId, analysis, error? }>, totalProcessed, totalFailed }`.
+- [ ] Uses `Promise.allSettled` with a semaphore of 5 concurrent in-flight calls.
+- [ ] 10s per-item timeout (`AbortController`); timed-out items return `{ groupId, error: 'timeout' }` and do NOT block siblings.
+- [ ] Both functions deployed successfully (`supabase functions deploy`).
 
 i want you to 
 
@@ -107,9 +126,9 @@ i want you to
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
 4. Forbidden: Re-implementing logic that already exists under a different name
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-05-VERIFICATION-V3.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-04-VERIFICATION-V3.md
 6. Show me the files you create or edit with their full paths
-7. Tell me which items in MODULE-05-VERIFICATION-V3.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-05-VERIFICATION-V3.md
+7. Tell me which items in MODULE-04-VERIFICATION-V3.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-04-VERIFICATION-V3.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 

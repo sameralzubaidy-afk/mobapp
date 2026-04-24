@@ -8,6 +8,10 @@
 
 import { supabase } from '../../config/supabase';
 
+function isAuthRateLimitError(message?: string): boolean {
+  return Boolean(message && /request rate limit reached/i.test(message));
+}
+
 const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
 const describeSupabaseE2E = describe;
 
@@ -192,8 +196,14 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
       email: `free_user_${Date.now()}@test.com`,
       password: 'TestPassword123!',
     });
-    
+
     if (authError || !freeUserAuth.user) {
+      if (isAuthRateLimitError(authError?.message)) {
+        console.warn(
+          `[DISCOVERY-V2-002 E2E] Skipping user-without-wallet case due to auth rate limit: ${authError?.message}`
+        );
+        return;
+      }
       throw new Error('Failed to create free user');
     }
     

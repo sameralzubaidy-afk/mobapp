@@ -137,3 +137,162 @@ export interface ListingSummary {
   total_sold: number;
   total_earnings_dollars: number; // Sum of sold item prices
 }
+
+// =====================================================
+// MODULE-04-ITEM-LISTING-V3: AI Auto-Fill Types
+// TASK: LISTING-V3-002
+// Must match supabase/functions/_shared/aiTypes.ts
+// =====================================================
+
+/**
+ * Generic AI field result with value and confidence score
+ * MODULE-04 V3: Used for AI auto-fill suggestions
+ */
+export interface AIFieldResult<T> {
+  value: T;
+  confidence: number;
+}
+
+/**
+ * Complete AI analysis result for an item photo
+ * All fields are optional - only fields with confidence >= 0.40 are included
+ * MODULE-04 V3: Returned by analyze-item-image and batch-analyze-items edge functions
+ */
+export interface AIAnalysisResult {
+  /** Item title extracted from labels/OCR */
+  title?: AIFieldResult<string>;
+  
+  /** Matched category with fuzzy matching */
+  category?: AIFieldResult<{ 
+    label: string; 
+    categoryId: string | null; 
+  }>;
+  
+  /** Item condition inferred from labels */
+  condition?: AIFieldResult<'new' | 'like_new' | 'good' | 'fair' | 'worn'>;
+  
+  /** Brand name (matched against PREDEFINED_BRANDS or from labels) */
+  brand?: AIFieldResult<string>;
+  
+  /** Dominant colors from image */
+  color?: AIFieldResult<string[]>;
+  
+  /** Age group inferred from labels */
+  age_group?: AIFieldResult<'0-2' | '3-5' | '6-8' | '9-12' | '13+'>;
+  
+  /** Gender inferred from labels */
+  gender?: AIFieldResult<'boy' | 'girl' | 'unisex'>;
+  
+  /** Raw Google Vision labels for debugging */
+  rawLabels?: string[];
+  
+  /** Error message if analysis failed */
+  error?: string;
+}
+
+/**
+ * Photo asset from image picker
+ * MODULE-04 V3: Used in photo-first listing flow
+ */
+export interface PhotoAsset {
+  id: string;
+  uri: string;
+  width: number;
+  height: number;
+  fileSize?: number;
+  mimeType?: string;
+}
+
+/**
+ * Photo group for bulk listing
+ * MODULE-04 V3: Groups photos into individual items
+ */
+export interface PhotoGroup {
+  groupId: string;
+  photos: PhotoAsset[];
+  primaryPhotoIndex: number; // Index in photos array
+  analysis?: AIAnalysisResult;
+}
+
+/**
+ * Item draft data (JSONB structure in item_drafts table)
+ * MODULE-04 V3: Auto-saved draft state
+ */
+export interface DraftData {
+  title?: string;
+  description?: string;
+  price?: number;
+  category_id?: string;
+  requested_category_name?: string; // For "Other" category
+  condition?: ListingCondition;
+  brand?: string;
+  color?: string[];
+  age_group?: '0-2' | '3-5' | '6-8' | '9-12' | '13+';
+  gender?: 'boy' | 'girl' | 'unisex';
+  accepts_swap_points?: boolean;
+  photo_urls?: string[];
+  ai_suggestions?: AIAnalysisResult;
+  step?: 'photo' | 'details' | 'pricing' | 'review';
+}
+
+/**
+ * Item draft from database
+ * MODULE-04 V3: Persisted draft with TTL
+ */
+export interface ItemDraft {
+  id: string;
+  seller_id: string;
+  draft_data: DraftData;
+  photo_urls: string[];
+  ai_suggestions: AIAnalysisResult | null;
+  step: 'photo' | 'details' | 'pricing' | 'review';
+  expires_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Bulk publish result
+ * MODULE-04 V3: Result of publishing multiple items at once
+ */
+export interface BulkPublishResult {
+  published: Array<{
+    groupId: string;
+    itemId: string;
+  }>;
+  failed: Array<{
+    groupId: string;
+    error: string;
+  }>;
+  totalPublished: number;
+  totalFailed: number;
+}
+
+/**
+ * Price tier for suggested pricing
+ * MODULE-04 V3: Four-tier price suggestions
+ */
+export type PriceTier = 'great_deal' | 'fair_price' | 'asking_price' | 'almost_new';
+
+/**
+ * Price suggestion
+ * MODULE-04 V3: AI-powered price guidance
+ */
+export interface PriceSuggestion {
+  tier: PriceTier;
+  price: number;
+  label: string; // "Great Deal", "Fair Price", etc.
+  description: string; // "Priced to sell fast"
+}
+
+/**
+ * Condition guide entry
+ * MODULE-04 V3: Visual guide for condition selection
+ */
+export interface ConditionGuide {
+  condition: ListingCondition;
+  title: string;
+  description: string;
+  examplePhotoUrl: string;
+  tips: string[];
+}

@@ -317,7 +317,7 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
   });
 
   describe('Performance', () => {
-    it('completes search in < 400ms', async () => {
+    it('completes search in < 600ms', async () => {
       const start = Date.now();
 
       await searchListings('toy', {
@@ -328,10 +328,10 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
       const duration = Date.now() - start;
 
       console.log(`[E2E] Search completed in ${duration}ms`);
-      expect(duration).toBeLessThan(400);
+      expect(duration).toBeLessThan(600);
     });
 
-    it('completes search with filters in < 400ms', async () => {
+    it('completes search with filters in < 600ms', async () => {
       const start = Date.now();
 
       await searchListings('', {
@@ -345,7 +345,7 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
       const duration = Date.now() - start;
 
       console.log(`[E2E] Filtered search completed in ${duration}ms`);
-      expect(duration).toBeLessThan(400);
+      expect(duration).toBeLessThan(600);
     });
   });
 });

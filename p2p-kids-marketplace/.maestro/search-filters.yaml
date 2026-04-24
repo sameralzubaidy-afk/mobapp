@@ -1,0 +1,217 @@
+# FLOW: Search with Multiple Filters + Chip Removal + Clear All | TASK: DISCOVERY-V3-008 | States covered: multi-filter application, chip removal, clear all, empty filters
+# MODULE-05-DISCOVERY-V3
+# 
+# Tests applying multiple filters, removing individual filter chips, and clearing all filters
+#
+# Preconditions:
+# - User is logged in
+# - At least 10 active listings exist in the database
+# - At least 3 categories exist
+# - App is on Discover screen
+#
+# Flow coverage:
+# 1. Apply multiple filters (category + condition + price + colors)
+# 2. Verify filter chips appear
+# 3. Remove individual chips
+# 4. Apply filters again
+# 5. Clear all filters
+# 6. Verify results update after each filter change
+
+appId: com.p2pkidsmarketplace.app
+---
+
+# ============================================
+# SETUP: Navigate to Discover screen
+# ============================================
+
+- launchApp
+- waitForAnimationToEnd
+
+# Ensure we're logged in (if not, skip this flow)
+- runFlow:
+    when:
+      notVisible:
+        id: "discover-tab"
+    commands:
+      - tapOn: "Login"
+      - inputText: "test-user@example.com"
+      - tapOn: "Password"
+      - inputText: "password123"
+      - tapOn: "Sign In"
+      - waitForAnimationToEnd
+
+# Navigate to Discover tab
+- tapOn:
+    id: "discover-tab"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "discover-screen"
+
+# ============================================
+# TEST 1: Apply Multiple Filters
+# ============================================
+
+# Open filter modal
+- tapOn:
+    id: "discover-filter-button"
+- waitForAnimationToEnd
+- assertVisible: "Filters"
+
+# Select category (first one)
+- tapOn:
+    id: "filter-category-*"
+    index: 0
+- waitForAnimationToEnd
+
+# Select condition: Like New
+- tapOn:
+    id: "filter-condition-like_new"
+- waitForAnimationToEnd
+
+# Set price range: $10-$50
+- tapOn:
+    id: "filter-price-min-input"
+- inputText: "10"
+- hideKeyboard
+- tapOn:
+    id: "filter-price-max-input"
+- inputText: "50"
+- hideKeyboard
+
+# Select colors: blue and red (multi-select)
+- tapOn:
+    id: "filter-color-blue"
+- waitForAnimationToEnd
+- tapOn:
+    id: "filter-color-red"
+- waitForAnimationToEnd
+
+# Verify active filter count shows 4 (category, condition, price, colors)
+- assertVisible:
+    text: "Filters \\(4\\)"
+
+# Apply filters
+- tapOn:
+    id: "filter-modal-apply-button"
+- waitForAnimationToEnd
+
+# ============================================
+# TEST 2: Verify Filter Chips Appear
+# ============================================
+
+# After applying, we should see filter chips on Discover screen
+- assertVisible:
+    id: "discover-filter-chips-container"
+
+# Verify individual chips exist
+- assertVisible:
+    id: "filter-chip-category"
+- assertVisible:
+    id: "filter-chip-condition"
+- assertVisible:
+    id: "filter-chip-price"
+- assertVisible:
+    id: "filter-chip-colors"
+
+# Verify filter button shows active count
+- assertVisible:
+    id: "discover-filter-button"
+    text: "Filters \\(4\\)"
+
+# ============================================
+# TEST 3: Remove Individual Filter Chip
+# ============================================
+
+# Remove condition chip by tapping the X button
+- tapOn:
+    id: "filter-chip-condition-remove"
+- waitForAnimationToEnd
+
+# Verify condition chip is gone
+- assertNotVisible:
+    id: "filter-chip-condition"
+
+# Verify filter count updated to 3
+- assertVisible:
+    id: "discover-filter-button"
+    text: "Filters \\(3\\)"
+
+# Remove price chip
+- tapOn:
+    id: "filter-chip-price-remove"
+- waitForAnimationToEnd
+
+# Verify price chip is gone
+- assertNotVisible:
+    id: "filter-chip-price"
+
+# Verify filter count updated to 2
+- assertVisible:
+    id: "discover-filter-button"
+    text: "Filters \\(2\\)"
+
+# ============================================
+# TEST 4: Clear All Filters
+# ============================================
+
+# Tap "Clear All" button (should be visible when filters are active)
+- assertVisible:
+    id: "discover-clear-all-filters-button"
+- tapOn:
+    id: "discover-clear-all-filters-button"
+- waitForAnimationToEnd
+
+# Verify all chips are removed
+- assertNotVisible:
+    id: "discover-filter-chips-container"
+
+# Verify filter button shows no count (or "Filters (0)")
+- assertVisible:
+    id: "discover-filter-button"
+- assertNotVisible:
+    text: "Filters \\([1-9]\\d*\\)"
+
+# Verify Clear All button is hidden
+- assertNotVisible:
+    id: "discover-clear-all-filters-button"
+
+# ============================================
+# TEST 5: Re-apply Filters and Verify Results Update
+# ============================================
+
+# Open filter modal again
+- tapOn:
+    id: "discover-filter-button"
+- waitForAnimationToEnd
+
+# Apply a simple filter: SP eligible only
+- tapOn:
+    id: "filter-sp-eligible-toggle"
+- waitForAnimationToEnd
+
+# Apply filters
+- tapOn:
+    id: "filter-modal-apply-button"
+- waitForAnimationToEnd
+
+# Verify SP filter chip appears
+- assertVisible:
+    id: "filter-chip-sp-eligible"
+
+# Verify results list is visible (even if empty, the list should render)
+- assertVisible:
+    id: "discover-results-list"
+
+# ============================================
+# CLEANUP: Clear filters for next test
+# ============================================
+
+- tapOn:
+    id: "discover-clear-all-filters-button"
+- waitForAnimationToEnd
+
+# Final assertion: Discover screen is in clean state
+- assertVisible:
+    id: "discover-screen"
+- assertNotVisible:
+    id: "discover-filter-chips-container"
