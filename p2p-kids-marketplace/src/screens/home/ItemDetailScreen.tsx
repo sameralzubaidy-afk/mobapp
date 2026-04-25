@@ -21,7 +21,6 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
-  Image,
   SafeAreaView,
   Alert,
   StyleSheet,
@@ -338,6 +337,19 @@ export default function ItemDetailScreen() {
     : '🔒 Seller Info Hidden';
   const listingImages = [...(listing.images ?? [])].sort((a, b) => a.display_order - b.display_order);
   const activeImage = listingImages[activeImageIndex] ?? listingImages[0] ?? null;
+  const requestedCategoryName = listing.requested_category_name?.trim() || '';
+  const colorValues = Array.isArray(listing.color) ? listing.color.filter(Boolean) : [];
+
+  const formatValue = (value: string) =>
+    value
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+
+  const ageGroupLabel = listing.age_group ? `${listing.age_group} years` : null;
+  const conditionLabel = listing.condition ? formatValue(listing.condition) : null;
+  const genderLabel = listing.gender ? formatValue(listing.gender) : null;
+  const categoryLabel = listing.category?.name || null;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -410,25 +422,65 @@ export default function ItemDetailScreen() {
               )}
             </View>
 
-            {/* Condition */}
-            {listing.condition && (
-              <View style={styles.conditionRow}>
-                <Text style={styles.conditionLabel}>Condition:</Text>
-                <Text style={styles.conditionValue}>
-                  {listing.condition.charAt(0).toUpperCase() + listing.condition.slice(1).replace('_', ' ')}
-                </Text>
-              </View>
-            )}
+            {/* Item specifics */}
+            <View style={styles.specsCard}>
+              <Text style={styles.specsTitle}>Item specifics</Text>
 
-            {/* Category */}
-            {listing.category && (
-              <View style={styles.categoryRow}>
-                <Text style={styles.categoryLabel}>Category:</Text>
-                <Text style={styles.categoryValue}>
-                  {listing.category.icon} {listing.category.name}
-                </Text>
-              </View>
-            )}
+              {conditionLabel && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>Condition</Text>
+                  <Text style={styles.specValue}>{conditionLabel}</Text>
+                </View>
+              )}
+
+              {categoryLabel && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>Category</Text>
+                  <Text style={styles.specValue}>{categoryLabel}</Text>
+                </View>
+              )}
+
+              {requestedCategoryName.length > 0 && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>Requested category</Text>
+                  <Text style={styles.specValue}>{requestedCategoryName}</Text>
+                </View>
+              )}
+
+              {listing.brand && listing.brand.trim().length > 0 && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>Brand</Text>
+                  <Text style={styles.specValue}>{listing.brand.trim()}</Text>
+                </View>
+              )}
+
+              {ageGroupLabel && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>Age group</Text>
+                  <Text style={styles.specValue}>{ageGroupLabel}</Text>
+                </View>
+              )}
+
+              {genderLabel && (
+                <View style={styles.specRow}>
+                  <Text style={styles.specLabel}>Gender</Text>
+                  <Text style={styles.specValue}>{genderLabel}</Text>
+                </View>
+              )}
+
+              {colorValues.length > 0 && (
+                <View style={styles.specRowStack}>
+                  <Text style={styles.specLabel}>Colors</Text>
+                  <View style={styles.colorPillsRow}>
+                    {colorValues.map((colorName) => (
+                      <View key={colorName} style={styles.colorPill}>
+                        <Text style={styles.colorPillText}>{formatValue(colorName)}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
 
             {/* Description */}
             <View style={styles.descriptionContainer}>
@@ -779,6 +831,59 @@ const styles = StyleSheet.create({
   categoryValue: {
     fontSize: 14,
     color: '#333',
+    fontWeight: '600',
+  },
+  specsCard: {
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 4,
+  },
+  specsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 10,
+  },
+  specRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 12,
+  },
+  specRowStack: {
+    marginBottom: 8,
+  },
+  specLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    flex: 1,
+  },
+  specValue: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '600',
+    flex: 1,
+    textAlign: 'right',
+  },
+  colorPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  },
+  colorPill: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  colorPillText: {
+    fontSize: 12,
+    color: '#374151',
     fontWeight: '600',
   },
   descriptionContainer: {
