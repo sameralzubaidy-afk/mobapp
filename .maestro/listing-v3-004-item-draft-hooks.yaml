@@ -1,0 +1,340 @@
+# FLOW: Item Draft Hooks | TASK: LISTING-V3-004 | States covered: idle, creating, saving, analyzing, ready, error
+# MODULE-04 LISTING-V3-004: Item Draft & AI Analysis Hooks Maestro Flow
+# Tests useItemDraft, useAIAnalysis, and usePhotoGroups hooks
+
+appId: com.p2pkidsmarketplace.app
+
+---
+
+# Precondition: User must be logged in
+- assertVisible: 
+    id: "home-screen"
+
+# Navigate to List Item screen
+- tapOn:
+    id: "sell-tab-button"
+- assertVisible:
+    id: "sell-screen"
+
+- tapOn:
+    id: "list-item-button"
+- waitForAnimationToEnd
+
+# TC-001: Draft Creation (useItemDraft)
+- assertVisible:
+    id: "item-create-screen"
+    
+# Verify draft auto-created
+- assertVisible:
+    id: "draft-status-indicator"
+- assertVisible:
+    text: "Draft saved"
+
+# TC-002: Add Photos and Trigger AI Analysis (useAIAnalysis + usePhotoGroups)
+- tapOn:
+    id: "add-photo-button"
+- waitForAnimationToEnd
+
+# Select first photo from gallery (simulator)
+- tapOn:
+    id: "photo-picker-photo-1"
+- waitForAnimationToEnd
+
+# Verify photo added to group
+- assertVisible:
+    id: "photo-group-0"
+- assertVisible:
+    id: "photo-0-in-group-0"
+
+# Wait for AI analysis status
+- assertVisible:
+    id: "ai-analysis-status"
+    
+# Status should change to "analyzing"
+- assertVisible:
+    text: "Analyzing photo..."
+
+# Wait for analysis to complete (max 10s)
+- runFlow:
+    when:
+      visible:
+        id: "ai-analysis-loading"
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 10000
+
+# TC-003: Verify AI Analysis Results (useAIAnalysis - ready state)
+- assertVisible:
+    id: "ai-suggestions-card"
+
+# Verify at least one suggestion field present
+# (title OR category OR condition must be visible)
+- runFlow:
+    when:
+      visible:
+        id: "ai-suggestion-title"
+    commands:
+      - assertVisible:
+          id: "ai-suggestion-title"
+
+- runFlow:
+    when:
+      visible:
+        id: "ai-suggestion-category"
+    commands:
+      - assertVisible:
+          id: "ai-suggestion-category"
+
+# TC-004: Manual Data Entry (useItemDraft save)
+- tapOn:
+    id: "title-input"
+- inputText: "Blue Kids Bike"
+- hideKeyboard
+
+- tapOn:
+    id: "price-input"
+- inputText: "25"
+- hideKeyboard
+
+- tapOn:
+    id: "description-input"
+- inputText: "Great condition bike for kids"
+- hideKeyboard
+
+# Verify local state updated immediately
+- assertVisible:
+    id: "title-input"
+    text: "Blue Kids Bike"
+- assertVisible:
+    id: "price-input"
+    text: "25"
+
+# TC-005: Auto-Save Test (30s wait - commented out for speed)
+# Uncomment for full regression testing
+# - waitForAnimationToEnd:
+#     timeout: 30000
+# - assertVisible:
+#     text: "Draft saved"
+
+# TC-006: Immediate Save Test
+- tapOn:
+    id: "save-draft-button"
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: "Draft saved"
+
+# Verify isSaving state cleared
+- assertNotVisible:
+    id: "saving-indicator"
+
+# TC-007: Add Second Photo (usePhotoGroups)
+- tapOn:
+    id: "add-photo-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "photo-picker-photo-2"
+- waitForAnimationToEnd
+
+# Verify second photo added
+- assertVisible:
+    id: "photo-1-in-group-0"
+
+# Total photos should be 2
+- assertVisible:
+    id: "photo-count-badge"
+    text: "2 of 10"
+
+# TC-008: Reorder Photos (usePhotoGroups)
+- tapOn:
+    id: "photo-0-in-group-0"
+- longPressOn:
+    id: "photo-0-drag-handle"
+    duration: 500
+
+# Drag to second position
+- swipe:
+    start: 50%, 30%
+    end: 50%, 60%
+    duration: 500
+
+- assertVisible:
+    id: "photo-reorder-success-toast"
+
+# TC-009: Set Cover Photo (usePhotoGroups)
+- tapOn:
+    id: "photo-1-in-group-0"
+- tapOn:
+    id: "set-as-cover-button"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "cover-badge-photo-1"
+
+# TC-010: Navigation Blur Flush Test
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+
+# Should trigger save on blur
+- assertVisible:
+    id: "sell-screen"
+
+# Navigate back to drafts to verify save
+- tapOn:
+    id: "my-listings-tab"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "drafts-tab"
+- waitForAnimationToEnd
+
+# TC-011: Draft Should Appear in List
+- assertVisible:
+    id: "draft-list"
+- assertVisible:
+    text: "Blue Kids Bike"
+
+# TC-012: Resume Draft
+- tapOn:
+    text: "Blue Kids Bike"
+- waitForAnimationToEnd
+
+# Verify draft loaded correctly
+- assertVisible:
+    id: "item-create-screen"
+- assertVisible:
+    id: "title-input"
+    text: "Blue Kids Bike"
+- assertVisible:
+    id: "price-input"
+    text: "25"
+- assertVisible:
+    id: "photo-count-badge"
+    text: "2 of 10"
+
+# TC-013: AI Analysis Error State Test
+# Remove all photos to trigger state reset
+- tapOn:
+    id: "photo-0-delete-button"
+- tapOn:
+    id: "confirm-delete-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "photo-0-delete-button"
+- tapOn:
+    id: "confirm-delete-button"
+- waitForAnimationToEnd
+
+# AI status should return to idle
+- assertVisible:
+    id: "ai-analysis-status"
+- assertVisible:
+    text: "Add photos to get AI suggestions"
+
+# TC-014: usePhotoGroups Max Photos Warning
+# Add 10 photos to test cap
+- tapOn:
+    id: "add-photo-button"
+- waitForAnimationToEnd
+
+# Select 10 photos (repeat for each)
+- tapOn:
+    id: "photo-picker-select-multiple-button"
+- tapOn:
+    id: "photo-picker-photo-1"
+- tapOn:
+    id: "photo-picker-photo-2"
+- tapOn:
+    id: "photo-picker-photo-3"
+- tapOn:
+    id: "photo-picker-photo-4"
+- tapOn:
+    id: "photo-picker-photo-5"
+- tapOn:
+    id: "photo-picker-photo-6"
+- tapOn:
+    id: "photo-picker-photo-7"
+- tapOn:
+    id: "photo-picker-photo-8"
+- tapOn:
+    id: "photo-picker-photo-9"
+- tapOn:
+    id: "photo-picker-photo-10"
+
+- tapOn:
+    id: "photo-picker-done-button"
+- waitForAnimationToEnd
+
+# Should show 10 photos
+- assertVisible:
+    id: "photo-count-badge"
+    text: "10 of 10"
+
+# Try to add 11th photo
+- tapOn:
+    id: "add-photo-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "photo-picker-photo-11"
+
+# Should show error
+- assertVisible:
+    id: "photo-cap-error-toast"
+- assertVisible:
+    text: "Maximum 10 photos per item"
+
+# TC-015: Discard Draft Test
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "discard-draft-button"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "discard-draft-confirm-modal"
+
+- tapOn:
+    id: "confirm-discard-button"
+- waitForAnimationToEnd
+
+# Should navigate away
+- assertVisible:
+    id: "sell-screen"
+
+# Verify draft deleted - go to drafts list
+- tapOn:
+    id: "my-listings-tab"
+- tapOn:
+    id: "drafts-tab"
+- waitForAnimationToEnd
+
+# Draft should NOT appear
+- assertNotVisible:
+    text: "Blue Kids Bike"
+
+# Final assertion - flow completed successfully
+- assertVisible:
+    id: "drafts-tab"
+    
+---
+
+# Error Recovery Flow
+
+# If AI analysis fails, test retry
+- runFlow:
+    when:
+      visible:
+        id: "ai-analysis-error"
+    commands:
+      - tapOn:
+          id: "ai-retry-button"
+      - waitForAnimationToEnd:
+          timeout: 10000
+      - assertVisible:
+          id: "ai-suggestions-card"

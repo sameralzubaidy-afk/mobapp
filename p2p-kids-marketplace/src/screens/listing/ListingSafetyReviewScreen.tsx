@@ -11,11 +11,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { useAuth } from '@/hooks/useAuth';
-import { getListingById, submitListingAppeal } from '@/services/listing';
+import {
+  getListingById,
+  submitListingAppeal,
+  submitListingNeedsEditsReReview,
+} from '@/services/listing';
 import { Listing } from '@/types/listing';
 
 type ListingSafetyRoute = RouteProp<RootStackParamList, 'ListingSafetyReview'>;
@@ -63,6 +67,12 @@ export default function ListingSafetyReviewScreen() {
     loadListing();
   }, [loadListing]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadListing();
+    }, [loadListing])
+  );
+
   const handleAppeal = async () => {
     if (!listing || !session?.user?.id) {
       Alert.alert('Error', 'Unable to submit appeal right now.');
@@ -106,6 +116,46 @@ export default function ListingSafetyReviewScreen() {
     );
   };
 
+  const handleNeedsEditsResubmit = async () => {
+    if (!listing || !session?.user?.id) {
+      Alert.alert('Error', 'Unable to submit for re-review right now.');
+      return;
+    }
+
+    Alert.alert(
+      'Submit for Re-Review',
+      'After submitting, your listing will return to admin review queue.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Submit',
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              const updated = await submitListingNeedsEditsReReview(
+                listing.id,
+                session.user.id
+              );
+              setListing(updated);
+              Alert.alert('Submitted', 'Your listing is back under review.', [
+                {
+                  text: 'OK',
+                  onPress: () => navigation.navigate('MyListings'),
+                },
+              ]);
+            } catch (err) {
+              const message =
+                err instanceof Error ? err.message : 'Failed to submit for re-review';
+              Alert.alert('Error', message);
+            } finally {
+              setSubmitting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -132,6 +182,12 @@ export default function ListingSafetyReviewScreen() {
   const isRejected = listing.status === 'rejected';
   const isFlagged = listing.status === 'flagged';
   const needsEdits = listing.status === 'needs_edits';
+  const appealsSubmitted = Number.isFinite(Number(listing.appeal_count))
+    ? Number(listing.appeal_count)
+    : 0;
+  const lastFlaggedAt = listing.flagged_at ?? (needsEdits ? listing.updated_at : null);
+  const lastRejectedAt =
+    listing.rejected_at ?? (needsEdits ? listing.flagged_at ?? listing.updated_at : null);
   const adminNeedsEditsNote =
     listing.moderation_note?.trim() || listing.rejection_reason?.trim() || null;
 
@@ -213,20 +269,20 @@ export default function ListingSafetyReviewScreen() {
 
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>Appeals submitted</Text>
-            <Text style={styles.metaValue}>{listing.appeal_count}</Text>
+            <Text style={styles.metaValue}>{appealsSubmitted}</Text>
           </View>
 
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>Last flagged at</Text>
             <Text style={styles.metaValue}>
-              {listing.flagged_at ? new Date(listing.flagged_at).toLocaleString() : 'N/A'}
+              {lastFlaggedAt ? new Date(lastFlaggedAt).toLocaleString() : 'N/A'}
             </Text>
           </View>
 
           <View style={styles.metaRow}>
             <Text style={styles.metaLabel}>Last rejected at</Text>
             <Text style={styles.metaValue}>
-              {listing.rejected_at ? new Date(listing.rejected_at).toLocaleString() : 'N/A'}
+              {lastRejectedAt ? new Date(lastRejectedAt).toLocaleString() : 'N/A'}
             </Text>
           </View>
         </View>
@@ -244,10 +300,12 @@ export default function ListingSafetyReviewScreen() {
         {needsEdits && (
           <TouchableOpacity
             style={[styles.primaryButton, submitting && styles.disabledButton]}
-            onPress={() => navigation.navigate('MyListings')}
+            onPress={handleNeedsEditsResubmit}
             disabled={submitting}
           >
-            <Text style={styles.primaryButtonText}>Submit for Re-Review</Text>
+            <Text style={styles.primaryButtonText}>
+              {submitting ? 'Submitting...' : 'Submit for Re-Review'}
+            </Text>
           </TouchableOpacity>
         )}
 

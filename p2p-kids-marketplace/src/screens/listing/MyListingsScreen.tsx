@@ -17,7 +17,6 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Image,
   StyleSheet,
   RefreshControl,
   SafeAreaView,
@@ -136,7 +135,7 @@ export default function MyListingsScreen({ navigation }: any) {
         >
         <View style={styles.listingImageContainer}>
           <ListingImage 
-            url={firstImage?.url}
+            url={firstImageUrl}
             containerStyle={styles.listingImage}
             imageStyle={styles.listingImage}
           />

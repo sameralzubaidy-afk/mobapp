@@ -23,6 +23,7 @@ interface SendPushNotificationRequest {
   user_id?: string; // Backward-compatible snake_case alias
   notificationId?: string;
   notification_id?: string;
+  skipNotificationRowCreate?: boolean;
   token?: string; // Send to specific token
   title: string;
   body: string;
@@ -97,6 +98,7 @@ serve(async (req: Request) => {
       user_id,
       notificationId,
       notification_id,
+      skipNotificationRowCreate = false,
       token,
       title,
       body,
@@ -130,7 +132,7 @@ serve(async (req: Request) => {
       notificationId || notification_id || (typeof data?.notificationId === 'string' ? data.notificationId : null);
 
     // Ensure we always have a notification row to link logs to when user-based delivery is used.
-    if (targetUserId && !resolvedNotificationId) {
+    if (targetUserId && !resolvedNotificationId && !skipNotificationRowCreate) {
       const { data: existingNotification } = await supabase
         .from('user_notifications')
         .select('id')

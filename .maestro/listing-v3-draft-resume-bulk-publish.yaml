@@ -1,0 +1,121 @@
+# Maestro Flow: V3 Draft Resume & Bulk Publish
+# MODULE-04 LISTING-V3: TASK LISTING-V3-003
+# Tests: Draft banner → Resume → Multi-draft management → Bulk publish
+
+appId: com.kidsp2pmarketplace.app
+---
+
+# 1. Start at Home screen
+- tapOn:
+    id: "tab-home"
+- assertVisible:
+    id: "home-screen"
+
+# 2. Verify draft resume banner appears (if drafts exist)
+- assertVisible:
+    id: "draft-resume-banner"
+- assertVisible:
+    text: "Complete your listing"
+
+# 3. Tap banner to navigate to DraftListScreen
+- tapOn:
+    id: "draft-resume-banner"
+- waitForAnimationToEnd
+
+# 4. Should show all active drafts
+- assertVisible:
+    id: "draft-list-screen"
+- assertVisible:
+    id: "draft-list-header"
+    text: "Your Drafts"
+
+# 5. Verify at least one draft card is visible
+- assertVisible:
+    id: "draft-card-0"
+
+# 6. Tap first draft to resume editing
+- tapOn:
+    id: "draft-card-0"
+- waitForAnimationToEnd
+
+# 7. Should navigate to appropriate step based on draft state
+# (PhotoUploadScreen, AIReviewScreen, or DetailEditScreen)
+- assertVisible:
+    id: "draft-edit-screen"
+
+# 8. Navigate back to draft list
+- tapOn:
+    id: "button-back"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "draft-list-screen"
+
+# 9. Test multi-select for bulk publish
+- tapOn:
+    id: "button-select-multiple"
+- assertVisible:
+    id: "selection-mode-indicator"
+
+# 10. Select multiple drafts (at least 2)
+- tapOn:
+    id: "draft-card-checkbox-0"
+- tapOn:
+    id: "draft-card-checkbox-1"
+
+# 11. Verify selection count
+- assertVisible:
+    id: "selection-count"
+    text: "2 selected"
+
+# 12. Tap "Publish Selected" button
+- tapOn:
+    id: "button-publish-selected"
+- waitForAnimationToEnd
+
+# 13. Verify bulk publish confirmation dialog
+- assertVisible:
+    id: "bulk-publish-confirmation-dialog"
+- assertVisible:
+    text: "Publish 2 listings?"
+
+# 14. Confirm bulk publish
+- tapOn:
+    id: "button-confirm-bulk-publish"
+- waitForAnimationToEnd
+
+# 15. Verify progress indicator
+- assertVisible:
+    id: "bulk-publish-progress"
+- assertVisible:
+    text: "Publishing..."
+
+# Wait for publish to complete (max 60 seconds)
+- waitForAnimationToEnd:
+    timeout: 60000
+
+# 16. Verify success message
+- assertVisible:
+    id: "bulk-publish-success"
+- assertVisible:
+    text: "2 listings published"
+
+# 17. Verify drafts are removed from list
+- assertNotVisible:
+    id: "draft-card-0"
+
+# 18. Navigate to Sell tab to verify published listings
+- tapOn:
+    id: "tab-sell"
+- assertVisible:
+    id: "sell-screen"
+
+# 19. Verify "My Listings" shows new items
+- tapOn:
+    id: "tab-my-listings"
+- waitForAnimationToEnd
+
+# 20. Should show at least the 2 newly published items
+- assertVisible:
+    id: "listing-card-0"
+- assertVisible:
+    id: "listing-card-1"

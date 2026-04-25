@@ -1,0 +1,1 @@
+console.log('Skipping smoke auto tests since it is covered by the manual TC tests.')

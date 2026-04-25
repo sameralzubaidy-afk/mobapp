@@ -27,12 +27,18 @@ import { updateListing, getListingById, syncListingImages } from '../../services
 import { getCategories } from '../../services/items';
 import { Listing, ListingCondition } from '../../types/listing';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
+import { ColorPicker } from '../../components/listing/ColorPicker';
+import { AgeGroupSelector } from '../../components/listing/AgeGroupSelector';
+import { GenderSelector } from '../../components/listing/GenderSelector';
 
 interface ListingCategory {
   id: string;
   name: string;
   icon: string | null;
 }
+
+type ListingAgeGroup = '0-2' | '3-5' | '6-8' | '9-12' | '13+';
+type ListingGender = 'boy' | 'girl' | 'unisex';
 
 export default function EditListingScreen({ route, navigation }: any) {
   const { listing_id } = route.params;
@@ -48,7 +54,12 @@ export default function EditListingScreen({ route, navigation }: any) {
   const [description, setDescription] = useState('');
   const [priceText, setPriceText] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [requestedCategoryName, setRequestedCategoryName] = useState('');
   const [condition, setCondition] = useState<ListingCondition>('good');
+  const [brand, setBrand] = useState('');
+  const [colors, setColors] = useState<string[]>([]);
+  const [ageGroup, setAgeGroup] = useState<ListingAgeGroup | null>(null);
+  const [gender, setGender] = useState<ListingGender | null>(null);
   const [acceptsSwapPoints, setAcceptsSwapPoints] = useState(false);
   const [images, setImages] = useState<SelectedImage[]>([]);
   const [categories, setCategories] = useState<ListingCategory[]>([]);
@@ -96,7 +107,12 @@ export default function EditListingScreen({ route, navigation }: any) {
       setDescription(listing.description || '');
       setPriceText(listing.price.toString());
       setCategoryId(listing.category_id || '');
+      setRequestedCategoryName(listing.requested_category_name || '');
       setCondition(listing.condition || 'good');
+      setBrand(listing.brand || '');
+      setColors(Array.isArray(listing.color) ? listing.color : []);
+      setAgeGroup((listing.age_group as ListingAgeGroup | null) || null);
+      setGender((listing.gender as ListingGender | null) || null);
       setAcceptsSwapPoints(listing.accepts_swap_points);
       setImages(
         [...(listing.images ?? [])]
@@ -153,6 +169,13 @@ export default function EditListingScreen({ route, navigation }: any) {
       return;
     }
 
+    const selectedCategory = categories.find((category) => category.id === categoryId);
+    const isOtherCategory = selectedCategory?.name?.trim().toLowerCase() === 'other';
+    if (isOtherCategory && !requestedCategoryName.trim()) {
+      Alert.alert('Required', 'Please provide the custom category name');
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -163,7 +186,12 @@ export default function EditListingScreen({ route, navigation }: any) {
         description: description.trim(),
         price,
         category_id: categoryId,
+        requested_category_name: isOtherCategory ? requestedCategoryName.trim() : null,
         condition,
+        brand: brand.trim() || null,
+        color: colors.length > 0 ? colors : null,
+        age_group: ageGroup,
+        gender,
         accepts_swap_points: canAcceptSP ? acceptsSwapPoints : false,
       });
 
@@ -197,6 +225,9 @@ export default function EditListingScreen({ route, navigation }: any) {
       </View>
     );
   }
+
+  const selectedCategory = categories.find((category) => category.id === categoryId);
+  const isOtherCategory = selectedCategory?.name?.trim().toLowerCase() === 'other';
 
   return (
     <ScrollView style={styles.container}>
@@ -261,7 +292,7 @@ export default function EditListingScreen({ route, navigation }: any) {
         {/* Condition */}
         <Text style={styles.label}>Condition *</Text>
         <View style={styles.conditionButtons}>
-          {(['new', 'like_new', 'good', 'fair', 'poor'] as ListingCondition[]).map((c) => (
+          {(['new', 'like_new', 'good', 'fair', 'worn'] as ListingCondition[]).map((c) => (
             <TouchableOpacity
               key={c}
               style={[styles.conditionButton, condition === c && styles.conditionButtonActive]}
@@ -275,6 +306,36 @@ export default function EditListingScreen({ route, navigation }: any) {
             </TouchableOpacity>
           ))}
         </View>
+
+        {isOtherCategory && (
+          <>
+            <Text style={styles.label}>Custom Category Name *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Board Games"
+              value={requestedCategoryName}
+              onChangeText={setRequestedCategoryName}
+              maxLength={100}
+            />
+          </>
+        )}
+
+        <Text style={styles.label}>Brand</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g., Nike"
+          value={brand}
+          onChangeText={setBrand}
+          maxLength={100}
+        />
+
+        <View style={styles.v3SectionSpacer}>
+          <ColorPicker selectedColors={colors} onChange={setColors} />
+        </View>
+
+        <AgeGroupSelector value={ageGroup} onChange={setAgeGroup} />
+
+        <GenderSelector value={gender} onChange={setGender} />
 
         {/* Listing Photos */}
         <Text style={styles.label}>Photos</Text>
@@ -455,6 +516,9 @@ const styles = StyleSheet.create({
   },
   conditionButtonTextActive: {
     color: '#fff',
+  },
+  v3SectionSpacer: {
+    marginTop: 8,
   },
   spSection: {
     marginTop: 24,

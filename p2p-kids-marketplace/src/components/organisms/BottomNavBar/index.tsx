@@ -74,7 +74,7 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
     <View style={styles.container}>
       <NavItem emoji="🏠" label="Home" routeName="Home" />
       <NavItem emoji="�" label="Discover" routeName="Discover" />
-      <NavItem emoji="📝" label="Create" routeName="CreateListing" />
+      <NavItem emoji="📝" label="Create" routeName="ItemCreate" />
       <NavItem emoji="📋" label="My Items" routeName="MyListings" />
       <NavItem
         emoji="🔔"

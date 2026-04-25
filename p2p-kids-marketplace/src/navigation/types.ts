@@ -14,6 +14,8 @@ export type RootStackParamList = {
   // MODULE-04: Listing routes
   MyListings: undefined;
   CreateListing: undefined;
+  // MODULE-04 V3: Photo-first listing creation
+  ItemCreate: { draftId?: string } | undefined;
   EditListing: { listing_id: string };
   ListingDetail: { listing_id: string };
   ListingSafetyReview: { listing_id: string };

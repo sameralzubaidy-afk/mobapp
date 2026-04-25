@@ -1,0 +1,323 @@
+# FLOW: ItemCreate Photo-First | TASK: LISTING-V3-005 | States covered: adding_photos, ai_analyzing, filling_details, setting_price, publishing, success
+# MODULE-04 LISTING-V3-005: Photo-First Listing Creation Flow
+# Tests: Full photo-first flow from photo upload → AI analysis → form fill → publish
+# Platform: iOS & Android
+
+appId: com.p2pkidsmarketplace.app
+---
+
+# === PRECONDITIONS ===
+# 1. User must be logged in (authenticated)
+# 2. User must have completed onboarding
+# 3. User must be in an active node (not waitlisted)
+# 4. Device must have photo library access granted
+# Run: npm run test:maestro:ios (iOS) or npm run test:maestro:android (Android)
+
+# === TEST CASE 1: Happy Path - Complete Listing Creation ===
+
+- launchApp
+
+# Navigate to ItemCreate screen (from dashboard or navigation)
+- tapOn: "Create"
+- assertVisible: "Create Listing"
+
+# Navigate to V3 ItemCreate (if separate entry point)
+# For now, assuming direct navigation to ItemCreate screen
+# If needed, add navigation from MyListings or dashboard
+
+# === STEP 1: Add Photos ===
+- assertVisible:
+    id: "photo-upload-manager"
+- assertVisible: "Photos *"
+- assertVisible: "Add up to 10 photos"
+
+- tapOn:
+    id: "add-photos-button"
+
+# Mock photo selection (Maestro limitation: cannot actually pick photos)
+# In real device testing, manually select 3 photos
+# For automated test, verify UI transitions
+
+- waitForAnimationToEnd
+
+# Verify photos appear (after manual selection in real test)
+# - assertVisible:
+#     id: "photo-item-photo-1"
+
+# === STEP 2: AI Analysis (Non-Blocking) ===
+# AI analysis happens in background
+# Verify loading indicator appears if analysis is running
+# - assertVisible: ActivityIndicator (in header)
+
+# === STEP 3: Fill Title ===
+- tapOn:
+    id: "title-input"
+- inputText: "Nike Sneakers Size 5"
+
+# === STEP 4: Fill Description ===
+- tapOn:
+    id: "description-input"
+- inputText: "Great condition, only worn a few times"
+
+# === STEP 5: Select Category ===
+- tapOn:
+    id: "category-select-button"
+
+- assertVisible: "Search categories"
+- assertVisible: "Recent"
+
+# Search for Toys category
+- tapOn:
+    id: "category-search-input"
+- inputText: "Toys"
+
+- waitForAnimationToEnd
+
+# Select first matching category
+- tapOn: "Toys"
+
+# Verify category selected
+- assertVisible: "Toys"
+
+# === STEP 6: Select Condition ===
+- tapOn:
+    id: "condition-like_new"
+
+# Verify condition selected
+# (Radio button should show selected state)
+
+# === STEP 7: Fill Brand ===
+- tapOn:
+    id: "brand-input"
+- inputText: "Nike"
+
+# === STEP 8: Select Color ===
+- tapOn:
+    id: "color-swatch-Blue"
+
+# Verify color selected (check mark appears)
+
+# === STEP 9: Select Age Group ===
+- tapOn:
+    id: "age-group-6-8"
+
+# === STEP 10: Select Gender ===
+- tapOn:
+    id: "gender-boy"
+
+# === STEP 11: Set Price ===
+# Price suggestions should be visible if condition was selected
+- assertVisible: "Price"
+
+# Select manual price input
+- tapOn:
+    id: "manual-price-input"
+- inputText: "25.00"
+
+# === STEP 12: Publish ===
+- scrollUntilVisible:
+    element:
+      id: "publish-button"
+
+- tapOn:
+    id: "publish-button"
+
+# Wait for publish to complete
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Verify navigation to ListingDetail screen
+- assertVisible: "Nike Sneakers Size 5"
+# (Assumes ListingDetail shows item title)
+
+---
+
+# === TEST CASE 2: Category "Other" Flow ===
+
+- launchApp
+- tapOn: "Create"
+
+# Add photos (manual)
+- tapOn:
+    id: "add-photos-button"
+
+# Fill title
+- tapOn:
+    id: "title-input"
+- inputText: "Custom Board Game"
+
+# Select "Other" category
+- tapOn:
+    id: "category-select-button"
+- scrollUntilVisible:
+    element:
+      text: "Other"
+- tapOn: "Other"
+
+# Enter custom category name
+- assertVisible: "Enter category name"
+- tapOn:
+    id: "other-category-input"
+- inputText: "Board Games"
+
+- tapOn: "Save"
+
+# Verify custom category shown
+- assertVisible: "Other"
+
+# Fill remaining fields
+- tapOn:
+    id: "condition-good"
+- tapOn:
+    id: "manual-price-input"
+- inputText: "30.00"
+
+# Publish
+- tapOn:
+    id: "publish-button"
+
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Verify navigation to ListingDetail
+# Item should be flagged for category review in admin panel
+
+---
+
+# === TEST CASE 3: AI Suggestions - Apply All ===
+
+- launchApp
+- tapOn: "Create"
+
+# Add photos (manual - should trigger AI analysis)
+- tapOn:
+    id: "add-photos-button"
+
+# Wait for AI analysis to complete
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# AI card should appear
+- assertVisible:
+    id: "ai-analysis-card"
+
+# Apply all suggestions
+- tapOn:
+    id: "apply-all-button"
+
+# Verify fields are populated
+# (Title, category, condition should be filled from AI)
+
+# Complete and publish
+- tapOn:
+    id: "manual-price-input"
+- inputText: "20.00"
+
+- tapOn:
+    id: "publish-button"
+
+- waitForAnimationToEnd:
+    timeout: 10000
+
+---
+
+# === TEST CASE 4: Draft Autosave ===
+
+- launchApp
+- tapOn: "Create"
+
+# Fill partial data
+- tapOn:
+    id: "title-input"
+- inputText: "Test Draft Item"
+
+- tapOn:
+    id: "description-input"
+- inputText: "This is a draft"
+
+# Wait 30+ seconds for autosave
+- wait: 31000
+
+# Navigate away (should trigger saveNow)
+- tapOn:
+    id: "back-button"
+
+# Verify returned to previous screen
+# (Draft should be saved in database)
+
+# Re-open drafts (if draft list screen exists)
+# Verify draft appears with title "Test Draft Item"
+
+---
+
+# === TEST CASE 5: Error Handling - Missing Required Fields ===
+
+- launchApp
+- tapOn: "Create"
+
+# Add photos
+- tapOn:
+    id: "add-photos-button"
+
+# Fill only title (missing category, condition, price)
+- tapOn:
+    id: "title-input"
+- inputText: "Incomplete Item"
+
+# Attempt to publish
+- scrollUntilVisible:
+    element:
+      id: "publish-button"
+
+# Verify button is disabled
+- assertVisible:
+    id: "publish-button"
+    enabled: false
+
+# Fill category
+- tapOn:
+    id: "category-select-button"
+- tapOn: "Toys"
+
+# Verify button still disabled (missing condition and price)
+
+# Fill condition
+- tapOn:
+    id: "condition-good"
+
+# Verify button still disabled (missing price)
+
+# Fill price
+- tapOn:
+    id: "manual-price-input"
+- inputText: "10.00"
+
+# Verify button is now enabled
+- assertVisible:
+    id: "publish-button"
+    enabled: true
+
+---
+
+# === TEST CASE 6: 10-Photo Maximum ===
+
+- launchApp
+- tapOn: "Create"
+
+# Add photos (manual - select 10 photos)
+- tapOn:
+    id: "add-photos-button"
+
+# After 10 photos, verify "Add Photos" button is hidden
+# - assertNotVisible:
+#     id: "add-photos-button"
+
+# Verify max photos message
+- assertVisible: "Maximum 10 photos reached"
+
+---
+
+# === CLEANUP ===
+# Note: Created items should be deleted after test
+# Use SQL: DELETE FROM items WHERE title LIKE 'Nike Sneakers Size 5%';
+# Or use admin panel to delete test items

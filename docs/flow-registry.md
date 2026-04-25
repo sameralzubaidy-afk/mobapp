@@ -58,6 +58,15 @@ This file is the canonical registry of end-to-end flows and their required regre
   - If seller enabled "Accept Swap Points" and is Starter Pack eligible: listing is created with `status='pending'` (not visible in public feed until approved).
   - Pending listing creates `admin_notifications` rows for all admins (notification type `listing_pending_approval`).
   - Admin approves listing -> `items.status` transitions `pending` -> `available` and listing becomes visible.
+  - **LISTING-APPROVAL-NOTIFICATION (2026-04-25):** Seller receives approval notification respecting `notification_preferences`
+    - Migration: `supabase/migrations/20260425000001_listing_approval_notifications.sql`
+    - Server behavior:
+      - `admin_approve_listing()` now sends seller-facing `listing_approved` notification after approval
+      - Delivery reads `notification_preferences` category `system` and only sends enabled channels
+      - Push-only deliveries no longer auto-create inbox rows via `send-push-notification`
+    - App behavior:
+      - `p2p-kids-marketplace/src/services/deepLink.ts` routes `listing_approved` to listing detail
+      - `p2p-kids-marketplace/src/__tests__/screens/NotificationCenterScreen.test.tsx` covers tap-through regression
   - Seller edits an approved listing (e.g., title/price/photos) -> `items.status` transitions `available` -> `pending` and requires admin re-approval.
   - **SAFETY-P001 (2026-03-28):** Item Images Storage Bucket
     - Migration: `20260328000100_create_item_images_bucket.sql`
@@ -134,6 +143,10 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Unit tests: `p2p-kids-admin/src/lib/__tests__/itemModerationStatus.test.ts`
     - E2E tests: `p2p-kids-admin/__tests__/e2e/items-flagged-status.e2e.test.ts`
     - Maestro flow: `.maestro/safety-008-admin-review-request-edits.yaml`
+    - **Needs-Edits Resubmission Alignment (2026-04-25):** Seller resubmit after edits transitions `needs_edits` → `pending` for standard admin review queue
+      - App service: `p2p-kids-marketplace/src/services/listing.ts` (`submitListingNeedsEditsReReview`)
+      - Seller path: Listing Safety Review -> Make Edits -> Submit for Re-Review
+      - Regression expectation: item no longer remains in `needs_edits` after successful seller resubmit
   - **SAFETY-009 (2026-03-31):** Seller Appeal Workflow (Resubmit with Changes)
     - Purpose: Allow sellers to appeal rejected listings, edit and resubmit for admin review with tracking of appeal history
     - Scope:
@@ -330,6 +343,430 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Next steps: LISTING-V3-003 (Services Layer: aiService, photoService, draftService), LISTING-V3-005 (ItemCreateScreen photo-first rebuild)
     - Tier: Tier 1 (Edge Functions only - no DB changes); Tier 2 if Google Vision quota/limits change
     - Dependencies: GOOGLE_VISION_API_KEY configured, active categories in DB, LISTING-V3-001 schema (for drafts integration later)
+  - **LISTING-V3-003 (2026-04-23):** Services Layer - Photo, AI, Draft, Pricing, Condition
+    - Purpose: Core service layer for MODULE-04 V3 bulk listing and photo-first UX (TASK LISTING-V3-003)
+    - Services Implemented (6 files):
+      - NEW: `p2p-kids-marketplace/src/services/photoService.ts` - Photo pipeline (validate, compress, upload, group, regroup)
+        - Functions: `validatePhoto()`, `compressPhoto()`, `uploadPhotoBatch()`, `groupPhotosAuto()`, `regroupPhotos()`, `getThumbnailUrl()`, `getPhotoCount()`, `linkPhotosToItem()`
+        - Features:
+          - JPEG/PNG/WebP validation, 10MB max, 400×400px min dimensions
+          - expo-image-manipulator compression (target ≤1MB, 0.8 quality)
+          - Batch upload to `listings/{seller_id}/{timestamp}/`, tolerates partial failure
+          - Auto-grouping (default 2/group), enforces 30 total photos, 15 groups, 10/group caps
+          - Immutable regrouping (move photo between groups, maintains order, no-op if target full)
+      - NEW: `p2p-kids-marketplace/src/services/aiService.ts` - AI batch wrapper and result parsing
+        - Functions: `analyzePhotosBatch()`, `parseAIResult()`, `getAIConfidenceLevel()`, `analyzeSinglePhoto()`
+        - Features:
+          - Invokes `batch-analyze-items` edge function
+          - Defensive client-side confidence filtering (<0.40 stripped)
+          - Confidence levels: high (≥0.70), medium (0.40-0.69), low (<0.40)
+          - Single-photo wrapper for convenience
+      - NEW: `p2p-kids-marketplace/src/services/draftService.ts` - Draft lifecycle management
+        - Functions: `createItemDraft()`, `getItemDraft()`, `updateItemDraft()`, `deleteItemDraft()`, `getActiveDrafts()`, `publishDraft()`, `publishBulkDrafts()`, `saveAISuggestionsToDraft()`
+        - Features:
+          - JSONB merge via RPC `merge_item_draft` (race-condition safe) with client fallback
+          - Publish validation (title/description/price/category_id/condition/≥1 photo required)
+          - Bulk publish with status tracking (completed/partial/failed)
+          - Relies on DB trigger for max-5 draft eviction
+      - NEW: `p2p-kids-marketplace/src/services/pricingService.ts` - Price suggestion tiers
+        - Functions: `getSuggestedPrice()`, `getPriceTierLabel()`, `formatPrice()`, `validatePrice()`
+        - Features:
+          - Queries avg sold price over 90 days, requires ≥5 comparable sales
+          - 4 tiers: great_deal (0.45), fair_price (0.60), asking_price (0.75), almost_new (0.90)
+          - Validation: >0, ≤10000, max 2 decimal places
+      - NEW: `p2p-kids-marketplace/src/services/conditionService.ts` - Condition guides and color palette
+        - Functions: `getConditionGuide()`, `getConditionLabel()`, `getPopularColors()`, `getColorHex()`, `getColorPalette()`, `matchColorToPalette()`, `validateCondition()`
+        - Features:
+          - 5 condition guides: new/like_new/good/fair/worn (V3 changed 'poor' → 'worn')
+          - 24-hour AsyncStorage cache for condition guides
+          - Reuses MODULE-05 V3 COLOR_PALETTE (12 colors) - no duplication
+          - Fuzzy color matching (case-insensitive, search terms)
+      - MODIFIED: `p2p-kids-marketplace/src/services/categoryService.ts` - V3 enhancements (preserves V2 exports)
+        - New functions: `getCategoriesWithCounts()`, `flagForCategoryReview()`, `getRecentCategories()`, `saveRecentCategory()`, `getCategoryById()`, `searchCategories()`
+        - Preserved V2: `getCategories` re-exported from items.ts for backward compatibility
+        - Features:
+          - Idempotent category flagging (upsert review_flag), updates `items.requested_category_name`
+          - LRU cache for recent categories (max 3, per-seller, AsyncStorage)
+          - Category search with 10-result limit
+    - Type Definitions:
+      - MODIFIED: `p2p-kids-marketplace/src/types/listing.ts`
+        - Changed: `ListingCondition` enum from 'poor' to 'worn' for V3 consistency
+        - Added: `export type Condition = ListingCondition;` for V3 compatibility
+        - Already had: `AIAnalysisResult`, `AIFieldResult<T>`, `PhotoAsset`, `PhotoGroup`, `DraftData`, `ItemDraft`, `BulkPublishResult`, `PriceTier`
+    - Unit Tests (6 files):
+      - `src/__tests__/services/photoService.test.ts` - 45 test cases
+        - Coverage: validatePhoto (7), compressPhoto (3), groupPhotosAuto (10), regroupPhotos (9), upload batch, caps enforcement
+      - `src/__tests__/services/aiService.test.ts` - 15 test cases
+        - Coverage: batch analysis, confidence filtering, single photo, error handling, parseAIResult edge cases
+      - `src/__tests__/services/draftService.test.ts` - 12 test cases
+        - Coverage: create, update (JSONB merge), delete, publish validation, bulk publish, max-5 eviction
+      - `src/__tests__/services/pricingService.test.ts` - 10 test cases
+        - Coverage: tier calculation (exact multipliers), <5 sales fallback, validatePrice edge cases, formatPrice
+      - `src/__tests__/services/conditionService.test.ts` - 14 test cases
+        - Coverage: getConditionGuide (all 5), caching, COLOR_PALETTE reuse (12 colors), fuzzy color matching, validateCondition
+      - `src/__tests__/services/categoryService.test.ts` - 13 test cases
+        - Coverage: getCategoriesWithCounts, flagForCategoryReview (idempotent), LRU recent categories (max 3), searchCategories
+    - Integration Tests:
+      - `e2e/listing-v3-services.integration.test.ts` - 9 test suites
+        - Requires: `RUN_SUPABASE_E2E=true` environment variable
+        - Coverage: photo upload → AI analysis → draft → price suggestions → publish (end-to-end), category management, bulk publish flow
+        - Cleanup: Automatic teardown of test drafts
+    - Maestro UI Flows (3 files):
+      - `.maestro/listing-v3-photo-upload.yaml` - Photo selection → validation → compression → auto-grouping → regroup → AI analysis
+        - States: photo-upload-screen, photo-selection, auto-grouping, regroup drag-and-drop, ai-analysis-screen
+        - 13 major steps with assertions at each transition
+      - `.maestro/listing-v3-draft-resume-bulk-publish.yaml` - Draft banner → DraftListScreen → Resume → Multi-select → Bulk publish
+        - States: home-screen-banner, draft-list-screen, selection-mode, bulk-publish-progress, success
+        - 20 steps covering draft resume and bulk publish flow
+      - `.maestro/listing-v3-ai-review-price-condition.yaml` - AI suggestions → Accept/Reject → Category flag → Price tiers → Condition guides → Publish
+        - States: ai-suggestions-card, category-flag-for-review, price-tier-selection, condition-selection-screen, listing-review-screen
+        - 32 steps covering complete review and publish flow
+    - Manual Testing Guide:
+      - `LISTING-V3-003-MANUAL-TESTING-GUIDE.md` - 51 test cases across 9 suites
+        - Test Suites:
+          - TC1: Photo Service (7 test cases - validation, grouping, regrouping, caps)
+          - TC2: AI Service (3 test cases - batch analysis, confidence filtering, error handling)
+          - TC3: Draft Service (7 test cases - create, update JSONB merge, publish validation, bulk publish)
+          - TC4: Pricing Service (4 test cases - tier calculation, validation, insufficient data)
+          - TC5: Condition Service (4 test cases - guides, caching, COLOR_PALETTE reuse, fuzzy color matching)
+          - TC6: Category Service (4 test cases - counts, flag for review, LRU cache, search)
+          - TC7: Integration Flows (3 test cases - end-to-end photo-first, draft resume, mixed AI accept/reject)
+          - TC8: Edge Cases (3 test cases - network failure, concurrent edits, compression failure)
+          - TC9: Performance Benchmarks (3 test cases - photo upload speed, AI analysis speed, draft save latency)
+        - Prerequisites: SQL verification queries, test data setup, environment configuration
+        - Appendix: SQL verification queries for draft, bulk upload, category flag validation
+    - Verification Criteria (from MODULE-04-VERIFICATION-V3.md § 3):
+      - ✅ All 6 service files created with complete implementations
+      - ✅ photoService enforces 30 total photos, 15 groups, 10/group caps
+      - ✅ photoService.regroupPhotos() is immutable, maintains intra-group order
+      - ✅ aiService strips fields with confidence < 0.40 (defensive)
+      - ✅ draftService uses JSONB merge pattern (race-condition safe)
+      - ✅ pricingService tier multipliers exact: 0.45, 0.60, 0.75, 0.90
+      - ✅ conditionService reuses MODULE-05 V3 COLOR_PALETTE (no duplication)
+      - ✅ categoryService LRU cache limited to 3 entries, most-recent-first
+      - ✅ Unit test coverage ≥85% for all services
+      - ✅ Integration tests run against staging Supabase (RUN_SUPABASE_E2E=true)
+      - ✅ 3 Maestro flows cover complete photo-first UX state matrix
+      - ✅ Manual test guide provides 51 test cases for iOS/Android simulator verification
+    - Performance Targets:
+      - Photo upload (10 photos @ 2MB): < 30s on Wi-Fi
+      - AI analysis (3 groups, 6 photos): < 15s
+      - Draft save (10 photos + AI data): < 2s
+    - Dependencies:
+      - LISTING-V3-001 migrations applied (item_bulk_uploads, item_drafts tables)
+      - LISTING-V3-002 edge functions deployed (batch-analyze-items)
+      - MODULE-05 V3 migrations applied (age_group, gender, brand, color columns)
+      - MODULE-05 V3 COLOR_PALETTE defined in types/discovery.ts
+    - Next Steps:
+      - LISTING-V3-004: Navigation updates (draft resume banner, Drafts tab, Sell-tab FAB bottom sheet)
+      - LISTING-V3-005: PhotoUploadScreen rebuild (photo-first UX)
+      - LISTING-V3-006: AIReviewScreen (accept/reject suggestions)
+      - LISTING-V3-007: DraftListScreen (multi-select, bulk publish)
+    - Tier: Tier 0 (always - typecheck + lint + unit tests); Tier 1 (service/type changes - integration + Maestro)
+    - Module: MODULE-04-ITEM-LISTING-V3 (TASK LISTING-V3-003: Services Layer)
+  - **LISTING-V3-004 (2026-04-24):** Types & Hooks - useItemDraft, useAIAnalysis, usePhotoGroups
+    - Purpose: React hooks wrapping V3 services for stable, tested interfaces in screens/components (TASK LISTING-V3-004)
+    - Hooks Implemented (3 files):
+      - NEW: `p2p-kids-marketplace/src/hooks/useItemDraft.ts` - Draft auto-save hook
+        - API: `{ draft, save, saveNow, discard, isSaving, saveError, isLoading }`
+        - Features:
+          - 30-second auto-save interval while screen focused
+          - AppState flush: saves on app → background transition
+          - Navigation blur flush: saves when screen loses focus
+          - Immediate save method: `saveNow()` for manual trigger
+          - Error state management: never throws, exposes `saveError`
+          - Optimistic updates: local state updated immediately on `save()`
+          - Pending updates merged before flush (race-condition safe)
+        - Behavior:
+          - Loads existing draft on mount if `draftId` provided
+          - Creates new draft if `sellerId` provided without `draftId`
+          - Auto-save only fires if pending updates exist
+          - Clears auto-save timer on unmount
+      - NEW: `p2p-kids-marketplace/src/hooks/useAIAnalysis.ts` - AI photo analysis hook
+        - API: `{ status, result, error, retry }`
+        - Features:
+          - Status states: `idle | analyzing | ready | error`
+          - Does NOT auto-run until `photoUrls.length > 0`
+          - Aborts pending fetch when `photoUrls` change (AbortController)
+          - Single retry on network error with 1.5s delay
+          - Result parsing with defensive confidence filtering
+        - Behavior:
+          - Idle when no photos provided
+          - Analyzing → ready transition on success
+          - Analyzing → error transition with retry logic
+          - Manual retry via `retry()` method resets retry count
+          - Cleanup aborts pending requests on unmount
+      - NEW: `p2p-kids-marketplace/src/hooks/usePhotoGroups.ts` - Photo grouping state hook
+        - API: `{ groups, addPhotos, removePhoto, reorderPhotos, regroup, setCover, createGroup, removeGroup, errors, clearErrors, totalPhotos }`
+        - Features:
+          - Enforces caps: 10 photos/group, 30 total, 15 groups
+          - Returns errors array instead of throwing
+          - Immutable operations (returns new state)
+          - Preserves intra-group order on regroup
+          - Auto-removes empty groups after photo removal
+        - Cap enforcement:
+          - Adding photos: fills last group first, creates new groups as needed
+          - Regrouping: rejects if destination group full (error)
+          - Max groups: stops creating after 15th group (error)
+          - Total photos: rejects adds beyond 30 (error)
+    - TypeScript Types (1 file updated):
+      - UPDATED: `p2p-kids-marketplace/src/types/listing.ts`
+        - Types already exist from LISTING-V3-003: `AIAnalysisResult`, `AIFieldResult<T>`, `PhotoAsset`, `PhotoGroup`, `ItemDraft`, `DraftData`, `BulkPublishResult`, `PriceTier`, `ConditionGuide`
+        - Added `Condition` type alias for V3 compatibility
+        - All types strict TS (no `any`)
+    - Unit Tests (3 files - full coverage with Jest fake timers):
+      - `p2p-kids-marketplace/src/hooks/__tests__/useItemDraft.test.tsx` - 16 test cases
+        - Coverage: load existing draft, create new draft, queue updates, auto-save 30s, immediate save, AppState flush, navigation blur flush, discard draft, merge pending updates, error handling
+        - Uses: `jest.useFakeTimers()`, `@testing-library/react-native`, mocked draftService, mocked AppState, mocked navigation
+      - `p2p-kids-marketplace/src/hooks/__tests__/useAIAnalysis.test.tsx` - 15 test cases
+        - Coverage: idle state, analyze photos, error handling, retry logic, photo URL changes, abort on change, manual retry, cleanup on unmount
+        - Uses: `jest.useFakeTimers()`, mocked aiService, AbortController simulation
+      - `p2p-kids-marketplace/src/hooks/__tests__/usePhotoGroups.test.tsx` - 18 test cases
+        - Coverage: add photos, fill existing group, enforce 10/group cap, enforce 30 total cap, enforce 15 groups cap, remove photo, remove empty group, reorder photos, regroup, set cover photo, primary index adjustment, error management
+        - Uses: mocked uuid generation, state matrix verification
+    - Integration Tests (1 file):
+      - `p2p-kids-marketplace/e2e/listing-v3-004-hooks.integration.test.ts` - 14 test cases
+        - Prerequisites: Supabase staging, LISTING-V3-001 migrations, Edge Functions deployed
+        - Run with: `RUN_SUPABASE_E2E=true npm run test:e2e`
+        - Coverage:
+          - useItemDraft: create/load/save/delete drafts in real DB, verify max-5 trigger, verify updated_at trigger
+          - useAIAnalysis: analyze real photo via Edge Function, handle invalid URLs, network errors
+          - usePhotoGroups: in-memory state management, cap enforcement
+          - Full flow: draft → photos → AI → save → load → delete
+    - Maestro Flow:
+      - `.maestro/listing-v3-004-item-draft-hooks.yaml` - 15 test cases
+        - States covered: idle, creating, saving, analyzing, ready, error, photo-cap-reached
+        - Flow steps:
+          - TC-001: Draft auto-creation on screen mount
+          - TC-002: Add photos + trigger AI analysis
+          - TC-003: Verify AI suggestions card (ready state)
+          - TC-004: Manual data entry (local state update)
+          - TC-005: Auto-save test (30s - commented out for speed)
+          - TC-006: Immediate save test
+          - TC-007: Add second photo
+          - TC-008: Reorder photos
+          - TC-009: Set cover photo
+          - TC-010: Navigation blur flush
+          - TC-011: Draft appears in list
+          - TC-012: Resume draft
+          - TC-013: AI idle state when no photos
+          - TC-014: Photo cap warning (10/group)
+          - TC-015: Discard draft
+        - testID requirements: all interactive elements tagged
+        - Assertions: `assertVisible` after each major step, `waitForAnimationToEnd` for async
+    - Manual Testing Guide:
+      - `LISTING-V3-004-MANUAL-TESTING-GUIDE.md` - 16 test cases
+        - Prerequisites: Supabase staging, test user logged in, 3+ test photos in gallery
+        - Test Cases:
+          - TC-001: Create new draft
+          - TC-002: Auto-save after 30s
+          - TC-003: Immediate save
+          - TC-004: Background flush
+          - TC-005: Navigation blur flush
+          - TC-006: Discard draft
+          - TC-007: Analyze single photo
+          - TC-008: AI error handling
+          - TC-009: Photo change cancellation
+          - TC-010: Add photos to group
+          - TC-011: Enforce 10 photos/group
+          - TC-012: Enforce 30 photos total
+          - TC-013: Regroup photos
+          - TC-014: Set cover photo
+          - TC-015: Remove photo
+          - TC-016: Full workflow integration (all 3 hooks)
+        - Platforms: iOS Simulator, Android Emulator (no physical devices)
+        - Sign-off checklist included
+    - Verification Criteria (from MODULE-04-VERIFICATION-V3.md § 4):
+      - ✅ `src/types/listing.ts` exports all required V3 types
+      - ✅ `useItemDraft` returns `{ draft, save, saveNow, discard, isSaving, saveError, isLoading }`
+      - ✅ Auto-save interval = 30s (configurable constant)
+      - ✅ Flushes on `AppState → background`
+      - ✅ Flushes on navigation `blur`
+      - ✅ `saveNow()` forces immediate flush
+      - ✅ Never throws - exposes `saveError` instead
+      - ✅ `useAIAnalysis` returns `{ status, result, error, retry }`
+      - ✅ Status: `idle | analyzing | ready | error`
+      - ✅ Aborts pending fetch when `photoUrls` change
+      - ✅ Single retry on network error (1.5s delay)
+      - ✅ Does NOT auto-run until `photoUrls.length > 0`
+      - ✅ `usePhotoGroups` returns `{ groups, addPhotos, removePhoto, regroup, setCover, errors, totalPhotos }`
+      - ✅ Enforces caps: 10/group, 30 total, 15 groups
+      - ✅ Returns errors array instead of throwing
+      - ✅ Unit tests pass for all 3 hooks (`npm test -- --testPathPattern=hooks`)
+      - ✅ Integration tests pass (`RUN_SUPABASE_E2E=true npm run test:e2e`)
+      - ✅ Maestro flow passes on iOS and Android
+    - Dependencies:
+      - LISTING-V3-001 migrations (item_drafts table)
+      - LISTING-V3-002 edge functions (batch-analyze-items)
+      - LISTING-V3-003 services (draftService, aiService, photoService)
+      - @react-navigation/native (useFocusEffect for blur detection)
+      - uuid (for photo group ID generation)
+    - Next Steps:
+      - LISTING-V3-005: ItemCreateScreen rebuild (consume useItemDraft + useAIAnalysis)
+      - LISTING-V3-006: BulkListingCreateScreen (consume usePhotoGroups + batch AI)
+      - LISTING-V3-007: Draft resume banner + navigation wiring
+    - Tier: Tier 0 (always - typecheck + lint + unit tests); Tier 1 (hook/service changes - integration + Maestro)
+    - Module: MODULE-04-ITEM-LISTING-V3 (TASK LISTING-V3-004: Types & Hooks)
+  - **LISTING-V3-005 (2026-04-25):** ItemCreateScreen Photo-First Rebuild
+    - Purpose: Replace V2 text-first listing creation with photo-first UX (TASK LISTING-V3-005)
+    - Scope: Single item listing creation (NOT bulk) using photo → AI → form fill → publish flow
+    - Components Implemented (11 files - 10 presentational + 1 main screen):
+      - NEW: `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` - Main photo-first screen
+        - State machine (useReducer): `idle → adding_photos → ai_analyzing → reviewing_suggestions → filling_details → setting_price → publishing → success | error`
+        - Route: `ItemCreate` with params `{ draftId?: string }` (separate from V2 "CreateListing" route)
+        - Features:
+          - Draft autosave via `useItemDraft` hook (30s interval + AppState/blur flush)
+          - Photo upload with expo-image-picker (multi-select up to 10)
+          - AI analysis with `useAIAnalysis` hook (background fetch)
+          - Apply AI suggestions to empty fields only (preserves user edits)
+          - Price suggestions with 4 tiers (great_deal/fair_price/asking_price/almost_new)
+          - Publish validation: title + category_id + condition + price + ≥1 photo required
+          - Category "Other" flow: calls `flagForCategoryReview` on publish
+        - Integrations:
+          - `useAuth` for seller_id
+          - `useItemDraft` for draft lifecycle
+          - `useAIAnalysis` for photo analysis
+          - `createItem` from itemsService
+          - `flagForCategoryReview` from categoryService
+          - `getSuggestedPrice` from pricingService
+          - `uploadPhotoBatch` from photoService
+      - NEW: `p2p-kids-marketplace/src/components/listing/PhotoUploadManager.tsx`
+        - Photo grid with 10-photo cap enforcement
+        - Cover badge on first photo (index === 0)
+        - "Add Photos" button hidden when at maxPhotos
+        - Uses standard FlatList (not DraggableFlatList - dependency issue)
+      - NEW: `p2p-kids-marketplace/src/components/listing/AIAnalysisCard.tsx`
+        - Sliding card with entrance animation
+        - Shows AI suggestions with confidence indicators (≥0.7 green, ≥0.4 orange, <0.4 red)
+        - "Apply All" button (skips filled fields)
+        - Per-field "Use" buttons
+      - NEW: `p2p-kids-marketplace/src/components/listing/CategorySelectModal.tsx`
+        - Full-screen modal with search, recent-3, all categories
+        - "Other" option with custom input (100-char limit)
+      - NEW: `p2p-kids-marketplace/src/components/listing/ConditionSelector.tsx`
+        - 5 radio rows (new/like_new/good/fair/worn)
+        - "View Photo Guide" button
+      - NEW: `p2p-kids-marketplace/src/components/listing/ConditionGuideOverlay.tsx`
+        - Modal overlay with real photo examples per condition
+      - NEW: `p2p-kids-marketplace/src/components/listing/ColorPicker.tsx`
+        - 12-swatch multi-select (MODULE-05 V3 COLOR_PALETTE)
+        - Max 3 colors enforced
+      - NEW: `p2p-kids-marketplace/src/components/listing/AgeGroupSelector.tsx`
+        - 5 pills (0-2/3-5/6-8/9-12/13+)
+        - Single select
+      - NEW: `p2p-kids-marketplace/src/components/listing/GenderSelector.tsx`
+        - 4 pills (boy/girl/unisex/Any)
+        - "Any" maps to null (not string)
+      - NEW: `p2p-kids-marketplace/src/components/listing/PriceSuggestionCard.tsx`
+        - 4-tier price suggestions with label/price/description
+        - Manual input fallback
+      - NEW: `p2p-kids-marketplace/src/components/listing/PublishButton.tsx`
+        - Large primary action button
+        - Loading + disabled states
+    - Navigation Updates (2 files):
+      - MODIFIED: `p2p-kids-marketplace/src/navigation/types.ts`
+        - Added route: `ItemCreate: { draftId?: string } | undefined;`
+      - MODIFIED: `p2p-kids-marketplace/src/navigation/AppNavigator.tsx`
+        - Imported ItemCreateScreen
+        - Registered Stack.Screen with name="ItemCreate"
+        - Added deep link: `create-item`
+    - Service Updates (1 file):
+      - MODIFIED: `p2p-kids-marketplace/src/services/pricingService.ts`
+        - Fixed return type: `PriceTier[]` → `PriceSuggestion[]`
+        - Fixed tier objects to match PriceSuggestion type: `{ tier, label, price, description }`
+    - Unit Tests (1 file):
+      - `p2p-kids-marketplace/src/screens/__tests__/ItemCreateScreen.test.tsx` - 10+ test suites
+        - Coverage:
+          - State machine transitions (idle → adding_photos → ai_analyzing → filling_details → publishing → success)
+          - AI suggestions: apply all (skip filled fields), apply individual field
+          - Draft autosave: 30s interval, immediate saveNow on publish
+          - Publish flow: validation (missing fields), success navigation
+          - Category "Other" flow: flagForCategoryReview called
+          - Photo upload: expo-image-picker, uploadPhotoBatch
+          - Error handling: AI errors, draft save errors, publish errors
+          - Loading states: AI analyzing, publishing
+        - Mocks: useAuth, useItemDraft, useAIAnalysis, all services, navigation
+    - Integration Tests (1 file):
+      - `p2p-kids-marketplace/e2e/listing-v3-005-itemcreate.integration.test.ts` - 7 test suites
+        - Prerequisites: Supabase staging, LISTING-V3-001/002/003 deployed
+        - Run with: `RUN_SUPABASE_E2E=true npm run test:e2e`
+        - Coverage:
+          - Draft lifecycle: create → update → publish → delete
+          - Photo upload flow (real Supabase storage)
+          - AI analysis (real Edge Function call)
+          - Price suggestions (real pricing service RPC)
+          - Publish flow: creates item in DB, navigates to detail
+          - Category "Other": creates review_flag row
+          - Full E2E: photo → AI → form → price → publish
+    - Maestro Flow:
+      - `.maestro/listing-v3-005-itemcreate.yaml` - 6 test cases
+        - TC-001: Happy path - complete listing creation (all fields)
+        - TC-002: Category "Other" flow
+        - TC-003: AI suggestions - Apply All
+        - TC-004: Draft autosave (30s wait)
+        - TC-005: Error handling - missing required fields
+        - TC-006: 10-photo maximum enforcement
+        - testID requirements: all interactive elements tagged (photo-upload-manager, add-photos-button, title-input, category-select-button, condition-*, manual-price-input, publish-button, etc.)
+        - Cleanup: SQL to delete test items after run
+    - Manual Testing Guide:
+      - `LISTING-V3-005-MANUAL-TESTING-GUIDE.md` - 18 test cases
+        - Prerequisites: iOS Simulator or Android Emulator (no physical devices), test user logged in, 3+ test photos in gallery, Supabase staging
+        - Test Cases:
+          - TC-001: Screen loads with empty state
+          - TC-002: Add photos (multi-select up to 10)
+          - TC-003: Photo cap enforcement (max 10)
+          - TC-004: AI analysis triggers after photo upload
+          - TC-005: AI suggestions card displays
+          - TC-006: Apply all AI suggestions
+          - TC-007: Apply individual AI field
+          - TC-008: Fill title manually
+          - TC-009: Select category
+          - TC-010: Select condition
+          - TC-011: Fill brand
+          - TC-012: Select color (max 3)
+          - TC-013: Select age group
+          - TC-014: Select gender
+          - TC-015: Price suggestions display
+          - TC-016: Manual price input
+          - TC-017: Publish button validation (disabled when missing required)
+          - TC-018: Publish success flow
+        - Cleanup: SQL to remove test items
+        - Sign-off checklist
+    - Verification Criteria (from MODULE-04-VERIFICATION-V3.md § 5):
+      - ✅ ItemCreateScreen route name = "ItemCreate", params = `{ draftId?: string }`
+      - ✅ V2 CreateListing route unchanged (coexists with V3)
+      - ✅ State machine has 9 states: idle, adding_photos, ai_analyzing, reviewing_suggestions, filling_details, setting_price, publishing, success, error
+      - ✅ All 10 V3 presentational components created
+      - ✅ PhotoUploadManager enforces 10-photo cap
+      - ✅ AIAnalysisCard shows confidence colors (≥0.7 green, ≥0.4 orange, else red)
+      - ✅ CategorySelectModal includes "Other" with custom input
+      - ✅ ConditionSelector has 5 options (new/like_new/good/fair/worn)
+      - ✅ ColorPicker uses MODULE-05 V3 COLOR_PALETTE (12 colors), max 3 selectable
+      - ✅ PriceSuggestionCard shows 4 tiers + manual input
+      - ✅ PublishButton disabled when missing required fields
+      - ✅ Category "Other" calls flagForCategoryReview on publish
+      - ✅ Draft autosave every 30s + AppState/blur flush
+      - ✅ Apply All skips fields already filled by user
+      - ✅ Unit tests pass (`npm test -- --testPathPattern=ItemCreateScreen`)
+      - ✅ Integration tests pass (`RUN_SUPABASE_E2E=true npm run test:e2e`)
+      - ✅ Maestro flow passes on iOS and Android
+    - Tier 0 Preflight (MANDATORY):
+      - ✅ TypeScript compilation: `cd p2p-kids-marketplace && npm run typecheck` (no errors)
+      - ✅ ESLint: `cd p2p-kids-marketplace && npm run lint` (no errors)
+    - Dependencies:
+      - LISTING-V3-001 migrations (item_drafts, requested_category_name)
+      - LISTING-V3-002 edge functions (AI analysis)
+      - LISTING-V3-003 services (photoService, aiService, draftService, pricingService, conditionService, categoryService)
+      - LISTING-V3-004 hooks (useItemDraft, useAIAnalysis)
+      - MODULE-05 V3 COLOR_PALETTE, age_group/gender/brand/color columns
+      - expo-image-picker, expo-image-manipulator
+    - Next Steps:
+      - LISTING-V3-006: BulkListingCreateScreen (multi-item with grouping)
+      - LISTING-V3-007: DraftListScreen (resume + multi-select bulk publish)
+      - LISTING-V3-008: Navigation integration (draft banner, Sell tab FAB)
+    - Tier: Tier 0 (always - typecheck + lint + unit tests); Tier 1 (UI/service changes - integration + Maestro)
+    - Module: MODULE-04-ITEM-LISTING-V3 (TASK LISTING-V3-005: ItemCreateScreen Photo-First Rebuild)
+    - Coexistence Note: V2 CreateListingScreen (route "CreateListing") is preserved unchanged. V3 ItemCreateScreen (route "ItemCreate") is a new parallel implementation.
 
 ### FLOW-05: Media Upload (Storage) – Listing Photos
 - Smoke: (manual)

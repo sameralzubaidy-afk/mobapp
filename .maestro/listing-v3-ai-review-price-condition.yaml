@@ -1,0 +1,188 @@
+# Maestro Flow: V3 AI Review, Category Flag, & Price Tiers
+# MODULE-04 LISTING-V3: TASK LISTING-V3-003
+# Tests: AI suggestions → Accept/Reject → Category flagging → Price suggestions
+
+appId: com.kidsp2pmarketplace.app
+---
+
+# 1. Start from PhotoUploadScreen (assumes photos already uploaded)
+- assertVisible:
+    id: "ai-analysis-screen"
+
+# 2. Verify AI suggestions appear
+- assertVisible:
+    id: "ai-suggestions-card"
+- assertVisible:
+    id: "suggested-title"
+- assertVisible:
+    id: "suggested-category"
+
+# 3. Verify confidence indicators
+- assertVisible:
+    id: "confidence-indicator-title"
+- assertVisible:
+    text: "High confidence" # or "Medium confidence"
+
+# 4. Test accepting AI suggestion for title
+- tapOn:
+    id: "button-accept-title"
+- waitForAnimationToEnd
+
+# 5. Verify title is auto-filled
+- assertVisible:
+    id: "input-title"
+    # Value should match suggested title
+
+# 6. Test rejecting AI category suggestion
+- tapOn:
+    id: "button-reject-category"
+- waitForAnimationToEnd
+
+# 7. Verify category input is shown for manual entry
+- assertVisible:
+    id: "input-category-search"
+    placeholder: "Search categories..."
+
+# 8. Type custom category name
+- inputText: "Baby Carriers"
+    id: "input-category-search"
+- waitForAnimationToEnd
+
+# 9. Verify category search results
+- assertVisible:
+    id: "category-search-results"
+
+# 10. Select "Flag for Review" option
+- tapOn:
+    id: "option-flag-for-review"
+- waitForAnimationToEnd
+
+# 11. Verify flag confirmation
+- assertVisible:
+    id: "category-flag-banner"
+    text: "Flagged for admin review"
+
+# 12. Navigate to Price step
+- tapOn:
+    id: "button-next-ai-review"
+- waitForAnimationToEnd
+
+# 13. Verify price suggestion screen
+- assertVisible:
+    id: "price-suggestion-screen"
+- assertVisible:
+    text: "Suggested Prices"
+
+# 14. Verify 4 price tiers appear (if data available)
+- assertVisible:
+    id: "price-tier-great-deal"
+- assertVisible:
+    id: "price-tier-fair-price"
+- assertVisible:
+    id: "price-tier-asking-price"
+- assertVisible:
+    id: "price-tier-almost-new"
+
+# 15. Tap "Fair Price" tier
+- tapOn:
+    id: "price-tier-fair-price"
+- waitForAnimationToEnd
+
+# 16. Verify price is auto-filled in input
+- assertVisible:
+    id: "input-price"
+    # Should contain selected tier price
+
+# 17. Test custom price entry
+- clearText:
+    id: "input-price"
+- inputText: "25.99"
+    id: "input-price"
+
+# 18. Verify price validation (must be > 0, ≤ 10000, max 2 decimals)
+- assertVisible:
+    id: "price-validation-icon"
+    # Should show checkmark for valid price
+
+# 19. Test invalid price (3 decimals)
+- clearText:
+    id: "input-price"
+- inputText: "12.345"
+    id: "input-price"
+
+# 20. Verify validation error
+- assertVisible:
+    id: "price-validation-error"
+    text: "Price must have at most 2 decimal places"
+
+# 21. Fix price
+- clearText:
+    id: "input-price"
+- inputText: "12.34"
+    id: "input-price"
+
+# 22. Verify error cleared
+- assertNotVisible:
+    id: "price-validation-error"
+
+# 23. Tap "Next" to proceed
+- tapOn:
+    id: "button-next-price"
+- waitForAnimationToEnd
+
+# 24. Should navigate to Condition selection screen
+- assertVisible:
+    id: "condition-selection-screen"
+
+# 25. Verify 5 condition guides appear
+- assertVisible:
+    id: "condition-option-new"
+- assertVisible:
+    id: "condition-option-like-new"
+- assertVisible:
+    id: "condition-option-good"
+- assertVisible:
+    id: "condition-option-fair"
+- assertVisible:
+    id: "condition-option-worn"
+
+# 26. Verify each has emoji and description
+- assertVisible:
+    id: "condition-emoji-like-new"
+    text: "✨"
+- assertVisible:
+    id: "condition-description-like-new"
+
+# 27. Select "Good" condition
+- tapOn:
+    id: "condition-option-good"
+- waitForAnimationToEnd
+
+# 28. Tap "Next" to proceed to final review
+- tapOn:
+    id: "button-next-condition"
+- waitForAnimationToEnd
+
+# 29. Should navigate to ReviewScreen
+- assertVisible:
+    id: "listing-review-screen"
+
+# 30. Verify all entered data is displayed
+- assertVisible:
+    id: "review-title"
+- assertVisible:
+    id: "review-price"
+- assertVisible:
+    id: "review-condition"
+- assertVisible:
+    id: "review-photos"
+
+# 31. Tap "Publish" to complete
+- tapOn:
+    id: "button-publish-listing"
+- waitForAnimationToEnd
+
+# 32. Verify success message
+- assertVisible:
+    id: "publish-success-modal"
+    text: "Listing published!"

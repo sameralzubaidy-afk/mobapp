@@ -17,6 +17,8 @@ export interface NotificationDeepLinkData {
   tradeId?: string;
   listing_id?: string;
   listingId?: string;
+  item_id?: string;
+  itemId?: string;
   notification_id?: string;
   notificationId?: string;
   badge_id?: string;
@@ -158,6 +160,12 @@ const TYPE_TO_ROUTE_MAP: Record<
   review_received: { route: 'Profile', action: 'navigate' },
   review_reminder: { route: 'TradeList', action: 'navigate' },
 
+  // Listing moderation events
+  item_flagged: { route: 'ListingSafetyReview', action: 'navigate' },
+  item_rejected: { route: 'ListingSafetyReview', action: 'navigate' },
+  item_needs_edits: { route: 'ListingSafetyReview', action: 'navigate' },
+  listing_approved: { route: 'ListingDetail', action: 'navigate' },
+
   // Referral Events
   referral_signup: { route: 'ReferralDashboard', action: 'navigate' },
   referral_reward: { route: 'ReferralDashboard', action: 'navigate' },
@@ -196,7 +204,9 @@ export function parseNotificationDeepLink(
     (typeof data.tradeId === 'string' ? data.tradeId : null);
   const listingId =
     (typeof data.listing_id === 'string' ? data.listing_id : null) ||
-    (typeof data.listingId === 'string' ? data.listingId : null);
+    (typeof data.listingId === 'string' ? data.listingId : null) ||
+    (typeof data.item_id === 'string' ? data.item_id : null) ||
+    (typeof data.itemId === 'string' ? data.itemId : null);
   const notificationId =
     (typeof data.notification_id === 'string' ? data.notification_id : null) ||
     (typeof data.notificationId === 'string' ? data.notificationId : null);
@@ -247,6 +257,10 @@ export function parseNotificationDeepLink(
       // If we have a specific listing ID, navigate to detail instead
       target.route = 'ListingDetail';
       target.params = { listing_id: listingId };
+    } else if (target.route === 'EditListing') {
+      target.params = { ...(target.params || {}), listing_id: listingId };
+    } else if (target.route === 'ListingSafetyReview') {
+      target.params = { ...(target.params || {}), listing_id: listingId };
     } else if (target.route === 'ListingDetail') {
       target.params = { ...(target.params || {}), listing_id: listingId };
     }

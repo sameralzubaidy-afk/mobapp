@@ -16,6 +16,7 @@
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { encode as base64Encode } from 'https://deno.land/std@0.168.0/encoding/base64.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { 
   AIAnalysisResult, 
@@ -29,8 +30,14 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const MIN_CONFIDENCE = 0.40;
-const HIGH_CONFIDENCE = 0.70;
 const CATEGORY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+const VISION_FEATURES = [
+  { type: 'LABEL_DETECTION', maxResults: 20 },
+  { type: 'TEXT_DETECTION', maxResults: 5 },
+  { type: 'IMAGE_PROPERTIES', maxResults: 1 },
+  { type: 'LOGO_DETECTION', maxResults: 5 },
+];
 
 // Cache for categories
 let categoriesCache: { data: any[]; timestamp: number } | null = null;
@@ -43,6 +50,35 @@ const PREDEFINED_BRANDS = [
   'Carter\'s', 'OshKosh', 'Gap Kids', 'Old Navy', 'H&M', 'Zara Kids',
   'Nike', 'Adidas', 'Converse', 'Vans', 'Stride Rite', 'Crocs'
 ];
+
+function getPrimaryVisionResponse(visionData: any): any {
+  return visionData?.responses?.[0] || {};
+}
+
+function hasVisionSignals(visionData: any): boolean {
+  const primary = getPrimaryVisionResponse(visionData);
+  return Boolean(
+    (primary.labelAnnotations && primary.labelAnnotations.length > 0) ||
+    (primary.logoAnnotations && primary.logoAnnotations.length > 0) ||
+    (primary.textAnnotations && primary.textAnnotations.length > 0) ||
+    (primary.imagePropertiesAnnotation?.dominantColors?.colors &&
+      primary.imagePropertiesAnnotation.dominantColors.colors.length > 0)
+  );
+}
+
+function shouldUseInlineFallback(visionData: any): boolean {
+  const primary = getPrimaryVisionResponse(visionData);
+  if (primary.error) {
+    return true;
+  }
+
+  // Some Vision responses return no error but still have no usable annotations.
+  return !hasVisionSignals(visionData);
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  return base64Encode(new Uint8Array(buffer));
+}
 
 /**
  * Levenshtein distance algorithm for fuzzy string matching
@@ -143,12 +179,7 @@ async function callGoogleVision(imageUrl: string, retryCount = 0): Promise<any> 
       body: JSON.stringify({
         requests: [{
           image: { source: { imageUri: imageUrl } },
-          features: [
-            { type: 'LABEL_DETECTION', maxResults: 20 },
-            { type: 'TEXT_DETECTION', maxResults: 5 },
-            { type: 'IMAGE_PROPERTIES', maxResults: 1 },
-            { type: 'LOGO_DETECTION', maxResults: 5 }
-          ]
+          features: VISION_FEATURES
         }]
       })
     });
@@ -166,7 +197,58 @@ async function callGoogleVision(imageUrl: string, retryCount = 0): Promise<any> 
       throw new Error(`Google Vision API error: ${response.status} ${errorText}`);
     }
 
-    return await response.json();
+    const visionData = await response.json();
+
+    if (shouldUseInlineFallback(visionData)) {
+      const primary = getPrimaryVisionResponse(visionData);
+      const reason = primary.error
+        ? `${primary.error.code || 'VISION_ERROR'}: ${primary.error.message || 'Unknown error'}`
+        : 'No usable labels/properties returned for URL source';
+
+      console.warn(`[analyze-item-image] URL-source Vision response weak, retrying with inline image bytes: ${reason}`);
+
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image for inline Vision fallback: ${imageResponse.status}`);
+      }
+
+      const imageArrayBuffer = await imageResponse.arrayBuffer();
+      const imageBase64 = arrayBufferToBase64(imageArrayBuffer);
+      
+      console.log(`[analyze-item-image] Downloaded image, size: ${imageArrayBuffer.byteLength} bytes, base64 length: ${imageBase64.length}`);
+      
+      if (imageArrayBuffer.byteLength === 0) {
+        throw new Error('Downloaded image is exactly 0 bytes');
+      }
+
+      const inlineResponse = await fetch(GOOGLE_VISION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: [{
+            image: { content: imageBase64 },
+            features: VISION_FEATURES,
+          }],
+        }),
+      });
+
+      if (!inlineResponse.ok) {
+        const inlineErrorText = await inlineResponse.text();
+        throw new Error(`Google Vision inline fallback failed: ${inlineResponse.status} ${inlineErrorText}`);
+      }
+
+      const inlineData = await inlineResponse.json();
+      const inlinePrimary = getPrimaryVisionResponse(inlineData);
+      if (inlinePrimary.error) {
+        throw new Error(
+          `Google Vision inline response error: ${inlinePrimary.error.code || 'VISION_ERROR'} ${inlinePrimary.error.message || ''}`
+        );
+      }
+
+      return inlineData;
+    }
+
+    return visionData;
   } catch (error) {
     if (retryCount < maxRetries) {
       const delay = retryDelays[retryCount];
@@ -183,10 +265,21 @@ async function callGoogleVision(imageUrl: string, retryCount = 0): Promise<any> 
  */
 function extractTitle(visionData: any): AIFieldResult<string> | null {
   const labels = visionData.responses[0]?.labelAnnotations || [];
-  const texts = visionData.responses[0]?.textAnnotations || [];
 
   // Product-related keywords for high confidence
-  const productKeywords = ['toy', 'book', 'clothing', 'shoe', 'game', 'doll', 'car', 'bike', 'puzzle'];
+  const productKeywords = [
+    'toy',
+    'book',
+    'clothing',
+    'shoe',
+    'game',
+    'doll',
+    'car',
+    'bike',
+    'bicycle',
+    'scooter',
+    'puzzle',
+  ];
 
   // Try to build a title from top labels
   if (labels.length > 0) {
@@ -259,11 +352,28 @@ async function matchCategory(visionData: any): Promise<AIFieldResult<{ label: st
     }
   }
 
+  const keywordFallbacks: Array<{ keywords: string[]; label: string; confidence: number }> = [
+    { keywords: ['bike', 'bicycle', 'cycling'], label: 'Bikes', confidence: 0.72 },
+    { keywords: ['toy', 'plaything', 'doll'], label: 'Toys', confidence: 0.70 },
+    { keywords: ['book', 'reading'], label: 'Books', confidence: 0.70 },
+    { keywords: ['shoe', 'sneaker', 'boot', 'sandal'], label: 'Shoes', confidence: 0.70 },
+  ];
+
+  const allLabelsText = labels.map((l: any) => String(l.description || '').toLowerCase()).join(' ');
+  for (const fallback of keywordFallbacks) {
+    if (fallback.keywords.some((keyword) => allLabelsText.includes(keyword))) {
+      return {
+        value: { label: fallback.label, categoryId: null },
+        confidence: fallback.confidence,
+      };
+    }
+  }
+
   // Return best label without category match
   const topLabel = labels[0];
   return {
     value: { label: topLabel.description, categoryId: null },
-    confidence: topLabel.score * 0.6
+    confidence: Math.max(topLabel.score * 0.75, 0.45)
   };
 }
 
@@ -297,11 +407,7 @@ function inferCondition(visionData: any): AIFieldResult<'new' | 'like_new' | 'go
     }
   }
 
-  // Default to 'good' with low confidence if no keywords found
-  return {
-    value: 'good',
-    confidence: 0.45
-  };
+  return null;
 }
 
 /**
@@ -360,7 +466,7 @@ function extractColors(visionData: any): AIFieldResult<string[]> | null {
   };
 
   const dominantColors = imageProps.dominantColors.colors
-    .filter((c: any) => c.pixelFraction >= 0.05) // At least 5% of pixels
+    .filter((c: any) => c.pixelFraction >= 0.02) // At least 2% of pixels
     .slice(0, 3) // Top 3 colors
     .map((c: any) => {
       const rgb = c.color;
@@ -432,8 +538,7 @@ function inferGender(visionData: any): AIFieldResult<'boy' | 'girl' | 'unisex'> 
     return { value: 'girl', confidence: 0.70 };
   }
 
-  // Default to unisex with low confidence
-  return { value: 'unisex', confidence: 0.50 };
+  return null;
 }
 
 /**

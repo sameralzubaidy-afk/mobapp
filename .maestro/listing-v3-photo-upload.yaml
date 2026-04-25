@@ -1,0 +1,91 @@
+# Maestro Flow: V3 Photo Upload & Auto-Grouping
+# MODULE-04 LISTING-V3: TASK LISTING-V3-003
+# Tests: Photo selection → validation → compression → grouping
+
+appId: com.kidsp2pmarketplace.app
+---
+
+# 1. Navigate to Sell screen
+- tapOn:
+    id: "tab-sell"
+- assertVisible:
+    id: "sell-screen"
+
+# 2. Tap "Create Listing" FAB
+- tapOn:
+    id: "fab-create-listing"
+- assertVisible:
+    id: "create-listing-bottom-sheet"
+
+# 3. Select "Photo-First" option
+- tapOn:
+    id: "option-photo-first"
+    text: "Start with Photos"
+- waitForAnimationToEnd
+
+# 4. Should navigate to PhotoUploadScreen
+- assertVisible:
+    id: "photo-upload-screen"
+- assertVisible:
+    id: "photo-selection-header"
+    text: "Select Photos"
+
+# 5. Tap to select photos from gallery
+- tapOn:
+    id: "button-select-photos"
+- waitForAnimationToEnd
+
+# Mock photo selection (if running in simulator with test photos)
+# In real device testing, manually select 4 photos
+
+# 6. Verify photo thumbnails appear
+- assertVisible:
+    id: "photo-thumbnail-0"
+- assertVisible:
+    id: "photo-thumbnail-1"
+
+# 7. Verify auto-grouping creates groups (2 photos per group default)
+- assertVisible:
+    id: "photo-group-0"
+- assertVisible:
+    id: "photo-group-1"
+
+# 8. Verify "Next" button is enabled
+- assertVisible:
+    id: "button-next-photo-upload"
+    enabled: true
+
+# 9. Verify photo count indicator
+- assertVisible:
+    id: "photo-count-indicator"
+    text: "4 photos • 2 groups"
+
+# 10. Test regroup functionality (move photo from group 0 to group 1)
+- longPressOn:
+    id: "photo-thumbnail-0-0" # First photo of first group
+- waitForAnimationToEnd
+- dragTo:
+    id: "photo-group-1"
+- assertVisible:
+    id: "photo-thumbnail-1-2" # Should now have 3rd photo in group 1
+
+# 11. Tap "Next" to proceed
+- tapOn:
+    id: "button-next-photo-upload"
+- waitForAnimationToEnd
+
+# 12. Should navigate to AI Analysis screen
+- assertVisible:
+    id: "ai-analysis-screen"
+- assertVisible:
+    text: "Analyzing photos..."
+
+# Wait for AI analysis to complete (max 30 seconds)
+- waitForAnimationToEnd:
+    timeout: 30000
+
+# 13. Verify AI results appear
+- assertVisible:
+    id: "ai-analysis-results"
+- assertVisible:
+    id: "button-review-suggestions"

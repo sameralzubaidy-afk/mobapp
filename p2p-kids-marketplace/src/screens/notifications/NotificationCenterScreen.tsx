@@ -265,7 +265,17 @@ export default function NotificationCenterScreen() {
         await markNotificationAsRead(notification.id, userId);
       }
 
-      const notificationData = (notification.data ?? {}) as NotificationDeepLinkData;
+      const notificationData = {
+        ...(notification.data ?? {}),
+        type:
+          typeof (notification.data ?? {}).type === 'string'
+            ? (notification.data ?? {}).type
+            : notification.type,
+        notification_id:
+          typeof (notification.data ?? {}).notification_id === 'string'
+            ? (notification.data ?? {}).notification_id
+            : notification.id,
+      } as NotificationDeepLinkData;
       const target = parseNotificationDeepLink(notificationData);
 
       logDeepLinkNavigation('in_app', notificationData, target);

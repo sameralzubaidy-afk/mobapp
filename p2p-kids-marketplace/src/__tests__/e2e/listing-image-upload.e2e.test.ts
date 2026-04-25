@@ -168,8 +168,8 @@ describeE2E('Listing Image Upload - E2E Tests', () => {
     console.log('[E2E] ✅ Multiple images uploaded with correct display_order');
   }, 60000); // 60s timeout for multiple uploads
 
-  it('should reject upload if more than 5 images provided', async () => {
-    const mockImageUris = Array(6)
+  it('should reject upload if more than 10 images provided', async () => {
+    const mockImageUris = Array(11)
       .fill(null)
       .map(
         () =>
@@ -177,7 +177,7 @@ describeE2E('Listing Image Upload - E2E Tests', () => {
       );
 
     await expect(uploadListingImages(testItemId, testUserId, mockImageUris)).rejects.toThrow(
-      'Maximum 5 images allowed per listing'
+      'Maximum 10 images allowed per listing'
     );
   });
 

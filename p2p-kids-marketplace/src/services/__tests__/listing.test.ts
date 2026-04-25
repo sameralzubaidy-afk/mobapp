@@ -201,6 +201,55 @@ describe('listing service', () => {
       ).rejects.toThrow('You are not authorized to edit this listing');
     });
 
+    it('should auto-transition needs_edits listing back to pending when seller edits fields', async () => {
+      const fetchBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'listing-123',
+            seller_id: 'user-123',
+            status: 'needs_edits',
+            title: 'Old Title',
+          },
+          error: null,
+        }),
+      } as any;
+
+      const updateBuilder = {
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'listing-123',
+            seller_id: 'user-123',
+            status: 'pending',
+            title: 'New Title',
+          },
+          error: null,
+        }),
+      } as any;
+
+      mockSupabase.from.mockReturnValueOnce(fetchBuilder).mockReturnValueOnce(updateBuilder);
+
+      const result = await updateListing({
+        listing_id: 'listing-123',
+        user_id: 'user-123',
+        title: 'New Title',
+      });
+
+      expect(result.status).toBe('pending');
+      expect(updateBuilder.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'pending',
+          flagged_at: null,
+          edited_since_rejection: false,
+          edited_since_rejection_at: null,
+        })
+      );
+    });
+
     it('should re-validate subscription when toggling SP', async () => {
       // Mock: Fetch listing
       mockSupabase.from = jest.fn().mockReturnValue({

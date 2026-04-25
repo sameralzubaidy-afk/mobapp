@@ -66,6 +66,15 @@ const mockFlaggedListing = {
   rejected_at: null,
 };
 
+const mockNeedsEditsLegacyListing = {
+  ...mockRejectedListing,
+  status: 'needs_edits',
+  flagged_at: null,
+  rejected_at: null,
+  appeal_count: null,
+  updated_at: '2026-03-04T12:00:00Z',
+};
+
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockGetListingById = getListingById as jest.MockedFunction<typeof getListingById>;
 const mockSubmitListingAppeal = submitListingAppeal as jest.MockedFunction<typeof submitListingAppeal>;
@@ -256,5 +265,20 @@ describe('ListingSafetyReviewScreen', () => {
     await waitFor(() => {
       expect(screen.getByText(/you can only review your own listing safety status/i)).toBeTruthy();
     });
+  });
+
+  it('uses fallback timestamps for needs_edits listings with legacy null moderation dates', async () => {
+    mockGetListingById.mockResolvedValue(mockNeedsEditsLegacyListing as any);
+
+    render(<ListingSafetyReviewScreen />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Test Item')).toBeTruthy();
+      expect(screen.getByText(/needs edits/i)).toBeTruthy();
+      expect(screen.getByText('0')).toBeTruthy();
+    });
+
+    expect(screen.queryByText('N/A')).toBeNull();
+    expect(screen.getAllByText(new Date('2026-03-04T12:00:00Z').toLocaleString()).length).toBeGreaterThan(0);
   });
 });

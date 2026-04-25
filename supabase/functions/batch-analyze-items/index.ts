@@ -23,7 +23,7 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
 const MAX_CONCURRENCY = 5;
-const TIMEOUT_MS = 10_000; // 10 seconds per item
+const TIMEOUT_MS = 20_000; // 20 seconds per item
 
 type DownstreamAuthHeaders = {
   authorization: string;

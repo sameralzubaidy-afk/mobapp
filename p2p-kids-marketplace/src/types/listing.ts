@@ -27,8 +27,15 @@ export type ListingStatus =
 /**
  * Item condition enum
  * Matches items.condition column in database
+ * MODULE-04 V3: Updated to use 'worn' instead of 'poor' for consistency
  */
-export type ListingCondition = 'new' | 'like_new' | 'good' | 'fair' | 'poor';
+export type ListingCondition = 'new' | 'like_new' | 'good' | 'fair' | 'worn';
+
+/**
+ * Condition type alias for V3 compatibility
+ * MODULE-04 V3: LISTING-V3-003
+ */
+export type Condition = ListingCondition;
 
 /**
  * Complete listing object from database
@@ -47,6 +54,13 @@ export interface Listing {
   // V2 fields:
   accepts_swap_points: boolean; // Whether seller accepts SP payment
   seller_subscription_status_at_creation: string | null; // Audit: seller sub status when created
+
+  // V3 listing metadata fields
+  brand?: string | null;
+  color?: string[] | null;
+  age_group?: '0-2' | '3-5' | '6-8' | '9-12' | '13+' | null;
+  gender?: 'boy' | 'girl' | 'unisex' | null;
+  requested_category_name?: string | null;
 
   // MODULE-13 SAFETY-P003: Safety/moderation fields
   flagged_at: string | null;
@@ -94,9 +108,14 @@ export interface CreateListingInput {
   description: string;
   price: number; // Dollars (will be validated > 0)
   category_id?: string;
+  requested_category_name?: string | null;
   condition: ListingCondition;
   image_urls?: string[]; // To be uploaded/stored separately
   accepts_swap_points: boolean; // V2: SP payment preference
+  brand?: string | null;
+  color?: string[] | null;
+  age_group?: '0-2' | '3-5' | '6-8' | '9-12' | '13+' | null;
+  gender?: 'boy' | 'girl' | 'unisex' | null;
 }
 
 /**
@@ -110,9 +129,14 @@ export interface UpdateListingInput {
   title?: string;
   description?: string;
   price?: number; // Dollars
-  category_id?: string;
+  category_id?: string | null;
+  requested_category_name?: string | null;
   condition?: ListingCondition;
   accepts_swap_points?: boolean; // V2: Can toggle SP acceptance
+  brand?: string | null;
+  color?: string[] | null;
+  age_group?: '0-2' | '3-5' | '6-8' | '9-12' | '13+' | null;
+  gender?: 'boy' | 'girl' | 'unisex' | null;
 }
 
 /**
@@ -232,7 +256,7 @@ export interface DraftData {
   accepts_swap_points?: boolean;
   photo_urls?: string[];
   ai_suggestions?: AIAnalysisResult;
-  step?: 'photo' | 'details' | 'pricing' | 'review';
+  step?: 'photos' | 'grouping' | 'details' | 'price' | 'review';
 }
 
 /**
@@ -245,7 +269,7 @@ export interface ItemDraft {
   draft_data: DraftData;
   photo_urls: string[];
   ai_suggestions: AIAnalysisResult | null;
-  step: 'photo' | 'details' | 'pricing' | 'review';
+  step: 'photos' | 'grouping' | 'details' | 'price' | 'review';
   expires_at: string;
   created_at: string;
   updated_at: string;

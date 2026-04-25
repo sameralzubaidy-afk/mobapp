@@ -62,6 +62,21 @@ const isSchemaDriftForEditedTracking = (
   );
 };
 
+const isSchemaDriftForRequestedCategoryName = (
+  error: { code?: string; message?: string } | null
+): boolean => {
+  if (!error) {
+    return false;
+  }
+
+  if (error.code !== 'PGRST204') {
+    return false;
+  }
+
+  const message = (error.message ?? '').toLowerCase();
+  return message.includes('requested_category_name');
+};
+
 const wasEditedAfterRejection = (
   rejectedAt: string | null | undefined,
   updatedAt: string | null | undefined
@@ -77,6 +92,23 @@ const wasEditedAfterRejection = (
   }
 
   return updatedAtMs > rejectedAtMs;
+};
+
+const wasEditedAfterReference = (
+  referenceAt: string | null | undefined,
+  updatedAt: string | null | undefined
+): boolean => {
+  if (!referenceAt || !updatedAt) {
+    return false;
+  }
+
+  const referenceAtMs = Date.parse(referenceAt);
+  const updatedAtMs = Date.parse(updatedAt);
+  if (!Number.isFinite(referenceAtMs) || !Number.isFinite(updatedAtMs)) {
+    return false;
+  }
+
+  return updatedAtMs > referenceAtMs;
 };
 
 const isRlsPolicyError = (message: string | undefined): boolean => {
@@ -164,8 +196,20 @@ const uploadListingImageWithFallback = async (
  * @throws Error if validation fails or user is not authorized
  */
 export async function createListing(input: CreateListingInput): Promise<Listing> {
-  const { seller_id, title, description, price, category_id, condition, accepts_swap_points } =
-    input;
+  const {
+    seller_id,
+    title,
+    description,
+    price,
+    category_id,
+    requested_category_name,
+    condition,
+    accepts_swap_points,
+    brand,
+    color,
+    age_group,
+    gender,
+  } = input;
 
   // Validate price
   if (price <= 0) {
@@ -211,6 +255,13 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
   }
 
   // Create listing in database
+  const normalizedRequestedCategoryName =
+    requested_category_name && requested_category_name.trim().length > 0
+      ? requested_category_name.trim()
+      : null;
+  const normalizedBrand = brand && brand.trim().length > 0 ? brand.trim() : null;
+  const normalizedColor = color && color.length > 0 ? color : null;
+
   const { data, error } = await supabase
     .from('items')
     .insert({
@@ -219,7 +270,12 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
       description,
       price, // DB stores as DECIMAL, not cents
       category_id,
+      requested_category_name: normalizedRequestedCategoryName,
       condition,
+      brand: normalizedBrand,
+      color: normalizedColor,
+      age_group: age_group || null,
+      gender: gender || null,
       status: 'pending',
       accepts_swap_points,
       seller_subscription_status_at_creation: sellerSubStatus, // V2: Audit trail
@@ -285,7 +341,7 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
  * 1. Upload to item-images/{seller_id}/{listing_id}/{index}.jpg
  * 2. Insert rows into item_images table with public URLs
  * 3. First image (index 0) is the primary/cover image
- * 4. Support up to 5 images per listing
+ * 4. Support up to 10 images per listing
  *
  * @param listing_id - The listing ID to attach images to
  * @param seller_id - The seller user ID (for storage path)
@@ -302,8 +358,8 @@ export async function uploadListingImages(
     return [];
   }
 
-  if (imageUris.length > 5) {
-    throw new Error('Maximum 5 images allowed per listing');
+    if (imageUris.length > 10) {
+      throw new Error('Maximum 10 images allowed per listing');
   }
 
   const uploadedImages: { url: string; display_order: number }[] = [];
@@ -404,8 +460,8 @@ export async function syncListingImages(
   seller_id: string,
   images: ListingImageDraft[]
 ): Promise<void> {
-  if (images.length > 5) {
-    throw new Error('Maximum 5 images allowed per listing');
+  if (images.length > 10) {
+    throw new Error('Maximum 10 images allowed per listing');
   }
 
   const { data: existingRows, error: existingError } = await supabase
@@ -513,7 +569,7 @@ export async function syncListingImages(
       })
       .eq('id', listing_id)
       .eq('seller_id', seller_id)
-      .eq('status', 'rejected');
+      .in('status', ['rejected', 'needs_edits']);
 
     if (markEditedError) {
       console.warn(
@@ -591,8 +647,13 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
     'description',
     'price',
     'category_id',
+    'requested_category_name',
     'condition',
     'accepts_swap_points',
+    'brand',
+    'color',
+    'age_group',
+    'gender',
   ] as const;
 
   const hasSellerEdits = editableFieldKeys.some(
@@ -601,7 +662,14 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
       updatePayload[field] !== listing[field]
   );
 
-  if (hasSellerEdits && listing.status === 'rejected') {
+  if (hasSellerEdits && listing.status === 'needs_edits') {
+    // Align seller edit flow with SAFETY-008: once seller addresses requested edits,
+    // move listing back to pending moderation automatically.
+    updatePayload.status = 'pending';
+    updatePayload.appeal_count = Number(listing.appeal_count ?? 0) + 1;
+    updatePayload.edited_since_rejection = false;
+    updatePayload.edited_since_rejection_at = null;
+  } else if (hasSellerEdits && listing.status === 'rejected') {
     updatePayload.edited_since_rejection = true;
     updatePayload.edited_since_rejection_at = new Date().toISOString();
   }
@@ -620,6 +688,12 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
     const fallbackPayload = { ...updatePayload };
     delete fallbackPayload.edited_since_rejection;
     delete fallbackPayload.edited_since_rejection_at;
+    ({ data, error } = await runUpdate(fallbackPayload));
+  }
+
+  if (error && isSchemaDriftForRequestedCategoryName(error)) {
+    const fallbackPayload = { ...updatePayload };
+    delete fallbackPayload.requested_category_name;
     ({ data, error } = await runUpdate(fallbackPayload));
   }
 
@@ -778,6 +852,133 @@ export async function submitListingAppeal(
     appeal_reason_length: trimmedAppealReason.length,
     max_appeal_attempts: maxAppealAttempts,
     appeal_window_days: appealWindowDays,
+  });
+
+  return data as Listing;
+}
+
+/**
+ * SAFETY-008 + SAFETY-P003: Seller resubmission flow for needs_edits listings
+ *
+ * Rules:
+ * 1. Only listing owner can resubmit
+ * 2. Listing must currently be in 'needs_edits' status
+ * 3. Seller must have made at least one edit since admin request
+ * 4. Resubmission transitions listing to 'pending' for standard admin review queue
+ */
+export async function submitListingNeedsEditsReReview(
+  listing_id: string,
+  seller_id: string
+): Promise<Listing> {
+  let { data: listing, error: fetchError } = await supabase
+    .from('items')
+    .select('id, seller_id, status, appeal_count, edited_since_rejection, rejected_at, updated_at')
+    .eq('id', listing_id)
+    .single();
+
+  if (fetchError && isSchemaDriftForEditedTracking(fetchError)) {
+    const fallbackResult = await supabase
+      .from('items')
+      .select('id, seller_id, status, rejected_at, flagged_at, created_at, updated_at')
+      .eq('id', listing_id)
+      .single();
+
+    listing = fallbackResult.data as {
+      id: string;
+      seller_id: string;
+      status: string;
+      appeal_count?: number | null;
+      rejected_at: string | null;
+      flagged_at: string | null;
+      created_at: string | null;
+      updated_at: string | null;
+      edited_since_rejection?: boolean;
+    } | null;
+    fetchError = fallbackResult.error;
+
+    if (!fetchError && listing) {
+      const referenceAt = listing.flagged_at ?? listing.rejected_at ?? listing.created_at;
+      listing.edited_since_rejection = wasEditedAfterReference(
+        referenceAt,
+        listing.updated_at
+      );
+    }
+  }
+
+  if (fetchError) {
+    throw new Error(`Failed to load listing for re-review: ${fetchError.message}`);
+  }
+
+  if (!listing) {
+    throw new Error('Listing not found');
+  }
+
+  if (listing.seller_id !== seller_id) {
+    throw new Error('You are not authorized to resubmit this listing');
+  }
+
+  if (listing.status !== 'needs_edits') {
+    throw new Error('Only listings in needs edits status can be resubmitted');
+  }
+
+  const editedSinceRejection =
+    listing.edited_since_rejection ??
+    wasEditedAfterRejection(listing.rejected_at, listing.updated_at);
+
+  if (!editedSinceRejection) {
+    throw new Error('Please make at least one edit before submitting for re-review.');
+  }
+
+  const runResubmitUpdate = async (payload: Record<string, unknown>) =>
+    supabase
+      .from('items')
+      .update(payload)
+      .eq('id', listing_id)
+      .eq('seller_id', seller_id)
+      .select()
+      .single();
+
+  let { data, error } = await runResubmitUpdate({
+    status: 'pending',
+    appeal_count: Number(listing.appeal_count ?? 0) + 1,
+    edited_since_rejection: false,
+    edited_since_rejection_at: null,
+  });
+
+  if (error && isSchemaDriftForEditedTracking(error)) {
+    ({ data, error } = await runResubmitUpdate({
+      status: 'pending',
+      appeal_count: Number(listing.appeal_count ?? 0) + 1,
+    }));
+  }
+
+  if (error) {
+    const err = error as Error;
+    console.error('[listing] submitListingNeedsEditsReReview error:', err.message);
+    throw new Error(`Failed to submit for re-review: ${error.message}`);
+  }
+
+  // Defensive guard for environments with unexpected server-side status rewrites.
+  if (data?.status !== 'pending') {
+    const retryResult = await runResubmitUpdate({
+      status: 'pending',
+      appeal_count: Number(listing.appeal_count ?? 0) + 1,
+    });
+
+    if (retryResult.error) {
+      const err = retryResult.error as Error;
+      console.error('[listing] submitListingNeedsEditsReReview retry error:', err.message);
+      throw new Error(`Failed to submit for re-review: ${retryResult.error.message}`);
+    }
+
+    data = retryResult.data;
+  }
+
+  await trackEvent('listing_resubmitted_for_review', {
+    listing_id,
+    seller_id,
+    previous_status: 'needs_edits',
+    next_status: 'pending',
   });
 
   return data as Listing;

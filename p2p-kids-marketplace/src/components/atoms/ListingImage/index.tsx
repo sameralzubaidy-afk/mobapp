@@ -20,7 +20,7 @@ interface ListingImageProps extends Omit<ImageProps, 'source'> {
 
 export const ListingImage: React.FC<ListingImageProps> = ({
   url,
-  aspectRatio = 1,
+  aspectRatio,
   containerStyle,
   imageStyle,
   placeholderText = 'No Image',
@@ -28,9 +28,10 @@ export const ListingImage: React.FC<ListingImageProps> = ({
   ...props
 }) => {
   const cdnUrl = url ? transformToCdnUrl(url) : null;
+  const ratioStyle = typeof aspectRatio === 'number' ? { aspectRatio } : null;
 
   return (
-    <View style={[styles.container, { aspectRatio }, containerStyle]}>
+    <View style={[styles.container, ratioStyle, containerStyle]}>
       {cdnUrl ? (
         <Image
           source={{ uri: cdnUrl }}

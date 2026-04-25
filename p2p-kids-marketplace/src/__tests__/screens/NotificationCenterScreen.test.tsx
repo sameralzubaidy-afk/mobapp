@@ -256,6 +256,52 @@ describe('NotificationCenterScreen', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('SpWallet');
   });
 
+  it('navigates to the listing flow when the notification type is only present on the row', async () => {
+    const notifications = [
+      makeNotification('n1', {
+        type: 'item_needs_edits',
+        data: { item_id: 'listing-123' },
+        is_read: false,
+      }),
+    ];
+    mockGetUserNotifications.mockResolvedValue({ success: true, data: notifications });
+    mockMarkNotificationAsRead.mockResolvedValue({ success: true });
+
+    const { getByTestId } = render(<NotificationCenterScreen />);
+    await waitFor(() => expect(getByTestId('notification-item-n1')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(getByTestId('notification-item-n1'));
+    });
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('ListingSafetyReview', {
+      listing_id: 'listing-123',
+    });
+  });
+
+  it('navigates to listing detail for listing-approved notifications', async () => {
+    const notifications = [
+      makeNotification('n1', {
+        type: 'listing_approved',
+        data: { item_id: 'listing-789' },
+        is_read: false,
+      }),
+    ];
+    mockGetUserNotifications.mockResolvedValue({ success: true, data: notifications });
+    mockMarkNotificationAsRead.mockResolvedValue({ success: true });
+
+    const { getByTestId } = render(<NotificationCenterScreen />);
+    await waitFor(() => expect(getByTestId('notification-item-n1')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(getByTestId('notification-item-n1'));
+    });
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('ListingDetail', {
+      listing_id: 'listing-789',
+    });
+  });
+
   // ── Screen title ──────────────────────────────────────────────────────────
 
   it('renders "Notifications" as the screen title', async () => {
