@@ -3,9 +3,11 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import MyListingsScreen from '../../screens/listing/MyListingsScreen';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyListings, getListingSummary, deleteListing } from '../../services/listing';
+import { getActiveDrafts } from '../../services/draftService';
 
 jest.mock('../../hooks/useAuth');
 jest.mock('../../services/listing');
+jest.mock('../../services/draftService');
 
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (callback: () => void) => {
@@ -26,6 +28,7 @@ jest.mock('../../components/organisms/BottomNavBar', () => {
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockGetMyListings = getMyListings as jest.MockedFunction<typeof getMyListings>;
 const mockGetListingSummary = getListingSummary as jest.MockedFunction<typeof getListingSummary>;
+const mockGetActiveDrafts = getActiveDrafts as jest.MockedFunction<typeof getActiveDrafts>;
 
 const mockNavigation = {
   navigate: jest.fn(),
@@ -49,6 +52,7 @@ describe('MyListingsScreen', () => {
       total_sold: 0,
       total_earnings_dollars: 0,
     });
+    mockGetActiveDrafts.mockResolvedValue([]);
 
     (deleteListing as jest.Mock).mockResolvedValue(undefined);
   });
@@ -77,7 +81,7 @@ describe('MyListingsScreen', () => {
       } as any,
     ]);
 
-    const { getByLabelText } = render(
+    const { findByLabelText } = render(
       <MyListingsScreen navigation={mockNavigation as any} />
     );
 
@@ -85,7 +89,7 @@ describe('MyListingsScreen', () => {
       expect(mockGetMyListings).toHaveBeenCalledWith('seller-1');
     });
 
-    const cardButton = getByLabelText('Open details for Rejected stroller');
+    const cardButton = await findByLabelText('Open details for Rejected stroller');
     fireEvent.press(cardButton);
 
     expect(mockNavigation.navigate).toHaveBeenCalledWith('ListingSafetyReview', {

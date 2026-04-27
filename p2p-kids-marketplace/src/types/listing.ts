@@ -266,6 +266,7 @@ export interface DraftData {
 export interface ItemDraft {
   id: string;
   seller_id: string;
+  bulk_upload_id: string | null; // FK to item_bulk_uploads (null for single items)
   draft_data: DraftData;
   photo_urls: string[];
   ai_suggestions: AIAnalysisResult | null;

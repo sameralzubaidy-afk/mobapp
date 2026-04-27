@@ -65,37 +65,54 @@ My Example 1
 ### Description
 
 
-## TASK LISTING-V3-006: BulkListingCreateScreen (new)
+
+## TASK LISTING-V3-008: Supporting Components
 
 I’m working on the  MODULE-04-ITEM-LISTING-V3.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-04-ITEM-LISTING-V3.md
-Tasks:## TASK LISTING-V3-006: BulkListingCreateScreen (new)
+Tasks:## TASK LISTING-V3-008: Supporting Components
 
 scope is 
 
-Wire the draft-resume UX and the bulk/single entry points: a resume banner on home, a Drafts tab on Your Listings, and a Sell-tab FAB bottom sheet that routes users into either the single or bulk creation flow.
+Generate the 10 presentational components used by `ItemCreateScreen` and `BulkListingCreateScreen`. These components are purely visual — they accept typed props and emit events. No service calls, no navigation, no direct state persistence.
 
 ### Scope
-- 1 new component (`ResumeDraftBanner`), 2 screen modifications (Your Listings, navigator).
-- FAB bottom sheet with two routes.
-- Drafts tab with swipe-to-discard.
+
+- 10 component files under `src/components/listing/` (Photo, AI card, Category modal, Condition selector + guide, Color picker, Age/Gender selectors, Price card, Publish button).
+- Full a11y labels + hints.
+- Strict TS, typed props, ≤ ~150 lines each.
+
 
 ### Files
 
-| Path | Purpose |
+| Path | Role |
 |---|---|
-| `p2p-kids-marketplace/src/components/molecules/ResumeDraftBanner.tsx` | "You have N unfinished listing(s). Continue?" |
-| `p2p-kids-marketplace/src/screens/profile/YourListingsScreen.tsx` | MODIFY — add "Drafts" tab |
-| Navigator file (e.g. `src/navigation/RootNavigator.tsx`) | MODIFY — register `BulkListingCreate`, Sell-tab FAB bottom sheet |
+| `src/components/listing/PhotoUploadManager.tsx` | Step-1 photo grid, cover badge, drag reorder, 10-photo cap |
+| `src/components/listing/AIAnalysisCard.tsx` | Sliding card with Apply All + per-field Use |
+| `src/components/listing/CategorySelectModal.tsx` | Full-screen modal; search, recent-3, all, Other |
+| `src/components/listing/ConditionSelector.tsx` | 5 radio rows; each with 📸 opening `ConditionGuideOverlay` |
+| `src/components/listing/ConditionGuideOverlay.tsx` | Real-photo examples per condition |
+| `src/components/listing/ColorPicker.tsx` | 12-swatch multi-select |
+| `src/components/listing/AgeGroupSelector.tsx` | 5 pills: 0-2…13+ |
+| `src/components/listing/GenderSelector.tsx` | 4 pills: boy / girl / unisex / Any |
+| `src/components/listing/PriceSuggestionCard.tsx` | 4 tier cards + manual input |
+| `src/components/listing/PublishButton.tsx` | Large primary button with loading + disabled states |
 
 ### Acceptance Criteria
 
-- [ ] On app open (mount of `HomeScreen`): if `getActiveDrafts(userId).length > 0`, show `ResumeDraftBanner`.
-- [ ] Tapping banner opens `ItemCreateScreen` with `{ draftId }` param (or `BulkListingCreate` if the draft has `bulk_upload_id`).
-- [ ] Banner dismiss is soft (session-level state); it will reappear next app open.
-- [ ] "Your Listings" screen has a **Drafts** tab showing `getActiveDrafts` results with relative time-ago and "Resume" button.
-- [ ] Drafts tab supports swipe-to-discard which calls `deleteDraft`.
-- [ ] Sell-tab FAB shows a bottom sheet: "List One Item" → `ItemCreate`, "Bulk Upload" → `BulkListingCreate`.
+- [ ] All components are function components with typed props.
+- [ ] No component imports from screens (clean layering).
+- [ ] `PhotoUploadManager` uses `react-native-draggable-flatlist`; marks `photos[0]` with "Cover" badge; enforces 10-photo cap.
+- [ ] `AIAnalysisCard` props: `{ analysis: AIAnalysisResult; isFieldFilled: (field) => boolean; onApplyAll(); onApplyField(field, value); onDismiss() }`.
+- [ ] `CategorySelectModal` props: `{ visible, categories, recent, onSelect(category), onSelectOther(name), onClose }`.
+- [ ] `ConditionSelector` props: `{ value, onChange, onOpenGuide(code) }`.
+- [ ] `ColorPicker` multi-select; selected state rendered via border + check mark; `accessibilityState={{ selected }}`.
+- [ ] `PriceSuggestionCard` props: `{ tiers, selectedTier, manualValue, onSelectTier, onChangeManual, onShowFaq }`; renders manual-only when `tiers.length === 0`.
+- [ ] `GenderSelector` "Any" maps `value` to `undefined` (not a string).
+- [ ] `AgeGroupSelector` values match MODULE-05 V3 enum exactly.
+- [ ] Full a11y on all interactive elements.
+- [ ] Each component ≤ ~150 lines.
+
 
 i want you to 
 

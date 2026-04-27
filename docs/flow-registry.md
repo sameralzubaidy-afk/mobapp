@@ -821,6 +821,45 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Tier: Tier 0 (always - typecheck + lint + unit tests); Tier 1 (UI/service changes - integration + Maestro)
     - Module: MODULE-04-ITEM-LISTING-V3 (TASK LISTING-V3-005: ItemCreateScreen Photo-First Rebuild)
     - Coexistence Note: V2 CreateListingScreen (route "CreateListing") is preserved unchanged. V3 ItemCreateScreen (route "ItemCreate") is a new parallel implementation.
+  - **LISTING-V3-007 (2026-04-27):** Draft Resume UX – Banner + Drafts Tab + FAB Bottom Sheet
+    - Purpose: Allow users to resume unfinished listings from dashboard banner or Drafts tab
+    - Scope:
+      - Dashboard (Home screen) shows ResumeDraftBanner when active drafts exist
+      - Banner displays draft count, Continue button (navigates to ItemCreate or BulkListingCreate), session-level dismiss
+      - My Listings screen gets Drafts tab with list of active drafts (title, type, photo count, time ago)
+      - Draft cards have Resume and Discard buttons
+      - FAB (+ button) on My Listings opens bottom sheet with "List One Item" and "Bulk Upload" options
+    - Files:
+      - NEW: `p2p-kids-marketplace/src/components/molecules/ResumeDraftBanner.tsx`
+      - MODIFIED: `p2p-kids-marketplace/src/screens/dashboard/UserDashboardScreen.tsx` (banner integration)
+      - MODIFIED: `p2p-kids-marketplace/src/screens/listing/MyListingsScreen.tsx` (tabs, drafts list, FAB sheet)
+    - Service Dependencies:
+      - `getActiveDrafts(sellerId)` from `src/services/draftService.ts` (existing)
+      - `deleteDraft(draftId)` from `src/services/draftService.ts` (existing)
+    - Navigation:
+      - Banner Resume → `navigation.navigate('ItemCreate', { draftId })` OR `navigation.navigate('BulkListingCreate', { draftId })`
+      - FAB "List One Item" → `navigation.navigate('ItemCreate')`
+      - FAB "Bulk Upload" → `navigation.navigate('BulkListingCreate')`
+    - Draft Auto-Save:
+      - Drafts auto-save on exit from ItemCreate/BulkListingCreate (no manual save)
+      - Max 5 drafts per seller (oldest auto-evicted via DB trigger)
+      - 7-day TTL (expires_at); getActiveDrafts filters expired
+    - UX Behaviors:
+      - Banner dismiss is session-level only (reappears on app restart)
+      - Banner uses most recent draft (drafts sorted by updated_at DESC)
+      - Drafts tab shows relative time ("30m ago", "1h ago", "2d ago")
+      - Discard draft shows confirmation alert before deletion
+    - Tests:
+      - Unit: `src/components/molecules/__tests__/ResumeDraftBanner.test.tsx` (8 test cases)
+      - Integration: `src/__tests__/integration/listing-v3-007-draft-resume.integration.test.ts` (8 test scenarios)
+      - Maestro: `.maestro/listing-v3-007-draft-resume.yaml` (24 states covered)
+      - Manual: `LISTING-V3-007-MANUAL-TESTING-GUIDE.md` (20 test cases)
+    - Verification:
+      - Tier 0: `npm run typecheck`, `npm run lint` (MUST PASS before manual testing)
+      - Tier 1: `npm run test:unit`, `RUN_SUPABASE_E2E=true npm run test:e2e`
+      - Maestro: `npm run test:maestro:ios`, `npm run test:maestro:android`
+    - Regression: Tier 1 (targeted smoke when listings/drafts/navigation changes)
+    - Module: MODULE-04-ITEM-LISTING-V3 (TASK LISTING-V3-007)
 
 ### FLOW-05: Media Upload (Storage) – Listing Photos
 - Smoke: (manual)

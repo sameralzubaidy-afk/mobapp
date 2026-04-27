@@ -12,7 +12,7 @@
  * - Manual price entry
  */
 
-import React, { useReducer, useState, useEffect, useCallback } from 'react';
+import React, { useReducer, useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -105,6 +105,9 @@ export default function ItemCreateScreen() {
   
   const draftId = route.params?.draftId;
   const sellerId = session?.user?.id || '';
+  const hasTriggeredInitialDraftCreateRef = useRef(false);
+  const hasHydratedDraftRef = useRef(false);
+  const pendingCategoryIdRef = useRef<string | null>(null);
 
   // State machine
   const [flowState, dispatch] = useReducer(stateReducer, 'IDLE');
@@ -137,14 +140,16 @@ export default function ItemCreateScreen() {
   const [showAICard, setShowAICard] = useState(false);
   const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false);
   const [, setError] = useState<string | null>(null);
+  const [isDraftHydrated, setIsDraftHydrated] = useState(!draftId);
 
   // Draft management
   const {
+    draft,
     save: saveDraft,
     saveNow,
     discard: discardDraft,
     saveError,
-  } = useItemDraft(draftId, sellerId);
+  } = useItemDraft(draftId, sellerId, { autoCreateOnMount: false });
 
   // AI analysis
   const {
@@ -166,6 +171,84 @@ export default function ItemCreateScreen() {
     }, [session?.user?.id])
   );
 
+  // Reset hydration guards when navigating to a different draft.
+  useEffect(() => {
+    hasHydratedDraftRef.current = false;
+    pendingCategoryIdRef.current = null;
+    setIsDraftHydrated(!draftId);
+  }, [draftId]);
+
+  // Hydrate form state once when resuming an existing draft.
+  useEffect(() => {
+    if (!draftId || !draft || hasHydratedDraftRef.current) {
+      return;
+    }
+
+    const draftData = (draft.draft_data || {}) as Partial<DraftData>;
+    const restoredPhotoUrls = Array.isArray(draftData.photo_urls)
+      ? draftData.photo_urls
+      : Array.isArray(draft.photo_urls)
+      ? draft.photo_urls
+      : [];
+
+    setTitle(draftData.title || '');
+    setDescription(draftData.description || '');
+    setRequestedCategoryName(draftData.requested_category_name || '');
+    setCondition(draftData.condition || null);
+    setBrand(draftData.brand || '');
+    setColors(Array.isArray(draftData.color) ? draftData.color : []);
+    setAgeGroup(draftData.age_group || null);
+    setGender(draftData.gender || null);
+    setAcceptsSwapPoints(Boolean(draftData.accepts_swap_points));
+
+    setUploadedPhotoUrls(restoredPhotoUrls);
+    setPhotos(
+      restoredPhotoUrls.map((uri, index) => ({
+        id: `restored-photo-${index}`,
+        uri,
+        width: 0,
+        height: 0,
+      }))
+    );
+
+    const savedCategoryId =
+      typeof draftData.category_id === 'string' && draftData.category_id.trim().length > 0
+        ? draftData.category_id
+        : null;
+
+    if (savedCategoryId) {
+      pendingCategoryIdRef.current = savedCategoryId;
+      const matchedCategory = categories.find((c) => c.id === savedCategoryId);
+      if (matchedCategory) {
+        setCategory(matchedCategory);
+        pendingCategoryIdRef.current = null;
+      } else if (savedCategoryId === 'other') {
+        setCategory({ id: 'other', name: 'Other', icon: null } as Category);
+        pendingCategoryIdRef.current = null;
+      }
+    }
+
+    if (restoredPhotoUrls.length > 0) {
+      dispatch({ type: 'PHOTOS_ADDED' });
+    }
+
+    hasHydratedDraftRef.current = true;
+    setIsDraftHydrated(true);
+  }, [draftId, draft, categories]);
+
+  // Resolve saved category id once categories load.
+  useEffect(() => {
+    if (!pendingCategoryIdRef.current || categories.length === 0) {
+      return;
+    }
+
+    const matchedCategory = categories.find((c) => c.id === pendingCategoryIdRef.current);
+    if (matchedCategory) {
+      setCategory(matchedCategory);
+      pendingCategoryIdRef.current = null;
+    }
+  }, [categories]);
+
   // Watch AI analysis status
   useEffect(() => {
     if (aiStatus === 'analyzing' && flowState !== 'AI_ANALYZING') {
@@ -186,6 +269,19 @@ export default function ItemCreateScreen() {
 
   // Auto-save draft on changes
   useEffect(() => {
+    if (!isDraftHydrated) {
+      return;
+    }
+
+    const hasUploadedPhotos = uploadedPhotoUrls.length > 0;
+    const isResumedDraft = Boolean(draftId);
+
+    // LISTING-V3-007 / TC-002 rule:
+    // Do not create or save a draft on first screen before any photo upload.
+    if (!hasUploadedPhotos && !isResumedDraft) {
+      return;
+    }
+
     const draftData: DraftData = {
       title,
       description,
@@ -199,11 +295,44 @@ export default function ItemCreateScreen() {
       accepts_swap_points: canAcceptSP ? acceptsSwapPoints : false,
       photo_urls: uploadedPhotoUrls,
       ai_suggestions: aiResult || undefined,
-      step: getCurrentStep(),
+      step:
+        photos.length === 0
+          ? 'photos'
+          : !title || !category || !condition
+          ? 'details'
+          : !priceInput
+          ? 'price'
+          : 'review',
     };
 
     saveDraft(draftData);
-  }, [title, description, category, condition, brand, colors, ageGroup, gender, uploadedPhotoUrls, acceptsSwapPoints]);
+
+    // Ensure first save after photo upload creates the draft row immediately.
+    if (!isResumedDraft && !hasTriggeredInitialDraftCreateRef.current) {
+      hasTriggeredInitialDraftCreateRef.current = true;
+      void saveNow();
+    }
+  }, [
+    title,
+    description,
+    category,
+    condition,
+    brand,
+    colors,
+    ageGroup,
+    gender,
+    uploadedPhotoUrls,
+    acceptsSwapPoints,
+    aiResult,
+    canAcceptSP,
+    draftId,
+    requestedCategoryName,
+    photos,
+    priceInput,
+    saveDraft,
+    saveNow,
+    isDraftHydrated,
+  ]);
 
   // On blur, save immediately
   useFocusEffect(
@@ -213,13 +342,6 @@ export default function ItemCreateScreen() {
       };
     }, [saveNow])
   );
-
-  const getCurrentStep = (): 'photos' | 'details' | 'price' | 'review' => {
-    if (photos.length === 0) return 'photos';
-    if (!title || !category || !condition) return 'details';
-    if (!priceInput) return 'price';
-    return 'review';
-  };
 
   const loadSubscription = async () => {
     if (!session?.user?.id) {

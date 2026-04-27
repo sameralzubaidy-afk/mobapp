@@ -1,5 +1,6 @@
 // File: p2p-kids-marketplace/src/screens/dashboard/UserDashboardScreen.tsx
 // MODULE-09: User Dashboard with Subscription & SP Wallet Stats
+// MODULE-04 LISTING-V3-007: Added ResumeDraftBanner
 
 import React, { useEffect, useState, useRef } from 'react';
 import {
@@ -23,6 +24,9 @@ import { idBadgeService } from '@/services/idBadge';
 import { TrialReminderBanner } from '../../components/TrialReminderBanner';
 import GracePeriodBanner from '../../components/GracePeriodBanner';
 import { PaymentFailureBanner } from '../../components/subscription/PaymentFailureBanner';
+import { ResumeDraftBanner } from '../../components/molecules/ResumeDraftBanner';
+import { getActiveDrafts } from '@/services/draftService';
+import { ItemDraft } from '@/types/listing';
 
 import CategorySelector from '../../components/molecules/CategorySelector';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
@@ -49,6 +53,8 @@ export default function UserDashboardScreen() {
   const [daysUntilExpiry] = useState<number | null>(null);
   const [graceEndDate, setGraceEndDate] = useState<string | null>(null);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<ItemDraft[]>([]);
+  const [isDraftBannerDismissed, setIsDraftBannerDismissed] = useState(false);
   const hasRefreshedRef = useRef(false);
 
   const loadSubscriptionTimeline = async () => {
@@ -101,6 +107,42 @@ export default function UserDashboardScreen() {
       }
     }
   };
+
+  const loadDrafts = async () => {
+    if (session?.user?.id) {
+      try {
+        const activeDrafts = await getActiveDrafts(session.user.id);
+        setDrafts(activeDrafts);
+      } catch (error) {
+        console.warn('[Dashboard] Failed to load drafts:', error);
+        setDrafts([]);
+      }
+    }
+  };
+
+  const handleResumeDraft = (draftId: string, isBulk: boolean) => {
+    if (isBulk) {
+      navigation.navigate('BulkListingCreate', { draftId });
+    } else {
+      navigation.navigate('ItemCreate', { draftId });
+    }
+  };
+
+  const handleDismissDraftBanner = () => {
+    setIsDraftBannerDismissed(true);
+  };
+
+  // CRITICAL FIX: wallet is NOT in deps - useSPWallet() returns a new object reference
+  // every render, which caused an infinite re-render loop on Android.
+  useEffect(() => {
+    if (isFocused) {
+      loadVerificationStatus();
+      loadSubscriptionTimeline();
+      loadDrafts();
+      // Reset banner dismiss state when screen gains focus (so it can show again on next launch)
+      setIsDraftBannerDismissed(false);
+    }
+  }, [isFocused]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -238,6 +280,17 @@ export default function UserDashboardScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* LISTING-V3-007: Resume Draft Banner */}
+          {!isDraftBannerDismissed && drafts.length > 0 && (
+            <ResumeDraftBanner
+              drafts={drafts}
+              onResume={handleResumeDraft}
+              onDismiss={handleDismissDraftBanner}
+            />
+          )}
+
+          {/* Trial Reminder Banner */}
 
           {/* Trial Reminder Banner (SUB-004) */}
           <TrialReminderBanner />

@@ -33,6 +33,10 @@ export interface UseItemDraftResult {
   isLoading: boolean;
 }
 
+export interface UseItemDraftOptions {
+  autoCreateOnMount?: boolean;
+}
+
 /**
  * Hook for managing item draft with autosave
  * 
@@ -50,8 +54,10 @@ export interface UseItemDraftResult {
  */
 export function useItemDraft(
   draftId?: string,
-  sellerId?: string
+  sellerId?: string,
+  options?: UseItemDraftOptions
 ): UseItemDraftResult {
+  const autoCreateOnMount = options?.autoCreateOnMount ?? true;
   const [draft, setDraft] = useState<ItemDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -60,18 +66,23 @@ export function useItemDraft(
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingUpdatesRef = useRef<Partial<DraftData> | null>(null);
   const appStateRef = useRef(AppState.currentState);
+  const draftRef = useRef<ItemDraft | null>(null);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
 
   // Load existing draft on mount
   useEffect(() => {
     if (draftId) {
       loadDraft(draftId);
-    } else if (sellerId) {
+    } else if (sellerId && autoCreateOnMount) {
       createNewDraft(sellerId);
     } else {
       setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftId, sellerId]);
+  }, [draftId, sellerId, autoCreateOnMount]);
 
   // Load draft from server
   const loadDraft = async (id: string) => {
@@ -131,13 +142,37 @@ export function useItemDraft(
 
   // Flush pending updates immediately
   const saveNow = useCallback(async () => {
-    if (!draft || !pendingUpdatesRef.current) return;
+    if (!pendingUpdatesRef.current) return;
+
+    const currentDraft = draftRef.current;
+
+    if (!currentDraft) {
+      if (!sellerId) return;
+
+      try {
+        setIsSaving(true);
+        setSaveError(null);
+
+        const created = await createItemDraft(sellerId, pendingUpdatesRef.current);
+        if (created) {
+          setDraft(created);
+          pendingUpdatesRef.current = null;
+        } else {
+          setSaveError('Failed to create draft');
+        }
+      } catch (error: any) {
+        setSaveError(error.message || 'Failed to create draft');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
 
     try {
       setIsSaving(true);
       setSaveError(null);
 
-      const success = await updateItemDraft(draft.id, pendingUpdatesRef.current);
+      const success = await updateItemDraft(currentDraft.id, pendingUpdatesRef.current);
       
       if (success) {
         pendingUpdatesRef.current = null;
@@ -149,7 +184,7 @@ export function useItemDraft(
     } finally {
       setIsSaving(false);
     }
-  }, [draft]);
+  }, [sellerId]);
 
   // Delete draft
   const discard = useCallback(async () => {

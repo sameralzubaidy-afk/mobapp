@@ -27,6 +27,7 @@ jest.useFakeTimers();
 const mockDraft: ItemDraft = {
   id: 'draft-123',
   seller_id: 'seller-456',
+  bulk_upload_id: null,
   draft_data: {
     title: 'Test Item',
     price: 25,
@@ -118,6 +119,54 @@ describe('useItemDraft', () => {
 
       expect(result.current.draft).toBeNull();
       expect(result.current.saveError).toBe('Failed to create draft');
+    });
+
+    it('should not create draft on mount when autoCreateOnMount is false', async () => {
+      const { result } = renderHook(() =>
+        useItemDraft(undefined, 'seller-456', { autoCreateOnMount: false })
+      );
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.draft).toBeNull();
+      expect(draftService.createItemDraft).not.toHaveBeenCalled();
+    });
+
+    it('should create draft on first saveNow when autoCreateOnMount is false', async () => {
+      (draftService.createItemDraft as jest.Mock).mockResolvedValue({
+        ...mockDraft,
+        draft_data: {
+          title: 'First draft save',
+          photo_urls: ['https://example.com/photo.jpg'],
+        },
+      });
+
+      const { result } = renderHook(() =>
+        useItemDraft(undefined, 'seller-456', { autoCreateOnMount: false })
+      );
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      act(() => {
+        result.current.save({
+          title: 'First draft save',
+          photo_urls: ['https://example.com/photo.jpg'],
+        });
+      });
+
+      await act(async () => {
+        await result.current.saveNow();
+      });
+
+      expect(draftService.createItemDraft).toHaveBeenCalledWith('seller-456', {
+        title: 'First draft save',
+        photo_urls: ['https://example.com/photo.jpg'],
+      });
+      expect(result.current.draft?.id).toBe('draft-123');
     });
   });
 

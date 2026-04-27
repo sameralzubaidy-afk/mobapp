@@ -93,6 +93,7 @@ describe('ItemCreateScreen', () => {
     } as any);
 
     mockUseItemDraft.mockReturnValue({
+      draft: null,
       save: jest.fn(),
       saveNow: jest.fn(),
       discard: jest.fn(),
@@ -175,7 +176,7 @@ describe('ItemCreateScreen', () => {
         analyze: jest.fn(),
       } as any);
 
-      const { queryByTestId } = renderScreen();
+      renderScreen();
 
       // AI card should be visible after status becomes 'ready'
       await waitFor(() => {
@@ -201,7 +202,7 @@ describe('ItemCreateScreen', () => {
         analyze: jest.fn(),
       } as any);
 
-      const { getByTestId } = renderScreen();
+      renderScreen();
 
       // Test would check if Apply All button applies suggestions
       // This is integration behavior - unit test validates component mounts
@@ -209,9 +210,49 @@ describe('ItemCreateScreen', () => {
   });
 
   describe('Draft Autosave', () => {
+    it('should hydrate saved draft values when opened with draftId', async () => {
+      const savedDraft = {
+        id: 'draft-1',
+        seller_id: 'user-123',
+        bulk_upload_id: null,
+        draft_data: {
+          title: 'Saved draft title',
+          description: 'Saved draft description',
+          category_id: 'cat-1',
+          condition: 'good',
+          photo_urls: ['https://example.com/saved-photo.jpg'],
+          price: 25,
+        },
+        photo_urls: ['https://example.com/saved-photo.jpg'],
+        ai_suggestions: null,
+        step: 'details',
+        expires_at: new Date(Date.now() + 100000).toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      mockUseItemDraft.mockReturnValue({
+        draft: savedDraft,
+        save: jest.fn(),
+        saveNow: jest.fn(),
+        discard: jest.fn(),
+        isSaving: false,
+        saveError: null,
+      } as any);
+
+      const { getByDisplayValue } = renderScreen({ params: { draftId: 'draft-1' } } as any);
+
+      await waitFor(() => {
+        expect(getByDisplayValue('Saved draft title')).toBeTruthy();
+      });
+
+      expect(getByDisplayValue('Saved draft description')).toBeTruthy();
+    });
+
     it('should call saveNow on navigation goBack', async () => {
       const mockSaveNow = jest.fn();
       mockUseItemDraft.mockReturnValue({
+        draft: null,
         save: jest.fn(),
         saveNow: mockSaveNow,
         discard: jest.fn(),
@@ -298,7 +339,7 @@ describe('ItemCreateScreen', () => {
 
   describe('Price Suggestions', () => {
     it('should load price suggestions when condition is selected', async () => {
-      const { rerender } = renderScreen();
+      renderScreen();
 
       // When condition changes, getSuggestedPrice should be called
       // This is validated by effect behavior
@@ -349,6 +390,7 @@ describe('ItemCreateScreen', () => {
 
     it('should display draft save error', () => {
       mockUseItemDraft.mockReturnValue({
+        draft: null,
         save: jest.fn(),
         saveNow: jest.fn(),
         discard: jest.fn(),
@@ -371,7 +413,7 @@ describe('ItemCreateScreen', () => {
         analyze: jest.fn(),
       } as any);
 
-      const { UNSAFE_queryByType } = renderScreen();
+      renderScreen();
 
       // ActivityIndicator should be visible in header
     });

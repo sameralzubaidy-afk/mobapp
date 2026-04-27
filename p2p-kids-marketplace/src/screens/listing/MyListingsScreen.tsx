@@ -1,12 +1,15 @@
 /**
  * File: p2p-kids-marketplace/src/screens/listing/MyListingsScreen.tsx
  * MODULE-04 LISTING-V2-003: My listings with edit/delete actions
+ * MODULE-04 LISTING-V3-007: Added Drafts tab + FAB bottom sheet
  * 
  * Features:
  * - List all user's listings (active, sold, pending)
  * - Summary stats (total active, total sold, total earnings)
  * - Edit and delete actions per listing
  * - SP Eligible badge on listings that accept SP
+ * - Drafts tab with swipe-to-discard
+ * - FAB bottom sheet (List One Item / Bulk Upload)
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
@@ -21,35 +24,43 @@ import {
   RefreshControl,
   SafeAreaView,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyListings, getListingSummary, deleteListing } from '../../services/listing';
-import { Listing, ListingSummary } from '../../types/listing';
+import { getActiveDrafts, deleteDraft } from '../../services/draftService';
+import { Listing, ListingSummary, ItemDraft } from '../../types/listing';
 import { ListingImage } from '../../components/atoms';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type StatusFilter = 'all' | 'pending' | 'needs_edits' | 'rejected' | 'available' | 'sold';
+type TabType = 'listings' | 'drafts';
 
 export default function MyListingsScreen({ navigation }: any) {
   const { session } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
+  const [drafts, setDrafts] = useState<ItemDraft[]>([]);
   const [summary, setSummary] = useState<ListingSummary | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
+  const [selectedTab, setSelectedTab] = useState<TabType>('listings');
+  const [isFABSheetVisible, setIsFABSheetVisible] = useState(false);
 
   const loadListings = useCallback(async () => {
     if (!session?.user?.id) return;
 
     try {
       setLoading(true);
-      const [listingsData, summaryData] = await Promise.all([
+      const [listingsData, summaryData, draftsData] = await Promise.all([
         getMyListings(session.user.id),
         getListingSummary(session.user.id),
+        getActiveDrafts(session.user.id),
       ]);
       setListings(listingsData);
       setSummary(summaryData);
+      setDrafts(draftsData);
     } catch (error) {
       console.error('[MyListings] loadListings error:', error);
       Alert.alert('Error', 'Failed to load your listings');
@@ -115,6 +126,62 @@ export default function MyListingsScreen({ navigation }: any) {
     }
 
     navigation.navigate('ListingDetail', { listing_id: listing.id });
+  };
+
+  const handleResumeDraft = (draft: ItemDraft) => {
+    if (draft.bulk_upload_id) {
+      navigation.navigate('BulkListingCreate', { draftId: draft.id });
+    } else {
+      navigation.navigate('ItemCreate', { draftId: draft.id });
+    }
+  };
+
+  const handleDiscardDraft = (draft: ItemDraft) => {
+    Alert.alert(
+      'Discard Draft',
+      'Are you sure you want to discard this draft? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDraft(draft.id);
+              setDrafts((prev) => prev.filter((d) => d.id !== draft.id));
+            } catch (error) {
+              console.error('[MyListings] handleDiscardDraft error:', error);
+              Alert.alert('Error', 'Failed to discard draft');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleFABPress = () => {
+    setIsFABSheetVisible(true);
+  };
+
+  const handleCreateSingle = () => {
+    setIsFABSheetVisible(false);
+    navigation.navigate('ItemCreate');
+  };
+
+  const handleCreateBulk = () => {
+    setIsFABSheetVisible(false);
+    navigation.navigate('BulkListingCreate');
+  };
+
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    return `${Math.floor(seconds / 86400)}d ago`;
   };
 
   const renderListingItem = ({ item }: { item: Listing }) => {
@@ -192,6 +259,52 @@ export default function MyListingsScreen({ navigation }: any) {
     );
   };
 
+  const renderDraftItem = ({ item }: { item: ItemDraft }) => {
+    const draftData = item.draft_data as any;
+    const title = draftData?.title || 'Untitled Draft';
+    const photoCount = item.photo_urls?.length || 0;
+    const isBulk = !!item.bulk_upload_id;
+    const timeAgo = getTimeAgo(item.updated_at || item.created_at);
+
+    return (
+      <View style={styles.draftCard} testID={`draft-card-${item.id}`}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => handleResumeDraft(item)}
+          style={styles.draftContent}
+          testID={`draft-resume-button-${item.id}`}
+        >
+          <View style={styles.draftInfo}>
+            <Text style={styles.draftTitle} numberOfLines={1}>
+              {title}
+            </Text>
+            <Text style={styles.draftMeta}>
+              {isBulk ? '📦 Bulk Upload' : '📝 Single Item'} • {photoCount} photo{photoCount !== 1 ? 's' : ''}
+            </Text>
+            <Text style={styles.draftTime}>{timeAgo}</Text>
+          </View>
+
+          <View style={styles.draftActions}>
+            <TouchableOpacity
+              style={styles.resumeButton}
+              onPress={() => handleResumeDraft(item)}
+              testID={`draft-resume-${item.id}`}
+            >
+              <Text style={styles.resumeButtonText}>Resume</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.discardButton}
+              onPress={() => handleDiscardDraft(item)}
+              testID={`draft-discard-${item.id}`}
+            >
+              <Text style={styles.discardButtonText}>Discard</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -227,78 +340,189 @@ export default function MyListingsScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* Status Filter */}
-      <View style={styles.filterWrapper}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterContainer}
-          contentContainerStyle={styles.filterContentContainer}
+      {/* Tab Switcher - LISTING-V3-007 */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, selectedTab === 'listings' && styles.tabActive]}
+          onPress={() => setSelectedTab('listings')}
+          testID="tab-listings"
         >
-          {(['all', 'available', 'pending', 'needs_edits', 'rejected', 'sold'] as StatusFilter[]).map(
-            (status) => (
-              <TouchableOpacity
-                key={status}
-                style={[
-                  styles.filterButton,
-                  selectedStatus === status && styles.filterButtonActive,
-                ]}
-                onPress={() => setSelectedStatus(status)}
-              >
-                <Text
-                  style={[
-                    styles.filterButtonText,
-                    selectedStatus === status && styles.filterButtonTextActive,
-                  ]}
-                >
-                  {status === 'all'
-                    ? 'All'
-                    : status === 'needs_edits'
-                      ? 'Needs Edits'
-                      : status.charAt(0).toUpperCase() + status.slice(1)}
-                </Text>
-              </TouchableOpacity>
-            )
-          )}
-        </ScrollView>
+          <Text style={[styles.tabText, selectedTab === 'listings' && styles.tabTextActive]}>
+            Listings ({listings.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, selectedTab === 'drafts' && styles.tabActive]}
+          onPress={() => setSelectedTab('drafts')}
+          testID="tab-drafts"
+        >
+          <Text style={[styles.tabText, selectedTab === 'drafts' && styles.tabTextActive]}>
+            Drafts ({drafts.length})
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Listings List */}
-      {filteredListings.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>
-            {listings.length === 0 ? 'No listings yet' : 'No listings with this status'}
-          </Text>
-          {listings.length === 0 && (
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={() => navigation.navigate('CreateListing')}
+      {/* Listings Tab Content */}
+      {selectedTab === 'listings' && (
+        <>
+          {/* Status Filter */}
+          <View style={styles.filterWrapper}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.filterContainer}
+              contentContainerStyle={styles.filterContentContainer}
             >
-              <Text style={styles.createButtonText}>Create Your First Listing</Text>
-            </TouchableOpacity>
+              {(['all', 'available', 'pending', 'needs_edits', 'rejected', 'sold'] as StatusFilter[]).map(
+                (status) => (
+                  <TouchableOpacity
+                    key={status}
+                    style={[
+                      styles.filterButton,
+                      selectedStatus === status && styles.filterButtonActive,
+                    ]}
+                    onPress={() => setSelectedStatus(status)}
+                    testID={`filter-${status}`}
+                  >
+                    <Text
+                      style={[
+                        styles.filterButtonText,
+                        selectedStatus === status && styles.filterButtonTextActive,
+                      ]}
+                    >
+                      {status === 'all'
+                        ? 'All'
+                        : status === 'needs_edits'
+                          ? 'Needs Edits'
+                          : status.charAt(0).toUpperCase() + status.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              )}
+            </ScrollView>
+          </View>
+
+          {/* Listings List */}
+          {filteredListings.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {listings.length === 0 ? 'No listings yet' : 'No listings with this status'}
+              </Text>
+              {listings.length === 0 && (
+                <TouchableOpacity
+                  style={styles.createButton}
+                  onPress={() => navigation.navigate('CreateListing')}
+                  testID="create-first-listing-button"
+                >
+                  <Text style={styles.createButtonText}>Create Your First Listing</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <FlatList
+              data={filteredListings}
+              keyExtractor={(item) => item.id}
+              renderItem={renderListingItem}
+              contentContainerStyle={styles.listContent}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+              }
+              testID="listings-flatlist"
+            />
           )}
-        </View>
-      ) : (
-        <FlatList
-          data={filteredListings}
-          keyExtractor={(item) => item.id}
-          renderItem={renderListingItem}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-          }
-        />
+        </>
       )}
 
-      {/* Floating Create Button */}
-      {listings.length > 0 && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => navigation.navigate('CreateListing')}
-        >
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
+      {/* Drafts Tab Content - LISTING-V3-007 */}
+      {selectedTab === 'drafts' && (
+        <>
+          {drafts.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No drafts yet</Text>
+              <Text style={styles.emptySubtext}>
+                Start creating a listing and it will be saved here automatically
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={drafts}
+              keyExtractor={(item) => item.id}
+              renderItem={renderDraftItem}
+              contentContainerStyle={styles.listContent}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+              }
+              testID="drafts-flatlist"
+            />
+          )}
+        </>
       )}
+
+      {/* LISTING-V3-007: FAB with Bottom Sheet */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={handleFABPress}
+        testID="fab-button"
+      >
+        <Text style={styles.fabText}>+</Text>
+      </TouchableOpacity>
+
+      {/* LISTING-V3-007: FAB Bottom Sheet Modal */}
+      <Modal
+        visible={isFABSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsFABSheetVisible(false)}
+        testID="fab-bottom-sheet-modal"
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setIsFABSheetVisible(false)}
+          testID="modal-overlay"
+        >
+          <View style={styles.bottomSheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Create New Listing</Text>
+
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={handleCreateSingle}
+              testID="sheet-option-single"
+            >
+              <Text style={styles.sheetOptionIcon}>📝</Text>
+              <View style={styles.sheetOptionContent}>
+                <Text style={styles.sheetOptionTitle}>List One Item</Text>
+                <Text style={styles.sheetOptionDescription}>
+                  Create a single listing with photos and details
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sheetOption}
+              onPress={handleCreateBulk}
+              testID="sheet-option-bulk"
+            >
+              <Text style={styles.sheetOptionIcon}>📦</Text>
+              <View style={styles.sheetOptionContent}>
+                <Text style={styles.sheetOptionTitle}>Bulk Upload</Text>
+                <Text style={styles.sheetOptionDescription}>
+                  Upload multiple items at once with AI assistance
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sheetCancel}
+              onPress={() => setIsFABSheetVisible(false)}
+              testID="sheet-cancel"
+            >
+              <Text style={styles.sheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Unified Navigation Bar */}
       <BottomNavBar />
@@ -594,5 +818,164 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#000',
+  },
+  // LISTING-V3-007: Tab Switcher Styles
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: '#007AFF',
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+  },
+  tabTextActive: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  // LISTING-V3-007: Draft Card Styles
+  draftCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  draftContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  draftInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  draftTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  draftMeta: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  draftTime: {
+    fontSize: 12,
+    color: '#999',
+  },
+  draftActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  resumeButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  resumeButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  discardButton: {
+    borderWidth: 1,
+    borderColor: '#FF3B30',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  discardButtonText: {
+    color: '#FF3B30',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  // LISTING-V3-007: Bottom Sheet Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  bottomSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 8,
+    paddingBottom: 32,
+    paddingHorizontal: 20,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: '#ddd',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#000',
+    marginBottom: 20,
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: '#f8f8f8',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  sheetOptionIcon: {
+    fontSize: 32,
+    marginRight: 16,
+  },
+  sheetOptionContent: {
+    flex: 1,
+  },
+  sheetOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 4,
+  },
+  sheetOptionDescription: {
+    fontSize: 14,
+    color: '#666',
+  },
+  sheetCancel: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  sheetCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
   },
 });
