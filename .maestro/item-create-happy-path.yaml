@@ -1,0 +1,167 @@
+# FLOW: Item Create Happy Path | TASK: LISTING-V3-010 | States covered: IDLE, UPLOADING, AI_ANALYZING, REVIEWING, PUBLISHING, SUCCESS
+# Test: Complete single-item listing creation from photo upload through AI auto-fill to publish
+appId: com.p2pkidsmarketplace.app
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to Sell tab
+- assertVisible:
+    id: "nav-sell"
+- tapOn:
+    id: "nav-sell"
+- waitForAnimationToEnd
+
+# Select single item creation option
+- assertVisible:
+    id: "sell-option-single-item"
+- tapOn:
+    id: "sell-option-single-item"
+- waitForAnimationToEnd
+
+# STATE: IDLE → UPLOADING
+- assertVisible:
+    id: "item-create-screen"
+- assertVisible:
+    id: "photo-upload-button"
+- tapOn:
+    id: "photo-upload-button"
+- waitForAnimationToEnd
+
+# Select photo from picker (simulator)
+- tapOn:
+    index: 0
+- waitForAnimationToEnd
+
+# STATE: UPLOADING → AI_ANALYZING
+- assertVisible:
+    id: "photo-uploaded-0"
+- assertVisible:
+    id: "ai-analysis-status"
+
+# Wait for AI analysis to complete (max 10s)
+- runFlow:
+    when:
+      visible:
+        id: "ai-analysis-loading"
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 10000
+
+# STATE: AI_ANALYZING → REVIEWING
+# AI suggestions card should appear
+- runFlow:
+    when:
+      visible:
+        id: "ai-suggestions-card"
+    commands:
+      - assertVisible:
+          id: "ai-apply-all-button"
+      - tapOn:
+          id: "ai-apply-all-button"
+      - waitForAnimationToEnd
+
+# Fill required fields (if AI didn't provide them)
+- runFlow:
+    when:
+      visible:
+        id: "field-title-empty"
+    commands:
+      - tapOn:
+          id: "field-title-input"
+      - inputText: "LEGO City Police Station"
+      - waitForAnimationToEnd
+
+# Category selection
+- runFlow:
+    when:
+      visible:
+        id: "field-category-empty"
+    commands:
+      - tapOn:
+          id: "category-selector"
+      - waitForAnimationToEnd:
+          timeout: 2000
+      - assertVisible:
+          id: "category-modal"
+      - tapOn:
+          id: "category-option-toys"
+      - waitForAnimationToEnd
+
+# Condition selection
+- runFlow:
+    when:
+      visible:
+        id: "field-condition-empty"
+    commands:
+      - tapOn:
+          id: "condition-selector"
+      - assertVisible:
+          id: "condition-good"
+      - tapOn:
+          id: "condition-good"
+      - waitForAnimationToEnd
+
+# Price input
+- runFlow:
+    when:
+      visible:
+        id: "field-price-empty"
+    commands:
+      - tapOn:
+          id: "price-input"
+      - inputText: "25.99"
+      - waitForAnimationToEnd
+
+# Optional: Apply price suggestion if available
+- runFlow:
+    when:
+      visible:
+        id: "price-suggestion-card"
+    commands:
+      - tapOn:
+          id: "price-tier-fair-price"
+      - waitForAnimationToEnd
+
+# Add description
+- tapOn:
+    id: "description-input"
+- inputText: "Complete set with all pieces. Box included."
+- waitForAnimationToEnd
+
+# STATE: REVIEWING → PUBLISHING
+- scrollUntilVisible:
+    element:
+      id: "publish-button"
+    direction: DOWN
+
+- assertVisible:
+    id: "publish-button"
+- tapOn:
+    id: "publish-button"
+- waitForAnimationToEnd
+
+# STATE: PUBLISHING → SUCCESS
+- assertVisible:
+    id: "listing-published-success"
+    timeout: 5000
+
+# Verify success message
+- assertVisible:
+    text: "Your listing has been published"
+
+# Verify navigation to listing detail or my listings
+- runFlow:
+    when:
+      visible:
+        id: "view-listing-button"
+    commands:
+      - tapOn:
+          id: "view-listing-button"
+      - waitForAnimationToEnd
+      - assertVisible:
+          id: "listing-detail-screen"
+
+# Final assertion: listing is live
+- assertVisible:
+    id: "listing-status-available"

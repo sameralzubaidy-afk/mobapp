@@ -46,6 +46,7 @@ export function useAIAnalysis(
   const [error, setError] = useState<string | null>(null);
   
   const abortControllerRef = useRef<AbortController | null>(null);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
   const photoUrlsRef = useRef<string[]>([]);
 
@@ -63,8 +64,15 @@ export function useAIAnalysis(
       abortControllerRef.current.abort();
     }
 
+    // Clear any queued retry before starting a new attempt
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+
     // Create new abort controller
-    abortControllerRef.current = new AbortController();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       setStatus('analyzing');
@@ -83,7 +91,7 @@ export function useAIAnalysis(
       const response = await analyzePhotosBatch(items, sellerId);
 
       // Check if request was aborted
-      if (abortControllerRef.current?.signal.aborted) {
+      if (abortController.signal.aborted) {
         return;
       }
 
@@ -103,7 +111,7 @@ export function useAIAnalysis(
       }
     } catch (err: any) {
       // Check if request was aborted
-      if (abortControllerRef.current?.signal.aborted) {
+      if (abortController.signal.aborted) {
         return;
       }
 
@@ -114,7 +122,7 @@ export function useAIAnalysis(
       // Retry once on network error
       if (retryCountRef.current === 0 && errorMessage.toLowerCase().includes('network')) {
         retryCountRef.current++;
-        setTimeout(() => {
+        retryTimeoutRef.current = setTimeout(() => {
           analyze();
         }, RETRY_DELAY_MS);
       }
@@ -134,6 +142,10 @@ export function useAIAnalysis(
 
   // Manual retry method
   const retry = useCallback(() => {
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
     retryCountRef.current = 0;
     analyze();
   }, [analyze]);
@@ -143,6 +155,9 @@ export function useAIAnalysis(
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
       }
     };
   }, []);

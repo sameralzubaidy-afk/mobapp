@@ -30,3 +30,7 @@
 - `.maestro/search-empty-state.yaml` - Discovery V3 empty states: no results message, typo suggestions ("Did you mean..."), filter-specific empty states, clear filters from empty state (DISCOVERY-V3-008).
 - `.maestro/listing-v3-002-ai-analysis.yaml` - AI image analysis for bulk listing auto-fill: single item analysis with Google Vision API, batch analysis with concurrency limiting, confidence scores, error handling, manual override, low confidence field omission (LISTING-V3-002).
 - `.maestro/listing-v3-006-bulk-listing-create.yaml` - Bulk listing screen flow: Sell sheet entry, multi-photo selection, grouping, AI analyze transition, per-item review, publish confirmation, partial/error surfacing (LISTING-V3-006).
+- `.maestro/item-create-happy-path.yaml` - Item create happy path: photo upload → AI analysis → apply suggestions → fill required fields → publish → verify success (LISTING-V3-010).
+- `.maestro/bulk-listing-publish-all.yaml` - Bulk listing publish all: upload 8 photos → auto-group into 4 items (2 photos each) → AI analyze all → publish all at once → verify 4 items published (LISTING-V3-010).
+- `.maestro/draft-resume.yaml` - Draft resume flow: create draft with partial data → exit app → relaunch → resume banner appears → continue editing → publish → verify draft deleted (LISTING-V3-010).
+- `.maestro/category-other.yaml` - Category Other custom request: select "Other" category → enter custom name → validation prevents publish when empty → publish with custom name → verify review flag created (LISTING-V3-010).

@@ -1,0 +1,309 @@
+# FLOW: Bulk Listing Publish All | TASK: LISTING-V3-010 | States covered: IDLE, ADDING_PHOTOS, GROUPING, AI_ANALYZING, REVIEWING_ITEMS, PUBLISHING_ALL, SUCCESS
+# Test: Upload 8 photos → auto-group into 4 items → AI analyze all → publish all at once
+appId: com.p2pkidsmarketplace.app
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to Sell tab
+- assertVisible:
+    id: "nav-sell"
+- tapOn:
+    id: "nav-sell"
+- waitForAnimationToEnd
+
+# Select bulk upload option
+- assertVisible:
+    id: "sell-option-bulk-upload"
+- tapOn:
+    id: "sell-option-bulk-upload"
+- waitForAnimationToEnd
+
+# STATE: IDLE → ADDING_PHOTOS
+- assertVisible:
+    id: "bulk-listing-screen"
+- assertVisible:
+    id: "bulk-photo-uploader"
+
+# Dismiss intro sheet if shown
+- runFlow:
+    when:
+      visible:
+        id: "bulk-intro-sheet"
+    commands:
+      - tapOn:
+          id: "bulk-intro-dismiss"
+      - waitForAnimationToEnd
+
+# Upload 8 photos
+- tapOn:
+    id: "bulk-image-picker-button"
+- waitForAnimationToEnd
+
+# Select 8 photos from simulator
+- tapOn:
+    index: 0
+- tapOn:
+    index: 1
+- tapOn:
+    index: 2
+- tapOn:
+    index: 3
+- tapOn:
+    index: 4
+- tapOn:
+    index: 5
+- tapOn:
+    index: 6
+- tapOn:
+    index: 7
+- waitForAnimationToEnd
+
+# STATE: ADDING_PHOTOS → GROUPING
+# Photos should auto-group (1 photo per item by default = 8 groups)
+- assertVisible:
+    id: "photo-select-grid"
+- assertVisible:
+    id: "group-card-0"
+- assertVisible:
+    id: "group-card-7"
+
+# Merge some photos to create 4 items (2 photos each)
+# Group 0+1
+- longPressOn:
+    id: "photo-tile-0-0"
+- waitForAnimationToEnd
+- tapOn:
+    id: "photo-tile-1-0"
+- tapOn:
+    id: "selection-merge"
+- waitForAnimationToEnd
+
+# Group 2+3
+- longPressOn:
+    id: "photo-tile-2-0"
+- waitForAnimationToEnd
+- tapOn:
+    id: "photo-tile-3-0"
+- tapOn:
+    id: "selection-merge"
+- waitForAnimationToEnd
+
+# Group 4+5
+- longPressOn:
+    id: "photo-tile-4-0"
+- waitForAnimationToEnd
+- tapOn:
+    id: "photo-tile-5-0"
+- tapOn:
+    id: "selection-merge"
+- waitForAnimationToEnd
+
+# Group 6+7
+- longPressOn:
+    id: "photo-tile-6-0"
+- waitForAnimationToEnd
+- tapOn:
+    id: "photo-tile-7-0"
+- tapOn:
+    id: "selection-merge"
+- waitForAnimationToEnd
+
+# Should now have 4 groups
+- assertVisible:
+    id: "group-card-0"
+- assertVisible:
+    id: "group-card-3"
+
+# Confirm grouping
+- tapOn:
+    id: "bulk-confirm-grouping"
+- waitForAnimationToEnd
+
+# STATE: GROUPING → AI_ANALYZING
+- assertVisible:
+    id: "bulk-ai-analyzing"
+
+# Wait for batch AI analysis to complete (up to 30s for 4 items)
+- waitForAnimationToEnd:
+    timeout: 30000
+
+# STATE: AI_ANALYZING → REVIEWING_ITEMS
+- assertVisible:
+    id: "bulk-review-step"
+- assertVisible:
+    id: "bulk-item-card-0"
+- assertVisible:
+    id: "bulk-item-card-1"
+- assertVisible:
+    id: "bulk-item-card-2"
+- assertVisible:
+    id: "bulk-item-card-3"
+
+# Apply AI suggestions to all (if apply-to-all bar visible)
+- runFlow:
+    when:
+      visible:
+        id: "apply-to-all-bar"
+    commands:
+      - tapOn:
+          id: "apply-to-all-brand"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "apply-to-all-condition"
+      - waitForAnimationToEnd
+
+# Fill required fields for each item
+# Item 0
+- scrollUntilVisible:
+    element:
+      id: "bulk-item-card-0"
+    direction: DOWN
+
+- runFlow:
+    when:
+      visible:
+        id: "bulk-item-0-category-empty"
+    commands:
+      - tapOn:
+          id: "bulk-item-0-category-selector"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "category-option-toys"
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "bulk-item-0-price-empty"
+    commands:
+      - tapOn:
+          id: "bulk-item-0-price-input"
+      - inputText: "15.00"
+      - waitForAnimationToEnd
+
+# Item 1
+- scrollUntilVisible:
+    element:
+      id: "bulk-item-card-1"
+    direction: DOWN
+
+- runFlow:
+    when:
+      visible:
+        id: "bulk-item-1-category-empty"
+    commands:
+      - tapOn:
+          id: "bulk-item-1-category-selector"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "category-option-books"
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "bulk-item-1-price-empty"
+    commands:
+      - tapOn:
+          id: "bulk-item-1-price-input"
+      - inputText: "8.50"
+      - waitForAnimationToEnd
+
+# Item 2
+- scrollUntilVisible:
+    element:
+      id: "bulk-item-card-2"
+    direction: DOWN
+
+- runFlow:
+    when:
+      visible:
+        id: "bulk-item-2-category-empty"
+    commands:
+      - tapOn:
+          id: "bulk-item-2-category-selector"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "category-option-clothing"
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "bulk-item-2-price-empty"
+    commands:
+      - tapOn:
+          id: "bulk-item-2-price-input"
+      - inputText: "12.00"
+      - waitForAnimationToEnd
+
+# Item 3
+- scrollUntilVisible:
+    element:
+      id: "bulk-item-card-3"
+    direction: DOWN
+
+- runFlow:
+    when:
+      visible:
+        id: "bulk-item-3-category-empty"
+    commands:
+      - tapOn:
+          id: "bulk-item-3-category-selector"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "category-option-games"
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "bulk-item-3-price-empty"
+    commands:
+      - tapOn:
+          id: "bulk-item-3-price-input"
+      - inputText: "20.00"
+      - waitForAnimationToEnd
+
+# STATE: REVIEWING_ITEMS → PUBLISHING_ALL
+- scrollUntilVisible:
+    element:
+      id: "bulk-publish-all-button"
+    direction: DOWN
+
+- assertVisible:
+    id: "bulk-publish-all-button"
+- tapOn:
+    id: "bulk-publish-all-button"
+- waitForAnimationToEnd
+
+# Confirm publish all
+- assertVisible:
+    id: "bulk-publish-confirm-sheet"
+- assertVisible:
+    text: "Publish 4 items?"
+- tapOn:
+    id: "bulk-publish-confirm-yes"
+- waitForAnimationToEnd
+
+# STATE: PUBLISHING_ALL → SUCCESS
+- assertVisible:
+    id: "bulk-publish-success"
+    timeout: 10000
+
+# Verify success message
+- assertVisible:
+    text: "4 items published successfully"
+
+# Verify navigation to my listings
+- runFlow:
+    when:
+      visible:
+        id: "bulk-view-listings-button"
+    commands:
+      - tapOn:
+          id: "bulk-view-listings-button"
+      - waitForAnimationToEnd
+      - assertVisible:
+          id: "my-listings-screen"

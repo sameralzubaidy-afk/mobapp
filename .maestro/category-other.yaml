@@ -1,0 +1,186 @@
+# FLOW: Category Other | TASK: LISTING-V3-010 | States covered: SELECTING_CATEGORY, ENTERING_CUSTOM_NAME, PUBLISHING, FLAG_CREATED
+# Test: Select "Other" category → enter custom name → publish → verify review flag exists
+appId: com.p2pkidsmarketplace.app
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to Sell tab
+- assertVisible:
+    id: "nav-sell"
+- tapOn:
+    id: "nav-sell"
+- waitForAnimationToEnd
+
+# Start single item creation
+- assertVisible:
+    id: "sell-option-single-item"
+- tapOn:
+    id: "sell-option-single-item"
+- waitForAnimationToEnd
+
+# Upload photo
+- assertVisible:
+    id: "photo-upload-button"
+- tapOn:
+    id: "photo-upload-button"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+- waitForAnimationToEnd
+
+# Wait for photo upload
+- assertVisible:
+    id: "photo-uploaded-0"
+
+# Fill title
+- tapOn:
+    id: "field-title-input"
+- inputText: "Custom Category Test Item"
+- waitForAnimationToEnd
+
+# STATE: SELECTING_CATEGORY
+# Open category selector
+- tapOn:
+    id: "category-selector"
+- waitForAnimationToEnd
+
+# Verify category modal appears
+- assertVisible:
+    id: "category-modal"
+
+# Search for "Other" or scroll to bottom
+- runFlow:
+    when:
+      visible:
+        id: "category-search-input"
+    commands:
+      - tapOn:
+          id: "category-search-input"
+      - inputText: "Other"
+      - waitForAnimationToEnd
+
+# Select "Other" category option
+- scrollUntilVisible:
+    element:
+      id: "category-option-other"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn:
+    id: "category-option-other"
+- waitForAnimationToEnd
+
+# STATE: ENTERING_CUSTOM_NAME
+# Custom category name input should appear
+- assertVisible:
+    id: "custom-category-name-input"
+- assertVisible:
+    text: "What category should this be?"
+
+# Enter custom category name
+- tapOn:
+    id: "custom-category-name-input"
+- inputText: "Board Games"
+- waitForAnimationToEnd
+
+# Verify required field indicator
+- assertVisible:
+    text: "Custom Category Name *"
+
+# Try to publish without entering custom name (should fail validation)
+- tapOn:
+    id: "custom-category-name-input"
+- clearText
+- waitForAnimationToEnd
+
+- scrollUntilVisible:
+    element:
+      id: "publish-button"
+    direction: DOWN
+
+- tapOn:
+    id: "publish-button"
+- waitForAnimationToEnd
+
+# Should show validation error
+- assertVisible:
+    text: "Please enter a category name"
+
+# Enter custom category name again
+- scrollUntilVisible:
+    element:
+      id: "custom-category-name-input"
+    direction: UP
+
+- tapOn:
+    id: "custom-category-name-input"
+- inputText: "Board Games"
+- waitForAnimationToEnd
+
+# Fill other required fields
+# Condition
+- tapOn:
+    id: "condition-selector"
+- tapOn:
+    id: "condition-good"
+- waitForAnimationToEnd
+
+# Price
+- tapOn:
+    id: "price-input"
+- inputText: "22.50"
+- waitForAnimationToEnd
+
+# Description (optional but good practice)
+- tapOn:
+    id: "description-input"
+- inputText: "This is a board game that should be in a Board Games category."
+- waitForAnimationToEnd
+
+# STATE: PUBLISHING
+- scrollUntilVisible:
+    element:
+      id: "publish-button"
+    direction: DOWN
+
+- tapOn:
+    id: "publish-button"
+- waitForAnimationToEnd
+
+# Verify publish success
+- assertVisible:
+    id: "listing-published-success"
+    timeout: 5000
+
+# Verify success message mentions admin review
+- assertVisible:
+    text: "Your category suggestion has been submitted for review"
+
+# STATE: FLAG_CREATED
+# Navigate to listing detail to verify status
+- runFlow:
+    when:
+      visible:
+        id: "view-listing-button"
+    commands:
+      - tapOn:
+          id: "view-listing-button"
+      - waitForAnimationToEnd
+
+# Verify listing shows "Other" with custom name
+- assertVisible:
+    text: "Board Games"
+
+# Verify pending review indicator (if shown in UI)
+- runFlow:
+    when:
+      visible:
+        id: "category-review-pending-badge"
+    commands:
+      - assertVisible:
+          text: "Category under review"
+
+# Final assertion: listing was created successfully with custom category request
+- assertVisible:
+    id: "listing-detail-screen"

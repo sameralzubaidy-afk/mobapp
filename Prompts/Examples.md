@@ -56,49 +56,51 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK LISTING-V3-010: Tests (Unit + Integration + Maestro)
 
-I’m working on the  MODULE-04-ITEM-LISTING-V3.md tasks
-Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-04-ITEM-LISTING-V3.md
-Tasks:## TASK LISTING-V3-010: Tests (Unit + Integration + Maestro)
+## TASK ADMIN-V3-001: Schema Migrations — Category Columns, Suggestions, Trigger, RPC, Storage
+
+I’m working on the  MODULE-12-ADMIN-V3-CATEGORIES.md tasks
+Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-12-ADMIN-V3-CATEGORIES.md
+Tasks:## TASK ADMIN-V3-001: Schema Migrations — Category Columns, Suggestions, Trigger, RPC, Storage
 
 scope is 
 
-Ship the full test package for MODULE-04 V3: Jest unit tests for services and hooks, PgTAP tests for the `item_drafts` triggers, and Maestro E2E flows for happy path + critical edge cases (bulk publish, draft resume, "Other" category).
+Add the 11 new columns to `categories`, create the `category_suggestions` table, add the `update_category_item_count()` trigger + backfill, add the `reorder_categories()` RPC, and provision the `category-icons` Supabase Storage bucket with RLS.
 
 ### Scope
 
-- 8 Jest suites (5 service + 3 hook).
-- 1 PgTAP SQL file covering max-5 and `updated_at` triggers.
-- 4 Maestro YAML flows with tags.
-- Fixture builders (`makeItem`, `makeDraft`, `makeAIResult`).
-- Coverage target ≥ 85% for V3 services.
+- 5 Supabase migrations (`20260420000006` – `20260420000010`) in strict order.
+- All CHECK constraints, indexes, RLS policies, comments.
+- Backfill of `display_order` and initial `item_count`.
+- Storage bucket with public read + admin-only write policies.
 
-### Test Files
 
-| Path | Covers |
+### Files to Create
+
+| File | Purpose |
 |---|---|
-| `src/__tests__/services/photoService.test.ts` | `validatePhoto` edge cases, `groupPhotosAuto` caps, `regroupPhotos` immutability |
-| `src/__tests__/services/aiService.test.ts` | `parseAIResult` confidence stripping, `getAIConfidenceLevel` boundaries |
-| `src/__tests__/services/draftService.test.ts` | create/update/publish/delete; max-5 trigger behavior via mocked supabase |
-| `src/__tests__/services/pricingService.test.ts` | Tier math with seeded avg, empty-data fallback |
-| `src/__tests__/services/categoryService.test.ts` | `flagForCategoryReview` idempotency, recent category LRU |
-| `src/__tests__/hooks/useItemDraft.test.tsx` | 30s debounce, blur-flush, saveNow |
-| `src/__tests__/hooks/useAIAnalysis.test.tsx` | idle→analyzing→ready; abort on photoUrls change; retry path |
-| `src/__tests__/hooks/usePhotoGroups.test.tsx` | caps enforcement, regroup, setCover |
-| `supabase/tests/item_drafts.sql` | PgTAP: max-5 trigger; updated_at trigger |
-| `e2e/item-create-happy-path.yaml` | Maestro: photo → AI → apply → publish |
-| `e2e/bulk-listing-publish-all.yaml` | Maestro: 8 photos → 4 items → publish |
-| `e2e/draft-resume.yaml` | Maestro: create → exit → resume banner → continue |
-| `e2e/category-other.yaml` | Maestro: select Other → enter name → publish → flag exists |
+| `supabase/migrations/20260420000006_add_category_management_columns.sql` | ALTER `categories` + 3 indexes + initial `display_order` backfill |
+| `supabase/migrations/20260420000007_create_category_suggestions.sql` | `category_suggestions` table + RLS + 2 indexes |
+| `supabase/migrations/20260420000008_category_item_count_trigger.sql` | `update_category_item_count()` function + trigger + initial count backfill |
+| `supabase/migrations/20260420000009_reorder_categories_rpc.sql` | `reorder_categories(JSONB)` SECURITY DEFINER RPC |
+| `supabase/migrations/20260420000010_create_category_icons_storage_bucket.sql` | Bucket `category-icons` (public read, admin write) |
 
 ### Acceptance Criteria
 
-- [ ] All Jest tests pass (`npm test`).
-- [ ] Coverage for `src/services/{photo,ai,draft,pricing,condition,category}Service.ts` ≥ 85%.
-- [ ] PgTAP tests pass against local supabase (`supabase test db`).
-- [ ] 4 Maestro flows run against a staging build (documented in PR, not CI-gated).
-- [ ] Perf spot-check: single `createItem` including 10 compressed photos completes in < 8s on mid-tier Android (manual).
+- [ ] Five migration files exist at the exact paths above.
+- [ ] `categories` has columns `is_active, item_count, display_order, description, icon, icon_url, bonus_badge_icon_url, sp_earning_multiplier, sp_spending_cap_percent, sp_config_notes, sp_rate_change_notify` with the CHECK constraints from § Database Schema Changes.
+- [ ] `display_order` backfilled using `ROW_NUMBER() OVER (ORDER BY id)`.
+- [ ] Indexes `idx_categories_active` (partial `WHERE is_active=true`), `idx_categories_item_count` (partial), `idx_categories_bonus` (partial `WHERE sp_earning_multiplier > 1.10`) exist.
+- [ ] `category_suggestions` table has `id, suggested_name, seller_id, item_id, status, approved_by, merged_to_category_id, admin_note, created_at, reviewed_at`, `UNIQUE (item_id)`, `status IN ('pending','approved','rejected','merged')`.
+- [ ] `category_suggestions` RLS: "Admin can manage all suggestions" (FOR ALL via `user_roles`); "Seller can view own suggestions" (FOR SELECT where `seller_id = auth.uid()`).
+- [ ] Indexes `idx_category_suggestions_status` (partial WHERE status='pending'), `idx_category_suggestions_seller`.
+- [ ] Function `update_category_item_count()` handles INSERT/UPDATE/DELETE; trigger fires `AFTER INSERT OR UPDATE OF category_id, status OR DELETE` on `items`.
+- [ ] Initial count backfill runs in the same migration.
+- [ ] RPC `reorder_categories(category_orders JSONB)` is `SECURITY DEFINER`, checks admin role, updates `display_order` in a loop using `jsonb_to_recordset`.
+- [ ] Storage bucket `category-icons` created (public read; insert/update/delete restricted to admins via storage RLS policy using `user_roles`).
+- [ ] All migrations idempotent (`IF NOT EXISTS`, `CREATE OR REPLACE`).
+- [ ] Commented-out verification queries at the bottom of each file.
+
 
 i want you to 
 
@@ -116,9 +118,9 @@ i want you to
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
 4. Forbidden: Re-implementing logic that already exists under a different name
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-04-VERIFICATION-V3.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-12-VERIFICATION-V3.md
 6. Show me the files you create or edit with their full paths
-7. Tell me which items in MODULE-04-VERIFICATION-V3.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-04-VERIFICATION-V3.md
+7. Tell me which items in MODULE-12-VERIFICATION-V3.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-12-VERIFICATION-V3.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 

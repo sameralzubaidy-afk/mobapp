@@ -1,0 +1,168 @@
+# FLOW: Draft Resume | TASK: LISTING-V3-010 | States covered: CREATING_DRAFT, EXITING, RESUMING, CONTINUING
+# Test: Create draft → exit app → relaunch → resume banner appears → continue editing → publish
+appId: com.p2pkidsmarketplace.app
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to Sell tab
+- assertVisible:
+    id: "nav-sell"
+- tapOn:
+    id: "nav-sell"
+- waitForAnimationToEnd
+
+# Start single item creation
+- assertVisible:
+    id: "sell-option-single-item"
+- tapOn:
+    id: "sell-option-single-item"
+- waitForAnimationToEnd
+
+# STATE: CREATING_DRAFT
+- assertVisible:
+    id: "item-create-screen"
+
+# Upload photo
+- tapOn:
+    id: "photo-upload-button"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+- waitForAnimationToEnd
+
+# Wait for photo upload
+- assertVisible:
+    id: "photo-uploaded-0"
+
+# Fill partial data (title only)
+- tapOn:
+    id: "field-title-input"
+- inputText: "Partial Draft Item"
+- waitForAnimationToEnd
+
+# Wait for auto-save (30s debounce)
+# For testing, we'll trigger immediate save via blur
+- tapOn:
+    id: "description-input"
+- waitForAnimationToEnd
+
+# STATE: EXITING
+# Navigate away without publishing (back button or tab switch)
+- tapOn:
+    id: "nav-home"
+- waitForAnimationToEnd
+
+# Verify we're on home screen
+- assertVisible:
+    id: "home-screen"
+
+# Kill and relaunch app (simulate backgrounding)
+- stopApp
+- launchApp
+- waitForAnimationToEnd
+
+# STATE: RESUMING
+# Navigate to Sell tab
+- assertVisible:
+    id: "nav-sell"
+- tapOn:
+    id: "nav-sell"
+- waitForAnimationToEnd
+
+# Resume draft banner should appear
+- assertVisible:
+    id: "resume-draft-banner"
+    timeout: 2000
+
+- assertVisible:
+    text: "You have an unfinished listing"
+
+# Verify draft preview shows partial data
+- assertVisible:
+    text: "Partial Draft Item"
+
+# Tap resume
+- tapOn:
+    id: "resume-draft-continue-button"
+- waitForAnimationToEnd
+
+# STATE: CONTINUING
+# Should return to item create screen with draft data loaded
+- assertVisible:
+    id: "item-create-screen"
+
+# Verify title was restored
+- assertVisible:
+    id: "field-title-input"
+- assertVisible:
+    text: "Partial Draft Item"
+
+# Verify photo was restored
+- assertVisible:
+    id: "photo-uploaded-0"
+
+# Complete the listing
+# Category
+- runFlow:
+    when:
+      visible:
+        id: "field-category-empty"
+    commands:
+      - tapOn:
+          id: "category-selector"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "category-option-toys"
+      - waitForAnimationToEnd
+
+# Condition
+- runFlow:
+    when:
+      visible:
+        id: "field-condition-empty"
+    commands:
+      - tapOn:
+          id: "condition-selector"
+      - tapOn:
+          id: "condition-good"
+      - waitForAnimationToEnd
+
+# Price
+- runFlow:
+    when:
+      visible:
+        id: "field-price-empty"
+    commands:
+      - tapOn:
+          id: "price-input"
+      - inputText: "18.99"
+      - waitForAnimationToEnd
+
+# Publish
+- scrollUntilVisible:
+    element:
+      id: "publish-button"
+    direction: DOWN
+
+- tapOn:
+    id: "publish-button"
+- waitForAnimationToEnd
+
+# Verify publish success
+- assertVisible:
+    id: "listing-published-success"
+    timeout: 5000
+
+# Verify draft no longer exists (resume banner should not appear next time)
+- tapOn:
+    id: "nav-sell"
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "resume-draft-banner"
+    commands:
+      # If banner still appears, fail the test
+      - assertTrue: false

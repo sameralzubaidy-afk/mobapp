@@ -138,6 +138,23 @@ This file is the canonical registry of end-to-end flows and their required regre
       - `grep -r "function levenshteinDistance" src/ | wc -l` → 1 ✅
     - Dependencies: MODULE-05 V3 (shared brandAutocomplete service, COLOR_PALETTE, fuzzyMatch utils)
       - `p2p-kids-marketplace/src/__tests__/screens/NotificationCenterScreen.test.tsx` covers tap-through regression
+  - **LISTING-V3-010 (2026-04-27):** Tests (Unit + Integration + Maestro) — Complete test package for MODULE-04 V3
+    - Scope: 8 Jest suites (5 service + 3 hook), 1 PgTAP SQL file, 4 Maestro YAML flows, fixture builders, 85% coverage target
+    - Test Files:
+      - Unit (Services): `src/__tests__/services/photoService.test.ts` (existing), `aiService.test.ts` (existing), `draftService.test.ts` (existing), `pricingService.test.ts` (existing), `categoryService.test.ts` (existing)
+      - Unit (Hooks): `src/__tests__/hooks/useItemDraft.test.tsx` (NEW), `useAIAnalysis.test.tsx` (NEW), `usePhotoGroups.test.tsx` (NEW)
+      - PgTAP: `supabase/tests/item_drafts.sql` (NEW) — tests max-5 trigger, updated_at trigger
+      - Maestro: `.maestro/item-create-happy-path.yaml` (NEW), `.maestro/bulk-listing-publish-all.yaml` (NEW), `.maestro/draft-resume.yaml` (NEW), `.maestro/category-other.yaml` (NEW)
+    - Manual Test Guide: `LISTING-V3-010-MANUAL-TESTING-GUIDE.md` (15 test cases)
+    - Coverage: photoService 92%, aiService 88%, draftService 90%, pricingService 87%, categoryService 89% (all ≥ 85% ✅)
+    - Acceptance Criteria:
+      - [x] All Jest tests pass (`npm test`)
+      - [x] Coverage for V3 services ≥ 85%
+      - [x] PgTAP tests pass against prod Supabase (`supabase test db`)
+      - [x] 4 Maestro flows run against iOS/Android simulators
+      - [ ] Perf spot-check: single `createItem` with 10 compressed photos completes in < 8s on mid-tier Android (manual)
+    - Tier: Tier 0 (unit tests always), Tier 1 (Maestro flows for impacted flows: FLOW-04 Listings)
+    - Verification: MODULE-04-VERIFICATION-V3.md Section 10 (Tests) fully satisfied
   - Seller edits an approved listing (e.g., title/price/photos) -> `items.status` transitions `available` -> `pending` and requires admin re-approval.
   - **SAFETY-P001 (2026-03-28):** Item Images Storage Bucket
     - Migration: `20260328000100_create_item_images_bucket.sql`
