@@ -69,10 +69,10 @@ describe('pricingService', () => {
       const result = await pricingService.getSuggestedPrice('cat-123', 'good');
       
       expect(result).toHaveLength(4);
-      expect(result[0].id).toBe('great_deal');
-      expect(result[1].id).toBe('fair_price');
-      expect(result[2].id).toBe('asking_price');
-      expect(result[3].id).toBe('almost_new');
+      expect(result[0].tier).toBe('great_deal');
+      expect(result[1].tier).toBe('fair_price');
+      expect(result[2].tier).toBe('asking_price');
+      expect(result[3].tier).toBe('almost_new');
     });
 
     it('should calculate tiers using correct multipliers', async () => {

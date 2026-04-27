@@ -91,13 +91,16 @@ describe('CPSC Import E2E', () => {
 
     expect(error).toBeNull();
 
+    // Only verify dates if we got results
     if (data && data.length > 0) {
       // Verify dates are within range
+      // Note: Date comparison uses string format since ISO dates compare correctly alphabetically
       data.forEach(recall => {
-        const recallDate = new Date(recall.recall_date);
-        expect(recallDate >= thirtyDaysAgo).toBe(true);
+        // String comparison works for ISO format dates (YYYY-MM-DD)
+        expect(recall.recall_date >= dateStr).toBe(true);
       });
     }
+    // If no data, that's acceptable for fresh databases
   });
 
   it('should have import logs with proper status values', async () => {

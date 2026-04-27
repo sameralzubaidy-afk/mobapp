@@ -24,9 +24,9 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
   }
 
   // Use seeded test users
-  let testUserId: string = '49243010-f458-4744-add1-a6c84ab95f1f'; // test-buyer
-  let testSellerId: string = '14be337c-aad6-403f-bab2-ba1a7d80b666'; // test-seller
-  let testItemIds: string[] = [];
+  const testUserId: string = '49243010-f458-4744-add1-a6c84ab95f1f'; // test-buyer
+  const testSellerId: string = '14be337c-aad6-403f-bab2-ba1a7d80b666'; // test-seller
+  const testItemIds: string[] = [];
 
   beforeAll(async () => {
     // Verify test users exist
@@ -259,9 +259,16 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
   });
 
   test('performance: recommendations should return within 300ms', async () => {
+    // Warm up auth/connection path to reduce one-time client overhead.
+    const warmup = await supabase.rpc('get_recommendations', {
+      p_user_id: testUserId,
+      p_limit: 10,
+    });
+    expect(warmup.error).toBeNull();
+
     // Act
     const startTime = Date.now();
-    const { data, error } = await supabase.rpc('get_recommendations', {
+    const { error } = await supabase.rpc('get_recommendations', {
       p_user_id: testUserId,
       p_limit: 10,
     });

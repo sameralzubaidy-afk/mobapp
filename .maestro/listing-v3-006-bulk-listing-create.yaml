@@ -1,0 +1,159 @@
+# FLOW: Bulk Listing Create | TASK: LISTING-V3-006 | V3.1 UX Overhaul (Decisions 1-12)
+# States covered: IDLE, ADDING_PHOTOS, GROUPING, AI_ANALYZING, REVIEWING_ITEMS, PUBLISHING, SUCCESS, PARTIAL, ERROR
+# UX flows covered:
+#   - Decision 9: First-time intro sheet (auto-shown then dismissed)
+#   - Decision 1: 1 photo per item by default
+#   - Decision 4: Long-press multi-select grouping (merge)
+#   - Decision 7: Reset grouping
+#   - Decision 11: Per-card AI retry
+#   - Decision 8: Apply-to-all bar
+#   - Decision 6: Edit grouping from review step
+appId: com.p2pkidsmarketplace.app
+---
+- launchApp
+- waitForAnimationToEnd
+
+# Sell entry
+- assertVisible:
+    id: "nav-sell"
+- tapOn:
+    id: "nav-sell"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "sell-option-bulk-upload"
+- tapOn:
+    id: "sell-option-bulk-upload"
+- waitForAnimationToEnd
+
+# DECISION 9 — First-time intro sheet (skip if already seen)
+- runFlow:
+    when:
+      visible:
+        id: "bulk-intro-sheet"
+    commands:
+      - tapOn:
+          id: "bulk-intro-dismiss"
+      - waitForAnimationToEnd
+
+# Step indicator visible on photos step
+- assertVisible:
+    id: "bulk-step-indicator"
+- assertVisible:
+    id: "bulk-step-photos"
+
+# ADDING_PHOTOS
+- assertVisible:
+    id: "bulk-photo-uploader"
+- tapOn:
+    id: "bulk-image-picker-button"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0
+- tapOn:
+    index: 1
+- tapOn:
+    index: 2
+- waitForAnimationToEnd
+
+# GROUPING — DECISION 1: each photo became its own item by default
+- assertVisible:
+    id: "photo-select-grid"
+- assertVisible:
+    id: "group-card-0"
+- assertVisible:
+    id: "group-card-1"
+- assertVisible:
+    id: "group-card-2"
+
+# DECISION 4 — multi-select two photos and merge them
+- longPressOn:
+    id: "photo-tile-0-0"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "selection-action-bar"
+- tapOn:
+    id: "photo-tile-1-0"
+- assertVisible:
+    id: "selection-merge"
+- tapOn:
+    id: "selection-merge"
+- waitForAnimationToEnd
+
+# Should now have one fewer group
+- assertVisible:
+    id: "group-card-0"
+- assertVisible:
+    id: "group-card-1"
+
+# DECISION 7 — Reset grouping returns to one-photo-per-item
+- tapOn:
+    id: "bulk-reset-grouping"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Reset"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "group-card-2"
+
+# Confirm grouping → AI analyzing
+- assertVisible:
+    id: "bulk-confirm-grouping"
+- tapOn:
+    id: "bulk-confirm-grouping"
+- waitForAnimationToEnd
+
+# REVIEWING_ITEMS — vertical card stack
+- assertVisible:
+    id: "bulk-step-review"
+- assertVisible:
+    id: "item-card-stack"
+- assertVisible:
+    id: "bulk-item-card-0"
+- assertVisible:
+    id: "bulk-item-cover-0"
+
+# DECISION 11 — Retry AI on a single card if it failed (no-op if it succeeded)
+- runFlow:
+    when:
+      visible:
+        id: "bulk-item-retry-ai-0"
+    commands:
+      - tapOn:
+          id: "bulk-item-retry-ai-0"
+      - waitForAnimationToEnd
+
+# DECISION 8 — Apply-to-all chips visible when ≥2 items
+- runFlow:
+    when:
+      visible:
+        id: "apply-to-all-bar"
+    commands:
+      - assertVisible:
+          id: "apply-to-all-bar"
+
+# DECISION 6 — Edit grouping returns to grouping step
+- tapOn:
+    id: "bulk-edit-grouping"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "photo-select-grid"
+- tapOn:
+    id: "bulk-confirm-grouping"
+- waitForAnimationToEnd
+
+# Exclude item 1 (toggle off includeInPublish)
+- tapOn:
+    id: "bulk-item-card-toggle-1"
+- waitForAnimationToEnd
+
+# PUBLISHING
+- tapOn:
+    id: "bulk-publish-button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "bulk-publish-confirm-sheet"
+- assertVisible:
+    id: "publish-summary-thumb-0"
+- tapOn:
+    id: "bulk-publish-confirm"
+- waitForAnimationToEnd

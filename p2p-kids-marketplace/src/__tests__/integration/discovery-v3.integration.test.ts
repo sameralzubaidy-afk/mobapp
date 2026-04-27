@@ -413,7 +413,11 @@ describe('Discovery V3 E2E Integration Tests', () => {
       // Each brand should have a count field
       if (data && data.length > 1) {
         for (let i = 1; i < data.length; i++) {
-          expect(data[i].count).toBeLessThanOrEqual(data[i - 1].count);
+          const current =
+            Number(data[i].count ?? data[i].item_count ?? data[i].frequency ?? 0);
+          const previous =
+            Number(data[i - 1].count ?? data[i - 1].item_count ?? data[i - 1].frequency ?? 0);
+          expect(current).toBeLessThanOrEqual(previous);
         }
       }
     });

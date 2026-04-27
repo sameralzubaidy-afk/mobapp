@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotificationBadge } from '@/hooks/useNotificationBadge';
@@ -23,6 +23,7 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
   const route = useRoute();
   const { session } = useAuth();
   const { unreadCount } = useNotificationBadge(session?.user?.id);
+  const [sellSheetVisible, setSellSheetVisible] = React.useState(false);
 
   // Determine if a nav item is active
   const isActive = (routeName: string) => {
@@ -74,7 +75,11 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
     <View style={styles.container}>
       <NavItem emoji="🏠" label="Home" routeName="Home" />
       <NavItem emoji="�" label="Discover" routeName="Discover" />
-      <NavItem emoji="📝" label="Create" routeName="ItemCreate" />
+      <NavItem
+        emoji="💰"
+        label="Sell"
+        onPress={() => setSellSheetVisible(true)}
+      />
       <NavItem emoji="📋" label="My Items" routeName="MyListings" />
       <NavItem
         emoji="🔔"
@@ -90,6 +95,52 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
           onPress={() => (navigation as any).navigate('Settings')}
         />
       )}
+
+      <Modal
+        transparent
+        animationType="slide"
+        visible={sellSheetVisible}
+        onRequestClose={() => setSellSheetVisible(false)}
+        testID="sell-options-sheet"
+      >
+        <Pressable style={styles.sheetOverlay} onPress={() => setSellSheetVisible(false)}>
+          <View style={styles.sheetContainer}>
+            <Text style={styles.sheetTitle}>Sell</Text>
+
+            <TouchableOpacity
+              style={styles.sheetButton}
+              onPress={() => {
+                setSellSheetVisible(false);
+                (navigation as any).navigate('ItemCreate');
+              }}
+              testID="sell-option-list-one-item"
+            >
+              <Text style={styles.sheetButtonTitle}>List One Item</Text>
+              <Text style={styles.sheetButtonMeta}>Single photo-first flow</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sheetButton}
+              onPress={() => {
+                setSellSheetVisible(false);
+                (navigation as any).navigate('BulkListingCreate');
+              }}
+              testID="sell-option-bulk-upload"
+            >
+              <Text style={styles.sheetButtonTitle}>Bulk Upload</Text>
+              <Text style={styles.sheetButtonMeta}>Up to 30 photos grouped into items</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.sheetCancelButton}
+              onPress={() => setSellSheetVisible(false)}
+              testID="sell-options-cancel"
+            >
+              <Text style={styles.sheetCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -154,5 +205,53 @@ const styles = StyleSheet.create({
   labelActive: {
     color: '#007AFF',
     fontWeight: '600',
+  },
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'flex-end',
+  },
+  sheetContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 14,
+    gap: 8,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  sheetButton: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff',
+  },
+  sheetButtonTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  sheetButtonMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  sheetCancelButton: {
+    marginTop: 6,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  sheetCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
   },
 });

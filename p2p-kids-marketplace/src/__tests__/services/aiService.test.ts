@@ -203,6 +203,44 @@ describe('aiService', () => {
       expect(result.results[0].error).toBeDefined();
     });
 
+    it('should fallback to analyze-item-image when batch returns non-2xx error', async () => {
+      (supabase.functions.invoke as jest.Mock)
+        .mockRejectedValueOnce({
+          name: 'FunctionsHttpError',
+          message: 'Edge Function returned a non-2xx status code',
+        })
+        .mockResolvedValueOnce({
+          data: {
+            title: { value: 'Fallback Title', confidence: 0.91 },
+            brand: { value: 'Brand X', confidence: 0.88 },
+          },
+          error: null,
+        });
+
+      const items = [
+        { groupId: 'group-1', primaryPhotoUrl: 'https://example.com/photo.jpg', allPhotoUrls: ['https://example.com/photo.jpg'] },
+      ];
+
+      const result = await aiService.analyzePhotosBatch(items, 'seller-123');
+
+      expect(supabase.functions.invoke).toHaveBeenNthCalledWith(1, 'batch-analyze-items', {
+        body: {
+          items,
+          sellerId: 'seller-123',
+        },
+      });
+      expect(supabase.functions.invoke).toHaveBeenNthCalledWith(2, 'analyze-item-image', {
+        body: {
+          photoUrl: 'https://example.com/photo.jpg',
+          sellerId: 'seller-123',
+        },
+      });
+
+      expect(result.totalProcessed).toBe(1);
+      expect(result.totalFailed).toBe(0);
+      expect(result.results[0].analysis?.title?.value).toBe('Fallback Title');
+    });
+
     it('should handle missing response data', async () => {
       (supabase.functions.invoke as jest.Mock).mockResolvedValue({
         data: {},

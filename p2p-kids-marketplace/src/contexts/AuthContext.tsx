@@ -86,6 +86,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const walletRef = useRef<any>(null);
   const profileRef = useRef<any>(null);
 
+  const removeRealtimeChannel = useCallback((channelRef: React.MutableRefObject<any>) => {
+    const channel = channelRef.current;
+    channelRef.current = null;
+
+    if (!channel) return;
+
+    void channel.unsubscribe();
+    void supabase.removeChannel(channel);
+  }, []);
+
   // Session change listeners (for external components to react to session updates)
   const sessionChangeListenersRef = useRef<Set<(session: AuthSession | null) => void>>(new Set());
 
@@ -341,85 +351,89 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Setup real-time subscription listener
    * Listens to subscriptions table for changes
    */
-  const setupSubscriptionListener = useCallback(() => {
-    if (!session) return;
+  const setupSubscriptionListener = useCallback((userId: string) => {
+    if (!userId) return;
 
     try {
-      // Clean up old subscription
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
+      // Clean up old subscription before creating a fresh channel.
+      removeRealtimeChannel(subscriptionRef);
 
       // Listen to subscriptions table for this user
-      subscriptionRef.current = supabase
-        .channel(`subscriptions:user_id=eq.${session.user.id}`)
+      const channel = supabase
+        .channel(`auth-subscriptions:${userId}:${Date.now()}`)
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'subscriptions',
-            filter: `user_id=eq.${session.user.id}`,
+            filter: `user_id=eq.${userId}`,
           },
           (payload) => {
             console.log('[AUTH] Subscription changed:', payload);
             // Refresh session when subscription changes
             refreshSession();
           }
-        )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            // Listener is now active - don't log to reduce noise
-          } else if (status === 'CHANNEL_ERROR') {
-            console.warn('[AUTH] Subscription channel error');
+        );
+
+      subscriptionRef.current = channel;
+
+      channel.subscribe((status) => {
+          // Ignore status updates from stale channels already replaced/removed.
+          if (subscriptionRef.current !== channel) return;
+
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('[AUTH] Subscription channel status:', status);
           }
         });
     } catch (err) {
       console.error('[AUTH] Failed to setup subscription listener:', err);
     }
-  }, [session, refreshSession]);
+  }, [refreshSession, removeRealtimeChannel]);
 
   /**
    * Setup real-time SP wallet listener
    * Listens to sp_wallets table for changes
    */
-  const setupWalletListener = useCallback(() => {
-    if (!session) return;
+  const setupWalletListener = useCallback((userId: string) => {
+    if (!userId) return;
 
     try {
-      // Clean up old wallet subscription
-      if (walletRef.current) {
-        walletRef.current.unsubscribe();
-      }
+      // Clean up old wallet subscription before creating a fresh channel.
+      removeRealtimeChannel(walletRef);
 
       // Listen to sp_wallets table for this user
-      walletRef.current = supabase
-        .channel(`sp_wallets:user_id=eq.${session.user.id}`)
+      const channel = supabase
+        .channel(`auth-wallet:${userId}:${Date.now()}`)
         .on(
           'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'sp_wallets',
-            filter: `user_id=eq.${session.user.id}`,
+            filter: `user_id=eq.${userId}`,
           },
           (payload) => {
             console.log('[AUTH] SP Wallet changed:', payload);
             // Refresh session when wallet changes
             refreshSession();
           }
-        )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            // Listener is now active - don't log to reduce noise
-          } else if (status === 'CHANNEL_ERROR') {
-            console.warn('[AUTH] Wallet channel error');
+        );
+
+      walletRef.current = channel;
+
+      channel.subscribe((status) => {
+          // Ignore status updates from stale channels already replaced/removed.
+          if (walletRef.current !== channel) return;
+
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('[AUTH] Wallet channel status:', status);
           }
         });
     } catch (err) {
       console.error('[AUTH] Failed to setup wallet listener:', err);
     }
-  }, [session, refreshSession]);
+  }, [refreshSession, removeRealtimeChannel]);
 
   /**
    * Logout user
@@ -429,16 +443,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsSignout(true);
 
       // Clean up real-time listeners
-      if (profileRef.current) {
-        profileRef.current.unsubscribe();
-        profileRef.current = null;
-      }
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
-      if (walletRef.current) {
-        walletRef.current.unsubscribe();
-      }
+      removeRealtimeChannel(profileRef);
+      removeRealtimeChannel(subscriptionRef);
+      removeRealtimeChannel(walletRef);
 
       // Sign out from Supabase
       const { error: signoutError } = await supabase.auth.signOut();
@@ -459,7 +466,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setIsSignout(false);
     }
-  }, [setSession]);
+  }, [setSession, removeRealtimeChannel]);
 
   /**
    * Initialize auth state on app load
@@ -715,13 +722,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     // 1. Profile listener (onboarding completion, node changes)
     try {
-      if (profileRef.current) {
-        profileRef.current.unsubscribe();
-        profileRef.current = null;
-      }
+      removeRealtimeChannel(profileRef);
 
-      profileRef.current = supabase
-        .channel(`profiles:user_id=eq.${userId}`)
+      const channel = supabase
+        .channel(`auth-profiles:${userId}:${Date.now()}`)
         .on(
           'postgres_changes',
           {
@@ -734,24 +738,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log('[AUTH] Profile changed:', payload);
             refreshSession();
           }
-        )
-        .subscribe();
+        );
+
+      profileRef.current = channel;
+
+      channel.subscribe((status) => {
+        if (profileRef.current !== channel) return;
+
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[AUTH] Profile channel status:', status);
+        }
+      });
     } catch (err) {
       console.error('[AUTH] Failed to setup profile listener:', err);
     }
 
     // 2. Wallet listener (SP balance updates from trades/sales)
-    setupWalletListener();
+    setupWalletListener(userId);
 
     // 3. Subscription listener (Status changes)
-    setupSubscriptionListener();
+    setupSubscriptionListener(userId);
 
     return () => {
-      if (profileRef.current) profileRef.current.unsubscribe();
-      if (walletRef.current) walletRef.current.unsubscribe();
-      if (subscriptionRef.current) subscriptionRef.current.unsubscribe();
+      removeRealtimeChannel(profileRef);
+      removeRealtimeChannel(walletRef);
+      removeRealtimeChannel(subscriptionRef);
     };
-  }, [session?.user?.id, refreshSession, setupWalletListener, setupSubscriptionListener]);
+  }, [session?.user?.id, refreshSession, setupWalletListener, setupSubscriptionListener, removeRealtimeChannel]);
 
   /**
    * Handle app state changes (resume/background)

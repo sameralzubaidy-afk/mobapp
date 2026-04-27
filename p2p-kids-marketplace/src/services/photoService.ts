@@ -237,39 +237,67 @@ export async function linkPhotosToItems(itemId: string, photoUrls: string[]): Pr
 
 /**
  * Auto-group photos for bulk listing
- * Sequential grouping: 2 per group by default
+ * Sequential grouping: DEFAULT 1 per group (Depop/Mercari pattern - user merges later)
  * Respects caps: 10/group, 30 total, 15 groups
  * Returns PhotoGroup[] with stable groupId
- * 
+ *
+ * UX V3.1: Default changed from 2 → 1 photo per item. Auto-grouping multiple photos into
+ * the same item is wrong more often than right; users prefer to start with 1-photo-per-item
+ * and merge similar photos via multi-select (Decision 1, MODULE-04 V3 UX overhaul).
+ *
  * @param photos - Array of photo assets
- * @param photosPerGroup - Photos per group (default 2)
+ * @param photosPerGroup - Photos per group (default 1)
  * @returns Array of photo groups
  */
 export function groupPhotosAuto(
   photos: PhotoAsset[],
-  photosPerGroup: number = 2
+  photosPerGroup: number = 1
 ): PhotoGroup[] {
   const groups: PhotoGroup[] = [];
-  
+
   // Enforce total photo cap
   const cappedPhotos = photos.slice(0, MAX_PHOTOS_TOTAL);
-  
-  // Create groups
-  for (let i = 0; i < cappedPhotos.length; i += photosPerGroup) {
-    if (groups.length >= MAX_GROUPS) {
-      break;
+
+  if (cappedPhotos.length === 0) return groups;
+
+  const safePhotosPerGroup = Math.max(1, Math.min(photosPerGroup, MAX_PHOTOS_PER_GROUP));
+  const requiredGroups = Math.ceil(cappedPhotos.length / safePhotosPerGroup);
+
+  // Standard chunking when requested group size fits session item cap.
+  if (requiredGroups <= MAX_GROUPS) {
+    for (let i = 0; i < cappedPhotos.length; i += safePhotosPerGroup) {
+      const groupPhotos = cappedPhotos.slice(i, i + safePhotosPerGroup);
+      if (groupPhotos.length > 0) {
+        groups.push({
+          groupId: `group_${groups.length + 1}_${Date.now()}`,
+          photos: groupPhotos.slice(0, MAX_PHOTOS_PER_GROUP),
+          primaryPhotoIndex: 0,
+        });
+      }
     }
-    
-    const groupPhotos = cappedPhotos.slice(i, i + photosPerGroup);
-    if (groupPhotos.length > 0) {
-      groups.push({
-        groupId: `group_${groups.length + 1}_${Date.now()}`,
-        photos: groupPhotos.slice(0, MAX_PHOTOS_PER_GROUP),
-        primaryPhotoIndex: 0,
-      });
-    }
+    return groups;
   }
-  
+
+  // Overflow path: keep all photos while honoring MAX_GROUPS by distributing
+  // photos contiguously across exactly MAX_GROUPS groups.
+  const baseSize = Math.floor(cappedPhotos.length / MAX_GROUPS);
+  const remainder = cappedPhotos.length % MAX_GROUPS;
+  let cursor = 0;
+
+  for (let groupIndex = 0; groupIndex < MAX_GROUPS; groupIndex += 1) {
+    const size = baseSize + (groupIndex < remainder ? 1 : 0);
+    if (size <= 0) continue;
+
+    const groupPhotos = cappedPhotos.slice(cursor, cursor + size);
+    cursor += size;
+
+    groups.push({
+      groupId: `group_${groups.length + 1}_${Date.now()}`,
+      photos: groupPhotos.slice(0, MAX_PHOTOS_PER_GROUP),
+      primaryPhotoIndex: 0,
+    });
+  }
+
   return groups;
 }
 
@@ -371,3 +399,225 @@ export async function getPhotoCount(itemId: string): Promise<number> {
     return 0;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// V3.1 UX overhaul — group manipulation helpers (Decisions 1 & 6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+let v_groupIdSequence = 0;
+
+function nextGroupId(seedTag?: string): string {
+  v_groupIdSequence += 1;
+  const safeTag = (seedTag || 'generated').replace(/[^a-zA-Z0-9_]/g, '_');
+  return `group_${safeTag}_${Date.now()}_${v_groupIdSequence}`;
+}
+
+/**
+ * Merge multiple groups into a single new group (preserves photo order).
+ * Returns groups array with merged group at the position of the first source group;
+ * source groups removed. Caps at MAX_PHOTOS_PER_GROUP — overflow photos stay in their
+ * original groups (caller should surface a warning).
+ */
+export function mergeGroups(
+  groups: PhotoGroup[],
+  sourceGroupIds: string[],
+): { groups: PhotoGroup[]; overflow: number } {
+  if (sourceGroupIds.length < 2) return { groups, overflow: 0 };
+  const sources = sourceGroupIds
+    .map((id) => groups.find((g) => g.groupId === id))
+    .filter((g): g is PhotoGroup => Boolean(g));
+  if (sources.length < 2) return { groups, overflow: 0 };
+
+  const allPhotos = sources.flatMap((g) => g.photos);
+  const taken = allPhotos.slice(0, MAX_PHOTOS_PER_GROUP);
+  const overflow = allPhotos.length - taken.length;
+
+  const firstSourceIndex = groups.findIndex((g) => g.groupId === sources[0].groupId);
+  const merged: PhotoGroup = {
+    groupId: nextGroupId('merged'),
+    photos: taken,
+    primaryPhotoIndex: 0,
+  };
+
+  const sourceIdSet = new Set(sourceGroupIds);
+  const next: PhotoGroup[] = [];
+  let inserted = false;
+  groups.forEach((g, idx) => {
+    if (sourceIdSet.has(g.groupId)) {
+      if (!inserted && idx === firstSourceIndex) {
+        next.push(merged);
+        inserted = true;
+      }
+      return;
+    }
+    next.push(g);
+  });
+  if (!inserted) next.unshift(merged);
+  return { groups: next, overflow };
+}
+
+/**
+ * Split a group into N groups of 1 photo each.
+ * Replaces the source group at its position with the new groups.
+ * Respects MAX_GROUPS cap.
+ */
+export function splitGroup(groups: PhotoGroup[], sourceGroupId: string): PhotoGroup[] {
+  const idx = groups.findIndex((g) => g.groupId === sourceGroupId);
+  if (idx === -1) return groups;
+  const source = groups[idx];
+  if (source.photos.length <= 1) return groups;
+
+  const remainingSlots = MAX_GROUPS - (groups.length - 1);
+  if (remainingSlots <= 0) return groups;
+
+  const newGroups: PhotoGroup[] = source.photos
+    .slice(0, remainingSlots)
+    .map((photo, i) => ({
+      groupId: nextGroupId(`split_${i}`),
+      photos: [photo],
+      primaryPhotoIndex: 0,
+    }));
+
+  // If we couldn't fit all, leave the leftover photos in the original group
+  const leftover = source.photos.slice(remainingSlots);
+  const next = [...groups];
+  if (leftover.length > 0) {
+    next.splice(idx, 1, { ...source, photos: leftover, primaryPhotoIndex: 0 }, ...newGroups);
+  } else {
+    next.splice(idx, 1, ...newGroups);
+  }
+  return next;
+}
+
+/**
+ * Add an empty group (no photos) — used when seller wants to list an item before adding photos.
+ */
+export function addEmptyGroup(groups: PhotoGroup[]): PhotoGroup[] {
+  if (groups.length >= MAX_GROUPS) return groups;
+  return [
+    ...groups,
+    {
+      groupId: nextGroupId('empty'),
+      photos: [],
+      primaryPhotoIndex: 0,
+    },
+  ];
+}
+
+/**
+ * Remove a group entirely. Photos in the group are also removed.
+ */
+export function removeGroup(groups: PhotoGroup[], groupId: string): PhotoGroup[] {
+  return groups.filter((g) => g.groupId !== groupId);
+}
+
+/**
+ * Remove a single photo from whichever group contains it.
+ * If the group becomes empty, the group is removed too.
+ */
+export function removePhotoFromGroups(
+  groups: PhotoGroup[],
+  photoId: string,
+): PhotoGroup[] {
+  return groups
+    .map((g) => {
+      const idx = g.photos.findIndex((p) => p.id === photoId);
+      if (idx === -1) return g;
+      const nextPhotos = g.photos.filter((p) => p.id !== photoId);
+      const nextPrimary = Math.min(g.primaryPhotoIndex, Math.max(0, nextPhotos.length - 1));
+      return { ...g, photos: nextPhotos, primaryPhotoIndex: nextPrimary };
+    })
+    .filter((g) => g.photos.length > 0);
+}
+
+/**
+ * Append additional photos as new 1-photo groups (used when seller taps "Add more photos").
+ * Respects total + group caps.
+ */
+export function appendPhotosAsGroups(
+  groups: PhotoGroup[],
+  newPhotos: PhotoAsset[],
+): PhotoGroup[] {
+  const totalPhotos = groups.reduce((sum, g) => sum + g.photos.length, 0);
+  const photoSlots = Math.max(0, MAX_PHOTOS_TOTAL - totalPhotos);
+  const groupSlots = Math.max(0, MAX_GROUPS - groups.length);
+  const limit = Math.min(newPhotos.length, photoSlots, groupSlots);
+  if (limit <= 0) return groups;
+  const additions: PhotoGroup[] = newPhotos.slice(0, limit).map((p, i) => ({
+    groupId: nextGroupId(`add_${i}`),
+    photos: [p],
+    primaryPhotoIndex: 0,
+  }));
+  return [...groups, ...additions];
+}
+
+/**
+ * Add photos to an existing group (used when seller taps "+ Add photos" inside an item).
+ * Respects MAX_PHOTOS_PER_GROUP and MAX_PHOTOS_TOTAL caps.
+ */
+export function addPhotosToGroup(
+  groups: PhotoGroup[],
+  groupId: string,
+  newPhotos: PhotoAsset[],
+): PhotoGroup[] {
+  const idx = groups.findIndex((g) => g.groupId === groupId);
+  if (idx === -1) return groups;
+  const target = groups[idx];
+  const totalPhotos = groups.reduce((sum, g) => sum + g.photos.length, 0);
+  const groupRoom = MAX_PHOTOS_PER_GROUP - target.photos.length;
+  const totalRoom = MAX_PHOTOS_TOTAL - totalPhotos;
+  const limit = Math.min(newPhotos.length, groupRoom, totalRoom);
+  if (limit <= 0) return groups;
+  const next = [...groups];
+  next[idx] = { ...target, photos: [...target.photos, ...newPhotos.slice(0, limit)] };
+  return next;
+}
+
+/**
+ * Move a photo to a NEW position within the same group (drag-reorder).
+ */
+export function reorderPhotoInGroup(
+  groups: PhotoGroup[],
+  groupId: string,
+  fromIndex: number,
+  toIndex: number,
+): PhotoGroup[] {
+  const idx = groups.findIndex((g) => g.groupId === groupId);
+  if (idx === -1) return groups;
+  const target = groups[idx];
+  if (
+    fromIndex < 0 ||
+    fromIndex >= target.photos.length ||
+    toIndex < 0 ||
+    toIndex >= target.photos.length ||
+    fromIndex === toIndex
+  ) {
+    return groups;
+  }
+  const photos = [...target.photos];
+  const [moved] = photos.splice(fromIndex, 1);
+  photos.splice(toIndex, 0, moved);
+  // Track primary across the move
+  let nextPrimary = target.primaryPhotoIndex;
+  if (target.primaryPhotoIndex === fromIndex) nextPrimary = toIndex;
+  else if (
+    fromIndex < target.primaryPhotoIndex &&
+    toIndex >= target.primaryPhotoIndex
+  ) {
+    nextPrimary = target.primaryPhotoIndex - 1;
+  } else if (
+    fromIndex > target.primaryPhotoIndex &&
+    toIndex <= target.primaryPhotoIndex
+  ) {
+    nextPrimary = target.primaryPhotoIndex + 1;
+  }
+  const next = [...groups];
+  next[idx] = { ...target, photos, primaryPhotoIndex: nextPrimary };
+  return next;
+}
+
+export const PHOTO_LIMITS = {
+  MAX_PHOTOS_TOTAL,
+  MAX_PHOTOS_PER_GROUP,
+  MAX_GROUPS,
+} as const;

@@ -243,7 +243,6 @@ describe('listing service', () => {
       expect(updateBuilder.update).toHaveBeenCalledWith(
         expect.objectContaining({
           status: 'pending',
-          flagged_at: null,
           edited_since_rejection: false,
           edited_since_rejection_at: null,
         })

@@ -227,6 +227,7 @@ export const subscribeToNotifications = (
       .slice(2, 8)}`;
 
     const channel = supabase.channel(channelTopic);
+    let isDisposed = false;
 
     channel.on(
       'postgres_changes',
@@ -243,13 +244,18 @@ export const subscribeToNotifications = (
     );
 
     channel.subscribe((status) => {
-      if (status === 'CHANNEL_ERROR') {
-        console.error('[ReferralNotifications] Realtime channel error:', channelTopic);
+      // Ignore status events from a channel that has already been cleaned up.
+      if (isDisposed) return;
+
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[ReferralNotifications] Realtime channel status:', status, channelTopic);
       }
     });
 
     // Return cleanup function
     return () => {
+      isDisposed = true;
+      void channel.unsubscribe();
       // removeChannel ensures the channel is detached from the client registry,
       // preventing stale topic reuse across screen transitions.
       void supabase.removeChannel(channel);

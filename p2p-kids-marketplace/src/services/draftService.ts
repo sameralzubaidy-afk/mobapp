@@ -14,6 +14,7 @@
 import { supabase } from '../config/supabase';
 import { ItemDraft, DraftData, AIAnalysisResult } from '../types/listing';
 import { createListing } from './listing';
+import { linkPhotosToItems } from './photoService';
 
 type DraftStep = 'photos' | 'grouping' | 'details' | 'price' | 'review';
 
@@ -54,6 +55,17 @@ export interface BulkPublishResult {
   errors: string[];
 }
 
+export interface BulkUploadSession {
+  id: string;
+  seller_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'partial' | 'failed';
+  total_photos: number;
+  total_items: number;
+  published_items: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
 /**
  * Create new item draft
  * Inserts into item_drafts table
@@ -65,7 +77,8 @@ export interface BulkPublishResult {
  */
 export async function createItemDraft(
   sellerId: string,
-  initial?: Partial<DraftData>
+  initial?: Partial<DraftData>,
+  bulkUploadId?: string
 ): Promise<ItemDraft | null> {
   try {
     const normalizedInitial = normalizeDraftData(initial || {});
@@ -75,6 +88,7 @@ export async function createItemDraft(
       .insert([
         {
           seller_id: sellerId,
+          bulk_upload_id: bulkUploadId || null,
           draft_data: normalizedInitial,
           photo_urls: normalizedInitial.photo_urls || [],
           ai_suggestions: null,
@@ -90,6 +104,59 @@ export async function createItemDraft(
   } catch (error: any) {
     console.error('[draftService] Create draft error:', error);
     return null;
+  }
+}
+
+/**
+ * Start a new bulk session row in item_bulk_uploads with pending status.
+ */
+export async function startBulkSession(
+  sellerId: string
+): Promise<BulkUploadSession | null> {
+  try {
+    const { data, error } = await supabase
+      .from('item_bulk_uploads')
+      .insert({
+        seller_id: sellerId,
+        status: 'pending',
+        total_photos: 0,
+        total_items: 0,
+        published_items: 0,
+      })
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return data as BulkUploadSession;
+  } catch (error: any) {
+    console.error('[draftService] Start bulk session error:', error);
+    return null;
+  }
+}
+
+/**
+ * Update a bulk session once grouping is confirmed and processing begins.
+ */
+export async function markBulkSessionProcessing(
+  bulkUploadId: string,
+  totalPhotos: number,
+  totalItems: number
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('item_bulk_uploads')
+      .update({
+        status: 'processing',
+        total_photos: totalPhotos,
+        total_items: totalItems,
+      })
+      .eq('id', bulkUploadId);
+
+    if (error) throw error;
+    return true;
+  } catch (error: any) {
+    console.error('[draftService] Mark bulk session processing error:', error);
+    return false;
   }
 }
 
@@ -259,7 +326,16 @@ export async function publishDraft(draftId: string): Promise<string | null> {
       throw new Error('Price must be greater than 0');
     }
 
-    if (!draftData.category_id && !draftData.requested_category_name) {
+    const isOtherCategory =
+      draftData.category_id === 'other' ||
+      String((draftData as any).category_name || '').trim().toLowerCase() === 'other';
+    const requestedCategoryName = String(draftData.requested_category_name || '').trim();
+
+    if (isOtherCategory) {
+      if (!requestedCategoryName) {
+        throw new Error('Custom category name is required when category is Other');
+      }
+    } else if (!draftData.category_id && !requestedCategoryName) {
       throw new Error('Category is required');
     }
 
@@ -277,8 +353,10 @@ export async function publishDraft(draftId: string): Promise<string | null> {
       title: draftData.title,
       description: draftData.description,
       price: draftData.price,
-      category_id: draftData.category_id,
-      requested_category_name: draftData.requested_category_name,
+      category_id: isOtherCategory ? undefined : draftData.category_id,
+      requested_category_name: isOtherCategory
+        ? requestedCategoryName
+        : draftData.requested_category_name,
       condition: draftData.condition,
       brand: draftData.brand,
       color: draftData.color,
@@ -322,6 +400,97 @@ export async function publishBulkDrafts(
 
   // Process each draft
   for (const draftId of itemIds) {
+    const draft = await getItemDraft(draftId);
+
+    if (!draft) {
+      failed.push({ draftId, error: 'Draft not found' });
+      errors.push(`Draft ${draftId}: Draft not found`);
+      continue;
+    }
+
+    const bulkItems = Array.isArray((draft.draft_data as any)?.items)
+      ? ((draft.draft_data as any).items as Record<string, any>[])
+      : [];
+
+    // V3 one-draft-per-session bulk model
+    if (bulkItems.length > 0) {
+      for (const [index, item] of bulkItems.entries()) {
+        if (item?.includeInPublish === false) {
+          continue;
+        }
+
+        const itemIdForError = `${draftId}#${item?.groupId || index}`;
+
+        const title = (item?.title || '').trim();
+        const description = (item?.description || '').trim();
+        const condition = item?.condition;
+        const categoryId = item?.category_id;
+        const requestedCategoryName = String(item?.requested_category_name || '').trim();
+        const isOtherCategory =
+          categoryId === 'other' ||
+          String(item?.category_name || '').trim().toLowerCase() === 'other';
+        const parsedPrice = Number(item?.price);
+        const photoUrls = Array.isArray(item?.photo_urls) ? item.photo_urls : [];
+
+        if (!title) {
+          failed.push({ draftId: itemIdForError, error: 'Title is required' });
+          continue;
+        }
+        if (!condition) {
+          failed.push({ draftId: itemIdForError, error: 'Condition is required' });
+          continue;
+        }
+        if (isOtherCategory) {
+          if (!requestedCategoryName) {
+            failed.push({ draftId: itemIdForError, error: 'Custom category name is required when category is Other' });
+            continue;
+          }
+        } else if (!categoryId && !requestedCategoryName) {
+          failed.push({ draftId: itemIdForError, error: 'Category is required' });
+          continue;
+        }
+        if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+          failed.push({ draftId: itemIdForError, error: 'Price must be greater than 0' });
+          continue;
+        }
+        if (!photoUrls.length) {
+          failed.push({ draftId: itemIdForError, error: 'At least one photo is required' });
+          continue;
+        }
+
+        try {
+          const created = await createListing({
+            seller_id: draft.seller_id,
+            title,
+            description,
+            price: parsedPrice,
+            category_id: isOtherCategory ? undefined : categoryId || undefined,
+            requested_category_name: isOtherCategory ? requestedCategoryName : requestedCategoryName || null,
+            condition,
+            brand: item?.brand || null,
+            color: Array.isArray(item?.color) ? item.color : null,
+            age_group: item?.age_group || null,
+            gender: item?.gender || null,
+            accepts_swap_points: Boolean(item?.accepts_swap_points),
+          });
+
+          await linkPhotosToItems(created.id, photoUrls);
+          published.push(created.id);
+        } catch (error: any) {
+          const errorMsg = error?.message || 'Publish failed';
+          failed.push({ draftId: itemIdForError, error: errorMsg });
+          errors.push(`Draft ${itemIdForError}: ${errorMsg}`);
+        }
+      }
+
+      // Keep failed bulk draft for retry; discard only when fully published.
+      if (failed.filter((f) => f.draftId.startsWith(`${draftId}#`)).length === 0) {
+        await deleteDraft(draftId);
+      }
+      continue;
+    }
+
+    // Backward-compatible multi-draft behavior (legacy path)
     try {
       const itemId = await publishDraft(draftId);
       if (itemId) {

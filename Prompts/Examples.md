@@ -56,6 +56,15 @@ Supabase: supabase/
 My Example 1
 
 
+## TASK LISTING-V3-007: Draft Resume Banner + Navigation Wiring
+
+**Duration:** 2 hours
+**Priority:** Medium
+**Dependencies:** LISTING-V3-003, LISTING-V3-005, LISTING-V3-006
+
+### Description
+
+
 ## TASK LISTING-V3-006: BulkListingCreateScreen (new)
 
 I’m working on the  MODULE-04-ITEM-LISTING-V3.md tasks
@@ -64,52 +73,29 @@ Tasks:## TASK LISTING-V3-006: BulkListingCreateScreen (new)
 
 scope is 
 
-New screen for bulk upload → auto-group → batch AI → per-item review → publish-all. Separate from `ItemCreateScreen` per UX Decision 11.
+Wire the draft-resume UX and the bulk/single entry points: a resume banner on home, a Drafts tab on Your Listings, and a Sell-tab FAB bottom sheet that routes users into either the single or bulk creation flow.
 
 ### Scope
-
-**In scope:**
-- 1 new screen + 6 new bulk subcomponents under `src/components/bulk/`.
-- Bulk state machine (`IDLE → ADDING_PHOTOS → GROUPING → AI_ANALYZING → REVIEWING_ITEMS → PUBLISHING → SUCCESS|PARTIAL|ERROR`).
-- Multi-select image picker (≤ 30), drag-between-groups, batch publish orchestration.
-- One-draft-per-session persistence via `draft_data.items[]`.
-
+- 1 new component (`ResumeDraftBanner`), 2 screen modifications (Your Listings, navigator).
+- FAB bottom sheet with two routes.
+- Drafts tab with swipe-to-discard.
 
 ### Files
 
 | Path | Purpose |
 |---|---|
-| `p2p-kids-marketplace/src/screens/BulkListingCreateScreen.tsx` | Top-level screen |
-| `p2p-kids-marketplace/src/components/bulk/BulkPhotoUploader.tsx` | 30-photo multi-picker |
-| `p2p-kids-marketplace/src/components/bulk/PhotoGroupingView.tsx` | Drag photos between groups |
-| `p2p-kids-marketplace/src/components/bulk/ItemCardStack.tsx` | Horizontal scroll of items |
-| `p2p-kids-marketplace/src/components/bulk/BulkItemCard.tsx` | Collapsible item card with mini-form |
-| `p2p-kids-marketplace/src/components/bulk/BulkPublishBar.tsx` | Fixed bottom "Publish N items" |
-| `p2p-kids-marketplace/src/components/bulk/BulkPublishConfirmSheet.tsx` | Pre-publish summary sheet |
-
-### State Machine
-
-```
-IDLE → ADDING_PHOTOS → GROUPING → AI_ANALYZING → REVIEWING_ITEMS → PUBLISHING → SUCCESS|PARTIAL|ERROR
-```
+| `p2p-kids-marketplace/src/components/molecules/ResumeDraftBanner.tsx` | "You have N unfinished listing(s). Continue?" |
+| `p2p-kids-marketplace/src/screens/profile/YourListingsScreen.tsx` | MODIFY — add "Drafts" tab |
+| Navigator file (e.g. `src/navigation/RootNavigator.tsx`) | MODIFY — register `BulkListingCreate`, Sell-tab FAB bottom sheet |
 
 ### Acceptance Criteria
 
-- [ ] Entry point: "Sell" tab FAB → bottom sheet with two options ("List One Item" / "Bulk Upload") — the latter navigates here.
-- [ ] `BulkPhotoUploader` uses `expo-image-picker` with `allowsMultipleSelection=true`, `selectionLimit=30`.
-- [ ] On photos added: `startBulkSession` INSERTs a `item_bulk_uploads` row with `status='pending'`, then `groupPhotosAuto` groups them.
-- [ ] `PhotoGroupingView` supports drag-between-groups via `react-native-draggable-flatlist`; enforces caps.
-- [ ] "Confirm Grouping" → updates `item_bulk_uploads.status='processing'`, `total_photos`, `total_items`, then fires `analyzePhotosBatch` for each group's primary photo.
-- [ ] As each AI result arrives, the corresponding `BulkItemCard` updates live.
-- [ ] Tapping a card expands/opens full edit view (reuses the same form components from ItemCreateScreen in a compact layout).
-- [ ] Each card has an "Exclude from publish" toggle.
-- [ ] "Publish N Items" bar count reflects only included items.
-- [ ] `BulkPublishConfirmSheet` shows count + any warnings (items with missing required fields greyed out).
-- [ ] On publish: calls `publishBulkDrafts`; on partial success, shows which items failed with reasons.
-- [ ] Draft behavior: the whole session is stored as **one** draft row in `item_drafts` with `draft_data.items` being an array.
-- [ ] On back navigation with unsaved state: `saveNow()` is called.
-- [ ] Accessibility: drag handles announce position ("Photo 2 of 4 in Item 1").
-
+- [ ] On app open (mount of `HomeScreen`): if `getActiveDrafts(userId).length > 0`, show `ResumeDraftBanner`.
+- [ ] Tapping banner opens `ItemCreateScreen` with `{ draftId }` param (or `BulkListingCreate` if the draft has `bulk_upload_id`).
+- [ ] Banner dismiss is soft (session-level state); it will reappear next app open.
+- [ ] "Your Listings" screen has a **Drafts** tab showing `getActiveDrafts` results with relative time-ago and "Resume" button.
+- [ ] Drafts tab supports swipe-to-discard which calls `deleteDraft`.
+- [ ] Sell-tab FAB shows a bottom sheet: "List One Item" → `ItemCreate`, "Bulk Upload" → `BulkListingCreate`.
 
 i want you to 
 

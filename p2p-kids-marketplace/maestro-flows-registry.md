@@ -29,3 +29,4 @@
 - `.maestro/search-autocomplete.yaml` - Discovery V3 search autocomplete: recent searches (max 8, LRU), case-insensitive deduplication, autocomplete dropdown, tap suggestion, brand autocomplete (DISCOVERY-V3-008).
 - `.maestro/search-empty-state.yaml` - Discovery V3 empty states: no results message, typo suggestions ("Did you mean..."), filter-specific empty states, clear filters from empty state (DISCOVERY-V3-008).
 - `.maestro/listing-v3-002-ai-analysis.yaml` - AI image analysis for bulk listing auto-fill: single item analysis with Google Vision API, batch analysis with concurrency limiting, confidence scores, error handling, manual override, low confidence field omission (LISTING-V3-002).
+- `.maestro/listing-v3-006-bulk-listing-create.yaml` - Bulk listing screen flow: Sell sheet entry, multi-photo selection, grouping, AI analyze transition, per-item review, publish confirmation, partial/error surfacing (LISTING-V3-006).

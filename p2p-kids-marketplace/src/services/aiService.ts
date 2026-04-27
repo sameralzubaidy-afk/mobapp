@@ -15,7 +15,6 @@ import { AIAnalysisResult, AIFieldResult } from '../types/listing';
 // Confidence thresholds
 const CONFIDENCE_HIGH = 0.70;
 const CONFIDENCE_MEDIUM = 0.40;
-const CONFIDENCE_LOW = 0.20;
 const BATCH_TIMEOUT_MS = 25000;
 
 class AIServiceTimeoutError extends Error {
@@ -23,6 +22,19 @@ class AIServiceTimeoutError extends Error {
     super(message);
     this.name = 'AIServiceTimeoutError';
   }
+}
+
+function shouldFallbackToSingleItemAnalysis(error: any): boolean {
+  const name = String(error?.name || '');
+  const message = String(error?.message || '').toLowerCase();
+
+  return (
+    name === 'FunctionsHttpError' ||
+    name === 'FunctionsRelayError' ||
+    message.includes('edge function returned a non-2xx status code') ||
+    message.includes('failed to fetch') ||
+    message.includes('network')
+  );
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
@@ -178,8 +190,8 @@ export async function analyzePhotosBatch(
   } catch (error: any) {
     console.error('[aiService] Batch analysis error:', error);
 
-    if (error instanceof AIServiceTimeoutError) {
-      console.warn('[aiService] Falling back to direct analyze-item-image calls after batch timeout');
+    if (error instanceof AIServiceTimeoutError || shouldFallbackToSingleItemAnalysis(error)) {
+      console.warn('[aiService] Falling back to direct analyze-item-image calls after batch failure');
       return fallbackSingleItemAnalysis(items, sellerId);
     }
     
@@ -226,15 +238,15 @@ export function parseAIResult(raw: AIAnalysisResult): AIAnalysisResult {
     filtered.brand = raw.brand;
   }
 
-  if (meetsConfidence(raw.color, CONFIDENCE_LOW)) {
+  if (meetsConfidence(raw.color)) {
     filtered.color = raw.color;
   }
 
-  if (meetsConfidence(raw.age_group, CONFIDENCE_LOW)) {
+  if (meetsConfidence(raw.age_group)) {
     filtered.age_group = raw.age_group;
   }
 
-  if (meetsConfidence(raw.gender, CONFIDENCE_LOW)) {
+  if (meetsConfidence(raw.gender)) {
     filtered.gender = raw.gender;
   }
 

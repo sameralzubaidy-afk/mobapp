@@ -45,6 +45,44 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-04: Listings – Create/Edit/Delete/Expire/Soft Delete
 - Smoke: (manual)
   - Create listing -> appears in listings feed for same node.
+  - **LISTING-V3-006-UX-OVERHAUL (2026-04-26):** Bulk Listing Create UX redesign — 12 approved decisions
+    - Scope: `p2p-kids-marketplace/src/screens/BulkListingCreateScreen.tsx` and `src/components/bulk/*`
+    - Decisions implemented (1-9, 11, 12): 1-photo-per-item default; vertical card list; progressive disclosure; long-press multi-select grouping (merge / move-to-new / delete); cover-on-tap; "Edit grouping" from review; Reset grouping; Apply-to-all bar (brand/condition/age_group/gender); first-time intro sheet; per-card AI retry; perceptual-hash duplicate detection
+    - Decision 10 (drag-to-reorder within a group) deferred — `TODO(LISTING-V3-006-DRAG)` to add Pan-gesture reorder via existing `react-native-gesture-handler`
+    - New utilities: `src/utils/photoHash.ts`, `src/utils/bulkApplyToAll.ts`
+    - New components: `BulkStepIndicator`, `BulkIntroSheet`, `PhotoSelectGrid`, `SelectionActionBar`, `ApplyToAllBar`
+    - photoService helpers added: `mergeGroups`, `splitGroup`, `addEmptyGroup`, `removeGroup`, `removePhotoFromGroups`, `appendPhotosAsGroups`, `addPhotosToGroup`, `reorderPhotoInGroup`, `PHOTO_LIMITS`
+    - State machine actions added: `EDIT_GROUPING`, `RESET_GROUPING`
+    - Tests:
+      - `src/utils/__tests__/bulkApplyToAll.test.ts` (8 cases)
+      - `src/utils/__tests__/photoHash.test.ts` (10 cases)
+      - `src/services/__tests__/photoService.merge-split.test.ts` (15 cases)
+      - Manual: `LISTING-V3-006-MANUAL-TESTING-GUIDE.md` (TC-001..TC-043, including Payment Preference and Accept SP parity)
+      - Maestro: `.maestro/listing-v3-006-bulk-listing-create.yaml`
+      - Screen-level Jest test temporarily disabled (heap exhaustion when importing `expo-image-manipulator`); coverage provided by unit tests + Maestro
+  - **LISTING-V3-006-AI-BATCH-HARDENING (2026-04-26):** Prevent full AI analysis failure when batch function returns non-2xx
+    - Scope:
+      - `p2p-kids-marketplace/src/services/aiService.ts`
+      - `supabase/functions/batch-analyze-items/index.ts`
+    - Fixes:
+      - aiService now falls back to per-item `analyze-item-image` calls when batch invocation fails with non-2xx (`FunctionsHttpError`) or network-level failures.
+      - batch-analyze-items no longer hard-fails when `authorization` is missing; it now requires `apikey` and only forwards Authorization downstream when available.
+    - Validation:
+      - `npm run typecheck` in `p2p-kids-marketplace/`
+      - `npx jest src/__tests__/services/aiService.test.ts --runInBand`
+  - **LISTING-V3-006-OTHER-CATEGORY-PARITY (2026-04-26):** Ensure Other category custom request input appears and is required in bulk flow
+    - Scope:
+      - `p2p-kids-marketplace/src/components/bulk/BulkItemCard.tsx`
+      - `p2p-kids-marketplace/src/screens/BulkListingCreateScreen.tsx`
+      - `p2p-kids-marketplace/src/services/draftService.ts`
+    - Fixes:
+      - Bulk card now shows `Custom Category Name *` when category is `Other`.
+      - Bulk required-field validation now blocks submission when `Other` is selected but custom category text is empty.
+      - Draft publish logic now treats `Other` as a custom-category request and sends `requested_category_name` without `category_id`.
+    - Validation:
+      - `npm run typecheck` in `p2p-kids-marketplace/`
+      - `npx eslint src/components/bulk/BulkItemCard.tsx src/screens/BulkListingCreateScreen.tsx src/services/draftService.ts src/__tests__/services/draftService.test.ts`
+      - `npx jest src/__tests__/services/draftService.test.ts --runInBand`
   - **LISTING-REVIEW-HOTFIX (2026-04-15):** Force all user-created listings into admin review
     - Migration: `supabase/migrations/20260415000002_enforce_pending_review_for_all_user_listings.sql`
     - App service changes:
@@ -219,6 +257,22 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Verification: See `Prompts/MODULE-13-VERIFICATION.md` for completion criteria
 - Automated (offline): Jest covers listing service lifecycle + SP gating.
 - E2E (Supabase prod): `p2p-kids-marketplace/src/__tests__/e2e/referral-listing-bonus.e2e.ts` covers referral listing bonus awarding end-to-end.
+  - **LISTING-V3-006 (2026-04-25):** BulkListingCreateScreen + Sell sheet routing
+    - New screen: `p2p-kids-marketplace/src/screens/BulkListingCreateScreen.tsx`
+    - New components:
+      - `p2p-kids-marketplace/src/components/bulk/BulkPhotoUploader.tsx`
+      - `p2p-kids-marketplace/src/components/bulk/PhotoGroupingView.tsx`
+      - `p2p-kids-marketplace/src/components/bulk/ItemCardStack.tsx`
+      - `p2p-kids-marketplace/src/components/bulk/BulkItemCard.tsx`
+      - `p2p-kids-marketplace/src/components/bulk/BulkPublishBar.tsx`
+      - `p2p-kids-marketplace/src/components/bulk/BulkPublishConfirmSheet.tsx`
+    - Navigation wiring:
+      - `BottomNavBar` Sell tab opens bottom sheet with `List One Item` + `Bulk Upload`
+      - `BulkListingCreate` registered in `AppNavigator` and route types
+    - State machine: `IDLE → ADDING_PHOTOS → GROUPING → AI_ANALYZING → REVIEWING_ITEMS → PUBLISHING → SUCCESS|PARTIAL|ERROR`
+    - Draft behavior: one draft row per bulk session (`draft_data.items[]`) with bulk session row in `item_bulk_uploads`
+    - Maestro flow: `.maestro/listing-v3-006-bulk-listing-create.yaml`
+    - Manual guide: `LISTING-V3-006-MANUAL-TESTING-GUIDE.md`
   - **LISTING-V3-001 (2026-04-22):** Bulk Listing & AI Auto-Fill Schema Preparation
     - Purpose: Add database schema for bulk listing feature (MODULE-04 V3)
     - Migration files:

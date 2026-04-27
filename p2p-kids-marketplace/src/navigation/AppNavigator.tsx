@@ -30,6 +30,7 @@ import NodeSelectionScreen from '@/screens/onboarding/NodeSelectionScreen';
 import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScreen';
 import CreateListingScreen from '@/screens/listing/CreateListingScreen';
 import ItemCreateScreen from '@/screens/ItemCreateScreen';
+import BulkListingCreateScreen from '@/screens/BulkListingCreateScreen';
 import EditListingScreen from '@/screens/listing/EditListingScreen';
 import MyListingsScreen from '@/screens/listing/MyListingsScreen';
 import ListingSafetyReviewScreen from '@/screens/listing/ListingSafetyReviewScreen';
@@ -98,6 +99,7 @@ const linking = {
       MyListings: 'my-listings',
       CreateListing: 'create-listing',
       ItemCreate: 'create-item',
+      BulkListingCreate: 'bulk-create',
       EditListing: 'edit-listing',
       ListingDetail: 'listing/:listing_id',
       ListingSafetyReview: 'listing-safety/:listing_id',
@@ -358,6 +360,11 @@ function RootNavigator() {
             <Stack.Screen
               name="ItemCreate"
               component={ItemCreateScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="BulkListingCreate"
+              component={BulkListingCreateScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

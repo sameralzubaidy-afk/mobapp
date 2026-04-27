@@ -218,14 +218,14 @@ describe('photoService', () => {
       }));
     };
 
-    it('should group photos with 2 per group by default', () => {
+    it('should group photos with 1 per group by default', () => {
       const photos = createMockPhotos(6);
       const groups = photoService.groupPhotosAuto(photos);
       
-      expect(groups).toHaveLength(3);
-      expect(groups[0].photos).toHaveLength(2);
-      expect(groups[1].photos).toHaveLength(2);
-      expect(groups[2].photos).toHaveLength(2);
+      expect(groups).toHaveLength(6);
+      expect(groups[0].photos).toHaveLength(1);
+      expect(groups[1].photos).toHaveLength(1);
+      expect(groups[2].photos).toHaveLength(1);
     });
 
     it('should respect custom photos per group', () => {
@@ -246,11 +246,30 @@ describe('photoService', () => {
       expect(totalPhotos).toBeLessThanOrEqual(30);
     });
 
-    it('should enforce 15 group cap', () => {
+    it('should enforce 15 group cap without dropping photos', () => {
       const photos = createMockPhotos(30);
       const groups = photoService.groupPhotosAuto(photos, 1); // 1 photo per group
-      
-      expect(groups.length).toBeLessThanOrEqual(15);
+
+      expect(groups.length).toBe(15);
+      const totalPhotos = groups.reduce((sum, g) => sum + g.photos.length, 0);
+      expect(totalPhotos).toBe(30);
+      groups.forEach((group) => {
+        expect(group.photos.length).toBe(2);
+      });
+    });
+
+    it('should keep max item count while preserving all photos for 16-photo input', () => {
+      const photos = createMockPhotos(16);
+      const groups = photoService.groupPhotosAuto(photos, 1);
+
+      expect(groups).toHaveLength(15);
+      const totalPhotos = groups.reduce((sum, g) => sum + g.photos.length, 0);
+      expect(totalPhotos).toBe(16);
+
+      const groupsWithTwoPhotos = groups.filter((group) => group.photos.length === 2);
+      const groupsWithOnePhoto = groups.filter((group) => group.photos.length === 1);
+      expect(groupsWithTwoPhotos).toHaveLength(1);
+      expect(groupsWithOnePhoto).toHaveLength(14);
     });
 
     it('should enforce 10 photos per group cap', () => {
@@ -288,7 +307,7 @@ describe('photoService', () => {
 
     it('should handle partial last group', () => {
       const photos = createMockPhotos(5); // 2 per group = 2 groups + 1 leftover
-      const groups = photoService.groupPhotosAuto(photos);
+      const groups = photoService.groupPhotosAuto(photos, 2);
       
       expect(groups).toHaveLength(3);
       expect(groups[2].photos).toHaveLength(1);

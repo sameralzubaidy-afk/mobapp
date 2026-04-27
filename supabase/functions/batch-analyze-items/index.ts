@@ -26,8 +26,8 @@ const MAX_CONCURRENCY = 5;
 const TIMEOUT_MS = 20_000; // 20 seconds per item
 
 type DownstreamAuthHeaders = {
-  authorization: string;
   apikey: string;
+  authorization?: string;
 };
 
 function normalizeAuthorizationHeader(value: string | null): string | null {
@@ -42,16 +42,18 @@ function getDownstreamAuthHeaders(req: Request): DownstreamAuthHeaders {
   const fallbackAuthorization = normalizeAuthorizationHeader(SUPABASE_SERVICE_ROLE_KEY);
   const fallbackApiKey = SUPABASE_SERVICE_ROLE_KEY ?? SUPABASE_ANON_KEY ?? null;
 
-  const authorization = incomingAuthorization ?? fallbackAuthorization;
+  // Authorization is optional for downstream invocation. If we have an incoming
+  // user JWT, use it. Otherwise prefer service role when available.
+  const authorization = incomingAuthorization ?? fallbackAuthorization ?? undefined;
   const apikey = incomingApiKey ?? fallbackApiKey;
 
-  if (!authorization || !apikey) {
+  if (!apikey) {
     throw new Error(
-      'Missing downstream auth headers for analyze-item-image call. Provide Authorization/apikey on request or set SUPABASE_SERVICE_ROLE_KEY.'
+      'Missing downstream apikey for analyze-item-image call. Provide apikey on request or set SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY.'
     );
   }
 
-  return { authorization, apikey };
+  return authorization ? { authorization, apikey } : { apikey };
 }
 
 /**
@@ -104,7 +106,7 @@ async function analyzeItemWithTimeout(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeaders.authorization,
+        ...(authHeaders.authorization ? { 'Authorization': authHeaders.authorization } : {}),
         'apikey': authHeaders.apikey
       },
       body: JSON.stringify({
