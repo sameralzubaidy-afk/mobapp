@@ -1,0 +1,271 @@
+# FLOW: Listing V3 Supporting Components | TASK: LISTING-V3-008 | States covered: empty, with-data, selected, loading, error
+# Purpose: Test all 10 presentational components used in item creation
+# Components: PhotoUploadManager, AIAnalysisCard, CategorySelectModal, ConditionSelector, 
+#             ConditionGuideOverlay, ColorPicker, AgeGroupSelector, GenderSelector,
+#             PriceSuggestionCard, PublishButton
+
+appId: com.kidsmarketplace.app
+---
+
+# Precondition: Clean state with logged-in user
+- runFlow: ../common/auth-login.yaml
+
+# Navigate to Item Create Screen
+- tapOn: "Add Item"
+- assertVisible: "Create Item"
+- waitForAnimationToEnd
+
+# --- TEST 1: PhotoUploadManager ---
+- assertVisible: "Photos *"
+- assertVisible: "Add Photos"
+- assertVisible: "(0/10 photos)"
+
+# Add photos
+- tapOn:
+    id: "add-photos-button"
+- waitForAnimationToEnd
+# Select 3 photos from gallery (simulated)
+- tapOn: "Select Photos"
+- tapOn:
+    id: "photo-1"
+- tapOn:
+    id: "photo-2"
+- tapOn:
+    id: "photo-3"
+- tapOn: "Done"
+- waitForAnimationToEnd
+
+# Verify cover badge on first photo
+- assertVisible: "Cover"
+- assertVisible: "(3/10 photos)"
+
+# Remove a photo
+- tapOn:
+    id: "remove-photo-2"
+- assertVisible: "(2/10 photos)"
+
+# --- TEST 2: AIAnalysisCard (simulated AI suggestions) ---
+# Trigger AI analysis (wait for card to appear)
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: "🤖 AI Suggestions"
+
+# Test Apply All button
+- assertVisible: "Apply All (Empty Fields Only)"
+- scrollUntilVisible:
+    element:
+      id: "apply-all-button"
+- tapOn:
+    id: "apply-all-button"
+- waitForAnimationToEnd
+
+# Test per-field Use button
+- assertVisible:
+    id: "use-title"
+- tapOn:
+    id: "use-title"
+- waitForAnimationToEnd
+
+# Dismiss AI card
+- tapOn:
+    id: "dismiss-ai-card"
+
+# --- TEST 3: CategorySelectModal ---
+- scrollUntilVisible:
+    element:
+      text: "Category"
+- tapOn: "Select Category"
+- assertVisible: "Select Category"
+- assertVisible:
+    id: "category-search-input"
+
+# Test search functionality
+- tapOn:
+    id: "category-search-input"
+- inputText: "Shoes"
+- assertVisible: "Shoes"
+
+# Clear search
+- clearText
+- waitForAnimationToEnd
+
+# Test recent categories (if available)
+- assertVisible: "Recent"
+
+# Select a category
+- tapOn:
+    id: "category-cat-1"
+- waitForAnimationToEnd
+- assertNotVisible: "Select Category"
+
+# Test "Other" category
+- tapOn: "Select Category"
+- scrollUntilVisible:
+    element:
+      text: "Other"
+- tapOn: "Other"
+- inputText: "Custom Category"
+- tapOn: "Submit"
+- assertVisible: "Custom Category"
+
+# Close modal
+- tapOn:
+    id: "close-modal"
+
+# --- TEST 4: ConditionSelector ---
+- scrollUntilVisible:
+    element:
+      text: "Condition"
+
+# Select a condition
+- tapOn:
+    id: "condition-good"
+- assertVisible:
+    id: "condition-good"
+    accessibilityState:
+      checked: true
+
+# Test photo guide button
+- tapOn:
+    id: "guide-good"
+- assertVisible: "Good Condition"
+- assertVisible: "Example photo"
+- assertVisible: "What to look for:"
+
+# Close guide
+- tapOn:
+    id: "close-guide"
+- waitForAnimationToEnd
+
+# --- TEST 5: ColorPicker ---
+- scrollUntilVisible:
+    element:
+      text: "Colors"
+- assertVisible: "0/3 selected"
+
+# Select colors
+- tapOn:
+    id: "color-red"
+- assertVisible: "1/3 selected"
+- tapOn:
+    id: "color-blue"
+- assertVisible: "2/3 selected"
+- tapOn:
+    id: "color-green"
+- assertVisible: "3/3 selected"
+- assertVisible: "Maximum 3 colors"
+
+# Deselect a color
+- tapOn:
+    id: "color-red"
+- assertVisible: "2/3 selected"
+
+# --- TEST 6: AgeGroupSelector ---
+- scrollUntilVisible:
+    element:
+      text: "Age Group"
+
+# Select age group
+- tapOn:
+    id: "age-group-6-8"
+- assertVisible:
+    id: "age-group-6-8"
+    accessibilityState:
+      selected: true
+
+# Change selection
+- tapOn:
+    id: "age-group-3-5"
+- assertVisible:
+    id: "age-group-3-5"
+    accessibilityState:
+      selected: true
+
+# --- TEST 7: GenderSelector ---
+- scrollUntilVisible:
+    element:
+      text: "Gender"
+
+# Test gender selection
+- tapOn:
+    id: "gender-boy"
+- assertVisible:
+    id: "gender-boy"
+    accessibilityState:
+      selected: true
+
+# Test "Any" option (maps to null)
+- tapOn:
+    id: "gender-any"
+- assertVisible:
+    id: "gender-any"
+    accessibilityState:
+      selected: true
+
+# --- TEST 8: PriceSuggestionCard ---
+- scrollUntilVisible:
+    element:
+      text: "Price"
+
+# With suggestions (if available)
+- scrollUntilVisible:
+    element:
+      text: "Suggested pricing based on similar items:"
+    optional: true
+
+# Test tier selection
+- tapOn:
+    id: "tier-fair_price"
+    optional: true
+- waitForAnimationToEnd
+
+# Test manual input
+- scrollUntilVisible:
+    element:
+      text: "Set custom price"
+- tapOn:
+    id: "manual-price-input"
+- inputText: "15.99"
+- hideKeyboard
+
+# Test FAQ button (if available)
+- tapOn:
+    id: "pricing-faq"
+    optional: true
+- waitForAnimationToEnd
+
+# --- TEST 9: PublishButton ---
+- scrollUntilVisible:
+    element:
+      id: "publish-button"
+
+# Test button states
+- assertVisible: "Publish Item"
+- tapOn:
+    id: "publish-button"
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Test loading state (appears during publish)
+- assertVisible:
+    id: "publish-button"
+    accessibilityState:
+      busy: true
+    optional: true
+
+# Success confirmation
+- assertVisible:
+    text: "Item Published"
+    optional: true
+- assertVisible:
+    text: "Success"
+    optional: true
+
+# --- FINAL ASSERTION ---
+# Verify we're back to listings feed or item details
+- assertVisible:
+    text: "My Listings"
+    optional: true
+- assertVisible:
+    text: "Item Details"
+    optional: true

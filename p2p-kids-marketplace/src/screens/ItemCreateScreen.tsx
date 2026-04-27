@@ -44,6 +44,7 @@ import { CategorySelectModal, Category } from '../components/listing/CategorySel
 import { ConditionSelector } from '../components/listing/ConditionSelector';
 import { ConditionGuideOverlay } from '../components/listing/ConditionGuideOverlay';
 import { ColorPicker } from '../components/listing/ColorPicker';
+import { BrandAutocompleteInput } from '../components/molecules/BrandAutocompleteInput';
 import { AgeGroupSelector } from '../components/listing/AgeGroupSelector';
 import { GenderSelector } from '../components/listing/GenderSelector';
 import { PublishButton } from '../components/listing/PublishButton';
@@ -745,17 +746,13 @@ export default function ItemCreateScreen() {
             />
 
             {/* Brand */}
-            <View style={styles.field}>
-              <Text style={styles.label}>Brand</Text>
-              <TextInput
-                style={styles.input}
-                value={brand}
-                onChangeText={setBrand}
-                placeholder="e.g., Nike, Adidas"
-                maxLength={100}
-                testID="brand-input"
-              />
-            </View>
+            <BrandAutocompleteInput
+              value={brand}
+              onChange={setBrand}
+              label="Brand"
+              placeholder="e.g., LEGO, Nike, Carter's..."
+              testID="brand-input"
+            />
 
             {/* Color */}
             <ColorPicker selectedColors={colors} onChange={setColors} />

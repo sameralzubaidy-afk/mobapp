@@ -56,63 +56,49 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK LISTING-V3-007: Draft Resume Banner + Navigation Wiring
-
-**Duration:** 2 hours
-**Priority:** Medium
-**Dependencies:** LISTING-V3-003, LISTING-V3-005, LISTING-V3-006
-
-### Description
-
-
-
-## TASK LISTING-V3-008: Supporting Components
+## TASK LISTING-V3-010: Tests (Unit + Integration + Maestro)
 
 I’m working on the  MODULE-04-ITEM-LISTING-V3.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-04-ITEM-LISTING-V3.md
-Tasks:## TASK LISTING-V3-008: Supporting Components
+Tasks:## TASK LISTING-V3-010: Tests (Unit + Integration + Maestro)
 
 scope is 
 
-Generate the 10 presentational components used by `ItemCreateScreen` and `BulkListingCreateScreen`. These components are purely visual — they accept typed props and emit events. No service calls, no navigation, no direct state persistence.
+Ship the full test package for MODULE-04 V3: Jest unit tests for services and hooks, PgTAP tests for the `item_drafts` triggers, and Maestro E2E flows for happy path + critical edge cases (bulk publish, draft resume, "Other" category).
 
 ### Scope
 
-- 10 component files under `src/components/listing/` (Photo, AI card, Category modal, Condition selector + guide, Color picker, Age/Gender selectors, Price card, Publish button).
-- Full a11y labels + hints.
-- Strict TS, typed props, ≤ ~150 lines each.
+- 8 Jest suites (5 service + 3 hook).
+- 1 PgTAP SQL file covering max-5 and `updated_at` triggers.
+- 4 Maestro YAML flows with tags.
+- Fixture builders (`makeItem`, `makeDraft`, `makeAIResult`).
+- Coverage target ≥ 85% for V3 services.
 
+### Test Files
 
-### Files
-
-| Path | Role |
+| Path | Covers |
 |---|---|
-| `src/components/listing/PhotoUploadManager.tsx` | Step-1 photo grid, cover badge, drag reorder, 10-photo cap |
-| `src/components/listing/AIAnalysisCard.tsx` | Sliding card with Apply All + per-field Use |
-| `src/components/listing/CategorySelectModal.tsx` | Full-screen modal; search, recent-3, all, Other |
-| `src/components/listing/ConditionSelector.tsx` | 5 radio rows; each with 📸 opening `ConditionGuideOverlay` |
-| `src/components/listing/ConditionGuideOverlay.tsx` | Real-photo examples per condition |
-| `src/components/listing/ColorPicker.tsx` | 12-swatch multi-select |
-| `src/components/listing/AgeGroupSelector.tsx` | 5 pills: 0-2…13+ |
-| `src/components/listing/GenderSelector.tsx` | 4 pills: boy / girl / unisex / Any |
-| `src/components/listing/PriceSuggestionCard.tsx` | 4 tier cards + manual input |
-| `src/components/listing/PublishButton.tsx` | Large primary button with loading + disabled states |
+| `src/__tests__/services/photoService.test.ts` | `validatePhoto` edge cases, `groupPhotosAuto` caps, `regroupPhotos` immutability |
+| `src/__tests__/services/aiService.test.ts` | `parseAIResult` confidence stripping, `getAIConfidenceLevel` boundaries |
+| `src/__tests__/services/draftService.test.ts` | create/update/publish/delete; max-5 trigger behavior via mocked supabase |
+| `src/__tests__/services/pricingService.test.ts` | Tier math with seeded avg, empty-data fallback |
+| `src/__tests__/services/categoryService.test.ts` | `flagForCategoryReview` idempotency, recent category LRU |
+| `src/__tests__/hooks/useItemDraft.test.tsx` | 30s debounce, blur-flush, saveNow |
+| `src/__tests__/hooks/useAIAnalysis.test.tsx` | idle→analyzing→ready; abort on photoUrls change; retry path |
+| `src/__tests__/hooks/usePhotoGroups.test.tsx` | caps enforcement, regroup, setCover |
+| `supabase/tests/item_drafts.sql` | PgTAP: max-5 trigger; updated_at trigger |
+| `e2e/item-create-happy-path.yaml` | Maestro: photo → AI → apply → publish |
+| `e2e/bulk-listing-publish-all.yaml` | Maestro: 8 photos → 4 items → publish |
+| `e2e/draft-resume.yaml` | Maestro: create → exit → resume banner → continue |
+| `e2e/category-other.yaml` | Maestro: select Other → enter name → publish → flag exists |
 
 ### Acceptance Criteria
 
-- [ ] All components are function components with typed props.
-- [ ] No component imports from screens (clean layering).
-- [ ] `PhotoUploadManager` uses `react-native-draggable-flatlist`; marks `photos[0]` with "Cover" badge; enforces 10-photo cap.
-- [ ] `AIAnalysisCard` props: `{ analysis: AIAnalysisResult; isFieldFilled: (field) => boolean; onApplyAll(); onApplyField(field, value); onDismiss() }`.
-- [ ] `CategorySelectModal` props: `{ visible, categories, recent, onSelect(category), onSelectOther(name), onClose }`.
-- [ ] `ConditionSelector` props: `{ value, onChange, onOpenGuide(code) }`.
-- [ ] `ColorPicker` multi-select; selected state rendered via border + check mark; `accessibilityState={{ selected }}`.
-- [ ] `PriceSuggestionCard` props: `{ tiers, selectedTier, manualValue, onSelectTier, onChangeManual, onShowFaq }`; renders manual-only when `tiers.length === 0`.
-- [ ] `GenderSelector` "Any" maps `value` to `undefined` (not a string).
-- [ ] `AgeGroupSelector` values match MODULE-05 V3 enum exactly.
-- [ ] Full a11y on all interactive elements.
-- [ ] Each component ≤ ~150 lines.
-
+- [ ] All Jest tests pass (`npm test`).
+- [ ] Coverage for `src/services/{photo,ai,draft,pricing,condition,category}Service.ts` ≥ 85%.
+- [ ] PgTAP tests pass against local supabase (`supabase test db`).
+- [ ] 4 Maestro flows run against a staging build (documented in PR, not CI-gated).
+- [ ] Perf spot-check: single `createItem` including 10 compressed photos completes in < 8s on mid-tier Android (manual).
 
 i want you to 
 

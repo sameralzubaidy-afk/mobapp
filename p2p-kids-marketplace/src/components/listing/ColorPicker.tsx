@@ -17,22 +17,8 @@ import {
   StyleSheet,
 } from 'react-native';
 
-// Import COLOR_PALETTE from MODULE-05 V3 types
-// TODO: Update import path if discovery.ts is in a different location
-const COLOR_PALETTE = [
-  { name: 'Red', hex: '#F44336' },
-  { name: 'Pink', hex: '#E91E63' },
-  { name: 'Purple', hex: '#9C27B0' },
-  { name: 'Blue', hex: '#2196F3' },
-  { name: 'Green', hex: '#4CAF50' },
-  { name: 'Yellow', hex: '#FFEB3B' },
-  { name: 'Orange', hex: '#FF9800' },
-  { name: 'Brown', hex: '#795548' },
-  { name: 'Gray', hex: '#9E9E9E' },
-  { name: 'Black', hex: '#000000' },
-  { name: 'White', hex: '#FFFFFF' },
-  { name: 'Multicolor', hex: 'linear-gradient' }, // Special case
-];
+// Import COLOR_PALETTE from MODULE-05 V3 types (LISTING-V3-009 - reuse shared constants)
+import { COLOR_PALETTE } from '@/types/discovery';
 
 export interface ColorPickerProps {
   selectedColors: string[];
@@ -47,16 +33,16 @@ export function ColorPicker({
   maxColors = 3,
   testID = 'color-picker',
 }: ColorPickerProps) {
-  const handleToggleColor = (colorName: string) => {
-    const isSelected = selectedColors.includes(colorName);
+  const handleToggleColor = (colorId: string) => {
+    const isSelected = selectedColors.includes(colorId);
 
     if (isSelected) {
       // Remove color
-      onChange(selectedColors.filter((c) => c !== colorName));
+      onChange(selectedColors.filter((c) => c !== colorId));
     } else {
       // Add color (respect max limit)
       if (selectedColors.length < maxColors) {
-        onChange([...selectedColors, colorName]);
+        onChange([...selectedColors, colorId]);
       }
     }
   };
@@ -72,25 +58,25 @@ export function ColorPicker({
 
       <View style={styles.grid}>
         {COLOR_PALETTE.map((color) => {
-          const isSelected = selectedColors.includes(color.name);
-          const isMulticolor = color.name === 'Multicolor';
+          const isSelected = selectedColors.includes(color.id);
+          const isMulticolor = color.id === 'multicolor';
 
           return (
             <TouchableOpacity
-              key={color.name}
+              key={color.id}
               style={[styles.swatch, isSelected && styles.swatchSelected]}
-              onPress={() => handleToggleColor(color.name)}
-              accessibilityLabel={`${color.name} color`}
+              onPress={() => handleToggleColor(color.id)}
+              accessibilityLabel={`${color.label} color`}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: isSelected }}
-              testID={`color-${color.name.toLowerCase()}`}
+              testID={`color-${color.id}`}
             >
               <View
                 style={[
                   styles.swatchInner,
                   {
                     backgroundColor: isMulticolor ? '#FFFFFF' : color.hex,
-                    borderWidth: color.name === 'White' || isMulticolor ? 1 : 0,
+                    borderWidth: color.id === 'white' || isMulticolor ? 1 : 0,
                     borderColor: '#E0E0E0',
                   },
                 ]}
@@ -111,7 +97,7 @@ export function ColorPicker({
                 )}
               </View>
               
-              <Text style={styles.swatchLabel}>{color.name}</Text>
+              <Text style={styles.swatchLabel}>{color.label}</Text>
             </TouchableOpacity>
           );
         })}

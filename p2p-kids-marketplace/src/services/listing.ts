@@ -372,6 +372,36 @@ export async function uploadListingImages(
     // Upload each image to storage
     for (let i = 0; i < imageUris.length; i++) {
       const imageUri = imageUris[i];
+
+      // Resumed drafts can already contain uploaded public URLs. Reuse them directly
+      // instead of re-uploading as local files.
+      if (!isLocalImageUri(imageUri)) {
+        const { error: insertRemoteError } = await supabase
+          .from('item_images')
+          .insert({
+            item_id: listing_id,
+            url: imageUri,
+            thumbnail_url: imageUri,
+            display_order: i,
+            created_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+
+        if (insertRemoteError) {
+          console.error(`[listing] ❌ Failed to insert remote image ${i} into DB:`, insertRemoteError);
+          throw new Error(`Failed to save image ${i + 1} reference: ${insertRemoteError.message}`);
+        }
+
+        uploadedImages.push({
+          url: imageUri,
+          display_order: i,
+        });
+
+        console.log(`[listing] ✅ Reused existing remote image ${i + 1}/${imageUris.length}`);
+        continue;
+      }
+
       const upload = await uploadListingImageWithFallback(
         listing_id,
         seller_id,

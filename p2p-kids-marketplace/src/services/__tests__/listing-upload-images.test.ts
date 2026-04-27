@@ -179,4 +179,19 @@ describe('uploadListingImages', () => {
 
     expect(mockDeleteImage).toHaveBeenCalledWith('item-images', 'listing-1/0.jpg');
   });
+
+  it('reuses existing remote URLs without re-uploading', async () => {
+    const remoteUrl =
+      'https://drntwgporzabmxdqykrp.supabase.co/storage/v1/object/public/item-images/drafts/seller-1/123/photo_0.jpg';
+
+    const result = await uploadListingImages('listing-1', 'seller-1', [remoteUrl]);
+
+    expect(mockUploadImage).not.toHaveBeenCalled();
+    expect(result).toEqual([
+      {
+        url: remoteUrl,
+        display_order: 0,
+      },
+    ]);
+  });
 });

@@ -98,12 +98,45 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Admin approves listing -> `items.status` transitions `pending` -> `available` and listing becomes visible.
   - **LISTING-APPROVAL-NOTIFICATION (2026-04-25):** Seller receives approval notification respecting `notification_preferences`
     - Migration: `supabase/migrations/20260425000001_listing_approval_notifications.sql`
+  - **LISTING-V3-008 (2026-04-27):** 10 presentational components for item creation (PhotoUploadManager, AIAnalysisCard, CategorySelectModal, ConditionSelector, ConditionGuideOverlay, ColorPicker, AgeGroupSelector, GenderSelector, PriceSuggestionCard, PublishButton)
+    - Scope: `p2p-kids-marketplace/src/components/listing/*.tsx` (10 components, already existed)
+    - Requirements: Photo-first UX (10-photo cap, drag reorder, cover badge); AI auto-fill card (Apply All + per-field Use buttons); Category modal (search, recent-3, "Other" custom input); 5-condition selector with photo guides; 12-color multi-select picker (max 3); 5 age groups ('0-2','3-5','6-8','9-12','13+'); 4 gender options (boy, girl, unisex, Any=null); Price suggestion (4 tiers + manual, FAQ button); Publish button (loading + disabled states)
+    - MODULE-05 V3 Integration: Uses exact enums from MODULE-05 V3 (age_group, gender, COLOR_PALETTE)
+    - All components: Presentational only (no services), strict TypeScript (no `any`), full accessibility (role/label/hint/state), ≤150 lines each
+    - Tests:
+      - Unit: `p2p-kids-marketplace/src/components/__tests__/listing/*.test.tsx` (10 test files, ~500+ test cases total)
+      - Maestro: `.maestro/listing-v3-008-supporting-components.yaml`
+      - Manual: `LISTING-V3-008-MANUAL-TESTING-GUIDE.md` (13 test groups, ~60 individual test cases)
+    - Validation:
+      - `npm run typecheck` in `p2p-kids-marketplace/` → PASS
+      - `npm test` → all unit tests PASS
+      - `npm run test:maestro:ios` → PASS
+      - `npm run test:maestro:android` → PASS
     - Server behavior:
       - `admin_approve_listing()` now sends seller-facing `listing_approved` notification after approval
       - Delivery reads `notification_preferences` category `system` and only sends enabled channels
       - Push-only deliveries no longer auto-create inbox rows via `send-push-notification`
     - App behavior:
       - `p2p-kids-marketplace/src/services/deepLink.ts` routes `listing_approved` to listing detail
+
+  - **LISTING-V3-009 (2026-04-27):** Reused / Shared Components cleanup (import — do not duplicate)
+    - Purpose: Audit and refactor LISTING-V3 components to import shared constants/utilities from MODULE-05 V3 instead of duplicating (MODULE-04 V3 TASK LISTING-V3-009)
+    - Changes:
+      - Fixed ColorPicker to import COLOR_PALETTE from `@/types/discovery` (removed hardcoded duplicate)
+      - Created BrandAutocompleteInput component using shared brandAutocomplete service from MODULE-05 V3
+      - Updated ItemCreateScreen to use BrandAutocompleteInput instead of plain TextInput
+    - Files:
+      - New: `src/components/molecules/BrandAutocompleteInput.tsx` (245 lines, 150ms debounce, max 8 suggestions)
+      - Edited: `src/components/listing/ColorPicker.tsx` (removed duplicate COLOR_PALETTE)
+      - Edited: `src/screens/ItemCreateScreen.tsx` (brand input → autocomplete)
+    - Tests:
+      - Unit: BrandAutocompleteInput (18 tests, all passed)
+      - Manual: `LISTING-V3-009-MANUAL-TESTING-GUIDE.md` (9 test cases)
+    - Verification (grep checks all passed):
+      - `grep -r "export const PREDEFINED_BRANDS" src/ | wc -l` → 1 ✅
+      - `grep -r "export const COLOR_PALETTE" src/ | wc -l` → 1 ✅
+      - `grep -r "function levenshteinDistance" src/ | wc -l` → 1 ✅
+    - Dependencies: MODULE-05 V3 (shared brandAutocomplete service, COLOR_PALETTE, fuzzyMatch utils)
       - `p2p-kids-marketplace/src/__tests__/screens/NotificationCenterScreen.test.tsx` covers tap-through regression
   - Seller edits an approved listing (e.g., title/price/photos) -> `items.status` transitions `available` -> `pending` and requires admin re-approval.
   - **SAFETY-P001 (2026-03-28):** Item Images Storage Bucket
