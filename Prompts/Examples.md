@@ -57,50 +57,50 @@ My Example 1
 
 
 
-## TASK ADMIN-V3-001: Schema Migrations — Category Columns, Suggestions, Trigger, RPC, Storage
+## TASK ADMIN-V3-003: Backend Services — Category + Suggestions + SP Config
+
 
 I’m working on the  MODULE-12-ADMIN-V3-CATEGORIES.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-12-ADMIN-V3-CATEGORIES.md
-Tasks:## TASK ADMIN-V3-001: Schema Migrations — Category Columns, Suggestions, Trigger, RPC, Storage
+Tasks:## TASK ADMIN-V3-003: Backend Services — Category + Suggestions + SP Config
 
 scope is 
 
-Add the 11 new columns to `categories`, create the `category_suggestions` table, add the `update_category_item_count()` trigger + backfill, add the `reorder_categories()` RPC, and provision the `category-icons` Supabase Storage bucket with RLS.
+Implement the admin-portal backend services (Category CRUD, Category Suggestions review, SP Config + Analytics) and add the mobile-side additions to `categoryService` that MODULE-04 V3 and MODULE-05 V3 consume (`getCategoriesWithCounts`, `calculateCategorySP`, `createCategorySuggestionFromItem`, `getBonusCategories`).
 
 ### Scope
 
-- 5 Supabase migrations (`20260420000006` – `20260420000010`) in strict order.
-- All CHECK constraints, indexes, RLS policies, comments.
-- Backfill of `display_order` and initial `item_count`.
-- Storage bucket with public read + admin-only write policies.
+- 3 new admin-portal service files + 1 modified mobile `categoryService` (preserve V2 exports).
+- Transactional approve / merge flow (optionally via migration `20260420000011`).
+- Icon-upload pipeline with preflight validation and prior-object cleanup.
+- Per-category SP math (`Math.round` earn, `Math.floor` spend) identical on both platforms.
 
+### Files to Create / Modify
 
-### Files to Create
+| Path | Action | Key Exports |
+|---|---|---|
+| `admin-portal/src/services/categoryService.ts` | NEW | `createCategory`, `updateCategory`, `deleteCategory`, `getCategoriesWithCounts`, `toggleCategoryActive`, `reorderCategories`, `uploadCategoryIcon`, `validateCategoryName`, `checkCategoryUniqueness` |
+| `admin-portal/src/services/categorySuggestionService.ts` | NEW | `getCategorySuggestions`, `approveCategorySuggestion`, `rejectCategorySuggestion`, `mergeCategorySuggestion` |
+| `admin-portal/src/services/spConfigService.ts` | NEW | `calculateCategorySP`, `getBonusCategories`, `updateCategorySPRates`, `getSPAnalyticsByCategory` |
+| `p2p-kids-marketplace/src/services/categoryService.ts` | MODIFY | ADD `getCategoriesWithCounts`, `getBonusCategories`, `calculateCategorySP`, `createCategorySuggestionFromItem` (consumed by MODULE-04 V3) |
 
-| File | Purpose |
-|---|---|
-| `supabase/migrations/20260420000006_add_category_management_columns.sql` | ALTER `categories` + 3 indexes + initial `display_order` backfill |
-| `supabase/migrations/20260420000007_create_category_suggestions.sql` | `category_suggestions` table + RLS + 2 indexes |
-| `supabase/migrations/20260420000008_category_item_count_trigger.sql` | `update_category_item_count()` function + trigger + initial count backfill |
-| `supabase/migrations/20260420000009_reorder_categories_rpc.sql` | `reorder_categories(JSONB)` SECURITY DEFINER RPC |
-| `supabase/migrations/20260420000010_create_category_icons_storage_bucket.sql` | Bucket `category-icons` (public read, admin write) |
+### Acceptance Criteria (per function — abridged)
 
-### Acceptance Criteria
-
-- [ ] Five migration files exist at the exact paths above.
-- [ ] `categories` has columns `is_active, item_count, display_order, description, icon, icon_url, bonus_badge_icon_url, sp_earning_multiplier, sp_spending_cap_percent, sp_config_notes, sp_rate_change_notify` with the CHECK constraints from § Database Schema Changes.
-- [ ] `display_order` backfilled using `ROW_NUMBER() OVER (ORDER BY id)`.
-- [ ] Indexes `idx_categories_active` (partial `WHERE is_active=true`), `idx_categories_item_count` (partial), `idx_categories_bonus` (partial `WHERE sp_earning_multiplier > 1.10`) exist.
-- [ ] `category_suggestions` table has `id, suggested_name, seller_id, item_id, status, approved_by, merged_to_category_id, admin_note, created_at, reviewed_at`, `UNIQUE (item_id)`, `status IN ('pending','approved','rejected','merged')`.
-- [ ] `category_suggestions` RLS: "Admin can manage all suggestions" (FOR ALL via `user_roles`); "Seller can view own suggestions" (FOR SELECT where `seller_id = auth.uid()`).
-- [ ] Indexes `idx_category_suggestions_status` (partial WHERE status='pending'), `idx_category_suggestions_seller`.
-- [ ] Function `update_category_item_count()` handles INSERT/UPDATE/DELETE; trigger fires `AFTER INSERT OR UPDATE OF category_id, status OR DELETE` on `items`.
-- [ ] Initial count backfill runs in the same migration.
-- [ ] RPC `reorder_categories(category_orders JSONB)` is `SECURITY DEFINER`, checks admin role, updates `display_order` in a loop using `jsonb_to_recordset`.
-- [ ] Storage bucket `category-icons` created (public read; insert/update/delete restricted to admins via storage RLS policy using `user_roles`).
-- [ ] All migrations idempotent (`IF NOT EXISTS`, `CREATE OR REPLACE`).
-- [ ] Commented-out verification queries at the bottom of each file.
-
+- [ ] `createCategory(input)` validates name (regex, 3–50, unique case-insensitive) → inserts with `display_order = COALESCE(MAX(display_order),0)+1` → returns full row.
+- [ ] `updateCategory(id, updates)` rejects attempts to write `item_count`; re-checks uniqueness if `name` changed.
+- [ ] `deleteCategory(id)` SELECTs `item_count` first; throws `CategoryNotEmptyError` if > 0; hard DELETEs otherwise.
+- [ ] `toggleCategoryActive(id, isActive)` refuses if the category is the seeded "Other" row.
+- [ ] `reorderCategories(orders)` calls the RPC in ONE request (no N+1).
+- [ ] `uploadCategoryIcon(categoryId, file, type)` validates type (PNG/SVG), size ≤ 500 KB, dimensions ≥ 100×100; uploads via `supabase.storage.from('category-icons')`; writes public URL into the appropriate column; returns the URL.
+- [ ] `approveCategorySuggestion(id, data)` runs in a single transaction: insert category → UPDATE `items.category_id` for the linked item → UPDATE suggestion row (`status='approved'`, `approved_by`, `reviewed_at=now()`). Rolls back on any failure.
+- [ ] `rejectCategorySuggestion(id, note?)` sets `status='rejected'`, `reviewed_at`, optional `admin_note`. Item stays put.
+- [ ] `mergeCategorySuggestion(id, targetCategoryId)` UPDATE `items.category_id = targetCategoryId` + suggestion row (`status='merged'`, `merged_to_category_id`, `reviewed_at`).
+- [ ] `calculateCategorySP(categoryId, price)` → `{ earn_sp: round(price * multiplier), max_spend_sp: floor(price * cap/100), spend_percent: cap }`. Rounding: `earn_sp` rounds to nearest int, `max_spend_sp` floors (never lets buyer exceed cap).
+- [ ] `getBonusCategories()` filters `sp_earning_multiplier > 1.10 AND is_active = true`, order DESC.
+- [ ] `updateCategorySPRates(id, earn, cap, notify, notes?)` validates ranges, updates row, if `notify=true` enqueues banner via MODULE-14 `NotificationService.enqueueBanner` and resets `sp_rate_change_notify=false` at txn end.
+- [ ] `getSPAnalyticsByCategory(dateRange)` aggregates `points_transactions` + `items` sold in range; returns per-category `{ velocity, gap_percent, avg_cash_per_trade, anomaly_flags[] }`.
+- [ ] Mobile `createCategorySuggestionFromItem(itemId, name)` UPSERTs on `UNIQUE (item_id)` conflict (`ON CONFLICT (item_id) DO UPDATE SET suggested_name = EXCLUDED.suggested_name, status = 'pending', reviewed_at = NULL`).
+- [ ] Unit tests in `admin-portal/src/__tests__/services/` and `p2p-kids-marketplace/src/__tests__/services/` (see ADMIN-V3-009).
 
 i want you to 
 

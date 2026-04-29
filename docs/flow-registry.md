@@ -3499,4 +3499,161 @@ This file is the canonical registry of end-to-end flows and their required regre
   | Storage | 2 | ⏳ PENDING |
   | **TOTAL** | **21** | **⏳ PENDING SQL EXECUTION** |
 
+#### ADMIN-V3-002: Shared Types & Error Classes (COMPLETED 2026-04-29)
+
+- **Scope**: TypeScript type definitions and error classes for category management (admin + mobile)
+- **Status**: ✅ **IMPLEMENTATION COMPLETE**
+- **Duration**: 1 hour
+- **Dependencies**: ADMIN-V3-001 (schema migrations)
+
+- **Files Created**:
+  1. **Admin Portal Types**:
+     - `p2p-kids-admin/src/types/category.ts` (19 types/interfaces):
+       - `Category` — complete entity (15 fields matching DB schema)
+       - `CreateCategoryInput` — create payload (8 optional fields)
+       - `UpdateCategoryInput` — update payload (10 optional fields, excludes item_count/display_order)
+       - `SuggestionStatus` — union type `'pending' | 'approved' | 'rejected' | 'merged'`
+       - `CategorySuggestion` — suggestion entity (10 fields + optional joined data)
+       - `ApproveSuggestionInput` — approve payload
+       - `MergeSuggestionInput` — merge payload
+       - `RejectSuggestionInput` — reject payload
+       - `BonusCategory` — filtered view (8 fields, sp_earning_multiplier > 1.10)
+       - `CategorySPAnalytics` — analytics data (4 metrics + anomaly flags)
+       - `AnomalyFlag` — union type `'hoarding' | 'low_velocity' | 'spending_spike'`
+       - `ValidationResult` — validation result `{ valid: boolean; error?: string }`
+       - `CategorySPPreview` — preview calculation (4 fields)
+       - `CategoryReorderItem` — reorder payload `{ id: string; display_order: number }`
+       - `IconType` — union type `'category' | 'bonus_badge'`
+     - `p2p-kids-admin/src/types/errors.ts` (8 error classes + 2 utilities):
+       - `DuplicateNameError` — code: `DUPLICATE_NAME`
+       - `CategoryNotEmptyError` — code: `CATEGORY_NOT_EMPTY` (includes item count)
+       - `SPRateOutOfRangeError` — code: `SP_RATE_OUT_OF_RANGE` (includes field, value, min, max)
+       - `IconUploadError` — code: `ICON_UPLOAD_ERROR` (reason: `bad_type | too_large | too_small | upload_failed`)
+       - `UnauthorizedError` — code: `UNAUTHORIZED`
+       - `CannotDeactivateOtherError` — code: `CANNOT_DEACTIVATE_OTHER`
+       - `SuggestionNotFoundError` — code: `SUGGESTION_NOT_FOUND`
+       - `InvalidSuggestionStatusError` — code: `INVALID_SUGGESTION_STATUS`
+       - `isCategoryError()` — type guard
+       - `getErrorCode()` — utility (returns `code` or `'UNKNOWN'`)
+
+  2. **Mobile Types** (subset — no admin fields):
+     - `p2p-kids-marketplace/src/types/category.ts` (6 types/interfaces):
+       - `Category` — mobile subset (11 fields, excludes `description`, `sp_config_notes`, `sp_rate_change_notify`, `updated_at`)
+       - `BonusCategory` — filtered view (8 fields)
+       - `CategorySPPreview` — preview calculation (4 fields)
+       - `CreateCategorySuggestionInput` — seller suggestion payload `{ item_id, suggested_name }`
+       - `CategorySuggestion` — seller view (7 fields + optional merged_to_category)
+       - `GetCategoriesOptions` — options `{ includeInactive?: boolean }`
+
+  3. **Unit Tests**:
+     - `p2p-kids-admin/src/types/__tests__/category.test.ts` (70+ assertions):
+       - Category interface validation
+       - CreateCategoryInput / UpdateCategoryInput partial types
+       - SuggestionStatus enum
+       - CategorySuggestion with joined data
+       - BonusCategory filtering
+       - CategorySPAnalytics with anomaly flags
+       - ValidationResult valid/invalid cases
+       - CategorySPPreview calculation
+       - CategoryReorderItem structure
+       - IconType enum
+     - `p2p-kids-admin/src/types/__tests__/errors.test.ts` (60+ assertions):
+       - All 8 error classes instantiation
+       - Error code stability (uppercase snake_case)
+       - Error code uniqueness
+       - Error messages with placeholders
+       - Type guard `isCategoryError`
+       - Utility `getErrorCode`
+       - Switch statement compatibility
+     - `p2p-kids-marketplace/src/types/__tests__/category.test.ts` (50+ assertions):
+       - Mobile Category subset (no admin fields)
+       - BonusCategory structure
+       - CategorySPPreview calculation (Math.round/floor)
+       - CreateCategorySuggestionInput validation
+       - CategorySuggestion seller view
+       - GetCategoriesOptions
+       - Type independence (no admin-portal imports)
+       - Strict TypeScript (no `any`)
+
+- **Acceptance Criteria** (ALL MET ✅):
+  - [x] `Category` type includes every column from migration
+  - [x] `sp_earning_multiplier: number` (1.05–1.40 in comments)
+  - [x] `sp_spending_cap_percent: number` (50–80 in comments)
+  - [x] `SuggestionStatus = 'pending' | 'approved' | 'rejected' | 'merged'`
+  - [x] Error classes extend `Error` with stable `code` strings
+  - [x] Mobile type file does NOT import from `admin-portal`
+  - [x] Strict TypeScript — no `any` types used
+
+- **Verification** (Manual Testing Guide):
+  - **Manual Test Guide**: `ADMIN-V3-002-MANUAL-TESTING-GUIDE.md` (9 test cases)
+  - **TC-ADMIN-V3-002-01**: Admin types compilation
+  - **TC-ADMIN-V3-002-02**: Mobile types compilation (no admin imports)
+  - **TC-ADMIN-V3-002-03**: Admin type unit tests (category.test.ts)
+  - **TC-ADMIN-V3-002-04**: Error class unit tests (errors.test.ts)
+  - **TC-ADMIN-V3-002-05**: Mobile type unit tests (category.test.ts)
+  - **TC-ADMIN-V3-002-06**: Type safety — admin fields not in mobile
+  - **TC-ADMIN-V3-002-07**: Error code stability (switch statement compat)
+  - **TC-ADMIN-V3-002-08**: SP rate bounds match DB constraints
+  - **TC-ADMIN-V3-002-09**: Strict TypeScript — no `any` types
+
+- **Testing Commands**:
+  ```bash
+  # Admin Portal
+  cd p2p-kids-admin
+  npm run type-check
+  npm test -- src/types/__tests__/category.test.ts
+  npm test -- src/types/__tests__/errors.test.ts
+  grep -n ": any" src/types/category.ts src/types/errors.ts  # Should return nothing
+
+  # Mobile App
+  cd p2p-kids-marketplace
+  npm run type-check
+  npm test -- src/types/__tests__/category.test.ts
+  grep -n ": any" src/types/category.ts  # Should return nothing
+  grep -r "from.*p2p-kids-admin" src/types/category.ts  # Should return nothing
+  ```
+
+- **Regression Tiers**:
+  - **Tier 0** (ALWAYS): TypeScript compilation + unit tests
+    - Admin: `npm run type-check && npm test -- src/types/__tests__/`
+    - Mobile: `npm run type-check && npm test -- src/types/__tests__/category.test.ts`
+  - **Tier 1**: Not applicable (no runtime code other than error classes)
+  - **Tier 2**: Not applicable (no DB changes)
+
+- **Change Classification**: B (API contracts / types — no DB, no UI, no runtime except error classes)
+- **Impacted Flows**:
+  - FLOW-04 (Listings): Mobile CategorySuggestion type for "Other" category flow
+  - FLOW-05 (Discovery): Mobile Category type for filter chips
+  - FLOW-18 (Admin Controls): Admin types for category CRUD UI
+
+- **Critical Rules Enforced**:
+  - **Mobile type independence**: Mobile `src/types/category.ts` MUST NOT import from `p2p-kids-admin`
+  - **Admin field exclusion**: Mobile types exclude `description`, `sp_config_notes`, `sp_rate_change_notify`, `updated_at`
+  - **Error code stability**: All error codes are const string literals for switch statements
+  - **SP rate bounds consistency**: Type comments match DB constraints (1.05–1.40, 50–80)
+  - **Strict TypeScript**: No `any` types allowed in any of the 3 type files
+  - **Error code uniqueness**: All 8 error codes are unique and uppercase snake_case
+
+- **Known Limitations**:
+  - No runtime validation: Types are compile-time only (zod/yup schemas deferred to services)
+  - Error messages hardcoded: English-only (i18n deferred to future)
+  - SP preview calculation duplicated: Mobile and admin both have `CategorySPPreview` interface (acceptable — prevents cross-package dependency)
+
+- **Next Steps** (Post-ADMIN-V3-002):
+  1. **ADMIN-V3-003**: Backend Services — consume these types in categoryService, categorySuggestionService, spConfigService
+  2. **ADMIN-V3-004**: Admin UI — use types in CategoryManagementPage components
+  3. **ADMIN-V3-007**: Mobile Integration — use mobile types in "Other" category flow + bonus badges
+
+- **Test Summary** (ADMIN-V3-002):
+  | Category | Total | Status |
+  |----------|-------|--------|
+  | TypeScript Compilation | 2 | ✅ READY |
+  | Admin Type Unit Tests | 1 | ✅ READY |
+  | Error Class Unit Tests | 1 | ✅ READY |
+  | Mobile Type Unit Tests | 1 | ✅ READY |
+  | Type Safety Checks | 2 | ✅ READY |
+  | Error Code Stability | 1 | ✅ READY |
+  | SP Bounds Consistency | 1 | ✅ READY |
+  | **TOTAL** | **9** | **✅ IMPLEMENTATION COMPLETE** |
+
 ---
