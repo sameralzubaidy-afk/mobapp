@@ -3657,3 +3657,153 @@ This file is the canonical registry of end-to-end flows and their required regre
   | **TOTAL** | **9** | **✅ IMPLEMENTATION COMPLETE** |
 
 ---
+
+### FLOW-21: Category Management – Admin CRUD, Suggestions, SP Config
+- **Purpose**: Admin category management with drag-and-drop reordering, SP rate configuration, icon management, and seller suggestions workflow
+- **Scope**: Admin portal (`p2p-kids-admin/src/app/categories/`)
+- **Module**: MODULE-12-ADMIN-V3-CATEGORIES
+- **Task**: ADMIN-V3-004
+
+- **Core Operations**:
+  - Create category (name validation, uniqueness check, SP rate bounds enforcement)
+  - Edit category (3-tab form: Basic Info / Icon & Badge / SP Config)
+  - Delete category (only when `item_count = 0`, never "Other")
+  - Toggle active/inactive (cannot deactivate "Other")
+  - Drag-and-drop reorder (optimistic UI + RPC sync)
+  - Bulk actions (activate/deactivate/delete/export CSV)
+  - Filter tabs (All / Active / Inactive / Bonus)
+  - Search with 300ms debounce
+  - Suggestions tab (pending badge, realtime poll every 60s)
+
+- **Key Validations**:
+  - Name: `/^[A-Za-z0-9 ]{3,50}$/` (regex), case-insensitive uniqueness via `LOWER()`
+  - SP earning multiplier: 1.05–1.40 (legal guardrail)
+  - SP spending cap: 50–80% (legal guardrail)
+  - Description: max 200 chars
+  - SP config notes: max 500 chars
+  - Delete: blocked if `item_count > 0` or `name = 'Other'`
+  - Deactivate: blocked if `name = 'Other'`
+
+- **Live Preview Calculator**:
+  - Tab 3 (SP Config) shows real-time calculations for $50 sample price
+  - `earn_sp = Math.round(price * sp_earning_multiplier)`
+  - `max_spend_sp = Math.floor(price * sp_spending_cap_percent / 100)`
+  - Updates as sliders move (1.05–1.40 step 0.01, 50–80 step 1)
+
+- **Implementation Files**:
+  - Services:
+    - `p2p-kids-admin/src/lib/categoryService.ts` (CRUD, validation, reorder, icon upload)
+    - `p2p-kids-admin/src/lib/categorySuggestionService.ts` (approve/reject/merge suggestions)
+    - `p2p-kids-admin/src/lib/spConfigCategoryService.ts` (SP calculations, analytics)
+  - Components:
+    - `p2p-kids-admin/src/app/categories/page.tsx` (main container with tabs)
+    - `p2p-kids-admin/src/app/categories/components/CategoryTable.tsx` (DnD table)
+    - `p2p-kids-admin/src/app/categories/components/CategoryRow.tsx` (sortable row)
+    - `p2p-kids-admin/src/app/categories/components/CategoryForm.tsx` (3-tab modal)
+    - `p2p-kids-admin/src/app/categories/components/BulkActionsDropdown.tsx` (bulk actions)
+
+- **Dependencies**:
+  - `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities` (drag-and-drop)
+  - `lucide-react` (icons)
+  - Migration: `20260420000009_create_categories_table.sql` (ADMIN-V3-001)
+  - Migration: `20260420000011_create_category_suggestions_table.sql` (ADMIN-V3-001)
+
+- **Smoke Tests** (Manual Testing Guide: `ADMIN-V3-004-MANUAL-TESTING-GUIDE.md`):
+  - **TC-001**: Page load & navigation
+  - **TC-002**: Create category (valid data, all tabs)
+  - **TC-003**: Create category (duplicate name)
+  - **TC-005**: Create category (SP rates out of range)
+  - **TC-006**: Edit category
+  - **TC-007**: Delete category (item_count = 0)
+  - **TC-008**: Delete category (item_count > 0, blocked)
+  - **TC-009**: Delete "Other" category (blocked)
+  - **TC-010**: Toggle active/inactive
+  - **TC-011**: Toggle "Other" category (blocked)
+  - **TC-012**: Drag-and-drop reorder
+  - **TC-013**: Search categories (300ms debounce)
+  - **TC-014**: Filter tabs (All / Active / Inactive / Bonus)
+  - **TC-015**: Bulk select
+  - **TC-016**: Bulk activate
+  - **TC-017**: Bulk deactivate (no items)
+  - **TC-018**: Bulk deactivate (with items warning)
+  - **TC-019**: Bulk delete (all empty)
+  - **TC-020**: Bulk delete (some have items, blocked)
+  - **TC-021**: Bulk export CSV
+  - **TC-022**: Live SP preview calculation
+  - **TC-023**: Suggestions tab (pending badge)
+
+- **Unit Tests**:
+  - `p2p-kids-admin/src/lib/__tests__/categoryService.test.ts`
+    - `validateCategoryName` (empty, too short, too long, special chars, valid)
+    - `checkCategoryUniqueness` (case-insensitive, excludeId)
+    - `getCategories` (includeInactive, orderBy)
+    - `createCategory` (validation failures, duplicate name, SP rates out of range)
+    - `deleteCategory` (item_count > 0, "Other" category)
+    - `toggleCategoryActive` ("Other" category blocked)
+    - `calculateCategorySPPreview` (Math.round earn_sp, Math.floor max_spend_sp)
+    - `getBonusCategories` (sp_earning_multiplier > 1.10 filter)
+
+- **Tier 0** (ALWAYS):
+  ```bash
+  cd p2p-kids-admin
+  npm run typecheck       # MUST pass
+  npm run lint            # MUST pass
+  npm run build           # MUST compile
+  npm test -- src/lib/__tests__/categoryService.test.ts
+  ```
+
+- **Tier 1** (Targeted smoke for impacted flows):
+  - Run manual TCs: TC-001, TC-002, TC-006, TC-007, TC-010, TC-012
+  - Verify:
+    - Category CRUD works
+    - DnD reorder persists after page refresh
+    - "Other" category guards enforced
+    - Live preview calculator accurate
+
+- **Tier 2** (Full regression):
+  - Run ALL manual TCs (TC-001 through TC-023)
+  - Verify in Supabase Dashboard:
+    - `categories` table: `display_order` matches drag-and-drop result
+    - `item_count` trigger-maintained (readonly from app code)
+    - `category_suggestions` table: approve/reject/merge transitions work
+  - Integration with FLOW-04 (Listings):
+    - Deactivate category → items in that category hidden from search
+    - Delete category (empty) → no orphaned items
+
+- **Change Classification**: B + C + D (API contracts + UI + Search/filter)
+- **Impacted Flows**:
+  - **FLOW-18** (Admin Controls): New category management tab
+  - **FLOW-04** (Listings): Category filter chips + "Other" category suggestions
+  - **FLOW-06** (Discovery): Category-based search filters
+
+- **Critical Rules Enforced**:
+  - "Other" category: Cannot be deleted or deactivated (system-required)
+  - Delete: Only when `item_count = 0`
+  - SP rates: Earning 1.05–1.40, Cap 50–80 (legal guardrails)
+  - Uniqueness: Case-insensitive via `LOWER()`
+  - Optimistic UI: Reorder happens immediately, rollback on RPC failure
+
+- **Known Limitations**:
+  - Icon upload UI disabled (placeholders only) — full implementation in ADMIN-V3-006
+  - Suggestions tab shows "Coming soon" — full implementation in ADMIN-V3-005
+  - No realtime category updates (page refresh required)
+  - CSV export limited to 9 columns (no custom fields)
+
+- **Next Steps** (Post-ADMIN-V3-004):
+  - **ADMIN-V3-005**: Suggestions Workflow (approve/reject/merge UI)
+  - **ADMIN-V3-006**: Icon Upload (PNG/SVG validation, signed URL generation)
+  - **ADMIN-V3-007**: Mobile Integration (buyer category filters, bonus badges)
+  - **ADMIN-V3-008**: React Query Hooks (state management, optimistic updates)
+
+- **Test Summary** (ADMIN-V3-004):
+  | Category | Total | Status |
+  |----------|-------|--------|
+  | Tier 0 (Typecheck/Lint/Build) | 3 | ⏳ PENDING |
+  | Unit Tests (categoryService) | 8 | ✅ COMPLETE |
+  | Manual Test Cases (P0) | 7 | ⏳ PENDING |
+  | Manual Test Cases (P1) | 13 | ⏳ PENDING |
+  | Manual Test Cases (P2) | 3 | ⏳ PENDING |
+  | Edge Cases | 4 | ⏳ PENDING |
+  | **TOTAL** | **38** | **✅ IMPLEMENTATION COMPLETE** |
+
+---

@@ -20,12 +20,16 @@ import {
   StyleSheet,
   FlatList,
   SafeAreaView,
+  Image,
 } from 'react-native';
 
 export interface Category {
   id: string;
   name: string;
   icon?: string | null;
+  icon_url?: string | null;
+  bonus_badge_icon_url?: string | null;
+  sp_earning_multiplier?: number | null;
 }
 
 export interface CategorySelectModalProps {
@@ -63,21 +67,51 @@ export function CategorySelectModal({
     }
   };
 
-  const renderCategory = ({ item }: { item: Category }) => (
-    <TouchableOpacity
-      style={styles.categoryItem}
-      onPress={() => {
-        onSelect(item);
-        setSearchQuery('');
-      }}
-      accessibilityLabel={`Select category: ${item.name}`}
-      accessibilityRole="button"
-      testID={`category-${item.id}`}
-    >
-      {item.icon && <Text style={styles.categoryIcon}>{item.icon}</Text>}
-      <Text style={styles.categoryName}>{item.name}</Text>
-    </TouchableOpacity>
-  );
+  const renderCategory = ({ item }: { item: Category }) => {
+    // Bonus badge is shown only for categories with SP earn multiplier strictly greater than 1.10.
+    // This matches the product rule used in admin and marketplace logic.
+    // TODO(UX): revisit badge placement once final listing/category picker designs are available.
+    const showBonusBadge = Number(item.sp_earning_multiplier ?? 1.1) > 1.1;
+
+    return (
+      <TouchableOpacity
+        style={styles.categoryItem}
+        onPress={() => {
+          onSelect(item);
+          setSearchQuery('');
+        }}
+        accessibilityLabel={`Select category: ${item.name}`}
+        accessibilityRole="button"
+        testID={`category-${item.id}`}
+      >
+        {item.icon_url ? (
+          <Image
+            source={{ uri: item.icon_url }}
+            style={styles.categoryIconImage}
+            resizeMode="cover"
+          />
+        ) : item.icon && item.icon.trim().length > 0 ? (
+          <Text style={styles.categoryIcon}>{item.icon}</Text>
+        ) : (
+          <Text style={styles.categoryIcon}>📦</Text>
+        )}
+
+        <View style={styles.categoryTextRow}>
+          <Text style={styles.categoryName}>{item.name}</Text>
+          {showBonusBadge &&
+            (item.bonus_badge_icon_url ? (
+              <Image
+                source={{ uri: item.bonus_badge_icon_url }}
+                style={styles.bonusBadgeIcon}
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={styles.bonusBadgeFallback}>⭐</Text>
+            ))}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <Modal
@@ -275,9 +309,30 @@ const styles = StyleSheet.create({
     fontSize: 24,
     marginRight: 12,
   },
+  categoryIconImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    marginRight: 12,
+  },
   categoryName: {
     fontSize: 16,
     color: '#000000',
+  },
+  categoryTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  bonusBadgeIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    marginLeft: 8,
+  },
+  bonusBadgeFallback: {
+    marginLeft: 8,
+    fontSize: 14,
   },
   emptyState: {
     padding: 40,

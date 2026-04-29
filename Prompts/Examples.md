@@ -56,51 +56,41 @@ Supabase: supabase/
 My Example 1
 
 
-
-## TASK ADMIN-V3-003: Backend Services — Category + Suggestions + SP Config
-
+## TASK ADMIN-V3-005: Admin Page — Category Suggestions Queue
 
 I’m working on the  MODULE-12-ADMIN-V3-CATEGORIES.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-12-ADMIN-V3-CATEGORIES.md
-Tasks:## TASK ADMIN-V3-003: Backend Services — Category + Suggestions + SP Config
+Tasks: ## TASK ADMIN-V3-005: Admin Page — Category Suggestions Queue
 
 scope is 
 
-Implement the admin-portal backend services (Category CRUD, Category Suggestions review, SP Config + Analytics) and add the mobile-side additions to `categoryService` that MODULE-04 V3 and MODULE-05 V3 consume (`getCategoriesWithCounts`, `calculateCategorySP`, `createCategorySuggestionFromItem`, `getBonusCategories`).
+Build the Category Suggestions queue (list + Approve / Merge / Reject modals) that consumes seller-submitted "Other" category suggestions. Approving creates a new category and reassigns the originating item in a single transaction; merging reassigns the item to an existing category; rejecting leaves the item in "Other" with an optional admin note.
 
 ### Scope
 
-- 3 new admin-portal service files + 1 modified mobile `categoryService` (preserve V2 exports).
-- Transactional approve / merge flow (optionally via migration `20260420000011`).
-- Icon-upload pipeline with preflight validation and prior-object cleanup.
-- Per-category SP math (`Math.round` earn, `Math.floor` spend) identical on both platforms.
+- 1 list component + 3 modal components.
+- Realtime pending-count (or 60s polling fallback).
+- Re-use of `CategoryForm` inside `ApproveSuggestionModal`.
 
-### Files to Create / Modify
+### Files
 
-| Path | Action | Key Exports |
-|---|---|---|
-| `admin-portal/src/services/categoryService.ts` | NEW | `createCategory`, `updateCategory`, `deleteCategory`, `getCategoriesWithCounts`, `toggleCategoryActive`, `reorderCategories`, `uploadCategoryIcon`, `validateCategoryName`, `checkCategoryUniqueness` |
-| `admin-portal/src/services/categorySuggestionService.ts` | NEW | `getCategorySuggestions`, `approveCategorySuggestion`, `rejectCategorySuggestion`, `mergeCategorySuggestion` |
-| `admin-portal/src/services/spConfigService.ts` | NEW | `calculateCategorySP`, `getBonusCategories`, `updateCategorySPRates`, `getSPAnalyticsByCategory` |
-| `p2p-kids-marketplace/src/services/categoryService.ts` | MODIFY | ADD `getCategoriesWithCounts`, `getBonusCategories`, `calculateCategorySP`, `createCategorySuggestionFromItem` (consumed by MODULE-04 V3) |
+| Path | Purpose |
+|---|---|
+| `admin-portal/src/components/category/CategorySuggestionsList.tsx` | Table + actions (Approve / Merge / Reject) |
+| `admin-portal/src/components/category/ApproveSuggestionModal.tsx` | Re-uses `CategoryForm` pre-filled with suggested name |
+| `admin-portal/src/components/category/MergeSuggestionModal.tsx` | Dropdown of existing categories |
+| `admin-portal/src/components/category/RejectSuggestionModal.tsx` | Note field (optional, 500 char) |
 
-### Acceptance Criteria (per function — abridged)
+### Acceptance Criteria
 
-- [ ] `createCategory(input)` validates name (regex, 3–50, unique case-insensitive) → inserts with `display_order = COALESCE(MAX(display_order),0)+1` → returns full row.
-- [ ] `updateCategory(id, updates)` rejects attempts to write `item_count`; re-checks uniqueness if `name` changed.
-- [ ] `deleteCategory(id)` SELECTs `item_count` first; throws `CategoryNotEmptyError` if > 0; hard DELETEs otherwise.
-- [ ] `toggleCategoryActive(id, isActive)` refuses if the category is the seeded "Other" row.
-- [ ] `reorderCategories(orders)` calls the RPC in ONE request (no N+1).
-- [ ] `uploadCategoryIcon(categoryId, file, type)` validates type (PNG/SVG), size ≤ 500 KB, dimensions ≥ 100×100; uploads via `supabase.storage.from('category-icons')`; writes public URL into the appropriate column; returns the URL.
-- [ ] `approveCategorySuggestion(id, data)` runs in a single transaction: insert category → UPDATE `items.category_id` for the linked item → UPDATE suggestion row (`status='approved'`, `approved_by`, `reviewed_at=now()`). Rolls back on any failure.
-- [ ] `rejectCategorySuggestion(id, note?)` sets `status='rejected'`, `reviewed_at`, optional `admin_note`. Item stays put.
-- [ ] `mergeCategorySuggestion(id, targetCategoryId)` UPDATE `items.category_id = targetCategoryId` + suggestion row (`status='merged'`, `merged_to_category_id`, `reviewed_at`).
-- [ ] `calculateCategorySP(categoryId, price)` → `{ earn_sp: round(price * multiplier), max_spend_sp: floor(price * cap/100), spend_percent: cap }`. Rounding: `earn_sp` rounds to nearest int, `max_spend_sp` floors (never lets buyer exceed cap).
-- [ ] `getBonusCategories()` filters `sp_earning_multiplier > 1.10 AND is_active = true`, order DESC.
-- [ ] `updateCategorySPRates(id, earn, cap, notify, notes?)` validates ranges, updates row, if `notify=true` enqueues banner via MODULE-14 `NotificationService.enqueueBanner` and resets `sp_rate_change_notify=false` at txn end.
-- [ ] `getSPAnalyticsByCategory(dateRange)` aggregates `points_transactions` + `items` sold in range; returns per-category `{ velocity, gap_percent, avg_cash_per_trade, anomaly_flags[] }`.
-- [ ] Mobile `createCategorySuggestionFromItem(itemId, name)` UPSERTs on `UNIQUE (item_id)` conflict (`ON CONFLICT (item_id) DO UPDATE SET suggested_name = EXCLUDED.suggested_name, status = 'pending', reviewed_at = NULL`).
-- [ ] Unit tests in `admin-portal/src/__tests__/services/` and `p2p-kids-marketplace/src/__tests__/services/` (see ADMIN-V3-009).
+- [ ] Suggestions tab lists `getCategorySuggestions('pending')` results.
+- [ ] Columns: Suggested Name, Item (link opens `/admin/items/{id}` in new tab), Seller (name + id), Date (relative), Actions (Approve ✅, Merge 🔀, Reject ❌).
+- [ ] **Approve** opens `ApproveSuggestionModal` which re-uses `CategoryForm` with `name` pre-filled and `active` defaulted to true; submit calls `approveCategorySuggestion(id, data)`.
+- [ ] **Merge** opens dropdown of active categories; submit calls `mergeCategorySuggestion(id, targetId)`; the linked item's `category_id` changes.
+- [ ] **Reject** opens note field; submit calls `rejectCategorySuggestion(id, note)`.
+- [ ] After any action: row removed from pending list; badge count on tab decrements.
+- [ ] Pending badge count polled every 60s (or use Supabase realtime on the `category_suggestions` channel filtered `status=eq.pending`).
+
 
 i want you to 
 
