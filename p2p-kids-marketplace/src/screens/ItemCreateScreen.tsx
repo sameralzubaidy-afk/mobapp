@@ -34,7 +34,11 @@ import { useAIAnalysis } from '../hooks/useAIAnalysis';
 import { createListing, uploadListingImages } from '../services/listing';
 import { getSubscriptionSummary } from '../services/subscription';
 import { uploadPhotoBatch } from '../services/photoService';
-import { getCategories, flagForCategoryReview } from '../services/categoryService';
+import {
+  getCategories,
+  flagForCategoryReview,
+  createCategorySuggestionFromItem,
+} from '../services/categoryService';
 import { PhotoAsset, Condition, DraftData, AIAnalysisResult } from '../types/listing';
 
 // Import V3 components
@@ -599,6 +603,22 @@ export default function ItemCreateScreen() {
       // If "Other" category, flag for review
       if (isOtherCategory && requestedCategoryName.trim()) {
         await flagForCategoryReview(item.id, requestedCategoryName.trim());
+
+        // Non-blocking queue insert for admin category suggestions tab.
+        const suggestionSaved = await createCategorySuggestionFromItem(
+          item.id,
+          requestedCategoryName.trim(),
+          sellerId
+        );
+        if (!suggestionSaved) {
+          console.warn(
+            '[ItemCreateScreen] category suggestion queue insert failed; listing publish continues',
+            {
+              itemId: item.id,
+              requestedCategoryName: requestedCategoryName.trim(),
+            }
+          );
+        }
       }
 
       // Delete draft if exists

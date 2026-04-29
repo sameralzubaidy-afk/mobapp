@@ -149,6 +149,62 @@ describe('categoryService', () => {
     });
   });
 
+  describe('createCategorySuggestionFromItem', () => {
+    it('should upsert category suggestion successfully', async () => {
+      const upsertMock = jest.fn().mockResolvedValue({ error: null });
+
+      mockSupabase.from = jest.fn((table) => {
+        if (table === 'category_suggestions') {
+          return {
+            upsert: upsertMock,
+          } as any;
+        }
+        return {} as any;
+      }) as any;
+
+      const result = await categoryService.createCategorySuggestionFromItem(
+        'item-123',
+        'Board Games',
+        'user-123'
+      );
+
+      expect(result).toBe(true);
+      expect(mockSupabase.from).toHaveBeenCalledWith('category_suggestions');
+      expect(upsertMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          item_id: 'item-123',
+          seller_id: 'user-123',
+          suggested_name: 'Board Games',
+          status: 'pending',
+        }),
+        expect.objectContaining({
+          onConflict: 'item_id',
+        })
+      );
+    });
+
+    it('should return false when insert is blocked', async () => {
+      mockSupabase.from = jest.fn((table) => {
+        if (table === 'category_suggestions') {
+          return {
+            upsert: jest.fn().mockResolvedValue({
+              error: { message: 'new row violates row-level security policy' },
+            }),
+          } as any;
+        }
+        return {} as any;
+      }) as any;
+
+      const result = await categoryService.createCategorySuggestionFromItem(
+        'item-123',
+        'Board Games',
+        'user-123'
+      );
+
+      expect(result).toBe(false);
+    });
+  });
+
   describe('getRecentCategories', () => {
     it('should return recent categories from AsyncStorage', async () => {
       const mockRecent = ['cat-1', 'cat-2', 'cat-3'];

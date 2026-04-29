@@ -1,0 +1,259 @@
+# MAESTRO FLOW: ADMIN-V3-005 Category Suggestions Queue
+# Test: Admin can approve, merge, and reject seller-submitted category suggestions
+# Module: MODULE-12-ADMIN-V3-CATEGORIES
+# Covers: CategorySuggestionsList, ApproveSuggestionModal, MergeSuggestionModal, RejectSuggestionModal
+
+appId: com.p2pkidsmarketplace.admin
+---
+
+# === PREREQUISITE: Ensure at least 3 pending suggestions exist ===
+# Run SQL before this flow:
+# INSERT INTO category_suggestions (suggested_name, seller_id, item_id, status)
+# SELECT 'Vintage Collectibles', seller_id, id, 'pending' FROM items WHERE status = 'available' LIMIT 1;
+
+# === STEP 1: Navigate to Categories Page ===
+- launchApp
+- waitForAnimationToEnd
+
+# Login if needed (assume already logged in for admin tests)
+- assertVisible: "Categories" # Main navigation
+
+- tapOn: "Categories"
+- waitForAnimationToEnd
+
+# === STEP 2: Verify Suggestions Tab ===
+- assertVisible:
+    id: "categories-tabs"
+- assertVisible:
+    id: "suggestions-tab"
+- assertVisible:
+    id: "suggestions-badge" # Badge count
+
+- tapOn:
+    id: "suggestions-tab"
+- waitForAnimationToEnd
+
+# === STEP 3: Verify Suggestions List Loaded ===
+- assertVisible:
+    id: "suggestions-list-container"
+- assertVisible:
+    id: "suggestions-table-header" # Table header row
+- assertVisible:
+    text: "Suggested Name"
+- assertVisible:
+    text: "Item"
+- assertVisible:
+    text: "Seller"
+- assertVisible:
+    text: "Date"
+- assertVisible:
+    text: "Actions"
+
+# Verify first suggestion row exists
+- assertVisible:
+    id: "suggestion-row-0"
+
+# === STEP 4: Test Approve Flow (Happy Path) ===
+- tapOn:
+    id: "approve-button-0" # First suggestion's approve button
+- waitForAnimationToEnd
+
+# Modal should open
+- assertVisible:
+    id: "approve-modal"
+- assertVisible:
+    text: "Approve Category Suggestion"
+
+# Verify pre-filled name field
+- assertVisible:
+    id: "category-name-input"
+
+# Verify info card
+- assertVisible:
+    id: "suggestion-info-card"
+
+# Verify "Active" checkbox is checked by default
+- assertVisible:
+    id: "is-active-checkbox"
+    enabled: true
+
+# Fill optional fields (description)
+- tapOn:
+    id: "category-description-input"
+- inputText: "Category created from seller suggestion"
+
+# Submit approval
+- tapOn:
+    id: "approve-submit-button"
+- waitForAnimationToEnd
+
+# Verify success message
+- assertVisible:
+    text: "created and item reassigned successfully"
+
+# Verify row removed from pending list
+- assertNotVisible:
+    id: "suggestion-row-0"
+
+# Verify badge decremented (check next count)
+- assertVisible:
+    id: "suggestions-badge"
+
+# === STEP 5: Test Merge Flow ===
+# Ensure another suggestion exists
+- assertVisible:
+    id: "suggestion-row-0" # New first row after previous was removed
+
+- tapOn:
+    id: "merge-button-0"
+- waitForAnimationToEnd
+
+# Modal should open
+- assertVisible:
+    id: "merge-modal"
+- assertVisible:
+    text: "Merge Into Existing Category"
+
+# Verify category dropdown
+- assertVisible:
+    id: "target-category-select"
+
+# Select first category from dropdown
+- tapOn:
+    id: "target-category-select"
+- waitForAnimationToEnd
+- tapOn:
+    index: 0 # First option
+- waitForAnimationToEnd
+
+# Add admin note
+- tapOn:
+    id: "admin-note-input"
+- inputText: "Merging because similar to existing category"
+
+# Submit merge
+- tapOn:
+    id: "merge-submit-button"
+- waitForAnimationToEnd
+
+# Verify success message
+- assertVisible:
+    text: "merged into"
+    containsChild:
+      text: "successfully"
+
+# Verify row removed
+- assertNotVisible:
+    id: "suggestion-row-0"
+
+# === STEP 6: Test Reject Flow ===
+# Ensure another suggestion exists
+- assertVisible:
+    id: "suggestion-row-0"
+
+- tapOn:
+    id: "reject-button-0"
+- waitForAnimationToEnd
+
+# Modal should open
+- assertVisible:
+    id: "reject-modal"
+- assertVisible:
+    text: "Reject Category Suggestion"
+
+# Verify warning card
+- assertVisible:
+    id: "reject-warning-card"
+
+# Add admin note (optional, test without it)
+- tapOn:
+    id: "admin-note-input"
+- inputText: "Too specific, use general category"
+
+# Submit rejection
+- tapOn:
+    id: "reject-submit-button"
+- waitForAnimationToEnd
+
+# Verify success message
+- assertVisible:
+    text: "rejected successfully"
+
+# Verify row removed
+- assertNotVisible:
+    id: "suggestion-row-0"
+
+# === STEP 7: Test Modal Close Behavior ===
+# Ensure another suggestion exists
+- assertVisible:
+    id: "suggestion-row-0"
+
+- tapOn:
+    id: "approve-button-0"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "approve-modal"
+
+# Close via Cancel button
+- tapOn:
+    id: "modal-cancel-button"
+- waitForAnimationToEnd
+
+# Modal should close
+- assertNotVisible:
+    id: "approve-modal"
+
+# Row should still be there (no changes saved)
+- assertVisible:
+    id: "suggestion-row-0"
+
+# Test close via X button
+- tapOn:
+    id: "approve-button-0"
+- waitForAnimationToEnd
+- tapOn:
+    id: "modal-close-x"
+- waitForAnimationToEnd
+
+- assertNotVisible:
+    id: "approve-modal"
+- assertVisible:
+    id: "suggestion-row-0"
+
+# === STEP 8: Test Empty State ===
+# (This step assumes all suggestions were processed above)
+# If no suggestions remain, empty state should show
+- assertVisible:
+    text: "No pending category suggestions"
+    # Optional: Add more specific empty state assertions
+
+# === STEP 9: Test Error State (Validation) ===
+# Create a new suggestion or use existing
+- assertVisible:
+    id: "suggestion-row-0"
+
+- tapOn:
+    id: "approve-button-0"
+- waitForAnimationToEnd
+
+# Clear the name field
+- tapOn:
+    id: "category-name-input"
+- eraseText
+
+# Try to submit without name
+- tapOn:
+    id: "approve-submit-button"
+- waitForAnimationToEnd
+
+# Verify error message
+- assertVisible:
+    text: "Name is required"
+
+# Close modal
+- tapOn:
+    id: "modal-cancel-button"
+- waitForAnimationToEnd
+
+# === END OF FLOW ===

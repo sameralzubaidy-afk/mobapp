@@ -1686,8 +1686,8 @@ This file is the canonical registry of end-to-end flows and their required regre
     - A/B test performance tracking works (`get_ab_test_performance()`)
     - Performance acceptable with large datasets (1000+ notifications)
 
-### FLOW-18: Admin Controls – Config + Overrides + Revenue Analytics + User Management
-- Purpose: Admin can configure platform settings, view revenue metrics, analytics, and manage users
+### FLOW-18: Admin Controls – Config + Overrides + Revenue Analytics + User Management + Category Management
+- Purpose: Admin can configure platform settings, view revenue metrics, analytics, manage users, and manage categories
 - Smoke: (manual)
   - Admin can navigate to `/analytics` dashboard
   - Revenue metrics display: MRR, ARR, transaction fees, ARPU
@@ -1748,6 +1748,47 @@ This file is the canonical registry of end-to-end flows and their required regre
         - `admin_list_users(p_account_status => 'deleted')` returns deleted users
         - Users page Account Status dropdown `Deleted` option returns deleted rows
     - **ADMIN-V2-006 Hotfix (2026-03-28):** Null account-status regression guard
+  - **ADMIN-V3-005 (2026-04-29):** Category Suggestions Queue
+    - Purpose: Admin can review, approve, merge, or reject seller-submitted category suggestions
+    - Table: `category_suggestions` (seller-requested categories via "Other" flow)
+    - Services: `getCategorySuggestions`, `approveCategorySuggestion`, `mergeCategorySuggestion`, `rejectCategorySuggestion`
+    - Admin UI: `/categories` page, Suggestions tab
+    - Components:
+      - `CategorySuggestionsList.tsx` - List with Approve/Merge/Reject actions
+      - `ApproveSuggestionModal.tsx` - Re-uses CategoryForm, pre-fills suggested name
+      - `MergeSuggestionModal.tsx` - Dropdown of existing categories
+      - `RejectSuggestionModal.tsx` - Optional admin note (500 char max)
+    - Features:
+      - Pending suggestion badge count (polled every 60s or realtime)
+      - Item link opens `/admin/items/{id}` in new tab
+      - Relative date formatting
+      - Approve: creates new category + reassigns item transactionally
+      - Merge: reassigns item to existing category
+      - Reject: item stays in "Other", admin note saved
+      - Success: row removed from pending list, badge decrements
+    - **ADMIN-V3-005 Hotfix (2026-04-29):** Mobile Other-category suggestion insertion
+      - App changes:
+        - `p2p-kids-marketplace/src/services/categoryService.ts` adds `createCategorySuggestionFromItem(itemId, suggestedName, sellerId)`
+        - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` now calls `createCategorySuggestionFromItem` after `flagForCategoryReview`
+      - DB migration:
+        - `supabase/migrations/20260429000011_allow_seller_insert_category_suggestions.sql`
+      - RLS changes:
+        - Adds seller `INSERT` policy for own pending suggestions
+        - Adds seller `UPDATE` policy for own pending suggestions (required for upsert on `item_id`)
+      - Smoke verification:
+        - Seller publishes item with category = "Other" and custom category name
+        - `category_suggestions` has a `pending` row for that `item_id`
+        - Admin Suggestions tab shows the row
+    - Manual Test Guide: `ADMIN-V3-005-MANUAL-TESTING-GUIDE.md` (11 test cases)
+    - Unit Tests: `p2p-kids-admin/src/__tests__/components/CategorySuggestionsList.test.tsx`, `SuggestionModals.test.tsx`
+    - E2E Tests: `p2p-kids-admin/src/__tests__/integration/category-suggestions.integration.test.ts`
+    - Tier: Tier 1 for suggestion queue changes; Tier 2 if category schema/trigger changes
+    - Smoke:
+      - Admin navigates to `/categories` → Suggestions tab
+      - Pending badge count matches SQL count
+      - Approve creates category + reassigns item (verify in DB)
+      - Merge reassigns to selected category (verify in DB)
+      - Reject updates status, saves note (verify in DB)
       - Migration: `20260328000026_fix_admin_list_users_null_status_filter.sql`
       - Fixes covered:
         - `admin_list_users` now treats null `p_account_status` as non-deleted list mode (prevents empty "All users" result)

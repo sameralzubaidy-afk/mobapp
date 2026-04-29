@@ -150,6 +150,55 @@ export async function flagForCategoryReview(
 }
 
 /**
+ * Create or update a category suggestion entry for admin review queue.
+ * Uses upsert on item_id so repeated publishes/edits stay idempotent.
+ *
+ * @param itemId - Item ID
+ * @param suggestedName - Seller-entered category name
+ * @param sellerId - Seller user ID (auth.users.id)
+ * @returns Success status
+ */
+export async function createCategorySuggestionFromItem(
+  itemId: string,
+  suggestedName: string,
+  sellerId: string
+): Promise<boolean> {
+  try {
+    const trimmedName = suggestedName.trim();
+    if (!itemId || !trimmedName || !sellerId) {
+      throw new Error('itemId, suggestedName, and sellerId are required');
+    }
+
+    const { error } = await supabase
+      .from('category_suggestions')
+      .upsert(
+        {
+          item_id: itemId,
+          seller_id: sellerId,
+          suggested_name: trimmedName,
+          status: 'pending',
+          approved_by: null,
+          merged_to_category_id: null,
+          admin_note: null,
+          reviewed_at: null,
+        },
+        {
+          onConflict: 'item_id',
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    return true;
+  } catch (error: any) {
+    console.error('[categoryService] Create category suggestion error:', error);
+    return false;
+  }
+}
+
+/**
  * Get recent categories for seller
  * LRU cache in AsyncStorage
  * Max 3 entries
