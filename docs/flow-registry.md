@@ -3374,3 +3374,129 @@ This file is the canonical registry of end-to-end flows and their required regre
   - Diff view showing changes between disclaimer versions
   - Admin analytics (acknowledgment rates, time-to-accept per trade type)
   - Localized disclaimer content (multi-language support)
+
+---
+
+### FLOW-21: Admin Category Management V3 — Dynamic Categories + SP Configuration
+
+- **Purpose**: Admin-driven category CRUD, category suggestions queue, per-category SP rates, live item counts
+- **Module**: MODULE-12-ADMIN-V3-CATEGORIES
+- **Tasks**: ADMIN-V3-001 through ADMIN-V3-009
+- **Dependencies**: 
+  - MODULE-01 (categories, user_roles, items tables)
+  - MODULE-04 V3 (writes category_suggestions when seller picks "Other")
+  - MODULE-05 V3 (reads getCategoriesWithCounts for buyer filter chips)
+  - MODULE-09 (Swap Points wallet + ledger)
+  - MODULE-14 (NotificationService for SP rate-change banners)
+
+#### ADMIN-V3-001: Schema Migrations (Foundation)
+
+- **Scope**: 5 Supabase migrations adding 11 columns to `categories`, `category_suggestions` table, trigger system, RPC, storage bucket
+- **Files Created**:
+  1. `supabase/migrations/20260420000006_add_category_management_columns.sql`
+     - ALTER `categories` table: adds `description, icon_url, bonus_badge_icon_url, sp_earning_multiplier, sp_spending_cap_percent, sp_config_notes, sp_rate_change_notify, item_count`
+     - CHECK constraints: `sp_earning_multiplier BETWEEN 1.05 AND 1.40`, `sp_spending_cap_percent BETWEEN 50 AND 80`
+     - Length constraints: description ≤200, icon ≤50, sp_config_notes ≤500
+     - Indexes: `idx_categories_active` (partial WHERE is_active=TRUE), `idx_categories_item_count` (partial WHERE item_count>0), `idx_categories_bonus` (partial WHERE sp_earning_multiplier>1.10)
+     - Backfills `display_order` via ROW_NUMBER()
+  2. `supabase/migrations/20260420000007_create_category_suggestions.sql`
+     - CREATE `category_suggestions` table (id, suggested_name, seller_id, item_id, status, approved_by, merged_to_category_id, admin_note, created_at, reviewed_at)
+     - UNIQUE constraint on `item_id`
+     - CHECK constraint: status IN ('pending','approved','rejected','merged')
+     - RLS policies: Admin (FOR ALL via user_roles), Seller (FOR SELECT where seller_id=auth.uid())
+     - Indexes: `idx_category_suggestions_status` (partial pending), `idx_category_suggestions_seller`
+  3. `supabase/migrations/20260420000008_category_item_count_trigger.sql`
+     - CREATE FUNCTION `update_category_item_count()` SECURITY DEFINER
+     - Handles INSERT/UPDATE(category_id, status)/DELETE on items
+     - Trigger `update_category_item_count_trigger` AFTER ... FOR EACH ROW
+     - Backfills initial counts: `UPDATE categories SET item_count = (SELECT COUNT(...) WHERE status='available')`
+  4. `supabase/migrations/20260420000009_reorder_categories_rpc.sql`
+     - CREATE FUNCTION `reorder_categories(p_category_orders JSONB)` SECURITY DEFINER
+     - Admin-only RPC (checks user_roles.role='admin')
+     - Batch updates `display_order` via jsonb_to_recordset loop
+  5. `supabase/migrations/20260420000010_create_category_icons_storage_bucket.sql`
+     - INSERT storage bucket `category-icons` (public=true)
+     - RLS policies: public SELECT; admin-only INSERT/UPDATE/DELETE (via user_roles)
+- **Verification** (Manual Testing Guide):
+  - Manual Test Guide: `ADMIN-V3-001-MANUAL-TESTING-GUIDE.md` (20 test cases)
+  - TC-001 to TC-004: Verify columns, constraints, backfill, indexes
+  - TC-005 to TC-007: Verify category_suggestions table, RLS, indexes
+  - TC-008 to TC-013: Verify trigger function, attachment, backfill, INSERT/UPDATE/DELETE behavior
+  - TC-014 to TC-017: Verify reorder_categories RPC (admin success, non-admin rejection, validation)
+  - TC-018 to TC-019: Verify storage bucket creation, RLS policies
+  - TC-020: End-to-end idempotency test (re-run all migrations)
+- **SQL Prerequisites** (MUST run BEFORE any testing):
+  1. Open Supabase Dashboard → SQL Editor
+  2. Execute migrations in strict order: 000006 → 000007 → 000008 → 000009 → 000010
+  3. Verify no errors in output
+  4. Run verification queries from each migration file (commented at bottom)
+- **Regression Tiers**:
+  - Tier 0 (always): N/A for pure SQL migrations
+  - Tier 1: Manual SQL verification (run commented queries in each migration)
+  - Tier 2 (DB migrations): REQUIRED for ADMIN-V3-001
+    - `supabase db reset` (or apply to fresh instance)
+    - Verify table schema: `SELECT column_name FROM information_schema.columns WHERE table_name='categories'`
+    - Verify constraints: `SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid='categories'::regclass`
+    - Verify trigger: `SELECT tgname FROM pg_trigger WHERE tgrelid='items'::regclass AND tgname='update_category_item_count_trigger'`
+    - Verify RPC: `SELECT proname, prosecdef FROM pg_proc WHERE proname='reorder_categories'`
+    - Verify storage: `SELECT id, public FROM storage.buckets WHERE id='category-icons'`
+
+- **Change Classification**: A (DB Migrations — categories table altered + new tables + trigger + RPC + storage)
+- **Impacted Flows**:
+  - FLOW-04 (Listings): item_count trigger fires on item INSERT/UPDATE/DELETE
+  - FLOW-18 (Admin Controls): new admin category management route
+  - FLOW-05 (Discovery): buyer-facing category filters consume getCategoriesWithCounts()
+  - FLOW-11 (Swap Points): per-category SP earning/spending rates
+
+- **Critical Rules Enforced**:
+  - SP rate bounds: `sp_earning_multiplier ∈ [1.05, 1.40]`, `sp_spending_cap_percent ∈ [50, 80]` (DB CHECK + service + UI)
+  - Delete only when empty: `deleteCategory` MUST check `item_count = 0` before allowing deletion
+  - "Other" category protected: Cannot be deactivated or deleted (enforced in service layer)
+  - Trigger-only writes: `categories.item_count` NEVER written by app code (only by trigger)
+  - Reorder via RPC only: No N+1 individual UPDATEs from client (single RPC call with JSONB array)
+  - Category name uniqueness: case-insensitive (LOWER() comparison) enforced server-side + client debounce
+  - Admin-only RPC: `reorder_categories` checks `user_roles.role='admin'` before executing
+
+- **Known Limitations**:
+  - Manual bucket configuration required: File size limit (500 KB) and MIME types (PNG, SVG) must be set manually in Supabase Dashboard → Storage → category-icons → Settings
+  - No rollback migration provided: Schema changes are additive (safe for production); manual DROP statements required if rollback needed
+  - Trigger performance: Bulk inserts (>1000 items) may slow down due to trigger overhead; consider temporarily disabling trigger during bulk data loads
+  - Migration idempotency: Uses IF NOT EXISTS / ON CONFLICT DO NOTHING (safe to re-run), but existing data preserved
+
+- **Next Steps** (Post-ADMIN-V3-001):
+  1. ADMIN-V3-002: Types & Error Classes (TypeScript types for Category, CategorySuggestion, error classes)
+  2. ADMIN-V3-003: Backend Services (categoryService, categorySuggestionService, spConfigService)
+  3. ADMIN-V3-004: Admin UI — CategoryManagementPage with CRUD table + form
+  4. ADMIN-V3-005: Admin UI — Category Suggestions Queue (approve/reject/merge)
+  5. ADMIN-V3-006: Admin UI — SP Analytics Dashboard
+  6. ADMIN-V3-007: Mobile Integration — bonus badges, counts, "Other" flow
+  7. ADMIN-V3-008: Admin Hooks + State (React Query + Realtime)
+  8. ADMIN-V3-009: Tests (Unit + Component + PgTAP + Playwright + Maestro)
+
+- **Backward Compatibility**:
+  - V2 `categories` rows continue to work (new columns default sensibly: is_active=TRUE, sp_earning_multiplier=1.10, sp_spending_cap_percent=70)
+  - V2 RLS policies on `categories` unchanged (V3 adds admin CRUD policies alongside existing read policy)
+  - V2 admin dashboard routes preserved (new `/admin/categories` route is net-new)
+  - Existing items table unaffected (trigger fires on existing INSERT/UPDATE/DELETE operations)
+
+- **Future Enhancements** (Out of scope for V3.0):
+  - Materialized view for SP analytics (currently computed via aggregation query)
+  - Category icon auto-generation via AI (e.g., DALL-E for custom category icons)
+  - Category merge/split tools (currently admin must manually reassign items)
+  - Category usage analytics dashboard (trend graphs, seasonal patterns)
+  - Localized category names (multi-language support)
+  - Category templates (predefined categories for new nodes)
+
+- **Test Summary** (ADMIN-V3-001 Manual Testing):
+  | Category | Total | Status |
+  |----------|-------|--------|
+  | Schema | 4 | ⏳ PENDING |
+  | Constraints | 2 | ⏳ PENDING |
+  | Table Structure | 2 | ⏳ PENDING |
+  | RLS Policies | 2 | ⏳ PENDING |
+  | Triggers | 5 | ⏳ PENDING |
+  | RPC Functions | 4 | ⏳ PENDING |
+  | Storage | 2 | ⏳ PENDING |
+  | **TOTAL** | **21** | **⏳ PENDING SQL EXECUTION** |
+
+---
