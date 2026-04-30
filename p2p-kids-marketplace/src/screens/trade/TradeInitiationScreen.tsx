@@ -1,11 +1,12 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeInitiationScreen.tsx
  * TASK TRADE-V2-002: Initiate Trade with Subscription & SP Context
+ * Updated: ADMIN-V3-007 - Enforce category-specific SP spending cap
  *
  * UI for initiating a trade:
  * - Shows item summary
  * - Shows SP wallet balance
- * - Allows SP discount selection (capped at 50%)
+ * - Allows SP discount selection (capped by category config)
  * - Shows fee breakdown using admin-config-driven transaction fee
  * - Handles trade initiation
  */
@@ -32,6 +33,7 @@ import { initiateTradeV2, processTradePayment } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
 import { getTransactionFee, getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
+import { calculateCategorySP } from '@/services/categoryService';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import DisclaimerModal from '@/components/DisclaimerModal';
@@ -60,7 +62,8 @@ export default function TradeInitiationScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [item, setItem] = useState<Item | null>(null);
   const [spAmount, setSpAmount] = useState(0);
-  const [maxSpPercentage, setMaxSpPercentage] = useState(50);
+  const [maxSpAllowed, setMaxSpAllowed] = useState(0); // Category-specific SP cap (MODULE-12 V3)
+  const [maxSpPercentage, setMaxSpPercentage] = useState(50); // Fallback global percentage
   const [transactionFeeCents, setTransactionFeeCents] = useState(299);
   const [cardComplete, setCardComplete] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
@@ -202,8 +205,27 @@ export default function TradeInitiationScreen() {
       if (Number.isFinite(feeCents) && feeCents >= 0) {
         setTransactionFeeCents(Math.round(feeCents));
       }
-      if (config?.sp_max_percentage_per_purchase) {
-        setMaxSpPercentage(config.sp_max_percentage_per_purchase);
+      
+      // MODULE-12 V3: Use category-specific SP spending cap
+      if (itemData.category_id) {
+        const spConfig = await calculateCategorySP(itemData.category_id, itemData.price);
+        if (spConfig) {
+          setMaxSpAllowed(spConfig.max_spend_sp);
+          setMaxSpPercentage(spConfig.spend_percent);
+        } else {
+          // Fallback to global admin config
+          const fallbackMaxSp = Math.floor((itemData.price * (config?.sp_max_percentage_per_purchase || 50)) / 100);
+          setMaxSpAllowed(fallbackMaxSp);
+          if (config?.sp_max_percentage_per_purchase) {
+            setMaxSpPercentage(config.sp_max_percentage_per_purchase);
+          }
+        }
+      } else {
+        // No category - use global config
+        const fallbackPercent = config?.sp_max_percentage_per_purchase || 50;
+        const fallbackMaxSp = Math.floor((itemData.price * fallbackPercent) / 100);
+        setMaxSpAllowed(fallbackMaxSp);
+        setMaxSpPercentage(fallbackPercent);
       }
     } catch (error) {
       console.error('❌ Error fetching trade data:', error);
@@ -212,7 +234,8 @@ export default function TradeInitiationScreen() {
       setLoading(false);
     }
   };
-
+  
+  // MODULE-12 V3: Use category-specific max SP cap (already calculated in fetchData)
   if (loading || !item) {
     return (
       <View style={styles.loadingContainer}>
@@ -230,8 +253,6 @@ export default function TradeInitiationScreen() {
 
   // V2: 1 SP = $1.00 (100 cents)
   const spToCashRate = 100;
-  const maxDiscountCents = Math.floor(itemPriceCents * (maxSpPercentage / 100));
-  const maxSpAllowed = maxDiscountCents / spToCashRate;
 
   const availableSp = walletStats.available;
   const maxSpToUse = Math.min(maxSpAllowed, availableSp);
@@ -417,7 +438,16 @@ export default function TradeInitiationScreen() {
     } else {
       const numericValue = parseFloat(formatted);
       if (!isNaN(numericValue)) {
-        setSpAmount(Math.min(numericValue, maxSpToUse));
+        const cappedValue = Math.min(numericValue, maxSpToUse);
+        setSpAmount(cappedValue);
+
+        // MODULE-12 V3: Show inline error if user tries to exceed category cap
+        if (numericValue > maxSpToUse) {
+          Alert.alert(
+            'SP Limit Exceeded',
+            `For this category, you can use up to ${maxSpToUse} SP (${maxSpPercentage}% of item price).`
+          );
+        }
       }
     }
   };

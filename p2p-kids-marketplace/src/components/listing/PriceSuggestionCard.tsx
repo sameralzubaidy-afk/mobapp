@@ -2,22 +2,26 @@
  * File: p2p-kids-marketplace/src/components/listing/PriceSuggestionCard.tsx
  * MODULE-04 LISTING-V3-008: Price Suggestion Card
  * Task: LISTING-V3-008 - 4-tier price suggestions + manual input
+ * Updated: ADMIN-V3-007 - Add SP earning/spending preview
  * 
  * Features:
  * - 4 price tier cards (great_deal, fair_price, asking_price, almost_new)
  * - Manual price input option
+ * - SP earning and spending preview (MODULE-12 V3)
  * - Show manual-only when no suggestions available
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { PriceTier, PriceSuggestion } from '../../types/listing';
+import { calculateCategorySP } from '../../services/categoryService';
 
 export interface PriceSuggestionCardProps {
   tiers: PriceSuggestion[];
@@ -26,6 +30,8 @@ export interface PriceSuggestionCardProps {
   onSelectTier: (tier: PriceTier) => void;
   onChangeManual: (value: string) => void;
   onShowFaq?: () => void;
+  /** Category ID for SP calculation */
+  categoryId?: string;
   testID?: string;
 }
 
@@ -36,9 +42,57 @@ export function PriceSuggestionCard({
   onSelectTier,
   onChangeManual,
   onShowFaq,
+  categoryId,
   testID = 'price-suggestion-card',
 }: PriceSuggestionCardProps) {
   const hasSuggestions = tiers.length > 0;
+  
+  // State for SP calculation
+  const [spPreview, setSPPreview] = useState<{
+    earn_sp: number;
+    max_spend_sp: number;
+  } | null>(null);
+  const [loadingSP, setLoadingSP] = useState(false);
+
+  // Calculate SP preview when category or price changes
+  useEffect(() => {
+    const fetchSPPreview = async () => {
+      if (!categoryId) {
+        setSPPreview(null);
+        return;
+      }
+
+      // Get the current price from either selected tier or manual input
+      const selectedPrice = selectedTier
+        ? tiers.find((t) => t.tier === selectedTier)?.price
+        : parseFloat(manualValue);
+
+      if (!selectedPrice || isNaN(selectedPrice) || selectedPrice <= 0) {
+        setSPPreview(null);
+        return;
+      }
+
+      setLoadingSP(true);
+      try {
+        const result = await calculateCategorySP(categoryId, selectedPrice);
+        if (result) {
+          setSPPreview({
+            earn_sp: result.earn_sp,
+            max_spend_sp: result.max_spend_sp,
+          });
+        } else {
+          setSPPreview(null);
+        }
+      } catch (error) {
+        console.error('[PriceSuggestionCard] SP calculation error:', error);
+        setSPPreview(null);
+      } finally {
+        setLoadingSP(false);
+      }
+    };
+
+    fetchSPPreview();
+  }, [categoryId, selectedTier, manualValue, tiers]);
 
   return (
     <View style={styles.container} testID={testID}>
@@ -55,6 +109,26 @@ export function PriceSuggestionCard({
           </TouchableOpacity>
         )}
       </View>
+
+      {/* SP Preview (MODULE-12 V3) */}
+      {spPreview && !loadingSP && (
+        <View style={styles.spPreviewContainer} testID="sp-preview">
+          <View style={styles.spPreviewRow}>
+            <Text style={styles.spPreviewLabel}>You'll earn:</Text>
+            <Text style={styles.spPreviewValue}>{spPreview.earn_sp} SP</Text>
+          </View>
+          <View style={styles.spPreviewRow}>
+            <Text style={styles.spPreviewLabel}>Buyer can use up to:</Text>
+            <Text style={styles.spPreviewValue}>{spPreview.max_spend_sp} SP</Text>
+          </View>
+        </View>
+      )}
+      {loadingSP && (
+        <View style={styles.spLoadingContainer}>
+          <ActivityIndicator size="small" color="#007AFF" />
+          <Text style={styles.spLoadingText}>Calculating SP...</Text>
+        </View>
+      )}
 
       {hasSuggestions ? (
         <>
@@ -221,6 +295,37 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
     paddingVertical: 12,
+  },
+  spPreviewContainer: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  spPreviewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  spPreviewLabel: {
+    fontSize: 14,
+    color: '#0066CC',
+  },
+  spPreviewValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0066CC',
+  },
+  spLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  spLoadingText: {
+    fontSize: 14,
+    color: '#666666',
   },
   manualInputContainer: {
     marginTop: 8,

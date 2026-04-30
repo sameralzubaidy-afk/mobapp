@@ -2,11 +2,13 @@
  * File: p2p-kids-marketplace/src/components/listing/CategorySelectModal.tsx
  * MODULE-04 LISTING-V3-008: Category Select Modal
  * Task: LISTING-V3-008 - Full-screen category selection with search
+ * Updated: ADMIN-V3-007 - Show bonus badges
  * 
  * Features:
  * - Search categories
  * - Recent 3 categories
- * - All categories list
+ * - All active categories list (no item counts)
+ * - Bonus badges for sp_earning_multiplier > 1.10
  * - "Other" option with custom input
  */
 
@@ -22,6 +24,7 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
+import { BonusBadge } from '../shared/BonusBadge';
 
 export interface Category {
   id: string;
@@ -30,6 +33,7 @@ export interface Category {
   icon_url?: string | null;
   bonus_badge_icon_url?: string | null;
   sp_earning_multiplier?: number | null;
+  item_count?: number;
 }
 
 export interface CategorySelectModalProps {
@@ -69,10 +73,9 @@ export function CategorySelectModal({
 
   const renderCategory = ({ item }: { item: Category }) => {
     // Bonus badge is shown only for categories with SP earn multiplier strictly greater than 1.10.
-    // This matches the product rule used in admin and marketplace logic.
-    // TODO(UX): revisit badge placement once final listing/category picker designs are available.
+    // This matches the product rule used in admin and marketplace logic (MODULE-12 V3).
     const showBonusBadge = Number(item.sp_earning_multiplier ?? 1.1) > 1.1;
-
+    
     return (
       <TouchableOpacity
         style={styles.categoryItem}
@@ -98,16 +101,14 @@ export function CategorySelectModal({
 
         <View style={styles.categoryTextRow}>
           <Text style={styles.categoryName}>{item.name}</Text>
-          {showBonusBadge &&
-            (item.bonus_badge_icon_url ? (
-              <Image
-                source={{ uri: item.bonus_badge_icon_url }}
-                style={styles.bonusBadgeIcon}
-                resizeMode="cover"
-              />
-            ) : (
-              <Text style={styles.bonusBadgeFallback}>⭐</Text>
-            ))}
+          {showBonusBadge && (
+            <BonusBadge
+              iconUrl={item.bonus_badge_icon_url}
+              size="small"
+              style={styles.bonusBadgeContainer}
+              testID={`bonus-badge-${item.id}`}
+            />
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -324,10 +325,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
-  bonusBadgeIcon: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+  bonusBadgeContainer: {
     marginLeft: 8,
   },
   bonusBadgeFallback: {

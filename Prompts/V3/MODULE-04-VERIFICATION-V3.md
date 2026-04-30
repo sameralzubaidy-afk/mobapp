@@ -198,6 +198,42 @@
 - [ ] `search_listings` RPC (MODULE-05 V3) returns items published by V3 flow without errors
 - [ ] MODULE-12 admin review queue surfaces items with `requested_category_name` set (smoke test)
 - [ ] MODULE-09 "First Listing" / "Power Seller" badges still fire on bulk publish (each `createItem` call triggers them)
+
+### 12. SP EARNINGS PREVIEW (LISTING-V3-011)
+
+- [ ] `SPEarningsPreview` component renders in `ItemCreateScreen` after price input
+- [ ] SP estimate updates within 300ms of price change (debounced)
+- [ ] Placeholder shown when category not selected: "Select category to see estimate"
+- [ ] Free user sees grayed estimate + "🔒 Upgrade to earn SP" CTA with upgrade button
+- [ ] Subscriber sees normal estimate with ✅ checkmark (not grayed)
+- [ ] "Other" category shows 1.10x default + disclaimer "Base rate - may change after admin approval"
+- [ ] Tapping (i) icon opens `SPInfoTooltip` with "What are Swap Points?" explanation
+- [ ] Tooltip includes example calculation and disclaimer "Estimates based on list price"
+- [ ] "Learn More" button in tooltip navigates to SP education screen
+- [ ] `BulkItemCard` shows per-item SP estimate in payment preference section
+- [ ] `BulkSPSummaryCard` renders above item list in `BulkListingCreateScreen`
+- [ ] Bulk summary shows aggregate total SP across all included items
+- [ ] Bulk summary shows per-category breakdown (itemCount, totalSP, multiplier)
+- [ ] Breakdown sorted by highest SP first
+- [ ] Category multipliers cached in AsyncStorage (`@kids_marketplace:category_sp_multipliers`)
+- [ ] Cache includes timestamp and auto-refreshes if > 24h old on mount
+- [ ] Network failure on initial fetch uses stale cache with warning toast (no crash)
+- [ ] Missing cache + network failure defaults to 1.10x for all categories with error banner
+- [ ] `calculateEarnedSP` returns correct values: (50, 1.20) → 60, (33.33, 1.10) → 37
+- [ ] `calculateEarnedSP` returns 0 for invalid inputs (price ≤ 0 or multiplier out of range)
+- [ ] `groupBulkItemsByCategory` correctly aggregates mixed categories
+- [ ] Unit tests pass for `spCalculations.ts` (minimum 5 test cases)
+- [ ] Unit tests pass for `useCategorySPCache` (cache hit/miss/stale/network fail scenarios)
+- [ ] Component tests pass for `SPEarningsPreview` (4 states: loading, no category, free user, subscriber)
+- [ ] Component tests pass for `BulkSPSummaryCard` (empty, single category, multi-category)
+- [ ] Maestro flow: Create item → select category → enter price → verify SP estimate visible and correct
+- [ ] Accessibility: (i) icon has touch target ≥ 44×44pt with label "What are Swap Points?"
+- [ ] Accessibility: VoiceOver reads SP values correctly ("35 Swap Points")
+- [ ] Accessibility: Grayed-out state for free users announces "locked, upgrade required"
+- [ ] Accessibility: Tooltip modal traps focus, Esc closes, focus returns to trigger
+- [ ] Performance: SP calculation completes in < 10ms (client-side)
+- [ ] Performance: No API calls during typing/category changes (cache hit only)
+- [ ] Performance: Bulk summary recalculates in < 50ms for 15 items
 - [ ] MODULE-14 "Your listing is live" notification still fires per item
 
 ### 12. MIGRATION ORDER (regression guard)

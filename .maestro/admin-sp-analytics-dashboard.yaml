@@ -1,0 +1,158 @@
+# FLOW: SP Analytics Dashboard | TASK: ADMIN-V3-006 | States covered: [loading, empty, data, anomalies, export]
+# Test SP Analytics Dashboard functionality on admin portal
+
+appId: com.p2pkidsmarketplace.admin
+---
+
+# Precondition: Admin user is logged in
+- launchApp:
+    clearState: false
+
+# Navigate to SP Analytics page
+- tapOn: "Settings"
+- tapOn: "SP Analytics"
+- assertVisible: "SP Analytics Dashboard"
+
+# TEST 1: Page loads successfully
+- assertVisible: "Category SP Metrics"
+- assertVisible: "Last 30 Days"
+- assertVisible:
+    id: "sp-analytics-date-range-30"
+    enabled: true
+
+# TEST 2: Date range picker works
+- assertVisible:
+    id: "sp-analytics-date-range-picker"
+
+# Switch to 7 days
+- tapOn:
+    id: "sp-analytics-date-range-7"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "sp-analytics-date-range-7"
+    # Verify it's selected (would need aria-pressed in actual implementation)
+
+# Switch to 90 days
+- tapOn:
+    id: "sp-analytics-date-range-90"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "sp-analytics-date-range-90"
+
+# Switch back to 30 days (default)
+- tapOn:
+    id: "sp-analytics-date-range-30"
+- waitForAnimationToEnd
+
+# TEST 3: Metrics table renders
+- assertVisible:
+    id: "sp-metrics-table"
+- assertVisible: "Velocity"
+- assertVisible: "Gap %"
+- assertVisible: "Avg Cash / Trade"
+- assertVisible: "Anomalies"
+
+# TEST 4: Check for data rows or empty state
+- runFlow:
+    when:
+      visible:
+        id: "sp-metrics-empty"
+    commands:
+      - assertVisible: "No category data available"
+      - stopApp
+
+# If we have data, continue testing
+- assertVisible:
+    id: "sp-metrics-row-*"
+
+# TEST 5: Anomaly alerts panel
+- runFlow:
+    when:
+      visible:
+        id: "sp-anomaly-none"
+    commands:
+      - assertVisible: "All Categories Healthy"
+- runFlow:
+    when:
+      visible:
+        id: "sp-anomaly-alerts"
+    commands:
+      - assertVisible: "Flagged"
+      # Check for anomaly cards
+      - runFlow:
+          when:
+            visible:
+              id: "anomaly-card-*"
+          commands:
+            # Tap first flagged category
+            - tapOn:
+                id: "anomaly-card-*"
+                index: 0
+            - waitForAnimationToEnd
+            # Should navigate to categories page with edit modal
+            - assertVisible: "Categories"
+
+# Navigate back to SP Analytics
+- tapOn: "Settings"
+- tapOn: "SP Analytics"
+- waitForAnimationToEnd
+
+# TEST 6: Click category row in metrics table
+- tapOn:
+    id: "sp-metrics-row-*"
+    index: 0
+- waitForAnimationToEnd
+# Should navigate to categories page
+- assertVisible: "Categories"
+
+# Navigate back
+- tapOn: "Settings"
+- tapOn: "SP Analytics"
+- waitForAnimationToEnd
+
+# TEST 7: CSV Export button exists and is clickable
+- assertVisible:
+    id: "export-csv-button"
+    enabled: true
+- tapOn:
+    id: "export-csv-button"
+# Note: Actual file download cannot be verified in Maestro
+# But button should not crash
+- waitForAnimationToEnd
+- assertVisible: "SP Analytics Dashboard"
+
+# TEST 8: Verify metrics formatting
+# Check that velocity, gap, and cash values are displayed
+- assertVisible:
+    id: "velocity-*"
+- assertVisible:
+    id: "gap-*"
+- assertVisible:
+    id: "avg-cash-*"
+
+# TEST 9: Check anomaly badge rendering if present
+- runFlow:
+    when:
+      visible:
+        id: "badge-hoarding-*"
+    commands:
+      - assertVisible:
+          text: "hoarding"
+- runFlow:
+    when:
+      visible:
+        id: "badge-low_velocity-*"
+    commands:
+      - assertVisible:
+          text: "low velocity"
+- runFlow:
+    when:
+      visible:
+        id: "badge-spending_spike-*"
+    commands:
+      - assertVisible:
+          text: "spending spike"
+
+# Final verification: Dashboard is functional
+- assertVisible: "SP Analytics Dashboard"
+- assertVisible: "Category SP Metrics"

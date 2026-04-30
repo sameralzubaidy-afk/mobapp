@@ -52,6 +52,7 @@ import { BrandAutocompleteInput } from '../components/molecules/BrandAutocomplet
 import { AgeGroupSelector } from '../components/listing/AgeGroupSelector';
 import { GenderSelector } from '../components/listing/GenderSelector';
 import { PublishButton } from '../components/listing/PublishButton';
+import { SPEarningsPreview } from '../components/listing/SPEarningsPreview';
 
 // State machine states
 type CreateScreenState =
@@ -146,6 +147,7 @@ export default function ItemCreateScreen() {
   const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [isDraftHydrated, setIsDraftHydrated] = useState(!draftId);
+  const [shouldAutoAnalyzePhotos, setShouldAutoAnalyzePhotos] = useState(!draftId);
 
   // Draft management
   const {
@@ -162,7 +164,7 @@ export default function ItemCreateScreen() {
     result: aiResult,
     error: aiError,
     retry: retryAI,
-  } = useAIAnalysis(uploadedPhotoUrls, sellerId);
+  } = useAIAnalysis(shouldAutoAnalyzePhotos ? uploadedPhotoUrls : [], sellerId);
 
   // Load categories + subscription status on mount and on screen focus
   useEffect(() => {
@@ -181,6 +183,8 @@ export default function ItemCreateScreen() {
     hasHydratedDraftRef.current = false;
     pendingCategoryIdRef.current = null;
     setIsDraftHydrated(!draftId);
+    // Resumed drafts should not auto-trigger AI analysis from restored photos.
+    setShouldAutoAnalyzePhotos(!draftId);
   }, [draftId]);
 
   // Hydrate form state once when resuming an existing draft.
@@ -381,6 +385,11 @@ export default function ItemCreateScreen() {
 
   const handleAddPhotos = async () => {
     try {
+      // User action on photos should re-enable auto AI.
+      if (!shouldAutoAnalyzePhotos) {
+        setShouldAutoAnalyzePhotos(true);
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
@@ -398,11 +407,12 @@ export default function ItemCreateScreen() {
           mimeType: asset.mimeType,
         }));
 
-        setPhotos([...photos, ...newPhotos]);
+        setPhotos((prev) => [...prev, ...newPhotos]);
         dispatch({ type: 'PHOTOS_ADDED' });
 
-        // Upload photos in background
-        uploadPhotos([...photos, ...newPhotos]);
+        // Upload only newly added local photos in background.
+        // Restored draft photos are already uploaded URLs and may have placeholder dimensions.
+        uploadPhotos(newPhotos);
       }
     } catch (err: any) {
       console.error('[ItemCreateScreen] Add photos error:', err);
@@ -412,13 +422,18 @@ export default function ItemCreateScreen() {
 
   const uploadPhotos = async (photosToUpload: PhotoAsset[]) => {
     try {
+      if (photosToUpload.length === 0) {
+        return;
+      }
+
       const result = await uploadPhotoBatch(
         photosToUpload,
         sellerId
       );
 
       if (result.urls.length > 0) {
-        setUploadedPhotoUrls(result.urls);
+        // Preserve already-uploaded draft URLs and append successful new uploads.
+        setUploadedPhotoUrls((prev) => [...prev, ...result.urls]);
       }
 
       if (result.errors.length > 0) {
@@ -437,6 +452,15 @@ export default function ItemCreateScreen() {
   const handleReorderPhotos = (newOrder: PhotoAsset[]) => {
     setPhotos(newOrder);
   };
+
+  const handleRetryAI = useCallback(() => {
+    // If this is a resumed draft, first re-enable the hook-triggered analysis.
+    if (!shouldAutoAnalyzePhotos) {
+      setShouldAutoAnalyzePhotos(true);
+      return;
+    }
+    retryAI();
+  }, [shouldAutoAnalyzePhotos, retryAI]);
 
   const handleApplyAllAI = () => {
     if (!aiResult) return;
@@ -687,7 +711,7 @@ export default function ItemCreateScreen() {
             </Text>
             <TouchableOpacity
               style={styles.aiRetryButton}
-              onPress={retryAI}
+              onPress={handleRetryAI}
               accessibilityRole="button"
               testID="ai-retry-button"
             >
@@ -843,6 +867,22 @@ export default function ItemCreateScreen() {
                 testID="manual-price-input"
               />
             </View>
+
+            {/* SP Earnings Preview (LISTING-V3-011) */}
+            <SPEarningsPreview
+              categoryId={category?.id || null}
+              price={parseFloat(priceInput) || 0}
+              isSubscriber={canAcceptSP}
+              onLearnMore={() => {
+                // TODO: Navigate to SP education screen (placeholder)
+                Alert.alert(
+                  'Swap Points',
+                  'Learn more about Swap Points in the help section.'
+                );
+              }}
+              onUpgradePress={() => navigation.navigate('SubscriptionChoice')}
+              testID="sp-earnings-preview"
+            />
 
             {/* Publish Button */}
             <PublishButton

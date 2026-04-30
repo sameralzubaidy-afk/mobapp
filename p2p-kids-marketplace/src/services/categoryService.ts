@@ -21,9 +21,13 @@ export interface CategoryWithCount {
   id: string;
   name: string;
   icon: string | null;
+  icon_url?: string | null;
+  bonus_badge_icon_url?: string | null;
   is_active: boolean;
   display_order: number;
   item_count?: number;
+  sp_earning_multiplier?: number;
+  sp_spending_cap_percent?: number;
 }
 
 // AsyncStorage key for recent categories
@@ -39,29 +43,35 @@ const MAX_RECENT_CATEGORIES = 3;
 export const getCategories = getV2Categories;
 
 /**
- * Get categories with item counts
- * Optionally includes inactive categories
+ * Get categories with optional inactive inclusion
+ * Item counts are still fetched for analytics/UI consumers, but not used to hide categories.
  * 
- * @param includeInactive - Whether to include inactive categories
+ * @param includeInactive - Whether to include inactive categories (default: false)
  * @returns Array of categories with counts
  */
 export async function getCategoriesWithCounts(
   includeInactive: boolean = false
 ): Promise<CategoryWithCount[]> {
   try {
-    // Build query
+    // Build query - fetch item_count from the column (maintained by trigger)
     let query = supabase
       .from('categories')
       .select(`
         id,
         name,
         icon,
+        icon_url,
+        bonus_badge_icon_url,
         is_active,
-        display_order
+        item_count,
+        display_order,
+        sp_earning_multiplier,
+        sp_spending_cap_percent
       `)
-      .order('display_order', { ascending: true });
+      .order('display_order', { ascending: true })
+      .order('name', { ascending: true });
 
-    // Filter by active status if needed
+    // Filter by active status when requested.
     if (!includeInactive) {
       query = query.eq('is_active', true);
     }
@@ -74,23 +84,7 @@ export async function getCategoriesWithCounts(
       return [];
     }
 
-    // Get item counts for each category
-    const categoriesWithCounts: CategoryWithCount[] = await Promise.all(
-      categories.map(async (category) => {
-        const { count, error: countError } = await supabase
-          .from('items')
-          .select('*', { count: 'exact', head: true })
-          .eq('category_id', category.id)
-          .eq('status', 'available');
-
-        return {
-          ...category,
-          item_count: countError ? 0 : (count || 0),
-        };
-      })
-    );
-
-    return categoriesWithCounts;
+    return categories as CategoryWithCount[];
   } catch (error: any) {
     console.error('[categoryService] Get categories with counts error:', error);
     return [];
@@ -257,7 +251,86 @@ export async function saveRecentCategory(
     return false;
   }
 }
+/**
+ * Get bonus categories (sp_earning_multiplier > 1.10)
+ * Returns categories with bonus earning rates, ordered by multiplier descending
+ * 
+ * @returns Array of bonus categories
+ */
+export async function getBonusCategories(): Promise<CategoryWithCount[]> {
+  try {
+    const { data: categories, error } = await supabase
+      .from('categories')
+      .select(`
+        id,
+        name,
+        icon,
+        icon_url,
+        bonus_badge_icon_url,
+        is_active,
+        item_count,
+        display_order,
+        sp_earning_multiplier,
+        sp_spending_cap_percent
+      `)
+      .eq('is_active', true)
+      .gt('sp_earning_multiplier', 1.10)
+      .order('sp_earning_multiplier', { ascending: false });
 
+    if (error) throw error;
+
+    return (categories || []) as CategoryWithCount[];
+  } catch (error: any) {
+    console.error('[categoryService] Get bonus categories error:', error);
+    return [];
+  }
+}
+
+/**
+ * Calculate category-specific SP earning and spending rates
+ * Used in checkout and listing flows to show SP preview
+ * 
+ * @param categoryId - Category ID
+ * @param price - Item price in dollars
+ * @returns SP calculation result
+ */
+export async function calculateCategorySP(
+  categoryId: string,
+  price: number
+): Promise<{
+  earn_sp: number;
+  max_spend_sp: number;
+  spend_percent: number;
+} | null> {
+  try {
+    const { data: category, error } = await supabase
+      .from('categories')
+      .select('sp_earning_multiplier, sp_spending_cap_percent')
+      .eq('id', categoryId)
+      .single();
+
+    if (error) throw error;
+
+    if (!category) {
+      return null;
+    }
+
+    // Rounding rules from MODULE-12 V3:
+    // - earn_sp: Math.round (nearest integer)
+    // - max_spend_sp: Math.floor (never exceed cap)
+    const multiplier = category.sp_earning_multiplier || 1.10;
+    const capPercent = category.sp_spending_cap_percent || 70;
+
+    return {
+      earn_sp: Math.round(price * multiplier),
+      max_spend_sp: Math.floor((price * capPercent) / 100),
+      spend_percent: capPercent,
+    };
+  } catch (error: any) {
+    console.error('[categoryService] Calculate category SP error:', error);
+    return null;
+  }
+}
 /**
  * Get category by ID
  * 

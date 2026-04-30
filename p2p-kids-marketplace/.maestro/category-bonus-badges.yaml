@@ -1,0 +1,57 @@
+# FLOW: Category Bonus Badges (No Counts) | TASK: ADMIN-V3-007 | States covered: bonus_visible, no_bonus, active_categories_visible
+
+appId: com.kidsp2p.marketplace
+---
+
+# Preconditions: Ensure staging has bonus categories and some zero-count categories
+
+- launchApp
+
+# STATE 1: View category modal with bonus badges and category names
+- tapOn: "Create Listing"
+- tapOn: "Add Photos"
+- tapOn: "Photo Library"
+- tapOn:
+    index: 0 # Select first photo
+- tapOn: "Add"
+- swipeUp
+- tapOn:
+    id: "category-input"
+
+# Verify bonus badge is shown for categories with sp_earning_multiplier > 1.10
+- assertVisible:
+    id: "bonus-badge-.*" # Any bonus badge
+    enabled: true
+
+# STATE 2: Categories are visible regardless of item_count
+# (No count text is rendered in this UX)
+
+# Select a category
+- tapOn:
+    index: 0 # First category in list
+
+# STATE 3: View price suggestion with SP preview
+- scrollUntilVisible:
+    element:
+      id: "price-input-section"
+    direction: DOWN
+
+# Set a price to trigger SP preview
+- tapOn:
+    id: "manual-price-input"
+- inputText: "50"
+
+# Verify SP preview is shown
+- waitForAnimationToEnd: 1000
+- assertVisible:
+    id: "sp-preview"
+    enabled: true
+- assertVisible:
+    text: "You'll earn:"
+- assertVisible:
+    text: "Buyer can use up to:"
+
+# Final assertion: Price suggestion card shows SP info
+- assertVisible:
+    text: ".*SP.*" # Any text containing "SP"
+    enabled: true

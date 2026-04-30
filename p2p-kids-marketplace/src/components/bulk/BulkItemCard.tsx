@@ -5,6 +5,7 @@ import { ConditionSelector } from '../listing/ConditionSelector';
 import { ColorPicker } from '../listing/ColorPicker';
 import { AgeGroupSelector } from '../listing/AgeGroupSelector';
 import { GenderSelector } from '../listing/GenderSelector';
+import { SPEarningsPreview } from '../listing/SPEarningsPreview';
 
 /**
  * AI processing state for a single bulk item — drives the row status chip.
@@ -233,6 +234,15 @@ export function BulkItemCard({
             placeholder="Price *"
             style={styles.input}
             testID={`bulk-item-price-${index}`}
+          />
+
+          {/* SP Earnings Preview (LISTING-V3-011) */}
+          <SPEarningsPreview
+            categoryId={item.category_id || null}
+            price={parseFloat(item.price) || 0}
+            isSubscriber={canAcceptSP || false}
+            onUpgradePress={onUpgradePress}
+            testID={`bulk-item-sp-preview-${index}`}
           />
 
           <Text style={styles.fieldLabel}>Brand</Text>

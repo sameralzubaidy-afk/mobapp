@@ -50,6 +50,7 @@ import { ItemCardStack } from '../components/bulk/ItemCardStack';
 import { BulkPublishBar } from '../components/bulk/BulkPublishBar';
 import { BulkPublishConfirmSheet } from '../components/bulk/BulkPublishConfirmSheet';
 import { BulkFlowState, bulkListingReducer } from './bulkListingStateMachine';
+import { BulkSPSummaryCard } from '../components/bulk/BulkSPSummaryCard';
 
 function getMissingRequired(item: BulkEditableItem): string[] {
   const missing: string[] = [];
@@ -895,10 +896,26 @@ export default function BulkListingCreateScreen() {
           next.color = analysis.color.value;
           filled.push('color');
         }
+        // Only auto-apply AI category when it maps to a real category id in our list.
+        // If AI proposes an unlisted label (e.g. "Sleeve"), keep category blank so user selects manually.
         if (analysis?.category?.value && !next.category_id) {
-          next.category_id = analysis.category.value.categoryId || undefined;
-          next.category_name = analysis.category.value.label;
-          filled.push('category');
+          const aiCategoryId = analysis.category.value.categoryId;
+          const matchedCategory = aiCategoryId
+            ? categories.find((category) => category.id === aiCategoryId)
+            : undefined;
+
+          if (matchedCategory) {
+            next.category_id = matchedCategory.id;
+            next.category_name = matchedCategory.name;
+            filled.push('category');
+          }
+        }
+
+        // Clean up legacy invalid state from older AI runs where category_name was set
+        // without a real category_id.
+        const hasManualCustomCategory = Boolean(next.requested_category_name?.trim());
+        if (!next.category_id && !hasManualCustomCategory) {
+          next.category_name = undefined;
         }
         next.aiState = analysis ? 'success' : 'failed';
         next.aiFilledFields = filled;
@@ -1261,6 +1278,20 @@ export default function BulkListingCreateScreen() {
                 <Text style={styles.headerActionText}>Edit grouping</Text>
               </TouchableOpacity>
             </View>
+            
+            {/* Bulk SP Summary Card (LISTING-V3-011) */}
+            <BulkSPSummaryCard
+              items={items.map((item) => ({
+                category_id: item.category_id || null,
+                price: parseFloat(item.price) || 0,
+                includeInPublish: item.includeInPublish,
+                accepts_swap_points: Boolean(item.accepts_swap_points),
+              }))}
+              isSubscriber={canAcceptSP}
+              onUpgradePress={() => navigation.navigate('SubscriptionChoice')}
+              testID="bulk-sp-summary"
+            />
+            
             <ItemCardStack
               items={items}
               expandedGroupId={expandedGroupId}

@@ -321,3 +321,32 @@ export interface ConditionGuide {
   examplePhotoUrl: string;
   tips: string[];
 }
+
+// =====================================================
+// MODULE-04-LISTING-V3-011: SP Earnings Preview Types
+// TASK: LISTING-V3-011
+// =====================================================
+
+/**
+ * Category SP multiplier data
+ * MODULE-04 V3-011: Cached category multiplier for client-side SP calculation
+ */
+export interface CategorySPMultiplier {
+  category_id: string;
+  category_name: string;
+  sp_earning_multiplier: number;
+  last_updated: string; // ISO timestamp
+}
+
+/**
+ * SP estimate result
+ * MODULE-04 V3-011: Client-side SP calculation result
+ */
+export interface SPEstimate {
+  /** Estimated SP earnings (seller perspective) */
+  earn_sp: number;
+  /** Category multiplier used */
+  multiplier: number;
+  /** Is this the "Other" category (may change after admin approval) */
+  isOtherCategory: boolean;
+}

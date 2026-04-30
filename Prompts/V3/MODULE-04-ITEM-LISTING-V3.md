@@ -2,7 +2,7 @@
 
 **Version:** 3.0 (Enhanced Single Item + Bulk Listing with AI)
 **Status:** Ready for Implementation
-**Last Updated:** April 21, 2026
+**Last Updated:** April 29, 2026
 **Dependencies:** MODULE-04 (Item Listing V2), MODULE-05 V3 (new filter columns), MODULE-12 (Admin — review queue)
 **Target Release:** Week 4-6 (MVP Track 2)
 **Traceability Source:** `POC1/ai-code-generator/modules/docx/BULK-LISTING-REQUIREMENTS.md` v1.0
@@ -23,8 +23,9 @@
 | 8 | LISTING-V3-008 | Supporting Presentational Components (10 files) | 6h | Medium |
 | 9 | LISTING-V3-009 | Reused / Shared Components (import — do not duplicate) | 0.5h | Medium |
 | 10 | LISTING-V3-010 | Tests (Unit + Hook + PgTAP + Maestro) | 5h | High |
+| 11 | LISTING-V3-011 | SP Earnings Preview — Single & Bulk Listing Estimates | 4h | High |
 
-**Total estimated effort:** ~37.5h. Tasks are listed in strict execution order; downstream tasks depend on earlier ones.
+**Total estimated effort:** ~41.5h. Tasks are listed in strict execution order; downstream tasks depend on earlier ones.
 
 ---
 

@@ -56,40 +56,41 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK ADMIN-V3-005: Admin Page — Category Suggestions Queue
+
+
+
+## TASKLISTING-V3-011-SP-EARNINGS-PREVIEW
 
 I’m working on the  MODULE-12-ADMIN-V3-CATEGORIES.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-12-ADMIN-V3-CATEGORIES.md
-Tasks: ## TASK ADMIN-V3-005: Admin Page — Category Suggestions Queue
+Tasks:## TASK ADMIN-V3-008: Admin Hooks + State
 
 scope is 
 
-Build the Category Suggestions queue (list + Approve / Merge / Reject modals) that consumes seller-submitted "Other" category suggestions. Approving creates a new category and reassigns the originating item in a single transaction; merging reassigns the item to an existing category; rejecting leaves the item in "Other" with an optional admin note.
+Provide the React Query hooks that back the admin portal UI: category list + filters, pending-suggestion realtime subscription, CRUD mutations with optimistic reorder rollback, and date-ranged SP analytics fetch.
 
 ### Scope
 
-- 1 list component + 3 modal components.
-- Realtime pending-count (or 60s polling fallback).
-- Re-use of `CategoryForm` inside `ApproveSuggestionModal`.
+- 4 hook files under `admin-portal/src/hooks/`.
+- Cache invalidation keys (`['categories']`, `['category-suggestions']`).
+- Optimistic reorder with rollback on error.
+- Supabase realtime subscription filtered `status=eq.pending`.
 
 ### Files
 
 | Path | Purpose |
 |---|---|
-| `admin-portal/src/components/category/CategorySuggestionsList.tsx` | Table + actions (Approve / Merge / Reject) |
-| `admin-portal/src/components/category/ApproveSuggestionModal.tsx` | Re-uses `CategoryForm` pre-filled with suggested name |
-| `admin-portal/src/components/category/MergeSuggestionModal.tsx` | Dropdown of existing categories |
-| `admin-portal/src/components/category/RejectSuggestionModal.tsx` | Note field (optional, 500 char) |
+| `admin-portal/src/hooks/useCategories.ts` | Fetch + cache categories (React Query) with invalidation on mutations |
+| `admin-portal/src/hooks/useCategorySuggestions.ts` | Pending suggestions subscription |
+| `admin-portal/src/hooks/useCategoryMutations.ts` | `createMutation`, `updateMutation`, `deleteMutation`, `toggleMutation`, `reorderMutation` |
+| `admin-portal/src/hooks/useSPAnalytics.ts` | Date-ranged SP analytics fetch |
 
 ### Acceptance Criteria
 
-- [ ] Suggestions tab lists `getCategorySuggestions('pending')` results.
-- [ ] Columns: Suggested Name, Item (link opens `/admin/items/{id}` in new tab), Seller (name + id), Date (relative), Actions (Approve ✅, Merge 🔀, Reject ❌).
-- [ ] **Approve** opens `ApproveSuggestionModal` which re-uses `CategoryForm` with `name` pre-filled and `active` defaulted to true; submit calls `approveCategorySuggestion(id, data)`.
-- [ ] **Merge** opens dropdown of active categories; submit calls `mergeCategorySuggestion(id, targetId)`; the linked item's `category_id` changes.
-- [ ] **Reject** opens note field; submit calls `rejectCategorySuggestion(id, note)`.
-- [ ] After any action: row removed from pending list; badge count on tab decrements.
-- [ ] Pending badge count polled every 60s (or use Supabase realtime on the `category_suggestions` channel filtered `status=eq.pending`).
+- [ ] Uses React Query (`@tanstack/react-query`) — already in admin-portal.
+- [ ] Mutations invalidate `['categories']` and `['category-suggestions']` query keys.
+- [ ] `reorderMutation` is optimistic: the local array is reordered before the network call; rollback on error.
+- [ ] `useCategorySuggestions` subscribes via Supabase realtime to `category_suggestions` (filter: `status=eq.pending`) so the badge count updates in real time.
 
 
 i want you to 

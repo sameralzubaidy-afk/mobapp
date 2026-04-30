@@ -249,6 +249,106 @@ describe('ItemCreateScreen', () => {
       expect(getByDisplayValue('Saved draft description')).toBeTruthy();
     });
 
+    it('should not auto-analyze restored photos when resuming a draft', async () => {
+      const savedDraft = {
+        id: 'draft-1',
+        seller_id: 'user-123',
+        bulk_upload_id: null,
+        draft_data: {
+          title: 'Saved draft title',
+          photo_urls: ['https://example.com/saved-photo.jpg'],
+        },
+        photo_urls: ['https://example.com/saved-photo.jpg'],
+        ai_suggestions: null,
+        step: 'details',
+        expires_at: new Date(Date.now() + 100000).toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      mockUseItemDraft.mockReturnValue({
+        draft: savedDraft,
+        save: jest.fn(),
+        saveNow: jest.fn(),
+        discard: jest.fn(),
+        isSaving: false,
+        saveError: null,
+      } as any);
+
+      renderScreen({ params: { draftId: 'draft-1' } } as any);
+
+      await waitFor(() => {
+        expect(mockUseAIAnalysis).toHaveBeenCalled();
+      });
+
+      const latestUseAIAnalysisCall =
+        mockUseAIAnalysis.mock.calls[mockUseAIAnalysis.mock.calls.length - 1];
+
+      // Draft resume should suppress auto-analysis even when draft has restored photo URLs.
+      expect(latestUseAIAnalysisCall[0]).toEqual([]);
+    });
+
+    it('uploads only newly added photos when editing a saved draft', async () => {
+      const savedDraft = {
+        id: 'draft-1',
+        seller_id: 'user-123',
+        bulk_upload_id: null,
+        draft_data: {
+          title: 'Saved draft title',
+          photo_urls: ['https://example.com/saved-photo.jpg'],
+        },
+        photo_urls: ['https://example.com/saved-photo.jpg'],
+        ai_suggestions: null,
+        step: 'details',
+        expires_at: new Date(Date.now() + 100000).toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      mockUseItemDraft.mockReturnValue({
+        draft: savedDraft,
+        save: jest.fn(),
+        saveNow: jest.fn(),
+        discard: jest.fn(),
+        isSaving: false,
+        saveError: null,
+      } as any);
+
+      mockImagePicker.mockResolvedValue({
+        canceled: false,
+        assets: [
+          {
+            uri: 'new-photo.jpg',
+            width: 800,
+            height: 800,
+            fileSize: 1000000,
+            mimeType: 'image/jpeg',
+          },
+        ],
+      } as any);
+
+      mockUploadPhotoBatch.mockResolvedValue({
+        urls: ['https://example.com/new-photo-uploaded.jpg'],
+        errors: [],
+      });
+
+      const { getByTestId } = renderScreen({ params: { draftId: 'draft-1' } } as any);
+
+      fireEvent.press(getByTestId('add-photos-button'));
+
+      await waitFor(() => {
+        expect(mockUploadPhotoBatch).toHaveBeenCalled();
+      });
+
+      const firstCallArgs = mockUploadPhotoBatch.mock.calls[0];
+      const uploadedAssets = firstCallArgs[0] as Array<{ uri: string; width: number; height: number }>;
+
+      expect(uploadedAssets).toHaveLength(1);
+      expect(uploadedAssets[0].uri).toBe('new-photo.jpg');
+      expect(uploadedAssets[0].width).toBe(800);
+      expect(uploadedAssets[0].height).toBe(800);
+    });
+
     it('should call saveNow on navigation goBack', async () => {
       const mockSaveNow = jest.fn();
       mockUseItemDraft.mockReturnValue({
