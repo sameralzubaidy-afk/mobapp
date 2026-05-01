@@ -1,0 +1,79 @@
+# FLOW: Social Login OAuth Flow | TASK: AUTH-V3-003 | States covered: initiate, callback, cancel, error
+# MODULE: MODULE-03-AUTH-V3-SOCIAL-LOGIN
+# Platform: iOS + Android
+# Prerequisites:
+#   - OAuth providers enabled in Supabase Dashboard (Google, Facebook, Apple)
+#   - User NOT signed in
+#   - Network connection available
+
+appId: com.sameralzubaidi.p2pmarketplace
+
+---
+
+# STATE 1: OAuth initiation - Google Sign In
+- launchApp
+- assertVisible: "Welcome*"
+- assertVisible:
+    id: "social-login-google-button"
+- tapOn:
+    id: "social-login-google-button"
+- waitForAnimationToEnd
+# After OAuth initiation, user is redirected to Google sign-in page
+# NOTE: Cannot automate actual OAuth flow (requires real Google account + manual approval)
+# Maestro cannot interact with external web views or browser tabs
+- assertVisible: "Sign in*Google" # Google OAuth page title
+- tapOn: "Cancel" # Cancel to return to app
+- waitForAnimationToEnd
+- assertVisible: "Welcome*" # Should return to login screen
+
+---
+
+# STATE 2: OAuth initiation - Facebook Sign In  
+- assertVisible:
+    id: "social-login-facebook-button"
+- tapOn:
+    id: "social-login-facebook-button"
+- waitForAnimationToEnd
+- assertVisible: "Facebook*" # Facebook OAuth page
+- tapOn: "Cancel"
+- waitForAnimationToEnd
+- assertVisible: "Welcome*"
+
+---
+
+# STATE 3: OAuth initiation - Apple Sign In (iOS only)
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: "social-login-apple-button"
+      - tapOn:
+          id: "social-login-apple-button"
+      - waitForAnimationToEnd
+      - assertVisible: "Sign in*Apple" # Apple sign-in modal
+      - tapOn: "Cancel"
+      - waitForAnimationToEnd
+      - assertVisible: "Welcome*"
+
+---
+
+# STATE 4: Error state - Provider unavailable
+# (Cannot simulate provider outage in Maestro - unit test covers this)
+# Document expected behavior:
+# - If provider times out (>10s), show "Google is temporarily unavailable" toast
+# - Offer fallback: "Sign up with email instead?" button
+# - User can tap fallback to go to email signup screen
+
+---
+
+# STATE 5: Success state - OAuth callback handled
+# (Cannot automate full OAuth flow - requires manual testing)
+# Expected behavior after successful OAuth:
+# 1. User is redirected back to app with state token
+# 2. handleOAuthCallback validates state
+# 3. Profile is auto-filled from provider
+# 4. Trial subscription is activated (MODULE-03 V2 contract)
+# 5. User lands on Dashboard
+
+# Manual verification steps in AUTH-V3-003-MANUAL-TESTING-GUIDE.md

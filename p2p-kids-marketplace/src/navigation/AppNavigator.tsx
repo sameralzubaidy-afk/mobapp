@@ -53,6 +53,7 @@ import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
 const IDVerificationUploadScreen = require('@/screens/profile/IDVerificationUploadScreen').default;
 import SettingsScreen from '@/screens/profile/SettingsScreen';
+import LinkedAccountsScreen from '@/screens/profile/LinkedAccountsScreen';
 import NotificationPreferencesScreen from '@/screens/profile/NotificationPreferencesScreen';
 import { NotificationSetup } from '@/components/NotificationSetup';
 import NotificationCenterScreen from '@/screens/notifications/NotificationCenterScreen';
@@ -111,6 +112,7 @@ const linking = {
       NotificationSetup: 'notification-setup',
       Notifications: 'notifications',
       Unsubscribe: 'unsubscribe',
+      LinkedAccounts: 'linked-accounts',
     },
   },
 };
@@ -516,6 +518,12 @@ function RootNavigator() {
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
+              options={{ headerShown: false }}
+            />
+            {/* MODULE-03 AUTH-V3-004: Linked Accounts Management */}
+            <Stack.Screen
+              name="LinkedAccounts"
+              component={LinkedAccountsScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

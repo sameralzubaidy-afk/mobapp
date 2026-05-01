@@ -48,13 +48,6 @@
         "projectId": "03d46492-d1d9-486c-bdc6-025df11c0479"
       }
     },
-    "owner": "samer.alzubaidy",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/03d46492-d1d9-486c-bdc6-025df11c0479"
-    },
     "plugins": [
       [
         "@stripe/stripe-react-native",
@@ -69,7 +62,15 @@
           "icon": "./assets/icon.png",
           "color": "#4CAF50"
         }
-      ]
-    ]
+      ],
+      "expo-secure-store"
+    ],
+    "owner": "samer.alzubaidy",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/03d46492-d1d9-486c-bdc6-025df11c0479"
+    }
   }
 }

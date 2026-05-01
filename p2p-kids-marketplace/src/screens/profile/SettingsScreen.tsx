@@ -93,6 +93,14 @@ export default function SettingsScreen({ navigation }: any) {
       onPress: () => navigation.navigate('NotificationPreferences'),
     },
     {
+      id: 'linked-accounts',
+      title: 'Linked Accounts',
+      subtitle: 'Manage social login connections',
+      icon: 'link-outline',
+      onPress: () => navigation.navigate('LinkedAccounts'),
+      testID: 'settings-linked-accounts-button',
+    },
+    {
       id: 'terms',
       title: 'Terms of Service',
       subtitle: 'View our terms and conditions',

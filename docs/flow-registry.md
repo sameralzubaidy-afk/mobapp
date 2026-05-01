@@ -15,6 +15,70 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-01: Auth – Signup/Login/Logout/Session Restore
 - Smoke: (manual)
   - Signup -> logged in -> kill app -> relaunch -> session restores.
+  - **AUTH-V3-003-OAUTH-SERVICE (2026-05-01):** Social login via Google, Facebook, Apple
+    - Module: MODULE-03-AUTH-V3-SOCIAL-LOGIN (TASK AUTH-V3-003)
+    - Scope:
+      - `p2p-kids-marketplace/src/services/oauthService.ts`
+      - `p2p-kids-marketplace/src/services/oauthProviderConfig.ts`
+      - `p2p-kids-marketplace/app.json` (URL scheme + OAuth plugins)
+    - Features:
+      - OAuth initiation with CSRF state protection (32-byte random token)
+      - State stored in expo-secure-store and validated on callback
+      - Provider-specific profile extraction:
+        - Google: given_name + family_name → name, picture → avatar
+        - Facebook: name → name, picture.data.url → avatar (nested)
+        - Apple: firstName + lastName → name (FIRST sign-in only), no avatar
+      - Graceful user cancel (access_denied) returns null
+      - Provider outage (timeout >10s or 5xx) throws ProviderUnavailableError
+      - Trial subscription activation (MODULE-03 V2 contract) fires on OAuth signup
+    - Tests:
+      - Unit: `src/services/__tests__/oauthService.test.ts` (coverage ≥85%)
+      - Integration: `src/services/__tests__/oauthService.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Maestro: `.maestro/auth-v3-003-social-login.yaml` (cancel flows only - full OAuth requires manual testing)
+      - Manual: `AUTH-V3-003-MANUAL-TESTING-GUIDE.md` (12 test cases + regression)
+    - Prerequisites (manual ops):
+      - Supabase Dashboard → Authentication → Providers → Enable Google/Facebook/Apple
+      - Configure Client IDs/Secrets and redirect URI: `p2pkidsmarketplace://oauth-callback`
+      - iOS Simulator: Sign in to iCloud (for Apple Sign In)
+      - Android Emulator: Sign in to Google account
+    - Validation:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm run test:unit` (all OAuth tests green)
+      - `RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+      - Manual testing required for full OAuth flows (Maestro cannot automate external OAuth pages)
+  - **AUTH-V3-004-ACCOUNT-SERVICE (2026-05-01):** Account linking, unlinking, and multi-provider management
+    - Module: MODULE-03-AUTH-V3-SOCIAL-LOGIN (TASK AUTH-V3-004)
+    - Scope:
+      - `p2p-kids-marketplace/src/services/accountService.ts`
+      - Settings → Linked Accounts screen (future AUTH-V3-008)
+    - Features:
+      - Check if account exists by email (smart linking decision)
+      - Link social account with password re-authentication (security gate)
+      - Unlink social account with last-method guard (prevents lockout)
+      - Get linked providers ordered by linkedAt
+      - Count login methods (OAuth identities + password)
+      - Email mismatch detection (prevents account takeover)
+      - Audit logging for all link/unlink operations
+    - DB Dependencies:
+      - `user_linked_providers` view (AUTH-V3-001)
+      - `link_social_account` RPC (AUTH-V3-001)
+      - `admin_audit_logs` table (existing)
+    - Tests:
+      - Unit: `src/__tests__/services/accountService.test.ts` (coverage ≥85%)
+      - Integration: `src/__tests__/integration/accountService.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Maestro: `.maestro/auth-v3-004-account-linking.yaml` (UI states + last-method guard)
+      - Manual: `AUTH-V3-004-MANUAL-TESTING.md` (16 test cases including OAuth flows)
+    - Prerequisites (SQL):
+      - user_linked_providers view exists
+      - link_social_account RPC exists
+      - admin_audit_logs table exists
+    - Validation:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm test -- --testPathPattern=accountService` (unit tests green)
+      - `RUN_SUPABASE_E2E=true npm test -- --testPathPattern=accountService.integration` (integration tests green)
+      - Manual testing required for full account linking flows (password re-auth + OAuth)
   - **AUTH-SIGNUP-HOTFIX (2026-04-15):** Harden auth signup trigger against migration drift
     - Migration: `supabase/migrations/20260415000001_auth_signup_trigger_stabilization_hotfix.sql`
     - Fixes: `AuthApiError: Database error saving new user` during `supabase.auth.signUp`

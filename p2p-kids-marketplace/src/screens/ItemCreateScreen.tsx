@@ -121,6 +121,7 @@ export default function ItemCreateScreen() {
   // Form state
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
   const [uploadedPhotoUrls, setUploadedPhotoUrls] = useState<string[]>([]);
+  const [restoredPhotoUrls, setRestoredPhotoUrls] = useState<string[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category | null>(null);
@@ -181,6 +182,7 @@ export default function ItemCreateScreen() {
   useEffect(() => {
     hasHydratedDraftRef.current = false;
     pendingCategoryIdRef.current = null;
+    setRestoredPhotoUrls([]);
     setIsDraftHydrated(!draftId);
   }, [draftId]);
 
@@ -207,7 +209,8 @@ export default function ItemCreateScreen() {
     setGender(draftData.gender || null);
     setAcceptsSwapPoints(Boolean(draftData.accepts_swap_points));
 
-    setUploadedPhotoUrls(restoredPhotoUrls);
+    setRestoredPhotoUrls(restoredPhotoUrls);
+    setUploadedPhotoUrls([]);
     setPhotos(
       restoredPhotoUrls.map((uri, index) => ({
         id: `restored-photo-${index}`,
@@ -279,7 +282,8 @@ export default function ItemCreateScreen() {
       return;
     }
 
-    const hasUploadedPhotos = uploadedPhotoUrls.length > 0;
+    const combinedPhotoUrls = [...restoredPhotoUrls, ...uploadedPhotoUrls];
+    const hasUploadedPhotos = combinedPhotoUrls.length > 0;
     const isResumedDraft = Boolean(draftId);
 
     // LISTING-V3-007 / TC-002 rule:
@@ -299,7 +303,7 @@ export default function ItemCreateScreen() {
       age_group: ageGroup || undefined,
       gender: gender || undefined,
       accepts_swap_points: canAcceptSP ? acceptsSwapPoints : false,
-      photo_urls: uploadedPhotoUrls,
+      photo_urls: combinedPhotoUrls,
       ai_suggestions: aiResult || undefined,
       step:
         photos.length === 0
@@ -328,6 +332,7 @@ export default function ItemCreateScreen() {
     ageGroup,
     gender,
     uploadedPhotoUrls,
+    restoredPhotoUrls,
     acceptsSwapPoints,
     aiResult,
     canAcceptSP,
@@ -403,7 +408,7 @@ export default function ItemCreateScreen() {
         dispatch({ type: 'PHOTOS_ADDED' });
 
         // Upload photos in background
-        uploadPhotos([...photos, ...newPhotos]);
+        uploadPhotos(newPhotos);
       }
     } catch (err: any) {
       console.error('[ItemCreateScreen] Add photos error:', err);
@@ -419,7 +424,7 @@ export default function ItemCreateScreen() {
       );
 
       if (result.urls.length > 0) {
-        setUploadedPhotoUrls(result.urls);
+        setUploadedPhotoUrls((prev) => [...prev, ...result.urls]);
       }
 
       if (result.errors.length > 0) {

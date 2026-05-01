@@ -57,45 +57,35 @@ My Example 1
 
 
 
-## TASK AUTH-V3-003: OAuthService + Provider Config
+## TASK AUTH-V3-005: ProfileService — Auto-Fill + Avatar Download
 
 I’m working on the  MODULE-03-AUTH-V3-SOCIAL-LOGIN.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-03-AUTH-V3-SOCIAL-LOGIN.md
-Tasks: ## TASK AUTH-V3-002: Shared Types & Error Classes
-
+Tasks: ## TASK AUTH-V3-005: ProfileService — Auto-Fill + Avatar Download
 scope is 
 
-Implement `OAuthService` for Google, Facebook, and Apple: state-token generation, `supabase.auth.signInWithOAuth` initiation, callback handling, and provider-specific profile extraction. Wire Expo URL schemes, Apple's one-shot `firstName/lastName`, and Facebook's nested `picture.data.url`.
+Implement `autoFillProfile(providerProfile)` which writes `{ name }` into `user_profiles`, and `downloadProviderAvatar(url, userId)` which fetches the provider avatar, validates it, uploads to `avatars/{user_id}/social_avatar.jpg`, and returns the public URL.
 
 ### Scope
+- 1 new service file.
+- Image validation (jpeg/png, ≤ 2 MB, ≥ 100×100, 5s timeout).
+- Graceful fallback to default avatar on any failure.
+- Supabase Storage upload + public URL generation.
 
-- 1 new service file + provider config constants.
-- CSRF state via `expo-secure-store`.
-- Provider-specific profile parsing (Google / Facebook / Apple).
-- Graceful fallback on user cancel and provider outage.
-- Expo deep-link wiring in `app.json` (documented — applied manually in ops).
+### Files to Create
 
-### Files to Create / Modify
-
-| Path | Action | Key Exports |
-|---|---|---|
-| `p2p-kids-marketplace/src/services/oauthService.ts` | NEW | `initiateSocialLogin`, `handleOAuthCallback`, `extractProviderProfile` |
-| `p2p-kids-marketplace/src/services/oauthProviderConfig.ts` | NEW | Per-provider OAuth scopes + redirect URI constants |
-| `p2p-kids-marketplace/app.json` | MODIFY | Add URL schemes + Apple/Facebook/Google SDK config (Expo) |
+| Path | Key Exports |
+|---|---|
+| `p2p-kids-marketplace/src/services/profileService.ts` | `autoFillProfile`, `downloadProviderAvatar` |
 
 ### Acceptance Criteria
 
-- [ ] `initiateSocialLogin(provider)` generates a 32-byte random `state`, stores it in `expo-secure-store`, calls `supabase.auth.signInWithOAuth({ provider, options: { redirectTo, scopes, queryParams: { state } } })`, and returns `{ url, state }`.
-- [ ] `handleOAuthCallback(code, state)` reads the stored `state`, throws `OAuthStateMismatchError` on mismatch, delegates token exchange to Supabase (`exchangeCodeForSession`), and returns `{ user, session, profile }`.
-- [ ] `extractProviderProfile('google', data)` maps `given_name + family_name → name`, `picture → avatar`, `email → email`.
-- [ ] `extractProviderProfile('facebook', data)` maps `name → name`, `picture.data.url → avatar`, `email → email`.
-- [ ] `extractProviderProfile('apple', data)` maps `firstName + lastName → name` (persisted on FIRST sign-in only), `email → email`, `avatar → undefined`.
-- [ ] User cancel (`access_denied`) returns `null` gracefully — no thrown error.
-- [ ] Provider outage (timeout > 10s or 5xx) throws `ProviderUnavailableError` with `provider` field.
-- [ ] Scopes: Google `openid email profile`; Facebook `email,public_profile`; Apple `name email`.
-- [ ] `app.json` includes `scheme: 'kidsmarketplace'` and documents `expo-apple-authentication`, `@react-native-google-signin/google-signin`, and `react-native-fbsdk-next` native modules.
-
-
+- [ ] `autoFillProfile(profile)` UPSERTs `user_profiles` with `{ user_id: auth.uid(), display_name: profile.name, auto_filled_from_provider: true }` — never overwrites an already-set `display_name` unless the row is newly created.
+- [ ] `downloadProviderAvatar(url, userId)` fetches with `AbortController` timeout = 5000ms, validates content-type (`image/jpeg` | `image/png`), size (≤ 2 MB) and dimensions (≥ 100×100 via a lightweight image-decoder like `expo-image-manipulator.getSize`).
+- [ ] Upload path: `avatars/{userId}/social_avatar.{ext}`; `upsert: true`; returns `supabase.storage.from('avatars').getPublicUrl(...)`.
+- [ ] Any failure (timeout, invalid type/size, upload error) returns `null` and logs via `console.warn` — NEVER throws (Rule 5: must not block signup).
+- [ ] Apple payloads (no avatar URL) return `null` without attempting a fetch.
+- [ ] Unit tests cover: happy path, timeout, invalid type, too-large, too-small, Apple (no URL).
 
 i want you to 
 
