@@ -124,7 +124,9 @@ export function calculateBulkTotalSP(
  */
 export function formatSP(sp: number): string {
   if (!Number.isFinite(sp) || sp < 0) return '0 SP';
-  return `~${Math.round(sp)} SP`;
+  const rounded = Math.round(sp);
+  if (rounded === 0) return '0 SP';
+  return `~${rounded} SP`;
 }
 
 /**

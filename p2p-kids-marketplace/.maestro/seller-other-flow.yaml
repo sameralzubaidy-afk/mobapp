@@ -1,0 +1,97 @@
+# FLOW: Seller Other Flow | TASK: ADMIN-V3-009 | States covered: seller selects "Other" → enters name → publishes → suggestion created
+# MODULE-12 ADMIN-V3-CATEGORIES: Seller Category Suggestion Flow
+# Tests: Seller selects "Other" category → enters custom name → publishes → suggestion appears in admin
+# Platform: iOS & Android
+
+appId: com.p2pkidsmarketplace.app
+---
+
+# === PRECONDITIONS ===
+# 1. User must be logged in as seller
+# 2. User must be in an active node
+# 3. User must have photo library access (for listing creation)
+# 4. "Other" category must exist in DB (is_active=true)
+# Run: npm run test:maestro:ios (iOS) or npm run test:maestro:android (Android)
+
+# === TEST CASE: Seller Creates Suggestion via "Other" Category ===
+
+- launchApp
+- waitForAnimationToEnd
+
+# Navigate to Create Listing screen
+- tapOn:
+    testID: "tab-create"
+- assertVisible: "Create Listing"
+
+# === STEP 1: Add photos (minimal - just 1 photo for faster flow) ===
+- tapOn:
+    testID: "add-photos-button"
+
+# Manual photo selection in real test
+# Maestro limitation: cannot automate photo picker
+# Verify photo upload manager visible
+- assertVisible:
+    testID: "photo-upload-manager"
+
+- waitForAnimationToEnd
+
+# Proceed to details (skip AI analysis for this test)
+- tapOn:
+    testID: "next-button"
+
+# === STEP 2: Select "Other" category ===
+- assertVisible: "Category *"
+- tapOn:
+    testID: "category-select-button"
+
+# Category modal opens
+- assertVisible: "Select Category"
+
+# Tap "Other" (last in list, display_order=99)
+- tapOn: "Other"
+- assertNotVisible: "Select Category"  # Modal closed
+
+# === STEP 3: Custom category name input appears ===
+- assertVisible: "Suggest a category"
+- assertVisible:
+    testID: "custom-category-input"
+
+# Enter custom name
+- tapOn:
+    testID: "custom-category-input"
+- inputText: "Art Supplies Test"
+
+# === STEP 4: Fill required fields ===
+- tapOn:
+    testID: "title-input"
+- inputText: "Test Item for Suggestion"
+
+- tapOn:
+    testID: "price-input"
+- inputText: "20"
+
+- tapOn:
+    testID: "condition-select"
+- tapOn: "Used - Like New"
+
+# === STEP 5: Publish listing ===
+- tapOn:
+    testID: "publish-button"
+
+# Wait for success
+- waitForAnimationToEnd
+- assertVisible: "Published!"
+
+# === VERIFY: Suggestion created in DB ===
+# (Cannot directly query DB in Maestro)
+# Instead, verify UI confirmation:
+- assertVisible: "Your category suggestion"  # Informational banner
+- assertVisible: "Art Supplies Test"         # Echo of suggested name
+
+# Navigate away to complete flow
+- tapOn:
+    testID: "done-button"
+
+# === END TEST ===
+# Note: Admin verification of suggestion must be done via admin portal E2E or manual test
+- stopApp

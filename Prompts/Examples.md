@@ -57,40 +57,44 @@ My Example 1
 
 
 
+## TASK AUTH-V3-003: OAuthService + Provider Config
 
-
-## TASKLISTING-V3-011-SP-EARNINGS-PREVIEW
-
-I’m working on the  MODULE-12-ADMIN-V3-CATEGORIES.md tasks
-Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-12-ADMIN-V3-CATEGORIES.md
-Tasks:## TASK ADMIN-V3-008: Admin Hooks + State
+I’m working on the  MODULE-03-AUTH-V3-SOCIAL-LOGIN.md tasks
+Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-03-AUTH-V3-SOCIAL-LOGIN.md
+Tasks: ## TASK AUTH-V3-002: Shared Types & Error Classes
 
 scope is 
 
-Provide the React Query hooks that back the admin portal UI: category list + filters, pending-suggestion realtime subscription, CRUD mutations with optimistic reorder rollback, and date-ranged SP analytics fetch.
+Implement `OAuthService` for Google, Facebook, and Apple: state-token generation, `supabase.auth.signInWithOAuth` initiation, callback handling, and provider-specific profile extraction. Wire Expo URL schemes, Apple's one-shot `firstName/lastName`, and Facebook's nested `picture.data.url`.
 
 ### Scope
 
-- 4 hook files under `admin-portal/src/hooks/`.
-- Cache invalidation keys (`['categories']`, `['category-suggestions']`).
-- Optimistic reorder with rollback on error.
-- Supabase realtime subscription filtered `status=eq.pending`.
+- 1 new service file + provider config constants.
+- CSRF state via `expo-secure-store`.
+- Provider-specific profile parsing (Google / Facebook / Apple).
+- Graceful fallback on user cancel and provider outage.
+- Expo deep-link wiring in `app.json` (documented — applied manually in ops).
 
-### Files
+### Files to Create / Modify
 
-| Path | Purpose |
-|---|---|
-| `admin-portal/src/hooks/useCategories.ts` | Fetch + cache categories (React Query) with invalidation on mutations |
-| `admin-portal/src/hooks/useCategorySuggestions.ts` | Pending suggestions subscription |
-| `admin-portal/src/hooks/useCategoryMutations.ts` | `createMutation`, `updateMutation`, `deleteMutation`, `toggleMutation`, `reorderMutation` |
-| `admin-portal/src/hooks/useSPAnalytics.ts` | Date-ranged SP analytics fetch |
+| Path | Action | Key Exports |
+|---|---|---|
+| `p2p-kids-marketplace/src/services/oauthService.ts` | NEW | `initiateSocialLogin`, `handleOAuthCallback`, `extractProviderProfile` |
+| `p2p-kids-marketplace/src/services/oauthProviderConfig.ts` | NEW | Per-provider OAuth scopes + redirect URI constants |
+| `p2p-kids-marketplace/app.json` | MODIFY | Add URL schemes + Apple/Facebook/Google SDK config (Expo) |
 
 ### Acceptance Criteria
 
-- [ ] Uses React Query (`@tanstack/react-query`) — already in admin-portal.
-- [ ] Mutations invalidate `['categories']` and `['category-suggestions']` query keys.
-- [ ] `reorderMutation` is optimistic: the local array is reordered before the network call; rollback on error.
-- [ ] `useCategorySuggestions` subscribes via Supabase realtime to `category_suggestions` (filter: `status=eq.pending`) so the badge count updates in real time.
+- [ ] `initiateSocialLogin(provider)` generates a 32-byte random `state`, stores it in `expo-secure-store`, calls `supabase.auth.signInWithOAuth({ provider, options: { redirectTo, scopes, queryParams: { state } } })`, and returns `{ url, state }`.
+- [ ] `handleOAuthCallback(code, state)` reads the stored `state`, throws `OAuthStateMismatchError` on mismatch, delegates token exchange to Supabase (`exchangeCodeForSession`), and returns `{ user, session, profile }`.
+- [ ] `extractProviderProfile('google', data)` maps `given_name + family_name → name`, `picture → avatar`, `email → email`.
+- [ ] `extractProviderProfile('facebook', data)` maps `name → name`, `picture.data.url → avatar`, `email → email`.
+- [ ] `extractProviderProfile('apple', data)` maps `firstName + lastName → name` (persisted on FIRST sign-in only), `email → email`, `avatar → undefined`.
+- [ ] User cancel (`access_denied`) returns `null` gracefully — no thrown error.
+- [ ] Provider outage (timeout > 10s or 5xx) throws `ProviderUnavailableError` with `provider` field.
+- [ ] Scopes: Google `openid email profile`; Facebook `email,public_profile`; Apple `name email`.
+- [ ] `app.json` includes `scheme: 'kidsmarketplace'` and documents `expo-apple-authentication`, `@react-native-google-signin/google-signin`, and `react-native-fbsdk-next` native modules.
+
 
 
 i want you to 
@@ -109,9 +113,9 @@ i want you to
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
 4. Forbidden: Re-implementing logic that already exists under a different name
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-12-VERIFICATION-V3.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-03-VERIFICATION-V3-SOCIAL-LOGIN.md
 6. Show me the files you create or edit with their full paths
-7. Tell me which items in MODULE-12-VERIFICATION-V3.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-12-VERIFICATION-V3.md
+7. Tell me which items in MODULE-03-VERIFICATION-V3-SOCIAL-LOGIN.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/MODULE-03-VERIFICATION-V3-SOCIAL-LOGIN.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 

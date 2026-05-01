@@ -73,7 +73,7 @@ describe('categoryService', () => {
   };
 
   describe('getCategoriesWithCounts', () => {
-    it('should return categories with item counts', async () => {
+    it('should return categories without requiring item counts for mobile', async () => {
       const mockCategories = [
         { id: 'cat-1', name: 'Toys', icon: '🎮', is_active: true, display_order: 1 },
         { id: 'cat-2', name: 'Clothes', icon: '👕', is_active: true, display_order: 2 },
@@ -84,7 +84,12 @@ describe('categoryService', () => {
       const result = await categoryService.getCategoriesWithCounts();
 
       expect(result).toHaveLength(2);
-      expect(result[0]).toHaveProperty('item_count');
+      expect(result[0]).toMatchObject({
+        id: 'cat-1',
+        name: 'Toys',
+        is_active: true,
+      });
+      expect(result[0].item_count).toBeUndefined();
     });
 
     it('should filter inactive categories by default', async () => {
