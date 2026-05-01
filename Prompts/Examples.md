@@ -56,46 +56,42 @@ Supabase: supabase/
 My Example 1
 
 
-
-
-## TASK AUTH-V3-006: PhoneService + PasswordService
+## TASK AUTH-V3-007: Mobile UI — SocialLoginButtons on Login + Signup Screens
 
 I’m working on the  MODULE-03-AUTH-V3-SOCIAL-LOGIN.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-03-AUTH-V3-SOCIAL-LOGIN.md
-Tasks: ## TASK AUTH-V3-006: PhoneService + PasswordService
+Tasks: ## TASK AUTH-V3-007: Mobile UI — SocialLoginButtons on Login + Signup Screens
 
 scope is 
 
-Implement `PhoneService` (`isPhoneRequired`, `sendPhoneVerificationCode`, `verifyPhoneCode`) using Twilio SMS + the `phone_verification_codes` table with hashed OTPs and rate limiting, and `PasswordService` (`canSetPassword`, `setPasswordForSocialUser`, `validatePasswordStrength`) for the social-user password fallback.
+Build the `SocialLoginButtons` component (Google/Facebook/Apple per OS) and integrate it above the email/password form on both `LoginScreen` and `SignupScreen`. Handle the full OAuth flow: initiate → callback → auto-fill profile → navigate to home OR to `AccountLinkingPrompt`.
 
 ### Scope
 
-- 2 new service files.
-- Twilio SMS send via a Supabase Edge Function (`send-phone-otp`) to keep the Twilio secret off the client.
-- OTP hashing via `pgcrypto` `crypt(code, gen_salt('bf'))`.
-- Rate-limit checks (3 per phone per hour, 5 per user per day).
-- Password-strength validation against a 100-entry common-passwords blocklist.
+- 1 new component + updates to 2 existing screens.
+- OS-conditional rendering (Apple button ONLY on iOS per Apple HIG, but ALSO required per guidelines when other third-party sign-ins are offered — include on both iOS and Android for App Store compliance).
+- Loading state during OAuth flow.
+- Error banner with email-fallback CTA.
 
 
-### Files to Create
+### Files to Create / Modify
 
-| Path | Key Exports |
-|---|---|
-| `p2p-kids-marketplace/src/services/phoneService.ts` | `isPhoneRequired`, `sendPhoneVerificationCode`, `verifyPhoneCode` |
-| `p2p-kids-marketplace/src/services/passwordService.ts` | `canSetPassword`, `setPasswordForSocialUser`, `validatePasswordStrength` |
-| `supabase/functions/send-phone-otp/index.ts` | Edge Function: accepts `{ phone }`, rate-limits, generates 6-digit code, hashes, inserts into `phone_verification_codes`, sends SMS via Twilio |
-| `p2p-kids-marketplace/src/data/common-passwords.ts` | Top-100 blocklist (static export) |
+| Path | Action | Purpose |
+|---|---|---|
+| `p2p-kids-marketplace/src/components/auth/SocialLoginButtons.tsx` | NEW | 3 branded buttons + loading/error state |
+| `p2p-kids-marketplace/src/components/auth/ProviderButton.tsx` | NEW | Single branded button (icon + label) |
+| `p2p-kids-marketplace/src/screens/LoginScreen.tsx` | MODIFY | Mount `SocialLoginButtons` above form; handle success → home OR link prompt |
+| `p2p-kids-marketplace/src/screens/SignupScreen.tsx` | MODIFY | Mount `SocialLoginButtons` above form; auto-fill profile on success |
 
 ### Acceptance Criteria
 
-- [ ] `isPhoneRequired(userId)` returns `true` iff `user_profiles.phone_verified_at IS NULL`.
-- [ ] `sendPhoneVerificationCode(phone)` calls the `send-phone-otp` Edge Function; Edge Function enforces rate limits (3/phone/hour, 5/user/day) and throws `OTPRateLimitError` with `retryAfterSeconds`.
-- [ ] `verifyPhoneCode(phone, code)` SELECTs the latest unexpired row for `(phone, auth.uid())`, compares via `crypt(code, code_hash) = code_hash`, increments `attempts`, throws `OTPExpiredError` or `Invalid` accordingly; on success UPDATEs `user_profiles.phone_verified_at = now(), phone_verification_method = 'sms'` and writes `audit_log`.
-- [ ] OTP codes are 6 digits, generated with `crypto.getRandomValues`, hashed with bcrypt (`pgcrypto`).
-- [ ] `canSetPassword(userId)` returns `true` iff `auth.users.encrypted_password IS NULL` for `userId` (checked via a SECURITY DEFINER RPC `can_set_password()`; include in AUTH-V3-001 migrations OR add `20260420000017_can_set_password_rpc.sql`).
-- [ ] `setPasswordForSocialUser(newPassword)` validates strength, then calls `supabase.auth.updateUser({ password })` — NEVER writes directly to `auth.users`.
-- [ ] `validatePasswordStrength(pw)` returns `{ valid, reasons[] }`: require `length >= 8`, at least one letter + digit, not in the common-passwords blocklist. Returns — never throws.
-- [ ] Unit tests cover: rate-limit exceeded, expired OTP, invalid OTP, happy path, weak passwords (each reason), blocklist hit.
+- [ ] `SocialLoginButtons` accepts `mode: 'signup' \| 'login'` and renders button text accordingly (`"Sign in with Google"` vs `"Continue with Google"`).
+- [ ] All 3 providers render on both iOS and Android (Apple included on Android for parity).
+- [ ] Tapping a button: sets `isLoading`, calls `oauthService.initiateSocialLogin(provider)`, awaits `handleOAuthCallback`, calls `profileService.autoFillProfile` on first signup, calls `accountService.checkAccountExists` to decide between home-navigation vs `AccountLinkingPrompt`.
+- [ ] On `ProviderUnavailableError`: shows inline banner "`<Provider>` is temporarily unavailable. Sign up with email instead?" with a focus-safe CTA that scrolls to the email form.
+- [ ] On user cancel: no error UI; button returns to idle.
+- [ ] Each button has `accessibilityLabel="Sign in with <Provider>, button"`; loading state announces "Signing you in…".
+- [ ] Branding: uses official Google / Facebook / Apple button assets and colors per each provider's brand guide (stored in `src/assets/brands/`).
 
 
 i want you to 

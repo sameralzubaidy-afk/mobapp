@@ -98,6 +98,56 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Tests:
       - Unit: `src/services/__tests__/profileService.test.ts` (coverage ≥85%)
       - Integration: `src/services/__tests__/profileService.integration.test.ts` (RUN_SUPABASE_E2E=true)
+  - **AUTH-V3-006-PHONE-PASSWORD-SERVICES (2026-05-01):** Phone verification with Twilio SMS + password strength for social users
+    - Module: MODULE-03-AUTH-V3-SOCIAL-LOGIN (TASK AUTH-V3-006)
+    - Scope:
+      - `p2p-kids-marketplace/src/services/phoneService.ts` (consolidated from phone.ts + verification.ts)
+      - `p2p-kids-marketplace/src/services/passwordService.ts`
+      - `p2p-kids-marketplace/src/data/common-passwords.ts`
+      - `supabase/functions/send-phone-otp/index.ts`
+      - `supabase/migrations/20260501000001_phone_otp_hashing_rpcs.sql`
+    - Features (PhoneService):
+      - `isPhoneRequired(userId)` checks `user_profiles.phone_verified_at IS NULL`
+      - `sendPhoneVerificationCode(phone)` calls Twilio via Edge Function
+      - Rate limits: 3/phone/hour, 5/user/day (enforced server-side)
+      - OTP: 6-digit, crypto.getRandomValues, bcrypt hashed via pgcrypto
+      - `verifyPhoneCode(phone, code)` uses pgcrypto crypt comparison
+      - On success: updates `phone_verified_at`, `phone_verification_method='sms'`, writes audit log
+      - Throws `OTPRateLimitError` (with retryAfterSeconds), `OTPExpiredError`, or generic Error
+    - Features (PasswordService):
+      - `canSetPassword(userId)` checks RPC `can_set_password()` (auth.users.encrypted_password IS NULL)
+      - `validatePasswordStrength(pw)` validates: ≥8 chars, ≥1 letter, ≥1 digit, not in common-passwords.ts (100 entries)
+      - `setPasswordForSocialUser(newPassword)` validates strength, calls `supabase.auth.updateUser({ password })`
+      - NEVER writes directly to auth.users
+      - Returns structured errors: TOO_SHORT, NO_LETTER, NO_DIGIT, COMMON_PASSWORD, NOT_ALLOWED, UPDATE_FAILED
+    - DB Dependencies:
+      - `phone_verification_codes` table (existing from AUTH-V3-001)
+      - `hash_otp_code(p_code)` RPC (bcrypt hashing)
+      - `verify_otp_code(p_verification_id, p_code)` RPC (increments attempts, max 3)
+      - `can_set_password(p_user_id)` RPC (existing from accountService)
+      - `admin_audit_logs` table (existing)
+    - Edge Function:
+      - `send-phone-otp`: Twilio SMS send + rate limit enforcement + bcrypt hashing
+      - Secrets: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER
+    - Tests:
+      - Unit: `src/services/__tests__/phoneService.test.ts` (coverage ≥85%)
+      - Unit: `src/services/__tests__/passwordService.test.ts` (coverage ≥85%)
+      - Integration: `src/services/__tests__/phoneService.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Integration: `src/services/__tests__/passwordService.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Maestro: `.maestro/auth-v3-006-phone-password-services.yaml` (phone verify flow + password strength validation)
+      - Manual: `AUTH-V3-006-MANUAL-TESTING.md` (16 test cases)
+    - Prerequisites (manual ops):
+      - Run SQL: `supabase/migrations/20260501000001_phone_otp_hashing_rpcs.sql`
+      - Deploy: `npx supabase functions deploy send-phone-otp`
+      - Set Twilio secrets: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER
+    - Validation:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm run test:unit -- --testPathPattern=phoneService` (unit tests green)
+      - `npm run test:unit -- --testPathPattern=passwordService` (unit tests green)
+      - `RUN_SUPABASE_E2E=true npm run test:e2e -- --testPathPattern=phoneService.integration` (integration tests green)
+      - `RUN_SUPABASE_E2E=true npm run test:e2e -- --testPathPattern=passwordService.integration` (integration tests green)
+      - Manual testing required for actual Twilio SMS delivery and password setting flows
       - Maestro: `.maestro/auth-v3-005-profile-autofill.yaml` (Google/Facebook/Apple auto-fill states)
       - Manual: `AUTH-V3-005-MANUAL-TESTING.md` (8 test cases + 2 regression checks)
     - Prerequisites:
