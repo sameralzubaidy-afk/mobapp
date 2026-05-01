@@ -57,35 +57,46 @@ My Example 1
 
 
 
-## TASK AUTH-V3-005: ProfileService — Auto-Fill + Avatar Download
+
+## TASK AUTH-V3-006: PhoneService + PasswordService
 
 I’m working on the  MODULE-03-AUTH-V3-SOCIAL-LOGIN.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-03-AUTH-V3-SOCIAL-LOGIN.md
-Tasks: ## TASK AUTH-V3-005: ProfileService — Auto-Fill + Avatar Download
+Tasks: ## TASK AUTH-V3-006: PhoneService + PasswordService
+
 scope is 
 
-Implement `autoFillProfile(providerProfile)` which writes `{ name }` into `user_profiles`, and `downloadProviderAvatar(url, userId)` which fetches the provider avatar, validates it, uploads to `avatars/{user_id}/social_avatar.jpg`, and returns the public URL.
+Implement `PhoneService` (`isPhoneRequired`, `sendPhoneVerificationCode`, `verifyPhoneCode`) using Twilio SMS + the `phone_verification_codes` table with hashed OTPs and rate limiting, and `PasswordService` (`canSetPassword`, `setPasswordForSocialUser`, `validatePasswordStrength`) for the social-user password fallback.
 
 ### Scope
-- 1 new service file.
-- Image validation (jpeg/png, ≤ 2 MB, ≥ 100×100, 5s timeout).
-- Graceful fallback to default avatar on any failure.
-- Supabase Storage upload + public URL generation.
+
+- 2 new service files.
+- Twilio SMS send via a Supabase Edge Function (`send-phone-otp`) to keep the Twilio secret off the client.
+- OTP hashing via `pgcrypto` `crypt(code, gen_salt('bf'))`.
+- Rate-limit checks (3 per phone per hour, 5 per user per day).
+- Password-strength validation against a 100-entry common-passwords blocklist.
+
 
 ### Files to Create
 
 | Path | Key Exports |
 |---|---|
-| `p2p-kids-marketplace/src/services/profileService.ts` | `autoFillProfile`, `downloadProviderAvatar` |
+| `p2p-kids-marketplace/src/services/phoneService.ts` | `isPhoneRequired`, `sendPhoneVerificationCode`, `verifyPhoneCode` |
+| `p2p-kids-marketplace/src/services/passwordService.ts` | `canSetPassword`, `setPasswordForSocialUser`, `validatePasswordStrength` |
+| `supabase/functions/send-phone-otp/index.ts` | Edge Function: accepts `{ phone }`, rate-limits, generates 6-digit code, hashes, inserts into `phone_verification_codes`, sends SMS via Twilio |
+| `p2p-kids-marketplace/src/data/common-passwords.ts` | Top-100 blocklist (static export) |
 
 ### Acceptance Criteria
 
-- [ ] `autoFillProfile(profile)` UPSERTs `user_profiles` with `{ user_id: auth.uid(), display_name: profile.name, auto_filled_from_provider: true }` — never overwrites an already-set `display_name` unless the row is newly created.
-- [ ] `downloadProviderAvatar(url, userId)` fetches with `AbortController` timeout = 5000ms, validates content-type (`image/jpeg` | `image/png`), size (≤ 2 MB) and dimensions (≥ 100×100 via a lightweight image-decoder like `expo-image-manipulator.getSize`).
-- [ ] Upload path: `avatars/{userId}/social_avatar.{ext}`; `upsert: true`; returns `supabase.storage.from('avatars').getPublicUrl(...)`.
-- [ ] Any failure (timeout, invalid type/size, upload error) returns `null` and logs via `console.warn` — NEVER throws (Rule 5: must not block signup).
-- [ ] Apple payloads (no avatar URL) return `null` without attempting a fetch.
-- [ ] Unit tests cover: happy path, timeout, invalid type, too-large, too-small, Apple (no URL).
+- [ ] `isPhoneRequired(userId)` returns `true` iff `user_profiles.phone_verified_at IS NULL`.
+- [ ] `sendPhoneVerificationCode(phone)` calls the `send-phone-otp` Edge Function; Edge Function enforces rate limits (3/phone/hour, 5/user/day) and throws `OTPRateLimitError` with `retryAfterSeconds`.
+- [ ] `verifyPhoneCode(phone, code)` SELECTs the latest unexpired row for `(phone, auth.uid())`, compares via `crypt(code, code_hash) = code_hash`, increments `attempts`, throws `OTPExpiredError` or `Invalid` accordingly; on success UPDATEs `user_profiles.phone_verified_at = now(), phone_verification_method = 'sms'` and writes `audit_log`.
+- [ ] OTP codes are 6 digits, generated with `crypto.getRandomValues`, hashed with bcrypt (`pgcrypto`).
+- [ ] `canSetPassword(userId)` returns `true` iff `auth.users.encrypted_password IS NULL` for `userId` (checked via a SECURITY DEFINER RPC `can_set_password()`; include in AUTH-V3-001 migrations OR add `20260420000017_can_set_password_rpc.sql`).
+- [ ] `setPasswordForSocialUser(newPassword)` validates strength, then calls `supabase.auth.updateUser({ password })` — NEVER writes directly to `auth.users`.
+- [ ] `validatePasswordStrength(pw)` returns `{ valid, reasons[] }`: require `length >= 8`, at least one letter + digit, not in the common-passwords blocklist. Returns — never throws.
+- [ ] Unit tests cover: rate-limit exceeded, expired OTP, invalid OTP, happy path, weak passwords (each reason), blocklist hit.
+
 
 i want you to 
 

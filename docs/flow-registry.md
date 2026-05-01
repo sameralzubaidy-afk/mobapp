@@ -79,6 +79,37 @@ This file is the canonical registry of end-to-end flows and their required regre
       - `npm test -- --testPathPattern=accountService` (unit tests green)
       - `RUN_SUPABASE_E2E=true npm test -- --testPathPattern=accountService.integration` (integration tests green)
       - Manual testing required for full account linking flows (password re-auth + OAuth)
+  - **AUTH-V3-005-PROFILE-SERVICE (2026-05-01):** Auto-fill profile from OAuth provider + avatar download
+    - Module: MODULE-03-AUTH-V3-SOCIAL-LOGIN (TASK AUTH-V3-005)
+    - Scope:
+      - `p2p-kids-marketplace/src/services/profileService.ts`
+    - Features:
+      - Auto-fill profile `name` from provider (Google/Facebook name, Apple firstName+lastName)
+      - Never overwrites existing `name` (preserves user customization)
+      - Download provider avatar with validation (jpeg/png, ≤2MB, ≥100×100, 5s timeout)
+      - Upload to Supabase Storage: `user-avatars/{userId}/social_avatar.{ext}`
+      - Graceful fallback to null on any failure (timeout, invalid type/size, upload error)
+      - Apple payloads (no avatar URL) return null without fetch attempt
+      - NEVER throws errors (Rule 5: must not block signup)
+    - DB Dependencies:
+      - `profiles.name` column (existing)
+      - `profiles.auto_filled_from_provider` boolean column (optional)
+      - `user-avatars` storage bucket (existing from MODULE-01)
+    - Tests:
+      - Unit: `src/services/__tests__/profileService.test.ts` (coverage ≥85%)
+      - Integration: `src/services/__tests__/profileService.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Maestro: `.maestro/auth-v3-005-profile-autofill.yaml` (Google/Facebook/Apple auto-fill states)
+      - Manual: `AUTH-V3-005-MANUAL-TESTING.md` (8 test cases + 2 regression checks)
+    - Prerequisites:
+      - `user-avatars` storage bucket exists with public read access
+      - OAuth providers enabled (AUTH-V3-003)
+      - expo-image-manipulator installed (for dimension validation)
+    - Validation:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm test -- --testPathPattern=profileService` (unit tests green, coverage ≥85%)
+      - `RUN_SUPABASE_E2E=true npm test -- --testPathPattern=profileService.integration` (integration tests green)
+      - Manual testing required for full OAuth flows (provider avatar downloads)
   - **AUTH-SIGNUP-HOTFIX (2026-04-15):** Harden auth signup trigger against migration drift
     - Migration: `supabase/migrations/20260415000001_auth_signup_trigger_stabilization_hotfix.sql`
     - Fixes: `AuthApiError: Database error saving new user` during `supabase.auth.signUp`

@@ -1,0 +1,209 @@
+# FLOW: Profile Auto-Fill + Avatar Download | TASK: AUTH-V3-005 | States covered: google-autofill, facebook-avatar, apple-no-avatar, no-overwrite
+appId: com.p2pkids.marketplace
+
+---
+# STATE 1: Fresh Google Login - Auto-Fill Display Name
+# Objective: Verify display_name auto-filled from Google profile
+
+- launchApp
+- tapOn:
+    id: "login-tab"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "social-login-google-button"
+- tapOn:
+    id: "social-login-google-button"
+- waitForAnimationToEnd
+
+# NOTE: Automated OAuth requires test credentials setup
+# Beyond this point, manual verification required for OAuth flow
+# After OAuth completes successfully:
+
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertVisible:
+    id: "home-screen"
+
+# Navigate to profile to verify auto-fill
+- tapOn:
+    id: "tab-profile"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "profile-screen"
+- assertVisible:
+    id: "profile-display-name"
+# Display name should show Google account name (verified manually)
+
+---
+# STATE 2: Facebook Login - Avatar Downloaded
+# Objective: Verify avatar downloaded from Facebook and uploaded to Storage
+
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+- tapOn:
+    id: "logout-button"
+- waitForAnimationToEnd
+- tapOn:
+    id: "confirm-logout"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "login-screen"
+- tapOn:
+    id: "social-login-facebook-button"
+- waitForAnimationToEnd
+
+# After Facebook OAuth:
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertVisible:
+    id: "home-screen"
+
+- tapOn:
+    id: "tab-profile"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "profile-screen"
+- assertVisible:
+    id: "profile-avatar-image"
+# Avatar should show Facebook profile picture (not default)
+# Manual verification: Check avatar URL contains "user-avatars/<user-id>/social_avatar"
+
+---
+# STATE 3: Apple Login - Graceful Fallback (No Avatar)
+# Objective: Verify no crash when Apple provides no avatar URL
+# iOS ONLY
+
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          id: "back-button"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "logout-button"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "confirm-logout"
+      - waitForAnimationToEnd
+
+      - assertVisible:
+          id: "login-screen"
+      - tapOn:
+          id: "social-login-apple-button"
+      - waitForAnimationToEnd
+
+      # After Apple Sign In:
+      - waitForAnimationToEnd:
+          timeout: 10000
+      - assertVisible:
+          id: "home-screen"
+
+      - tapOn:
+          id: "tab-profile"
+      - waitForAnimationToEnd
+      - assertVisible:
+          id: "profile-screen"
+      - assertVisible:
+          id: "profile-avatar-image"
+      # Avatar should be default (Apple doesn't provide avatar URL)
+      # Display name should show "FirstName LastName" from Apple
+
+---
+# STATE 4: Existing Profile NOT Overwritten
+# Objective: Verify auto-fill does NOT overwrite manually-set display_name
+
+# Setup: Sign up with email+password first, set custom name
+- launchApp
+- tapOn:
+    id: "signup-tab"
+- waitForAnimationToEnd
+- tapOn:
+    id: "signup-email-input"
+- inputText: "test-no-overwrite-${random}@example.com"
+- tapOn:
+    id: "signup-password-input"
+- inputText: "TestPassword123!"
+- tapOn:
+    id: "signup-confirm-password-input"
+- inputText: "TestPassword123!"
+- tapOn:
+    id: "signup-submit-button"
+- waitForAnimationToEnd
+
+# Set custom display name
+- tapOn:
+    id: "tab-profile"
+- waitForAnimationToEnd
+- tapOn:
+    id: "profile-edit-button"
+- waitForAnimationToEnd
+- tapOn:
+    id: "profile-display-name-input"
+- inputText: "My Custom Name"
+- tapOn:
+    id: "profile-save-button"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "My Custom Name"
+
+# Log out and link Google (which would try to auto-fill)
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+- tapOn:
+    id: "logout-button"
+- waitForAnimationToEnd
+- tapOn:
+    id: "confirm-logout"
+- waitForAnimationToEnd
+
+# Sign in with Google using SAME email
+- tapOn:
+    id: "social-login-google-button"
+- waitForAnimationToEnd
+# OAuth flow + account linking prompt
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# After linking, verify name NOT overwritten
+- tapOn:
+    id: "tab-profile"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "My Custom Name"
+# Should still show custom name, NOT Google name
+
+---
+# STATE 5: Avatar Upload Error Handling
+# Objective: Verify app doesn't crash on avatar download failure
+
+# This state requires network manipulation (timeout/invalid URL)
+# Manual verification required - see AUTH-V3-005-MANUAL-TESTING.md TC-5, TC-6, TC-7, TC-8
+
+---
+# FINAL ASSERTIONS
+
+# All flows should end with user successfully authenticated
+- assertVisible:
+    id: "home-screen"
+
+# Profile screen accessible
+- tapOn:
+    id: "tab-profile"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "profile-screen"
+- assertVisible:
+    id: "profile-display-name"
+- assertVisible:
+    id: "profile-avatar-image"
+
+---
+# NOTES:
+# - OAuth flows require manual completion with test credentials
+# - Avatar validation (size/dimensions) tested in unit tests
+# - Database verification queries in AUTH-V3-005-MANUAL-TESTING.md
+# - Automated E2E limited by OAuth redirect flow - supplement with manual tests
