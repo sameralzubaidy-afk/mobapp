@@ -6,21 +6,62 @@
 import React, { createRef } from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { TextInput } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { SocialLoginButtons } from '../SocialLoginButtons';
 import * as oauthService from '@/services/oauthService';
 import * as accountService from '@/services/accountService';
 import * as profileService from '@/services/profileService';
+import { supabase } from '@/services/supabase/client';
 import { ProviderUnavailableError } from '@/types/auth-v3-errors';
 
 // Mock dependencies
 jest.mock('@/services/oauthService');
 jest.mock('@/services/accountService');
 jest.mock('@/services/profileService');
+jest.mock('expo-web-browser', () => ({
+  maybeCompleteAuthSession: jest.fn(),
+  openAuthSessionAsync: jest.fn(),
+}));
+jest.mock('@/services/oauthProviderConfig', () => ({
+  getRedirectUri: jest.fn(() => 'p2pkidsmarketplace://oauth-callback'),
+}));
+jest.mock('@/services/supabase/client', () => ({
+  supabase: {
+    auth: {
+      getSession: jest.fn(),
+    },
+  },
+}));
+jest.mock('../ProviderButton', () => {
+  const React = require('react');
+  const { Pressable, Text, ActivityIndicator } = require('react-native');
+
+  return {
+    ProviderButton: ({ provider, mode, isLoading, onPress, testID }: any) => {
+      const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+      const label = mode === 'login' ? `Sign in with ${providerName}` : `Continue with ${providerName}`;
+
+      return (
+        <Pressable
+          onPress={onPress}
+          disabled={Boolean(isLoading)}
+          testID={testID || `${provider}-login-button`}
+        >
+          <Text>{label}</Text>
+          {isLoading ? <ActivityIndicator testID={`${provider}-loading-indicator`} /> : null}
+        </Pressable>
+      );
+    },
+  };
+});
 jest.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({
     refreshSession: jest.fn(),
   }),
 }));
+
+const mockSupabase = supabase as any;
+const originalNodeEnv = process.env.NODE_ENV;
 
 describe('SocialLoginButtons', () => {
   const mockOnLoginSuccess = jest.fn();
@@ -29,6 +70,20 @@ describe('SocialLoginButtons', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.NODE_ENV = 'development';
+
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: 'success',
+      url: 'p2pkidsmarketplace://oauth-callback?code=test-code&state=state-token',
+    });
+
+    mockSupabase.auth.getSession.mockResolvedValue({
+      data: { session: null },
+    });
+  });
+
+  afterAll(() => {
+    process.env.NODE_ENV = originalNodeEnv;
   });
 
   describe('Rendering', () => {
@@ -92,7 +147,7 @@ describe('SocialLoginButtons', () => {
       fireEvent.press(googleButton);
 
       await waitFor(() => {
-        expect(oauthService.initiateSocialLogin).toHaveBeenCalledWith('google');
+        expect(oauthService.initiateSocialLogin).toHaveBeenCalledWith('google', expect.any(String));
         expect(mockOnLoginSuccess).toHaveBeenCalled();
       });
     });
@@ -260,7 +315,7 @@ describe('SocialLoginButtons', () => {
   describe('Error Handling - Provider Unavailable', () => {
     it('should show error banner when provider is unavailable', async () => {
       (oauthService.initiateSocialLogin as jest.Mock).mockRejectedValue(
-        new ProviderUnavailableError('Google is temporarily unavailable')
+        new ProviderUnavailableError('google', '503')
       );
 
       const { getByTestId, getByText } = render(<SocialLoginButtons mode="signup" />);
@@ -279,14 +334,10 @@ describe('SocialLoginButtons', () => {
       const emailInputRef = createRef<TextInput>();
       const mockFocus = jest.fn();
 
-      // Mock the ref's current focus method
-      Object.defineProperty(emailInputRef, 'current', {
-        get: () => ({ focus: mockFocus }),
-        configurable: true,
-      });
+      (emailInputRef as any).current = { focus: mockFocus };
 
       (oauthService.initiateSocialLogin as jest.Mock).mockRejectedValue(
-        new ProviderUnavailableError('Facebook is temporarily unavailable')
+        new ProviderUnavailableError('facebook', '503')
       );
 
       const { getByTestId } = render(
@@ -310,7 +361,7 @@ describe('SocialLoginButtons', () => {
 
     it('should hide error banner when CTA is tapped', async () => {
       (oauthService.initiateSocialLogin as jest.Mock).mockRejectedValue(
-        new ProviderUnavailableError('Apple is temporarily unavailable')
+        new ProviderUnavailableError('apple', '503')
       );
 
       const { getByTestId, queryByTestId } = render(<SocialLoginButtons mode="signup" />);

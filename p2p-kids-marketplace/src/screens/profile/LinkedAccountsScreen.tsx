@@ -20,6 +20,7 @@ import {
   countLoginMethods,
 } from '@/services/accountService';
 import { initiateSocialLogin } from '@/services/oauthService';
+import PasswordReauthModal from '@/components/auth/PasswordReauthModal';
 import type { OAuthProvider, LinkedProvider } from '@/types/auth-v3';
 import { EmailMismatchError, LastLoginMethodError } from '@/types/auth-v3-errors';
 
@@ -31,6 +32,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
   const [loading, setLoading] = useState<boolean>(true);
   const [linkingProvider, setLinkingProvider] = useState<OAuthProvider | null>(null);
   const [unlinkingProvider, setUnlinkingProvider] = useState<OAuthProvider | null>(null);
+  const [isReauthVisible, setIsReauthVisible] = useState(false);
 
   const allProviders: OAuthProvider[] = ['google', 'facebook', 'apple'];
 
@@ -72,25 +74,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
 
       // If user has password, show password re-auth modal first
       if (hasPassword) {
-        Alert.prompt(
-          'Verify Password',
-          `To link your ${provider} account, please enter your password for security.`,
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => setLinkingProvider(null) },
-            {
-              text: 'Confirm',
-              onPress: async (password) => {
-                if (!password) {
-                  Alert.alert('Error', 'Password is required');
-                  setLinkingProvider(null);
-                  return;
-                }
-                await performLinking(provider, password);
-              },
-            },
-          ],
-          'secure-text'
-        );
+        setIsReauthVisible(true);
       } else {
         // No password - proceed with OAuth flow
         await performLinking(provider);
@@ -98,16 +82,19 @@ export default function LinkedAccountsScreen({ navigation }: any) {
     } catch (error) {
       console.error('[LinkedAccounts] Link error:', error);
       setLinkingProvider(null);
-
-      if (error instanceof EmailMismatchError) {
-        Alert.alert(
-          'Email Mismatch',
-          `The email on your ${provider} account doesn't match your account email. Please use a different ${provider} account or contact support.`
-        );
-      } else {
-        Alert.alert('Error', `Failed to link ${provider} account. Please try again.`);
-      }
     }
+  };
+
+  const handleReauthConfirm = async (password: string) => {
+    setIsReauthVisible(false);
+    if (linkingProvider) {
+      await performLinking(linkingProvider, password);
+    }
+  };
+
+  const handleReauthCancel = () => {
+    setIsReauthVisible(false);
+    setLinkingProvider(null);
   };
 
   const performLinking = async (provider: OAuthProvider, password?: string) => {
@@ -128,7 +115,14 @@ export default function LinkedAccountsScreen({ navigation }: any) {
       // Reload linked accounts after successful link
       // await loadLinkedAccounts();
     } catch (error) {
-      throw error;
+      if (error instanceof EmailMismatchError) {
+        Alert.alert(
+          'Email Mismatch',
+          `The email on your ${provider} account doesn't match your account email. Please use a different ${provider} account or contact support.`
+        );
+      } else {
+        Alert.alert('Error', `Failed to link ${provider} account. Please try again.`);
+      }
     }
   };
 
@@ -246,6 +240,23 @@ export default function LinkedAccountsScreen({ navigation }: any) {
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
+          {/* Email Card (Readonly) */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Email Address</Text>
+            <View style={styles.providerCard}>
+              <View style={styles.providerIconContainer}>
+                <Ionicons name="mail-outline" size={24} color="#3B82F6" />
+              </View>
+              <View style={styles.providerInfo}>
+                <Text style={styles.providerName}>Account Email</Text>
+                <Text style={styles.providerStatus}>{user?.email || 'No email set'}</Text>
+              </View>
+              <View style={styles.readonlyBadge}>
+                <Text style={styles.readonlyBadgeText}>Readonly</Text>
+              </View>
+            </View>
+          </View>
+
           {/* Info card */}
           <View style={styles.infoCard}>
             <Ionicons name="information-circle-outline" size={20} color="#3B82F6" />
@@ -329,6 +340,14 @@ export default function LinkedAccountsScreen({ navigation }: any) {
             <Text style={styles.footerText}>Active login methods: {loginMethodCount}</Text>
           </View>
         </ScrollView>
+
+        {/* Modals */}
+        <PasswordReauthModal
+          visible={isReauthVisible}
+          onConfirm={handleReauthConfirm}
+          onCancel={handleReauthCancel}
+          testID="link-password-reauth"
+        />
       </View>
     </SafeAreaView>
   );
@@ -401,6 +420,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 12,
+  },
+  readonlyBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  readonlyBadgeText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   providerCard: {
     flexDirection: 'row',

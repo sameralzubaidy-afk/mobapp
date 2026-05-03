@@ -54,6 +54,10 @@ import { GenderSelector } from '../components/listing/GenderSelector';
 import { PublishButton } from '../components/listing/PublishButton';
 import { SPEarningsPreview } from '../components/listing/SPEarningsPreview';
 
+// AUTH-V3-008: Phone verification gate
+import PhoneVerificationModal from '../components/auth/PhoneVerificationModal';
+import { isPhoneRequired } from '../services/phoneService';
+
 // State machine states
 type CreateScreenState =
   | 'IDLE'
@@ -148,6 +152,10 @@ export default function ItemCreateScreen() {
   const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [isDraftHydrated, setIsDraftHydrated] = useState(!draftId);
+
+  // AUTH-V3-008: Phone verification modal state
+  const [showPhoneVerificationModal, setShowPhoneVerificationModal] = useState(false);
+  const [phoneVerificationPending, setPhoneVerificationPending] = useState(false);
 
   // Draft management
   const {
@@ -568,6 +576,21 @@ export default function ItemCreateScreen() {
 
   const handlePublish = async () => {
     if (!canPublish()) {
+    // AUTH-V3-008: Phone verification gate - check BEFORE publishing
+    if (!phoneVerificationPending) {
+      try {
+        const phoneRequired = await isPhoneRequired(sellerId);
+        if (phoneRequired) {
+          setPhoneVerificationPending(true);
+          setShowPhoneVerificationModal(true);
+          return; // Block publish - modal will call handlePublish again on success
+        }
+      } catch (err) {
+        console.error('[ItemCreateScreen] Phone check error:', err);
+        // Graceful fallback: allow publish if check fails
+      }
+    }
+
       Alert.alert('Missing Fields', 'Please fill all required fields');
       return;
     }
@@ -937,6 +960,23 @@ export default function ItemCreateScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* AUTH-V3-008: Phone Verification Modal (transaction gate) */}
+      <PhoneVerificationModal
+        visible={showPhoneVerificationModal}
+        onClose={() => {
+          setShowPhoneVerificationModal(false);
+          setPhoneVerificationPending(false);
+        }}
+        onSuccess={() => {
+          setShowPhoneVerificationModal(false);
+          setPhoneVerificationPending(false);
+          // Retry publish after successful verification
+          void handlePublish();
+        }}
+        required={true}
+        testID="listing-phone-verification"
+      />
     </SafeAreaView>
   );
 }

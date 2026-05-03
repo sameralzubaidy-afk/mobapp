@@ -59,6 +59,8 @@ describe('OAuthService', () => {
         options: {
           redirectTo: expect.stringContaining('oauth-callback'),
           scopes: 'openid email profile',
+          queryParams: { prompt: 'select_account' },
+          skipBrowserRedirect: true,
         },
       });
     });
@@ -76,7 +78,8 @@ describe('OAuthService', () => {
         expect.objectContaining({
           provider: 'facebook',
           options: expect.objectContaining({
-            scopes: 'public_profile',
+            scopes: 'public_profile,email',
+            skipBrowserRedirect: true,
           }),
         })
       );
@@ -96,6 +99,7 @@ describe('OAuthService', () => {
           provider: 'apple',
           options: expect.objectContaining({
             scopes: 'name email',
+            skipBrowserRedirect: true,
           }),
         })
       );
@@ -153,7 +157,7 @@ describe('OAuthService', () => {
 
       mockSecureStore.getItemAsync.mockResolvedValue(JSON.stringify(storedSession));
 
-      await expect(handleOAuthCallback(null, null, 'google')).rejects.toThrow(
+      await expect(handleOAuthCallback('auth-code', null, 'google')).rejects.toThrow(
         OAuthStateMismatchError
       );
     });
@@ -167,7 +171,7 @@ describe('OAuthService', () => {
 
       mockSecureStore.getItemAsync.mockResolvedValue(JSON.stringify(storedSession));
 
-      await expect(handleOAuthCallback(null, 'different-state', 'google')).rejects.toThrow(
+      await expect(handleOAuthCallback('auth-code', 'different-state', 'google')).rejects.toThrow(
         OAuthStateMismatchError
       );
     });
@@ -211,7 +215,7 @@ describe('OAuthService', () => {
         error: null,
       });
 
-      const result = await handleOAuthCallback(null, mockState, 'google');
+      const result = await handleOAuthCallback('auth-code', mockState, 'google');
 
       expect(result).toMatchObject({
         success: true,
@@ -231,7 +235,7 @@ describe('OAuthService', () => {
 
       mockSecureStore.getItemAsync.mockResolvedValue(JSON.stringify(storedSession));
 
-      await expect(handleOAuthCallback(null, 'old-state', 'google')).rejects.toThrow(
+      await expect(handleOAuthCallback('auth-code', 'old-state', 'google')).rejects.toThrow(
         OAuthStateMismatchError
       );
     });

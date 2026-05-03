@@ -268,18 +268,37 @@ describe('REF-V2-008: Referral Listing Bonus E2E', () => {
 
     it('should NOT grant duplicate rewards on second listing approval', async () => {
       // Create second listing
-      const { data: listing2, error: listing2Error } = await supabase
-        .from('items')
-        .insert({
-          seller_id: refereeId,
-          title: 'Second Test Listing',
-          description: 'Should not trigger bonus',
-          price: 1500,
-          category_id: categoryId,
-          status: 'pending',
-        })
-        .select()
-        .single();
+      let listing2: any = null;
+      let listing2Error: any = null;
+
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        const result = await supabase
+          .from('items')
+          .insert({
+            seller_id: refereeId,
+            title: 'Second Test Listing',
+            description: 'Should not trigger bonus',
+            price: 1500,
+            category_id: categoryId,
+            status: 'pending',
+          })
+          .select()
+          .single();
+
+        listing2 = result.data;
+        listing2Error = result.error;
+
+        if (!listing2Error) {
+          break;
+        }
+
+        const isStatementTimeout = listing2Error?.code === '57014';
+        if (!isStatementTimeout || attempt === 3) {
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+      }
 
       expect(listing2Error).toBeNull();
 

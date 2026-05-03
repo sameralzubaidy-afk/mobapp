@@ -198,6 +198,80 @@ This file is the canonical registry of end-to-end flows and their required regre
       - AccountLinkingPrompt modal shows basic Alert (full modal in AUTH-V3-008)
       - Provider icons are text labels (TODO: add official brand assets)
       - Deep link handling tested via Expo Go only (standalone builds require native config)
+  - **AUTH-V3-008-MOBILE-UI (2026-05-03):** Linked accounts management, phone verification modal, account linking prompt, set password modal
+    - Module: MODULE-03-AUTH-V3-SOCIAL-LOGIN (TASK AUTH-V3-008)
+    - Scope:
+      - `p2p-kids-marketplace/src/hooks/useLinkedProviders.ts` (React Query hook for provider link/unlink)
+      - `p2p-kids-marketplace/src/hooks/usePhoneVerification.ts` (phone verification 2-step flow with countdown)
+      - `p2p-kids-marketplace/src/components/auth/ProviderCard.tsx` (reusable provider status card)
+      - `p2p-kids-marketplace/src/components/auth/PhoneVerificationModal.tsx` (2-step phone verification for transaction gating)
+      - `p2p-kids-marketplace/src/components/auth/AccountLinkingPrompt.tsx` (link social account when email exists)
+      - `p2p-kids-marketplace/src/components/auth/SetPasswordModal.tsx` (password creation for social-only users with live strength validation)
+      - `p2p-kids-marketplace/src/screens/profile/LinkedAccountsScreen.tsx` (Settings → Account → Linked Accounts)
+      - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` (phone verification gate integration)
+    - Features (LinkedAccountsScreen):
+      - Displays linked social providers (Google/Facebook/Apple) with status, email, linkedAt
+      - Link provider: requires password re-authentication if user has password set
+      - Unlink provider: guards against unlinking last login method (prevents lockout)
+      - Set password button for social-only users (enables password backup)
+      - Real-time provider status updates via React Query cache invalidation
+    - Features (PhoneVerificationModal):
+      - 2-step flow: Step 1 (enter phone with E.164 auto-format), Step 2 (6-digit OTP with auto-advance)
+      - Auto-verify when 6 digits entered (calls verifyPhoneCode immediately)
+      - Resend countdown timer (60s) with disabled state during countdown
+      - Required mode (transaction gate): no close button, user MUST verify
+      - Optional mode (Settings): shows close button for user-initiated verification
+      - Error handling: OTPRateLimitError shows retry countdown, OTPExpiredError resets to step 1
+    - Features (AccountLinkingPrompt):
+      - Shown when OAuth email matches existing account email
+      - Password re-auth flow: prompts for password if user has password set
+      - Social-only flow: instructs user to sign in via existing provider first
+      - Prevents account takeover via EmailMismatchError detection
+    - Features (SetPasswordModal):
+      - Live password strength validation via useEffect watching password changes
+      - Strength meter with visual bar + label (Strong/Weak/Too short) and color coding
+      - Requirement list shows unmet requirements dynamically
+      - Submit button disabled until strengthResult.valid === true
+      - Confirm password field with mismatch validation
+    - Features (Transaction Gating):
+      - ItemCreateScreen: Calls `isPhoneRequired(userId)` before publish, shows PhoneVerificationModal if true
+      - Modal blocks publish until phone verified, then retries publish automatically
+      - No skip affordance - phone verification mandatory for first transaction
+      - CheckoutScreen integration: TODO (MODULE-06 V2 pending - see TODO-AUTH-V3-008-CHECKOUT-INTEGRATION.md)
+    - Component Dependencies:
+      - useLinkedProviders hook (accountService integration)
+      - usePhoneVerification hook (phoneService integration)
+      - accountService (AUTH-V3-004)
+      - phoneService (AUTH-V3-006)
+      - passwordService (AUTH-V3-006)
+      - auth-v3 types and errors
+    - Tests:
+      - Unit: `src/__tests__/hooks/useLinkedProviders.test.ts` (coverage ≥85%)
+      - Unit: `src/__tests__/hooks/usePhoneVerification.test.ts` (coverage ≥85%)
+      - Unit: `src/__tests__/components/ProviderCard.test.tsx` (TODO)
+      - Unit: `src/__tests__/components/PhoneVerificationModal.test.tsx` (TODO)
+      - Unit: `src/__tests__/components/AccountLinkingPrompt.test.tsx` (TODO)
+      - Unit: `src/__tests__/components/SetPasswordModal.test.tsx` (TODO)
+      - Integration: `e2e/auth-v3-008.integration.test.ts` (RUN_SUPABASE_E2E=true) (TODO)
+      - Maestro: `.maestro/auth-v3-008-phone-verification.yaml` (TODO)
+      - Manual: `AUTH-V3-008-MANUAL-TESTING-GUIDE.md` (12 test cases)
+    - Prerequisites:
+      - OAuth services implemented (AUTH-V3-003, AUTH-V3-004, AUTH-V3-005, AUTH-V3-006, AUTH-V3-007)
+      - phone_verified_at column exists on user_profiles
+      - phone_verification_codes table exists
+      - send-phone-otp Edge Function deployed
+      - Navigation routes configured for LinkedAccountsScreen
+    - Validation:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm run test -- useLinkedProviders` (unit tests green)
+      - `npm run test -- usePhoneVerification` (unit tests green)
+      - Manual testing required for full flows (see AUTH-V3-008-MANUAL-TESTING-GUIDE.md)
+    - Known TODOs:
+      - CheckoutScreen integration pending (MODULE-06 V2 not implemented yet)
+      - Maestro UI flow tests pending (testIDs added, YAML creation pending)
+      - Component unit tests pending (ProviderCard, PhoneVerificationModal, AccountLinkingPrompt, SetPasswordModal)
+      - Integration tests pending (e2e/auth-v3-008.integration.test.ts)
     - Prerequisites:
       - `user-avatars` storage bucket exists with public read access
       - OAuth providers enabled (AUTH-V3-003)
