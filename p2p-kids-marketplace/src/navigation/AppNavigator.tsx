@@ -582,6 +582,12 @@ function RootNavigator() {
               component={SettingsScreen}
               options={{ headerShown: false }}
             />
+            {/* MODULE-18 EDU-005: Help screen */}
+            <Stack.Screen
+              name="Help"
+              component={require('@/screens/help/HelpScreen').default}
+              options={{ headerShown: false }}
+            />
             {/* MODULE-03 AUTH-V3-004: Linked Accounts Management */}
             <Stack.Screen
               name="LinkedAccounts"

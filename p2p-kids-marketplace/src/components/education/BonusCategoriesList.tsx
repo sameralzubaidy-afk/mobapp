@@ -1,0 +1,163 @@
+// FILE: p2p-kids-marketplace/src/components/education/BonusCategoriesList.tsx
+// MODULE-18 EDU-005: Bonus categories list (sp_earning_multiplier > 1.10)
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
+import { getBonusCategories } from '../../services/spCalculatorService';
+import type { BonusCategory } from '../../types/education';
+import { BonusCategoryBadge } from './BonusCategoryBadge';
+
+interface BonusCategoriesListProps {
+  testID?: string;
+}
+
+export function BonusCategoriesList({ testID = 'bonus-categories-list' }: BonusCategoriesListProps) {
+  const [categories, setCategories] = useState<BonusCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadBonusCategories();
+  }, []);
+
+  const loadBonusCategories = async () => {
+    try {
+      setLoading(true);
+      const cats = await getBonusCategories();
+      setCategories(cats);
+    } catch (error) {
+      console.error('[BonusCategoriesList] Load error:', error);
+      setCategories([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer} testID={`${testID}-loading`}>
+        <ActivityIndicator size="small" color="#3B82F6" />
+      </View>
+    );
+  }
+
+  if (categories.length === 0) {
+    return (
+      <View style={styles.emptyContainer} testID={`${testID}-empty`}>
+        <Text style={styles.emptyText}>No bonus categories available at this time.</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container} testID={testID}>
+      <Text style={styles.sectionTitle}>Bonus Categories</Text>
+      <Text style={styles.sectionSubtitle}>
+        These categories earn extra Swap Points when you sell items!
+      </Text>
+
+      <FlatList
+        data={categories}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View
+            style={styles.categoryRow}
+            testID={`${testID}-item-${item.id}`}
+            accessible={true}
+            accessibilityLabel={`${item.name}. Bonus category. Earns ${item.sp_earning_multiplier} times Swap Points.`}
+            accessibilityRole="text"
+          >
+            <Text style={styles.categoryIcon}>{item.icon || '📦'}</Text>
+            <View style={styles.categoryInfo}>
+              <View style={styles.categoryNameRow}>
+                <Text style={styles.categoryName}>{item.name}</Text>
+                <BonusCategoryBadge
+                  iconUrl={item.bonus_badge_icon_url}
+                  testID={`${testID}-badge-${item.id}`}
+                />
+              </View>
+              <Text style={styles.earnRate}>
+                Earn {item.sp_earning_multiplier.toFixed(2)}× SP
+              </Text>
+            </View>
+          </View>
+        )}
+        scrollEnabled={false}
+        contentContainerStyle={styles.listContent}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    marginVertical: 16,
+  },
+  loadingContainer: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    marginVertical: 16,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  listContent: {
+    gap: 8,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  categoryIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  categoryInfo: {
+    flex: 1,
+  },
+  categoryNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  categoryName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginRight: 8,
+  },
+  earnRate: {
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+});

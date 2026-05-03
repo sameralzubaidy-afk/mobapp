@@ -56,46 +56,54 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK EDU-005: Mobile UI — HelpScreen (Accordion + Embedded Calculator + Bonus Categories)
 
+## TASK EDU-006: Mobile UI — SPCalculator widget + BonusCategoryBadge (3 placements)
+
+**Duration:** 3 hours
+**Priority:** High
+**Dependencies:** EDU-003
+
+### Description
 
 I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
-Tasks: ## TASK EDU-005: Mobile UI — HelpScreen (Accordion + Embedded Calculator + Bonus Categories)
+Tasks: ## TASK EDU-006: Mobile UI — SPCalculator widget + BonusCategoryBadge (3 placements)
 
-Define the shared TypeScript types (`EducationSection`, `SectionType`, `EducationExample`, `SPCalculation`, `BonusCategory`, `EducationAnalyticsEvent`) and typed error classes (`ContentValidationError`, `UnauthorizedError`, `DuplicatePublishedSectionError`) used across mobile + admin-portal.
-
-### Scope
-
-Build the always-accessible `HelpScreen` (Settings → Help → How Trading Works): accordion of published sections (SP Definition expanded by default), embedded `SPCalculator`, and "Bonus Categories" list showing every category with `sp_earning_multiplier > 1.10`.
 
 ### Scope
-- 1 new screen + 2 new components (`EducationSectionAccordion`, `BonusCategoriesList`).
-- Pull-to-refresh.
-- Deep link via `?section=sp_spending` query param.
-- Settings menu entry wired into MODULE-03 V2 Settings.
+Build the reusable `SPCalculator` widget (category dropdown + price input + live-computed sell/buy panels) and the `BonusCategoryBadge` component, then mount the calculator in 3 placements: Help (free-form), Sell tab (auto-fills from listing, user-overridable), Checkout (locked to item's category).
 
+### Scope
+**In scope:**
+- 2 new components + 3 placement integrations.
+- Client-side math ONLY via `spCalculatorService.calculateSP` (which delegates to MODULE-12 V3).
+- Analytics event `calculator_use` with price bucket + category + mode.
+- A11y on inputs + live region on results.
 
 ### Files to Create / Modify
 
 | Path | Action | Purpose |
 |---|---|---|
-| `p2p-kids-marketplace/src/screens/help/HelpScreen.tsx` | NEW | Route `/settings/help`; accordion + calculator + bonus list |
-| `p2p-kids-marketplace/src/components/education/EducationSectionAccordion.tsx` | NEW | Expand/collapse animated section |
-| `p2p-kids-marketplace/src/components/education/BonusCategoriesList.tsx` | NEW | List of bonus categories with badges + earn-rate text |
-| `p2p-kids-marketplace/src/screens/settings/SettingsScreen.tsx` | MODIFY | Add "Help → How Trading Works" row |
+| `p2p-kids-marketplace/src/components/education/SPCalculator.tsx` | NEW | Full widget: category dropdown + price input + sell/buy result panels |
+| `p2p-kids-marketplace/src/components/education/BonusCategoryBadge.tsx` | NEW | ⭐ or custom `bonus_badge_icon_url` per category |
+| `p2p-kids-marketplace/src/screens/help/HelpScreen.tsx` | MODIFY | Mount unlocked calculator |
+| `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` | MODIFY | Mount auto-filled calculator (auto-fills category from current draft; user can override) |
+| `p2p-kids-marketplace/src/screens/checkout/CheckoutScreen.tsx` | MODIFY | Mount locked calculator (category pinned to item.category_id) |
 
 ### Acceptance Criteria
 
-- [ ] Route reachable from Settings. Initial load < 1 s with sections cached.
-- [ ] Accordion: `sp_definition` expanded by default; other sections collapsed; tap header toggles; `accessibilityState={expanded}` announced.
-- [ ] Each section renders body as plain text with newline preservation (no markdown).
-- [ ] Calculator embedded below sections; defaults to "Select a category".
-- [ ] "Bonus Categories" section renders under the calculator: list of categories where `sp_earning_multiplier > 1.10` sorted DESC by multiplier; each row shows icon + name + `BonusCategoryBadge` + formatted earn-rate (e.g. `"Earn 1.30× SP"`).
-- [ ] Analytics events: `help_view` on mount (once per mount); `section_expand` on each expand (event_data: `{ section_type }`).
-- [ ] Deep-link: opening `/settings/help?section=sp_spending` auto-expands that section and scrolls into view.
-- [ ] Pull-to-refresh invalidates `['education-sections']` + `['bonus-categories']` query keys.
-
+- [ ] `SPCalculator` props: `{ mode: 'free' | 'auto' | 'locked'; initialCategoryId?: string; initialPrice?: number }`.
+  - `free`: dropdown empty until user picks.
+  - `auto`: dropdown pre-filled, editable.
+  - `locked`: dropdown disabled, selection pinned.
+- [ ] On category change OR price change, widget calls `calculateSP(price, categoryId, 'sell')` AND `calculateSP(price, categoryId, 'buy')` and renders both panels simultaneously.
+- [ ] Result updates within 100 ms of input (client-side math; no network).
+- [ ] Bonus badge renders next to the `earn_sp` value when `is_bonus_category === true`.
+- [ ] Price input accepts 0–10000 with 2 decimals; min/max enforced client-side.
+- [ ] When no category selected, panels render placeholder "Select a category to see your SP".
+- [ ] `calculator_use` analytics fires debounced 1 s after the last edit with `{ category_id, price_bucket, mode }` — never the exact price.
+- [ ] `BonusCategoryBadge` uses `categories.bonus_badge_icon_url` if present (via `expo-image` with fallback to ⭐ emoji on error).
+- [ ] A11y: price input `accessibilityLabel="Item price, currency"`; category dropdown `accessibilityLabel="Category"`; results container `accessibilityLiveRegion="polite"`.
 
 i want you to 
 

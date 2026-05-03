@@ -25,7 +25,7 @@ export async function trackEducationEvent(
     const { error } = await supabase.from('education_analytics').insert({
       user_id: user?.id || null,
       event_type: eventType,
-      event_data: eventData ?? {},
+      event_data: eventData || null,
     });
 
     if (error) {
@@ -47,7 +47,7 @@ export async function trackEducationEvent(
 export async function shouldShowOnboarding(userId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('onboarding_completed_at, onboarding_skipped_at')
       .eq('user_id', userId)
       .maybeSingle();
@@ -72,7 +72,7 @@ export async function shouldShowOnboarding(userId: string): Promise<boolean> {
 export async function markOnboardingComplete(userId: string): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .update({ onboarding_completed_at: new Date().toISOString() })
       .eq('user_id', userId);
 
@@ -95,7 +95,7 @@ export async function markOnboardingComplete(userId: string): Promise<boolean> {
 export async function markOnboardingSkipped(userId: string): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .update({ onboarding_skipped_at: new Date().toISOString() })
       .eq('user_id', userId);
 
@@ -120,7 +120,7 @@ export async function markPromptSeen(userId: string, key: string): Promise<boole
   try {
     // Get current seen prompts
     const { data: profile, error: fetchError } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('education_prompts_seen')
       .eq('user_id', userId)
       .maybeSingle();
@@ -135,7 +135,7 @@ export async function markPromptSeen(userId: string, key: string): Promise<boole
       const updatedSeen = [...currentSeen, key];
 
       const { error: updateError } = await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ education_prompts_seen: updatedSeen })
         .eq('user_id', userId);
 
@@ -163,7 +163,7 @@ export async function markPromptSeen(userId: string, key: string): Promise<boole
 export async function shouldShowPrompt(userId: string, key: string): Promise<boolean> {
   try {
     const { data: profile, error } = await supabase
-      .from('profiles')
+      .from('user_profiles')
       .select('education_prompts_seen, education_prompts_suppressed_at, onboarding_skipped_at')
       .eq('user_id', userId)
       .maybeSingle();
@@ -187,7 +187,7 @@ export async function shouldShowPrompt(userId: string, key: string): Promise<boo
     if (profile.onboarding_skipped_at !== null && seenPrompts.length >= 3) {
       // Set suppression flag
       await supabase
-        .from('profiles')
+        .from('user_profiles')
         .update({ education_prompts_suppressed_at: new Date().toISOString() })
         .eq('user_id', userId);
 
