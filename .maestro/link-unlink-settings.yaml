@@ -1,0 +1,165 @@
+# FLOW: Link & Unlink Social Providers in Settings | TASK: AUTH-V3-009 | States covered: link, unlink, last-method guard
+# Tests account linking and unlinking from settings with last-method protection
+
+appId: com.p2pkids.marketplace
+
+---
+# Precondition: User logged in with email+password (no social linked)
+- tapOn:
+    id: "logout-button"
+    optional: true
+- tapOn:
+    id: "login-button"
+    optional: true
+- assertVisible:
+    id: "login-screen"
+- inputText: "emailuser@example.com"
+    id: "email-input"
+- inputText: "password123"
+    id: "password-input"
+- tapOn:
+    id: "login-submit-button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "home-screen"
+
+---
+# Step 1: Navigate to Settings > Linked Accounts
+- tapOn:
+    id: "profile-tab"
+- assertVisible:
+    id: "profile-screen"
+- tapOn:
+    id: "settings-button"
+- assertVisible:
+    id: "settings-screen"
+- tapOn:
+    id: "linked-accounts-menu-item"
+- assertVisible:
+    id: "linked-accounts-screen"
+
+---
+# Step 2: Verify current state (email+password, no social)
+- assertVisible:
+    text: "Email & Password"
+- assertVisible:
+    id: "provider-card-email"
+- assertNotVisible:
+    id: "provider-card-google-linked"
+- assertNotVisible:
+    id: "provider-card-facebook-linked"
+- assertNotVisible:
+    id: "provider-card-apple-linked"
+
+---
+# Step 3: Tap "Link Google Account" button
+- tapOn:
+    id: "link-google-button"
+- waitForAnimationToEnd
+
+---
+# Step 4: Complete Google OAuth (manual intervention in simulator)
+- inputText: "emailuser@example.com"
+    id: "google-email-input"
+- tapOn:
+    id: "google-sign-in-button"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "linked-accounts-screen"
+    timeout: 15000
+
+---
+# Step 5: Verify Google is now linked
+- assertVisible:
+    id: "provider-card-google-linked"
+- assertVisible:
+    text: "Google"
+- assertVisible:
+    text: "Linked"
+
+---
+# Step 6: Tap "Link Facebook Account" button
+- tapOn:
+    id: "link-facebook-button"
+- waitForAnimationToEnd
+
+---
+# Step 7: Complete Facebook OAuth (manual intervention)
+- inputText: "emailuser@example.com"
+    id: "facebook-email-input"
+- inputText: "password123"
+    id: "facebook-password-input"
+- tapOn:
+    id: "facebook-login-button"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "linked-accounts-screen"
+    timeout: 15000
+
+---
+# Step 8: Verify Facebook is now linked
+- assertVisible:
+    id: "provider-card-facebook-linked"
+- assertVisible:
+    text: "Facebook"
+- assertVisible:
+    text: "Linked"
+
+---
+# Step 9: Now user has email+password + Google + Facebook (3 methods)
+# Unlink Google (should succeed because 2 other methods remain)
+- tapOn:
+    id: "unlink-google-button"
+- assertVisible:
+    text: "Are you sure?"
+- tapOn:
+    id: "confirm-unlink-button"
+- waitForAnimationToEnd
+
+---
+# Step 10: Verify Google unlinked
+- assertNotVisible:
+    id: "provider-card-google-linked"
+- assertVisible:
+    id: "link-google-button"
+
+---
+# Step 11: Now user has email+password + Facebook (2 methods)
+# Unlink Facebook (should succeed because password remains)
+- tapOn:
+    id: "unlink-facebook-button"
+- assertVisible:
+    text: "Are you sure?"
+- tapOn:
+    id: "confirm-unlink-button"
+- waitForAnimationToEnd
+
+---
+# Step 12: Verify Facebook unlinked
+- assertNotVisible:
+    id: "provider-card-facebook-linked"
+- assertVisible:
+    id: "link-facebook-button"
+
+---
+# Step 13: Now user has ONLY email+password (1 method remaining)
+# Attempt to "Remove Password" should show last-method error
+- tapOn:
+    id: "remove-password-button"
+- assertVisible:
+    text: "Cannot remove last login method"
+- assertVisible:
+    text: "Link at least one social account before removing password"
+
+---
+# Final assertion: Last-method guard prevented removal
+- assertVisible:
+    id: "linked-accounts-screen"
+- assertVisible:
+    text: "Email & Password"
+- assertVisible:
+    id: "link-google-button"
+- assertVisible:
+    id: "link-facebook-button"

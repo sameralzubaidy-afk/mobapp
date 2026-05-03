@@ -1,0 +1,136 @@
+# FLOW: Phone Verification at First Listing | TASK: AUTH-V3-009 | States covered: unverified user blocked, verify, then proceed
+# Tests deferred phone verification gate when user attempts to create first listing
+
+appId: com.p2pkids.marketplace
+
+---
+# Precondition: User signed up via social (no phone verified) and is logged in
+- tapOn:
+    id: "logout-button"
+    optional: true
+- assertVisible:
+    id: "welcome-screen"
+    optional: true
+
+# Login with social-only user (no phone)
+- tapOn:
+    id: "login-button"
+- assertVisible:
+    id: "login-screen"
+- tapOn:
+    id: "social-login-google-button"
+- inputText: "nophone@example.com"
+    id: "google-email-input"
+- tapOn:
+    id: "google-sign-in-button"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 15000
+
+---
+# Step 1: Navigate to create listing screen
+- tapOn:
+    id: "sell-tab"
+- assertVisible:
+    id: "sell-screen"
+- tapOn:
+    id: "create-listing-button"
+- assertVisible:
+    id: "listing-create-screen"
+
+---
+# Step 2: Fill out listing details
+- tapOn:
+    id: "listing-title-input"
+- inputText: "Test Item for Sale"
+- tapOn:
+    id: "listing-description-input"
+- inputText: "This is a test item description"
+- tapOn:
+    id: "listing-price-input"
+- inputText: "25"
+- tapOn:
+    id: "listing-category-select"
+- tapOn:
+    text: "Toys"
+
+---
+# Step 3: Tap "Publish" button
+- tapOn:
+    id: "publish-listing-button"
+- waitForAnimationToEnd
+
+---
+# Step 4: Phone verification modal should appear (non-dismissible)
+- assertVisible:
+    id: "phone-verification-modal"
+- assertVisible:
+    text: "Verify Phone to Continue"
+- assertVisible:
+    id: "phone-input"
+# Verify close button is NOT present (non-dismissible)
+- assertNotVisible:
+    id: "modal-close-button"
+
+---
+# Step 5: Enter phone number
+- tapOn:
+    id: "phone-input"
+- inputText: "5551234567"
+- assertVisible:
+    text: "(555) 123-4567"
+- tapOn:
+    id: "send-code-button"
+- waitForAnimationToEnd
+
+---
+# Step 6: OTP entry step should appear
+- assertVisible:
+    text: "Enter verification code"
+- assertVisible:
+    id: "otp-input-0"
+
+---
+# Step 7: Enter 6-digit code
+- tapOn:
+    id: "otp-input-0"
+- inputText: "1"
+- tapOn:
+    id: "otp-input-1"
+- inputText: "2"
+- tapOn:
+    id: "otp-input-2"
+- inputText: "3"
+- tapOn:
+    id: "otp-input-3"
+- inputText: "4"
+- tapOn:
+    id: "otp-input-4"
+- inputText: "5"
+- tapOn:
+    id: "otp-input-5"
+- inputText: "6"
+- waitForAnimationToEnd
+
+---
+# Step 8: Modal should close and listing should be published
+- assertNotVisible:
+    id: "phone-verification-modal"
+- assertVisible:
+    text: "Listing published successfully"
+
+---
+# Step 9: Navigate back to my listings and verify item is listed
+- tapOn:
+    id: "my-listings-tab"
+- assertVisible:
+    text: "Test Item for Sale"
+
+---
+# Final assertion: Listing created after phone verification
+- assertVisible:
+    id: "my-listings-screen"
+- assertVisible:
+    text: "Test Item for Sale"

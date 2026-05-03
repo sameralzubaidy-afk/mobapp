@@ -1,0 +1,79 @@
+# FLOW: Social Signup with Google | TASK: AUTH-V3-009 | States covered: happy path, profile auto-fill
+# Tests Google OAuth signup with auto-filled profile name and avatar
+
+appId: com.p2pkids.marketplace
+
+---
+# Precondition: User is logged out
+- tapOn:
+    id: "logout-button"
+- assertVisible:
+    id: "welcome-screen"
+
+---
+# Step 1: Navigate to signup screen
+- tapOn:
+    id: "get-started-button"
+- assertVisible:
+    id: "signup-screen"
+- assertVisible:
+    text: "Create Account"
+
+---
+# Step 2: Tap Google Sign In button
+- tapOn:
+    id: "social-login-google-button"
+- assertVisible:
+    text: "Sign in with Google"
+
+---
+# Step 3: Wait for Google OAuth redirect (manual intervention required in real device)
+# Note: In simulator, this will open browser. Tester must complete OAuth manually.
+- inputText: "test-google-user@example.com"
+    id: "google-email-input"
+- tapOn:
+    id: "google-sign-in-button"
+
+---
+# Step 4: Wait for callback and session creation
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible:
+      id: "home-screen"
+    timeout: 15000
+
+---
+# Step 5: Verify user is logged in and profile auto-filled
+- assertVisible:
+    id: "home-screen"
+- assertVisible:
+    id: "user-avatar"
+# Verify display name was auto-filled from Google
+- assertVisible:
+    text: "Test User"
+
+---
+# Step 6: Navigate to profile screen to verify avatar
+- tapOn:
+    id: "profile-tab"
+- assertVisible:
+    id: "profile-screen"
+- assertVisible:
+    id: "profile-avatar-image"
+# Verify profile name matches Google data
+- assertVisible:
+    text: "Test User"
+
+---
+# Step 7: Verify trial subscription activated
+- assertVisible:
+    text: "Kids Club+ Trial"
+- assertVisible:
+    text: "30 days remaining"
+
+---
+# Final assertion: User successfully signed up via Google
+- assertVisible:
+    id: "profile-screen"
+- assertVisible:
+    text: "Test User"

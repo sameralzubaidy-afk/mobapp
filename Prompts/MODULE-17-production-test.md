@@ -29,6 +29,7 @@ Run the manual testing guides for Social Auth and Account Management to ensure t
 ### Sub-Tasks
 - [ ] Execute [AUTH-V3-007-MANUAL-TESTING-GUIDE.md](../AUTH-V3-007-MANUAL-TESTING-GUIDE.md) in the production environment.
 - [ ] Execute [AUTH-V3-008-MANUAL-TESTING-GUIDE.md](../AUTH-V3-008-MANUAL-TESTING-GUIDE.md) in the production environment.
+- [ ] Execute [AUTH-V3-009-MANUAL-TESTING.md](../AUTH-V3-009-MANUAL-TESTING.md) for full module verification.
 
 ### Verification Checklist
 - [ ] Social sign-up creates a profile in the production `profiles` table.
@@ -67,8 +68,9 @@ environment, not staging.
 REQUIREMENTS:
 1. Follow [AUTH-V3-007-MANUAL-TESTING-GUIDE.md](../AUTH-V3-007-MANUAL-TESTING-GUIDE.md).
 2. Follow [AUTH-V3-008-MANUAL-TESTING-GUIDE.md](../AUTH-V3-008-MANUAL-TESTING-GUIDE.md).
-3. Check Supabase Dashboard (Production) for row creation.
-4. Verify email notifications (if any) are sent via production Mailgun/SendGrid.
+3. Follow [AUTH-V3-009-MANUAL-TESTING.md](../AUTH-V3-009-MANUAL-TESTING.md).
+4. Check Supabase Dashboard (Production) for row creation.
+5. Verify email notifications (if any) are sent via production Mailgun/SendGrid.
 
 ENVIRONMENT: Production (NOT Staging)
 */

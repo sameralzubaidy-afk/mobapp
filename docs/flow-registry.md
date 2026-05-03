@@ -248,6 +248,81 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Tests:
       - Unit: `src/__tests__/hooks/useLinkedProviders.test.ts` (coverage ≥85%)
       - Unit: `src/__tests__/hooks/usePhoneVerification.test.ts` (coverage ≥85%)
+  - **AUTH-V3-009-TESTS (2026-05-03):** Complete test package for AUTH-V3 social login module (Jest + PgTAP + Maestro + Manual E2E)
+    - Module: MODULE-03-AUTH-V3-SOCIAL-LOGIN (TASK AUTH-V3-009)
+    - Scope:
+      - Jest unit tests for all AUTH-V3 services and components
+      - PgTAP database tests for RPC functions and OTP rate limits
+      - Maestro UI flows for 5 critical UX paths
+      - Manual E2E checklist for real OAuth providers on staging
+    - Test Files (7 Jest suites):
+      - `src/services/__tests__/oauthService.test.ts` ✅ (existing, coverage ≥85%)
+      - `src/services/__tests__/accountService.test.ts` ✅ NEW (created in AUTH-V3-009)
+      - `src/services/__tests__/profileService.test.ts` ✅ (existing, coverage ≥85%)
+      - `src/services/__tests__/phoneService.test.ts` ✅ (existing, coverage ≥85%)
+      - `src/services/__tests__/passwordService.test.ts` ✅ (existing, coverage ≥85%)
+      - `src/components/auth/__tests__/SocialLoginButtons.test.tsx` ✅ (existing, coverage ≥85%)
+      - `src/components/auth/__tests__/PhoneVerificationModal.test.tsx` ✅ NEW (created in AUTH-V3-009)
+    - Integration Tests:
+      - `src/services/__tests__/oauthService.integration.test.ts` ✅ (existing)
+      - `src/services/__tests__/profileService.integration.test.ts` ✅ (existing)
+      - `src/services/__tests__/phoneService.integration.test.ts` ✅ (existing)
+      - `src/services/__tests__/passwordService.integration.test.ts` ✅ (existing)
+    - PgTAP Tests (1 SQL file):
+      - `supabase/tests/auth_v3.sql` ✅ NEW (created in AUTH-V3-009)
+        - Tests `link_social_account` RPC email mismatch → exception
+        - Tests OTP rate limit (3/phone/hour) enforced via database structure
+        - Tests `user_linked_providers` view correctly identifies linked providers
+        - Tests `phone_verification_codes` table structure and RLS enabled
+    - Maestro Flows (5 YAML files):
+      - `.maestro/social-signup-google.yaml` ✅ NEW (Google signup happy path, profile auto-filled)
+      - `.maestro/account-linking.yaml` ✅ (existing from AUTH-V3-004)
+      - `.maestro/phone-verification-at-listing.yaml` ✅ NEW (phone verification gate at first listing)
+      - `.maestro/link-unlink-settings.yaml` ✅ NEW (link/unlink providers, last-method guard)
+      - `.maestro/set-password-social-only.yaml` ✅ NEW (social-only user sets password, can email-login)
+    - Manual E2E Testing:
+      - `AUTH-V3-009-MANUAL-TESTING.md` ✅ NEW (58 test cases across 7 test suites)
+      - Test Suites:
+        1. Google OAuth Signup (3 test cases)
+        2. Facebook OAuth Signup (2 test cases)
+        3. Apple Sign In (3 test cases)
+        4. Account Linking (3 test cases)
+        5. Deferred Phone Verification (4 test cases)
+        6. Password Fallback (1 test case)
+        7. Cross-Platform (2 test cases)
+      - Required screenshots: 6 (Google/Facebook/Apple signup, phone modal, linked accounts, last-method guard)
+      - Critical security checks: OAuth state CSRF, email mismatch, last-method guard, OTP rate limit, no credentials in logs
+    - Prerequisites (manual ops):
+      - All migrations applied (AUTH-V3-001 through AUTH-V3-006)
+      - OAuth providers enabled in Supabase Dashboard
+      - Test accounts ready: Google, Facebook, Apple ID
+      - Twilio credentials configured in Edge Function
+      - `avatars` storage bucket public
+    - Validation Commands:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm run test:unit` (all 7 Jest suites green, coverage ≥85%)
+      - `RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+      - `supabase test db` (PgTAP tests pass - 12 assertions)
+      - `maestro test .maestro/social-signup-google.yaml` (iOS + Android)
+      - `maestro test .maestro/phone-verification-at-listing.yaml` (iOS + Android)
+      - `maestro test .maestro/link-unlink-settings.yaml` (iOS + Android)
+      - `maestro test .maestro/set-password-social-only.yaml` (iOS + Android)
+      - Manual testing required for full OAuth flows (see AUTH-V3-009-MANUAL-TESTING.md)
+    - Coverage Target:
+      - oauthService.ts ≥85% ✅
+      - accountService.ts ≥85% ✅
+      - profileService.ts ≥85% ✅
+      - phoneService.ts ≥85% ✅
+      - passwordService.ts ≥85% ✅
+      - SocialLoginButtons.tsx ≥85% ✅
+      - PhoneVerificationModal.tsx ≥85% ✅
+    - Security Verification (MANDATORY before sign-off):
+      - [ ] OAuth state CSRF protection (state token mismatch rejected)
+      - [ ] Email mismatch blocked (cannot link provider with different email)
+      - [ ] Last-method guard (cannot remove last login method)
+      - [ ] OTP rate limit (3/hour enforced)
+      - [ ] No OTP code, provider token, or password in test logs or snapshots
       - Unit: `src/__tests__/components/ProviderCard.test.tsx` (TODO)
       - Unit: `src/__tests__/components/PhoneVerificationModal.test.tsx` (TODO)
       - Unit: `src/__tests__/components/AccountLinkingPrompt.test.tsx` (TODO)

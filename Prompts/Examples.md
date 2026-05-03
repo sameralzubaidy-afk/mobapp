@@ -56,52 +56,54 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK AUTH-V3-009: Tests (Jest + PgTAP + Maestro + Manual OAuth E2E)
 
-I’m working on the  MODULE-03-AUTH-V3-SOCIAL-LOGIN.md tasks
-Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-03-AUTH-V3-SOCIAL-LOGIN.md
-Tasks: ## TASK AUTH-V3-009: Tests (Jest + PgTAP + Maestro + Manual OAuth E2E)
+## TASK EDU-001: Schema Migrations — Sections, Examples, Analytics + Seed + Publish RPCs
+
+
+I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
+Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
+Tasks: ## TASK EDU-001: Schema Migrations — Sections, Examples, Analytics + Seed + Publish RPCs
 
 scope is 
 
-Ship the full test package for MODULE-03 V3: Jest unit tests for all services, component tests for the modals, PgTAP DB tests for the RPC + OTP rate limit, Maestro flows for the 5 critical UX paths, and a manual E2E checklist for real Google / Facebook / Apple accounts on staging.
+Create the three content tables (`education_sections`, `education_examples`, `education_analytics`) with RLS, partial unique index for single-published-per-type, the `publish_section` / `unpublish_section` SECURITY DEFINER RPCs, 2 new columns on `user_profiles` (`onboarding_completed_at`, `onboarding_skipped_at`, `education_prompts_seen`, `education_prompts_suppressed_at`), and the initial seed content (4 sections + 3 example scenarios).
 
 ### Scope
 
-- 7 Jest suites.
-- 1 PgTAP SQL file.
-- 5 Maestro flows under `p2p-kids-marketplace/.maestro/`.
-- Manual E2E checklist embedded in this module (ops runs against staging).
-- Coverage target ≥ 85% for all V3 services.
+- 4 Supabase migrations (`20260420000018`–`20260420000021`) in strict order.
+- All CHECK constraints, RLS policies, partial unique indexes, triggers, comments.
+- Seed content for the 4 core sections (`sp_definition`, `sp_earning`, `sp_spending`, `safety`) and 3 examples.
+- `user_profiles` additions for onboarding + prompt tracking.
 
-### Test Files
+**Out of scope:**
+- Analytics materialized views (deferred — raw queries for MVP).
+- Seeding `education_examples.category_id` values (admin links via CMS after launch).
+- Pre-aggregated analytics tables (deferred).
 
-| Path | Covers |
+### Files to Create
+
+| File | Purpose |
 |---|---|
-| `p2p-kids-marketplace/src/__tests__/services/oauthService.test.ts` | Google/Facebook/Apple payload parsing, state mismatch, user cancel, provider outage |
-| `p2p-kids-marketplace/src/__tests__/services/accountService.test.ts` | checkAccountExists, link (re-auth success/fail), unlink (last-method guard), getLinkedProviders |
-| `p2p-kids-marketplace/src/__tests__/services/profileService.test.ts` | autoFillProfile, downloadProviderAvatar (happy, timeout, invalid type/size, Apple) |
-| `p2p-kids-marketplace/src/__tests__/services/phoneService.test.ts` | isPhoneRequired, send rate-limit, verify happy/expired/invalid |
-| `p2p-kids-marketplace/src/__tests__/services/passwordService.test.ts` | canSetPassword, setPasswordForSocialUser, validatePasswordStrength (all reasons) |
-| `p2p-kids-marketplace/src/__tests__/components/SocialLoginButtons.test.tsx` | Renders 3 buttons, loading state, cancel, error banner with fallback CTA |
-| `p2p-kids-marketplace/src/__tests__/components/PhoneVerificationModal.test.tsx` | Step transitions, OTP auto-advance, resend countdown, success closes modal |
-| `supabase/tests/auth_v3.sql` | PgTAP: link_social_account email mismatch → exception; OTP rate limit (3/phone/hour) enforced; unlink last method blocked |
-| `p2p-kids-marketplace/.maestro/social-signup-google.yaml` | Maestro: Google signup happy path, profile auto-filled |
-| `p2p-kids-marketplace/.maestro/account-linking.yaml` | Maestro: link prompt shown when email exists, password re-auth, link success |
-| `p2p-kids-marketplace/.maestro/phone-verification-at-listing.yaml` | Maestro: new user blocked at first listing → verify → listing succeeds |
-| `p2p-kids-marketplace/.maestro/link-unlink-settings.yaml` | Maestro: navigate to settings, link Facebook, unlink, see last-method guard |
-| `p2p-kids-marketplace/.maestro/set-password-social-only.yaml` | Maestro: social-only user sets password, can now email-login |
+| `supabase/migrations/20260420000018_create_education_sections.sql` | `education_sections` table + RLS + partial unique index + trigger |
+| `supabase/migrations/20260420000019_create_education_examples.sql` | `education_examples` table + RLS + indexes + trigger |
+| `supabase/migrations/20260420000020_create_education_analytics_and_seed.sql` | `education_analytics` table + RLS (INSERT-only) + `user_profiles` columns + seed content |
+| `supabase/migrations/20260420000021_education_publish_rpcs.sql` | `publish_section(id UUID)` + `unpublish_section(id UUID)` SECURITY DEFINER RPCs |
 
 ### Acceptance Criteria
 
-- [ ] All Jest tests pass; coverage ≥ 85% on `oauthService.ts`, `accountService.ts`, `profileService.ts`, `phoneService.ts`, `passwordService.ts`.
-- [ ] PgTAP tests pass (`supabase test db`):
-  - Call `link_social_account` with mismatched email → exception.
-  - 4th OTP send for same phone within 60min → rate-limit exception.
-  - Unlink last identity with no password → exception.
-- [ ] All 5 Maestro flows pass on a staging build (iOS + Android).
-- [ ] Manual OAuth E2E (staging, real Google / Facebook / Apple test accounts) documented in the PR with screenshots per provider.
-- [ ] No OTP code, provider token, or password ever appears in test logs or test snapshots.
+- [ ] Four migration files exist at the exact paths above.
+- [ ] `education_sections` has `id, title, body, image_url, display_order, section_type, is_published, published_at, published_by, created_at, updated_at` with CHECKs (`LENGTH(title) BETWEEN 3 AND 100`, `LENGTH(body) BETWEEN 10 AND 2000`, `LENGTH(image_url) <= 500`, `section_type IN (…)`).
+- [ ] Partial unique index `uq_education_sections_one_published_per_type` on `(section_type) WHERE is_published = true`.
+- [ ] RLS: "Anyone can view published sections" (FOR SELECT `USING (is_published = true)`) + "Admin can manage all sections" (FOR ALL via `user_roles`).
+- [ ] Trigger `education_sections_updated_at` sets `updated_at = now()` on UPDATE.
+- [ ] `education_examples` has `id, item_name, item_price, category_id, display_order, is_published, created_at, updated_at` with `item_price > 0 AND <= 10000`; same RLS model as sections; same updated-at trigger.
+- [ ] `education_analytics` has `id, user_id (nullable), event_type, event_data jsonb, created_at`; RLS allows INSERT by authenticated users, SELECT by admin only, NO UPDATE/DELETE policies (effectively blocked).
+- [ ] `user_profiles` gains columns `onboarding_completed_at TIMESTAMPTZ`, `onboarding_skipped_at TIMESTAMPTZ`, `education_prompts_seen JSONB DEFAULT '[]'::jsonb`, `education_prompts_suppressed_at TIMESTAMPTZ`.
+- [ ] Indexes: `idx_education_sections_published (display_order) WHERE is_published = true`, `idx_education_sections_type (section_type, is_published)`, `idx_education_examples_published (display_order) WHERE is_published = true`, `idx_education_analytics_event_type (event_type, created_at DESC)`, `idx_education_analytics_user (user_id, created_at DESC)`.
+- [ ] Seed: 4 published sections (sp_definition, sp_earning, sp_spending, safety) + 3 draft examples (category_id = NULL; admin links later).
+- [ ] RPCs `publish_section(id)` + `unpublish_section(id)` are `SECURITY DEFINER`, check `user_roles.role = 'admin'`, and `publish_section` unpublishes the previous row of the same `section_type` atomically.
+- [ ] All migrations idempotent (`IF NOT EXISTS`, `CREATE OR REPLACE`, `ON CONFLICT DO NOTHING` for seed).
+- [ ] Commented verification queries at the bottom of each file.
 
 
 i want you to 
@@ -120,9 +122,9 @@ i want you to
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
 4. Forbidden: Re-implementing logic that already exists under a different name
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-03-VERIFICATION-V3-SOCIAL-LOGIN.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-18-VERIFICATION-TRADING-EDUCATION.md
 6. Show me the files you create or edit with their full paths
-7. Tell me which items in MODULE-03-VERIFICATION-V3-SOCIAL-LOGIN.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/MODULE-03-VERIFICATION-V3-SOCIAL-LOGIN.md
+MODULE-18-VERIFICATION-TRADING-EDUCATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/MODULE-18-VERIFICATION-TRADING-EDUCATION.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 
