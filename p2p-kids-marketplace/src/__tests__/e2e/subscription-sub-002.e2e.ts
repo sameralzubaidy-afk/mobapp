@@ -1,12 +1,12 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-002.e2e.ts
  * MODULE-11 TASK SUB-002: E2E Tests for Subscription Table & RPC Functions
- * 
+ *
  * Prerequisites:
  * - Run migration 20260213000000_enhance_subscriptions_sub_002.sql
  * - Run migration 20260213000001_subscription_rpcs_sub_002.sql
  * - Have subscription_tiers table seeded (from TASK SUB-001)
- * 
+ *
  * Tests verify:
  * - Subscription table schema enhancements
  * - RPC functions work correctly
@@ -30,7 +30,9 @@ describe('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', (
 
   const shouldSkipCase = (): boolean => {
     if (!canRunSuite) {
-      console.warn(`[SUB-002 E2E] Skipping case: ${skipReason || 'suite preconditions unavailable'}`);
+      console.warn(
+        `[SUB-002 E2E] Skipping case: ${skipReason || 'suite preconditions unavailable'}`
+      );
       return true;
     }
 
@@ -93,10 +95,7 @@ describe('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', (
   afterAll(async () => {
     // Cleanup: Delete test subscription and user
     if (testSubscriptionId) {
-      await supabase
-        .from('subscriptions')
-        .delete()
-        .eq('id', testSubscriptionId);
+      await supabase.from('subscriptions').delete().eq('id', testSubscriptionId);
     }
 
     if (testUserId) {
@@ -105,18 +104,12 @@ describe('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', (
   });
 
   async function updateSubscriptionRow(patch: Record<string, any>) {
-    return supabase
-      .from('subscriptions')
-      .update(patch)
-      .eq('user_id', testUserId);
+    return supabase.from('subscriptions').update(patch).eq('user_id', testUserId);
   }
 
   describe('Schema Verification', () => {
     itIfRunnable('should have all new columns added by SUB-002 migration', async () => {
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .limit(1);
+      const { data, error } = await supabase.from('subscriptions').select('*').limit(1);
 
       expect(error).toBeNull();
 
@@ -153,16 +146,19 @@ describe('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', (
     itIfRunnable('should allow creating subscription with new V2.1 fields', async () => {
       const { data, error } = await supabase
         .from('subscriptions')
-        .upsert({
-          user_id: testUserId,
-          tier_id: tierIdKidsClubPlus,
-          status: 'trial',
-          trial_start_date: new Date().toISOString(),
-          trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          has_used_trial: true,
-          auto_renew_enabled: true,
-          payment_retry_count: 0,
-        }, { onConflict: 'user_id' })
+        .upsert(
+          {
+            user_id: testUserId,
+            tier_id: tierIdKidsClubPlus,
+            status: 'trial',
+            trial_start_date: new Date().toISOString(),
+            trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            has_used_trial: true,
+            auto_renew_enabled: true,
+            payment_retry_count: 0,
+          },
+          { onConflict: 'user_id' }
+        )
         .select()
         .single();
 
@@ -229,11 +225,11 @@ describe('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', (
 
     itIfRunnable('should return false after user enters grace_period', async () => {
       // Update to grace_period status using RPC
-        const { error: updateError } = await updateSubscriptionRow({
-          status: 'grace_period',
-          grace_started_at: new Date().toISOString(),
-          grace_ends_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
-        });
+      const { error: updateError } = await updateSubscriptionRow({
+        status: 'grace_period',
+        grace_started_at: new Date().toISOString(),
+        grace_ends_at: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+      });
       expect(updateError).toBeNull();
 
       const { data, error } = await supabase.rpc('can_user_earn_sp', {
@@ -243,12 +239,12 @@ describe('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', (
       expect(error).toBeNull();
       expect(data).toBe(false); // Grace period users cannot earn SP
 
-        // Restore to trial for other tests
-        await updateSubscriptionRow({
-          status: 'trial',
-          grace_started_at: null,
-          grace_ends_at: null,
-        });
+      // Restore to trial for other tests
+      await updateSubscriptionRow({
+        status: 'trial',
+        grace_started_at: null,
+        grace_ends_at: null,
+      });
     });
   });
 

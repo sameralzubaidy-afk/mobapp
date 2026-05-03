@@ -21,9 +21,7 @@
     "SWIFT_COMPILATION_MODE": "wholemodule"
   },
   "resource_bundles": {
-    "ExpoNotifications_privacy": [
-      "PrivacyInfo.xcprivacy"
-    ]
+    "ExpoNotifications_privacy": ["PrivacyInfo.xcprivacy"]
   },
   "source_files": "EXNotifications/**/*.{h,m,swift}",
   "exclude_files": "Tests/",

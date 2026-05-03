@@ -3,11 +3,15 @@
 
 import { supabase } from '../src/services/supabase';
 import { reportReview } from '../src/services/review';
-import { getReportedReviews, approveReview, deleteReview } from '../src/services/admin/reviewModeration';
+import {
+  getReportedReviews,
+  approveReview,
+  deleteReview,
+} from '../src/services/admin/reviewModeration';
 
 /**
  * TASK REVIEW-006 E2E Test: Review Reporting and Moderation Flow
- * 
+ *
  * Tests the complete flow:
  * 1. User reports inappropriate review
  * 2. Review auto-hides after 3 reports
@@ -53,10 +57,7 @@ describe('REVIEW-006: Review Reporting and Moderation E2E', () => {
     testAdminId = admin?.user?.id || '';
 
     // Set admin role
-    await supabase
-      .from('profiles')
-      .update({ role: 'admin' })
-      .eq('user_id', testAdminId);
+    await supabase.from('profiles').update({ role: 'admin' }).eq('user_id', testAdminId);
 
     // Create a test review
     const { data: review } = await supabase
@@ -155,7 +156,7 @@ describe('REVIEW-006: Review Reporting and Moderation E2E', () => {
     expect(result.success).toBe(true);
     expect(result.reviews.length).toBeGreaterThan(0);
 
-    const reportedReview = result.reviews.find(r => r.review.id === testReviewId);
+    const reportedReview = result.reviews.find((r) => r.review.id === testReviewId);
     expect(reportedReview).toBeDefined();
     expect(reportedReview?.report_count).toBe(3);
     expect(reportedReview?.reports.length).toBe(3);
@@ -242,7 +243,7 @@ describe('REVIEW-006: Review Reporting and Moderation E2E', () => {
       .eq('reviewee_id', testUserId2)
       .eq('is_hidden', false);
 
-    const hiddenReviewFound = reviews?.find(r => r.id === hiddenReview?.id);
+    const hiddenReviewFound = reviews?.find((r) => r.id === hiddenReview?.id);
     expect(hiddenReviewFound).toBeUndefined();
 
     // Clean up

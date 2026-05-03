@@ -3,7 +3,7 @@
 
 import { supabase } from '../src/config/supabase';
 
-const EDGE_FUNCTION_URL = process.env.SUPABASE_URL 
+const EDGE_FUNCTION_URL = process.env.SUPABASE_URL
   ? `${process.env.SUPABASE_URL}/functions/v1/trial-reminders`
   : 'http://localhost:54321/functions/v1/trial-reminders';
 
@@ -52,10 +52,7 @@ describe('Trial Reminders E2E', () => {
   afterAll(async () => {
     // Cleanup: delete test subscription
     if (testSubscriptionId) {
-      await supabase
-        .from('user_subscriptions')
-        .delete()
-        .eq('id', testSubscriptionId);
+      await supabase.from('user_subscriptions').delete().eq('id', testSubscriptionId);
     }
 
     // Cleanup: delete test user (requires admin/service role)
@@ -75,7 +72,7 @@ describe('Trial Reminders E2E', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceRoleKey}`,
+        Authorization: `Bearer ${serviceRoleKey}`,
       },
       body: JSON.stringify({}),
     });
@@ -107,7 +104,7 @@ describe('Trial Reminders E2E', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceRoleKey}`,
+        Authorization: `Bearer ${serviceRoleKey}`,
       },
       body: JSON.stringify({}),
     });
@@ -127,16 +124,13 @@ describe('Trial Reminders E2E', () => {
     }
 
     // Delete test subscription temporarily
-    await supabase
-      .from('user_subscriptions')
-      .delete()
-      .eq('id', testSubscriptionId);
+    await supabase.from('user_subscriptions').delete().eq('id', testSubscriptionId);
 
     const response = await fetch(EDGE_FUNCTION_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${serviceRoleKey}`,
+        Authorization: `Bearer ${serviceRoleKey}`,
       },
       body: JSON.stringify({}),
     });

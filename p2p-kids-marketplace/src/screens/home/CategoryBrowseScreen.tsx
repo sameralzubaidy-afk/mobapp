@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/screens/home/CategoryBrowseScreen.tsx
  * MODULE-05-DISCOVERY-V2: Category Browsing with SP Filter
  * Task: DISCOVERY-V2-003
- * 
+ *
  * Screen for browsing items by category with SP-eligible filter toggle.
  */
 
@@ -52,7 +52,7 @@ export default function CategoryBrowseScreen() {
     try {
       const data = await fetchListingsByCategory(category, spEligibleOnly);
       setListings(data);
-      
+
       trackEvent('view_category_results', {
         category,
         sp_eligible_only: spEligibleOnly,
@@ -74,10 +74,7 @@ export default function CategoryBrowseScreen() {
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.headerTop}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.title}>{category}</Text>
@@ -104,7 +101,7 @@ export default function CategoryBrowseScreen() {
       onPress={() => (navigation as any).navigate('ListingDetail', { listing_id: item.id })}
     >
       <View style={styles.imagePlaceholder}>
-        <ListingImage 
+        <ListingImage
           url={item.images && item.images.length > 0 ? item.images[0].url : null}
           containerStyle={styles.itemImage}
           imageStyle={styles.itemImage}
@@ -120,11 +117,13 @@ export default function CategoryBrowseScreen() {
           </View>
         )}
       </View>
-      
+
       <View style={styles.itemDetails}>
-        <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.itemTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
         <Text style={styles.itemPrice}>${Number(item.price).toFixed(2)}</Text>
-        
+
         {item.accepts_swap_points && (
           <View style={styles.spBadge}>
             <Text style={styles.spBadgeText}>✓ SP Eligible</Text>
@@ -139,7 +138,7 @@ export default function CategoryBrowseScreen() {
       <Text style={styles.emptyIcon}>🔍</Text>
       <Text style={styles.emptyTitle}>No items found</Text>
       <Text style={styles.emptyText}>
-        {spEligibleOnly 
+        {spEligibleOnly
           ? `There are no SP-eligible items in ${category} right now.`
           : `Be the first to list something in ${category}!`}
       </Text>
@@ -149,7 +148,7 @@ export default function CategoryBrowseScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {renderHeader()}
-      
+
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3b82f6" />

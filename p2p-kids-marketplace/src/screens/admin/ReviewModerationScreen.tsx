@@ -127,9 +127,7 @@ export function ReviewModerationScreen() {
               {report.description && (
                 <Text style={styles.reportDescription}>{report.description}</Text>
               )}
-              <Text style={styles.reportDate}>
-                {new Date(report.created_at).toLocaleString()}
-              </Text>
+              <Text style={styles.reportDate}>{new Date(report.created_at).toLocaleString()}</Text>
             </View>
           ))}
         </View>
@@ -180,16 +178,12 @@ export function ReviewModerationScreen() {
         keyExtractor={(item) => item.review.id}
         renderItem={renderReportedReview}
         contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="checkmark-circle-outline" size={64} color="#10B981" />
             <Text style={styles.emptyText}>No reported reviews</Text>
-            <Text style={styles.emptySubtext}>
-              All reviews are in good standing
-            </Text>
+            <Text style={styles.emptySubtext}>All reviews are in good standing</Text>
           </View>
         }
       />

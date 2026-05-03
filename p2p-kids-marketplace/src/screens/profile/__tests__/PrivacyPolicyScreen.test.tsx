@@ -200,7 +200,7 @@ describe('PrivacyPolicyScreen', () => {
       fireEvent.press(getByTestId('privacy-policy-accept-button'));
 
       await waitFor(() => {
-       expect(mockGoBack).toHaveBeenCalled();
+        expect(mockGoBack).toHaveBeenCalled();
       });
     });
 

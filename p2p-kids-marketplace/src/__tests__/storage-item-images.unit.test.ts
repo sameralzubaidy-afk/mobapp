@@ -2,12 +2,17 @@
  * Unit Tests: Storage Service - Item Images Bucket
  * Module: MODULE-13-SAFETY-COMPLIANCE
  * Task: SAFETY-P001
- * 
+ *
  * Tests the storage service functions for uploading/deleting item images
  * to the 'item-images' bucket with mocked Supabase client.
  */
 
-import { uploadImage, uploadMultipleImages, deleteImage, deleteMultipleImages } from '../../src/services/supabase/storage';
+import {
+  uploadImage,
+  uploadMultipleImages,
+  deleteImage,
+  deleteMultipleImages,
+} from '../../src/services/supabase/storage';
 import * as FileSystem from 'expo-file-system/legacy';
 
 jest.mock('expo-file-system/legacy', () => ({
@@ -59,7 +64,10 @@ describe('Storage Service - Item Images', () => {
       });
 
       const mockGetPublicUrl = jest.fn().mockReturnValue({
-        data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg' },
+        data: {
+          publicUrl:
+            'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg',
+        },
       });
 
       supabase.storage.from.mockReturnValue({
@@ -74,11 +82,11 @@ describe('Storage Service - Item Images', () => {
       );
 
       expect(supabase.storage.from).toHaveBeenCalledWith('item-images');
-      expect(mockUpload).toHaveBeenCalledWith(
-        'test-item-id/photo1.jpg',
-        expect.any(ArrayBuffer),
-        { cacheControl: '3600', upsert: false, contentType: 'image/jpeg' }
-      );
+      expect(mockUpload).toHaveBeenCalledWith('test-item-id/photo1.jpg', expect.any(ArrayBuffer), {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: 'image/jpeg',
+      });
       expect(result.error).toBeNull();
       expect(result.path).toBe('test-item-id/photo1.jpg');
       expect(result.url).toContain('item-images/test-item-id/photo1.jpg');
@@ -135,7 +143,10 @@ describe('Storage Service - Item Images', () => {
       });
 
       const mockGetPublicUrl = jest.fn().mockReturnValue({
-        data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg' },
+        data: {
+          publicUrl:
+            'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg',
+        },
       });
 
       supabase.storage.from.mockReturnValue({
@@ -143,24 +154,22 @@ describe('Storage Service - Item Images', () => {
         getPublicUrl: mockGetPublicUrl,
       });
 
-      await uploadImage(
-        'item-images',
-        'test-item-id/photo1.jpg',
-        'file://photo1.jpg',
-        { upsert: true }
-      );
+      await uploadImage('item-images', 'test-item-id/photo1.jpg', 'file://photo1.jpg', {
+        upsert: true,
+      });
 
-      expect(mockUpload).toHaveBeenCalledWith(
-        'test-item-id/photo1.jpg',
-        expect.any(ArrayBuffer),
-        { cacheControl: '3600', upsert: true, contentType: 'image/jpeg' }
-      );
+      expect(mockUpload).toHaveBeenCalledWith('test-item-id/photo1.jpg', expect.any(ArrayBuffer), {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: 'image/jpeg',
+      });
     });
   });
 
   describe('uploadMultipleImages', () => {
     it('should upload multiple images in parallel', async () => {
-      const mockUpload = jest.fn()
+      const mockUpload = jest
+        .fn()
         .mockResolvedValueOnce({
           data: { path: 'test-item-id/photo1.jpg' },
           error: null,
@@ -203,7 +212,10 @@ describe('Storage Service - Item Images', () => {
       supabase.storage.from.mockReturnValue({
         remove: mockRemove,
         getPublicUrl: jest.fn().mockReturnValue({
-          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg' },
+          data: {
+            publicUrl:
+              'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg',
+          },
         }),
       });
 
@@ -224,7 +236,10 @@ describe('Storage Service - Item Images', () => {
       supabase.storage.from.mockReturnValue({
         remove: mockRemove,
         getPublicUrl: jest.fn().mockReturnValue({
-          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/nonexistent.jpg' },
+          data: {
+            publicUrl:
+              'https://supabase.co/storage/v1/object/public/item-images/test-item-id/nonexistent.jpg',
+          },
         }),
       });
 
@@ -245,7 +260,10 @@ describe('Storage Service - Item Images', () => {
       supabase.storage.from.mockReturnValue({
         remove: mockRemove,
         getPublicUrl: jest.fn().mockReturnValue({
-          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg' },
+          data: {
+            publicUrl:
+              'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg',
+          },
         }),
       });
 
@@ -280,7 +298,10 @@ describe('Storage Service - Item Images', () => {
       supabase.storage.from.mockReturnValue({
         remove: mockRemove,
         getPublicUrl: jest.fn().mockReturnValue({
-          data: { publicUrl: 'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg' },
+          data: {
+            publicUrl:
+              'https://supabase.co/storage/v1/object/public/item-images/test-item-id/photo1.jpg',
+          },
         }),
       });
 
@@ -301,7 +322,7 @@ describe('Storage Service - Item Images', () => {
     it('should only allow sellers to upload to their own item folders (conceptual test)', () => {
       // This is a conceptual test - actual RLS is enforced by Supabase
       // In real scenario: seller with seller_id = 'user-123' tries to upload to item they own
-      
+
       const currentUserId = 'user-123';
       const itemOwnerId = 'user-123';
       const canUpload = currentUserId === itemOwnerId;

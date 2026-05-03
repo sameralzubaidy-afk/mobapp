@@ -1,7 +1,7 @@
 /**
  * E2E Integration Tests for Discovery V3 Services
  * MODULE-05-DISCOVERY-V3: TASK DISCOVERY-V3-003
- * 
+ *
  * Tests services layer against production Supabase
  * Run with: RUN_SUPABASE_E2E=true npm run test:e2e -- discovery-v3-003
  */

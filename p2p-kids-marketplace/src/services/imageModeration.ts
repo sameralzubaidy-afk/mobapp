@@ -54,7 +54,10 @@ export const isImageModerationEnabled = async (): Promise<boolean> => {
 
     return String(rawValue).toLowerCase() === 'true';
   } catch (error) {
-    console.warn('[imageModeration] Error reading moderation_ai_enabled, defaulting to enabled:', error);
+    console.warn(
+      '[imageModeration] Error reading moderation_ai_enabled, defaulting to enabled:',
+      error
+    );
     return true;
   }
 };

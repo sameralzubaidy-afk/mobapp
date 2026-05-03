@@ -1,14 +1,14 @@
 /**
  * E2E Test: Message Expiration Flow
  * Module: MODULE-07 MSG-004
- * 
+ *
  * Tests the complete message expiration workflow:
  * 1. Create trade and messages
  * 2. Complete trade
  * 3. Simulate time passing (30+ days)
  * 4. Run cleanup function
  * 5. Verify messages are soft deleted
- * 
+ *
  * Run: npm test -- e2e/message-expiration.e2e.ts
  */
 
@@ -24,7 +24,9 @@ describe('E2E: Message Expiration Flow', () => {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase credentials. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for E2E tests.');
+      throw new Error(
+        'Missing Supabase credentials. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for E2E tests.'
+      );
     }
 
     // Use service role key for E2E tests (can bypass RLS)
@@ -34,10 +36,7 @@ describe('E2E: Message Expiration Flow', () => {
   afterAll(async () => {
     // Cleanup: Delete test messages
     if (testMessageIds.length > 0) {
-      await supabase
-        .from('messages')
-        .delete()
-        .in('id', testMessageIds);
+      await supabase.from('messages').delete().in('id', testMessageIds);
     }
 
     // Note: We don't delete the trade because it might affect other data
@@ -63,8 +62,16 @@ describe('E2E: Message Expiration Flow', () => {
 
     // STEP 2: Create test messages for this trade
     const testMessages = [
-      { trade_id: testTradeId, sender_id: '00000000-0000-0000-0000-000000000001', content: 'Test message 1' },
-      { trade_id: testTradeId, sender_id: '00000000-0000-0000-0000-000000000002', content: 'Test message 2' },
+      {
+        trade_id: testTradeId,
+        sender_id: '00000000-0000-0000-0000-000000000001',
+        content: 'Test message 1',
+      },
+      {
+        trade_id: testTradeId,
+        sender_id: '00000000-0000-0000-0000-000000000002',
+        content: 'Test message 2',
+      },
     ];
 
     const { data: createdMessages, error: createError } = await supabase
@@ -143,7 +150,11 @@ describe('E2E: Message Expiration Flow', () => {
     // Create test message for recent trade
     const { data: recentMessage } = await supabase
       .from('messages')
-      .insert({ trade_id: recentTradeId, sender_id: '00000000-0000-0000-0000-000000000001', content: 'Recent message' })
+      .insert({
+        trade_id: recentTradeId,
+        sender_id: '00000000-0000-0000-0000-000000000001',
+        content: 'Recent message',
+      })
       .select('id')
       .single();
 
@@ -203,7 +214,7 @@ describe('E2E: Message Expiration Flow', () => {
     const response = await fetch(functionUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${anonKey}`,
+        Authorization: `Bearer ${anonKey}`,
         'Content-Type': 'application/json',
       },
     });

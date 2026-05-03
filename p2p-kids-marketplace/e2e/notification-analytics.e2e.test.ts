@@ -2,7 +2,7 @@
  * FILE: p2p-kids-marketplace/e2e/notification-analytics.e2e.test.ts
  * MODULE: MODULE-14-NOTIFICATIONS-V2 (NOTIF-V2-010)
  * TASK: E2E Tests for Notification Analytics
- * 
+ *
  * Integration tests against staging Supabase
  * Run with: RUN_SUPABASE_E2E=true npm run test:e2e
  */
@@ -85,10 +85,7 @@ describe('Notification Analytics E2E', () => {
 
     // Clean up test notification
     if (testNotificationId) {
-      await supabase
-        .from('user_notifications')
-        .delete()
-        .eq('id', testNotificationId);
+      await supabase.from('user_notifications').delete().eq('id', testNotificationId);
     }
   });
 

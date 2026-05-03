@@ -127,15 +127,21 @@ describe('SP Expiration Service Unit Tests', () => {
 
       // Calculate days remaining at various points using floor division (UTC-safe)
       const day1 = new Date('2024-01-16T00:00:00Z');
-      const daysRemaining1 = Math.floor((expiryDate.getTime() - day1.getTime()) / (1000 * 60 * 60 * 24));
+      const daysRemaining1 = Math.floor(
+        (expiryDate.getTime() - day1.getTime()) / (1000 * 60 * 60 * 24)
+      );
       expect(daysRemaining1).toBe(89);
 
       const day60 = new Date('2024-03-15T00:00:00Z');
-      const daysRemaining60 = Math.floor((expiryDate.getTime() - day60.getTime()) / (1000 * 60 * 60 * 24));
+      const daysRemaining60 = Math.floor(
+        (expiryDate.getTime() - day60.getTime()) / (1000 * 60 * 60 * 24)
+      );
       expect(daysRemaining60).toBe(30); // March 15 to April 14 = 30 days
 
       const day83 = new Date('2024-04-07T00:00:00Z');
-      const daysRemaining83 = Math.floor((expiryDate.getTime() - day83.getTime()) / (1000 * 60 * 60 * 24));
+      const daysRemaining83 = Math.floor(
+        (expiryDate.getTime() - day83.getTime()) / (1000 * 60 * 60 * 24)
+      );
       expect(daysRemaining83).toBe(7); // April 7 to April 14 = 7 days
 
       // Check warning colors at each point

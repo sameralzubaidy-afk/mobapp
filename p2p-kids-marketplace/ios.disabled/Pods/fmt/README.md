@@ -3,7 +3,7 @@
 [![image](https://github.com/fmtlib/fmt/workflows/linux/badge.svg)](https://github.com/fmtlib/fmt/actions?query=workflow%3Alinux)
 [![image](https://github.com/fmtlib/fmt/workflows/macos/badge.svg)](https://github.com/fmtlib/fmt/actions?query=workflow%3Amacos)
 [![image](https://github.com/fmtlib/fmt/workflows/windows/badge.svg)](https://github.com/fmtlib/fmt/actions?query=workflow%3Awindows)
-[![fmt is continuously fuzzed at oss-fuzz](https://oss-fuzz-build-logs.storage.googleapis.com/badges/fmt.svg)](https://bugs.chromium.org/p/oss-fuzz/issues/list?\%0Acolspec=ID%20Type%20Component%20Status%20Proj%20Reported%20Owner%20\%0ASummary&q=proj%3Dfmt&can=1)
+[![fmt is continuously fuzzed at oss-fuzz](https://oss-fuzz-build-logs.storage.googleapis.com/badges/fmt.svg)](https://bugs.chromium.org/p/oss-fuzz/issues/list?%0Acolspec=ID%20Type%20Component%20Status%20Proj%20Reported%20Owner%20%0ASummary&q=proj%3Dfmt&can=1)
 [![Ask questions at StackOverflow with the tag fmt](https://img.shields.io/badge/stackoverflow-fmt-blue.svg)](https://stackoverflow.com/questions/tagged/fmt)
 [![image](https://api.securityscorecards.dev/projects/github.com/fmtlib/fmt/badge)](https://securityscorecards.dev/viewer/?uri=github.com/fmtlib/fmt)
 
@@ -73,7 +73,7 @@ See the [documentation](https://fmt.dev) for more details.
 
 **Print to stdout** ([run](https://godbolt.org/z/Tevcjh))
 
-``` c++
+```c++
 #include <fmt/core.h>
 
 int main() {
@@ -83,7 +83,7 @@ int main() {
 
 **Format a string** ([run](https://godbolt.org/z/oK8h33))
 
-``` c++
+```c++
 std::string s = fmt::format("The answer is {}.", 42);
 // s == "The answer is 42."
 ```
@@ -91,14 +91,14 @@ std::string s = fmt::format("The answer is {}.", 42);
 **Format a string using positional arguments**
 ([run](https://godbolt.org/z/Yn7Txe))
 
-``` c++
+```c++
 std::string s = fmt::format("I'd rather be {1} than {0}.", "right", "happy");
 // s == "I'd rather be happy than right."
 ```
 
 **Print dates and times** ([run](https://godbolt.org/z/c31ExdY3W))
 
-``` c++
+```c++
 #include <fmt/chrono.h>
 
 int main() {
@@ -115,7 +115,7 @@ Output:
 
 **Print a container** ([run](https://godbolt.org/z/MxM1YqjE7))
 
-``` c++
+```c++
 #include <vector>
 #include <fmt/ranges.h>
 
@@ -131,7 +131,7 @@ Output:
 
 **Check a format string at compile time**
 
-``` c++
+```c++
 std::string s = fmt::format("{:d}", "I am not a number");
 ```
 
@@ -140,7 +140,7 @@ format specifier for a string.
 
 **Write a file from a single thread**
 
-``` c++
+```c++
 #include <fmt/os.h>
 
 int main() {
@@ -154,7 +154,7 @@ fprintf](http://www.zverovich.net/2020/08/04/optimal-file-buffer-size.html).
 
 **Print with colors and text styles**
 
-``` c++
+```c++
 #include <fmt/color.h>
 
 int main() {
@@ -176,12 +176,12 @@ Output on a modern terminal with Unicode support:
 ## Speed tests
 
 | Library           | Method        | Run Time, s |
-|-------------------|---------------|-------------|
-| libc              | printf        |   0.91      |
-| libc++            | std::ostream  |   2.49      |
-| {fmt} 9.1         | fmt::print    |   0.74      |
-| Boost Format 1.80 | boost::format |   6.26      |
-| Folly Format      | folly::format |   1.87      |
+| ----------------- | ------------- | ----------- |
+| libc              | printf        | 0.91        |
+| libc++            | std::ostream  | 2.49        |
+| {fmt} 9.1         | fmt::print    | 0.74        |
+| Boost Format 1.80 | boost::format | 6.26        |
+| Folly Format      | folly::format | 1.87        |
 
 {fmt} is the fastest of the benchmarked methods, \~20% faster than
 `printf`.
@@ -215,13 +215,13 @@ in the following tables.
 
 **Optimized build (-O3)**
 
-| Method        | Compile Time, s | Executable size, KiB | Stripped size, KiB |
-|---------------|-----------------|----------------------|--------------------|
-| printf        |             1.6 |                   54 |                 50 |
-| IOStreams     |            25.9 |                   98 |                 84 |
-| fmt 83652df   |             4.8 |                   54 |                 50 |
-| tinyformat    |            29.1 |                  161 |                136 |
-| Boost Format  |            55.0 |                  530 |                317 |
+| Method       | Compile Time, s | Executable size, KiB | Stripped size, KiB |
+| ------------ | --------------- | -------------------- | ------------------ |
+| printf       | 1.6             | 54                   | 50                 |
+| IOStreams    | 25.9            | 98                   | 84                 |
+| fmt 83652df  | 4.8             | 54                   | 50                 |
+| tinyformat   | 29.1            | 161                  | 136                |
+| Boost Format | 55.0            | 530                  | 317                |
 
 {fmt} is fast to compile and is comparable to `printf` in terms of per-call
 binary size (within a rounding error on this system).
@@ -229,12 +229,12 @@ binary size (within a rounding error on this system).
 **Non-optimized build**
 
 | Method        | Compile Time, s | Executable size, KiB | Stripped size, KiB |
-|---------------|-----------------|----------------------|--------------------|
-| printf        |             1.4 |                   54 |                 50 |
-| IOStreams     |            23.4 |                   92 |                 68 |
-| {fmt} 83652df |             4.4 |                   89 |                 85 |
-| tinyformat    |            24.5 |                  204 |                161 |
-| Boost Format  |            36.4 |                  831 |                462 |
+| ------------- | --------------- | -------------------- | ------------------ |
+| printf        | 1.4             | 54                   | 50                 |
+| IOStreams     | 23.4            | 92                   | 68                 |
+| {fmt} 83652df | 4.4             | 89                   | 85                 |
+| tinyformat    | 24.5            | 204                  | 161                |
+| Boost Format  | 36.4            | 831                  | 462                |
 
 `libc`, `lib(std)c++`, and `libfmt` are all linked as shared libraries
 to compare formatting function overhead only. Boost Format is a
@@ -400,13 +400,13 @@ platforms.
 
 The main issue with iostreams is best illustrated with an example:
 
-``` c++
+```c++
 std::cout << std::setprecision(2) << std::fixed << 1.23456 << "\n";
 ```
 
 which is a lot of typing compared to printf:
 
-``` c++
+```c++
 printf("%.2f\n", 1.23456);
 ```
 
@@ -480,5 +480,5 @@ To report a security issue, please disclose it at [security
 advisory](https://github.com/fmtlib/fmt/security/advisories/new).
 
 This project is maintained by a team of volunteers on a
-reasonable-effort basis. As such, please give us at least *90* days to
+reasonable-effort basis. As such, please give us at least _90_ days to
 work on a fix before public exposure.

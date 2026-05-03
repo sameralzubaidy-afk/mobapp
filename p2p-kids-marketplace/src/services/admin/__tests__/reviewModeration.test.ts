@@ -1,11 +1,7 @@
 // File: p2p-kids-marketplace/src/services/admin/__tests__/reviewModeration.test.ts
 // Unit tests for admin review moderation (TASK REVIEW-006/007)
 
-import {
-  getReportedReviews,
-  approveReview,
-  deleteReview,
-} from '../reviewModeration';
+import { getReportedReviews, approveReview, deleteReview } from '../reviewModeration';
 import { supabase } from '../../supabase';
 
 jest.mock('../../supabase', () => ({

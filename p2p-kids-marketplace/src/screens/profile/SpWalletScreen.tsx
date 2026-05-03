@@ -21,10 +21,10 @@ import { useAuth } from '@/hooks/useAuth';
 export default function SpWalletScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
-  
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   const [walletSummary, setWalletSummary] = useState({
     available_points: 0,
     pending_points: 0,
@@ -32,7 +32,7 @@ export default function SpWalletScreen() {
     lifetime_spent: 0,
     wallet_state: 'inactive',
   });
-  
+
   const [ledgerHistory, setLedgerHistory] = useState<SPLedgerEntry[]>([]);
   const [expiringBatches, setExpiringBatches] = useState<SPBatch[]>([]);
 
@@ -44,7 +44,7 @@ export default function SpWalletScreen() {
 
   const loadWalletData = async () => {
     if (!user?.id) return;
-    
+
     setLoading(true);
     try {
       // Load wallet summary
@@ -75,18 +75,18 @@ export default function SpWalletScreen() {
     <View style={styles.balanceCard}>
       <Text style={styles.balanceLabel}>Available Balance</Text>
       <Text style={styles.balanceAmount}>{walletSummary.available_points} SP</Text>
-      
+
       <View style={styles.statsRow}>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Pending</Text>
           <Text style={styles.statValue}>{walletSummary.pending_points} SP</Text>
         </View>
-        
+
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Lifetime Earned</Text>
           <Text style={styles.statValue}>{walletSummary.lifetime_earned} SP</Text>
         </View>
-        
+
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Lifetime Spent</Text>
           <Text style={styles.statValue}>{walletSummary.lifetime_spent} SP</Text>
@@ -95,17 +95,13 @@ export default function SpWalletScreen() {
 
       {walletSummary.wallet_state === 'frozen' && (
         <View style={styles.frozenBanner}>
-          <Text style={styles.frozenText}>
-            ⚠️ Wallet Frozen - Renew subscription to access SP
-          </Text>
+          <Text style={styles.frozenText}>⚠️ Wallet Frozen - Renew subscription to access SP</Text>
         </View>
       )}
 
       {walletSummary.wallet_state === 'grace_period' && (
         <View style={styles.graceBanner}>
-          <Text style={styles.graceText}>
-            ⏳ Grace Period Active - Renew soon to keep your SP
-          </Text>
+          <Text style={styles.graceText}>⏳ Grace Period Active - Renew soon to keep your SP</Text>
         </View>
       )}
     </View>
@@ -119,10 +115,8 @@ export default function SpWalletScreen() {
     return (
       <View style={styles.expiringBanner}>
         <Text style={styles.expiringTitle}>⚠️ SP Expiring Soon</Text>
-        <Text style={styles.expiringText}>
-          {totalExpiring} SP will expire in the next 30 days
-        </Text>
-        <TouchableOpacity 
+        <Text style={styles.expiringText}>{totalExpiring} SP will expire in the next 30 days</Text>
+        <TouchableOpacity
           style={styles.expiringButton}
           onPress={() => {
             // Navigate to expiring batches detail screen (future)
@@ -145,19 +139,16 @@ export default function SpWalletScreen() {
           <Text style={styles.ledgerIcon}>{icon}</Text>
           <View>
             <Text style={styles.ledgerDescription}>{entry.description}</Text>
-            <Text style={styles.ledgerDate}>
-              {new Date(entry.created_at).toLocaleDateString()}
-            </Text>
+            <Text style={styles.ledgerDate}>{new Date(entry.created_at).toLocaleDateString()}</Text>
           </View>
         </View>
-        
+
         <View style={styles.ledgerRight}>
           <Text style={[styles.ledgerAmount, { color }]}>
-            {isEarn ? '+' : ''}{entry.amount} SP
+            {isEarn ? '+' : ''}
+            {entry.amount} SP
           </Text>
-          <Text style={styles.ledgerBalance}>
-            Balance: {entry.balance_after} SP
-          </Text>
+          <Text style={styles.ledgerBalance}>Balance: {entry.balance_after} SP</Text>
         </View>
       </View>
     );
@@ -175,16 +166,14 @@ export default function SpWalletScreen() {
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
       {renderBalanceCard()}
       {renderExpiringBanner()}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Transaction History</Text>
-        
+
         {ledgerHistory.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>No transactions yet</Text>

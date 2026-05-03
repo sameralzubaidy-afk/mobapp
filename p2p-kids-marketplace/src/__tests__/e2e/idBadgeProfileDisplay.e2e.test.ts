@@ -37,7 +37,9 @@ describeE2E('BADGE-013: ID Badge Profile Display E2E', () => {
 
   const shouldSkipCase = (): boolean => {
     if (!canRunSuite) {
-      console.warn(`[BADGE-013 E2E] Skipping case: ${skipReason || 'suite preconditions unavailable'}`);
+      console.warn(
+        `[BADGE-013 E2E] Skipping case: ${skipReason || 'suite preconditions unavailable'}`
+      );
       return true;
     }
 
@@ -57,10 +59,7 @@ describeE2E('BADGE-013: ID Badge Profile Display E2E', () => {
     if (!testUserId) return;
 
     const client = adminSupabase ?? supabase;
-    await client
-      .from('id_badge_verification_requests')
-      .delete()
-      .eq('user_id', testUserId);
+    await client.from('id_badge_verification_requests').delete().eq('user_id', testUserId);
   }
 
   beforeAll(async () => {
@@ -110,10 +109,7 @@ describeE2E('BADGE-013: ID Badge Profile Display E2E', () => {
   afterEach(async () => {
     // Cleanup: Delete test request if created
     if (testRequestId) {
-      await supabase
-        .from('id_badge_verification_requests')
-        .delete()
-        .eq('id', testRequestId);
+      await supabase.from('id_badge_verification_requests').delete().eq('id', testRequestId);
       testRequestId = '';
     }
 
@@ -129,64 +125,70 @@ describeE2E('BADGE-013: ID Badge Profile Display E2E', () => {
       });
     });
 
-    itIfRunnable('should return "pending" status with submission date for pending request', async () => {
-      // Create pending request
-      const { data: request, error } = await supabase
-        .from('id_badge_verification_requests')
-        .insert({
-          user_id: testUserId,
-          status: 'pending',
-          submitted_at: new Date().toISOString(),
-          first_name: 'Test',
-          last_name: 'User',
-          email: 'test@example.com',
-        })
-        .select('id')
-        .single();
+    itIfRunnable(
+      'should return "pending" status with submission date for pending request',
+      async () => {
+        // Create pending request
+        const { data: request, error } = await supabase
+          .from('id_badge_verification_requests')
+          .insert({
+            user_id: testUserId,
+            status: 'pending',
+            submitted_at: new Date().toISOString(),
+            first_name: 'Test',
+            last_name: 'User',
+            email: 'test@example.com',
+          })
+          .select('id')
+          .single();
 
-      if (error || !request) {
-        throw new Error('Failed to create test request');
+        if (error || !request) {
+          throw new Error('Failed to create test request');
+        }
+
+        testRequestId = request.id;
+
+        const status = await idBadgeService.getVerificationStatus(testUserId);
+
+        expect(status.status).toBe('pending');
+        expect(status.submittedAt).toBeDefined();
+        expect(typeof status.submittedAt).toBe('string');
       }
+    );
 
-      testRequestId = request.id;
+    itIfRunnable(
+      'should return "approved" status with review date for approved request',
+      async () => {
+        const reviewedAt = new Date().toISOString();
 
-      const status = await idBadgeService.getVerificationStatus(testUserId);
+        // Create approved request
+        const { data: request, error } = await supabase
+          .from('id_badge_verification_requests')
+          .insert({
+            user_id: testUserId,
+            status: 'approved',
+            submitted_at: new Date(Date.now() + 86400000).toISOString(),
+            reviewed_at: reviewedAt,
+            first_name: 'Test',
+            last_name: 'User',
+            email: 'test@example.com',
+          })
+          .select('id')
+          .single();
 
-      expect(status.status).toBe('pending');
-      expect(status.submittedAt).toBeDefined();
-      expect(typeof status.submittedAt).toBe('string');
-    });
+        if (error || !request) {
+          throw new Error('Failed to create test request');
+        }
 
-    itIfRunnable('should return "approved" status with review date for approved request', async () => {
-      const reviewedAt = new Date().toISOString();
+        testRequestId = request.id;
 
-      // Create approved request
-      const { data: request, error } = await supabase
-        .from('id_badge_verification_requests')
-        .insert({
-          user_id: testUserId,
-          status: 'approved',
-          submitted_at: new Date(Date.now() + 86400000).toISOString(),
-          reviewed_at: reviewedAt,
-          first_name: 'Test',
-          last_name: 'User',
-          email: 'test@example.com',
-        })
-        .select('id')
-        .single();
+        const status = await idBadgeService.getVerificationStatus(testUserId);
 
-      if (error || !request) {
-        throw new Error('Failed to create test request');
+        expect(status.status).toBe('approved');
+        expect(status.reviewedAt).toBeDefined();
+        expect(typeof status.reviewedAt).toBe('string');
       }
-
-      testRequestId = request.id;
-
-      const status = await idBadgeService.getVerificationStatus(testUserId);
-
-      expect(status.status).toBe('approved');
-      expect(status.reviewedAt).toBeDefined();
-      expect(typeof status.reviewedAt).toBe('string');
-    });
+    );
 
     itIfRunnable('should return "rejected" status with reason and notes', async () => {
       const rejectionReason = 'unclear_photo';
@@ -392,63 +394,66 @@ describeE2E('BADGE-013: ID Badge Profile Display E2E', () => {
       expect(status.reviewedAt).toBeDefined();
     });
 
-    itIfRunnable('should handle status transition from rejected to pending (resubmission)', async () => {
-      // Create rejected request
-      const { data: oldRequest, error: oldError } = await supabase
-        .from('id_badge_verification_requests')
-        .insert({
-          user_id: testUserId,
-          status: 'rejected',
-          submitted_at: new Date(Date.now() + 86400000).toISOString(),
-          reviewed_at: new Date().toISOString(),
-          rejection_reason: 'unclear_photo',
-          rejection_notes: 'Please retake',
-          first_name: 'Test',
-          last_name: 'User',
-          email: 'test@example.com',
-        })
-        .select('id')
-        .single();
+    itIfRunnable(
+      'should handle status transition from rejected to pending (resubmission)',
+      async () => {
+        // Create rejected request
+        const { data: oldRequest, error: oldError } = await supabase
+          .from('id_badge_verification_requests')
+          .insert({
+            user_id: testUserId,
+            status: 'rejected',
+            submitted_at: new Date(Date.now() + 86400000).toISOString(),
+            reviewed_at: new Date().toISOString(),
+            rejection_reason: 'unclear_photo',
+            rejection_notes: 'Please retake',
+            first_name: 'Test',
+            last_name: 'User',
+            email: 'test@example.com',
+          })
+          .select('id')
+          .single();
 
-      if (oldError || !oldRequest) {
-        throw new Error('Failed to create rejected request');
+        if (oldError || !oldRequest) {
+          throw new Error('Failed to create rejected request');
+        }
+
+        // Verify rejected status
+        let status = await idBadgeService.getVerificationStatus(testUserId);
+        expect(status.status).toBe('rejected');
+
+        // User resubmits (creates new pending request)
+        const { data: newRequest, error: newError } = await supabase
+          .from('id_badge_verification_requests')
+          .insert({
+            user_id: testUserId,
+            status: 'pending',
+            submitted_at: new Date(Date.now() + 2 * 86400000).toISOString(),
+            first_name: 'Test',
+            last_name: 'User',
+            email: 'test@example.com',
+          })
+          .select('id')
+          .single();
+
+        if (newError || !newRequest) {
+          throw new Error('Failed to create new request');
+        }
+
+        testRequestId = newRequest.id;
+
+        // Verify new pending status (most recent)
+        status = await idBadgeService.getVerificationStatus(testUserId);
+        expect(status.status).toBe('pending');
+
+        // Cleanup
+        await supabase
+          .from('id_badge_verification_requests')
+          .delete()
+          .in('id', [oldRequest.id, newRequest.id]);
+
+        testRequestId = '';
       }
-
-      // Verify rejected status
-      let status = await idBadgeService.getVerificationStatus(testUserId);
-      expect(status.status).toBe('rejected');
-
-      // User resubmits (creates new pending request)
-      const { data: newRequest, error: newError } = await supabase
-        .from('id_badge_verification_requests')
-        .insert({
-          user_id: testUserId,
-          status: 'pending',
-          submitted_at: new Date(Date.now() + 2 * 86400000).toISOString(),
-          first_name: 'Test',
-          last_name: 'User',
-          email: 'test@example.com',
-        })
-        .select('id')
-        .single();
-
-      if (newError || !newRequest) {
-        throw new Error('Failed to create new request');
-      }
-
-      testRequestId = newRequest.id;
-
-      // Verify new pending status (most recent)
-      status = await idBadgeService.getVerificationStatus(testUserId);
-      expect(status.status).toBe('pending');
-
-      // Cleanup
-      await supabase
-        .from('id_badge_verification_requests')
-        .delete()
-        .in('id', [oldRequest.id, newRequest.id]);
-
-      testRequestId = '';
-    });
+    );
   });
 });

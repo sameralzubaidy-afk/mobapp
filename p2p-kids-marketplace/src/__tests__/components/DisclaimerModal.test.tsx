@@ -16,12 +16,16 @@ jest.mock('@/config/supabase', () => ({
 }));
 
 // Mock Markdown component
-jest.mock('react-native-markdown-display', () => {
-  const { Text } = require('react-native');
-  return function Markdown({ children }: any) {
-    return <Text>{children}</Text>;
-  };
-}, { virtual: true });
+jest.mock(
+  'react-native-markdown-display',
+  () => {
+    const { Text } = require('react-native');
+    return function Markdown({ children }: any) {
+      return <Text>{children}</Text>;
+    };
+  },
+  { virtual: true }
+);
 
 describe('DisclaimerModal', () => {
   const mockPolicy = {
@@ -50,11 +54,7 @@ describe('DisclaimerModal', () => {
       );
 
       const { getByTestId } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -73,11 +73,7 @@ describe('DisclaimerModal', () => {
 
     it('renders disclaimer content after successful fetch', async () => {
       const { getByText } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -88,11 +84,7 @@ describe('DisclaimerModal', () => {
 
     it('displays checkbox and buttons', async () => {
       const { getByTestId, getByText } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -104,11 +96,7 @@ describe('DisclaimerModal', () => {
 
     it('accept button is disabled until checkbox is checked', async () => {
       const { getByTestId } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -119,11 +107,7 @@ describe('DisclaimerModal', () => {
 
     it('enables accept button after checkbox is checked', async () => {
       const { getByTestId } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -139,11 +123,7 @@ describe('DisclaimerModal', () => {
 
     it('calls onAccept with policy ID when accept button is pressed', async () => {
       const { getByTestId } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -161,11 +141,7 @@ describe('DisclaimerModal', () => {
 
     it('calls onCancel when cancel button is pressed', async () => {
       const { getByTestId } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -178,11 +154,7 @@ describe('DisclaimerModal', () => {
 
     it('calls onCancel when close button (X) is pressed', async () => {
       const { getByTestId } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -195,11 +167,7 @@ describe('DisclaimerModal', () => {
 
     it('resets checkbox when modal is reopened', async () => {
       const { getByTestId, rerender } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       // Check the checkbox
@@ -209,22 +177,10 @@ describe('DisclaimerModal', () => {
       });
 
       // Close modal
-      rerender(
-        <DisclaimerModal
-          visible={false}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
-      );
+      rerender(<DisclaimerModal visible={false} onAccept={mockOnAccept} onCancel={mockOnCancel} />);
 
       // Reopen modal
-      rerender(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
-      );
+      rerender(<DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />);
 
       await waitFor(() => {
         const acceptButton = getByTestId('disclaimer-modal-accept-button');
@@ -242,11 +198,7 @@ describe('DisclaimerModal', () => {
       });
 
       const { getByText } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -261,11 +213,7 @@ describe('DisclaimerModal', () => {
       });
 
       const { getByText } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -280,11 +228,7 @@ describe('DisclaimerModal', () => {
       });
 
       const { getByText } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -300,11 +244,7 @@ describe('DisclaimerModal', () => {
       });
 
       const { getByText, rerender } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {
@@ -336,11 +276,7 @@ describe('DisclaimerModal', () => {
 
     it('has proper accessibility labels', async () => {
       const { getByTestId } = render(
-        <DisclaimerModal
-          visible={true}
-          onAccept={mockOnAccept}
-          onCancel={mockOnCancel}
-        />
+        <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 
       await waitFor(() => {

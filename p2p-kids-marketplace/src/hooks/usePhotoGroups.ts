@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/hooks/usePhotoGroups.ts
  * MODULE-04 LISTING-V3-004: Photo Groups Hook
- * 
+ *
  * Provides photo grouping state management for bulk listing with:
  * - Add/remove/reorder photos
  * - Regroup photos between items
@@ -39,19 +39,17 @@ export interface UsePhotoGroupsResult {
 
 /**
  * Hook for managing photo groups in bulk listing
- * 
+ *
  * Features:
  * - Enforces caps: 10 photos/group, 30 total, 15 groups
  * - Returns errors array instead of throwing
  * - Immutable operations (returns new state)
  * - Preserves intra-group order on regroup
- * 
+ *
  * @param initialGroups - Optional initial groups state
  * @returns Photo groups state and control methods
  */
-export function usePhotoGroups(
-  initialGroups: PhotoGroup[] = []
-): UsePhotoGroupsResult {
+export function usePhotoGroups(initialGroups: PhotoGroup[] = []): UsePhotoGroupsResult {
   const [groups, setGroups] = useState<PhotoGroup[]>(initialGroups);
   const [errors, setErrors] = useState<PhotoGroupError[]>([]);
 
@@ -69,88 +67,94 @@ export function usePhotoGroups(
   }, []);
 
   // Add photos to a new or existing group
-  const addPhotos = useCallback((photos: PhotoAsset[]) => {
-    clearErrors();
+  const addPhotos = useCallback(
+    (photos: PhotoAsset[]) => {
+      clearErrors();
 
-    // Check total photos cap
-    if (totalPhotos + photos.length > MAX_PHOTOS_TOTAL) {
-      addError({
-        type: 'max_photos_total',
-        message: `Cannot add ${photos.length} photos. Maximum ${MAX_PHOTOS_TOTAL} total photos allowed.`,
-      });
-      return;
-    }
-
-    // Create new group for photos or add to last group if space available
-    setGroups((prev) => {
-      const newGroups = [...prev];
-      const remainingPhotos = [...photos];
-
-      // Try to fill last group first
-      if (newGroups.length > 0) {
-        const lastGroup = newGroups[newGroups.length - 1];
-        const availableSpace = MAX_PHOTOS_PER_GROUP - lastGroup.photos.length;
-
-        if (availableSpace > 0) {
-          const photosToAdd = remainingPhotos.splice(0, availableSpace);
-          lastGroup.photos = [...lastGroup.photos, ...photosToAdd];
-        }
-      }
-
-      // Create new groups for remaining photos
-      while (remainingPhotos.length > 0) {
-        if (newGroups.length >= MAX_GROUPS) {
-          addError({
-            type: 'max_groups',
-            message: `Maximum ${MAX_GROUPS} groups allowed.`,
-          });
-          break;
-        }
-
-        const groupPhotos = remainingPhotos.splice(0, MAX_PHOTOS_PER_GROUP);
-        newGroups.push({
-          groupId: uuidv4(),
-          photos: groupPhotos,
-          primaryPhotoIndex: 0,
+      // Check total photos cap
+      if (totalPhotos + photos.length > MAX_PHOTOS_TOTAL) {
+        addError({
+          type: 'max_photos_total',
+          message: `Cannot add ${photos.length} photos. Maximum ${MAX_PHOTOS_TOTAL} total photos allowed.`,
         });
+        return;
       }
 
-      return newGroups;
-    });
-  }, [totalPhotos, addError, clearErrors]);
+      // Create new group for photos or add to last group if space available
+      setGroups((prev) => {
+        const newGroups = [...prev];
+        const remainingPhotos = [...photos];
+
+        // Try to fill last group first
+        if (newGroups.length > 0) {
+          const lastGroup = newGroups[newGroups.length - 1];
+          const availableSpace = MAX_PHOTOS_PER_GROUP - lastGroup.photos.length;
+
+          if (availableSpace > 0) {
+            const photosToAdd = remainingPhotos.splice(0, availableSpace);
+            lastGroup.photos = [...lastGroup.photos, ...photosToAdd];
+          }
+        }
+
+        // Create new groups for remaining photos
+        while (remainingPhotos.length > 0) {
+          if (newGroups.length >= MAX_GROUPS) {
+            addError({
+              type: 'max_groups',
+              message: `Maximum ${MAX_GROUPS} groups allowed.`,
+            });
+            break;
+          }
+
+          const groupPhotos = remainingPhotos.splice(0, MAX_PHOTOS_PER_GROUP);
+          newGroups.push({
+            groupId: uuidv4(),
+            photos: groupPhotos,
+            primaryPhotoIndex: 0,
+          });
+        }
+
+        return newGroups;
+      });
+    },
+    [totalPhotos, addError, clearErrors]
+  );
 
   // Remove photo from a group
-  const removePhoto = useCallback((groupId: string, photoId: string) => {
-    clearErrors();
+  const removePhoto = useCallback(
+    (groupId: string, photoId: string) => {
+      clearErrors();
 
-    setGroups((prev) => {
-      const newGroups = prev.map((group) => {
-        if (group.groupId !== groupId) return group;
+      setGroups((prev) => {
+        const newGroups = prev.map((group) => {
+          if (group.groupId !== groupId) return group;
 
-        const photoIndex = group.photos.findIndex((p) => p.id === photoId);
-        if (photoIndex === -1) return group;
+          const photoIndex = group.photos.findIndex((p) => p.id === photoId);
+          if (photoIndex === -1) return group;
 
-        const newPhotos = group.photos.filter((p) => p.id !== photoId);
+          const newPhotos = group.photos.filter((p) => p.id !== photoId);
 
-        // Adjust primary photo index if needed
-        let newPrimaryIndex = group.primaryPhotoIndex;
-        if (photoIndex === group.primaryPhotoIndex) {
-          newPrimaryIndex = 0; // Reset to first photo
-        } else if (photoIndex < group.primaryPhotoIndex) {
-          newPrimaryIndex = group.primaryPhotoIndex - 1;
-        }
+          // Adjust primary photo index if needed
+          let newPrimaryIndex = group.primaryPhotoIndex;
+          if (photoIndex === group.primaryPhotoIndex) {
+            newPrimaryIndex = 0; // Reset to first photo
+          } else if (photoIndex < group.primaryPhotoIndex) {
+            newPrimaryIndex = group.primaryPhotoIndex - 1;
+          }
 
-        return {
-          ...group,
-          photos: newPhotos,
-          primaryPhotoIndex: Math.min(newPrimaryIndex, newPhotos.length - 1),
-        };
+          return {
+            ...group,
+            photos: newPhotos,
+            primaryPhotoIndex: Math.min(newPrimaryIndex, newPhotos.length - 1),
+          };
+        });
+
+        // Remove empty groups
+        return newGroups.filter((g) => g.photos.length > 0);
       });
-
-      // Remove empty groups
-      return newGroups.filter((g) => g.photos.length > 0);
-    });
-  }, [clearErrors]);
+    },
+    [clearErrors]
+  );
 
   // Reorder photos within a group
   const reorderPhotos = useCallback(
@@ -221,33 +225,35 @@ export function usePhotoGroups(
           return prev;
         }
 
-        return prev.map((group) => {
-          if (group.groupId === fromGroupId) {
-            // Remove photo from source group
-            const newPhotos = group.photos.filter((p) => p.id !== photoId);
-            let newPrimaryIndex = group.primaryPhotoIndex;
+        return prev
+          .map((group) => {
+            if (group.groupId === fromGroupId) {
+              // Remove photo from source group
+              const newPhotos = group.photos.filter((p) => p.id !== photoId);
+              let newPrimaryIndex = group.primaryPhotoIndex;
 
-            if (photoIndex === group.primaryPhotoIndex) {
-              newPrimaryIndex = 0;
-            } else if (photoIndex < group.primaryPhotoIndex) {
-              newPrimaryIndex = group.primaryPhotoIndex - 1;
+              if (photoIndex === group.primaryPhotoIndex) {
+                newPrimaryIndex = 0;
+              } else if (photoIndex < group.primaryPhotoIndex) {
+                newPrimaryIndex = group.primaryPhotoIndex - 1;
+              }
+
+              return {
+                ...group,
+                photos: newPhotos,
+                primaryPhotoIndex: Math.min(newPrimaryIndex, newPhotos.length - 1),
+              };
+            } else if (group.groupId === toGroupId) {
+              // Add photo to destination group
+              const photo = fromGroup.photos[photoIndex];
+              return {
+                ...group,
+                photos: [...group.photos, photo],
+              };
             }
-
-            return {
-              ...group,
-              photos: newPhotos,
-              primaryPhotoIndex: Math.min(newPrimaryIndex, newPhotos.length - 1),
-            };
-          } else if (group.groupId === toGroupId) {
-            // Add photo to destination group
-            const photo = fromGroup.photos[photoIndex];
-            return {
-              ...group,
-              photos: [...group.photos, photo],
-            };
-          }
-          return group;
-        }).filter((g) => g.photos.length > 0); // Remove empty groups
+            return group;
+          })
+          .filter((g) => g.photos.length > 0); // Remove empty groups
       });
     },
     [addError, clearErrors]

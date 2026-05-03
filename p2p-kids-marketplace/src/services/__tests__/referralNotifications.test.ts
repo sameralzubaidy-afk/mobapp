@@ -214,12 +214,9 @@ describe('ReferralNotifications Service', () => {
 
       (supabase.from as jest.Mock).mockImplementation(mockFrom);
 
-      const result = await sendCustomReferralNotification(
-        mockUserId,
-        'Test Title',
-        'Test Body',
-        { custom_field: 'value' }
-      );
+      const result = await sendCustomReferralNotification(mockUserId, 'Test Title', 'Test Body', {
+        custom_field: 'value',
+      });
 
       expect(result.success).toBe(true);
       expect(mockFrom).toHaveBeenCalledWith('user_notifications');

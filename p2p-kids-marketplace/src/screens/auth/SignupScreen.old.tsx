@@ -129,7 +129,10 @@ export default function SignupScreen() {
     const passwordError = validatePassword(formData.password);
     if (passwordError) newErrors.password = passwordError;
 
-    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+    const confirmPasswordError = validateConfirmPassword(
+      formData.password,
+      formData.confirmPassword
+    );
     if (confirmPasswordError) newErrors.confirmPassword = confirmPasswordError;
 
     const dobError = validateDob(formData.dob);
@@ -196,7 +199,6 @@ export default function SignupScreen() {
         userId: user.id,
         phone: formData.phone,
       });
-
     } catch (error: any) {
       console.error('Signup error:', error);
 
@@ -218,7 +220,7 @@ export default function SignupScreen() {
 
       // Show user-friendly error message
       let errorMessage = 'Signup failed. Please try again.';
-      
+
       if (error.message?.includes('already registered')) {
         errorMessage = 'This email is already registered. Please log in instead.';
       } else if (error.message?.includes('weak password')) {
@@ -253,10 +255,7 @@ export default function SignupScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Join the Kids P2P Marketplace</Text>
@@ -385,7 +384,11 @@ export default function SignupScreen() {
             <Text style={styles.label}>Confirm Password</Text>
             <View style={styles.inputWrapper}>
               <TextInput
-                style={[styles.input, errors.confirmPassword && styles.inputError, styles.inputWithIcon]}
+                style={[
+                  styles.input,
+                  errors.confirmPassword && styles.inputError,
+                  styles.inputWithIcon,
+                ]}
                 placeholder="Confirm your password"
                 value={formData.confirmPassword}
                 testID="confirmPassword-input"
@@ -409,7 +412,9 @@ export default function SignupScreen() {
                 <Text style={styles.eyeIconText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
               </TouchableOpacity>
             </View>
-            {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
+            {errors.confirmPassword && (
+              <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+            )}
           </View>
 
           {/* Referral Code Input (Optional) */}
@@ -447,16 +452,18 @@ export default function SignupScreen() {
                 >
                   <Text>Fill Random</Text>
                 </TouchableOpacity>
-                {getAllTestUsers().slice(0, 3).map((u) => (
-                  <TouchableOpacity
-                    key={u.id}
-                    testID={`dev-fill-${u.id}`}
-                    style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 6 }}
-                    onPress={() => applyTestUser(u)}
-                  >
-                    <Text>{u.firstName}</Text>
-                  </TouchableOpacity>
-                ))}
+                {getAllTestUsers()
+                  .slice(0, 3)
+                  .map((u) => (
+                    <TouchableOpacity
+                      key={u.id}
+                      testID={`dev-fill-${u.id}`}
+                      style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 6 }}
+                      onPress={() => applyTestUser(u)}
+                    >
+                      <Text>{u.firstName}</Text>
+                    </TouchableOpacity>
+                  ))}
               </View>
             </View>
           )}
@@ -485,10 +492,8 @@ export default function SignupScreen() {
           {/* Terms and Privacy */}
           <View style={styles.terms}>
             <Text style={styles.termsText}>
-              By signing up, you agree to our{' '}
-              <Text style={styles.termsLink}>Terms of Service</Text>
-              {' '}and{' '}
-              <Text style={styles.termsLink}>Privacy Policy</Text>
+              By signing up, you agree to our <Text style={styles.termsLink}>Terms of Service</Text>{' '}
+              and <Text style={styles.termsLink}>Privacy Policy</Text>
             </Text>
           </View>
         </View>

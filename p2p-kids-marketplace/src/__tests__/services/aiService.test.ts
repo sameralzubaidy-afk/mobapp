@@ -24,20 +24,20 @@ describe('aiService', () => {
 
   describe('getAIConfidenceLevel', () => {
     it('should return "high" for confidence >= 0.70', () => {
-      expect(aiService.getAIConfidenceLevel(0.70)).toBe('high');
+      expect(aiService.getAIConfidenceLevel(0.7)).toBe('high');
       expect(aiService.getAIConfidenceLevel(0.85)).toBe('high');
-      expect(aiService.getAIConfidenceLevel(1.00)).toBe('high');
+      expect(aiService.getAIConfidenceLevel(1.0)).toBe('high');
     });
 
     it('should return "medium" for confidence 0.40-0.69', () => {
-      expect(aiService.getAIConfidenceLevel(0.40)).toBe('medium');
+      expect(aiService.getAIConfidenceLevel(0.4)).toBe('medium');
       expect(aiService.getAIConfidenceLevel(0.55)).toBe('medium');
       expect(aiService.getAIConfidenceLevel(0.69)).toBe('medium');
     });
 
     it('should return "low" for confidence < 0.40', () => {
-      expect(aiService.getAIConfidenceLevel(0.00)).toBe('low');
-      expect(aiService.getAIConfidenceLevel(0.20)).toBe('low');
+      expect(aiService.getAIConfidenceLevel(0.0)).toBe('low');
+      expect(aiService.getAIConfidenceLevel(0.2)).toBe('low');
       expect(aiService.getAIConfidenceLevel(0.39)).toBe('low');
     });
   });
@@ -46,9 +46,9 @@ describe('aiService', () => {
     it('should keep fields with confidence >= 0.40', () => {
       const raw: AIAnalysisResult = {
         title: { value: 'LEGO Dinosaur Set', confidence: 0.85 },
-        category: { value: { label: 'Toys', categoryId: '123' }, confidence: 0.70 },
-        condition: { value: 'like_new', confidence: 0.50 },
-        brand: { value: 'LEGO', confidence: 0.90 },
+        category: { value: { label: 'Toys', categoryId: '123' }, confidence: 0.7 },
+        condition: { value: 'like_new', confidence: 0.5 },
+        brand: { value: 'LEGO', confidence: 0.9 },
       };
 
       const filtered = aiService.parseAIResult(raw);
@@ -63,7 +63,7 @@ describe('aiService', () => {
       const raw: AIAnalysisResult = {
         title: { value: 'Toy', confidence: 0.35 },
         category: { value: { label: 'Unknown', categoryId: null }, confidence: 0.25 },
-        brand: { value: 'Generic', confidence: 0.10 },
+        brand: { value: 'Generic', confidence: 0.1 },
       };
 
       const filtered = aiService.parseAIResult(raw);
@@ -87,9 +87,9 @@ describe('aiService', () => {
 
     it('should handle mix of valid and invalid fields', () => {
       const raw: AIAnalysisResult = {
-        title: { value: 'Nike Shoes', confidence: 0.80 }, // Keep
-        brand: { value: 'Nike', confidence: 0.30 }, // Strip
-        color: { value: ['blue', 'white'], confidence: 0.60 }, // Keep
+        title: { value: 'Nike Shoes', confidence: 0.8 }, // Keep
+        brand: { value: 'Nike', confidence: 0.3 }, // Strip
+        color: { value: ['blue', 'white'], confidence: 0.6 }, // Keep
         age_group: { value: '6-8', confidence: 0.25 }, // Strip
       };
 
@@ -158,7 +158,7 @@ describe('aiService', () => {
             groupId: 'group-1',
             analysis: {
               title: { value: 'Item 1', confidence: 0.85 },
-              brand: { value: 'Brand', confidence: 0.30 }, // Should be stripped
+              brand: { value: 'Brand', confidence: 0.3 }, // Should be stripped
             },
           },
           {
@@ -193,9 +193,7 @@ describe('aiService', () => {
         error: { message: 'Network error' },
       });
 
-      const items = [
-        { groupId: 'group-1', primaryPhotoUrl: 'url1', allPhotoUrls: ['url1'] },
-      ];
+      const items = [{ groupId: 'group-1', primaryPhotoUrl: 'url1', allPhotoUrls: ['url1'] }];
 
       const result = await aiService.analyzePhotosBatch(items, 'seller-123');
 
@@ -218,7 +216,11 @@ describe('aiService', () => {
         });
 
       const items = [
-        { groupId: 'group-1', primaryPhotoUrl: 'https://example.com/photo.jpg', allPhotoUrls: ['https://example.com/photo.jpg'] },
+        {
+          groupId: 'group-1',
+          primaryPhotoUrl: 'https://example.com/photo.jpg',
+          allPhotoUrls: ['https://example.com/photo.jpg'],
+        },
       ];
 
       const result = await aiService.analyzePhotosBatch(items, 'seller-123');
@@ -247,9 +249,7 @@ describe('aiService', () => {
         error: null,
       });
 
-      const items = [
-        { groupId: 'group-1', primaryPhotoUrl: 'url1', allPhotoUrls: ['url1'] },
-      ];
+      const items = [{ groupId: 'group-1', primaryPhotoUrl: 'url1', allPhotoUrls: ['url1'] }];
 
       const result = await aiService.analyzePhotosBatch(items, 'seller-123');
 

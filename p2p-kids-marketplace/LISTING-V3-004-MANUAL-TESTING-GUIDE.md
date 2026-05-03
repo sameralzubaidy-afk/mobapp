@@ -2,8 +2,8 @@
 
 **Module:** Item Listing V3
 **Task:** LISTING-V3-004 - Types & Hooks
-**Test Date:** _______________
-**Tester:** _______________
+**Test Date:** ******\_\_\_******
+**Tester:** ******\_\_\_******
 **Platform:** ☐ iOS Simulator ☐ Android Emulator
 
 ---
@@ -22,17 +22,20 @@
 **Objective:** Verify draft creation and auto-save functionality
 
 ### Steps:
+
 1. Open app and navigate to "List Item" screen
 2. Wait for screen to load
 3. Check console logs for draft creation
 
 ### Expected Results:
+
 - [ ] No errors in console
 - [ ] Draft created with status "photo"
 - [ ] Draft ID visible in console logs
 - [ ] Draft has seller_id matching current user
 
 ### Actual Results:
+
 ```
 _____________________________________________
 ```
@@ -40,6 +43,7 @@ _____________________________________________
 **Status:** ☐ PASS ☐ FAIL
 
 **Notes:**
+
 ```
 _____________________________________________
 ```
@@ -51,6 +55,7 @@ _____________________________________________
 **Objective:** Verify automatic saving after 30 seconds
 
 ### Steps:
+
 1. Open "List Item" screen (creates new draft)
 2. Enter title: "Test Item Auto Save"
 3. Enter price: $25
@@ -59,6 +64,7 @@ _____________________________________________
 6. Check Supabase Dashboard → item_drafts table
 
 ### Expected Results:
+
 - [ ] Save operation triggered after 30s
 - [ ] Console shows "Draft saved" or similar message
 - [ ] Database updated with title "Test Item Auto Save"
@@ -66,6 +72,7 @@ _____________________________________________
 - [ ] No save errors in console
 
 ### Actual Results:
+
 ```
 Draft ID: _____________
 Title in DB: _____________
@@ -76,6 +83,7 @@ Save errors: _____________
 **Status:** ☐ PASS ☐ FAIL
 
 **Notes:**
+
 ```
 _____________________________________________
 ```
@@ -87,6 +95,7 @@ _____________________________________________
 **Objective:** Verify saveNow() method
 
 ### Steps:
+
 1. Open "List Item" screen
 2. Enter description: "Immediate save test"
 3. Tap "Save Draft" button (or navigate back)
@@ -94,12 +103,14 @@ _____________________________________________
 5. Check Supabase Dashboard
 
 ### Expected Results:
+
 - [ ] Save operation triggered immediately (< 1s)
 - [ ] Database updated with description
 - [ ] No 30-second wait
 - [ ] isSaving state changes: false → true → false
 
 ### Actual Results:
+
 ```
 _____________________________________________
 ```
@@ -113,6 +124,7 @@ _____________________________________________
 **Objective:** Verify save on app backgrounding
 
 ### Steps:
+
 1. Open "List Item" screen
 2. Enter title: "Background Save Test"
 3. **Do not wait 30 seconds**
@@ -122,12 +134,14 @@ _____________________________________________
 7. Check Supabase Dashboard
 
 ### Expected Results:
+
 - [ ] Draft saved when app went to background
 - [ ] Database has title "Background Save Test"
 - [ ] No data lost
 - [ ] Draft reloads correctly when app reopens
 
 ### Actual Results:
+
 ```
 _____________________________________________
 ```
@@ -141,6 +155,7 @@ _____________________________________________
 **Objective:** Verify save on screen blur
 
 ### Steps:
+
 1. Open "List Item" screen
 2. Enter price: $99
 3. Immediately navigate back (< 30 seconds)
@@ -149,12 +164,14 @@ _____________________________________________
 6. Open the same draft again
 
 ### Expected Results:
+
 - [ ] Save triggered on navigation blur
 - [ ] Price persisted as $99
 - [ ] Draft reloads with correct price
 - [ ] No save errors
 
 ### Actual Results:
+
 ```
 _____________________________________________
 ```
@@ -168,6 +185,7 @@ _____________________________________________
 **Objective:** Verify draft deletion
 
 ### Steps:
+
 1. Open "List Item" screen (creates draft)
 2. Note the draft ID from console
 3. Tap "Discard Draft" button
@@ -175,12 +193,14 @@ _____________________________________________
 5. Check Supabase Dashboard → item_drafts table
 
 ### Expected Results:
+
 - [ ] Draft deleted from database
 - [ ] User navigated away from screen
 - [ ] No errors in console
 - [ ] Draft does not appear in "My Drafts" list
 
 ### Actual Results:
+
 ```
 Draft ID: _____________
 Still in DB: ☐ Yes ☐ No
@@ -195,6 +215,7 @@ Still in DB: ☐ Yes ☐ No
 **Objective:** Verify AI photo analysis
 
 ### Steps:
+
 1. Open "List Item" screen
 2. Add one photo from gallery (select a clear product photo)
 3. Wait for AI analysis to complete
@@ -202,6 +223,7 @@ Still in DB: ☐ Yes ☐ No
 5. Check console logs for analysis result
 
 ### Expected Results:
+
 - [ ] Status changes: idle → analyzing → ready
 - [ ] Analysis completes within 10 seconds
 - [ ] Result contains at least one field (title, category, or color)
@@ -210,6 +232,7 @@ Still in DB: ☐ Yes ☐ No
 - [ ] UI shows AI suggestions card
 
 ### Actual Results:
+
 ```
 Analysis time: _____________
 Fields returned: _____________
@@ -225,6 +248,7 @@ Confidence scores: _____________
 **Objective:** Verify AI error handling and retry
 
 ### Steps:
+
 1. Temporarily disconnect from internet
 2. Open "List Item" screen
 3. Add one photo
@@ -233,6 +257,7 @@ Confidence scores: _____________
 6. Tap "Retry Analysis" button
 
 ### Expected Results:
+
 - [ ] Status changes to "error" when offline
 - [ ] Error message displayed to user
 - [ ] Retry button visible
@@ -240,6 +265,7 @@ Confidence scores: _____________
 - [ ] Status becomes "ready" after retry
 
 ### Actual Results:
+
 ```
 Error message: _____________
 Retry successful: ☐ Yes ☐ No
@@ -254,12 +280,14 @@ Retry successful: ☐ Yes ☐ No
 **Objective:** Verify abort on photo change
 
 ### Steps:
+
 1. Open "List Item" screen
 2. Add photo #1
 3. Immediately (within 2 seconds) remove photo #1 and add photo #2
 4. Check console logs for abort signal
 
 ### Expected Results:
+
 - [ ] First analysis aborted
 - [ ] Second analysis started
 - [ ] Only one result returned (for photo #2)
@@ -267,6 +295,7 @@ Retry successful: ☐ Yes ☐ No
 - [ ] No memory leaks or stale callbacks
 
 ### Actual Results:
+
 ```
 _____________________________________________
 ```
@@ -280,12 +309,14 @@ _____________________________________________
 **Objective:** Verify photo grouping
 
 ### Steps:
+
 1. Open "Bulk Listing" screen (or test screen for this hook)
 2. Add 5 photos
 3. Observe group creation
 4. Check totalPhotos count
 
 ### Expected Results:
+
 - [ ] Photos added to group
 - [ ] Group created with all 5 photos
 - [ ] Primary photo set to first photo
@@ -293,6 +324,7 @@ _____________________________________________
 - [ ] No errors
 
 ### Actual Results:
+
 ```
 Groups count: _____________
 Total photos: _____________
@@ -307,18 +339,21 @@ Total photos: _____________
 **Objective:** Verify per-group photo cap
 
 ### Steps:
+
 1. Create new photo group
 2. Add 10 photos to the group
 3. Observe group state
 4. Try to add 1 more photo to the same group
 
 ### Expected Results:
+
 - [ ] First 10 photos added successfully
 - [ ] 11th photo creates a new group (or shows error if adding to specific group)
 - [ ] Error message if trying to add to full group
 - [ ] Group cap enforced: max 10 photos/group
 
 ### Actual Results:
+
 ```
 Photos in group 1: _____________
 Photos in group 2: _____________
@@ -334,11 +369,13 @@ Error shown: ☐ Yes ☐ No
 **Objective:** Verify total photo cap
 
 ### Steps:
+
 1. Add 30 photos across multiple groups
 2. Observe totalPhotos count
 3. Try to add 1 more photo
 
 ### Expected Results:
+
 - [ ] First 30 photos added successfully
 - [ ] totalPhotos = 30
 - [ ] 31st photo rejected
@@ -347,6 +384,7 @@ Error shown: ☐ Yes ☐ No
 - [ ] Error message shown to user
 
 ### Actual Results:
+
 ```
 Total photos: _____________
 Error message: _____________
@@ -361,6 +399,7 @@ Error message: _____________
 **Objective:** Verify moving photos between groups
 
 ### Steps:
+
 1. Create 2 groups with photos:
    - Group A: 3 photos
    - Group B: 2 photos
@@ -368,6 +407,7 @@ Error message: _____________
 3. Observe updated groups
 
 ### Expected Results:
+
 - [ ] Photo removed from Group A
 - [ ] Photo added to Group B
 - [ ] Group A now has 2 photos
@@ -376,6 +416,7 @@ Error message: _____________
 - [ ] Photo IDs preserved
 
 ### Actual Results:
+
 ```
 Group A photos: _____________
 Group B photos: _____________
@@ -390,16 +431,19 @@ Group B photos: _____________
 **Objective:** Verify primary photo selection
 
 ### Steps:
+
 1. Create group with 3 photos
 2. Tap photo #3 to set as cover
 3. Observe primaryPhotoIndex
 
 ### Expected Results:
+
 - [ ] primaryPhotoIndex changes to 2 (0-indexed)
 - [ ] UI shows photo #3 with "Cover" badge
 - [ ] No errors
 
 ### Actual Results:
+
 ```
 Primary index: _____________
 Cover photo: _____________
@@ -414,17 +458,20 @@ Cover photo: _____________
 **Objective:** Verify photo removal and group cleanup
 
 ### Steps:
+
 1. Create group with 1 photo
 2. Remove the photo
 3. Observe groups array
 
 ### Expected Results:
+
 - [ ] Photo removed
 - [ ] Group automatically removed (empty groups deleted)
 - [ ] groups array length = 0
 - [ ] totalPhotos = 0
 
 ### Actual Results:
+
 ```
 Groups remaining: _____________
 Total photos: _____________
@@ -439,6 +486,7 @@ Total photos: _____________
 **Objective:** Verify all three hooks working together
 
 ### Steps:
+
 1. Open "List Item" screen
 2. Add 2 photos
 3. Wait for AI analysis to complete
@@ -451,6 +499,7 @@ Total photos: _____________
 10. Verify all data persisted
 
 ### Expected Results:
+
 - [ ] Photos added and analyzed successfully
 - [ ] AI suggestions applied
 - [ ] Auto-save triggered at 30s
@@ -463,6 +512,7 @@ Total photos: _____________
   - [ ] AI suggestions still available
 
 ### Actual Results:
+
 ```
 Draft ID: _____________
 Title: _____________
@@ -479,20 +529,22 @@ AI suggestions: _____________
 
 **Total Test Cases:** 16
 
-**Passed:** _____
-**Failed:** _____
-**Blocked:** _____
-**Not Tested:** _____
+**Passed:** **\_**
+**Failed:** **\_**
+**Blocked:** **\_**
+**Not Tested:** **\_**
 
 **Overall Status:** ☐ PASS ☐ FAIL
 
 **Critical Issues:**
+
 ```
 _____________________________________________
 _____________________________________________
 ```
 
 **Notes:**
+
 ```
 _____________________________________________
 _____________________________________________
@@ -500,4 +552,4 @@ _____________________________________________
 
 **Sign-off:**
 
-Tester: _____________________ Date: _________
+Tester: **********\_********** Date: ****\_****

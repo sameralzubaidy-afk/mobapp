@@ -12,10 +12,7 @@
     "git": "https://github.com/facebook/react-native.git",
     "tag": "v0.81.5"
   },
-  "source_files": [
-    "reactperflogger/*.{cpp,h}",
-    "fusebox/*.{cpp,h}"
-  ],
+  "source_files": ["reactperflogger/*.{cpp,h}", "fusebox/*.{cpp,h}"],
   "header_dir": "reactperflogger",
   "pod_target_xcconfig": {
     "CLANG_CXX_LANGUAGE_STANDARD": "c++20",

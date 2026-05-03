@@ -203,12 +203,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
 
   describe('getReviewStats', () => {
     it('should calculate average rating correctly', async () => {
-      const mockReviews = [
-        { rating: 5 },
-        { rating: 4 },
-        { rating: 5 },
-        { rating: 3 },
-      ];
+      const mockReviews = [{ rating: 5 }, { rating: 4 }, { rating: 5 }, { rating: 3 }];
 
       supabase.from.mockReturnValue({
         select: jest.fn().mockReturnValue({
@@ -279,11 +274,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
     });
 
     it('should round average rating to 1 decimal place', async () => {
-      const mockReviews = [
-        { rating: 5 },
-        { rating: 4 },
-        { rating: 4 },
-      ];
+      const mockReviews = [{ rating: 5 }, { rating: 4 }, { rating: 4 }];
 
       supabase.from.mockReturnValue({
         select: jest.fn().mockReturnValue({

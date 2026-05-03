@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/screens/listing/MyListingsScreen.tsx
  * MODULE-04 LISTING-V2-003: My listings with edit/delete actions
  * MODULE-04 LISTING-V3-007: Added Drafts tab + FAB bottom sheet
- * 
+ *
  * Features:
  * - List all user's listings (active, sold, pending)
  * - Summary stats (total active, total sold, total earnings)
@@ -120,7 +120,11 @@ export default function MyListingsScreen({ navigation }: any) {
   };
 
   const handleOpenListing = (listing: Listing) => {
-    if (listing.status === 'flagged' || listing.status === 'rejected' || listing.status === 'needs_edits') {
+    if (
+      listing.status === 'flagged' ||
+      listing.status === 'rejected' ||
+      listing.status === 'needs_edits'
+    ) {
       navigation.navigate('ListingSafetyReview', { listing_id: listing.id });
       return;
     }
@@ -177,7 +181,7 @@ export default function MyListingsScreen({ navigation }: any) {
     const date = new Date(dateString);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (seconds < 60) return 'just now';
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
@@ -188,9 +192,7 @@ export default function MyListingsScreen({ navigation }: any) {
     const isActive = item.status === 'available';
     const isSold = item.status === 'sold';
     const firstImage = item.images && item.images.length > 0 ? item.images[0] : null;
-    const firstImageUrl = firstImage
-      ? firstImage.thumbnail_url || firstImage.url
-      : null;
+    const firstImageUrl = firstImage ? firstImage.thumbnail_url || firstImage.url : null;
 
     return (
       <View style={styles.listingCard}>
@@ -200,43 +202,53 @@ export default function MyListingsScreen({ navigation }: any) {
           accessibilityRole="button"
           accessibilityLabel={`Open details for ${item.title}`}
         >
-        <View style={styles.listingImageContainer}>
-          <ListingImage 
-            url={firstImageUrl}
-            containerStyle={styles.listingImage}
-            imageStyle={styles.listingImage}
-          />
-        </View>
-
-        <View style={styles.listingHeader}>
-          <View style={styles.listingInfo}>
-            <Text style={styles.listingTitle}>{item.title}</Text>
-            <Text style={styles.listingPrice}>${item.price.toFixed(2)}</Text>
-            {item.accepts_swap_points && (
-              <View style={styles.spBadge}>
-                <Text style={styles.spBadgeText}>✓ SP Eligible</Text>
-              </View>
-            )}
+          <View style={styles.listingImageContainer}>
+            <ListingImage
+              url={firstImageUrl}
+              containerStyle={styles.listingImage}
+              imageStyle={styles.listingImage}
+            />
           </View>
-          <View style={[styles.statusBadge, isSold && styles.statusBadgeSold, !isActive && !isSold && styles.statusBadgeOther]}>
-            <Text style={[styles.statusText, isSold && styles.statusTextSold, !isActive && !isSold && styles.statusTextOther]}>
-              {item.status.toUpperCase()}
+
+          <View style={styles.listingHeader}>
+            <View style={styles.listingInfo}>
+              <Text style={styles.listingTitle}>{item.title}</Text>
+              <Text style={styles.listingPrice}>${item.price.toFixed(2)}</Text>
+              {item.accepts_swap_points && (
+                <View style={styles.spBadge}>
+                  <Text style={styles.spBadgeText}>✓ SP Eligible</Text>
+                </View>
+              )}
+            </View>
+            <View
+              style={[
+                styles.statusBadge,
+                isSold && styles.statusBadgeSold,
+                !isActive && !isSold && styles.statusBadgeOther,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  isSold && styles.statusTextSold,
+                  !isActive && !isSold && styles.statusTextOther,
+                ]}
+              >
+                {item.status.toUpperCase()}
+              </Text>
+            </View>
+          </View>
+
+          {item.description && (
+            <Text style={styles.listingDescription} numberOfLines={2}>
+              {item.description}
             </Text>
+          )}
+
+          <View style={styles.listingMeta}>
+            <Text style={styles.metaText}>Condition: {item.condition || 'N/A'}</Text>
+            <Text style={styles.metaText}>{new Date(item.created_at).toLocaleDateString()}</Text>
           </View>
-        </View>
-
-        {item.description && (
-          <Text style={styles.listingDescription} numberOfLines={2}>
-            {item.description}
-          </Text>
-        )}
-
-        <View style={styles.listingMeta}>
-          <Text style={styles.metaText}>Condition: {item.condition || 'N/A'}</Text>
-          <Text style={styles.metaText}>
-            {new Date(item.created_at).toLocaleDateString()}
-          </Text>
-        </View>
         </TouchableOpacity>
 
         {isActive && (
@@ -279,7 +291,8 @@ export default function MyListingsScreen({ navigation }: any) {
               {title}
             </Text>
             <Text style={styles.draftMeta}>
-              {isBulk ? '📦 Bulk Upload' : '📝 Single Item'} • {photoCount} photo{photoCount !== 1 ? 's' : ''}
+              {isBulk ? '📦 Bulk Upload' : '📝 Single Item'} • {photoCount} photo
+              {photoCount !== 1 ? 's' : ''}
             </Text>
             <Text style={styles.draftTime}>{timeAgo}</Text>
           </View>
@@ -319,214 +332,219 @@ export default function MyListingsScreen({ navigation }: any) {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, flexDirection: 'column' }}>
-    <View style={styles.container}>
-      {/* Summary Header */}
-      {summary && (
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{summary.total_active}</Text>
-            <Text style={styles.summaryLabel}>Active</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>{summary.total_sold}</Text>
-            <Text style={styles.summaryLabel}>Sold</Text>
-          </View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryValue}>${summary.total_earnings_dollars.toFixed(2)}</Text>
-            <Text style={styles.summaryLabel}>Total Earnings</Text>
-          </View>
-        </View>
-      )}
+        <View style={styles.container}>
+          {/* Summary Header */}
+          {summary && (
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryValue}>{summary.total_active}</Text>
+                <Text style={styles.summaryLabel}>Active</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryValue}>{summary.total_sold}</Text>
+                <Text style={styles.summaryLabel}>Sold</Text>
+              </View>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryValue}>
+                  ${summary.total_earnings_dollars.toFixed(2)}
+                </Text>
+                <Text style={styles.summaryLabel}>Total Earnings</Text>
+              </View>
+            </View>
+          )}
 
-      {/* Tab Switcher - LISTING-V3-007 */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, selectedTab === 'listings' && styles.tabActive]}
-          onPress={() => setSelectedTab('listings')}
-          testID="tab-listings"
-        >
-          <Text style={[styles.tabText, selectedTab === 'listings' && styles.tabTextActive]}>
-            Listings ({listings.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, selectedTab === 'drafts' && styles.tabActive]}
-          onPress={() => setSelectedTab('drafts')}
-          testID="tab-drafts"
-        >
-          <Text style={[styles.tabText, selectedTab === 'drafts' && styles.tabTextActive]}>
-            Drafts ({drafts.length})
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Listings Tab Content */}
-      {selectedTab === 'listings' && (
-        <>
-          {/* Status Filter */}
-          <View style={styles.filterWrapper}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.filterContainer}
-              contentContainerStyle={styles.filterContentContainer}
+          {/* Tab Switcher - LISTING-V3-007 */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[styles.tab, selectedTab === 'listings' && styles.tabActive]}
+              onPress={() => setSelectedTab('listings')}
+              testID="tab-listings"
             >
-              {(['all', 'available', 'pending', 'needs_edits', 'rejected', 'sold'] as StatusFilter[]).map(
-                (status) => (
-                  <TouchableOpacity
-                    key={status}
-                    style={[
-                      styles.filterButton,
-                      selectedStatus === status && styles.filterButtonActive,
-                    ]}
-                    onPress={() => setSelectedStatus(status)}
-                    testID={`filter-${status}`}
-                  >
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        selectedStatus === status && styles.filterButtonTextActive,
-                      ]}
-                    >
-                      {status === 'all'
-                        ? 'All'
-                        : status === 'needs_edits'
-                          ? 'Needs Edits'
-                          : status.charAt(0).toUpperCase() + status.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                )
-              )}
-            </ScrollView>
+              <Text style={[styles.tabText, selectedTab === 'listings' && styles.tabTextActive]}>
+                Listings ({listings.length})
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, selectedTab === 'drafts' && styles.tabActive]}
+              onPress={() => setSelectedTab('drafts')}
+              testID="tab-drafts"
+            >
+              <Text style={[styles.tabText, selectedTab === 'drafts' && styles.tabTextActive]}>
+                Drafts ({drafts.length})
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Listings List */}
-          {filteredListings.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>
-                {listings.length === 0 ? 'No listings yet' : 'No listings with this status'}
-              </Text>
-              {listings.length === 0 && (
-                <TouchableOpacity
-                  style={styles.createButton}
-                  onPress={() => navigation.navigate('CreateListing')}
-                  testID="create-first-listing-button"
+          {/* Listings Tab Content */}
+          {selectedTab === 'listings' && (
+            <>
+              {/* Status Filter */}
+              <View style={styles.filterWrapper}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.filterContainer}
+                  contentContainerStyle={styles.filterContentContainer}
                 >
-                  <Text style={styles.createButtonText}>Create Your First Listing</Text>
-                </TouchableOpacity>
+                  {(
+                    [
+                      'all',
+                      'available',
+                      'pending',
+                      'needs_edits',
+                      'rejected',
+                      'sold',
+                    ] as StatusFilter[]
+                  ).map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      style={[
+                        styles.filterButton,
+                        selectedStatus === status && styles.filterButtonActive,
+                      ]}
+                      onPress={() => setSelectedStatus(status)}
+                      testID={`filter-${status}`}
+                    >
+                      <Text
+                        style={[
+                          styles.filterButtonText,
+                          selectedStatus === status && styles.filterButtonTextActive,
+                        ]}
+                      >
+                        {status === 'all'
+                          ? 'All'
+                          : status === 'needs_edits'
+                            ? 'Needs Edits'
+                            : status.charAt(0).toUpperCase() + status.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Listings List */}
+              {filteredListings.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>
+                    {listings.length === 0 ? 'No listings yet' : 'No listings with this status'}
+                  </Text>
+                  {listings.length === 0 && (
+                    <TouchableOpacity
+                      style={styles.createButton}
+                      onPress={() => navigation.navigate('CreateListing')}
+                      testID="create-first-listing-button"
+                    >
+                      <Text style={styles.createButtonText}>Create Your First Listing</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ) : (
+                <FlatList
+                  data={filteredListings}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderListingItem}
+                  contentContainerStyle={styles.listContent}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+                  }
+                  testID="listings-flatlist"
+                />
               )}
-            </View>
-          ) : (
-            <FlatList
-              data={filteredListings}
-              keyExtractor={(item) => item.id}
-              renderItem={renderListingItem}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-              }
-              testID="listings-flatlist"
-            />
+            </>
           )}
-        </>
-      )}
 
-      {/* Drafts Tab Content - LISTING-V3-007 */}
-      {selectedTab === 'drafts' && (
-        <>
-          {drafts.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No drafts yet</Text>
-              <Text style={styles.emptySubtext}>
-                Start creating a listing and it will be saved here automatically
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={drafts}
-              keyExtractor={(item) => item.id}
-              renderItem={renderDraftItem}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-              }
-              testID="drafts-flatlist"
-            />
+          {/* Drafts Tab Content - LISTING-V3-007 */}
+          {selectedTab === 'drafts' && (
+            <>
+              {drafts.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>No drafts yet</Text>
+                  <Text style={styles.emptySubtext}>
+                    Start creating a listing and it will be saved here automatically
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={drafts}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderDraftItem}
+                  contentContainerStyle={styles.listContent}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+                  }
+                  testID="drafts-flatlist"
+                />
+              )}
+            </>
           )}
-        </>
-      )}
 
-      {/* LISTING-V3-007: FAB with Bottom Sheet */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleFABPress}
-        testID="fab-button"
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+          {/* LISTING-V3-007: FAB with Bottom Sheet */}
+          <TouchableOpacity style={styles.fab} onPress={handleFABPress} testID="fab-button">
+            <Text style={styles.fabText}>+</Text>
+          </TouchableOpacity>
 
-      {/* LISTING-V3-007: FAB Bottom Sheet Modal */}
-      <Modal
-        visible={isFABSheetVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsFABSheetVisible(false)}
-        testID="fab-bottom-sheet-modal"
-      >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setIsFABSheetVisible(false)}
-          testID="modal-overlay"
-        >
-          <View style={styles.bottomSheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Create New Listing</Text>
-
+          {/* LISTING-V3-007: FAB Bottom Sheet Modal */}
+          <Modal
+            visible={isFABSheetVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setIsFABSheetVisible(false)}
+            testID="fab-bottom-sheet-modal"
+          >
             <TouchableOpacity
-              style={styles.sheetOption}
-              onPress={handleCreateSingle}
-              testID="sheet-option-single"
-            >
-              <Text style={styles.sheetOptionIcon}>📝</Text>
-              <View style={styles.sheetOptionContent}>
-                <Text style={styles.sheetOptionTitle}>List One Item</Text>
-                <Text style={styles.sheetOptionDescription}>
-                  Create a single listing with photos and details
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.sheetOption}
-              onPress={handleCreateBulk}
-              testID="sheet-option-bulk"
-            >
-              <Text style={styles.sheetOptionIcon}>📦</Text>
-              <View style={styles.sheetOptionContent}>
-                <Text style={styles.sheetOptionTitle}>Bulk Upload</Text>
-                <Text style={styles.sheetOptionDescription}>
-                  Upload multiple items at once with AI assistance
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.sheetCancel}
+              style={styles.modalOverlay}
+              activeOpacity={1}
               onPress={() => setIsFABSheetVisible(false)}
-              testID="sheet-cancel"
+              testID="modal-overlay"
             >
-              <Text style={styles.sheetCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+              <View style={styles.bottomSheet}>
+                <View style={styles.sheetHandle} />
+                <Text style={styles.sheetTitle}>Create New Listing</Text>
 
-      {/* Unified Navigation Bar */}
-      <BottomNavBar />
-    </View>
+                <TouchableOpacity
+                  style={styles.sheetOption}
+                  onPress={handleCreateSingle}
+                  testID="sheet-option-single"
+                >
+                  <Text style={styles.sheetOptionIcon}>📝</Text>
+                  <View style={styles.sheetOptionContent}>
+                    <Text style={styles.sheetOptionTitle}>List One Item</Text>
+                    <Text style={styles.sheetOptionDescription}>
+                      Create a single listing with photos and details
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.sheetOption}
+                  onPress={handleCreateBulk}
+                  testID="sheet-option-bulk"
+                >
+                  <Text style={styles.sheetOptionIcon}>📦</Text>
+                  <View style={styles.sheetOptionContent}>
+                    <Text style={styles.sheetOptionTitle}>Bulk Upload</Text>
+                    <Text style={styles.sheetOptionDescription}>
+                      Upload multiple items at once with AI assistance
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.sheetCancel}
+                  onPress={() => setIsFABSheetVisible(false)}
+                  testID="sheet-cancel"
+                >
+                  <Text style={styles.sheetCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          </Modal>
+
+          {/* Unified Navigation Bar */}
+          <BottomNavBar />
+        </View>
       </View>
     </SafeAreaView>
   );

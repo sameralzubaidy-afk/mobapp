@@ -1,12 +1,12 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/e2e/listing-image-upload.e2e.test.ts
  * MODULE-13 SAFETY-P002: E2E tests for listing image upload
- * 
+ *
  * Prerequisites:
  * - RUN_SUPABASE_E2E=true (runs against production Supabase)
  * - item-images bucket must exist (SAFETY-P001 migration applied)
  * - Test must clean up uploaded images after run
- * 
+ *
  * Test coverage:
  * - Upload 1 image to listing
  * - Upload multiple images (up to 5)

@@ -14,11 +14,11 @@ SDWebImageWebPCoder supports both WebP decoding and encoding, for Static WebP or
 
 ## Requirements
 
-+ iOS 9.0
-+ macOS 10.11
-+ tvOS 9.0
-+ watchOS 2.0
-+ Xcode 11.0
+- iOS 9.0
+- macOS 10.11
+- tvOS 9.0
+- watchOS 2.0
+- Xcode 11.0
 
 ## Installation
 
@@ -56,7 +56,7 @@ let package = Package(
 
 Before using SDWebImage to load WebP images, you need to register the WebP Coder to your coders manager. This step is recommended to be done after your App launch (like AppDelegate method).
 
-+ Objective-C
+- Objective-C
 
 ```objective-c
 // Add coder
@@ -64,7 +64,7 @@ SDImageWebPCoder *webPCoder = [SDImageWebPCoder sharedCoder];
 [[SDImageCodersManager sharedManager] addCoder:webPCoder];
 ```
 
-+ Swift
+- Swift
 
 ```swift
 // Add coder
@@ -76,13 +76,13 @@ SDImageCodersManager.shared.addCoder(WebPCoder)
 
 Some of image server provider may try to detect the client supported format, by default, SDWebImage use `image/*,*/*;q=0.8` for [Accept](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept). You can modify it with the `image/webp` as well.
 
-+ Objective-C
+- Objective-C
 
 ```objective-c
 [[SDWebImageDownloader sharedDownloader] setValue:@"image/webp,image/*,*/*;q=0.8" forHTTPHeaderField:@"Accept"];
 ```
 
-+ Swift
+- Swift
 
 ```swift
 SDWebImageDownloader.shared.setValue("image/webp,image/*,*/*;q=0.8", forHTTPHeaderField:"Accept")
@@ -90,7 +90,7 @@ SDWebImageDownloader.shared.setValue("image/webp,image/*,*/*;q=0.8", forHTTPHead
 
 ### Loading
 
-+ Objective-C
+- Objective-C
 
 ```objective-c
 // WebP online image loading
@@ -99,7 +99,7 @@ UIImageView *imageView;
 [imageView sd_setImageWithURL:webpURL];
 ```
 
-+ Swift
+- Swift
 
 ```swift
 // WebP online image loading
@@ -110,7 +110,7 @@ imageView.sd_setImage(with: webpURL)
 
 ### Progressive Animation Loading (0.5.0+)
 
-+ Objective-C
+- Objective-C
 
 ```objective-c
 // WebP progressive loading for animated image
@@ -120,7 +120,7 @@ imageView.shouldIncrementalLoad = YES;
 [imageView sd_setImageWithURL:webpURL placeholderImage:nil options:SDWebImageProgressiveLoad];
 ```
 
-+ Swift
+- Swift
 
 ```swift
 // WebP progressive loading for animated image
@@ -132,7 +132,7 @@ imageView.sd_setImage(with: webpURL, placeholderImage: nil, options: [.progressi
 
 ### Decoding
 
-+ Objective-C
+- Objective-C
 
 ```objective-c
 // WebP image decoding
@@ -140,7 +140,7 @@ NSData *webpData;
 UIImage *image = [[SDImageWebPCoder sharedCoder] decodedImageWithData:webpData options:nil];
 ```
 
-+ Swift
+- Swift
 
 ```swift
 // WebP image decoding
@@ -150,7 +150,7 @@ let image = SDImageWebPCoder.shared.decodedImage(with: data, options: nil)
 
 ### Thumbnail Decoding (0.4.0+)
 
-+ Objective-C
+- Objective-C
 
 ```objective-c
 // WebP thumbnail image decoding
@@ -159,7 +159,7 @@ CGSize thumbnailSize = CGSizeMake(300, 300);
 UIImage *thumbnailImage = [[SDImageWebPCoder sharedCoder] decodedImageWithData:webpData options:@{SDImageCoderDecodeThumbnailPixelSize : @(thumbnailSize}];
 ```
 
-+ Swift
+- Swift
 
 ```swift
 // WebP thumbnail image decoding
@@ -170,7 +170,7 @@ let image = SDImageWebPCoder.shared.decodedImage(with: data, options: [.decodeTh
 
 ### Encoding
 
-+ Objective-c
+- Objective-c
 
 ```objective-c
 // WebP image encoding
@@ -181,7 +181,7 @@ NSData *lossyWebpData = [[SDImageWebPCoder sharedCoder] encodedDataWithImage:ima
 NSData *limitedWebpData = [[SDImageWebPCoder sharedCoder] encodedDataWithImage:image format:SDImageFormatWebP options:@{SDImageCoderEncodeMaxFileSize : @(1024 * 10)}]; // v0.6.0 feature, limit output file size <= 10KB
 ```
 
-+ Swift
+- Swift
 
 ```swift
 // WebP image encoding
@@ -194,7 +194,7 @@ let limitedWebpData = SDImageWebPCoder.shared.encodedData(with: image, format: .
 
 ### Thumbnail Encoding (0.6.1+)
 
-+ Objective-C
+- Objective-C
 
 ```objective-c
 // WebP image thumbnail encoding
@@ -202,7 +202,7 @@ UIImage *image;
 NSData *thumbnailWebpData = [[SDImageWebPCoder sharedCoder] encodedDataWithImage:image format:SDImageFormatWebP options:@{SDImageCoderEncodeMaxPixelSize : @(CGSizeMake(200, 200)}]; // v0.6.1 feature, encoding max pixel size
 ```
 
-+ Swift
+- Swift
 
 ```swift
 // WebP image thumbnail encoding
@@ -216,7 +216,7 @@ See more documentation in [SDWebImage Wiki - Coders](https://github.com/SDWebIma
 
 The WebP codec [libwebp](https://developers.google.com/speed/webp/docs/api) we use, supports some advanced control options for encoding/decoding. You can pass them to libwebp by using the wrapper top level API:
 
-+ Objective-C
+- Objective-C
 
 ```objective-c
 UIImage *image;
@@ -227,7 +227,7 @@ NSData *data = [SDImageWebPCoder.sharedCoder encodedDataWithImage:image format:S
 // config->alpha_quality = 100;
 ```
 
-+ Swift
+- Swift
 
 ```swift
 let image: UIImage
@@ -258,5 +258,3 @@ These WebP images are from [WebP Gallery](https://developers.google.com/speed/we
 ## License
 
 SDWebImageWebPCoder is available under the MIT license. See [the LICENSE file](https://github.com/SDWebImage/SDWebImageWebPCoder/blob/master/LICENSE) for more info.
-
-

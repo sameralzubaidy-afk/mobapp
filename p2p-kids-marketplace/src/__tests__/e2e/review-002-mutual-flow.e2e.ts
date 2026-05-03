@@ -6,15 +6,15 @@ import { supabase } from '@/services/supabase/client';
 
 /**
  * E2E TEST: REVIEW-002 - Mutual Review Flow
- * 
+ *
  * Tests the complete flow where both buyer and seller review each other
  * after trade completion.
- * 
+ *
  * Prerequisites:
  * - Completed trade exists (trade ID provided)
  * - Buyer and seller user accounts exist
  * - Review permissions configured
- * 
+ *
  * Test Flow:
  * 1. Buyer reviews seller
  * 2. Verify buyer review status
@@ -41,20 +41,14 @@ describe('E2E: REVIEW-002 - Mutual Review Flow', () => {
     }
 
     // Cleanup any existing test reviews
-    await supabase
-      .from('reviews')
-      .delete()
-      .eq('trade_id', testTradeId);
+    await supabase.from('reviews').delete().eq('trade_id', testTradeId);
   });
 
   afterAll(async () => {
     if (skipIfNoTestData) return;
 
     // Cleanup test reviews
-    await supabase
-      .from('reviews')
-      .delete()
-      .eq('trade_id', testTradeId);
+    await supabase.from('reviews').delete().eq('trade_id', testTradeId);
   });
 
   it('should allow buyer to review seller', async () => {
@@ -168,19 +162,19 @@ describe('E2E: REVIEW-002 - Mutual Review Flow', () => {
 
 /**
  * To run this E2E test against production Supabase:
- * 
+ *
  * 1. Set up test data:
  *    - Create a completed trade in Supabase
  *    - Note the trade ID, buyer ID, and seller ID
- * 
+ *
  * 2. Update test constants:
  *    - Replace TEST-TRADE-ID with actual trade ID
  *    - Replace TEST-BUYER-ID with actual buyer user ID
  *    - Replace TEST-SELLER-ID with actual seller user ID
- * 
+ *
  * 3. Run the test:
  *    npm test -- review-002-mutual-flow.e2e.ts
- * 
+ *
  * 4. Verify results:
  *    - Check Supabase reviews table for both reviews
  *    - Verify mutual review status on TradeDetailScreen

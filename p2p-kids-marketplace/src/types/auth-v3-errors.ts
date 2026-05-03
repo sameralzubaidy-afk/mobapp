@@ -10,7 +10,7 @@
  */
 export class OAuthStateMismatchError extends Error {
   public readonly code = 'OAUTH_STATE_MISMATCH';
-  
+
   constructor(message: string = 'OAuth state token mismatch - possible CSRF attack') {
     super(message);
     this.name = 'OAuthStateMismatchError';
@@ -25,17 +25,15 @@ export class OAuthStateMismatchError extends Error {
  */
 export class EmailMismatchError extends Error {
   public readonly code = 'EMAIL_MISMATCH';
-  
+
   /** Email from provider that was attempted */
   public readonly providerEmail: string;
-  
+
   /** Email on existing account */
   public readonly accountEmail: string;
-  
+
   constructor(providerEmail: string, accountEmail: string) {
-    super(
-      `Cannot link provider email "${providerEmail}" - account email is "${accountEmail}"`
-    );
+    super(`Cannot link provider email "${providerEmail}" - account email is "${accountEmail}"`);
     this.name = 'EmailMismatchError';
     this.providerEmail = providerEmail;
     this.accountEmail = accountEmail;
@@ -50,14 +48,12 @@ export class EmailMismatchError extends Error {
  */
 export class LastLoginMethodError extends Error {
   public readonly code = 'LAST_LOGIN_METHOD';
-  
+
   /** The provider that cannot be unlinked */
   public readonly provider: string;
-  
+
   constructor(provider: string) {
-    super(
-      `Cannot unlink ${provider} - it is your last login method. Add another method first.`
-    );
+    super(`Cannot unlink ${provider} - it is your last login method. Add another method first.`);
     this.name = 'LastLoginMethodError';
     this.provider = provider;
     Object.setPrototypeOf(this, LastLoginMethodError.prototype);
@@ -70,10 +66,10 @@ export class LastLoginMethodError extends Error {
  */
 export class OTPExpiredError extends Error {
   public readonly code = 'OTP_EXPIRED';
-  
+
   /** ISO timestamp when code expired */
   public readonly expiredAt: string;
-  
+
   constructor(expiredAt: string) {
     super(`Verification code expired at ${expiredAt}. Request a new code.`);
     this.name = 'OTPExpiredError';
@@ -89,13 +85,13 @@ export class OTPExpiredError extends Error {
  */
 export class OTPRateLimitError extends Error {
   public readonly code = 'OTP_RATE_LIMIT';
-  
+
   /** Seconds until next attempt allowed */
   public readonly retryAfterSeconds: number;
-  
+
   /** Human-readable rate limit reason (e.g., "3 per hour") */
   public readonly limitType: string;
-  
+
   constructor(retryAfterSeconds: number, limitType: string) {
     super(
       `Too many verification attempts (${limitType}). Try again in ${Math.ceil(retryAfterSeconds / 60)} minutes.`
@@ -114,10 +110,10 @@ export class OTPRateLimitError extends Error {
  */
 export class WeakPasswordError extends Error {
   public readonly code = 'WEAK_PASSWORD';
-  
+
   /** Array of specific reasons password failed (for UI display) */
   public readonly reasons: string[];
-  
+
   constructor(reasons: string[]) {
     super(`Password does not meet requirements: ${reasons.join(', ')}`);
     this.name = 'WeakPasswordError';
@@ -133,13 +129,13 @@ export class WeakPasswordError extends Error {
  */
 export class AvatarDownloadError extends Error {
   public readonly code = 'AVATAR_DOWNLOAD_FAILED';
-  
+
   /** The URL that failed to download */
   public readonly avatarUrl: string;
-  
+
   /** Underlying error reason (e.g., "timeout", "invalid_format") */
   public readonly reason: string;
-  
+
   constructor(avatarUrl: string, reason: string) {
     super(`Failed to download avatar from ${avatarUrl}: ${reason}`);
     this.name = 'AvatarDownloadError';
@@ -155,13 +151,13 @@ export class AvatarDownloadError extends Error {
  */
 export class ProviderUnavailableError extends Error {
   public readonly code = 'PROVIDER_UNAVAILABLE';
-  
+
   /** The provider that is unavailable */
   public readonly provider: string;
-  
+
   /** HTTP status code or "timeout" */
   public readonly status: string;
-  
+
   constructor(provider: string, status: string) {
     super(
       `${provider.charAt(0).toUpperCase() + provider.slice(1)} is temporarily unavailable. Try email signup instead.`

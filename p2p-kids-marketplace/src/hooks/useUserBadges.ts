@@ -26,17 +26,17 @@ interface UseUserBadgesResult {
 
 /**
  * Hook to fetch user badges and subscribe to real-time updates
- * 
+ *
  * Features:
  * - Fetches user's badges on mount
  * - Subscribes to real-time INSERT events on user_badges table
  * - Exposes newBadgeAwarded for celebration modals
  * - Automatically refreshes badges when new badge is awarded
- * 
+ *
  * Usage:
  * ```tsx
  * const { badges, loading, newBadgeAwarded, clearNewBadge } = useUserBadges(userId);
- * 
+ *
  * useEffect(() => {
  *   if (newBadgeAwarded) {
  *     showCelebrationModal(newBadgeAwarded);
@@ -102,7 +102,8 @@ export const useUserBadges = (userId: string | undefined): UseUserBadgesResult =
       hasCheckedPendingCelebrationRef.current = true;
 
       try {
-        const { data: notifications, error: notificationsError } = await getBadgeNotifications(userId);
+        const { data: notifications, error: notificationsError } =
+          await getBadgeNotifications(userId);
 
         if (notificationsError || !notifications?.length) {
           return;
@@ -122,7 +123,8 @@ export const useUserBadges = (userId: string | undefined): UseUserBadgesResult =
         }
 
         let badgeToCelebrate = fetchedBadges.find(
-          (badge) => badge.badge_id === parsedData.badge_id || badge.badge?.id === parsedData.badge_id
+          (badge) =>
+            badge.badge_id === parsedData.badge_id || badge.badge?.id === parsedData.badge_id
         );
 
         if (!badgeToCelebrate) {

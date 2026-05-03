@@ -222,9 +222,7 @@ describe('useItemDraft', () => {
     };
 
     mockDraftService.getItemDraft.mockResolvedValue(mockDraft);
-    mockDraftService.updateItemDraft.mockRejectedValue(
-      new Error('Network error')
-    );
+    mockDraftService.updateItemDraft.mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => useItemDraft('draft-error', 'seller-error'));
 

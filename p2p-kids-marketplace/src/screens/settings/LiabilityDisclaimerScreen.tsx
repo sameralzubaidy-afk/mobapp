@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/settings/LiabilityDisclaimerScreen.tsx
  * TASK SAFETY-012: Liability Disclaimer Viewer (from Settings)
- * 
+ *
  * Standalone screen for viewing the current published liability disclaimer.
  * Accessible from Settings menu for user reference.
  */
@@ -114,10 +114,7 @@ export default function LiabilityDisclaimerScreen() {
         <Text style={styles.headerTitle}>Liability Disclaimer</Text>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        testID="disclaimer-content"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} testID="disclaimer-content">
         <Text style={styles.title}>{policy.title}</Text>
 
         <View style={styles.metaContainer}>
@@ -138,8 +135,8 @@ export default function LiabilityDisclaimerScreen() {
         <View style={styles.noticeContainer}>
           <Ionicons name="information-circle" size={20} color="#3B82F6" />
           <Text style={styles.noticeText}>
-            This disclaimer is shown before every purchase to ensure all users understand
-            the terms of trading on our platform.
+            This disclaimer is shown before every purchase to ensure all users understand the terms
+            of trading on our platform.
           </Text>
         </View>
       </ScrollView>

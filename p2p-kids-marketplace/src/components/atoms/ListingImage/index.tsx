@@ -1,6 +1,6 @@
 /**
  * File: p2p-kids-marketplace/src/components/atoms/ListingImage/index.tsx
- * 
+ *
  * A unified atomic component for rendering listing images throughout the app.
  * This ensures consistent CDN transformation, placeholder handling, and aspect ratios.
  */
@@ -36,7 +36,7 @@ export const ListingImage: React.FC<ListingImageProps> = ({
         <Image
           source={{ uri: cdnUrl }}
           style={[styles.image, imageStyle]}
-          resizeMode={props.resizeMode || "cover"}
+          resizeMode={props.resizeMode || 'cover'}
           {...props}
         />
       ) : (

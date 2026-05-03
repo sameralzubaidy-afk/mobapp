@@ -2,23 +2,18 @@
  * File: p2p-kids-marketplace/src/components/bulk/BulkSPSummaryCard.tsx
  * MODULE-04 LISTING-V3-011: Bulk SP Summary Card
  * Task: LISTING-V3-011 - SP earnings preview for single & bulk listing
- * 
+ *
  * Purpose: Show aggregate SP earnings for bulk listing (total + per-category breakdown)
  * UX Decisions implemented:
  * - Decision 8: Summary card above item list (Option B)
  * - Decision 6: Free users see total but grayed-out + upgrade CTA
  * - Per-category breakdown with multipliers
- * 
+ *
  * @see BRD US-SUB-002: SP earnings preview requirement
  */
 
 import React, { useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useCategorySPCache } from '../../hooks/useCategorySPCache';
 import { calculateBulkTotalSP, formatSP, formatMultiplier } from '../../utils/spCalculations';
 import { SPInfoTooltip } from '../modals/SPInfoTooltip';
@@ -141,12 +136,15 @@ export function BulkSPSummaryCard({
         {nonAcceptingSPCount > 0 && (
           <View style={styles.notAcceptingContainer} testID="non-accepting-sp-items">
             <Text style={styles.notAcceptingText}>
-              ⚠️ {nonAcceptingSPCount} {nonAcceptingSPCount === 1 ? 'item is' : 'items are'} set to Cash Only
+              ⚠️ {nonAcceptingSPCount} {nonAcceptingSPCount === 1 ? 'item is' : 'items are'} set to
+              Cash Only
             </Text>
           </View>
         )}
 
-        <Text style={styles.placeholderText}>Enable “Accept Swap Points” on item cards to include them in SP totals.</Text>
+        <Text style={styles.placeholderText}>
+          Enable “Accept Swap Points” on item cards to include them in SP totals.
+        </Text>
 
         {!isSubscriber && (
           <View style={styles.lockContainer} testID="free-user-message">
@@ -213,7 +211,8 @@ export function BulkSPSummaryCard({
       {nonAcceptingSPCount > 0 && (
         <View style={styles.notAcceptingContainer} testID="non-accepting-sp-items">
           <Text style={styles.notAcceptingText}>
-            ⚠️ {nonAcceptingSPCount} {nonAcceptingSPCount === 1 ? 'item is' : 'items are'} set to Cash Only
+            ⚠️ {nonAcceptingSPCount} {nonAcceptingSPCount === 1 ? 'item is' : 'items are'} set to
+            Cash Only
           </Text>
         </View>
       )}

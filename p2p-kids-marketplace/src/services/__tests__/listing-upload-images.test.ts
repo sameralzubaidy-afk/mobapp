@@ -173,9 +173,9 @@ describe('uploadListingImages', () => {
 
     mockDeleteImage.mockResolvedValue({ error: null });
 
-    await expect(uploadListingImages('listing-1', 'seller-1', ['file:///photo.jpg'])).rejects.toThrow(
-      'Failed to save image 1 reference: insert failed'
-    );
+    await expect(
+      uploadListingImages('listing-1', 'seller-1', ['file:///photo.jpg'])
+    ).rejects.toThrow('Failed to save image 1 reference: insert failed');
 
     expect(mockDeleteImage).toHaveBeenCalledWith('item-images', 'listing-1/0.jpg');
   });

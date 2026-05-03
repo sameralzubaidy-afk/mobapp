@@ -3,7 +3,7 @@
  * MODULE-04 LISTING-V3-008: Price Suggestion Card
  * Task: LISTING-V3-008 - 4-tier price suggestions + manual input
  * Updated: ADMIN-V3-007 - Add SP earning/spending preview
- * 
+ *
  * Features:
  * - 4 price tier cards (great_deal, fair_price, asking_price, almost_new)
  * - Manual price input option
@@ -46,7 +46,7 @@ export function PriceSuggestionCard({
   testID = 'price-suggestion-card',
 }: PriceSuggestionCardProps) {
   const hasSuggestions = tiers.length > 0;
-  
+
   // State for SP calculation
   const [spPreview, setSPPreview] = useState<{
     earn_sp: number;
@@ -133,7 +133,7 @@ export function PriceSuggestionCard({
       {hasSuggestions ? (
         <>
           <Text style={styles.subtitle}>Suggested pricing based on similar items:</Text>
-          
+
           <View style={styles.tiersContainer}>
             {tiers.map((tier) => {
               const isSelected = selectedTier === tier.tier;
@@ -155,7 +155,9 @@ export function PriceSuggestionCard({
                   <Text style={[styles.tierPrice, isSelected && styles.tierPriceSelected]}>
                     ${tier.price.toFixed(2)}
                   </Text>
-                  <Text style={[styles.tierDescription, isSelected && styles.tierDescriptionSelected]}>
+                  <Text
+                    style={[styles.tierDescription, isSelected && styles.tierDescriptionSelected]}
+                  >
                     {tier.description}
                   </Text>
                 </TouchableOpacity>

@@ -2,11 +2,11 @@
  * FILE: p2p-kids-marketplace/src/services/safety.ts
  * MODULE: MODULE-13-SAFETY-COMPLIANCE
  * TASK: SAFETY-002 - CPSC Recall Matching Logic
- * 
+ *
  * DESCRIPTION:
  * Service functions for safety checks and recall matching.
  * Calls Edge Function to check items against CPSC recall database.
- * 
+ *
  * USAGE:
  * import { checkItemSafety } from './services/safety';
  * const result = await checkItemSafety(itemId, title, description);
@@ -48,19 +48,19 @@ export interface ItemSafetyFlag {
 
 /**
  * Check item title/description against CPSC recalls
- * 
+ *
  * @param itemId - UUID of the item to check
  * @param title - Item title
  * @param description - Item description (optional)
  * @returns SafetyCheckResult with flagging status
- * 
+ *
  * @example
  * const result = await checkItemSafety(
  *   '123e4567-e89b-12d3-a456-426614174000',
  *   'Fisher-Price Baby Toy',
  *   'Colorful plastic toy with small parts'
  * );
- * 
+ *
  * if (result.flagged) {
  *   console.log(`Item flagged: ${result.reason}`);
  *   console.log(`Match: ${result.match?.product_name}`);
@@ -115,7 +115,7 @@ export async function checkItemSafety(
 
 /**
  * Get safety flags for a specific item
- * 
+ *
  * @param itemId - UUID of the item
  * @returns Array of safety flags
  */
@@ -142,14 +142,15 @@ export async function getItemSafetyFlags(itemId: string): Promise<ItemSafetyFlag
 /**
  * Get all pending safety flags for admin review
  * (Admin-only, requires RLS policy)
- * 
+ *
  * @returns Array of pending safety flags with item details
  */
 export async function getPendingSafetyFlags(): Promise<(ItemSafetyFlag & { item: any })[]> {
   try {
     const { data, error } = await supabase
       .from('item_safety_flags')
-      .select(`
+      .select(
+        `
         *,
         item:items(
           id,
@@ -159,7 +160,8 @@ export async function getPendingSafetyFlags(): Promise<(ItemSafetyFlag & { item:
           status,
           created_at
         )
-      `)
+      `
+      )
       .eq('status', 'pending')
       .order('created_at', { ascending: false });
 
@@ -177,7 +179,7 @@ export async function getPendingSafetyFlags(): Promise<(ItemSafetyFlag & { item:
 
 /**
  * Check if CPSC recall checking is enabled (admin config)
- * 
+ *
  * @returns boolean indicating if feature is enabled
  */
 export async function isCpscCheckEnabled(): Promise<boolean> {
@@ -202,7 +204,7 @@ export async function isCpscCheckEnabled(): Promise<boolean> {
 
 /**
  * Get CPSC match threshold from admin config
- * 
+ *
  * @returns Confidence threshold (0.0 - 1.0) for automatic flagging
  */
 export async function getCpscMatchThreshold(): Promise<number> {
@@ -225,4 +227,3 @@ export async function getCpscMatchThreshold(): Promise<number> {
     return 0.5;
   }
 }
-

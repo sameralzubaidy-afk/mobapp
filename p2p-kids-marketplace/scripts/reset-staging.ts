@@ -1,11 +1,11 @@
 /**
  * Reset Staging Data Script
- * 
+ *
  * Cleans up test data from staging environment for fresh testing.
  * Run with: npm run reset:staging
- * 
+ *
  * ⚠️ WARNING: This deletes data! Only use on staging, never on production.
- * 
+ *
  * Deletes:
  * - Test users (test-buyer@, test-seller@)
  * - Their profiles, listings, trades
@@ -46,14 +46,11 @@ if (SUPABASE_URL.includes('supabase.co') && !SUPABASE_URL.includes('staging')) {
 }
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false }
+  auth: { autoRefreshToken: false, persistSession: false },
 });
 
 // Test email patterns to delete
-const TEST_EMAIL_PATTERNS = [
-  'test-buyer@kidsmarketplace.test',
-  'test-seller@kidsmarketplace.test',
-];
+const TEST_EMAIL_PATTERNS = ['test-buyer@kidsmarketplace.test', 'test-seller@kidsmarketplace.test'];
 
 const TEST_NODE_ID = 'test-staging-node';
 
@@ -65,11 +62,11 @@ async function resetStagingData(): Promise<void> {
 
   // Get test user IDs
   const { data: allUsers } = await supabase.auth.admin.listUsers();
-  const testUsers = allUsers?.users?.filter(u => 
-    TEST_EMAIL_PATTERNS.some(pattern => u.email === pattern)
-  ) || [];
+  const testUsers =
+    allUsers?.users?.filter((u) => TEST_EMAIL_PATTERNS.some((pattern) => u.email === pattern)) ||
+    [];
 
-  const testUserIds = testUsers.map(u => u.id);
+  const testUserIds = testUsers.map((u) => u.id);
   console.log(`Found ${testUsers.length} test users to clean up`);
 
   if (testUserIds.length > 0) {
@@ -79,7 +76,7 @@ async function resetStagingData(): Promise<void> {
       .from('trades')
       .delete({ count: 'exact' })
       .or(`buyer_id.in.(${testUserIds.join(',')}),seller_id.in.(${testUserIds.join(',')})`);
-    
+
     if (tradesError) {
       console.log(`   ⚠️ Trades: ${tradesError.message}`);
     } else {
@@ -92,7 +89,7 @@ async function resetStagingData(): Promise<void> {
       .from('listings')
       .delete({ count: 'exact' })
       .in('seller_id', testUserIds);
-    
+
     if (listingsError) {
       console.log(`   ⚠️ Listings: ${listingsError.message}`);
     } else {
@@ -105,7 +102,7 @@ async function resetStagingData(): Promise<void> {
       .from('messages')
       .delete()
       .or(`sender_id.in.(${testUserIds.join(',')}),receiver_id.in.(${testUserIds.join(',')})`);
-    
+
     if (msgsError) {
       console.log(`   ⚠️ Messages: ${msgsError.message}`);
     } else {
@@ -118,7 +115,7 @@ async function resetStagingData(): Promise<void> {
       .from('profiles')
       .delete({ count: 'exact' })
       .in('user_id', testUserIds);
-    
+
     if (profilesError) {
       console.log(`   ⚠️ Profiles: ${profilesError.message}`);
     } else {
@@ -152,7 +149,7 @@ async function resetStagingData(): Promise<void> {
 // Confirmation prompt
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  
+
   if (!args.includes('--force') && !args.includes('-f')) {
     console.log('⚠️  This will DELETE test data from staging!');
     console.log('   Add --force or -f to confirm.');

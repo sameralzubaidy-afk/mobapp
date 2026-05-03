@@ -332,7 +332,8 @@ describe('draftService', () => {
             select: jest.fn(() => ({
               eq: jest.fn(() => ({
                 gt: jest.fn(() => ({
-                  single: jest.fn()
+                  single: jest
+                    .fn()
                     .mockResolvedValueOnce({ data: mockDraft1, error: null })
                     .mockResolvedValueOnce({ data: mockDraft2, error: null }),
                 })),

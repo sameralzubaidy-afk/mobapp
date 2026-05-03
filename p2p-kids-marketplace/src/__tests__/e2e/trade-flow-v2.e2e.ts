@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/e2e/trade-flow-v2.e2e.ts
  * MODULE-06 TRADE-V2-010: End-to-End Tests for Complete Trade Flow V2
- * 
+ *
  * Tests cover:
  * 1. Full trade flow: initiate → payment → complete
  * 2. Cancellation flows: pre-payment and post-payment
@@ -9,14 +9,19 @@
  * 4. Stripe payment integration
  * 5. Seller SP earning on completion
  * 6. Mid-trade subscription changes
- * 
+ *
  * IMPORTANT: These tests require live Supabase connection.
  * They are designed to run against staging/test environment.
  */
 
 import { describe, it, expect, beforeAll } from '@jest/globals';
 import { supabase } from '../../config/supabase';
-import { initiateTradeV2, processTradePayment, completeTradeV2, cancelTradeV2 } from '../../services/trade';
+import {
+  initiateTradeV2,
+  processTradePayment,
+  completeTradeV2,
+  cancelTradeV2,
+} from '../../services/trade';
 
 const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
 const describeSupabaseE2E = shouldRunSupabaseE2E ? describe : describe.skip;
@@ -37,7 +42,7 @@ const TEST_DATA = {
   },
   testItem: {
     itemId: '', // Will be fetched from seeded items
-    price: 25.00,
+    price: 25.0,
   },
   stripeTestCards: {
     success: 'pm_card_visa',
@@ -53,18 +58,18 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
       console.warn('⚠️ Supabase connection issue:', error);
       throw new Error('Cannot run E2E tests: Supabase not accessible');
     }
-    
+
     // Fetch a seeded listing ID
     const { data: listings } = await supabase
       .from('items')
       .select('id')
       .eq('user_id', TEST_DATA.seller.userId)
       .limit(1);
-    
+
     if (listings && listings.length > 0) {
       TEST_DATA.testItem.itemId = listings[0].id;
     }
-    
+
     console.log('✅ Supabase connection verified');
   });
 
@@ -103,10 +108,7 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
         return;
       }
 
-      const result = await processTradePayment(
-        tradeId,
-        TEST_DATA.stripeTestCards.success
-      );
+      const result = await processTradePayment(tradeId, TEST_DATA.stripeTestCards.success);
 
       // Note: This may fail if Stripe is not fully configured in test environment
       if (!result.success && result.error?.includes('configuration')) {
@@ -129,7 +131,9 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
       const { data: beforeWallet } = await supabase.rpc('get_user_sp_wallet_summary', {
         p_user_id: TEST_DATA.seller.userId,
       });
-      const spBefore = Array.isArray(beforeWallet) ? beforeWallet[0]?.available_points : beforeWallet?.available_points;
+      const spBefore = Array.isArray(beforeWallet)
+        ? beforeWallet[0]?.available_points
+        : beforeWallet?.available_points;
 
       const result = await completeTradeV2(tradeId);
 
@@ -144,12 +148,16 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
       const { data: afterWallet } = await supabase.rpc('get_user_sp_wallet_summary', {
         p_user_id: TEST_DATA.seller.userId,
       });
-      const spAfter = Array.isArray(afterWallet) ? afterWallet[0]?.available_points : afterWallet?.available_points;
+      const spAfter = Array.isArray(afterWallet)
+        ? afterWallet[0]?.available_points
+        : afterWallet?.available_points;
 
       // Seller should earn SP equal to item sale price
       const expectedEarning = Math.floor(TEST_DATA.testItem.price); // Simplified: 1 SP per dollar
       expect(spAfter).toBeGreaterThanOrEqual(spBefore);
-      console.log(`✅ Trade completed. Seller SP: ${spBefore} → ${spAfter} (earned: ${spAfter - spBefore})`);
+      console.log(
+        `✅ Trade completed. Seller SP: ${spBefore} → ${spAfter} (earned: ${spAfter - spBefore})`
+      );
     });
   });
 
@@ -266,7 +274,9 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
       const { data: beforeWallet } = await supabase.rpc('get_user_sp_wallet_summary', {
         p_user_id: TEST_DATA.subscriberBuyer.userId,
       });
-      const spBefore = Array.isArray(beforeWallet) ? beforeWallet[0]?.available_points : beforeWallet?.available_points;
+      const spBefore = Array.isArray(beforeWallet)
+        ? beforeWallet[0]?.available_points
+        : beforeWallet?.available_points;
 
       // Cancel trade
       const cancelResult = await cancelTradeV2(tradeId, 'Item damaged');
@@ -283,10 +293,14 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
       const { data: afterWallet } = await supabase.rpc('get_user_sp_wallet_summary', {
         p_user_id: TEST_DATA.subscriberBuyer.userId,
       });
-      const spAfter = Array.isArray(afterWallet) ? afterWallet[0]?.available_points : afterWallet?.available_points;
+      const spAfter = Array.isArray(afterWallet)
+        ? afterWallet[0]?.available_points
+        : afterWallet?.available_points;
 
       expect(spAfter).toBeGreaterThanOrEqual(spBefore);
-      console.log(`✅ Post-payment cancellation with refunds successful. Buyer SP: ${spBefore} → ${spAfter}`);
+      console.log(
+        `✅ Post-payment cancellation with refunds successful. Buyer SP: ${spBefore} → ${spAfter}`
+      );
     });
   });
 
@@ -339,7 +353,9 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
       const { data: beforeWallet } = await supabase.rpc('get_user_sp_wallet_summary', {
         p_user_id: TEST_DATA.subscriberBuyer.userId,
       });
-      const spBefore = Array.isArray(beforeWallet) ? beforeWallet[0]?.available_points : beforeWallet?.available_points;
+      const spBefore = Array.isArray(beforeWallet)
+        ? beforeWallet[0]?.available_points
+        : beforeWallet?.available_points;
 
       if (spBefore < 5) {
         console.warn('⚠️ Insufficient SP for test - skipping');
@@ -368,7 +384,9 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
       const { data: afterWallet } = await supabase.rpc('get_user_sp_wallet_summary', {
         p_user_id: TEST_DATA.subscriberBuyer.userId,
       });
-      const spAfter = Array.isArray(afterWallet) ? afterWallet[0]?.available_points : afterWallet?.available_points;
+      const spAfter = Array.isArray(afterWallet)
+        ? afterWallet[0]?.available_points
+        : afterWallet?.available_points;
 
       expect(spAfter).toBe(spBefore - 5);
       console.log(`✅ SP debited correctly: ${spBefore} → ${spAfter}`);
@@ -403,7 +421,9 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
         .single();
 
       expect(trade?.buyer_transaction_fee_cents).toBe(99);
-      console.log(`✅ Fee locked at initiation: $0.99 (subscription status: ${trade?.buyer_subscription_status})`);
+      console.log(
+        `✅ Fee locked at initiation: $0.99 (subscription status: ${trade?.buyer_subscription_status})`
+      );
     });
   });
 });

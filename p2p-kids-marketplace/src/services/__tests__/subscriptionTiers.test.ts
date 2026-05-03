@@ -12,10 +12,7 @@ import {
   hasReducedFee,
 } from '../subscriptionTiers';
 import { supabase } from '../../config/supabase';
-import {
-  SubscriptionTierName,
-  SubscriptionFeatureKey,
-} from '../../types/subscription.types';
+import { SubscriptionTierName, SubscriptionFeatureKey } from '../../types/subscription.types';
 
 // Mock Supabase client
 jest.mock('../../config/supabase', () => ({
@@ -107,9 +104,7 @@ describe('SubscriptionTiers Service - SUB-001', () => {
         }),
       } as any);
 
-      const { data, error } = await getSubscriptionTierByName(
-        SubscriptionTierName.KIDS_CLUB_PLUS
-      );
+      const { data, error } = await getSubscriptionTierByName(SubscriptionTierName.KIDS_CLUB_PLUS);
 
       expect(error).toBeNull();
       expect(data).toEqual(mockTier);
@@ -377,25 +372,24 @@ describe('SubscriptionTiers Service - SUB-001', () => {
       };
 
       // Mock tier and feature fetches
-      mockSupabase.from
-        .mockReturnValue({
-          select: jest.fn().mockReturnValue({
+      mockSupabase.from.mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
             eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: mockTier,
+                error: null,
+              }),
               eq: jest.fn().mockReturnValue({
-                single: jest.fn().mockResolvedValue({
-                  data: mockTier,
+                maybeSingle: jest.fn().mockResolvedValue({
+                  data: mockFeature,
                   error: null,
-                }),
-                eq: jest.fn().mockReturnValue({
-                  maybeSingle: jest.fn().mockResolvedValue({
-                    data: mockFeature,
-                    error: null,
-                  }),
                 }),
               }),
             }),
           }),
-        } as any);
+        }),
+      } as any);
     });
 
     it('canUserEarnSwapPoints should check can_earn_sp feature', async () => {

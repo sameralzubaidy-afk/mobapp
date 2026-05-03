@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/components/molecules/ImagePickerGrid.tsx
  * MODULE-13 SAFETY-P002: Multi-image picker with preview for listings
- * 
+ *
  * Features:
  * - Pick up to 5 images from gallery or camera
  * - Show image previews in horizontal scroll
@@ -76,7 +76,10 @@ export default function ImagePickerGrid({
         const validAssets: SelectedImage[] = [];
         for (const asset of result.assets) {
           if (asset.fileSize && asset.fileSize > MAX_FILE_SIZE_BYTES) {
-            Alert.alert('File Too Large', `Image ${asset.fileName || 'selected'} exceeds ${MAX_FILE_SIZE_MB} MB`);
+            Alert.alert(
+              'File Too Large',
+              `Image ${asset.fileName || 'selected'} exceeds ${MAX_FILE_SIZE_MB} MB`
+            );
             continue;
           }
           validAssets.push({
@@ -155,10 +158,10 @@ export default function ImagePickerGrid({
   return (
     <View style={styles.container} testID={testID}>
       <View style={styles.header}>
-        <Text style={styles.label}>Photos ({images.length}/{maxImages})</Text>
-        {images.length > 0 && (
-          <Text style={styles.hint}>First image will be the cover photo</Text>
-        )}
+        <Text style={styles.label}>
+          Photos ({images.length}/{maxImages})
+        </Text>
+        {images.length > 0 && <Text style={styles.hint}>First image will be the cover photo</Text>}
       </View>
 
       {/* Image Preview Grid */}
@@ -172,7 +175,7 @@ export default function ImagePickerGrid({
           {images.map((img, index) => (
             <View key={`${img.uri}-${index}`} style={styles.previewContainer}>
               <Image source={{ uri: img.uri }} style={styles.previewImage} />
-              
+
               {/* Primary badge for first image */}
               {index === 0 && (
                 <View style={styles.primaryBadge}>

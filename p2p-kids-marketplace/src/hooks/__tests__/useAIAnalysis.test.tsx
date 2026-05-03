@@ -18,12 +18,12 @@ const mockAnalysisResult: AIAnalysisResult = {
   title: { value: 'Blue Bike', confidence: 0.85 },
   category: {
     value: { label: 'Bikes & Ride-Ons', categoryId: 'cat-123' },
-    confidence: 0.90,
+    confidence: 0.9,
   },
   condition: { value: 'good', confidence: 0.75 },
-  brand: { value: 'Schwinn', confidence: 0.80 },
+  brand: { value: 'Schwinn', confidence: 0.8 },
   color: { value: ['blue', 'black'], confidence: 0.88 },
-  age_group: { value: '6-8', confidence: 0.70 },
+  age_group: { value: '6-8', confidence: 0.7 },
   gender: { value: 'boy', confidence: 0.65 },
 };
 
@@ -192,9 +192,7 @@ describe('useAIAnalysis', () => {
     });
 
     it('should not retry non-network errors', async () => {
-      (aiService.analyzePhotosBatch as jest.Mock).mockRejectedValue(
-        new Error('Invalid API key')
-      );
+      (aiService.analyzePhotosBatch as jest.Mock).mockRejectedValue(new Error('Invalid API key'));
 
       const { result } = renderHook(() =>
         useAIAnalysis(['https://example.com/photo1.jpg'], 'seller-123')
@@ -228,12 +226,9 @@ describe('useAIAnalysis', () => {
 
       (aiService.analyzePhotosBatch as jest.Mock).mockResolvedValue(mockResponse);
 
-      const { result, rerender } = renderHook(
-        ({ urls }) => useAIAnalysis(urls, 'seller-123'),
-        {
-          initialProps: { urls: ['https://example.com/photo1.jpg'] },
-        }
-      );
+      const { result, rerender } = renderHook(({ urls }) => useAIAnalysis(urls, 'seller-123'), {
+        initialProps: { urls: ['https://example.com/photo1.jpg'] },
+      });
 
       await waitFor(() => {
         expect(result.current.status).toBe('ready');
@@ -268,12 +263,9 @@ describe('useAIAnalysis', () => {
           })
       );
 
-      const { rerender } = renderHook(
-        ({ urls }) => useAIAnalysis(urls, 'seller-123'),
-        {
-          initialProps: { urls: ['https://example.com/photo1.jpg'] },
-        }
-      );
+      const { rerender } = renderHook(({ urls }) => useAIAnalysis(urls, 'seller-123'), {
+        initialProps: { urls: ['https://example.com/photo1.jpg'] },
+      });
 
       // Change URLs before first analysis completes
       rerender({ urls: ['https://example.com/photo2.jpg'] });
@@ -295,12 +287,9 @@ describe('useAIAnalysis', () => {
 
       (aiService.analyzePhotosBatch as jest.Mock).mockResolvedValue(mockResponse);
 
-      const { result, rerender } = renderHook(
-        ({ urls }) => useAIAnalysis(urls, 'seller-123'),
-        {
-          initialProps: { urls: ['https://example.com/photo1.jpg'] },
-        }
-      );
+      const { result, rerender } = renderHook(({ urls }) => useAIAnalysis(urls, 'seller-123'), {
+        initialProps: { urls: ['https://example.com/photo1.jpg'] },
+      });
 
       await waitFor(() => {
         expect(result.current.status).toBe('ready');
@@ -351,9 +340,7 @@ describe('useAIAnalysis', () => {
     });
 
     it('should reset retry count on manual retry', async () => {
-      (aiService.analyzePhotosBatch as jest.Mock).mockRejectedValue(
-        new Error('Network error')
-      );
+      (aiService.analyzePhotosBatch as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() =>
         useAIAnalysis(['https://example.com/photo1.jpg'], 'seller-123')

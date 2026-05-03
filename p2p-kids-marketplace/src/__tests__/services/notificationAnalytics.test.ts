@@ -31,7 +31,7 @@ describe('NotificationAnalyticsService', () => {
   describe('trackDelivered', () => {
     it('should track delivered event successfully', async () => {
       const mockNotificationId = '123e4567-e89b-12d3-a456-426614174000';
-      
+
       (supabase.rpc as jest.Mock).mockResolvedValue({ data: { success: true }, error: null });
 
       await NotificationAnalyticsService.trackDelivered(mockNotificationId);
@@ -47,9 +47,9 @@ describe('NotificationAnalyticsService', () => {
 
     it('should handle RPC errors gracefully', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      (supabase.rpc as jest.Mock).mockResolvedValue({ 
-        data: null, 
-        error: { message: 'Database error' } 
+      (supabase.rpc as jest.Mock).mockResolvedValue({
+        data: null,
+        error: { message: 'Database error' },
       });
 
       await NotificationAnalyticsService.trackDelivered('test-id');
@@ -58,7 +58,7 @@ describe('NotificationAnalyticsService', () => {
         expect.stringContaining('trackDelivered error'),
         expect.any(Object)
       );
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -66,7 +66,7 @@ describe('NotificationAnalyticsService', () => {
   describe('trackOpened', () => {
     it('should track opened event successfully', async () => {
       const mockNotificationId = '123e4567-e89b-12d3-a456-426614174000';
-      
+
       (supabase.rpc as jest.Mock).mockResolvedValue({ data: { success: true }, error: null });
 
       await NotificationAnalyticsService.trackOpened(mockNotificationId);
@@ -85,7 +85,7 @@ describe('NotificationAnalyticsService', () => {
     it('should track clicked event with deep link', async () => {
       const mockNotificationId = '123e4567-e89b-12d3-a456-426614174000';
       const mockDeepLink = 'app://trade/123';
-      
+
       (supabase.rpc as jest.Mock).mockResolvedValue({ data: { success: true }, error: null });
 
       await NotificationAnalyticsService.trackClicked(mockNotificationId, mockDeepLink);
@@ -105,7 +105,7 @@ describe('NotificationAnalyticsService', () => {
     it('should track failed event with error message', async () => {
       const mockNotificationId = '123e4567-e89b-12d3-a456-426614174000';
       const mockError = 'Invalid push token';
-      
+
       (supabase.rpc as jest.Mock).mockResolvedValue({ data: { success: true }, error: null });
 
       await NotificationAnalyticsService.trackFailed(mockNotificationId, mockError);
@@ -132,26 +132,30 @@ describe('NotificationAnalyticsService', () => {
 
     it('should not initialize twice', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       NotificationAnalyticsService.initialize();
       NotificationAnalyticsService.initialize();
 
       expect(Notifications.addNotificationResponseReceivedListener).toHaveBeenCalledTimes(1);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Already initialized')
-      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Already initialized'));
 
       consoleSpy.mockRestore();
     });
 
     it('should track opened and clicked when notification is tapped', async () => {
-      const trackOpenedSpy = jest.spyOn(NotificationAnalyticsService, 'trackOpened').mockResolvedValue();
-      const trackClickedSpy = jest.spyOn(NotificationAnalyticsService, 'trackClicked').mockResolvedValue();
+      const trackOpenedSpy = jest
+        .spyOn(NotificationAnalyticsService, 'trackOpened')
+        .mockResolvedValue();
+      const trackClickedSpy = jest
+        .spyOn(NotificationAnalyticsService, 'trackClicked')
+        .mockResolvedValue();
 
       let responseListener: any;
-      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((listener) => {
-        responseListener = listener;
-      });
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation(
+        (listener) => {
+          responseListener = listener;
+        }
+      );
 
       NotificationAnalyticsService.initialize();
 
@@ -183,13 +187,19 @@ describe('NotificationAnalyticsService', () => {
     });
 
     it('should support camelCase notification payload keys', async () => {
-      const trackOpenedSpy = jest.spyOn(NotificationAnalyticsService, 'trackOpened').mockResolvedValue();
-      const trackClickedSpy = jest.spyOn(NotificationAnalyticsService, 'trackClicked').mockResolvedValue();
+      const trackOpenedSpy = jest
+        .spyOn(NotificationAnalyticsService, 'trackOpened')
+        .mockResolvedValue();
+      const trackClickedSpy = jest
+        .spyOn(NotificationAnalyticsService, 'trackClicked')
+        .mockResolvedValue();
 
       let responseListener: any;
-      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation((listener) => {
-        responseListener = listener;
-      });
+      (Notifications.addNotificationResponseReceivedListener as jest.Mock).mockImplementation(
+        (listener) => {
+          responseListener = listener;
+        }
+      );
 
       NotificationAnalyticsService.initialize();
 
@@ -232,7 +242,11 @@ describe('NotificationAnalyticsService', () => {
       const startDate = new Date('2026-01-01');
       const endDate = new Date('2026-01-31');
 
-      const result = await NotificationAnalyticsService.getAnalytics(startDate, endDate, 'sp_events');
+      const result = await NotificationAnalyticsService.getAnalytics(
+        startDate,
+        endDate,
+        'sp_events'
+      );
 
       expect(supabase.rpc).toHaveBeenCalledWith('get_notification_analytics', {
         p_start_date: startDate.toISOString(),
@@ -259,9 +273,9 @@ describe('NotificationAnalyticsService', () => {
 
     it('should return null on error', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-      (supabase.rpc as jest.Mock).mockResolvedValue({ 
-        data: null, 
-        error: { message: 'RPC error' } 
+      (supabase.rpc as jest.Mock).mockResolvedValue({
+        data: null,
+        error: { message: 'RPC error' },
       });
 
       const result = await NotificationAnalyticsService.getAnalytics(new Date(), new Date());

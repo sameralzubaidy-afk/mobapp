@@ -44,30 +44,18 @@
     {
       "name": "turbomodule",
       "dependencies": {
-        "React-callinvoker": [
-          "0.81.5"
-        ],
-        "React-perflogger": [
-          "0.81.5"
-        ],
-        "React-cxxreact": [
-          "0.81.5"
-        ],
-        "React-jsi": [
-          "0.81.5"
-        ],
-        "React-logger": [
-          "0.81.5"
-        ],
+        "React-callinvoker": ["0.81.5"],
+        "React-perflogger": ["0.81.5"],
+        "React-cxxreact": ["0.81.5"],
+        "React-jsi": ["0.81.5"],
+        "React-logger": ["0.81.5"],
         "hermes-engine": []
       },
       "subspecs": [
         {
           "name": "bridging",
           "dependencies": {
-            "React-jsi": [
-              "0.81.5"
-            ],
+            "React-jsi": ["0.81.5"],
             "hermes-engine": []
           },
           "source_files": "react/bridging/**/*.{cpp,h}",
@@ -84,15 +72,9 @@
             "HEADER_SEARCH_PATHS": "\"$(PODS_TARGET_SRCROOT)/ReactCommon\" \"$(PODS_CONFIGURATION_BUILD_DIR)/React-debug/React_debug.framework/Headers\" \"$(PODS_CONFIGURATION_BUILD_DIR)/React-debug/React_featureflags.framework/Headers\" \"$(PODS_CONFIGURATION_BUILD_DIR)/React-utils/React_utils.framework/Headers\""
           },
           "dependencies": {
-            "React-debug": [
-              "0.81.5"
-            ],
-            "React-featureflags": [
-              "0.81.5"
-            ],
-            "React-utils": [
-              "0.81.5"
-            ]
+            "React-debug": ["0.81.5"],
+            "React-featureflags": ["0.81.5"],
+            "React-utils": ["0.81.5"]
           }
         }
       ]

@@ -69,7 +69,7 @@ describe('fuzzyMatch utilities', () => {
     it('should handle custom threshold', () => {
       // With threshold 1, 'scootr' is too far from 'scooter'
       expect(findClosestMatch('scootr', candidates, 1)).toBe('scooter');
-      
+
       // With threshold 0, only exact matches work
       expect(findClosestMatch('bicycle', candidates, 0)).toBe('bicycle');
       expect(findClosestMatch('bycicle', candidates, 0)).toBeNull();

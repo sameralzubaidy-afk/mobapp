@@ -73,7 +73,7 @@ const DEEP_LINK_ROUTES: Record<string, keyof RootStackParamList> = {
   '/trades': 'TradeList',
   '/trade': 'TradeList',
   TradeList: 'TradeList',
-  
+
   // Messaging
   '/chat': 'Chat',
   '/messages': 'Chat',
@@ -151,7 +151,7 @@ const TYPE_TO_ROUTE_MAP: Record<
   trade_completed: { route: 'TradeList', action: 'navigate' },
   trade_cancelled: { route: 'TradeList', action: 'navigate' },
   trade_message: { route: 'Chat', action: 'navigate' },
-  
+
   // Message Events (MODULE-14 NOTIF-V2-007 - Message notifications)
   message: { route: 'Chat', action: 'navigate' },
   new_message: { route: 'Chat', action: 'navigate' },

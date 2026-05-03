@@ -7,7 +7,11 @@ import { supabase } from '@/services/supabase';
 
 const initialProfiles = [
   { user_id: 'test-reviewer-anon-001', name: 'Reviewer One', avatar_url: null },
-  { user_id: 'test-reviewer-anon-002', name: 'Reviewer Two', avatar_url: 'http://example.com/avatar2.jpg' },
+  {
+    user_id: 'test-reviewer-anon-002',
+    name: 'Reviewer Two',
+    avatar_url: 'http://example.com/avatar2.jpg',
+  },
 ];
 
 type Filter = { type: 'eq' | 'in'; column: string; value: any };
@@ -65,7 +69,8 @@ const createBuilder = (table: string) => {
   const runQuery = async () => {
     if (insertPayload !== null) {
       const payloadItem = Array.isArray(insertPayload) ? insertPayload[0] : insertPayload;
-      const inserted = table === 'reviews' ? insertReview(payloadItem) : insertData(table, payloadItem);
+      const inserted =
+        table === 'reviews' ? insertReview(payloadItem) : insertData(table, payloadItem);
       insertPayload = null;
       return { data: inserted, error: null };
     }
@@ -131,13 +136,13 @@ jest.mock('@/services/supabase', () => ({
 
 /**
  * E2E TEST: REVIEW-003 - Anonymous Review Flow
- * 
+ *
  * Prerequisites:
  * - Supabase connection configured
  * - Test users created with profiles
  * - Completed trade exists
  * - reviews table created with RLS policies
- * 
+ *
  * Test Flow:
  * 1. User submits anonymous review for completed trade
  * 2. Verify review saved with is_anonymous = true
@@ -158,23 +163,23 @@ describe('REVIEW-003: Anonymous Review E2E Flow', () => {
 
   beforeAll(async () => {
     console.log('⚙️ SETUP: Creating test data for anonymous review flow...');
-    
+
     // TODO: Add setup logic here when connecting to real Supabase
     // - Create test users
     // - Create test profiles
     // - Create completed trade
-    
+
     console.log('✅ SETUP COMPLETE');
   });
 
   afterAll(async () => {
     console.log('🧹 CLEANUP: Removing test data...');
-    
+
     // TODO: Add cleanup logic
     // - Delete test reviews
     // - Delete test trades
     // - Delete test users
-    
+
     console.log('✅ CLEANUP COMPLETE');
   });
 
@@ -312,7 +317,7 @@ describe('REVIEW-003: Anonymous Review E2E Flow', () => {
       // This is a UI-layer concern
       // The ReviewCard component checks is_anonymous flag
       // If true, displays "Anonymous User" instead of real name
-      
+
       // This test verifies the data contract:
       // - is_anonymous flag exists
       // - Reviewer data is available (for moderation)
@@ -404,11 +409,11 @@ describe('REVIEW-003: Anonymous Review E2E Flow', () => {
  * =====================================================
  * MANUAL TESTING CHECKLIST (for QA)
  * =====================================================
- * 
+ *
  * Prerequisites:
  * - 2 test users with profiles
  * - 1 completed trade between them
- * 
+ *
  * Test Case 1: Submit Anonymous Review
  * 1. Login as User A (reviewer)
  * 2. Navigate to completed trade with User B
@@ -418,17 +423,17 @@ describe('REVIEW-003: Anonymous Review E2E Flow', () => {
  * 6. ✅ CHECK "Post anonymously" checkbox
  * 7. Tap "Submit Review"
  * 8. Verify success message
- * 
+ *
  * Expected Result:
  * - Review submitted successfully
  * - Confirmation shown
- * 
+ *
  * Test Case 2: View Anonymous Review as Reviewee
  * 1. Login as User B (reviewee)
  * 2. Navigate to own profile
  * 3. Scroll to reviews section
  * 4. Locate the review from User A
- * 
+ *
  * Expected Result:
  * - Review visible with 4 stars
  * - Comment shows: "This is anonymous feedback"
@@ -436,7 +441,7 @@ describe('REVIEW-003: Anonymous Review E2E Flow', () => {
  * - ❌ User A's profile image NOT shown
  * - ✅ "Anonymous User" shown instead
  * - ✅ Generic placeholder avatar shown
- * 
+ *
  * Test Case 3: Submit Non-Anonymous Review
  * 1. Login as User B (reviewer)
  * 2. Navigate to completed trade with User A
@@ -445,40 +450,40 @@ describe('REVIEW-003: Anonymous Review E2E Flow', () => {
  * 5. Enter comment: "Public review here"
  * 6. ❌ UNCHECK "Post anonymously" checkbox (or leave default)
  * 7. Tap "Submit Review"
- * 
+ *
  * Expected Result:
  * - Review submitted successfully
- * 
+ *
  * Test Case 4: View Non-Anonymous Review
  * 1. Login as User A (reviewee)
  * 2. Navigate to own profile
  * 3. Scroll to reviews section
  * 4. Locate the review from User B
- * 
+ *
  * Expected Result:
  * - ✅ User B's name shown
  * - ✅ User B's profile image shown
  * - Rating and comment visible
- * 
+ *
  * Test Case 5: Mixed Anonymous and Public Reviews
  * 1. View profile with multiple reviews
  * 2. Verify some show "Anonymous User"
  * 3. Verify some show real user names
- * 
+ *
  * Expected Result:
  * - Both types coexist correctly
  * - No confusion between anonymous and public
- * 
+ *
  * Test Case 6: Database Verification (Admin)
  * 1. Open Supabase Dashboard
  * 2. Navigate to reviews table
  * 3. Find anonymous review record
- * 
+ *
  * Expected Result:
  * - is_anonymous = true
  * - reviewer_id still stored (for moderation)
  * - reviewee_id stored
  * - All other fields populated correctly
- * 
+ *
  * =====================================================
  */

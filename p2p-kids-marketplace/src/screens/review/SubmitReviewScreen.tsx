@@ -41,7 +41,7 @@ export function SubmitReviewScreen() {
 
   useEffect(() => {
     checkCanReview();
-    
+
     // Set up navigation header without back button
     navigation.setOptions({
       headerShown: true,
@@ -64,13 +64,11 @@ export function SubmitReviewScreen() {
     }
 
     const result = await canReviewUser(tradeId, user.id);
-    
+
     if (!result.success || !result.canReview) {
-      Alert.alert(
-        'Cannot Submit Review',
-        result.reason || 'You cannot review this trade',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
-      );
+      Alert.alert('Cannot Submit Review', result.reason || 'You cannot review this trade', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
       return;
     }
 
@@ -82,11 +80,9 @@ export function SubmitReviewScreen() {
     // CRITICAL: Check rating FIRST before any async operations
     if (!rating || rating === 0) {
       console.log('[SubmitReviewScreen] Rating not selected. rating:', rating);
-      Alert.alert(
-        'Rating Required',
-        'Please select a star rating before submitting.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Rating Required', 'Please select a star rating before submitting.', [
+        { text: 'OK' },
+      ]);
       return; // EXIT here, don't continue
     }
 
@@ -116,11 +112,9 @@ export function SubmitReviewScreen() {
         //   is_anonymous: isAnonymous,
         // });
 
-        Alert.alert(
-          'Success',
-          'Your review has been submitted!',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
+        Alert.alert('Success', 'Your review has been submitted!', [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
       } else {
         Alert.alert('Error', result.error || 'Failed to submit review. Please try again.');
       }
@@ -142,7 +136,7 @@ export function SubmitReviewScreen() {
     try {
       // Track skip event for review completion rate analytics
       console.log('[handleSkip] User skipped review', { tradeId, userId: user.id });
-      
+
       await skipReview({
         tradeId,
         userId: user.id,
@@ -186,21 +180,14 @@ export function SubmitReviewScreen() {
         testID="submit-review-screen"
       >
         <Text style={styles.title}>Review {revieweeName}</Text>
-        <Text style={styles.subtitle}>
-          Share your experience with this trade
-        </Text>
+        <Text style={styles.subtitle}>Share your experience with this trade</Text>
 
         {/* Rating Section */}
         <View style={styles.section}>
           <Text style={styles.label}>
             Rating <Text style={styles.required}>*</Text>
           </Text>
-          <StarRating
-            rating={rating}
-            onRatingChange={setRating}
-            editable
-            size={40}
-          />
+          <StarRating rating={rating} onRatingChange={setRating} editable size={40} />
         </View>
 
         {/* Comment Section */}
@@ -229,9 +216,7 @@ export function SubmitReviewScreen() {
           testID="anonymous-checkbox"
           activeOpacity={0.7}
         >
-          <View
-            style={[styles.checkbox, isAnonymous && styles.checkboxChecked]}
-          >
+          <View style={[styles.checkbox, isAnonymous && styles.checkboxChecked]}>
             {isAnonymous && <Text style={styles.checkmark}>✓</Text>}
           </View>
           <Text style={styles.anonymousLabel}>Post anonymously</Text>
@@ -239,10 +224,7 @@ export function SubmitReviewScreen() {
 
         {/* Submit Button */}
         <TouchableOpacity
-          style={[
-            styles.submitButton,
-            (rating === 0 || submitting) && styles.submitButtonDisabled,
-          ]}
+          style={[styles.submitButton, (rating === 0 || submitting) && styles.submitButtonDisabled]}
           onPress={handleSubmit}
           disabled={submitting}
           testID="submit-review-button"
@@ -267,9 +249,7 @@ export function SubmitReviewScreen() {
         </TouchableOpacity>
 
         {/* Info Note */}
-        <Text style={styles.note}>
-          You can edit your review within 24 hours of submission.
-        </Text>
+        <Text style={styles.note}>You can edit your review within 24 hours of submission.</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );

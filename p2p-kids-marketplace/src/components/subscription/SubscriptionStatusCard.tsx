@@ -26,7 +26,9 @@ export function SubscriptionStatusCard({
   const [subscriptionPrice, setSubscriptionPrice] = useState(799); // $7.99 default
 
   useEffect(() => {
-    getSubscriptionPrice(true).then(price => setSubscriptionPrice(price * 100)).catch(console.error);
+    getSubscriptionPrice(true)
+      .then((price) => setSubscriptionPrice(price * 100))
+      .catch(console.error);
   }, []);
 
   // Free user - show upgrade prompt
@@ -41,15 +43,16 @@ export function SubscriptionStatusCard({
     );
   }
 
-  const {
-    status,
-    next_billing_date,
-    trial_ends_at,
-    subscription_expires_at,
-    grace_ends_at,
-  } = subscription;
-  const legacyCurrentPeriodEnd = (subscription as any).current_period_end as string | null | undefined;
-  const legacyGracePeriodEndsAt = (subscription as any).grace_period_ends_at as string | null | undefined;
+  const { status, next_billing_date, trial_ends_at, subscription_expires_at, grace_ends_at } =
+    subscription;
+  const legacyCurrentPeriodEnd = (subscription as any).current_period_end as
+    | string
+    | null
+    | undefined;
+  const legacyGracePeriodEndsAt = (subscription as any).grace_period_ends_at as
+    | string
+    | null
+    | undefined;
   const explicitPriceCents = (subscription as any).price_cents as number | undefined;
   const displayPriceCents = explicitPriceCents ?? subscriptionPrice;
   const tierName = 'Kids Club+'; // Single tier for now
@@ -80,8 +83,8 @@ export function SubscriptionStatusCard({
     status === 'trial' && trial_ends_at
       ? trial_ends_at
       : status === 'grace_period' && (grace_ends_at || legacyGracePeriodEndsAt)
-      ? grace_ends_at || legacyGracePeriodEndsAt
-      : next_billing_date || legacyCurrentPeriodEnd || subscription_expires_at;
+        ? grace_ends_at || legacyGracePeriodEndsAt
+        : next_billing_date || legacyCurrentPeriodEnd || subscription_expires_at;
 
   // Determine date label
   const dateLabel = (() => {

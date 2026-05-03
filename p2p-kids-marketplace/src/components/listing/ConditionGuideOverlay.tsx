@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/listing/ConditionGuideOverlay.tsx
  * MODULE-04 LISTING-V3-008: Condition Guide Overlay
  * Task: LISTING-V3-008 - Modal with real photo examples per condition
- * 
+ *
  * Features:
  * - Full-screen modal overlay
  * - Photo examples for selected condition
@@ -28,12 +28,7 @@ const CONDITION_GUIDES: ConditionGuide[] = [
     title: 'New',
     description: 'Brand new with original tags attached',
     examplePhotoUrl: 'https://via.placeholder.com/300x200?text=New+Item+Example',
-    tips: [
-      'Has original tags',
-      'Never worn or used',
-      'In original packaging',
-      'No signs of wear',
-    ],
+    tips: ['Has original tags', 'Never worn or used', 'In original packaging', 'No signs of wear'],
   },
   {
     condition: 'like_new',
@@ -148,8 +143,8 @@ export function ConditionGuideOverlay({
           <View style={styles.noteSection}>
             <Text style={styles.noteTitle}>💡 Tip</Text>
             <Text style={styles.noteText}>
-              Take clear, well-lit photos showing any wear or defects. Honest descriptions
-              build trust with buyers!
+              Take clear, well-lit photos showing any wear or defects. Honest descriptions build
+              trust with buyers!
             </Text>
           </View>
         </ScrollView>

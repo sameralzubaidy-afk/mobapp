@@ -106,8 +106,7 @@ function isTrialLimitReachedMessage(message: string | undefined): boolean {
   }
 
   return (
-    message.includes('TRIAL_LIMIT_REACHED') ||
-    message.toLowerCase().includes('trial limit reached')
+    message.includes('TRIAL_LIMIT_REACHED') || message.toLowerCase().includes('trial limit reached')
   );
 }
 

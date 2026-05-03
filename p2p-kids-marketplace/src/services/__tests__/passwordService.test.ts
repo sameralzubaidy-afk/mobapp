@@ -110,10 +110,10 @@ describe('passwordService', () => {
 
       expect(result1.valid).toBe(false);
       expect(result1.reasons).toContain(PasswordErrorCode.COMMON_PASSWORD);
-      
+
       expect(result2.valid).toBe(false);
       expect(result2.reasons).toContain(PasswordErrorCode.COMMON_PASSWORD);
-      
+
       expect(result3.valid).toBe(false);
       expect(result3.reasons).toContain(PasswordErrorCode.COMMON_PASSWORD);
     });
@@ -235,7 +235,7 @@ describe('passwordService', () => {
 
     it('should handle updateUser failure', async () => {
       mockSupabase.rpc.mockResolvedValueOnce({ data: true, error: null });
-      
+
       mockSupabase.auth.updateUser.mockResolvedValueOnce({
         data: { user: null },
         error: { message: 'Update failed', code: '500' },

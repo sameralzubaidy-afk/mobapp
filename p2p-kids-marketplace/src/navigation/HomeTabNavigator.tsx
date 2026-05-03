@@ -68,8 +68,8 @@ export function HomeTabNavigator() {
             {route.name === 'Dashboard'
               ? 'Dashboard'
               : route.name === 'Discover'
-              ? 'Discover'
-              : route.name}
+                ? 'Discover'
+                : route.name}
           </Text>
         ),
         tabBarIcon: ({ focused }) => {
@@ -77,8 +77,8 @@ export function HomeTabNavigator() {
             route.name === 'Dashboard'
               ? 'Dashboard'
               : route.name === 'Discover'
-              ? 'Discover'
-              : route.name;
+                ? 'Discover'
+                : route.name;
           return <TabIcon name={iconName} focused={focused} />;
         },
       })}

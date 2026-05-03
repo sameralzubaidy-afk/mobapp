@@ -150,6 +150,54 @@ This file is the canonical registry of end-to-end flows and their required regre
       - Manual testing required for actual Twilio SMS delivery and password setting flows
       - Maestro: `.maestro/auth-v3-005-profile-autofill.yaml` (Google/Facebook/Apple auto-fill states)
       - Manual: `AUTH-V3-005-MANUAL-TESTING.md` (8 test cases + 2 regression checks)
+  - **AUTH-V3-007-SOCIAL-LOGIN-UI (2026-05-01):** Social login buttons UI component + login/signup screen integration
+    - Module: MODULE-03-AUTH-V3-SOCIAL-LOGIN (TASK AUTH-V3-007)
+    - Scope:
+      - `p2p-kids-marketplace/src/components/auth/ProviderButton.tsx`
+      - `p2p-kids-marketplace/src/components/auth/SocialLoginButtons.tsx`
+      - `p2p-kids-marketplace/src/screens/LoginScreen.tsx` (integration)
+      - `p2p-kids-marketplace/src/screens/SignupScreen.tsx` (integration)
+    - Features:
+      - Social login buttons render above email/password form on both Login and Signup screens
+      - 3 providers: Google (#4285F4), Facebook (#1877F2), Apple (#000000)
+      - Apple button renders on BOTH iOS and Android (App Store compliance)
+      - Mode-specific labels: "Sign in with <Provider>" (login) vs "Continue with <Provider>" (signup)
+      - Full OAuth flow: initiate → callback → checkAccountExists → autoFillProfile (signup only) → navigate to Home
+      - Account exists scenario: triggers `onAccountExists` callback (AccountLinkingPrompt modal in AUTH-V3-008)
+      - Error handling:
+        - ProviderUnavailableError: shows orange banner "Provider is temporarily unavailable. Use Email instead?" with CTA
+        - User cancel (access_denied): silent (no error UI)
+      - Loading state: per-provider ActivityIndicator (only pressed button shows loading)
+      - Email fallback: "Use Email" CTA focuses email input and hides error banner
+      - Accessibility: proper labels, roles, states; loading announces "Signing you in…"
+    - Component Dependencies:
+      - oauthService (AUTH-V3-003)
+      - accountService (AUTH-V3-004)
+      - profileService (AUTH-V3-005)
+      - auth-v3 types (OAuthProvider, ProviderProfile, etc.)
+      - auth-v3-errors (ProviderUnavailableError)
+    - Tests:
+      - Unit: `src/components/auth/__tests__/ProviderButton.test.tsx` (22 test cases, coverage ≥85%)
+      - Unit: `src/components/auth/__tests__/SocialLoginButtons.test.tsx` (17 test cases, coverage ≥85%)
+      - Maestro: `.maestro/auth-v3-007-social-login-ui.yaml` (button rendering, error states, loading, email fallback)
+      - Manual: `AUTH-V3-007-MANUAL-TESTING-GUIDE.md` (12 test cases covering all providers + error scenarios)
+    - Prerequisites:
+      - OAuth services implemented (AUTH-V3-003)
+      - Account service implemented (AUTH-V3-004)
+      - Profile service implemented (AUTH-V3-005)
+      - OAuth providers enabled in Supabase Dashboard
+      - Redirect URLs configured: `exp://localhost:8081` (Expo Go), `kidsmarketplace://oauth-callback` (standalone)
+    - Validation:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm run test:unit -- --testPathPattern=ProviderButton` (unit tests green)
+      - `npm run test:unit -- --testPathPattern=SocialLoginButtons` (unit tests green)
+      - Maestro: `maestro test .maestro/auth-v3-007-social-login-ui.yaml` (UI states pass)
+      - Manual testing required for full OAuth flows (see AUTH-V3-007-MANUAL-TESTING-GUIDE.md)
+    - Known Limitations:
+      - AccountLinkingPrompt modal shows basic Alert (full modal in AUTH-V3-008)
+      - Provider icons are text labels (TODO: add official brand assets)
+      - Deep link handling tested via Expo Go only (standalone builds require native config)
     - Prerequisites:
       - `user-avatars` storage bucket exists with public read access
       - OAuth providers enabled (AUTH-V3-003)

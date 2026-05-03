@@ -43,9 +43,7 @@ describe('BonusBadge Component', () => {
   });
 
   it('applies correct size styles', () => {
-    const { getByTestId, rerender } = render(
-      <BonusBadge size="small" testID="bonus-badge" />
-    );
+    const { getByTestId, rerender } = render(<BonusBadge size="small" testID="bonus-badge" />);
 
     let badge = getByTestId('bonus-badge-fallback');
     expect(badge.props.style).toMatchObject(
@@ -67,9 +65,7 @@ describe('BonusBadge Component', () => {
 
   it('applies custom style override', () => {
     const customStyle = { marginLeft: 16 };
-    const { getByTestId } = render(
-      <BonusBadge style={customStyle} testID="bonus-badge" />
-    );
+    const { getByTestId } = render(<BonusBadge style={customStyle} testID="bonus-badge" />);
 
     const badge = getByTestId('bonus-badge-fallback');
     expect(badge.props.style).toMatchObject(

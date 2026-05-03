@@ -21,10 +21,10 @@ describe('MODULE-11 SUB-005: Trial Conversion & Downgrade E2E', () => {
 
   beforeAll(async () => {
     console.log('[E2E] Setting up test users for trial conversion tests...');
-    
+
     // This test assumes test users are already set up in the database
     // with trial subscriptions that can be tested
-    
+
     // In a real test environment, you would:
     // 1. Create test users
     // 2. Assign them trial subscriptions

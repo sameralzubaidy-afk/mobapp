@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/subscriptions/trialConversion.ts
  * MODULE-11 TASK SUB-005: Trial Conversion & Downgrade Rules
- * 
+ *
  * Service for monitoring trial status and handling trial expiration
  */
 
@@ -21,8 +21,11 @@ export interface TrialStatus {
  */
 export async function getTrialStatus(): Promise<TrialStatus | null> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !user) {
       console.error('[trialConversion] Auth error:', authError);
       return null;
@@ -74,7 +77,7 @@ export async function getTrialStatus(): Promise<TrialStatus | null> {
 export async function hasTrialExpired(): Promise<boolean> {
   try {
     const trialStatus = await getTrialStatus();
-    
+
     if (!trialStatus) {
       return false;
     }
@@ -107,8 +110,11 @@ export async function triggerTrialConversion(): Promise<{
   result?: any;
 }> {
   try {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
     if (authError || !user) {
       return {
         success: false,

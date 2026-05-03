@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/e2e/mid-trade-subscription.e2e.ts
  * TASK TRADE-V2-007: E2E test for mid-trade subscription changes
- * 
+ *
  * Tests that trades continue normally when buyer subscription expires mid-trade.
  * Verifies:
  * - Trade completes without retroactive fee changes
@@ -32,18 +32,18 @@ d('Mid-Trade Subscription Changes E2E (TRADE-V2-007)', () => {
     if (error) {
       throw new Error('Cannot run E2E tests: Supabase not accessible');
     }
-    
+
     // Fetch a seeded listing ID
     const { data: listings } = await supabase
       .from('items')
       .select('id')
       .eq('user_id', TEST_CONFIG.seller.userId)
       .limit(1);
-    
+
     if (listings && listings.length > 0) {
       TEST_CONFIG.itemId = listings[0].id;
     }
-    
+
     console.log('✅ Supabase connection verified');
   });
 
@@ -56,13 +56,13 @@ d('Mid-Trade Subscription Changes E2E (TRADE-V2-007)', () => {
       });
 
       console.log('Initial subscription status:', initialSub?.status);
-      
+
       // Skip test if user has no subscription
       if (!initialSub || !initialSub.status) {
         console.warn('⚠️ Test user has no subscription - skipping test');
         return;
       }
-      
+
       // Check if status is one of the expected values
       expect(initialSub.status).toMatch(/trial|active|cancelled/);
 

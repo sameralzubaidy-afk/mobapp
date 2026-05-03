@@ -1,7 +1,7 @@
 /**
  * Additional Unit tests for discovery service V3 enhancements
  * MODULE-05-DISCOVERY-V3: TASK DISCOVERY-V3-003
- * 
+ *
  * Tests for 13-param searchListings and suggestSpellingCorrection
  */
 
@@ -140,9 +140,12 @@ describe('discovery service V3', () => {
 
       await searchListings('');
 
-      expect(mockRpc).toHaveBeenCalledWith('search_listings', expect.objectContaining({
-        p_query: '',
-      }));
+      expect(mockRpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          p_query: '',
+        })
+      );
     });
 
     it('should trim query whitespace', async () => {
@@ -150,9 +153,12 @@ describe('discovery service V3', () => {
 
       await searchListings('  test query  ');
 
-      expect(mockRpc).toHaveBeenCalledWith('search_listings', expect.objectContaining({
-        p_query: 'test query',
-      }));
+      expect(mockRpc).toHaveBeenCalledWith(
+        'search_listings',
+        expect.objectContaining({
+          p_query: 'test query',
+        })
+      );
     });
 
     it('should handle all sort options', async () => {
@@ -168,9 +174,12 @@ describe('discovery service V3', () => {
       for (const sortBy of sortOptions) {
         await searchListings('test', { sortBy });
 
-        expect(mockRpc).toHaveBeenCalledWith('search_listings', expect.objectContaining({
-          p_sort_by: sortBy,
-        }));
+        expect(mockRpc).toHaveBeenCalledWith(
+          'search_listings',
+          expect.objectContaining({
+            p_sort_by: sortBy,
+          })
+        );
       }
     });
 

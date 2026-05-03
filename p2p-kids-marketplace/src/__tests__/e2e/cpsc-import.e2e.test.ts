@@ -16,10 +16,7 @@ describe('CPSC Import E2E', () => {
   it('should have cpsc_recalls table accessible', async () => {
     if (!isE2EEnabled) return;
 
-    const { error } = await supabase
-      .from('cpsc_recalls')
-      .select('id')
-      .limit(1);
+    const { error } = await supabase.from('cpsc_recalls').select('id').limit(1);
 
     expect(error).toBeNull();
   });
@@ -27,10 +24,7 @@ describe('CPSC Import E2E', () => {
   it('should have cpsc_import_log table accessible', async () => {
     if (!isE2EEnabled) return;
 
-    const { error } = await supabase
-      .from('cpsc_import_log')
-      .select('id')
-      .limit(1);
+    const { error } = await supabase.from('cpsc_import_log').select('id').limit(1);
 
     expect(error).toBeNull();
   });
@@ -38,11 +32,7 @@ describe('CPSC Import E2E', () => {
   it('should return recalls with required fields', async () => {
     if (!isE2EEnabled) return;
 
-    const { data, error } = await supabase
-      .from('cpsc_recalls')
-      .select('*')
-      .limit(1)
-      .single();
+    const { data, error } = await supabase.from('cpsc_recalls').select('*').limit(1).single();
 
     if (data) {
       expect(data).toHaveProperty('id');
@@ -68,7 +58,7 @@ describe('CPSC Import E2E', () => {
       .limit(5);
 
     expect(error).toBeNull();
-    
+
     if (data && data.length > 0) {
       expect(data[0]).toHaveProperty('product_name');
       expect(data[0]).toHaveProperty('recall_date');
@@ -95,7 +85,7 @@ describe('CPSC Import E2E', () => {
     if (data && data.length > 0) {
       // Verify dates are within range
       // Note: Date comparison uses string format since ISO dates compare correctly alphabetically
-      data.forEach(recall => {
+      data.forEach((recall) => {
         // String comparison works for ISO format dates (YYYY-MM-DD)
         expect(recall.recall_date >= dateStr).toBe(true);
       });
@@ -115,7 +105,7 @@ describe('CPSC Import E2E', () => {
     expect(error).toBeNull();
 
     if (data && data.length > 0) {
-      data.forEach(log => {
+      data.forEach((log) => {
         expect(['success', 'failed', 'partial']).toContain(log.status);
         expect(typeof log.recalls_imported).toBe('number');
         expect(typeof log.recalls_updated).toBe('number');
@@ -135,13 +125,11 @@ describe('CPSC Import E2E', () => {
 
     if (existing) {
       // Try to insert duplicate
-      const { error } = await supabase
-        .from('cpsc_recalls')
-        .insert({
-          recall_number: existing.recall_number,
-          product_name: 'Duplicate Test',
-          recall_date: '2023-01-01'
-        });
+      const { error } = await supabase.from('cpsc_recalls').insert({
+        recall_number: existing.recall_number,
+        product_name: 'Duplicate Test',
+        recall_date: '2023-01-01',
+      });
 
       // Should fail with unique constraint violation
       expect(error).not.toBeNull();
@@ -157,7 +145,7 @@ describe('CPSC Import E2E', () => {
 
     const { error } = await supabase
       .rpc('search_cpsc_recalls', {
-        search_query: 'toy car'
+        search_query: 'toy car',
       })
       .limit(5);
 
@@ -178,10 +166,7 @@ describe('CPSC Import Admin Access', () => {
     // Create anon client
     const anonClient = supabase;
 
-    const { error } = await anonClient
-      .from('cpsc_recalls')
-      .select('product_name, hazard')
-      .limit(1);
+    const { error } = await anonClient.from('cpsc_recalls').select('product_name, hazard').limit(1);
 
     expect(error).toBeNull();
   });

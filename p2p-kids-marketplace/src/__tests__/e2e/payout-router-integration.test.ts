@@ -15,7 +15,10 @@ async function fetchAdminPayoutConfig(client: SupabaseClient) {
   return data;
 }
 
-async function fetchPendingPayoutsBalanceService(client: SupabaseClient, userId: string): Promise<number> {
+async function fetchPendingPayoutsBalanceService(
+  client: SupabaseClient,
+  userId: string
+): Promise<number> {
   const { data, error } = await client
     .from('seller_payouts')
     .select('net_amount_cents')
@@ -110,14 +113,14 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
 
     testSeller = { id: SELLER_ID };
     testBuyer = { id: BUYER_ID };
-    
+
     // Verify test users exist
     const { data: sellerExists } = await supabase
       .from('profiles')
       .select('id')
       .eq('id', SELLER_ID)
       .single();
-    
+
     if (!sellerExists) {
       throw new Error('Test users not found. Run `npm run seed:staging` first.');
     }
@@ -165,7 +168,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
         is_primary: true,
         is_verified: true,
         stripe_onboarding_complete: true,
-        stripe_payouts_enabled: true
+        stripe_payouts_enabled: true,
       })
       .select()
       .single();
@@ -215,7 +218,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
         p_key: 'enable_automatic_seller_payout',
         p_value: 'true',
         p_category: 'fees',
-        p_data_type: 'boolean'
+        p_data_type: 'boolean',
       });
 
       // Step 2: Verify admin config
@@ -225,7 +228,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       // Step 3: Complete the trade
       const { data: sellerMark, error: sellerMarkError } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: testTrade.id,
-        p_user_id: testSeller.id
+        p_user_id: testSeller.id,
       });
 
       expect(sellerMarkError).toBeNull();
@@ -239,7 +242,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       // Buyer confirms completion (finalizes trade + triggers payout)
       const { data, error } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: testTrade.id,
-        p_user_id: testBuyer.id
+        p_user_id: testBuyer.id,
       });
 
       expect(error).toBeNull();
@@ -280,7 +283,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       // Complete trade again (should reuse existing payout)
       const { data, error } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: testTrade.id,
-        p_user_id: testBuyer.id
+        p_user_id: testBuyer.id,
       });
 
       // Trade is already completed, so this should fail or return existing
@@ -340,7 +343,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
         p_key: 'enable_automatic_seller_payout',
         p_value: 'false',
         p_category: 'fees',
-        p_data_type: 'boolean'
+        p_data_type: 'boolean',
       });
 
       const config = await fetchAdminPayoutConfig(supabase);
@@ -349,7 +352,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       // Step 2: Complete trade
       const { data: sellerMark, error: sellerMarkError } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: pendingTrade.id,
-        p_user_id: testSeller.id
+        p_user_id: testSeller.id,
       });
 
       expect(sellerMarkError).toBeNull();
@@ -362,7 +365,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
 
       const { data, error } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: pendingTrade.id,
-        p_user_id: testBuyer.id
+        p_user_id: testBuyer.id,
       });
 
       expect(error).toBeNull();
@@ -442,13 +445,13 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
         p_key: 'enable_automatic_seller_payout',
         p_value: 'true',
         p_category: 'fees',
-        p_data_type: 'boolean'
+        p_data_type: 'boolean',
       });
 
       // Complete trade
       const { data: sellerMark, error: sellerMarkError } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: noMethodTrade.id,
-        p_user_id: testSeller.id
+        p_user_id: testSeller.id,
       });
 
       expect(sellerMarkError).toBeNull();
@@ -460,7 +463,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
 
       const { data, error } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: noMethodTrade.id,
-        p_user_id: testBuyer.id
+        p_user_id: testBuyer.id,
       });
 
       expect(error).toBeNull();
@@ -491,12 +494,12 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       const config = await fetchAdminPayoutConfig(supabase);
       const { data, error } = await supabase.rpc('calculate_payout_fee_cents', {
         p_method_type: 'stripe_connect',
-        p_amount_cents: 10000
+        p_amount_cents: 10000,
       });
 
       expect(error).toBeNull();
       const expected =
-        Math.round(10000 * Number(config.stripe_payout_fee_percentage) / 100) +
+        Math.round((10000 * Number(config.stripe_payout_fee_percentage)) / 100) +
         Number(config.stripe_payout_fee_fixed_cents);
       expect(data).toBe(expected);
     });
@@ -505,12 +508,12 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       const config = await fetchAdminPayoutConfig(supabase);
       const { data, error } = await supabase.rpc('calculate_payout_fee_cents', {
         p_method_type: 'paypal',
-        p_amount_cents: 5000
+        p_amount_cents: 5000,
       });
 
       expect(error).toBeNull();
       const expected = Math.min(
-        Math.round(5000 * Number(config.paypal_payout_fee_percentage) / 100),
+        Math.round((5000 * Number(config.paypal_payout_fee_percentage)) / 100),
         Number(config.paypal_payout_fee_cap_cents)
       );
       expect(data).toBe(expected);
@@ -520,12 +523,12 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
       const config = await fetchAdminPayoutConfig(supabase);
       const { data, error } = await supabase.rpc('calculate_payout_fee_cents', {
         p_method_type: 'paypal',
-        p_amount_cents: 200000
+        p_amount_cents: 200000,
       });
 
       expect(error).toBeNull();
       const expected = Math.min(
-        Math.round(200000 * Number(config.paypal_payout_fee_percentage) / 100),
+        Math.round((200000 * Number(config.paypal_payout_fee_percentage)) / 100),
         Number(config.paypal_payout_fee_cap_cents)
       );
       expect(data).toBe(expected);

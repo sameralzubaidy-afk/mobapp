@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/molecules/SearchFilterModal.tsx
  * MODULE-05-DISCOVERY-V3: Search Filter Modal
  * Task: DISCOVERY-V3-006
- * 
+ *
  * Bottom-sheet modal exposing all 8 filter sections in the exact order
  * defined in SEARCH-FILTER-REQUIREMENTS.md § Component Specifications.
  */
@@ -73,7 +73,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
 }) => {
   // Local draft state - changes only apply on "Apply Filters"
   const [draft, setDraft] = useState<DiscoveryFilters>(filters);
-  
+
   // Brand autocomplete state
   const [brandQuery, setBrandQuery] = useState('');
   const [brandSuggestions, setBrandSuggestions] = useState<string[]>([]);
@@ -132,67 +132,67 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
   }, [draft, priceError, onApply, onClose]);
 
   const toggleCategory = useCallback((categoryId: string) => {
-    setDraft(prev => {
+    setDraft((prev) => {
       const currentIds = prev.categoryIds || [];
       const isSelected = currentIds.includes(categoryId);
-      
+
       return {
         ...prev,
         categoryIds: isSelected
-          ? currentIds.filter(id => id !== categoryId)
+          ? currentIds.filter((id) => id !== categoryId)
           : [...currentIds, categoryId],
       };
     });
   }, []);
 
-  const selectCondition = useCallback((condition: typeof CONDITION_OPTIONS[number]['value']) => {
-    setDraft(prev => ({
+  const selectCondition = useCallback((condition: (typeof CONDITION_OPTIONS)[number]['value']) => {
+    setDraft((prev) => ({
       ...prev,
       condition: prev.condition === condition ? undefined : condition,
     }));
   }, []);
 
-  const selectAgeGroup = useCallback((ageGroup: typeof AGE_GROUP_OPTIONS[number]['value']) => {
-    setDraft(prev => ({
+  const selectAgeGroup = useCallback((ageGroup: (typeof AGE_GROUP_OPTIONS)[number]['value']) => {
+    setDraft((prev) => ({
       ...prev,
       ageGroup: prev.ageGroup === ageGroup ? undefined : ageGroup,
     }));
   }, []);
 
-  const selectGender = useCallback((gender: typeof GENDER_OPTIONS[number]['value']) => {
-    setDraft(prev => ({
+  const selectGender = useCallback((gender: (typeof GENDER_OPTIONS)[number]['value']) => {
+    setDraft((prev) => ({
       ...prev,
       gender: prev.gender === gender ? undefined : gender,
     }));
   }, []);
 
   const toggleColor = useCallback((colorId: string) => {
-    setDraft(prev => {
+    setDraft((prev) => {
       const currentColors = prev.colors || [];
       const isSelected = currentColors.includes(colorId);
-      
+
       return {
         ...prev,
         colors: isSelected
-          ? currentColors.filter(c => c !== colorId)
+          ? currentColors.filter((c) => c !== colorId)
           : [...currentColors, colorId],
       };
     });
   }, []);
 
   const selectBrand = useCallback((brand: string) => {
-    setDraft(prev => ({ ...prev, brand }));
+    setDraft((prev) => ({ ...prev, brand }));
     setBrandQuery(brand);
     setShowBrandDropdown(false);
   }, []);
 
   const handleBrandInputChange = useCallback((text: string) => {
     setBrandQuery(text);
-    setDraft(prev => ({ ...prev, brand: text || undefined }));
+    setDraft((prev) => ({ ...prev, brand: text || undefined }));
   }, []);
 
-  const selectPricePreset = useCallback((preset: typeof PRICE_PRESETS[number]) => {
-    setDraft(prev => ({
+  const selectPricePreset = useCallback((preset: (typeof PRICE_PRESETS)[number]) => {
+    setDraft((prev) => ({
       ...prev,
       minPrice: preset.min,
       maxPrice: preset.max,
@@ -201,16 +201,16 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
 
   const setMinPrice = useCallback((text: string) => {
     const value = text ? parseFloat(text) : undefined;
-    setDraft(prev => ({ ...prev, minPrice: value }));
+    setDraft((prev) => ({ ...prev, minPrice: value }));
   }, []);
 
   const setMaxPrice = useCallback((text: string) => {
     const value = text ? parseFloat(text) : undefined;
-    setDraft(prev => ({ ...prev, maxPrice: value }));
+    setDraft((prev) => ({ ...prev, maxPrice: value }));
   }, []);
 
   const toggleSP = useCallback((value: boolean) => {
-    setDraft(prev => ({ ...prev, spEligibleOnly: value }));
+    setDraft((prev) => ({ ...prev, spEligibleOnly: value }));
   }, []);
 
   const activeCount = countActiveFilters(draft);
@@ -231,9 +231,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>
-              Filters {activeCount > 0 && `(${activeCount})`}
-            </Text>
+            <Text style={styles.headerTitle}>Filters {activeCount > 0 && `(${activeCount})`}</Text>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity
@@ -263,7 +261,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.pillRow}
             >
-              {categories.map(category => {
+              {categories.map((category) => {
                 const isSelected = !!draft.categoryIds?.includes(category.id);
                 return (
                   <TouchableOpacity
@@ -287,7 +285,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>CONDITION</Text>
             <View style={styles.pillRow}>
-              {CONDITION_OPTIONS.map(option => {
+              {CONDITION_OPTIONS.map((option) => {
                 const isSelected = draft.condition === option.value;
                 return (
                   <TouchableOpacity
@@ -311,7 +309,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>AGE GROUP</Text>
             <View style={styles.pillRow}>
-              {AGE_GROUP_OPTIONS.map(option => {
+              {AGE_GROUP_OPTIONS.map((option) => {
                 const isSelected = draft.ageGroup === option.value;
                 return (
                   <TouchableOpacity
@@ -335,7 +333,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>GENDER</Text>
             <View style={styles.pillRow}>
-              {GENDER_OPTIONS.map(option => {
+              {GENDER_OPTIONS.map((option) => {
                 const isSelected = draft.gender === option.value;
                 return (
                   <TouchableOpacity
@@ -359,7 +357,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>COLOR</Text>
             <View style={styles.colorGrid}>
-              {COLOR_PALETTE.map(color => {
+              {COLOR_PALETTE.map((color) => {
                 const isSelected = !!draft.colors?.includes(color.id);
                 return (
                   <TouchableOpacity
@@ -370,9 +368,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
                     accessibilityLabel={`Color: ${color.label}`}
                     testID={`filter-color-${color.id}`}
                   >
-                    <View
-                      style={[styles.colorSwatch, { backgroundColor: color.hex }]}
-                    />
+                    <View style={[styles.colorSwatch, { backgroundColor: color.hex }]} />
                     <Text style={styles.colorLabel}>{color.label}</Text>
                   </TouchableOpacity>
                 );
@@ -419,9 +415,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>PRICE RANGE</Text>
             <View style={styles.pillRow}>
-              {PRICE_PRESETS.map(preset => {
-                const isSelected = 
-                  draft.minPrice === preset.min && draft.maxPrice === preset.max;
+              {PRICE_PRESETS.map((preset) => {
+                const isSelected = draft.minPrice === preset.min && draft.maxPrice === preset.max;
                 return (
                   <TouchableOpacity
                     key={preset.id}

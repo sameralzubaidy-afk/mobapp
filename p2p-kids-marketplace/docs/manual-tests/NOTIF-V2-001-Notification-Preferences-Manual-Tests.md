@@ -1,4 +1,5 @@
 # Manual Test Cases: Notification Preferences
+
 **MODULE-14: NOTIF-V2-001 - Notification Schema & Preferences**
 
 **Last Updated:** 2025-01-XX  
@@ -10,12 +11,14 @@
 ## Test Setup
 
 ### Prerequisites
+
 1. ✅ Supabase migrations applied (201_notifications_schema_v2.sql)
 2. ✅ App built and running on simulator: `npm run ios` OR `npm run android`
 3. ✅ Test user account created (or use existing account)
 4. ✅ Network connectivity enabled on simulator
 
 ### Test Data Requirements
+
 - **Test User:** Any registered user
 - **Database State:** notification_preferences table should have 5 rows per user (auto-initialized)
 
@@ -26,16 +29,19 @@
 **Objective:** Verify default notification preferences are displayed correctly
 
 ### Preconditions
+
 - User is logged in
 - User has just been created (or preferences reset to defaults)
 
 ### Steps
+
 1. From bottom tab navigation, tap **Profile** tab
 2. Tap **Settings** in profile screen
 3. Tap **Notification Preferences** row
 4. Observe the screen content
 
 ### Expected Results
+
 - ✅ Screen title displays "Notification Preferences"
 - ✅ 5 category sections render:
   - Subscription Updates (with trophy icon)
@@ -55,6 +61,7 @@
 - ✅ No error messages displayed
 
 ### Pass/Fail Criteria
+
 - **PASS:** All expected UI elements visible with correct default values
 - **FAIL:** Any toggle shows incorrect default state, or UI elements missing
 
@@ -65,10 +72,12 @@
 **Objective:** Verify user can disable push notifications for a category
 
 ### Preconditions
+
 - User is on Notification Preferences screen
 - Push notification toggle for "Subscription Updates" is ON
 
 ### Steps
+
 1. Locate "Subscription Updates" section
 2. Tap the **Push Notifications** toggle switch
 3. Observe UI feedback
@@ -78,6 +87,7 @@
 7. Scroll to "Subscription Updates" section
 
 ### Expected Results
+
 - ✅ Toggle switch animates OFF immediately (optimistic update)
 - ✅ Toast/banner displays "Preference saved" OR "Saved" message
 - ✅ No error alert appears
@@ -85,6 +95,7 @@
 - ✅ Other toggles in same category remain unchanged
 
 ### Pass/Fail Criteria
+
 - **PASS:** Toggle persists OFF state after navigation
 - **FAIL:** Toggle reverts to ON, or error occurs
 
@@ -95,9 +106,11 @@
 **Objective:** Verify user can toggle multiple notification channels for a category
 
 ### Preconditions
+
 - User is on Notification Preferences screen
 
 ### Steps
+
 1. Locate "Trade Activity" section
 2. Tap **Push Notifications** toggle (turn OFF)
 3. Wait 1 second for save confirmation
@@ -108,6 +121,7 @@
 8. Navigate back and re-enter screen
 
 ### Expected Results
+
 - ✅ Each toggle change triggers a save confirmation
 - ✅ No errors occur
 - ✅ After re-entering:
@@ -117,6 +131,7 @@
 - ✅ Toggles in other categories remain unchanged
 
 ### Pass/Fail Criteria
+
 - **PASS:** All 3 channel states persist correctly
 - **FAIL:** Any toggle reverts to previous state
 
@@ -127,10 +142,12 @@
 **Objective:** Verify quiet hours can be enabled and time ranges configured
 
 ### Preconditions
+
 - User is on Notification Preferences screen
 - Quiet Hours toggle is OFF
 
 ### Steps
+
 1. Scroll to "Quiet Hours" section at bottom
 2. Tap **Enable Quiet Hours** toggle (turn ON)
 3. Observe time picker controls appear
@@ -143,6 +160,7 @@
 10. Navigate back and re-enter screen
 
 ### Expected Results
+
 - ✅ Quiet Hours toggle turns ON immediately
 - ✅ Time pickers render below toggle
 - ✅ Native time picker opens on tap (iOS Wheel Picker / Android Clock Picker)
@@ -152,6 +170,7 @@
 - ✅ After re-entering screen, quiet hours remain enabled with correct times
 
 ### Pass/Fail Criteria
+
 - **PASS:** Quiet hours enabled with correct time range, persists after navigation
 - **FAIL:** Time pickers don't work, or values don't persist
 
@@ -162,22 +181,26 @@
 **Objective:** Verify quiet hours can be disabled
 
 ### Preconditions
+
 - User is on Notification Preferences screen
 - Quiet Hours toggle is ON
 
 ### Steps
+
 1. Scroll to "Quiet Hours" section
 2. Tap **Enable Quiet Hours** toggle (turn OFF)
 3. Observe time picker controls
 4. Navigate back and re-enter screen
 
 ### Expected Results
+
 - ✅ Quiet Hours toggle turns OFF immediately
 - ✅ Time pickers disappear or gray out
 - ✅ After re-entering screen, quiet hours remain disabled
 - ✅ Previously set times are preserved in database (for re-enabling)
 
 ### Pass/Fail Criteria
+
 - **PASS:** Quiet hours disabled and persists
 - **FAIL:** Time pickers still active, or state doesn't persist
 
@@ -188,10 +211,12 @@
 **Objective:** Verify graceful error handling when network is unavailable
 
 ### Preconditions
+
 - User is on Notification Preferences screen
 - Network connectivity enabled
 
 ### Steps
+
 1. On iOS Simulator: **Device → Trigger Condition → Network Link Conditioner → 100% Loss**
    OR on Android Emulator: **Extended Controls → Cellular → Data status OFF**
 2. Tap any toggle switch (e.g., "Badges - Push Notifications")
@@ -201,6 +226,7 @@
 6. Tap any toggle switch again
 
 ### Expected Results
+
 - ✅ During network outage:
   - Toggle animates optimistically
   - After timeout (~3-5 seconds), error Alert displays:
@@ -214,6 +240,7 @@
   - No lingering error state
 
 ### Pass/Fail Criteria
+
 - **PASS:** App handles network errors gracefully with clear messaging
 - **FAIL:** App crashes, hangs, or shows no error feedback
 
@@ -226,6 +253,7 @@
 **⚠️ CRITICAL SECURITY TEST**
 
 ### Preconditions
+
 - Two test user accounts:
   - User A (logged in)
   - User B (exists in database)
@@ -233,6 +261,7 @@
 - User B's user_id known
 
 ### Steps
+
 1. Log in as **User A**
 2. Navigate to Notification Preferences screen
 3. Observe preferences loaded for User A
@@ -243,20 +272,22 @@
 5. Note User B's current push_enabled state for 'subscription' category
 6. **(Attempted RLS Bypass)** In Supabase SQL Editor, execute:
    ```sql
-   UPDATE notification_preferences 
-   SET push_enabled = false 
+   UPDATE notification_preferences
+   SET push_enabled = false
    WHERE user_id = '<User_B_ID>' AND category = 'subscription';
    ```
-   *(Using anon key context, not service role)*
+   _(Using anon key context, not service role)_
 7. Check query result
 
 ### Expected Results
+
 - ✅ User A sees only their own preferences in the app
 - ✅ Manual SQL query in Step 4 fails with RLS error **OR** returns 0 rows updated
 - ✅ User B's preferences remain unchanged
 - ✅ No cross-user data leakage
 
 ### Pass/Fail Criteria
+
 - **PASS:** RLS prevents User A from modifying User B's preferences
 - **FAIL:** Update succeeds, indicating RLS policy misconfiguration
 
@@ -267,10 +298,12 @@
 **Objective:** Verify each of the 5 categories can be configured independently
 
 ### Preconditions
+
 - User is on Notification Preferences screen
 - All categories show default states
 
 ### Steps
+
 1. For **Subscription Updates**:
    - Turn OFF Push, Keep In-App ON, Keep Email ON
 2. For **Swap Points Events**:
@@ -285,12 +318,14 @@
 7. Verify all 5 categories show configured states
 
 ### Expected Results
+
 - ✅ Each category updates independently
 - ✅ No cross-contamination between categories
 - ✅ All 15 toggles (5 categories × 3 channels) persist correctly
 - ✅ Database contains 5 distinct rows for user, each with correct channel states
 
 ### Pass/Fail Criteria
+
 - **PASS:** All categories maintain independent configurations
 - **FAIL:** Changing one category affects another, or any state doesn't persist
 
@@ -301,10 +336,12 @@
 **Objective:** Verify optimistic updates handle rapid user interactions without race conditions
 
 ### Preconditions
+
 - User is on Notification Preferences screen
 - Network connectivity good (no throttling)
 
 ### Steps
+
 1. Rapidly tap the same toggle switch 10 times in quick succession (e.g., "Badges - Push")
 2. Observe UI behavior during spam
 3. Wait 3 seconds after last tap
@@ -312,6 +349,7 @@
 5. Check final state of the spammed toggle
 
 ### Expected Results
+
 - ✅ Toggle animates on each tap (responsive)
 - ✅ No duplicate API calls logged in Supabase (debounced)
 - ✅ Final state matches last tap (ON or OFF)
@@ -320,6 +358,7 @@
 - ✅ After re-entering screen, toggle shows consistent final state
 
 ### Pass/Fail Criteria
+
 - **PASS:** App handles rapid taps gracefully, final state is correct
 - **FAIL:** App crashes, freezes, or shows inconsistent state
 
@@ -330,16 +369,19 @@
 **Objective:** Verify loading indicator displays during initial preference fetch
 
 ### Preconditions
+
 - User is logged in
 - User has NOT yet visited Notification Preferences screen in this session
 - Network connectivity good
 
 ### Steps
+
 1. From Settings screen, tap **Notification Preferences** row
 2. Observe screen immediately after tap (first 0-500ms)
 3. Wait for preferences to load
 
 ### Expected Results
+
 - ✅ Loading spinner/skeleton displays while fetching
 - ✅ No error messages during load
 - ✅ After load completes (< 2 seconds):
@@ -349,6 +391,7 @@
 - ✅ No flash of incorrect data (FOUC)
 
 ### Pass/Fail Criteria
+
 - **PASS:** Loading state visible, then correct data renders
 - **FAIL:** No loading indicator, or data never loads
 
@@ -361,10 +404,12 @@
 **⚠️ Requires creating a new test user**
 
 ### Preconditions
+
 - Supabase migration 201_notifications_schema_v2.sql applied
 - Auth system functional
 
 ### Steps
+
 1. Create a brand new test user:
    - Email: `new-user-${Date.now()}@test.com`
    - Password: TestPassword123!
@@ -380,6 +425,7 @@
 6. Observe default states
 
 ### Expected Results
+
 - ✅ Database query returns `pref_count = 5` (one row per category)
 - ✅ All 5 categories display in UI
 - ✅ Default toggle states match specification:
@@ -390,6 +436,7 @@
 - ✅ Trigger executed automatically (no manual RPC call needed)
 
 ### Pass/Fail Criteria
+
 - **PASS:** New user has 5 preference rows auto-created with correct defaults
 - **FAIL:** No preferences exist, or defaults are incorrect
 
@@ -402,15 +449,17 @@
 **⚠️ DESTRUCTIVE TEST - Use dedicated test account**
 
 ### Preconditions
+
 - Test user account exists with notification preferences
 - Test user user_id known
 
 ### Steps
+
 1. **(Manual DB Query)** Verify preferences exist:
    ```sql
    SELECT COUNT(*) FROM notification_preferences WHERE user_id = '<test_user_id>';
    ```
-   *(Should return 5)*
+   _(Should return 5)_
 2. Delete the test user account:
    - Via Supabase Dashboard: Authentication → Users → Delete User
    - OR via SQL: `DELETE FROM auth.users WHERE id = '<test_user_id>';`
@@ -420,12 +469,14 @@
    ```
 
 ### Expected Results
+
 - ✅ Before deletion: Query returns 5 rows
 - ✅ After deletion: Query returns 0 rows
 - ✅ Foreign key cascade deletes preferences automatically
 - ✅ No orphaned preference rows remain
 
 ### Pass/Fail Criteria
+
 - **PASS:** Preferences deleted automatically with user
 - **FAIL:** Orphaned preference rows remain after user deletion
 
@@ -434,6 +485,7 @@
 ## Test Execution Checklist
 
 ### Pre-Test
+
 - [ ] Migrations applied to Supabase staging/local
 - [ ] App built and running on iOS simulator
 - [ ] App built and running on Android emulator
@@ -441,6 +493,7 @@
 - [ ] Supabase SQL Editor accessible for manual queries
 
 ### Execute
+
 - [ ] TC-NOTIF-001: View Default Preferences
 - [ ] TC-NOTIF-002: Toggle Push OFF
 - [ ] TC-NOTIF-003: Toggle Multiple Channels
@@ -455,6 +508,7 @@
 - [ ] TC-NOTIF-012: Foreign Key Cascade
 
 ### Post-Test
+
 - [ ] All tests passed (12/12)
 - [ ] No regressions in other features
 - [ ] Test results documented
@@ -464,7 +518,7 @@
 
 ## Known Issues / Limitations
 
-*(To be filled during testing)*
+_(To be filled during testing)_
 
 - None as of initial implementation
 
@@ -472,8 +526,8 @@
 
 ## Test Sign-Off
 
-| Role | Name | Date | Signature |
-|------|------|------|-----------|
-| Tester | ___________ | ______ | _________ |
-| Reviewer | ___________ | ______ | _________ |
-| Product Owner | ___________ | ______ | _________ |
+| Role          | Name           | Date     | Signature  |
+| ------------- | -------------- | -------- | ---------- |
+| Tester        | ****\_\_\_**** | **\_\_** | ****\_**** |
+| Reviewer      | ****\_\_\_**** | **\_\_** | ****\_**** |
+| Product Owner | ****\_\_\_**** | **\_\_** | ****\_**** |

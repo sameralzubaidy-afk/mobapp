@@ -1,7 +1,7 @@
 /**
  * E2E Tests for Payout Integration (PAY-004, PAY-005)
  * File: p2p-kids-marketplace/src/__tests__/e2e/payout-integration.test.ts
- * 
+ *
  * SKIPPED: This test file requires real Supabase connectivity.
  * In CI/test environments, use mocked tests instead.
  */

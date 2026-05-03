@@ -2,10 +2,7 @@
 // Integration tests for passwordService against real Supabase (AUTH-V3-006)
 // Run with: RUN_SUPABASE_E2E=true npm run test:e2e
 
-import {
-  canSetPassword,
-  setPasswordForSocialUser,
-} from '../passwordService';
+import { canSetPassword, setPasswordForSocialUser } from '../passwordService';
 import { supabase } from '../supabase/client';
 
 // Skip if not in E2E mode

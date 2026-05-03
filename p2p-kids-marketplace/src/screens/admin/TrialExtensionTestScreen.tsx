@@ -1,14 +1,26 @@
 /**
  * File: p2p-kids-marketplace/src/screens/admin/TrialExtensionTestScreen.tsx
  * Test screen for SUB-EXT-001: Trial Extension
- * 
+ *
  * This screen allows manual testing of the trial extension feature.
  * Navigation: Admin → Trial Extension Test
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
-import { extendTrial, getTrialExtensionStats, getTrialExtensionHistory } from '../../services/subscriptions/trialExtension';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  StyleSheet,
+} from 'react-native';
+import {
+  extendTrial,
+  getTrialExtensionStats,
+  getTrialExtensionHistory,
+} from '../../services/subscriptions/trialExtension';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function TrialExtensionTestScreen() {
@@ -62,7 +74,7 @@ export default function TrialExtensionTestScreen() {
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.title}>🧪 Trial Extension Test</Text>
-      
+
       {/* Current User Info */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Current User</Text>
@@ -82,7 +94,7 @@ export default function TrialExtensionTestScreen() {
       {/* Test Form */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Test Trial Extension</Text>
-        
+
         <Text style={styles.label}>Referral User ID:</Text>
         <TextInput
           style={styles.input}
@@ -108,10 +120,8 @@ export default function TrialExtensionTestScreen() {
       {/* Result Card */}
       {result && (
         <View style={[styles.card, result.success ? styles.successCard : styles.errorCard]}>
-          <Text style={styles.cardTitle}>
-            {result.success ? '✅ Success' : '❌ Error'}
-          </Text>
-          
+          <Text style={styles.cardTitle}>{result.success ? '✅ Success' : '❌ Error'}</Text>
+
           {result.success ? (
             <>
               <Text style={styles.text}>New Trial End: {result.new_trial_end}</Text>
@@ -131,10 +141,12 @@ export default function TrialExtensionTestScreen() {
           <Text style={styles.cardTitle}>Extension History</Text>
           {history.map((event, index) => (
             <View key={event.id} style={styles.historyItem}>
-              <Text style={styles.text}>#{index + 1} - {new Date(event.created_at).toLocaleDateString()}</Text>
+              <Text style={styles.text}>
+                #{index + 1} - {new Date(event.created_at).toLocaleDateString()}
+              </Text>
               <Text style={styles.smallText}>Days Added: {event.metadata.days_added}</Text>
               <Text style={styles.smallText}>
-                Extensions: {event.metadata.extensions_used} / 
+                Extensions: {event.metadata.extensions_used} /
                 {event.metadata.extensions_used + event.metadata.extensions_remaining}
               </Text>
             </View>

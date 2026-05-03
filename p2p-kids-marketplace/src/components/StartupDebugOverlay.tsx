@@ -10,7 +10,9 @@ export default function StartupDebugOverlay() {
     <View pointerEvents="none" style={styles.container}>
       <View style={styles.box}>
         <Text style={styles.title}>Startup</Text>
-        <Text numberOfLines={2} style={styles.step}>{step}</Text>
+        <Text numberOfLines={2} style={styles.step}>
+          {step}
+        </Text>
       </View>
     </View>
   );

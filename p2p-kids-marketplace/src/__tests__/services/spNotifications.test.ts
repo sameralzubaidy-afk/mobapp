@@ -227,7 +227,8 @@ describe('SP Notifications Service', () => {
         created_at: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
       };
 
-      const hoursSinceLastNotif = (Date.now() - recentNotification.created_at.getTime()) / (1000 * 60 * 60);
+      const hoursSinceLastNotif =
+        (Date.now() - recentNotification.created_at.getTime()) / (1000 * 60 * 60);
 
       expect(hoursSinceLastNotif).toBeLessThan(24);
       // Trigger should skip sending notification
@@ -354,7 +355,7 @@ describe('SP Notifications Service', () => {
     testCases.forEach(({ type, amount, expectedTitle, expectedBodyContains }) => {
       it(`should generate correct title and body for ${type}`, () => {
         const absAmount = Math.abs(amount);
-        
+
         if (type.startsWith('earn_')) {
           expect(`🎉 +${absAmount} SP Earned!`).toBe(expectedTitle);
         } else if (type.startsWith('spend_')) {

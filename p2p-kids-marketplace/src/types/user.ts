@@ -41,11 +41,11 @@ export interface UserProfile {
     latitude: number;
     longitude: number;
   };
-  
+
   // Profile completion
   profile_completed: boolean;
   onboarding_completed: boolean;
-  
+
   // Verification
   phone_verified: boolean;
   phone_verified_at?: string;
@@ -55,17 +55,17 @@ export interface UserProfile {
   deleted_at?: string | null;
   suspended_at?: string | null;
   suspension_reason?: string | null;
-  
+
   // V2 fields
   subscription_id?: string;
   sp_wallet_id?: string;
   onboarding_completed_at?: string;
   parental_consent_verified: boolean;
   age?: number;
-  
+
   // Referral
   referral_code?: string;
-  
+
   // Timestamps
   created_at: string;
   updated_at: string;
@@ -81,11 +81,11 @@ export interface AuthSession {
   user: UserProfile;
   access_token?: string;
   refresh_token?: string;
-  
+
   // V2: Subscription context (from MODULE-11)
   subscription_status: SubscriptionStatus;
   can_spend_sp: boolean; // True for trial/active AND wallet active, false otherwise
-  
+
   // V2: SP wallet context (from MODULE-09)
   available_points: number;
   pending_points: number;

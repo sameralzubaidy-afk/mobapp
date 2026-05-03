@@ -20,9 +20,7 @@
   "public_header_files": "ios/RNSentry.h",
   "compiler_flags": "$(inherited) -DSENTRY_PROFILING_SUPPORTED=1 -DNEW_HERMES_RUNTIME",
   "dependencies": {
-    "Sentry/HybridSDK": [
-      "8.56.1"
-    ],
+    "Sentry/HybridSDK": ["8.56.1"],
     "React-Core": [],
     "React-RCTFabric": [],
     "ReactCodegen": [],

@@ -1,7 +1,7 @@
 /**
  * Payout Router Service - Orchestrates seller payout dispatch logic
  * File: p2p-kids-marketplace/src/services/payoutRouter.ts
- * 
+ *
  * PURPOSE:
  * - Route seller payouts to appropriate providers (Stripe/PayPal/Venmo)
  * - Check admin config for auto-payout behavior
@@ -43,9 +43,7 @@ export interface PayoutRouterResult {
  * Get admin payout configuration
  */
 export async function getAdminPayoutConfig(): Promise<AdminPayoutConfig> {
-  const { data, error } = await supabase
-    .rpc('get_admin_payout_config')
-    .single();
+  const { data, error } = await supabase.rpc('get_admin_payout_config').single();
 
   if (error) {
     console.error('[payoutRouter] Error fetching admin config:', error);
@@ -56,7 +54,7 @@ export async function getAdminPayoutConfig(): Promise<AdminPayoutConfig> {
       stripe_payout_fee_fixed_cents: 25,
       stripe_payout_fee_percentage: 0.25,
       paypal_payout_fee_percentage: 2.0,
-      paypal_payout_fee_cap_cents: 2000
+      paypal_payout_fee_cap_cents: 2000,
     };
   }
 
@@ -66,26 +64,23 @@ export async function getAdminPayoutConfig(): Promise<AdminPayoutConfig> {
 /**
  * Calculate payout fee based on method type and amount
  */
-export function calculatePayoutFeeCents(
-  methodType: PayoutMethodType,
-  amountCents: number
-): number {
+export function calculatePayoutFeeCents(methodType: PayoutMethodType, amountCents: number): number {
   if (amountCents <= 0) return 0;
 
   switch (methodType) {
     case 'stripe_connect':
       // 0.25% + $0.25
       return Math.round(amountCents * 0.0025) + 25;
-    
+
     case 'paypal':
     case 'venmo':
       // 2% capped at $20
       return Math.min(Math.round(amountCents * 0.02), 2000);
-    
+
     case 'bank_ach':
       // Flat $0.25 (Post-MVP)
       return 25;
-    
+
     default:
       return 0;
   }
@@ -110,8 +105,10 @@ export async function requestPayoutWithdrawal(
   payoutId: string,
   userId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { data: { session } } = await supabase.auth.getSession();
-  
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   if (!session) {
     return { success: false, error: 'Not authenticated' };
   }
@@ -131,17 +128,17 @@ export async function requestPayoutWithdrawal(
 
     // Verify payout is in pending status
     if (payout.status !== 'pending') {
-      return { 
-        success: false, 
-        error: `Cannot withdraw payout with status: ${payout.status}. Expected: pending` 
+      return {
+        success: false,
+        error: `Cannot withdraw payout with status: ${payout.status}. Expected: pending`,
       };
     }
 
     // Verify user has a verified payout method
     if (!payout.payout_method || !payout.payout_method.is_verified) {
-      return { 
-        success: false, 
-        error: 'Please set up and verify a payout method before requesting withdrawal' 
+      return {
+        success: false,
+        error: 'Please set up and verify a payout method before requesting withdrawal',
       };
     }
 
@@ -156,7 +153,7 @@ export async function requestPayoutWithdrawal(
         .update({
           status: 'processing',
           initiated_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', payoutId);
 
@@ -171,9 +168,9 @@ export async function requestPayoutWithdrawal(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
+          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ payoutId })
+        body: JSON.stringify({ payoutId }),
       });
 
       if (!response.ok) {

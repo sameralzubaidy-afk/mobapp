@@ -13,14 +13,7 @@
  * item" front and centre.
  */
 import React, { useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { PhotoAsset, PhotoGroup } from '../../types/listing';
 
 export interface PhotoSelectGridProps {
@@ -56,11 +49,7 @@ export function PhotoSelectGrid({
   return (
     <View style={styles.container} testID="photo-select-grid">
       {groups.map((group, groupIndex) => (
-        <View
-          key={group.groupId}
-          style={styles.groupCard}
-          testID={`group-card-${groupIndex}`}
-        >
+        <View key={group.groupId} style={styles.groupCard} testID={`group-card-${groupIndex}`}>
           <View style={styles.groupHeader}>
             <Text style={styles.groupTitle} testID={`group-title-${groupIndex}`}>
               Item {groupIndex + 1}

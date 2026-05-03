@@ -41,7 +41,10 @@ const readImageAsArrayBuffer = async (
       contentType: detectContentType(fileUri, path),
     };
   } catch (readError) {
-    console.warn('[storage] Direct file read failed, falling back to image normalization:', readError);
+    console.warn(
+      '[storage] Direct file read failed, falling back to image normalization:',
+      readError
+    );
 
     const manipulated = await ImageManipulator.manipulateAsync(fileUri, [], {
       compress: 0.85,
@@ -79,11 +82,15 @@ export const uploadImage = async (
   options?: { upsert?: boolean }
 ): Promise<UploadResult> => {
   try {
-    console.log(`[storage] 📤 Converting file URI to upload buffer: ${fileUri.substring(0, 70)}...`);
+    console.log(
+      `[storage] 📤 Converting file URI to upload buffer: ${fileUri.substring(0, 70)}...`
+    );
 
     const { data: fileData, contentType } = await readImageAsArrayBuffer(fileUri, path);
 
-    console.log(`[storage] ✅ Upload buffer created, bytes: ${fileData.byteLength}, contentType: ${contentType}`);
+    console.log(
+      `[storage] ✅ Upload buffer created, bytes: ${fileData.byteLength}, contentType: ${contentType}`
+    );
     console.log(`[storage] 📤 Uploading to ${bucket}/${path}...`);
 
     const maxAttempts = 3;
@@ -105,9 +112,12 @@ export const uploadImage = async (
       }
 
       const message = error.message?.toLowerCase() ?? '';
-      const isTransient = message.includes('network request failed') || message.includes('fetch failed');
+      const isTransient =
+        message.includes('network request failed') || message.includes('fetch failed');
 
-      console.warn(`[storage] ⚠️ Upload attempt ${attempt}/${maxAttempts} failed: ${error.message}`);
+      console.warn(
+        `[storage] ⚠️ Upload attempt ${attempt}/${maxAttempts} failed: ${error.message}`
+      );
 
       if (!isTransient || attempt === maxAttempts) {
         console.error('[storage] ❌ Upload failed (final):', error);
@@ -119,14 +129,18 @@ export const uploadImage = async (
     }
 
     if (!data) {
-      return { url: null, path: null, error: error ?? new Error('Upload failed: no storage path returned') };
+      return {
+        url: null,
+        path: null,
+        error: error ?? new Error('Upload failed: no storage path returned'),
+      };
     }
 
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
     const cdnUrl = getCdnUrl(bucket, data.path);
-    
+
     console.log(`[storage] ✅ Upload successful, public URL: ${urlData.publicUrl}`);
-    
+
     return { url: urlData.publicUrl, cdnUrl, path: data.path, error: null };
   } catch (e: any) {
     console.error('[storage] ❌ uploadImage error:', e);
@@ -138,11 +152,16 @@ export const uploadMultipleImages = async (
   bucket: StorageBucket,
   files: { path: string; fileUri: string }[]
 ): Promise<UploadResult[]> => {
-  const promises = files.map(({ path, fileUri }) => uploadImage(bucket, path, fileUri, { upsert: true }));
+  const promises = files.map(({ path, fileUri }) =>
+    uploadImage(bucket, path, fileUri, { upsert: true })
+  );
   return Promise.all(promises);
 };
 
-export const deleteImage = async (bucket: StorageBucket, path: string): Promise<{ error: Error | null }> => {
+export const deleteImage = async (
+  bucket: StorageBucket,
+  path: string
+): Promise<{ error: Error | null }> => {
   try {
     const { error } = await supabase.storage.from(bucket).remove([path]);
     // Purge CDN cache if configured
@@ -170,7 +189,10 @@ export const deleteImage = async (bucket: StorageBucket, path: string): Promise<
   }
 };
 
-export const deleteMultipleImages = async (bucket: StorageBucket, paths: string[]): Promise<{ error: Error | null }> => {
+export const deleteMultipleImages = async (
+  bucket: StorageBucket,
+  paths: string[]
+): Promise<{ error: Error | null }> => {
   try {
     const { error } = await supabase.storage.from(bucket).remove(paths);
     // Purge CDN cache if configured
@@ -178,7 +200,9 @@ export const deleteMultipleImages = async (bucket: StorageBucket, paths: string[
       const purgeEndpoint = process.env.SUPABASE_PURGE_ENDPOINT;
       const purgeKey = process.env.SUPABASE_PURGE_X_API_KEY;
       if (purgeEndpoint && purgeKey) {
-        const urlsToPurge = paths.map((p) => getCdnUrl(bucket, p) ?? getPublicUrl(bucket, p)).filter(Boolean) as string[];
+        const urlsToPurge = paths
+          .map((p) => getCdnUrl(bucket, p) ?? getPublicUrl(bucket, p))
+          .filter(Boolean) as string[];
         if (urlsToPurge.length) {
           await fetch(purgeEndpoint, {
             method: 'POST',
@@ -238,4 +262,3 @@ export const listFiles = async ($bucket: StorageBucket, path?: string) => {
     return { files: null, error: e as Error };
   }
 };
-

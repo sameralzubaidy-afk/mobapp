@@ -55,9 +55,7 @@ describe('Email Service', () => {
         html: '<h1>Test</h1>',
       };
 
-      (mockSendGrid.send as jest.Mock).mockRejectedValueOnce(
-        new Error('SendGrid API Error')
-      );
+      (mockSendGrid.send as jest.Mock).mockRejectedValueOnce(new Error('SendGrid API Error'));
 
       const result = await sendEmail(params);
 

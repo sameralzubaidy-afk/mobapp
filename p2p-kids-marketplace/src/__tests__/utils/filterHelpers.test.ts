@@ -1,7 +1,7 @@
 /**
  * Unit tests for filterHelpers utility
  * MODULE-05-DISCOVERY-V3: Task DISCOVERY-V3-004
- * 
+ *
  * Tests filter counting, chip label formatting, price validation, and defaults
  */
 

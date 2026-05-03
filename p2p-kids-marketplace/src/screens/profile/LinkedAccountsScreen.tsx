@@ -34,10 +34,6 @@ export default function LinkedAccountsScreen({ navigation }: any) {
 
   const allProviders: OAuthProvider[] = ['google', 'facebook', 'apple'];
 
-  useEffect(() => {
-    void loadLinkedAccounts();
-  }, [loadLinkedAccounts]);
-
   const loadLinkedAccounts = React.useCallback(async () => {
     try {
       setLoading(true);
@@ -65,6 +61,10 @@ export default function LinkedAccountsScreen({ navigation }: any) {
       setLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    void loadLinkedAccounts();
+  }, [loadLinkedAccounts]);
 
   const handleLinkAccount = async (provider: OAuthProvider) => {
     try {
@@ -98,7 +98,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
     } catch (error) {
       console.error('[LinkedAccounts] Link error:', error);
       setLinkingProvider(null);
-      
+
       if (error instanceof EmailMismatchError) {
         Alert.alert(
           'Email Mismatch',
@@ -114,11 +114,11 @@ export default function LinkedAccountsScreen({ navigation }: any) {
     try {
       // Initiate OAuth flow
       const { url } = await initiateSocialLogin(provider);
-      
+
       // In production, open OAuth URL and handle callback
       // For testing, simulate successful linking
       console.log(`[LinkedAccounts] OAuth URL: ${url}`);
-      
+
       Alert.alert(
         'OAuth Flow',
         `In production, this would open ${provider} sign-in. For testing, use the manual test guide.`,
@@ -160,7 +160,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
                 await loadLinkedAccounts();
               } catch (error) {
                 console.error('[LinkedAccounts] Unlink error:', error);
-                
+
                 if (error instanceof LastLoginMethodError) {
                   Alert.alert(
                     'Cannot Unlink',
@@ -250,8 +250,8 @@ export default function LinkedAccountsScreen({ navigation }: any) {
           <View style={styles.infoCard}>
             <Ionicons name="information-circle-outline" size={20} color="#3B82F6" />
             <Text style={styles.infoText}>
-              Link multiple accounts to sign in using any of them. You must keep at least one
-              login method.
+              Link multiple accounts to sign in using any of them. You must keep at least one login
+              method.
             </Text>
           </View>
 
@@ -306,20 +306,14 @@ export default function LinkedAccountsScreen({ navigation }: any) {
                   </View>
                   {!isLinking && !isUnlinking && (
                     <TouchableOpacity
-                      style={[
-                        styles.actionButton,
-                        linked && styles.actionButtonDanger,
-                      ]}
+                      style={[styles.actionButton, linked && styles.actionButtonDanger]}
                       onPress={() =>
                         linked ? handleUnlinkAccount(provider) : handleLinkAccount(provider)
                       }
                       testID={`${provider}-${linked ? 'unlink' : 'link'}-button`}
                     >
                       <Text
-                        style={[
-                          styles.actionButtonText,
-                          linked && styles.actionButtonTextDanger,
-                        ]}
+                        style={[styles.actionButtonText, linked && styles.actionButtonTextDanger]}
                       >
                         {linked ? 'Unlink' : 'Link'}
                       </Text>
@@ -332,9 +326,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
 
           {/* Login methods count */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              Active login methods: {loginMethodCount}
-            </Text>
+            <Text style={styles.footerText}>Active login methods: {loginMethodCount}</Text>
           </View>
         </ScrollView>
       </View>

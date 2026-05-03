@@ -223,10 +223,12 @@ function RootNavigator() {
 
   // Handle notification taps while app is running (foreground/background)
   React.useEffect(() => {
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data as NotificationDeepLinkData;
-      handleNotificationNavigation(data, 'push');
-    });
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data as NotificationDeepLinkData;
+        handleNotificationNavigation(data, 'push');
+      }
+    );
 
     // Handle cold-start notification taps (app was killed, opened via notification)
     void Notifications.getLastNotificationResponseAsync().then((response) => {
@@ -293,10 +295,10 @@ function RootNavigator() {
     );
   }
 
-  // Determine which stack to show based on session + onboarding status
+  // Determine which stack to show based on auth status.
+  // Authenticated users should land in the dashboard stack immediately after login.
   const isAuthenticated = session !== null;
   const isSuspended = session?.user?.account_status === 'suspended';
-  const isOnboardingComplete = session?.user?.onboarding_completed === true;
 
   return (
     <NavigationContainer
@@ -313,8 +315,8 @@ function RootNavigator() {
             component={SuspendedAccountScreen}
             options={{ headerShown: false }}
           />
-        ) : isAuthenticated && isOnboardingComplete ? (
-          // Authenticated + Onboarding Complete → Dashboard stack
+        ) : isAuthenticated ? (
+          // Authenticated users -> Dashboard stack
           <>
             <Stack.Screen
               name="Home"
@@ -481,11 +483,7 @@ function RootNavigator() {
               component={TransactionHistoryScreen}
               options={{ title: 'Billing History - SUB-015' }}
             />
-            <Stack.Screen
-              name="Badges"
-              component={BadgesScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Badges" component={BadgesScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="Leaderboard"
               component={LeaderboardScreen}
@@ -570,23 +568,15 @@ function RootNavigator() {
             {/* Add more authenticated screens as needed */}
           </>
         ) : (
-          // Unauthenticated OR Onboarding Incomplete → Onboarding/Auth stack
+          // Unauthenticated users -> Onboarding/Auth stack
           <>
             <Stack.Screen
               name="Landing"
               component={LandingScreen}
               options={{ headerShown: false }}
             />
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="Signup"
-              component={SignupScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Signup" component={SignupScreen} options={{ headerShown: false }} />
             <Stack.Screen
               name="PhoneVerification"
               component={PhoneVerificationScreen}

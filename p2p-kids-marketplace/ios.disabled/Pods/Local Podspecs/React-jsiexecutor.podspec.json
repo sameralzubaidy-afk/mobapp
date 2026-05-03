@@ -32,15 +32,9 @@
   },
   "header_dir": "jsireact",
   "dependencies": {
-    "React-cxxreact": [
-      "0.81.5"
-    ],
-    "React-jsi": [
-      "0.81.5"
-    ],
-    "React-perflogger": [
-      "0.81.5"
-    ],
+    "React-cxxreact": ["0.81.5"],
+    "React-jsi": ["0.81.5"],
+    "React-perflogger": ["0.81.5"],
     "React-runtimeexecutor": [],
     "React-jsinspector": [],
     "React-jsinspectorcdp": [],

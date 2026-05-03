@@ -1,7 +1,16 @@
 // filepath: p2p-kids-marketplace/src/screens/profile/BadgesScreen.tsx
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, ActivityIndicator, SafeAreaView, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Image,
+  ActivityIndicator,
+  SafeAreaView,
+  TouchableOpacity,
+} from 'react-native';
 import { getUserBadges, getAllBadges } from '../../services/badges';
 import { UserBadge, Badge } from '../../types/badge';
 import { useAuth } from '../../hooks/useAuth';
@@ -9,7 +18,7 @@ import { useAuth } from '../../hooks/useAuth';
 const BadgesScreen = ({ navigation }: any) => {
   const { session } = useAuth();
   const userId = session?.user?.id;
-  
+
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
   const [allBadges, setAllBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,10 +32,7 @@ const BadgesScreen = ({ navigation }: any) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [uBadges, aBadges] = await Promise.all([
-        getUserBadges(userId!),
-        getAllBadges()
-      ]);
+      const [uBadges, aBadges] = await Promise.all([getUserBadges(userId!), getAllBadges()]);
       setUserBadges(uBadges);
       setAllBadges(aBadges);
     } catch (error) {
@@ -37,28 +43,26 @@ const BadgesScreen = ({ navigation }: any) => {
   };
 
   const isBadgeEarned = (badgeId: string) => {
-    return userBadges.some(ub => ub.badge_id === badgeId);
+    return userBadges.some((ub) => ub.badge_id === badgeId);
   };
 
   const renderBadgeItem = ({ item }: { item: Badge }) => {
     const earned = isBadgeEarned(item.id);
-    const userBadgeInfo = userBadges.find(ub => ub.badge_id === item.id);
+    const userBadgeInfo = userBadges.find((ub) => ub.badge_id === item.id);
 
     return (
       <View style={[styles.badgeCard, !earned && styles.lockedBadgeCard]}>
         <View style={[styles.iconContainer, !earned && styles.lockedIconContainer]}>
           {item.icon_url ? (
-            <Image 
-              source={{ uri: item.icon_url }} 
-              style={styles.badgeImage}
-              resizeMode="contain"
-            />
+            <Image source={{ uri: item.icon_url }} style={styles.badgeImage} resizeMode="contain" />
           ) : (
             <Text style={styles.badgeEmoji}>{earned ? '🏅' : '🔒'}</Text>
           )}
         </View>
         <Text style={styles.badgeName}>{item.name}</Text>
-        <Text style={styles.badgeDescription} numberOfLines={2}>{item.description}</Text>
+        <Text style={styles.badgeDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
         {earned && userBadgeInfo && (
           <Text style={styles.awardedDate}>
             Earned {new Date(userBadgeInfo.awarded_at).toLocaleDateString()}
@@ -83,14 +87,18 @@ const BadgesScreen = ({ navigation }: any) => {
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Achievements</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Leaderboard')} style={styles.leaderboardButton}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Leaderboard')}
+          style={styles.leaderboardButton}
+        >
           <Text style={styles.leaderboardButtonText}>🏆 Top</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.statsContainer}>
         <Text style={styles.statsText}>
-          You have earned <Text style={styles.statsHighlight}>{userBadges.length}</Text> out of <Text style={styles.statsHighlight}>{allBadges.length}</Text> badges
+          You have earned <Text style={styles.statsHighlight}>{userBadges.length}</Text> out of{' '}
+          <Text style={styles.statsHighlight}>{allBadges.length}</Text> badges
         </Text>
       </View>
 

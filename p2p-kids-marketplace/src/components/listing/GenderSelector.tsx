@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/listing/GenderSelector.tsx
  * MODULE-04 LISTING-V3-008: Gender Selector
  * Task: LISTING-V3-008 - 4 pills for gender selection
- * 
+ *
  * Features:
  * - 4 options: boy, girl, unisex, Any (maps to null)
  * - Single select pill buttons
@@ -10,12 +10,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 type Gender = 'boy' | 'girl' | 'unisex';
 
@@ -40,7 +35,7 @@ export function GenderSelector({
   return (
     <View style={styles.container} testID={testID}>
       <Text style={styles.title}>Gender</Text>
-      
+
       <View style={styles.pillsContainer}>
         {GENDER_OPTIONS.map((option) => {
           const isSelected = value === option.value;

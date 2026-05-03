@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/subscriptionNotifications.ts
  * MODULE-14 TASK NOTIF-V2-002: Subscription Event Notifications
- * 
+ *
  * Service for sending subscription lifecycle notifications
  * Integrates with existing notification infrastructure
  */
@@ -19,7 +19,7 @@ export interface SubscriptionNotificationOptions {
 /**
  * Send a subscription-related notification
  * Respects user notification preferences unless marked critical
- * 
+ *
  * @param options - Notification options
  * @returns Success status
  */
@@ -44,7 +44,7 @@ export async function sendSubscriptionNotification(
 
     // Determine channels based on preferences or critical flag
     const channels: string[] = [];
-    
+
     if (critical) {
       // Critical notifications bypass preferences
       channels.push('push', 'in_app', 'email');
@@ -110,7 +110,7 @@ export async function sendSubscriptionNotification(
 
 /**
  * Send subscription renewal success notification
- * 
+ *
  * @param userId - User ID
  * @param nextBillingDate - Next billing date
  */
@@ -139,7 +139,7 @@ export async function notifySubscriptionRenewed(
 
 /**
  * Send subscription cancellation confirmation notification
- * 
+ *
  * @param userId - User ID
  * @param accessUntil - Date when access ends
  */
@@ -169,7 +169,7 @@ export async function notifyCancellationConfirmed(
 /**
  * Send payment failure notification (CRITICAL)
  * Always sent regardless of user preferences
- * 
+ *
  * @param userId - User ID
  * @param retryCount - Current retry count (1-3)
  */

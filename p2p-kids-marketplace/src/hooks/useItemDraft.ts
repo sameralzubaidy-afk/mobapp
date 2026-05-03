@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/hooks/useItemDraft.ts
  * MODULE-04 LISTING-V3-004: Item Draft Hook
- * 
+ *
  * Provides autosave functionality for item drafts with:
  * - 30-second interval auto-save
  * - AppState background flush
@@ -39,7 +39,7 @@ export interface UseItemDraftOptions {
 
 /**
  * Hook for managing item draft with autosave
- * 
+ *
  * Features:
  * - Loads existing draft on mount if draftId provided
  * - Auto-saves every 30s while screen is focused
@@ -47,7 +47,7 @@ export interface UseItemDraftOptions {
  * - Flushes pending changes on navigation blur
  * - Provides immediate save method
  * - Never throws - exposes saveError instead
- * 
+ *
  * @param draftId - Optional existing draft ID to load
  * @param sellerId - Seller ID for creating new draft
  * @returns Draft state and control methods
@@ -62,7 +62,7 @@ export function useItemDraft(
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingUpdatesRef = useRef<Partial<DraftData> | null>(null);
   const appStateRef = useRef(AppState.currentState);
@@ -121,7 +121,7 @@ export function useItemDraft(
   // Queue updates for autosave
   const save = useCallback((updates: Partial<DraftData>) => {
     setSaveError(null);
-    
+
     // Merge with pending updates
     if (pendingUpdatesRef.current) {
       pendingUpdatesRef.current = { ...pendingUpdatesRef.current, ...updates };
@@ -173,7 +173,7 @@ export function useItemDraft(
       setSaveError(null);
 
       const success = await updateItemDraft(currentDraft.id, pendingUpdatesRef.current);
-      
+
       if (success) {
         pendingUpdatesRef.current = null;
       } else {
@@ -195,7 +195,7 @@ export function useItemDraft(
       setSaveError(null);
 
       const success = await deleteItemDraft(draft.id);
-      
+
       if (success) {
         setDraft(null);
         pendingUpdatesRef.current = null;
@@ -235,10 +235,7 @@ export function useItemDraft(
   // Flush on AppState change to background
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (
-        appStateRef.current.match(/active|inactive/) &&
-        nextAppState === 'background'
-      ) {
+      if (appStateRef.current.match(/active|inactive/) && nextAppState === 'background') {
         // App going to background - flush pending updates
         if (pendingUpdatesRef.current) {
           saveNow();

@@ -82,10 +82,7 @@ describeE2E('phoneService Integration Tests', () => {
       if (shouldSkipCase()) return;
 
       // Ensure phone_verified_at is NULL
-      await supabase
-        .from('user_profiles')
-        .update({ phone_verified_at: null })
-        .eq('id', testUserId);
+      await supabase.from('user_profiles').update({ phone_verified_at: null }).eq('id', testUserId);
 
       const required = await isPhoneRequired(testUserId);
 
@@ -141,9 +138,7 @@ describeE2E('phoneService Integration Tests', () => {
       await sendPhoneVerificationCode(testPhone);
 
       // 4th should fail with rate limit
-      await expect(sendPhoneVerificationCode(testPhone)).rejects.toThrow(
-        OTPRateLimitError,
-      );
+      await expect(sendPhoneVerificationCode(testPhone)).rejects.toThrow(OTPRateLimitError);
     }, 30000); // 30s timeout for multiple requests
   });
 
@@ -157,9 +152,7 @@ describeE2E('phoneService Integration Tests', () => {
       // 3. Or accept that we can't test without knowing the actual code
 
       // For now, test the "code not found" scenario
-      await expect(verifyPhoneCode(testPhone, '999999')).rejects.toThrow(
-        OTPExpiredError,
-      );
+      await expect(verifyPhoneCode(testPhone, '999999')).rejects.toThrow(OTPExpiredError);
     });
 
     it('should fail with expired code', async () => {
@@ -174,9 +167,7 @@ describeE2E('phoneService Integration Tests', () => {
         expires_at: new Date(Date.now() - 1000).toISOString(), // Already expired
       });
 
-      await expect(verifyPhoneCode(testPhone, '123456')).rejects.toThrow(
-        OTPExpiredError,
-      );
+      await expect(verifyPhoneCode(testPhone, '123456')).rejects.toThrow(OTPExpiredError);
     });
 
     it('should fail after 3 invalid attempts', async () => {
@@ -192,7 +183,7 @@ describeE2E('phoneService Integration Tests', () => {
       });
 
       await expect(verifyPhoneCode(testPhone, '123456')).rejects.toThrow(
-        'Maximum verification attempts exceeded',
+        'Maximum verification attempts exceeded'
       );
     });
   });

@@ -1,12 +1,12 @@
 /**
  * File: p2p-kids-marketplace/e2e/listing-v3-004-hooks.integration.test.ts
  * MODULE-04 LISTING-V3-004: Integration Tests for Hooks
- * 
+ *
  * Prerequisites:
  * - Supabase staging database with LISTING-V3-001 migrations applied
  * - Test user with active session
  * - Edge functions deployed (analyze-item-image, batch-analyze-items)
- * 
+ *
  * Run with: RUN_SUPABASE_E2E=true npm run test:e2e
  */
 
@@ -27,10 +27,14 @@ let canRunAuthenticatedE2E = true;
 
 async function setupTestUser() {
   // Get current user or create test user
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     canRunAuthenticatedE2E = false;
-    console.warn('Skipping LISTING-V3-004 authenticated E2E tests: no active Supabase user session.');
+    console.warn(
+      'Skipping LISTING-V3-004 authenticated E2E tests: no active Supabase user session.'
+    );
     return;
   }
   testSellerId = user.id;
@@ -44,10 +48,7 @@ async function cleanupDrafts() {
 
   // Clean up all drafts created during tests
   if (draftIds.length > 0) {
-    await supabase
-      .from('item_drafts')
-      .delete()
-      .in('id', draftIds);
+    await supabase.from('item_drafts').delete().in('id', draftIds);
     draftIds = [];
   }
 }
@@ -71,9 +72,12 @@ describeE2E('LISTING-V3-004 Integration Tests', () => {
 
       const { result } = renderHook(() => useItemDraft(undefined, testSellerId));
 
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isLoading).toBe(false);
+        },
+        { timeout: 5000 }
+      );
 
       expect(result.current.draft).not.toBeNull();
       expect(result.current.draft?.seller_id).toBe(testSellerId);
@@ -88,9 +92,12 @@ describeE2E('LISTING-V3-004 Integration Tests', () => {
 
       const { result } = renderHook(() => useItemDraft(undefined, testSellerId));
 
-      await waitFor(() => {
-        expect(result.current.draft).not.toBeNull();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.draft).not.toBeNull();
+        },
+        { timeout: 5000 }
+      );
 
       const draftId = result.current.draft!.id;
       draftIds.push(draftId);
@@ -143,9 +150,12 @@ describeE2E('LISTING-V3-004 Integration Tests', () => {
       // Load via hook
       const { result } = renderHook(() => useItemDraft(draftId));
 
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.isLoading).toBe(false);
+        },
+        { timeout: 5000 }
+      );
 
       expect(result.current.draft?.id).toBe(draftId);
       expect(result.current.draft?.draft_data.title).toBe('Existing Draft');
@@ -156,9 +166,12 @@ describeE2E('LISTING-V3-004 Integration Tests', () => {
 
       const { result } = renderHook(() => useItemDraft(undefined, testSellerId));
 
-      await waitFor(() => {
-        expect(result.current.draft).not.toBeNull();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(result.current.draft).not.toBeNull();
+        },
+        { timeout: 5000 }
+      );
 
       const draftId = result.current.draft!.id;
 
@@ -233,19 +246,23 @@ describeE2E('LISTING-V3-004 Integration Tests', () => {
 
       expect(result.current.status).toBe('analyzing');
 
-      await waitFor(() => {
-        expect(result.current.status).toBe('ready');
-      }, { timeout: 15000 }); // AI can take time
+      await waitFor(
+        () => {
+          expect(result.current.status).toBe('ready');
+        },
+        { timeout: 15000 }
+      ); // AI can take time
 
       // Should have some analysis result
       expect(result.current.result).not.toBeNull();
       expect(result.current.error).toBeNull();
 
       // Result should have at least one field
-      const hasResults = result.current.result &&
+      const hasResults =
+        result.current.result &&
         (result.current.result.title ||
-         result.current.result.category ||
-         result.current.result.color);
+          result.current.result.category ||
+          result.current.result.color);
 
       expect(hasResults).toBe(true);
     }, 20000);
@@ -257,9 +274,12 @@ describeE2E('LISTING-V3-004 Integration Tests', () => {
 
       const { result } = renderHook(() => useAIAnalysis([invalidUrl], testSellerId));
 
-      await waitFor(() => {
-        expect(result.current.status).toBe('error');
-      }, { timeout: 15000 });
+      await waitFor(
+        () => {
+          expect(result.current.status).toBe('error');
+        },
+        { timeout: 15000 }
+      );
 
       expect(result.current.error).not.toBeNull();
       expect(result.current.result).toBeNull();
@@ -318,9 +338,12 @@ describeE2E('LISTING-V3-004 Integration Tests', () => {
       // 1. Create draft
       const { result: draftResult } = renderHook(() => useItemDraft(undefined, testSellerId));
 
-      await waitFor(() => {
-        expect(draftResult.current.draft).not.toBeNull();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(draftResult.current.draft).not.toBeNull();
+        },
+        { timeout: 5000 }
+      );
 
       const draftId = draftResult.current.draft!.id;
       draftIds.push(draftId);
@@ -355,9 +378,12 @@ describeE2E('LISTING-V3-004 Integration Tests', () => {
       // 4. Load draft in new hook instance
       const { result: loadedResult } = renderHook(() => useItemDraft(draftId));
 
-      await waitFor(() => {
-        expect(loadedResult.current.draft).not.toBeNull();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(loadedResult.current.draft).not.toBeNull();
+        },
+        { timeout: 5000 }
+      );
 
       expect(loadedResult.current.draft?.draft_data.title).toBe('Full Flow Test');
       expect(loadedResult.current.draft?.photo_urls).toEqual(photoUrls);

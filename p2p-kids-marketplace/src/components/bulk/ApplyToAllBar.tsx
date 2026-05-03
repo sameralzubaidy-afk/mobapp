@@ -9,11 +9,7 @@
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import {
-  ApplyToAllField,
-  applyFieldToAll,
-  suggestApplyValue,
-} from '../../utils/bulkApplyToAll';
+import { ApplyToAllField, applyFieldToAll, suggestApplyValue } from '../../utils/bulkApplyToAll';
 import { BulkEditableItem } from './BulkItemCard';
 
 const SUPPORTED_FIELDS: { id: ApplyToAllField; label: string }[] = [
@@ -45,7 +41,11 @@ export function ApplyToAllBar({ items, onApply }: ApplyToAllBarProps) {
   return (
     <View style={styles.bar} testID="apply-to-all-bar">
       <Text style={styles.title}>Apply to all included items:</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.row}
+      >
         {suggestions.map((suggestion) => (
           <TouchableOpacity
             key={suggestion.id}

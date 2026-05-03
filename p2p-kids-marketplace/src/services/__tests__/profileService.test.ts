@@ -276,7 +276,9 @@ describe('ProfileService — downloadProviderAvatar', () => {
     const mockUrl = 'https://example.com/slow-avatar.jpg';
 
     // Mock fetch with abort
-    (global.fetch as jest.Mock).mockRejectedValue(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+    (global.fetch as jest.Mock).mockRejectedValue(
+      Object.assign(new Error('Aborted'), { name: 'AbortError' })
+    );
 
     const result = await downloadProviderAvatar(mockUrl, 'user-123');
 

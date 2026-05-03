@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
@@ -12,7 +20,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 /**
  * File: p2p-kids-marketplace/src/screens/admin/AdminDashboardScreen.tsx
  * TASK TRADE-V2-007: Handling Mid-Trade Subscription Changes
- * 
+ *
  * Admin dashboard with manual verification tools and moderation access.
  */
 export default function AdminDashboardScreen() {
@@ -40,73 +48,76 @@ export default function AdminDashboardScreen() {
 
   return (
     <View style={styles.fullContainer}>
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Admin Dashboard</Text>
-      
-      {/* Review Moderation Card */}
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => navigation.navigate('ReviewModeration')}
-      >
-        <View style={styles.cardIconContainer}>
-          <Ionicons name="flag" size={28} color="#FF6B6B" />
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle}>Review Moderation</Text>
-          <Text style={styles.cardDescription}>Review and moderate reported reviews</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color="#ccc" />
-      </TouchableOpacity>
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Admin Dashboard</Text>
 
-      {/* Trial Conversion Test Card - MODULE-11 SUB-005 */}
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => navigation.navigate('TrialConversionTest')}
-      >
-        <View style={[styles.cardIconContainer, { backgroundColor: '#E3F2FD' }]}>
-          <Ionicons name="time" size={28} color="#007AFF" />
-        </View>
-        <View style={styles.cardContent}>
-          <Text style={styles.cardTitle}>Trial Conversion Test</Text>
-          <Text style={styles.cardDescription}>Test trial expiration & conversion logic (SUB-005)</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color="#ccc" />
-      </TouchableOpacity>
-      
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Trade Monitoring (TASK TRADE-V2-007)</Text>
-        <Text style={styles.description}>
-          Scan all active trades to detect if a buyer's subscription status has changed since the trade was initiated.
-          This will flag trades for review without retroactively changing fees.
-        </Text>
-        
-        <TouchableOpacity 
-          style={[styles.button, loading && styles.buttonDisabled]} 
-          onPress={handleRunMonitoring}
-          disabled={loading}
+        {/* Review Moderation Card */}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => navigation.navigate('ReviewModeration')}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Run Mid-Trade Subscription Check</Text>
-          )}
+          <View style={styles.cardIconContainer}>
+            <Ionicons name="flag" size={28} color="#FF6B6B" />
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>Review Moderation</Text>
+            <Text style={styles.cardDescription}>Review and moderate reported reviews</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#ccc" />
         </TouchableOpacity>
-      </View>
 
-      {/* Placeholder for other admin tools */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>System Status</Text>
-        <View style={styles.statusRow}>
-          <Text>Database:</Text>
-          <Text style={styles.statusValue}>Connected</Text>
+        {/* Trial Conversion Test Card - MODULE-11 SUB-005 */}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => navigation.navigate('TrialConversionTest')}
+        >
+          <View style={[styles.cardIconContainer, { backgroundColor: '#E3F2FD' }]}>
+            <Ionicons name="time" size={28} color="#007AFF" />
+          </View>
+          <View style={styles.cardContent}>
+            <Text style={styles.cardTitle}>Trial Conversion Test</Text>
+            <Text style={styles.cardDescription}>
+              Test trial expiration & conversion logic (SUB-005)
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#ccc" />
+        </TouchableOpacity>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Trade Monitoring (TASK TRADE-V2-007)</Text>
+          <Text style={styles.description}>
+            Scan all active trades to detect if a buyer's subscription status has changed since the
+            trade was initiated. This will flag trades for review without retroactively changing
+            fees.
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={handleRunMonitoring}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Run Mid-Trade Subscription Check</Text>
+            )}
+          </TouchableOpacity>
         </View>
-        <View style={styles.statusRow}>
-          <Text>Edge Functions:</Text>
-          <Text style={styles.statusValue}>Online</Text>
+
+        {/* Placeholder for other admin tools */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>System Status</Text>
+          <View style={styles.statusRow}>
+            <Text>Database:</Text>
+            <Text style={styles.statusValue}>Connected</Text>
+          </View>
+          <View style={styles.statusRow}>
+            <Text>Edge Functions:</Text>
+            <Text style={styles.statusValue}>Online</Text>
+          </View>
         </View>
-      </View>
-    </ScrollView>
-    <BottomNavBar />
+      </ScrollView>
+      <BottomNavBar />
     </View>
   );
 }

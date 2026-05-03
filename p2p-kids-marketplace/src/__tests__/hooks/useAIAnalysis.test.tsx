@@ -84,12 +84,9 @@ describe('useAIAnalysis', () => {
 
     mockAIService.analyzePhotosBatch.mockImplementationOnce(() => firstPromise);
 
-    const { result, rerender } = renderHook(
-      ({ urls, sellerId }) => useAIAnalysis(urls, sellerId),
-      {
-        initialProps: { urls: ['https://example.com/photo1.jpg'], sellerId: 'seller-123' },
-      }
-    );
+    const { result, rerender } = renderHook(({ urls, sellerId }) => useAIAnalysis(urls, sellerId), {
+      initialProps: { urls: ['https://example.com/photo1.jpg'], sellerId: 'seller-123' },
+    });
 
     await waitFor(() => {
       expect(result.current.status).toBe('analyzing');
@@ -101,7 +98,7 @@ describe('useAIAnalysis', () => {
         {
           groupId: 'single-item',
           analysis: {
-            title: { value: 'Second Analysis', confidence: 0.90 },
+            title: { value: 'Second Analysis', confidence: 0.9 },
           },
         },
       ],
@@ -123,7 +120,7 @@ describe('useAIAnalysis', () => {
           {
             groupId: 'single-item',
             analysis: {
-              title: { value: 'First Analysis', confidence: 0.80 },
+              title: { value: 'First Analysis', confidence: 0.8 },
             },
           },
         ],
@@ -159,9 +156,7 @@ describe('useAIAnalysis', () => {
     jest.useFakeTimers();
 
     // First call fails
-    mockAIService.analyzePhotosBatch.mockRejectedValueOnce(
-      new Error('Network error')
-    );
+    mockAIService.analyzePhotosBatch.mockRejectedValueOnce(new Error('Network error'));
 
     // Second call succeeds
     mockAIService.analyzePhotosBatch.mockResolvedValueOnce({
@@ -225,16 +220,11 @@ describe('useAIAnalysis', () => {
 
   it('should clear error state when new analysis succeeds', async () => {
     // First analysis fails
-    mockAIService.analyzePhotosBatch.mockRejectedValueOnce(
-      new Error('First failure')
-    );
+    mockAIService.analyzePhotosBatch.mockRejectedValueOnce(new Error('First failure'));
 
-    const { result, rerender } = renderHook(
-      ({ urls, sellerId }) => useAIAnalysis(urls, sellerId),
-      {
-        initialProps: { urls: ['https://example.com/photo1.jpg'], sellerId: 'seller-123' },
-      }
-    );
+    const { result, rerender } = renderHook(({ urls, sellerId }) => useAIAnalysis(urls, sellerId), {
+      initialProps: { urls: ['https://example.com/photo1.jpg'], sellerId: 'seller-123' },
+    });
 
     await waitFor(() => {
       expect(result.current.status).toBe('error');
@@ -247,7 +237,7 @@ describe('useAIAnalysis', () => {
         {
           groupId: 'single-item',
           analysis: {
-            title: { value: 'Success', confidence: 0.80 },
+            title: { value: 'Success', confidence: 0.8 },
           },
         },
       ],
@@ -271,7 +261,7 @@ describe('useAIAnalysis', () => {
         {
           groupId: 'single-item',
           analysis: {
-            title: { value: 'Test', confidence: 0.70 },
+            title: { value: 'Test', confidence: 0.7 },
           },
         },
       ],
@@ -279,12 +269,9 @@ describe('useAIAnalysis', () => {
       totalFailed: 0,
     });
 
-    const { result, rerender } = renderHook(
-      ({ urls, sellerId }) => useAIAnalysis(urls, sellerId),
-      {
-        initialProps: { urls: ['https://example.com/photo1.jpg'], sellerId: 'seller-123' },
-      }
-    );
+    const { result, rerender } = renderHook(({ urls, sellerId }) => useAIAnalysis(urls, sellerId), {
+      initialProps: { urls: ['https://example.com/photo1.jpg'], sellerId: 'seller-123' },
+    });
 
     await waitFor(() => {
       expect(result.current.status).toBe('ready');

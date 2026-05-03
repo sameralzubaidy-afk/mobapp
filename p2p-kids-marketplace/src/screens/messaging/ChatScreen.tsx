@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/messaging/ChatScreen.tsx
  * MODULE-07 MSG-001-009: Real-time Chat Screen with Delivery Status & Typing Indicators
- * 
+ *
  * Features:
  * - Display item header with listing details
  * - Display messages chronologically (MSG-001)
@@ -89,13 +89,19 @@ export default function ChatScreen() {
   const [sendingImage, setSendingImage] = useState(false);
   const [trade, setTrade] = useState<Trade | null>(null);
   const [loadingTrade, setLoadingTrade] = useState(true);
-  const [partnerProfile, setPartnerProfile] = useState<{name: string, avatar_url: string, verification_status: any} | null>(null);
+  const [partnerProfile, setPartnerProfile] = useState<{
+    name: string;
+    avatar_url: string;
+    verification_status: any;
+  } | null>(null);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
   const [imageViewerImages, setImageViewerImages] = useState<{ uri: string }[]>([]);
   // MSG-009: Typing indicator state
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
-  const otherUserTyping = Object.entries(typingUsers).some(([uid, isTyping]) => uid !== session?.user?.id && isTyping);
+  const otherUserTyping = Object.entries(typingUsers).some(
+    ([uid, isTyping]) => uid !== session?.user?.id && isTyping
+  );
 
   const flatListRef = useRef<FlatList>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -141,12 +147,14 @@ export default function ChatScreen() {
       setLoadingTrade(true);
       const { data, error } = await supabase
         .from('trades')
-        .select(`
+        .select(
+          `
           id,
           buyer_id,
           seller_id,
           listing:items(id, title, price, images:item_images(id, url, thumbnail_url, display_order))
-        `)
+        `
+        )
         .eq('id', tradeId)
         .single();
 
@@ -157,25 +165,20 @@ export default function ChatScreen() {
         setTrade(tradeData);
 
         // Fetch partner profile information
-        const partnerId = tradeData.buyer_id === session?.user?.id 
-          ? tradeData.seller_id 
-          : tradeData.buyer_id;
+        const partnerId =
+          tradeData.buyer_id === session?.user?.id ? tradeData.seller_id : tradeData.buyer_id;
 
         if (partnerId) {
           const [{ data: profileData }, vStatus] = await Promise.all([
-            supabase
-              .from('profiles')
-              .select('id, name, avatar_url')
-              .eq('id', partnerId)
-              .single(),
-            idBadgeService.getVerificationStatus(partnerId)
+            supabase.from('profiles').select('id, name, avatar_url').eq('id', partnerId).single(),
+            idBadgeService.getVerificationStatus(partnerId),
           ]);
 
           if (profileData) {
             setPartnerProfile({
               name: profileData.name || 'User',
               avatar_url: profileData.avatar_url,
-              verification_status: vStatus?.status || null
+              verification_status: vStatus?.status || null,
             });
           }
         }
@@ -224,7 +227,7 @@ export default function ChatScreen() {
     // MSG-009: Manage typing presence channel
     const typingChannelName = `presence-trade-${tradeId}`;
     console.log('[ChatScreen] Initializing typing presence channel:', typingChannelName);
-    
+
     const typingChannel = supabase.channel(typingChannelName, {
       config: {
         presence: {
@@ -239,7 +242,7 @@ export default function ChatScreen() {
       .on('presence', { event: 'sync' }, () => {
         const state = typingChannel.presenceState();
         console.log('[ChatScreen] Typing presence sync:', JSON.stringify(state));
-        
+
         const typingMap: Record<string, boolean> = {};
         Object.keys(state).forEach((key) => {
           const presences = state[key];
@@ -249,13 +252,13 @@ export default function ChatScreen() {
             }
           });
         });
-        
+
         console.log('[ChatScreen] Calculated typingMap:', typingMap);
         setTypingUsers(typingMap);
       })
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
         console.log('[ChatScreen] Typing presence join:', key, newPresences);
-        setTypingUsers(prev => {
+        setTypingUsers((prev) => {
           const next = { ...prev };
           newPresences.forEach((p: any) => {
             if (p.user_id) next[p.user_id] = !!p.is_typing;
@@ -265,7 +268,7 @@ export default function ChatScreen() {
       })
       .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
         console.log('[ChatScreen] Typing presence leave:', key, leftPresences);
-        setTypingUsers(prev => {
+        setTypingUsers((prev) => {
           const next = { ...prev };
           leftPresences.forEach((p: any) => {
             if (p.user_id) next[p.user_id] = false;
@@ -323,7 +326,9 @@ export default function ChatScreen() {
     // Enforce character limit in real-time (prevents paste bypass)
     console.log(`[ChatScreen] handleInputChange called with ${text.length} chars`);
     if (text.length > MESSAGE_CHAR_LIMIT) {
-      console.log(`[ChatScreen] ⚠️ Input EXCEEDED ${MESSAGE_CHAR_LIMIT} chars, truncating from ${text.length}`);
+      console.log(
+        `[ChatScreen] ⚠️ Input EXCEEDED ${MESSAGE_CHAR_LIMIT} chars, truncating from ${text.length}`
+      );
       const truncated = text.slice(0, MESSAGE_CHAR_LIMIT);
       setInputText(truncated);
       Alert.alert(
@@ -340,11 +345,13 @@ export default function ChatScreen() {
       if (now - lastTypingBroadcastRef.current > 3000) {
         console.log('[ChatScreen] Broadcasting typing status: true');
         if (typingChannelRef.current) {
-          typingChannelRef.current.track({
-            user_id: session.user.id,
-            is_typing: true,
-            timestamp: new Date().toISOString(),
-          }).catch(err => console.warn('[ChatScreen] track error:', err));
+          typingChannelRef.current
+            .track({
+              user_id: session.user.id,
+              is_typing: true,
+              timestamp: new Date().toISOString(),
+            })
+            .catch((err) => console.warn('[ChatScreen] track error:', err));
         }
         lastTypingBroadcastRef.current = now;
       }
@@ -360,11 +367,13 @@ export default function ChatScreen() {
       typingTimeoutRef.current = setTimeout(() => {
         if (session?.user?.id && typingChannelRef.current) {
           console.log('[ChatScreen] Broadcasting typing status: false');
-          typingChannelRef.current.track({
-            user_id: session.user.id,
-            is_typing: false,
-            timestamp: new Date().toISOString(),
-          }).catch(err => console.warn('[ChatScreen] track error (stop):', err));
+          typingChannelRef.current
+            .track({
+              user_id: session.user.id,
+              is_typing: false,
+              timestamp: new Date().toISOString(),
+            })
+            .catch((err) => console.warn('[ChatScreen] track error (stop):', err));
         }
       }, 3000);
     }
@@ -376,11 +385,15 @@ export default function ChatScreen() {
     }
 
     const messageText = inputText.trim();
-    console.log(`[ChatScreen.handleSend] Attempting to send message with ${messageText.length} chars`);
-    
+    console.log(
+      `[ChatScreen.handleSend] Attempting to send message with ${messageText.length} chars`
+    );
+
     // Character limit is now enforced in handleInputChange, but keep this as a safety check
     if (messageText.length > MESSAGE_CHAR_LIMIT) {
-      console.error(`[ChatScreen.handleSend] ⚠️ SAFETY CHECK TRIGGERED: Message exceeds ${MESSAGE_CHAR_LIMIT} chars (${messageText.length} chars)`);
+      console.error(
+        `[ChatScreen.handleSend] ⚠️ SAFETY CHECK TRIGGERED: Message exceeds ${MESSAGE_CHAR_LIMIT} chars (${messageText.length} chars)`
+      );
       Alert.alert(
         'Message Too Long',
         `Messages must be ${MESSAGE_CHAR_LIMIT} characters or fewer. Current: ${messageText.length} chars`
@@ -388,17 +401,19 @@ export default function ChatScreen() {
       setInputText(messageText.slice(0, MESSAGE_CHAR_LIMIT));
       return;
     }
-    
+
     setInputText('');
     setSending(true);
 
     // MSG-009: Stop typing broadcast when message is sent
     if (session?.user?.id && typingChannelRef.current) {
-      typingChannelRef.current.track({
-        user_id: session.user.id,
-        is_typing: false,
-        timestamp: new Date().toISOString(),
-      }).catch(err => console.warn('[ChatScreen] track error (send):', err));
+      typingChannelRef.current
+        .track({
+          user_id: session.user.id,
+          is_typing: false,
+          timestamp: new Date().toISOString(),
+        })
+        .catch((err) => console.warn('[ChatScreen] track error (send):', err));
     }
 
     try {
@@ -491,9 +506,9 @@ export default function ChatScreen() {
   };
 
   const handleImagePress = (imageUrl: string, allImages: string[]) => {
-    const images = allImages.map(url => ({ uri: url }));
-    const index = allImages.findIndex(url => url === imageUrl);
-    
+    const images = allImages.map((url) => ({ uri: url }));
+    const index = allImages.findIndex((url) => url === imageUrl);
+
     setImageViewerImages(images);
     setImageViewerIndex(Math.max(0, index));
     setImageViewerVisible(true);
@@ -533,15 +548,14 @@ export default function ChatScreen() {
     const isOwnMessage = item.sender_id === session?.user?.id;
 
     // Get all image URLs from messages for image viewer
-    const allImageMessages = messages.filter(msg => msg.message_type === 'image' && msg.image_url);
-    const allImageUrls = allImageMessages.map(msg => msg.image_url!);
+    const allImageMessages = messages.filter(
+      (msg) => msg.message_type === 'image' && msg.image_url
+    );
+    const allImageUrls = allImageMessages.map((msg) => msg.image_url!);
 
     return (
       <View
-        style={[
-          styles.messageContainer,
-          isOwnMessage ? styles.ownMessage : styles.otherMessage,
-        ]}
+        style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}
       >
         <View
           style={[
@@ -555,19 +569,10 @@ export default function ChatScreen() {
               onPress={() => handleImagePress(item.image_url!, allImageUrls)}
               activeOpacity={0.8}
             >
-              <Image
-                source={{ uri: item.image_url }}
-                style={styles.chatImage}
-                resizeMode="cover"
-              />
+              <Image source={{ uri: item.image_url }} style={styles.chatImage} resizeMode="cover" />
             </TouchableOpacity>
           ) : (
-            <Text
-              style={[
-                styles.messageText,
-                isOwnMessage ? styles.ownText : styles.otherText,
-              ]}
-            >
+            <Text style={[styles.messageText, isOwnMessage ? styles.ownText : styles.otherText]}>
               {item.content}
             </Text>
           )}
@@ -597,7 +602,9 @@ export default function ChatScreen() {
   const listing = trade?.listing;
   const listingImages = Array.isArray(listing?.images) ? listing.images : [];
   const firstListingImage = listingImages.length
-    ? [...listingImages].sort((a: any, b: any) => (a?.display_order ?? 0) - (b?.display_order ?? 0))[0]
+    ? [...listingImages].sort(
+        (a: any, b: any) => (a?.display_order ?? 0) - (b?.display_order ?? 0)
+      )[0]
     : null;
   const listingImageUri: string | null = firstListingImage
     ? (firstListingImage.thumbnail_url as string | null) || (firstListingImage.url as string)
@@ -607,10 +614,7 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header with Item Info */}
       <View style={styles.header}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-        >
+        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color="#007AFF" />
         </Pressable>
 
@@ -619,7 +623,7 @@ export default function ChatScreen() {
         ) : listing ? (
           <View style={styles.headerInfo}>
             {partnerProfile && (
-              <Avatar 
+              <Avatar
                 imageUrl={partnerProfile.avatar_url || undefined}
                 name={partnerProfile.name}
                 size={40}
@@ -627,7 +631,7 @@ export default function ChatScreen() {
               />
             )}
             <View style={styles.itemInfo}>
-              <ListingImage 
+              <ListingImage
                 url={listingImageUri}
                 containerStyle={styles.itemImage}
                 imageStyle={styles.itemImage}
@@ -637,7 +641,7 @@ export default function ChatScreen() {
                 <Text style={styles.itemTitle} numberOfLines={1}>
                   {listing.title}
                 </Text>
-                <Text style={styles.itemPrice}>${(listing.price).toFixed(2)}</Text>
+                <Text style={styles.itemPrice}>${listing.price.toFixed(2)}</Text>
               </View>
             </View>
           </View>
@@ -730,21 +734,20 @@ export default function ChatScreen() {
               maxLength={2000}
               editable={!sending && !sendingImage}
             />
-            <Text style={[
-              styles.charCounter,
-              inputText.length > MESSAGE_CHAR_LIMIT && styles.charCounterWarning
-            ]}>
+            <Text
+              style={[
+                styles.charCounter,
+                inputText.length > MESSAGE_CHAR_LIMIT && styles.charCounterWarning,
+              ]}
+            >
               {inputText.length}/{MESSAGE_CHAR_LIMIT}
             </Text>
           </View>
-          
+
           {/* Image Picker Button */}
           <TouchableOpacity
             testID="image-picker-button"
-            style={[
-              styles.imageButton,
-              (sending || sendingImage) && styles.buttonDisabled,
-            ]}
+            style={[styles.imageButton, (sending || sendingImage) && styles.buttonDisabled]}
             onPress={handleImagePicker}
             disabled={sending || sendingImage}
           >
@@ -754,7 +757,7 @@ export default function ChatScreen() {
               <Ionicons name="image" size={24} color="#6B7280" />
             )}
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={[
               styles.sendButton,
@@ -780,10 +783,7 @@ export default function ChatScreen() {
         onRequestClose={() => setImageViewerVisible(false)}
       >
         <View style={styles.imageViewerContainer}>
-          <Pressable
-            style={styles.imageViewerHeader}
-            onPress={() => setImageViewerVisible(false)}
-          >
+          <Pressable style={styles.imageViewerHeader} onPress={() => setImageViewerVisible(false)}>
             <Ionicons name="close" size={28} color="white" />
           </Pressable>
 

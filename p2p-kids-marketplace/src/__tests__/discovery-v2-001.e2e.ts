@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/__tests__/discovery-v2-001.e2e.ts
  * MODULE-05-DISCOVERY-V2: End-to-End Tests
  * Task: DISCOVERY-V2-001 - Full-Text Search
- * 
+ *
  * E2E tests for full-text search functionality
  */
 
@@ -11,14 +11,14 @@ import { supabase } from '../config/supabase';
 
 /**
  * E2E Test: Full-Text Search Index (DISCOVERY-V2-001)
- * 
+ *
  * Prerequisites:
  * - Supabase production instance must be running
  * - Database migrations applied:
  *   - 20251220000001_add_search_vector_listings.sql
  *   - 20251220000002_search_listings_rpc.sql
  * - Test data created: Run `npm run seed:staging`
- * 
+ *
  * Run with: npm run test:e2e -- discovery-v2-001
  */
 describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
@@ -82,7 +82,7 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
       expect(Array.isArray(results)).toBe(true);
       // All results should have accepts_swap_points = true
       if (results.length > 0) {
-        expect(results.every(r => r.accepts_swap_points)).toBe(true);
+        expect(results.every((r) => r.accepts_swap_points)).toBe(true);
       }
     });
 
@@ -108,9 +108,7 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
       // Assert
       if (results.length > 1) {
         for (let i = 0; i < results.length - 1; i++) {
-          expect(results[i].relevance).toBeGreaterThanOrEqual(
-            results[i + 1].relevance
-          );
+          expect(results[i].relevance).toBeGreaterThanOrEqual(results[i + 1].relevance);
         }
       }
     });
@@ -120,12 +118,12 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
       const queries = ['car', 'educational', 'strategy'];
 
       // Act
-      const searchPromises = queries.map(q => searchListings(q));
+      const searchPromises = queries.map((q) => searchListings(q));
       const allResults = await Promise.all(searchPromises);
 
       // Assert
       // At least some queries should return results if test data exists
-      const hasResults = allResults.some(results => results.length > 0);
+      const hasResults = allResults.some((results) => results.length > 0);
       if (hasResults) {
         expect(hasResults).toBe(true);
       }
@@ -178,7 +176,9 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
       // Assert
       const duration = performance.now() - startTime;
       expect(duration).toBeLessThan(500); // 500ms baseline
-      console.log(`Search for "${query}" completed in ${duration.toFixed(2)}ms with ${results.length} results`);
+      console.log(
+        `Search for "${query}" completed in ${duration.toFixed(2)}ms with ${results.length} results`
+      );
     });
   });
 
@@ -213,15 +213,15 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
 
       // Act
       try {
-        const page1 = await searchListingsByCategory(categoryId, { 
+        const page1 = await searchListingsByCategory(categoryId, {
           categoryId,
-          limit: 5, 
-          offset: 0 
+          limit: 5,
+          offset: 0,
         });
-        const page2 = await searchListingsByCategory(categoryId, { 
+        const page2 = await searchListingsByCategory(categoryId, {
           categoryId,
-          limit: 5, 
-          offset: 5 
+          limit: 5,
+          offset: 5,
         });
 
         // Assert
@@ -247,7 +247,7 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
         // Assert
         expect(Array.isArray(results)).toBe(true);
         if (results.length > 0) {
-          expect(results.every(r => r.accepts_swap_points)).toBe(true);
+          expect(results.every((r) => r.accepts_swap_points)).toBe(true);
         }
       } catch (err) {
         // OK if category doesn't exist
@@ -275,14 +275,11 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
       // Verify that RPC functions exist by calling them with empty data
       try {
         // Call with empty query - should return empty results
-        const { data: searchData, error: searchError } = await supabase.rpc(
-          'search_listings',
-          {
-            p_query: 'zzz_test_nonexistent_zzz',
-            p_sp_eligible_only: false,
-            p_limit: 1,
-          }
-        );
+        const { data: searchData, error: searchError } = await supabase.rpc('search_listings', {
+          p_query: 'zzz_test_nonexistent_zzz',
+          p_sp_eligible_only: false,
+          p_limit: 1,
+        });
 
         // Should succeed with empty results
         expect(Array.isArray(searchData) || searchData === null).toBe(true);

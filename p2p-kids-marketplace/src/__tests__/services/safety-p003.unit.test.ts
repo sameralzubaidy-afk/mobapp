@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/services/safety-p003.unit.test.ts
  * MODULE-13 SAFETY-P003: Unit tests for flagged/rejected item status logic
- * 
+ *
  * Tests:
  * - ListingStatus type includes new statuses
  * - Notification trigger logic (mocked)
@@ -125,8 +125,7 @@ describe('SAFETY-P003: Flagged/Rejected Item Statuses', () => {
       const userRole = 'seller';
 
       // Flagged items should only be visible to seller + admins
-      const isVisible =
-        userRole === 'seller' || userRole === 'admin' || itemStatus === 'available';
+      const isVisible = userRole === 'seller' || userRole === 'admin' || itemStatus === 'available';
 
       expect(isVisible).toBe(true);
     });

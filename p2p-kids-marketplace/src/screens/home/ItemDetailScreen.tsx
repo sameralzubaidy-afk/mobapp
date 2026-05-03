@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/screens/home/ItemDetailScreen.tsx
  * MODULE-04 LISTING-V2-005: Listing Detail View with SP Context
  * Enhanced with TASK-ITEM-DETAILS-001: Seller Masking & Contact Flow
- * 
+ *
  * Features:
  * - Full item details (name, description, price, images, condition)
  * - SP payment eligibility display
@@ -164,9 +164,11 @@ export default function ItemDetailScreen() {
       if (session) {
         console.log('[ItemDetailScreen] 📊 Using session subscription data:', {
           status: session.subscription_status,
-          can_spend_sp: session.can_spend_sp
+          can_spend_sp: session.can_spend_sp,
         });
-        setBuyerIsSubscriber(session.subscription_status === 'trial' || session.subscription_status === 'active');
+        setBuyerIsSubscriber(
+          session.subscription_status === 'trial' || session.subscription_status === 'active'
+        );
         setBuyerCanSpendSP(session.can_spend_sp);
         setBuyerSubLoading(false);
         return;
@@ -189,7 +191,10 @@ export default function ItemDetailScreen() {
       });
 
       const fee = sub.is_subscriber ? 0.99 : 2.99;
-      console.log('[ItemDetailScreen] 💰 Fee calculated:', { is_subscriber: sub.is_subscriber, fee_dollars: fee });
+      console.log('[ItemDetailScreen] 💰 Fee calculated:', {
+        is_subscriber: sub.is_subscriber,
+        fee_dollars: fee,
+      });
 
       setBuyerIsSubscriber(sub.is_subscriber);
       setBuyerCanSpendSP(sub.can_spend_sp);
@@ -332,10 +337,12 @@ export default function ItemDetailScreen() {
 
   // Determine seller name display (TASK-ITEM-DETAILS-001)
   const shouldShowSellerName = hasActiveTrade;
-  const sellerDisplayName = shouldShowSellerName 
-    ? (listing.seller?.name || 'Seller')
+  const sellerDisplayName = shouldShowSellerName
+    ? listing.seller?.name || 'Seller'
     : '🔒 Seller Info Hidden';
-  const listingImages = [...(listing.images ?? [])].sort((a, b) => a.display_order - b.display_order);
+  const listingImages = [...(listing.images ?? [])].sort(
+    (a, b) => a.display_order - b.display_order
+  );
   const activeImage = listingImages[activeImageIndex] ?? listingImages[0] ?? null;
   const requestedCategoryName = listing.requested_category_name?.trim() || '';
   const colorValues = Array.isArray(listing.color) ? listing.color.filter(Boolean) : [];
@@ -366,18 +373,24 @@ export default function ItemDetailScreen() {
 
           {activeImage ? (
             <View style={styles.imageGallery}>
-              <ListingImage 
-                url={activeImage.url} 
-                containerStyle={styles.mainImage} 
+              <ListingImage
+                url={activeImage.url}
+                containerStyle={styles.mainImage}
                 imageStyle={styles.mainImage}
                 resizeMode="contain"
               />
               <View style={styles.imageCountBadge}>
-                <Text style={styles.imageCountBadgeText}>{`${activeImageIndex + 1}/${listingImages.length}`}</Text>
+                <Text
+                  style={styles.imageCountBadgeText}
+                >{`${activeImageIndex + 1}/${listingImages.length}`}</Text>
               </View>
 
               {listingImages.length > 1 && (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbnailsContainer}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.thumbnailsContainer}
+                >
                   {listingImages.map((image, index) => (
                     <TouchableOpacity
                       key={image.id}
@@ -521,7 +534,7 @@ export default function ItemDetailScreen() {
           <View style={styles.section}>
             <View style={styles.feeCard}>
               <Text style={styles.feeCardTitle}>💰 Price Breakdown</Text>
-              
+
               <View style={styles.feeRow}>
                 <Text style={styles.feeLabel}>Item Price</Text>
                 <Text style={styles.feeValue}>${listing.price.toFixed(2)}</Text>
@@ -546,7 +559,8 @@ export default function ItemDetailScreen() {
               {!buyerIsSubscriber && (
                 <View style={styles.savingsNote}>
                   <Text style={styles.savingsNoteText}>
-                    💡 Save $2.00 on fees! Subscribe to Kids Club+ and pay only $0.99 per transaction.
+                    💡 Save $2.00 on fees! Subscribe to Kids Club+ and pay only $0.99 per
+                    transaction.
                   </Text>
                 </View>
               )}
@@ -556,9 +570,18 @@ export default function ItemDetailScreen() {
           {/* Seller Info Section (TASK-ITEM-DETAILS-001: Masking & Ratings) */}
           {listing.seller && (
             <View style={styles.section}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 12,
+                  flexWrap: 'wrap',
+                  gap: 8,
+                }}
+              >
                 <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>👤 Seller Info</Text>
-                {(sellerVerificationStatus === 'approved' || sellerVerificationStatus === 'verified') && (
+                {(sellerVerificationStatus === 'approved' ||
+                  sellerVerificationStatus === 'verified') && (
                   <View style={styles.verifiedBadge}>
                     <Ionicons name="checkmark-circle" size={14} color="#1d4ed8" />
                     <Ionicons
@@ -572,22 +595,21 @@ export default function ItemDetailScreen() {
                       <Text style={styles.verifiedBadgeSubtitle}>ID verified</Text>
                     </View>
                   </View>
-                  )}
+                )}
               </View>
               <View style={styles.sellerCard}>
-                <Avatar 
-                  imageUrl={listing.seller.avatar_url || undefined} 
-                  size={50} 
+                <Avatar
+                  imageUrl={listing.seller.avatar_url || undefined}
+                  size={50}
                   verificationStatus={sellerVerificationStatus as any}
                   name={shouldShowSellerName ? listing.seller.name : 'Seller'}
                 />
-                
+
                 <View style={styles.sellerInfo}>
                   {/* Seller Name (Masked if no active trade) */}
-                  <Text style={[
-                    styles.sellerName,
-                    !shouldShowSellerName && styles.sellerNameMasked
-                  ]}>
+                  <Text
+                    style={[styles.sellerName, !shouldShowSellerName && styles.sellerNameMasked]}
+                  >
                     {sellerDisplayName}
                   </Text>
 
@@ -607,14 +629,11 @@ export default function ItemDetailScreen() {
 
                   {/* Action Buttons */}
                   <View style={styles.sellerActionButtons}>
-                    <TouchableOpacity 
-                      style={styles.contactButton}
-                      onPress={handleContactSeller}
-                    >
+                    <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller}>
                       <Text style={styles.contactButtonText}>💬 Contact Seller</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.profileButton}
                       onPress={handleViewSellerProfile}
                     >
@@ -625,8 +644,8 @@ export default function ItemDetailScreen() {
                   {/* Info message if no active trade */}
                   {!shouldShowSellerName && (
                     <Text style={styles.sellerInfoNote}>
-                      {user?.id === listing.seller_id 
-                        ? 'You cannot view your own seller profile here.' 
+                      {user?.id === listing.seller_id
+                        ? 'You cannot view your own seller profile here.'
                         : 'Start a trade to see seller details and contact them.'}
                     </Text>
                   )}

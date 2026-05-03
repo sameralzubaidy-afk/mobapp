@@ -41,19 +41,19 @@ describe('calculateCategorySP — mobile (matches server contract)', () => {
   // -------------------------------------------------------------------------
 
   it('earn_sp = Math.round(price * multiplier)', async () => {
-    mockCategoryResponse(1.10, 70);
+    mockCategoryResponse(1.1, 70);
     const result = await calculateCategorySP('cat-1', 33);
-    expect(result?.earn_sp).toBe(Math.round(33 * 1.10));
+    expect(result?.earn_sp).toBe(Math.round(33 * 1.1));
   });
 
   it('max_spend_sp = Math.floor(price * cap / 100)', async () => {
-    mockCategoryResponse(1.10, 70);
+    mockCategoryResponse(1.1, 70);
     const result = await calculateCategorySP('cat-1', 33);
     expect(result?.max_spend_sp).toBe(Math.floor((33 * 70) / 100));
   });
 
   it('$50 at default 1.10 / 70% matches server preview exactly', async () => {
-    mockCategoryResponse(1.10, 70);
+    mockCategoryResponse(1.1, 70);
     const result = await calculateCategorySP('cat-1', 50);
     expect(result?.earn_sp).toBe(55);
     expect(result?.max_spend_sp).toBe(35);
@@ -68,14 +68,14 @@ describe('calculateCategorySP — mobile (matches server contract)', () => {
   });
 
   it('handles maximum multiplier boundary (1.40)', async () => {
-    mockCategoryResponse(1.40, 80);
+    mockCategoryResponse(1.4, 80);
     const result = await calculateCategorySP('cat-1', 100);
     expect(result?.earn_sp).toBe(140);
     expect(result?.max_spend_sp).toBe(80);
   });
 
   it('handles price = 0 gracefully', async () => {
-    mockCategoryResponse(1.10, 70);
+    mockCategoryResponse(1.1, 70);
     const result = await calculateCategorySP('cat-1', 0);
     expect(result?.earn_sp).toBe(0);
     expect(result?.max_spend_sp).toBe(0);
@@ -97,7 +97,7 @@ describe('calculateCategorySP — mobile (matches server contract)', () => {
 
   it('max_spend_sp floors correctly (never rounds up)', async () => {
     // price=7, cap=70 → 4.9 → floor=4
-    mockCategoryResponse(1.10, 70);
+    mockCategoryResponse(1.1, 70);
     const result = await calculateCategorySP('cat-1', 7);
     expect(result?.max_spend_sp).toBe(4);
   });

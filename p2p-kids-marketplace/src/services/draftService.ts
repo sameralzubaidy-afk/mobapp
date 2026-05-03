@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/services/draftService.ts
  * MODULE-04 LISTING-V3: Draft Service Layer
  * Task: LISTING-V3-003 - Server-side draft lifecycle
- * 
+ *
  * Handles:
  * - Create item draft
  * - Update draft with JSONB merge
@@ -70,7 +70,7 @@ export interface BulkUploadSession {
  * Create new item draft
  * Inserts into item_drafts table
  * Relies on trigger for max-5 eviction
- * 
+ *
  * @param sellerId - Current seller ID
  * @param initial - Initial draft data
  * @returns Created draft
@@ -110,9 +110,7 @@ export async function createItemDraft(
 /**
  * Start a new bulk session row in item_bulk_uploads with pending status.
  */
-export async function startBulkSession(
-  sellerId: string
-): Promise<BulkUploadSession | null> {
+export async function startBulkSession(sellerId: string): Promise<BulkUploadSession | null> {
   try {
     const { data, error } = await supabase
       .from('item_bulk_uploads')
@@ -162,7 +160,7 @@ export async function markBulkSessionProcessing(
 
 /**
  * Get item draft by ID
- * 
+ *
  * @param draftId - Draft ID
  * @returns Draft or null
  */
@@ -188,7 +186,7 @@ export async function getItemDraft(draftId: string): Promise<ItemDraft | null> {
  * Update item draft with JSONB merge
  * Uses draft_data = draft_data || $1::jsonb pattern
  * No fetch-then-overwrite (race condition safe)
- * 
+ *
  * @param draftId - Draft ID
  * @param updates - Partial draft data to merge
  * @returns Success status
@@ -210,7 +208,7 @@ export async function updateItemDraft(
       // If RPC doesn't exist, fall back to client-side merge
       // This is acceptable for MVP but has race condition risk
       console.warn('[draftService] RPC merge_item_draft not found, using client-side merge');
-      
+
       const { data: current, error: fetchError } = await supabase
         .from('item_drafts')
         .select('draft_data')
@@ -241,16 +239,13 @@ export async function updateItemDraft(
 
 /**
  * Delete draft
- * 
+ *
  * @param draftId - Draft ID
  * @returns Success status
  */
 export async function deleteDraft(draftId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('item_drafts')
-      .delete()
-      .eq('id', draftId);
+    const { error } = await supabase.from('item_drafts').delete().eq('id', draftId);
 
     if (error) throw error;
 
@@ -272,7 +267,7 @@ export async function deleteItemDraft(draftId: string): Promise<boolean> {
 /**
  * Get active drafts for seller
  * Returns drafts WHERE expires_at > now() ORDER BY updated_at DESC
- * 
+ *
  * @param sellerId - Seller ID
  * @returns Array of active drafts
  */
@@ -299,7 +294,7 @@ export async function getActiveDrafts(sellerId: string): Promise<ItemDraft[]> {
  * Validates required fields
  * Calls existing V2 createItem
  * On success, deletes draft
- * 
+ *
  * @param draftId - Draft ID
  * @returns Created item ID or null
  */
@@ -328,7 +323,9 @@ export async function publishDraft(draftId: string): Promise<string | null> {
 
     const isOtherCategory =
       draftData.category_id === 'other' ||
-      String((draftData as any).category_name || '').trim().toLowerCase() === 'other';
+      String((draftData as any).category_name || '')
+        .trim()
+        .toLowerCase() === 'other';
     const requestedCategoryName = String(draftData.requested_category_name || '').trim();
 
     if (isOtherCategory) {
@@ -385,7 +382,7 @@ export async function publishDraft(draftId: string): Promise<string | null> {
  * Publish bulk drafts
  * Iterates items, returns published/failed/errors
  * Updates item_bulk_uploads.published_items and status
- * 
+ *
  * @param bulkUploadId - Bulk upload session ID
  * @param itemIds - Array of item draft IDs to publish
  * @returns Bulk publish result
@@ -428,7 +425,9 @@ export async function publishBulkDrafts(
         const requestedCategoryName = String(item?.requested_category_name || '').trim();
         const isOtherCategory =
           categoryId === 'other' ||
-          String(item?.category_name || '').trim().toLowerCase() === 'other';
+          String(item?.category_name || '')
+            .trim()
+            .toLowerCase() === 'other';
         const parsedPrice = Number(item?.price);
         const photoUrls = Array.isArray(item?.photo_urls) ? item.photo_urls : [];
 
@@ -442,7 +441,10 @@ export async function publishBulkDrafts(
         }
         if (isOtherCategory) {
           if (!requestedCategoryName) {
-            failed.push({ draftId: itemIdForError, error: 'Custom category name is required when category is Other' });
+            failed.push({
+              draftId: itemIdForError,
+              error: 'Custom category name is required when category is Other',
+            });
             continue;
           }
         } else if (!categoryId && !requestedCategoryName) {
@@ -465,7 +467,9 @@ export async function publishBulkDrafts(
             description,
             price: parsedPrice,
             category_id: isOtherCategory ? undefined : categoryId || undefined,
-            requested_category_name: isOtherCategory ? requestedCategoryName : requestedCategoryName || null,
+            requested_category_name: isOtherCategory
+              ? requestedCategoryName
+              : requestedCategoryName || null,
             condition,
             brand: item?.brand || null,
             color: Array.isArray(item?.color) ? item.color : null,
@@ -508,7 +512,7 @@ export async function publishBulkDrafts(
   // Update bulk_upload status
   const totalItems = itemIds.length;
   const publishedCount = published.length;
-  
+
   let status: 'completed' | 'partial' | 'failed';
   if (publishedCount === totalItems) {
     status = 'completed';
@@ -541,7 +545,7 @@ export async function publishBulkDrafts(
 
 /**
  * Save AI suggestions to draft
- * 
+ *
  * @param draftId - Draft ID
  * @param suggestions - AI analysis result
  * @returns Success status

@@ -21,7 +21,7 @@ import type { ProfileSetupData } from '@/types/profile.types';
 export default function ProfileSetupScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  
+
   const [displayName, setDisplayName] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [bio, setBio] = useState('');
@@ -56,7 +56,10 @@ export default function ProfileSetupScreen({ navigation }: any) {
       // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photos to upload a profile picture.');
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to your photos to upload a profile picture.'
+        );
         return;
       }
 
@@ -97,9 +100,13 @@ export default function ProfileSetupScreen({ navigation }: any) {
       // Upload avatar if user selected one
       if (localImageUri) {
         setUploadingImage(true);
-        const { url, path, error: uploadError } = await uploadProfileAvatar(currentUser.id, localImageUri);
+        const {
+          url,
+          path,
+          error: uploadError,
+        } = await uploadProfileAvatar(currentUser.id, localImageUri);
         setUploadingImage(false);
-        
+
         if (uploadError) {
           console.error('Avatar upload error:', uploadError);
           Alert.alert('Warning', 'Profile will be created without avatar. You can add it later.');
@@ -119,7 +126,15 @@ export default function ProfileSetupScreen({ navigation }: any) {
         phone: currentUser.user_metadata?.phone || currentUser.phone,
       };
 
-      const { user, error, needsWaitlist, zipCode: userZip, matchType, assignedNodeId, assignedNodeName } = await setupUserProfile(currentUser.id, profileData);
+      const {
+        user,
+        error,
+        needsWaitlist,
+        zipCode: userZip,
+        matchType,
+        assignedNodeId,
+        assignedNodeName,
+      } = await setupUserProfile(currentUser.id, profileData);
 
       if (error) {
         throw error;
@@ -128,7 +143,7 @@ export default function ProfileSetupScreen({ navigation }: any) {
       // NODE-003: Check if user needs to be added to waitlist
       if (needsWaitlist && userZip && matchType === 'nearest') {
         console.log('⚠️ [NODE-003] Showing waitlist popup for inactive ZIP:', userZip);
-        
+
         Alert.alert(
           "We're Coming Soon! 🎉",
           `We're not quite active in ${userZip} yet, but we're coming soon! In the meantime, we've connected you with traders in ${assignedNodeName || 'a nearby area'}.\n\nWant to be notified when we launch in your area?`,
@@ -146,8 +161,11 @@ export default function ProfileSetupScreen({ navigation }: any) {
               text: 'Join Waitlist',
               onPress: async () => {
                 try {
-                  console.log('📋 [NODE-003] Adding user to waitlist:', { userZip, assignedNodeId });
-                  
+                  console.log('📋 [NODE-003] Adding user to waitlist:', {
+                    userZip,
+                    assignedNodeId,
+                  });
+
                   // NODE-003: Add user to ZIP waitlist
                   await upsertZipWaitlist({
                     userId: currentUser.id,
@@ -159,12 +177,22 @@ export default function ProfileSetupScreen({ navigation }: any) {
                   Alert.alert(
                     'Waitlist Confirmed',
                     `Thank you! We've added you to the waitlist for ${userZip}. We'll notify you as soon as we launch in your area.\n\nIn the meantime, you can trade items with users in ${assignedNodeName || 'your assigned area'}.`,
-                    [{ text: 'Got it', onPress: () => navigation.replace('SubscriptionChoice', { userId: currentUser.id }) }]
+                    [
+                      {
+                        text: 'Got it',
+                        onPress: () =>
+                          navigation.replace('SubscriptionChoice', { userId: currentUser.id }),
+                      },
+                    ]
                   );
                 } catch (error) {
                   console.error('❌ [NODE-003] Waitlist error:', error);
                   Alert.alert('Info', 'Could not add to waitlist, but you can still use the app!', [
-                    { text: 'OK', onPress: () => navigation.replace('SubscriptionChoice', { userId: currentUser.id }) },
+                    {
+                      text: 'OK',
+                      onPress: () =>
+                        navigation.replace('SubscriptionChoice', { userId: currentUser.id }),
+                    },
                   ]);
                 }
               },
@@ -203,7 +231,11 @@ export default function ProfileSetupScreen({ navigation }: any) {
 
       {/* Avatar Picker */}
       <View style={styles.avatarSection}>
-        <TouchableOpacity style={styles.avatarButton} onPress={handlePickImage} disabled={uploadingImage}>
+        <TouchableOpacity
+          style={styles.avatarButton}
+          onPress={handlePickImage}
+          disabled={uploadingImage}
+        >
           {localImageUri ? (
             <Image source={{ uri: localImageUri }} style={styles.avatarImage} />
           ) : (

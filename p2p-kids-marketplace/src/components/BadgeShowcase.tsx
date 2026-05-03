@@ -1,7 +1,15 @@
 // File: p2p-kids-marketplace/src/components/BadgeShowcase.tsx
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Image,
+  ActivityIndicator,
+  TouchableOpacity,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getUserBadges } from '../services/badges';
 import { UserBadge } from '../types/badge';
@@ -41,14 +49,16 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
 
   if (badges.length === 0) {
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.container}
         onPress={handleNavigateToBadges}
         activeOpacity={0.7}
       >
         <Text style={styles.title}>My Badges (0)</Text>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No badges earned yet. Start trading to earn badges! →</Text>
+          <Text style={styles.emptyText}>
+            No badges earned yet. Start trading to earn badges! →
+          </Text>
         </View>
       </TouchableOpacity>
     );
@@ -70,11 +80,7 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
   );
 
   return (
-    <TouchableOpacity 
-      style={styles.container}
-      onPress={handleNavigateToBadges}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity style={styles.container} onPress={handleNavigateToBadges} activeOpacity={0.7}>
       <View style={styles.header}>
         <Text style={styles.title}>My Badges ({badges.length})</Text>
         <Text style={styles.viewAllArrow}>→</Text>

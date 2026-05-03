@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/screens/ListingSafetyReviewScreen.test.tsx
  * TASK SAFETY-009: Unit tests for Seller Appeal Workflow (ListingSafetyReviewScreen)
- * 
+ *
  * State Matrix Coverage:
  * - Loading state
  * - Error state (listing not found)
@@ -56,7 +56,9 @@ const mockRejectedListing = {
   created_at: '2026-03-01T09:00:00Z',
   updated_at: '2026-03-02T10:00:00Z',
   sold_at: null,
-  images: [{ url: 'https://example.com/image.jpg', thumbnail_url: 'https://example.com/thumb.jpg' }],
+  images: [
+    { url: 'https://example.com/image.jpg', thumbnail_url: 'https://example.com/thumb.jpg' },
+  ],
 };
 
 const mockFlaggedListing = {
@@ -77,7 +79,9 @@ const mockNeedsEditsLegacyListing = {
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockGetListingById = getListingById as jest.MockedFunction<typeof getListingById>;
-const mockSubmitListingAppeal = submitListingAppeal as jest.MockedFunction<typeof submitListingAppeal>;
+const mockSubmitListingAppeal = submitListingAppeal as jest.MockedFunction<
+  typeof submitListingAppeal
+>;
 const mockUseNavigation = useNavigation as jest.MockedFunction<typeof useNavigation>;
 const mockUseRoute = useRoute as jest.MockedFunction<typeof useRoute>;
 
@@ -159,7 +163,9 @@ describe('ListingSafetyReviewScreen', () => {
     });
 
     // Should have appeal text input
-    expect(screen.getByPlaceholderText(/explain why this listing should be reviewed again/i)).toBeTruthy();
+    expect(
+      screen.getByPlaceholderText(/explain why this listing should be reviewed again/i)
+    ).toBeTruthy();
 
     // Should have Appeal Decision button
     expect(screen.getByText(/appeal decision/i)).toBeTruthy();
@@ -172,18 +178,25 @@ describe('ListingSafetyReviewScreen', () => {
     render(<ListingSafetyReviewScreen />);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/explain why this listing should be reviewed again/i)).toBeTruthy();
+      expect(
+        screen.getByPlaceholderText(/explain why this listing should be reviewed again/i)
+      ).toBeTruthy();
     });
 
-    const appealInput = screen.getByPlaceholderText(/explain why this listing should be reviewed again/i);
-    fireEvent.changeText(appealInput, 'I fixed the safety concern and updated the listing details.');
+    const appealInput = screen.getByPlaceholderText(
+      /explain why this listing should be reviewed again/i
+    );
+    fireEvent.changeText(
+      appealInput,
+      'I fixed the safety concern and updated the listing details.'
+    );
 
     await waitFor(() => {
       const appealButton = screen.getByText(/appeal decision/i);
       // Note: actual button enable/disable state is tested in E2E; unit tests verify rendering
       expect(appealButton).toBeTruthy();
     });
- });
+  });
 
   // STATE: Submitting Appeal
   it('submits appeal with valid reason', async () => {
@@ -194,10 +207,14 @@ describe('ListingSafetyReviewScreen', () => {
     render(<ListingSafetyReviewScreen />);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/explain why this listing should be reviewed again/i)).toBeTruthy();
+      expect(
+        screen.getByPlaceholderText(/explain why this listing should be reviewed again/i)
+      ).toBeTruthy();
     });
 
-    const appealInput = screen.getByPlaceholderText(/explain why this listing should be reviewed again/i);
+    const appealInput = screen.getByPlaceholderText(
+      /explain why this listing should be reviewed again/i
+    );
     fireEvent.changeText(appealInput, 'I corrected the safety issue as requested.');
 
     const appealButton = screen.getByText(/appeal decision/i);
@@ -218,8 +235,15 @@ describe('ListingSafetyReviewScreen', () => {
     await submitAction.onPress();
 
     await waitFor(() => {
-      expect(mockSubmitListingAppeal).toHaveBeenCalledWith('listing-123', 'seller-1', 'I corrected the safety issue as requested.');
-      expect(Alert.alert).toHaveBeenCalledWith('Appeal Submitted', 'Your listing is back under review.');
+      expect(mockSubmitListingAppeal).toHaveBeenCalledWith(
+        'listing-123',
+        'seller-1',
+        'I corrected the safety issue as requested.'
+      );
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Appeal Submitted',
+        'Your listing is back under review.'
+      );
     });
   });
 
@@ -236,7 +260,9 @@ describe('ListingSafetyReviewScreen', () => {
     const editButton = screen.getByText(/edit listing/i);
     fireEvent.press(editButton);
 
-    expect(mockNavigation.navigate).toHaveBeenCalledWith('EditListing', { listing_id: 'listing-123' });
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('EditListing', {
+      listing_id: 'listing-123',
+    });
   });
 
   // STATE: Back to My Listings Navigation
@@ -279,6 +305,8 @@ describe('ListingSafetyReviewScreen', () => {
     });
 
     expect(screen.queryByText('N/A')).toBeNull();
-    expect(screen.getAllByText(new Date('2026-03-04T12:00:00Z').toLocaleString()).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(new Date('2026-03-04T12:00:00Z').toLocaleString()).length
+    ).toBeGreaterThan(0);
   });
 });

@@ -21,12 +21,16 @@ jest.mock('@react-navigation/native', () => ({
   }),
 }));
 
-jest.mock('react-native-markdown-display', () => {
-  const { Text } = require('react-native');
-  return function Markdown({ children }: any) {
-    return <Text>{children}</Text>;
-  };
-}, { virtual: true });
+jest.mock(
+  'react-native-markdown-display',
+  () => {
+    const { Text } = require('react-native');
+    return function Markdown({ children }: any) {
+      return <Text>{children}</Text>;
+    };
+  },
+  { virtual: true }
+);
 
 jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => children,
@@ -95,9 +99,7 @@ describe('LiabilityDisclaimerScreen', () => {
       const { getByText } = render(<LiabilityDisclaimerScreen />);
 
       await waitFor(() => {
-        expect(
-          getByText(/This disclaimer is shown before every purchase/i)
-        ).toBeTruthy();
+        expect(getByText(/This disclaimer is shown before every purchase/i)).toBeTruthy();
       });
     });
 

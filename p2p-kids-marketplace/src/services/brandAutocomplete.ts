@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/services/brandAutocomplete.ts
  * MODULE-05-DISCOVERY-V3: Brand Autocomplete Service
  * Task: DISCOVERY-V3-003 - Brand Autocomplete
- * 
+ *
  * Hybrid brand suggestions: 50 predefined popular brands + database brands
  */
 
@@ -80,7 +80,7 @@ interface BrandCache {
 /**
  * Fetch brands from database with 5-minute cache
  * Cached in AsyncStorage to reduce DB queries
- * 
+ *
  * @returns Promise<string[]> - List of brand names from database
  */
 export async function fetchDatabaseBrands(): Promise<string[]> {
@@ -124,7 +124,10 @@ export async function fetchDatabaseBrands(): Promise<string[]> {
     try {
       await AsyncStorage.setItem(BRAND_CACHE_KEY, JSON.stringify(newCache));
     } catch (cacheError) {
-      console.warn('[brandAutocomplete] Cache write failed, continuing with fresh data:', cacheError);
+      console.warn(
+        '[brandAutocomplete] Cache write failed, continuing with fresh data:',
+        cacheError
+      );
     }
 
     return brands;
@@ -137,7 +140,7 @@ export async function fetchDatabaseBrands(): Promise<string[]> {
 /**
  * Get brand suggestions for autocomplete
  * Merges predefined brands + DB brands, dedupes, filters by query, sorts alphabetically
- * 
+ *
  * @param query - Brand search query (min 2 characters)
  * @returns Promise<string[]> - Up to 8 matching brand suggestions
  */
@@ -171,14 +174,10 @@ export async function getBrandSuggestions(query: string): Promise<string[]> {
     }
 
     // Filter by query (case-insensitive contains)
-    const matches = unique.filter((brand) =>
-      brand.toLowerCase().includes(normalizedQuery)
-    );
+    const matches = unique.filter((brand) => brand.toLowerCase().includes(normalizedQuery));
 
     // Sort alphabetically (case-insensitive)
-    const sorted = matches.sort((a, b) =>
-      a.toLowerCase().localeCompare(b.toLowerCase())
-    );
+    const sorted = matches.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
     // Cap at 8 suggestions
     return sorted.slice(0, 8);

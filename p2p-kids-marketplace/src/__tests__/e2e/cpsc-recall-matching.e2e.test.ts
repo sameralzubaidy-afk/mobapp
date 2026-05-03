@@ -2,17 +2,17 @@
  * FILE: p2p-kids-marketplace/src/__tests__/e2e/cpsc-recall-matching.e2e.test.ts
  * MODULE: MODULE-13-SAFETY-COMPLIANCE
  * TASK: SAFETY-002 - CPSC Recall Matching Logic - E2E Integration Test
- * 
+ *
  * DESCRIPTION:
  * End-to-end integration test for CPSC recall matching.
  * Tests against production Supabase with real data.
- * 
+ *
  * PREREQUISITES:
  * - Migration 305 applied (item_safety_flags + check_cpsc_recalls function)
  * - Migration 303/304 applied (cpsc_recalls table + import function)
  * - At least one CPSC recall imported
  * - check-item-safety Edge Function deployed
- * 
+ *
  * RUN WITH:
  * RUN_SUPABASE_E2E=true npm run test:e2e -- cpsc-recall-matching.e2e.test.ts
  */
@@ -102,7 +102,7 @@ describeIfE2E('SAFETY-002: CPSC Recall Matching E2E', () => {
         seller_id: testSellerId,
         title: 'CPSC Test Item - Safe Toy',
         description: 'This is a test item for CPSC recall check',
-        price: 15.00,
+        price: 15.0,
         condition: 'new',
         status: 'available',
         accepts_swap_points: false,
@@ -123,11 +123,7 @@ describeIfE2E('SAFETY-002: CPSC Recall Matching E2E', () => {
     expect(item.id).toBeDefined();
 
     // Run CPSC check via safety service
-    const result = await checkItemSafety(
-      item.id,
-      item.title,
-      item.description
-    );
+    const result = await checkItemSafety(item.id, item.title, item.description);
 
     expect(result).toBeDefined();
     expect(typeof result.flagged).toBe('boolean');
@@ -143,10 +139,7 @@ describeIfE2E('SAFETY-002: CPSC Recall Matching E2E', () => {
     }
 
     // Clean up test item
-    await supabase
-      .from('items')
-      .delete()
-      .eq('id', item.id);
+    await supabase.from('items').delete().eq('id', item.id);
   });
 
   test('should flag item with high-confidence CPSC match', async () => {
@@ -176,11 +169,7 @@ describeIfE2E('SAFETY-002: CPSC Recall Matching E2E', () => {
     }
 
     // Run CPSC check
-    const result = await checkItemSafety(
-      item.id,
-      item.title,
-      item.description
-    );
+    const result = await checkItemSafety(item.id, item.title, item.description);
 
     expect(result).toBeDefined();
 
@@ -190,10 +179,7 @@ describeIfE2E('SAFETY-002: CPSC Recall Matching E2E', () => {
         result.error
       );
 
-      await supabase
-        .from('items')
-        .delete()
-        .eq('id', item.id);
+      await supabase.from('items').delete().eq('id', item.id);
 
       expect(result.error).toBeDefined();
       return;
@@ -204,9 +190,9 @@ describeIfE2E('SAFETY-002: CPSC Recall Matching E2E', () => {
     // If flagged, verify safety flag was created
     if (result.flagged) {
       console.log('✅ Item was flagged for CPSC recall:', result.match?.product_name);
-      
+
       // Wait briefly for trigger to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Verify item status changed to 'flagged'
       const { data: updatedItem } = await supabase
@@ -234,17 +220,11 @@ describeIfE2E('SAFETY-002: CPSC Recall Matching E2E', () => {
     }
 
     // Clean up
-    await supabase
-      .from('items')
-      .delete()
-      .eq('id', item.id);
+    await supabase.from('items').delete().eq('id', item.id);
   });
 
   test('should verify item_safety_flags table structure', async () => {
-    const { data, error } = await supabase
-      .from('item_safety_flags')
-      .select('*')
-      .limit(1);
+    const { data, error } = await supabase.from('item_safety_flags').select('*').limit(1);
 
     expect(error).toBeNull();
     expect(Array.isArray(data)).toBe(true);

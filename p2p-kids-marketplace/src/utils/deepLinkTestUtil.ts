@@ -86,23 +86,18 @@ export const TEST_SCENARIOS = {
   spEarned: () =>
     new NotificationTestBuilder().setType('sp_earned').setDeepLink('/sp-wallet').build(),
 
-  spSpent: () => new NotificationTestBuilder().setType('sp_spent').setDeepLink('/sp-wallet').build(),
+  spSpent: () =>
+    new NotificationTestBuilder().setType('sp_spent').setDeepLink('/sp-wallet').build(),
 
   spBalanceLow: () =>
     new NotificationTestBuilder().setType('sp_balance_low').setDeepLink('/discover').build(),
 
   spWalletFrozen: () =>
-    new NotificationTestBuilder()
-      .setType('sp_wallet_frozen')
-      .setDeepLink('/subscription')
-      .build(),
+    new NotificationTestBuilder().setType('sp_wallet_frozen').setDeepLink('/subscription').build(),
 
   // Subscription Events
   trialExpiring: () =>
-    new NotificationTestBuilder()
-      .setType('trial_expiring_3d')
-      .setDeepLink('/subscription')
-      .build(),
+    new NotificationTestBuilder().setType('trial_expiring_3d').setDeepLink('/subscription').build(),
 
   subscriptionRenewed: () =>
     new NotificationTestBuilder()
@@ -111,10 +106,7 @@ export const TEST_SCENARIOS = {
       .build(),
 
   paymentFailed: () =>
-    new NotificationTestBuilder()
-      .setEvent('payment_failed')
-      .setDeepLink('/subscription')
-      .build(),
+    new NotificationTestBuilder().setEvent('payment_failed').setDeepLink('/subscription').build(),
 
   // Badge Events
   badgeAwarded: () =>
@@ -157,17 +149,11 @@ export const TEST_SCENARIOS = {
 
   // Referral Events
   referralSignup: () =>
-    new NotificationTestBuilder()
-      .setType('referral_signup')
-      .setDeepLink('/referral')
-      .build(),
+    new NotificationTestBuilder().setType('referral_signup').setDeepLink('/referral').build(),
 
   // System Events
   systemAnnouncement: () =>
-    new NotificationTestBuilder()
-      .setType('system_announcement')
-      .setDeepLink('/home')
-      .build(),
+    new NotificationTestBuilder().setType('system_announcement').setDeepLink('/home').build(),
 
   // Invalid scenarios (for fallback testing)
   invalidDeepLink: () => new NotificationTestBuilder().setDeepLink('/invalid/route').build(),
@@ -178,7 +164,7 @@ export const TEST_SCENARIOS = {
 /**
  * Send test notification to current device
  * Can test different app states: foreground, background, killed
- * 
+ *
  * @param title - Notification title
  * @param body - Notification body
  * @param data - Notification data (deep link info)
@@ -207,8 +193,7 @@ export async function sendTestNotification(
       };
     }
 
-    const trigger =
-      delaySeconds > 0 ? { seconds: delaySeconds } : { seconds: 1, repeats: false };
+    const trigger = delaySeconds > 0 ? { seconds: delaySeconds } : { seconds: 1, repeats: false };
 
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
@@ -236,7 +221,7 @@ export async function sendTestNotification(
 /**
  * Test all deep link scenarios
  * Returns results for each scenario with expected vs actual route
- * 
+ *
  * Useful for automated testing or debugging
  */
 export function testAllScenarios(): {
@@ -362,14 +347,14 @@ export function printTestResults(): void {
 
 /**
  * Quick test helper for manual testing in React Native debugger
- * 
+ *
  * Usage in app (for debugging):
  * ```typescript
  * import { quickTest } from '@/utils/deepLinkTestUtil';
- * 
+ *
  * // Test SP earned notification
  * quickTest('sp_earned');
- * 
+ *
  * // Test trade request notification
  * quickTest('trade_request', 'my-trade-id');
  * ```

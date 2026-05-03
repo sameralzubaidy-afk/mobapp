@@ -185,31 +185,31 @@ export interface AIFieldResult<T> {
 export interface AIAnalysisResult {
   /** Item title extracted from labels/OCR */
   title?: AIFieldResult<string>;
-  
+
   /** Matched category with fuzzy matching */
-  category?: AIFieldResult<{ 
-    label: string; 
-    categoryId: string | null; 
+  category?: AIFieldResult<{
+    label: string;
+    categoryId: string | null;
   }>;
-  
+
   /** Item condition inferred from labels */
   condition?: AIFieldResult<'new' | 'like_new' | 'good' | 'fair' | 'worn'>;
-  
+
   /** Brand name (matched against PREDEFINED_BRANDS or from labels) */
   brand?: AIFieldResult<string>;
-  
+
   /** Dominant colors from image */
   color?: AIFieldResult<string[]>;
-  
+
   /** Age group inferred from labels */
   age_group?: AIFieldResult<'0-2' | '3-5' | '6-8' | '9-12' | '13+'>;
-  
+
   /** Gender inferred from labels */
   gender?: AIFieldResult<'boy' | 'girl' | 'unisex'>;
-  
+
   /** Raw Google Vision labels for debugging */
   rawLabels?: string[];
-  
+
   /** Error message if analysis failed */
   error?: string;
 }

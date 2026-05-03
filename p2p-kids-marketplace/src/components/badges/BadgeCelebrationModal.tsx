@@ -76,7 +76,9 @@ const ConfettiParticle: React.FC<{ index: number }> = ({ index }) => {
           transform: [
             { translateY },
             { translateX },
-            { rotate: rotate.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] }) },
+            {
+              rotate: rotate.interpolate({ inputRange: [0, 360], outputRange: ['0deg', '360deg'] }),
+            },
           ],
           opacity,
         },
@@ -131,15 +133,10 @@ const BadgeCelebrationModal: React.FC<BadgeCelebrationModalProps> = ({
       onRequestClose={onClose}
       testID="badge-celebration-modal"
     >
-      <Pressable
-        style={styles.overlay}
-        onPress={onClose}
-        testID="celebration-overlay"
-      >
+      <Pressable style={styles.overlay} onPress={onClose} testID="celebration-overlay">
         {/* Confetti Particles */}
-        {visible && Array.from({ length: 30 }).map((_, i) => (
-          <ConfettiParticle key={i} index={i} />
-        ))}
+        {visible &&
+          Array.from({ length: 30 }).map((_, i) => <ConfettiParticle key={i} index={i} />)}
 
         <Animated.View
           style={[
@@ -158,11 +155,7 @@ const BadgeCelebrationModal: React.FC<BadgeCelebrationModalProps> = ({
                   {badgeIcon}
                 </Text>
               ) : (
-                <Image
-                  source={{ uri: badgeIcon }}
-                  style={styles.badgeImage}
-                  testID="badge-image"
-                />
+                <Image source={{ uri: badgeIcon }} style={styles.badgeImage} testID="badge-image" />
               )}
             </View>
 
@@ -182,11 +175,7 @@ const BadgeCelebrationModal: React.FC<BadgeCelebrationModalProps> = ({
             </Text>
 
             {/* Close Button */}
-            <Pressable
-              style={styles.button}
-              onPress={onClose}
-              testID="celebration-close-button"
-            >
+            <Pressable style={styles.button} onPress={onClose} testID="celebration-close-button">
               <Text style={styles.buttonText}>Awesome!</Text>
             </Pressable>
           </Pressable>

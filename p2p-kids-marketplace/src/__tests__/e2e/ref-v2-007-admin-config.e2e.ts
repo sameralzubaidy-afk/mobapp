@@ -11,8 +11,8 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const adminSupabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY || '', {
   auth: {
     autoRefreshToken: false,
-    persistSession: false
-  }
+    persistSession: false,
+  },
 });
 
 describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
@@ -143,14 +143,11 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
     // Step 7: Create and complete a trade (simulate referee's first trade)
     // Note: This requires a full trade flow implementation
     // For now, we'll directly call the reward function (admin action)
-    let { data: rewardResult, error: rewardError } = await supabase.rpc(
-      'award_referral_sp',
-      {
-        p_referrer_id: referrerUserId,
-        p_referee_id: refereeUserId,
-        p_referral_id: referralId,
-      }
-    );
+    let { data: rewardResult, error: rewardError } = await supabase.rpc('award_referral_sp', {
+      p_referrer_id: referrerUserId,
+      p_referee_id: refereeUserId,
+      p_referral_id: referralId,
+    });
 
     let skipRewardAssertions = false;
     let usedFallbackRpc = false;
@@ -177,7 +174,9 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
       }
 
       if (rewardError?.code === 'PGRST202') {
-        console.warn('[E2E] Referral reward RPC unavailable in this environment; skipping strict reward assertion.');
+        console.warn(
+          '[E2E] Referral reward RPC unavailable in this environment; skipping strict reward assertion.'
+        );
         skipRewardAssertions = true;
       }
     }
@@ -219,7 +218,9 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
       }
     }
 
-    console.log(`[E2E] ✅ Verified: Referrer received ${newReferrerSP} SP, Referee received ${newRefereeSP} SP`);
+    console.log(
+      `[E2E] ✅ Verified: Referrer received ${newReferrerSP} SP, Referee received ${newRefereeSP} SP`
+    );
 
     // Step 9: Restore original config (cleanup)
     if (configBefore) {

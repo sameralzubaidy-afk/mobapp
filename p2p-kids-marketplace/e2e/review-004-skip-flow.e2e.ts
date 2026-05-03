@@ -15,7 +15,7 @@ describe('REVIEW-004: Skip Review Flow', () => {
     it('should display skip button on review submission screen', async () => {
       // Navigate to SubmitReviewScreen (assume user completes trade first)
       // This is a placeholder - adjust navigation based on your app flow
-      
+
       // Verify skip button exists
       await detoxExpect(element(by.id('skip-review-button'))).toBeVisible();
     });
@@ -28,7 +28,7 @@ describe('REVIEW-004: Skip Review Flow', () => {
   describe('Skip Review Interaction', () => {
     it('should allow user to skip review without selecting rating', async () => {
       // Don't select any star rating
-      
+
       // Tap skip button
       await element(by.id('skip-review-button')).tap();
 
@@ -68,14 +68,14 @@ describe('REVIEW-004: Skip Review Flow', () => {
 
       // But skip button should still be enabled
       await detoxExpect(element(by.id('skip-review-button'))).toBeVisible();
-      
+
       // Should be able to tap skip
       await element(by.id('skip-review-button')).tap();
     });
 
     it('should not validate rating when skipping', async () => {
       // Don't select rating
-      
+
       // Tap skip (no validation error should appear)
       await element(by.id('skip-review-button')).tap();
 
@@ -88,7 +88,7 @@ describe('REVIEW-004: Skip Review Flow', () => {
     it('should track skip event when user skips review', async () => {
       // Mock analytics tracking would be verified here
       // In a real test, you'd verify the analytics call
-      
+
       await element(by.id('skip-review-button')).tap();
 
       // Analytics should log REVIEW_SKIPPED event
@@ -119,7 +119,7 @@ describe('REVIEW-004: Skip Review Flow', () => {
   describe('Accessibility', () => {
     it('should have accessible skip button', async () => {
       const skipButton = element(by.id('skip-review-button'));
-      
+
       await detoxExpect(skipButton).toBeVisible();
       await detoxExpect(skipButton).toHaveAccessibilityLabel('Skip for Now');
     });

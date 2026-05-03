@@ -5,7 +5,7 @@
 
 /**
  * Category entity (mobile-facing subset)
- * 
+ *
  * Omitted fields (admin-only):
  * - description
  * - sp_config_notes

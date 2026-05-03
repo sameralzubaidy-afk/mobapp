@@ -16,7 +16,7 @@ describe('BADGES-V2-004 E2E: Badge Display & Leaderboard', () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      
+
       if (user) {
         testUserId = user.id;
       } else {
@@ -80,9 +80,7 @@ describe('BADGES-V2-004 E2E: Badge Display & Leaderboard', () => {
         if (data && data.length > 1) {
           // Verify descending order
           for (let i = 1; i < data.length; i++) {
-            expect(data[i - 1].badge_count).toBeGreaterThanOrEqual(
-              data[i].badge_count
-            );
+            expect(data[i - 1].badge_count).toBeGreaterThanOrEqual(data[i].badge_count);
           }
         }
       } catch (err) {
@@ -199,10 +197,7 @@ describe('BADGES-V2-004 E2E: Badge Display & Leaderboard', () => {
     it('should fetch user badges in under 300ms', async () => {
       try {
         const start = Date.now();
-        await supabase
-          .from('user_badges')
-          .select('*, badge:badges(*)')
-          .eq('user_id', testUserId);
+        await supabase.from('user_badges').select('*, badge:badges(*)').eq('user_id', testUserId);
         const duration = Date.now() - start;
 
         expect(duration).toBeLessThan(300);

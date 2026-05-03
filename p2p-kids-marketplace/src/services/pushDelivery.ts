@@ -115,11 +115,7 @@ async function checkQuietHours(userId: string): Promise<boolean> {
 /**
  * Check if notification is a duplicate (within 5-minute window)
  */
-async function checkDuplicate(
-  userId: string,
-  type: string,
-  fingerprint: string
-): Promise<boolean> {
+async function checkDuplicate(userId: string, type: string, fingerprint: string): Promise<boolean> {
   try {
     const { data, error } = await supabase.rpc('is_duplicate_notification', {
       p_user_id: userId,
@@ -253,7 +249,12 @@ async function sendViaEdgeFunction(
   body: string,
   data: Record<string, unknown>,
   priority: 'default' | 'normal' | 'high'
-): Promise<{ success: boolean; tickets: ExpoPushTicket[]; error?: string; loggedByEdge?: boolean }> {
+): Promise<{
+  success: boolean;
+  tickets: ExpoPushTicket[];
+  error?: string;
+  loggedByEdge?: boolean;
+}> {
   try {
     const { data: response, error } = await supabase.functions.invoke('send-push-notification', {
       body: {
@@ -284,8 +285,8 @@ async function sendViaEdgeFunction(
     const tickets = Array.isArray(payload.tickets)
       ? payload.tickets
       : Array.isArray(payload.expoResponse?.data)
-      ? payload.expoResponse?.data || []
-      : [];
+        ? payload.expoResponse?.data || []
+        : [];
 
     return {
       success: payload.success !== false,
@@ -305,7 +306,7 @@ async function sendViaEdgeFunction(
 
 /**
  * Send push notification to user with rate limiting, quiet hours, and deduplication
- * 
+ *
  * @param options - Push delivery options
  * @returns Delivery result with success status and metadata
  */
@@ -327,9 +328,7 @@ export async function sendPushNotification(
   } = options;
 
   // Generate fingerprint if not provided (hash of type + userId + current minute)
-  const actualFingerprint =
-    fingerprint ||
-    `${type}-${userId}-${Math.floor(Date.now() / 60000)}`; // 1-minute window for auto-generated fingerprints
+  const actualFingerprint = fingerprint || `${type}-${userId}-${Math.floor(Date.now() / 60000)}`; // 1-minute window for auto-generated fingerprints
 
   try {
     // 1. Check deduplication (unless critical)
@@ -428,7 +427,10 @@ export async function sendPushNotification(
               pushToken.id,
               ticket.id ?? null,
               ticket.status === 'ok' ? 'ok' : 'error',
-              ticket.message || (ticket.status === 'ok' ? 'Sent to Expo successfully' : 'Expo push ticket returned error status'),
+              ticket.message ||
+                (ticket.status === 'ok'
+                  ? 'Sent to Expo successfully'
+                  : 'Expo push ticket returned error status'),
               { ticket },
               0
             );
@@ -555,7 +557,7 @@ export async function sendPushNotification(
 /**
  * Fetch and process push notification receipts
  * Call this periodically (e.g., every 15 minutes) to update delivery status
- * 
+ *
  * @param ticketIds - Array of Expo push ticket IDs to check
  */
 export async function processPushReceipts(ticketIds: string[]): Promise<void> {
@@ -649,10 +651,16 @@ export async function retryFailedDeliveries(): Promise<void> {
         if (result.success && result.sent) {
           console.log(`[pushDelivery] Successfully retried notification ${retry.notification_id}`);
         } else {
-          console.warn(`[pushDelivery] Retry failed for notification ${retry.notification_id}:`, result.error);
+          console.warn(
+            `[pushDelivery] Retry failed for notification ${retry.notification_id}:`,
+            result.error
+          );
         }
       } catch (err) {
-        console.error(`[pushDelivery] Exception retrying notification ${retry.notification_id}:`, err);
+        console.error(
+          `[pushDelivery] Exception retrying notification ${retry.notification_id}:`,
+          err
+        );
       }
     }
   } catch (err) {

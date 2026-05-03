@@ -11,12 +11,12 @@ import {
 
 /**
  * E2E Test Suite for Referral Notifications (REF-V2-005)
- * 
+ *
  * Prerequisites:
  * - Supabase connection configured
  * - Test users created with valid subscriptions
  * - Referral codes generated for test users
- * 
+ *
  * Test Flow:
  * 1. User A (referrer) has referral code
  * 2. User B (referee) signs up with User A's code
@@ -260,20 +260,20 @@ describe('Referral Notifications E2E', () => {
 
 /**
  * Manual Test Instructions:
- * 
+ *
  * 1. Set environment variables:
  *    export TEST_REFERRER_USER_ID="uuid-of-test-referrer"
  *    export TEST_REFEREE_USER_ID="uuid-of-test-referee"
- * 
+ *
  * 2. Run tests:
  *    npm test -- referral-notifications.e2e.ts
- * 
+ *
  * 3. Expected Results:
  *    - All tests pass
  *    - Notifications created in user_notifications table
  *    - Triggers fire automatically on referral events
  *    - Read status updates correctly
- * 
+ *
  * 4. Verify in Supabase SQL Editor:
  *    SELECT * FROM user_notifications WHERE user_id = 'your-test-user-id' ORDER BY created_at DESC;
  */

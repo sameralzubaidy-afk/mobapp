@@ -1,7 +1,7 @@
 /**
  * FILE: p2p-kids-marketplace/src/services/paymentRetry.ts
  * MODULE-11 TASK SUB-018: Payment Failure Retry Service
- * 
+ *
  * Service for handling payment failure retry logic
  */
 
@@ -94,7 +94,7 @@ interface RetryPaymentOptions {
 /**
  * Retry a failed payment for the authenticated user
  * Calls the retry-failed-payment Edge Function
- * 
+ *
  * @param userId - User ID (for authorization validation)
  * @returns Result indicating success/failure and updated subscription state
  */
@@ -102,7 +102,7 @@ export async function retryFailedPayment(
   userId: string,
   options?: RetryPaymentOptions
 ): Promise<RetryPaymentResult> {
-  try {    
+  try {
     const { data, error } = await supabase.functions.invoke('retry-failed-payment', {
       body: {
         user_id: userId,
@@ -116,7 +116,9 @@ export async function retryFailedPayment(
       if (parsedError.code === 'NO_OPEN_INVOICE') {
         console.log('[paymentRetry] No open invoice available for immediate retry');
       } else if (parsedError.code === 'NOT_FOUND') {
-        console.log('[paymentRetry] retry-failed-payment function is not deployed in this environment');
+        console.log(
+          '[paymentRetry] retry-failed-payment function is not deployed in this environment'
+        );
       } else {
         console.error('[paymentRetry] Edge Function error:', parsedError);
       }
@@ -156,7 +158,7 @@ export async function retryFailedPayment(
 /**
  * Send payment failure notification to user
  * Called after each failed payment attempt
- * 
+ *
  * @param userId - User ID to notify
  * @param retryCount - Current retry count (1, 2, or 3)
  * @returns Success status

@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/services/pricingService.ts
  * MODULE-04 LISTING-V3: Pricing Service Layer
  * Task: LISTING-V3-003 - Price suggestion tiers
- * 
+ *
  * Handles:
  * - Price suggestions based on historical sold prices
  * - 4-tier pricing (Great Deal / Fair / Asking / Almost New)
@@ -19,9 +19,9 @@ import { PriceSuggestion } from '../types/listing';
 // almost_new: 0.85-0.95 range, midpoint 0.90
 const TIER_MULTIPLIERS = {
   great_deal: 0.45,
-  fair_price: 0.60,
+  fair_price: 0.6,
   asking_price: 0.75,
-  almost_new: 0.90,
+  almost_new: 0.9,
 };
 
 // Minimum number of comparable sales required
@@ -35,7 +35,7 @@ const LOOKBACK_DAYS = 90;
  * Queries avg sold price over last 90 days
  * Returns [] if fewer than 5 comparable rows
  * Otherwise returns 4-tier array using multipliers
- * 
+ *
  * @param categoryId - Category ID
  * @param condition - Item condition
  * @returns Array of price suggestions (empty if insufficient data)
@@ -117,7 +117,7 @@ export async function getSuggestedPrice(
 
 /**
  * Get price tier label by ID
- * 
+ *
  * @param tierId - Tier ID
  * @returns Tier label
  */
@@ -134,7 +134,7 @@ export function getPriceTierLabel(tierId: string): string {
 
 /**
  * Format price for display
- * 
+ *
  * @param price - Price in dollars
  * @returns Formatted price string (e.g., "$12.99")
  */
@@ -144,7 +144,7 @@ export function formatPrice(price: number): string {
 
 /**
  * Validate price
- * 
+ *
  * @param price - Price to validate
  * @returns Validation result
  */

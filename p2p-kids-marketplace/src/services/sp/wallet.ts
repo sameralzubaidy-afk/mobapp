@@ -57,7 +57,7 @@ export async function getWallet(userId: string): Promise<SPWallet | null> {
       .select('*')
       .eq('user_id', userId)
       .single();
-    
+
     if (error && error.code === 'PGRST116') {
       // No wallet exists, create one
       const { data: newWallet, error: createError } = await supabase
@@ -65,13 +65,13 @@ export async function getWallet(userId: string): Promise<SPWallet | null> {
         .insert({ user_id: userId })
         .select()
         .single();
-      
+
       if (createError) throw createError;
       return newWallet;
     } else if (error) {
       throw error;
     }
-    
+
     return wallet;
   } catch (error) {
     console.error('Get wallet error:', error);
@@ -99,25 +99,28 @@ export async function canSpendSP(userId: string): Promise<{ allowed: boolean; re
       .eq('user_id', userId)
       .in('status', ['active', 'trial'])
       .single();
-    
+
     if (!subscription) {
       return { allowed: false, reason: 'Kids Club+ subscription required to use Swap Points' };
     }
-    
+
     // Check wallet state
     const wallet = await getWallet(userId);
     if (!wallet) {
       return { allowed: false, reason: 'SP wallet not found' };
     }
-    
+
     if (wallet.state === 'frozen') {
       return { allowed: false, reason: 'SP wallet is frozen. Please renew your subscription.' };
     }
-    
+
     if (wallet.state === 'grace_period') {
-      return { allowed: false, reason: 'SP wallet is in grace period. Renew subscription to access your SP.' };
+      return {
+        allowed: false,
+        reason: 'SP wallet is in grace period. Renew subscription to access your SP.',
+      };
     }
-    
+
     return { allowed: true };
   } catch (error) {
     console.error('Check SP spend eligibility error:', error);
@@ -140,7 +143,7 @@ export async function getLedgerHistory(
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
-    
+
     if (error) throw error;
     return data || [];
   } catch (error) {
@@ -159,7 +162,7 @@ export async function getExpiringBatches(
   try {
     const futureDate = new Date();
     futureDate.setDate(futureDate.getDate() + withinDays);
-    
+
     const { data, error } = await supabase
       .from('sp_batches')
       .select('*')
@@ -168,7 +171,7 @@ export async function getExpiringBatches(
       .eq('is_expired', false)
       .lte('expires_at', futureDate.toISOString())
       .order('expires_at', { ascending: true });
-    
+
     if (error) throw error;
     return data || [];
   } catch (error) {
@@ -182,11 +185,10 @@ export async function getExpiringBatches(
  */
 export async function getSPConfig(key: string): Promise<any> {
   try {
-    const { data, error } = await supabase
-      .rpc('get_sp_config', { p_key: key });
-    
+    const { data, error } = await supabase.rpc('get_sp_config', { p_key: key });
+
     if (error) throw error;
-    
+
     // Return the JSONB value directly
     return data;
   } catch (error) {
@@ -200,21 +202,20 @@ export async function getSPConfig(key: string): Promise<any> {
  */
 export async function getWalletSummary(userId: string) {
   try {
-    const { data, error } = await supabase
-      .rpc('get_user_sp_wallet_summary', { p_user_id: userId });
-    
+    const { data, error } = await supabase.rpc('get_user_sp_wallet_summary', { p_user_id: userId });
+
     if (error) throw error;
-    
+
     if (!data || data.length === 0) {
       return {
         available_points: 0,
         pending_points: 0,
         lifetime_earned: 0,
         lifetime_spent: 0,
-        wallet_state: 'inactive'
+        wallet_state: 'inactive',
       };
     }
-    
+
     return data[0];
   } catch (error) {
     console.error('Get wallet summary error:', error);
@@ -223,7 +224,7 @@ export async function getWalletSummary(userId: string) {
       pending_points: 0,
       lifetime_earned: 0,
       lifetime_spent: 0,
-      wallet_state: 'error'
+      wallet_state: 'error',
     };
   }
 }

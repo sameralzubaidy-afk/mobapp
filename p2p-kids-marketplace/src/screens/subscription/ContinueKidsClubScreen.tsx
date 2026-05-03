@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/subscription/ContinueKidsClubScreen.tsx
  * MODULE-11 TASK SUB-006: Continue Kids Club+ (Trial-to-Paid Conversion)
- * 
+ *
  * Screen where users can add payment for Kids Club+.
  * - Trial users continue existing trial
  * - Non-trial users start a 30-day free period before first charge
@@ -120,10 +120,7 @@ export default function ContinueKidsClubScreen() {
           <Text style={styles.description}>
             Your subscription is already active and your premium benefits are available.
           </Text>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.goBack()}>
             <Text style={styles.secondaryButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -143,7 +140,9 @@ export default function ContinueKidsClubScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.emoji}>🚀</Text>
-          <Text style={styles.title}>{isTrialSubscription ? 'Continue Kids Club+' : 'Start Kids Club+'}</Text>
+          <Text style={styles.title}>
+            {isTrialSubscription ? 'Continue Kids Club+' : 'Start Kids Club+'}
+          </Text>
           {trialEnding && daysRemaining > 0 && (
             <View style={styles.urgencyBadge}>
               <Text style={styles.urgencyText}>
@@ -186,7 +185,9 @@ export default function ContinueKidsClubScreen() {
           {loading ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={styles.primaryButtonText}>{isTrialSubscription ? 'Continue Kids Club+' : `Start ${trialDays}-Day Free Trial`}</Text>
+            <Text style={styles.primaryButtonText}>
+              {isTrialSubscription ? 'Continue Kids Club+' : `Start ${trialDays}-Day Free Trial`}
+            </Text>
           )}
         </TouchableOpacity>
 

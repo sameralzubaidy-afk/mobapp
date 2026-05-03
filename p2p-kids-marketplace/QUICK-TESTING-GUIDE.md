@@ -2,23 +2,24 @@
 
 ## New Commands Available
 
-| Command | What It Does | When to Use |
-|---------|-------------|-------------|
-| `npm run test:unit` | Runs only unit tests (no Supabase needed) | Quick sanity check |
-| `npm run test:integration` | Runs integration tests against staging | Testing DB/API changes |
-| `npm run test:e2e` | Runs E2E tests against staging | Full flow verification |
-| `npm run test:auth` | Auth-related tests only | Testing auth changes |
-| `npm run test:trades` | Trade-related tests only | Testing trade changes |
-| `npm run test:all` | All tests including skipped ones | Complete verification |
-| `npm run seed:staging` | Create test data | Before testing |
-| `npm run reset:staging -- --force` | Delete test data | Clean slate |
+| Command                            | What It Does                              | When to Use            |
+| ---------------------------------- | ----------------------------------------- | ---------------------- |
+| `npm run test:unit`                | Runs only unit tests (no Supabase needed) | Quick sanity check     |
+| `npm run test:integration`         | Runs integration tests against staging    | Testing DB/API changes |
+| `npm run test:e2e`                 | Runs E2E tests against staging            | Full flow verification |
+| `npm run test:auth`                | Auth-related tests only                   | Testing auth changes   |
+| `npm run test:trades`              | Trade-related tests only                  | Testing trade changes  |
+| `npm run test:all`                 | All tests including skipped ones          | Complete verification  |
+| `npm run seed:staging`             | Create test data                          | Before testing         |
+| `npm run reset:staging -- --force` | Delete test data                          | Clean slate            |
 
 ## 🧪 Your New Testing Workflow
 
 ### Before (10+ minutes manual):
+
 1. Open simulator
 2. Register new user manually
-3. Create listing manually  
+3. Create listing manually
 4. Log into another account
 5. Find listing, request trade
 6. Switch accounts, accept trade
@@ -33,7 +34,7 @@ npm run seed:staging
 # Quick verification of auth flows
 npm run test:auth
 
-# Quick verification of trade flows  
+# Quick verification of trade flows
 npm run test:trades
 
 # Or run everything

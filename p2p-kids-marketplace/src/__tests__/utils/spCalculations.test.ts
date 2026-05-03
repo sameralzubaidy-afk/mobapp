@@ -15,9 +15,9 @@ import {
 describe('spCalculations utilities', () => {
   describe('calculateEarnedSP', () => {
     it('should calculate SP correctly with valid inputs', () => {
-      expect(calculateEarnedSP(30, 1.20)).toBe(36); // Math.round(30 * 1.20) = 36
+      expect(calculateEarnedSP(30, 1.2)).toBe(36); // Math.round(30 * 1.20) = 36
       expect(calculateEarnedSP(25, 1.15)).toBe(29); // Math.round(25 * 1.15) = 29
-      expect(calculateEarnedSP(100, 1.10)).toBe(110); // Math.round(100 * 1.10) = 110
+      expect(calculateEarnedSP(100, 1.1)).toBe(110); // Math.round(100 * 1.10) = 110
     });
 
     it('should round correctly (Math.round)', () => {
@@ -27,10 +27,10 @@ describe('spCalculations utilities', () => {
     });
 
     it('should return 0 for invalid prices', () => {
-      expect(calculateEarnedSP(0, 1.20)).toBe(0);
-      expect(calculateEarnedSP(-10, 1.20)).toBe(0);
-      expect(calculateEarnedSP(NaN, 1.20)).toBe(0);
-      expect(calculateEarnedSP(Infinity, 1.20)).toBe(0);
+      expect(calculateEarnedSP(0, 1.2)).toBe(0);
+      expect(calculateEarnedSP(-10, 1.2)).toBe(0);
+      expect(calculateEarnedSP(NaN, 1.2)).toBe(0);
+      expect(calculateEarnedSP(Infinity, 1.2)).toBe(0);
     });
 
     it('should use default multiplier 1.10 for invalid multipliers', () => {
@@ -42,7 +42,7 @@ describe('spCalculations utilities', () => {
 
     it('should handle edge case multipliers', () => {
       expect(calculateEarnedSP(100, 1.05)).toBe(105); // Min valid
-      expect(calculateEarnedSP(100, 1.40)).toBe(140); // Max valid
+      expect(calculateEarnedSP(100, 1.4)).toBe(140); // Max valid
     });
   });
 
@@ -75,11 +75,11 @@ describe('spCalculations utilities', () => {
   describe('calculateBulkTotalSP', () => {
     const mockGetMultiplier = (categoryId: string | null): number => {
       const map: Record<string, number> = {
-        'cat-toys': 1.20,
-        'cat-clothes': 1.10,
-        'cat-books': 1.30,
+        'cat-toys': 1.2,
+        'cat-clothes': 1.1,
+        'cat-books': 1.3,
       };
-      return map[categoryId || ''] || 1.10;
+      return map[categoryId || ''] || 1.1;
     };
 
     const mockCategoryNames = new Map([
@@ -99,14 +99,14 @@ describe('spCalculations utilities', () => {
 
       expect(result.totalSP).toBe(88); // (30+20)*1.20 + 25*1.10 = 60 + 28 = 88
       expect(result.breakdown).toHaveLength(2);
-      
+
       const toysBreakdown = result.breakdown.find((b) => b.categoryId === 'cat-toys');
       expect(toysBreakdown).toEqual({
         categoryId: 'cat-toys',
         categoryName: 'Toys',
         count: 2,
         sp: 60,
-        multiplier: 1.20,
+        multiplier: 1.2,
       });
 
       const clothesBreakdown = result.breakdown.find((b) => b.categoryId === 'cat-clothes');
@@ -115,7 +115,7 @@ describe('spCalculations utilities', () => {
         categoryName: 'Clothes',
         count: 1,
         sp: 28,
-        multiplier: 1.10,
+        multiplier: 1.1,
       });
     });
 
@@ -148,7 +148,7 @@ describe('spCalculations utilities', () => {
 
     it('should use default category name if not in map', () => {
       const items = [{ category_id: 'cat-unknown', price: 10, includeInPublish: true }];
-      
+
       const result = calculateBulkTotalSP(items, mockGetMultiplier, mockCategoryNames);
       expect(result.breakdown[0].categoryName).toBe('cat-unknown'); // Falls back to ID
     });
@@ -175,8 +175,8 @@ describe('spCalculations utilities', () => {
 
   describe('formatMultiplier', () => {
     it('should format multipliers correctly', () => {
-      expect(formatMultiplier(1.20)).toBe('1.20x');
-      expect(formatMultiplier(1.10)).toBe('1.10x');
+      expect(formatMultiplier(1.2)).toBe('1.20x');
+      expect(formatMultiplier(1.1)).toBe('1.10x');
       expect(formatMultiplier(1.35)).toBe('1.35x');
     });
 

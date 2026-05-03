@@ -39,7 +39,7 @@ describe('conditionService', () => {
 
       const guides = await conditionService.getConditionGuide();
 
-      guides.forEach(guide => {
+      guides.forEach((guide) => {
         expect(guide).toHaveProperty('code');
         expect(guide).toHaveProperty('label');
         expect(guide).toHaveProperty('description');
@@ -64,9 +64,7 @@ describe('conditionService', () => {
 
     it('should return cached guides if available and not expired', async () => {
       const cached = {
-        guides: [
-          { code: 'new', label: 'New with Tags', description: 'Test', keywords: ['new'] },
-        ],
+        guides: [{ code: 'new', label: 'New with Tags', description: 'Test', keywords: ['new'] }],
         timestamp: Date.now(),
       };
 
@@ -118,7 +116,7 @@ describe('conditionService', () => {
     it('should return color labels only', () => {
       const colors = conditionService.getPopularColors();
 
-      colors.forEach(color => {
+      colors.forEach((color) => {
         expect(typeof color).toBe('string');
         expect(color.length).toBeGreaterThan(0);
       });

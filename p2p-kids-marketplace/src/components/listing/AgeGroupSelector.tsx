@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/listing/AgeGroupSelector.tsx
  * MODULE-04 LISTING-V3-008: Age Group Selector
  * Task: LISTING-V3-008 - 5 pills for age group selection
- * 
+ *
  * Features:
  * - 5 age group options (0-2, 3-5, 6-8, 9-12, 13+)
  * - Single select pill buttons
@@ -10,12 +10,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 type AgeGroup = '0-2' | '3-5' | '6-8' | '9-12' | '13+';
 
@@ -41,7 +36,7 @@ export function AgeGroupSelector({
   return (
     <View style={styles.container} testID={testID}>
       <Text style={styles.title}>Age Group</Text>
-      
+
       <View style={styles.pillsContainer}>
         {AGE_GROUPS.map((ageGroup) => {
           const isSelected = value === ageGroup.value;

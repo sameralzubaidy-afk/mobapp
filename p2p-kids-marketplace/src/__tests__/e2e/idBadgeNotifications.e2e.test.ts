@@ -333,15 +333,13 @@ describe('ID Badge Notification E2E', () => {
       }
 
       // Update user preferences to disable push
-      await supabase
-        .from('notification_preferences')
-        .upsert({
-          user_id: testUserId,
-          category: 'badges',
-          push_enabled: false,
-          in_app_enabled: true,
-          email_enabled: true,
-        });
+      await supabase.from('notification_preferences').upsert({
+        user_id: testUserId,
+        category: 'badges',
+        push_enabled: false,
+        in_app_enabled: true,
+        email_enabled: true,
+      });
 
       const { data: prefs } = await supabase
         .from('notification_preferences')
@@ -353,15 +351,13 @@ describe('ID Badge Notification E2E', () => {
       expect(prefs?.push_enabled).toBe(false);
 
       // Restore preferences
-      await supabase
-        .from('notification_preferences')
-        .upsert({
-          user_id: testUserId,
-          category: 'badges',
-          push_enabled: true,
-          in_app_enabled: true,
-          email_enabled: true,
-        });
+      await supabase.from('notification_preferences').upsert({
+        user_id: testUserId,
+        category: 'badges',
+        push_enabled: true,
+        in_app_enabled: true,
+        email_enabled: true,
+      });
     });
   });
 });

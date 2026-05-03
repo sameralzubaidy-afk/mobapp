@@ -1,7 +1,7 @@
 /**
  * FILE: p2p-kids-marketplace/src/screens/subscription/BillingHistoryScreen.tsx
  * MODULE-11 TASK SUB-017: Billing History View
- * 
+ *
  * Displays user's billing history with pagination and filtering.
  * Shows charge details, dates, amounts, and status.
  * Allows downloading invoices (Stripe-hosted).
@@ -74,34 +74,37 @@ export default function BillingHistoryScreen() {
   const [hasMore, setHasMore] = useState(false);
 
   // Fetch billing history
-  const fetchBillingHistory = useCallback(async (isRefresh = false) => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+  const fetchBillingHistory = useCallback(
+    async (isRefresh = false) => {
+      if (!userId) {
+        setLoading(false);
+        return;
       }
 
-      const result = await getBillingHistory({
-        user_id: userId,
-        limit: 50,
-      });
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
 
-      setBillingRecords(result);
-      setHasMore(result.length >= 50);
-    } catch (error) {
-      console.error('[BillingHistory] Error fetching history:', error);
-      Alert.alert('Error', 'Failed to load billing history. Please try again.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [userId]);
+        const result = await getBillingHistory({
+          user_id: userId,
+          limit: 50,
+        });
+
+        setBillingRecords(result);
+        setHasMore(result.length >= 50);
+      } catch (error) {
+        console.error('[BillingHistory] Error fetching history:', error);
+        Alert.alert('Error', 'Failed to load billing history. Please try again.');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [userId]
+  );
 
   // Initial load
   useEffect(() => {
@@ -112,25 +115,21 @@ export default function BillingHistoryScreen() {
   const handleViewInvoice = useCallback(async (invoiceId: string) => {
     // For Stripe-hosted invoices, open in browser
     // This would typically call an Edge Function to get the invoice URL
-    Alert.alert(
-      'View Invoice',
-      'Opening invoice in your browser...',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
+    Alert.alert('View Invoice', 'Opening invoice in your browser...', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Open',
+        onPress: () => {
+          console.log('[BillingHistory] Requested invoice:', invoiceId);
+          // TODO: Call Edge Function to get invoice URL
+          // For now, show placeholder
+          Alert.alert('Coming Soon', 'Invoice download will be available soon.');
         },
-        {
-          text: 'Open',
-          onPress: () => {
-            console.log('[BillingHistory] Requested invoice:', invoiceId);
-            // TODO: Call Edge Function to get invoice URL
-            // For now, show placeholder
-            Alert.alert('Coming Soon', 'Invoice download will be available soon.');
-          },
-        },
-      ]
-    );
+      },
+    ]);
   }, []);
 
   // Loading state
@@ -148,10 +147,7 @@ export default function BillingHistoryScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonText}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.title}>Billing History</Text>
@@ -160,7 +156,8 @@ export default function BillingHistoryScreen() {
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>No Billing History</Text>
           <Text style={styles.emptyStateText}>
-            You haven't been charged yet. Your billing history will appear here when you make a payment.
+            You haven't been charged yet. Your billing history will appear here when you make a
+            payment.
           </Text>
         </View>
 
@@ -173,10 +170,7 @@ export default function BillingHistoryScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Billing History</Text>
@@ -195,14 +189,9 @@ export default function BillingHistoryScreen() {
             <View style={styles.cardHeader}>
               <Text style={styles.date}>{formatDate(record.charged_at)}</Text>
               <View
-                style={[
-                  styles.statusBadge,
-                  { backgroundColor: getStatusColor(record.status) },
-                ]}
+                style={[styles.statusBadge, { backgroundColor: getStatusColor(record.status) }]}
               >
-                <Text style={styles.statusText}>
-                  {record.status.toUpperCase()}
-                </Text>
+                <Text style={styles.statusText}>{record.status.toUpperCase()}</Text>
               </View>
             </View>
 
@@ -210,9 +199,7 @@ export default function BillingHistoryScreen() {
             <Text style={styles.description}>{record.description}</Text>
 
             {/* Amount */}
-            <Text style={styles.amount}>
-              {formatAmount(record.amount, record.currency)}
-            </Text>
+            <Text style={styles.amount}>{formatAmount(record.amount, record.currency)}</Text>
 
             {/* Invoice Link (if available) */}
             {record.stripe_invoice_id && record.status === 'succeeded' && (

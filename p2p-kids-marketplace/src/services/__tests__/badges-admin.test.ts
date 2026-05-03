@@ -29,8 +29,10 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
     console.log('[badges-admin.test] Setting up test environment...');
 
     // Get current authenticated user (must be logged in)
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (user) {
       testAdminId = user.id;
       testUserId = user.id; // For testing purposes, admin can be the target user
@@ -112,10 +114,7 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
 
     it('should filter out archived badges by default', async () => {
       // Archive test badge
-      await supabase
-        .from('badges')
-        .update({ is_archived: true })
-        .eq('id', testBadgeId);
+      await supabase.from('badges').update({ is_archived: true }).eq('id', testBadgeId);
 
       // Query active badges
       const { data: activeBadges } = await supabase
@@ -128,10 +127,7 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
       expect(archivedBadgeInResults).toBeUndefined();
 
       // Restore badge
-      await supabase
-        .from('badges')
-        .update({ is_archived: false })
-        .eq('id', testBadgeId);
+      await supabase.from('badges').update({ is_archived: false }).eq('id', testBadgeId);
     });
   });
 
@@ -174,11 +170,7 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
         return;
       }
 
-      const result = await manualAwardBadge(
-        testUserId,
-        testBadgeId,
-        'Duplicate award attempt'
-      );
+      const result = await manualAwardBadge(testUserId, testBadgeId, 'Duplicate award attempt');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('already has');
@@ -216,11 +208,7 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
         return;
       }
 
-      const result = await manualRevokeBadge(
-        testUserId,
-        testBadgeId,
-        'Revoke non-existent badge'
-      );
+      const result = await manualRevokeBadge(testUserId, testBadgeId, 'Revoke non-existent badge');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('does not have');
@@ -314,10 +302,7 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
       const newThreshold = 50;
 
       // Update threshold
-      await supabase
-        .from('badges')
-        .update({ threshold: newThreshold })
-        .eq('id', testBadgeId);
+      await supabase.from('badges').update({ threshold: newThreshold }).eq('id', testBadgeId);
 
       // Wait for trigger to process
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -339,10 +324,7 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
       }
 
       // Deactivate badge
-      await supabase
-        .from('badges')
-        .update({ is_active: false })
-        .eq('id', testBadgeId);
+      await supabase.from('badges').update({ is_active: false }).eq('id', testBadgeId);
 
       // Wait for trigger
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -358,10 +340,7 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
       expect(deactivationChange?.change_type).toMatch(/is_active|multiple/);
 
       // Reactivate badge
-      await supabase
-        .from('badges')
-        .update({ is_active: true })
-        .eq('id', testBadgeId);
+      await supabase.from('badges').update({ is_active: true }).eq('id', testBadgeId);
     });
 
     it('should track name changes', async () => {
@@ -373,10 +352,7 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
       const newName = `${TEST_CONFIG.testBadgeName} - Updated`;
 
       // Update name
-      await supabase
-        .from('badges')
-        .update({ name: newName })
-        .eq('id', testBadgeId);
+      await supabase.from('badges').update({ name: newName }).eq('id', testBadgeId);
 
       // Wait for trigger
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -445,9 +421,7 @@ describe('BADGES-V2-005: Admin Configuration & History', () => {
       const newTimestamp = after?.updated_at;
 
       expect(newTimestamp).toBeDefined();
-      expect(new Date(newTimestamp!).getTime()).toBeGreaterThan(
-        new Date(oldTimestamp!).getTime()
-      );
+      expect(new Date(newTimestamp!).getTime()).toBeGreaterThan(new Date(oldTimestamp!).getTime());
     });
   });
 });

@@ -1,12 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  Alert,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase';
@@ -101,13 +94,11 @@ export default function NodeSelectionScreen() {
       setWaitlistLoading(true);
 
       // Add user to waitlist for this inactive node
-      const { error } = await supabase
-        .from('waitlist_registrations')
-        .insert({
-          user_id: userId,
-          node_id: nodeId,
-          created_at: new Date().toISOString(),
-        });
+      const { error } = await supabase.from('waitlist_registrations').insert({
+        user_id: userId,
+        node_id: nodeId,
+        created_at: new Date().toISOString(),
+      });
 
       if (error) throw error;
 
@@ -150,9 +141,7 @@ export default function NodeSelectionScreen() {
 
         {/* Title */}
         <Text style={styles.title}>Your Local Node</Text>
-        <Text style={styles.subtitle}>
-          You've been assigned to a nearby community
-        </Text>
+        <Text style={styles.subtitle}>You've been assigned to a nearby community</Text>
 
         {/* Node Card */}
         <View style={styles.nodeCard}>
@@ -160,24 +149,22 @@ export default function NodeSelectionScreen() {
           <Text style={styles.nodeName}>{assignedNode?.name}</Text>
           <Text style={styles.nodeDescription}>{assignedNode?.description}</Text>
           <View style={styles.memberRow}>
-            <Text style={styles.memberCount}>
-              👥 {assignedNode?.member_count || 0} members
-            </Text>
+            <Text style={styles.memberCount}>👥 {assignedNode?.member_count || 0} members</Text>
           </View>
         </View>
 
         {/* Info Box */}
         <View style={styles.infoBox}>
           <Text style={styles.infoText}>
-            💡 Your node is where you'll find local traders, attend events, and
-            participate in community activities.
+            💡 Your node is where you'll find local traders, attend events, and participate in
+            community activities.
           </Text>
         </View>
 
         {/* Button - conditional based on node status */}
         {assignedNode?.status === 'inactive' ? (
-          <TouchableOpacity 
-            style={styles.button} 
+          <TouchableOpacity
+            style={styles.button}
             onPress={handleJoinWaitlist}
             disabled={waitlistLoading}
           >

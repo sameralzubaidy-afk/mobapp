@@ -1,7 +1,7 @@
 /**
  * Unit tests for BrandAutocompleteInput component
  * MODULE-04 LISTING-V3-009: Brand Autocomplete Input
- * 
+ *
  * Test coverage:
  * - Rendering with label/placeholder
  * - Debounced search (150ms)

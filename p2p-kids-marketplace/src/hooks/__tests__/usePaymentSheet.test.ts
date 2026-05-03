@@ -234,7 +234,9 @@ describe('usePaymentSheet', () => {
         success: false,
         error: 'Payment sheet not initialized. Call setupPaymentSheet first.',
       });
-      expect(result.current.error).toBe('Payment sheet not initialized. Call setupPaymentSheet first.');
+      expect(result.current.error).toBe(
+        'Payment sheet not initialized. Call setupPaymentSheet first.'
+      );
     });
   });
 

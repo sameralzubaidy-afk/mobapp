@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/integration/listing-v3-007-draft-resume.integration.test.ts
  * MODULE-04 LISTING-V3-007: Integration test for draft resume flow
- * 
+ *
  * Tests the complete flow of:
  * - Creating a draft (auto-saved)
  * - Navigating away

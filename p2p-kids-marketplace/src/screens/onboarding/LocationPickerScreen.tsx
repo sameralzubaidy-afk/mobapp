@@ -12,7 +12,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase';
-import { assignNodeByZipCode, NodeAssignmentResult, incrementNodeMemberCount } from '@/services/location';
+import {
+  assignNodeByZipCode,
+  NodeAssignmentResult,
+  incrementNodeMemberCount,
+} from '@/services/location';
 import { upsertZipWaitlist } from '@/services/waitlist';
 import { trackEvent } from '@/services/analytics';
 
@@ -244,8 +248,8 @@ export default function LocationPickerScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>We're Coming Soon! 🎉</Text>
             <Text style={styles.modalMessage}>
-              We're not quite active in {zipCode} yet, but we're coming soon! In the meantime,
-              we've connected you with traders in {assignmentResult?.nodeName || 'a nearby area'}.
+              We're not quite active in {zipCode} yet, but we're coming soon! In the meantime, we've
+              connected you with traders in {assignmentResult?.nodeName || 'a nearby area'}.
             </Text>
 
             <View style={styles.featuresList}>

@@ -6,12 +6,7 @@
 
 export type PayoutMethodType = 'stripe_connect' | 'paypal' | 'venmo' | 'bank_ach';
 
-export type PayoutStatus = 
-  | 'requires_action'
-  | 'pending'
-  | 'processing'
-  | 'completed'
-  | 'failed';
+export type PayoutStatus = 'requires_action' | 'pending' | 'processing' | 'completed' | 'failed';
 
 export type PayoutProvider = 'stripe' | 'paypal' | 'ach';
 
@@ -21,23 +16,23 @@ export interface SellerPayoutMethod {
   method_type: PayoutMethodType;
   is_primary: boolean;
   is_verified: boolean;
-  
+
   // Stripe Connect
   stripe_account_id?: string;
   stripe_onboarding_complete: boolean;
   stripe_payouts_enabled: boolean;
-  
+
   // PayPal/Venmo
   paypal_email?: string;
   venmo_handle?: string;
   venmo_phone_e164?: string;
-  
+
   // Bank ACH (Post-MVP)
   bank_account_token?: string;
   bank_account_last4?: string;
   bank_routing_last4?: string;
   bank_verification_status?: string;
-  
+
   created_at: string;
   updated_at: string;
 }

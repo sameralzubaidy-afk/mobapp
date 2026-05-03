@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeTimelineScreen.tsx
  * TASK TRADE-V2-008: Trade UI Flows - Timeline View
- * 
+ *
  * Visual progress indicator for trade lifecycle with action buttons.
  * Shows: pending → payment_processing → in_progress → completed/cancelled
  */
@@ -55,7 +55,9 @@ export default function TradeTimelineScreen() {
       setLoading(true);
       const { data, error } = await supabase
         .from('trades')
-        .select('*, listing:items(id, title, price, images:item_images(id, url, thumbnail_url, display_order))')
+        .select(
+          '*, listing:items(id, title, price, images:item_images(id, url, thumbnail_url, display_order))'
+        )
         .eq('id', tradeId)
         .single();
 
@@ -64,35 +66,35 @@ export default function TradeTimelineScreen() {
       setTrade(tradeData);
 
       // Fetch counterparty profile
-      const otherPersonId = user?.id === tradeData.buyer_id ? tradeData.seller_id : tradeData.buyer_id;
+      const otherPersonId =
+        user?.id === tradeData.buyer_id ? tradeData.seller_id : tradeData.buyer_id;
       if (otherPersonId) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('user_id, name, avatar_url, verification:id_badge_verification_requests(status)')
           .eq('user_id', otherPersonId)
           .single();
-        
+
         if (profile) {
           setCounterpartyProfile({
             ...profile,
-            verification_status: (profile as any).verification?.[0]?.status || 'none'
+            verification_status: (profile as any).verification?.[0]?.status || 'none',
           });
         }
       }
 
       // Check mutual review status (only for completed trades)
       if (user?.id && tradeData.status === 'completed') {
-        const revieweeUserId = (data as any).buyer_id === user.id 
-          ? (data as any).seller_id 
-          : (data as any).buyer_id;
-        
+        const revieweeUserId =
+          (data as any).buyer_id === user.id ? (data as any).seller_id : (data as any).buyer_id;
+
         setRevieweeId(revieweeUserId);
-        
+
         const reviewStatusResult = await getTradeReviewStatus(tradeId, user.id);
         if (reviewStatusResult.success) {
           setHasReviewed(reviewStatusResult.userReviewed);
           setOtherUserReviewed(reviewStatusResult.otherUserReviewed);
-          
+
           const result = await canReviewUser(tradeId, user.id);
           if (result.success) {
             setCanReview(result.canReview === true);
@@ -142,36 +144,32 @@ export default function TradeTimelineScreen() {
 
   const handleComplete = async () => {
     const isSeller = trade?.seller_id === user?.id;
-    const confirmMessage = isSeller 
+    const confirmMessage = isSeller
       ? 'Are you sure you want to mark this trade as completed? The buyer will be notified to confirm.'
       : 'Are you sure you want to mark this trade as completed? This will release Swap Points or cash to the seller.';
 
-    Alert.alert(
-      'Complete Trade',
-      confirmMessage,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          style: 'default',
-          onPress: async () => {
-            try {
-              setSubmitting(true);
-              const result = await completeTradeV2(tradeId);
+    Alert.alert('Complete Trade', confirmMessage, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Complete',
+        style: 'default',
+        onPress: async () => {
+          try {
+            setSubmitting(true);
+            const result = await completeTradeV2(tradeId);
 
-              if (result.success) {
-                Alert.alert('Success', result.message || 'Trade marked as completed!');
-                fetchTrade();
-              } else {
-                Alert.alert('Error', result.error || 'Failed to complete trade');
-              }
-            } finally {
-              setSubmitting(false);
+            if (result.success) {
+              Alert.alert('Success', result.message || 'Trade marked as completed!');
+              fetchTrade();
+            } else {
+              Alert.alert('Error', result.error || 'Failed to complete trade');
             }
-          },
+          } finally {
+            setSubmitting(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleCancel = async () => {
@@ -182,11 +180,11 @@ export default function TradeTimelineScreen() {
     try {
       setIsCancelling(true);
       setShowCancellationModal(false);
-      
+
       const result = await cancelTradeV2(tradeId, reason);
       if (result.success) {
         if (refreshSession) await refreshSession();
-        
+
         Alert.alert(
           'Trade Cancelled',
           'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.',
@@ -208,7 +206,7 @@ export default function TradeTimelineScreen() {
 
   const handleReviewPress = () => {
     if (!user?.id || !trade) return;
-    
+
     // Get the counterparty's name
     const isBuyer = trade.buyer_id === user.id;
     const counterpartyId = isBuyer ? trade.seller_id : trade.buyer_id;
@@ -261,11 +259,7 @@ export default function TradeTimelineScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerTopRow}>
-            <Pressable
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-              hitSlop={10}
-            >
+            <Pressable onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={10}>
               <Ionicons name="chevron-back" size={24} color="#007AFF" />
               <Text style={styles.backText}>Back</Text>
             </Pressable>
@@ -276,11 +270,7 @@ export default function TradeTimelineScreen() {
           <Pressable style={styles.listingCard} onPress={handleItemDetailsPress}>
             <View style={styles.imageContainer}>
               {listingImageUri ? (
-                <Image
-                  source={{ uri: listingImageUri }}
-                  style={styles.image}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: listingImageUri }} style={styles.image} resizeMode="cover" />
               ) : (
                 <View style={[styles.image, styles.imagePlaceholder]}>
                   <Text style={styles.imagePlaceholderText}>📦</Text>
@@ -318,9 +308,7 @@ export default function TradeTimelineScreen() {
             {getStatusDisplay(trade.status)}
           </Text>
           {trade.status === 'cancelled' && trade.cancellation_reason && (
-            <Text style={styles.cancellationReason}>
-              Reason: {trade.cancellation_reason}
-            </Text>
+            <Text style={styles.cancellationReason}>Reason: {trade.cancellation_reason}</Text>
           )}
         </View>
 
@@ -337,7 +325,9 @@ export default function TradeTimelineScreen() {
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Platform Fee:</Text>
-            <Text style={styles.value}>${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}</Text>
+            <Text style={styles.value}>
+              ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
+            </Text>
           </View>
           <View style={[styles.row, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total:</Text>
@@ -348,16 +338,13 @@ export default function TradeTimelineScreen() {
         </View>
 
         {/* Message Button */}
-        <Pressable
-          style={[styles.button, styles.messageButton]}
-          onPress={handleOpenChat}
-        >
+        <Pressable style={[styles.button, styles.messageButton]} onPress={handleOpenChat}>
           {counterpartyProfile ? (
-            <Avatar 
-              imageUrl={counterpartyProfile.avatar_url} 
-              name={counterpartyProfile.name} 
-              size={24} 
-              verificationStatus={counterpartyProfile.verification_status} 
+            <Avatar
+              imageUrl={counterpartyProfile.avatar_url}
+              name={counterpartyProfile.name}
+              size={24}
+              verificationStatus={counterpartyProfile.verification_status}
             />
           ) : (
             <Ionicons name="chatbubble-outline" size={20} color="#fff" />
@@ -370,9 +357,10 @@ export default function TradeTimelineScreen() {
           <View style={styles.actions}>
             <Pressable
               style={[
-                styles.button, 
-                styles.primaryButton, 
-                (submitting || (isSeller && !!trade.seller_marked_completed_at)) && styles.disabledButton
+                styles.button,
+                styles.primaryButton,
+                (submitting || (isSeller && !!trade.seller_marked_completed_at)) &&
+                  styles.disabledButton,
               ]}
               onPress={handleComplete}
               disabled={submitting || (isSeller && !!trade.seller_marked_completed_at)}
@@ -383,8 +371,8 @@ export default function TradeTimelineScreen() {
                 <>
                   <Ionicons name="checkmark-circle" size={20} color="#fff" />
                   <Text style={styles.primaryButtonText}>
-                    {isSeller && trade.seller_marked_completed_at 
-                      ? 'Waiting for buyer' 
+                    {isSeller && trade.seller_marked_completed_at
+                      ? 'Waiting for buyer'
                       : 'Mark as Completed'}
                   </Text>
                 </>
@@ -425,7 +413,9 @@ export default function TradeTimelineScreen() {
                 size={20}
                 color={hasReviewed ? '#34C759' : '#8E8E93'}
               />
-              <Text style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}>
+              <Text
+                style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}
+              >
                 {`You ${hasReviewed ? 'have' : "haven't"} reviewed ${isBuyer ? 'the seller' : 'the buyer'}`}
               </Text>
             </View>
@@ -435,7 +425,12 @@ export default function TradeTimelineScreen() {
                 size={20}
                 color={otherUserReviewed ? '#34C759' : '#8E8E93'}
               />
-              <Text style={[styles.reviewStatusText, otherUserReviewed && styles.reviewStatusTextComplete]}>
+              <Text
+                style={[
+                  styles.reviewStatusText,
+                  otherUserReviewed && styles.reviewStatusTextComplete,
+                ]}
+              >
                 {`${isBuyer ? 'The seller' : 'The buyer'} ${otherUserReviewed ? 'has' : "hasn't"} reviewed you`}
               </Text>
             </View>
@@ -457,13 +452,18 @@ export default function TradeTimelineScreen() {
         {/* Seller Progress Info Box */}
         {isBuyer && trade.status === 'in_progress' && trade.seller_marked_completed_at && (
           <View style={[styles.infoBox, styles.sellerCompletedBox]}>
-            <Ionicons name="information-circle" size={20} color="#065f46" style={{ marginRight: 8 }} />
+            <Ionicons
+              name="information-circle"
+              size={20}
+              color="#065f46"
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.sellerCompletedText}>
-              The seller has marked this trade as completed. Please confirm if you have received the item.
+              The seller has marked this trade as completed. Please confirm if you have received the
+              item.
             </Text>
           </View>
         )}
-
       </ScrollView>
       <BottomNavBar />
 
@@ -487,7 +487,7 @@ function renderTimelineStep(
   const statusOrder: TradeStatus[] = ['pending', 'payment_processing', 'in_progress', 'completed'];
   const currentIndex = statusOrder.indexOf(currentStatus);
   const stepIndex = statusOrder.indexOf(step);
-  
+
   const isActive = stepIndex === currentIndex;
   const isCompleted = stepIndex < currentIndex || currentStatus === 'completed';
   const isCancelled = currentStatus === 'cancelled';
@@ -503,26 +503,16 @@ function renderTimelineStep(
             isCancelled && styles.timelineIconCancelled,
           ]}
         >
-          {isCompleted && !isCancelled && (
-            <Ionicons name="checkmark" size={16} color="#fff" />
-          )}
+          {isCompleted && !isCancelled && <Ionicons name="checkmark" size={16} color="#fff" />}
           {isCancelled && <Ionicons name="close" size={16} color="#fff" />}
         </View>
         {stepIndex < statusOrder.length - 1 && (
-          <View
-            style={[
-              styles.timelineLine,
-              isCompleted && styles.timelineLineCompleted,
-            ]}
-          />
+          <View style={[styles.timelineLine, isCompleted && styles.timelineLineCompleted]} />
         )}
       </View>
       <View style={styles.timelineContent}>
         <Text
-          style={[
-            styles.timelineLabel,
-            (isActive || isCompleted) && styles.timelineLabelActive,
-          ]}
+          style={[styles.timelineLabel, (isActive || isCompleted) && styles.timelineLabelActive]}
         >
           {label}
         </Text>

@@ -40,7 +40,7 @@ export function applyFieldToAll(
   items: BulkEditableItem[],
   field: ApplyToAllField,
   value: BulkEditableItem[ApplyToAllField],
-  options: ApplyToAllOptions = {},
+  options: ApplyToAllOptions = {}
 ): BulkEditableItem[] {
   const { overwrite = false, includedOnly = true } = options;
   return items.map((item) => {
@@ -58,7 +58,7 @@ export function applyFieldToAll(
  */
 export function suggestApplyValue(
   items: BulkEditableItem[],
-  field: ApplyToAllField,
+  field: ApplyToAllField
 ): BulkEditableItem[ApplyToAllField] | null {
   const counts = new Map<string, { count: number; raw: BulkEditableItem[ApplyToAllField] }>();
   items.forEach((item) => {

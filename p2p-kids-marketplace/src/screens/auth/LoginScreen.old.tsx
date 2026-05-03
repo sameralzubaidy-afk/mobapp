@@ -20,7 +20,13 @@ export default function LoginScreen() {
         placeholder="you@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
-        style={{ borderWidth: 1, borderColor: '#ddd', padding: 12, borderRadius: 8, marginBottom: 12 }}
+        style={{
+          borderWidth: 1,
+          borderColor: '#ddd',
+          padding: 12,
+          borderRadius: 8,
+          marginBottom: 12,
+        }}
         testID="login-email"
       />
 
@@ -31,7 +37,13 @@ export default function LoginScreen() {
         placeholder="Password"
         secureTextEntry
         autoCapitalize="none"
-        style={{ borderWidth: 1, borderColor: '#ddd', padding: 12, borderRadius: 8, marginBottom: 12 }}
+        style={{
+          borderWidth: 1,
+          borderColor: '#ddd',
+          padding: 12,
+          borderRadius: 8,
+          marginBottom: 12,
+        }}
         testID="login-password"
       />
 
@@ -53,22 +65,31 @@ export default function LoginScreen() {
           }
         }}
         disabled={loading || !email || !password}
-        style={{ padding: 12, backgroundColor: loading || !email || !password ? '#ccc' : '#007AFF', borderRadius: 8, alignItems: 'center' }}
+        style={{
+          padding: 12,
+          backgroundColor: loading || !email || !password ? '#ccc' : '#007AFF',
+          borderRadius: 8,
+          alignItems: 'center',
+        }}
         testID="login-button"
       >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '600' }}>Log In</Text>}
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={{ color: '#fff', fontWeight: '600' }}>Log In</Text>
+        )}
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        onPress={() => (navigation as any).navigate('Signup')} 
+      <TouchableOpacity
+        onPress={() => (navigation as any).navigate('Signup')}
         style={{ marginTop: 12, padding: 12, alignItems: 'center' }}
         testID="signup-link"
       >
         <Text style={{ color: '#007AFF', fontSize: 14 }}>Sign Up</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity 
-        onPress={() => (navigation as any).navigate('ForgotPassword')} 
+      <TouchableOpacity
+        onPress={() => (navigation as any).navigate('ForgotPassword')}
         style={{ marginTop: 12, padding: 8 }}
         testID="forgot-password-link"
       >

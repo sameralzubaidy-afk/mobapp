@@ -3,7 +3,7 @@
  * MODULE-05-DISCOVERY-V2: Discovery Service Tests
  * Task: DISCOVERY-V2-001 - Full-Text Search
  * Task: DISCOVERY-V2-002 - Subscriber-Personalized Recommendations
- * 
+ *
  * Unit tests for search and discovery functions
  */
 
@@ -18,7 +18,9 @@ jest.mock('../analytics');
 
 describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
   const mockSupabase = supabaseModule.supabase as jest.Mocked<typeof supabaseModule.supabase>;
-  const mockTrackEvent = analyticsModule.trackEvent as jest.MockedFunction<typeof analyticsModule.trackEvent>;
+  const mockTrackEvent = analyticsModule.trackEvent as jest.MockedFunction<
+    typeof analyticsModule.trackEvent
+  >;
 
   const mockSearchResult: SearchResult = {
     id: '550e8400-e29b-41d4-a716-446655440000',
@@ -254,7 +256,7 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       const results = await searchListings(query);
 
       // Assert
-      expect(results.every(r => r.status === 'available')).toBe(true);
+      expect(results.every((r) => r.status === 'available')).toBe(true);
     });
   });
 
@@ -328,9 +330,9 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       } as any);
 
       // Act
-      await searchListingsByCategory(categoryId, { 
+      await searchListingsByCategory(categoryId, {
         categoryId,
-        spEligibleOnly: true 
+        spEligibleOnly: true,
       });
 
       // Assert
@@ -344,9 +346,7 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
 
     test('should reject empty category ID', async () => {
       // Act & Assert
-      await expect(searchListingsByCategory('')).rejects.toThrow(
-        'Category ID is required'
-      );
+      await expect(searchListingsByCategory('')).rejects.toThrow('Category ID is required');
     });
 
     test('should reject null/undefined category ID', async () => {
@@ -378,10 +378,10 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       } as any);
 
       // Act
-      await searchListingsByCategory(categoryId, { 
+      await searchListingsByCategory(categoryId, {
         categoryId,
-        limit: 15, 
-        offset: 5 
+        limit: 15,
+        offset: 5,
       });
 
       // Assert
@@ -458,8 +458,8 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
     test('should return SP-eligible items with high scores', async () => {
       // Arrange
       const userId = '880e8400-e29b-41d4-a716-446655440000';
-      const spRecommendation = { 
-        ...mockRecommendation, 
+      const spRecommendation = {
+        ...mockRecommendation,
         accepts_swap_points: true,
         score: 150, // High score for SP-eligible
       };

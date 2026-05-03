@@ -27,11 +27,11 @@ export const testLocalNotification = async () => {
  */
 export const testMessageNotification = async () => {
   try {
-    await sendLocalNotification(
-      '💬 New Message',
-      'Sarah commented on your trade request',
-      { type: 'message', chatId: 'test-chat-123', senderId: 'test-user-456' }
-    );
+    await sendLocalNotification('💬 New Message', 'Sarah commented on your trade request', {
+      type: 'message',
+      chatId: 'test-chat-123',
+      senderId: 'test-user-456',
+    });
     console.log('✅ Message notification test sent');
     return { success: true };
   } catch (err) {
@@ -63,11 +63,10 @@ export const testTradeRequestNotification = async () => {
  */
 export const testItemUpdateNotification = async () => {
   try {
-    await sendLocalNotification(
-      '📦 Item Update',
-      'A seller you follow added 3 new items',
-      { type: 'item_update', sellerId: 'seller-789' }
-    );
+    await sendLocalNotification('📦 Item Update', 'A seller you follow added 3 new items', {
+      type: 'item_update',
+      sellerId: 'seller-789',
+    });
     console.log('✅ Item update notification test sent');
     return { success: true };
   } catch (err) {
@@ -99,11 +98,11 @@ export const testSwapPointsNotification = async () => {
  */
 export const testReviewNotification = async () => {
   try {
-    await sendLocalNotification(
-      '⭐ New Review',
-      'Sarah left you a 5-star review',
-      { type: 'review', reviewId: 'review-123', rating: 5 }
-    );
+    await sendLocalNotification('⭐ New Review', 'Sarah left you a 5-star review', {
+      type: 'review',
+      reviewId: 'review-123',
+      rating: 5,
+    });
     console.log('✅ Review notification test sent');
     return { success: true };
   } catch (err) {

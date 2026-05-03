@@ -18,9 +18,9 @@ const mockCategoryService = categoryService as jest.Mocked<typeof categoryServic
 
 describe('useCategorySPCache', () => {
   const mockCategories = [
-    { id: 'cat-toys', name: 'Toys', sp_earning_multiplier: 1.20, item_count: 10 },
-    { id: 'cat-clothes', name: 'Clothes', sp_earning_multiplier: 1.10, item_count: 5 },
-    { id: 'cat-books', name: 'Books', sp_earning_multiplier: 1.30, item_count: 8 },
+    { id: 'cat-toys', name: 'Toys', sp_earning_multiplier: 1.2, item_count: 10 },
+    { id: 'cat-clothes', name: 'Clothes', sp_earning_multiplier: 1.1, item_count: 5 },
+    { id: 'cat-books', name: 'Books', sp_earning_multiplier: 1.3, item_count: 8 },
   ];
 
   beforeEach(() => {
@@ -46,9 +46,9 @@ describe('useCategorySPCache', () => {
       expect(mockCategoryService.getCategoriesWithCounts).toHaveBeenCalled();
 
       // Should have populated multipliers
-      expect(result.current.getMultiplier('cat-toys')).toBe(1.20);
-      expect(result.current.getMultiplier('cat-clothes')).toBe(1.10);
-      expect(result.current.getMultiplier('cat-books')).toBe(1.30);
+      expect(result.current.getMultiplier('cat-toys')).toBe(1.2);
+      expect(result.current.getMultiplier('cat-clothes')).toBe(1.1);
+      expect(result.current.getMultiplier('cat-books')).toBe(1.3);
 
       // Should have category names
       expect(result.current.getCategoryName('cat-toys')).toBe('Toys');
@@ -66,7 +66,7 @@ describe('useCategorySPCache', () => {
           {
             category_id: 'cat-toys',
             category_name: 'Toys',
-            sp_earning_multiplier: 1.20,
+            sp_earning_multiplier: 1.2,
             last_updated: new Date().toISOString(),
           },
         ],
@@ -88,7 +88,7 @@ describe('useCategorySPCache', () => {
       });
 
       // Should use cached data
-      expect(result.current.getMultiplier('cat-toys')).toBe(1.20);
+      expect(result.current.getMultiplier('cat-toys')).toBe(1.2);
     });
 
     it('should refresh stale cache (> 24h old)', async () => {
@@ -120,7 +120,7 @@ describe('useCategorySPCache', () => {
       expect(mockCategoryService.getCategoriesWithCounts).toHaveBeenCalled();
 
       // Should use new value
-      expect(result.current.getMultiplier('cat-toys')).toBe(1.20);
+      expect(result.current.getMultiplier('cat-toys')).toBe(1.2);
     });
   });
 
@@ -134,7 +134,7 @@ describe('useCategorySPCache', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.getMultiplier(null)).toBe(1.10);
+      expect(result.current.getMultiplier(null)).toBe(1.1);
     });
 
     it('should return 1.10 default for unknown category', async () => {
@@ -146,7 +146,7 @@ describe('useCategorySPCache', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      expect(result.current.getMultiplier('cat-unknown')).toBe(1.10);
+      expect(result.current.getMultiplier('cat-unknown')).toBe(1.1);
     });
   });
 
@@ -160,7 +160,7 @@ describe('useCategorySPCache', () => {
           {
             category_id: 'cat-toys',
             category_name: 'Toys',
-            sp_earning_multiplier: 1.20,
+            sp_earning_multiplier: 1.2,
             last_updated: staleDate.toISOString(),
           },
         ],
@@ -168,9 +168,7 @@ describe('useCategorySPCache', () => {
       };
 
       mockAsyncStorage.getItem.mockResolvedValue(JSON.stringify(staleCache));
-      mockCategoryService.getCategoriesWithCounts.mockRejectedValue(
-        new Error('Network error')
-      );
+      mockCategoryService.getCategoriesWithCounts.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useCategorySPCache());
 
@@ -182,14 +180,12 @@ describe('useCategorySPCache', () => {
       expect(result.current.error).toContain('cached data');
 
       // Should still have multiplier from stale cache
-      expect(result.current.getMultiplier('cat-toys')).toBe(1.20);
+      expect(result.current.getMultiplier('cat-toys')).toBe(1.2);
     });
 
     it('should set error and use defaults when no cache and API fails', async () => {
       mockAsyncStorage.getItem.mockResolvedValue(null);
-      mockCategoryService.getCategoriesWithCounts.mockRejectedValue(
-        new Error('Network error')
-      );
+      mockCategoryService.getCategoriesWithCounts.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useCategorySPCache());
 
@@ -201,8 +197,8 @@ describe('useCategorySPCache', () => {
       expect(result.current.error).toBeTruthy();
 
       // Should default to 1.10 for all categories
-      expect(result.current.getMultiplier('cat-toys')).toBe(1.10);
-      expect(result.current.getMultiplier('cat-anything')).toBe(1.10);
+      expect(result.current.getMultiplier('cat-toys')).toBe(1.1);
+      expect(result.current.getMultiplier('cat-anything')).toBe(1.1);
     });
   });
 

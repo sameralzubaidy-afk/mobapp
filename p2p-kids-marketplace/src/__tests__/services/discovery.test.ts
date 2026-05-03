@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/__tests__/services/discovery.test.ts
  * MODULE-05-DISCOVERY-V2: Discovery Service Tests
  * Task: DISCOVERY-V2-002 - Subscriber-Personalized Recommendations
- * 
+ *
  * Tests:
  * - getRecommendations returns personalized recommendations
  * - Recommendations respect user SP balance
@@ -10,7 +10,12 @@
  * - Recommendations handle errors gracefully
  */
 
-import { getRecommendations, searchListings, searchListingsByCategory, fetchListingsByCategory } from '../../services/discovery';
+import {
+  getRecommendations,
+  searchListings,
+  searchListingsByCategory,
+  fetchListingsByCategory,
+} from '../../services/discovery';
 import { supabase } from '../../config/supabase';
 import { Recommendation, SearchResult, CategoryResult } from '../../types/discovery';
 
@@ -46,7 +51,7 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
         {
           id: 'item-1',
           title: 'SP Eligible Item',
-          price: 10.50,
+          price: 10.5,
           accepts_swap_points: true,
           status: 'available',
           seller_id: 'seller-1',
@@ -59,7 +64,7 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
         {
           id: 'item-2',
           title: 'Regular Item',
-          price: 20.00,
+          price: 20.0,
           accepts_swap_points: false,
           status: 'available',
           seller_id: 'seller-2',
@@ -108,7 +113,7 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
         {
           id: 'item-sp',
           title: 'SP Item',
-          price: 5.00,
+          price: 5.0,
           accepts_swap_points: true,
           status: 'available',
           seller_id: 'seller-1',
@@ -121,7 +126,7 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
         {
           id: 'item-regular',
           title: 'Regular Item',
-          price: 15.00,
+          price: 15.0,
           accepts_swap_points: false,
           status: 'available',
           seller_id: 'seller-2',
@@ -167,7 +172,7 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
           id: 'item-1',
           title: 'Winter Jacket',
           description: 'Warm winter jacket',
-          price: 25.00,
+          price: 25.0,
           accepts_swap_points: true,
           status: 'available',
           seller_id: 'seller-1',
@@ -242,7 +247,7 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
           id: 'item-1',
           title: 'Toy Car',
           description: 'Red toy car',
-          price: 5.00,
+          price: 5.0,
           accepts_swap_points: true,
           status: 'available',
           seller_id: 'seller-1',
@@ -258,7 +263,11 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
         error: null,
       });
 
-      const result = await searchListingsByCategory('cat-toys', { spEligibleOnly: false, limit: 20, offset: 0 });
+      const result = await searchListingsByCategory('cat-toys', {
+        spEligibleOnly: false,
+        limit: 20,
+        offset: 0,
+      });
 
       expect(result).toEqual(mockResults);
       expect(supabase.rpc).toHaveBeenCalledWith('search_listings_by_category', {
@@ -270,7 +279,9 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
     });
 
     it('should throw error for empty category ID', async () => {
-      await expect(searchListingsByCategory('', { spEligibleOnly: false })).rejects.toThrow('Category ID is required');
+      await expect(searchListingsByCategory('', { spEligibleOnly: false })).rejects.toThrow(
+        'Category ID is required'
+      );
     });
   });
 
@@ -282,7 +293,7 @@ describe('discovery.ts - DISCOVERY-V2-002: getRecommendations', () => {
           id: 'item-1',
           title: 'Toy Car',
           description: 'Red toy car',
-          price: 5.00,
+          price: 5.0,
           accepts_swap_points: true,
           status: 'available',
           seller_id: 'seller-1',

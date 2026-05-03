@@ -3,8 +3,18 @@
 // Tests wallet creation, balance queries, and config retrieval
 
 import { supabase } from '@/config/supabase';
-import { getWallet, getBalance, canSpendSP, getWalletSummary, getSPConfig } from '@/services/sp/wallet';
-import { createConfirmedTestUser, deleteTestUser, getServiceClient } from '@/test-helpers/authTestUtils';
+import {
+  getWallet,
+  getBalance,
+  canSpendSP,
+  getWalletSummary,
+  getSPConfig,
+} from '@/services/sp/wallet';
+import {
+  createConfirmedTestUser,
+  deleteTestUser,
+  getServiceClient,
+} from '@/test-helpers/authTestUtils';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() || '';
@@ -19,9 +29,7 @@ if (!hasSupabaseEnv) {
   if (!supabaseUrl || !supabaseAnonKey) {
     reasons.push('provide EXPO_PUBLIC_SUPABASE_URL/ANON_KEY');
   }
-  console.warn(
-    `[SP-001] Skipping wallet E2E suite: ${reasons.join(', ')}.`
-  );
+  console.warn(`[SP-001] Skipping wallet E2E suite: ${reasons.join(', ')}.`);
 }
 
 const describeWalletSuite = describe;
@@ -55,7 +63,7 @@ describeWalletSuite('SP-001 E2E: SP Wallet', () => {
       tier: 'kids_club_plus',
       status: 'active',
       current_period_start: new Date().toISOString(),
-      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     });
   });
 
@@ -99,7 +107,7 @@ describeWalletSuite('SP-001 E2E: SP Wallet', () => {
   it('should retrieve SP config values', async () => {
     const starterPackAmount = await getSPConfig('starter_pack_amount');
     expect(starterPackAmount).toBeTruthy();
-    
+
     const expirationEnabled = await getSPConfig('expiration_enabled');
     expect(expirationEnabled).toBeTruthy();
   });

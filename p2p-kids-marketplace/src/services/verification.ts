@@ -24,7 +24,7 @@ export const sendPhoneVerificationCode = async (
   try {
     // Check rate limit: max 10 SMS in last hour
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    
+
     const { count, error: countError } = await supabase
       .from('phone_verification_codes')
       .select('*', { count: 'exact', head: true })
@@ -48,16 +48,14 @@ export const sendPhoneVerificationCode = async (
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     // Store code in database
-    const { error: insertError } = await supabase
-      .from('phone_verification_codes')
-      .insert({
-        user_id: userId,
-        phone,
-        code,
-        expires_at: expiresAt.toISOString(),
-        attempts: 0,
-        verified: false,
-      });
+    const { error: insertError } = await supabase.from('phone_verification_codes').insert({
+      user_id: userId,
+      phone,
+      code,
+      expires_at: expiresAt.toISOString(),
+      attempts: 0,
+      verified: false,
+    });
 
     if (insertError) {
       console.error('Insert verification code error:', insertError);
@@ -75,7 +73,6 @@ export const sendPhoneVerificationCode = async (
     }
 
     return { success: true };
-
   } catch (error) {
     const err = error as Error;
     console.error('Send verification code error:', err);
@@ -90,7 +87,7 @@ export const sendPhoneVerificationCode = async (
  * Verify phone verification code
  * Checks code validity, expiration, and attempt count
  * Updates user verification status on success
- * 
+ *
  * NOTE: Test code '123456' is always accepted for development/testing
  */
 export const verifyPhoneCode = async (
@@ -103,7 +100,7 @@ export const verifyPhoneCode = async (
     if (code === '123456') {
       console.warn('🧪 [TEST MODE] Using hardcoded test code 123456');
       console.warn('🧪 [TEST MODE] Attempting to verify phone for user_id:', userId);
-      
+
       // Ensure a verified code row exists for test purposes so RPC check passes
       try {
         const { error: insertErr } = await supabase.from('phone_verification_codes').insert({
@@ -126,9 +123,9 @@ export const verifyPhoneCode = async (
       // Use database function to bypass RLS
       // This function has SECURITY DEFINER privilege and can update any profile
       const { data: result, error: rpcError } = await supabase.rpc('verify_user_phone', {
-          p_user_id: userId,
-          p_phone: phone,
-        });
+        p_user_id: userId,
+        p_phone: phone,
+      });
 
       if (rpcError) {
         console.error('❌ [TEST MODE] RPC error:', rpcError);
@@ -136,7 +133,11 @@ export const verifyPhoneCode = async (
         throw rpcError;
       }
 
-      const rpcResult = result as { success: boolean; message?: string; rows_updated?: number } | null;
+      const rpcResult = result as {
+        success: boolean;
+        message?: string;
+        rows_updated?: number;
+      } | null;
 
       if (rpcResult && rpcResult.success) {
         console.warn('✅ [TEST MODE] Phone verified successfully via database function');
@@ -194,7 +195,8 @@ export const verifyPhoneCode = async (
     // Check if code matches
     if (codeRow.code !== code) {
       // Increment attempt count
-      await supabase.from('phone_verification_codes')
+      await supabase
+        .from('phone_verification_codes')
         .update({ attempts: codeRow.attempts + 1 })
         .eq('id', codeRow.id);
 
@@ -205,7 +207,8 @@ export const verifyPhoneCode = async (
     }
 
     // Code is valid! Mark as verified in the verification codes table
-    const { error: verifyError } = await supabase.from('phone_verification_codes')
+    const { error: verifyError } = await supabase
+      .from('phone_verification_codes')
       .update({ verified: true })
       .eq('id', codeRow.id);
 
@@ -216,12 +219,11 @@ export const verifyPhoneCode = async (
 
     // Update profile to mark phone as verified using database function
     // This bypasses RLS issues
-    
-    const { data: result, error: rpcError } = await supabase
-      .rpc('verify_user_phone', {
-        p_user_id: userId,
-        p_phone: phone,
-      });
+
+    const { data: result, error: rpcError } = await supabase.rpc('verify_user_phone', {
+      p_user_id: userId,
+      p_phone: phone,
+    });
 
     if (rpcError) {
       console.error('❌ RPC error:', rpcError);
@@ -240,7 +242,6 @@ export const verifyPhoneCode = async (
         error: rpcResult?.message || 'Failed to verify phone',
       };
     }
-
   } catch (error) {
     const err = error as Error;
     console.error('Verify phone code error:', err);

@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/components/subscription/PaymentFailureBanner.tsx
  * MODULE-11 TASK SUB-018: Payment Failure Handling
- * 
+ *
  * Banner displayed when a user's payment has failed
  * Shows different messages based on retry count and provides action button
  */
@@ -30,13 +30,23 @@ export function PaymentFailureBanner({
   loading,
 }: PaymentFailureBannerProps) {
   const navigation = useNavigation();
-  const { failureInfo, loading: failureLoading, dismissBanner, bannerDismissed } = usePaymentFailure({
+  const {
+    failureInfo,
+    loading: failureLoading,
+    dismissBanner,
+    bannerDismissed,
+  } = usePaymentFailure({
     subscriptionOverride: subscription,
     loadingOverride: loading,
   });
 
   // Don't show if no failure, not recent, or dismissed
-  if (failureLoading || !failureInfo.hasFailure || !failureInfo.isRecentFailure || bannerDismissed) {
+  if (
+    failureLoading ||
+    !failureInfo.hasFailure ||
+    !failureInfo.isRecentFailure ||
+    bannerDismissed
+  ) {
     return null;
   }
 
@@ -73,7 +83,8 @@ export function PaymentFailureBanner({
           {/* Retry count indicator */}
           {failureInfo.retryCount > 0 && !failureInfo.isMaxRetriesReached && (
             <Text style={styles.retryInfo}>
-              Retry {failureInfo.retryCount} of 3 • Next retry in {failureInfo.retryCount === 1 ? '3' : failureInfo.retryCount === 2 ? '7' : '14'} days
+              Retry {failureInfo.retryCount} of 3 • Next retry in{' '}
+              {failureInfo.retryCount === 1 ? '3' : failureInfo.retryCount === 2 ? '7' : '14'} days
             </Text>
           )}
         </View>

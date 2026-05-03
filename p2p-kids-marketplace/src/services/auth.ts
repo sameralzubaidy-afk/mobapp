@@ -3,12 +3,7 @@
 
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase';
-import {
-  AuthSession,
-  LoginInput,
-  UserProfile,
-  AuthError,
-} from '../types/user';
+import { AuthSession, LoginInput, UserProfile, AuthError } from '../types/user';
 import { ReferralCodeServiceV2 } from './referralCodeV2';
 
 type SignupPolicyType = 'terms_of_service' | 'privacy_policy';
@@ -61,7 +56,7 @@ async function recordSignupPolicyAcceptances(userId: string): Promise<void> {
 
 /**
  * AUTH-V2-001: User Signup (No Trial Activation)
- * 
+ *
  * Trial subscription is offered AFTER profile completion.
  * This flow only creates the auth user and basic profile.
  */
@@ -76,7 +71,7 @@ export async function signup(input: {
   // This function already exists in the old service
   // Delegate to existing signUp function if available
   // For now, just create the auth user without trial
-  
+
   const { email, password, name, phone, dob, referralCode } = input;
 
   try {
@@ -96,11 +91,7 @@ export async function signup(input: {
     });
 
     if (authError) {
-      throw new AuthError(
-        authError.message,
-        authError.name || 'SIGNUP_FAILED',
-        authError
-      );
+      throw new AuthError(authError.message, authError.name || 'SIGNUP_FAILED', authError);
     }
 
     if (authData.user) {
@@ -113,20 +104,20 @@ export async function signup(input: {
       return { user: null, error };
     }
     const err = error as Error;
-    return { 
-      user: null, 
-      error: new AuthError(err.message || 'Signup failed', 'SIGNUP_ERROR', err) 
+    return {
+      user: null,
+      error: new AuthError(err.message || 'Signup failed', 'SIGNUP_ERROR', err),
     };
   }
 }
 
 /**
  * AUTH-V2-001B: User Signup with Initial Free Subscription
- * 
+ *
  * Creates auth user, profile, and FREE subscription.
  * Trial subscription is offered on SubscriptionChoiceScreen AFTER profile completion.
  * If user chooses trial on SubscriptionChoiceScreen, upgrade_free_subscription_to_trial() is called.
- * 
+ *
  * This approach ensures:
  * 1. Users who select FREE tier get exactly that (no trial trial)
  * 2. Users who select TRIAL get upgraded via upgrade_free_subscription_to_trial() RPC
@@ -160,19 +151,13 @@ export async function signupWithTrial(input: {
     });
 
     if (authError) {
-      throw new AuthError(
-        authError.message,
-        authError.name || 'SIGNUP_FAILED',
-        authError
-      );
+      throw new AuthError(authError.message, authError.name || 'SIGNUP_FAILED', authError);
     }
 
     if (!authData.user) {
-      throw new AuthError(
-        'Signup succeeded but no user returned',
-        'SIGNUP_NO_USER',
-        { message: 'Auth returned empty user object' }
-      );
+      throw new AuthError('Signup succeeded but no user returned', 'SIGNUP_NO_USER', {
+        message: 'Auth returned empty user object',
+      });
     }
 
     const userId = authData.user.id;
@@ -188,10 +173,7 @@ export async function signupWithTrial(input: {
     if (referralCode && referralCode.trim()) {
       console.log('Applying referral code:', referralCode);
       try {
-        const result = await ReferralCodeServiceV2.applyReferralCode(
-          userId,
-          referralCode.trim()
-        );
+        const result = await ReferralCodeServiceV2.applyReferralCode(userId, referralCode.trim());
         if (!result.success) {
           const errorMsg = result.error || 'Unknown referral code error';
           if (errorMsg.toLowerCase().includes('already applied')) {
@@ -199,7 +181,10 @@ export async function signupWithTrial(input: {
             console.log('Referral code already applied:', errorMsg);
           } else {
             // TC-005: Log warning but DO NOT throw - signup continues despite invalid code
-            console.warn('[signupWithTrial] Referral application failed but continuing signup:', errorMsg);
+            console.warn(
+              '[signupWithTrial] Referral application failed but continuing signup:',
+              errorMsg
+            );
           }
         } else {
           console.log('Referral code applied successfully');
@@ -213,10 +198,9 @@ export async function signupWithTrial(input: {
     // Step 4: Create FREE subscription (not trial yet)
     // User will choose Free or Trial on SubscriptionChoiceScreen
     // If they choose trial, it will be upgraded by enrollInTrialSubscription
-    const { error: subError } = await supabase.rpc(
-      'create_free_subscription',
-      { p_user_id: userId }
-    );
+    const { error: subError } = await supabase.rpc('create_free_subscription', {
+      p_user_id: userId,
+    });
 
     if (subError) {
       console.warn('Free subscription creation warning:', subError);
@@ -234,27 +218,23 @@ export async function signupWithTrial(input: {
       return { user: null, error };
     }
     const err = error as Error;
-    return { 
-      user: null, 
-      error: new AuthError(
-        err.message || 'Signup failed',
-        'SIGNUP_ERROR',
-        err
-      ) 
+    return {
+      user: null,
+      error: new AuthError(err.message || 'Signup failed', 'SIGNUP_ERROR', err),
     };
   }
 }
 
 /**
  * AUTH-V2-002: Enroll User in Kids Club+ Trial After Profile Completion
- * 
+ *
  * This function is called AFTER user completes their profile setup.
  * It activates the trial subscription and initializes the SP wallet.
- * 
+ *
  * Admin can control trial enrollment via admin_config table:
  * - trial_subscription.enabled: true/false to turn trial on/off
  * - trial_subscription.duration_days: configurable trial duration (default 30)
- * 
+ *
  * @param userId - User ID to enroll
  * @returns Object with subscription, wallet, and optional error
  */
@@ -264,7 +244,6 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
   error?: AuthError;
 }> {
   try {
-
     // NOTE: This function is invoked after profile completion.
     // Avoid creating profiles here; it complicates testability and can hide trigger failures.
 
@@ -283,7 +262,7 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
     }
 
     if (!trialEnabled) {
-        return {
+      return {
         subscription: null,
         wallet: null,
         error: new AuthError('Trial enrollment is currently disabled', 'TRIAL_DISABLED'),
@@ -306,10 +285,9 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
     }
 
     // Step 3: Initialize (or get) SP wallet
-    const { data: wallet, error: walletError } = await supabase.rpc(
-      'initialize_sp_wallet',
-      { p_user_id: userId }
-    );
+    const { data: wallet, error: walletError } = await supabase.rpc('initialize_sp_wallet', {
+      p_user_id: userId,
+    });
 
     if (walletError) {
       console.error('[enrollInTrialSubscription] ❌ Wallet RPC error:', walletError);
@@ -350,30 +328,23 @@ export async function enrollInTrialSubscription(userId: string): Promise<{
 
 /**
  * AUTH-V2-003: Login with Subscription Context
- * 
+ *
  * Enriches login session with:
  * - Subscription status (from MODULE-11)
  * - SP wallet summary (from MODULE-09)
  */
-export async function loginWithContext(
-  input: LoginInput
-): Promise<AuthSession> {
+export async function loginWithContext(input: LoginInput): Promise<AuthSession> {
   const { email, password } = input;
 
   try {
     // Step 1: Authenticate with Supabase
-    const { data: authData, error: authError } =
-      await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (authError) {
-      throw new AuthError(
-        authError.message,
-        authError.name || 'LOGIN_FAILED',
-        authError
-      );
+      throw new AuthError(authError.message, authError.name || 'LOGIN_FAILED', authError);
     }
 
     if (!authData.user) {
@@ -390,15 +361,11 @@ export async function loginWithContext(
       .single();
 
     if (profileError || !profile) {
-      throw new AuthError(
-        'User profile not found',
-        'PROFILE_NOT_FOUND',
-        profileError
-      );
+      throw new AuthError('User profile not found', 'PROFILE_NOT_FOUND', profileError);
     }
 
     if ((profile as UserProfile & { deleted_at?: string | null }).deleted_at) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'global' });
       throw new AuthError(
         'Your account has been deleted. Please contact admin-support@kidsmarketplace.app.',
         'ACCOUNT_DELETED'
@@ -411,7 +378,10 @@ export async function loginWithContext(
     });
 
     // RPC may return: 1) array of rows (old TABLE return), 2) single JSONB object (new JSONB return)
-    const subSummaryRaw = (Array.isArray(subData) ? subData[0] : subData) as Record<string, unknown> | null;
+    const subSummaryRaw = (Array.isArray(subData) ? subData[0] : subData) as Record<
+      string,
+      unknown
+    > | null;
     const subscriptionSummary = subSummaryRaw || {
       status: 'none',
       can_spend_sp: false,
@@ -420,20 +390,19 @@ export async function loginWithContext(
     // Normalize booleans and default status value for UI consistency
     if (subscriptionSummary && typeof subscriptionSummary.can_spend_sp === 'string') {
       subscriptionSummary.can_spend_sp =
-        subscriptionSummary.can_spend_sp === 'true' ||
-        subscriptionSummary.can_spend_sp === 't';
+        subscriptionSummary.can_spend_sp === 'true' || subscriptionSummary.can_spend_sp === 't';
     }
     subscriptionSummary.status = (subscriptionSummary.status as string) || 'free';
 
     // Step 4: Fetch SP wallet summary (MODULE-09)
-    const { data: walletData } = await supabase.rpc(
-      'get_user_sp_wallet_summary',
-      {
-        p_user_id: userId,
-      }
-    );
+    const { data: walletData } = await supabase.rpc('get_user_sp_wallet_summary', {
+      p_user_id: userId,
+    });
 
-    const walletDataRaw = (Array.isArray(walletData) ? walletData[0] : walletData) as Record<string, unknown> | null;
+    const walletDataRaw = (Array.isArray(walletData) ? walletData[0] : walletData) as Record<
+      string,
+      unknown
+    > | null;
     const walletSummary = walletDataRaw || {
       available_points: 0,
       pending_points: 0,
@@ -446,17 +415,32 @@ export async function loginWithContext(
     const session: AuthSession = {
       user: {
         ...(profile as UserProfile),
-        display_name: (profile as any).name || (profile as any).display_name || (profile as any).full_name || '',
+        display_name:
+          (profile as any).name ||
+          (profile as any).display_name ||
+          (profile as any).full_name ||
+          '',
       },
       access_token: authData.session!.access_token,
       refresh_token: authData.session!.refresh_token,
-      subscription_status: subscriptionSummary.status as 'free' | 'trial' | 'active' | 'grace' | 'canceled',
+      subscription_status: subscriptionSummary.status as
+        | 'free'
+        | 'trial'
+        | 'active'
+        | 'grace'
+        | 'canceled',
       can_spend_sp: !!subscriptionSummary.can_spend_sp,
       available_points: (walletSummary.available_points as number) || 0,
       pending_points: (walletSummary.pending_points as number) || 0,
       lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
       lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
-      wallet_state: (walletSummary.wallet_state as 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive') || 'inactive', // ADMIN-V2-003
+      wallet_state:
+        (walletSummary.wallet_state as
+          | 'active'
+          | 'frozen'
+          | 'suspended'
+          | 'grace_period'
+          | 'inactive') || 'inactive', // ADMIN-V2-003
     };
 
     return session;
@@ -464,11 +448,7 @@ export async function loginWithContext(
     if (error instanceof AuthError) {
       throw error;
     }
-    throw new AuthError(
-      'Login failed with unexpected error',
-      'LOGIN_FAILED',
-      error
-    );
+    throw new AuthError('Login failed with unexpected error', 'LOGIN_FAILED', error);
   }
 }
 
@@ -476,13 +456,9 @@ export async function loginWithContext(
  * Logout user
  */
 export async function logout(): Promise<void> {
-  const { error } = await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut({ scope: 'global' });
   if (error) {
-    throw new AuthError(
-      'Logout failed',
-      'LOGOUT_FAILED',
-      error
-    );
+    throw new AuthError('Logout failed', 'LOGOUT_FAILED', error);
   }
 }
 
@@ -490,8 +466,10 @@ export async function logout(): Promise<void> {
  * Get current session
  */
 export async function getCurrentSession(): Promise<AuthSession | null> {
-  const { data: { session } } = await supabase.auth.getSession();
-  
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   if (!session) {
     return null;
   }
@@ -511,7 +489,7 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
     }
 
     if ((profile as UserProfile & { deleted_at?: string | null }).deleted_at) {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'global' });
       return null;
     }
 
@@ -520,7 +498,10 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
       p_user_id: userId,
     });
 
-    const subSummaryRaw = (Array.isArray(subData) ? subData[0] : subData) as Record<string, unknown> | null;
+    const subSummaryRaw = (Array.isArray(subData) ? subData[0] : subData) as Record<
+      string,
+      unknown
+    > | null;
     const subscriptionSummary = subSummaryRaw || {
       status: 'none',
       can_spend_sp: false,
@@ -528,19 +509,20 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
 
     // Normalize booleans and default status value
     if (subscriptionSummary && typeof subscriptionSummary.can_spend_sp === 'string') {
-      subscriptionSummary.can_spend_sp = subscriptionSummary.can_spend_sp === 'true' || subscriptionSummary.can_spend_sp === 't';
+      subscriptionSummary.can_spend_sp =
+        subscriptionSummary.can_spend_sp === 'true' || subscriptionSummary.can_spend_sp === 't';
     }
     subscriptionSummary.status = subscriptionSummary.status || 'free';
 
     // Fetch SP wallet summary
-    const { data: walletData } = await supabase.rpc(
-      'get_user_sp_wallet_summary',
-      {
-        p_user_id: userId,
-      }
-    );
+    const { data: walletData } = await supabase.rpc('get_user_sp_wallet_summary', {
+      p_user_id: userId,
+    });
 
-    const walletDataRaw = (Array.isArray(walletData) ? walletData[0] : walletData) as Record<string, unknown> | null;
+    const walletDataRaw = (Array.isArray(walletData) ? walletData[0] : walletData) as Record<
+      string,
+      unknown
+    > | null;
     const walletSummary = walletDataRaw || {
       available_points: 0,
       pending_points: 0,
@@ -552,17 +534,29 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
     return {
       user: {
         ...(profile as UserProfile),
-        display_name: (profile as any).name || (profile as any).display_name || (profile as any).full_name || '',
+        display_name:
+          (profile as any).name ||
+          (profile as any).display_name ||
+          (profile as any).full_name ||
+          '',
       },
       access_token: session.access_token,
       refresh_token: session.refresh_token,
-      subscription_status: (subscriptionSummary.status as 'free' | 'trial' | 'active' | 'grace' | 'canceled') || 'free',
+      subscription_status:
+        (subscriptionSummary.status as 'free' | 'trial' | 'active' | 'grace' | 'canceled') ||
+        'free',
       can_spend_sp: !!subscriptionSummary.can_spend_sp,
       available_points: (walletSummary.available_points as number) || 0,
       pending_points: (walletSummary.pending_points as number) || 0,
       lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
       lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
-      wallet_state: (walletSummary.wallet_state as 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive') || 'inactive', // ADMIN-V2-003
+      wallet_state:
+        (walletSummary.wallet_state as
+          | 'active'
+          | 'frozen'
+          | 'suspended'
+          | 'grace_period'
+          | 'inactive') || 'inactive', // ADMIN-V2-003
     };
   } catch (error) {
     console.error('Failed to build session:', error);

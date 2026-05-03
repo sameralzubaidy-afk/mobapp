@@ -1,5 +1,14 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Switch, ScrollView, Image } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Switch,
+  ScrollView,
+  Image,
+} from 'react-native';
 import { Condition } from '../../types/listing';
 import { ConditionSelector } from '../listing/ConditionSelector';
 import { ColorPicker } from '../listing/ColorPicker';
@@ -281,9 +290,7 @@ export function BulkItemCard({
               </>
             ) : (
               <View style={styles.upgradePanel}>
-                <Text style={styles.paymentHint}>
-                  Subscribe to Kids Club+ to enable Accept SP.
-                </Text>
+                <Text style={styles.paymentHint}>Subscribe to Kids Club+ to enable Accept SP.</Text>
                 <TouchableOpacity
                   style={styles.upgradeButton}
                   onPress={onUpgradePress}

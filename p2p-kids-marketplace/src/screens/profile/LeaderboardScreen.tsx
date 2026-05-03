@@ -28,14 +28,14 @@ const LeaderboardScreen = ({ navigation }: any) => {
       setLoading(true);
       setError(null);
       const data = await getBadgeLeaderboard(50); // Top 50 users
-      
+
       // DEBUG: Log the response
       console.log('[LeaderboardScreen] Fetched leaderboard data:', {
         count: data.length,
         topEntry: data[0],
         allEntries: data,
       });
-      
+
       setLeaderboard(data);
     } catch (err: any) {
       const errorMsg = err?.message || String(err);
@@ -110,9 +110,7 @@ const LeaderboardScreen = ({ navigation }: any) => {
       </View>
 
       <View style={styles.descriptionContainer}>
-        <Text style={styles.description}>
-          Top traders ranked by total badges earned 🏆
-        </Text>
+        <Text style={styles.description}>Top traders ranked by total badges earned 🏆</Text>
       </View>
 
       {error && (

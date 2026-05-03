@@ -64,9 +64,7 @@ describe('Badge Service - BADGES-V2-004', () => {
         error: { message: 'RPC function not found' },
       });
 
-      await expect(getBadgeLeaderboard()).rejects.toThrow(
-        'Failed to fetch leaderboard'
-      );
+      await expect(getBadgeLeaderboard()).rejects.toThrow('Failed to fetch leaderboard');
     });
 
     it('should return empty array when no users have badges', async () => {
@@ -96,9 +94,7 @@ describe('Badge Service - BADGES-V2-004', () => {
 
       // Verify descending order
       for (let i = 1; i < result.length; i++) {
-        expect(result[i - 1].badge_count).toBeGreaterThanOrEqual(
-          result[i].badge_count
-        );
+        expect(result[i - 1].badge_count).toBeGreaterThanOrEqual(result[i].badge_count);
       }
     });
   });

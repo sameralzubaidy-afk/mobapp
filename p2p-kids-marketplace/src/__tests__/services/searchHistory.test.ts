@@ -68,10 +68,7 @@ describe('searchHistory service', () => {
 
       await addSearchToHistory('LEGO');
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        STORAGE_KEY,
-        JSON.stringify(['LEGO'])
-      );
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, JSON.stringify(['LEGO']));
     });
 
     it('should prepend new search to existing history (LRU)', async () => {
@@ -104,9 +101,7 @@ describe('searchHistory service', () => {
 
       await addSearchToHistory('new search');
 
-      const savedData = JSON.parse(
-        (AsyncStorage.setItem as jest.Mock).mock.calls[0][1]
-      );
+      const savedData = JSON.parse((AsyncStorage.setItem as jest.Mock).mock.calls[0][1]);
 
       expect(savedData).toHaveLength(8);
       expect(savedData[0]).toBe('new search');
@@ -127,10 +122,7 @@ describe('searchHistory service', () => {
 
       await addSearchToHistory('  LEGO  ');
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        STORAGE_KEY,
-        JSON.stringify(['LEGO'])
-      );
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(STORAGE_KEY, JSON.stringify(['LEGO']));
     });
   });
 
@@ -189,8 +181,14 @@ describe('searchHistory service', () => {
 
     it('should cap at max 5 results by default', async () => {
       const manySearches = [
-        'LEGO 1', 'LEGO 2', 'LEGO 3', 'LEGO 4', 
-        'LEGO 5', 'LEGO 6', 'LEGO 7', 'bicycle'
+        'LEGO 1',
+        'LEGO 2',
+        'LEGO 3',
+        'LEGO 4',
+        'LEGO 5',
+        'LEGO 6',
+        'LEGO 7',
+        'bicycle',
       ];
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(manySearches));
 

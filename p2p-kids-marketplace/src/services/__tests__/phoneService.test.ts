@@ -130,9 +130,7 @@ describe('phoneService', () => {
         error: null,
       } as any);
 
-      await expect(sendPhoneVerificationCode('+12025551234')).rejects.toThrow(
-        OTPRateLimitError,
-      );
+      await expect(sendPhoneVerificationCode('+12025551234')).rejects.toThrow(OTPRateLimitError);
 
       try {
         await sendPhoneVerificationCode('+12025551234');
@@ -148,9 +146,7 @@ describe('phoneService', () => {
         error: { message: 'Not authenticated' },
       } as any);
 
-      await expect(sendPhoneVerificationCode('+12025551234')).rejects.toThrow(
-        'Not authenticated',
-      );
+      await expect(sendPhoneVerificationCode('+12025551234')).rejects.toThrow('Not authenticated');
     });
 
     it('should throw error on Edge Function invoke failure', async () => {
@@ -160,7 +156,7 @@ describe('phoneService', () => {
       } as any);
 
       await expect(sendPhoneVerificationCode('+12025551234')).rejects.toThrow(
-        'Failed to send verification code',
+        'Failed to send verification code'
       );
     });
 
@@ -171,7 +167,7 @@ describe('phoneService', () => {
       } as any);
 
       await expect(sendPhoneVerificationCode('+12025551234')).rejects.toThrow(
-        'Twilio configuration missing',
+        'Twilio configuration missing'
       );
     });
   });
@@ -253,9 +249,7 @@ describe('phoneService', () => {
 
       mockSupabase.from.mockReturnValue(mockFrom as any);
 
-      await expect(verifyPhoneCode('+12025551234', '123456')).rejects.toThrow(
-        OTPExpiredError,
-      );
+      await expect(verifyPhoneCode('+12025551234', '123456')).rejects.toThrow(OTPExpiredError);
     });
 
     it('should throw error when max attempts exceeded', async () => {
@@ -274,7 +268,7 @@ describe('phoneService', () => {
       mockSupabase.from.mockReturnValue(mockFrom as any);
 
       await expect(verifyPhoneCode('+12025551234', '123456')).rejects.toThrow(
-        'Maximum verification attempts exceeded',
+        'Maximum verification attempts exceeded'
       );
     });
 
@@ -299,9 +293,7 @@ describe('phoneService', () => {
         error: null,
       });
 
-      await expect(verifyPhoneCode('+12025551234', '999999')).rejects.toThrow(
-        'Invalid code',
-      );
+      await expect(verifyPhoneCode('+12025551234', '999999')).rejects.toThrow('Invalid code');
     });
 
     it('should throw error when not authenticated', async () => {
@@ -310,25 +302,23 @@ describe('phoneService', () => {
         error: { message: 'Not authenticated' },
       } as any);
 
-      await expect(verifyPhoneCode('+12025551234', '123456')).rejects.toThrow(
-        'Not authenticated',
-      );
+      await expect(verifyPhoneCode('+12025551234', '123456')).rejects.toThrow('Not authenticated');
     });
   });
 
   describe('getPhoneErrorMessage', () => {
     it('should return appropriate messages for each error code', () => {
       expect(getPhoneErrorMessage(PhoneVerificationErrorCode.RATE_LIMIT_EXCEEDED)).toContain(
-        'Too many',
+        'Too many'
       );
       expect(getPhoneErrorMessage(PhoneVerificationErrorCode.OTP_EXPIRED)).toContain('expired');
       expect(getPhoneErrorMessage(PhoneVerificationErrorCode.OTP_INVALID)).toContain('Invalid');
       expect(getPhoneErrorMessage(PhoneVerificationErrorCode.OTP_MAX_ATTEMPTS)).toContain(
-        'Maximum',
+        'Maximum'
       );
       expect(getPhoneErrorMessage(PhoneVerificationErrorCode.SEND_FAILED)).toContain('send');
       expect(getPhoneErrorMessage(PhoneVerificationErrorCode.VERIFICATION_FAILED)).toContain(
-        'failed',
+        'failed'
       );
       expect(getPhoneErrorMessage(PhoneVerificationErrorCode.NOT_FOUND)).toContain('not found');
     });

@@ -61,8 +61,7 @@ export const useSubscriptionStatus = () => {
     status: session?.subscription_status ?? 'free',
     canSpendSP: session?.can_spend_sp ?? false,
     isTrialExpired:
-      session?.subscription_status === 'free' ||
-      session?.subscription_status === 'grace',
+      session?.subscription_status === 'free' || session?.subscription_status === 'grace',
   };
 };
 

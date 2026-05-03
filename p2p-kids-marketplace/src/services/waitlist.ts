@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/waitlist.ts
  * NODE-003: Waitlist Management for Inactive ZIPs
- * 
+ *
  * Handles:
  * - Adding users to ZIP waitlist when they request inactive area
  * - Tracking waitlist status
@@ -25,11 +25,11 @@ export type WaitlistOptInResult = {
 /**
  * Add or update user entry in ZIP waitlist (NODE-003)
  * Called when user is assigned to fallback node and offered waitlist opt-in
- * 
+ *
  * Uses UPSERT to handle idempotency:
  * - If user already on waitlist for this ZIP → update status
  * - If new → insert with status='pending'
- * 
+ *
  * @param params - Waitlist parameters
  * @returns WaitlistOptInResult indicating success and whether it was a new entry
  */
@@ -41,7 +41,6 @@ export const upsertZipWaitlist = async (params: {
 }): Promise<WaitlistOptInResult> => {
   try {
     const { userId, email, requestedZip, assignedNodeId } = params;
-
 
     // Use upsert: insert new or update if (user_id, requested_zip) exists
     const { data, error } = await supabase
@@ -70,7 +69,6 @@ export const upsertZipWaitlist = async (params: {
     // Determine if this was a new entry or update
     const wasNewEntry = !!data?.id;
 
-
     // Track analytics event
     trackEvent('waitlist_opt_in', {
       user_id: userId,
@@ -94,15 +92,12 @@ export const upsertZipWaitlist = async (params: {
 
 /**
  * Check if user is already on waitlist for a specific ZIP (NODE-003 updated)
- * 
+ *
  * @param userId - User UUID
  * @param requestedZip - ZIP code to check
  * @returns true if user has pending/notified entry for this ZIP
  */
-export const isUserOnWaitlist = async (
-  userId: string,
-  requestedZip: string
-): Promise<boolean> => {
+export const isUserOnWaitlist = async (userId: string, requestedZip: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase
       .from('zip_waitlist')
@@ -128,7 +123,7 @@ export const isUserOnWaitlist = async (
 /**
  * Get user's waitlist entries (NODE-003 new)
  * Shows which ZIPs they've requested
- * 
+ *
  * @param userId - User UUID
  * @returns Array of user's waitlist entries
  */
@@ -189,16 +184,14 @@ export const addToWaitlist = async (
   entry: WaitlistEntry
 ): Promise<{ success: boolean; error: Error | null }> => {
   try {
-    const { error } = await supabase
-      .from('waitlist')
-      .insert({
-        email: entry.email,
-        phone: entry.phone || null,
-        zip: entry.zip,
-        kids_count: entry.kids_count || null,
-        kids_ages: entry.kids_ages || null,
-        created_at: new Date().toISOString(),
-      });
+    const { error } = await supabase.from('waitlist').insert({
+      email: entry.email,
+      phone: entry.phone || null,
+      zip: entry.zip,
+      kids_count: entry.kids_count || null,
+      kids_ages: entry.kids_ages || null,
+      created_at: new Date().toISOString(),
+    });
 
     if (error) {
       console.error('Waitlist insert error:', error.message);

@@ -1,9 +1,9 @@
 /**
  * Unit Tests: Message Expiration Logic
  * Module: MODULE-07 MSG-004
- * 
+ *
  * Tests the mark_expired_messages() RPC function and expiration logic.
- * 
+ *
  * Run: npm test -- src/__tests__/services/message-expiration.test.ts
  */
 
@@ -120,11 +120,13 @@ d('MSG-004: Message Expiration (Supabase E2E)', () => {
       // Query messages from trades that are NOT completed
       const { data: incompleteTradeMessages } = await supabase
         .from('messages')
-        .select(`
+        .select(
+          `
           id,
           deleted_at,
           trades!inner(status, completed_at)
-        `)
+        `
+        )
         .neq('trades.status', 'completed');
 
       // None of these should be marked as deleted by expiration logic
@@ -144,11 +146,13 @@ d('MSG-004: Message Expiration (Supabase E2E)', () => {
 
       const { data: recentMessages } = await supabase
         .from('messages')
-        .select(`
+        .select(
+          `
           id,
           deleted_at,
           trades!inner(status, completed_at)
-        `)
+        `
+        )
         .eq('trades.status', 'completed')
         .gte('trades.completed_at', thirtyDaysAgo.toISOString())
         .is('deleted_at', null);

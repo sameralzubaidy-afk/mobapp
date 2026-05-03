@@ -15,11 +15,7 @@
     "tag": "v0.81.5"
   },
   "source_files": "*.{m,mm}",
-  "preserve_paths": [
-    "package.json",
-    "LICENSE",
-    "LICENSE-docs"
-  ],
+  "preserve_paths": ["package.json", "LICENSE", "LICENSE-docs"],
   "header_dir": "RCTImage",
   "pod_target_xcconfig": {
     "USE_HEADERMAP": "YES",
@@ -40,13 +36,7 @@
     ],
     "DEFINES_MODULE": "YES"
   },
-  "frameworks": [
-    "Accelerate",
-    "UIKit",
-    "QuartzCore",
-    "ImageIO",
-    "CoreGraphics"
-  ],
+  "frameworks": ["Accelerate", "UIKit", "QuartzCore", "ImageIO", "CoreGraphics"],
   "dependencies": {
     "RCTTypeSafety": [],
     "React-jsi": [],

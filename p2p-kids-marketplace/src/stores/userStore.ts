@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/stores/userStore.ts
  * MODULE-03 NODE-006: User Store with Node Information
- * 
+ *
  * Simple Zustand store for managing user state with node info
  */
 

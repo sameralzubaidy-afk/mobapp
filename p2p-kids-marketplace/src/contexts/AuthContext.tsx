@@ -282,7 +282,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           pending_points: 0,
           lifetime_earned: 0,
           lifetime_spent: 0,
-          wallet_state: 'inactive' as 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive', // ADMIN-V2-003
+          wallet_state: 'inactive' as
+            | 'active'
+            | 'frozen'
+            | 'suspended'
+            | 'grace_period'
+            | 'inactive', // ADMIN-V2-003
         };
 
         if (Array.isArray(walletData) && walletData.length > 0) {
@@ -307,7 +312,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             node_id: profileData.node_id,
             node: profileData.node || undefined,
             profile_completed: profileData.profile_completed || false,
-            onboarding_completed: profileData.onboarding_completed || false,
+            onboarding_completed:
+              profileData.onboarding_completed ?? profileData.profile_completed ?? false,
             phone_verified: profileData.phone_verified || false,
             phone_verified_at: profileData.phone_verified_at,
             account_status: profileData.account_status || 'active',
@@ -351,17 +357,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * Setup real-time subscription listener
    * Listens to subscriptions table for changes
    */
-  const setupSubscriptionListener = useCallback((userId: string) => {
-    if (!userId) return;
+  const setupSubscriptionListener = useCallback(
+    (userId: string) => {
+      if (!userId) return;
 
-    try {
-      // Clean up old subscription before creating a fresh channel.
-      removeRealtimeChannel(subscriptionRef);
+      try {
+        // Clean up old subscription before creating a fresh channel.
+        removeRealtimeChannel(subscriptionRef);
 
-      // Listen to subscriptions table for this user
-      const channel = supabase
-        .channel(`auth-subscriptions:${userId}:${Date.now()}`)
-        .on(
+        // Listen to subscriptions table for this user
+        const channel = supabase.channel(`auth-subscriptions:${userId}:${Date.now()}`).on(
           'postgres_changes',
           {
             event: '*',
@@ -376,9 +381,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         );
 
-      subscriptionRef.current = channel;
+        subscriptionRef.current = channel;
 
-      channel.subscribe((status) => {
+        channel.subscribe((status) => {
           // Ignore status updates from stale channels already replaced/removed.
           if (subscriptionRef.current !== channel) return;
 
@@ -386,26 +391,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.warn('[AUTH] Subscription channel status:', status);
           }
         });
-    } catch (err) {
-      console.error('[AUTH] Failed to setup subscription listener:', err);
-    }
-  }, [refreshSession, removeRealtimeChannel]);
+      } catch (err) {
+        console.error('[AUTH] Failed to setup subscription listener:', err);
+      }
+    },
+    [refreshSession, removeRealtimeChannel]
+  );
 
   /**
    * Setup real-time SP wallet listener
    * Listens to sp_wallets table for changes
    */
-  const setupWalletListener = useCallback((userId: string) => {
-    if (!userId) return;
+  const setupWalletListener = useCallback(
+    (userId: string) => {
+      if (!userId) return;
 
-    try {
-      // Clean up old wallet subscription before creating a fresh channel.
-      removeRealtimeChannel(walletRef);
+      try {
+        // Clean up old wallet subscription before creating a fresh channel.
+        removeRealtimeChannel(walletRef);
 
-      // Listen to sp_wallets table for this user
-      const channel = supabase
-        .channel(`auth-wallet:${userId}:${Date.now()}`)
-        .on(
+        // Listen to sp_wallets table for this user
+        const channel = supabase.channel(`auth-wallet:${userId}:${Date.now()}`).on(
           'postgres_changes',
           {
             event: '*',
@@ -420,9 +426,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
         );
 
-      walletRef.current = channel;
+        walletRef.current = channel;
 
-      channel.subscribe((status) => {
+        channel.subscribe((status) => {
           // Ignore status updates from stale channels already replaced/removed.
           if (walletRef.current !== channel) return;
 
@@ -430,10 +436,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.warn('[AUTH] Wallet channel status:', status);
           }
         });
-    } catch (err) {
-      console.error('[AUTH] Failed to setup wallet listener:', err);
-    }
-  }, [refreshSession, removeRealtimeChannel]);
+      } catch (err) {
+        console.error('[AUTH] Failed to setup wallet listener:', err);
+      }
+    },
+    [refreshSession, removeRealtimeChannel]
+  );
 
   /**
    * Logout user
@@ -448,7 +456,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       removeRealtimeChannel(walletRef);
 
       // Sign out from Supabase
-      const { error: signoutError } = await supabase.auth.signOut();
+      const { error: signoutError } = await supabase.auth.signOut({ scope: 'global' });
 
       if (signoutError) {
         throw new AuthError('Logout failed', 'LOGOUT_FAILED', signoutError);
@@ -579,7 +587,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             )) as any;
 
             const subscriptionStatus = subscriptionData?.status || 'free';
-            
+
             // Also fetch SP wallet summary (now includes wallet_state)
             console.log('[AUTH] 🔍 Fetching SP wallet summary...');
             const { data: walletData, error: walletFetchError } = (await withTimeout(
@@ -601,7 +609,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               pending_points: 0,
               lifetime_earned: 0,
               lifetime_spent: 0,
-              wallet_state: 'inactive' as 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive', // ADMIN-V2-003: default state
+              wallet_state: 'inactive' as
+                | 'active'
+                | 'frozen'
+                | 'suspended'
+                | 'grace_period'
+                | 'inactive', // ADMIN-V2-003: default state
             };
 
             if (Array.isArray(walletData) && walletData.length > 0) {
@@ -615,10 +628,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             }
 
             // ADMIN-V2-003: can_spend_sp now checks BOTH subscription AND wallet state
-            const canSpendSP = 
+            const canSpendSP =
               (subscriptionStatus === 'trial' || subscriptionStatus === 'active') &&
-              (walletSummary.wallet_state === 'active');
-            
+              walletSummary.wallet_state === 'active';
+
             console.log('[AUTH] 💰 SP spending eligibility:', {
               subscriptionStatus,
               wallet_state: walletSummary.wallet_state,
@@ -641,7 +654,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 node_id: profileData.node_id,
                 node: profileData.node || undefined,
                 profile_completed: profileData.profile_completed || false,
-                onboarding_completed: profileData.onboarding_completed || false,
+                onboarding_completed:
+                  profileData.onboarding_completed ?? profileData.profile_completed ?? false,
                 phone_verified: profileData.phone_verified || false,
                 phone_verified_at: profileData.phone_verified_at,
                 account_status: profileData.account_status || 'active',
@@ -724,21 +738,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       removeRealtimeChannel(profileRef);
 
-      const channel = supabase
-        .channel(`auth-profiles:${userId}:${Date.now()}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'profiles',
-            filter: `user_id=eq.${userId}`,
-          },
-          (payload) => {
-            console.log('[AUTH] Profile changed:', payload);
-            refreshSession();
-          }
-        );
+      const channel = supabase.channel(`auth-profiles:${userId}:${Date.now()}`).on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('[AUTH] Profile changed:', payload);
+          refreshSession();
+        }
+      );
 
       profileRef.current = channel;
 
@@ -764,7 +776,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       removeRealtimeChannel(walletRef);
       removeRealtimeChannel(subscriptionRef);
     };
-  }, [session?.user?.id, refreshSession, setupWalletListener, setupSubscriptionListener, removeRealtimeChannel]);
+  }, [
+    session?.user?.id,
+    refreshSession,
+    setupWalletListener,
+    setupSubscriptionListener,
+    removeRealtimeChannel,
+  ]);
 
   /**
    * Handle app state changes (resume/background)

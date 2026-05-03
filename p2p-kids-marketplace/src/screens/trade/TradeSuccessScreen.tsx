@@ -1,18 +1,12 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeSuccessScreen.tsx
  * TASK TRADE-V2-002: Initiate Trade with Subscription & SP Context
- * 
+ *
  * Success screen after trade initiation
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  SafeAreaView,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, SafeAreaView } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 
@@ -33,10 +27,7 @@ export default function TradeSuccessScreen() {
         </Text>
         <Text style={styles.tradeId}>Trade ID: {tradeId}</Text>
 
-        <Pressable
-          style={styles.button}
-          onPress={() => navigation.navigate('Home')}
-        >
+        <Pressable style={styles.button} onPress={() => navigation.navigate('Home')}>
           <Text style={styles.buttonText}>Back to Home</Text>
         </Pressable>
       </View>

@@ -3,9 +3,9 @@
 // Tests get/update notification preferences with Supabase mocks
 
 import { supabase } from '@/services/supabase';
-import { 
-  getNotificationPreferences, 
-  updateNotificationPreference 
+import {
+  getNotificationPreferences,
+  updateNotificationPreference,
 } from '@/services/notificationPreferences';
 
 // Mock Supabase
@@ -20,7 +20,7 @@ jest.mock('@/services/supabase', () => ({
 
 describe('NotificationPreferences Service - Unit Tests', () => {
   const mockUser = { id: 'user-123', email: 'test@example.com' };
-  
+
   const mockPreferences = [
     {
       category: 'subscription',
@@ -244,7 +244,8 @@ describe('NotificationPreferences Service - Unit Tests', () => {
           push_enabled: false,
         });
 
-        expect(supabase.rpc).toHaveBeenCalledWith('update_notification_preference', 
+        expect(supabase.rpc).toHaveBeenCalledWith(
+          'update_notification_preference',
           expect.objectContaining({
             p_category: category,
           })

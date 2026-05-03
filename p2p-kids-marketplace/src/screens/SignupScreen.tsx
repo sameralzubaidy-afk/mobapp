@@ -1,7 +1,8 @@
 // File: p2p-kids-marketplace/src/screens/SignupScreen.tsx
 // MODULE-03 AUTH-V2-002: User Signup with Trial Activation
+// MODULE-03 AUTH-V3-007: Social Login Integration
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,11 +19,16 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { signupWithTrial } from '../services/auth';
 import { SignupInput, AuthError } from '../types/user';
+import { SocialLoginButtons } from '../components/auth/SocialLoginButtons';
+import type { OAuthProvider } from '@/types/auth-v3';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
 export const SignupScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+
+  // Ref for email input (for social login error fallback)
+  const emailInputRef = useRef<TextInput>(null);
 
   // Form state
   const [email, setEmail] = useState('');
@@ -36,6 +42,12 @@ export const SignupScreen: React.FC = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Account linking state (when social login detects existing account)
+  const [accountLinkPrompt, setAccountLinkPrompt] = useState<{
+    email: string;
+    provider: OAuthProvider;
+  } | null>(null);
 
   // Check if user is under 13 (requires parental consent)
   const ageNum = parseInt(age, 10);
@@ -97,6 +109,49 @@ export const SignupScreen: React.FC = () => {
   };
 
   /**
+   * Handle social signup success (navigate to home OR profile completion)
+   */
+  const handleSocialSignupSuccess = () => {
+    console.log('[SignupScreen] Social signup successful');
+    Alert.alert(
+      'Welcome to Kids Club+! 🎉',
+      'Your profile has been created. Complete your profile to start trading!',
+      [
+        {
+          text: 'Get Started',
+          onPress: () => {
+            // TODO: Navigate to onboarding wizard when implemented
+            navigation.navigate('Home' as any);
+          },
+        },
+      ]
+    );
+  };
+
+  /**
+   * Handle account exists (show linking prompt)
+   * TODO: Implement AccountLinkingPrompt modal in AUTH-V3-008
+   */
+  const handleAccountExists = (emailAddr: string, provider: OAuthProvider) => {
+    console.log('[SignupScreen] Account exists:', { email: emailAddr, provider });
+    setAccountLinkPrompt({ email: emailAddr, provider });
+    // For now, just show an alert and navigate to login
+    Alert.alert(
+      'Account Exists',
+      `An account with ${emailAddr} already exists. Please log in instead.`,
+      [
+        {
+          text: 'Go to Login',
+          onPress: () => {
+            setAccountLinkPrompt(null);
+            navigation.navigate('Login' as any);
+          },
+        },
+      ]
+    );
+  };
+
+  /**
    * Handle signup submission
    */
   const handleSignup = async () => {
@@ -114,9 +169,7 @@ export const SignupScreen: React.FC = () => {
         name: displayName.trim(),
         age: ageNum,
         zipCode: zipCode.trim(),
-        parentalEmail: requiresParentalConsent
-          ? parentalEmail.trim()
-          : undefined,
+        parentalEmail: requiresParentalConsent ? parentalEmail.trim() : undefined,
       };
 
       const session = await signupWithTrial(signupData);
@@ -171,17 +224,21 @@ export const SignupScreen: React.FC = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Join Kids Club+</Text>
-          <Text style={styles.subtitle}>
-            Start your 30-day free trial and earn Swap Points!
-          </Text>
+          <Text style={styles.subtitle}>Start your 30-day free trial and earn Swap Points!</Text>
         </View>
+
+        {/* Social Login Buttons */}
+        <SocialLoginButtons
+          mode="signup"
+          onSignupSuccess={handleSocialSignupSuccess}
+          onAccountExists={handleAccountExists}
+          emailInputRef={emailInputRef}
+          testID="signup-social-buttons"
+        />
 
         {/* Form */}
         <View style={styles.form}>
@@ -189,6 +246,7 @@ export const SignupScreen: React.FC = () => {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
+              ref={emailInputRef}
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="your.email@example.com"
               testID="signup-email-input"
@@ -199,9 +257,7 @@ export const SignupScreen: React.FC = () => {
               autoComplete="email"
               editable={!loading}
             />
-            {errors.email && (
-              <Text style={styles.errorText}>{errors.email}</Text>
-            )}
+            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
           </View>
 
           {/* Password */}
@@ -218,19 +274,14 @@ export const SignupScreen: React.FC = () => {
               autoComplete="password-new"
               editable={!loading}
             />
-            {errors.password && (
-              <Text style={styles.errorText}>{errors.password}</Text>
-            )}
+            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
           </View>
 
           {/* Confirm Password */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Confirm Password</Text>
             <TextInput
-              style={[
-                styles.input,
-                errors.confirmPassword && styles.inputError,
-              ]}
+              style={[styles.input, errors.confirmPassword && styles.inputError]}
               placeholder="Re-enter password"
               testID="signup-confirm-password-input"
               value={confirmPassword}
@@ -258,9 +309,7 @@ export const SignupScreen: React.FC = () => {
               autoComplete="name"
               editable={!loading}
             />
-            {errors.displayName && (
-              <Text style={styles.errorText}>{errors.displayName}</Text>
-            )}
+            {errors.displayName && <Text style={styles.errorText}>{errors.displayName}</Text>}
           </View>
 
           {/* Age */}
@@ -293,23 +342,16 @@ export const SignupScreen: React.FC = () => {
               autoComplete="postal-code"
               editable={!loading}
             />
-            {errors.zipCode && (
-              <Text style={styles.errorText}>{errors.zipCode}</Text>
-            )}
+            {errors.zipCode && <Text style={styles.errorText}>{errors.zipCode}</Text>}
           </View>
 
           {/* Parental Email (conditional) */}
           {requiresParentalConsent && (
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Parent/Guardian Email</Text>
-              <Text style={styles.helperText}>
-                Required for users under 13 (COPPA compliance)
-              </Text>
+              <Text style={styles.helperText}>Required for users under 13 (COPPA compliance)</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  errors.parentalEmail && styles.inputError,
-                ]}
+                style={[styles.input, errors.parentalEmail && styles.inputError]}
                 placeholder="parent@example.com"
                 testID="signup-parent-email-input"
                 value={parentalEmail}
@@ -319,9 +361,7 @@ export const SignupScreen: React.FC = () => {
                 autoComplete="email"
                 editable={!loading}
               />
-              {errors.parentalEmail && (
-                <Text style={styles.errorText}>{errors.parentalEmail}</Text>
-              )}
+              {errors.parentalEmail && <Text style={styles.errorText}>{errors.parentalEmail}</Text>}
             </View>
           )}
 

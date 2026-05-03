@@ -14,7 +14,14 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { getWallet, getLedgerHistory, getExpiringBatches, getSPConfig, type SPWallet, type SPLedgerEntry } from '@/services/sp/wallet';
+import {
+  getWallet,
+  getLedgerHistory,
+  getExpiringBatches,
+  getSPConfig,
+  type SPWallet,
+  type SPLedgerEntry,
+} from '@/services/sp/wallet';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
@@ -23,9 +30,9 @@ import BottomNavBar from '../../components/organisms/BottomNavBar';
 export default function SpWalletScreen() {
   const navigation = useNavigation();
   const { session } = useAuth();
-  
+
   const [wallet, setWallet] = useState<SPWallet | null>(null);
-  const [expiringSoonTotal, setExpiringSoonTotal] = useState(0); 
+  const [expiringSoonTotal, setExpiringSoonTotal] = useState(0);
   const [ledgerHistory, setLedgerHistory] = useState<SPLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,7 +44,9 @@ export default function SpWalletScreen() {
 
   const loadWalletData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         console.error('[SpWallet] User not authenticated');
         return;
@@ -98,7 +107,9 @@ export default function SpWalletScreen() {
     );
   }
 
-  const walletState = ((session?.wallet_state as WalletState | undefined) ?? (wallet.state as WalletState) ?? 'inactive') as WalletState;
+  const walletState = ((session?.wallet_state as WalletState | undefined) ??
+    (wallet.state as WalletState) ??
+    'inactive') as WalletState;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -116,87 +127,85 @@ export default function SpWalletScreen() {
           <View style={styles.headerSpacer} />
         </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        <WalletWarningBanner walletState={walletState} />
+        <ScrollView
+          style={styles.scrollView}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        >
+          <WalletWarningBanner walletState={walletState} />
 
-        {/* Balance Card */}
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Available Balance</Text>
-        <Text style={styles.balanceAmount}>{wallet.available_balance} SP</Text>
+          {/* Balance Card */}
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceLabel}>Available Balance</Text>
+            <Text style={styles.balanceAmount}>{wallet.available_balance} SP</Text>
 
-        {/* Sub-balances */}
-        <View style={styles.subBalances}>
-          <View style={styles.subBalanceItem}>
-            <Text style={styles.subBalanceLabel}>Pending</Text>
-            <Text style={styles.subBalanceValue}>{wallet.pending_balance} SP</Text>
-          </View>
-          <View style={styles.subBalanceDivider} />
-          <View style={styles.subBalanceItem}>
-            <Text style={styles.subBalanceLabel}>Lifetime Earned</Text>
-            <Text style={styles.subBalanceValue}>{wallet.lifetime_earned} SP</Text>
-          </View>
-          <View style={styles.subBalanceDivider} />
-          <View style={styles.subBalanceItem}>
-            <Text style={styles.subBalanceLabel}>Lifetime Spent</Text>
-            <Text style={styles.subBalanceValue}>{wallet.lifetime_spent} SP</Text>
-          </View>
-        </View>
+            {/* Sub-balances */}
+            <View style={styles.subBalances}>
+              <View style={styles.subBalanceItem}>
+                <Text style={styles.subBalanceLabel}>Pending</Text>
+                <Text style={styles.subBalanceValue}>{wallet.pending_balance} SP</Text>
+              </View>
+              <View style={styles.subBalanceDivider} />
+              <View style={styles.subBalanceItem}>
+                <Text style={styles.subBalanceLabel}>Lifetime Earned</Text>
+                <Text style={styles.subBalanceValue}>{wallet.lifetime_earned} SP</Text>
+              </View>
+              <View style={styles.subBalanceDivider} />
+              <View style={styles.subBalanceItem}>
+                <Text style={styles.subBalanceLabel}>Lifetime Spent</Text>
+                <Text style={styles.subBalanceValue}>{wallet.lifetime_spent} SP</Text>
+              </View>
+            </View>
 
-        {/* Expiring Soon Info */}
-        {expiringSoonTotal > 0 && (
-          <View style={styles.expiringSoonContainer}>
-            <Text style={styles.expiringSoonText}>
-              ⚠️ {expiringSoonTotal} SP will expire in the next 30 days
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Ledger History Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
-        {ledgerHistory.length === 0 ? (
-          <Text style={styles.emptyText}>No transactions yet</Text>
-        ) : (
-          ledgerHistory.map((entry) => (
-            <View key={entry.id} style={styles.ledgerCard}>
-              <View style={styles.ledgerHeader}>
-                <Text style={styles.ledgerType}>
-                  {entry.transaction_type.replace(/_/g, ' ').toUpperCase()}
-                </Text>
-                <Text
-                  style={[
-                    styles.ledgerAmount,
-                    { color: entry.amount >= 0 ? '#10B981' : '#EF4444' },
-                  ]}
-                >
-                  {entry.amount >= 0 ? '+' : ''}
-                  {entry.amount} SP
+            {/* Expiring Soon Info */}
+            {expiringSoonTotal > 0 && (
+              <View style={styles.expiringSoonContainer}>
+                <Text style={styles.expiringSoonText}>
+                  ⚠️ {expiringSoonTotal} SP will expire in the next 30 days
                 </Text>
               </View>
-              <Text style={styles.ledgerDescription}>{entry.description}</Text>
-              <Text style={styles.ledgerDate}>
-                {new Date(entry.created_at).toLocaleDateString()} at{' '}
-                {new Date(entry.created_at).toLocaleTimeString()}
-              </Text>
-            </View>
-          ))
-        )}
-      </View>
+            )}
+          </View>
 
-      {/* Footer Info */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          💡 Swap Points expire after {expirationDays} days of inactivity
-        </Text>
-        <Text style={styles.footerText}>🔒 SP can only be used for item purchases</Text>
-      </View>
-    </ScrollView>
+          {/* Ledger History Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recent Transactions</Text>
+            {ledgerHistory.length === 0 ? (
+              <Text style={styles.emptyText}>No transactions yet</Text>
+            ) : (
+              ledgerHistory.map((entry) => (
+                <View key={entry.id} style={styles.ledgerCard}>
+                  <View style={styles.ledgerHeader}>
+                    <Text style={styles.ledgerType}>
+                      {entry.transaction_type.replace(/_/g, ' ').toUpperCase()}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.ledgerAmount,
+                        { color: entry.amount >= 0 ? '#10B981' : '#EF4444' },
+                      ]}
+                    >
+                      {entry.amount >= 0 ? '+' : ''}
+                      {entry.amount} SP
+                    </Text>
+                  </View>
+                  <Text style={styles.ledgerDescription}>{entry.description}</Text>
+                  <Text style={styles.ledgerDate}>
+                    {new Date(entry.created_at).toLocaleDateString()} at{' '}
+                    {new Date(entry.created_at).toLocaleTimeString()}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          {/* Footer Info */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              💡 Swap Points expire after {expirationDays} days of inactivity
+            </Text>
+            <Text style={styles.footerText}>🔒 SP can only be used for item purchases</Text>
+          </View>
+        </ScrollView>
         <BottomNavBar />
       </View>
     </SafeAreaView>

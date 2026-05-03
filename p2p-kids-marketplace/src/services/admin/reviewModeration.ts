@@ -100,11 +100,13 @@ export async function getReportedReviews(): Promise<{
       return {
         review: {
           ...review,
-          reviewer: profile ? {
-            first_name: firstName || 'User',
-            last_name: rest.join(' '),
-            profile_image_url: profile.avatar_url,
-          } : undefined,
+          reviewer: profile
+            ? {
+                first_name: firstName || 'User',
+                last_name: rest.join(' '),
+                profile_image_url: profile.avatar_url,
+              }
+            : undefined,
         },
         reports: reportsMap[review.id] || [],
         report_count: review.report_count || 0,
@@ -137,9 +139,9 @@ export async function approveReview(reviewId: string): Promise<{
     // Update review to unhide and reset report count
     const { error: updateError } = await supabase
       .from('reviews')
-      .update({ 
-        is_hidden: false, 
-        report_count: 0 
+      .update({
+        is_hidden: false,
+        report_count: 0,
       })
       .eq('id', reviewId);
 
@@ -183,10 +185,7 @@ export async function deleteReview(reviewId: string): Promise<{
   error?: string;
 }> {
   try {
-    const { error } = await supabase
-      .from('reviews')
-      .delete()
-      .eq('id', reviewId);
+    const { error } = await supabase.from('reviews').delete().eq('id', reviewId);
 
     if (error) {
       console.error('Delete review error:', error);

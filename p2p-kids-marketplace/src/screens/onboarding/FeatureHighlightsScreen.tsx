@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Dimensions,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase';
@@ -20,26 +13,22 @@ const features = [
   {
     emoji: '🔍',
     title: 'Discover Items',
-    description:
-      'Browse listings from kids in your community. Find toys, books, games, and more!',
+    description: 'Browse listings from kids in your community. Find toys, books, games, and more!',
   },
   {
     emoji: '💰',
     title: 'Earn Money',
-    description:
-      'List items you no longer need and earn money. Learn valuable business skills!',
+    description: 'List items you no longer need and earn money. Learn valuable business skills!',
   },
   {
     emoji: '🤝',
     title: 'Safe Trading',
-    description:
-      'Trade within your local node with parental guidance and moderation.',
+    description: 'Trade within your local node with parental guidance and moderation.',
   },
   {
     emoji: '⭐',
     title: 'Build Reputation',
-    description:
-      'Earn points and badges by being a trusted trader in your community.',
+    description: 'Earn points and badges by being a trusted trader in your community.',
   },
 ];
 
@@ -48,7 +37,7 @@ export default function FeatureHighlightsScreen() {
   const route = useRoute();
   const { userId: routeUserId } = (route.params as any) || {};
   const { session, refreshSession } = React.useContext(AuthContext);
-  
+
   // Use session user ID if available, otherwise fall back to route params
   const userId = session?.user?.id || routeUserId;
 
@@ -93,7 +82,7 @@ export default function FeatureHighlightsScreen() {
         scrollEventThrottle={16}
         style={styles.scrollView}
       >
-        {features.map((feature: typeof features[0], index: number) => (
+        {features.map((feature: (typeof features)[0], index: number) => (
           <View key={index} style={[styles.slide, { width }]}>
             <View style={styles.slideContent}>
               <Text style={styles.emoji}>{feature.emoji}</Text>
@@ -103,13 +92,10 @@ export default function FeatureHighlightsScreen() {
 
             {/* Pagination Dots */}
             <View style={styles.paginationContainer}>
-              {features.map((_: typeof features[0], dotIndex: number) => (
+              {features.map((_: (typeof features)[0], dotIndex: number) => (
                 <View
                   key={dotIndex}
-                  style={[
-                    styles.dot,
-                    dotIndex === index ? styles.dotActive : styles.dotInactive,
-                  ]}
+                  style={[styles.dot, dotIndex === index ? styles.dotActive : styles.dotInactive]}
                 />
               ))}
             </View>

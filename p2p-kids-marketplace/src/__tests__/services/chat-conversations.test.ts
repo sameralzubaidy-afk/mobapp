@@ -22,7 +22,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 describe('chat.ts - getConversations', () => {
   beforeEach(() => {
     jest.resetAllMocks();
-    
+
     // Default mock implementation to prevent "TypeError: Cannot read properties of undefined"
     (supabase.from as jest.Mock).mockReturnValue({
       select: jest.fn().mockReturnThis(),
@@ -45,7 +45,7 @@ describe('chat.ts - getConversations', () => {
         listing: {
           id: 'item-1',
           title: 'Test Item',
-          price: 25.00,
+          price: 25.0,
         },
       },
     ];
@@ -83,7 +83,7 @@ describe('chat.ts - getConversations', () => {
         chain.single.mockResolvedValue({ data: null, error: null });
         chain.order.mockResolvedValue({ data: [], error: null });
       }
-      
+
       return chain;
     });
 
@@ -94,7 +94,7 @@ describe('chat.ts - getConversations', () => {
       id: 'trade-1',
       other_user_name: 'John Doe',
       listing_title: 'Test Item',
-      listing_price: 25.00,
+      listing_price: 25.0,
       last_message_content: 'Hello, is this still available?',
     });
   });
@@ -139,7 +139,7 @@ describe('chat.ts - getConversations', () => {
       } else if (table === 'messages') {
         chain.single.mockResolvedValue({ data: null, error: null });
       }
-      
+
       return chain;
     });
 
@@ -181,7 +181,7 @@ describe('chat.ts - getUnreadCount', () => {
       } else if (table === 'messages') {
         chain.gte.mockResolvedValue({ data: mockUnreadMessages, error: null });
       }
-      
+
       return chain;
     });
 

@@ -1,10 +1,10 @@
 /**
  * Unit Tests: cleanup-messages Edge Function
  * Module: MODULE-07 MSG-005
- * 
+ *
  * Tests the cleanup-messages Edge Function behavior without hitting Supabase.
  * Uses mock Supabase client to isolate unit logic.
- * 
+ *
  * Run: npm test -- src/__tests__/services/cleanup-messages-edge.test.ts
  */
 
@@ -60,7 +60,7 @@ describe('Edge Function: cleanup-messages (Unit Tests)', () => {
     it('should have both environment variables in valid setup', () => {
       process.env.SUPABASE_URL = 'https://example.supabase.co';
       process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
-      
+
       expect(process.env.SUPABASE_URL).toBeDefined();
       expect(process.env.SUPABASE_SERVICE_ROLE_KEY).toBeDefined();
     });
@@ -93,7 +93,7 @@ describe('Edge Function: cleanup-messages (Unit Tests)', () => {
       const mockError = {
         message: 'Function mark_expired_messages() does not exist',
         hint: 'Check if migration 081_message_expiration.sql was applied',
-        details: null
+        details: null,
       };
 
       expect(mockError.message).toContain('does not exist');
@@ -104,7 +104,7 @@ describe('Edge Function: cleanup-messages (Unit Tests)', () => {
       // Mock connection error
       const mockError = {
         message: 'Connection to database failed',
-        details: 'Timeout after 5 seconds'
+        details: 'Timeout after 5 seconds',
       };
 
       expect(mockError.message).toContain('Connection');
@@ -124,7 +124,7 @@ describe('Edge Function: cleanup-messages (Unit Tests)', () => {
         success: true,
         deleted_count: 10,
         timestamp: new Date().toISOString(),
-        message: 'Marked 10 messages as expired'
+        message: 'Marked 10 messages as expired',
       };
 
       expect(successResponse.success).toBe(true);
@@ -138,7 +138,7 @@ describe('Edge Function: cleanup-messages (Unit Tests)', () => {
         success: false,
         error: 'RPC function failed',
         hint: 'Check database logs',
-        details: 'Missing admin_config entry'
+        details: 'Missing admin_config entry',
       };
 
       expect(errorResponse.success).toBe(false);
@@ -180,7 +180,7 @@ describe('Edge Function: cleanup-messages (Unit Tests)', () => {
       const successResponse = {
         success: true,
         deleted_count: 5,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       const responseString = JSON.stringify(successResponse);

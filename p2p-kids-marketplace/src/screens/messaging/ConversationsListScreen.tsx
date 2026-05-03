@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/messaging/ConversationsListScreen.tsx
  * MODULE-07 MSG-002: Conversations List Screen
- * 
+ *
  * Features:
  * - Display all active chats for the user
  * - Show last message preview
@@ -110,7 +110,7 @@ export default function ConversationsListScreen() {
 
   const handleConversationPress = async (conversation: Conversation) => {
     console.log('[ConversationsListScreen] Opening chat for trade:', conversation.trade_id);
-    
+
     // Mark as read when opening the conversation
     if (userId) {
       try {
@@ -182,10 +182,7 @@ export default function ConversationsListScreen() {
           </Text>
 
           <Text
-            style={[
-              styles.lastMessage,
-              item.unread_count > 0 && styles.lastMessageUnread,
-            ]}
+            style={[styles.lastMessage, item.unread_count > 0 && styles.lastMessageUnread]}
             numberOfLines={2}
           >
             {item.last_message_content}
@@ -201,10 +198,7 @@ export default function ConversationsListScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.navigate('Home')}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
             <Ionicons name="chevron-back" size={24} color="#007AFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Messages</Text>
@@ -220,10 +214,7 @@ export default function ConversationsListScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.navigate('Home')}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate('Home')}>
           <Ionicons name="chevron-back" size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Messages</Text>
@@ -233,9 +224,7 @@ export default function ConversationsListScreen() {
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyEmoji}>💬</Text>
           <Text style={styles.emptyTitle}>No Messages Yet</Text>
-          <Text style={styles.emptyText}>
-            Start a trade and chat with other users!
-          </Text>
+          <Text style={styles.emptyText}>Start a trade and chat with other users!</Text>
           <TouchableOpacity
             style={styles.browseButton}
             onPress={() => navigation.navigate('Discover')}
@@ -250,11 +239,7 @@ export default function ConversationsListScreen() {
           renderItem={renderConversationCard}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor="#3B82F6"
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#3B82F6" />
           }
         />
       )}

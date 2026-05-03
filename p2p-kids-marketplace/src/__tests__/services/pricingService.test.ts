@@ -35,22 +35,17 @@ describe('pricingService', () => {
   describe('getSuggestedPrice', () => {
     it('should return empty array if no category provided', async () => {
       const result = await pricingService.getSuggestedPrice(undefined, 'good');
-      
+
       expect(result).toEqual([]);
     });
 
     it('should return empty array if fewer than 5 comparable sales', async () => {
-      const mockSales = [
-        { price: 10 },
-        { price: 12 },
-        { price: 15 },
-        { price: 8 },
-      ];
+      const mockSales = [{ price: 10 }, { price: 12 }, { price: 15 }, { price: 8 }];
 
       mockItemsQuery(mockSales);
 
       const result = await pricingService.getSuggestedPrice('cat-123', 'good');
-      
+
       expect(result).toEqual([]);
     });
 
@@ -67,7 +62,7 @@ describe('pricingService', () => {
       mockItemsQuery(mockSales);
 
       const result = await pricingService.getSuggestedPrice('cat-123', 'good');
-      
+
       expect(result).toHaveLength(4);
       expect(result[0].tier).toBe('great_deal');
       expect(result[1].tier).toBe('fair_price');
@@ -87,7 +82,7 @@ describe('pricingService', () => {
       mockItemsQuery(mockSales);
 
       const result = await pricingService.getSuggestedPrice('cat-123');
-      
+
       // great_deal: 100 * 0.45 = 45
       // fair_price: 100 * 0.60 = 60
       // asking_price: 100 * 0.75 = 75
@@ -99,13 +94,7 @@ describe('pricingService', () => {
     });
 
     it('should filter by condition when provided', async () => {
-      const mockSales = [
-        { price: 10 },
-        { price: 12 },
-        { price: 15 },
-        { price: 8 },
-        { price: 20 },
-      ];
+      const mockSales = [{ price: 10 }, { price: 12 }, { price: 15 }, { price: 8 }, { price: 20 }];
 
       const query = mockItemsQuery(mockSales);
 
@@ -153,7 +142,7 @@ describe('pricingService', () => {
 
     it('should accept valid prices', () => {
       expect(pricingService.validatePrice(10).valid).toBe(true);
-      expect(pricingService.validatePrice(12.50).valid).toBe(true);
+      expect(pricingService.validatePrice(12.5).valid).toBe(true);
       expect(pricingService.validatePrice(99.99).valid).toBe(true);
       expect(pricingService.validatePrice(9999).valid).toBe(true);
     });

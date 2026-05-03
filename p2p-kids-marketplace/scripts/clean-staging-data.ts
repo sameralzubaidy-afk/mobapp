@@ -1,9 +1,9 @@
 /**
  * Clean Staging Data Script
- * 
+ *
  * Removes all test data created by seed-staging-data.ts
  * Run with: npm run clean:staging
- * 
+ *
  * WARNING: This will delete all test users, listings, trades, etc.
  */
 
@@ -62,9 +62,9 @@ async function deleteTestData(): Promise<void> {
     .delete()
     .in('referrer_user_id', TEST_USER_IDS)
     .select();
-  
+
   const referralsCount = referralsData?.length || 0;
-  
+
   if (referralsError) {
     console.error(`   ❌ Error: ${referralsError.message}`);
   } else {
@@ -79,9 +79,9 @@ async function deleteTestData(): Promise<void> {
     .delete()
     .in('user_id', TEST_USER_IDS)
     .select();
-  
+
   const codesCount = codesData?.length || 0;
-  
+
   if (codesError) {
     console.error(`   ❌ Error: ${codesError.message}`);
   } else {
@@ -96,9 +96,9 @@ async function deleteTestData(): Promise<void> {
     .delete()
     .in('user_id', TEST_USER_IDS)
     .select();
-  
+
   const userBadgesCount = userBadgesData?.length || 0;
-  
+
   if (userBadgesError) {
     console.error(`   ❌ Error: ${userBadgesError.message}`);
   } else {
@@ -113,9 +113,9 @@ async function deleteTestData(): Promise<void> {
     .delete()
     .in('user_id', TEST_USER_IDS)
     .select();
-  
+
   const spCount = spData?.length || 0;
-  
+
   if (spError) {
     console.error(`   ❌ Error: ${spError.message}`);
   } else {
@@ -130,9 +130,9 @@ async function deleteTestData(): Promise<void> {
     .delete()
     .or(`buyer_id.in.(${TEST_USER_IDS.join(',')}),seller_id.in.(${TEST_USER_IDS.join(',')})`)
     .select();
-  
+
   const tradesCount = tradesData?.length || 0;
-  
+
   if (tradesError) {
     console.error(`   ❌ Error: ${tradesError.message}`);
   } else {
@@ -147,9 +147,9 @@ async function deleteTestData(): Promise<void> {
     .delete()
     .in('user_id', TEST_USER_IDS)
     .select();
-  
+
   const listingsCount = listingsData?.length || 0;
-  
+
   if (listingsError) {
     console.error(`   ❌ Error: ${listingsError.message}`);
   } else {
@@ -164,9 +164,9 @@ async function deleteTestData(): Promise<void> {
     .delete()
     .in('user_id', TEST_USER_IDS)
     .select();
-  
+
   const subsCount = subsData?.length || 0;
-  
+
   if (subsError) {
     console.error(`   ❌ Error: ${subsError.message}`);
   } else {
@@ -181,9 +181,9 @@ async function deleteTestData(): Promise<void> {
     .delete()
     .in('user_id', TEST_USER_IDS)
     .select();
-  
+
   const profilesCount = profilesData?.length || 0;
-  
+
   if (profilesError) {
     console.error(`   ❌ Error: ${profilesError.message}`);
   } else {
@@ -194,7 +194,7 @@ async function deleteTestData(): Promise<void> {
   // 9. Delete auth users (requires admin API)
   console.log('\n🔐 Cleaning auth users...');
   let authDeleted = 0;
-  
+
   for (const userId of TEST_USER_IDS) {
     try {
       const { error } = await adminSupabase.auth.admin.deleteUser(userId);
@@ -212,13 +212,16 @@ async function deleteTestData(): Promise<void> {
   // Try to delete by email as fallback
   console.log('\n📧 Cleaning auth users by email (fallback)...');
   try {
-    const { data: { users }, error: listError } = await adminSupabase.auth.admin.listUsers();
-    
+    const {
+      data: { users },
+      error: listError,
+    } = await adminSupabase.auth.admin.listUsers();
+
     if (listError) {
       console.warn(`   ⚠️  Could not list users for email fallback: ${listError.message}`);
     } else if (users) {
       for (const email of TEST_EMAILS) {
-        const user = users.find(u => u.email === email);
+        const user = users.find((u) => u.email === email);
         if (user) {
           const { error: deleteError } = await adminSupabase.auth.admin.deleteUser(user.id);
           if (deleteError) {
@@ -233,11 +236,11 @@ async function deleteTestData(): Promise<void> {
   } catch (err) {
     console.warn('   ⚠️  Email fallback failed:', (err as Error).message);
   }
-  
+
   if (authDeleted === 0) {
     console.log('   ℹ️  No auth users deleted (may already be gone or service key issue)');
   }
-  
+
   totalDeleted += authDeleted;
 
   // 10. Optionally clean test badges (commented out - you may want to keep badge definitions)
@@ -262,9 +265,9 @@ async function main(): Promise<void> {
     // Confirm before deleting
     console.log('⚠️  WARNING: This will delete all test data!');
     console.log('   Press Ctrl+C to cancel, or wait 3 seconds to continue...\n');
-    
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
+
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
     await deleteTestData();
   } catch (error) {
     console.error('\n❌ Cleanup failed:', error);

@@ -1,12 +1,12 @@
 /**
  * E2E Integration Tests for Discovery V3 Search & Filters
  * MODULE-05-DISCOVERY-V3: TASK DISCOVERY-V3-008
- * 
+ *
  * Tests search_listings RPC with real Supabase connection (staging)
- * 
+ *
  * Run with:
  *   RUN_SUPABASE_E2E=true npm run test:e2e
- * 
+ *
  * Prerequisites:
  *   - Staging Supabase must be accessible
  *   - Migration 20260420000002_update_search_listings_rpc.sql applied
@@ -70,17 +70,14 @@ describe('Discovery V3 E2E Integration Tests', () => {
       }
 
       // First, get a category ID
-      const { data: categories } = await supabase
-        .from('categories')
-        .select('id')
-        .limit(2);
+      const { data: categories } = await supabase.from('categories').select('id').limit(2);
 
       if (!categories || categories.length === 0) {
         console.log('⏭️  No categories found, skipping category filter test');
         return;
       }
 
-      const categoryIds = categories.map(c => c.id);
+      const categoryIds = categories.map((c) => c.id);
 
       const { data, error } = await supabase.rpc('search_listings', {
         p_query: null,
@@ -413,10 +410,10 @@ describe('Discovery V3 E2E Integration Tests', () => {
       // Each brand should have a count field
       if (data && data.length > 1) {
         for (let i = 1; i < data.length; i++) {
-          const current =
-            Number(data[i].count ?? data[i].item_count ?? data[i].frequency ?? 0);
-          const previous =
-            Number(data[i - 1].count ?? data[i - 1].item_count ?? data[i - 1].frequency ?? 0);
+          const current = Number(data[i].count ?? data[i].item_count ?? data[i].frequency ?? 0);
+          const previous = Number(
+            data[i - 1].count ?? data[i - 1].item_count ?? data[i - 1].frequency ?? 0
+          );
           expect(current).toBeLessThanOrEqual(previous);
         }
       }

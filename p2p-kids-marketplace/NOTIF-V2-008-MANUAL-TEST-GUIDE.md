@@ -10,17 +10,20 @@
 ## Prerequisites
 
 1. **Install dependencies**:
+
    ```bash
    cd p2p-kids-marketplace
    npm install
    ```
 
 2. **Start Metro bundler**:
+
    ```bash
    npm start
    ```
 
 3. **Launch simulator** (in separate terminal):
+
    ```bash
    # iOS
    npm run ios
@@ -43,9 +46,11 @@
 3. Open browser console (Chrome DevTools)
 4. Import test utility:
    ```javascript
-   import('@/utils/deepLinkTestUtil').then(({ printTestResults, quickTest, testStackManagement }) => {
-     window.deepLinkTest = { printTestResults, quickTest, testStackManagement };
-   });
+   import('@/utils/deepLinkTestUtil').then(
+     ({ printTestResults, quickTest, testStackManagement }) => {
+       window.deepLinkTest = { printTestResults, quickTest, testStackManagement };
+     }
+   );
    ```
 
 ---
@@ -55,10 +60,12 @@
 **Objective:** Verify SP notifications navigate to wallet screen
 
 **Preconditions:**
+
 - App running in foreground
 - User logged in
 
 **Steps:**
+
 1. In browser console, run:
    ```javascript
    window.deepLinkTest.quickTest('spEarned');
@@ -68,6 +75,7 @@
 4. Tap notification
 
 **Expected Result:**
+
 - ✅ App navigates to SP Wallet screen
 - ✅ No crash or error
 - ✅ Back button returns to previous screen
@@ -75,7 +83,8 @@
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -84,10 +93,12 @@ _______________________________________________________________________________
 **Objective:** Verify trade notifications with tradeId parameter work from background
 
 **Preconditions:**
+
 - App running
 - User logged in
 
 **Steps:**
+
 1. Background the app (Home button)
 2. In browser console, run:
    ```javascript
@@ -97,6 +108,7 @@ _______________________________________________________________________________
 4. Tap notification from notification shade
 
 **Expected Result:**
+
 - ✅ App opens to Trade Detail screen
 - ✅ tradeId = 'test-trade-abc-123' passed as param
 - ✅ Screen shows trade details (or placeholder if trade doesn't exist)
@@ -104,7 +116,8 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -113,9 +126,11 @@ _______________________________________________________________________________
 **Objective:** Verify subscription notifications work when app is killed
 
 **Preconditions:**
+
 - App NOT running (force quit)
 
 **Steps:**
+
 1. Force quit app:
    - iOS: Swipe up from home screen → swipe up on app
    - Android: Recent apps → swipe away Kids Marketplace
@@ -128,6 +143,7 @@ _______________________________________________________________________________
 5. Tap notification from lock screen
 
 **Expected Result:**
+
 - ✅ App launches from killed state
 - ✅ App navigates directly to Manage Kids Club screen
 - ✅ No crash during launch
@@ -136,7 +152,8 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -145,10 +162,12 @@ _______________________________________________________________________________
 **Objective:** Verify badge notifications navigate to badges screen
 
 **Preconditions:**
+
 - App running
 - User logged in
 
 **Steps:**
+
 1. In browser console, run:
    ```javascript
    window.deepLinkTest.quickTest('badgeAwarded');
@@ -157,6 +176,7 @@ _______________________________________________________________________________
 3. Tap notification
 
 **Expected Result:**
+
 - ✅ App navigates to Badges screen
 - ✅ Screen shows user's badges
 - ✅ Navigation stack correct (back button works)
@@ -164,7 +184,8 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -173,10 +194,12 @@ _______________________________________________________________________________
 **Objective:** Verify invalid deep links fallback to Home screen gracefully
 
 **Preconditions:**
+
 - App running
 - User logged in
 
 **Steps:**
+
 1. In browser console, run:
    ```javascript
    window.deepLinkTest.quickTest('invalidDeepLink');
@@ -185,6 +208,7 @@ _______________________________________________________________________________
 3. Tap notification
 
 **Expected Result:**
+
 - ✅ App navigates to Home screen (fallback)
 - ✅ No crash or error modal
 - ✅ Console shows warning: "Invalid deep link, falling back to Home"
@@ -192,7 +216,8 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -201,10 +226,12 @@ _______________________________________________________________________________
 **Objective:** Verify parameterized deep links work correctly
 
 **Preconditions:**
+
 - App running
 - User logged in
 
 **Steps:**
+
 1. In browser console, run:
    ```javascript
    window.deepLinkTest.quickTest('listingDetail', 'test-listing-456');
@@ -213,6 +240,7 @@ _______________________________________________________________________________
 3. Tap notification
 
 **Expected Result:**
+
 - ✅ App navigates to Listing Detail screen
 - ✅ listingId = 'test-listing-456' passed as param
 - ✅ Screen attempts to load listing (or shows "not found" if doesn't exist)
@@ -220,7 +248,8 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -229,10 +258,12 @@ _______________________________________________________________________________
 **Objective:** Verify referral notifications navigate correctly
 
 **Preconditions:**
+
 - App running
 - User with referral code
 
 **Steps:**
+
 1. In browser console, run:
    ```javascript
    window.deepLinkTest.quickTest('referralSignup');
@@ -241,6 +272,7 @@ _______________________________________________________________________________
 3. Tap notification
 
 **Expected Result:**
+
 - ✅ App navigates to Referral Dashboard screen
 - ✅ Screen shows referral stats
 - ✅ Back button works correctly
@@ -248,7 +280,8 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -257,10 +290,12 @@ _______________________________________________________________________________
 **Objective:** Verify leaderboard notifications navigate correctly
 
 **Preconditions:**
+
 - App running
 - User logged in
 
 **Steps:**
+
 1. In browser console, run:
    ```javascript
    window.deepLinkTest.quickTest('leaderboardRankUp');
@@ -269,6 +304,7 @@ _______________________________________________________________________________
 3. Tap notification
 
 **Expected Result:**
+
 - ✅ App navigates to Leaderboard screen
 - ✅ Screen shows leaderboard rankings
 - ✅ Navigation stack correct
@@ -276,7 +312,8 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -285,16 +322,19 @@ _______________________________________________________________________________
 **Objective:** Verify tapping in-app notifications navigates correctly
 
 **Preconditions:**
+
 - App running
 - User has notifications in notification center
 
 **Steps:**
+
 1. Navigate to Notifications screen manually
 2. Look for notification with deep link
 3. Tap notification
 4. Observe navigation
 
 **Expected Result:**
+
 - ✅ App navigates to target screen from deep_link
 - ✅ Notification marked as read
 - ✅ Navigation stack allows back navigation
@@ -302,7 +342,8 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -311,9 +352,11 @@ _______________________________________________________________________________
 **Objective:** Verify deep link parsing logic works for all scenarios
 
 **Preconditions:**
+
 - none
 
 **Steps:**
+
 1. In browser console, run:
    ```javascript
    window.deepLinkTest.printTestResults();
@@ -321,6 +364,7 @@ _______________________________________________________________________________
 2. Review console output
 
 **Expected Result:**
+
 - ✅ All test scenarios show PASS status
 - ✅ Summary shows "X/X tests passed" with 100% pass rate
 - ✅ Each scenario shows correct expected vs actual route
@@ -328,6 +372,7 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Console Output:**
+
 ```
 Copy console output here after running test
 ```
@@ -339,9 +384,11 @@ Copy console output here after running test
 **Objective:** Verify navigate vs reset actions work correctly
 
 **Preconditions:**
+
 - App running
 
 **Steps:**
+
 1. In browser console, run:
    ```javascript
    window.deepLinkTest.testStackManagement();
@@ -353,6 +400,7 @@ Copy console output here after running test
    - Verify navigation stack cleared
 
 **Expected Result:**
+
 - ✅ Most notifications use "navigate" action (push to stack)
 - ✅ Some notifications use "reset" action (clear stack)
 - ✅ Back button behavior correct for both actions
@@ -360,7 +408,8 @@ Copy console output here after running test
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
@@ -369,9 +418,11 @@ _______________________________________________________________________________
 **Objective:** Verify multiple notifications in sequence work correctly
 
 **Preconditions:**
+
 - App running
 
 **Steps:**
+
 1. Send 3 different notifications in sequence:
    ```javascript
    window.deepLinkTest.quickTest('spEarned');
@@ -384,6 +435,7 @@ _______________________________________________________________________________
 2. Tap each notification as it appears
 
 **Expected Result:**
+
 - ✅ All 3 notifications navigate to correct screens
 - ✅ Navigation stack builds correctly (can navigate back through all)
 - ✅ No crashes or navigation errors
@@ -391,56 +443,66 @@ _______________________________________________________________________________
 **Status:** [ ] Pass [ ] Fail
 
 **Notes:**
-_______________________________________________________________________________
+
+---
 
 ---
 
 ## VERIFICATION SUMMARY
 
 **Total Test Cases:** 12  
-**Passed:** ___  
-**Failed:** ___  
-**Pass Rate:** ___%
+**Passed:** **_  
+**Failed:** _**  
+**Pass Rate:** \_\_\_%
 
 **Tested On:**
-- [ ] iOS Simulator (Version: _____)
-- [ ] Android Emulator (Version: _____)
 
-**Tested By:** _____________________  
-**Date:** _____________________
+- [ ] iOS Simulator (Version: **\_**)
+- [ ] Android Emulator (Version: **\_**)
+
+**Tested By:** **********\_**********  
+**Date:** **********\_**********
 
 **Critical Issues Found:**
-1. _______________________________________________________________________________
-2. _______________________________________________________________________________
-3. _______________________________________________________________________________
+
+1. ***
+2. ***
+3. ***
 
 **Notes:**
-_______________________________________________________________________________
-_______________________________________________________________________________
-_______________________________________________________________________________
+
+---
+
+---
+
+---
 
 ---
 
 ## Troubleshooting
 
 ### Notification not appearing
+
 - Check notification permissions are granted
 - Check Metro bundler is running
 - Check app has network connection
 - Try restarting simulator
 
 ### Deep link not navigating
+
 - Check browser console for errors
 - Verify `deepLinkTest` object is loaded
 - Check navigation ref is ready
 - Review `[DeepLink]` console logs
 
 ### App crashes on navigation
+
 - Check TypeScript compile errors: `npm run typecheck`
 - Check route exists in navigation stack
 - Review crash logs in Xcode/Android Studio
 
 ### Browser console not available
+
 - Shake simulator to open debug menu
 - Select "Debug" or "Debug JS Remotely"
 - Browser should open automatically
@@ -451,11 +513,13 @@ _______________________________________________________________________________
 ## Next Steps After Manual Testing
 
 1. Run unit tests:
+
    ```bash
    npm run test:unit -- --testPathPattern=deepLink
    ```
 
 2. Run integration tests:
+
    ```bash
    RUN_SUPABASE_E2E=true npm run test:e2e -- deepLink
    ```

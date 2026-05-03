@@ -26,13 +26,15 @@ export interface ExpirationSummary {
  */
 export async function getExpirationWarnings(): Promise<ExpirationWarning[]> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
       throw new Error('User not authenticated');
     }
 
     const { data, error } = await supabase.rpc('get_user_expiration_warnings', {
-      p_user_id: user.id
+      p_user_id: user.id,
     });
 
     if (error) {
@@ -80,7 +82,7 @@ export async function getExpirationSummary(userId: string): Promise<ExpirationSu
         total_expiring_sp: 0,
         earliest_expiration: null,
         days_until_earliest: null,
-        warnings: []
+        warnings: [],
       };
     }
 
@@ -90,7 +92,7 @@ export async function getExpirationSummary(userId: string): Promise<ExpirationSu
         console.log(`[SP Expiration] Batch ${idx}:`, {
           id: b.id,
           remaining_sp: b.remaining_sp,
-          expires_at: b.expires_at
+          expires_at: b.expires_at,
         });
       });
     }
@@ -102,7 +104,7 @@ export async function getExpirationSummary(userId: string): Promise<ExpirationSu
         total_expiring_sp: 0,
         earliest_expiration: null,
         days_until_earliest: null,
-        warnings: []
+        warnings: [],
       };
     }
 
@@ -117,7 +119,7 @@ export async function getExpirationSummary(userId: string): Promise<ExpirationSu
     console.log('[SP Expiration] Summary result:', {
       totalExpiringSp,
       daysUntil,
-      earliestExpiry: earliest.expires_at
+      earliestExpiry: earliest.expires_at,
     });
 
     return {
@@ -125,7 +127,7 @@ export async function getExpirationSummary(userId: string): Promise<ExpirationSu
       total_expiring_sp: totalExpiringSp,
       earliest_expiration: earliest.expires_at,
       days_until_earliest: daysUntil,
-      warnings: [] // Warnings not needed for summary display
+      warnings: [], // Warnings not needed for summary display
     };
   } catch (error) {
     console.error('[SP Expiration] Get expiration summary exception:', error);
@@ -134,7 +136,7 @@ export async function getExpirationSummary(userId: string): Promise<ExpirationSu
       total_expiring_sp: 0,
       earliest_expiration: null,
       days_until_earliest: null,
-      warnings: []
+      warnings: [],
     };
   }
 }

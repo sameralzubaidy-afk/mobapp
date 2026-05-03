@@ -133,15 +133,14 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
         <Text style={styles.headerTitle}>Privacy Policy</Text>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        testID="privacy-policy-content"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} testID="privacy-policy-content">
         <Text style={styles.title}>{policy.title}</Text>
 
         <View style={styles.metaContainer}>
           <View style={styles.versionBadge}>
-            <Text style={styles.versionText} testID="privacy-policy-version">Version {policy.version}</Text>
+            <Text style={styles.versionText} testID="privacy-policy-version">
+              Version {policy.version}
+            </Text>
           </View>
           {policy.effective_date && (
             <Text style={styles.effectiveDate} testID="privacy-policy-effective-date">

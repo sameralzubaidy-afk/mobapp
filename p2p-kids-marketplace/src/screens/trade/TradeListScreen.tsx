@@ -1,6 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, SafeAreaView, Pressable, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  SafeAreaView,
+  Pressable,
+  Image,
+} from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
@@ -29,7 +39,9 @@ export default function TradeListScreen({ navigation }: any) {
     try {
       const { data, error } = await supabase
         .from('trades')
-        .select('id, status, created_at, listing:items(title, price, images:item_images(id, url, thumbnail_url, display_order))')
+        .select(
+          'id, status, created_at, listing:items(title, price, images:item_images(id, url, thumbnail_url, display_order))'
+        )
         .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
         .order('created_at', { ascending: false });
 
@@ -44,7 +56,10 @@ export default function TradeListScreen({ navigation }: any) {
   };
 
   const renderItem = ({ item }: any) => (
-    <TouchableOpacity style={styles.item} onPress={() => navigation.navigate('TradeDetail', { tradeId: item.id })}>
+    <TouchableOpacity
+      style={styles.item}
+      onPress={() => navigation.navigate('TradeDetail', { tradeId: item.id })}
+    >
       <View style={styles.tradeImageContainer}>
         {Array.isArray(item.listing?.images) && item.listing.images.length > 0 ? (
           <Image

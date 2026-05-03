@@ -36,7 +36,7 @@ describe('ReferralCodeServiceV2', () => {
       });
 
       const result = await ReferralCodeServiceV2.getReferralCode('user-123');
-      
+
       expect(result).toBe('ABC123XY');
       expect(supabase.from).toHaveBeenCalledWith('profiles');
     });
@@ -47,9 +47,9 @@ describe('ReferralCodeServiceV2', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ 
-          data: null, 
-          error: { code: 'PGRST116', message: 'No rows returned' } 
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { code: 'PGRST116', message: 'No rows returned' },
         }),
       }));
 
@@ -69,7 +69,7 @@ describe('ReferralCodeServiceV2', () => {
       });
 
       const result = await ReferralCodeServiceV2.getReferralCode('user-123');
-      
+
       expect(result).toBe('DEF456ZX');
       expect(supabase.rpc).toHaveBeenCalledWith('create_referral_code', {
         p_user_id: 'user-123',
@@ -88,7 +88,7 @@ describe('ReferralCodeServiceV2', () => {
       });
 
       const result = await ReferralCodeServiceV2.getReferralCode('user-123');
-      
+
       expect(result).toBeNull();
     });
   });
@@ -110,7 +110,7 @@ describe('ReferralCodeServiceV2', () => {
       (supabase.rpc as jest.Mock).mockResolvedValue(mockRpcResponse);
 
       const result = await ReferralCodeServiceV2.createReferralCode('user-123');
-      
+
       expect(result).toBe('GHI789UV');
       expect(supabase.rpc).toHaveBeenCalledWith('create_referral_code', {
         p_user_id: 'user-123',
@@ -131,8 +131,9 @@ describe('ReferralCodeServiceV2', () => {
         error: { message: 'RPC failed' },
       });
 
-      await expect(ReferralCodeServiceV2.createReferralCode('user-123'))
-        .rejects.toThrow('Failed to create referral code: RPC failed');
+      await expect(ReferralCodeServiceV2.createReferralCode('user-123')).rejects.toThrow(
+        'Failed to create referral code: RPC failed'
+      );
     });
   });
 
@@ -149,7 +150,7 @@ describe('ReferralCodeServiceV2', () => {
       (supabase.rpc as jest.Mock).mockResolvedValue(mockRpcResponse);
 
       const result = await ReferralCodeServiceV2.applyReferralCode('referee-123', 'ABC123XY');
-      
+
       expect(result.success).toBe(true);
       expect(result).toHaveProperty('message');
       expect(result).toHaveProperty('referrer_id');
@@ -170,7 +171,7 @@ describe('ReferralCodeServiceV2', () => {
       (supabase.rpc as jest.Mock).mockResolvedValue(mockRpcResponse);
 
       const result = await ReferralCodeServiceV2.applyReferralCode('referee-123', 'INVALID');
-      
+
       expect(result.success).toBe(false);
       expect(result.error).toContain('Invalid referral code');
     });
@@ -186,7 +187,7 @@ describe('ReferralCodeServiceV2', () => {
       (supabase.rpc as jest.Mock).mockResolvedValue(mockRpcResponse);
 
       const result = await ReferralCodeServiceV2.applyReferralCode('user-123', 'SELF123');
-      
+
       expect(result).toEqual({
         success: false,
         error: 'Cannot refer yourself',
@@ -213,14 +214,14 @@ describe('ReferralCodeServiceV2', () => {
         { id: '3', status: 'completed', trial_extension_applied: false },
         { id: '4', status: 'expired', trial_extension_applied: false },
       ];
-      
+
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockResolvedValue({ data: mockReferrals, error: null }),
       });
 
       const result = await ReferralCodeServiceV2.getReferralStats('user-123');
-      
+
       expect(result).toEqual({
         total_referrals: 4,
         pending_referrals: 1,
@@ -248,7 +249,7 @@ describe('ReferralCodeServiceV2', () => {
       });
 
       const result = await ReferralCodeServiceV2.getReferralStats('user-123');
-      
+
       expect(result).toEqual({
         total_referrals: 0,
         pending_referrals: 0,
@@ -261,14 +262,14 @@ describe('ReferralCodeServiceV2', () => {
     it('should handle database errors', async () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue({ 
-          data: null, 
-          error: { message: 'Database error' } 
+        eq: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'Database error' },
         }),
       });
 
       const result = await ReferralCodeServiceV2.getReferralStats('user-123');
-      
+
       expect(result).toEqual({
         total_referrals: 0,
         pending_referrals: 0,
@@ -283,7 +284,7 @@ describe('ReferralCodeServiceV2', () => {
     it('should generate correct deep link format', () => {
       const code = 'ABC123XY';
       const result = ReferralCodeServiceV2.getReferralLink(code);
-      
+
       expect(result).toBe('kidsclub://signup?ref=ABC123XY');
     });
   });
@@ -294,7 +295,7 @@ describe('ReferralCodeServiceV2', () => {
         referrer_user_id: 'referrer-123',
         status: 'pending',
       };
-      
+
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -303,7 +304,7 @@ describe('ReferralCodeServiceV2', () => {
       });
 
       const result = await ReferralCodeServiceV2.checkEligibility('referee-123');
-      
+
       expect(result).toEqual({
         is_referee: true,
         referrer_id: 'referrer-123',
@@ -316,14 +317,14 @@ describe('ReferralCodeServiceV2', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ 
-          data: null, 
-          error: { code: 'PGRST116' } 
+        single: jest.fn().mockResolvedValue({
+          data: null,
+          error: { code: 'PGRST116' },
         }),
       });
 
       const result = await ReferralCodeServiceV2.checkEligibility('user-123');
-      
+
       expect(result).toEqual({
         is_referee: false,
         referrer_id: null,

@@ -143,7 +143,10 @@ export const getNotificationStats = async (
   try {
     const [unreadResult, totalResult] = await Promise.all([
       getUnreadNotificationCount(userId),
-      supabase.from('user_notifications').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase
+        .from('user_notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
     ]);
 
     if (!unreadResult.success) {
@@ -151,7 +154,10 @@ export const getNotificationStats = async (
     }
 
     if (totalResult.error) {
-      console.error('[ReferralNotifications] Failed to get total count:', totalResult.error.message);
+      console.error(
+        '[ReferralNotifications] Failed to get total count:',
+        totalResult.error.message
+      );
       return { success: false, error: totalResult.error.message };
     }
 
@@ -262,7 +268,10 @@ export const subscribeToNotifications = (
     };
   } catch (err) {
     const error = err as Error;
-    console.error('[ReferralNotifications] Failed to subscribe to realtime notifications:', error.message);
+    console.error(
+      '[ReferralNotifications] Failed to subscribe to realtime notifications:',
+      error.message
+    );
     return () => {};
   }
 };
@@ -281,12 +290,20 @@ export const getReferralNotifications = async (
       .from('user_notifications')
       .select('*')
       .eq('user_id', userId)
-      .in('type', ['referral_invite_accepted', 'referral_rewards_granted', 'referral_welcome_bonus', 'referral_custom'])
+      .in('type', [
+        'referral_invite_accepted',
+        'referral_rewards_granted',
+        'referral_welcome_bonus',
+        'referral_custom',
+      ])
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error) {
-      console.error('[ReferralNotifications] Failed to fetch referral notifications:', error.message);
+      console.error(
+        '[ReferralNotifications] Failed to fetch referral notifications:',
+        error.message
+      );
       return { success: false, error: error.message };
     }
 

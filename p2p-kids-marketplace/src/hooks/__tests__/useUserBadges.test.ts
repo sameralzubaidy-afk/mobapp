@@ -132,7 +132,13 @@ describe('useUserBadges hook', () => {
         user_id: 'user-1',
         badge_id: 'b-1',
         awarded_at: '2025-01-10T00:00:00Z',
-        badge: { id: 'b-1', name: 'Bronze', description: '', category: 'sp_earning', threshold: 10 },
+        badge: {
+          id: 'b-1',
+          name: 'Bronze',
+          description: '',
+          category: 'sp_earning',
+          threshold: 10,
+        },
       },
     ];
 
@@ -154,7 +160,13 @@ describe('useUserBadges hook', () => {
         user_id: 'user-1',
         badge_id: 'b-2',
         awarded_at: '2025-01-11T00:00:00Z',
-        badge: { id: 'b-2', name: 'Silver', description: '', category: 'sp_earning', threshold: 50 },
+        badge: {
+          id: 'b-2',
+          name: 'Silver',
+          description: '',
+          category: 'sp_earning',
+          threshold: 50,
+        },
       },
     ];
 

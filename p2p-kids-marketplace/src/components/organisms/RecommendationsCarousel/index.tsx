@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/organisms/RecommendationsCarousel/index.tsx
  * MODULE-05-DISCOVERY-V2: Recommendations Carousel
  * Task: DISCOVERY-V2-002 - Subscriber-Personalized Recommendations
- * 
+ *
  * Displays personalized recommendations for user based on:
  * - SP eligibility (subscribers see SP items prioritized)
  * - SP balance affordability
@@ -146,11 +146,8 @@ export default function RecommendationsCarousel({
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <Pressable
-            style={styles.card}
-            onPress={() => handleItemPress(item.id)}
-          >
-            <ListingImage 
+          <Pressable style={styles.card} onPress={() => handleItemPress(item.id)}>
+            <ListingImage
               url={item.images && item.images.length > 0 ? item.images[0].url : null}
               containerStyle={styles.cardImageContainer}
               imageStyle={styles.cardImage}
@@ -163,9 +160,7 @@ export default function RecommendationsCarousel({
               </Text>
 
               {/* Price */}
-              <Text style={styles.itemPrice}>
-                ${(item.price || 0).toFixed(2)}
-              </Text>
+              <Text style={styles.itemPrice}>${(item.price || 0).toFixed(2)}</Text>
 
               {/* SP Eligible Badge */}
               {item.accepts_swap_points && (
@@ -183,9 +178,7 @@ export default function RecommendationsCarousel({
 
               {/* Dev Mode: Show score */}
               {__DEV__ && (
-                <Text style={styles.debugScore}>
-                  Score: {item.score?.toFixed(1) ?? 'N/A'}
-                </Text>
+                <Text style={styles.debugScore}>Score: {item.score?.toFixed(1) ?? 'N/A'}</Text>
               )}
             </View>
           </Pressable>

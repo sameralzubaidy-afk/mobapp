@@ -54,8 +54,8 @@ export function BulkPublishConfirmSheet({
                       {!item.includeInPublish
                         ? 'Excluded from submission'
                         : item.missingRequired.length > 0
-                        ? `Missing: ${item.missingRequired.join(', ')}`
-                        : `$${item.price || '—'} • Ready`}
+                          ? `Missing: ${item.missingRequired.join(', ')}`
+                          : `$${item.price || '—'} • Ready`}
                     </Text>
                   </View>
                 </View>
@@ -66,14 +66,20 @@ export function BulkPublishConfirmSheet({
               <View style={styles.errorWrap}>
                 <Text style={styles.errorTitle}>Failed Items</Text>
                 {errors.map((error, idx) => (
-                  <Text key={`${error}-${idx}`} style={styles.errorText}>• {error}</Text>
+                  <Text key={`${error}-${idx}`} style={styles.errorText}>
+                    • {error}
+                  </Text>
                 ))}
               </View>
             )}
           </ScrollView>
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onCancel} testID="bulk-publish-cancel">
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={onCancel}
+              testID="bulk-publish-cancel"
+            >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -82,7 +88,9 @@ export function BulkPublishConfirmSheet({
               onPress={onConfirm}
               testID="bulk-publish-confirm"
             >
-              <Text style={styles.confirmText}>{publishing ? 'Submitting...' : 'Submit for Review'}</Text>
+              <Text style={styles.confirmText}>
+                {publishing ? 'Submitting...' : 'Submit for Review'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

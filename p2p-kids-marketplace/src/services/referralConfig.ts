@@ -22,7 +22,7 @@ export class ReferralConfigService {
   static async getConfig(): Promise<ReferralConfigValues> {
     // Return cached values if still valid
     const now = Date.now();
-    if (this.cache && (now - this.lastFetch) < this.CACHE_TTL) {
+    if (this.cache && now - this.lastFetch < this.CACHE_TTL) {
       return this.cache;
     }
 
@@ -104,7 +104,7 @@ export class ReferralConfigService {
   static async getShareMessage(referralCode: string): Promise<string> {
     const config = await this.getConfig();
     const link = `kidsclub://signup?ref=${referralCode}`;
-    
+
     return `Join Kids Club+ and get ${config.referee_sp} SP when you complete your first trade! Use my referral code: ${referralCode}\n\n${link}`;
   }
 }

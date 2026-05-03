@@ -35,10 +35,7 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
   afterEach(async () => {
     // Cleanup: delete test subscription if created
     if (testUserId) {
-      await supabase
-        .from('subscriptions')
-        .delete()
-        .eq('user_id', testUserId);
+      await supabase.from('subscriptions').delete().eq('user_id', testUserId);
 
       await deleteTestUser(testUserId);
       testUserId = '';
@@ -50,7 +47,9 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
       testUserId = await createRealTestUser('first-trial');
 
       // Call RPC to create trial subscription
-      const { data, error } = await supabase.rpc('create_trial_subscription', { p_user_id: testUserId });
+      const { data, error } = await supabase.rpc('create_trial_subscription', {
+        p_user_id: testUserId,
+      });
 
       // Assert: should succeed
       expect(error).toBeNull();
@@ -73,7 +72,9 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
 
       const startDate = new Date(data.trial_start_date);
       const endDate = new Date(data.trial_end_date);
-      const durationDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const durationDays = Math.round(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
 
       // Trial duration is admin-configurable; assert against configured value when available.
       const { data: configuredTrialDays } = await supabase.rpc('get_trial_duration_days');
@@ -90,8 +91,10 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
       testUserId = await createRealTestUser('second-trial');
 
       // First trial: should succeed
-      const { data: firstTrial, error: firstError } = await supabase
-        .rpc('create_trial_subscription', { p_user_id: testUserId });
+      const { data: firstTrial, error: firstError } = await supabase.rpc(
+        'create_trial_subscription',
+        { p_user_id: testUserId }
+      );
 
       expect(firstError).toBeNull();
       expect(firstTrial.status).toBe('trial');
@@ -103,8 +106,10 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
         .eq('user_id', testUserId);
 
       // Second trial: should fail with TRIAL_ALREADY_USED error
-      const { data: secondTrial, error: secondError } = await supabase
-        .rpc('create_trial_subscription', { p_user_id: testUserId });
+      const { data: secondTrial, error: secondError } = await supabase.rpc(
+        'create_trial_subscription',
+        { p_user_id: testUserId }
+      );
 
       // Assert: should fail
       expect(secondError).toBeDefined();
@@ -123,8 +128,9 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
       });
 
       // Upgrade to trial
-      const { data, error } = await supabase
-        .rpc('upgrade_free_subscription_to_trial', { p_user_id: testUserId });
+      const { data, error } = await supabase.rpc('upgrade_free_subscription_to_trial', {
+        p_user_id: testUserId,
+      });
 
       // Assert: should succeed
       expect(error).toBeNull();
@@ -142,16 +148,18 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
       testUserId = await createRealTestUser('idempotent');
 
       // First call
-      const { data: first, error: firstError } = await supabase
-        .rpc('create_trial_subscription', { p_user_id: testUserId });
+      const { data: first, error: firstError } = await supabase.rpc('create_trial_subscription', {
+        p_user_id: testUserId,
+      });
 
       expect(firstError).toBeNull();
       const firstTrialId = first.id;
       const firstTrialUsedAt = first.trial_used_at;
 
       // Second call (should be idempotent)
-      const { data: second, error: secondError } = await supabase
-        .rpc('create_trial_subscription', { p_user_id: testUserId });
+      const { data: second, error: secondError } = await supabase.rpc('create_trial_subscription', {
+        p_user_id: testUserId,
+      });
 
       if (secondError) {
         expect(hasExpectedTrialLimitError(secondError.message)).toBe(true);
@@ -174,7 +182,9 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
       // Directly query subscriptions table to verify flags
       const { data: subscription, error: queryError } = await supabase
         .from('subscriptions')
-        .select('trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent')
+        .select(
+          'trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent'
+        )
         .eq('user_id', testUserId)
         .single();
 
@@ -209,7 +219,9 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
       // Re-query to verify flag was preserved
       const { data: subscription } = await supabase
         .from('subscriptions')
-        .select('trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent')
+        .select(
+          'trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent'
+        )
         .eq('user_id', testUserId)
         .single();
 
@@ -235,8 +247,9 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
       });
 
       // Attempt to create new trial (should fail)
-      const { data, error } = await supabase
-        .rpc('create_trial_subscription', { p_user_id: testUserId });
+      const { data, error } = await supabase.rpc('create_trial_subscription', {
+        p_user_id: testUserId,
+      });
 
       if (error) {
         expect(hasExpectedTrialLimitError(error.message)).toBe(true);
@@ -257,8 +270,9 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
       });
 
       // Should succeed (first-time trial)
-      const { data, error } = await supabase
-        .rpc('create_trial_subscription', { p_user_id: testUserId });
+      const { data, error } = await supabase.rpc('create_trial_subscription', {
+        p_user_id: testUserId,
+      });
 
       expect(error).toBeNull();
       expect(data.status).toBe('trial');

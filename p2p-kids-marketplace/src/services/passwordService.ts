@@ -26,10 +26,10 @@ export interface PasswordStrengthResult {
 
 /**
  * Check if a user can set a password (i.e., signed up via OAuth and has no password yet)
- * 
+ *
  * @param userId - User ID to check
  * @returns true if user can set password (no password currently set)
- * 
+ *
  * @example
  * ```ts
  * const canSet = await canSetPassword(user.id);
@@ -58,16 +58,16 @@ export async function canSetPassword(userId: string): Promise<boolean> {
 
 /**
  * Validate password strength
- * 
+ *
  * Requirements:
  * - Length >= 8 characters
  * - Contains at least one letter (a-z, A-Z)
  * - Contains at least one digit (0-9)
  * - Not in common passwords blocklist
- * 
+ *
  * @param password - Password to validate
  * @returns Validation result with reasons array (empty if valid)
- * 
+ *
  * @example
  * ```ts
  * const result = validatePasswordStrength('MyPass1');
@@ -109,18 +109,18 @@ export function validatePasswordStrength(password: string): PasswordStrengthResu
 
 /**
  * Set password for a social user (OAuth signup) who doesn't have a password yet
- * 
+ *
  * Process:
  * 1. Validates password strength
  * 2. Calls supabase.auth.updateUser({ password }) to set password
  * 3. NEVER writes directly to auth.users table
- * 
+ *
  * @param newPassword - New password to set
  * @returns Success status and error message if failed
- * 
+ *
  * @throws {Error} with code 'NOT_ALLOWED' if user already has a password
  * @throws {Error} with validation codes if password is weak
- * 
+ *
  * @example
  * ```ts
  * const result = await setPasswordForSocialUser('MySecurePass123');

@@ -1,13 +1,13 @@
 /**
  * File: p2p-kids-marketplace/src/components/molecules/BrandAutocompleteInput.tsx
  * MODULE-04 LISTING-V3-009: Brand Autocomplete Input (reused from MODULE-05 V3)
- * 
+ *
  * Autocomplete input for brand selection with:
  * - Debounced search (150ms)
  * - Predefined brands + database brands
  * - Max 8 suggestions
  * - Accessibility support
- * 
+ *
  * Reuses:
  * - getBrandSuggestions from @/services/brandAutocomplete
  * - PREDEFINED_BRANDS (imported indirectly via service)
@@ -38,13 +38,13 @@ export interface BrandAutocompleteInputProps extends Omit<TextInputProps, 'onCha
 
 /**
  * Autocomplete input for brand selection
- * 
+ *
  * Features:
  * - Debounced search (150ms) for performance
  * - Hybrid suggestions: predefined + database brands
  * - Max 8 suggestions displayed
  * - Touch outside to dismiss
- * 
+ *
  * @example
  * <BrandAutocompleteInput
  *   value={brand}

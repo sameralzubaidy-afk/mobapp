@@ -14,11 +14,7 @@
   },
   "source_files": "Fabric/**/*.{c,h,m,mm,S,cpp}",
   "compiler_flags": "",
-  "exclude_files": [
-    "**/tests/*",
-    "**/android/*",
-    ""
-  ],
+  "exclude_files": ["**/tests/*", "**/android/*", ""],
   "header_dir": "React",
   "module_name": "RCTFabric",
   "weak_frameworks": "JavaScriptCore",

@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/__tests__/components/SearchFilterModal.test.tsx
  * MODULE-05-DISCOVERY-V3: SearchFilterModal Unit Tests
  * Task: DISCOVERY-V3-006
- * 
+ *
  * Tests for SearchFilterModal component
  */
 
@@ -56,7 +56,7 @@ describe('SearchFilterModal', () => {
         'SWAP POINTS ONLY',
       ];
 
-      sectionTitles.forEach(title => {
+      sectionTitles.forEach((title) => {
         expect(getByText(title)).toBeTruthy();
       });
     });
@@ -280,13 +280,11 @@ describe('SearchFilterModal', () => {
 
       // Select "Boy"
       fireEvent.press(getByTestId('filter-gender-boy'));
-      
+
       // Apply and check the filter value
       fireEvent.press(getByTestId('filter-modal-apply'));
 
-      expect(mockOnApply).toHaveBeenCalledWith(
-        expect.objectContaining({ gender: 'boy' })
-      );
+      expect(mockOnApply).toHaveBeenCalledWith(expect.objectContaining({ gender: 'boy' }));
     });
 
     it('should handle "Any" selection', () => {
@@ -304,9 +302,7 @@ describe('SearchFilterModal', () => {
       fireEvent.press(getByTestId('filter-gender-any'));
       fireEvent.press(getByTestId('filter-modal-apply'));
 
-      expect(mockOnApply).toHaveBeenCalledWith(
-        expect.objectContaining({ gender: undefined })
-      );
+      expect(mockOnApply).toHaveBeenCalledWith(expect.objectContaining({ gender: undefined }));
     });
   });
 
@@ -515,7 +511,7 @@ describe('SearchFilterModal', () => {
       fireEvent.changeText(maxInput, '50');
 
       expect(applyButton.props.accessibilityLabel).toContain('disabled');
-      
+
       // Try to apply
       fireEvent.press(applyButton);
 
@@ -542,9 +538,7 @@ describe('SearchFilterModal', () => {
 
       fireEvent.press(getByTestId('filter-modal-apply'));
 
-      expect(mockOnApply).toHaveBeenCalledWith(
-        expect.objectContaining({ spEligibleOnly: true })
-      );
+      expect(mockOnApply).toHaveBeenCalledWith(expect.objectContaining({ spEligibleOnly: true }));
     });
   });
 
@@ -575,7 +569,9 @@ describe('SearchFilterModal', () => {
       fireEvent.press(getByTestId('filter-modal-clear-all'));
 
       // Check that selections are cleared
-      expect(getByTestId('filter-condition-like_new').props.accessibilityState.selected).toBe(false);
+      expect(getByTestId('filter-condition-like_new').props.accessibilityState.selected).toBe(
+        false
+      );
       expect(getByTestId('filter-age-3-5').props.accessibilityState.selected).toBe(false);
       expect(getByTestId('filter-gender-boy').props.accessibilityState.selected).toBe(false);
     });
@@ -594,7 +590,9 @@ describe('SearchFilterModal', () => {
       );
 
       expect(getByTestId('filter-modal-close').props.accessibilityLabel).toBe('Close filter modal');
-      expect(getByTestId('filter-modal-clear-all').props.accessibilityLabel).toBe('Clear all filters');
+      expect(getByTestId('filter-modal-clear-all').props.accessibilityLabel).toBe(
+        'Clear all filters'
+      );
       expect(getByTestId('filter-modal-apply').props.accessibilityLabel).toContain('Apply');
     });
 

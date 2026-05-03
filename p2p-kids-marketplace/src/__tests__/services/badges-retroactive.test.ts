@@ -2,20 +2,17 @@
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { supabase } from '../../config/supabase';
-import { 
-  previewRetroactiveAwards, 
-  triggerRetroactiveAwards 
-} from '../../services/badges';
+import { previewRetroactiveAwards, triggerRetroactiveAwards } from '../../services/badges';
 
 /**
  * Unit Tests for BADGES-V2-008: Retroactive Awarding & Dynamic Triggers
- * 
+ *
  * Test Coverage:
  * - Preview retroactive awards (dry-run)
  * - Trigger retroactive awards manually
  * - Automatic triggering when threshold decreases
  * - Badge awarding respects is_active flag
- * 
+ *
  * SKIP: is_admin() function ambiguity in database
  * See TODO-DATABASE-ADMIN-FIXES.md
  */
@@ -28,9 +25,11 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
   beforeAll(async () => {
     // Setup: Create test user and badge
     // Note: In production tests, use seeded test data
-    
+
     // Get admin token (required for RPC calls)
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
       testUserId = user.id;
     }
@@ -63,7 +62,7 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
       const preview = await previewRetroactiveAwards(testBadgeId);
 
       expect(Array.isArray(preview)).toBe(true);
-      
+
       // Each preview entry should have required fields
       // Note: RPC returns columns with o_ prefix (e.g., o_user_id)
       if (preview.length > 0) {
@@ -71,7 +70,7 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
         expect(preview[0]).toHaveProperty('o_display_name');
         expect(preview[0]).toHaveProperty('o_current_value');
         expect(preview[0]).toHaveProperty('o_already_has_badge');
-        
+
         // Current value should be >= badge threshold
         expect(preview[0].o_current_value).toBeGreaterThanOrEqual(badges.threshold);
       }
@@ -79,13 +78,11 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
 
     it('should handle non-existent badge gracefully', async () => {
       const nonExistentBadgeId = '00000000-0000-0000-0000-000000000000';
-      
-      await expect(
-        previewRetroactiveAwards(nonExistentBadgeId)
-      ).rejects.toThrow();
+
+      await expect(previewRetroactiveAwards(nonExistentBadgeId)).rejects.toThrow();
     });
 
-    it('should distinguish between users who have and haven\'t earned the badge', async () => {
+    it("should distinguish between users who have and haven't earned the badge", async () => {
       const { data: badges } = await supabase
         .from('badges')
         .select('*')
@@ -102,15 +99,17 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
       const preview = await previewRetroactiveAwards(badges.id);
 
       // Check that o_already_has_badge is a boolean for all entries (note o_ prefix)
-      preview.forEach(entry => {
+      preview.forEach((entry) => {
         expect(typeof entry.o_already_has_badge).toBe('boolean');
       });
 
       // Count users who already have vs don't have the badge
-      const withBadge = preview.filter(e => e.o_already_has_badge).length;
-      const withoutBadge = preview.filter(e => !e.o_already_has_badge).length;
+      const withBadge = preview.filter((e) => e.o_already_has_badge).length;
+      const withoutBadge = preview.filter((e) => !e.o_already_has_badge).length;
 
-      console.log(`Preview: ${withBadge} users already have badge, ${withoutBadge} would be newly awarded`);
+      console.log(
+        `Preview: ${withBadge} users already have badge, ${withoutBadge} would be newly awarded`
+      );
     });
   });
 
@@ -137,7 +136,7 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
 
       // First, get preview count
       const previewBefore = await previewRetroactiveAwards(badge.id);
-      const eligibleUsersWithoutBadge = previewBefore.filter(e => !e.already_has_badge).length;
+      const eligibleUsersWithoutBadge = previewBefore.filter((e) => !e.already_has_badge).length;
 
       // Trigger retroactive awarding
       const result = await triggerRetroactiveAwards(
@@ -149,14 +148,14 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
       expect(result).toHaveProperty('badge_id', badge.id);
       expect(result).toHaveProperty('badge_name', badge.name);
       expect(result).toHaveProperty('awarded_count');
-      
+
       // Awarded count should match eligible users without badge
       expect(result.awarded_count).toBe(eligibleUsersWithoutBadge);
 
       // Verify: preview again, now all should have the badge
       const previewAfter = await previewRetroactiveAwards(badge.id);
-      const stillMissingBadge = previewAfter.filter(e => !e.already_has_badge).length;
-      
+      const stillMissingBadge = previewAfter.filter((e) => !e.already_has_badge).length;
+
       expect(stillMissingBadge).toBe(0);
     });
 
@@ -189,7 +188,7 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
 
       expect(auditLogs).toBeDefined();
       expect(auditLogs!.length).toBeGreaterThan(0);
-      
+
       const latestLog = auditLogs![0];
       expect(latestLog.action_type).toBe('bulk_award');
       expect(latestLog.reason).toBe(testReason);
@@ -210,9 +209,7 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
       }
 
       // Should throw error for inactive badge
-      await expect(
-        triggerRetroactiveAwards(inactiveBadge.id)
-      ).rejects.toThrow();
+      await expect(triggerRetroactiveAwards(inactiveBadge.id)).rejects.toThrow();
     });
   });
 
@@ -242,7 +239,7 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
 
       // Get count of users before threshold change
       const previewBefore = await previewRetroactiveAwards(badge.id);
-      const eligibleCountBefore = previewBefore.filter(e => !e.already_has_badge).length;
+      const eligibleCountBefore = previewBefore.filter((e) => !e.already_has_badge).length;
 
       // Lower the threshold (this should trigger automatic retroactive awarding)
       const { error: updateError } = await supabase
@@ -253,29 +250,23 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
       if (updateError) {
         console.error('Failed to update threshold:', updateError);
         // Restore original threshold
-        await supabase
-          .from('badges')
-          .update({ threshold: originalThreshold })
-          .eq('id', badge.id);
+        await supabase.from('badges').update({ threshold: originalThreshold }).eq('id', badge.id);
         throw updateError;
       }
 
       // Wait a moment for trigger to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Check if new users received badges
       const previewAfter = await previewRetroactiveAwards(badge.id);
-      const eligibleCountAfter = previewAfter.filter(e => !e.already_has_badge).length;
+      const eligibleCountAfter = previewAfter.filter((e) => !e.already_has_badge).length;
 
       // Eligible count after should be less than or equal to before
       // (some users should have received badges automatically)
       expect(eligibleCountAfter).toBeLessThanOrEqual(eligibleCountBefore);
 
       // Restore original threshold
-      await supabase
-        .from('badges')
-        .update({ threshold: originalThreshold })
-        .eq('id', badge.id);
+      await supabase.from('badges').update({ threshold: originalThreshold }).eq('id', badge.id);
     });
 
     it('should NOT trigger retroactive awarding when threshold increases', async () => {
@@ -304,13 +295,10 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
       const countBefore = logsBefore?.length || 0;
 
       // Increase threshold (should NOT trigger retroactive awarding)
-      await supabase
-        .from('badges')
-        .update({ threshold: newHigherThreshold })
-        .eq('id', badge.id);
+      await supabase.from('badges').update({ threshold: newHigherThreshold }).eq('id', badge.id);
 
       // Wait briefly
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // Check audit logs - should be same count
       const { data: logsAfter } = await supabase
@@ -324,10 +312,7 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
       expect(countAfter).toBe(countBefore);
 
       // Restore original threshold
-      await supabase
-        .from('badges')
-        .update({ threshold: originalThreshold })
-        .eq('id', badge.id);
+      await supabase.from('badges').update({ threshold: originalThreshold }).eq('id', badge.id);
     });
   });
 
@@ -435,21 +420,15 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
 
       // Temporarily set threshold very high
       const originalThreshold = badge.threshold;
-      await supabase
-        .from('badges')
-        .update({ threshold: 999999 })
-        .eq('id', badge.id);
+      await supabase.from('badges').update({ threshold: 999999 }).eq('id', badge.id);
 
       const result = await triggerRetroactiveAwards(badge.id);
-      
+
       expect(result.success).toBe(true);
       expect(result.awarded_count).toBe(0);
 
       // Restore
-      await supabase
-        .from('badges')
-        .update({ threshold: originalThreshold })
-        .eq('id', badge.id);
+      await supabase.from('badges').update({ threshold: originalThreshold }).eq('id', badge.id);
     });
 
     it('should be idempotent - running twice awards no additional badges', async () => {
@@ -467,7 +446,7 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
 
       // Run first time
       const result1 = await triggerRetroactiveAwards(badge.id, 'First run');
-      
+
       // Run second time immediately
       const result2 = await triggerRetroactiveAwards(badge.id, 'Second run');
 

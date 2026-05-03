@@ -40,9 +40,7 @@ export function ItemCardStack({
           item={item}
           index={index}
           expanded={expandedGroupId === item.groupId}
-          onToggleExpanded={() =>
-            onExpand(expandedGroupId === item.groupId ? null : item.groupId)
-          }
+          onToggleExpanded={() => onExpand(expandedGroupId === item.groupId ? null : item.groupId)}
           onToggleInclude={(include) => onToggleInclude(item.groupId, include)}
           onChange={(patch) => onChangeItem(item.groupId, patch)}
           onOpenCategoryPicker={() => onOpenCategoryPicker(item.groupId)}

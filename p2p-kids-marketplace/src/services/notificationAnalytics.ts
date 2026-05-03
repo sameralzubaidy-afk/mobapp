@@ -2,7 +2,7 @@
  * FILE: p2p-kids-marketplace/src/services/notificationAnalytics.ts
  * MODULE: MODULE-14-NOTIFICATIONS-V2 (NOTIF-V2-010)
  * TASK: Notification Analytics & Metrics
- * 
+ *
  * Service for tracking notification events (delivery, open, click, failure)
  * and integrating with Expo Notifications for analytics
  */
@@ -35,9 +35,7 @@ export class NotificationAnalyticsService {
     return null;
   }
 
-  private static getDeepLink(
-    notificationData: Record<string, unknown> | undefined
-  ): string | null {
+  private static getDeepLink(notificationData: Record<string, unknown> | undefined): string | null {
     const snakeCaseDeepLink = notificationData?.deep_link;
     if (typeof snakeCaseDeepLink === 'string' && snakeCaseDeepLink.length > 0) {
       return snakeCaseDeepLink;
@@ -96,10 +94,7 @@ export class NotificationAnalyticsService {
   /**
    * Track notification clicked event (deep link followed)
    */
-  static async trackClicked(
-    notificationId: string,
-    deepLink: string
-  ): Promise<void> {
+  static async trackClicked(notificationId: string, deepLink: string): Promise<void> {
     try {
       const { error } = await supabase.rpc('track_notification_event', {
         p_notification_id: notificationId,
@@ -121,10 +116,7 @@ export class NotificationAnalyticsService {
   /**
    * Track notification failure event
    */
-  static async trackFailed(
-    notificationId: string,
-    errorMessage: string
-  ): Promise<void> {
+  static async trackFailed(notificationId: string, errorMessage: string): Promise<void> {
     try {
       const { error } = await supabase.rpc('track_notification_event', {
         p_notification_id: notificationId,
@@ -203,11 +195,7 @@ export class NotificationAnalyticsService {
   /**
    * Get analytics for a specific date range (for admin dashboard)
    */
-  static async getAnalytics(
-    startDate: Date,
-    endDate: Date,
-    category?: string
-  ): Promise<any> {
+  static async getAnalytics(startDate: Date, endDate: Date, category?: string): Promise<any> {
     try {
       const { data, error } = await supabase.rpc('get_notification_analytics', {
         p_start_date: startDate.toISOString(),

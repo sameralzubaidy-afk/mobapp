@@ -59,8 +59,10 @@ export async function getPrimaryPayoutMethod(userId: string): Promise<SellerPayo
 export async function createStripeConnectAccount(
   userId: string
 ): Promise<CreateStripeConnectAccountResponse> {
-  const { data: { session } } = await supabase.auth.getSession();
-  
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   if (!session) {
     throw new Error('Not authenticated');
   }
@@ -71,9 +73,9 @@ export async function createStripeConnectAccount(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`
+      Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify(request)
+    body: JSON.stringify(request),
   });
 
   if (!response.ok) {
@@ -93,8 +95,10 @@ export async function createStripeAccountLink(
   returnUrl: string,
   refreshUrl: string
 ): Promise<CreateStripeAccountLinkResponse> {
-  const { data: { session } } = await supabase.auth.getSession();
-  
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
   if (!session) {
     throw new Error('Not authenticated');
   }
@@ -103,16 +107,16 @@ export async function createStripeAccountLink(
     userId,
     methodId,
     returnUrl,
-    refreshUrl
+    refreshUrl,
   };
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/create-stripe-account-link`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`
+      Authorization: `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify(request)
+    body: JSON.stringify(request),
   });
 
   if (!response.ok) {
@@ -139,7 +143,7 @@ export async function addPayPalMethod(
       is_primary: false,
       is_verified: false,
       stripe_onboarding_complete: false,
-      stripe_payouts_enabled: false
+      stripe_payouts_enabled: false,
     })
     .select()
     .single();
@@ -174,7 +178,7 @@ export async function addVenmoMethod(
       is_primary: false,
       is_verified: false,
       stripe_onboarding_complete: false,
-      stripe_payouts_enabled: false
+      stripe_payouts_enabled: false,
     })
     .select()
     .single();
@@ -213,7 +217,7 @@ export async function setPrimaryPayoutMethod(
   // Use RPC to atomically update primary method
   const { error } = await supabase.rpc('set_primary_payout_method', {
     p_user_id: userId,
-    p_method_id: methodId
+    p_method_id: methodId,
   });
 
   if (error) {

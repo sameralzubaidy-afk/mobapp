@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/hooks/useAIAnalysis.ts
  * MODULE-04 LISTING-V3-004: AI Analysis Hook
- * 
+ *
  * Provides AI photo analysis with:
  * - Automatic analysis trigger on photo URLs change
  * - AbortController cancellation on URL change
@@ -26,25 +26,22 @@ export interface UseAIAnalysisResult {
 
 /**
  * Hook for AI photo analysis
- * 
+ *
  * Features:
  * - Does NOT auto-run until photoUrls.length > 0
  * - Aborts pending fetch when photoUrls change
  * - Single retry on network error with 1.5s delay
  * - Returns status: idle | analyzing | ready | error
- * 
+ *
  * @param photoUrls - Array of photo URLs to analyze
  * @param sellerId - Seller ID for analysis request
  * @returns Analysis state and retry method
  */
-export function useAIAnalysis(
-  photoUrls: string[],
-  sellerId: string
-): UseAIAnalysisResult {
+export function useAIAnalysis(photoUrls: string[], sellerId: string): UseAIAnalysisResult {
   const [status, setStatus] = useState<AIAnalysisStatus>('idle');
   const [result, setResult] = useState<AIAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const abortControllerRef = useRef<AbortController | null>(null);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
@@ -132,7 +129,7 @@ export function useAIAnalysis(
   // Trigger analysis when photo URLs change
   useEffect(() => {
     const urlsChanged = JSON.stringify(photoUrls) !== JSON.stringify(photoUrlsRef.current);
-    
+
     if (urlsChanged) {
       photoUrlsRef.current = photoUrls;
       retryCountRef.current = 0;

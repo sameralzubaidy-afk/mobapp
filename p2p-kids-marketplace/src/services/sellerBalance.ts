@@ -1,7 +1,7 @@
 /**
  * Seller Balance Service
  * Module: MODULE-06-TRADE-FLOW-sellerpayouts.md
- * 
+ *
  * Service for managing seller balance, earnings, and withdrawal requests
  */
 
@@ -88,17 +88,18 @@ export interface BalanceDisplay {
 // =============================================================================
 
 async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Promise<SellerBalance> {
-  const [{ data: trades, error: tradesError }, { data: payouts, error: payoutsError }] = await Promise.all([
-    supabase
-      .from('trades')
-      .select('cash_amount_cents')
-      .eq('seller_id', userId)
-      .eq('status', 'completed'),
-    supabase
-      .from('seller_payouts')
-      .select('status, gross_amount_cents, net_amount_cents, created_at')
-      .eq('user_id', userId),
-  ]);
+  const [{ data: trades, error: tradesError }, { data: payouts, error: payoutsError }] =
+    await Promise.all([
+      supabase
+        .from('trades')
+        .select('cash_amount_cents')
+        .eq('seller_id', userId)
+        .eq('status', 'completed'),
+      supabase
+        .from('seller_payouts')
+        .select('status, gross_amount_cents, net_amount_cents, created_at')
+        .eq('user_id', userId),
+    ]);
 
   if (tradesError) {
     throw tradesError;
@@ -115,7 +116,9 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
     0
   );
 
-  const pendingPayouts = allPayouts.filter((p) => p.status === 'pending' || p.status === 'processing');
+  const pendingPayouts = allPayouts.filter(
+    (p) => p.status === 'pending' || p.status === 'processing'
+  );
   const pending_reserved_gross_cents = pendingPayouts.reduce(
     (sum, p) => sum + (p.gross_amount_cents ?? 0),
     0
@@ -136,11 +139,12 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
     0
   );
 
-  const last_payout_at = allPayouts
-    .map((p) => p.created_at)
-    .filter(Boolean)
-    .sort()
-    .at(-1) ?? null;
+  const last_payout_at =
+    allPayouts
+      .map((p) => p.created_at)
+      .filter(Boolean)
+      .sort()
+      .at(-1) ?? null;
 
   return {
     user_id: userId,
@@ -148,7 +152,9 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
     pending_balance_cents,
     lifetime_earnings_cents,
     total_trades_completed: completedTrades.length,
-    total_trades_pending: allPayouts.filter((p) => p.status === 'pending' || p.status === 'processing').length,
+    total_trades_pending: allPayouts.filter(
+      (p) => p.status === 'pending' || p.status === 'processing'
+    ).length,
     last_payout_at,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -159,7 +165,9 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
  * Get seller balance for the authenticated user
  */
 export async function getSellerBalance(): Promise<SellerBalance | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
   }
@@ -183,9 +191,11 @@ export async function getSellerBalance(): Promise<SellerBalance | null> {
   // If the seller_balance row looks stale (common when triggers didn't run), derive
   // from completed trades + payouts, which reflects the real withdrawable amount.
   const derived = await getSellerBalanceDerivedFromTradesAndPayouts(user.id);
-  const staleAvailable = (data.available_balance_cents ?? 0) === 0 && derived.available_balance_cents > 0;
+  const staleAvailable =
+    (data.available_balance_cents ?? 0) === 0 && derived.available_balance_cents > 0;
   const stalePending = (data.pending_balance_cents ?? 0) === 0 && derived.pending_balance_cents > 0;
-  const staleLifetime = (data.lifetime_earnings_cents ?? 0) === 0 && derived.lifetime_earnings_cents > 0;
+  const staleLifetime =
+    (data.lifetime_earnings_cents ?? 0) === 0 && derived.lifetime_earnings_cents > 0;
 
   if (staleAvailable || stalePending || staleLifetime) {
     return derived;
@@ -237,16 +247,16 @@ export function calculatePayoutFee(methodType: string, amountCents: number): num
     case 'stripe_connect':
       // Stripe: $0.25 + 0.25%
       return Math.round(amountCents * 0.0025) + 25;
-    
+
     case 'paypal':
     case 'venmo':
       // PayPal/Venmo: 2% capped at $20
       return Math.min(Math.round(amountCents * 0.02), 2000);
-    
+
     case 'bank_ach':
       // Bank ACH: $0.25 flat (placeholder)
       return 25;
-    
+
     default:
       return 0;
   }
@@ -260,7 +270,9 @@ export function calculatePayoutFee(methodType: string, amountCents: number): num
  * Get recent payouts for the authenticated user
  */
 export async function getRecentPayouts(limit: number = 10): Promise<SellerPayout[]> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
   }
@@ -283,7 +295,9 @@ export async function getRecentPayouts(limit: number = 10): Promise<SellerPayout
  * Get payout by ID
  */
 export async function getPayoutById(payoutId: string): Promise<SellerPayout | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
   }
@@ -355,7 +369,9 @@ async function getMinimumWithdrawalAmount(): Promise<number> {
  * Request a manual payout/withdrawal
  */
 export async function requestWithdrawal(amountCents: number): Promise<WithdrawalResponse> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
   }
@@ -370,7 +386,7 @@ export async function requestWithdrawal(amountCents: number): Promise<Withdrawal
 
   // Fetch minimum withdrawal amount from admin config
   const minimumCents = await getMinimumWithdrawalAmount();
-  
+
   // If minimum is 0, skip the minimum check (effectively disabled)
   if (minimumCents > 0 && amountCents < minimumCents) {
     const minDollars = formatCentsToDollars(minimumCents);
@@ -399,7 +415,7 @@ export async function requestWithdrawal(amountCents: number): Promise<Withdrawal
  */
 export async function requestFullWithdrawal(): Promise<WithdrawalResponse> {
   const balance = await getSellerBalance();
-  
+
   if (!balance || balance.available_balance_cents <= 0) {
     return {
       success: false,
@@ -414,12 +430,17 @@ export async function requestFullWithdrawal(): Promise<WithdrawalResponse> {
  * Submit an existing pending payout to PayPal (also used for Venmo payouts).
  * This triggers real PayPal processing + real PayPal webhooks.
  */
-export async function submitPayPalPayout(payoutId: string, idempotencyKey?: string): Promise<ProcessPayPalPayoutResponse> {
+export async function submitPayPalPayout(
+  payoutId: string,
+  idempotencyKey?: string
+): Promise<ProcessPayPalPayoutResponse> {
   if (!SUPABASE_URL) {
     throw new Error('EXPO_PUBLIC_SUPABASE_URL not configured');
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session) {
     throw new Error('Not authenticated');
   }
@@ -461,7 +482,7 @@ export async function canUserWithdraw(): Promise<{
   available_balance_cents: number;
 }> {
   const balance = await getSellerBalance();
-  
+
   if (!balance || balance.available_balance_cents <= 0) {
     return {
       can_withdraw: false,
@@ -471,7 +492,9 @@ export async function canUserWithdraw(): Promise<{
   }
 
   // Check if user has a verified primary payout method
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) {
     return {
       can_withdraw: false,

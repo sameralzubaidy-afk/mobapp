@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/components/ImagePickerGrid.test.tsx
  * MODULE-13 SAFETY-P002: Unit tests for ImagePickerGrid component
- * 
+ *
  * Test matrix:
  * - Render: empty state, with images, at max limit
  * - Actions: pick from gallery, pick from camera, remove image, reorder images
@@ -296,7 +296,9 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
       const largeFileSize = 7 * 1024 * 1024; // 7 MB
       (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValueOnce({
         canceled: false,
-        assets: [{ uri: 'file:///large-camera.jpg', width: 4000, height: 3000, fileSize: largeFileSize }],
+        assets: [
+          { uri: 'file:///large-camera.jpg', width: 4000, height: 3000, fileSize: largeFileSize },
+        ],
       });
 
       const { getByTestId } = render(

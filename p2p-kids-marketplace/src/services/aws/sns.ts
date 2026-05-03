@@ -10,7 +10,7 @@ export interface SendSMSResult {
 /**
  * Send SMS via AWS SNS (placeholder - will be replaced with actual AWS SDK implementation)
  * For now, just logs the SMS for testing
- * 
+ *
  * @param phone - Phone number in E.164 format (+1234567890)
  * @param message - SMS message content
  */
@@ -19,10 +19,10 @@ export const sendSMS = async (phone: string, message: string): Promise<SendSMSRe
     // TODO: Replace with actual AWS SNS implementation when AWS credentials are configured
     // For now, just log the SMS for testing
     console.warn('📱 [SMS Service] Mock: SMS to:', phone);
-    
+
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     return {
       success: true,
       messageId: `test-message-${Date.now()}`,

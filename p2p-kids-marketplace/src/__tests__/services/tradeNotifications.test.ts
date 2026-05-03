@@ -74,16 +74,16 @@ jest.mock('@/config/supabase', () => ({
 // ─── Test data ─────────────────────────────────────────────────────────────────
 
 const SELLER_ID = 'seller-uuid-001';
-const BUYER_ID  = 'buyer-uuid-001';
-const TRADE_ID  = 'trade-uuid-001';
-const ITEM_ID   = 'item-uuid-001';
+const BUYER_ID = 'buyer-uuid-001';
+const TRADE_ID = 'trade-uuid-001';
+const ITEM_ID = 'item-uuid-001';
 
 const baseData = {
-  trade_id:   TRADE_ID,
-  item_id:    ITEM_ID,
+  trade_id: TRADE_ID,
+  item_id: ITEM_ID,
   item_title: 'Vintage Skateboard',
-  deep_link:  `/trades/${TRADE_ID}`,
-  type:       'trade_request' as TradeNotificationType,
+  deep_link: `/trades/${TRADE_ID}`,
+  type: 'trade_request' as TradeNotificationType,
 };
 
 const mockNotification = {
@@ -110,7 +110,12 @@ describe('sendTradeNotificationPush()', () => {
     // Reset chain
     mockFrom.mockReturnValue({ select: mockSelect });
     mockSelect.mockReturnValue({ eq: mockEq });
-    mockEq.mockReturnValue({ eq: mockEq, is: mockIs, order: mockOrder, maybeSingle: mockMaybeSingle });
+    mockEq.mockReturnValue({
+      eq: mockEq,
+      is: mockIs,
+      order: mockOrder,
+      maybeSingle: mockMaybeSingle,
+    });
   });
 
   it('sends push notification when no preference row exists (defaults to enabled)', async () => {
@@ -167,12 +172,20 @@ describe('sendTradeNotificationPush()', () => {
 
   it('returns success=false with error when Edge Function fails', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
-    mockFunctionsInvoke.mockResolvedValue({ data: null, error: { message: 'Edge Function error' } });
-
-    const result = await sendTradeNotificationPush(SELLER_ID, 'trade_completed', 'Trade complete!', {
-      ...baseData,
-      type: 'trade_completed',
+    mockFunctionsInvoke.mockResolvedValue({
+      data: null,
+      error: { message: 'Edge Function error' },
     });
+
+    const result = await sendTradeNotificationPush(
+      SELLER_ID,
+      'trade_completed',
+      'Trade complete!',
+      {
+        ...baseData,
+        type: 'trade_completed',
+      }
+    );
 
     expect(result.success).toBe(false);
     expect(result.error).toBe('Edge Function error');
@@ -190,10 +203,10 @@ describe('sendTradeNotificationPush()', () => {
     mockFunctionsInvoke.mockResolvedValue({ data: {}, error: null });
 
     const cases: Array<[TradeNotificationType, string]> = [
-      ['trade_request',   'New Trade Request! 💬'],
+      ['trade_request', 'New Trade Request! 💬'],
       ['trade_completion_requested', 'Trade Ready for Your Confirmation'],
-      ['trade_accepted',  'Trade Accepted! ✅'],
-      ['trade_rejected',  'Trade Declined'],
+      ['trade_accepted', 'Trade Accepted! ✅'],
+      ['trade_rejected', 'Trade Declined'],
       ['trade_completed', 'Trade Complete! 🎉'],
       ['trade_cancelled', 'Trade Cancelled'],
     ];
@@ -202,7 +215,12 @@ describe('sendTradeNotificationPush()', () => {
       jest.clearAllMocks();
       mockFrom.mockReturnValue({ select: mockSelect });
       mockSelect.mockReturnValue({ eq: mockEq });
-      mockEq.mockReturnValue({ eq: mockEq, is: mockIs, order: mockOrder, maybeSingle: mockMaybeSingle });
+      mockEq.mockReturnValue({
+        eq: mockEq,
+        is: mockIs,
+        order: mockOrder,
+        maybeSingle: mockMaybeSingle,
+      });
       mockMaybeSingle.mockResolvedValue({ data: null, error: null });
       mockFunctionsInvoke.mockResolvedValue({ data: {}, error: null });
 
@@ -221,7 +239,12 @@ describe('getTradeNotifications()', () => {
     jest.clearAllMocks();
     mockFrom.mockReturnValue({ select: mockSelect });
     mockSelect.mockReturnValue({ eq: mockEq });
-    mockEq.mockReturnValue({ eq: mockEq, is: mockIs, order: mockOrder, maybeSingle: mockMaybeSingle });
+    mockEq.mockReturnValue({
+      eq: mockEq,
+      is: mockIs,
+      order: mockOrder,
+      maybeSingle: mockMaybeSingle,
+    });
     mockIs.mockReturnValue({ order: mockOrder });
     mockOrder.mockReturnValue({ limit: mockLimit });
     mockLimit.mockResolvedValue({ data: [mockNotification], error: null });
@@ -270,7 +293,9 @@ describe('markTradeNotificationRead()', () => {
   });
 
   it('returns error when Supabase update fails', async () => {
-    const mockUpdateChain = { eq: jest.fn().mockResolvedValue({ error: { message: 'Update failed' } }) };
+    const mockUpdateChain = {
+      eq: jest.fn().mockResolvedValue({ error: { message: 'Update failed' } }),
+    };
     mockFrom.mockReturnValue({ update: jest.fn().mockReturnValue(mockUpdateChain) });
 
     const result = await markTradeNotificationRead('notif-uuid-001');
@@ -285,10 +310,10 @@ describe('markAllTradeNotificationsRead()', () => {
   it('marks all trade notifications as read', async () => {
     // Chain: update() → eq('user_id') → eq('category') → is('read_at') → resolves
     // Need TWO .eq() levels before .is(), so second eq must return { is: fn }.
-    const isMock      = jest.fn().mockResolvedValue({ error: null });
+    const isMock = jest.fn().mockResolvedValue({ error: null });
     const innerEqMock = jest.fn().mockReturnValue({ is: isMock });
     const outerEqMock = jest.fn().mockReturnValue({ eq: innerEqMock });
-    const updateMock  = jest.fn().mockReturnValue({ eq: outerEqMock });
+    const updateMock = jest.fn().mockReturnValue({ eq: outerEqMock });
     mockFrom.mockReturnValue({ update: updateMock });
 
     const result = await markAllTradeNotificationsRead(SELLER_ID);
@@ -296,10 +321,10 @@ describe('markAllTradeNotificationsRead()', () => {
   });
 
   it('returns error when update fails', async () => {
-    const isMock      = jest.fn().mockResolvedValue({ error: { message: 'Bulk update failed' } });
+    const isMock = jest.fn().mockResolvedValue({ error: { message: 'Bulk update failed' } });
     const innerEqMock = jest.fn().mockReturnValue({ is: isMock });
     const outerEqMock = jest.fn().mockReturnValue({ eq: innerEqMock });
-    const updateMock  = jest.fn().mockReturnValue({ eq: outerEqMock });
+    const updateMock = jest.fn().mockReturnValue({ eq: outerEqMock });
     mockFrom.mockReturnValue({ update: updateMock });
 
     const result = await markAllTradeNotificationsRead(SELLER_ID);
@@ -312,7 +337,9 @@ describe('markAllTradeNotificationsRead()', () => {
 
 describe('getUnreadTradeNotificationCount()', () => {
   it('returns unread count', async () => {
-    const eqChain = { eq: jest.fn().mockReturnValue({ is: jest.fn().mockResolvedValue({ count: 3, error: null }) }) };
+    const eqChain = {
+      eq: jest.fn().mockReturnValue({ is: jest.fn().mockResolvedValue({ count: 3, error: null }) }),
+    };
     mockFrom.mockReturnValue({
       select: jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue(eqChain) }),
     });

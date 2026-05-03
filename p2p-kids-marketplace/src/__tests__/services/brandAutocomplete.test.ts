@@ -115,7 +115,7 @@ describe('brandAutocomplete service', () => {
 
     it('should refetch if cache expired', async () => {
       const expiredCache = {
-        timestamp: Date.now() - (6 * 60 * 1000), // 6 minutes ago
+        timestamp: Date.now() - 6 * 60 * 1000, // 6 minutes ago
         brands: ['Old Brand'],
       };
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(JSON.stringify(expiredCache));
@@ -140,14 +140,9 @@ describe('brandAutocomplete service', () => {
       const beforeTimestamp = Date.now();
       await fetchDatabaseBrands();
 
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith(
-        BRAND_CACHE_KEY,
-        expect.any(String)
-      );
+      expect(AsyncStorage.setItem).toHaveBeenCalledWith(BRAND_CACHE_KEY, expect.any(String));
 
-      const savedCache = JSON.parse(
-        (AsyncStorage.setItem as jest.Mock).mock.calls[0][1]
-      );
+      const savedCache = JSON.parse((AsyncStorage.setItem as jest.Mock).mock.calls[0][1]);
 
       expect(savedCache.brands).toEqual(['Custom Brand 1', 'Custom Brand 2']);
       expect(savedCache.timestamp).toBeGreaterThanOrEqual(beforeTimestamp);
@@ -216,9 +211,7 @@ describe('brandAutocomplete service', () => {
       const result = await getBrandSuggestions('lego');
 
       // Only one 'LEGO' should appear
-      const legoCount = result.filter(
-        (brand) => brand.toLowerCase() === 'lego'
-      ).length;
+      const legoCount = result.filter((brand) => brand.toLowerCase() === 'lego').length;
       expect(legoCount).toBe(1);
     });
 

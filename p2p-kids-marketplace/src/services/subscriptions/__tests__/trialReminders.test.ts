@@ -63,8 +63,8 @@ describe('Trial Reminders Service', () => {
     it('should not trigger reminders for other days', () => {
       const otherDays = [30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 10, 5, 4, 3];
       const triggerDays = [7, 2, 1];
-      
-      otherDays.forEach(day => {
+
+      otherDays.forEach((day) => {
         expect(triggerDays.includes(day)).toBe(false);
       });
     });
@@ -79,7 +79,7 @@ describe('Trial Reminders Service', () => {
         },
         day28: {
           title: '⏰ 2 Days Left in Your Free Trial',
-          body: 'Your trial ends soon! Add a payment method now to keep earning and spending Swap Points. Don\'t lose your rewards!',
+          body: "Your trial ends soon! Add a payment method now to keep earning and spending Swap Points. Don't lose your rewards!",
         },
         day29: {
           title: '🚨 Last Day of Your Free Trial!',

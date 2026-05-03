@@ -1,12 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  TextInput,
-  StyleSheet,
-  Text,
-  Platform,
-  TouchableOpacity,
-} from 'react-native';
+import { View, TextInput, StyleSheet, Text, Platform, TouchableOpacity } from 'react-native';
 
 interface DateOfBirthPickerProps {
   value: string; // Expected format: YYYY-MM-DD
@@ -66,12 +59,12 @@ export const DateOfBirthPicker: React.FC<DateOfBirthPickerProps> = ({
   const handleMonthChange = (text: string) => {
     // Only allow numbers, max 2 characters
     const sanitized = text.replace(/[^0-9]/g, '').slice(0, 2);
-    
+
     // Validate month range (01-12)
     if (sanitized && parseInt(sanitized) > 12) {
       return;
     }
-    
+
     setMonth(sanitized);
 
     // Auto-focus to year if month is complete (2 digits)
@@ -97,10 +90,7 @@ export const DateOfBirthPicker: React.FC<DateOfBirthPickerProps> = ({
         <View style={styles.fieldWrapper}>
           <Text style={styles.fieldLabel}>Day</Text>
           <TextInput
-            style={[
-              styles.dateInput,
-              error && styles.dateInputError,
-            ]}
+            style={[styles.dateInput, error && styles.dateInputError]}
             placeholder="DD"
             placeholderTextColor="#999"
             value={day}
@@ -117,10 +107,7 @@ export const DateOfBirthPicker: React.FC<DateOfBirthPickerProps> = ({
           <Text style={styles.fieldLabel}>Month</Text>
           <TextInput
             ref={monthRef}
-            style={[
-              styles.dateInput,
-              error && styles.dateInputError,
-            ]}
+            style={[styles.dateInput, error && styles.dateInputError]}
             placeholder="MM"
             placeholderTextColor="#999"
             value={month}
@@ -137,10 +124,7 @@ export const DateOfBirthPicker: React.FC<DateOfBirthPickerProps> = ({
           <Text style={styles.fieldLabel}>Year</Text>
           <TextInput
             ref={yearRef}
-            style={[
-              styles.dateInput,
-              error && styles.dateInputError,
-            ]}
+            style={[styles.dateInput, error && styles.dateInputError]}
             placeholder="YYYY"
             placeholderTextColor="#999"
             value={year}

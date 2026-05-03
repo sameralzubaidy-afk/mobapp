@@ -84,15 +84,21 @@ function getNextChange(info: SubscriptionInfo): { label: string; value: string }
 
 function statusColor(status: string): string {
   switch (status) {
-    case 'active': return '#22c55e';      // green
-    case 'trial': return '#3b82f6';       // blue
+    case 'active':
+      return '#22c55e'; // green
+    case 'trial':
+      return '#3b82f6'; // blue
     case 'cancelled':
     case 'canceled':
-      return '#f59e0b';   // amber
-    case 'grace_period': return '#ef4444'; // red
-    case 'grace': return '#ef4444'; // red
-    case 'expired': return '#6b7280';     // gray
-    default: return '#6b7280';
+      return '#f59e0b'; // amber
+    case 'grace_period':
+      return '#ef4444'; // red
+    case 'grace':
+      return '#ef4444'; // red
+    case 'expired':
+      return '#6b7280'; // gray
+    default:
+      return '#6b7280';
   }
 }
 
@@ -118,7 +124,7 @@ export default function SubscriptionStatusScreen() {
       const { data, error: fetchError } = await supabase
         .from('subscriptions')
         .select(
-          'id, status, stripe_customer_id, stripe_subscription_id, current_period_start, current_period_end, payment_retry_count, payment_failed_at, grace_started_at, grace_ends_at, trial_end_date, cancelled_at, updated_at',
+          'id, status, stripe_customer_id, stripe_subscription_id, current_period_start, current_period_end, payment_retry_count, payment_failed_at, grace_started_at, grace_ends_at, trial_end_date, cancelled_at, updated_at'
         )
         .eq('user_id', user.id)
         .maybeSingle();
@@ -168,7 +174,9 @@ export default function SubscriptionStatusScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <Text style={styles.emptyText}>No subscription record found for this user.</Text>
-        <Text style={styles.subText}>User must complete signup flow to create a subscription row.</Text>
+        <Text style={styles.subText}>
+          User must complete signup flow to create a subscription row.
+        </Text>
       </SafeAreaView>
     );
   }
@@ -176,7 +184,8 @@ export default function SubscriptionStatusScreen() {
   const isGracePeriod = info.status === 'grace_period' || info.status === 'grace';
   const hasPaymentFailed = info.payment_retry_count > 0;
   const nextChange = getNextChange(info);
-  const isFreeOrCancelled = info.status === 'free' || info.status === 'cancelled' || info.status === 'canceled';
+  const isFreeOrCancelled =
+    info.status === 'free' || info.status === 'cancelled' || info.status === 'canceled';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -255,7 +264,9 @@ export default function SubscriptionStatusScreen() {
           <Text style={styles.cardTitle}>Manage Subscription</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={() => navigation.navigate(isFreeOrCancelled ? 'SubscriptionChoice' : 'ContinueKidsClub')}
+            onPress={() =>
+              navigation.navigate(isFreeOrCancelled ? 'SubscriptionChoice' : 'ContinueKidsClub')
+            }
           >
             <Text style={styles.retryButtonText}>
               {isFreeOrCancelled ? 'Start / Upgrade Kids Club+' : 'Manage Billing & Payment'}
@@ -279,13 +290,19 @@ export default function SubscriptionStatusScreen() {
 }
 
 // ─── Row helper ───────────────────────────────────────────────────────────────
-function Row({ label, value, highlight = false }: { label: string; value: string | null | undefined; highlight?: boolean }) {
+function Row({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string | null | undefined;
+  highlight?: boolean;
+}) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={[styles.rowValue, highlight && styles.rowValueHighlight]}>
-        {value ?? '—'}
-      </Text>
+      <Text style={[styles.rowValue, highlight && styles.rowValueHighlight]}>{value ?? '—'}</Text>
     </View>
   );
 }
@@ -310,7 +327,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  sectionHeader: { fontSize: 14, color: '#6b7280', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 },
+  sectionHeader: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
   statusBadge: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, marginBottom: 6 },
   statusBadgeText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   card: {

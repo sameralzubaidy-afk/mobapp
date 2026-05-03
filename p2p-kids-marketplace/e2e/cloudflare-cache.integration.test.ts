@@ -7,7 +7,8 @@ const CDN_URL = process.env.EXPO_PUBLIC_CDN_URL || process.env.NEXT_PUBLIC_CDN_U
 const PURGE_API_KEY = process.env.SUPABASE_PURGE_X_API_KEY;
 
 const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
-const shouldRunCdnIntegration = shouldRunSupabaseE2E && !!SUPABASE_URL && !!SERVICE_ROLE && !!CDN_URL && !!PURGE_API_KEY;
+const shouldRunCdnIntegration =
+  shouldRunSupabaseE2E && !!SUPABASE_URL && !!SERVICE_ROLE && !!CDN_URL && !!PURGE_API_KEY;
 const describeCdnIntegration = shouldRunCdnIntegration ? describe : describe.skip;
 
 if (!shouldRunCdnIntegration) {
@@ -17,7 +18,6 @@ if (!shouldRunCdnIntegration) {
 }
 
 describeCdnIntegration('Cloudflare CDN integration (Supabase -> Worker)', () => {
-
   // NOTE: `describe.skip` still evaluates the callback in Jest, so we must
   // guard any side-effectful initialization (like createClient) explicitly.
   if (!shouldRunCdnIntegration) {

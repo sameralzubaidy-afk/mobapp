@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/screens/__tests__/ItemCreateScreen.test.tsx
  * MODULE-04 LISTING-V3-005: Unit Tests for ItemCreateScreen
  * Task: LISTING-V3-005 - Test state machine and component integration
- * 
+ *
  * Tests:
  * - State machine transitions
  * - Photo upload flow
@@ -58,10 +58,16 @@ const mockUseAIAnalysis = useAIAnalysis as jest.MockedFunction<typeof useAIAnaly
 const mockCreateItem = createItem as jest.MockedFunction<typeof createItem>;
 const mockUploadPhotoBatch = uploadPhotoBatch as jest.MockedFunction<typeof uploadPhotoBatch>;
 const mockGetCategories = getCategories as jest.MockedFunction<typeof getCategories>;
-const mockFlagForCategoryReview = flagForCategoryReview as jest.MockedFunction<typeof flagForCategoryReview>;
+const mockFlagForCategoryReview = flagForCategoryReview as jest.MockedFunction<
+  typeof flagForCategoryReview
+>;
 const mockGetSuggestedPrice = getSuggestedPrice as jest.MockedFunction<typeof getSuggestedPrice>;
-const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction<typeof getSubscriptionSummary>;
-const mockImagePicker = ImagePicker.launchImageLibraryAsync as jest.MockedFunction<typeof ImagePicker.launchImageLibraryAsync>;
+const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction<
+  typeof getSubscriptionSummary
+>;
+const mockImagePicker = ImagePicker.launchImageLibraryAsync as jest.MockedFunction<
+  typeof ImagePicker.launchImageLibraryAsync
+>;
 
 describe('ItemCreateScreen', () => {
   const mockSession = {
@@ -77,7 +83,12 @@ describe('ItemCreateScreen', () => {
   const mockPriceSuggestions = [
     { tier: 'great_deal' as const, price: 10.0, label: 'Great Deal', description: 'Quick sale' },
     { tier: 'fair_price' as const, price: 15.0, label: 'Fair Price', description: 'Competitive' },
-    { tier: 'asking_price' as const, price: 20.0, label: 'Asking Price', description: 'Market average' },
+    {
+      tier: 'asking_price' as const,
+      price: 20.0,
+      label: 'Asking Price',
+      description: 'Market average',
+    },
     { tier: 'almost_new' as const, price: 25.0, label: 'Almost New', description: 'Premium' },
   ];
 
@@ -166,7 +177,7 @@ describe('ItemCreateScreen', () => {
       const mockAIResult = {
         title: { value: 'Nike Sneakers', confidence: 0.85 },
         category: { value: { categoryId: 'cat-1', categoryName: 'Toys' }, confidence: 0.75 },
-        condition: { value: 'like_new' as const, confidence: 0.80 },
+        condition: { value: 'like_new' as const, confidence: 0.8 },
       };
 
       mockUseAIAnalysis.mockReturnValue({
@@ -191,8 +202,8 @@ describe('ItemCreateScreen', () => {
       const mockAIResult = {
         title: { value: 'Nike Sneakers', confidence: 0.85 },
         category: { value: { categoryId: 'cat-1', categoryName: 'Toys' }, confidence: 0.75 },
-        condition: { value: 'like_new' as const, confidence: 0.80 },
-        brand: { value: 'Nike', confidence: 0.90 },
+        condition: { value: 'like_new' as const, confidence: 0.8 },
+        brand: { value: 'Nike', confidence: 0.9 },
       };
 
       mockUseAIAnalysis.mockReturnValue({
@@ -341,7 +352,11 @@ describe('ItemCreateScreen', () => {
       });
 
       const firstCallArgs = mockUploadPhotoBatch.mock.calls[0];
-      const uploadedAssets = firstCallArgs[0] as Array<{ uri: string; width: number; height: number }>;
+      const uploadedAssets = firstCallArgs[0] as Array<{
+        uri: string;
+        width: number;
+        height: number;
+      }>;
 
       expect(uploadedAssets).toHaveLength(1);
       expect(uploadedAssets[0].uri).toBe('new-photo.jpg');
@@ -462,11 +477,13 @@ describe('ItemCreateScreen', () => {
     it('should enforce 10-photo maximum', async () => {
       mockImagePicker.mockResolvedValue({
         canceled: false,
-        assets: Array(12).fill(null).map((_, i) => ({
-          uri: `photo${i}.jpg`,
-          width: 800,
-          height: 600,
-        })),
+        assets: Array(12)
+          .fill(null)
+          .map((_, i) => ({
+            uri: `photo${i}.jpg`,
+            width: 800,
+            height: 600,
+          })),
       } as any);
 
       // Test would attempt to add 12 photos and verify only 10 are accepted

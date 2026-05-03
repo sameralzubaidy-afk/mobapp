@@ -12,9 +12,12 @@ describe('bulkListingReducer', () => {
     { from: 'PUBLISHING', action: { type: 'FAIL' }, expected: 'ERROR' },
   ];
 
-  it.each(cases)('transitions $from via $action.type -> $expected', ({ from, action, expected }) => {
-    expect(bulkListingReducer(from, action)).toBe(expected);
-  });
+  it.each(cases)(
+    'transitions $from via $action.type -> $expected',
+    ({ from, action, expected }) => {
+      expect(bulkListingReducer(from, action)).toBe(expected);
+    }
+  );
 
   it('resets to IDLE', () => {
     expect(bulkListingReducer('ERROR', { type: 'RESET' })).toBe('IDLE');

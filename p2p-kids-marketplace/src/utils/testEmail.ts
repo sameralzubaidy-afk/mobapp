@@ -112,7 +112,10 @@ export const runAllEmailTests = async (testEmail: string = 'test@example.com') =
     { name: 'Welcome Email', fn: () => testWelcomeEmail(testEmail) },
     { name: 'Password Reset Email', fn: () => testPasswordResetEmail(testEmail) },
     { name: 'Trade Notification Email', fn: () => testTradeNotificationEmail(testEmail) },
-    { name: 'Transaction Confirmation Email', fn: () => testTransactionConfirmationEmail(testEmail) },
+    {
+      name: 'Transaction Confirmation Email',
+      fn: () => testTransactionConfirmationEmail(testEmail),
+    },
     { name: 'Subscription Status Email', fn: () => testSubscriptionStatusEmail(testEmail) },
   ];
 

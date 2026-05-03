@@ -7,19 +7,16 @@ import {
   getKidsClubPlusTier,
   checkTierFeature,
 } from '../../services/subscriptionTiers';
-import {
-  SubscriptionTierName,
-  SubscriptionFeatureKey,
-} from '../../types/subscription.types';
+import { SubscriptionTierName, SubscriptionFeatureKey } from '../../types/subscription.types';
 
 /**
  * E2E Test Suite for SUB-001: Subscription Tiers
- * 
+ *
  * Prerequisites:
  * - Run migration: 20260212000000_subscription_tiers.sql
  * - Supabase project must be accessible
  * - RLS policies must be configured
- * 
+ *
  * Tests validate:
  * 1. Kids Club+ tier exists with correct configuration
  * 2. All 7 features are seeded correctly
@@ -258,7 +255,7 @@ describe('E2E: SUB-001 Subscription Tiers', () => {
     }, 10000);
 
     it('should have required indexes present', async () => {
- // This test verifies migration created necessary indexes
+      // This test verifies migration created necessary indexes
       const { data: tier } = await supabase
         .from('subscription_tiers')
         .select('id')

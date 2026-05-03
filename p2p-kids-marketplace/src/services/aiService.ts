@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/services/aiService.ts
  * MODULE-04 LISTING-V3: AI Analysis Service
  * Task: LISTING-V3-003 - AI batch invocation wrapper
- * 
+ *
  * Handles:
  * - Invoking batch-analyze-items Edge Function
  * - Parsing AI results with confidence filtering
@@ -13,8 +13,8 @@ import { supabase } from '../config/supabase';
 import { AIAnalysisResult, AIFieldResult } from '../types/listing';
 
 // Confidence thresholds
-const CONFIDENCE_HIGH = 0.70;
-const CONFIDENCE_MEDIUM = 0.40;
+const CONFIDENCE_HIGH = 0.7;
+const CONFIDENCE_MEDIUM = 0.4;
 const BATCH_TIMEOUT_MS = 25000;
 
 class AIServiceTimeoutError extends Error {
@@ -62,7 +62,10 @@ async function fallbackSingleItemAnalysis(
   const fallbackResults = await Promise.all(
     items.map(async (item) => {
       try {
-        const response = await withTimeout<{ data: AIAnalysisResult | null; error: { message?: string } | null }>(
+        const response = await withTimeout<{
+          data: AIAnalysisResult | null;
+          error: { message?: string } | null;
+        }>(
           supabase.functions.invoke('analyze-item-image', {
             body: {
               photoUrl: item.primaryPhotoUrl,
@@ -144,7 +147,7 @@ export interface BatchAnalysisResult {
  * Invokes batch-analyze-items endpoint
  * Returns AIAnalysisResult[] in request order
  * Each entry may carry error
- * 
+ *
  * @param items - Items with photo URLs to analyze
  * @param sellerId - Current seller ID
  * @returns Batch analysis results
@@ -191,13 +194,15 @@ export async function analyzePhotosBatch(
     console.error('[aiService] Batch analysis error:', error);
 
     if (error instanceof AIServiceTimeoutError || shouldFallbackToSingleItemAnalysis(error)) {
-      console.warn('[aiService] Falling back to direct analyze-item-image calls after batch failure');
+      console.warn(
+        '[aiService] Falling back to direct analyze-item-image calls after batch failure'
+      );
       return fallbackSingleItemAnalysis(items, sellerId);
     }
-    
+
     // Return error for all items
     return {
-      results: items.map(item => ({
+      results: items.map((item) => ({
         groupId: item.groupId,
         error: error.message || 'Analysis failed',
       })),
@@ -210,14 +215,17 @@ export async function analyzePhotosBatch(
 /**
  * Parse AI result and strip fields with confidence < 0.40
  * Defensive: Edge Function should already do this, but we double-check
- * 
+ *
  * @param raw - Raw AI analysis result
  * @returns Filtered AI analysis result
  */
 export function parseAIResult(raw: AIAnalysisResult): AIAnalysisResult {
   const filtered: AIAnalysisResult = {};
 
-  const meetsConfidence = (field?: AIFieldResult<any>, minConfidence = CONFIDENCE_MEDIUM): boolean => {
+  const meetsConfidence = (
+    field?: AIFieldResult<any>,
+    minConfidence = CONFIDENCE_MEDIUM
+  ): boolean => {
     return field !== undefined && field.confidence >= minConfidence;
   };
 
@@ -265,11 +273,11 @@ export function parseAIResult(raw: AIAnalysisResult): AIAnalysisResult {
 /**
  * Get AI confidence level from score
  * Returns 'high' | 'medium' | 'low' per Rule 3
- * 
+ *
  * >= 0.70: high
  * 0.40-0.69: medium
  * < 0.40: low
- * 
+ *
  * @param score - Confidence score (0-1)
  * @returns Confidence level
  */
@@ -277,17 +285,17 @@ export function getAIConfidenceLevel(score: number): 'high' | 'medium' | 'low' {
   if (score >= CONFIDENCE_HIGH) {
     return 'high';
   }
-  
+
   if (score >= CONFIDENCE_MEDIUM) {
     return 'medium';
   }
-  
+
   return 'low';
 }
 
 /**
  * Analyze single photo (wrapper for batch with 1 item)
- * 
+ *
  * @param photoUrl - Photo URL to analyze
  * @param sellerId - Current seller ID
  * @returns AI analysis result or error
@@ -308,14 +316,14 @@ export async function analyzeSinglePhoto(
   );
 
   const firstResult = result.results[0];
-  
+
   if (firstResult?.error) {
     return { error: firstResult.error };
   }
-  
+
   if (firstResult?.analysis) {
     return firstResult.analysis;
   }
-  
+
   return { error: 'No analysis result' };
 }

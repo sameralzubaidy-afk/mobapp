@@ -24,7 +24,7 @@ describe('E2E: Admin Referral Analytics', () => {
       const { data } = await supabase.rpc('get_referral_metrics');
 
       expect(data.k_factor).toBeGreaterThanOrEqual(0);
-      
+
       // K-factor = completed_referrals / users_with_referrals
       if (data.users_with_referrals > 0) {
         const expectedKFactor = data.completed_referrals / data.users_with_referrals;

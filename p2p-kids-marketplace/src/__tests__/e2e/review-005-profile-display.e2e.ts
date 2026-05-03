@@ -58,10 +58,7 @@ describe('REVIEW-005 E2E: Profile Rating Display', () => {
   async function cleanupTestData() {
     try {
       // Delete test reviews
-      await supabase
-        .from('reviews')
-        .delete()
-        .in('trade_id', TEST_CONFIG.trade_ids);
+      await supabase.from('reviews').delete().in('trade_id', TEST_CONFIG.trade_ids);
 
       console.log('✅ Test data cleaned up');
     } catch (error) {
@@ -75,10 +72,30 @@ describe('REVIEW-005 E2E: Profile Rating Display', () => {
       async () => {
         // Submit multiple reviews with different ratings
         const reviews = [
-          { tradeId: TEST_CONFIG.trade_ids[0], reviewerId: TEST_CONFIG.reviewer_ids[0], rating: 5, comment: 'Excellent!' },
-          { tradeId: TEST_CONFIG.trade_ids[1], reviewerId: TEST_CONFIG.reviewer_ids[1], rating: 4, comment: 'Very good' },
-          { tradeId: TEST_CONFIG.trade_ids[2], reviewerId: TEST_CONFIG.reviewer_ids[2], rating: 5, comment: 'Great trader' },
-          { tradeId: TEST_CONFIG.trade_ids[3], reviewerId: TEST_CONFIG.reviewer_ids[3], rating: 3, comment: 'Good' },
+          {
+            tradeId: TEST_CONFIG.trade_ids[0],
+            reviewerId: TEST_CONFIG.reviewer_ids[0],
+            rating: 5,
+            comment: 'Excellent!',
+          },
+          {
+            tradeId: TEST_CONFIG.trade_ids[1],
+            reviewerId: TEST_CONFIG.reviewer_ids[1],
+            rating: 4,
+            comment: 'Very good',
+          },
+          {
+            tradeId: TEST_CONFIG.trade_ids[2],
+            reviewerId: TEST_CONFIG.reviewer_ids[2],
+            rating: 5,
+            comment: 'Great trader',
+          },
+          {
+            tradeId: TEST_CONFIG.trade_ids[3],
+            reviewerId: TEST_CONFIG.reviewer_ids[3],
+            rating: 3,
+            comment: 'Good',
+          },
         ];
 
         for (const review of reviews) {
@@ -98,7 +115,7 @@ describe('REVIEW-005 E2E: Profile Rating Display', () => {
 
         expect(statsResult.success).toBe(true);
         expect(statsResult.stats?.total_reviews).toBe(4);
-        
+
         // Average: (5+4+5+3) / 4 = 4.25 → 4.3
         expect(statsResult.stats?.average_rating).toBeGreaterThanOrEqual(4.2);
         expect(statsResult.stats?.average_rating).toBeLessThanOrEqual(4.3);
@@ -212,10 +229,7 @@ describe('REVIEW-005 E2E: Profile Rating Display', () => {
         const reviewId = reviewResult.review?.id;
 
         // Manually hide the review (simulate moderation)
-        await supabase
-          .from('reviews')
-          .update({ is_hidden: true })
-          .eq('id', reviewId);
+        await supabase.from('reviews').update({ is_hidden: true }).eq('id', reviewId);
 
         // Fetch reviews
         const reviewsResult = await getUserReviews(TEST_CONFIG.reviewee_id);
@@ -298,10 +312,7 @@ describe('REVIEW-005 E2E: Profile Rating Display', () => {
         console.log('✅ Anonymous reviews included in stats');
 
         // Cleanup
-        await supabase
-          .from('reviews')
-          .delete()
-          .eq('id', anonymousResult.review?.id);
+        await supabase.from('reviews').delete().eq('id', anonymousResult.review?.id);
       }
     );
   });

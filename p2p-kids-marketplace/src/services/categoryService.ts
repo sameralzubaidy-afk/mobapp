@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/services/categoryService.ts
  * MODULE-04 LISTING-V3: Category Service Layer
  * Task: LISTING-V3-003 - Category operations with V3 enhancements
- * 
+ *
  * Handles:
  * - Category fetching (reuses existing from items.ts)
  * - Category counts
@@ -45,7 +45,7 @@ export const getCategories = getV2Categories;
 /**
  * Get categories with optional inactive inclusion
  * Item counts are still fetched for analytics/UI consumers, but not used to hide categories.
- * 
+ *
  * @param includeInactive - Whether to include inactive categories (default: false)
  * @returns Array of categories with counts
  */
@@ -56,7 +56,8 @@ export async function getCategoriesWithCounts(
     // Build query - fetch item_count from the column (maintained by trigger)
     let query = supabase
       .from('categories')
-      .select(`
+      .select(
+        `
         id,
         name,
         icon,
@@ -67,7 +68,8 @@ export async function getCategoriesWithCounts(
         display_order,
         sp_earning_multiplier,
         sp_spending_cap_percent
-      `)
+      `
+      )
       .order('display_order', { ascending: true })
       .order('name', { ascending: true });
 
@@ -95,7 +97,7 @@ export async function getCategoriesWithCounts(
  * Flag item for category review
  * Idempotent operation (upsert review_flag)
  * Called when user selects "Other" and enters custom category name
- * 
+ *
  * @param itemId - Item ID
  * @param requestedCategoryName - User-entered category name
  * @returns Success status
@@ -115,25 +117,26 @@ export async function flagForCategoryReview(
 
     // Insert or update review flag
     // Using upsert for idempotency
-    const { error: flagError } = await supabase
-      .from('review_flags')
-      .upsert(
-        {
-          item_id: itemId,
-          type: 'category_suggestion',
-          details: {
-            requested_name: requestedCategoryName,
-            flagged_at: new Date().toISOString(),
-          },
+    const { error: flagError } = await supabase.from('review_flags').upsert(
+      {
+        item_id: itemId,
+        type: 'category_suggestion',
+        details: {
+          requested_name: requestedCategoryName,
+          flagged_at: new Date().toISOString(),
         },
-        {
-          onConflict: 'item_id,type',
-        }
-      );
+      },
+      {
+        onConflict: 'item_id,type',
+      }
+    );
 
     if (flagError) {
       // If review_flags table doesn't exist yet, log but don't fail
-      console.warn('[categoryService] Review flag insert failed (table may not exist yet):', flagError);
+      console.warn(
+        '[categoryService] Review flag insert failed (table may not exist yet):',
+        flagError
+      );
     }
 
     return true;
@@ -163,23 +166,21 @@ export async function createCategorySuggestionFromItem(
       throw new Error('itemId, suggestedName, and sellerId are required');
     }
 
-    const { error } = await supabase
-      .from('category_suggestions')
-      .upsert(
-        {
-          item_id: itemId,
-          seller_id: sellerId,
-          suggested_name: trimmedName,
-          status: 'pending',
-          approved_by: null,
-          merged_to_category_id: null,
-          admin_note: null,
-          reviewed_at: null,
-        },
-        {
-          onConflict: 'item_id',
-        }
-      );
+    const { error } = await supabase.from('category_suggestions').upsert(
+      {
+        item_id: itemId,
+        seller_id: sellerId,
+        suggested_name: trimmedName,
+        status: 'pending',
+        approved_by: null,
+        merged_to_category_id: null,
+        admin_note: null,
+        reviewed_at: null,
+      },
+      {
+        onConflict: 'item_id',
+      }
+    );
 
     if (error) {
       throw error;
@@ -196,7 +197,7 @@ export async function createCategorySuggestionFromItem(
  * Get recent categories for seller
  * LRU cache in AsyncStorage
  * Max 3 entries
- * 
+ *
  * @param sellerId - Seller ID
  * @returns Array of recent category IDs
  */
@@ -221,23 +222,20 @@ export async function getRecentCategories(sellerId: string): Promise<string[]> {
  * Save recent category for seller
  * Updates LRU cache in AsyncStorage
  * Max 3 entries, most recent first
- * 
+ *
  * @param sellerId - Seller ID
  * @param categoryId - Category ID to add
  * @returns Success status
  */
-export async function saveRecentCategory(
-  sellerId: string,
-  categoryId: string
-): Promise<boolean> {
+export async function saveRecentCategory(sellerId: string, categoryId: string): Promise<boolean> {
   try {
     const key = `${RECENT_CATEGORIES_KEY_PREFIX}${sellerId}`;
-    
+
     // Get existing recent categories
     const existing = await getRecentCategories(sellerId);
 
     // Remove categoryId if already in list
-    const filtered = existing.filter(id => id !== categoryId);
+    const filtered = existing.filter((id) => id !== categoryId);
 
     // Add to front
     const updated = [categoryId, ...filtered].slice(0, MAX_RECENT_CATEGORIES);
@@ -254,14 +252,15 @@ export async function saveRecentCategory(
 /**
  * Get bonus categories (sp_earning_multiplier > 1.10)
  * Returns categories with bonus earning rates, ordered by multiplier descending
- * 
+ *
  * @returns Array of bonus categories
  */
 export async function getBonusCategories(): Promise<CategoryWithCount[]> {
   try {
     const { data: categories, error } = await supabase
       .from('categories')
-      .select(`
+      .select(
+        `
         id,
         name,
         icon,
@@ -272,9 +271,10 @@ export async function getBonusCategories(): Promise<CategoryWithCount[]> {
         display_order,
         sp_earning_multiplier,
         sp_spending_cap_percent
-      `)
+      `
+      )
       .eq('is_active', true)
-      .gt('sp_earning_multiplier', 1.10)
+      .gt('sp_earning_multiplier', 1.1)
       .order('sp_earning_multiplier', { ascending: false });
 
     if (error) throw error;
@@ -289,7 +289,7 @@ export async function getBonusCategories(): Promise<CategoryWithCount[]> {
 /**
  * Calculate category-specific SP earning and spending rates
  * Used in checkout and listing flows to show SP preview
- * 
+ *
  * @param categoryId - Category ID
  * @param price - Item price in dollars
  * @returns SP calculation result
@@ -318,7 +318,7 @@ export async function calculateCategorySP(
     // Rounding rules from MODULE-12 V3:
     // - earn_sp: Math.round (nearest integer)
     // - max_spend_sp: Math.floor (never exceed cap)
-    const multiplier = category.sp_earning_multiplier || 1.10;
+    const multiplier = category.sp_earning_multiplier || 1.1;
     const capPercent = category.sp_spending_cap_percent || 70;
 
     return {
@@ -333,7 +333,7 @@ export async function calculateCategorySP(
 }
 /**
  * Get category by ID
- * 
+ *
  * @param categoryId - Category ID
  * @returns Category or null
  */
@@ -357,7 +357,7 @@ export async function getCategoryById(categoryId: string): Promise<CategoryWithC
 /**
  * Search categories by name
  * Case-insensitive search
- * 
+ *
  * @param query - Search query
  * @returns Matching categories
  */

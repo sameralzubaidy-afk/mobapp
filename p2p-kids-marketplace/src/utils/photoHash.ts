@@ -37,7 +37,7 @@ export async function computePhotoHash(uri: string): Promise<string> {
     const result = await manipulateAsync(
       uri,
       [{ resize: { width: HASH_TARGET_SIZE, height: HASH_TARGET_SIZE } }],
-      { compress: 0.8, format: SaveFormat.JPEG },
+      { compress: 0.8, format: SaveFormat.JPEG }
     );
     const base64 = await FileSystemLegacy.readAsStringAsync(result.uri, {
       encoding: 'base64' as const,

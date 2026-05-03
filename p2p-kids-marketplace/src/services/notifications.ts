@@ -31,7 +31,7 @@ export interface NotificationData {
 /**
  * Register for push notifications
  * Requests user permissions and returns the push token
- * 
+ *
  * @returns Push token string or null if registration failed
  */
 export const registerForPushNotifications = async (): Promise<string | null> => {
@@ -78,7 +78,10 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
     const error = err as Error;
     const message = error.message || '';
 
-    if (Platform.OS === 'android' && message.toLowerCase().includes('default firebaseapp is not initialized')) {
+    if (
+      Platform.OS === 'android' &&
+      message.toLowerCase().includes('default firebaseapp is not initialized')
+    ) {
       console.error(
         '[notifications] Android Firebase is not initialized. Add google-services.json and rebuild a development client.'
       );
@@ -92,31 +95,32 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
 
 /**
  * Save push token to database for later use by backend
- * 
+ *
  * @param userId - Authenticated user ID
  * @param token - Push notification token from Expo
  * @returns Success/failure result
  */
-export const savePushToken = async (userId: string, token: string): Promise<{ success: boolean; error?: string }> => {
+export const savePushToken = async (
+  userId: string,
+  token: string
+): Promise<{ success: boolean; error?: string }> => {
   try {
     const deviceId = Constants.deviceId || 'unknown';
 
     // Using any cast if push_tokens is not yet in generated database types
-    const { error } = await supabase
-      .from('push_tokens' as never)
-      .upsert(
-        {
-          user_id: userId,
-          token,
-          device_id: deviceId,
-          platform: Platform.OS as 'ios' | 'android',
-          updated_at: new Date().toISOString(),
-        } as never,
-        {
-          onConflict: 'user_id,device_id',
-          ignoreDuplicates: false,
-        }
-      );
+    const { error } = await supabase.from('push_tokens' as never).upsert(
+      {
+        user_id: userId,
+        token,
+        device_id: deviceId,
+        platform: Platform.OS as 'ios' | 'android',
+        updated_at: new Date().toISOString(),
+      } as never,
+      {
+        onConflict: 'user_id,device_id',
+        ignoreDuplicates: false,
+      }
+    );
 
     if (error) {
       console.warn('⚠️ Failed to save push token:', error.message);
@@ -134,7 +138,7 @@ export const savePushToken = async (userId: string, token: string): Promise<{ su
 /**
  * Send a local notification immediately
  * Useful for testing or in-app alerts
- * 
+ *
  * @param title - Notification title
  * @param body - Notification body text
  * @param data - Additional data to pass to notification handler
@@ -163,7 +167,7 @@ export const sendLocalNotification = async (
 
 /**
  * Schedule a notification for later
- * 
+ *
  * @param title - Notification title
  * @param body - Notification body text
  * @param seconds - Delay in seconds before showing notification
@@ -209,25 +213,21 @@ export const cancelAllNotifications = async (): Promise<void> => {
 /**
  * Hook to set up notification listeners for received and tapped notifications
  * Call this once in the app root (e.g., in App.tsx or a useEffect hook)
- * 
+ *
  * @returns Cleanup function to remove listeners
  */
 export const createNotificationObserver = () => {
   // Listen for notifications received while app is open
-  const notificationListener = Notifications.addNotificationReceivedListener(
-    (_notification) => {
-      // Notification received logic
-    }
-  );
+  const notificationListener = Notifications.addNotificationReceivedListener((_notification) => {
+    // Notification received logic
+  });
 
   // Listen for user tapping on a notification
-  const responseListener = Notifications.addNotificationResponseReceivedListener(
-    (_response) => {
-      // User tapped logic
-      // TODO: Implement navigation based on notification type
-      // Example: if (data.type === 'item_update') navigation.navigate('Item', { itemId: data.itemId });
-    }
-  );
+  const responseListener = Notifications.addNotificationResponseReceivedListener((_response) => {
+    // User tapped logic
+    // TODO: Implement navigation based on notification type
+    // Example: if (data.type === 'item_update') navigation.navigate('Item', { itemId: data.itemId });
+  });
 
   // Return cleanup function to remove listeners
   return () => {
@@ -262,9 +262,15 @@ export const getCurrentPushToken = async (): Promise<string | null> => {
 /**
  * Remove a push token from database (e.g., when user logs out)
  */
-export const removePushToken = async (userId: string, deviceId?: string): Promise<{ success: boolean; error?: string }> => {
+export const removePushToken = async (
+  userId: string,
+  deviceId?: string
+): Promise<{ success: boolean; error?: string }> => {
   try {
-    let query = supabase.from('push_tokens' as never).delete().eq('user_id', userId);
+    let query = supabase
+      .from('push_tokens' as never)
+      .delete()
+      .eq('user_id', userId);
 
     if (deviceId) {
       query = query.eq('device_id', deviceId);

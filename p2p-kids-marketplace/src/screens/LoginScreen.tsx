@@ -1,7 +1,8 @@
 // File: p2p-kids-marketplace/src/screens/LoginScreen.tsx
 // MODULE-03 AUTH-V2-003: Login with Subscription Context
+// MODULE-03 AUTH-V3-007: Social Login Integration
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,18 +13,24 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { loginWithContext } from '../services/auth';
 import { useAuth } from '../hooks/useAuth';
 import { AuthError } from '../types/user';
+import { SocialLoginButtons } from '../components/auth/SocialLoginButtons';
+import type { OAuthProvider } from '@/types/auth-v3';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
 export const LoginScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const { setSession } = useAuth();
+
+  // Ref for email input (for social login error fallback)
+  const emailInputRef = useRef<TextInput>(null);
 
   // Form state
   const [email, setEmail] = useState('');
@@ -32,6 +39,12 @@ export const LoginScreen: React.FC = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Account linking state (when social login detects existing account)
+  const [accountLinkPrompt, setAccountLinkPrompt] = useState<{
+    email: string;
+    provider: OAuthProvider;
+  } | null>(null);
 
   /**
    * Validate form inputs
@@ -55,7 +68,7 @@ export const LoginScreen: React.FC = () => {
 
   /**
    * MODULE-03 AUTH-V2-003: Handle login submission
-   * 
+   *
    * Steps:
    * 1. Validate form inputs
    * 2. Call loginWithContext to get enriched session
@@ -72,7 +85,7 @@ export const LoginScreen: React.FC = () => {
 
     try {
       console.log('[AUTH] Logging in user:', email);
-      
+
       const session = await loginWithContext({
         email: email.trim(),
         password,
@@ -114,19 +127,53 @@ export const LoginScreen: React.FC = () => {
     }
   };
 
+  /**
+   * Handle social login success (navigate to home)
+   */
+  const handleSocialLoginSuccess = () => {
+    console.log('[LoginScreen] Social login successful, navigating to home');
+    // Auth context will handle navigation automatically
+  };
+
+  /**
+   * Handle account exists (show linking prompt)
+   * TODO: Implement AccountLinkingPrompt modal in AUTH-V3-008
+   */
+  const handleAccountExists = (emailAddr: string, provider: OAuthProvider) => {
+    console.log('[LoginScreen] Account exists:', { email: emailAddr, provider });
+    setAccountLinkPrompt({ email: emailAddr, provider });
+    // For now, just show an alert
+    Alert.alert(
+      'Account Exists',
+      `An account with ${emailAddr} already exists. Account linking will be available in AUTH-V3-008.`,
+      [{ text: 'OK', onPress: () => setAccountLinkPrompt(null) }]
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        testID="login-scroll-view"
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>
-            Log in to continue trading and earning Swap Points
-          </Text>
+          <Text style={styles.subtitle}>Log in to continue trading and earning Swap Points</Text>
         </View>
+
+        {/* Social Login Buttons */}
+        <SocialLoginButtons
+          mode="login"
+          onLoginSuccess={handleSocialLoginSuccess}
+          onAccountExists={handleAccountExists}
+          emailInputRef={emailInputRef}
+          testID="login-social-buttons"
+        />
 
         {/* Form */}
         <View style={styles.form}>
@@ -134,6 +181,7 @@ export const LoginScreen: React.FC = () => {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email</Text>
             <TextInput
+              ref={emailInputRef}
               style={[styles.input, errors.email && styles.inputError]}
               placeholder="your.email@example.com"
               testID="login-email-input"
@@ -144,9 +192,7 @@ export const LoginScreen: React.FC = () => {
               autoComplete="email"
               editable={!loading}
             />
-            {errors.email && (
-              <Text style={styles.errorText}>{errors.email}</Text>
-            )}
+            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
           </View>
 
           {/* Password */}
@@ -163,9 +209,7 @@ export const LoginScreen: React.FC = () => {
               autoComplete="password"
               editable={!loading}
             />
-            {errors.password && (
-              <Text style={styles.errorText}>{errors.password}</Text>
-            )}
+            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
           </View>
 
           {/* Login Button */}
@@ -204,7 +248,7 @@ export const LoginScreen: React.FC = () => {
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 };
@@ -214,8 +258,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     padding: 20,
     justifyContent: 'center',
   },

@@ -1,20 +1,13 @@
 /**
  * FILE: p2p-kids-marketplace/src/components/subscription/PaymentMethodSection.tsx
  * MODULE-11 TASK SUB-017: Payment Method Display Component
- * 
+ *
  * Displays saved payment method details (card brand, last 4, expiry).
  * Allows users to update their payment method via Stripe Payment Sheet.
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { getPaymentMethod, PaymentMethodInfo } from '@/services/subscription';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { retryFailedPayment } from '@/services/paymentRetry';
@@ -168,9 +161,7 @@ export function PaymentMethodSection({ onPaymentMethodUpdated }: PaymentMethodSe
         </View>
       ) : (
         <View style={styles.noPaymentMethod}>
-          <Text style={styles.noPaymentMethodText}>
-            No payment method on file
-          </Text>
+          <Text style={styles.noPaymentMethodText}>No payment method on file</Text>
           <TouchableOpacity
             style={styles.addButton}
             onPress={handleUpdatePaymentMethod}

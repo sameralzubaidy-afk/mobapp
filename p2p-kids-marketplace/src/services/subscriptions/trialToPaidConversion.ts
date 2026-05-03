@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/subscriptions/trialToPaidConversion.ts
  * MODULE-11 TASK SUB-006: Trial-to-Paid Conversion with Stripe Payment
- * 
+ *
  * Handles converting a trial subscription to paid by collecting payment via Stripe
  */
 
@@ -225,7 +225,10 @@ export function useTrialToPaidConversion() {
 
       if (presentError) {
         // User cancelled - not an error
-        if (presentError.code === PaymentSheetError.Canceled || (presentError as any).code === 'Canceled') {
+        if (
+          presentError.code === PaymentSheetError.Canceled ||
+          (presentError as any).code === 'Canceled'
+        ) {
           console.log('[useTrialToPaid] Payment sheet presentation canceled');
           return {
             success: false,
@@ -242,8 +245,9 @@ export function useTrialToPaidConversion() {
 
       // Step 4: Payment successful - we need to get the payment method ID from the SetupIntent
       console.log('[useTrialToPaid] Payment sheet successful. Retrieving setup intent...');
-      
-      const { setupIntent, error: retrieveError } = await retrieveSetupIntent(setupIntentClientSecret);
+
+      const { setupIntent, error: retrieveError } =
+        await retrieveSetupIntent(setupIntentClientSecret);
 
       if (retrieveError) {
         console.error('[useTrialToPaid] Error retrieving setup intent:', retrieveError);
@@ -262,13 +266,12 @@ export function useTrialToPaidConversion() {
           error: 'Could not retrieve payment method. Please try again.',
         };
       }
-      
+
       console.log('[useTrialToPaid] Payment method ID retrieved:', paymentMethodId);
-      
+
       // Step 5: Convert trial to paid subscription using the retrieved payment method
       console.log('[useTrialToPaid] Creating subscription...');
       return await convertTrialToPaidSubscription(paymentMethodId, isRenewal);
-      
     } catch (error) {
       console.error('[useTrialToPaid] Unexpected error:', error);
       return {

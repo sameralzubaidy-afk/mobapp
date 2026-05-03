@@ -145,8 +145,7 @@ function buildUploadFailureMessage(
     const label = photoLabelFromUri(picked[entry.index]?.uri || '', entry.index);
     return `- ${label}: ${entry.error}`;
   });
-  const remainder =
-    errors.length > 3 ? `\n- +${errors.length - 3} more failure(s)` : '';
+  const remainder = errors.length > 3 ? `\n- +${errors.length - 3} more failure(s)` : '';
   return `${header}\n${details.join('\n')}${remainder}\nUse "+ Add more photos" to retry.`;
 }
 
@@ -205,135 +204,134 @@ export default function BulkListingCreateScreen() {
     dispatch({ type: 'RESET' });
   }, []);
 
-  const hydrateFromDraft = useCallback(
-    async (draft: any) => {
-      const draftData = (draft?.draft_data || {}) as any;
-      const draftItems = Array.isArray(draftData.items) ? draftData.items : [];
+  const hydrateFromDraft = useCallback(async (draft: any) => {
+    const draftData = (draft?.draft_data || {}) as any;
+    const draftItems = Array.isArray(draftData.items) ? draftData.items : [];
 
-      const fallbackPhotoUrls = Array.isArray(draftData?.photo_urls)
-        ? draftData.photo_urls
-        : Array.isArray(draft?.photo_urls)
+    const fallbackPhotoUrls = Array.isArray(draftData?.photo_urls)
+      ? draftData.photo_urls
+      : Array.isArray(draft?.photo_urls)
         ? draft.photo_urls
         : [];
 
-      if (!draftItems.length && fallbackPhotoUrls.length === 0) {
-        return false;
-      }
+    if (!draftItems.length && fallbackPhotoUrls.length === 0) {
+      return false;
+    }
 
-      const restoredGroups: PhotoGroup[] = draftItems.length
-        ? draftItems
-            .map((item: any, itemIndex: number) => {
-              const photoUrls = Array.isArray(item?.photo_urls) ? item.photo_urls : [];
-              const photosForGroup: PhotoAsset[] = photoUrls
-                .filter((uri: unknown): uri is string => typeof uri === 'string' && uri.trim().length > 0)
-                .map((uri: string, photoIndex: number) => ({
-                  id: `${item?.groupId || `restored-${itemIndex}`}-photo-${photoIndex}`,
-                  uri,
-                  width: 0,
-                  height: 0,
-                }));
+    const restoredGroups: PhotoGroup[] = draftItems.length
+      ? draftItems
+          .map((item: any, itemIndex: number) => {
+            const photoUrls = Array.isArray(item?.photo_urls) ? item.photo_urls : [];
+            const photosForGroup: PhotoAsset[] = photoUrls
+              .filter(
+                (uri: unknown): uri is string => typeof uri === 'string' && uri.trim().length > 0
+              )
+              .map((uri: string, photoIndex: number) => ({
+                id: `${item?.groupId || `restored-${itemIndex}`}-photo-${photoIndex}`,
+                uri,
+                width: 0,
+                height: 0,
+              }));
 
-              return {
-                groupId: String(item?.groupId || `restored-group-${itemIndex}`),
-                photos: photosForGroup,
-                primaryPhotoIndex: 0,
-              } satisfies PhotoGroup;
-            })
-            .filter((group: PhotoGroup) => group.photos.length > 0)
-        : fallbackPhotoUrls
-            .filter((uri: unknown): uri is string => typeof uri === 'string' && uri.trim().length > 0)
-            .map((uri: string, itemIndex: number) => ({
-              groupId: `restored-group-${itemIndex}`,
-              photos: [
-                {
-                  id: `restored-group-${itemIndex}-photo-0`,
-                  uri,
-                  width: 0,
-                  height: 0,
-                },
-              ],
+            return {
+              groupId: String(item?.groupId || `restored-group-${itemIndex}`),
+              photos: photosForGroup,
               primaryPhotoIndex: 0,
-            }));
+            } satisfies PhotoGroup;
+          })
+          .filter((group: PhotoGroup) => group.photos.length > 0)
+      : fallbackPhotoUrls
+          .filter((uri: unknown): uri is string => typeof uri === 'string' && uri.trim().length > 0)
+          .map((uri: string, itemIndex: number) => ({
+            groupId: `restored-group-${itemIndex}`,
+            photos: [
+              {
+                id: `restored-group-${itemIndex}-photo-0`,
+                uri,
+                width: 0,
+                height: 0,
+              },
+            ],
+            primaryPhotoIndex: 0,
+          }));
 
-      if (!restoredGroups.length) {
-        return false;
-      }
+    if (!restoredGroups.length) {
+      return false;
+    }
 
-      const restoredItems: BulkEditableItem[] = restoredGroups.map((group, groupIndex) => {
-        const source =
-          draftItems.find((entry: any) => String(entry?.groupId) === group.groupId) ||
-          draftItems[groupIndex] ||
-          {};
-        const restored: BulkEditableItem = {
-          groupId: group.groupId,
-          title: String(source?.title || ''),
-          description: String(source?.description || ''),
-          price: source?.price != null ? String(source.price) : '',
-          category_name: source?.category_name || undefined,
-          category_id: source?.category_id || undefined,
-          requested_category_name: source?.requested_category_name || undefined,
-          condition: source?.condition || null,
-          brand: String(source?.brand || ''),
-          color: Array.isArray(source?.color) ? source.color : [],
-          age_group: source?.age_group || null,
-          gender: source?.gender || null,
-          accepts_swap_points: Boolean(source?.accepts_swap_points),
-          includeInPublish: source?.includeInPublish !== false,
-          missingRequired: [],
-          aiState: 'idle',
-          aiFilledFields: [],
-          aiError: null,
-          coverPhotoUri: coverUriForGroup(group),
-        };
-        restored.missingRequired = getMissingRequired(restored);
-        return restored;
-      });
-
-      const flattenedPhotos = restoredGroups.flatMap((group) => group.photos);
-      const nextStep = String(draftData?.step || draft?.step || 'grouping');
-
-      setDraftId(String(draft.id));
-      setBulkUploadId((draft as any)?.bulk_upload_id || null);
-      setPhotos(flattenedPhotos);
-      setGroups(restoredGroups);
-      setItems(restoredItems);
-      setExpandedGroupId(restoredItems[0]?.groupId || null);
-
-      if (nextStep === 'review') {
-        dispatch({ type: 'AI_DONE' });
-      } else {
-        dispatch({ type: 'GROUPS_READY' });
-      }
-
-      const snapshot = {
-        step: nextStep === 'review' ? 'review' : 'grouping',
-        items: restoredItems.map((item) => {
-          const group = restoredGroups.find((candidate) => candidate.groupId === item.groupId);
-          return {
-            groupId: item.groupId,
-            title: item.title,
-            description: item.description,
-            price: Number(item.price) || 0,
-            category_id: item.category_id,
-            requested_category_name: item.requested_category_name,
-            condition: item.condition,
-            brand: item.brand,
-            color: item.color,
-            age_group: item.age_group,
-            gender: item.gender,
-            accepts_swap_points: Boolean(item.accepts_swap_points),
-            includeInPublish: item.includeInPublish,
-            photo_urls: group?.photos.map((photo) => photo.uri) || [],
-          };
-        }),
-        photo_urls: flattenedPhotos.map((photo) => photo.uri),
+    const restoredItems: BulkEditableItem[] = restoredGroups.map((group, groupIndex) => {
+      const source =
+        draftItems.find((entry: any) => String(entry?.groupId) === group.groupId) ||
+        draftItems[groupIndex] ||
+        {};
+      const restored: BulkEditableItem = {
+        groupId: group.groupId,
+        title: String(source?.title || ''),
+        description: String(source?.description || ''),
+        price: source?.price != null ? String(source.price) : '',
+        category_name: source?.category_name || undefined,
+        category_id: source?.category_id || undefined,
+        requested_category_name: source?.requested_category_name || undefined,
+        condition: source?.condition || null,
+        brand: String(source?.brand || ''),
+        color: Array.isArray(source?.color) ? source.color : [],
+        age_group: source?.age_group || null,
+        gender: source?.gender || null,
+        accepts_swap_points: Boolean(source?.accepts_swap_points),
+        includeInPublish: source?.includeInPublish !== false,
+        missingRequired: [],
+        aiState: 'idle',
+        aiFilledFields: [],
+        aiError: null,
+        coverPhotoUri: coverUriForGroup(group),
       };
-      lastSavedPayload.current = JSON.stringify(snapshot);
+      restored.missingRequired = getMissingRequired(restored);
+      return restored;
+    });
 
-      return true;
-    },
-    []
-  );
+    const flattenedPhotos = restoredGroups.flatMap((group) => group.photos);
+    const nextStep = String(draftData?.step || draft?.step || 'grouping');
+
+    setDraftId(String(draft.id));
+    setBulkUploadId((draft as any)?.bulk_upload_id || null);
+    setPhotos(flattenedPhotos);
+    setGroups(restoredGroups);
+    setItems(restoredItems);
+    setExpandedGroupId(restoredItems[0]?.groupId || null);
+
+    if (nextStep === 'review') {
+      dispatch({ type: 'AI_DONE' });
+    } else {
+      dispatch({ type: 'GROUPS_READY' });
+    }
+
+    const snapshot = {
+      step: nextStep === 'review' ? 'review' : 'grouping',
+      items: restoredItems.map((item) => {
+        const group = restoredGroups.find((candidate) => candidate.groupId === item.groupId);
+        return {
+          groupId: item.groupId,
+          title: item.title,
+          description: item.description,
+          price: Number(item.price) || 0,
+          category_id: item.category_id,
+          requested_category_name: item.requested_category_name,
+          condition: item.condition,
+          brand: item.brand,
+          color: item.color,
+          age_group: item.age_group,
+          gender: item.gender,
+          accepts_swap_points: Boolean(item.accepts_swap_points),
+          includeInPublish: item.includeInPublish,
+          photo_urls: group?.photos.map((photo) => photo.uri) || [],
+        };
+      }),
+      photo_urls: flattenedPhotos.map((photo) => photo.uri),
+    };
+    lastSavedPayload.current = JSON.stringify(snapshot);
+
+    return true;
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -992,7 +990,9 @@ export default function BulkListingCreateScreen() {
       return;
     }
     setItems((prev) =>
-      prev.map((it) => (it.groupId === groupId ? { ...it, aiState: 'analyzing', aiError: null } : it))
+      prev.map((it) =>
+        it.groupId === groupId ? { ...it, aiState: 'analyzing', aiError: null } : it
+      )
     );
     try {
       const response = await analyzePhotosBatch(
@@ -1132,7 +1132,12 @@ export default function BulkListingCreateScreen() {
     const set = new Set<BulkStep>([currentStep]);
     if (photos.length > 0) set.add('photos');
     if (groups.length > 0) set.add('group');
-    if (flowState === 'REVIEWING_ITEMS' || flowState === 'PUBLISHING' || flowState === 'PARTIAL' || flowState === 'SUCCESS') {
+    if (
+      flowState === 'REVIEWING_ITEMS' ||
+      flowState === 'PUBLISHING' ||
+      flowState === 'PARTIAL' ||
+      flowState === 'SUCCESS'
+    ) {
       set.add('review');
       set.add('group');
       set.add('photos');
@@ -1160,7 +1165,7 @@ export default function BulkListingCreateScreen() {
             if (photos.length > 0 && flowState !== 'SUCCESS') {
               Alert.alert(
                 'Discard bulk session?',
-                'Your draft will be saved, but you\'ll exit the bulk listing flow.',
+                "Your draft will be saved, but you'll exit the bulk listing flow.",
                 [
                   { text: 'Cancel', style: 'cancel' },
                   {
@@ -1203,9 +1208,13 @@ export default function BulkListingCreateScreen() {
           photos={photos}
           uploading={uploading}
           onPickPhotos={handlePickPhotos}
-          onAddMore={photos.length > 0 ? () => {
-            void handleAddMorePhotos(null);
-          } : undefined}
+          onAddMore={
+            photos.length > 0
+              ? () => {
+                  void handleAddMorePhotos(null);
+                }
+              : undefined
+          }
           duplicateCount={duplicatePhotoIds.length}
         />
 
@@ -1234,7 +1243,8 @@ export default function BulkListingCreateScreen() {
             </View>
             <View style={styles.instructionBanner} testID="bulk-grouping-instructions">
               <Text style={styles.instructionText}>
-                💡 <Text style={styles.instructionBold}>Long-press</Text> any photo to start selecting, then tap more photos to merge them into one item
+                💡 <Text style={styles.instructionBold}>Long-press</Text> any photo to start
+                selecting, then tap more photos to merge them into one item
               </Text>
             </View>
 
@@ -1268,7 +1278,9 @@ export default function BulkListingCreateScreen() {
         {showReviewSection && (
           <>
             <View style={styles.groupingHeader}>
-              <Text style={styles.sectionTitle}>Review {items.length} item{items.length === 1 ? '' : 's'}</Text>
+              <Text style={styles.sectionTitle}>
+                Review {items.length} item{items.length === 1 ? '' : 's'}
+              </Text>
               <TouchableOpacity
                 onPress={handleEditGrouping}
                 style={styles.headerActionBtn}
@@ -1278,7 +1290,7 @@ export default function BulkListingCreateScreen() {
                 <Text style={styles.headerActionText}>Edit grouping</Text>
               </TouchableOpacity>
             </View>
-            
+
             {/* Bulk SP Summary Card (LISTING-V3-011) */}
             <BulkSPSummaryCard
               items={items.map((item) => ({
@@ -1291,12 +1303,14 @@ export default function BulkListingCreateScreen() {
               onUpgradePress={() => navigation.navigate('SubscriptionChoice')}
               testID="bulk-sp-summary"
             />
-            
+
             <ItemCardStack
               items={items}
               expandedGroupId={expandedGroupId}
               onExpand={setExpandedGroupId}
-              onToggleInclude={(groupId, include) => updateItem(groupId, { includeInPublish: include })}
+              onToggleInclude={(groupId, include) =>
+                updateItem(groupId, { includeInPublish: include })
+              }
               onChangeItem={updateItem}
               onOpenCategoryPicker={(groupId) => setCategoryPickerGroupId(groupId)}
               canAcceptSP={canAcceptSP}
@@ -1311,7 +1325,9 @@ export default function BulkListingCreateScreen() {
           <View style={styles.partialBanner} testID="bulk-partial-banner">
             <Text style={styles.partialTitle}>Partial Submission</Text>
             {publishErrors.slice(0, 3).map((error, index) => (
-              <Text style={styles.partialItem} key={`${error}-${index}`}>{error}</Text>
+              <Text style={styles.partialItem} key={`${error}-${index}`}>
+                {error}
+              </Text>
             ))}
           </View>
         )}
@@ -1320,7 +1336,9 @@ export default function BulkListingCreateScreen() {
       {showReviewSection && (
         <ApplyToAllBar
           items={items}
-          onApply={(next) => setItems(next.map((it) => ({ ...it, missingRequired: getMissingRequired(it) })))}
+          onApply={(next) =>
+            setItems(next.map((it) => ({ ...it, missingRequired: getMissingRequired(it) })))
+          }
         />
       )}
 
@@ -1374,10 +1392,12 @@ export default function BulkListingCreateScreen() {
           <View style={styles.submitModalCard}>
             <Text style={styles.submitModalTitle}>Thanks for submitting!</Text>
             <Text style={styles.submitModalMessage}>
-              To ensure the marketplace is safe and free of offensive items, we are going to review your item and approve it.
+              To ensure the marketplace is safe and free of offensive items, we are going to review
+              your item and approve it.
             </Text>
             <Text style={styles.submitModalMessage}>
-              This will not take long. You will get a notification as soon as we complete the review. You can check the latest status by checking in My Items view.
+              This will not take long. You will get a notification as soon as we complete the
+              review. You can check the latest status by checking in My Items view.
             </Text>
 
             <TouchableOpacity

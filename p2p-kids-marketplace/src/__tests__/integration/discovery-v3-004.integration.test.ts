@@ -1,7 +1,7 @@
 /**
  * Integration tests for DISCOVERY-V3-004 utilities with discovery types
  * MODULE-05-DISCOVERY-V3: Task DISCOVERY-V3-004
- * 
+ *
  * Tests that utilities work correctly with real-world discovery filter scenarios
  */
 
@@ -12,9 +12,9 @@ import {
   getDefaultFilters,
 } from '../../utils/filterHelpers';
 import { levenshteinDistance, findClosestMatch } from '../../utils/fuzzyMatch';
-import { 
-  DiscoveryFilters, 
-  COLOR_PALETTE, 
+import {
+  DiscoveryFilters,
+  COLOR_PALETTE,
   PRICE_PRESETS,
   STORAGE_KEYS,
 } from '../../types/discovery';
@@ -114,8 +114,8 @@ describe('DISCOVERY-V3-004 Integration Tests', () => {
       expect(COLOR_PALETTE[0]).toHaveProperty('hex');
 
       // User selects pink and purple colors
-      const pinkColor = COLOR_PALETTE.find(c => c.id === 'pink');
-      const purpleColor = COLOR_PALETTE.find(c => c.id === 'purple');
+      const pinkColor = COLOR_PALETTE.find((c) => c.id === 'pink');
+      const purpleColor = COLOR_PALETTE.find((c) => c.id === 'purple');
 
       expect(pinkColor).toBeDefined();
       expect(purpleColor).toBeDefined();
@@ -138,7 +138,7 @@ describe('DISCOVERY-V3-004 Integration Tests', () => {
 
   describe('Fuzzy match integration with COLOR_PALETTE', () => {
     it('should suggest correct color for typo', () => {
-      const colorNames = COLOR_PALETTE.map(c => c.label);
+      const colorNames = COLOR_PALETTE.map((c) => c.label);
 
       // User types "bule" instead of "blue"
       const suggestion = findClosestMatch('bule', colorNames, 3);
@@ -150,7 +150,7 @@ describe('DISCOVERY-V3-004 Integration Tests', () => {
     });
 
     it('should handle case-insensitive color matching', () => {
-      const colorNames = COLOR_PALETTE.map(c => c.label);
+      const colorNames = COLOR_PALETTE.map((c) => c.label);
 
       const suggestion = findClosestMatch('RED', colorNames, 3);
       expect(suggestion).toBe('Red');
@@ -160,7 +160,7 @@ describe('DISCOVERY-V3-004 Integration Tests', () => {
     });
 
     it('should return null for colors too far from any match', () => {
-      const colorNames = COLOR_PALETTE.map(c => c.label);
+      const colorNames = COLOR_PALETTE.map((c) => c.label);
 
       const suggestion = findClosestMatch('xyz', colorNames, 2);
       expect(suggestion).toBeNull();
@@ -189,14 +189,14 @@ describe('DISCOVERY-V3-004 Integration Tests', () => {
       expect(countActiveFilters(filters)).toBe(4);
 
       // 5. User sets price range using preset
-      const preset = PRICE_PRESETS.find(p => p.id === '10-25')!;
+      const preset = PRICE_PRESETS.find((p) => p.id === '10-25')!;
       filters = { ...filters, minPrice: preset.min, maxPrice: preset.max };
       expect(countActiveFilters(filters)).toBe(5);
       expect(validatePriceRange(filters.minPrice, filters.maxPrice)).toBe(true);
 
       // 6. User selects favorite colors
-      const pink = COLOR_PALETTE.find(c => c.id === 'pink')!;
-      const purple = COLOR_PALETTE.find(c => c.id === 'purple')!;
+      const pink = COLOR_PALETTE.find((c) => c.id === 'pink')!;
+      const purple = COLOR_PALETTE.find((c) => c.id === 'purple')!;
       filters = { ...filters, colors: [pink.id, purple.id] };
       expect(countActiveFilters(filters)).toBe(6);
 
@@ -304,14 +304,20 @@ describe('DISCOVERY-V3-004 Integration Tests', () => {
     it('should handle all age group values', () => {
       const ageGroups = ['0-2', '3-5', '6-8', '9-12', '13+'];
 
-      ageGroups.forEach(age => {
+      ageGroups.forEach((age) => {
         expect(formatFilterChipLabel('ageGroup', age)).toBe(`Age: ${age}`);
       });
     });
 
     it('should handle all condition values', () => {
       const conditions = ['new', 'like_new', 'good', 'fair', 'worn'];
-      const expected = ['Condition: New', 'Condition: Like New', 'Condition: Good', 'Condition: Fair', 'Condition: Worn'];
+      const expected = [
+        'Condition: New',
+        'Condition: Like New',
+        'Condition: Good',
+        'Condition: Fair',
+        'Condition: Worn',
+      ];
 
       conditions.forEach((condition, index) => {
         expect(formatFilterChipLabel('condition', condition)).toBe(expected[index]);

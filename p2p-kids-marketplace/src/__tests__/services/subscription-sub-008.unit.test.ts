@@ -61,11 +61,11 @@ describe('MODULE-11 SUB-008: cancelSubscription', () => {
     beforeEach(() => {
       // Mock valid session
       (mockSupabase.auth.getSession as jest.Mock).mockResolvedValue({
-        data: { 
-          session: { 
+        data: {
+          session: {
             user: { id: 'test-user-id' },
             access_token: 'test-token',
-          } 
+          },
         },
         error: null,
       });
@@ -116,11 +116,11 @@ describe('MODULE-11 SUB-008: cancelSubscription', () => {
   describe('Successful cancellation - Trial user with SP activity', () => {
     beforeEach(() => {
       (mockSupabase.auth.getSession as jest.Mock).mockResolvedValue({
-        data: { 
-          session: { 
+        data: {
+          session: {
             user: { id: 'trial-user-id' },
             access_token: 'test-token',
-          } 
+          },
         },
         error: null,
       });
@@ -148,11 +148,11 @@ describe('MODULE-11 SUB-008: cancelSubscription', () => {
   describe('Successful cancellation - Trial user without SP activity', () => {
     beforeEach(() => {
       (mockSupabase.auth.getSession as jest.Mock).mockResolvedValue({
-        data: { 
-          session: { 
+        data: {
+          session: {
             user: { id: 'trial-no-sp-user' },
             access_token: 'test-token',
-          } 
+          },
         },
         error: null,
       });
@@ -178,11 +178,11 @@ describe('MODULE-11 SUB-008: cancelSubscription', () => {
   describe('Error handling', () => {
     beforeEach(() => {
       (mockSupabase.auth.getSession as jest.Mock).mockResolvedValue({
-        data: { 
-          session: { 
+        data: {
+          session: {
             user: { id: 'test-user-id' },
             access_token: 'test-token',
-          } 
+          },
         },
         error: null,
       });
@@ -228,9 +228,7 @@ describe('MODULE-11 SUB-008: cancelSubscription', () => {
     });
 
     it('should handle unexpected exceptions', async () => {
-      (mockSupabase.functions.invoke as jest.Mock).mockRejectedValue(
-        new Error('Network error')
-      );
+      (mockSupabase.functions.invoke as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       const result = await cancelSubscription('Testing');
 
@@ -242,11 +240,11 @@ describe('MODULE-11 SUB-008: cancelSubscription', () => {
   describe('CancelSubscriptionResult type validation', () => {
     beforeEach(() => {
       (mockSupabase.auth.getSession as jest.Mock).mockResolvedValue({
-        data: { 
-          session: { 
+        data: {
+          session: {
             user: { id: 'test-user' },
             access_token: 'test-token',
-          } 
+          },
         },
         error: null,
       });
@@ -294,11 +292,11 @@ describe('Cancellation reason analytics', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (mockSupabase.auth.getSession as jest.Mock).mockResolvedValue({
-      data: { 
-        session: { 
+      data: {
+        session: {
           user: { id: 'analytics-test-user' },
           access_token: 'test-token',
-        } 
+        },
       },
       error: null,
     });

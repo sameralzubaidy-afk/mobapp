@@ -1,7 +1,7 @@
 // filepath: p2p-kids-marketplace/src/components/GracePeriodBanner.tsx
 /**
  * MODULE-11 SUB-009: Grace Period Countdown Banner
- * 
+ *
  * Displays a prominent countdown banner when user is in grace_period status
  * Shows days remaining and urgent CTA to re-subscribe
  */
@@ -16,7 +16,10 @@ interface GracePeriodBannerProps {
   daysRemaining: number;
 }
 
-export default function GracePeriodBanner({ gracePeriodEndsAt, daysRemaining }: GracePeriodBannerProps) {
+export default function GracePeriodBanner({
+  gracePeriodEndsAt,
+  daysRemaining,
+}: GracePeriodBannerProps) {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
   const handleResubscribe = () => {
@@ -31,8 +34,8 @@ export default function GracePeriodBanner({ gracePeriodEndsAt, daysRemaining }: 
   const bannerStyle = isCritical
     ? styles.bannerCritical
     : isUrgent
-    ? styles.bannerUrgent
-    : styles.bannerWarning;
+      ? styles.bannerUrgent
+      : styles.bannerWarning;
 
   const getMessage = () => {
     if (isCritical) {
@@ -50,7 +53,11 @@ export default function GracePeriodBanner({ gracePeriodEndsAt, daysRemaining }: 
         <Text style={styles.icon}>{isCritical ? '⛔' : isUrgent ? '⚠️' : '⏰'}</Text>
         <View style={styles.textContainer}>
           <Text style={styles.title}>
-            {isCritical ? 'Final Day!' : isUrgent ? 'Grace Period Ending Soon' : 'Grace Period Active'}
+            {isCritical
+              ? 'Final Day!'
+              : isUrgent
+                ? 'Grace Period Ending Soon'
+                : 'Grace Period Active'}
           </Text>
           <Text style={styles.message}>{getMessage()}</Text>
         </View>

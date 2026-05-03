@@ -43,11 +43,7 @@ export function BulkStepIndicator({
               testID={`bulk-step-${step.id}`}
             >
               <View
-                style={[
-                  styles.dot,
-                  isReached && styles.dotReached,
-                  isCurrent && styles.dotCurrent,
-                ]}
+                style={[styles.dot, isReached && styles.dotReached, isCurrent && styles.dotCurrent]}
               >
                 <Text style={[styles.dotText, isCurrent && styles.dotTextCurrent]}>
                   {index + 1}
@@ -57,10 +53,7 @@ export function BulkStepIndicator({
             </TouchableOpacity>
             {index < STEPS.length - 1 && (
               <View
-                style={[
-                  styles.line,
-                  reachedSteps.has(STEPS[index + 1].id) && styles.lineReached,
-                ]}
+                style={[styles.line, reachedSteps.has(STEPS[index + 1].id) && styles.lineReached]}
               />
             )}
           </React.Fragment>

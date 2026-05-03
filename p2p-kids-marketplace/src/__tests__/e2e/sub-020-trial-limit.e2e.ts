@@ -84,7 +84,9 @@ d('SUB-020 E2E: Trial Limit Control', () => {
     }
 
     if (!canRunSuite) {
-      console.warn(`[SUB-020 E2E] Skipping case: ${skipReason || 'suite preconditions unavailable'}`);
+      console.warn(
+        `[SUB-020 E2E] Skipping case: ${skipReason || 'suite preconditions unavailable'}`
+      );
       return true;
     }
 

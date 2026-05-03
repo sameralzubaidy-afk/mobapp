@@ -1,13 +1,13 @@
 /**
  * FILE: p2p-kids-marketplace/e2e/sub-018-payment-failure.integration.test.ts
  * MODULE-11 TASK SUB-018: Payment Failure E2E Integration Tests
- * 
+ *
  * Tests the complete payment failure flow against staging Supabase:
  * - invoice.payment_failed webhook handling
  * - Payment retry logic
  * - Notification delivery
  * - Grace period transitions
- * 
+ *
  * Run with: RUN_SUPABASE_E2E=true npm run test:e2e
  */
 
@@ -33,7 +33,9 @@ testIf('SUB-018: Payment Failure Handling E2E', () => {
 
   const shouldSkipCase = (): boolean => {
     if (!canRunSuite) {
-      console.warn(`[E2E-SUB-018] Skipping case: ${skipReason || 'suite preconditions unavailable'}`);
+      console.warn(
+        `[E2E-SUB-018] Skipping case: ${skipReason || 'suite preconditions unavailable'}`
+      );
       return true;
     }
 
@@ -199,7 +201,9 @@ testIf('SUB-018: Payment Failure Handling E2E', () => {
       const message = payload?.error?.message || payload?.message || '';
       const diagnostic = `${code} ${message}`.trim();
       expect(diagnostic).toBeTruthy();
-      expect(diagnostic).toMatch(/NO_OPEN_INVOICE|MISSING_STRIPE_DATA|UNAUTHORIZED|FORBIDDEN|FUNCTION_HTTP_ERROR|Missing authorization|No open invoice|Stripe identifiers|non-2xx status code/i);
+      expect(diagnostic).toMatch(
+        /NO_OPEN_INVOICE|MISSING_STRIPE_DATA|UNAUTHORIZED|FORBIDDEN|FUNCTION_HTTP_ERROR|Missing authorization|No open invoice|Stripe identifiers|non-2xx status code/i
+      );
     });
 
     it('should enforce authorization (cannot retry another user payment)', async () => {
@@ -216,7 +220,9 @@ testIf('SUB-018: Payment Failure Handling E2E', () => {
       const message = payload?.error?.message || payload?.message || '';
       const diagnostic = `${code} ${message}`.trim();
       expect(diagnostic).toBeTruthy();
-      expect(diagnostic).toMatch(/FORBIDDEN|UNAUTHORIZED|FUNCTION_HTTP_ERROR|Missing authorization|Invalid token|retry your own payment|non-2xx status code/i);
+      expect(diagnostic).toMatch(
+        /FORBIDDEN|UNAUTHORIZED|FUNCTION_HTTP_ERROR|Missing authorization|Invalid token|retry your own payment|non-2xx status code/i
+      );
     });
   });
 });

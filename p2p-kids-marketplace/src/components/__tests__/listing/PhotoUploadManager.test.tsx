@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/components/__tests__/listing/PhotoUploadManager.test.tsx
  * MODULE-04 LISTING-V3-008: Unit tests for PhotoUploadManager
- * 
+ *
  * Test Coverage:
  * - Rendering with 0, 1, 5, 10 photos
  * - Cover badge on first photo

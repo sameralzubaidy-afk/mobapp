@@ -10,10 +10,7 @@ import {
   countLoginMethods,
 } from '../../services/accountService';
 import { supabase } from '../../config/supabase';
-import {
-  EmailMismatchError,
-  LastLoginMethodError,
-} from '../../types/auth-v3-errors';
+import { EmailMismatchError, LastLoginMethodError } from '../../types/auth-v3-errors';
 import type { ProviderProfile } from '../../types/auth-v3';
 
 // Mock Supabase
@@ -95,9 +92,7 @@ describe('AccountService', () => {
       // getUserIdentities returns providers
       (supabase.auth.getUserIdentities as jest.Mock).mockResolvedValue({
         data: {
-          identities: [
-            { provider: 'google' },
-          ],
+          identities: [{ provider: 'google' }],
         },
         error: null,
       });
@@ -193,9 +188,7 @@ describe('AccountService', () => {
       // getLinkedProviders returns updated list
       (supabase.auth.getUserIdentities as jest.Mock).mockResolvedValue({
         data: {
-          identities: [
-            { provider: 'google' },
-          ],
+          identities: [{ provider: 'google' }],
         },
         error: null,
       });
@@ -212,7 +205,11 @@ describe('AccountService', () => {
       };
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
-      const result = await linkSocialAccount(mockProviderProfile.provider, mockProviderProfile, 'password123');
+      const result = await linkSocialAccount(
+        mockProviderProfile.provider,
+        mockProviderProfile,
+        'password123'
+      );
 
       expect(result).toHaveLength(1);
       expect(result[0].provider).toBe('google');
@@ -235,7 +232,7 @@ describe('AccountService', () => {
       });
 
       await expect(
-        linkSocialAccount(mockProviderProfile.provider, mockProviderProfile, 'password123'),
+        linkSocialAccount(mockProviderProfile.provider, mockProviderProfile, 'password123')
       ).rejects.toThrow(EmailMismatchError);
     });
 
@@ -263,7 +260,7 @@ describe('AccountService', () => {
       });
 
       await expect(
-        linkSocialAccount(mockProviderProfile.provider, mockProviderProfile, 'wrongpassword'),
+        linkSocialAccount(mockProviderProfile.provider, mockProviderProfile, 'wrongpassword')
       ).rejects.toThrow('Password re-authentication failed');
     });
 
@@ -285,7 +282,7 @@ describe('AccountService', () => {
       });
 
       await expect(
-        linkSocialAccount(mockProviderProfile.provider, mockProviderProfile), // No password provided
+        linkSocialAccount(mockProviderProfile.provider, mockProviderProfile) // No password provided
       ).rejects.toThrow('Password re-authentication required');
     });
 
@@ -321,7 +318,7 @@ describe('AccountService', () => {
       });
 
       await expect(
-        linkSocialAccount(mockProviderProfile.provider, mockProviderProfile),
+        linkSocialAccount(mockProviderProfile.provider, mockProviderProfile)
       ).rejects.toThrow(EmailMismatchError);
     });
   });
@@ -341,9 +338,7 @@ describe('AccountService', () => {
       // countLoginMethods returns 2 (google + password)
       (supabase.auth.getUserIdentities as jest.Mock).mockResolvedValue({
         data: {
-          identities: [
-            { id: 'identity-1', provider: 'google' },
-          ],
+          identities: [{ id: 'identity-1', provider: 'google' }],
         },
         error: null,
       });
@@ -393,9 +388,7 @@ describe('AccountService', () => {
       // countLoginMethods returns 1 (only google, no password)
       (supabase.auth.getUserIdentities as jest.Mock).mockResolvedValue({
         data: {
-          identities: [
-            { id: 'identity-1', provider: 'google' },
-          ],
+          identities: [{ id: 'identity-1', provider: 'google' }],
         },
         error: null,
       });
@@ -406,10 +399,8 @@ describe('AccountService', () => {
         error: null,
       });
 
-      await expect(
-        unlinkSocialAccount('google'),
-      ).rejects.toThrow(LastLoginMethodError);
-      
+      await expect(unlinkSocialAccount('google')).rejects.toThrow(LastLoginMethodError);
+
       // unlinkIdentity should NOT be called
       expect(supabase.auth.unlinkIdentity).not.toHaveBeenCalled();
     });
@@ -428,9 +419,7 @@ describe('AccountService', () => {
       // Multiple identities, but not the one we're trying to unlink
       (supabase.auth.getUserIdentities as jest.Mock).mockResolvedValue({
         data: {
-          identities: [
-            { id: 'identity-1', provider: 'facebook' },
-          ],
+          identities: [{ id: 'identity-1', provider: 'facebook' }],
         },
         error: null,
       });
@@ -441,9 +430,9 @@ describe('AccountService', () => {
         error: null,
       });
 
-      await expect(
-        unlinkSocialAccount('google'),
-      ).rejects.toThrow('No google identity found to unlink');
+      await expect(unlinkSocialAccount('google')).rejects.toThrow(
+        'No google identity found to unlink'
+      );
     });
   });
 
@@ -528,10 +517,7 @@ describe('AccountService', () => {
     it('should count identities + password', async () => {
       (supabase.auth.getUserIdentities as jest.Mock).mockResolvedValue({
         data: {
-          identities: [
-            { provider: 'google' },
-            { provider: 'facebook' },
-          ],
+          identities: [{ provider: 'google' }, { provider: 'facebook' }],
         },
         error: null,
       });
@@ -559,9 +545,7 @@ describe('AccountService', () => {
     it('should count only identities when no password', async () => {
       (supabase.auth.getUserIdentities as jest.Mock).mockResolvedValue({
         data: {
-          identities: [
-            { provider: 'google' },
-          ],
+          identities: [{ provider: 'google' }],
         },
         error: null,
       });

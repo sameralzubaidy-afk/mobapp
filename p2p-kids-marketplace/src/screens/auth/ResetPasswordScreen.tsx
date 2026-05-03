@@ -58,10 +58,15 @@ export default function ResetPasswordScreen() {
           // Set session so supabase.auth.updateUser works
           // supabase.auth.setSession exists in Supabase JS client
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { error: setErr } = await (supabase.auth as any).setSession({ access_token, refresh_token });
+          const { error: setErr } = await (supabase.auth as any).setSession({
+            access_token,
+            refresh_token,
+          });
           if (setErr) {
             console.error('Failed to set session from deep link:', setErr);
-            setLinkError('Failed to set auth session from reset link. Please request a new reset email.');
+            setLinkError(
+              'Failed to set auth session from reset link. Please request a new reset email.'
+            );
             return;
           }
           setHasResetSession(true);
@@ -98,10 +103,15 @@ export default function ResetPasswordScreen() {
       if (access_token) {
         (async () => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const { error: setErr } = await (supabase.auth as any).setSession({ access_token, refresh_token });
+          const { error: setErr } = await (supabase.auth as any).setSession({
+            access_token,
+            refresh_token,
+          });
           if (setErr) {
             console.error('Failed to set session from params:', setErr);
-            setLinkError('Failed to set auth session from reset link. Please request a new reset email.');
+            setLinkError(
+              'Failed to set auth session from reset link. Please request a new reset email.'
+            );
             return;
           }
           setHasResetSession(true);
@@ -154,7 +164,10 @@ export default function ResetPasswordScreen() {
       const { data: sessionData } = await supabase.auth.getSession();
 
       if (!sessionData?.session && !hasResetSession) {
-        Alert.alert('No active reset session', 'This link does not provide a valid reset session. Please request a new password reset email.');
+        Alert.alert(
+          'No active reset session',
+          'This link does not provide a valid reset session. Please request a new password reset email.'
+        );
         setLoading(false);
         return;
       }
@@ -173,30 +186,23 @@ export default function ResetPasswordScreen() {
       } else {
         console.log('Password reset successful');
 
-        Alert.alert(
-          'Success!',
-          'Your password has been reset successfully.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Navigate to login screen
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' as never }],
-                });
-              },
+        Alert.alert('Success!', 'Your password has been reset successfully.', [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate to login screen
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' as never }],
+              });
             },
-          ]
-        );
+          },
+        ]);
       }
     } catch (error: any) {
       console.error('Password reset exception:', error);
 
-      Alert.alert(
-        'Error',
-        'An unexpected error occurred. Please try again later.'
-      );
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -246,9 +252,7 @@ export default function ResetPasswordScreen() {
             }}
           />
           {errors.password && (
-            <Text style={{ color: '#ff3b30', fontSize: 12, marginTop: 4 }}>
-              {errors.password}
-            </Text>
+            <Text style={{ color: '#ff3b30', fontSize: 12, marginTop: 4 }}>{errors.password}</Text>
           )}
         </View>
 
@@ -285,31 +289,40 @@ export default function ResetPasswordScreen() {
         </View>
 
         {linkError ? (
-          <View style={{ backgroundColor: '#fff6f6', padding: 16, borderRadius: 12, marginBottom: 24 }}>
+          <View
+            style={{ backgroundColor: '#fff6f6', padding: 16, borderRadius: 12, marginBottom: 24 }}
+          >
             <Text style={{ fontSize: 14, fontWeight: '600', color: '#b00020', marginBottom: 8 }}>
               Link Error
             </Text>
-            <Text style={{ fontSize: 14, color: '#666', lineHeight: 20, marginBottom: 12 }}>{linkError}</Text>
+            <Text style={{ fontSize: 14, color: '#666', lineHeight: 20, marginBottom: 12 }}>
+              {linkError}
+            </Text>
             <TouchableOpacity
               onPress={() => {
                 // Navigate back to Forgot Password to request a new email
                 (navigation as any).navigate('ForgotPassword');
               }}
-              style={{ padding: 12, backgroundColor: '#007AFF', borderRadius: 8, alignItems: 'center' }}
+              style={{
+                padding: 12,
+                backgroundColor: '#007AFF',
+                borderRadius: 8,
+                alignItems: 'center',
+              }}
             >
               <Text style={{ color: '#fff', fontWeight: '600' }}>Request New Reset Email</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={{ backgroundColor: '#f8f9fa', padding: 16, borderRadius: 12, marginBottom: 24 }}>
+          <View
+            style={{ backgroundColor: '#f8f9fa', padding: 16, borderRadius: 12, marginBottom: 24 }}
+          >
             <Text style={{ fontSize: 14, fontWeight: '600', color: '#111', marginBottom: 8 }}>
               Password Requirements:
             </Text>
             <Text style={{ fontSize: 14, color: '#666', lineHeight: 20 }}>
-              • At least 8 characters{'\n'}
-              • Contains uppercase letter{'\n'}
-              • Contains lowercase letter{'\n'}
-              • Contains number
+              • At least 8 characters{'\n'}• Contains uppercase letter{'\n'}• Contains lowercase
+              letter{'\n'}• Contains number
             </Text>
           </View>
         )}
@@ -328,9 +341,7 @@ export default function ResetPasswordScreen() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-              Reset Password
-            </Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Reset Password</Text>
           )}
         </TouchableOpacity>
 
@@ -344,9 +355,7 @@ export default function ResetPasswordScreen() {
           disabled={loading}
           style={{ padding: 16, alignItems: 'center' }}
         >
-          <Text style={{ color: loading ? '#ccc' : '#666', fontSize: 16 }}>
-            Back to Login
-          </Text>
+          <Text style={{ color: loading ? '#ccc' : '#666', fontSize: 16 }}>Back to Login</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -10,10 +10,10 @@ export default function WelcomeScreen() {
   const route = useRoute();
   const { session, refreshSession } = React.useContext(AuthContext);
   const { userId: routeUserId } = (route.params as any) || {};
-  
+
   // Priority: 1. Route Params, 2. Current Session
   const userId = routeUserId || session?.user?.id;
-  
+
   const [loading, setLoading] = React.useState(false);
 
   const handleGetStarted = async () => {
@@ -43,19 +43,20 @@ export default function WelcomeScreen() {
       }
 
       console.log('[WelcomeScreen] ✅ Onboarding marked complete in DB');
-      
+
       // Safety delay for DB propagation
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       console.log('[WelcomeScreen] 🔄 Refreshing session...');
-      
+
       // Refresh session so AuthContext picks up onboarding_completed = true
       // RootNavigator will then automatically switch to the Home stack
       // Pass silent=false to show a loading spinner while switching stacks
       await refreshSession(false);
-      
-      console.log('[WelcomeScreen] 🎉 Session refresh triggered. RootNavigator should switch to HomeStack.');
-      
+
+      console.log(
+        '[WelcomeScreen] 🎉 Session refresh triggered. RootNavigator should switch to HomeStack.'
+      );
     } catch (error: any) {
       console.error('[WelcomeScreen] ❌ Error completing onboarding:', error);
       Alert.alert('Error', error.message || 'Failed to finish onboarding. Please try again.');
@@ -71,9 +72,7 @@ export default function WelcomeScreen() {
         <Text style={styles.emoji}>🌟</Text>
 
         {/* Title */}
-        <Text style={styles.title}>
-          Welcome to{'\n'}P2P Kids Marketplace
-        </Text>
+        <Text style={styles.title}>Welcome to{'\n'}P2P Kids Marketplace</Text>
 
         {/* Description */}
         <Text style={styles.description}>
@@ -83,11 +82,7 @@ export default function WelcomeScreen() {
         </Text>
 
         {/* Get Started Button */}
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleGetStarted}
-          disabled={loading}
-        >
+        <TouchableOpacity style={styles.button} onPress={handleGetStarted} disabled={loading}>
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (

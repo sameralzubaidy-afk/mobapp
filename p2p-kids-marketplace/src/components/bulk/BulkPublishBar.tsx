@@ -20,7 +20,9 @@ export function BulkPublishBar({ count, disabled = false, onPress }: BulkPublish
         accessibilityHint="Opens submit-for-review confirmation summary"
         testID="bulk-publish-button"
       >
-        <Text style={styles.buttonText}>Submit {count} {itemLabel} for Review</Text>
+        <Text style={styles.buttonText}>
+          Submit {count} {itemLabel} for Review
+        </Text>
       </TouchableOpacity>
     </View>
   );

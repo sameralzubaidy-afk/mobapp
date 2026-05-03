@@ -21,7 +21,5 @@
   "libraries": "c++",
   "public_header_files": "include/fast_float/*.h",
   "header_mappings_dir": "include",
-  "source_files": [
-    "include/fast_float/*.h"
-  ]
+  "source_files": ["include/fast_float/*.h"]
 }

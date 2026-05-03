@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/listing/EditListingScreen.tsx
  * MODULE-04 LISTING-V2-003: Edit listing with V2 rules
- * 
+ *
  * Features:
  * - Pre-filled form with existing listing data
  * - Ownership verification (only seller can edit)
@@ -43,12 +43,12 @@ type ListingGender = 'boy' | 'girl' | 'unisex';
 export default function EditListingScreen({ route, navigation }: any) {
   const { listing_id } = route.params;
   const { session } = useAuth();
-  
+
   const [loading, setLoading] = useState(false);
   const [syncingImages, setSyncingImages] = useState(false);
   const [loadingListing, setLoadingListing] = useState(true);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
-  
+
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -63,10 +63,10 @@ export default function EditListingScreen({ route, navigation }: any) {
   const [acceptsSwapPoints, setAcceptsSwapPoints] = useState(false);
   const [images, setImages] = useState<SelectedImage[]>([]);
   const [categories, setCategories] = useState<ListingCategory[]>([]);
-  
+
   // Subscription state
   const [canAcceptSP, setCanAcceptSP] = useState(false);
-  
+
   // Original listing
   const [originalListing, setOriginalListing] = useState<Listing | null>(null);
 
@@ -276,11 +276,19 @@ export default function EditListingScreen({ route, navigation }: any) {
             {categories.map((category) => (
               <TouchableOpacity
                 key={category.id}
-                style={[styles.categoryButton, categoryId === category.id && styles.categoryButtonActive]}
+                style={[
+                  styles.categoryButton,
+                  categoryId === category.id && styles.categoryButtonActive,
+                ]}
                 onPress={() => setCategoryId(category.id)}
                 testID={`edit-listing-category-${category.name.toLowerCase().replace(/\s+/g, '-')}`}
               >
-                <Text style={[styles.categoryButtonText, categoryId === category.id && styles.categoryButtonTextActive]}>
+                <Text
+                  style={[
+                    styles.categoryButtonText,
+                    categoryId === category.id && styles.categoryButtonTextActive,
+                  ]}
+                >
                   {category.icon ? `${category.icon} ` : ''}
                   {category.name}
                 </Text>
@@ -299,7 +307,10 @@ export default function EditListingScreen({ route, navigation }: any) {
               onPress={() => setCondition(c)}
             >
               <Text
-                style={[styles.conditionButtonText, condition === c && styles.conditionButtonTextActive]}
+                style={[
+                  styles.conditionButtonText,
+                  condition === c && styles.conditionButtonTextActive,
+                ]}
               >
                 {c.replace('_', ' ').toUpperCase()}
               </Text>
@@ -357,9 +368,7 @@ export default function EditListingScreen({ route, navigation }: any) {
               <View style={styles.spToggleRow}>
                 <View style={styles.spToggleLabel}>
                   <Text style={styles.label}>Accept Swap Points?</Text>
-                  <Text style={styles.hint}>
-                    Allow buyers to pay up to 50% with Swap Points
-                  </Text>
+                  <Text style={styles.hint}>Allow buyers to pay up to 50% with Swap Points</Text>
                 </View>
                 <Switch
                   value={acceptsSwapPoints}
@@ -376,9 +385,7 @@ export default function EditListingScreen({ route, navigation }: any) {
             </>
           ) : (
             <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                ℹ️ Subscribe to Kids Club+ to accept Swap Points
-              </Text>
+              <Text style={styles.infoText}>ℹ️ Subscribe to Kids Club+ to accept Swap Points</Text>
             </View>
           )}
         </View>
@@ -392,7 +399,9 @@ export default function EditListingScreen({ route, navigation }: any) {
           {loading || syncingImages ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color="#fff" />
-              <Text style={styles.saveButtonText}>{syncingImages ? 'Saving photos...' : 'Saving...'}</Text>
+              <Text style={styles.saveButtonText}>
+                {syncingImages ? 'Saving photos...' : 'Saving...'}
+              </Text>
             </View>
           ) : (
             <Text style={styles.saveButtonText}>Save Changes</Text>
@@ -400,10 +409,7 @@ export default function EditListingScreen({ route, navigation }: any) {
         </TouchableOpacity>
 
         {/* Cancel Button */}
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
       </View>

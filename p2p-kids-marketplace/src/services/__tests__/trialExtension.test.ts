@@ -3,7 +3,11 @@
  * Unit tests for trial extension service (SUB-EXT-001)
  */
 
-import { extendTrial, getTrialExtensionStats, getTrialExtensionHistory } from '../subscriptions/trialExtension';
+import {
+  extendTrial,
+  getTrialExtensionStats,
+  getTrialExtensionHistory,
+} from '../subscriptions/trialExtension';
 import { supabase } from '../../config/supabase';
 
 // Mock Supabase
@@ -117,7 +121,8 @@ describe('Trial Extension Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn()
+        single: jest
+          .fn()
           .mockResolvedValueOnce({ data: mockSubscription, error: null })
           .mockResolvedValueOnce({ data: mockConfig, error: null }),
       });
@@ -154,7 +159,8 @@ describe('Trial Extension Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn()
+        single: jest
+          .fn()
           .mockResolvedValueOnce({ data: mockSubscription, error: null })
           .mockResolvedValueOnce({ data: null, error: { message: 'Config not found' } }),
       });
@@ -176,7 +182,8 @@ describe('Trial Extension Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn()
+        single: jest
+          .fn()
           .mockResolvedValueOnce({ data: mockSubscription, error: null })
           .mockResolvedValueOnce({ data: mockConfig, error: null }),
       });

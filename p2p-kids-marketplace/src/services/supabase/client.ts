@@ -46,7 +46,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
       signUp: async () => ({ data: null, error: new Error('Supabase not configured') }),
       signInWithPassword: async () => ({ data: null, error: new Error('Supabase not configured') }),
       signOut: async () => ({ error: new Error('Supabase not configured') }),
-      getSession: async () => ({ data: { session: null }, error: new Error('Supabase not configured') }),
+      getSession: async () => ({
+        data: { session: null },
+        error: new Error('Supabase not configured'),
+      }),
       getUser: async () => ({ data: { user: null }, error: new Error('Supabase not configured') }),
       onAuthStateChange: (_cb: any) => ({ data: { subscription: { unsubscribe: () => {} } } }),
     },
@@ -54,7 +57,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
     removeChannel: async () => {},
     removeAllChannels: async () => {},
   } as unknown as ReturnType<typeof createClient>;
-
 } else {
   _supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     auth: {
@@ -72,5 +74,3 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = _supabase as any;
-
-

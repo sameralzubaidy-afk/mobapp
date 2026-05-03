@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/e2e/discovery-v2-002-recommendations.e2e.ts
  * MODULE-05-DISCOVERY-V2: Recommendations E2E Tests
  * Task: DISCOVERY-V2-002 - Subscriber-Personalized Recommendations
- * 
+ *
  * End-to-end tests for personalized recommendations feature
  * Tests: Recommendations carousel, SP prioritization, balance-aware suggestions
  */
@@ -23,9 +23,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 6. Tap on SP-eligible item
       // 7. Navigate to Item Detail screen
 
-      console.log(
-        '✅ E2E-001: SP-eligible prioritization test would run here'
-      );
+      console.log('✅ E2E-001: SP-eligible prioritization test would run here');
     });
 
     it('E2E-002: Free user sees recommendations without SP prioritization', async () => {
@@ -36,9 +34,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 5. SP-eligible badge may appear but items not ranked higher
       // 6. All items have low base score (10)
 
-      console.log(
-        '✅ E2E-002: Free user recommendations test would run here'
-      );
+      console.log('✅ E2E-002: Free user recommendations test would run here');
     });
 
     it('E2E-003: Recommendations within SP balance range', async () => {
@@ -49,9 +45,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 5. Verify "Affordable with SP" items appear first
       // 6. Items > $50 still visible but lower rank
 
-      console.log(
-        '✅ E2E-003: SP balance-aware recommendations test would run here'
-      );
+      console.log('✅ E2E-003: SP balance-aware recommendations test would run here');
     });
 
     it('E2E-004: Recommendations exclude user own listings', async () => {
@@ -61,9 +55,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 4. Verify recommendations carousel does not show own listing
       // 5. Verify only other users' items recommended
 
-      console.log(
-        '✅ E2E-004: Exclude own listings test would run here'
-      );
+      console.log('✅ E2E-004: Exclude own listings test would run here');
     });
 
     it('E2E-005: Empty state when no recommendations available', async () => {
@@ -73,9 +65,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 4. Verify "No recommendations available" message
       // 5. Verify carousel does not break UI
 
-      console.log(
-        '✅ E2E-005: Empty state handling test would run here'
-      );
+      console.log('✅ E2E-005: Empty state handling test would run here');
     });
 
     it('E2E-006: Error state when recommendations fail to load', async () => {
@@ -87,9 +77,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 6. Tap "Retry" button
       // 7. Verify recommendations reload
 
-      console.log(
-        '✅ E2E-006: Error state handling test would run here'
-      );
+      console.log('✅ E2E-006: Error state handling test would run here');
     });
 
     it('E2E-007: Recommendations refresh when SP balance changes', async () => {
@@ -100,9 +88,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 5. Return to Home Feed screen
       // 6. Verify recommendations refresh with higher-priced items
 
-      console.log(
-        '✅ E2E-007: Dynamic recommendations based on balance test would run here'
-      );
+      console.log('✅ E2E-007: Dynamic recommendations based on balance test would run here');
     });
 
     it('E2E-008: Recommendations carousel horizontal scroll', async () => {
@@ -114,9 +100,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 6. Verify all 10 recommendations visible
       // 7. Verify scroll indicators present
 
-      console.log(
-        '✅ E2E-008: Carousel UI interaction test would run here'
-      );
+      console.log('✅ E2E-008: Carousel UI interaction test would run here');
     });
 
     it('E2E-009: Dev mode shows recommendation scores', async () => {
@@ -129,9 +113,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 7. Disable __DEV__ mode
       // 8. Verify scores hidden
 
-      console.log(
-        '✅ E2E-009: Dev mode score display test would run here'
-      );
+      console.log('✅ E2E-009: Dev mode score display test would run here');
     });
 
     it('E2E-010: Tapping recommendation navigates to ItemDetail', async () => {
@@ -143,9 +125,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 6. Verify correct item ID passed
       // 7. Verify item details loaded
 
-      console.log(
-        '✅ E2E-010: Navigation to ItemDetail test would run here'
-      );
+      console.log('✅ E2E-010: Navigation to ItemDetail test would run here');
     });
   });
 
@@ -156,9 +136,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 3. Verify wallet_status checked (active vs inactive)
       // 4. Verify frozen/inactive wallets exclude SP bonuses
 
-      console.log(
-        '✅ E2E-011: SP Wallet integration test would run here'
-      );
+      console.log('✅ E2E-011: SP Wallet integration test would run here');
     });
 
     it('E2E-012: Recommendations integrate with Subscriptions (Module 11)', async () => {
@@ -168,9 +146,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 4. Verify free users do not get SP prioritization
       // 5. Verify grace period users (frozen) do not get SP bonus
 
-      console.log(
-        '✅ E2E-012: Subscription tier integration test would run here'
-      );
+      console.log('✅ E2E-012: Subscription tier integration test would run here');
     });
 
     it('E2E-013: Recommendations analytics tracked', async () => {
@@ -184,9 +160,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 5. Tap on recommendation
       // 6. Verify analytics event: tap_recommendation
 
-      console.log(
-        '✅ E2E-013: Analytics tracking test would run here'
-      );
+      console.log('✅ E2E-013: Analytics tracking test would run here');
     });
   });
 
@@ -199,9 +173,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 5. Stop timer
       // 6. Verify load time < 2 seconds
 
-      console.log(
-        '✅ E2E-014: Performance timing test would run here'
-      );
+      console.log('✅ E2E-014: Performance timing test would run here');
     });
 
     it('E2E-015: Recommendations randomize within score tier', async () => {
@@ -212,9 +184,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 5. Verify recommendations order changed
       // 6. Verify top-scored items still appear first (but order within tier varies)
 
-      console.log(
-        '✅ E2E-015: Randomization within score tier test would run here'
-      );
+      console.log('✅ E2E-015: Randomization within score tier test would run here');
     });
 
     it('E2E-016: Large dataset does not break recommendations', async () => {
@@ -225,24 +195,22 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
       // 5. Verify limit=10 enforced
       // 6. Verify no performance degradation
 
-      console.log(
-        '✅ E2E-016: Large dataset handling test would run here'
-      );
+      console.log('✅ E2E-016: Large dataset handling test would run here');
     });
   });
 });
 
 /**
  * Manual Test Checklist for QA
- * 
+ *
  * Pre-requisites:
  * 1. Run SQL migration: 20251220000003_get_recommendations_rpc.sql
  * 2. Ensure sp_wallets table exists (Module 09)
  * 3. Ensure profiles.subscription_tier exists (Module 11)
  * 4. Seed test data with at least 10 active listings
- * 
+ *
  * Test Steps:
- * 
+ *
  * A. Subscriber User (Trial or Kids Club+):
  *    1. Login to app
  *    2. Navigate to Home Feed screen
@@ -251,13 +219,13 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
  *    5. Scroll through carousel horizontally
  *    6. Tap on recommendation
  *    7. Verify navigation to ItemDetail screen
- * 
+ *
  * B. Free User:
  *    1. Login as free user
  *    2. Navigate to Home Feed screen
  *    3. Verify recommendations carousel appears
  *    4. Verify items shown but no SP prioritization
- * 
+ *
  * C. Error Handling:
  *    1. Disconnect internet
  *    2. Navigate to Home Feed screen
@@ -265,7 +233,7 @@ describe('DISCOVERY-V2-002 E2E: Subscriber-Personalized Recommendations', () => 
  *    4. Reconnect internet
  *    5. Tap "Retry" button
  *    6. Verify recommendations load
- * 
+ *
  * D. Empty State:
  *    1. Create new user with no listings in database
  *    2. Navigate to Home Feed screen

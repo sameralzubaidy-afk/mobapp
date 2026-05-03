@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/molecules/ResumeDraftBanner.tsx
  * MODULE-04 LISTING-V3: Resume Draft Banner
  * Task: LISTING-V3-007 - Draft Resume Banner + Navigation Wiring
- * 
+ *
  * Shows banner on HomeScreen when user has unfinished listings
  * - Displays count of active drafts
  * - Tapping navigates to ItemCreate or BulkListingCreate
@@ -53,11 +53,11 @@ export interface ResumeDraftBannerProps {
  * @param onDismiss - Callback when user dismisses banner
  * @param testID - Test identifier for automation
  */
-export function ResumeDraftBanner({ 
-  drafts, 
-  onResume, 
+export function ResumeDraftBanner({
+  drafts,
+  onResume,
   onDismiss,
-  testID = 'resume-draft-banner'
+  testID = 'resume-draft-banner',
 }: ResumeDraftBannerProps) {
   if (!drafts || drafts.length === 0) {
     return null;
@@ -86,7 +86,7 @@ export function ResumeDraftBanner({
             Continue where you left off
           </Text>
         </View>
-        
+
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.resumeButton}
@@ -97,7 +97,7 @@ export function ResumeDraftBanner({
           >
             <Text style={styles.resumeButtonText}>Continue</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity
             style={styles.dismissButton}
             onPress={onDismiss}

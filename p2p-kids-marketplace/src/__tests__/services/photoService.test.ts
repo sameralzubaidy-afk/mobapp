@@ -58,7 +58,7 @@ describe('photoService', () => {
       };
 
       const result = await photoService.validatePhoto(asset);
-      
+
       expect(result.valid).toBe(true);
       expect(result.error).toBeUndefined();
     });
@@ -74,7 +74,7 @@ describe('photoService', () => {
       };
 
       const result = await photoService.validatePhoto(asset);
-      
+
       expect(result.valid).toBe(true);
     });
 
@@ -88,7 +88,7 @@ describe('photoService', () => {
       };
 
       const result = await photoService.validatePhoto(asset);
-      
+
       expect(result.valid).toBe(true);
     });
 
@@ -117,7 +117,7 @@ describe('photoService', () => {
       };
 
       const result = await photoService.validatePhoto(asset);
-      
+
       expect(result.valid).toBe(false);
       expect(result.error).toContain('JPEG, PNG, WebP, and HEIC');
     });
@@ -133,7 +133,7 @@ describe('photoService', () => {
       };
 
       const result = await photoService.validatePhoto(asset);
-      
+
       expect(result.valid).toBe(false);
       expect(result.error).toContain('10MB');
     });
@@ -148,7 +148,7 @@ describe('photoService', () => {
       };
 
       const result = await photoService.validatePhoto(asset);
-      
+
       expect(result.valid).toBe(false);
       expect(result.error).toContain('400×400');
     });
@@ -163,7 +163,7 @@ describe('photoService', () => {
       };
 
       const result = await photoService.validatePhoto(asset);
-      
+
       expect(result.valid).toBe(false);
       expect(result.error).toContain('400×400');
     });
@@ -175,12 +175,11 @@ describe('photoService', () => {
       (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValue(mockCompressed);
 
       const result = await photoService.compressPhoto('file://test.jpg', 0.8);
-      
-      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
-        'file://test.jpg',
-        [],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
-      );
+
+      expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith('file://test.jpg', [], {
+        compress: 0.8,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
       expect(result).toBe(mockCompressed.uri);
     });
 
@@ -189,7 +188,7 @@ describe('photoService', () => {
       (ImageManipulator.manipulateAsync as jest.Mock).mockResolvedValue(mockCompressed);
 
       await photoService.compressPhoto('file://test.jpg');
-      
+
       expect(ImageManipulator.manipulateAsync).toHaveBeenCalledWith(
         expect.any(String),
         expect.any(Array),
@@ -221,7 +220,7 @@ describe('photoService', () => {
     it('should group photos with 1 per group by default', () => {
       const photos = createMockPhotos(6);
       const groups = photoService.groupPhotosAuto(photos);
-      
+
       expect(groups).toHaveLength(6);
       expect(groups[0].photos).toHaveLength(1);
       expect(groups[1].photos).toHaveLength(1);
@@ -231,7 +230,7 @@ describe('photoService', () => {
     it('should respect custom photos per group', () => {
       const photos = createMockPhotos(9);
       const groups = photoService.groupPhotosAuto(photos, 3);
-      
+
       expect(groups).toHaveLength(3);
       expect(groups[0].photos).toHaveLength(3);
       expect(groups[1].photos).toHaveLength(3);
@@ -241,7 +240,7 @@ describe('photoService', () => {
     it('should enforce 30 total photo cap', () => {
       const photos = createMockPhotos(35);
       const groups = photoService.groupPhotosAuto(photos);
-      
+
       const totalPhotos = groups.reduce((sum, g) => sum + g.photos.length, 0);
       expect(totalPhotos).toBeLessThanOrEqual(30);
     });
@@ -275,8 +274,8 @@ describe('photoService', () => {
     it('should enforce 10 photos per group cap', () => {
       const photos = createMockPhotos(20);
       const groups = photoService.groupPhotosAuto(photos, 15); // Try 15 per group
-      
-      groups.forEach(group => {
+
+      groups.forEach((group) => {
         expect(group.photos.length).toBeLessThanOrEqual(10);
       });
     });
@@ -284,8 +283,8 @@ describe('photoService', () => {
     it('should set primaryPhotoIndex to 0', () => {
       const photos = createMockPhotos(4);
       const groups = photoService.groupPhotosAuto(photos);
-      
-      groups.forEach(group => {
+
+      groups.forEach((group) => {
         expect(group.primaryPhotoIndex).toBe(0);
       });
     });
@@ -293,22 +292,22 @@ describe('photoService', () => {
     it('should generate stable groupIds', () => {
       const photos = createMockPhotos(4);
       const groups = photoService.groupPhotosAuto(photos);
-      
-      groups.forEach(group => {
+
+      groups.forEach((group) => {
         expect(group.groupId).toMatch(/^group_\d+_\d+$/);
       });
     });
 
     it('should handle empty photo array', () => {
       const groups = photoService.groupPhotosAuto([]);
-      
+
       expect(groups).toEqual([]);
     });
 
     it('should handle partial last group', () => {
       const photos = createMockPhotos(5); // 2 per group = 2 groups + 1 leftover
       const groups = photoService.groupPhotosAuto(photos, 2);
-      
+
       expect(groups).toHaveLength(3);
       expect(groups[2].photos).toHaveLength(1);
     });
@@ -416,10 +415,10 @@ describe('photoService', () => {
         'file://photo-1.jpg',
         'group-2'
       );
-      
+
       expect(updated[0].photos).toHaveLength(1);
       expect(updated[1].photos).toHaveLength(2);
-      expect(updated[1].photos.some(p => p.uri === 'file://photo-1.jpg')).toBe(true);
+      expect(updated[1].photos.some((p) => p.uri === 'file://photo-1.jpg')).toBe(true);
     });
 
     it('should maintain intra-group order', () => {
@@ -430,7 +429,7 @@ describe('photoService', () => {
         'file://photo-1.jpg',
         'group-2'
       );
-      
+
       // Photo should be added to end of target group
       expect(updated[1].photos[1].uri).toBe('file://photo-1.jpg');
     });
@@ -438,9 +437,9 @@ describe('photoService', () => {
     it('should be immutable (not modify original)', () => {
       const groups = createGroups();
       const originalLength = groups[0].photos.length;
-      
+
       photoService.regroupPhotos(groups, 'group-1', 'file://photo-1.jpg', 'group-2');
-      
+
       expect(groups[0].photos).toHaveLength(originalLength);
     });
 
@@ -452,7 +451,7 @@ describe('photoService', () => {
         'file://photo-1.jpg',
         'group-1'
       );
-      
+
       expect(updated).toEqual(groups);
     });
 
@@ -464,7 +463,7 @@ describe('photoService', () => {
         'file://photo-1.jpg',
         'group-2'
       );
-      
+
       expect(updated).toEqual(groups);
     });
 
@@ -476,7 +475,7 @@ describe('photoService', () => {
         'file://photo-1.jpg',
         'invalid-group'
       );
-      
+
       expect(updated).toEqual(groups);
     });
 
@@ -488,7 +487,7 @@ describe('photoService', () => {
         'file://nonexistent.jpg',
         'group-2'
       );
-      
+
       expect(updated).toEqual(groups);
     });
 
@@ -503,13 +502,13 @@ describe('photoService', () => {
         })),
         primaryPhotoIndex: 0,
       };
-      
+
       const sourceGroup = {
         groupId: 'group-source',
         photos: [{ id: 'x', uri: 'file://extra.jpg', width: 800, height: 600 }],
         primaryPhotoIndex: 0,
       };
-      
+
       const groups = [sourceGroup, fullGroup];
       const updated = photoService.regroupPhotos(
         groups,
@@ -517,7 +516,7 @@ describe('photoService', () => {
         'file://extra.jpg',
         'group-full'
       );
-      
+
       expect(updated).toEqual(groups);
     });
   });

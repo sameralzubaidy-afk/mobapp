@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/services/photoService.ts
  * MODULE-04 LISTING-V3: Photo Service Layer
  * Task: LISTING-V3-003 - Photo pipeline (validate / compress / upload / auto-group / regroup)
- * 
+ *
  * Handles:
  * - Photo validation (format, size, dimensions)
  * - Photo compression and resizing
@@ -61,7 +61,7 @@ export interface PhotoUploadResult {
 /**
  * Validate photo asset against requirements
  * Checks format, file size, and minimum dimensions
- * 
+ *
  * @param asset - Photo asset to validate
  * @returns Validation result with error message if invalid
  */
@@ -99,23 +99,22 @@ export async function validatePhoto(asset: PhotoAsset): Promise<PhotoValidation>
 /**
  * Compress and resize photo if needed
  * Output ≤ 1MB; resizes if width > 1200px preserving aspect ratio
- * 
+ *
  * @param uri - Local photo URI
  * @param quality - Compression quality (0-1), default 0.8
  * @returns Compressed photo URI
  */
-export async function compressPhoto(uri: string, quality: number = COMPRESSION_QUALITY): Promise<string> {
+export async function compressPhoto(
+  uri: string,
+  quality: number = COMPRESSION_QUALITY
+): Promise<string> {
   try {
     // Get image info to determine if resizing needed
-    const result = await manipulateAsync(
-      uri,
-      [],
-      { compress: quality, format: SaveFormat.JPEG }
-    );
+    const result = await manipulateAsync(uri, [], { compress: quality, format: SaveFormat.JPEG });
 
     // Check if width exceeds max
     const finalUri = result.uri;
-    
+
     // If still too large, try additional compression
     // Note: expo-image-manipulator doesn't provide file size directly
     // We estimate and may need multiple passes
@@ -130,7 +129,7 @@ export async function compressPhoto(uri: string, quality: number = COMPRESSION_Q
  * Upload photos in batch to Supabase Storage
  * Uploads to drafts/{seller_id}/{timestamp}/ with progress callback
  * Tolerates partial failure
- * 
+ *
  * @param photos - Array of photo assets to upload
  * @param sellerId - Current seller ID
  * @param onProgress - Progress callback (count uploaded)
@@ -148,7 +147,7 @@ export async function uploadPhotoBatch(
 
   for (let i = 0; i < photos.length; i++) {
     const photo = photos[i];
-    
+
     try {
       // Validate photo
       const validation = await validatePhoto(photo);
@@ -172,21 +171,17 @@ export async function uploadPhotoBatch(
       const filePath = `${basePath}/${filename}`;
 
       // Upload to Supabase Storage
-      const { error } = await supabase.storage
-        .from(STORAGE_BUCKET)
-        .upload(filePath, arrayBuffer, {
-          contentType: 'image/jpeg',
-          upsert: false,
-        });
+      const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(filePath, arrayBuffer, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
 
       if (error) {
         throw error;
       }
 
       // Get public URL
-      const { data: publicData } = supabase.storage
-        .from(STORAGE_BUCKET)
-        .getPublicUrl(filePath);
+      const { data: publicData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
 
       urls.push(publicData.publicUrl);
 
@@ -209,7 +204,7 @@ export async function uploadPhotoBatch(
 /**
  * Link uploaded photos to an item in database
  * Creates item_images records
- * 
+ *
  * @param itemId - Item ID to link photos to
  * @param photoUrls - Array of photo URLs
  * @returns Success status
@@ -222,9 +217,7 @@ export async function linkPhotosToItems(itemId: string, photoUrls: string[]): Pr
       display_order: index,
     }));
 
-    const { error } = await supabase
-      .from('item_images')
-      .insert(records);
+    const { error } = await supabase.from('item_images').insert(records);
 
     if (error) throw error;
 
@@ -249,10 +242,7 @@ export async function linkPhotosToItems(itemId: string, photoUrls: string[]): Pr
  * @param photosPerGroup - Photos per group (default 1)
  * @returns Array of photo groups
  */
-export function groupPhotosAuto(
-  photos: PhotoAsset[],
-  photosPerGroup: number = 1
-): PhotoGroup[] {
+export function groupPhotosAuto(photos: PhotoAsset[], photosPerGroup: number = 1): PhotoGroup[] {
   const groups: PhotoGroup[] = [];
 
   // Enforce total photo cap
@@ -305,7 +295,7 @@ export function groupPhotosAuto(
  * Regroup photos (move photo between groups)
  * Immutable update; maintains intra-group order
  * No-op if target already contains photo
- * 
+ *
  * @param groups - Current photo groups
  * @param sourceGroupId - Source group ID
  * @param photoId - Photo ID (uri)
@@ -319,57 +309,58 @@ export function regroupPhotos(
   targetGroupId: string
 ): PhotoGroup[] {
   // Find source and target groups
-  const sourceIndex = groups.findIndex(g => g.groupId === sourceGroupId);
-  const targetIndex = groups.findIndex(g => g.groupId === targetGroupId);
-  
+  const sourceIndex = groups.findIndex((g) => g.groupId === sourceGroupId);
+  const targetIndex = groups.findIndex((g) => g.groupId === targetGroupId);
+
   if (sourceIndex === -1 || targetIndex === -1) {
     return groups;
   }
-  
+
   const sourceGroup = groups[sourceIndex];
   const targetGroup = groups[targetIndex];
-  
+
   // Find photo in source group
-  const photoIndex = sourceGroup.photos.findIndex(p => p.uri === photoId);
+  const photoIndex = sourceGroup.photos.findIndex((p) => p.uri === photoId);
   if (photoIndex === -1) {
     return groups;
   }
-  
+
   // Check if photo already in target
-  const alreadyInTarget = targetGroup.photos.some(p => p.uri === photoId);
+  const alreadyInTarget = targetGroup.photos.some((p) => p.uri === photoId);
   if (alreadyInTarget) {
     return groups;
   }
-  
+
   // Check target group capacity
   if (targetGroup.photos.length >= MAX_PHOTOS_PER_GROUP) {
     return groups;
   }
-  
+
   // Create new groups array (immutable)
   const newGroups = [...groups];
   const photo = sourceGroup.photos[photoIndex];
-  
+
   // Remove from source
   newGroups[sourceIndex] = {
     ...sourceGroup,
-    photos: sourceGroup.photos.filter(p => p.uri !== photoId),
-    primaryPhotoIndex: sourceGroup.primaryPhotoIndex === photoIndex ? 0 : sourceGroup.primaryPhotoIndex,
+    photos: sourceGroup.photos.filter((p) => p.uri !== photoId),
+    primaryPhotoIndex:
+      sourceGroup.primaryPhotoIndex === photoIndex ? 0 : sourceGroup.primaryPhotoIndex,
   };
-  
+
   // Add to target
   newGroups[targetIndex] = {
     ...targetGroup,
     photos: [...targetGroup.photos, photo],
   };
-  
+
   return newGroups;
 }
 
 /**
  * Get photo thumbnail URL (for now, returns original URL)
  * In future: implement Supabase Storage transforms
- * 
+ *
  * @param photoUrl - Original photo URL
  * @returns Thumbnail URL
  */
@@ -380,7 +371,7 @@ export function getPhotoThumbnail(photoUrl: string): string {
 
 /**
  * Get photo count for an item
- * 
+ *
  * @param itemId - Item ID
  * @returns Photo count
  */
@@ -390,9 +381,9 @@ export async function getPhotoCount(itemId: string): Promise<number> {
       .from('item_images')
       .select('*', { count: 'exact', head: true })
       .eq('item_id', itemId);
-      
+
     if (error) throw error;
-    
+
     return count || 0;
   } catch (error) {
     console.error('[photoService] Get photo count error:', error);
@@ -420,7 +411,7 @@ function nextGroupId(seedTag?: string): string {
  */
 export function mergeGroups(
   groups: PhotoGroup[],
-  sourceGroupIds: string[],
+  sourceGroupIds: string[]
 ): { groups: PhotoGroup[]; overflow: number } {
   if (sourceGroupIds.length < 2) return { groups, overflow: 0 };
   const sources = sourceGroupIds
@@ -470,13 +461,11 @@ export function splitGroup(groups: PhotoGroup[], sourceGroupId: string): PhotoGr
   const remainingSlots = MAX_GROUPS - (groups.length - 1);
   if (remainingSlots <= 0) return groups;
 
-  const newGroups: PhotoGroup[] = source.photos
-    .slice(0, remainingSlots)
-    .map((photo, i) => ({
-      groupId: nextGroupId(`split_${i}`),
-      photos: [photo],
-      primaryPhotoIndex: 0,
-    }));
+  const newGroups: PhotoGroup[] = source.photos.slice(0, remainingSlots).map((photo, i) => ({
+    groupId: nextGroupId(`split_${i}`),
+    photos: [photo],
+    primaryPhotoIndex: 0,
+  }));
 
   // If we couldn't fit all, leave the leftover photos in the original group
   const leftover = source.photos.slice(remainingSlots);
@@ -515,10 +504,7 @@ export function removeGroup(groups: PhotoGroup[], groupId: string): PhotoGroup[]
  * Remove a single photo from whichever group contains it.
  * If the group becomes empty, the group is removed too.
  */
-export function removePhotoFromGroups(
-  groups: PhotoGroup[],
-  photoId: string,
-): PhotoGroup[] {
+export function removePhotoFromGroups(groups: PhotoGroup[], photoId: string): PhotoGroup[] {
   return groups
     .map((g) => {
       const idx = g.photos.findIndex((p) => p.id === photoId);
@@ -534,10 +520,7 @@ export function removePhotoFromGroups(
  * Append additional photos as new 1-photo groups (used when seller taps "Add more photos").
  * Respects total + group caps.
  */
-export function appendPhotosAsGroups(
-  groups: PhotoGroup[],
-  newPhotos: PhotoAsset[],
-): PhotoGroup[] {
+export function appendPhotosAsGroups(groups: PhotoGroup[], newPhotos: PhotoAsset[]): PhotoGroup[] {
   const totalPhotos = groups.reduce((sum, g) => sum + g.photos.length, 0);
   const photoSlots = Math.max(0, MAX_PHOTOS_TOTAL - totalPhotos);
   const groupSlots = Math.max(0, MAX_GROUPS - groups.length);
@@ -558,7 +541,7 @@ export function appendPhotosAsGroups(
 export function addPhotosToGroup(
   groups: PhotoGroup[],
   groupId: string,
-  newPhotos: PhotoAsset[],
+  newPhotos: PhotoAsset[]
 ): PhotoGroup[] {
   const idx = groups.findIndex((g) => g.groupId === groupId);
   if (idx === -1) return groups;
@@ -580,7 +563,7 @@ export function reorderPhotoInGroup(
   groups: PhotoGroup[],
   groupId: string,
   fromIndex: number,
-  toIndex: number,
+  toIndex: number
 ): PhotoGroup[] {
   const idx = groups.findIndex((g) => g.groupId === groupId);
   if (idx === -1) return groups;
@@ -600,15 +583,9 @@ export function reorderPhotoInGroup(
   // Track primary across the move
   let nextPrimary = target.primaryPhotoIndex;
   if (target.primaryPhotoIndex === fromIndex) nextPrimary = toIndex;
-  else if (
-    fromIndex < target.primaryPhotoIndex &&
-    toIndex >= target.primaryPhotoIndex
-  ) {
+  else if (fromIndex < target.primaryPhotoIndex && toIndex >= target.primaryPhotoIndex) {
     nextPrimary = target.primaryPhotoIndex - 1;
-  } else if (
-    fromIndex > target.primaryPhotoIndex &&
-    toIndex <= target.primaryPhotoIndex
-  ) {
+  } else if (fromIndex > target.primaryPhotoIndex && toIndex <= target.primaryPhotoIndex) {
     nextPrimary = target.primaryPhotoIndex + 1;
   }
   const next = [...groups];

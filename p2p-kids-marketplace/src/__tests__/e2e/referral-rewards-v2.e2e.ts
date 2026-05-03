@@ -19,19 +19,19 @@ const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const adminSupabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY || '', {
   auth: {
     autoRefreshToken: false,
-    persistSession: false
-  }
+    persistSession: false,
+  },
 });
 
 /**
  * E2E TEST SUITE: Referral SP Rewards on First Trade
- * 
+ *
  * PREREQUISITES (must be setup manually in Supabase prod):
  * 1. Two test users with trial/active subscriptions
  * 2. Referral relationship exists (referee used referrer's code)
  * 3. Referee has NOT completed any trades yet
  * 4. sp_config has referral_reward_referrer_sp=25, referral_reward_referee_sp=10
- * 
+ *
  * TEST FLOW:
  * 1. Verify initial state (referral status='pending', no SP rewards yet)
  * 2. Create and complete a trade for referee
@@ -42,8 +42,10 @@ const adminSupabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY || '', {
 
 describe('REF-V2-002: Referral SP Rewards E2E', () => {
   // IMPORTANT: Use seeded IDs from scripts/seed-staging-data.ts
-  const REFERRER_USER_ID = process.env.TEST_REFERRER_USER_ID || '14be337c-aad6-403f-bab2-ba1a7d80b666'; // test-seller
-  const REFEREE_USER_ID = process.env.TEST_REFEREE_USER_ID || '49243010-f458-4744-add1-a6c84ab95f1f'; // test-buyer
+  const REFERRER_USER_ID =
+    process.env.TEST_REFERRER_USER_ID || '14be337c-aad6-403f-bab2-ba1a7d80b666'; // test-seller
+  const REFEREE_USER_ID =
+    process.env.TEST_REFEREE_USER_ID || '49243010-f458-4744-add1-a6c84ab95f1f'; // test-buyer
   let testListingId = process.env.TEST_LISTING_ID || 'REPLACE_WITH_ACTUAL_ID';
 
   let referralId: string;
@@ -66,7 +68,7 @@ describe('REF-V2-002: Referral SP Rewards E2E', () => {
         .select('id')
         .eq('seller_id', REFERRER_USER_ID)
         .limit(1);
-      
+
       if (listings && listings.length > 0) {
         testListingId = listings[0].id;
       }
@@ -81,22 +83,25 @@ describe('REF-V2-002: Referral SP Rewards E2E', () => {
     for (const userId of [REFERRER_USER_ID, REFEREE_USER_ID]) {
       // Initialize wallet
       await adminSupabase.rpc('initialize_sp_wallet', { p_user_id: userId });
-      
+
       // Ensure subscription (trial)
       const { data: sub } = await adminSupabase
         .from('subscriptions')
         .select('id, status')
         .eq('user_id', userId)
         .maybeSingle();
-      
+
       if (!sub || !['active', 'trial', 'trialing', 'grace'].includes(sub.status)) {
-        await adminSupabase.from('subscriptions').upsert({
-          user_id: userId,
-          status: 'trial',
-          trial_start_date: new Date().toISOString(),
-          trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
+        await adminSupabase.from('subscriptions').upsert(
+          {
+            user_id: userId,
+            status: 'trial',
+            trial_start_date: new Date().toISOString(),
+            trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
       }
     }
 
@@ -116,11 +121,11 @@ describe('REF-V2-002: Referral SP Rewards E2E', () => {
           referrer_user_id: REFERRER_USER_ID,
           referred_user_id: REFEREE_USER_ID,
           referral_code: 'TESTCODE',
-          status: 'pending'
+          status: 'pending',
         })
         .select()
         .single();
-      
+
       if (refError) {
         console.error('   [SETUP] Failed to create test referral:', refError.message);
         throw refError;
@@ -132,13 +137,14 @@ describe('REF-V2-002: Referral SP Rewards E2E', () => {
       referralId = existingReferral.id;
 
       // Delete old ledger entries and batches to allow trigger to re-run
-      await adminSupabase.from('sp_ledger')
+      await adminSupabase
+        .from('sp_ledger')
         .delete()
-        .or(`idempotency_key.eq.referral_${referralId}_referrer,idempotency_key.eq.referral_${referralId}_referee`);
-      
-      await adminSupabase.from('sp_batches')
-        .delete()
-        .eq('source_id', referralId);
+        .or(
+          `idempotency_key.eq.referral_${referralId}_referrer,idempotency_key.eq.referral_${referralId}_referee`
+        );
+
+      await adminSupabase.from('sp_batches').delete().eq('source_id', referralId);
 
       await adminSupabase
         .from('referrals')
@@ -164,13 +170,19 @@ describe('REF-V2-002: Referral SP Rewards E2E', () => {
     expect(subCheck.both_subscribed).toBe(true);
 
     // 2. Verify referral is pending
-    const eligibility = await ReferralRewardsService.checkEligibility(REFEREE_USER_ID, adminSupabase);
+    const eligibility = await ReferralRewardsService.checkEligibility(
+      REFEREE_USER_ID,
+      adminSupabase
+    );
     expect(eligibility.is_referee).toBe(true);
     expect(eligibility.rewards_pending).toBe(true);
     expect(eligibility.referral_status).toBe('pending');
 
     // 3. Verify referee has no completed trades yet
-    const isFirstTrade = await ReferralRewardsService.isFirstCompletedTrade(REFEREE_USER_ID, adminSupabase);
+    const isFirstTrade = await ReferralRewardsService.isFirstCompletedTrade(
+      REFEREE_USER_ID,
+      adminSupabase
+    );
     expect(isFirstTrade).toBe(false); // Should be false because no completed trades exist
   });
 
@@ -206,7 +218,7 @@ describe('REF-V2-002: Referral SP Rewards E2E', () => {
     expect(updateError).toBeNull();
 
     // Wait for trigger to process (async)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Verify referral status updated to 'completed'
     const { data: referralData } = await adminSupabase
@@ -306,7 +318,7 @@ describe('REF-V2-002: Referral SP Rewards E2E', () => {
       .single();
 
     // Wait for any potential trigger processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Verify wallet balances did NOT increase
     const { data: afterReferrerWallet } = await adminSupabase
@@ -337,21 +349,21 @@ describe('REF-V2-002: Referral SP Rewards E2E', () => {
 
 /**
  * MANUAL RUN INSTRUCTIONS:
- * 
+ *
  * 1. Set environment variables:
  *    export TEST_REFERRER_USER_ID=<actual_user_id>
  *    export TEST_REFEREE_USER_ID=<actual_user_id>
  *    export TEST_LISTING_ID=<actual_listing_id>
- * 
+ *
  * 2. Ensure both users have trial/active subscriptions
- * 
+ *
  * 3. Create referral relationship if not exists:
  *    INSERT INTO referrals (referrer_user_id, referred_user_id, referral_code, status)
  *    VALUES (<referrer_id>, <referee_id>, 'TESTCODE', 'pending');
- * 
+ *
  * 4. Run test:
  *    npm test -- referral-rewards-v2.e2e.ts
- * 
+ *
  * 5. Verify results in Supabase:
  *    - Check referrals table (status should be 'completed')
  *    - Check sp_ledger (2 entries with transaction_type='earn_referral')

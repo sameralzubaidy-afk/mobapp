@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/__tests__/discovery-v2-002-functional.test.ts
  * MODULE-05-DISCOVERY-V2: Recommendations Functional Test
  * Task: DISCOVERY-V2-002 - Subscriber-Personalized Recommendations
- * 
+ *
  * Functional test that validates recommendations scoring logic
  * without requiring live Supabase connection
  */
@@ -12,19 +12,14 @@ describe('DISCOVERY-V2-002: Recommendations Scoring Logic (Functional)', () => {
    * Test the scoring formula that the RPC function implements
    * This validates the business logic independent of Supabase connection
    */
-  
+
   const calculateRecommendationScore = (params: {
     isSpEligible: boolean;
     canSpendSp: boolean;
     itemPrice: number;
     userSpBalance: number;
   }): number => {
-    const {
-      isSpEligible,
-      canSpendSp,
-      itemPrice,
-      userSpBalance,
-    } = params;
+    const { isSpEligible, canSpendSp, itemPrice, userSpBalance } = params;
 
     return (
       // SP-eligible bonus (subscribers only)

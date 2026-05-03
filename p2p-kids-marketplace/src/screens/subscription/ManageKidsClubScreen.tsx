@@ -46,7 +46,7 @@ import { BillingHistoryLink } from '@/components/subscription/BillingHistoryLink
 // ─── Cancellation Reason Options ──────────────────────────────────────────────
 const CANCELLATION_REASONS = [
   { id: 'too_expensive', label: 'Too expensive' },
-  { id: 'not_using', label: "Not using it enough" },
+  { id: 'not_using', label: 'Not using it enough' },
   { id: 'child_lost_interest', label: 'My child lost interest' },
   { id: 'found_alternative', label: 'Found an alternative' },
   { id: 'technical_issues', label: 'Technical issues' },
@@ -163,7 +163,10 @@ export default function ManageKidsClubScreen() {
     }
 
     if (!reason) {
-      Alert.alert('Please select a reason', 'Help us improve by telling us why you are cancelling.');
+      Alert.alert(
+        'Please select a reason',
+        'Help us improve by telling us why you are cancelling.'
+      );
       return;
     }
 
@@ -176,24 +179,20 @@ export default function ManageKidsClubScreen() {
       if (result.success) {
         // Refresh subscription data
         await fetchSubscription();
-          await refreshSession(false);
-        
+        await refreshSession(false);
+
         // Show success message based on new status
-        Alert.alert(
-          'Cancellation Confirmed',
-          result.message,
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Navigate back or to dashboard
-                if (navigation.canGoBack()) {
-                  navigation.goBack();
-                }
-              },
+        Alert.alert('Cancellation Confirmed', result.message, [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Navigate back or to dashboard
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              }
             },
-          ]
-        );
+          },
+        ]);
       } else {
         Alert.alert('Cancellation Failed', result.message || 'Please try again later');
       }
@@ -256,7 +255,8 @@ export default function ManageKidsClubScreen() {
       if (result.error === 'PAYMENT_REQUIRED' || result.error === 'CARD_DECLINED') {
         Alert.alert(
           'Payment Failed',
-          result.message || 'Your card was declined. Please update your payment method and try again.'
+          result.message ||
+            'Your card was declined. Please update your payment method and try again.'
         );
         return;
       }
@@ -268,7 +268,14 @@ export default function ManageKidsClubScreen() {
     } finally {
       setRenewing(false);
     }
-  }, [checkingPaymentMethod, renewing, hasPaymentMethod, showAddPaymentAlert, fetchSubscription, refreshSession]);
+  }, [
+    checkingPaymentMethod,
+    renewing,
+    hasPaymentMethod,
+    showAddPaymentAlert,
+    fetchSubscription,
+    refreshSession,
+  ]);
 
   // ─── Render Loading ─────────────────────────────────────────────────────────
   if (loading) {
@@ -291,7 +298,9 @@ export default function ManageKidsClubScreen() {
             <Text style={styles.title}>Manage Kids Club+</Text>
           </View>
           <View style={styles.card}>
-            <Text style={styles.noSubText}>You don&apos;t have an active Kids Club+ subscription.</Text>
+            <Text style={styles.noSubText}>
+              You don&apos;t have an active Kids Club+ subscription.
+            </Text>
             <TouchableOpacity
               style={styles.primaryButton}
               onPress={() => navigation.navigate('ContinueKidsClub' as never)}
@@ -307,8 +316,7 @@ export default function ManageKidsClubScreen() {
   // ─── Render Active/Trial Subscription ───────────────────────────────────────
   const isTrial = subscription.status === 'trial';
   const isActive = subscription.status === 'active';
-  const isCancelled =
-    subscription.status === 'cancelled' || subscription.status === 'canceled';
+  const isCancelled = subscription.status === 'cancelled' || subscription.status === 'canceled';
   const isGracePeriod = subscription.status === 'grace_period';
   const isExpired = subscription.status === 'expired';
   const canCancel = isTrial || isActive;
@@ -334,12 +342,12 @@ export default function ManageKidsClubScreen() {
                 {subscription.status === 'trial'
                   ? 'Free Trial'
                   : subscription.status === 'active'
-                  ? 'Active'
-                  : subscription.status === 'cancelled'
-                  ? 'Cancelled'
-                  : subscription.status === 'grace_period'
-                  ? 'Grace Period'
-                  : subscription.status}
+                    ? 'Active'
+                    : subscription.status === 'cancelled'
+                      ? 'Cancelled'
+                      : subscription.status === 'grace_period'
+                        ? 'Grace Period'
+                        : subscription.status}
               </Text>
             </View>
           </View>
@@ -400,10 +408,7 @@ export default function ManageKidsClubScreen() {
         {(isActive || isTrial || isCancelled) && (
           <View style={styles.card}>
             <PaymentMethodSection onPaymentMethodUpdated={fetchSubscription} />
-            <AutoRenewToggle
-              initialValue={isActive || isTrial}
-              onToggled={fetchSubscription}
-            />
+            <AutoRenewToggle initialValue={isActive || isTrial} onToggled={fetchSubscription} />
           </View>
         )}
 
@@ -463,10 +468,7 @@ export default function ManageKidsClubScreen() {
         )}
 
         {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -481,7 +483,7 @@ export default function ManageKidsClubScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Cancel Kids Club+?</Text>
-            
+
             <Text style={styles.modalSubtitle}>
               {isTrial
                 ? "We're sorry to see you go! Before you cancel, please tell us why:"
@@ -531,12 +533,9 @@ export default function ManageKidsClubScreen() {
               >
                 <Text style={styles.modalCancelBtnText}>Keep Subscription</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
-                style={[
-                  styles.modalConfirmBtn,
-                  !selectedReason && styles.modalConfirmBtnDisabled,
-                ]}
+                style={[styles.modalConfirmBtn, !selectedReason && styles.modalConfirmBtnDisabled]}
                 onPress={handleCancel}
                 disabled={!selectedReason}
               >

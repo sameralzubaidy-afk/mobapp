@@ -23,7 +23,7 @@ export enum PhoneVerificationErrorCode {
 export class OTPRateLimitError extends Error {
   constructor(
     message: string,
-    public retryAfterSeconds: number,
+    public retryAfterSeconds: number
   ) {
     super(message);
     this.name = 'OTPRateLimitError';
@@ -42,10 +42,10 @@ export class OTPExpiredError extends Error {
 
 /**
  * Check if phone verification is required for a user
- * 
+ *
  * @param userId - User ID to check
  * @returns true if phone_verified_at is NULL, false otherwise
- * 
+ *
  * @example
  * ```ts
  * const required = await isPhoneRequired(user.id);
@@ -76,7 +76,7 @@ export async function isPhoneRequired(userId: string): Promise<boolean> {
 
 /**
  * Send phone verification code via Twilio SMS
- * 
+ *
  * Process:
  * 1. Calls send-phone-otp Edge Function (contains Twilio secrets)
  * 2. Edge Function enforces rate limits:
@@ -84,13 +84,13 @@ export async function isPhoneRequired(userId: string): Promise<boolean> {
  *    - 5 per user per day
  * 3. Edge Function generates 6-digit code, hashes with bcrypt, stores in DB
  * 4. Edge Function sends SMS via Twilio
- * 
+ *
  * @param phone - Phone number in E.164 format (e.g., +12345678900)
  * @returns Success status
- * 
+ *
  * @throws {OTPRateLimitError} If rate limit exceeded (contains retryAfterSeconds)
  * @throws {Error} If send failed
- * 
+ *
  * @example
  * ```ts
  * try {
@@ -130,7 +130,7 @@ export async function sendPhoneVerificationCode(phone: string): Promise<void> {
       if (data.code === PhoneVerificationErrorCode.RATE_LIMIT_EXCEEDED) {
         throw new OTPRateLimitError(
           data.error,
-          data.retryAfterSeconds || 3600, // Default 1 hour
+          data.retryAfterSeconds || 3600 // Default 1 hour
         );
       }
 
@@ -149,15 +149,13 @@ export async function sendPhoneVerificationCode(phone: string): Promise<void> {
     }
 
     // Wrap other errors
-    throw new Error(
-      error.message || 'Failed to send verification code',
-    );
+    throw new Error(error.message || 'Failed to send verification code');
   }
 }
 
 /**
  * Verify phone verification code
- * 
+ *
  * Process:
  * 1. SELECTs latest unexpired row for (phone, user_id)
  * 2. Compares code using pgcrypto: crypt(code, code_hash) = code_hash
@@ -166,14 +164,14 @@ export async function sendPhoneVerificationCode(phone: string): Promise<void> {
  *    - UPDATEs user_profiles.phone_verified_at = now()
  *    - UPDATEs user_profiles.phone_verification_method = 'sms'
  *    - Writes audit_log entry
- * 
+ *
  * @param phone - Phone number that was verified
  * @param code - 6-digit verification code
  * @returns Success status
- * 
+ *
  * @throws {OTPExpiredError} If code expired
  * @throws {Error} If code invalid or max attempts exceeded
- * 
+ *
  * @example
  * ```ts
  * try {
@@ -188,10 +186,7 @@ export async function sendPhoneVerificationCode(phone: string): Promise<void> {
  * }
  * ```
  */
-export async function verifyPhoneCode(
-  phone: string,
-  code: string,
-): Promise<void> {
+export async function verifyPhoneCode(phone: string, code: string): Promise<void> {
   try {
     const {
       data: { user },
@@ -230,17 +225,14 @@ export async function verifyPhoneCode(
     // 3. Verify code using pgcrypto crypt comparison
     // Note: The Edge Function stores code_hash using crypt(code, gen_salt('bf'))
     // To verify, we use: crypt(input_code, stored_hash) = stored_hash
-    const { data: cryptResult, error: cryptError } = await supabase.rpc(
-      'verify_otp_code',
-      {
-        p_verification_id: verificationRecord.id,
-        p_code: code,
-      },
-    );
+    const { data: cryptResult, error: cryptError } = await supabase.rpc('verify_otp_code', {
+      p_verification_id: verificationRecord.id,
+      p_code: code,
+    });
 
     if (cryptError) {
       console.error('[phoneService] verify_otp_code RPC error:', cryptError);
-      
+
       // Increment attempts even on RPC error
       await supabase
         .from('phone_verification_codes')

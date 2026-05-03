@@ -13,7 +13,11 @@ import {
 } from 'react-native';
 import { Clipboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ReferralCodeServiceV2, type Referral, type ReferralStats } from '@/services/referralCodeV2';
+import {
+  ReferralCodeServiceV2,
+  type Referral,
+  type ReferralStats,
+} from '@/services/referralCodeV2';
 import { ReferralRewardsService } from '@/services/referralRewards';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -55,7 +59,7 @@ export const ReferralDashboardScreen: React.FC = () => {
 
     try {
       setIsLoading(true);
-      
+
       // Load all referral data concurrently
       const [code, statsData, historyData, config, eligibility] = await Promise.all([
         ReferralCodeServiceV2.getReferralCode(user.id),
@@ -90,7 +94,7 @@ export const ReferralDashboardScreen: React.FC = () => {
 
     const link = ReferralCodeServiceV2.getReferralLink(referralCode);
     let bonusText = '';
-    
+
     if (rewardsConfig.program_enabled) {
       const bonuses: string[] = [];
       if (rewardsConfig.first_trade_enabled) {
@@ -99,12 +103,12 @@ export const ReferralDashboardScreen: React.FC = () => {
       if (rewardsConfig.first_listing_enabled) {
         bonuses.push(`${rewardsConfig.referee_listing_sp} SP for your first listing`);
       }
-      
+
       if (bonuses.length > 0) {
         bonusText = ` and get ${bonuses.join(' and ')}`;
       }
     }
-    
+
     const message = `Join Kids Club+${bonusText}! Use my referral code: ${referralCode}\n\n${link}`;
 
     try {
@@ -127,17 +131,15 @@ export const ReferralDashboardScreen: React.FC = () => {
 
   const getPendingActionMessage = () => {
     if (!rewardsConfig.program_enabled) return null;
-    
+
     const actions: string[] = [];
-    if (rewardsConfig.first_listing_enabled) actions.push("list your first item");
-    if (rewardsConfig.first_trade_enabled) actions.push("complete one trade");
-    
+    if (rewardsConfig.first_listing_enabled) actions.push('list your first item');
+    if (rewardsConfig.first_trade_enabled) actions.push('complete one trade');
+
     if (actions.length === 0) return null;
-    
-    const actionStr = actions.length === 2 
-      ? `${actions[0]} OR ${actions[1]}` 
-      : actions[0];
-      
+
+    const actionStr = actions.length === 2 ? `${actions[0]} OR ${actions[1]}` : actions[0];
+
     // Calculate correct bonus amount based on enabled actions
     let bonusAmount = 0;
     if (rewardsConfig.first_listing_enabled && rewardsConfig.first_trade_enabled) {
@@ -148,7 +150,7 @@ export const ReferralDashboardScreen: React.FC = () => {
     } else if (rewardsConfig.first_trade_enabled) {
       bonusAmount = rewardsConfig.referee_sp;
     }
-      
+
     return `To earn your sign-up bonus, simply ${actionStr}!`;
   };
 
@@ -158,9 +160,7 @@ export const ReferralDashboardScreen: React.FC = () => {
         <Text style={styles.referralId}>
           {item.referred_user_name || formatReferralId(item.referred_user_id)}
         </Text>
-        <Text style={styles.referralDate}>
-          {formatDate(item.created_at)}
-        </Text>
+        <Text style={styles.referralDate}>{formatDate(item.created_at)}</Text>
       </View>
       <View style={styles.referralStatus}>
         <View
@@ -181,9 +181,7 @@ export const ReferralDashboardScreen: React.FC = () => {
             {item.status.toUpperCase()}
           </Text>
         </View>
-        {item.trial_extension_applied && (
-          <Text style={styles.extensionBadge}>+7 days</Text>
-        )}
+        {item.trial_extension_applied && <Text style={styles.extensionBadge}>+7 days</Text>}
       </View>
     </View>
   );
@@ -202,15 +200,12 @@ export const ReferralDashboardScreen: React.FC = () => {
       <ScrollView style={styles.container}>
         {/* Header with Back Button */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
           <View style={styles.headerContent}>
             <Text style={styles.title}>Refer Friends, Earn Rewards!</Text>
-            
+
             {/* [NEW] Pending Reward Notice for Referee */}
             {pendingReward.rewards_pending && getPendingActionMessage() && (
               <View style={styles.pendingNotice}>
@@ -218,7 +213,7 @@ export const ReferralDashboardScreen: React.FC = () => {
                 <Text style={styles.pendingNoticeText}>{getPendingActionMessage()}</Text>
               </View>
             )}
-            
+
             {/* Referral Rewards Breakdown */}
             {rewardsConfig.program_enabled && (
               <>
@@ -226,10 +221,12 @@ export const ReferralDashboardScreen: React.FC = () => {
                   <View style={styles.rewardsBreakdown}>
                     <Text style={styles.rewardLabel}>🎯 First Trade Bonus</Text>
                     <Text style={styles.rewardDetail}>
-                      You get: <Text style={styles.rewardAmount}>{rewardsConfig.referrer_sp} SP</Text>
+                      You get:{' '}
+                      <Text style={styles.rewardAmount}>{rewardsConfig.referrer_sp} SP</Text>
                     </Text>
                     <Text style={styles.rewardDetail}>
-                      Friend gets: <Text style={styles.rewardAmount}>{rewardsConfig.referee_sp} SP</Text>
+                      Friend gets:{' '}
+                      <Text style={styles.rewardAmount}>{rewardsConfig.referee_sp} SP</Text>
                     </Text>
                   </View>
                 )}
@@ -238,10 +235,14 @@ export const ReferralDashboardScreen: React.FC = () => {
                   <View style={styles.rewardsBreakdown}>
                     <Text style={styles.rewardLabel}>📝 First Listing Bonus</Text>
                     <Text style={styles.rewardDetail}>
-                      You get: <Text style={styles.rewardAmount}>{rewardsConfig.referrer_listing_sp} SP</Text>
+                      You get:{' '}
+                      <Text style={styles.rewardAmount}>
+                        {rewardsConfig.referrer_listing_sp} SP
+                      </Text>
                     </Text>
                     <Text style={styles.rewardDetail}>
-                      Friend gets: <Text style={styles.rewardAmount}>{rewardsConfig.referee_listing_sp} SP</Text>
+                      Friend gets:{' '}
+                      <Text style={styles.rewardAmount}>{rewardsConfig.referee_listing_sp} SP</Text>
                     </Text>
                   </View>
                 )}
@@ -249,7 +250,9 @@ export const ReferralDashboardScreen: React.FC = () => {
             )}
             {!rewardsConfig.program_enabled && (
               <View style={styles.pausedBanner}>
-                <Text style={styles.pausedText}>The referral program is currently paused. Check back later!</Text>
+                <Text style={styles.pausedText}>
+                  The referral program is currently paused. Check back later!
+                </Text>
               </View>
             )}
           </View>
@@ -260,7 +263,7 @@ export const ReferralDashboardScreen: React.FC = () => {
           <Text style={styles.codeLabel}>Your Referral Code</Text>
           <Text style={styles.code}>{referralCode}</Text>
           <Text style={styles.codeHint}>Share this code or use the link below</Text>
-          
+
           <View style={styles.codeActions}>
             <TouchableOpacity style={styles.copyButton} onPress={handleCopyCode}>
               <Text style={styles.copyButtonText}>Copy Code</Text>
@@ -290,7 +293,7 @@ export const ReferralDashboardScreen: React.FC = () => {
         {/* Referral History */}
         <View style={styles.historyContainer}>
           <Text style={styles.historyTitle}>Referral History</Text>
-          
+
           {history.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>

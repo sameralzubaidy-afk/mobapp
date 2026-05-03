@@ -1,10 +1,10 @@
 /**
  * E2E Test: PAY-001 - Seller Payout Schema
  * Module: MODULE-06-TRADE-FLOW-sellerpayouts.md
- * 
+ *
  * Tests database schema, constraints, RLS policies, and indexes
  * for seller payout methods and payout ledger.
- * 
+ *
  * Prerequisites:
  * - Migration 073_seller_payouts.sql must be applied
  * - Test user must exist in auth.users and profiles
@@ -51,63 +51,45 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
 
     // Use seeded test user (test-seller)
     testUserId = '14be337c-aad6-403f-bab2-ba1a7d80b666';
-    
+
     // Verify test user exists
     const { data: userExists } = await supabase
       .from('profiles')
       .select('id')
       .eq('id', testUserId)
       .single();
-    
+
     if (!userExists) {
       throw new Error('Test user not found. Run `npm run seed:staging` first.');
     }
 
     // Clean up any existing test data
-    await supabase
-      .from('seller_payouts')
-      .delete()
-      .eq('user_id', testUserId);
-    
-    await supabase
-      .from('seller_payout_methods')
-      .delete()
-      .eq('user_id', testUserId);
+    await supabase.from('seller_payouts').delete().eq('user_id', testUserId);
+
+    await supabase.from('seller_payout_methods').delete().eq('user_id', testUserId);
   });
 
   afterAll(async () => {
     // Clean up test data
     if (testPayoutId) {
-      await supabase
-        .from('seller_payouts')
-        .delete()
-        .eq('id', testPayoutId);
+      await supabase.from('seller_payouts').delete().eq('id', testPayoutId);
     }
-    
+
     if (testMethodId) {
-      await supabase
-        .from('seller_payout_methods')
-        .delete()
-        .eq('id', testMethodId);
+      await supabase.from('seller_payout_methods').delete().eq('id', testMethodId);
     }
   });
 
   describe('Schema Validation', () => {
     it('should have seller_payout_methods table with correct columns', async () => {
-      const { data, error } = await supabase
-        .from('seller_payout_methods')
-        .select('*')
-        .limit(0);
+      const { data, error } = await supabase.from('seller_payout_methods').select('*').limit(0);
 
       expect(error).toBeNull();
       expect(data).toBeDefined();
     });
 
     it('should have seller_payouts table with correct columns', async () => {
-      const { data, error } = await supabase
-        .from('seller_payouts')
-        .select('*')
-        .limit(0);
+      const { data, error } = await supabase.from('seller_payouts').select('*').limit(0);
 
       expect(error).toBeNull();
       expect(data).toBeDefined();
@@ -134,21 +116,19 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
       expect(data).toBeDefined();
       expect(data?.method_type).toBe('stripe_connect');
       expect(data?.is_primary).toBe(true);
-      
+
       testMethodId = data!.id;
     });
 
     it('should enforce one-primary-method constraint', async () => {
       // Try to create another primary method for same user
-      const { error } = await supabase
-        .from('seller_payout_methods')
-        .insert({
-          user_id: testUserId,
-          method_type: 'paypal',
-          paypal_email: 'test@example.com',
-          is_primary: true,
-          is_verified: true,
-        });
+      const { error } = await supabase.from('seller_payout_methods').insert({
+        user_id: testUserId,
+        method_type: 'paypal',
+        paypal_email: 'test@example.com',
+        is_primary: true,
+        is_verified: true,
+      });
 
       // Should fail due to unique index on (user_id) WHERE is_primary = true
       expect(error).not.toBeNull();
@@ -174,10 +154,7 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
 
       // Clean up
       if (data?.id) {
-        await supabase
-          .from('seller_payout_methods')
-          .delete()
-          .eq('id', data.id);
+        await supabase.from('seller_payout_methods').delete().eq('id', data.id);
       }
     });
 
@@ -207,8 +184,8 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
       expect(error).toBeNull();
       expect(data).toBeDefined();
       expect(data!.length).toBeGreaterThan(0);
-      
-      const primaryMethod = data!.find(m => m.is_primary);
+
+      const primaryMethod = data!.find((m) => m.is_primary);
       expect(primaryMethod).toBeDefined();
     });
   });
@@ -216,8 +193,8 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
   describe('Payout Ledger CRUD', () => {
     it('should create a payout record with valid amounts', async () => {
       const grossAmountCents = 5000; // $50.00
-      const platformFeeCents = 0;    // $0 (per spec)
-      const payoutFeeCents = 50;     // $0.50 (Stripe fee)
+      const platformFeeCents = 0; // $0 (per spec)
+      const payoutFeeCents = 50; // $0.50 (Stripe fee)
       const netAmountCents = grossAmountCents - platformFeeCents - payoutFeeCents;
 
       const { data, error } = await supabase
@@ -247,18 +224,16 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
 
     it('should enforce net_amount calculation constraint', async () => {
       // Try to create payout with invalid net_amount
-      const { error } = await supabase
-        .from('seller_payouts')
-        .insert({
-          user_id: testUserId,
-          payout_method_id: testMethodId,
-          gross_amount_cents: 5000,
-          platform_fee_cents: 0,
-          payout_fee_cents: 50,
-          net_amount_cents: 9999, // WRONG: should be 4950
-          status: 'pending',
-          idempotency_key: `test_invalid_${Date.now()}`,
-        });
+      const { error } = await supabase.from('seller_payouts').insert({
+        user_id: testUserId,
+        payout_method_id: testMethodId,
+        gross_amount_cents: 5000,
+        platform_fee_cents: 0,
+        payout_fee_cents: 50,
+        net_amount_cents: 9999, // WRONG: should be 4950
+        status: 'pending',
+        idempotency_key: `test_invalid_${Date.now()}`,
+      });
 
       expect(error).not.toBeNull();
       expect(error?.message).toContain('net_amount_calculation_valid');
@@ -286,28 +261,23 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
       expect(firstError).toBeNull();
 
       // Second insert with same key should fail
-      const { error: secondError } = await supabase
-        .from('seller_payouts')
-        .insert({
-          user_id: testUserId,
-          payout_method_id: testMethodId,
-          gross_amount_cents: 2000,
-          platform_fee_cents: 0,
-          payout_fee_cents: 20,
-          net_amount_cents: 1980,
-          status: 'pending',
-          idempotency_key: idempotencyKey,
-        });
+      const { error: secondError } = await supabase.from('seller_payouts').insert({
+        user_id: testUserId,
+        payout_method_id: testMethodId,
+        gross_amount_cents: 2000,
+        platform_fee_cents: 0,
+        payout_fee_cents: 20,
+        net_amount_cents: 1980,
+        status: 'pending',
+        idempotency_key: idempotencyKey,
+      });
 
       expect(secondError).not.toBeNull();
       expect(secondError?.message).toContain('idempotency_key');
 
       // Clean up
       if (first?.id) {
-        await supabase
-          .from('seller_payouts')
-          .delete()
-          .eq('id', first.id);
+        await supabase.from('seller_payouts').delete().eq('id', first.id);
       }
     });
 
@@ -396,62 +366,54 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
 
   describe('Constraints Validation', () => {
     it('should reject negative amounts', async () => {
-      const { error } = await supabase
-        .from('seller_payouts')
-        .insert({
-          user_id: testUserId,
-          gross_amount_cents: -100,
-          platform_fee_cents: 0,
-          payout_fee_cents: 0,
-          net_amount_cents: -100,
-          status: 'pending',
-        });
+      const { error } = await supabase.from('seller_payouts').insert({
+        user_id: testUserId,
+        gross_amount_cents: -100,
+        platform_fee_cents: 0,
+        payout_fee_cents: 0,
+        net_amount_cents: -100,
+        status: 'pending',
+      });
 
       expect(error).not.toBeNull();
       expect(error?.message).toContain('gross_amount_cents');
     });
 
     it('should reject invalid status values', async () => {
-      const { error } = await supabase
-        .from('seller_payouts')
-        .insert({
-          user_id: testUserId,
-          gross_amount_cents: 1000,
-          platform_fee_cents: 0,
-          payout_fee_cents: 10,
-          net_amount_cents: 990,
-          status: 'invalid_status' as any,
-        });
+      const { error } = await supabase.from('seller_payouts').insert({
+        user_id: testUserId,
+        gross_amount_cents: 1000,
+        platform_fee_cents: 0,
+        payout_fee_cents: 10,
+        net_amount_cents: 990,
+        status: 'invalid_status' as any,
+      });
 
       expect(error).not.toBeNull();
       expect(error?.message).toContain('status');
     });
 
     it('should reject Stripe method without stripe_account_id', async () => {
-      const { error } = await supabase
-        .from('seller_payout_methods')
-        .insert({
-          user_id: testUserId,
-          method_type: 'stripe_connect',
-          is_primary: false,
-          is_verified: false,
-          // Missing stripe_account_id
-        });
+      const { error } = await supabase.from('seller_payout_methods').insert({
+        user_id: testUserId,
+        method_type: 'stripe_connect',
+        is_primary: false,
+        is_verified: false,
+        // Missing stripe_account_id
+      });
 
       expect(error).not.toBeNull();
       expect(error?.message).toContain('stripe_fields_required_for_stripe');
     });
 
     it('should reject PayPal method without paypal_email', async () => {
-      const { error } = await supabase
-        .from('seller_payout_methods')
-        .insert({
-          user_id: testUserId,
-          method_type: 'paypal',
-          is_primary: false,
-          is_verified: false,
-          // Missing paypal_email
-        });
+      const { error } = await supabase.from('seller_payout_methods').insert({
+        user_id: testUserId,
+        method_type: 'paypal',
+        is_primary: false,
+        is_verified: false,
+        // Missing paypal_email
+      });
 
       expect(error).not.toBeNull();
       expect(error?.message).toContain('paypal_email_required_for_paypal');
@@ -461,49 +423,41 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
   describe('Index Performance', () => {
     it('should efficiently query by user_id', async () => {
       const start = Date.now();
-      
-      await supabase
-        .from('seller_payouts')
-        .select('*')
-        .eq('user_id', testUserId);
+
+      await supabase.from('seller_payouts').select('*').eq('user_id', testUserId);
 
       const duration = Date.now() - start;
-      
+
       // Should be very fast with index
       expect(duration).toBeLessThan(1000);
     });
 
     it('should efficiently query by status', async () => {
       const start = Date.now();
-      
-      await supabase
-        .from('seller_payouts')
-        .select('*')
-        .eq('status', 'completed');
+
+      await supabase.from('seller_payouts').select('*').eq('status', 'completed');
 
       const duration = Date.now() - start;
-      
+
       expect(duration).toBeLessThan(1000);
     });
 
     it('should efficiently query by idempotency_key', async () => {
       const testKey = `test_${Date.now()}`;
-      
+
       // Create a payout with this key
-      await supabase
-        .from('seller_payouts')
-        .insert({
-          user_id: testUserId,
-          gross_amount_cents: 1000,
-          platform_fee_cents: 0,
-          payout_fee_cents: 10,
-          net_amount_cents: 990,
-          status: 'pending',
-          idempotency_key: testKey,
-        });
+      await supabase.from('seller_payouts').insert({
+        user_id: testUserId,
+        gross_amount_cents: 1000,
+        platform_fee_cents: 0,
+        payout_fee_cents: 10,
+        net_amount_cents: 990,
+        status: 'pending',
+        idempotency_key: testKey,
+      });
 
       const start = Date.now();
-      
+
       const { data } = await supabase
         .from('seller_payouts')
         .select('*')
@@ -511,16 +465,13 @@ d('PAY-001: Seller Payout Schema E2E Tests', () => {
         .single();
 
       const duration = Date.now() - start;
-      
+
       expect(duration).toBeLessThan(1000);
       expect(data).toBeDefined();
 
       // Clean up
       if (data?.id) {
-        await supabase
-          .from('seller_payouts')
-          .delete()
-          .eq('id', data.id);
+        await supabase.from('seller_payouts').delete().eq('id', data.id);
       }
     });
   });

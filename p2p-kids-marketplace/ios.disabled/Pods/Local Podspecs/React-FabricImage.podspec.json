@@ -41,15 +41,9 @@
     ]
   },
   "dependencies": {
-    "React-jsiexecutor": [
-      "0.81.5"
-    ],
-    "RCTRequired": [
-      "0.81.5"
-    ],
-    "RCTTypeSafety": [
-      "0.81.5"
-    ],
+    "React-jsiexecutor": ["0.81.5"],
+    "RCTRequired": ["0.81.5"],
+    "RCTTypeSafety": ["0.81.5"],
     "React-jsi": [],
     "React-logger": [],
     "React-featureflags": [],

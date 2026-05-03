@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/components/molecules/StarRating.tsx
  * Star rating component for displaying seller ratings with visual stars
- * 
+ *
  * Features:
  * - Display 1-5 stars based on average rating
  * - Show review count
@@ -31,23 +31,22 @@ export default function StarRating({
   }
 
   const starSize = size === 'small' ? 14 : size === 'large' ? 24 : 18;
-  
+
   // Generate star display (e.g., "★★★★☆")
   const fullStars = Math.floor(averageRating);
   const hasHalfStar = averageRating % 1 >= 0.5;
-  
-  const stars = '★'.repeat(fullStars) + (hasHalfStar ? '⭐' : '') + '☆'.repeat(5 - fullStars - (hasHalfStar ? 1 : 0));
+
+  const stars =
+    '★'.repeat(fullStars) +
+    (hasHalfStar ? '⭐' : '') +
+    '☆'.repeat(5 - fullStars - (hasHalfStar ? 1 : 0));
 
   return (
     <View style={styles.container}>
       <View style={styles.ratingRow}>
-        <Text style={[styles.stars, { fontSize: starSize }]}>
-          {stars}
-        </Text>
+        <Text style={[styles.stars, { fontSize: starSize }]}>{stars}</Text>
         <View style={styles.ratingInfo}>
-          <Text style={styles.ratingValue}>
-            {averageRating.toFixed(1)}
-          </Text>
+          <Text style={styles.ratingValue}>{averageRating.toFixed(1)}</Text>
           <Text style={styles.reviewCount}>
             {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
           </Text>
@@ -60,17 +59,12 @@ export default function StarRating({
           {[5, 4, 3, 2, 1].map((rating) => {
             const count = ratingBreakdown[rating] || 0;
             const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
-            
+
             return (
               <View key={rating} style={styles.breakdownRow}>
                 <Text style={styles.breakdownLabel}>{rating}★</Text>
                 <View style={styles.breakdownBarContainer}>
-                  <View
-                    style={[
-                      styles.breakdownBar,
-                      { width: `${percentage}%` },
-                    ]}
-                  />
+                  <View style={[styles.breakdownBar, { width: `${percentage}%` }]} />
                 </View>
                 <Text style={styles.breakdownCount}>{count}</Text>
               </View>
@@ -112,7 +106,7 @@ const styles = StyleSheet.create({
     color: '#999',
     fontStyle: 'italic',
   },
-  
+
   // Breakdown bar styles
   breakdownContainer: {
     marginTop: 12,

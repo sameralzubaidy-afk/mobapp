@@ -282,9 +282,7 @@ describe('Real-time Chat E2E', () => {
         throw new Error('Presence failed');
       });
 
-      await expect(
-        broadcastTypingStatus('trade-123', 'user-456', true)
-      ).resolves.not.toThrow();
+      await expect(broadcastTypingStatus('trade-123', 'user-456', true)).resolves.not.toThrow();
     });
   });
 });

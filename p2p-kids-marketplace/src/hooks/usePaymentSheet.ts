@@ -28,11 +28,11 @@ export interface UsePaymentSheetReturn {
 
 /**
  * Hook for managing Stripe Payment Sheet
- * 
+ *
  * Usage:
  * ```tsx
  * const { setupPaymentSheet, presentSheet, loading, error } = usePaymentSheet();
- * 
+ *
  * // When user clicks "Subscribe"
  * await setupPaymentSheet({ amount: dynamicPriceCents, isRenewal: false });
  * const result = await presentSheet();
@@ -48,117 +48,116 @@ export function usePaymentSheet(): UsePaymentSheetReturn {
   const paymentSheetReadyRef = useRef(false);
   const setupIntentClientSecretRef = useRef<string | null>(null);
 
-  const setupPaymentSheet = useCallback(
-    async (options: PaymentSheetOptions): Promise<void> => {
-      setLoading(true);
-      setError(null);
+  const setupPaymentSheet = useCallback(async (options: PaymentSheetOptions): Promise<void> => {
+    setLoading(true);
+    setError(null);
+    paymentSheetReadyRef.current = false;
+    setupIntentClientSecretRef.current = null;
+
+    try {
+      // Get current session
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        throw new Error('Not authenticated');
+      }
+
+      const accessToken = session.access_token;
+      const userId = options.userId || session.user.id;
+
+      // Call edge function to create SetupIntent.
+      // Using supabase.functions.invoke avoids physical-device env URL drift.
+      const { data, error: invokeError } = await supabase.functions.invoke(
+        'create-payment-setup-intent',
+        {
+          body: {
+            user_id: userId,
+            for_renewal: options.isRenewal || false,
+          },
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (invokeError) {
+        const message =
+          (invokeError as any)?.context?.statusText ||
+          invokeError.message ||
+          'Failed to create payment setup';
+        throw new Error(message);
+      }
+
+      if (!data?.client_secret || !data?.customer_id || !data?.ephemeral_key_secret) {
+        throw new Error('Payment setup response missing required Stripe fields');
+      }
+
+      // Runtime publishable key alignment prevents physical-device key mismatch
+      // between app bundle env and edge-function Stripe mode.
+      if (typeof data.publishable_key === 'string' && data.publishable_key.startsWith('pk_')) {
+        await initStripe({
+          publishableKey: data.publishable_key,
+          merchantIdentifier: 'merchant.com.p2pkidsmarketplace',
+          urlScheme: 'p2pkidsmarketplace',
+        });
+      }
+
+      setupIntentClientSecretRef.current = data.client_secret;
+
+      const { initPaymentSheet } = require('@stripe/stripe-react-native');
+
+      // Initialize Payment Sheet with SetupIntent
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'Kids P2P Marketplace',
+        customerId: data.customer_id,
+        customerEphemeralKeySecret: data.ephemeral_key_secret,
+        setupIntentClientSecret: data.client_secret,
+        allowsDelayedPaymentMethods: false,
+        returnURL: 'p2pkidsmarketplace://stripe-redirect',
+        appearance: {
+          colors: {
+            primary: '#007AFF',
+            background: '#FFFFFF',
+          },
+        },
+        // Keep wallet methods platform-specific to avoid device-specific rendering issues.
+        ...(Platform.OS === 'ios'
+          ? {
+              applePay: {
+                merchantCountryCode: 'US',
+              },
+            }
+          : {}),
+        ...(Platform.OS === 'android'
+          ? {
+              googlePay: {
+                merchantCountryCode: 'US',
+                testEnv: __DEV__,
+                currencyCode: 'USD',
+              },
+            }
+          : {}),
+      });
+
+      if (initError) {
+        throw new Error(initError.message || 'Failed to initialize payment sheet');
+      }
+
+      paymentSheetReadyRef.current = true;
+      console.log('[usePaymentSheet] Payment sheet initialized successfully');
+    } catch (err: any) {
+      console.error('[usePaymentSheet] Setup error:', err);
+      setError(err.message || 'Failed to setup payment');
       paymentSheetReadyRef.current = false;
       setupIntentClientSecretRef.current = null;
-
-      try {
-        // Get current session
-        const {
-          data: { session },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (sessionError || !session) {
-          throw new Error('Not authenticated');
-        }
-
-        const accessToken = session.access_token;
-        const userId = options.userId || session.user.id;
-
-        // Call edge function to create SetupIntent.
-        // Using supabase.functions.invoke avoids physical-device env URL drift.
-        const { data, error: invokeError } = await supabase.functions.invoke(
-          'create-payment-setup-intent',
-          {
-            body: {
-              user_id: userId,
-              for_renewal: options.isRenewal || false,
-            },
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-
-        if (invokeError) {
-          const message =
-            (invokeError as any)?.context?.statusText || invokeError.message || 'Failed to create payment setup';
-          throw new Error(message);
-        }
-
-        if (!data?.client_secret || !data?.customer_id || !data?.ephemeral_key_secret) {
-          throw new Error('Payment setup response missing required Stripe fields');
-        }
-
-        // Runtime publishable key alignment prevents physical-device key mismatch
-        // between app bundle env and edge-function Stripe mode.
-        if (typeof data.publishable_key === 'string' && data.publishable_key.startsWith('pk_')) {
-          await initStripe({
-            publishableKey: data.publishable_key,
-            merchantIdentifier: 'merchant.com.p2pkidsmarketplace',
-            urlScheme: 'p2pkidsmarketplace',
-          });
-        }
-
-        setupIntentClientSecretRef.current = data.client_secret;
-
-        const { initPaymentSheet } = require('@stripe/stripe-react-native');
-
-        // Initialize Payment Sheet with SetupIntent
-        const { error: initError } = await initPaymentSheet({
-          merchantDisplayName: 'Kids P2P Marketplace',
-          customerId: data.customer_id,
-          customerEphemeralKeySecret: data.ephemeral_key_secret,
-          setupIntentClientSecret: data.client_secret,
-          allowsDelayedPaymentMethods: false,
-          returnURL: 'p2pkidsmarketplace://stripe-redirect',
-          appearance: {
-            colors: {
-              primary: '#007AFF',
-              background: '#FFFFFF',
-            },
-          },
-          // Keep wallet methods platform-specific to avoid device-specific rendering issues.
-          ...(Platform.OS === 'ios'
-            ? {
-                applePay: {
-                  merchantCountryCode: 'US',
-                },
-              }
-            : {}),
-          ...(Platform.OS === 'android'
-            ? {
-                googlePay: {
-                  merchantCountryCode: 'US',
-                  testEnv: __DEV__,
-                  currencyCode: 'USD',
-                },
-              }
-            : {}),
-        });
-
-        if (initError) {
-          throw new Error(initError.message || 'Failed to initialize payment sheet');
-        }
-
-        paymentSheetReadyRef.current = true;
-        console.log('[usePaymentSheet] Payment sheet initialized successfully');
-      } catch (err: any) {
-        console.error('[usePaymentSheet] Setup error:', err);
-        setError(err.message || 'Failed to setup payment');
-        paymentSheetReadyRef.current = false;
-        setupIntentClientSecretRef.current = null;
-        throw err;
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const presentSheet = useCallback(async (): Promise<PaymentSheetResult> => {
     if (!paymentSheetReadyRef.current) {

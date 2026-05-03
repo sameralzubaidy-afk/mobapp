@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/listing/PublishButton.tsx
  * MODULE-04 LISTING-V3-008: Publish Button
  * Task: LISTING-V3-008 - Large primary button with loading + disabled states
- * 
+ *
  * Features:
  * - Loading indicator
  * - Disabled state
@@ -10,12 +10,7 @@
  */
 
 import React from 'react';
-import {
-  TouchableOpacity,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
-} from 'react-native';
+import { TouchableOpacity, Text, ActivityIndicator, StyleSheet } from 'react-native';
 
 export interface PublishButtonProps {
   onPress: () => void;

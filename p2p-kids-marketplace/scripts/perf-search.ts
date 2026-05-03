@@ -1,12 +1,12 @@
 /**
  * Performance Integration Test for search_listings RPC
  * MODULE-05-DISCOVERY-V3: TASK DISCOVERY-V3-008
- * 
+ *
  * Tests p95 latency of search_listings with random filters against staging Supabase
- * 
+ *
  * Usage:
  *   npm run test:perf:search
- * 
+ *
  * Requirements:
  *   - Staging Supabase must have ≥ 10k rows in items table
  *   - SUPABASE_URL and SUPABASE_ANON_KEY must be set in .env
@@ -31,12 +31,42 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // Sample filter combinations
 const FILTER_COMBINATIONS = [
   { p_query: 'toy', p_category_ids: null, p_condition: null, p_min_price: null, p_max_price: null },
-  { p_query: 'LEGO', p_category_ids: null, p_condition: 'like_new', p_min_price: 10, p_max_price: 50 },
-  { p_query: 'bicycle', p_category_ids: null, p_condition: null, p_min_price: null, p_max_price: 100 },
-  { p_query: null, p_category_ids: null, p_condition: 'used_good', p_min_price: null, p_max_price: null },
+  {
+    p_query: 'LEGO',
+    p_category_ids: null,
+    p_condition: 'like_new',
+    p_min_price: 10,
+    p_max_price: 50,
+  },
+  {
+    p_query: 'bicycle',
+    p_category_ids: null,
+    p_condition: null,
+    p_min_price: null,
+    p_max_price: 100,
+  },
+  {
+    p_query: null,
+    p_category_ids: null,
+    p_condition: 'used_good',
+    p_min_price: null,
+    p_max_price: null,
+  },
   { p_query: 'book', p_category_ids: null, p_condition: null, p_min_price: 5, p_max_price: 25 },
-  { p_query: null, p_category_ids: null, p_condition: 'like_new', p_min_price: null, p_max_price: null },
-  { p_query: 'game', p_category_ids: null, p_condition: null, p_min_price: null, p_max_price: null },
+  {
+    p_query: null,
+    p_category_ids: null,
+    p_condition: 'like_new',
+    p_min_price: null,
+    p_max_price: null,
+  },
+  {
+    p_query: 'game',
+    p_category_ids: null,
+    p_condition: null,
+    p_min_price: null,
+    p_max_price: null,
+  },
   { p_query: null, p_category_ids: null, p_condition: null, p_min_price: 20, p_max_price: 80 },
 ];
 
@@ -58,7 +88,7 @@ interface SearchParams {
 
 async function runSearch(params: SearchParams): Promise<number> {
   const start = Date.now();
-  
+
   const { data, error } = await supabase.rpc('search_listings', {
     ...params,
     p_sp_eligible_only: params.p_sp_eligible_only ?? false,
@@ -102,9 +132,11 @@ async function main() {
   }
 
   console.log(`📊 Database has ${count} available items`);
-  
+
   if ((count ?? 0) < 10000) {
-    console.warn('⚠️  Warning: Database has < 10k items. Performance target may not be representative.');
+    console.warn(
+      '⚠️  Warning: Database has < 10k items. Performance target may not be representative.'
+    );
   }
 
   console.log('\n🔍 Running 20 searches with random filters...\n');
@@ -114,24 +146,27 @@ async function main() {
   for (let i = 0; i < 20; i++) {
     // Pick random filter combination
     const randomFilters = FILTER_COMBINATIONS[i % FILTER_COMBINATIONS.length];
-    
+
     // Randomly add additional filters
     const params: SearchParams = {
       ...randomFilters,
-      p_age_group: Math.random() > 0.7 ? ['3-5', '6-8', '9-12'][Math.floor(Math.random() * 3)] : null,
-      p_gender: Math.random() > 0.7 ? ['boy', 'girl', 'unisex'][Math.floor(Math.random() * 3)] : null,
-      p_colors: Math.random() > 0.7 ? [['red', 'blue', 'green'][Math.floor(Math.random() * 3)]] : null,
+      p_age_group:
+        Math.random() > 0.7 ? ['3-5', '6-8', '9-12'][Math.floor(Math.random() * 3)] : null,
+      p_gender:
+        Math.random() > 0.7 ? ['boy', 'girl', 'unisex'][Math.floor(Math.random() * 3)] : null,
+      p_colors:
+        Math.random() > 0.7 ? [['red', 'blue', 'green'][Math.floor(Math.random() * 3)]] : null,
     };
 
     try {
       const duration = await runSearch(params);
       durations.push(duration);
-      
+
       const filters = Object.entries(params)
         .filter(([_, v]) => v !== null && v !== undefined)
         .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
         .join(', ');
-      
+
       console.log(`  ${i + 1}/20: ${duration}ms (${filters.slice(0, 60)}...)`);
     } catch (error) {
       console.error(`  ${i + 1}/20: FAILED`);
@@ -139,7 +174,7 @@ async function main() {
     }
 
     // Small delay to avoid rate limiting
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
   console.log('\n📈 Performance Results:\n');
@@ -169,7 +204,7 @@ async function main() {
     console.log('  - Check if indexes exist on items table');
     console.log('  - Run VACUUM ANALYZE on items table');
     console.log('  - Check search_listings RPC query plan');
-    console.log('  - Verify partial indexes on status=\'available\'');
+    console.log("  - Verify partial indexes on status='available'");
     process.exit(1);
   }
 }

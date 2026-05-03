@@ -15,7 +15,9 @@ jest.mock('../../config/supabase', () => ({
   },
 }));
 
-const mockInvoke = supabase.functions.invoke as jest.MockedFunction<typeof supabase.functions.invoke>;
+const mockInvoke = supabase.functions.invoke as jest.MockedFunction<
+  typeof supabase.functions.invoke
+>;
 
 describe('paymentRetry service', () => {
   beforeEach(() => {

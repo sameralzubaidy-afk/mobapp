@@ -54,9 +54,9 @@ export async function uploadBadgeIcon(
     }
 
     // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from('badge-icons')
-      .getPublicUrl(data.path);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('badge-icons').getPublicUrl(data.path);
 
     // Update badge with new icon URL
     const { error: updateError } = await supabase
@@ -110,9 +110,7 @@ export async function getSignedBadgeIconUrl(
  */
 export async function deleteBadgeIcon(path: string): Promise<boolean> {
   try {
-    const { error } = await supabase.storage
-      .from('badge-icons')
-      .remove([path]);
+    const { error } = await supabase.storage.from('badge-icons').remove([path]);
 
     if (error) {
       console.error('[badgeUtils.deleteBadgeIcon] Error:', error);
@@ -132,9 +130,9 @@ export async function deleteBadgeIcon(path: string): Promise<boolean> {
  * @returns Public URL
  */
 export function getPublicBadgeIconUrl(path: string): string {
-  const { data: { publicUrl } } = supabase.storage
-    .from('badge-icons')
-    .getPublicUrl(path);
-  
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from('badge-icons').getPublicUrl(path);
+
   return publicUrl;
 }

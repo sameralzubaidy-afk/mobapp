@@ -1,6 +1,6 @@
 /**
  * Integration tests for delete + purge cache flow
- * 
+ *
  * Tests that deleting items from Supabase Storage triggers
  * Cloudflare cache purge to prevent stale content
  */
@@ -11,7 +11,8 @@ import { randomUUID } from 'crypto';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const CDN_URL = process.env.EXPO_PUBLIC_CDN_URL || process.env.NEXT_PUBLIC_CDN_URL;
-const PURGE_ENDPOINT = process.env.SUPABASE_PURGE_ENDPOINT || 'http://localhost:54321/functions/v1/purge-cache';
+const PURGE_ENDPOINT =
+  process.env.SUPABASE_PURGE_ENDPOINT || 'http://localhost:54321/functions/v1/purge-cache';
 const PURGE_API_KEY = process.env.SUPABASE_PURGE_X_API_KEY;
 
 const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
@@ -20,9 +21,7 @@ const shouldRunSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
 const shouldSkip = !shouldRunSupabaseE2E || !SUPABASE_URL || !SERVICE_ROLE || !CDN_URL;
 
 if (shouldSkip) {
-  console.warn(
-    'Supabase, CDN, or purge config missing. Skipping delete+purge integration tests.'
-  );
+  console.warn('Supabase, CDN, or purge config missing. Skipping delete+purge integration tests.');
 }
 
 describe('Delete + Cache Purge Integration', () => {
@@ -59,7 +58,10 @@ describe('Delete + Cache Purge Integration', () => {
       });
 
       if (!response.ok) {
-        console.warn(`[purgeUrlsFromCache] Purge returned ${response.status}`, await response.text());
+        console.warn(
+          `[purgeUrlsFromCache] Purge returned ${response.status}`,
+          await response.text()
+        );
         return false;
       }
 
@@ -138,10 +140,12 @@ describe('Delete + Cache Purge Integration', () => {
 
       try {
         // Upload file
-        const { error: uploadError } = await client.storage.from(bucket).upload(path, Buffer.from('test'), {
-          contentType: 'text/plain',
-          upsert: true,
-        });
+        const { error: uploadError } = await client.storage
+          .from(bucket)
+          .upload(path, Buffer.from('test'), {
+            contentType: 'text/plain',
+            upsert: true,
+          });
         expect(uploadError).toBeNull();
 
         const cdnUrl = `${CDN_URL}/${bucket}/${path}`;
@@ -324,9 +328,7 @@ describe('Delete + Cache Purge Integration', () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ urls: ['http://example.com'] }),
           }),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), 2000)
-          ),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000)),
         ]).catch((error) => {
           expect(error).toBeDefined();
           return null;

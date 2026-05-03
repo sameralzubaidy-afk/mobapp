@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx
  * MODULE-04 LISTING-V3-005: Item Create Screen (Photo-First Flow)
  * Task: LISTING-V3-005 - Rebuild as photo-first state machine
- * 
+ *
  * Features:
  * - Photo-first state machine flow
  * - AI auto-fill suggestions (non-blocking)
@@ -108,7 +108,7 @@ export default function ItemCreateScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { session } = useAuth();
-  
+
   const draftId = route.params?.draftId;
   const sellerId = session?.user?.id || '';
   const hasTriggeredInitialDraftCreateRef = useRef(false);
@@ -196,8 +196,8 @@ export default function ItemCreateScreen() {
     const restoredPhotoUrls = Array.isArray(draftData.photo_urls)
       ? draftData.photo_urls
       : Array.isArray(draft.photo_urls)
-      ? draft.photo_urls
-      : [];
+        ? draft.photo_urls
+        : [];
 
     setTitle(draftData.title || '');
     setDescription(draftData.description || '');
@@ -309,10 +309,10 @@ export default function ItemCreateScreen() {
         photos.length === 0
           ? 'photos'
           : !title || !category || !condition
-          ? 'details'
-          : !priceInput
-          ? 'price'
-          : 'review',
+            ? 'details'
+            : !priceInput
+              ? 'price'
+              : 'review',
     };
 
     saveDraft(draftData);
@@ -418,10 +418,7 @@ export default function ItemCreateScreen() {
 
   const uploadPhotos = async (photosToUpload: PhotoAsset[]) => {
     try {
-      const result = await uploadPhotoBatch(
-        photosToUpload,
-        sellerId
-      );
+      const result = await uploadPhotoBatch(photosToUpload, sellerId);
 
       if (result.urls.length > 0) {
         setUploadedPhotoUrls((prev) => [...prev, ...result.urls]);
@@ -453,9 +450,7 @@ export default function ItemCreateScreen() {
     }
 
     if (!category && aiResult.category) {
-      const matchedCat = categories.find(
-        (c) => c.id === aiResult.category?.value.categoryId
-      );
+      const matchedCat = categories.find((c) => c.id === aiResult.category?.value.categoryId);
       if (matchedCat) {
         setCategory(matchedCat);
       }
@@ -590,8 +585,7 @@ export default function ItemCreateScreen() {
         description: description.trim() || '',
         price: parseFloat(priceInput),
         category_id: isOtherCategory ? undefined : category?.id,
-        requested_category_name:
-          isOtherCategory ? requestedCategoryName.trim() || null : null,
+        requested_category_name: isOtherCategory ? requestedCategoryName.trim() || null : null,
         condition: condition!,
         accepts_swap_points: canAcceptSP ? acceptsSwapPoints : false,
         brand: brand.trim() || null,
@@ -658,9 +652,7 @@ export default function ItemCreateScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Listing</Text>
         <View style={styles.headerRight}>
-          {aiStatus === 'analyzing' && (
-            <ActivityIndicator size="small" color="#007AFF" />
-          )}
+          {aiStatus === 'analyzing' && <ActivityIndicator size="small" color="#007AFF" />}
         </View>
       </View>
 
@@ -688,9 +680,7 @@ export default function ItemCreateScreen() {
         {aiStatus === 'error' && photos.length > 0 && (
           <View style={styles.aiErrorCard}>
             <Text style={styles.aiErrorTitle}>AI analysis failed</Text>
-            <Text style={styles.aiErrorMessage}>
-              {aiError || 'Please try AI analysis again.'}
-            </Text>
+            <Text style={styles.aiErrorMessage}>{aiError || 'Please try AI analysis again.'}</Text>
             <TouchableOpacity
               style={styles.aiRetryButton}
               onPress={retryAI}
@@ -857,10 +847,7 @@ export default function ItemCreateScreen() {
               isSubscriber={canAcceptSP}
               onLearnMore={() => {
                 // TODO: Navigate to SP education screen (placeholder)
-                Alert.alert(
-                  'Swap Points',
-                  'Learn more about Swap Points in the help section.'
-                );
+                Alert.alert('Swap Points', 'Learn more about Swap Points in the help section.');
               }}
               onUpgradePress={() => navigation.navigate('SubscriptionChoice')}
               testID="sp-earnings-preview"
@@ -876,9 +863,7 @@ export default function ItemCreateScreen() {
           </>
         )}
 
-        {saveError && (
-          <Text style={styles.errorText}>Draft save error: {saveError}</Text>
-        )}
+        {saveError && <Text style={styles.errorText}>Draft save error: {saveError}</Text>}
       </ScrollView>
 
       {/* Category Modal */}
@@ -920,10 +905,12 @@ export default function ItemCreateScreen() {
           <View style={styles.submitModalCard}>
             <Text style={styles.submitModalTitle}>Thanks for submitting!</Text>
             <Text style={styles.submitModalMessage}>
-              To ensure the marketplace is safe and free of offensive items, we are going to review your item and approve it.
+              To ensure the marketplace is safe and free of offensive items, we are going to review
+              your item and approve it.
             </Text>
             <Text style={styles.submitModalMessage}>
-              This will not take long. You will get a notification as soon as we complete the review. You can check the latest status by checking in My Items view.
+              This will not take long. You will get a notification as soon as we complete the
+              review. You can check the latest status by checking in My Items view.
             </Text>
 
             <TouchableOpacity

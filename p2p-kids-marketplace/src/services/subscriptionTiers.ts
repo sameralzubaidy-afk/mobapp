@@ -42,9 +42,7 @@ export async function getActiveSubscriptionTiers(): Promise<{
  * SUB-001: Fetch a specific tier by name
  * @param tierName - Internal tier name (e.g., 'kids_club_plus')
  */
-export async function getSubscriptionTierByName(
-  tierName: string
-): Promise<{
+export async function getSubscriptionTierByName(tierName: string): Promise<{
   data: SubscriptionTier | null;
   error: Error | null;
 }> {
@@ -72,9 +70,7 @@ export async function getSubscriptionTierByName(
  * SUB-001: Fetch a tier with all its features
  * @param tierId - UUID of the tier
  */
-export async function getSubscriptionTierWithFeatures(
-  tierId: string
-): Promise<{
+export async function getSubscriptionTierWithFeatures(tierId: string): Promise<{
   data: SubscriptionTierWithFeatures | null;
   error: Error | null;
 }> {

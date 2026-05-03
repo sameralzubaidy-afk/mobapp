@@ -12,10 +12,7 @@
     "git": "https://github.com/facebook/react-native.git",
     "tag": "v0.81.5"
   },
-  "source_files": [
-    "*.{m,mm,cpp,h}",
-    "platform/ios/**/*.{m,mm,cpp,h}"
-  ],
+  "source_files": ["*.{m,mm,cpp,h}", "platform/ios/**/*.{m,mm,cpp,h}"],
   "header_dir": "react/utils",
   "exclude_files": "tests",
   "pod_target_xcconfig": {
@@ -25,9 +22,7 @@
     "DEFINES_MODULE": "YES"
   },
   "dependencies": {
-    "React-jsi": [
-      "0.81.5"
-    ],
+    "React-jsi": ["0.81.5"],
     "hermes-engine": [],
     "glog": [],
     "boost": [],

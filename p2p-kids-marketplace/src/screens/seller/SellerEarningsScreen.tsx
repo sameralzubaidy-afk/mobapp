@@ -3,7 +3,7 @@
  * File: p2p-kids-marketplace/src/screens/seller/SellerEarningsScreen.tsx
  * Module: MODULE-06-TRADE-FLOW-sellerpayouts.md
  * Task: PAY-008 (Minimal Admin + Seller Earnings Views)
- * 
+ *
  * Displays seller's payout history with status, net amount, and method
  */
 
@@ -16,7 +16,7 @@ import {
   ActivityIndicator,
   StyleSheet,
   TouchableOpacity,
-  ScrollView
+  ScrollView,
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { getSellerPayouts, getPayoutMethodDisplayName } from '../../services/payoutService';
@@ -46,16 +46,19 @@ export default function SellerEarningsScreen() {
       setRefreshing(false);
       return;
     }
-    
+
     setError(null);
     try {
       const data = await getSellerPayouts(user.id, 20);
-      console.log('[DEBUG] Fetched payouts:', { count: data.length, data: data.map(p => ({ status: p.status, net_amount_cents: p.net_amount_cents })) });
-      
+      console.log('[DEBUG] Fetched payouts:', {
+        count: data.length,
+        data: data.map((p) => ({ status: p.status, net_amount_cents: p.net_amount_cents })),
+      });
+
       // Enrich payouts with display data
-      const enriched: PayoutDisplayItem[] = data.map(payout => {
+      const enriched: PayoutDisplayItem[] = data.map((payout) => {
         // Normalize trade_id to null when undefined so it matches SellerPayout type (string | null)
-        const normalized = ({ ...payout, trade_id: payout.trade_id ?? null } as SellerPayout);
+        const normalized = { ...payout, trade_id: payout.trade_id ?? null } as SellerPayout;
         return {
           ...normalized,
           methodName: getPayoutMethodLabel(normalized),
@@ -63,7 +66,7 @@ export default function SellerEarningsScreen() {
           statusColor: getPayoutStatusColor(normalized.status),
         };
       });
-      
+
       setPayouts(enriched);
     } catch (err: any) {
       setError(err.message || 'Failed to load earnings');
@@ -81,7 +84,7 @@ export default function SellerEarningsScreen() {
 
   const getPayoutMethodLabel = (payout: SellerPayout): string => {
     if (!payout.provider) return 'Not Set';
-    
+
     switch (payout.provider) {
       case 'stripe':
         return 'Stripe';
@@ -137,19 +140,19 @@ export default function SellerEarningsScreen() {
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
   const calculateTotalEarnings = (): number => {
     return payouts
-      .filter(p => p.status === 'completed')
+      .filter((p) => p.status === 'completed')
       .reduce((sum, p) => sum + p.net_amount_cents, 0);
   };
 
   const calculatePendingEarnings = (): number => {
     return payouts
-      .filter(p => ['pending', 'processing'].includes(p.status))
+      .filter((p) => ['pending', 'processing'].includes(p.status))
       .reduce((sum, p) => sum + p.net_amount_cents, 0);
   };
 
@@ -157,21 +160,13 @@ export default function SellerEarningsScreen() {
     <View style={styles.payoutCard}>
       <View style={styles.payoutHeader}>
         <View style={styles.payoutInfo}>
-          <Text style={styles.payoutDate}>
-            {formatDate(item.created_at)}
-          </Text>
-          <Text style={styles.payoutMethod}>
-            {item.methodName}
-          </Text>
+          <Text style={styles.payoutDate}>{formatDate(item.created_at)}</Text>
+          <Text style={styles.payoutMethod}>{item.methodName}</Text>
         </View>
         <View style={styles.payoutAmounts}>
-          <Text style={styles.payoutNet}>
-            {formatAmount(item.net_amount_cents)}
-          </Text>
+          <Text style={styles.payoutNet}>{formatAmount(item.net_amount_cents)}</Text>
           <View style={[styles.statusBadge, { backgroundColor: item.statusColor }]}>
-            <Text style={styles.statusText}>
-              {item.statusLabel}
-            </Text>
+            <Text style={styles.statusText}>{item.statusLabel}</Text>
           </View>
         </View>
       </View>
@@ -179,39 +174,29 @@ export default function SellerEarningsScreen() {
       <View style={styles.payoutDetails}>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Gross</Text>
-          <Text style={styles.detailValue}>
-            {formatAmount(item.gross_amount_cents)}
-          </Text>
+          <Text style={styles.detailValue}>{formatAmount(item.gross_amount_cents)}</Text>
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Payout Fee</Text>
-          <Text style={styles.detailValue}>
-            -{formatAmount(item.payout_fee_cents)}
-          </Text>
+          <Text style={styles.detailValue}>-{formatAmount(item.payout_fee_cents)}</Text>
         </View>
         {item.platform_fee_cents > 0 && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Platform Fee</Text>
-            <Text style={styles.detailValue}>
-              -{formatAmount(item.platform_fee_cents)}
-            </Text>
+            <Text style={styles.detailValue}>-{formatAmount(item.platform_fee_cents)}</Text>
           </View>
         )}
       </View>
 
       {item.failure_reason && (
         <View style={styles.failureReason}>
-          <Text style={styles.failureText}>
-            ⚠️ {item.failure_reason}
-          </Text>
+          <Text style={styles.failureText}>⚠️ {item.failure_reason}</Text>
         </View>
       )}
 
       {item.status === 'requires_action' && (
         <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionButtonText}>
-            Set Up Payout Method
-          </Text>
+          <Text style={styles.actionButtonText}>Set Up Payout Method</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -226,9 +211,7 @@ export default function SellerEarningsScreen() {
       <View style={styles.summaryContainer}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Total Earnings</Text>
-          <Text style={styles.summaryAmount}>
-            {formatAmount(calculateTotalEarnings())}
-          </Text>
+          <Text style={styles.summaryAmount}>{formatAmount(calculateTotalEarnings())}</Text>
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Pending</Text>
@@ -243,9 +226,7 @@ export default function SellerEarningsScreen() {
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
       <Text style={styles.emptyTitle}>No Earnings Yet</Text>
-      <Text style={styles.emptyText}>
-        Complete trades to start earning and receiving payouts
-      </Text>
+      <Text style={styles.emptyText}>Complete trades to start earning and receiving payouts</Text>
     </View>
   );
 
@@ -279,11 +260,7 @@ export default function SellerEarningsScreen() {
         ListHeaderComponent={renderSummary}
         ListEmptyComponent={renderEmpty}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={['#4F46E5']}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#4F46E5']} />
         }
         contentContainerStyle={styles.listContent}
       />

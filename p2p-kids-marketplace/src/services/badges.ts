@@ -1,12 +1,7 @@
 // filepath: p2p-kids-marketplace/src/services/badges.ts
 
 import { supabase } from '../config/supabase';
-import { 
-  UserBadge, 
-  Badge, 
-  BadgeConfigHistory, 
-  BadgeAuditLog 
-} from '../types/badge';
+import { UserBadge, Badge, BadgeConfigHistory, BadgeAuditLog } from '../types/badge';
 
 /**
  * Fetches all badges earned by a user
@@ -76,7 +71,7 @@ export async function getBadgeLeaderboard(limit: number = 10): Promise<Leaderboa
 
   // Ensure we're returning an array
   const result = Array.isArray(data) ? data : [];
-  
+
   return result as LeaderboardEntry[];
 }
 
@@ -186,9 +181,7 @@ export interface RetroactivePreview {
   already_has_badge: boolean;
 }
 
-export async function previewRetroactiveAwards(
-  badgeId: string
-): Promise<RetroactivePreview[]> {
+export async function previewRetroactiveAwards(badgeId: string): Promise<RetroactivePreview[]> {
   const { data, error } = await supabase.rpc('preview_retroactive_awards', {
     p_badge_id: badgeId,
   });

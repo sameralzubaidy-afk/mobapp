@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/services/chat-notifications.test.ts
  * MSG-006-009 Tests: Push Notifications, Email Notifications, Delivery Status, Typing Indicators
- * 
+ *
  * Tests all new messaging features including:
  * - MSG-008: Message delivery status tracking (sent → delivered → read)
  * - MSG-009: Typing indicator presence
@@ -317,7 +317,7 @@ describe('MSG-009: Typing Indicators', () => {
         if (event === 'presence' && options.event === 'sync') {
           // Mock presence state to have a typing user
           mockChannel.presenceState.mockReturnValue({
-            'user-789': [{ user_id: 'user-789', is_typing: true }]
+            'user-789': [{ user_id: 'user-789', is_typing: true }],
           });
           // Simulate presence sync
           actualHandler();
@@ -402,9 +402,6 @@ describe('MSG-006-009 Integration: Complete Message Flow', () => {
 
     // Verify both operations completed
     expect(supabase.channel).toHaveBeenCalled();
-    expect(supabase.rpc).toHaveBeenCalledWith(
-      'update_message_delivery_status',
-      expect.any(Object)
-    );
+    expect(supabase.rpc).toHaveBeenCalledWith('update_message_delivery_status', expect.any(Object));
   });
 });

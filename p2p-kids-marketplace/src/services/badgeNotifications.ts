@@ -25,9 +25,9 @@ export interface MilestoneNotificationData extends BadgeNotificationData {
  * Milestone notifications are sent when user is close to earning next badge:
  * - Within 5 SP of next SP badge
  * - Within 2 trades of next trade badge
- * 
+ *
  * Deduplication: Only sends once per badge per 7 days
- * 
+ *
  * @param userId - User ID to check milestones for
  * @returns Success/failure result
  */
@@ -41,8 +41,7 @@ export const checkBadgeMilestones = async (
 
     if (error) {
       const isDeprecatedMvpMilestoneError =
-        error.code === '42703' &&
-        /sp_available|transactions|milestone/i.test(error.message || '');
+        error.code === '42703' && /sp_available|transactions|milestone/i.test(error.message || '');
 
       if (isDeprecatedMvpMilestoneError) {
         // Milestones are decommissioned in MVP; treat legacy RPC schema errors as no-op.
@@ -64,7 +63,7 @@ export const checkBadgeMilestones = async (
 /**
  * Fetch unread badge notifications for user
  * Used to display badge notifications in notification center
- * 
+ *
  * @param userId - User ID to fetch notifications for
  * @returns Array of badge notifications
  */
@@ -95,7 +94,7 @@ export const getBadgeNotifications = async (
 
 /**
  * Mark badge notification as read
- * 
+ *
  * @param notificationId - Notification ID to mark as read
  * @returns Success/failure result
  */
@@ -124,7 +123,7 @@ export const markBadgeNotificationRead = async (
 /**
  * Send push notification for badge award via Edge Function
  * This is called from the app when a new badge is awarded
- * 
+ *
  * @param userId - User ID who earned the badge
  * @param badge - Badge details
  * @returns Success/failure result
@@ -164,7 +163,7 @@ export const sendBadgeAwardPushNotification = async (
 
 /**
  * Parse badge notification data from notification row
- * 
+ *
  * @param notification - Notification row from database
  * @returns Parsed badge notification data
  */
@@ -176,9 +175,8 @@ export const parseBadgeNotificationData = (
       return null;
     }
 
-    const data = typeof notification.data === 'string' 
-      ? JSON.parse(notification.data) 
-      : notification.data;
+    const data =
+      typeof notification.data === 'string' ? JSON.parse(notification.data) : notification.data;
 
     return data as BadgeNotificationData | MilestoneNotificationData;
   } catch (err) {

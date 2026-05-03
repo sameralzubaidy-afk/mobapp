@@ -358,8 +358,8 @@ export async function uploadListingImages(
     return [];
   }
 
-    if (imageUris.length > 10) {
-      throw new Error('Maximum 10 images allowed per listing');
+  if (imageUris.length > 10) {
+    throw new Error('Maximum 10 images allowed per listing');
   }
 
   const uploadedImages: { url: string; display_order: number }[] = [];
@@ -389,7 +389,10 @@ export async function uploadListingImages(
           .single();
 
         if (insertRemoteError) {
-          console.error(`[listing] ❌ Failed to insert remote image ${i} into DB:`, insertRemoteError);
+          console.error(
+            `[listing] ❌ Failed to insert remote image ${i} into DB:`,
+            insertRemoteError
+          );
           throw new Error(`Failed to save image ${i + 1} reference: ${insertRemoteError.message}`);
         }
 
@@ -928,10 +931,7 @@ export async function submitListingNeedsEditsReReview(
 
     if (!fetchError && listing) {
       const referenceAt = listing.flagged_at ?? listing.rejected_at ?? listing.created_at;
-      listing.edited_since_rejection = wasEditedAfterReference(
-        referenceAt,
-        listing.updated_at
-      );
+      listing.edited_since_rejection = wasEditedAfterReference(referenceAt, listing.updated_at);
     }
   }
 

@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/e2e/discovery-v3-006-filter-modal.integration.test.ts
  * MODULE-05-DISCOVERY-V3: SearchFilterModal Integration Test
  * Task: DISCOVERY-V3-006
- * 
+ *
  * Integration tests for SearchFilterModal against staging Supabase
  * Run with: RUN_SUPABASE_E2E=true npm run test:e2e
  */
@@ -33,7 +33,7 @@ describe('SearchFilterModal Integration Tests', () => {
       expect(categories.length).toBeGreaterThan(0);
 
       // Verify structure
-      categories.forEach(cat => {
+      categories.forEach((cat) => {
         expect(cat).toHaveProperty('id');
         expect(cat).toHaveProperty('name');
         expect(cat).toHaveProperty('is_active');
@@ -60,7 +60,7 @@ describe('SearchFilterModal Integration Tests', () => {
       expect(result.length).toBeLessThanOrEqual(8); // Max 8 suggestions
 
       // All suggestions should contain "lego" (case-insensitive)
-      result.forEach(brand => {
+      result.forEach((brand) => {
         expect(brand.toLowerCase()).toContain('lego');
       });
     });

@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeDetailScreen.tsx
  * TASK TRADE-V2-004: Trade State Transitions & Completion Triggers
- * 
+ *
  * UI for viewing trade details and performing actions:
  * - Shows trade status and monetary breakdown
  * - Allows buyer/seller to mark trade as 'completed'
@@ -66,17 +66,16 @@ export default function TradeDetailScreen() {
 
       // Check mutual review status (only for completed trades)
       if (user?.id && (data as any).status === 'completed') {
-        const revieweeUserId = (data as any).buyer_id === user.id 
-          ? (data as any).seller_id 
-          : (data as any).buyer_id;
-        
+        const revieweeUserId =
+          (data as any).buyer_id === user.id ? (data as any).seller_id : (data as any).buyer_id;
+
         setRevieweeId(revieweeUserId);
-        
+
         const reviewStatusResult = await getTradeReviewStatus(tradeId, user.id);
         if (reviewStatusResult.success) {
           setHasReviewed(reviewStatusResult.userReviewed);
           setOtherUserReviewed(reviewStatusResult.otherUserReviewed);
-          
+
           const result = await canReviewUser(tradeId, user.id);
           if (result.success) {
             setCanReview(result.canReview === true);
@@ -125,49 +124,57 @@ export default function TradeDetailScreen() {
 
   const handleComplete = async () => {
     const isSeller = trade?.seller_id === user?.id;
-    const confirmMessage = isSeller 
+    const confirmMessage = isSeller
       ? 'Are you sure you want to mark this trade as completed? The buyer will be notified to confirm.'
       : 'Are you sure you want to mark this trade as completed? This will release Swap Points or cash to the seller.';
 
-    Alert.alert(
-      'Complete Trade',
-      confirmMessage,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          onPress: async () => {
-            try {
-              setSubmitting(true);
-              const result = await completeTradeV2(tradeId);
-              if (result.success) {
-                // Optimistically update local trade state so user sees updated status immediately
-                if (isSeller) {
-                  setTrade(prev => prev ? { ...prev, seller_marked_completed_at: new Date().toISOString() } as Trade : prev);
-                } else {
-                  setTrade(prev => prev ? { ...prev, status: 'completed', completed_at: new Date().toISOString() } as Trade : prev);
-                }
-
-                // Refresh canonical trade record from server to ensure accurate fields
-                try {
-                  await fetchTrade();
-                } catch (e) {
-                  console.warn('[TradeDetail] fetchTrade after complete failed', e);
-                }
-
-                Alert.alert('Success', result.message || 'Trade marked as completed!');
+    Alert.alert('Complete Trade', confirmMessage, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Complete',
+        onPress: async () => {
+          try {
+            setSubmitting(true);
+            const result = await completeTradeV2(tradeId);
+            if (result.success) {
+              // Optimistically update local trade state so user sees updated status immediately
+              if (isSeller) {
+                setTrade((prev) =>
+                  prev
+                    ? ({ ...prev, seller_marked_completed_at: new Date().toISOString() } as Trade)
+                    : prev
+                );
               } else {
-                Alert.alert('Error', result.error || 'Failed to complete trade');
+                setTrade((prev) =>
+                  prev
+                    ? ({
+                        ...prev,
+                        status: 'completed',
+                        completed_at: new Date().toISOString(),
+                      } as Trade)
+                    : prev
+                );
               }
-            } catch (error: any) {
-              Alert.alert('Error', error.message);
-            } finally {
-              setSubmitting(false);
+
+              // Refresh canonical trade record from server to ensure accurate fields
+              try {
+                await fetchTrade();
+              } catch (e) {
+                console.warn('[TradeDetail] fetchTrade after complete failed', e);
+              }
+
+              Alert.alert('Success', result.message || 'Trade marked as completed!');
+            } else {
+              Alert.alert('Error', result.error || 'Failed to complete trade');
             }
-          },
+          } catch (error: any) {
+            Alert.alert('Error', error.message);
+          } finally {
+            setSubmitting(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleCancel = async () => {
@@ -179,7 +186,7 @@ export default function TradeDetailScreen() {
     try {
       setIsCancelling(true);
       setShowCancellationModal(false);
-      
+
       const result = await cancelTradeV2(tradeId, reason);
       if (result.success) {
         // If SP were refunded, refresh the session so dashboard/wallet shows updated balance immediately
@@ -202,11 +209,9 @@ export default function TradeDetailScreen() {
         );
       }
     } catch (error: any) {
-      Alert.alert(
-        'Error',
-        error.message || 'An unexpected error occurred',
-        [{ text: 'Try Again', onPress: () => setShowCancellationModal(true) }]
-      );
+      Alert.alert('Error', error.message || 'An unexpected error occurred', [
+        { text: 'Try Again', onPress: () => setShowCancellationModal(true) },
+      ]);
     } finally {
       setIsCancelling(false);
     }
@@ -230,7 +235,7 @@ export default function TradeDetailScreen() {
     // Get the counterparty's name (user we're reviewing)
     const isBuyer = trade.buyer_id === user.id;
     const counterpartyId = isBuyer ? trade.seller_id : trade.buyer_id;
-    
+
     // For now, use a generic name (we could fetch the profile name, but we'll keep it simple)
     const counterpartyName = isBuyer ? 'the seller' : 'the buyer';
 
@@ -261,7 +266,16 @@ export default function TradeDetailScreen() {
 
   const isBuyer = trade.buyer_id === user?.id;
   const isSeller = trade.seller_id === user?.id;
-  console.log('[TradeDetail] isBuyer:', isBuyer, 'isSeller:', isSeller, 'userId:', user?.id, 'tradeId:', tradeId);
+  console.log(
+    '[TradeDetail] isBuyer:',
+    isBuyer,
+    'isSeller:',
+    isSeller,
+    'userId:',
+    user?.id,
+    'tradeId:',
+    tradeId
+  );
   const canAction = trade.status === 'in_progress' && (isBuyer || isSeller);
   const reviewButtonVisible = trade.status === 'completed' && (isBuyer || isSeller);
   const reviewButtonLabel = hasReviewed
@@ -289,14 +303,13 @@ export default function TradeDetailScreen() {
 
         <Pressable
           onPress={handleItemDetailsPress}
-          style={({ pressed }) => [
-            styles.section,
-            pressed && styles.sectionPressed,
-          ]}
+          style={({ pressed }) => [styles.section, pressed && styles.sectionPressed]}
         >
           <Text style={styles.sectionTitle}>Item Details</Text>
           <Text style={styles.itemTitle}>{(trade as any).listing?.title || 'Item'}</Text>
-          <Text style={styles.itemPrice}>Price: ${((trade as any).listing?.price || 0).toFixed(2)}</Text>
+          <Text style={styles.itemPrice}>
+            Price: ${((trade as any).listing?.price || 0).toFixed(2)}
+          </Text>
         </Pressable>
 
         <View style={styles.section}>
@@ -311,7 +324,9 @@ export default function TradeDetailScreen() {
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Platform Fee</Text>
-            <Text style={styles.value}>${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}</Text>
+            <Text style={styles.value}>
+              ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
+            </Text>
           </View>
           <View style={[styles.row, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
@@ -325,9 +340,10 @@ export default function TradeDetailScreen() {
           <View style={styles.actionContainer}>
             <Pressable
               style={[
-                styles.button, 
-                styles.completeButton, 
-                (submitting || (isSeller && trade.seller_marked_completed_at)) && styles.disabledButton
+                styles.button,
+                styles.completeButton,
+                (submitting || (isSeller && trade.seller_marked_completed_at)) &&
+                  styles.disabledButton,
               ]}
               onPress={handleComplete}
               disabled={submitting || (isSeller && !!trade.seller_marked_completed_at)}
@@ -337,8 +353,8 @@ export default function TradeDetailScreen() {
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.buttonText}>
-                  {isSeller && trade.seller_marked_completed_at 
-                    ? 'waiting for buyer confirmation' 
+                  {isSeller && trade.seller_marked_completed_at
+                    ? 'waiting for buyer confirmation'
                     : 'Mark as Completed'}
                 </Text>
               )}
@@ -357,9 +373,15 @@ export default function TradeDetailScreen() {
 
         {isBuyer && trade.status === 'in_progress' && trade.seller_marked_completed_at && (
           <View style={[styles.infoBox, styles.sellerCompletedBox]}>
-            <Ionicons name="information-circle" size={20} color="#065f46" style={{ marginRight: 8 }} />
+            <Ionicons
+              name="information-circle"
+              size={20}
+              color="#065f46"
+              style={{ marginRight: 8 }}
+            />
             <Text style={styles.sellerCompletedText}>
-              The seller has marked this trade as completed. Please confirm if you have received the item.
+              The seller has marked this trade as completed. Please confirm if you have received the
+              item.
             </Text>
           </View>
         )}
@@ -374,7 +396,9 @@ export default function TradeDetailScreen() {
                   size={20}
                   color={hasReviewed ? '#10B981' : '#9CA3AF'}
                 />
-                <Text style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}>
+                <Text
+                  style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}
+                >
                   {`You ${hasReviewed ? 'have' : "haven't"} reviewed ${isBuyer ? 'the seller' : 'the buyer'}`}
                 </Text>
               </View>
@@ -384,7 +408,12 @@ export default function TradeDetailScreen() {
                   size={20}
                   color={otherUserReviewed ? '#10B981' : '#9CA3AF'}
                 />
-                <Text style={[styles.reviewStatusText, otherUserReviewed && styles.reviewStatusTextComplete]}>
+                <Text
+                  style={[
+                    styles.reviewStatusText,
+                    otherUserReviewed && styles.reviewStatusTextComplete,
+                  ]}
+                >
                   {`${isBuyer ? 'The seller' : 'The buyer'} ${otherUserReviewed ? 'has' : "hasn't"} reviewed you`}
                 </Text>
               </View>
@@ -409,14 +438,18 @@ export default function TradeDetailScreen() {
 
         {trade.status === 'completed' && (
           <View style={styles.infoBox}>
-            <Text style={styles.infoText}>This trade was completed on {new Date(trade.completed_at!).toLocaleDateString()}.</Text>
+            <Text style={styles.infoText}>
+              This trade was completed on {new Date(trade.completed_at!).toLocaleDateString()}.
+            </Text>
           </View>
         )}
 
         {trade.status === 'cancelled' && (
           <View style={[styles.infoBox, styles.errorBox]}>
             <Text style={styles.errorText}>This trade was cancelled.</Text>
-            {trade.cancellation_reason && <Text style={styles.reasonText}>Reason: {trade.cancellation_reason}</Text>}
+            {trade.cancellation_reason && (
+              <Text style={styles.reasonText}>Reason: {trade.cancellation_reason}</Text>
+            )}
           </View>
         )}
       </ScrollView>

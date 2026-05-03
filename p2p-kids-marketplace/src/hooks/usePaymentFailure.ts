@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/hooks/usePaymentFailure.ts
  * MODULE-11 TASK SUB-018: Payment Failure Handling
- * 
+ *
  * Hook to detect and manage payment failure states for subscription
  * Provides payment failure info and actions to resolve
  */
@@ -83,13 +83,16 @@ export function usePaymentFailure(options?: UsePaymentFailureOptions): UsePaymen
       message = 'Your Kids Club+ access has been paused. Re-subscribe to restore Swap Points.';
       urgencyLevel = 'high';
     } else if (isMaxRetriesReached) {
-      message = 'Payment declined again. Your subscription is at risk. Please update your payment method.';
+      message =
+        'Payment declined again. Your subscription is at risk. Please update your payment method.';
       urgencyLevel = 'high';
     } else if (retryCount === 2) {
-      message = 'Payment declined again. Your subscription is at risk. Please update your payment method.';
+      message =
+        'Payment declined again. Your subscription is at risk. Please update your payment method.';
       urgencyLevel = 'high';
     } else if (retryCount === 1) {
-      message = 'Your payment was declined. Please update your payment method to keep your subscription active.';
+      message =
+        'Your payment was declined. Please update your payment method to keep your subscription active.';
       urgencyLevel = 'medium';
     }
 

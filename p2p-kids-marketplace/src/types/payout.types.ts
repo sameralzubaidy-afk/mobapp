@@ -11,29 +11,26 @@
 /**
  * Payout method types supported by the platform
  */
-export type PayoutMethodType = 
-  | 'stripe_connect'  // Stripe Connect Express accounts
-  | 'paypal'          // PayPal email payouts
-  | 'venmo'           // Venmo handle/phone payouts (via PayPal API)
-  | 'bank_ach';       // Direct bank deposits (Post-MVP)
+export type PayoutMethodType =
+  | 'stripe_connect' // Stripe Connect Express accounts
+  | 'paypal' // PayPal email payouts
+  | 'venmo' // Venmo handle/phone payouts (via PayPal API)
+  | 'bank_ach'; // Direct bank deposits (Post-MVP)
 
 /**
  * Payout ledger status values
  */
-export type PayoutStatus = 
-  | 'requires_action'  // Seller must set up/verify payout method
-  | 'pending'          // Created, not yet submitted to provider
-  | 'processing'       // Submitted to provider, awaiting confirmation
-  | 'completed'        // Provider confirmed successful payout
-  | 'failed';          // Provider reported failure
+export type PayoutStatus =
+  | 'requires_action' // Seller must set up/verify payout method
+  | 'pending' // Created, not yet submitted to provider
+  | 'processing' // Submitted to provider, awaiting confirmation
+  | 'completed' // Provider confirmed successful payout
+  | 'failed'; // Provider reported failure
 
 /**
  * Payment provider identifiers
  */
-export type PayoutProvider = 
-  | 'stripe' 
-  | 'paypal' 
-  | 'ach';
+export type PayoutProvider = 'stripe' | 'paypal' | 'ach';
 
 // =============================================================================
 // Database Models
@@ -46,7 +43,7 @@ export type PayoutProvider =
 export interface SellerPayoutMethod {
   id: string;
   user_id: string;
-  
+
   // Method configuration
   method_type: PayoutMethodType;
   is_primary: boolean;
@@ -119,13 +116,13 @@ export interface SellerPayout {
  */
 export interface CreatePayoutMethodRequest {
   method_type: PayoutMethodType;
-  
+
   // Stripe Connect
   stripe_account_id?: string;
-  
+
   // PayPal
   paypal_email?: string;
-  
+
   // Venmo
   venmo_handle?: string;
   venmo_phone_e164?: string;
@@ -141,7 +138,7 @@ export interface UpdatePayoutMethodRequest {
   method_id: string;
   is_primary?: boolean;
   is_verified?: boolean;
-  
+
   // Update provider-specific fields
   stripe_onboarding_complete?: boolean;
   stripe_payouts_enabled?: boolean;

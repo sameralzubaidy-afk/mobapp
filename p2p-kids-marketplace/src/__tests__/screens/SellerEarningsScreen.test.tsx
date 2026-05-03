@@ -21,7 +21,7 @@ const mockGetSellerPayouts = getSellerPayouts as jest.MockedFunction<typeof getS
 describe('SellerEarningsScreen', () => {
   const mockUser = {
     id: 'user-123',
-    email: 'seller@example.com'
+    email: 'seller@example.com',
   };
 
   const mockPayouts = [
@@ -43,7 +43,7 @@ describe('SellerEarningsScreen', () => {
       completed_at: '2025-01-01T10:05:00Z',
       failure_reason: null,
       created_at: '2025-01-01T10:00:00Z',
-      updated_at: '2025-01-01T10:05:00Z'
+      updated_at: '2025-01-01T10:05:00Z',
     },
     {
       id: 'payout-2',
@@ -63,7 +63,7 @@ describe('SellerEarningsScreen', () => {
       completed_at: null,
       failure_reason: null,
       created_at: '2025-01-02T10:00:00Z',
-      updated_at: '2025-01-02T10:00:00Z'
+      updated_at: '2025-01-02T10:00:00Z',
     },
     {
       id: 'payout-3',
@@ -83,8 +83,8 @@ describe('SellerEarningsScreen', () => {
       completed_at: null,
       failure_reason: null,
       created_at: '2025-01-03T10:00:00Z',
-      updated_at: '2025-01-03T10:00:00Z'
-    }
+      updated_at: '2025-01-03T10:00:00Z',
+    },
   ];
 
   beforeEach(() => {
@@ -93,20 +93,20 @@ describe('SellerEarningsScreen', () => {
       user: mockUser,
       session: { access_token: 'token', user: mockUser } as any,
       loading: false,
-      signOut: jest.fn()
+      signOut: jest.fn(),
     });
   });
 
   it('renders loading state initially', () => {
     mockGetSellerPayouts.mockImplementation(() => new Promise(() => {}));
-    
+
     const { getByText } = render(<SellerEarningsScreen />);
     expect(getByText('Loading earnings...')).toBeTruthy();
   });
 
   it('loads and displays seller payouts', async () => {
     mockGetSellerPayouts.mockResolvedValue(mockPayouts);
-    
+
     const { getByText, getAllByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
@@ -131,7 +131,7 @@ describe('SellerEarningsScreen', () => {
   it('displays error state when loading fails', async () => {
     const errorMessage = 'Network error';
     mockGetSellerPayouts.mockRejectedValue(new Error(errorMessage));
-    
+
     const { getByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
@@ -142,7 +142,7 @@ describe('SellerEarningsScreen', () => {
 
   it('calculates total earnings correctly', async () => {
     mockGetSellerPayouts.mockResolvedValue(mockPayouts);
-    
+
     const { getAllByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
@@ -153,7 +153,7 @@ describe('SellerEarningsScreen', () => {
 
   it('calculates pending earnings correctly', async () => {
     mockGetSellerPayouts.mockResolvedValue(mockPayouts);
-    
+
     const { getAllByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
@@ -164,7 +164,7 @@ describe('SellerEarningsScreen', () => {
 
   it('displays action button for requires_action status', async () => {
     mockGetSellerPayouts.mockResolvedValue(mockPayouts);
-    
+
     const { getByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
@@ -174,7 +174,7 @@ describe('SellerEarningsScreen', () => {
 
   it('handles refresh correctly', async () => {
     mockGetSellerPayouts.mockResolvedValue(mockPayouts);
-    
+
     const { getByTestId, getByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
@@ -188,7 +188,7 @@ describe('SellerEarningsScreen', () => {
 
   it('displays empty state when no payouts exist', async () => {
     mockGetSellerPayouts.mockResolvedValue([]);
-    
+
     const { getByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
@@ -198,12 +198,14 @@ describe('SellerEarningsScreen', () => {
   });
 
   it('formats amounts correctly', async () => {
-    const singlePayout = [{
-      ...mockPayouts[0],
-      net_amount_cents: 123456 // $1,234.56
-    }];
+    const singlePayout = [
+      {
+        ...mockPayouts[0],
+        net_amount_cents: 123456, // $1,234.56
+      },
+    ];
     mockGetSellerPayouts.mockResolvedValue(singlePayout);
-    
+
     const { getAllByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
@@ -212,13 +214,15 @@ describe('SellerEarningsScreen', () => {
   });
 
   it('displays failure reason when payout failed', async () => {
-    const failedPayout = [{
-      ...mockPayouts[0],
-      status: 'failed',
-      failure_reason: 'Insufficient funds in account'
-    }];
+    const failedPayout = [
+      {
+        ...mockPayouts[0],
+        status: 'failed',
+        failure_reason: 'Insufficient funds in account',
+      },
+    ];
     mockGetSellerPayouts.mockResolvedValue(failedPayout);
-    
+
     const { getByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
@@ -231,11 +235,11 @@ describe('SellerEarningsScreen', () => {
       user: null,
       session: null,
       loading: false,
-      signOut: jest.fn()
+      signOut: jest.fn(),
     });
-    
+
     const { getByText } = render(<SellerEarningsScreen />);
-    
+
     // Should not crash, might show empty or error state
     // Depends on implementation
   });

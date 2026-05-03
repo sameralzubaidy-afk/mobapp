@@ -14,9 +14,9 @@ function hasStripeNativeModule() {
   const nativeModules: any = NativeModules;
   return Boolean(
     nativeModules?.StripeSdk ||
-      nativeModules?.Stripe ||
-      nativeModules?.RNStripe ||
-      nativeModules?.StripeReactNative
+    nativeModules?.Stripe ||
+    nativeModules?.RNStripe ||
+    nativeModules?.StripeReactNative
   );
 }
 
@@ -35,17 +35,15 @@ export default function StripeProviderWrapper({
     publishableKey &&
     publishableKey.startsWith('pk_') &&
     !publishableKey.includes('YOUR_KEY') &&
-                        !publishableKey.includes('your-key');
+    !publishableKey.includes('your-key');
 
-  const safePublishableKey = isValidFormat
-    ? publishableKey
-    : 'pk_test_TYaaAAAAAAAAAAAAAAAAAAAA'; // generic valid mock structure so Native SDK won't crash
+  const safePublishableKey = isValidFormat ? publishableKey : 'pk_test_TYaaAAAAAAAAAAAAAAAAAAAA'; // generic valid mock structure so Native SDK won't crash
 
   if (!isValidFormat) {
     if (__DEV__) {
       console.error('[Stripe] Invalid or missing publishableKey:', publishableKey?.slice(0, 10));
     }
-    // We intentionally do NOT return <>{children}</> here, because downstream 
+    // We intentionally do NOT return <>{children}</> here, because downstream
     // components calling useStripe() would fatally crash due to missing StripeContext.
   }
 
@@ -57,7 +55,7 @@ export default function StripeProviderWrapper({
     if (__DEV__) {
       console.warn(
         `[Stripe] Running in Expo Go without native module (platform=${Platform.OS}). ` +
-        'Some Stripe features may not work. Use expo run:android for full functionality.'
+          'Some Stripe features may not work. Use expo run:android for full functionality.'
       );
     }
     // Still try to provide Stripe context for basic operations

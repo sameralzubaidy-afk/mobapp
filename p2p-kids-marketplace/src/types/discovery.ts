@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/types/discovery.ts
  * MODULE-05-DISCOVERY-V2: Discovery Types
  * Task: DISCOVERY-V2-001 - Full-Text Search
- * 
+ *
  * Defines types for search and discovery features
  */
 

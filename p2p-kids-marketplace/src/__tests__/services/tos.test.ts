@@ -145,9 +145,7 @@ describe('TOSService', () => {
         data: { user: null },
       });
 
-      await expect(tosService.acceptTOS('policy-1')).rejects.toThrow(
-        'User not authenticated'
-      );
+      await expect(tosService.acceptTOS('policy-1')).rejects.toThrow('User not authenticated');
     });
 
     it('should throw error if RPC fails', async () => {

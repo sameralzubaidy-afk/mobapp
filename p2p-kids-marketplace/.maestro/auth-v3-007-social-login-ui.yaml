@@ -1,0 +1,222 @@
+# FLOW: AUTH-V3-007-Social-Login-UI | TASK: AUTH-V3-007 | States covered: idle, loading, provider-unavailable-error, email-fallback
+# Social Login Buttons UI Flow
+# Test social login button rendering, provider selection, and error states
+
+appId: com.kidsmarketplace.app
+name: AUTH-V3-007 Social Login UI
+tags:
+  - auth
+  - social-login
+  - oauth
+  - ui
+
+---
+
+# =====================================================
+# PRECONDITIONS
+# =====================================================
+# 1. Clean app install (no cached session)
+# 2. OAuth providers enabled in Supabase:
+#    - Google: enabled
+#    - Facebook: enabled
+#    - Apple: enabled
+# 3. Test accounts available:
+#    - Google: test-google@example.com
+#    - Facebook: test-fb@example.com
+#    - Apple: test-apple@example.com
+# =====================================================
+
+# Navigate to Login Screen (assuming app starts at Welcome/Onboarding)
+- runFlow:
+    when:
+      visible: "Get Started"
+    file: ./common/navigate-to-login.yaml
+
+# =====================================================
+# SCENARIO 1: Social Login Buttons Render (Login Mode)
+# =====================================================
+
+- assertVisible:
+    text: "Welcome Back!"
+    
+- assertVisible:
+    text: "Log in to continue trading"
+
+# Scroll to social login section
+- scrollUntilVisible:
+    element:
+      text: "Or sign in with"
+    direction: DOWN
+
+# Assert divider text
+- assertVisible:
+    text: "Or sign in with"
+
+# Assert all 3 provider buttons render
+- assertVisible:
+    id: "google-login-button"
+    
+- assertVisible:
+    id: "facebook-login-button"
+    
+- assertVisible:
+    id: "apple-login-button"
+
+# Verify button labels (login mode)
+- assertVisible:
+    text: "Sign in with Google"
+    
+- assertVisible:
+    text: "Sign in with Facebook"
+    
+- assertVisible:
+    text: "Sign in with Apple"
+
+# =====================================================
+# SCENARIO 2: Navigate to Signup & Verify "Continue with" Labels
+# =====================================================
+
+- tapOn:
+    id: "login-signup-link"
+    
+- assertVisible:
+    text: "Join Kids Club+"
+
+# Scroll to social login section
+- scrollUntilVisible:
+    element:
+      text: "Or continue with"
+    direction: DOWN
+
+# Assert divider text changes in signup mode
+- assertVisible:
+    text: "Or continue with"
+
+# Verify button labels change (signup mode)
+- assertVisible:
+    text: "Continue with Google"
+    
+- assertVisible:
+    text: "Continue with Facebook"
+    
+- assertVisible:
+    text: "Continue with Apple"
+
+# =====================================================
+# SCENARIO 3: Provider Unavailable Error + Email Fallback
+# =====================================================
+# NOTE: This scenario assumes Google OAuth is temporarily disabled
+# or mocked to simulate provider unavailable error.
+# In real testing, this would be done via Supabase dashboard toggle.
+
+# Tap Google button (simulating unavailable provider)
+- tapOn:
+    id: "google-login-button"
+
+# Wait for error handling (provider unavailable)
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Assert error banner appears
+- assertVisible:
+    id: "provider-unavailable-banner"
+
+- assertVisible:
+    text: "Google is temporarily unavailable"
+
+- assertVisible:
+    text: "Sign up with email instead?"
+
+# Assert "Use Email" CTA button
+- assertVisible:
+    id: "provider-error-cta"
+
+# Tap "Use Email" CTA
+- tapOn:
+    id: "provider-error-cta"
+
+# Wait for focus animation
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Assert email input is visible (scrolled into view) and focused
+- assertVisible:
+    id: "signup-email-input"
+
+# Assert error banner disappears after CTA tap
+- assertNotVisible:
+    id: "provider-unavailable-banner"
+
+# =====================================================
+# SCENARIO 4: Apple Button Renders on Both Platforms
+# =====================================================
+# This test verifies Apple button renders on Android (parity)
+
+# Navigate back to Login
+- tapOn:
+    id: "signup-login-link"
+
+- assertVisible:
+    text: "Welcome Back!"
+
+# Scroll to social login section
+- scrollUntilVisible:
+    element:
+      id: "apple-login-button"
+    direction: DOWN
+
+# Assert Apple button is visible (cross-platform)
+- assertVisible:
+    id: "apple-login-button"
+
+- assertVisible:
+    text: "Sign in with Apple"
+
+# =====================================================
+# SCENARIO 5: Loading State During OAuth (Non-Functional)
+# =====================================================
+# NOTE: This test cannot fully automate OAuth flow
+# (native modals are outside Maestro control).
+# It verifies loading state appears when button is tapped.
+
+# Tap Facebook button
+- tapOn:
+    id: "facebook-login-button"
+
+# Wait for loading indicator to appear
+- waitForAnimationToEnd:
+    timeout: 1000
+
+# Assert Facebook button shows loading indicator
+# (Maestro cannot assert ActivityIndicator directly, but can check testID)
+- assertVisible:
+    id: "facebook-loading-indicator"
+
+# NOTE: At this point, native Facebook OAuth modal would appear.
+# Maestro cannot interact with native modals.
+# Manual testing required for OAuth flow completion.
+
+# =====================================================
+# FINAL STATE
+# =====================================================
+# Test leaves user on LoginScreen with Facebook OAuth in progress.
+# Manual intervention required to complete or cancel OAuth flow.
+
+# =====================================================
+# HARD ASSERTIONS (All Must Pass)
+# =====================================================
+# 1. All 3 social buttons render on Login screen
+# 2. All 3 social buttons render on Signup screen
+# 3. Button labels change based on mode (login vs signup)
+# 4. Apple button renders on both iOS and Android
+# 5. Provider unavailable error shows banner + email fallback CTA
+# 6. Email fallback CTA focuses email input and hides banner
+# 7. Loading indicator appears when button is tapped
+
+# =====================================================
+# NOTES FOR MANUAL TESTERS
+# =====================================================
+# - OAuth modal interactions require manual testing
+# - Provider availability toggling requires Supabase dashboard access
+# - Account linking prompt (AUTH-V3-008) is out of scope for this flow
+# - Full E2E OAuth success case requires manual verification

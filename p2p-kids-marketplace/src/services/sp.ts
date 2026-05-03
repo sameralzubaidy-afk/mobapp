@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/sp.ts
  * MODULE-09 POINTS-GAMIFICATION: Swap Points Service
- * 
+ *
  * Handles:
  * - Fetching SP wallet summary
  * - Fetching SP transaction history
@@ -19,7 +19,7 @@ export interface SPWalletSummary {
 
 /**
  * Get user's SP wallet summary
- * 
+ *
  * @param userId - User ID
  * @returns SP wallet summary
  */

@@ -2,7 +2,7 @@
  * Payout Settings Screen
  * Module: MODULE-06-TRADE-FLOW-sellerpayouts.md
  * Task: PAY-003 (Seller Payout Setup UI)
- * 
+ *
  * Seller-facing screen for managing payout methods
  */
 
@@ -50,11 +50,7 @@ import {
   formatCentsToDollars,
   calculatePayoutFee,
 } from '../../services/sellerBalance';
-import type {
-  SellerBalance,
-  SellerPayout,
-  BalanceDisplay,
-} from '../../services/sellerBalance';
+import type { SellerBalance, SellerPayout, BalanceDisplay } from '../../services/sellerBalance';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -178,27 +174,23 @@ export default function PayoutSettingsScreen() {
   };
 
   const handleDeleteMethod = async (methodId: string) => {
-    Alert.alert(
-      'Delete Payout Method',
-      'Are you sure you want to delete this payout method?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deletePayoutMethod(methodId);
-              Alert.alert('Success', 'Payout method deleted');
-              loadPayoutMethods();
-            } catch (error) {
-              console.error('Failed to delete method:', error);
-              Alert.alert('Error', String(error) || 'Failed to delete payout method');
-            }
-          },
+    Alert.alert('Delete Payout Method', 'Are you sure you want to delete this payout method?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deletePayoutMethod(methodId);
+            Alert.alert('Success', 'Payout method deleted');
+            loadPayoutMethods();
+          } catch (error) {
+            console.error('Failed to delete method:', error);
+            Alert.alert('Error', String(error) || 'Failed to delete payout method');
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleAddMethod = () => {
@@ -243,10 +235,13 @@ export default function PayoutSettingsScreen() {
     try {
       setWithdrawing(true);
       const result = await requestFullWithdrawal();
-      
+
       if (result.success) {
         let providerSubmissionLine = '';
-        if (result.payout_id && (result.method_type === 'paypal' || result.method_type === 'venmo')) {
+        if (
+          result.payout_id &&
+          (result.method_type === 'paypal' || result.method_type === 'venmo')
+        ) {
           const submitRes = await submitPayPalPayout(result.payout_id);
           if (submitRes.success) {
             providerSubmissionLine = `\n\nSubmitted to PayPal. Status: ${submitRes.status || 'processing'}.`;
@@ -258,8 +253,8 @@ export default function PayoutSettingsScreen() {
         Alert.alert(
           'Withdrawal Requested',
           `Your withdrawal of ${formatCentsToDollars(result.amount_cents || 0)} has been initiated. ` +
-          `After fees, you will receive ${formatCentsToDollars(result.net_amount_cents || 0)}.` +
-          providerSubmissionLine,
+            `After fees, you will receive ${formatCentsToDollars(result.net_amount_cents || 0)}.` +
+            providerSubmissionLine,
           [{ text: 'OK', onPress: () => setShowWithdrawModal(false) }]
         );
         loadPayoutMethods(); // Refresh data
@@ -302,15 +297,15 @@ export default function PayoutSettingsScreen() {
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
             colors={['#007AFF']} // Android
-            tintColor="#007AFF"  // iOS
+            tintColor="#007AFF" // iOS
           />
         }
       >
@@ -318,27 +313,24 @@ export default function PayoutSettingsScreen() {
         {balanceDisplay && (
           <View style={styles.balanceCard}>
             <Text style={styles.balanceTitle}>💰 Your Earnings</Text>
-            
+
             <View style={styles.balanceRow}>
               <Text style={styles.balanceLabel}>Available to Withdraw:</Text>
               <Text style={styles.balanceAmount}>{balanceDisplay.available}</Text>
             </View>
-            
+
             <View style={styles.balanceRow}>
               <Text style={styles.balanceLabel}>Pending (In Progress):</Text>
               <Text style={styles.balanceAmountSecondary}>{balanceDisplay.pending}</Text>
             </View>
-            
+
             <View style={styles.balanceRow}>
               <Text style={styles.balanceLabel}>Lifetime Earnings:</Text>
               <Text style={styles.balanceAmountSecondary}>{balanceDisplay.lifetime}</Text>
             </View>
 
             {balance && balance.available_balance_cents > 0 && (
-              <TouchableOpacity 
-                style={styles.withdrawButton} 
-                onPress={handleWithdrawClick}
-              >
+              <TouchableOpacity style={styles.withdrawButton} onPress={handleWithdrawClick}>
                 <Text style={styles.withdrawButtonText}>💳 Withdraw Now</Text>
               </TouchableOpacity>
             )}
@@ -358,7 +350,11 @@ export default function PayoutSettingsScreen() {
             {recentPayouts.map((payout) => (
               <PayoutHistoryCard key={payout.id} payout={payout} />
             ))}
-            <TouchableOpacity style={styles.loadMoreButton} onPress={handleLoadMore} disabled={loadingMore}>
+            <TouchableOpacity
+              style={styles.loadMoreButton}
+              onPress={handleLoadMore}
+              disabled={loadingMore}
+            >
               {loadingMore ? (
                 <ActivityIndicator size="small" color="#007AFF" />
               ) : (
@@ -369,7 +365,12 @@ export default function PayoutSettingsScreen() {
         )}
 
         {/* Eligibility Status */}
-        <View style={[styles.statusCard, eligibility.can_receive_payouts ? styles.statusOk : styles.statusWarning]}>
+        <View
+          style={[
+            styles.statusCard,
+            eligibility.can_receive_payouts ? styles.statusOk : styles.statusWarning,
+          ]}
+        >
           <Text style={styles.statusTitle}>
             {eligibility.can_receive_payouts ? '✓ Ready for Payouts' : '⚠ Action Required'}
           </Text>
@@ -379,7 +380,7 @@ export default function PayoutSettingsScreen() {
         {/* Existing Methods */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Payout Methods</Text>
-          
+
           {methods.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No payout methods configured yet</Text>
@@ -407,19 +408,16 @@ export default function PayoutSettingsScreen() {
         <View style={styles.infoSection}>
           <Text style={styles.infoTitle}>About Payouts</Text>
           <Text style={styles.infoText}>
-            • Payouts are processed when a trade is completed{'\n'}
-            • You must have a verified primary payout method{'\n'}
-            • Payout fees vary by method (displayed transparently){'\n'}
-            • Platform transaction fee: $0 (you only pay payout provider fees)
+            • Payouts are processed when a trade is completed{'\n'}• You must have a verified
+            primary payout method{'\n'}• Payout fees vary by method (displayed transparently){'\n'}•
+            Platform transaction fee: $0 (you only pay payout provider fees)
           </Text>
         </View>
       </ScrollView>
 
       {/* Modals rendered outside ScrollView for proper overlay behavior */}
       {/* Add Method Modal */}
-      {showAddMethodModal && (
-        <AddPayoutMethodModal onClose={handleCloseAddMethod} />
-      )}
+      {showAddMethodModal && <AddPayoutMethodModal onClose={handleCloseAddMethod} />}
 
       {/* Withdraw Modal */}
       {showWithdrawModal && (
@@ -456,7 +454,9 @@ function PayoutHistoryCard({ payout }: PayoutHistoryCardProps) {
           <Text style={styles.payoutDate}>{date}</Text>
         </View>
         <View style={[styles.payoutStatusBadge, { backgroundColor: statusInfo.color + '20' }]}>
-          <Text style={[styles.payoutStatusText, { color: statusInfo.color }]}>{statusInfo.label}</Text>
+          <Text style={[styles.payoutStatusText, { color: statusInfo.color }]}>
+            {statusInfo.label}
+          </Text>
         </View>
       </View>
       {payout.payout_fee_cents > 0 && (
@@ -625,7 +625,9 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
       setSubmitting(true);
 
       // Get current session
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
         Alert.alert('Error', 'Your session has expired. Please log in again.');
         setSubmitting(false);
@@ -646,7 +648,7 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
+                  Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                   userId: userId,
@@ -695,7 +697,7 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
+                  Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({
                   userId: userId,
@@ -717,37 +719,39 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
             Alert.alert(
               'Success',
               'Stripe account created! You will now be redirected to complete your onboarding.',
-              [{ 
-                text: 'OK', 
-                onPress: async () => {
-                  // Open Stripe onboarding URL
-                  const url = linkResult.url;
-                  if (url) {
-                    try {
-                      const supported = await Linking.canOpenURL(url);
-                      if (supported) {
-                        await Linking.openURL(url);
-                        onClose(true);
-                      } else {
+              [
+                {
+                  text: 'OK',
+                  onPress: async () => {
+                    // Open Stripe onboarding URL
+                    const url = linkResult.url;
+                    if (url) {
+                      try {
+                        const supported = await Linking.canOpenURL(url);
+                        if (supported) {
+                          await Linking.openURL(url);
+                          onClose(true);
+                        } else {
+                          Alert.alert(
+                            'Stripe Onboarding',
+                            'Please open this URL in your browser to complete setup:\n\n' + url,
+                            [{ text: 'OK', onPress: () => onClose(true) }]
+                          );
+                        }
+                      } catch (err) {
+                        console.error('Failed to open URL:', err);
                         Alert.alert(
                           'Stripe Onboarding',
                           'Please open this URL in your browser to complete setup:\n\n' + url,
                           [{ text: 'OK', onPress: () => onClose(true) }]
                         );
                       }
-                    } catch (err) {
-                      console.error('Failed to open URL:', err);
-                      Alert.alert(
-                        'Stripe Onboarding',
-                        'Please open this URL in your browser to complete setup:\n\n' + url,
-                        [{ text: 'OK', onPress: () => onClose(true) }]
-                      );
+                    } else {
+                      onClose(true);
                     }
-                  } else {
-                    onClose(true);
-                  }
-                }
-              }]
+                  },
+                },
+              ]
             );
           } catch (error) {
             console.error('Failed to create Stripe Connect account:', error);
@@ -802,7 +806,10 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
         {/* Method Type Selection */}
         <View style={styles.methodTypeSection}>
           <TouchableOpacity
-            style={[styles.methodTypeButton, selectedType === 'stripe_connect' && styles.methodTypeButtonActive]}
+            style={[
+              styles.methodTypeButton,
+              selectedType === 'stripe_connect' && styles.methodTypeButtonActive,
+            ]}
             onPress={() => setSelectedType('stripe_connect')}
           >
             <Text style={styles.methodTypeButtonText}>Stripe Connect</Text>
@@ -810,7 +817,10 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.methodTypeButton, selectedType === 'paypal' && styles.methodTypeButtonActive]}
+            style={[
+              styles.methodTypeButton,
+              selectedType === 'paypal' && styles.methodTypeButtonActive,
+            ]}
             onPress={() => setSelectedType('paypal')}
           >
             <Text style={styles.methodTypeButtonText}>PayPal</Text>
@@ -818,7 +828,10 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.methodTypeButton, selectedType === 'venmo' && styles.methodTypeButtonActive]}
+            style={[
+              styles.methodTypeButton,
+              selectedType === 'venmo' && styles.methodTypeButtonActive,
+            ]}
             onPress={() => setSelectedType('venmo')}
           >
             <Text style={styles.methodTypeButtonText}>Venmo</Text>
@@ -856,7 +869,11 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
 
         {/* Actions */}
         <View style={styles.modalActions}>
-          <TouchableOpacity style={styles.modalCancelButton} onPress={() => onClose(false)} disabled={submitting}>
+          <TouchableOpacity
+            style={styles.modalCancelButton}
+            onPress={() => onClose(false)}
+            disabled={submitting}
+          >
             <Text style={styles.modalCancelButtonText}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity

@@ -31,7 +31,13 @@ describe('categoryService', () => {
   });
 
   const mockCategoriesAndCounts = (
-    categories: { id: string; name: string; icon?: string | null; is_active?: boolean; display_order?: number }[],
+    categories: {
+      id: string;
+      name: string;
+      icon?: string | null;
+      is_active?: boolean;
+      display_order?: number;
+    }[],
     itemCount: number = 5,
     trackCategoryEq?: jest.Mock
   ) => {
@@ -93,9 +99,7 @@ describe('categoryService', () => {
     });
 
     it('should filter inactive categories by default', async () => {
-      const mockCategories = [
-        { id: 'cat-1', name: 'Toys', is_active: true },
-      ];
+      const mockCategories = [{ id: 'cat-1', name: 'Toys', is_active: true }];
 
       const trackCategoryEq = jest.fn();
       mockCategoriesAndCounts(mockCategories, 0, trackCategoryEq);
@@ -277,7 +281,7 @@ describe('categoryService', () => {
 
       const saved = (AsyncStorage.setItem as jest.Mock).mock.calls[0][1];
       const parsed = JSON.parse(saved);
-      
+
       expect(parsed).toHaveLength(3);
       expect(parsed[0]).toBe('cat-1');
     });
@@ -285,9 +289,7 @@ describe('categoryService', () => {
 
   describe('searchCategories', () => {
     it('should search categories case-insensitively', async () => {
-      const mockResults = [
-        { id: 'cat-1', name: 'Toys', icon: '🎮' },
-      ];
+      const mockResults = [{ id: 'cat-1', name: 'Toys', icon: '🎮' }];
 
       mockSupabase.from = jest.fn(() => ({
         select: jest.fn(() => ({

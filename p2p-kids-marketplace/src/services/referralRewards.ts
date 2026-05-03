@@ -23,12 +23,12 @@ export interface ReferralEligibility {
 
 /**
  * ReferralRewardsService
- * 
- * PURPOSE: 
+ *
+ * PURPOSE:
  * - Provides TypeScript interface to award_referral_sp RPC (existing in migration 094)
  * - The RPC is automatically called by trigger when referee completes first trade
  * - This service is for manual admin operations and checking eligibility
- * 
+ *
  * BUSINESS RULES (from MODULE-11 V2):
  * - Referrer earns 25 SP (configurable via sp_config)
  * - Referee earns 10 SP (configurable via sp_config)
@@ -36,7 +36,7 @@ export interface ReferralEligibility {
  * - Rewards granted ONLY on referee's FIRST completed trade
  * - Idempotent (no duplicate rewards)
  * - Referral status changes from 'pending' → 'completed'
- * 
+ *
  * DATABASE DEPENDENCIES:
  * - award_referral_sp() RPC (migration 094)
  * - process_referral_bonus_on_trade_v2() trigger (migration 20260201000000)
@@ -47,10 +47,10 @@ export interface ReferralEligibility {
 export class ReferralRewardsService {
   /**
    * Manually grant referral rewards (admin function)
-   * 
+   *
    * NOTE: This is typically called automatically by the trigger.
    * Use this only for manual admin operations or testing.
-   * 
+   *
    * @param referrerId - User ID of the referrer
    * @param refereeId - User ID of the referee (the one completing first trade)
    * @param referralId - Referral record ID for idempotency
@@ -105,12 +105,15 @@ export class ReferralRewardsService {
 
   /**
    * Check if user is eligible for referral rewards
-   * 
+   *
    * @param userId - User ID to check (referee)
    * @param client - Supabase client (optional)
    * @returns Eligibility status with referrer info
    */
-  static async checkEligibility(userId: string, client: SupabaseClient = defaultClient): Promise<ReferralEligibility> {
+  static async checkEligibility(
+    userId: string,
+    client: SupabaseClient = defaultClient
+  ): Promise<ReferralEligibility> {
     try {
       const { data, error } = await client
         .from('referrals')
@@ -157,12 +160,15 @@ export class ReferralRewardsService {
 
   /**
    * Check if this is the user's first completed trade
-   * 
+   *
    * @param userId - User ID to check
    * @param client - Supabase client (optional)
    * @returns True if this is their first completed trade
    */
-  static async isFirstCompletedTrade(userId: string, client: SupabaseClient = defaultClient): Promise<boolean> {
+  static async isFirstCompletedTrade(
+    userId: string,
+    client: SupabaseClient = defaultClient
+  ): Promise<boolean> {
     try {
       const { count, error } = await client
         .from('trades')
@@ -184,7 +190,7 @@ export class ReferralRewardsService {
 
   /**
    * Get configured SP reward amounts from admin config
-   * 
+   *
    * @param client - Supabase client (optional)
    * @returns Object with referrer and referee SP amounts for trade and listing
    */
@@ -202,14 +208,14 @@ export class ReferralRewardsService {
 
       if (error || !data || (Array.isArray(data) && data.length === 0)) {
         console.error('[ReferralRewards] Get config error:', error);
-        return { 
-          referrer_sp: 25, 
+        return {
+          referrer_sp: 25,
           referee_sp: 10,
           referrer_listing_sp: 25,
           referee_listing_sp: 10,
           program_enabled: true,
           first_trade_enabled: true,
-          first_listing_enabled: true
+          first_listing_enabled: true,
         };
       }
 
@@ -227,21 +233,21 @@ export class ReferralRewardsService {
       };
     } catch (err) {
       console.error('[ReferralRewards] Get config error:', err);
-      return { 
-        referrer_sp: 50, 
-        referee_sp: 25, 
+      return {
+        referrer_sp: 50,
+        referee_sp: 25,
         referrer_listing_sp: 25,
         referee_listing_sp: 10,
         program_enabled: true,
         first_trade_enabled: true,
-        first_listing_enabled: true
+        first_listing_enabled: true,
       };
     }
   }
 
   /**
    * Verify both users have active/trial subscription
-   * 
+   *
    * @param referrerId - Referrer user ID
    * @param refereeId - Referee user ID
    * @param client - Supabase client (optional)
@@ -251,7 +257,11 @@ export class ReferralRewardsService {
     referrerId: string,
     refereeId: string,
     client: SupabaseClient = defaultClient
-  ): Promise<{ both_subscribed: boolean; referrer_status: string | null; referee_status: string | null }> {
+  ): Promise<{
+    both_subscribed: boolean;
+    referrer_status: string | null;
+    referee_status: string | null;
+  }> {
     try {
       const { data, error } = await client
         .from('subscriptions')
@@ -264,8 +274,8 @@ export class ReferralRewardsService {
         return { both_subscribed: false, referrer_status: null, referee_status: null };
       }
 
-      const referrerSub = data?.find(s => s.user_id === referrerId);
-      const refereeSub = data?.find(s => s.user_id === refereeId);
+      const referrerSub = data?.find((s) => s.user_id === referrerId);
+      const refereeSub = data?.find((s) => s.user_id === refereeId);
 
       const isActive = (sub: typeof referrerSub) => {
         if (!sub) return false;
@@ -285,7 +295,7 @@ export class ReferralRewardsService {
 
   /**
    * Check if listing bonus feature is enabled (REF-V2-008)
-   * 
+   *
    * @param client - Supabase client (optional)
    * @returns True if referral_first_listing_enabled = true
    */

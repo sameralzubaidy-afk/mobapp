@@ -13,10 +13,7 @@
     "git": "https://github.com/facebook/react-native.git",
     "tag": "v0.81.5"
   },
-  "source_files": [
-    "ReactCommon/*.{m,mm,cpp,h}",
-    "platform/ios/**/*.{m,mm,cpp,h}"
-  ],
+  "source_files": ["ReactCommon/*.{m,mm,cpp,h}", "platform/ios/**/*.{m,mm,cpp,h}"],
   "header_dir": "ReactCommon",
   "pod_target_xcconfig": {
     "USE_HEADERMAP": "NO",
@@ -33,9 +30,7 @@
     "RCT-Folly": [],
     "SocketRocket": [],
     "RCT-Folly/Fabric": [],
-    "React-jsi": [
-      "0.81.5"
-    ],
+    "React-jsi": ["0.81.5"],
     "React-featureflags": [],
     "React-debug": [],
     "React-utils": []

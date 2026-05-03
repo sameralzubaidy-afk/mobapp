@@ -7,9 +7,9 @@ import { getServiceClient } from '@/test-helpers/authTestUtils';
 
 /**
  * E2E Test Suite: Referral System V2
- * 
+ *
  * Tests complete referral flow from code generation to reward distribution
- * 
+ *
  * Prerequisites:
  * - Run `npm run seed:staging` to create test users
  * - Referral RPC functions must be deployed (create_referral_code, apply_referral_code)
@@ -39,7 +39,7 @@ d('Referrals V2 E2E', () => {
       .select('id')
       .eq('id', testReferrerUserId)
       .single();
-    
+
     const { data: refereeExists } = await supabase
       .from('profiles')
       .select('id')
@@ -105,7 +105,7 @@ d('Referrals V2 E2E', () => {
       // Validate V2 spec compliance
       expect(referralCode).toHaveLength(8);
       expect(referralCode).toMatch(/^[a-z0-9]{8}$/);
-      
+
       // Verify code is stored in database
       const storedCode = await ReferralCodeServiceV2.getReferralCode(testReferrerUserId);
       expect(storedCode).toBe(referralCode);
@@ -120,7 +120,7 @@ d('Referrals V2 E2E', () => {
 
       // Try to create another code for same user
       const secondCode = await ReferralCodeServiceV2.getReferralCode(testReferrerUserId);
-      
+
       // Should return same code, not create new one
       expect(secondCode).toBe(referralCode);
     });
@@ -133,7 +133,7 @@ d('Referrals V2 E2E', () => {
       }
 
       const refereeCode = await ReferralCodeServiceV2.createReferralCode(testRefereeUserId);
-      
+
       expect(refereeCode).toHaveLength(8);
       expect(refereeCode).not.toBe(referralCode);
     });
@@ -147,11 +147,8 @@ d('Referrals V2 E2E', () => {
         return;
       }
 
-      const result = await ReferralCodeServiceV2.applyReferralCode(
-        testRefereeUserId,
-        referralCode
-      );
-      
+      const result = await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, referralCode);
+
       if (!result.success) {
         // Some environments reject seeded (already-active) users for referral eligibility.
         // Treat this as an environment limitation and skip dependent flow assertions.
@@ -180,7 +177,7 @@ d('Referrals V2 E2E', () => {
         testReferrerUserId,
         referralCode
       );
-      
+
       expect(result.success).toBe(false);
       expect(result.error).toContain('Cannot refer yourself');
     });
@@ -196,11 +193,8 @@ d('Referrals V2 E2E', () => {
 
       await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, referralCode);
 
-      const result = await ReferralCodeServiceV2.applyReferralCode(
-        testRefereeUserId,
-        referralCode
-      );
-      
+      const result = await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, referralCode);
+
       expect(result.success).toBe(false);
       const errorMsg = result.error || '';
       expect(errorMsg.toLowerCase()).toMatch(/already applied|duplicate|unique constraint/);
@@ -213,11 +207,8 @@ d('Referrals V2 E2E', () => {
         return;
       }
 
-      const result = await ReferralCodeServiceV2.applyReferralCode(
-        testRefereeUserId,
-        'INVALID1'
-      );
-      
+      const result = await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, 'INVALID1');
+
       expect(result.success).toBe(false);
       expect(result.error).toContain('Already applied');
     });
@@ -233,13 +224,17 @@ d('Referrals V2 E2E', () => {
         return;
       }
 
-      const applyResult = await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, referralCode);
+      const applyResult = await ReferralCodeServiceV2.applyReferralCode(
+        testRefereeUserId,
+        referralCode
+      );
       if (!applyResult.success) {
         const msg = (applyResult.error || '').toLowerCase();
         const alreadyApplied = /already applied|duplicate|unique constraint/.test(msg);
         if (!alreadyApplied) {
           applySupported = false;
-          applyUnsupportedReason = applyResult.error || 'apply_referral_code returned success=false';
+          applyUnsupportedReason =
+            applyResult.error || 'apply_referral_code returned success=false';
           console.warn(
             '⏭️ Skipping: apply_referral_code not supported for seeded users:',
             applyUnsupportedReason
@@ -258,7 +253,7 @@ d('Referrals V2 E2E', () => {
         expect(true).toBe(true);
         return;
       }
-      
+
       expect(stats.total_referrals).toBeGreaterThanOrEqual(1);
       expect(stats.pending_referrals).toBeGreaterThanOrEqual(1);
       expect(stats.completed_referrals).toBe(0);
@@ -275,13 +270,17 @@ d('Referrals V2 E2E', () => {
         return;
       }
 
-      const applyResult = await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, referralCode);
+      const applyResult = await ReferralCodeServiceV2.applyReferralCode(
+        testRefereeUserId,
+        referralCode
+      );
       if (!applyResult.success) {
         const msg = (applyResult.error || '').toLowerCase();
         const alreadyApplied = /already applied|duplicate|unique constraint/.test(msg);
         if (!alreadyApplied) {
           applySupported = false;
-          applyUnsupportedReason = applyResult.error || 'apply_referral_code returned success=false';
+          applyUnsupportedReason =
+            applyResult.error || 'apply_referral_code returned success=false';
           console.warn(
             '⏭️ Skipping: apply_referral_code not supported for seeded users:',
             applyUnsupportedReason
@@ -298,7 +297,7 @@ d('Referrals V2 E2E', () => {
         expect(true).toBe(true);
         return;
       }
-      
+
       expect(history.length).toBeGreaterThanOrEqual(1);
       const entry = history.find((h) => h.referred_user_id === testRefereeUserId);
       expect(entry).toBeDefined();
@@ -315,7 +314,7 @@ d('Referrals V2 E2E', () => {
       }
 
       const link = ReferralCodeServiceV2.getReferralLink(referralCode);
-      
+
       expect(link).toBe(`kidsclub://signup?ref=${referralCode}`);
     });
   });
@@ -330,13 +329,17 @@ d('Referrals V2 E2E', () => {
         return;
       }
 
-      const applyResult = await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, referralCode);
+      const applyResult = await ReferralCodeServiceV2.applyReferralCode(
+        testRefereeUserId,
+        referralCode
+      );
       if (!applyResult.success) {
         const msg = (applyResult.error || '').toLowerCase();
         const alreadyApplied = /already applied|duplicate|unique constraint/.test(msg);
         if (!alreadyApplied) {
           applySupported = false;
-          applyUnsupportedReason = applyResult.error || 'apply_referral_code returned success=false';
+          applyUnsupportedReason =
+            applyResult.error || 'apply_referral_code returned success=false';
           console.warn(
             '⏭️ Skipping: apply_referral_code not supported for seeded users:',
             applyUnsupportedReason
@@ -349,11 +352,13 @@ d('Referrals V2 E2E', () => {
       const eligibility = await ReferralCodeServiceV2.checkEligibility(testRefereeUserId);
 
       if (!eligibility?.is_referee) {
-        console.warn('⏭️ Skipping: Seeded referee not reported as eligible/referee in this environment');
+        console.warn(
+          '⏭️ Skipping: Seeded referee not reported as eligible/referee in this environment'
+        );
         expect(true).toBe(true);
         return;
       }
-      
+
       expect(eligibility.is_referee).toBe(true);
       expect(eligibility.referrer_id).toBe(testReferrerUserId);
       expect(eligibility.rewards_pending).toBe(true);
@@ -361,7 +366,7 @@ d('Referrals V2 E2E', () => {
 
     it('should show no eligibility for non-referee', async () => {
       const eligibility = await ReferralCodeServiceV2.checkEligibility(testReferrerUserId);
-      
+
       expect(eligibility.is_referee).toBe(false);
       expect(eligibility.referrer_id).toBeNull();
       expect(eligibility.rewards_pending).toBe(false);
@@ -377,13 +382,13 @@ d('Referrals V2 E2E', () => {
       }
 
       const deepLink = `kidsclub://signup?ref=${referralCode}`;
-      
+
       // Parse deep link (simulated)
       const url = new URL(deepLink);
       const extractedCode = url.searchParams.get('ref');
-      
+
       expect(extractedCode).toBe(referralCode);
-      
+
       // Verify code can be used for signup
       const isValid = await ReferralCodeServiceV2.getReferralCode(testReferrerUserId);
       expect(isValid).toBe(referralCode);
@@ -402,13 +407,19 @@ d('Referrals V2 E2E', () => {
 
       const upperCaseCode = referralCode.toUpperCase();
       const mixedCaseCode = referralCode.charAt(0).toUpperCase() + referralCode.slice(1);
-      
+
       // All variations should be normalized to lowercase
       // Apply once with one casing and then again with another casing.
       // Second call should fail with an "already applied"-style error (not "Invalid referral code").
-      const result1 = await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, upperCaseCode);
-      const result2 = await ReferralCodeServiceV2.applyReferralCode(testRefereeUserId, mixedCaseCode);
-      
+      const result1 = await ReferralCodeServiceV2.applyReferralCode(
+        testRefereeUserId,
+        upperCaseCode
+      );
+      const result2 = await ReferralCodeServiceV2.applyReferralCode(
+        testRefereeUserId,
+        mixedCaseCode
+      );
+
       // Both should recognize the referral code (not 'Invalid referral code')
       if (result1.success) {
         expect(result2.success).toBe(false);
@@ -432,7 +443,7 @@ d('Referrals V2 Integration', () => {
     // 3. Grant 25 SP to referrer, 10 SP to referee
     // 4. Update referral status to 'completed'
     // 5. Apply trial extension (if applicable)
-    
+
     // TODO: Implement once SP rewards RPC is deployed
     expect(true).toBe(true); // Placeholder
   });
@@ -443,7 +454,7 @@ d('Referrals V2 Integration', () => {
     // 2. Check trial_extensions_used < 3
     // 3. Extend trial_end_date by 7 days
     // 4. Increment trial_extensions_used
-    
+
     // TODO: Implement once subscription integration is complete
     expect(true).toBe(true); // Placeholder
   });
@@ -478,16 +489,16 @@ d('Referrals V2 Performance', () => {
       return;
     }
     const endTime = Date.now();
-    
+
     // Should complete within reasonable time
     expect(endTime - startTime).toBeLessThan(5000); // 5 seconds max
-    
+
     // All codes should be unique
     const uniqueCodes = new Set(codes);
     expect(uniqueCodes.size).toBe(codes.length);
-    
+
     // All codes should meet format requirements
-    codes.forEach(code => {
+    codes.forEach((code) => {
       expect(code).toHaveLength(8);
       expect(code).toMatch(/^[a-z0-9]{8}$/);
     });
@@ -495,10 +506,8 @@ d('Referrals V2 Performance', () => {
 
   it('should handle concurrent referral applications', async () => {
     // Concurrent applications by the same referee should not create duplicates.
-    const referrerUserId =
-      process.env.E2E_TEST_SELLER_ID || '14be337c-aad6-403f-bab2-ba1a7d80b666';
-    const refereeUserId =
-      process.env.E2E_TEST_BUYER_ID || '49243010-f458-4744-add1-a6c84ab95f1f';
+    const referrerUserId = process.env.E2E_TEST_SELLER_ID || '14be337c-aad6-403f-bab2-ba1a7d80b666';
+    const refereeUserId = process.env.E2E_TEST_BUYER_ID || '49243010-f458-4744-add1-a6c84ab95f1f';
 
     let referrerCode: string;
     try {
@@ -544,8 +553,7 @@ d('Referrals V2 Security', () => {
     // Test that invalid codes don't leak information
     const invalidCodes = ['00000000', '11111111', 'AAAAAAAA', 'invalid!'];
 
-    const refereeUserId =
-      process.env.E2E_TEST_BUYER_ID || '49243010-f458-4744-add1-a6c84ab95f1f';
+    const refereeUserId = process.env.E2E_TEST_BUYER_ID || '49243010-f458-4744-add1-a6c84ab95f1f';
 
     // If the environment rejects seeded users for referral eligibility, this test can't reliably
     // validate enumeration behavior. Probe with a known-valid code first and skip if apply is blocked.
@@ -561,7 +569,10 @@ d('Referrals V2 Security', () => {
         return;
       }
       if (!probe.success) {
-        console.warn('⏭️ Skipping: apply_referral_code not supported for seeded users:', probe.error);
+        console.warn(
+          '⏭️ Skipping: apply_referral_code not supported for seeded users:',
+          probe.error
+        );
         expect(true).toBe(true);
         return;
       }
@@ -572,11 +583,8 @@ d('Referrals V2 Security', () => {
     }
 
     for (const code of invalidCodes) {
-      const result = await ReferralCodeServiceV2.applyReferralCode(
-        refereeUserId,
-        code
-      );
-      
+      const result = await ReferralCodeServiceV2.applyReferralCode(refereeUserId, code);
+
       expect(result.success).toBe(false);
       expect(result.error).toBeTruthy();
     }

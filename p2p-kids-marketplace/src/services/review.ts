@@ -106,7 +106,7 @@ export async function submitReview(params: SubmitReviewParams): Promise<{
 
     if (error) {
       console.error('Submit review error:', error);
-      
+
       // Handle specific errors
       if (error.code === '23505') {
         return {
@@ -114,7 +114,7 @@ export async function submitReview(params: SubmitReviewParams): Promise<{
           error: 'You have already reviewed this trade',
         };
       }
-      
+
       return {
         success: false,
         error: error.message || 'Failed to submit review',
@@ -179,10 +179,10 @@ export async function getUserReviews(userId: string): Promise<{
           .select('user_id, status')
           .in('user_id', reviewerIds)
           .order('created_at', { ascending: false });
-        
-        reviewerProfiles = profileData.map(p => {
+
+        reviewerProfiles = profileData.map((p) => {
           // Find latest verification request for this user
-          const userRequests = verificationData?.filter(v => v.user_id === p.user_id) || [];
+          const userRequests = verificationData?.filter((v) => v.user_id === p.user_id) || [];
           const vStatus = userRequests.length > 0 ? userRequests[0].status : 'none';
           return { ...p, verification_status: vStatus };
         });
@@ -196,12 +196,15 @@ export async function getUserReviews(userId: string): Promise<{
       }))
     );
 
-    const profileMap: Record<string, Review['reviewer']> = profileEntries.reduce((acc, entry) => {
-      if (entry.userId && entry.reviewer) {
-        acc[entry.userId] = entry.reviewer;
-      }
-      return acc;
-    }, {} as Record<string, Review['reviewer']>);
+    const profileMap: Record<string, Review['reviewer']> = profileEntries.reduce(
+      (acc, entry) => {
+        if (entry.userId && entry.reviewer) {
+          acc[entry.userId] = entry.reviewer;
+        }
+        return acc;
+      },
+      {} as Record<string, Review['reviewer']>
+    );
 
     return {
       success: true,
@@ -374,7 +377,10 @@ export async function canReviewUser(
 /**
  * Get review details for a specific trade
  */
-export async function getTradeReviewStatus(tradeId: string, userId: string): Promise<{
+export async function getTradeReviewStatus(
+  tradeId: string,
+  userId: string
+): Promise<{
   success: boolean;
   userReviewed: boolean;
   otherUserReviewed: boolean;
@@ -423,13 +429,10 @@ export async function getTradeReviewStatus(tradeId: string, userId: string): Pro
 /**
  * Track that a user skipped leaving a review
  * This is used for analytics and doesn't block the user from continuing
- * 
+ *
  * TASK REVIEW-004: Allow Users to Skip Leaving Reviews
  */
-export async function skipReview(params: {
-  tradeId: string;
-  userId: string;
-}): Promise<{
+export async function skipReview(params: { tradeId: string; userId: string }): Promise<{
   success: boolean;
   error?: string;
 }> {
@@ -438,11 +441,11 @@ export async function skipReview(params: {
   try {
     // Log skip event for analytics
     console.log('[skipReview] User skipped review', { tradeId, userId });
-    
+
     // Note: We don't save skip events to database
     // They're tracked via analytics only to calculate review completion rate
     // This ensures reviews remain fully optional without any database state
-    
+
     return {
       success: true,
     };
@@ -501,14 +504,12 @@ export async function reportReview(params: {
       };
     }
 
-    const { error } = await supabase
-      .from('review_reports')
-      .insert({
-        review_id: reviewId,
-        reporter_id: reporterId,
-        reason,
-        description: description?.trim() || null,
-      });
+    const { error } = await supabase.from('review_reports').insert({
+      review_id: reviewId,
+      reporter_id: reporterId,
+      reason,
+      description: description?.trim() || null,
+    });
 
     if (error) {
       // Handle specific errors
@@ -516,10 +517,11 @@ export async function reportReview(params: {
         // Expected error: user already reported this review
         return {
           success: false,
-          error: 'You have already reported this review. Thanks. The admin is reviewing your report.',
+          error:
+            'You have already reported this review. Thanks. The admin is reviewing your report.',
         };
       }
-      
+
       console.error('Report review error:', error);
       return {
         success: false,

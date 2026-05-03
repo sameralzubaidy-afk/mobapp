@@ -52,19 +52,19 @@ describe('ResumeDraftBanner', () => {
     const { queryByTestId } = render(
       <ResumeDraftBanner drafts={[]} onResume={mockOnResume} onDismiss={mockOnDismiss} />
     );
-    
+
     expect(queryByTestId('resume-draft-banner')).toBeNull();
   });
 
   it('renders banner with unfinished listing count when drafts exist', () => {
     const { getByTestId } = render(
-      <ResumeDraftBanner 
-        drafts={[mockDraft, mockBulkDraft]} 
-        onResume={mockOnResume} 
-        onDismiss={mockOnDismiss} 
+      <ResumeDraftBanner
+        drafts={[mockDraft, mockBulkDraft]}
+        onResume={mockOnResume}
+        onDismiss={mockOnDismiss}
       />
     );
-    
+
     expect(getByTestId('resume-draft-banner')).toBeTruthy();
     expect(getByTestId('resume-draft-banner-title')).toHaveTextContent('2 unfinished listings');
   });
@@ -83,55 +83,43 @@ describe('ResumeDraftBanner', () => {
 
   it('shows singular text when only one draft', () => {
     const { getByTestId } = render(
-      <ResumeDraftBanner 
-        drafts={[mockDraft]} 
-        onResume={mockOnResume} 
-        onDismiss={mockOnDismiss} 
-      />
+      <ResumeDraftBanner drafts={[mockDraft]} onResume={mockOnResume} onDismiss={mockOnDismiss} />
     );
-    
+
     expect(getByTestId('resume-draft-banner-title')).toHaveTextContent('1 unfinished listing');
   });
 
   it('calls onResume with correct params for single item draft when Continue pressed', () => {
     const { getByTestId } = render(
-      <ResumeDraftBanner 
-        drafts={[mockDraft]} 
-        onResume={mockOnResume} 
-        onDismiss={mockOnDismiss} 
-      />
+      <ResumeDraftBanner drafts={[mockDraft]} onResume={mockOnResume} onDismiss={mockOnDismiss} />
     );
-    
+
     fireEvent.press(getByTestId('resume-draft-banner-resume-button'));
-    
+
     expect(mockOnResume).toHaveBeenCalledWith('draft-1', false);
   });
 
   it('calls onResume with correct params for bulk draft when Continue pressed', () => {
     const { getByTestId } = render(
-      <ResumeDraftBanner 
-        drafts={[mockBulkDraft]} 
-        onResume={mockOnResume} 
-        onDismiss={mockOnDismiss} 
+      <ResumeDraftBanner
+        drafts={[mockBulkDraft]}
+        onResume={mockOnResume}
+        onDismiss={mockOnDismiss}
       />
     );
-    
+
     fireEvent.press(getByTestId('resume-draft-banner-resume-button'));
-    
+
     expect(mockOnResume).toHaveBeenCalledWith('draft-2', true);
   });
 
   it('calls onDismiss when dismiss button pressed', () => {
     const { getByTestId } = render(
-      <ResumeDraftBanner 
-        drafts={[mockDraft]} 
-        onResume={mockOnResume} 
-        onDismiss={mockOnDismiss} 
-      />
+      <ResumeDraftBanner drafts={[mockDraft]} onResume={mockOnResume} onDismiss={mockOnDismiss} />
     );
-    
+
     fireEvent.press(getByTestId('resume-draft-banner-dismiss-button'));
-    
+
     expect(mockOnDismiss).toHaveBeenCalled();
   });
 
@@ -143,28 +131,24 @@ describe('ResumeDraftBanner', () => {
     };
 
     const { getByTestId } = render(
-      <ResumeDraftBanner 
-        drafts={[mockDraft, olderDraft]} 
-        onResume={mockOnResume} 
-        onDismiss={mockOnDismiss} 
+      <ResumeDraftBanner
+        drafts={[mockDraft, olderDraft]}
+        onResume={mockOnResume}
+        onDismiss={mockOnDismiss}
       />
     );
-    
+
     fireEvent.press(getByTestId('resume-draft-banner-resume-button'));
-    
+
     // Should use the first draft in the array (most recent)
     expect(mockOnResume).toHaveBeenCalledWith('draft-1', false);
   });
 
   it('has correct accessibility labels', () => {
     const { getByLabelText } = render(
-      <ResumeDraftBanner 
-        drafts={[mockDraft]} 
-        onResume={mockOnResume} 
-        onDismiss={mockOnDismiss} 
-      />
+      <ResumeDraftBanner drafts={[mockDraft]} onResume={mockOnResume} onDismiss={mockOnDismiss} />
     );
-    
+
     expect(getByLabelText('Resume listing')).toBeTruthy();
     expect(getByLabelText('Dismiss banner')).toBeTruthy();
   });

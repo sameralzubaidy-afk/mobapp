@@ -2,22 +2,15 @@
  * File: p2p-kids-marketplace/src/components/modals/SPInfoTooltip.tsx
  * MODULE-04 LISTING-V3-011: SP Info Tooltip
  * Task: LISTING-V3-011 - SP earnings preview for single & bulk listing
- * 
+ *
  * Purpose: "What is SP?" tooltip with "Learn More" link
  * UX Decision 5: Option C - Tooltip with link to full explanation
- * 
+ *
  * @see BRD US-SUB-002: SP earnings preview requirement
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
 
 export interface SPInfoTooltipProps {
   visible: boolean;
@@ -58,26 +51,34 @@ export function SPInfoTooltip({
               showsVerticalScrollIndicator
             >
               <Text style={styles.title}>What are Swap Points (SP)?</Text>
-              
+
               <Text style={styles.paragraph}>
-                <Text style={styles.bold}>Swap Points (SP)</Text> are rewards you earn when selling items on our marketplace.
+                <Text style={styles.bold}>Swap Points (SP)</Text> are rewards you earn when selling
+                items on our marketplace.
               </Text>
 
               <Text style={styles.paragraph}>
                 <Text style={styles.bold}>How it works:</Text>
               </Text>
               <Text style={styles.bulletPoint}>• You earn SP when your items sell</Text>
-              <Text style={styles.bulletPoint}>• Different categories earn different SP rates (1.05x - 1.40x)</Text>
-              <Text style={styles.bulletPoint}>• Buyers can use SP to pay for part of their purchase</Text>
-              <Text style={styles.bulletPoint}>• Only Kids Club+ members can earn and spend SP</Text>
+              <Text style={styles.bulletPoint}>
+                • Different categories earn different SP rates (1.05x - 1.40x)
+              </Text>
+              <Text style={styles.bulletPoint}>
+                • Buyers can use SP to pay for part of their purchase
+              </Text>
+              <Text style={styles.bulletPoint}>
+                • Only Kids Club+ members can earn and spend SP
+              </Text>
 
               <Text style={styles.paragraph}>
-                <Text style={styles.bold}>Example:</Text> If you sell a toy for $30 in a category with 1.20x multiplier, you'll earn ~36 SP.
+                <Text style={styles.bold}>Example:</Text> If you sell a toy for $30 in a category
+                with 1.20x multiplier, you'll earn ~36 SP.
               </Text>
 
               <Text style={styles.disclaimer}>
-                *SP estimates are based on your list price and current category multipliers. 
-                Actual SP earned may vary slightly based on final sale price and admin adjustments.
+                *SP estimates are based on your list price and current category multipliers. Actual
+                SP earned may vary slightly based on final sale price and admin adjustments.
               </Text>
             </ScrollView>
 

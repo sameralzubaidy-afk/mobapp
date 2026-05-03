@@ -57,13 +57,16 @@ export default function ForgotPasswordScreen() {
         // Map common Supabase error messages to friendly hints
         const lm = baseMessage.toLowerCase();
         if (lm.includes('rate limit')) {
-          detailMessage = 'You have requested password reset emails too frequently. Please check your inbox (including spam) or try again in a few minutes.';
+          detailMessage =
+            'You have requested password reset emails too frequently. Please check your inbox (including spam) or try again in a few minutes.';
         } else if (lm.includes('error sending recovery') || errAny?.status >= 500) {
-          detailMessage += "\n\nPossible causes:\n• SMTP/email provider not configured in Supabase Auth\n• Redirect URL not allowed in Auth settings\n\nCheck Supabase Auth > Email Settings and Email Logs.";
+          detailMessage +=
+            '\n\nPossible causes:\n• SMTP/email provider not configured in Supabase Auth\n• Redirect URL not allowed in Auth settings\n\nCheck Supabase Auth > Email Settings and Email Logs.';
         } else if (errAny?.status === 400) {
-          detailMessage += "\n\nCheck that the email you entered is correct and belongs to an account.";
+          detailMessage +=
+            '\n\nCheck that the email you entered is correct and belongs to an account.';
         } else {
-          detailMessage += "\n\nIf this persists, check Supabase Auth email settings and logs.";
+          detailMessage += '\n\nIf this persists, check Supabase Auth email settings and logs.';
         }
 
         Alert.alert('Reset Email Failed', detailMessage, [
@@ -80,22 +83,26 @@ export default function ForgotPasswordScreen() {
     } catch (error: any) {
       console.error('Password reset exception:', error);
 
-      Alert.alert(
-        'Error',
-        'An unexpected error occurred. Please try again later.'
-      );
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
     } finally {
       setLoading(false);
     }
   };
 
   if (emailSent) {
-
     return (
       <View style={{ flex: 1, backgroundColor: '#fff', padding: 24, justifyContent: 'center' }}>
         <View style={{ alignItems: 'center', marginBottom: 32 }}>
           <Text style={{ fontSize: 48, marginBottom: 16 }}>📧</Text>
-          <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#111', marginBottom: 12, textAlign: 'center' }}>
+          <Text
+            style={{
+              fontSize: 28,
+              fontWeight: 'bold',
+              color: '#111',
+              marginBottom: 12,
+              textAlign: 'center',
+            }}
+          >
             Check Your Email
           </Text>
           <Text style={{ fontSize: 16, color: '#666', textAlign: 'center', lineHeight: 24 }}>
@@ -104,11 +111,12 @@ export default function ForgotPasswordScreen() {
           </Text>
         </View>
 
-        <View style={{ backgroundColor: '#f8f9fa', padding: 16, borderRadius: 12, marginBottom: 24 }}>
+        <View
+          style={{ backgroundColor: '#f8f9fa', padding: 16, borderRadius: 12, marginBottom: 24 }}
+        >
           <Text style={{ fontSize: 14, color: '#666', lineHeight: 20 }}>
-            • Check your inbox and spam folder{'\n'}
-            • Click the reset link in the email{'\n'}
-            • You'll be redirected to set a new password
+            • Check your inbox and spam folder{'\n'}• Click the reset link in the email{'\n'}•
+            You'll be redirected to set a new password
           </Text>
         </View>
 
@@ -141,14 +149,23 @@ export default function ForgotPasswordScreen() {
               value={devResetLink}
               onChangeText={setDevResetLink}
               placeholder="Paste full reset URL here"
-              style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 8, marginBottom: 8 }}
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 8,
+                padding: 8,
+                marginBottom: 8,
+              }}
               autoCapitalize="none"
               autoCorrect={false}
             />
             <TouchableOpacity
               onPress={async () => {
                 if (!devResetLink) {
-                  Alert.alert('No link', 'Paste the reset link from the email into the field above.');
+                  Alert.alert(
+                    'No link',
+                    'Paste the reset link from the email into the field above.'
+                  );
                   return;
                 }
                 // Try to open directly (will open Safari/simulator). Also support
@@ -163,7 +180,8 @@ export default function ForgotPasswordScreen() {
                 // and also inspect resp.url since some servers expose the final URL there.
                 try {
                   const urlObj = new URL(devResetLink);
-                  const isVerify = urlObj.pathname.includes('/auth/v1/verify') || urlObj.searchParams.has('token');
+                  const isVerify =
+                    urlObj.pathname.includes('/auth/v1/verify') || urlObj.searchParams.has('token');
 
                   if (isVerify) {
                     try {
@@ -186,18 +204,34 @@ export default function ForgotPasswordScreen() {
                             const access_token = params.get('access_token');
                             const refresh_token = params.get('refresh_token');
                             if (access_token) {
-                              (navigation as any).navigate('ResetPassword', { access_token, refresh_token });
+                              (navigation as any).navigate('ResetPassword', {
+                                access_token,
+                                refresh_token,
+                              });
                               return;
                             }
 
                             // If the redirect fragment contains an error (expired/invalid token), surface it to the tester
                             const err = params.get('error') || params.get('error_description');
                             if (err) {
-                              const decoded = decodeURIComponent((params.get('error_description') || params.get('error') || '').replace(/\+/g, ' '));
-                              Alert.alert('Reset Link Error', decoded || 'The link appears to be invalid or expired.', [
-                                { text: 'Open in Safari', onPress: () => Linking.openURL(devResetLink).catch(() => {}) },
-                                { text: 'OK' },
-                              ]);
+                              const decoded = decodeURIComponent(
+                                (
+                                  params.get('error_description') ||
+                                  params.get('error') ||
+                                  ''
+                                ).replace(/\+/g, ' ')
+                              );
+                              Alert.alert(
+                                'Reset Link Error',
+                                decoded || 'The link appears to be invalid or expired.',
+                                [
+                                  {
+                                    text: 'Open in Safari',
+                                    onPress: () => Linking.openURL(devResetLink).catch(() => {}),
+                                  },
+                                  { text: 'OK' },
+                                ]
+                              );
                               return;
                             }
                           }
@@ -207,8 +241,14 @@ export default function ForgotPasswordScreen() {
                           if (token) {
                             // Try to fetch the verify URL again and inspect the final redirected URL
                             try {
-                              const verifyResp = await fetch(finalUrl, { method: 'GET', redirect: 'follow' });
-                              const afterUrl = verifyResp.url || (verifyResp.headers.get('location') || verifyResp.headers.get('Location'));
+                              const verifyResp = await fetch(finalUrl, {
+                                method: 'GET',
+                                redirect: 'follow',
+                              });
+                              const afterUrl =
+                                verifyResp.url ||
+                                verifyResp.headers.get('location') ||
+                                verifyResp.headers.get('Location');
                               console.log('Verify fetch resulted in:', afterUrl);
                               if (afterUrl) {
                                 const u2 = new URL(afterUrl);
@@ -218,17 +258,35 @@ export default function ForgotPasswordScreen() {
                                   const access_token = params2.get('access_token');
                                   const refresh_token = params2.get('refresh_token');
                                   if (access_token) {
-                                    (navigation as any).navigate('ResetPassword', { access_token, refresh_token });
+                                    (navigation as any).navigate('ResetPassword', {
+                                      access_token,
+                                      refresh_token,
+                                    });
                                     return;
                                   }
 
-                                  const err2 = params2.get('error') || params2.get('error_description');
+                                  const err2 =
+                                    params2.get('error') || params2.get('error_description');
                                   if (err2) {
-                                    const decoded = decodeURIComponent((params2.get('error_description') || params2.get('error') || '').replace(/\+/g, ' '));
-                                    Alert.alert('Reset Link Error', decoded || 'The link appears to be invalid or expired.', [
-                                      { text: 'Open in Safari', onPress: () => Linking.openURL(devResetLink).catch(() => {}) },
-                                      { text: 'OK' },
-                                    ]);
+                                    const decoded = decodeURIComponent(
+                                      (
+                                        params2.get('error_description') ||
+                                        params2.get('error') ||
+                                        ''
+                                      ).replace(/\+/g, ' ')
+                                    );
+                                    Alert.alert(
+                                      'Reset Link Error',
+                                      decoded || 'The link appears to be invalid or expired.',
+                                      [
+                                        {
+                                          text: 'Open in Safari',
+                                          onPress: () =>
+                                            Linking.openURL(devResetLink).catch(() => {}),
+                                        },
+                                        { text: 'OK' },
+                                      ]
+                                    );
                                     return;
                                   }
                                 }
@@ -244,7 +302,10 @@ export default function ForgotPasswordScreen() {
 
                       // If we couldn't extract tokens, fall back to opening the link externally below
                     } catch (fetchErr) {
-                      console.warn('Fetch follow redirect failed, falling back to openURL', fetchErr);
+                      console.warn(
+                        'Fetch follow redirect failed, falling back to openURL',
+                        fetchErr
+                      );
                     }
                   }
 
@@ -255,7 +316,10 @@ export default function ForgotPasswordScreen() {
                       'Invalid Link',
                       'The provided link does not contain reset tokens. Try opening the email in Safari, copy the full address bar URL (the Supabase verify URL containing `/auth/v1/verify?token=...` or a final link that contains `#access_token=...`) and paste it here.',
                       [
-                        { text: 'Open in Safari', onPress: () => Linking.openURL(devResetLink).catch(() => {}) },
+                        {
+                          text: 'Open in Safari',
+                          onPress: () => Linking.openURL(devResetLink).catch(() => {}),
+                        },
                         { text: 'OK' },
                       ]
                     );
@@ -270,7 +334,12 @@ export default function ForgotPasswordScreen() {
                   Alert.alert('Invalid Link', 'The provided link could not be parsed.');
                 }
               }}
-              style={{ padding: 12, backgroundColor: '#007AFF', borderRadius: 8, alignItems: 'center' }}
+              style={{
+                padding: 12,
+                backgroundColor: '#007AFF',
+                borderRadius: 8,
+                alignItems: 'center',
+              }}
             >
               <Text style={{ color: '#fff', fontWeight: '600' }}>Open Reset Link</Text>
             </TouchableOpacity>
@@ -343,9 +412,7 @@ export default function ForgotPasswordScreen() {
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>
-              Send Reset Link
-            </Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Send Reset Link</Text>
           )}
         </TouchableOpacity>
 
@@ -354,9 +421,7 @@ export default function ForgotPasswordScreen() {
           disabled={loading}
           style={{ padding: 16, alignItems: 'center' }}
         >
-          <Text style={{ color: loading ? '#ccc' : '#666', fontSize: 16 }}>
-            Back to Login
-          </Text>
+          <Text style={{ color: loading ? '#ccc' : '#666', fontSize: 16 }}>Back to Login</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

@@ -12,10 +12,7 @@
     "git": "https://github.com/facebook/react-native.git",
     "tag": "v0.81.5"
   },
-  "source_files": [
-    "executor/*.{cpp,h}",
-    "inspector-modern/chrome/*.{cpp,h}"
-  ],
+  "source_files": ["executor/*.{cpp,h}", "inspector-modern/chrome/*.{cpp,h}"],
   "public_header_files": "executor/HermesExecutorFactory.h",
   "pod_target_xcconfig": {
     "HEADER_SEARCH_PATHS": [
@@ -39,18 +36,12 @@
   },
   "header_dir": "reacthermes",
   "dependencies": {
-    "React-cxxreact": [
-      "0.81.5"
-    ],
-    "React-jsiexecutor": [
-      "0.81.5"
-    ],
+    "React-cxxreact": ["0.81.5"],
+    "React-jsiexecutor": ["0.81.5"],
     "React-jsinspector": [],
     "React-jsinspectorcdp": [],
     "React-jsinspectortracing": [],
-    "React-perflogger": [
-      "0.81.5"
-    ],
+    "React-perflogger": ["0.81.5"],
     "hermes-engine": [],
     "React-jsi": [],
     "React-runtimeexecutor": [],

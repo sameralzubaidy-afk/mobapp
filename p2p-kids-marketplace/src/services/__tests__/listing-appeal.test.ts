@@ -349,9 +349,9 @@ describe('submitListingNeedsEditsReReview', () => {
 
     mockSupabase.from.mockReturnValueOnce(fetchBuilder);
 
-    await expect(
-      submitListingNeedsEditsReReview('listing-2', 'seller-2')
-    ).rejects.toThrow('Please make at least one edit before submitting for re-review.');
+    await expect(submitListingNeedsEditsReReview('listing-2', 'seller-2')).rejects.toThrow(
+      'Please make at least one edit before submitting for re-review.'
+    );
   });
 
   it('falls back to timestamp-based edit detection when edited-tracking columns are missing', async () => {
@@ -362,7 +362,8 @@ describe('submitListingNeedsEditsReReview', () => {
         data: null,
         error: {
           code: 'PGRST204',
-          message: "Could not find the 'edited_since_rejection' column of 'items' in the schema cache",
+          message:
+            "Could not find the 'edited_since_rejection' column of 'items' in the schema cache",
         },
       }),
     } as any;
@@ -406,9 +407,7 @@ describe('submitListingNeedsEditsReReview', () => {
     const result = await submitListingNeedsEditsReReview('listing-2', 'seller-2');
 
     expect(result.status).toBe('pending');
-    expect(fetchFallbackBuilder.select).toHaveBeenCalledWith(
-      expect.stringContaining('flagged_at')
-    );
+    expect(fetchFallbackBuilder.select).toHaveBeenCalledWith(expect.stringContaining('flagged_at'));
   });
 
   it('retries status update when first resubmission response does not return pending', async () => {

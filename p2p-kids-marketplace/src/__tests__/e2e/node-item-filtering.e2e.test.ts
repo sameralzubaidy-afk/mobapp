@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/e2e/node-item-filtering.e2e.test.ts
  * MODULE-03 NODE-006: Node-Specific Item Filtering E2E Test
- * 
+ *
  * Tests:
  * - Items filtered by user's node by default
  * - Toggle between node and all-nodes view
@@ -90,7 +90,7 @@ describeSupabaseE2E('NODE-006 E2E: Node-Specific Item Filtering', () => {
 
       // Should include items from different nodes
       const nodeIds = new Set(items.map((item) => item.seller?.node_id));
-      
+
       console.log(`✅ Found items from ${nodeIds.size} different nodes`);
     });
   });

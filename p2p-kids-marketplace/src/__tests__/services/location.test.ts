@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/services/location.test.ts
  * NODE-003: Location Service Unit Tests
- * 
+ *
  * Tests:
  * - ZIP code coordinate lookup (valid/invalid)
  * - Node assignment (exact match, nearest fallback, no nodes)
@@ -9,7 +9,11 @@
  * - Error handling
  */
 
-import { assignNodeByZipCode, getZipCodeCoordinates, checkZipCodeHasActiveNode } from '../../services/location';
+import {
+  assignNodeByZipCode,
+  getZipCodeCoordinates,
+  checkZipCodeHasActiveNode,
+} from '../../services/location';
 
 // Mock Supabase and analytics
 jest.mock('../../services/supabase', () => ({
@@ -237,15 +241,11 @@ describe('Location Service - NODE-003', () => {
         status: 404,
       } as any);
 
-      await expect(assignNodeByZipCode('99999')).rejects.toThrow(
-        'Invalid ZIP code'
-      );
+      await expect(assignNodeByZipCode('99999')).rejects.toThrow('Invalid ZIP code');
     });
 
     it('should throw error if ZIP format invalid', async () => {
-      await expect(assignNodeByZipCode('ABC12')).rejects.toThrow(
-        'Invalid ZIP code format'
-      );
+      await expect(assignNodeByZipCode('ABC12')).rejects.toThrow('Invalid ZIP code format');
     });
 
     it('should log warning if distance >50 miles', async () => {

@@ -22,12 +22,10 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
   const reviewerName = review.is_anonymous
     ? 'Anonymous User'
     : review.reviewer?.first_name
-    ? `${review.reviewer.first_name} ${review.reviewer.last_name || ''}`.trim()
-    : 'User';
+      ? `${review.reviewer.first_name} ${review.reviewer.last_name || ''}`.trim()
+      : 'User';
 
-  const reviewerImage = review.is_anonymous
-    ? null
-    : review.reviewer?.profile_image_url;
+  const reviewerImage = review.is_anonymous ? null : review.reviewer?.profile_image_url;
 
   const reviewDate = new Date(review.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -39,9 +37,10 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
   // - showReportMenu is false
   // - No current user
   // - User is not the reviewee (ONLY the person the review is about can report it)
-  const canReport = showReportMenu && 
-    currentUserId && 
-    review.reviewee_id && 
+  const canReport =
+    showReportMenu &&
+    currentUserId &&
+    review.reviewee_id &&
     String(currentUserId).trim().toLowerCase() === String(review.reviewee_id).trim().toLowerCase();
 
   const handleReportPress = (reason: 'spam' | 'offensive' | 'false_info') => {
@@ -51,18 +50,14 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
       false_info: 'False Information',
     };
 
-    Alert.alert(
-      'Report Review',
-      `Report this review as ${reasonLabels[reason]}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Report',
-          style: 'destructive',
-          onPress: () => handleReport(reason),
-        },
-      ]
-    );
+    Alert.alert('Report Review', `Report this review as ${reasonLabels[reason]}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Report',
+        style: 'destructive',
+        onPress: () => handleReport(reason),
+      },
+    ]);
     setMenuVisible(false);
   };
 
@@ -97,7 +92,9 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
           imageUrl={reviewerImage || undefined}
           name={reviewerName}
           size={40}
-          verificationStatus={(review.is_anonymous ? 'none' : review.reviewer?.verification_status) as any}
+          verificationStatus={
+            (review.is_anonymous ? 'none' : review.reviewer?.verification_status) as any
+          }
           style={{ marginRight: 12 }}
         />
 
@@ -119,37 +116,26 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
         )}
       </View>
 
-      {review.comment && (
-        <Text style={styles.comment}>{review.comment}</Text>
-      )}
+      {review.comment && <Text style={styles.comment}>{review.comment}</Text>}
 
       {/* Simple dropdown menu */}
       {menuVisible && canReport && (
         <View style={styles.menu}>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => handleReportPress('spam')}
-          >
+          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('spam')}>
             <Ionicons name="flag-outline" size={16} color="#6B7280" />
             <Text style={styles.menuItemText}>Report as Spam</Text>
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => handleReportPress('offensive')}
-          >
+          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('offensive')}>
             <Ionicons name="warning-outline" size={16} color="#6B7280" />
             <Text style={styles.menuItemText}>Report as Offensive</Text>
           </TouchableOpacity>
 
           <View style={styles.menuDivider} />
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => handleReportPress('false_info')}
-          >
+          <TouchableOpacity style={styles.menuItem} onPress={() => handleReportPress('false_info')}>
             <Ionicons name="information-circle-outline" size={16} color="#6B7280" />
             <Text style={styles.menuItemText}>Report False Information</Text>
           </TouchableOpacity>

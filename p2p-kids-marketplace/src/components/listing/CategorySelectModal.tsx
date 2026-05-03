@@ -3,7 +3,7 @@
  * MODULE-04 LISTING-V3-008: Category Select Modal
  * Task: LISTING-V3-008 - Full-screen category selection with search
  * Updated: ADMIN-V3-007 - Show bonus badges
- * 
+ *
  * Features:
  * - Search categories
  * - Recent 3 categories
@@ -75,7 +75,7 @@ export function CategorySelectModal({
     // Bonus badge is shown only for categories with SP earn multiplier strictly greater than 1.10.
     // This matches the product rule used in admin and marketplace logic (MODULE-12 V3).
     const showBonusBadge = Number(item.sp_earning_multiplier ?? 1.1) > 1.1;
-    
+
     return (
       <TouchableOpacity
         style={styles.categoryItem}
@@ -191,9 +191,7 @@ export function CategorySelectModal({
               accessibilityLabel="Custom category name"
               testID="custom-category-input"
             />
-            <Text style={styles.otherHint}>
-              This will be sent to admin for review
-            </Text>
+            <Text style={styles.otherHint}>This will be sent to admin for review</Text>
             <View style={styles.otherActions}>
               <TouchableOpacity
                 style={styles.otherCancelButton}

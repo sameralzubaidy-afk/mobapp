@@ -16,7 +16,7 @@ describeE2E('SP Notifications E2E Tests', () => {
   let supabase: SupabaseClient;
   let testUserId: string;
   let testWalletId: string;
-  let cleanupIds: { user_ids: string[]; wallet_ids: string[], notification_ids: string[] };
+  let cleanupIds: { user_ids: string[]; wallet_ids: string[]; notification_ids: string[] };
 
   async function createTestAuthUser(): Promise<string> {
     const testEmail = `sp-notif-${Date.now()}-${uuidv4().slice(0, 8)}@example.com`;
@@ -425,7 +425,7 @@ describeE2E('SP Notifications E2E Tests', () => {
 
       const initialCount = firstNotifications?.length || 0;
       if (firstNotifications && firstNotifications.length > 0) {
-        firstNotifications.forEach(n => cleanupIds.notification_ids.push(n.id));
+        firstNotifications.forEach((n) => cleanupIds.notification_ids.push(n.id));
       }
 
       // Second trigger within 24 hours

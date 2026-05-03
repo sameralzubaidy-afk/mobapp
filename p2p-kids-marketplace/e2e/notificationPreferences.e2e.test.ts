@@ -69,7 +69,7 @@ describeIfE2E('Notification Preferences - E2E Integration Tests', () => {
       throw authError || new Error('Failed to create notification preferences suite user');
     }
     testUserId = authData.user.id;
-    
+
     console.log(`✅ Test user created: ${testUserId}`);
   });
 
@@ -104,7 +104,7 @@ describeIfE2E('Notification Preferences - E2E Integration Tests', () => {
 
       expect(error).toBeNull();
       expect(data).toHaveLength(5); // 5 categories
-      
+
       const categories = data.map((p: any) => p.category).sort();
       expect(categories).toEqual(['badges', 'sp_events', 'subscription', 'system', 'trades']);
 
@@ -120,13 +120,11 @@ describeIfE2E('Notification Preferences - E2E Integration Tests', () => {
 
     itIfRunnable('should have unique constraint on (user_id, category)', async () => {
       // Attempt duplicate insert
-      const { error } = await supabase
-        .from('notification_preferences')
-        .insert({
-          user_id: testUserId,
-          category: 'subscription',
-          push_enabled: false,
-        });
+      const { error } = await supabase.from('notification_preferences').insert({
+        user_id: testUserId,
+        category: 'subscription',
+        push_enabled: false,
+      });
 
       expect(error).toBeDefined();
       // In anon-key environments, RLS can block raw inserts before constraint checks.

@@ -8,6 +8,7 @@
 - Verified Xcode Debug build (iPhone 17 Pro simulator) completes successfully.
 
 Notes:
+
 - If you encounter native compile issues in the future, re-run `yarn install` and `pod install` and ensure DerivedData is cleared.
 
 Commands used:
@@ -22,4 +23,4 @@ cd ios && pod install --repo-update
 # Build from terminal
 xcodebuild -workspace ios/p2pkidsmarketplace.xcworkspace -scheme p2pkidsmarketplace -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -configuration Debug -allowProvisioningUpdates clean build
 
-``` 
+```

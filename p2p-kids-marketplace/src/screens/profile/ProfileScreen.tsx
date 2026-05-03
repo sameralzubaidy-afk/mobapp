@@ -51,11 +51,15 @@ export default function ProfileScreen({ navigation }: any) {
   const [referralCode, setReferralCode] = useState<string | null>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [pendingReferralNotice, setPendingReferralNotice] = useState<string | null>(null);
-  const [pendingBadgeText, setPendingBadgeText] = useState('We\'re reviewing your ID. Usually within 24h.');
+  const [pendingBadgeText, setPendingBadgeText] = useState(
+    "We're reviewing your ID. Usually within 24h."
+  );
   const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
 
   // TASK NOTIF-V2-004: Badge celebration integration
-  const { newBadgeAwarded, clearNewBadge, showCelebration, setShowCelebration } = useUserBadges(user?.id);
+  const { newBadgeAwarded, clearNewBadge, showCelebration, setShowCelebration } = useUserBadges(
+    user?.id
+  );
 
   // Auto-show celebration modal when new badge awarded
   useEffect(() => {
@@ -94,8 +98,7 @@ export default function ProfileScreen({ navigation }: any) {
       }
 
       // Resolve phone with fallbacks
-      let phoneFromAuth = (authUser as any).phone || 
-        ((authUser as any).user_metadata?.phone) || '';
+      let phoneFromAuth = (authUser as any).phone || (authUser as any).user_metadata?.phone || '';
       if (!phoneFromAuth) {
         try {
           const { data: phoneData, error: phoneError } = await supabase
@@ -121,12 +124,12 @@ export default function ProfileScreen({ navigation }: any) {
         ...(profileData as UserProfile),
         avatar_url: finalAvatar,
       });
-      
+
       // Load ID verification status
       try {
         const vStatus = await idBadgeService.getVerificationStatus(authUser.id);
         setVerificationStatus(vStatus);
-        
+
         // Fetch dynamic pending text
         const pendingText = await idBadgeService.getMessage('pending_status_text');
         if (pendingText) {
@@ -151,26 +154,26 @@ export default function ProfileScreen({ navigation }: any) {
         if (eligibility.rewards_pending) {
           const config = await ReferralRewardsService.getConfiguredRewardAmounts();
           const actions: string[] = [];
-          if (config.first_listing_enabled) actions.push("list your first item");
-          if (config.first_trade_enabled) actions.push("complete one trade");
-          
-          if (actions.length > 0) {
-              const actionStr = actions.length === 2 
-                ? `${actions[0]} or ${actions[1]}` 
-                : actions[0];
-              
-              // Calculate correct bonus amount based on enabled actions
-              let bonusAmount = 0;
-              if (config.first_listing_enabled && config.first_trade_enabled) {
-                // If both are enabled, show total potential bonus
-                bonusAmount = config.referee_sp + config.referee_listing_sp;
-              } else if (config.first_listing_enabled) {
-                bonusAmount = config.referee_listing_sp;
-              } else if (config.first_trade_enabled) {
-                bonusAmount = config.referee_sp;
-              }
+          if (config.first_listing_enabled) actions.push('list your first item');
+          if (config.first_trade_enabled) actions.push('complete one trade');
 
-              setPendingReferralNotice(`🎁 Your bonus is waiting! ${actionStr.charAt(0).toUpperCase() + actionStr.slice(1)} to earn your sign-up bonus.`);
+          if (actions.length > 0) {
+            const actionStr = actions.length === 2 ? `${actions[0]} or ${actions[1]}` : actions[0];
+
+            // Calculate correct bonus amount based on enabled actions
+            let bonusAmount = 0;
+            if (config.first_listing_enabled && config.first_trade_enabled) {
+              // If both are enabled, show total potential bonus
+              bonusAmount = config.referee_sp + config.referee_listing_sp;
+            } else if (config.first_listing_enabled) {
+              bonusAmount = config.referee_listing_sp;
+            } else if (config.first_trade_enabled) {
+              bonusAmount = config.referee_sp;
+            }
+
+            setPendingReferralNotice(
+              `🎁 Your bonus is waiting! ${actionStr.charAt(0).toUpperCase() + actionStr.slice(1)} to earn your sign-up bonus.`
+            );
           }
         } else {
           setPendingReferralNotice(null);
@@ -179,7 +182,7 @@ export default function ProfileScreen({ navigation }: any) {
         console.warn('Error loading pending referral info:', error);
         setPendingReferralNotice(null);
       }
-      
+
       // Load reviews and stats
       await loadReviewsData(authUser.id);
 
@@ -225,21 +228,17 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: performLogout,
-        },
-      ]
-    );
+    Alert.alert('Logout', 'Are you sure you want to logout?', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: performLogout,
+      },
+    ]);
   };
 
   const performLogout = async () => {
@@ -261,11 +260,11 @@ export default function ProfileScreen({ navigation }: any) {
 
   const handleCopyReferralCode = async () => {
     if (!referralCode) return;
-    
+
     try {
       await Clipboard.setString(referralCode);
       setCopiedToClipboard(true);
-      
+
       // Reset copied state after 2 seconds
       setTimeout(() => {
         setCopiedToClipboard(false);
@@ -300,248 +299,260 @@ export default function ProfileScreen({ navigation }: any) {
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Avatar and Name */}
-      <View style={styles.profileHeader}>
-        <Avatar 
-          imageUrl={profile.avatar_url} 
-          size={100} 
-          verificationStatus={verificationStatus?.status}
-          name={profile.name}
-        />
-        <Text style={styles.displayName}>{profile.name || 'Anonymous User'}</Text>
-        {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
-      </View>
-
-      {/* Profile Info */}
-      <View style={styles.infoSection}>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Email:</Text>
-          <Text style={styles.infoValue}>{user.email || 'Not provided'}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Phone:</Text>
-          <Text style={styles.infoValue}>{user.phone || 'Not provided'}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Swap Points:</Text>
-          <Text style={styles.infoValue}>{user.swap_points_balance || 0} SP</Text>
-        </View>
-      </View>
-
-      {/* ID Verification Section */}
-      <View style={styles.verificationSection}>
-        <Text style={styles.sectionTitle}>Identity Verification</Text>
-        {verificationStatus?.status === 'approved' ? (
-          <View style={styles.verifiedContainer}>
-            <View style={styles.statusIconContainer}>
-              <Text style={{ fontSize: 24 }}>✅</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.verifiedText}>Identity Verified</Text>
-              <Text style={styles.verifiedSubtext}>Your account is shielded with ultimate trust</Text>
-            </View>
-          </View>
-        ) : verificationStatus?.status === 'pending' ? (
-          <TouchableOpacity 
-            style={styles.pendingContainer}
-            onPress={() => navigation.navigate('IDVerificationUpload')}
-          >
-            <View style={styles.statusIconContainer}>
-              <Text style={{ fontSize: 24 }}>⏳</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pendingText}>Verification Pending</Text>
-              <Text style={styles.pendingSubtext}>{pendingBadgeText}</Text>
-            </View>
-          </TouchableOpacity>
-        ) : verificationStatus?.status === 'rejected' ? (
-          <TouchableOpacity 
-            style={styles.rejectedContainer}
-            onPress={() => navigation.navigate('IDVerificationUpload')}
-          >
-            <View style={styles.statusIconContainer}>
-              <Text style={{ fontSize: 24 }}>❌</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rejectedText}>Verification Rejected</Text>
-              <Text style={styles.rejectedSubtext}>Reason: {verificationStatus.rejectionReason || 'Unknown'}. Tap to try again.</Text>
-            </View>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={styles.upgradeButton}
-            onPress={() => navigation.navigate('IDVerificationUpload')}
-          >
-            <View style={styles.statusIconContainer}>
-              <Text style={{ fontSize: 24 }}>🛡️</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.upgradeButtonText}>Upgrade to Verified</Text>
-              <Text style={styles.upgradeButtonSubtext}>Build trust and unlock exclusive features</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Badges Section */}
-      <BadgeShowcase userId={user.id} />
-
-      {/* Referral Code Section */}
-      {referralCode && (
-        <View style={styles.referralSection}>
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitle}>Share & Earn</Text>
-            <TouchableOpacity
-              style={styles.viewDashboardButton}
-              onPress={() => navigation.navigate('ReferralDashboard')}
-            >
-              <Text style={styles.viewDashboardButtonText}>View Dashboard →</Text>
-            </TouchableOpacity>
+          {/* Avatar and Name */}
+          <View style={styles.profileHeader}>
+            <Avatar
+              imageUrl={profile.avatar_url}
+              size={100}
+              verificationStatus={verificationStatus?.status}
+              name={profile.name}
+            />
+            <Text style={styles.displayName}>{profile.name || 'Anonymous User'}</Text>
+            {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
           </View>
 
-          {/* New Pending Action Notice */}
-          {pendingReferralNotice && (
-            <View style={styles.pendingReferralBadge}>
-              <Text style={styles.pendingReferralText}>{pendingReferralNotice}</Text>
+          {/* Profile Info */}
+          <View style={styles.infoSection}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Email:</Text>
+              <Text style={styles.infoValue}>{user.email || 'Not provided'}</Text>
             </View>
-          )}
-
-          <View style={styles.referralCodeContainer}>
-            <View style={styles.referralCodeWrapper}>
-              <Text style={styles.referralCodeLabel}>Your Referral Code:</Text>
-              <Text style={styles.referralCode}>{referralCode}</Text>
-              <Text style={styles.referralCodeHint}>
-                Share this code with friends to earn bonus Swap Points
-              </Text>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Phone:</Text>
+              <Text style={styles.infoValue}>{user.phone || 'Not provided'}</Text>
             </View>
-            <TouchableOpacity
-              style={[styles.copyButton, copiedToClipboard && styles.copyButtonSuccess]}
-              onPress={handleCopyReferralCode}
-            >
-              <Text style={styles.copyButtonText}>
-                {copiedToClipboard ? '✓ Copied' : 'Copy'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Reviews Section */}
-      {reviewStats && reviewStats.total_reviews > 0 && (
-        <View style={styles.reviewsSection}>
-          <Text style={styles.sectionTitle}>Reviews ({reviewStats.total_reviews})</Text>
-          
-          {/* Rating Summary */}
-          <View style={styles.ratingSection}>
-            <View style={styles.ratingHeader}>
-              <Text style={styles.averageRating}>
-                {reviewStats.average_rating.toFixed(1)}
-              </Text>
-              <View style={styles.ratingDetails}>
-                <StarRating rating={Math.round(reviewStats.average_rating)} size={24} />
-                <Text style={styles.totalReviews}>
-                  Based on {reviewStats.total_reviews} {reviewStats.total_reviews === 1 ? 'review' : 'reviews'}
-                </Text>
-              </View>
-            </View>
-
-            {/* Rating Breakdown */}
-            <View style={styles.breakdown}>
-              {[5, 4, 3, 2, 1].map((stars) => {
-                const count = reviewStats.rating_breakdown[stars as keyof typeof reviewStats.rating_breakdown];
-                const percentage = reviewStats.total_reviews > 0
-                  ? (count / reviewStats.total_reviews) * 100
-                  : 0;
-
-                return (
-                  <View key={stars} style={styles.breakdownRow}>
-                    <Text style={styles.breakdownLabel}>{stars} ★</Text>
-                    <View style={styles.breakdownBar}>
-                      <View
-                        style={[styles.breakdownFill, { width: `${percentage}%` }]}
-                      />
-                    </View>
-                    <Text style={styles.breakdownCount}>{count}</Text>
-                  </View>
-                );
-              })}
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Swap Points:</Text>
+              <Text style={styles.infoValue}>{user.swap_points_balance || 0} SP</Text>
             </View>
           </View>
 
-          {/* Recent Reviews */}
-          <View style={styles.reviewsList}>
-            <View style={styles.reviewsListHeader}>
-              <Text style={styles.reviewsListTitle}>
-                {showAllReviews ? 'All Reviews' : 'Recent Reviews'}
-              </Text>
-              {reviews.length > 5 && (
-                <TouchableOpacity 
-                  style={styles.viewAllButtonContainer}
-                  onPress={handleToggleViewAll}
-                >
-                  <Text style={styles.viewAllButtonText}>
-                    {showAllReviews ? 'Show Less' : `View All (${reviews.length})`}
+          {/* ID Verification Section */}
+          <View style={styles.verificationSection}>
+            <Text style={styles.sectionTitle}>Identity Verification</Text>
+            {verificationStatus?.status === 'approved' ? (
+              <View style={styles.verifiedContainer}>
+                <View style={styles.statusIconContainer}>
+                  <Text style={{ fontSize: 24 }}>✅</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.verifiedText}>Identity Verified</Text>
+                  <Text style={styles.verifiedSubtext}>
+                    Your account is shielded with ultimate trust
                   </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            {loadingReviews ? (
-              <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 20 }} />
-            ) : reviews.length > 0 ? (
-              (showAllReviews ? reviews : reviews.slice(0, 5)).map((review) => (
-                <ReviewCard 
-                  key={review.id} 
-                  review={review} 
-                  currentUserId={user.id} 
-                />
-              ))
+                </View>
+              </View>
+            ) : verificationStatus?.status === 'pending' ? (
+              <TouchableOpacity
+                style={styles.pendingContainer}
+                onPress={() => navigation.navigate('IDVerificationUpload')}
+              >
+                <View style={styles.statusIconContainer}>
+                  <Text style={{ fontSize: 24 }}>⏳</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pendingText}>Verification Pending</Text>
+                  <Text style={styles.pendingSubtext}>{pendingBadgeText}</Text>
+                </View>
+              </TouchableOpacity>
+            ) : verificationStatus?.status === 'rejected' ? (
+              <TouchableOpacity
+                style={styles.rejectedContainer}
+                onPress={() => navigation.navigate('IDVerificationUpload')}
+              >
+                <View style={styles.statusIconContainer}>
+                  <Text style={{ fontSize: 24 }}>❌</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rejectedText}>Verification Rejected</Text>
+                  <Text style={styles.rejectedSubtext}>
+                    Reason: {verificationStatus.rejectionReason || 'Unknown'}. Tap to try again.
+                  </Text>
+                </View>
+              </TouchableOpacity>
             ) : (
-              <Text style={styles.noReviewsText}>No reviews yet</Text>
+              <TouchableOpacity
+                style={styles.upgradeButton}
+                onPress={() => navigation.navigate('IDVerificationUpload')}
+              >
+                <View style={styles.statusIconContainer}>
+                  <Text style={{ fontSize: 24 }}>🛡️</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.upgradeButtonText}>Upgrade to Verified</Text>
+                  <Text style={styles.upgradeButtonSubtext}>
+                    Build trust and unlock exclusive features
+                  </Text>
+                </View>
+              </TouchableOpacity>
             )}
           </View>
-        </View>
-      )}
 
-      {/* Action Buttons */}
-      <View style={styles.actionsSection}>
-        <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-          <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
-        </TouchableOpacity>
+          {/* Badges Section */}
+          <BadgeShowcase userId={user.id} />
 
-        {/* Consolidated Subscription/Club Button */}
-        <TouchableOpacity style={styles.clubButton} onPress={() => navigation.navigate('KidsClubOverview')}>
-          <Text style={styles.clubButtonText}>
-            {(trialStatus?.status === 'active' || trialStatus?.status === 'trial') ? '👑 Manage Kid\'s Club' : '👑 Join Kid\'s Club'}
-          </Text>
-        </TouchableOpacity>
+          {/* Referral Code Section */}
+          {referralCode && (
+            <View style={styles.referralSection}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>Share & Earn</Text>
+                <TouchableOpacity
+                  style={styles.viewDashboardButton}
+                  onPress={() => navigation.navigate('ReferralDashboard')}
+                >
+                  <Text style={styles.viewDashboardButtonText}>View Dashboard →</Text>
+                </TouchableOpacity>
+              </View>
 
-        <TouchableOpacity 
-          style={styles.billingButton} 
-          onPress={() => navigation.navigate('TransactionHistory')}
-        >
-          <Text style={styles.billingButtonText}>📜 Billing History</Text>
-        </TouchableOpacity>
+              {/* New Pending Action Notice */}
+              {pendingReferralNotice && (
+                <View style={styles.pendingReferralBadge}>
+                  <Text style={styles.pendingReferralText}>{pendingReferralNotice}</Text>
+                </View>
+              )}
 
-        <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>
-          <Text style={styles.settingsButtonText}>⚙️ Settings</Text>
-        </TouchableOpacity>
-        {/* Admin Dashboard - MODULE-11 SUB-005 */}
-        <TouchableOpacity style={styles.adminDashboardButton} onPress={() => navigation.navigate('AdminDashboard')}>
-          <Text style={styles.adminDashboardButtonText}>⏱️ Admin Dashboard</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          testID="profile-logout-button"
-          style={[styles.logoutButton, loggingOut && styles.logoutButtonDisabled]}
-          onPress={handleLogout}
-          disabled={loggingOut}
-        >
-          {loggingOut ? (
-            <ActivityIndicator size="small" color="#EF4444" />
-          ) : (
-            <Text style={styles.logoutButtonText}>🚪 Logout</Text>
+              <View style={styles.referralCodeContainer}>
+                <View style={styles.referralCodeWrapper}>
+                  <Text style={styles.referralCodeLabel}>Your Referral Code:</Text>
+                  <Text style={styles.referralCode}>{referralCode}</Text>
+                  <Text style={styles.referralCodeHint}>
+                    Share this code with friends to earn bonus Swap Points
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.copyButton, copiedToClipboard && styles.copyButtonSuccess]}
+                  onPress={handleCopyReferralCode}
+                >
+                  <Text style={styles.copyButtonText}>
+                    {copiedToClipboard ? '✓ Copied' : 'Copy'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
-        </TouchableOpacity>
-      </View>
+
+          {/* Reviews Section */}
+          {reviewStats && reviewStats.total_reviews > 0 && (
+            <View style={styles.reviewsSection}>
+              <Text style={styles.sectionTitle}>Reviews ({reviewStats.total_reviews})</Text>
+
+              {/* Rating Summary */}
+              <View style={styles.ratingSection}>
+                <View style={styles.ratingHeader}>
+                  <Text style={styles.averageRating}>{reviewStats.average_rating.toFixed(1)}</Text>
+                  <View style={styles.ratingDetails}>
+                    <StarRating rating={Math.round(reviewStats.average_rating)} size={24} />
+                    <Text style={styles.totalReviews}>
+                      Based on {reviewStats.total_reviews}{' '}
+                      {reviewStats.total_reviews === 1 ? 'review' : 'reviews'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Rating Breakdown */}
+                <View style={styles.breakdown}>
+                  {[5, 4, 3, 2, 1].map((stars) => {
+                    const count =
+                      reviewStats.rating_breakdown[
+                        stars as keyof typeof reviewStats.rating_breakdown
+                      ];
+                    const percentage =
+                      reviewStats.total_reviews > 0 ? (count / reviewStats.total_reviews) * 100 : 0;
+
+                    return (
+                      <View key={stars} style={styles.breakdownRow}>
+                        <Text style={styles.breakdownLabel}>{stars} ★</Text>
+                        <View style={styles.breakdownBar}>
+                          <View style={[styles.breakdownFill, { width: `${percentage}%` }]} />
+                        </View>
+                        <Text style={styles.breakdownCount}>{count}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Recent Reviews */}
+              <View style={styles.reviewsList}>
+                <View style={styles.reviewsListHeader}>
+                  <Text style={styles.reviewsListTitle}>
+                    {showAllReviews ? 'All Reviews' : 'Recent Reviews'}
+                  </Text>
+                  {reviews.length > 5 && (
+                    <TouchableOpacity
+                      style={styles.viewAllButtonContainer}
+                      onPress={handleToggleViewAll}
+                    >
+                      <Text style={styles.viewAllButtonText}>
+                        {showAllReviews ? 'Show Less' : `View All (${reviews.length})`}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {loadingReviews ? (
+                  <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 20 }} />
+                ) : reviews.length > 0 ? (
+                  (showAllReviews ? reviews : reviews.slice(0, 5)).map((review) => (
+                    <ReviewCard key={review.id} review={review} currentUserId={user.id} />
+                  ))
+                ) : (
+                  <Text style={styles.noReviewsText}>No reviews yet</Text>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Action Buttons */}
+          <View style={styles.actionsSection}>
+            <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
+              <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
+            </TouchableOpacity>
+
+            {/* Consolidated Subscription/Club Button */}
+            <TouchableOpacity
+              style={styles.clubButton}
+              onPress={() => navigation.navigate('KidsClubOverview')}
+            >
+              <Text style={styles.clubButtonText}>
+                {trialStatus?.status === 'active' || trialStatus?.status === 'trial'
+                  ? "👑 Manage Kid's Club"
+                  : "👑 Join Kid's Club"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.billingButton}
+              onPress={() => navigation.navigate('TransactionHistory')}
+            >
+              <Text style={styles.billingButtonText}>📜 Billing History</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Text style={styles.settingsButtonText}>⚙️ Settings</Text>
+            </TouchableOpacity>
+            {/* Admin Dashboard - MODULE-11 SUB-005 */}
+            <TouchableOpacity
+              style={styles.adminDashboardButton}
+              onPress={() => navigation.navigate('AdminDashboard')}
+            >
+              <Text style={styles.adminDashboardButtonText}>⏱️ Admin Dashboard</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="profile-logout-button"
+              style={[styles.logoutButton, loggingOut && styles.logoutButtonDisabled]}
+              onPress={handleLogout}
+              disabled={loggingOut}
+            >
+              {loggingOut ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Text style={styles.logoutButtonText}>🚪 Logout</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </ScrollView>
         <BottomNavBar />
 
@@ -1002,5 +1013,4 @@ const styles = StyleSheet.create({
     color: '#F87171',
     fontSize: 12,
   },
-
 });

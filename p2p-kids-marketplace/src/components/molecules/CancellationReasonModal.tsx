@@ -1,13 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Modal,
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  TextInput,
-  StyleSheet,
-} from 'react-native';
+import { Modal, View, Text, ScrollView, Pressable, TextInput, StyleSheet } from 'react-native';
 
 export interface CancellationReason {
   id: string;
@@ -87,12 +79,7 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
   const isConfirmDisabled = !selectedReason || (selectedReason === 'other' && !customReason.trim());
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.container}>
           <View style={styles.header}>
@@ -111,58 +98,54 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
           >
             <View style={styles.reasonsList}>
               {PREDEFINED_REASONS.map((reason) => (
-              <Pressable
-                key={reason.id}
-                style={[
-                  styles.reasonOption,
-                  selectedReason === reason.id && styles.reasonOptionSelected,
-                ]}
-                onPress={() => {
-                  setSelectedReason(reason.id);
-                  if (reason.id !== 'other') {
-                    setCustomReason('');
-                  }
-                }}
-                disabled={isLoading}
-              >
-                <View style={styles.radioButton}>
-                  {selectedReason === reason.id && (
-                    <View style={styles.radioButtonInner} />
-                  )}
-                </View>
-                <View style={styles.reasonContent}>
-                  <Text
-                    style={[
-                      styles.reasonLabel,
-                      selectedReason === reason.id && styles.reasonLabelSelected,
-                    ]}
-                  >
-                    {reason.label}
-                  </Text>
-                  {reason.description && (
-                    <Text style={styles.reasonDescription}>{reason.description}</Text>
-                  )}
-                </View>
-              </Pressable>
-            ))}
+                <Pressable
+                  key={reason.id}
+                  style={[
+                    styles.reasonOption,
+                    selectedReason === reason.id && styles.reasonOptionSelected,
+                  ]}
+                  onPress={() => {
+                    setSelectedReason(reason.id);
+                    if (reason.id !== 'other') {
+                      setCustomReason('');
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  <View style={styles.radioButton}>
+                    {selectedReason === reason.id && <View style={styles.radioButtonInner} />}
+                  </View>
+                  <View style={styles.reasonContent}>
+                    <Text
+                      style={[
+                        styles.reasonLabel,
+                        selectedReason === reason.id && styles.reasonLabelSelected,
+                      ]}
+                    >
+                      {reason.label}
+                    </Text>
+                    {reason.description && (
+                      <Text style={styles.reasonDescription}>{reason.description}</Text>
+                    )}
+                  </View>
+                </Pressable>
+              ))}
             </View>
 
             {selectedReason === 'other' && (
               <View style={styles.customInputContainer}>
-              <TextInput
-                style={styles.customInput}
-                placeholder="Please describe why you're cancelling..."
-                placeholderTextColor="#999"
-                value={customReason}
-                onChangeText={setCustomReason}
-                multiline
-                maxLength={500}
-                editable={!isLoading}
-              />
-              <Text style={styles.charCount}>
-                {customReason.length}/500
-              </Text>
-            </View>
+                <TextInput
+                  style={styles.customInput}
+                  placeholder="Please describe why you're cancelling..."
+                  placeholderTextColor="#999"
+                  value={customReason}
+                  onChangeText={setCustomReason}
+                  multiline
+                  maxLength={500}
+                  editable={!isLoading}
+                />
+                <Text style={styles.charCount}>{customReason.length}/500</Text>
+              </View>
             )}
           </ScrollView>
 

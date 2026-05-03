@@ -2,24 +2,13 @@
 // MODULE-11 SUB-015: Full subscription payment flow screen
 
 import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  SafeAreaView,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SubscribeButton } from '../../components/subscription/SubscribeButton';
 import { useSubscription } from '../../hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
-import {
-  getSubscriptionPrice,
-  getTrialDays,
-  invalidateConfigCache,
-} from '@/services/adminConfig';
+import { getSubscriptionPrice, getTrialDays, invalidateConfigCache } from '@/services/adminConfig';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -46,16 +35,16 @@ export function SubscriptionPaymentScreen() {
     setConfigLoading(true);
     try {
       invalidateConfigCache();
-      const [price, days] = await Promise.all([
-        getSubscriptionPrice(true),
-        getTrialDays(true),
-      ]);
+      const [price, days] = await Promise.all([getSubscriptionPrice(true), getTrialDays(true)]);
 
       if (Number.isFinite(price) && price > 0) {
         setMonthlyPriceDollars(price);
       } else {
         // If admin_config is not set, show 0 and log error
-        console.error('[SubscriptionPaymentScreen] Invalid subscription price from admin_config:', price);
+        console.error(
+          '[SubscriptionPaymentScreen] Invalid subscription price from admin_config:',
+          price
+        );
         setMonthlyPriceDollars(0);
       }
 
@@ -81,8 +70,7 @@ export function SubscriptionPaymentScreen() {
   );
 
   // Determine if this is a renewal
-  const isRenewal =
-    subscription?.status === 'grace_period' || subscription?.status === 'expired';
+  const isRenewal = subscription?.status === 'grace_period' || subscription?.status === 'expired';
 
   const monthlyPriceLabel = formatMonthlyPrice(monthlyPriceDollars);
   const monthlyPriceCents = toPriceCents(monthlyPriceDollars);
@@ -108,9 +96,7 @@ export function SubscriptionPaymentScreen() {
             {isRenewal ? 'Re-subscribe to Kids Club+' : 'Join Kids Club+'}
           </Text>
           <Text style={styles.subtitle} testID="payment-subtitle">
-            {isRenewal
-              ? 'Continue where you left off'
-              : 'Unlock Swap Points and reduced fees'}
+            {isRenewal ? 'Continue where you left off' : 'Unlock Swap Points and reduced fees'}
           </Text>
         </View>
 
@@ -152,9 +138,7 @@ export function SubscriptionPaymentScreen() {
             <Text style={styles.benefitIcon}>⚡</Text>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Early Access</Text>
-              <Text style={styles.benefitDescription}>
-                See new listings before free users
-              </Text>
+              <Text style={styles.benefitDescription}>See new listings before free users</Text>
             </View>
           </View>
         </View>
@@ -190,8 +174,8 @@ export function SubscriptionPaymentScreen() {
 
         {/* Terms */}
         <Text style={styles.terms} testID="payment-terms">
-          By subscribing, you agree to automatic monthly billing. You can cancel
-          anytime from your subscription settings. No refunds for partial months.
+          By subscribing, you agree to automatic monthly billing. You can cancel anytime from your
+          subscription settings. No refunds for partial months.
         </Text>
       </ScrollView>
     </SafeAreaView>

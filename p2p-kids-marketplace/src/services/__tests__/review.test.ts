@@ -256,7 +256,11 @@ describe('Review Service', () => {
   });
 
   describe('getUserReviews', () => {
-    const buildUserReviewMocks = (mockReviews: any[], mockProfiles: any[] = [], mockVerifications: any[] = []) => {
+    const buildUserReviewMocks = (
+      mockReviews: any[],
+      mockProfiles: any[] = [],
+      mockVerifications: any[] = []
+    ) => {
       const reviewsChain: any = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -370,11 +374,11 @@ describe('Review Service', () => {
 
       expect(result.success).toBe(true);
       expect(result.reviews).toHaveLength(2);
-      
+
       // Non-anonymous review should have reviewer info
       expect(result.reviews[0].is_anonymous).toBe(false);
       expect(result.reviews[0].reviewer?.first_name).toBe('John');
-      
+
       // Anonymous review should still be in list (hiding happens in UI)
       expect(result.reviews[1].is_anonymous).toBe(true);
       expect(result.reviews[1].reviewer?.first_name).toBe('Jane');
@@ -394,9 +398,7 @@ describe('Review Service', () => {
         },
       ];
 
-      const mockProfiles = [
-        { user_id: 'rev-1', name: 'Test User', avatar_url: null },
-      ];
+      const mockProfiles = [{ user_id: 'rev-1', name: 'Test User', avatar_url: null }];
 
       buildUserReviewMocks(mockReviews, mockProfiles);
 

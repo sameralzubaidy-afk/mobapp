@@ -28,24 +28,24 @@ export interface Trade {
   seller_id: string;
   node_id: string | null;
   status: TradeStatus;
-  
+
   // Monetary breakdown
-  sp_amount: number;         // SP portion in points
+  sp_amount: number; // SP portion in points
   cash_amount_cents: number; // Cash portion in cents
   platform_fee_cents: number; // Total platform fee in cents
-  cash_currency: string;     // e.g., 'usd'
-  
+  cash_currency: string; // e.g., 'usd'
+
   // Fees & Snapshots
   buyer_subscription_status: string | null; // 'free', 'trial', 'active', etc.
-  buyer_transaction_fee_cents: number;      // $0.99 or $2.99 in cents
-  
+  buyer_transaction_fee_cents: number; // $0.99 or $2.99 in cents
+
   // External IDs
   stripe_payment_intent_id?: string | null;
-  
+
   // Links to SP Ledger (MODULE-09)
-  sp_debit_ledger_entry_id?: string | null;  // Entry for SP spent by buyer
+  sp_debit_ledger_entry_id?: string | null; // Entry for SP spent by buyer
   sp_credit_ledger_entry_id?: string | null; // Entry for SP earned by seller (if applicable)
-  
+
   // Timestamps
   created_at: string;
   updated_at: string;

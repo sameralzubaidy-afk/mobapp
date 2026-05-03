@@ -4,11 +4,7 @@
  */
 
 import { supabase } from '../../../config/supabase';
-import {
-  getTrialStatus,
-  hasTrialExpired,
-  triggerTrialConversion,
-} from '../trialConversion';
+import { getTrialStatus, hasTrialExpired, triggerTrialConversion } from '../trialConversion';
 
 // Mock Supabase
 jest.mock('../../../config/supabase', () => ({

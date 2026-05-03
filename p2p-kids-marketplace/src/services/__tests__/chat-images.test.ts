@@ -1,10 +1,6 @@
 // @jest-environment jsdom
 
-import {
-  compressImage,
-  uploadChatImage,
-  sendImageMessage,
-} from '../chat';
+import { compressImage, uploadChatImage, sendImageMessage } from '../chat';
 import { supabase } from '../../config/supabase';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'base64-arraybuffer';
@@ -192,9 +188,9 @@ describe('Chat Image Functions', () => {
 
       // Mock upload failure
       const mockStorageFrom = {
-        upload: jest.fn().mockResolvedValueOnce({ 
-          data: null, 
-          error: { message: 'Upload failed' } 
+        upload: jest.fn().mockResolvedValueOnce({
+          data: null,
+          error: { message: 'Upload failed' },
         }),
         getPublicUrl: jest.fn(),
       };
@@ -222,12 +218,12 @@ describe('Chat Image Functions', () => {
       // Mock successful upload
       const mockPublicUrl = 'https://example.com/image.jpg';
       const mockStorageFrom = {
-        upload: jest.fn().mockResolvedValueOnce({ 
-          data: { path: 'upload-path' }, 
-          error: null 
+        upload: jest.fn().mockResolvedValueOnce({
+          data: { path: 'upload-path' },
+          error: null,
         }),
-        getPublicUrl: jest.fn().mockReturnValueOnce({ 
-          data: { publicUrl: mockPublicUrl } 
+        getPublicUrl: jest.fn().mockReturnValueOnce({
+          data: { publicUrl: mockPublicUrl },
         }),
       };
       (supabase.storage.from as jest.Mock).mockReturnValue(mockStorageFrom);
@@ -246,9 +242,9 @@ describe('Chat Image Functions', () => {
       const mockSupabaseFrom = {
         insert: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValueOnce({ 
-          data: mockMessageData, 
-          error: null 
+        single: jest.fn().mockResolvedValueOnce({
+          data: mockMessageData,
+          error: null,
         }),
       };
       (supabase.from as jest.Mock).mockReturnValue(mockSupabaseFrom);

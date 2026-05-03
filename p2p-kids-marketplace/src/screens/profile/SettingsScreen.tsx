@@ -2,7 +2,15 @@
 // MODULE-14: Settings hub for user preferences
 
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { sendTestPushNotification } from '../../services/pushDelivery';
@@ -23,7 +31,7 @@ export default function SettingsScreen({ navigation }: any) {
     setTestingPush(true);
     try {
       const result = await sendTestPushNotification(authUserId);
-      
+
       if (result.success && result.sent) {
         Alert.alert(
           'Test Notification Sent ✅',
@@ -43,11 +51,9 @@ export default function SettingsScreen({ navigation }: any) {
           [{ text: 'OK' }]
         );
       } else if (result.error) {
-        Alert.alert(
-          'Send Failed ❌',
-          `Failed to send test notification: ${result.error}`,
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Send Failed ❌', `Failed to send test notification: ${result.error}`, [
+          { text: 'OK' },
+        ]);
       } else {
         Alert.alert(
           'Notification Queued 📬',
@@ -57,11 +63,9 @@ export default function SettingsScreen({ navigation }: any) {
       }
     } catch (error) {
       console.error('[SettingsScreen] Test push notification error:', error);
-      Alert.alert(
-        'Error',
-        'An unexpected error occurred while sending the test notification.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Error', 'An unexpected error occurred while sending the test notification.', [
+        { text: 'OK' },
+      ]);
     } finally {
       setTestingPush(false);
     }

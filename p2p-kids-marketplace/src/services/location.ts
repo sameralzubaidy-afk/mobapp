@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/location.ts
  * NODE-003: Automatic Node Assignment on Signup
- * 
+ *
  * Handles:
  * - ZIP code to coordinates lookup (Zippopotam API)
  * - Automatic node assignment (exact ZIP or nearest active)
@@ -44,12 +44,12 @@ type ZipCodeResponse = {
 
 /**
  * Assign user to node based on their ZIP code during signup/profile creation
- * 
+ *
  * Logic:
  * 1. If ZIP has active node → assign to that node (exact match)
  * 2. If ZIP is NOT active → assign to nearest active node (fallback)
  * 3. If no active nodes exist → throw error (user offered waitlist)
- * 
+ *
  * @param zipCode - 5-digit US ZIP code (e.g., "06850")
  * @param userId - Optional user ID for tracking
  * @returns NodeAssignmentResult with node details and match type
@@ -75,7 +75,6 @@ export const assignNodeByZipCode = async (
 
     const { latitude, longitude } = coordinates;
 
-
     // Step 2: Call RPC to find best active node (exact match or nearest)
     const { data, error } = await supabase.rpc('resolve_active_node_for_signup', {
       requested_zip: zipCode,
@@ -99,7 +98,6 @@ export const assignNodeByZipCode = async (
     const row = data[0];
     const distanceKm: number | null = row.distance_km ?? null;
     const distanceMiles = distanceKm === null ? null : distanceKm * 0.621371;
-
 
     // Step 3: Warn if fallback node is far (>50 miles)
     if (distanceMiles !== null && distanceMiles > 50) {
@@ -144,7 +142,7 @@ export const assignNodeByZipCode = async (
 /**
  * Convert ZIP code to latitude/longitude using Zippopotam API
  * Handles US ZIP codes only.
- * 
+ *
  * @param zipCode - 5-digit ZIP code
  * @returns Object with latitude and longitude, or null if lookup fails
  */
@@ -181,7 +179,7 @@ export const getZipCodeCoordinates = async (
 /**
  * Increment node member count after user assignment
  * Uses RPC for atomic operation
- * 
+ *
  * @param nodeId - Geographic node UUID
  */
 export const incrementNodeMemberCount = async (nodeId: string): Promise<void> => {
@@ -210,7 +208,7 @@ export const incrementNodeMemberCount = async (nodeId: string): Promise<void> =>
 /**
  * Decrement node member count (e.g., when user deletes profile or changes nodes)
  * Uses RPC for atomic operation
- * 
+ *
  * @param nodeId - Geographic node UUID
  */
 export const decrementNodeMemberCount = async (nodeId: string): Promise<void> => {
@@ -239,7 +237,7 @@ export const decrementNodeMemberCount = async (nodeId: string): Promise<void> =>
 /**
  * Check if a specific ZIP code has an active node
  * Used to determine if waitlist popup should be shown
- * 
+ *
  * @param zipCode - ZIP code to check
  * @returns true if active node exists for this ZIP
  */
@@ -266,7 +264,7 @@ export const checkZipCodeHasActiveNode = async (zipCode: string): Promise<boolea
 
 /**
  * NODE-007: Get user's preferred search radius (or default)
- * 
+ *
  * @param userId - User ID
  * @returns Preferred radius in miles, or 10 as default
  */
@@ -293,7 +291,7 @@ export const getUserPreferredRadius = async (userId: string): Promise<number> =>
 /**
  * NODE-007: Save user's preferred search radius
  * Creates or updates user_preferences row
- * 
+ *
  * @param userId - User ID
  * @param radiusMiles - Radius in miles
  */
@@ -328,7 +326,6 @@ export const saveUserPreferredRadius = async (
         throw error;
       }
     }
-
   } catch (error) {
     console.error('❌ saveUserPreferredRadius error:', error);
     throw error;
@@ -338,7 +335,7 @@ export const saveUserPreferredRadius = async (
 /**
  * NODE-007: Calculate distance between two nodes using PostGIS
  * Returns distance in miles
- * 
+ *
  * @param node1Id - First node UUID
  * @param node2Id - Second node UUID
  * @returns Distance in miles, or null if calculation fails
@@ -358,10 +355,7 @@ export const calculateDistanceBetweenNodes = async (
     });
 
     if (error) {
-      console.warn(
-        `⚠️ Distance calculation error between ${node1Id} and ${node2Id}:`,
-        error
-      );
+      console.warn(`⚠️ Distance calculation error between ${node1Id} and ${node2Id}:`, error);
       return null;
     }
 

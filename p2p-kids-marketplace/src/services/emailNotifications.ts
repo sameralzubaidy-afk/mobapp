@@ -2,7 +2,7 @@
  * Email Notification Service (Critical Events)
  * MODULE: MODULE-14-NOTIFICATIONS-V2 (NOTIF-V2-009)
  * TASK: Email Notifications for critical events
- * 
+ *
  * Handles email notifications for subscription events, payment failures,
  * and security alerts with delivery tracking.
  */
@@ -213,9 +213,7 @@ export async function sendPasswordChangedEmail(
 /**
  * Get email delivery statistics for a user
  */
-export async function getUserEmailStats(
-  userId: string
-): Promise<{
+export async function getUserEmailStats(userId: string): Promise<{
   total: number;
   sent: number;
   delivered: number;

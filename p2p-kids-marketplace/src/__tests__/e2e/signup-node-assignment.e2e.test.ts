@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/e2e/signup-node-assignment.e2e.test.ts
  * NODE-003: E2E Test for Signup with Automatic Node Assignment
- * 
+ *
  * Scenarios:
  * 1. User enters ZIP with active node → assigned to exact ZIP
  * 2. User enters ZIP WITHOUT active node → assigned to nearest node
@@ -11,10 +11,7 @@
  */
 
 import { supabase } from '../../services/supabase';
-import {
-  assignNodeByZipCode,
-  incrementNodeMemberCount,
-} from '../../services/location';
+import { assignNodeByZipCode, incrementNodeMemberCount } from '../../services/location';
 import { upsertZipWaitlist, isUserOnWaitlist } from '../../services/waitlist';
 
 // Mock external services
@@ -36,8 +33,7 @@ const mockSupabase = supabase as jest.Mocked<typeof supabase>;
 const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
 
 // Test data
-const TEST_USER_ID =
-  process.env.E2E_TEST_BUYER_ID || '49243010-f458-4744-add1-a6c84ab95f1f';
+const TEST_USER_ID = process.env.E2E_TEST_BUYER_ID || '49243010-f458-4744-add1-a6c84ab95f1f';
 const TEST_EMAIL = 'test@example.com';
 const ACTIVE_ZIP = '06850'; // Norwalk - should have active node
 const INACTIVE_ZIP = '06840'; // Near Norwalk - no active node

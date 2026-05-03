@@ -106,11 +106,7 @@ describe('SP Earning Service', () => {
         error: null,
       });
 
-      const result = await awardReferralReward(
-        'referrer-123',
-        'referee-456',
-        'referral-789'
-      );
+      const result = await awardReferralReward('referrer-123', 'referee-456', 'referral-789');
 
       expect(result.success).toBe(true);
       expect(result.sp_awarded).toBe(75); // 50 + 25
@@ -132,11 +128,7 @@ describe('SP Earning Service', () => {
         error: null,
       });
 
-      const result = await awardReferralReward(
-        'referrer-123',
-        'referee-456',
-        'referral-789'
-      );
+      const result = await awardReferralReward('referrer-123', 'referee-456', 'referral-789');
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('already processed');

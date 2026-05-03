@@ -3,7 +3,11 @@ export const query = (table: string) => (supabase as any).from(table);
 
 export const insert = async (table: string, data: any) => {
   try {
-    const { data: resp, error } = await (supabase as any).from(String(table)).insert(data).select().single();
+    const { data: resp, error } = await (supabase as any)
+      .from(String(table))
+      .insert(data)
+      .select()
+      .single();
     return { data: resp ?? null, error: error ?? null };
   } catch (e: any) {
     return { data: null, error: e as Error };
@@ -21,7 +25,12 @@ export const insertMany = async (table: string, data: any[]) => {
 
 export const update = async (table: string, id: string, data: any) => {
   try {
-    const { data: resp, error } = await (supabase as any).from(String(table)).update(data).eq('id', id).select().single();
+    const { data: resp, error } = await (supabase as any)
+      .from(String(table))
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single();
     return { data: resp ?? null, error: error ?? null };
   } catch (e: any) {
     return { data: null, error: e as Error };
@@ -39,14 +48,21 @@ export const deleteById = async (table: string, id: string) => {
 
 export const getById = async (table: string, id: string) => {
   try {
-    const { data, error } = await (supabase as any).from(String(table)).select('*').eq('id', id).single();
+    const { data, error } = await (supabase as any)
+      .from(String(table))
+      .select('*')
+      .eq('id', id)
+      .single();
     return { data: data ?? null, error: error ?? null };
   } catch (e: any) {
     return { data: null, error: e as Error };
   }
 };
 
-export const getAll = async (table: string, opts?: { limit?: number; offset?: number; order?: string }) => {
+export const getAll = async (
+  table: string,
+  opts?: { limit?: number; offset?: number; order?: string }
+) => {
   try {
     let q: any = (supabase as any).from(String(table)).select('*');
     if (opts?.limit) q = q.limit(opts.limit);
@@ -58,4 +74,3 @@ export const getAll = async (table: string, opts?: { limit?: number; offset?: nu
     return { data: null, error: e as Error };
   }
 };
-

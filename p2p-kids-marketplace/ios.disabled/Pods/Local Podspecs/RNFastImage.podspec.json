@@ -20,11 +20,7 @@
   "source_files": "ios/**/*.{h,m}",
   "dependencies": {
     "React-Core": [],
-    "SDWebImage": [
-      "~> 5.11.1"
-    ],
-    "SDWebImageWebPCoder": [
-      "~> 0.8.4"
-    ]
+    "SDWebImage": ["~> 5.11.1"],
+    "SDWebImageWebPCoder": ["~> 0.8.4"]
   }
 }

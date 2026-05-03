@@ -2,10 +2,10 @@
  * E2E Integration Test: Item Images Storage Bucket
  * Module: MODULE-13-SAFETY-COMPLIANCE
  * Task: SAFETY-P001
- * 
+ *
  * Tests the item-images storage bucket against LIVE Supabase production.
  * Run: RUN_SUPABASE_E2E=true npm run test:e2e
- * 
+ *
  * Prerequisites:
  * 1. Migration 20260328000100_create_item_images_bucket.sql must be applied
  * 2. Test user must exist with valid session
@@ -16,10 +16,7 @@ import { supabase } from '../../config/supabase';
 
 const TEST_USER_EMAIL = process.env.TEST_USER_EMAIL;
 const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD;
-const SKIP_E2E =
-  !process.env.RUN_SUPABASE_E2E ||
-  !TEST_USER_EMAIL ||
-  !TEST_USER_PASSWORD;
+const SKIP_E2E = !process.env.RUN_SUPABASE_E2E || !TEST_USER_EMAIL || !TEST_USER_PASSWORD;
 
 (SKIP_E2E ? describe.skip : describe)('E2E: Item Images Storage Bucket', () => {
   let testUserId: string;
@@ -169,9 +166,7 @@ const SKIP_E2E =
 
       const filePath = `${otherItem.id}/unauthorized-upload-${Date.now()}.png`;
 
-      const { data, error } = await supabase.storage
-        .from('item-images')
-        .upload(filePath, blob);
+      const { data, error } = await supabase.storage.from('item-images').upload(filePath, blob);
 
       expect(error).toBeDefined();
       expect(error?.message).toMatch(/policy|denied|permission/i);
@@ -201,9 +196,7 @@ const SKIP_E2E =
       expect(uploadData).toBeDefined();
 
       // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('item-images')
-        .getPublicUrl(filePath);
+      const { data: urlData } = supabase.storage.from('item-images').getPublicUrl(filePath);
 
       expect(urlData.publicUrl).toBeDefined();
       expect(urlData.publicUrl).toContain('item-images');
@@ -244,9 +237,7 @@ const SKIP_E2E =
       expect(uploadError).toBeNull();
 
       // Now delete it
-      const { error: deleteError } = await supabase.storage
-        .from('item-images')
-        .remove([filePath]);
+      const { error: deleteError } = await supabase.storage.from('item-images').remove([filePath]);
 
       expect(deleteError).toBeNull();
 
@@ -276,9 +267,7 @@ const SKIP_E2E =
         return;
       }
 
-      const { error: deleteError } = await supabase.storage
-        .from('item-images')
-        .remove([filePath]);
+      const { error: deleteError } = await supabase.storage.from('item-images').remove([filePath]);
 
       expect(deleteError).toBeDefined();
       expect(deleteError?.message).toMatch(/policy|denied|permission/i);
@@ -295,9 +284,7 @@ const SKIP_E2E =
       const filePath = `${testItemId}/test-jpeg-${Date.now()}.jpg`;
       uploadedPaths.push(filePath);
 
-      const { error } = await supabase.storage
-        .from('item-images')
-        .upload(filePath, blob);
+      const { error } = await supabase.storage.from('item-images').upload(filePath, blob);
 
       expect(error).toBeNull();
     });
@@ -312,23 +299,22 @@ const SKIP_E2E =
       const filePath = `${testItemId}/test-png-${Date.now()}.png`;
       uploadedPaths.push(filePath);
 
-      const { error } = await supabase.storage
-        .from('item-images')
-        .upload(filePath, blob);
+      const { error } = await supabase.storage.from('item-images').upload(filePath, blob);
 
       expect(error).toBeNull();
     });
 
     it('should accept WebP images', async () => {
-      const testWebp = Buffer.from('UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=', 'base64');
+      const testWebp = Buffer.from(
+        'UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=',
+        'base64'
+      );
       const blob = new Blob([testWebp], { type: 'image/webp' });
 
       const filePath = `${testItemId}/test-webp-${Date.now()}.webp`;
       uploadedPaths.push(filePath);
 
-      const { error } = await supabase.storage
-        .from('item-images')
-        .upload(filePath, blob);
+      const { error } = await supabase.storage.from('item-images').upload(filePath, blob);
 
       expect(error).toBeNull();
     });

@@ -2,14 +2,7 @@
 // MODULE-11 SUB-015: Subscribe button with integrated payment flow
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  StyleSheet,
-  Pressable,
-  Alert,
-} from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, Pressable, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { usePaymentSheet } from '../../hooks/usePaymentSheet';
@@ -49,9 +42,7 @@ export function SubscribeButton({
   const { setupPaymentSheet, presentSheet, loading, error, resetError } = usePaymentSheet();
   const [processing, setProcessing] = useState(false);
 
-  const buttonLabel =
-    label ||
-    (isRenewal ? 'Re-subscribe Now' : 'Subscribe to Kids Club+');
+  const buttonLabel = label || (isRenewal ? 'Re-subscribe Now' : 'Subscribe to Kids Club+');
   const priceLabel = formatPriceLabel(priceCents);
 
   const handleSubscribe = async () => {
@@ -139,11 +130,9 @@ export function SubscribeButton({
     } catch (err: any) {
       console.error('[SubscribeButton] Error:', err);
 
-      Alert.alert(
-        'Payment Error',
-        err.message || 'Unable to process payment. Please try again.',
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Payment Error', err.message || 'Unable to process payment. Please try again.', [
+        { text: 'OK' },
+      ]);
     } finally {
       setProcessing(false);
     }

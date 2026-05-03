@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/services/items.test.ts
  * MODULE-03 NODE-006: Node-Specific Item Filtering Tests
- * 
+ *
  * Tests:
  * - Node-based item filtering
  * - Cross-node search within radius
@@ -293,9 +293,7 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
 
       await getItems(filters, 'user-123');
 
-      expect(mockQuery.or).toHaveBeenCalledWith(
-        'title.ilike.%lego%,description.ilike.%lego%'
-      );
+      expect(mockQuery.or).toHaveBeenCalledWith('title.ilike.%lego%,description.ilike.%lego%');
     });
 
     it('should handle errors gracefully', async () => {
@@ -405,8 +403,9 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
         if (table === 'geographic_nodes') return mockNodeQuery;
         if (table === 'profiles') {
           // first call: sellers in radius; second call: seller details
-          const callCount = (supabase.from as jest.Mock).mock.calls.filter((c) => c[0] === 'profiles')
-            .length;
+          const callCount = (supabase.from as jest.Mock).mock.calls.filter(
+            (c) => c[0] === 'profiles'
+          ).length;
           return callCount === 1 ? mockProfilesNodeQuery : mockProfilesDetailsQuery;
         }
         if (table === 'items') return mockItemsQuery;
@@ -436,7 +435,9 @@ describe('items.ts - NODE-006: Node-Specific Item Filtering', () => {
       const mockNodeQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: { message: 'Node not found' } }),
+        maybeSingle: jest
+          .fn()
+          .mockResolvedValue({ data: null, error: { message: 'Node not found' } }),
       };
 
       (supabase.from as jest.Mock).mockReturnValue(mockNodeQuery);

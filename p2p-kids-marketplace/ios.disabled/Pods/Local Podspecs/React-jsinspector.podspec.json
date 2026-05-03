@@ -41,9 +41,7 @@
     "React-jsinspectorcdp": [],
     "React-jsinspectornetwork": [],
     "React-jsinspectortracing": [],
-    "React-perflogger": [
-      "0.81.5"
-    ],
+    "React-perflogger": ["0.81.5"],
     "hermes-engine": [],
     "glog": [],
     "boost": [],

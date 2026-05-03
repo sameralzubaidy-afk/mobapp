@@ -58,7 +58,7 @@ export const processReferralCode = async (
 
     if (error) {
       console.warn('⚠️ Error applying referral code via RPC:', error);
-      
+
       // Fallback: If RPC is missing or fails (legacy environment), try the profiles-table workaround
       // but use lowercase and search correctly
       const { data: referrer, error: findError } = await supabase
@@ -67,14 +67,16 @@ export const processReferralCode = async (
         .eq('code', cleanCode)
         .maybeSingle();
 
-      const actualReferrer = referrer || await (async () => {
-        const { data: p } = await supabase
-          .from('profiles')
-          .select('user_id')
-          .eq('referral_code', referralCode.toUpperCase()) // Fallback to uppercase for legacy profiles
-          .maybeSingle();
-        return p;
-      })();
+      const actualReferrer =
+        referrer ||
+        (await (async () => {
+          const { data: p } = await supabase
+            .from('profiles')
+            .select('user_id')
+            .eq('referral_code', referralCode.toUpperCase()) // Fallback to uppercase for legacy profiles
+            .maybeSingle();
+          return p;
+        })());
 
       if (actualReferrer) {
         await supabase
@@ -88,7 +90,6 @@ export const processReferralCode = async (
     if (data && !data.success) {
       console.warn('⚠️ Referral code not applied:', data.error);
     }
-
   } catch (error) {
     console.error('❌ Process referral code exception:', error);
   }
@@ -115,7 +116,9 @@ export interface SignInData {
 /**
  * Sign up a new user with email/password and create their profile in the database
  */
-export const signUp = async (data: SignUpData): Promise<{ user: User | null; error: any | null }> => {
+export const signUp = async (
+  data: SignUpData
+): Promise<{ user: User | null; error: any | null }> => {
   try {
     // Step 1: Create Supabase Auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -144,7 +147,7 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
     // The database trigger (on_auth_user_created) should auto-create the profile
 
     // Small delay to allow trigger to execute
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise((resolve) => setTimeout(resolve, 200));
 
     // Verify profile exists
     const { data: profileData, error: profileCheckError } = await supabase
@@ -159,22 +162,20 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
 
     if (!profileData) {
       console.warn('Profile not created by trigger, attempting manual creation...');
-      
+
       // Generate unique referral code for new user
       const userReferralCode = await generateReferralCode();
 
       // Fallback: Create profile manually if trigger failed
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: authData.user.id,
-          name: data.name,
-          email: data.email,
-          phone: data.phone,
-          dob: data.dob || null,
-          phone_verified: false,
-          referral_code: userReferralCode,
-        });
+      const { error: profileError } = await supabase.from('profiles').insert({
+        user_id: authData.user.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        dob: data.dob || null,
+        phone_verified: false,
+        referral_code: userReferralCode,
+      });
 
       if (profileError) {
         // Check if it's a duplicate error (someone else created it)
@@ -183,13 +184,12 @@ export const signUp = async (data: SignUpData): Promise<{ user: User | null; err
           console.error('Manual profile creation failed:', profileError);
           return {
             user: null,
-            error: new Error('Failed to create user profile. Please contact support.')
+            error: new Error('Failed to create user profile. Please contact support.'),
           };
         }
       } else {
       }
     } else {
-      
       // Ensure referral code exists
       if (!profileData.referral_code) {
         const userReferralCode = await generateReferralCode();
@@ -234,14 +234,14 @@ export const signOut = async (): Promise<{ error: any | null }> => {
   try {
     // Clear Supabase auth session
     const { error } = await supabase.auth.signOut();
-    
+
     // TODO: Clear additional app state when context/redux is implemented
     // Examples:
     // - Clear user profile from context/redux store
     // - Clear cached data (listings, messages, etc.)
     // - Clear any pending notifications
     // - Revoke push notification tokens
-    
+
     return { error: error ?? null };
   } catch (e: any) {
     return { error: e as any };
@@ -275,9 +275,7 @@ export const resetPassword = async (email: string): Promise<{ error: any | null 
   }
 };
 
-export const updatePassword = async (
-  newPassword: string
-): Promise<{ error: any | null }> => {
+export const updatePassword = async (newPassword: string): Promise<{ error: any | null }> => {
   try {
     const { error } = await supabase.auth.updateUser({ password: newPassword } as any);
     return { error: error ?? null };
@@ -297,9 +295,7 @@ export const updateUserMetadata = async (
   }
 };
 
-export const onAuthStateChange = (
-  callback: (event: string, session: Session | null) => void
-) => {
+export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => {
   const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
     // pass session (Session | null) directly
     callback(event, session);
@@ -307,4 +303,3 @@ export const onAuthStateChange = (
 
   return () => sub?.subscription.unsubscribe();
 };
-

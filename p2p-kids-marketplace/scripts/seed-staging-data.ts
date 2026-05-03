@@ -1,6 +1,6 @@
 /**
  * Seed Staging Data Script (Enhanced)
- * 
+ *
  * Creates comprehensive test data for E2E tests including:
  * - Test users (buyer, seller, admin)
  * - Categories
@@ -10,7 +10,7 @@
  * - SP ledger entries
  * - Badges
  * - Referral codes
- * 
+ *
  * Run with: npm run seed:staging
  */
 
@@ -41,7 +41,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 const supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
-const adminSupabase = SUPABASE_SERVICE_KEY 
+const adminSupabase = SUPABASE_SERVICE_KEY
   ? createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!)
   : supabase;
 
@@ -58,7 +58,7 @@ export const TEST_USERS = {
   },
   seller: {
     id: '14be337c-aad6-403f-bab2-ba1a7d80b666', // Fixed UUID from tests
-    email: 'test-seller@kidsmarketplace.test', 
+    email: 'test-seller@kidsmarketplace.test',
     password: 'TestSeller123!',
     name: 'Test Seller',
     phone: '5551234002',
@@ -85,7 +85,7 @@ const TEST_LISTINGS = [
     description: 'Mario Kart 8 and Zelda BOTW. Great condition!',
     categoryName: 'Electronics',
     condition: 'good',
-    price: 45.00,
+    price: 45.0,
     status: 'available',
   },
   {
@@ -93,7 +93,7 @@ const TEST_LISTINGS = [
     description: 'Millennium Falcon set, all pieces included with instructions.',
     categoryName: 'Toys',
     condition: 'like_new',
-    price: 30.00,
+    price: 30.0,
     status: 'available',
   },
   {
@@ -101,7 +101,7 @@ const TEST_LISTINGS = [
     description: 'Blue mountain bike, perfect for ages 7-10. Minor scratches.',
     categoryName: 'Sports',
     condition: 'fair',
-    price: 60.00,
+    price: 60.0,
     status: 'available',
   },
   {
@@ -109,7 +109,7 @@ const TEST_LISTINGS = [
     description: 'Complete series, gently used paperbacks.',
     categoryName: 'Books',
     condition: 'good',
-    price: 35.00,
+    price: 35.0,
     status: 'available',
   },
   {
@@ -117,7 +117,7 @@ const TEST_LISTINGS = [
     description: 'Official size, indoor/outdoor use.',
     categoryName: 'Sports',
     condition: 'good',
-    price: 15.00,
+    price: 15.0,
     status: 'available',
   },
 ];
@@ -143,10 +143,14 @@ async function seedCategories(): Promise<{ [key: string]: string }> {
       continue;
     }
 
-    const { data, error } = await supabase.from('categories').insert({
-      name: cat.name,
-      icon: cat.icon,
-    }).select('id').single();
+    const { data, error } = await supabase
+      .from('categories')
+      .insert({
+        name: cat.name,
+        icon: cat.icon,
+      })
+      .select('id')
+      .single();
 
     if (error) {
       console.error(`   ❌ Failed to create category "${cat.name}": ${error.message}`);
@@ -159,11 +163,14 @@ async function seedCategories(): Promise<{ [key: string]: string }> {
   return categoryMap;
 }
 
-async function signupTestUser(userData: typeof TEST_USERS.buyer, role: string = 'user'): Promise<string | null> {
+async function signupTestUser(
+  userData: typeof TEST_USERS.buyer,
+  role: string = 'user'
+): Promise<string | null> {
   console.log(`\n📧 Setting up: ${userData.email}`);
-  
+
   let userId = (userData as any).id || null;
-  
+
   // Check if user already exists
   const { data: existingProfile } = await adminSupabase
     .from('profiles')
@@ -188,7 +195,7 @@ async function signupTestUser(userData: typeof TEST_USERS.buyer, role: string = 
   } else {
     // User doesn't exist, create them
     console.log(`   Creating new account...`);
-    
+
     // Use admin API to create user with specific UUID if provided
     if (SUPABASE_SERVICE_KEY && userId) {
       const { data: adminData, error: adminError } = await adminSupabase.auth.admin.createUser({
@@ -217,8 +224,8 @@ async function signupTestUser(userData: typeof TEST_USERS.buyer, role: string = 
           data: {
             name: userData.name,
             phone: userData.phone,
-          }
-        }
+          },
+        },
       });
 
       if (signUpError) {
@@ -234,21 +241,24 @@ async function signupTestUser(userData: typeof TEST_USERS.buyer, role: string = 
   if (!userId) return null;
 
   // Create/update profile
-  const { error: profileError } = await adminSupabase.from('profiles').upsert({
-    user_id: userId,
-    id: userId,
-    name: userData.name,
-    phone: userData.phone,
-    phone_verified: true,
-    profile_completed: true,
-    onboarding_completed: true,
-    onboarding_completed_at: new Date().toISOString(),
-    zip_code: '06850',
-    dob: '2000-01-01', // 24+ years old
-    role: role,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'user_id' });
+  const { error: profileError } = await adminSupabase.from('profiles').upsert(
+    {
+      user_id: userId,
+      id: userId,
+      name: userData.name,
+      phone: userData.phone,
+      phone_verified: true,
+      profile_completed: true,
+      onboarding_completed: true,
+      onboarding_completed_at: new Date().toISOString(),
+      zip_code: '06850',
+      dob: '2000-01-01', // 24+ years old
+      role: role,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id' }
+  );
 
   if (profileError) {
     console.log(`   ⚠️ Profile: ${profileError.message}`);
@@ -259,7 +269,11 @@ async function signupTestUser(userData: typeof TEST_USERS.buyer, role: string = 
   return userId;
 }
 
-async function seedListings(sellerId: string, sellerSession: any, categoryMap: { [key: string]: string }): Promise<string[]> {
+async function seedListings(
+  sellerId: string,
+  sellerSession: any,
+  categoryMap: { [key: string]: string }
+): Promise<string[]> {
   console.log('\n📦 Seeding test listings...');
   const listingIds: string[] = [];
 
@@ -487,11 +501,41 @@ async function seedBadges(): Promise<void> {
   console.log('\n🏆 Seeding badges...');
 
   const badges = [
-    { name: 'First Trade', category: 'trade', threshold: 1, description: 'Complete your first trade', icon_url: '🎉' },
-    { name: 'SP Earner - Bronze', category: 'sp_earning', threshold: 10, description: 'Earn 10 SP', icon_url: '🥉' },
-    { name: 'SP Earner - Silver', category: 'sp_earning', threshold: 50, description: 'Earn 50 SP', icon_url: '🥈' },
-    { name: 'SP Earner - Gold', category: 'sp_earning', threshold: 100, description: 'Earn 100 SP', icon_url: '🥇' },
-    { name: 'Trade Master', category: 'trade', threshold: 10, description: 'Complete 10 trades', icon_url: '⭐' },
+    {
+      name: 'First Trade',
+      category: 'trade',
+      threshold: 1,
+      description: 'Complete your first trade',
+      icon_url: '🎉',
+    },
+    {
+      name: 'SP Earner - Bronze',
+      category: 'sp_earning',
+      threshold: 10,
+      description: 'Earn 10 SP',
+      icon_url: '🥉',
+    },
+    {
+      name: 'SP Earner - Silver',
+      category: 'sp_earning',
+      threshold: 50,
+      description: 'Earn 50 SP',
+      icon_url: '🥈',
+    },
+    {
+      name: 'SP Earner - Gold',
+      category: 'sp_earning',
+      threshold: 100,
+      description: 'Earn 100 SP',
+      icon_url: '🥇',
+    },
+    {
+      name: 'Trade Master',
+      category: 'trade',
+      threshold: 10,
+      description: 'Complete 10 trades',
+      icon_url: '⭐',
+    },
   ];
 
   for (const badge of badges) {
@@ -657,7 +701,6 @@ async function main(): Promise<void> {
     console.log(`   Buyer:  ${TEST_USERS.buyer.id}`);
     console.log(`   Seller: ${TEST_USERS.seller.id}`);
     console.log('');
-
   } catch (error) {
     console.error('\n❌ Seed failed:', error);
     process.exit(1);

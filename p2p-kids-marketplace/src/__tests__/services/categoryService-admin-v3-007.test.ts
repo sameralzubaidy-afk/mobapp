@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/__tests__/services/categoryService-admin-v3-007.test.ts
  * TASK ADMIN-V3-007: Unit tests for category service V3 enhancements
  * Module: MODULE-12-ADMIN-V3-CATEGORIES
- * 
+ *
  * Tests:
  * - getBonusCategories filtering (sp_earning_multiplier > 1.10)
  * - calculateCategorySP rounding rules
@@ -36,7 +36,7 @@ describe('Category Service (MODULE-12 V3)', () => {
         {
           id: 'cat2',
           name: 'Toys',
-          sp_earning_multiplier: 1.40,
+          sp_earning_multiplier: 1.4,
           is_active: true,
         },
       ];
@@ -52,7 +52,7 @@ describe('Category Service (MODULE-12 V3)', () => {
 
       expect(supabase.from).toHaveBeenCalledWith('categories');
       expect(result).toHaveLength(2);
-      expect(result[0].sp_earning_multiplier).toBeGreaterThan(1.10);
+      expect(result[0].sp_earning_multiplier).toBeGreaterThan(1.1);
     });
 
     it('returns empty array when no bonus categories exist', async () => {
@@ -106,7 +106,7 @@ describe('Category Service (MODULE-12 V3)', () => {
 
     it('calculates max_spend_sp with Math.floor', async () => {
       const mockCategory = {
-        sp_earning_multiplier: 1.10,
+        sp_earning_multiplier: 1.1,
         sp_spending_cap_percent: 70,
       };
 

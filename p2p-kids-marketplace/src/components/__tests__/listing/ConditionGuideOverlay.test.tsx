@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/components/__tests__/listing/ConditionGuideOverlay.test.tsx
  * MODULE-04 LISTING-V3-008: Unit tests for ConditionGuideOverlay
- * 
+ *
  * Test Coverage:
  * - Modal visibility
  * - Condition-specific content
@@ -25,11 +25,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Visibility', () => {
     it('renders when visible and condition is provided', () => {
       const { getByTestId } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="good"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="good" onClose={mockOnClose} />
       );
 
       expect(getByTestId('condition-guide-overlay')).toBeTruthy();
@@ -37,11 +33,7 @@ describe('ConditionGuideOverlay', () => {
 
     it('does not render when visible is false', () => {
       const { queryByTestId } = render(
-        <ConditionGuideOverlay
-          visible={false}
-          condition="good"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={false} condition="good" onClose={mockOnClose} />
       );
 
       expect(queryByTestId('condition-guide-overlay')).toBeNull();
@@ -49,11 +41,7 @@ describe('ConditionGuideOverlay', () => {
 
     it('does not render when condition is null', () => {
       const { queryByTestId } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition={null}
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition={null} onClose={mockOnClose} />
       );
 
       expect(queryByTestId('condition-guide-overlay')).toBeNull();
@@ -63,11 +51,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Content for "new" condition', () => {
     it('displays correct title', () => {
       const { getByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="new"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="new" onClose={mockOnClose} />
       );
 
       expect(getByText('New Condition')).toBeTruthy();
@@ -75,11 +59,7 @@ describe('ConditionGuideOverlay', () => {
 
     it('displays description', () => {
       const { getByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="new"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="new" onClose={mockOnClose} />
       );
 
       expect(getByText('Brand new with original tags attached')).toBeTruthy();
@@ -87,11 +67,7 @@ describe('ConditionGuideOverlay', () => {
 
     it('displays tips', () => {
       const { getByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="new"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="new" onClose={mockOnClose} />
       );
 
       expect(getByText('Has original tags')).toBeTruthy();
@@ -104,11 +80,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Content for "like_new" condition', () => {
     it('displays correct content', () => {
       const { getByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="like_new"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="like_new" onClose={mockOnClose} />
       );
 
       expect(getByText('Like New Condition')).toBeTruthy();
@@ -120,11 +92,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Content for "good" condition', () => {
     it('displays correct content', () => {
       const { getByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="good"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="good" onClose={mockOnClose} />
       );
 
       expect(getByText('Good Condition')).toBeTruthy();
@@ -136,11 +104,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Content for "fair" condition', () => {
     it('displays correct content', () => {
       const { getByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="fair"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="fair" onClose={mockOnClose} />
       );
 
       expect(getByText('Fair Condition')).toBeTruthy();
@@ -152,11 +116,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Content for "worn" condition', () => {
     it('displays correct content', () => {
       const { getByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="worn"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="worn" onClose={mockOnClose} />
       );
 
       expect(getByText('Worn Condition')).toBeTruthy();
@@ -168,11 +128,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Close Functionality', () => {
     it('calls onClose when close button is pressed', () => {
       const { getByTestId } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="good"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="good" onClose={mockOnClose} />
       );
 
       fireEvent.press(getByTestId('close-guide'));
@@ -183,11 +139,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Photo Example', () => {
     it('displays example photo section', () => {
       const { getByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="good"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="good" onClose={mockOnClose} />
       );
 
       expect(getByText('Example photo')).toBeTruthy();
@@ -197,11 +149,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Tips Section', () => {
     it('displays tips title', () => {
       const { getByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="good"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="good" onClose={mockOnClose} />
       );
 
       expect(getByText('What to look for:')).toBeTruthy();
@@ -209,11 +157,7 @@ describe('ConditionGuideOverlay', () => {
 
     it('displays all tips with bullets', () => {
       const { getAllByText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="new"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="new" onClose={mockOnClose} />
       );
 
       const bullets = getAllByText('•');
@@ -224,11 +168,7 @@ describe('ConditionGuideOverlay', () => {
   describe('Accessibility', () => {
     it('has accessible label for close button', () => {
       const { getByLabelText } = render(
-        <ConditionGuideOverlay
-          visible={true}
-          condition="good"
-          onClose={mockOnClose}
-        />
+        <ConditionGuideOverlay visible={true} condition="good" onClose={mockOnClose} />
       );
 
       expect(getByLabelText('Close condition guide')).toBeTruthy();

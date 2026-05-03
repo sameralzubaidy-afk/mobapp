@@ -41,10 +41,7 @@ jest.mock('react-native-safe-area-context', () => {
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
-const makeNotification = (
-  id: string,
-  overrides: Partial<Record<string, any>> = {}
-) => ({
+const makeNotification = (id: string, overrides: Partial<Record<string, any>> = {}) => ({
   id,
   user_id: 'user-123',
   category: 'system',
@@ -89,10 +86,7 @@ describe('NotificationCenterScreen', () => {
   // ── Renders notifications ──────────────────────────────────────────────────
 
   it('renders a list of notifications', async () => {
-    const notifications = [
-      makeNotification('n1'),
-      makeNotification('n2', { is_read: true }),
-    ];
+    const notifications = [makeNotification('n1'), makeNotification('n2', { is_read: true })];
     mockGetUserNotifications.mockResolvedValue({ success: true, data: notifications });
 
     const { getByTestId } = render(<NotificationCenterScreen />);
@@ -107,7 +101,7 @@ describe('NotificationCenterScreen', () => {
   it('shows unread dot only for unread notifications', async () => {
     const notifications = [
       makeNotification('n1', { is_read: false }), // unread
-      makeNotification('n2', { is_read: true }),  // read
+      makeNotification('n2', { is_read: true }), // read
     ];
     mockGetUserNotifications.mockResolvedValue({ success: true, data: notifications });
 
@@ -333,18 +327,14 @@ describe('NotificationCenterScreen', () => {
     });
 
     const { queryByTestId } = render(<NotificationCenterScreen />);
-    await waitFor(() =>
-      expect(mockSubscribeToNotifications).toHaveBeenCalled()
-    );
+    await waitFor(() => expect(mockSubscribeToNotifications).toHaveBeenCalled());
 
     const newNotification = makeNotification('realtime-1');
     act(() => {
       realtimeCallback(newNotification);
     });
 
-    await waitFor(() =>
-      expect(queryByTestId('notification-item-realtime-1')).toBeTruthy()
-    );
+    await waitFor(() => expect(queryByTestId('notification-item-realtime-1')).toBeTruthy());
   });
 
   it('dedupes overlapping notification IDs when loading more items', async () => {
@@ -431,12 +421,10 @@ describe('useNotificationBadge', () => {
   it('increments count on realtime notification insert', async () => {
     mockGetUnreadNotificationCount.mockResolvedValue({ success: true, count: 2 });
     let realtimeCallback: (n: any) => void = () => {};
-    mockSubscribeToNotifications.mockImplementation(
-      (_userId: string, cb: (n: any) => void) => {
-        realtimeCallback = cb;
-        return jest.fn();
-      }
-    );
+    mockSubscribeToNotifications.mockImplementation((_userId: string, cb: (n: any) => void) => {
+      realtimeCallback = cb;
+      return jest.fn();
+    });
 
     const { result } = renderHook(() => useNotificationBadge('user-123'));
     await waitFor(() => expect(result.current.unreadCount).toBe(2));

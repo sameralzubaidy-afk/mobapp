@@ -15,9 +15,7 @@ import type {
  * @param filters - Optional filters (user_id, subscription_id, status, date range, limit)
  * @returns Array of billing history records
  */
-export async function getBillingHistory(
-  filters: BillingHistoryFilters
-): Promise<BillingHistory[]> {
+export async function getBillingHistory(filters: BillingHistoryFilters): Promise<BillingHistory[]> {
   try {
     let query = supabase
       .from('billing_history')
@@ -148,7 +146,7 @@ export async function updateBillingRecordStatus(
 ): Promise<BillingHistory> {
   try {
     const updateData: { status: BillingStatus; error_message?: string | null } = { status };
-    
+
     if (error_message) {
       updateData.error_message = error_message;
     }
@@ -177,9 +175,7 @@ export async function updateBillingRecordStatus(
  * @param user_id - User ID
  * @returns Billing summary statistics
  */
-export async function getBillingHistorySummary(
-  user_id: string
-): Promise<BillingHistorySummary> {
+export async function getBillingHistorySummary(user_id: string): Promise<BillingHistorySummary> {
   try {
     // Fetch all billing records for user
     const records = await getBillingHistory({ user_id });

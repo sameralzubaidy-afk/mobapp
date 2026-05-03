@@ -43,14 +43,17 @@ describe('E2E: SUB-009 Grace Period Lifecycle', () => {
 
     const insertWithFlags = await supabaseAdmin
       .from('subscriptions')
-      .upsert({
-        user_id: testUserId,
-        status: 'grace_period',
-        grace_ends_at: gracePeriodEndsAt.toISOString(),
-        grace_reminder_sent_day_60: false,
-        grace_reminder_sent_day_30: false,
-        grace_reminder_sent_day_7: false,
-      }, { onConflict: 'user_id' })
+      .upsert(
+        {
+          user_id: testUserId,
+          status: 'grace_period',
+          grace_ends_at: gracePeriodEndsAt.toISOString(),
+          grace_reminder_sent_day_60: false,
+          grace_reminder_sent_day_30: false,
+          grace_reminder_sent_day_7: false,
+        },
+        { onConflict: 'user_id' }
+      )
       .select('id')
       .single();
 
@@ -60,11 +63,14 @@ describe('E2E: SUB-009 Grace Period Lifecycle', () => {
         hasGraceReminderFlagColumns = false;
         const insertWithoutFlags = await supabaseAdmin
           .from('subscriptions')
-          .upsert({
-            user_id: testUserId,
-            status: 'grace_period',
-            grace_ends_at: gracePeriodEndsAt.toISOString(),
-          }, { onConflict: 'user_id' })
+          .upsert(
+            {
+              user_id: testUserId,
+              status: 'grace_period',
+              grace_ends_at: gracePeriodEndsAt.toISOString(),
+            },
+            { onConflict: 'user_id' }
+          )
           .select('id')
           .single();
 
@@ -126,9 +132,7 @@ describe('E2E: SUB-009 Grace Period Lifecycle', () => {
 
       const { data } = await supabaseAdmin
         .from('subscriptions')
-        .select(
-          'grace_reminder_sent_day_60, grace_reminder_sent_day_30, grace_reminder_sent_day_7'
-        )
+        .select('grace_reminder_sent_day_60, grace_reminder_sent_day_30, grace_reminder_sent_day_7')
         .eq('id', testSubscriptionId)
         .single();
 
@@ -176,7 +180,7 @@ describe('E2E: SUB-009 Grace Period Lifecycle', () => {
     it('should trigger reminder when days remaining matches threshold', async () => {
       // Update subscription to exactly 30 days remaining
       const exactDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-      
+
       await supabaseAdmin
         .from('subscriptions')
         .update({ grace_ends_at: exactDate.toISOString() })
@@ -188,7 +192,11 @@ describe('E2E: SUB-009 Grace Period Lifecycle', () => {
 
       const { data } = await supabaseAdmin
         .from('subscriptions')
-        .select(hasGraceReminderFlagColumns ? 'grace_ends_at, grace_reminder_sent_day_30' : 'grace_ends_at')
+        .select(
+          hasGraceReminderFlagColumns
+            ? 'grace_ends_at, grace_reminder_sent_day_30'
+            : 'grace_ends_at'
+        )
         .eq('id', testSubscriptionId)
         .single();
 
@@ -339,8 +347,7 @@ describe('E2E: SUB-009 Grace Period Lifecycle', () => {
 
       // UI logic check
       const shouldShowBanner =
-        (data!.status === 'grace_period' || data!.status === 'grace') &&
-        data!.grace_ends_at;
+        (data!.status === 'grace_period' || data!.status === 'grace') && data!.grace_ends_at;
 
       expect(shouldShowBanner).toBe(false);
     });

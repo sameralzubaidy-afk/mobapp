@@ -2,7 +2,7 @@
 /**
  * E2E Tests for Badge Admin Configuration (BADGES-V2-005)
  * Tests end-to-end admin workflows for badge management
- * 
+ *
  * Note: These tests use RPC calls that require admin privileges.
  * In production environments, ensure your Supabase user has admin role.
  */
@@ -18,8 +18,10 @@ describe('E2E: BADGES-V2-005 Admin Configuration Workflow', () => {
     console.log('[E2E] Setting up test data...');
 
     // Get current user (must be logged in)
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       testUserId = 'skipped';
       testBadgeId = 'skipped';

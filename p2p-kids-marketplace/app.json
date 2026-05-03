@@ -33,10 +33,7 @@
               "scheme": "p2pkidsmarketplace"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ]
     },
@@ -63,7 +60,8 @@
           "color": "#4CAF50"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "owner": "samer.alzubaidy",
     "runtimeVersion": {

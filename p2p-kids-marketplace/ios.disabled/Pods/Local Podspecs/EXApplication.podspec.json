@@ -23,9 +23,7 @@
     "SWIFT_COMPILATION_MODE": "wholemodule"
   },
   "resource_bundles": {
-    "ExpoApplication_privacy": [
-      "PrivacyInfo.xcprivacy"
-    ]
+    "ExpoApplication_privacy": ["PrivacyInfo.xcprivacy"]
   },
   "source_files": "**/*.{h,m,swift}",
   "swift_version": "5.9"

@@ -33,10 +33,9 @@ const runE2E = process.env.RUN_SUPABASE_E2E === 'true';
     // Clean up test data
     if (testUserId) {
       await supabase.from('profiles').delete().eq('user_id', testUserId);
-      await supabase.storage.from('user-avatars').remove([
-        `${testUserId}/social_avatar.jpg`,
-        `${testUserId}/social_avatar.png`,
-      ]);
+      await supabase.storage
+        .from('user-avatars')
+        .remove([`${testUserId}/social_avatar.jpg`, `${testUserId}/social_avatar.png`]);
     }
 
     await supabase.auth.signOut();
@@ -87,10 +86,7 @@ const runE2E = process.env.RUN_SUPABASE_E2E === 'true';
 
     test('should NOT overwrite existing name', async () => {
       // First, set a custom name
-      await supabase
-        .from('profiles')
-        .update({ name: 'My Custom Name' })
-        .eq('user_id', testUserId);
+      await supabase.from('profiles').update({ name: 'My Custom Name' }).eq('user_id', testUserId);
 
       // Try to auto-fill again
       const mockProfile: ProviderProfile = {
@@ -122,7 +118,8 @@ const runE2E = process.env.RUN_SUPABASE_E2E === 'true';
 
     test('should download and upload valid avatar', async () => {
       // Use a real test image URL (Google's logo as example)
-      const testAvatarUrl = 'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
+      const testAvatarUrl =
+        'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png';
 
       const result = await downloadProviderAvatar(testAvatarUrl, testUserId);
 
@@ -132,12 +129,10 @@ const runE2E = process.env.RUN_SUPABASE_E2E === 'true';
         expect(result).toContain('social_avatar');
 
         // Verify file exists in storage
-        const { data, error } = await supabase.storage
-          .from('user-avatars')
-          .list(testUserId);
+        const { data, error } = await supabase.storage.from('user-avatars').list(testUserId);
 
         expect(error).toBeNull();
-        expect(data?.some(file => file.name.startsWith('social_avatar'))).toBe(true);
+        expect(data?.some((file) => file.name.startsWith('social_avatar'))).toBe(true);
       } else {
         // Download might fail for various reasons (network, image size, etc.)
         // Log warning but don't fail test
@@ -146,7 +141,10 @@ const runE2E = process.env.RUN_SUPABASE_E2E === 'true';
     }, 15000); // Extended timeout for network operation
 
     test('should return null for invalid URL', async () => {
-      const result = await downloadProviderAvatar('https://invalid-domain-12345.com/avatar.jpg', testUserId);
+      const result = await downloadProviderAvatar(
+        'https://invalid-domain-12345.com/avatar.jpg',
+        testUserId
+      );
 
       expect(result).toBeNull();
     });
@@ -164,9 +162,8 @@ const runE2E = process.env.RUN_SUPABASE_E2E === 'true';
 export const testUtils = {
   async cleanupTestUser(userId: string) {
     await supabase.from('profiles').delete().eq('user_id', userId);
-    await supabase.storage.from('user-avatars').remove([
-      `${userId}/social_avatar.jpg`,
-      `${userId}/social_avatar.png`,
-    ]);
+    await supabase.storage
+      .from('user-avatars')
+      .remove([`${userId}/social_avatar.jpg`, `${userId}/social_avatar.png`]);
   },
 };

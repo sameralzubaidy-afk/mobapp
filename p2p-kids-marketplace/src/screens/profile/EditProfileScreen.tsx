@@ -13,7 +13,12 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { updateUserProfile, getUserProfile, uploadProfileAvatar, resolveAvatarUrl } from '@/services/profile';
+import {
+  updateUserProfile,
+  getUserProfile,
+  uploadProfileAvatar,
+  resolveAvatarUrl,
+} from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { addToWaitlist } from '@/services/waitlist';
 import { requestPhoneVerification, verifyPhoneCode } from '@/services/phone';
@@ -42,7 +47,7 @@ export default function EditProfileScreen({ navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  
+
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
   const [displayName, setDisplayName] = useState('');
@@ -87,13 +92,14 @@ export default function EditProfileScreen({ navigation }: any) {
       setZipCode((profile as any)?.zip_code || '');
 
       // Phone may exist on auth user top-level or inside user_metadata
-      let phoneFromAuth = (authUser as any).phone || 
-        ((authUser as any).user_metadata?.phone) || '';
+      let phoneFromAuth = (authUser as any).phone || (authUser as any).user_metadata?.phone || '';
 
       // If phone not available on auth user, try to fetch the latest verified phone from phone_verification_codes
       if (!phoneFromAuth) {
         try {
-          const { data: phoneData, error: phoneError } = await (supabase.from('phone_verification_codes') as any)
+          const { data: phoneData, error: phoneError } = await (
+            supabase.from('phone_verification_codes') as any
+          )
             .select('phone')
             .eq('user_id', authUser.id)
             .eq('verified', true)
@@ -114,7 +120,6 @@ export default function EditProfileScreen({ navigation }: any) {
       // Resolve avatar URL: profile.avatar_url could be a full URL or a storage path
       const resolvedAvatar = await resolveAvatarUrl(profile.avatar_url);
       setAvatarUrl(resolvedAvatar);
-
     } catch (error: any) {
       console.error('Load profile error:', error);
       Alert.alert('Error', 'Failed to load profile. Please try again.');
@@ -149,7 +154,10 @@ export default function EditProfileScreen({ navigation }: any) {
 
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Please allow access to your photos to upload a profile picture.');
+        Alert.alert(
+          'Permission Required',
+          'Please allow access to your photos to upload a profile picture.'
+        );
         return;
       }
 
@@ -187,9 +195,13 @@ export default function EditProfileScreen({ navigation }: any) {
       // Upload new avatar if user selected one
       if (localImageUri) {
         setUploadingImage(true);
-        const { url, path, error: uploadError } = await uploadProfileAvatar(currentUser.id, localImageUri);
+        const {
+          url,
+          path,
+          error: uploadError,
+        } = await uploadProfileAvatar(currentUser.id, localImageUri);
         setUploadingImage(false);
-        
+
         if (uploadError) {
           console.error('Avatar upload error:', uploadError);
           const errorMsgRaw = formatErrorMessage(uploadError);
@@ -197,9 +209,11 @@ export default function EditProfileScreen({ navigation }: any) {
           if (errorMsgRaw.includes('Storage not configured')) {
             errorMsg = 'Storage service unavailable. Your profile will be saved without avatar.';
           } else if (errorMsgRaw.includes('Network')) {
-            errorMsg = 'Network connection issue. Try again or skip avatar. Profile will be saved without it.';
+            errorMsg =
+              'Network connection issue. Try again or skip avatar. Profile will be saved without it.';
           } else if (errorMsgRaw.includes('retry')) {
-            errorMsg = 'Upload timed out. Try again or skip avatar. Profile will be saved without it.';
+            errorMsg =
+              'Upload timed out. Try again or skip avatar. Profile will be saved without it.';
           }
           Alert.alert('Avatar Upload', errorMsg, [
             { text: 'Retry', onPress: () => handlePickImage() },
@@ -214,7 +228,7 @@ export default function EditProfileScreen({ navigation }: any) {
 
       // Prepare update data (only include changed fields)
       const updates: ProfileUpdateData = {};
-      
+
       if (displayName.trim() !== (currentProfile.name || '')) {
         updates.display_name = displayName.trim();
       }
@@ -240,7 +254,12 @@ export default function EditProfileScreen({ navigation }: any) {
         return;
       }
 
-      const { user, error, needsWaitlist, zipCode: updatedZip } = await updateUserProfile(currentUser.id, updates);
+      const {
+        user,
+        error,
+        needsWaitlist,
+        zipCode: updatedZip,
+      } = await updateUserProfile(currentUser.id, updates);
 
       // If phone was changed, start verification flow (non-blocking)
       if (phoneChanged) {
@@ -259,7 +278,7 @@ export default function EditProfileScreen({ navigation }: any) {
             .limit(1)
             .maybeSingle();
           if (verifiedRow && (verifiedRow as any).phone) {
-            alreadyVerified = ((verifiedRow as any).phone === phone.trim());
+            alreadyVerified = (verifiedRow as any).phone === phone.trim();
           }
         } catch (e) {
           console.warn('Could not check verified phone records:', e);
@@ -271,13 +290,25 @@ export default function EditProfileScreen({ navigation }: any) {
           Alert.alert('Info', 'This phone number is already verified and active on your account.');
         } else {
           setPhoneVerification({ visible: true, phone: phone.trim(), sending: true });
-          const { success, code, error: pvError } = await requestPhoneVerification(currentUser.id, phone.trim());
+          const {
+            success,
+            code,
+            error: pvError,
+          } = await requestPhoneVerification(currentUser.id, phone.trim());
           if (!success) {
-            setPhoneVerification(prev => ({ ...prev, sending: false, message: 'Failed to send verification code.' }));
+            setPhoneVerification((prev) => ({
+              ...prev,
+              sending: false,
+              message: 'Failed to send verification code.',
+            }));
             Alert.alert('Warning', 'Failed to send verification code. Please try again.');
             return; // stop here, do not show success
           } else {
-            setPhoneVerification(prev => ({ ...prev, sending: false, message: 'Verification code sent. Enter it below.' }));
+            setPhoneVerification((prev) => ({
+              ...prev,
+              sending: false,
+              message: 'Verification code sent. Enter it below.',
+            }));
             // Keep modal open and do not show overall success yet; wait for verification
             return;
           }
@@ -289,7 +320,10 @@ export default function EditProfileScreen({ navigation }: any) {
         console.warn('Partial update warning:', error);
         // Update local phone if available from returned user
         if (user && user.phone) setPhone(user.phone);
-        const errMsg = error instanceof Error ? error.message : (error && (error as any).message) || 'Some fields were not updated.';
+        const errMsg =
+          error instanceof Error
+            ? error.message
+            : (error && (error as any).message) || 'Some fields were not updated.';
         Alert.alert('Updated with Warning', errMsg, [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
@@ -327,9 +361,9 @@ export default function EditProfileScreen({ navigation }: any) {
                   Alert.alert('Info', 'Could not add to waitlist, but changes were saved.', [
                     { text: 'OK', onPress: () => navigation.goBack() },
                   ]);
-      if (phoneChanged && phoneVerification.visible) {
-        // If phone verification still pending, keep modal open
-      }
+                  if (phoneChanged && phoneVerification.visible) {
+                    // If phone verification still pending, keep modal open
+                  }
                 }
               },
             },
@@ -342,7 +376,10 @@ export default function EditProfileScreen({ navigation }: any) {
         try {
           await refreshSession();
         } catch (refreshError) {
-          console.warn('[EditProfileScreen] Failed to refresh session after profile update', refreshError);
+          console.warn(
+            '[EditProfileScreen] Failed to refresh session after profile update',
+            refreshError
+          );
         }
       }
 
@@ -357,7 +394,10 @@ export default function EditProfileScreen({ navigation }: any) {
       ]);
     } catch (error: any) {
       console.error('Profile update error:', error);
-      const errMsg = error instanceof Error ? error.message : String(error) || 'Failed to update profile. Please try again.';
+      const errMsg =
+        error instanceof Error
+          ? error.message
+          : String(error) || 'Failed to update profile. Please try again.';
       Alert.alert('Error', errMsg);
     } finally {
       setSaving(false);
@@ -368,15 +408,21 @@ export default function EditProfileScreen({ navigation }: any) {
   // Phone verification handlers
   const handleVerifyCode = async () => {
     if (!phoneVerification.phone || !phoneVerification.code) {
-      setPhoneVerification(prev => ({ ...prev, message: 'Enter a valid code.' }));
+      setPhoneVerification((prev) => ({ ...prev, message: 'Enter a valid code.' }));
       return;
     }
-    setPhoneVerification(prev => ({ ...prev, verifying: true }));
-    const { success, message, error } = await verifyPhoneCode(currentUser!.id, phoneVerification.code!);
-    setPhoneVerification(prev => ({ ...prev, verifying: false }));
+    setPhoneVerification((prev) => ({ ...prev, verifying: true }));
+    const { success, message, error } = await verifyPhoneCode(
+      currentUser!.id,
+      phoneVerification.code!
+    );
+    setPhoneVerification((prev) => ({ ...prev, verifying: false }));
     if (!success) {
-      const errMsg = error instanceof Error ? error.message : (error && (error as any).message) || 'Verification failed';
-      setPhoneVerification(prev => ({ ...prev, message: message || errMsg }));
+      const errMsg =
+        error instanceof Error
+          ? error.message
+          : (error && (error as any).message) || 'Verification failed';
+      setPhoneVerification((prev) => ({ ...prev, message: message || errMsg }));
       return;
     }
 
@@ -385,17 +431,29 @@ export default function EditProfileScreen({ navigation }: any) {
     if (refreshedUser) setPhone(refreshedUser.phone || '');
 
     Alert.alert('Phone Verified', 'Your phone number has been verified and updated.', [
-      { text: 'OK', onPress: () => { setPhoneVerification({ visible: false }); navigation.goBack(); } },
+      {
+        text: 'OK',
+        onPress: () => {
+          setPhoneVerification({ visible: false });
+          navigation.goBack();
+        },
+      },
     ]);
   };
 
   const handleResendCode = async () => {
     if (!phoneVerification.phone || !currentUser) return;
-    setPhoneVerification(prev => ({ ...prev, sending: true }));
-    const { success, code } = await requestPhoneVerification(currentUser.id, phoneVerification.phone!);
-    setPhoneVerification(prev => ({ ...prev, sending: false, message: success ? 'Code resent' : 'Failed to send code' }));
+    setPhoneVerification((prev) => ({ ...prev, sending: true }));
+    const { success, code } = await requestPhoneVerification(
+      currentUser.id,
+      phoneVerification.phone!
+    );
+    setPhoneVerification((prev) => ({
+      ...prev,
+      sending: false,
+      message: success ? 'Code resent' : 'Failed to send code',
+    }));
   };
-
 
   if (loading) {
     return (
@@ -417,9 +475,16 @@ export default function EditProfileScreen({ navigation }: any) {
 
       {/* Avatar Picker */}
       <View style={styles.avatarSection}>
-        <TouchableOpacity style={styles.avatarButton} onPress={handlePickImage} disabled={uploadingImage}>
+        <TouchableOpacity
+          style={styles.avatarButton}
+          onPress={handlePickImage}
+          disabled={uploadingImage}
+        >
           {localImageUri || avatarUrl ? (
-            <Image source={{ uri: localImageUri || avatarUrl || undefined }} style={styles.avatarImage} />
+            <Image
+              source={{ uri: localImageUri || avatarUrl || undefined }}
+              style={styles.avatarImage}
+            />
           ) : (
             <View style={styles.avatarPlaceholder}>
               <Text style={styles.avatarPlaceholderText}>📷</Text>
@@ -436,27 +501,51 @@ export default function EditProfileScreen({ navigation }: any) {
 
       {/* Phone verification modal */}
       <Modal visible={phoneVerification.visible} transparent animationType="fade">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+        >
           <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 20 }}>
             <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Verify Phone</Text>
-            <Text style={{ marginBottom: 12 }}>{phoneVerification.message || `Enter the 6-digit code sent to ${phoneVerification.phone}`}</Text>
+            <Text style={{ marginBottom: 12 }}>
+              {phoneVerification.message ||
+                `Enter the 6-digit code sent to ${phoneVerification.phone}`}
+            </Text>
             <TextInput
               placeholder="Enter verification code"
               value={phoneVerification.code}
-              onChangeText={(v) => setPhoneVerification(prev => ({ ...prev, code: v }))}
+              onChangeText={(v) => setPhoneVerification((prev) => ({ ...prev, code: v }))}
               keyboardType="number-pad"
-              style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 12 }}
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 8,
+                padding: 10,
+                marginBottom: 12,
+              }}
             />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <TouchableOpacity onPress={() => setPhoneVerification({ visible: false })} style={{ padding: 10 }}>
+              <TouchableOpacity
+                onPress={() => setPhoneVerification({ visible: false })}
+                style={{ padding: 10 }}
+              >
                 <Text style={{ color: '#666' }}>Cancel</Text>
               </TouchableOpacity>
               <View style={{ flexDirection: 'row' }}>
-                <TouchableOpacity onPress={handleResendCode} style={{ padding: 10, marginRight: 8 }}>
+                <TouchableOpacity
+                  onPress={handleResendCode}
+                  style={{ padding: 10, marginRight: 8 }}
+                >
                   <Text style={{ color: '#3B82F6' }}>Resend</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleVerifyCode} style={{ padding: 10 }}>
-                  <Text style={{ color: '#3B82F6' }}>{phoneVerification.verifying ? 'Verifying...' : 'Verify'}</Text>
+                  <Text style={{ color: '#3B82F6' }}>
+                    {phoneVerification.verifying ? 'Verifying...' : 'Verify'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -505,7 +594,9 @@ export default function EditProfileScreen({ navigation }: any) {
           maxLength={5}
         />
         {errors.zipCode && <Text style={styles.errorText}>{errors.zipCode}</Text>}
-        <Text style={styles.helpText}>Changing zip code may reassign you to a different community node</Text>
+        <Text style={styles.helpText}>
+          Changing zip code may reassign you to a different community node
+        </Text>
       </View>
 
       {/* Bio */}

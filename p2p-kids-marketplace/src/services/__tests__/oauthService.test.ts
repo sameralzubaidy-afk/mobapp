@@ -3,7 +3,6 @@
 // MODULE: MODULE-03-AUTH-V3-SOCIAL-LOGIN
 
 import * as SecureStore from 'expo-secure-store';
-import * as Crypto from 'expo-crypto';
 import {
   initiateSocialLogin,
   handleOAuthCallback,
@@ -11,14 +10,14 @@ import {
   isProviderLinked,
 } from '../oauthService';
 import { supabase } from '../supabase/client';
-import {
-  OAuthStateMismatchError,
-  ProviderUnavailableError,
-} from '@/types/auth-v3-errors';
+import { OAuthStateMismatchError, ProviderUnavailableError } from '@/types/auth-v3-errors';
 
 // Mock dependencies
 jest.mock('expo-secure-store');
-jest.mock('expo-crypto');
+jest.mock('expo-linking', () => ({
+  createURL: jest.fn(() => 'p2pkidsmarketplace://oauth-callback'),
+  parse: jest.fn(),
+}));
 jest.mock('../supabase/client', () => ({
   supabase: {
     auth: {
@@ -30,7 +29,6 @@ jest.mock('../supabase/client', () => ({
 }));
 
 const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
-const mockCrypto = Crypto as jest.Mocked<typeof Crypto>;
 const mockSupabase = supabase as any;
 
 describe('OAuthService', () => {
@@ -40,10 +38,8 @@ describe('OAuthService', () => {
 
   describe('initiateSocialLogin', () => {
     it('should generate state token and return OAuth URL for Google', async () => {
-      const mockRandomBytes = new Uint8Array(32).fill(0); // Creates "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" in base64
-      const mockOAuthUrl = 'https://accounts.google.com/oauth?state=...';
+      const mockOAuthUrl = 'https://accounts.google.com/oauth?state=supabase-state-123';
 
-      mockCrypto.getRandomBytesAsync.mockResolvedValue(mockRandomBytes);
       mockSecureStore.setItemAsync.mockResolvedValue();
       mockSupabase.auth.signInWithOAuth.mockResolvedValue({
         data: { url: mockOAuthUrl },
@@ -53,7 +49,7 @@ describe('OAuthService', () => {
       const result = await initiateSocialLogin('google');
 
       expect(result.url).toBe(mockOAuthUrl);
-      expect(result.state).toBe('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='); // base64 of 32 zero bytes
+      expect(result.state).toBe('supabase-state-123');
       expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
         'oauth_state_google',
         expect.stringContaining(result.state)
@@ -61,19 +57,16 @@ describe('OAuthService', () => {
       expect(mockSupabase.auth.signInWithOAuth).toHaveBeenCalledWith({
         provider: 'google',
         options: {
-          redirectTo: 'p2pkidsmarketplace://oauth-callback',
+          redirectTo: expect.stringContaining('oauth-callback'),
           scopes: 'openid email profile',
-          queryParams: { state: result.state },
         },
       });
     });
 
     it('should use correct scopes for Facebook', async () => {
-      const mockRandomBytes = new Uint8Array(32).fill(1);
-      mockCrypto.getRandomBytesAsync.mockResolvedValue(mockRandomBytes);
       mockSecureStore.setItemAsync.mockResolvedValue();
       mockSupabase.auth.signInWithOAuth.mockResolvedValue({
-        data: { url: 'https://facebook.com/oauth' },
+        data: { url: 'https://facebook.com/oauth?state=fb-state-1' },
         error: null,
       });
 
@@ -83,18 +76,16 @@ describe('OAuthService', () => {
         expect.objectContaining({
           provider: 'facebook',
           options: expect.objectContaining({
-            scopes: 'email,public_profile',
+            scopes: 'public_profile',
           }),
         })
       );
     });
 
     it('should use correct scopes for Apple', async () => {
-      const mockRandomBytes = new Uint8Array(32).fill(2);
-      mockCrypto.getRandomBytesAsync.mockResolvedValue(mockRandomBytes);
       mockSecureStore.setItemAsync.mockResolvedValue();
       mockSupabase.auth.signInWithOAuth.mockResolvedValue({
-        data: { url: 'https://appleid.apple.com/oauth' },
+        data: { url: 'https://appleid.apple.com/oauth?state=apple-state-1' },
         error: null,
       });
 
@@ -111,49 +102,60 @@ describe('OAuthService', () => {
     });
 
     it('should throw ProviderUnavailableError on 503 error', async () => {
-      mockCrypto.getRandomBytesAsync.mockResolvedValue(new Uint8Array(32));
       mockSecureStore.setItemAsync.mockResolvedValue();
       mockSupabase.auth.signInWithOAuth.mockResolvedValue({
         data: null,
         error: { message: '503 Service Unavailable' },
       });
 
-      await expect(initiateSocialLogin('google')).rejects.toThrow(
-        ProviderUnavailableError
-      );
+      await expect(initiateSocialLogin('google')).rejects.toThrow(ProviderUnavailableError);
     });
 
     it('should throw error if OAuth URL not returned', async () => {
-      mockCrypto.getRandomBytesAsync.mockResolvedValue(new Uint8Array(32));
       mockSecureStore.setItemAsync.mockResolvedValue();
       mockSupabase.auth.signInWithOAuth.mockResolvedValue({
         data: { url: null },
         error: null,
       });
 
-      await expect(initiateSocialLogin('google')).rejects.toThrow(
-        'OAuth URL not returned'
-      );
+      await expect(initiateSocialLogin('google')).rejects.toThrow('OAuth URL not returned');
+    });
+
+    it('should continue when provider URL has no state param', async () => {
+      mockSecureStore.setItemAsync.mockResolvedValue();
+      mockSupabase.auth.signInWithOAuth.mockResolvedValue({
+        data: { url: 'https://accounts.google.com/oauth' },
+        error: null,
+      });
+
+      const result = await initiateSocialLogin('google');
+
+      expect(result.url).toBe('https://accounts.google.com/oauth');
+      expect(result.state).toBe('');
+      expect(mockSecureStore.setItemAsync).not.toHaveBeenCalled();
     });
   });
 
   describe('handleOAuthCallback', () => {
     it('should return null on user cancel (access_denied)', async () => {
-      const result = await handleOAuthCallback(
-        null,
-        'some-state',
-        'google',
-        'access_denied'
-      );
+      const result = await handleOAuthCallback(null, 'some-state', 'google', 'access_denied');
 
       expect(result).toBeNull();
       expect(mockSecureStore.getItemAsync).not.toHaveBeenCalled();
     });
 
-    it('should throw OAuthStateMismatchError if no state provided', async () => {
-      await expect(
-        handleOAuthCallback(null, null, 'google')
-      ).rejects.toThrow(OAuthStateMismatchError);
+    it('should throw OAuthStateMismatchError if no state provided but local state exists', async () => {
+      const storedSession = {
+        state: 'stored-state',
+        provider: 'google',
+        createdAt: new Date().toISOString(),
+      };
+
+      mockSecureStore.getItemAsync.mockResolvedValue(JSON.stringify(storedSession));
+
+      await expect(handleOAuthCallback(null, null, 'google')).rejects.toThrow(
+        OAuthStateMismatchError
+      );
     });
 
     it('should throw OAuthStateMismatchError if stored state does not match', async () => {
@@ -163,13 +165,11 @@ describe('OAuthService', () => {
         createdAt: new Date().toISOString(),
       };
 
-      mockSecureStore.getItemAsync.mockResolvedValue(
-        JSON.stringify(storedSession)
-      );
+      mockSecureStore.getItemAsync.mockResolvedValue(JSON.stringify(storedSession));
 
-      await expect(
-        handleOAuthCallback(null, 'different-state', 'google')
-      ).rejects.toThrow(OAuthStateMismatchError);
+      await expect(handleOAuthCallback(null, 'different-state', 'google')).rejects.toThrow(
+        OAuthStateMismatchError
+      );
     });
 
     it('should return success result on valid callback', async () => {
@@ -180,9 +180,7 @@ describe('OAuthService', () => {
         createdAt: new Date().toISOString(),
       };
 
-      mockSecureStore.getItemAsync.mockResolvedValue(
-        JSON.stringify(storedSession)
-      );
+      mockSecureStore.getItemAsync.mockResolvedValue(JSON.stringify(storedSession));
       mockSecureStore.deleteItemAsync.mockResolvedValue();
 
       mockSupabase.auth.getSession.mockResolvedValue({
@@ -220,9 +218,7 @@ describe('OAuthService', () => {
         userId: 'user-123',
         sessionToken: 'mock-token',
       });
-      expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith(
-        'oauth_state_google'
-      );
+      expect(mockSecureStore.deleteItemAsync).toHaveBeenCalledWith('oauth_state_google');
     });
 
     it('should handle expired state (> 30 minutes old)', async () => {
@@ -233,13 +229,50 @@ describe('OAuthService', () => {
         createdAt: oldDate.toISOString(),
       };
 
-      mockSecureStore.getItemAsync.mockResolvedValue(
-        JSON.stringify(storedSession)
-      );
+      mockSecureStore.getItemAsync.mockResolvedValue(JSON.stringify(storedSession));
 
-      await expect(
-        handleOAuthCallback(null, 'old-state', 'google')
-      ).rejects.toThrow(OAuthStateMismatchError);
+      await expect(handleOAuthCallback(null, 'old-state', 'google')).rejects.toThrow(
+        OAuthStateMismatchError
+      );
+    });
+
+    it('should succeed without local state validation when no stored state exists', async () => {
+      mockSecureStore.getItemAsync.mockResolvedValue(null);
+
+      mockSupabase.auth.getSession.mockResolvedValue({
+        data: {
+          session: {
+            user: {
+              id: 'user-456',
+              email: 'no-state@example.com',
+              user_metadata: {
+                given_name: 'No',
+                family_name: 'State',
+              },
+              identities: [
+                {
+                  identity_data: {
+                    sub: 'google-456',
+                    email: 'no-state@example.com',
+                  },
+                },
+              ],
+              created_at: '2024-01-01T00:00:00Z',
+              last_sign_in_at: '2024-01-01T00:00:00Z',
+            },
+            access_token: 'token-no-state',
+          },
+        },
+        error: null,
+      });
+
+      const result = await handleOAuthCallback(null, null, 'google');
+
+      expect(result).toMatchObject({
+        success: true,
+        userId: 'user-456',
+        sessionToken: 'token-no-state',
+      });
     });
   });
 

@@ -78,14 +78,8 @@ describe('E2E: MSG-006-009 Complete Messaging Flow', () => {
     });
     await markTradeMessagesAsRead(mockTrade.id, buyerId);
 
-    expect(supabase.rpc).toHaveBeenCalledWith(
-      'mark_trade_messages_delivered',
-      expect.any(Object)
-    );
-    expect(supabase.rpc).toHaveBeenCalledWith(
-      'mark_trade_messages_read',
-      expect.any(Object)
-    );
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_trade_messages_delivered', expect.any(Object));
+    expect(supabase.rpc).toHaveBeenCalledWith('mark_trade_messages_read', expect.any(Object));
   });
 
   it('[MSG-009] typing indicator channel + unsubscribe', async () => {

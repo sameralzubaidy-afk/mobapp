@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/listing/ColorPicker.tsx
  * MODULE-04 LISTING-V3-008: Color Picker
  * Task: LISTING-V3-008 - 12-swatch multi-select color picker
- * 
+ *
  * Features:
  * - 12 predefined colors from MODULE-05 V3
  * - Multi-select with check marks
@@ -10,12 +10,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 // Import COLOR_PALETTE from MODULE-05 V3 types (LISTING-V3-009 - reuse shared constants)
 import { COLOR_PALETTE } from '@/types/discovery';
@@ -96,7 +91,7 @@ export function ColorPicker({
                   </View>
                 )}
               </View>
-              
+
               <Text style={styles.swatchLabel}>{color.label}</Text>
             </TouchableOpacity>
           );

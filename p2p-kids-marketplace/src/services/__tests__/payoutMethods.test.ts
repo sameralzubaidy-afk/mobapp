@@ -53,7 +53,7 @@ describe('PayoutMethods Service', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Mock authenticated user
     (supabase.auth.getUser as jest.Mock).mockResolvedValue({
       data: { user: mockUser },
@@ -215,7 +215,7 @@ describe('PayoutMethods Service', () => {
       expect(result.is_verified).toBe(true);
     });
 
-    it('should throw error when updating another user\'s method', async () => {
+    it("should throw error when updating another user's method", async () => {
       const mockGet = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -272,9 +272,7 @@ describe('PayoutMethods Service', () => {
         }),
       };
 
-      (supabase.from as jest.Mock)
-        .mockReturnValueOnce(mockGet)
-        .mockReturnValueOnce(mockDelete);
+      (supabase.from as jest.Mock).mockReturnValueOnce(mockGet).mockReturnValueOnce(mockDelete);
 
       await expect(deletePayoutMethod('method_1')).resolves.not.toThrow();
     });

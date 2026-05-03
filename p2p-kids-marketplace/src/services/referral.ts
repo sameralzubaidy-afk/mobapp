@@ -53,7 +53,12 @@ export const processReferralBonus = async (
 
     // Award 5 points to both referrer and referee
     const REFERRAL_BONUS = 5;
-    const ref = referral as { id: string; referrer_user_id: string; referred_user_id: string; referral_code: string };
+    const ref = referral as {
+      id: string;
+      referrer_user_id: string;
+      referred_user_id: string;
+      referral_code: string;
+    };
 
     // Create points transactions for both users
     const { error: pointsError } = await supabase.from('points_transactions').insert([
@@ -127,8 +132,10 @@ export const getReferralStats = async (userId: string): Promise<ReferralStats> =
     if (error) throw error;
 
     const total_referrals = data?.length || 0;
-    const pending_referrals = data?.filter((r: { status: string }) => r.status === 'pending').length || 0;
-    const completed_referrals = data?.filter((r: { status: string }) => r.status === 'claimed').length || 0;
+    const pending_referrals =
+      data?.filter((r: { status: string }) => r.status === 'pending').length || 0;
+    const completed_referrals =
+      data?.filter((r: { status: string }) => r.status === 'claimed').length || 0;
     const total_points_earned = completed_referrals * 5; // 5 points per completed referral
 
     return {

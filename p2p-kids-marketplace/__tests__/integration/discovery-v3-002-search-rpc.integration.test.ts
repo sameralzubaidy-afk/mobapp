@@ -1,12 +1,12 @@
 /**
  * File: p2p-kids-marketplace/__tests__/integration/discovery-v3-002-search-rpc.integration.test.ts
  * Integration tests for DISCOVERY-V3-002 search_listings RPC and get_popular_brands
- * 
+ *
  * Prerequisites:
  * - Run migration 20260420000001 (filter columns)
  * - Run migration 20260420000002 (V3 search RPCs)
  * - Seed at least 20 active items with varied filter values
- * 
+ *
  * Run with: RUN_SUPABASE_E2E=true npm run test:e2e
  */
 
@@ -99,10 +99,7 @@ describe('DISCOVERY-V3-002: search_listings RPC (Integration)', () => {
     if (!process.env.RUN_SUPABASE_E2E) return;
 
     // First, get at least 2 category IDs from the DB
-    const { data: categories } = await supabase
-      .from('categories')
-      .select('id')
-      .limit(2);
+    const { data: categories } = await supabase.from('categories').select('id').limit(2);
 
     if (!categories || categories.length < 2) {
       console.warn('⚠️  Skipping multi-category test: need at least 2 categories');
@@ -470,10 +467,7 @@ describe('DISCOVERY-V3-002: Performance Tests', () => {
     if (!process.env.RUN_SUPABASE_E2E) return;
 
     // Get a real category ID
-    const { data: categories } = await supabase
-      .from('categories')
-      .select('id')
-      .limit(1);
+    const { data: categories } = await supabase.from('categories').select('id').limit(1);
 
     const start = Date.now();
 

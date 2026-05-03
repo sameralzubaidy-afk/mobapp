@@ -2,7 +2,7 @@
  * Payout Methods Service
  * Module: MODULE-06-TRADE-FLOW-sellerpayouts.md
  * Task: PAY-003 (Seller Payout Setup UI)
- * 
+ *
  * Service layer for managing seller payout methods (Stripe Connect, PayPal, Venmo)
  */
 
@@ -38,7 +38,9 @@ export async function syncStripeConnectStatus(methodId?: string): Promise<void> 
     throw new Error('EXPO_PUBLIC_SUPABASE_URL not configured');
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session) {
     throw new Error('Not authenticated');
   }
@@ -72,8 +74,10 @@ export async function syncStripeConnectStatus(methodId?: string): Promise<void> 
  * List all payout methods for the current user
  */
 export async function listPayoutMethods(): Promise<ListPayoutMethodsResponse> {
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) {
     throw new Error('User not authenticated');
   }
@@ -88,8 +92,8 @@ export async function listPayoutMethods(): Promise<ListPayoutMethodsResponse> {
     throw new Error(`Failed to fetch payout methods: ${error.message}`);
   }
 
-  const primaryMethod = methods?.find(m => m.is_primary) || null;
-  const hasVerifiedMethod = methods?.some(m => m.is_verified) || false;
+  const primaryMethod = methods?.find((m) => m.is_primary) || null;
+  const hasVerifiedMethod = methods?.some((m) => m.is_verified) || false;
 
   return {
     methods: methods || [],
@@ -149,8 +153,10 @@ export async function checkPayoutEligibility(): Promise<PayoutEligibilityCheck> 
 export async function createPayoutMethod(
   request: CreatePayoutMethodRequest
 ): Promise<SellerPayoutMethod> {
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) {
     throw new Error('User not authenticated');
   }
@@ -198,8 +204,10 @@ export async function createPayoutMethod(
 export async function updatePayoutMethod(
   request: UpdatePayoutMethodRequest
 ): Promise<SellerPayoutMethod> {
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) {
     throw new Error('User not authenticated');
   }
@@ -207,7 +215,7 @@ export async function updatePayoutMethod(
   // Verify ownership
   const existingMethod = await getPayoutMethod(request.method_id);
   if (existingMethod.user_id !== user.id) {
-    throw new Error('Unauthorized: Cannot update another user\'s payout method');
+    throw new Error("Unauthorized: Cannot update another user's payout method");
   }
 
   // If setting as primary, unset any existing primary method
@@ -249,8 +257,10 @@ export async function updatePayoutMethod(
  * Delete a payout method
  */
 export async function deletePayoutMethod(methodId: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) {
     throw new Error('User not authenticated');
   }
@@ -258,18 +268,17 @@ export async function deletePayoutMethod(methodId: string): Promise<void> {
   // Verify ownership
   const existingMethod = await getPayoutMethod(methodId);
   if (existingMethod.user_id !== user.id) {
-    throw new Error('Unauthorized: Cannot delete another user\'s payout method');
+    throw new Error("Unauthorized: Cannot delete another user's payout method");
   }
 
   // Prevent deleting primary method without confirmation
   if (existingMethod.is_primary) {
-    throw new Error('Cannot delete primary payout method. Please set another method as primary first.');
+    throw new Error(
+      'Cannot delete primary payout method. Please set another method as primary first.'
+    );
   }
 
-  const { error } = await supabase
-    .from(PAYOUT_METHODS_TABLE)
-    .delete()
-    .eq('id', methodId);
+  const { error } = await supabase.from(PAYOUT_METHODS_TABLE).delete().eq('id', methodId);
 
   if (error) {
     throw new Error(`Failed to delete payout method: ${error.message}`);
@@ -339,22 +348,22 @@ function validatePayoutMethodInput(request: CreatePayoutMethodRequest): PayoutMe
       if (!request.venmo_handle && !request.venmo_phone_e164) {
         errors.push('Venmo handle or phone number is required');
       }
-      
+
       // Validate venmo_phone_e164 if provided
       if (request.venmo_phone_e164 && !isValidE164Phone(request.venmo_phone_e164)) {
         errors.push('Invalid phone number format (must be E.164)');
       }
-      
+
       // Check if venmo_handle looks like a phone number (all digits, possibly with formatting)
       // If so, it must be in E.164 format
       if (request.venmo_handle) {
         const handleValue = request.venmo_handle.trim();
-        
+
         // If handle looks like a phone number (contains mostly digits)
         // Remove common formatting characters to check
         const digitsOnly = handleValue.replace(/[\s\-\(\)\.]/g, '');
         const hasLetters = /[a-zA-Z]/.test(handleValue);
-        
+
         // If it's mostly/all digits and doesn't start with @, treat it as a phone number
         if (!hasLetters && !handleValue.startsWith('@') && /^\d+$/.test(digitsOnly)) {
           // Must be E.164 format: starts with +, followed by country code and number
@@ -362,7 +371,7 @@ function validatePayoutMethodInput(request: CreatePayoutMethodRequest): PayoutMe
             errors.push('Phone number must be in E.164 format (e.g., +15551234567)');
           }
         }
-        
+
         // If it starts with @ and has digits after, it's a valid Venmo handle
         // If it starts with @ but has no username, invalid
         if (handleValue.startsWith('@') && handleValue.length < 2) {
@@ -388,19 +397,20 @@ function validatePayoutMethodInput(request: CreatePayoutMethodRequest): PayoutMe
 
 /**
  * PayPal email validation
- * 
+ *
  * PayPal requirements:
  * 1. Must be a valid RFC 5322 email format
  * 2. Cannot use test/example/disposable domains
  * 3. Domain must have valid TLD (2+ characters)
  * 4. No spaces, must have @ and domain with extension
- * 
+ *
  * Security: Block known test/disposable domains to prevent invalid payout attempts
  */
 function isValidEmail(email: string): boolean {
   // Basic format check: must have local@domain.tld structure
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-  
+  const emailRegex =
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
   if (!emailRegex.test(email)) {
     return false;
   }
@@ -422,7 +432,7 @@ function isValidEmail(email: string): boolean {
     'test.net',
     'invalid.com',
     'localhost',
-    
+
     // Common disposable email providers
     'tempmail.com',
     'guerrillamail.com',
@@ -480,7 +490,7 @@ export function formatPayoutMethodDisplay(method: SellerPayoutMethod): PayoutMet
       } else {
         label = 'Stripe Connect';
       }
-      
+
       if (method.is_verified && method.stripe_payouts_enabled) {
         statusMessage = 'Verified & Active';
       } else if (method.stripe_onboarding_complete) {

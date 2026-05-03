@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/e2e/discovery-v3-005.integration.test.ts
  * MODULE-05-DISCOVERY-V3: DiscoverScreen E2E Integration Tests
  * Task: DISCOVERY-V3-005 - DiscoverScreen (Unified)
- * 
+ *
  * End-to-end tests against staging Supabase
  * Run with: RUN_SUPABASE_E2E=true npm run test:e2e -- discovery-v3-005
  */
@@ -75,7 +75,7 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
 
     it('applies category filter correctly', async () => {
       const categories = await getCategories();
-      
+
       if (categories.length === 0) {
         console.warn('[E2E] No categories found, skipping category filter test');
         return;
@@ -88,7 +88,9 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
         limit: 20,
       });
 
-      console.log(`[E2E] Category filter returned ${results.length} results for category ${categories[0].name}`);
+      console.log(
+        `[E2E] Category filter returned ${results.length} results for category ${categories[0].name}`
+      );
 
       // All results should belong to the selected category
       results.forEach((result) => {
@@ -130,7 +132,9 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
         expect(results[i].price).toBeGreaterThanOrEqual(results[i - 1].price);
       }
 
-      console.log(`[E2E] Price ascending verified: ${results[0].price} to ${results[results.length - 1].price}`);
+      console.log(
+        `[E2E] Price ascending verified: ${results[0].price} to ${results[results.length - 1].price}`
+      );
     });
 
     it('applies sort by price descending', async () => {
@@ -149,7 +153,9 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
         expect(results[i].price).toBeLessThanOrEqual(results[i - 1].price);
       }
 
-      console.log(`[E2E] Price descending verified: ${results[0].price} to ${results[results.length - 1].price}`);
+      console.log(
+        `[E2E] Price descending verified: ${results[0].price} to ${results[results.length - 1].price}`
+      );
     });
 
     it('applies sort by newest', async () => {
@@ -299,7 +305,7 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
   describe('Spell Suggestion', () => {
     it('suggests correction for typo within threshold', () => {
       const recentSearches = ['bicycle', 'tricycle', 'scooter'];
-      
+
       const suggestion = suggestSpellingCorrection('bycicle', recentSearches);
 
       expect(suggestion).toBe('bicycle');
@@ -308,7 +314,7 @@ describe('DISCOVERY-V3-005 E2E: DiscoverScreen Integration', () => {
 
     it('returns null for typo beyond threshold', () => {
       const recentSearches = ['bicycle', 'tricycle', 'scooter'];
-      
+
       const suggestion = suggestSpellingCorrection('xyz', recentSearches);
 
       expect(suggestion).toBeNull();

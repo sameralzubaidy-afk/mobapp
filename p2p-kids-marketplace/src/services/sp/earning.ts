@@ -17,10 +17,7 @@ export interface EarnResult {
  * Issue Starter Pack to new subscriber after first listing approval
  * One-time award per user, requires Kids Club+ subscription
  */
-export async function issueStarterPack(
-  userId: string,
-  listingId: string
-): Promise<EarnResult> {
+export async function issueStarterPack(userId: string, listingId: string): Promise<EarnResult> {
   try {
     const { data, error } = await supabase.rpc('issue_starter_pack', {
       p_user_id: userId,

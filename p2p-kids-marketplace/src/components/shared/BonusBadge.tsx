@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/shared/BonusBadge.tsx
  * TASK ADMIN-V3-007: Bonus Badge Component
  * Module: MODULE-12-ADMIN-V3-CATEGORIES
- * 
+ *
  * Renders a bonus badge (custom icon or ⭐ emoji fallback)
  * for categories with sp_earning_multiplier > 1.10
  */

@@ -44,7 +44,7 @@ describe('Mobile Category Type Definitions', () => {
         is_active: true,
         item_count: 10,
         display_order: 2,
-        sp_earning_multiplier: 1.10,
+        sp_earning_multiplier: 1.1,
         sp_spending_cap_percent: 70,
         created_at: '2026-04-20T10:00:00Z',
         // description: 'Should not exist', // Admin-only
@@ -68,7 +68,7 @@ describe('Mobile Category Type Definitions', () => {
         is_active: true,
         item_count: 5,
         display_order: 999,
-        sp_earning_multiplier: 1.10,
+        sp_earning_multiplier: 1.1,
         sp_spending_cap_percent: 70,
         created_at: '2026-04-20T10:00:00Z',
       };
@@ -92,7 +92,7 @@ describe('Mobile Category Type Definitions', () => {
         item_count: 50,
       };
 
-      expect(bonusCategory.sp_earning_multiplier).toBeGreaterThan(1.10);
+      expect(bonusCategory.sp_earning_multiplier).toBeGreaterThan(1.1);
       expect(bonusCategory.item_count).toBe(50);
       expect(bonusCategory.bonus_badge_icon_url).toBe('https://example.com/star.png');
     });
@@ -146,9 +146,9 @@ describe('Mobile Category Type Definitions', () => {
     it('should handle edge case calculations', () => {
       // Test rounding behavior matches spec
       const preview1: CategorySPPreview = {
-        price: 10.50,
-        earn_sp: Math.round(10.50 * 1.20), // 13
-        max_spend_sp: Math.floor(10.50 * 75 / 100), // 7
+        price: 10.5,
+        earn_sp: Math.round(10.5 * 1.2), // 13
+        max_spend_sp: Math.floor((10.5 * 75) / 100), // 7
         spend_percent: 75,
       };
 
@@ -157,8 +157,8 @@ describe('Mobile Category Type Definitions', () => {
 
       const preview2: CategorySPPreview = {
         price: 99.99,
-        earn_sp: Math.round(99.99 * 1.10), // 110
-        max_spend_sp: Math.floor(99.99 * 50 / 100), // 49
+        earn_sp: Math.round(99.99 * 1.1), // 110
+        max_spend_sp: Math.floor((99.99 * 50) / 100), // 49
         spend_percent: 50,
       };
 
@@ -301,7 +301,7 @@ describe('Mobile Category Type Definitions', () => {
         is_active: true,
         item_count: 0,
         display_order: 1,
-        sp_earning_multiplier: 1.10,
+        sp_earning_multiplier: 1.1,
         sp_spending_cap_percent: 70,
         created_at: '2026-04-20T10:00:00Z',
       };
@@ -323,7 +323,7 @@ describe('Mobile Category Type Definitions', () => {
         is_active: true,
         item_count: 0,
         display_order: 1,
-        sp_earning_multiplier: 1.10,
+        sp_earning_multiplier: 1.1,
         sp_spending_cap_percent: 70,
         created_at: '2026-04-20T10:00:00Z',
       };

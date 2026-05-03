@@ -1,8 +1,9 @@
 // File: p2p-kids-marketplace/src/screens/LoginScreen.tsx
 // MODULE-03 AUTH-V2-003: Login with Subscription Context
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  ScrollView,
   View,
   Text,
   TextInput,
@@ -20,6 +21,8 @@ import { loginWithContext } from '@/services/auth';
 import { AuthError } from '@/types/user';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthSession } from '@/types/user';
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
+import { OAuthProvider } from '@/types/auth-v3';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -27,6 +30,7 @@ type NavigationProp = NativeStackNavigationProp<any>;
 export default function LoginScreen() {
   const { setSession } = useAuth();
   const navigation = useNavigation<NavigationProp>();
+  const emailInputRef = useRef<TextInput>(null);
 
   const handleDevSkipAuth = () => {
     const now = new Date().toISOString();
@@ -64,6 +68,24 @@ export default function LoginScreen() {
   // UI state
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleSocialLoginSuccess = () => {
+    // Root navigator transitions based on auth session + onboarding state.
+  };
+
+  const handleAccountExists = (email: string, provider: OAuthProvider) => {
+    Alert.alert(
+      'Account Exists',
+      `An account with ${email} already exists. Link ${provider} in Linked Accounts after login.`,
+      [
+        {
+          text: 'Continue with Email',
+          style: 'default',
+          onPress: () => emailInputRef.current?.focus(),
+        },
+      ]
+    );
+  };
 
   /**
    * Validate form inputs
@@ -147,103 +169,123 @@ export default function LoginScreen() {
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.content}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-            testID="login-back-button"
-          >
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Welcome Back!</Text>
-            <Text style={styles.subtitle}>Log in to continue trading and earning Swap Points</Text>
-          </View>
-
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Email */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
-                placeholder="your.email@example.com"
-                placeholderTextColor="#6B7280"
-                value={email}
-                testID="login-email-input"
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoComplete="email"
-                editable={!loading}
-              />
-              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-            </View>
-
-            {/* Password */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={[styles.input, errors.password && styles.inputError]}
-                placeholder="Enter your password"
-                placeholderTextColor="#6B7280"
-                value={password}
-                testID="login-password-input"
-                onChangeText={setPassword}
-                secureTextEntry
-                autoCapitalize="none"
-                autoComplete="password"
-                editable={!loading}
-              />
-              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-            </View>
-
-            {/* Login Button */}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.content}>
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={handleLogin}
-              testID="login-submit-button"
-              disabled={loading}
+              style={styles.backButton}
+              onPress={() => navigation.goBack()}
+              testID="login-back-button"
             >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Log In</Text>}
+              <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.devSkipButton}
-              onPress={handleDevSkipAuth}
-              testID="login-skip-auth-button"
-              disabled={loading}
-            >
-              <Text style={styles.devSkipButtonText}>Skip Auth (Test)</Text>
-            </TouchableOpacity>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>Welcome Back!</Text>
+              <Text style={styles.subtitle}>
+                Log in to continue trading and earning Swap Points
+              </Text>
+            </View>
 
-            {/* Signup Link */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
+            <SocialLoginButtons
+              mode="login"
+              onLoginSuccess={handleSocialLoginSuccess}
+              onAccountExists={handleAccountExists}
+              emailInputRef={emailInputRef}
+              testID="login-social-buttons"
+            />
+
+            {/* Form */}
+            <View style={styles.form}>
+              {/* Email */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email</Text>
+                <TextInput
+                  style={[styles.input, errors.email && styles.inputError]}
+                  placeholder="your.email@example.com"
+                  placeholderTextColor="#6B7280"
+                  value={email}
+                  testID="login-email-input"
+                  ref={emailInputRef}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  editable={!loading}
+                />
+                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+              </View>
+
+              {/* Password */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Password</Text>
+                <TextInput
+                  style={[styles.input, errors.password && styles.inputError]}
+                  placeholder="Enter your password"
+                  placeholderTextColor="#6B7280"
+                  value={password}
+                  testID="login-password-input"
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  autoComplete="password"
+                  editable={!loading}
+                />
+                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+              </View>
+
+              {/* Login Button */}
               <TouchableOpacity
-                onPress={() => navigation.navigate('Signup')}
-                testID="login-signup-link"
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleLogin}
+                testID="login-submit-button"
                 disabled={loading}
               >
-                <Text style={styles.linkText}>Sign Up</Text>
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Log In</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.devSkipButton}
+                onPress={handleDevSkipAuth}
+                testID="login-skip-auth-button"
+                disabled={loading}
+              >
+                <Text style={styles.devSkipButtonText}>Skip Auth (Test)</Text>
+              </TouchableOpacity>
+
+              {/* Signup Link */}
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Don't have an account? </Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate('Signup')}
+                  testID="login-signup-link"
+                  disabled={loading}
+                >
+                  <Text style={styles.linkText}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Forgot Password Link */}
+              <TouchableOpacity
+                style={styles.forgotPassword}
+                onPress={() => {
+                  // TODO: Navigate to forgot password screen
+                  Alert.alert('Forgot Password', 'Feature coming soon!');
+                }}
+                disabled={loading}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Forgot Password Link */}
-            <TouchableOpacity
-              style={styles.forgotPassword}
-              onPress={() => {
-                // TODO: Navigate to forgot password screen
-                Alert.alert('Forgot Password', 'Feature coming soon!');
-              }}
-              disabled={loading}
-            >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -256,6 +298,9 @@ const styles = StyleSheet.create({
   },
   keyboardAvoidingView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   content: {
     flex: 1,

@@ -88,14 +88,8 @@
   },
   "source_files": "ios/**/*.{h,m,mm,swift}",
   "preserve_paths": "ios/**/*.{h,m,mm,swift}",
-  "exclude_files": [
-    "ios/*Tests/**/*",
-    "ios/ReactNativeCompatibles/**/*"
-  ],
-  "default_subspecs": [
-    "Main",
-    "ReactNativeCompatibles"
-  ],
+  "exclude_files": ["ios/*Tests/**/*", "ios/ReactNativeCompatibles/**/*"],
+  "default_subspecs": ["Main", "ReactNativeCompatibles"],
   "testspecs": [
     {
       "name": "Tests",

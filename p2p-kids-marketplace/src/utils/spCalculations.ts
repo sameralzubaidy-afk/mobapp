@@ -2,12 +2,12 @@
  * File: p2p-kids-marketplace/src/utils/spCalculations.ts
  * MODULE-04 LISTING-V3-011: SP Calculation Utilities
  * Task: LISTING-V3-011 - SP earnings preview for single & bulk listing
- * 
+ *
  * Pure functions for client-side SP calculations.
  * Follows MODULE-12 V3 rounding rules:
  * - earn_sp: Math.round (nearest integer)
  * - max_spend_sp: Math.floor (never exceed cap)
- * 
+ *
  * @see BRD US-SUB-002: SP earnings preview requirement
  */
 
@@ -20,11 +20,11 @@
 export function calculateEarnedSP(price: number, multiplier: number): number {
   // Validation: price must be positive, multiplier in valid range
   if (price <= 0 || !Number.isFinite(price)) return 0;
-  if (multiplier < 1.05 || multiplier > 1.40 || !Number.isFinite(multiplier)) {
+  if (multiplier < 1.05 || multiplier > 1.4 || !Number.isFinite(multiplier)) {
     // Fallback to default 1.10x if invalid
-    multiplier = 1.10;
+    multiplier = 1.1;
   }
-  
+
   // MODULE-12 V3 rule: Math.round for earning SP
   return Math.round(price * multiplier);
 }
@@ -41,7 +41,7 @@ export function calculateMaxSpendSP(price: number, spendingCapPercent: number): 
     // Fallback to default 70% if invalid
     spendingCapPercent = 70;
   }
-  
+
   // MODULE-12 V3 rule: Math.floor for spending cap
   return Math.floor((price * spendingCapPercent) / 100);
 }

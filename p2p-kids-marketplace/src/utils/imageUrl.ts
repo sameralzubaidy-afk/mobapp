@@ -1,6 +1,6 @@
 /**
  * Image URL utilities for CDN optimization
- * 
+ *
  * Prefers Cloudflare Worker CDN URLs for cached images,
  * falls back to direct Supabase Storage if CDN unavailable
  */
@@ -12,12 +12,12 @@ function getCdnBaseUrl(): string {
 
 /**
  * Transform a Supabase Storage publicUrl to use CDN if available
- * 
+ *
  * Example:
  * Input:  https://drntwgporzabmxdqykrp.supabase.co/storage/v1/object/public/item-images/abc.jpg
  * Output: https://p2p-kids-cf-worker-dev.samer-alzubaidy.workers.dev/item-images/abc.jpg
  *         (or original URL if CDN unavailable)
- * 
+ *
  * @param publicUrl - Supabase Storage public URL
  * @returns CDN URL if available and valid, otherwise publicUrl
  */
@@ -57,19 +57,16 @@ export function transformToCdnUrl(publicUrl: string | null | undefined): string 
 
 /**
  * Get CDN or fallback URL for an image
- * 
+ *
  * If you have both cdnUrl and publicUrl, prefers cdnUrl
  * If you only have publicUrl, attempts to transform it
  * If you only have cdnUrl, uses it directly
- * 
+ *
  * @param cdnUrl - Cloudflare Worker CDN URL (preferred)
  * @param publicUrl - Supabase Storage public URL (fallback)
  * @returns Best available URL, or null if neither provided
  */
-export function getImageUrl(
-  cdnUrl?: string | null,
-  publicUrl?: string | null
-): string | null {
+export function getImageUrl(cdnUrl?: string | null, publicUrl?: string | null): string | null {
   // Prefer explicit CDN URL
   if (cdnUrl) {
     return cdnUrl;
@@ -85,7 +82,7 @@ export function getImageUrl(
 
 /**
  * Check if URL is already a CDN URL
- * 
+ *
  * @param url - URL to check
  * @returns true if URL appears to be a Cloudflare Worker URL
  */
@@ -98,7 +95,7 @@ export function isCdnUrl(url: string | null | undefined): boolean {
 /**
  * Get fallback placeholder URL
  * Used when image loading fails
- * 
+ *
  * @returns Placeholder image URL or null
  */
 export function getImagePlaceholder(): string | null {

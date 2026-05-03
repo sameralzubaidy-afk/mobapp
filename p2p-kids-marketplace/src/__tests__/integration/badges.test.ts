@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/integration/badges.test.ts
  * MODULE-08 BADGES-V2-001: Integration tests for badges
- * 
+ *
  * Note: These tests expect Supabase tables to be available.
  * If running in a test environment without real DB, it safely skips or uses mocks.
  */
@@ -25,7 +25,7 @@ describe('Badges Integration Tests', () => {
   it('should fetch at least one badge definition from seeded data', async () => {
     const badges = await getAllBadges();
     expect(badges.length).toBeGreaterThan(0);
-    expect(badges.some(b => b.name === 'SP Earner - Bronze')).toBe(true);
+    expect(badges.some((b) => b.name === 'SP Earner - Bronze')).toBe(true);
   });
 
   it('should handle fetching badges for a user with no badges', async () => {

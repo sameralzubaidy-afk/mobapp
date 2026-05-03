@@ -22,19 +22,24 @@ export interface ProviderProfile {
 
 /**
  * AUTO-FILL PROFILE
- * 
+ *
  * UPSERTs `profiles` with `{ name: profile.name, auto_filled_from_provider: true }`
  * — never overwrites an already-set `name` unless the row is newly created.
- * 
+ *
  * Rule 5: NEVER throws — returns { success: boolean; error?: string }
- * 
+ *
  * @param profile - Provider profile data
  * @returns Success indicator with optional error message
  */
-export async function autoFillProfile(profile: ProviderProfile): Promise<{ success: boolean; error?: string }> {
+export async function autoFillProfile(
+  profile: ProviderProfile
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
     if (userError || !user) {
       console.warn('[profileService.autoFillProfile] No authenticated user:', userError);
       return { success: false, error: 'Not authenticated' };
@@ -72,17 +77,15 @@ export async function autoFillProfile(profile: ProviderProfile): Promise<{ succe
 
     let upsertError: { message: string } | null = null;
 
-    const { error: upsertWithFlagError } = await supabase
-      .from('profiles')
-      .upsert(
-        {
-          ...payloadBase,
-          auto_filled_from_provider: true,
-        },
-        {
-          onConflict: 'user_id',
-        }
-      );
+    const { error: upsertWithFlagError } = await supabase.from('profiles').upsert(
+      {
+        ...payloadBase,
+        auto_filled_from_provider: true,
+      },
+      {
+        onConflict: 'user_id',
+      }
+    );
 
     if (upsertWithFlagError) {
       const missingColumnError = /column .*auto_filled_from_provider.* does not exist/i.test(
@@ -92,11 +95,9 @@ export async function autoFillProfile(profile: ProviderProfile): Promise<{ succe
       if (!missingColumnError) {
         upsertError = upsertWithFlagError;
       } else {
-        const { error: upsertBaseError } = await supabase
-          .from('profiles')
-          .upsert(payloadBase, {
-            onConflict: 'user_id',
-          });
+        const { error: upsertBaseError } = await supabase.from('profiles').upsert(payloadBase, {
+          onConflict: 'user_id',
+        });
 
         if (upsertBaseError) {
           upsertError = upsertBaseError;
@@ -119,12 +120,12 @@ export async function autoFillProfile(profile: ProviderProfile): Promise<{ succe
 
 /**
  * DOWNLOAD PROVIDER AVATAR
- * 
+ *
  * Fetches the provider avatar, validates it (jpeg/png, ≤ 2 MB, ≥ 100×100),
  * uploads to `user-avatars/{userId}/social_avatar.{ext}`, and returns the public URL.
- * 
+ *
  * Rule 5: NEVER throws — any failure returns `null` and logs via `console.warn`
- * 
+ *
  * @param url - Provider avatar URL (optional)
  * @param userId - User ID for storage path
  * @returns Public URL or null on failure
@@ -136,7 +137,9 @@ export async function downloadProviderAvatar(
   try {
     // Apple payloads (no avatar URL) return null without attempting fetch
     if (!url) {
-      console.log('[profileService.downloadProviderAvatar] No avatar URL provided (Apple?), skipping');
+      console.log(
+        '[profileService.downloadProviderAvatar] No avatar URL provided (Apple?), skipping'
+      );
       return null;
     }
 
@@ -200,7 +203,10 @@ export async function downloadProviderAvatar(
       );
       imageInfo = { width: manipulated.width, height: manipulated.height };
     } catch (error) {
-      console.warn('[profileService.downloadProviderAvatar] Failed to read image dimensions:', error);
+      console.warn(
+        '[profileService.downloadProviderAvatar] Failed to read image dimensions:',
+        error
+      );
       return null;
     }
 
@@ -227,9 +233,7 @@ export async function downloadProviderAvatar(
     }
 
     // Get public URL
-    const { data } = supabase.storage
-      .from(AVATAR_BUCKET)
-      .getPublicUrl(storagePath);
+    const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(storagePath);
 
     if (!data?.publicUrl) {
       console.warn('[profileService.downloadProviderAvatar] Failed to get public URL');

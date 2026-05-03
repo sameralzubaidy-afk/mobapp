@@ -13,10 +13,7 @@
     "tag": "v0.81.5"
   },
   "header_dir": "jserrorhandler",
-  "source_files": [
-    "JsErrorHandler.{cpp,h}",
-    "StackTraceParser.{cpp,h}"
-  ],
+  "source_files": ["JsErrorHandler.{cpp,h}", "StackTraceParser.{cpp,h}"],
   "pod_target_xcconfig": {
     "USE_HEADERMAP": "YES",
     "CLANG_CXX_LANGUAGE_STANDARD": "c++20",

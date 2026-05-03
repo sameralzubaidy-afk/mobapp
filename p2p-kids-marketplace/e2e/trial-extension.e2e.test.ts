@@ -1,18 +1,22 @@
 /**
  * File: p2p-kids-marketplace/e2e/trial-extension.e2e.test.ts
  * E2E Integration test for Trial Extension System (SUB-EXT-001)
- * 
+ *
  * Prerequisites:
  * - Supabase migration 114_trial_extension_system.sql must be applied
  * - Test users must exist with active trials
  * - Admin config must have max_referral_extensions and referral_extension_days set
- * 
+ *
  * Run with:
  *   npm test -- trial-extension.e2e.test.ts
  */
 
 import { supabase } from '../src/config/supabase';
-import { extendTrial, getTrialExtensionStats, getTrialExtensionHistory } from '../src/services/subscriptions/trialExtension';
+import {
+  extendTrial,
+  getTrialExtensionStats,
+  getTrialExtensionHistory,
+} from '../src/services/subscriptions/trialExtension';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim() || '';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim() || '';
@@ -27,9 +31,7 @@ if (!hasSupabaseEnv) {
   if (!supabaseUrl || !supabaseAnonKey) {
     reasons.push('provide EXPO_PUBLIC_SUPABASE_URL/ANON_KEY');
   }
-  console.warn(
-    `[Trial Extension] Skipping E2E suite: ${reasons.join(', ')}.`
-  );
+  console.warn(`[Trial Extension] Skipping E2E suite: ${reasons.join(', ')}.`);
 }
 
 const describeTrialExtension = describe;
@@ -59,15 +61,13 @@ describeTrialExtension('Trial Extension E2E', () => {
     testUserId = authData.user.id;
 
     // Create subscription with trial
-    const { error: subError } = await supabase
-      .from('subscriptions')
-      .insert({
-        user_id: testUserId,
-        status: 'trial',
-        trial_start_date: new Date().toISOString(),
-        trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-        referral_extensions_used: 0,
-      });
+    const { error: subError } = await supabase.from('subscriptions').insert({
+      user_id: testUserId,
+      status: 'trial',
+      trial_start_date: new Date().toISOString(),
+      trial_end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+      referral_extensions_used: 0,
+    });
 
     if (subError) {
       throw new Error(`Failed to create subscription: ${subError.message}`);
@@ -157,7 +157,9 @@ describeTrialExtension('Trial Extension E2E', () => {
 
     const startDate = new Date(subscription!.trial_start_date);
     const endDate = new Date(subscription!.trial_end_date);
-    const daysDifference = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysDifference = Math.floor(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
 
     // Should be 30 days (original trial) + 21 days (3 extensions x 7 days) = 51 days
     expect(daysDifference).toBeGreaterThanOrEqual(50); // Allow for rounding
@@ -197,14 +199,12 @@ describeTrialExtension('Trial Extension Edge Cases', () => {
     const activeUserId = authData.user.id;
 
     // Create active subscription (not trial)
-    await supabase
-      .from('subscriptions')
-      .insert({
-        user_id: activeUserId,
-        status: 'active', // Not trial
-        current_period_start: new Date().toISOString(),
-        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      });
+    await supabase.from('subscriptions').insert({
+      user_id: activeUserId,
+      status: 'active', // Not trial
+      current_period_start: new Date().toISOString(),
+      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    });
 
     const result = await extendTrial(activeUserId, 'fake-referral-id');
 

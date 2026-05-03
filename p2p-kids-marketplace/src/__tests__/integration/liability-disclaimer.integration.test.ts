@@ -1,7 +1,7 @@
 /**
  * Integration Test: SAFETY-012 Liability Disclaimer System
  * Tests end-to-end flow with real Supabase (staging)
- * 
+ *
  * Run with: RUN_SUPABASE_E2E=true npm run test:e2e
  */
 
@@ -31,10 +31,9 @@ describe('SAFETY-012: Liability Disclaimer Integration', () => {
     }
 
     // Get or create test policy
-    const { data: policies, error: policyError } = await supabase
-      .rpc('get_current_policy', {
-        p_policy_type: 'liability_disclaimer',
-      });
+    const { data: policies, error: policyError } = await supabase.rpc('get_current_policy', {
+      p_policy_type: 'liability_disclaimer',
+    });
 
     if (policyError) {
       canRun = false;
@@ -139,7 +138,9 @@ describe('SAFETY-012: Liability Disclaimer Integration', () => {
       });
 
       expect(error).toBeDefined();
-      expect(error.message).toMatch(/Invalid disclaimer policy|Trade not found|not authorized|not found/i);
+      expect(error.message).toMatch(
+        /Invalid disclaimer policy|Trade not found|not authorized|not found/i
+      );
     });
   });
 
@@ -205,10 +206,9 @@ describe('SAFETY-012: Liability Disclaimer Integration', () => {
       if (skipIfUnavailable()) return;
 
       // 1. Fetch current policy
-      const { data: policyData, error: policyError } = await supabase.rpc(
-        'get_current_policy',
-        { p_policy_type: 'liability_disclaimer' }
-      );
+      const { data: policyData, error: policyError } = await supabase.rpc('get_current_policy', {
+        p_policy_type: 'liability_disclaimer',
+      });
 
       expect(policyError).toBeNull();
       expect(policyData).toBeDefined();

@@ -14,15 +14,18 @@ import type { BillingHistory } from '../../types/billingHistory.types';
 
 describe('SUB-014 E2E: Billing History', () => {
   const TEST_USER_ID = process.env.TEST_USER_ID || '11111111-1111-4111-8111-111111111111';
-  const TEST_SUBSCRIPTION_ID = process.env.TEST_SUBSCRIPTION_ID || '22222222-2222-4222-8222-222222222222';
+  const TEST_SUBSCRIPTION_ID =
+    process.env.TEST_SUBSCRIPTION_ID || '22222222-2222-4222-8222-222222222222';
   let canWriteBillingHistory = true;
-  
+
   let testChargeId: string;
   let testBillingRecordId: string;
 
   const ensureWriteAccess = () => {
     if (!canWriteBillingHistory) {
-      console.warn('[billing-history-sub-014] Skipping write assertion: current auth context cannot write billing_history due to RLS');
+      console.warn(
+        '[billing-history-sub-014] Skipping write assertion: current auth context cannot write billing_history due to RLS'
+      );
       return false;
     }
     return true;
@@ -30,10 +33,7 @@ describe('SUB-014 E2E: Billing History', () => {
 
   beforeAll(async () => {
     // Verify billing_history table exists
-    const { data: tables, error } = await supabase
-      .from('billing_history')
-      .select('id')
-      .limit(0);
+    const { data: tables, error } = await supabase.from('billing_history').select('id').limit(0);
 
     if (error) {
       throw new Error(
@@ -42,15 +42,13 @@ describe('SUB-014 E2E: Billing History', () => {
     }
 
     const writeProbeChargeId = `ch_test_probe_${Date.now()}`;
-    const { error: writeProbeError } = await supabase
-      .from('billing_history')
-      .insert({
-        user_id: TEST_USER_ID,
-        subscription_id: TEST_SUBSCRIPTION_ID,
-        charge_id: writeProbeChargeId,
-        amount: 1,
-        status: 'pending',
-      });
+    const { error: writeProbeError } = await supabase.from('billing_history').insert({
+      user_id: TEST_USER_ID,
+      subscription_id: TEST_SUBSCRIPTION_ID,
+      charge_id: writeProbeChargeId,
+      amount: 1,
+      status: 'pending',
+    });
 
     if (writeProbeError?.code === '42501') {
       canWriteBillingHistory = false;
@@ -62,10 +60,7 @@ describe('SUB-014 E2E: Billing History', () => {
   afterEach(async () => {
     // Cleanup: Delete test billing records
     if (testChargeId) {
-      await supabase
-        .from('billing_history')
-        .delete()
-        .eq('charge_id', testChargeId);
+      await supabase.from('billing_history').delete().eq('charge_id', testChargeId);
     }
   });
 

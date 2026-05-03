@@ -33,9 +33,7 @@ interface SubscriptionSuccessScreenProps {
   };
 }
 
-export default function SubscriptionSuccessScreen({
-  route,
-}: SubscriptionSuccessScreenProps) {
+export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccessScreenProps) {
   const navigation = useNavigation<NavigationProp>();
   const { subscription, loading } = useSubscription();
 
@@ -131,14 +129,9 @@ export default function SubscriptionSuccessScreen({
         </Animated.View>
 
         {/* Success Title */}
-        <Animated.View
-          style={[
-            styles.headerContainer,
-            { opacity: containerOpacity },
-          ]}
-        >
+        <Animated.View style={[styles.headerContainer, { opacity: containerOpacity }]}>
           <Text style={styles.title}>
-            {isRenewal ? "Re-subscription\nSuccessful!" : "Welcome to Kids Club+!"}
+            {isRenewal ? 'Re-subscription\nSuccessful!' : 'Welcome to Kids Club+!'}
           </Text>
           <Text style={styles.subtitle}>
             {isRenewal
@@ -148,21 +141,14 @@ export default function SubscriptionSuccessScreen({
         </Animated.View>
 
         {/* Benefits Highlight */}
-        <Animated.View
-          style={[
-            styles.benefitsCard,
-            { opacity: containerOpacity },
-          ]}
-        >
+        <Animated.View style={[styles.benefitsCard, { opacity: containerOpacity }]}>
           <Text style={styles.benefitsTitle}>You now have access to:</Text>
 
           <View style={styles.benefitItem}>
             <Text style={styles.benefitIcon}>✨</Text>
             <View style={styles.benefitContent}>
               <Text style={styles.benefitItemTitle}>Earn Swap Points</Text>
-              <Text style={styles.benefitItemDesc}>
-                Get points for every sale
-              </Text>
+              <Text style={styles.benefitItemDesc}>Get points for every sale</Text>
             </View>
           </View>
 
@@ -170,9 +156,7 @@ export default function SubscriptionSuccessScreen({
             <Text style={styles.benefitIcon}>💰</Text>
             <View style={styles.benefitContent}>
               <Text style={styles.benefitItemTitle}>Lower Fees</Text>
-              <Text style={styles.benefitItemDesc}>
-                $0.99 per transaction
-              </Text>
+              <Text style={styles.benefitItemDesc}>$0.99 per transaction</Text>
             </View>
           </View>
 
@@ -180,9 +164,7 @@ export default function SubscriptionSuccessScreen({
             <Text style={styles.benefitIcon}>🚀</Text>
             <View style={styles.benefitContent}>
               <Text style={styles.benefitItemTitle}>Priority Listings</Text>
-              <Text style={styles.benefitItemDesc}>
-                Your items get shown first
-              </Text>
+              <Text style={styles.benefitItemDesc}>Your items get shown first</Text>
             </View>
           </View>
 
@@ -190,20 +172,13 @@ export default function SubscriptionSuccessScreen({
             <Text style={styles.benefitIcon}>⚡</Text>
             <View style={styles.benefitContent}>
               <Text style={styles.benefitItemTitle}>Early Access</Text>
-              <Text style={styles.benefitItemDesc}>
-                See new listings before others
-              </Text>
+              <Text style={styles.benefitItemDesc}>See new listings before others</Text>
             </View>
           </View>
         </Animated.View>
 
         {/* CTA Buttons */}
-        <Animated.View
-          style={[
-            styles.buttonsContainer,
-            { opacity: containerOpacity },
-          ]}
-        >
+        <Animated.View style={[styles.buttonsContainer, { opacity: containerOpacity }]}>
           {/* Primary Button: Start Searching */}
           <TouchableOpacity
             style={styles.primaryButton}
@@ -211,9 +186,7 @@ export default function SubscriptionSuccessScreen({
             activeOpacity={0.85}
           >
             <Text style={styles.primaryButtonText}>🔍 Start Searching</Text>
-            <Text style={styles.primaryButtonSubtext}>
-              Browse amazing deals nearby
-            </Text>
+            <Text style={styles.primaryButtonSubtext}>Browse amazing deals nearby</Text>
           </TouchableOpacity>
 
           {/* Secondary Button: Go to Dashboard */}
@@ -227,14 +200,10 @@ export default function SubscriptionSuccessScreen({
         </Animated.View>
 
         {/* Helpful Text */}
-        <Animated.View
-          style={[
-            styles.footerText,
-            { opacity: containerOpacity },
-          ]}
-        >
+        <Animated.View style={[styles.footerText, { opacity: containerOpacity }]}>
           <Text style={styles.footerContent}>
-            Your subscription will renew automatically. Manage or cancel anytime from your subscription settings.
+            Your subscription will renew automatically. Manage or cancel anytime from your
+            subscription settings.
           </Text>
         </Animated.View>
       </ScrollView>

@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/components/DisclaimerModal.tsx
  * TASK SAFETY-012: Liability Disclaimer Modal for Trade Confirmation
- * 
+ *
  * Modal that displays the liability disclaimer before completing a trade.
  * User must check "I understand" before they can proceed with the purchase.
  */
@@ -176,14 +176,10 @@ export default function DisclaimerModal({
                 accessibilityLabel="I have read and understand this disclaimer"
                 accessibilityState={{ checked: accepted }}
               >
-                <View
-                  style={[styles.checkboxInner, accepted && styles.checkboxChecked]}
-                >
+                <View style={[styles.checkboxInner, accepted && styles.checkboxChecked]}>
                   {accepted && <Text style={styles.checkmark}>✓</Text>}
                 </View>
-                <Text style={styles.checkboxLabel}>
-                  I have read and understand this disclaimer
-                </Text>
+                <Text style={styles.checkboxLabel}>I have read and understand this disclaimer</Text>
               </Pressable>
 
               <View style={styles.buttonRow}>
@@ -196,23 +192,14 @@ export default function DisclaimerModal({
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </Pressable>
                 <Pressable
-                  style={[
-                    styles.button,
-                    styles.acceptButton,
-                    !accepted && styles.buttonDisabled,
-                  ]}
+                  style={[styles.button, styles.acceptButton, !accepted && styles.buttonDisabled]}
                   onPress={handleAcceptPress}
                   disabled={!accepted}
                   testID={`${testID}-accept-button`}
                   accessibilityLabel="Accept and continue"
                   accessibilityState={{ disabled: !accepted }}
                 >
-                  <Text
-                    style={[
-                      styles.acceptButtonText,
-                      !accepted && styles.buttonTextDisabled,
-                    ]}
-                  >
+                  <Text style={[styles.acceptButtonText, !accepted && styles.buttonTextDisabled]}>
                     Accept & Continue
                   </Text>
                 </Pressable>

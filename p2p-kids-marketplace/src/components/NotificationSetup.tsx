@@ -73,8 +73,8 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
           Platform.OS === 'web'
             ? 'Push notifications are not available on web'
             : Platform.OS === 'android'
-            ? 'Could not obtain push token. Ensure this is a development build (not Expo Go), add google-services.json, and rebuild Android.'
-            : 'Could not obtain push notification token. Make sure you granted permissions.'
+              ? 'Could not obtain push token. Ensure this is a development build (not Expo Go), add google-services.json, and rebuild Android.'
+              : 'Could not obtain push notification token. Make sure you granted permissions.'
         );
         setLoading(false);
         return;
@@ -157,9 +157,8 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
         <View style={styles.infoBox}>
           <Text style={styles.infoTitle}>Privacy & Permissions</Text>
           <Text style={styles.infoText}>
-            • We never share your device information{'\n'}
-            • You can disable notifications anytime in settings{'\n'}
-            • Notifications are stored securely in our database
+            • We never share your device information{'\n'}• You can disable notifications anytime in
+            settings{'\n'}• Notifications are stored securely in our database
           </Text>
         </View>
       </ScrollView>
@@ -176,21 +175,10 @@ export const NotificationSetup: React.FC<NotificationSetupProps> = ({
         )}
 
         {isOptional && status !== 'success' && (
-          <Button
-            title="Maybe Later"
-            onPress={onComplete}
-            color="#999"
-            disabled={loading}
-          />
+          <Button title="Maybe Later" onPress={onComplete} color="#999" disabled={loading} />
         )}
 
-        {status === 'success' && (
-          <Button
-            title="Continue"
-            onPress={onComplete}
-            color="#4CAF50"
-          />
-        )}
+        {status === 'success' && <Button title="Continue" onPress={onComplete} color="#4CAF50" />}
       </View>
     </SafeAreaView>
   );

@@ -5,14 +5,17 @@ import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
+const supabaseServiceKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 
 // Skip tests if environment variables are missing
 const shouldSkip = !supabaseUrl || !supabaseServiceKey;
 const runBadgesV2LiveE2E = process.env.RUN_BADGES_V2_003_E2E === 'true';
 
 if (shouldSkip) {
-  console.warn('⏭️  Skipping badge E2E tests: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY');
+  console.warn(
+    '⏭️  Skipping badge E2E tests: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY'
+  );
 }
 
 const supabase = !shouldSkip ? createClient(supabaseUrl, supabaseServiceKey) : null;
@@ -109,7 +112,7 @@ describe('E2E: Trade & Subscription Badges (BADGES-V2-003)', () => {
     expect(updateError).toBeNull();
 
     // Step 3: Wait a moment for trigger to execute
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Step 4: Check if buyer got "First Trade" badge
     const { data: buyerBadges } = await supabase!
@@ -156,7 +159,7 @@ describe('E2E: Trade & Subscription Badges (BADGES-V2-003)', () => {
     const response = await fetch(functionUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabaseServiceKey}`,
+        Authorization: `Bearer ${supabaseServiceKey}`,
         'Content-Type': 'application/json',
       },
     });
@@ -168,7 +171,7 @@ describe('E2E: Trade & Subscription Badges (BADGES-V2-003)', () => {
     expect(result.processed).toBeGreaterThan(0);
 
     // Wait for processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
 
     // Check if buyer got subscription badges
     const { data: subBadges } = await supabase!
@@ -181,7 +184,7 @@ describe('E2E: Trade & Subscription Badges (BADGES-V2-003)', () => {
     expect(subBadges?.length).toBeGreaterThan(0);
 
     // Should have Trial Member and 1-Month Subscriber (35 days > 30 days)
-    const badgeNames = subBadges?.map(b => b.badge?.name) || [];
+    const badgeNames = subBadges?.map((b) => b.badge?.name) || [];
     expect(badgeNames).toContain('Trial Member');
     expect(badgeNames).toContain('1-Month Subscriber');
   });
@@ -215,7 +218,7 @@ describe('E2E: Trade & Subscription Badges (BADGES-V2-003)', () => {
       .select()
       .single();
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     // Check buyer still only has ONE "First Trade" badge
     const { data: buyerBadges } = await supabase!

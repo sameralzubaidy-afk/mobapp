@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/components/RadiusSlider.tsx
  * MODULE-03 NODE-007: Distance Radius Filter
- * 
+ *
  * Reusable radius slider component for item search
  * - Displays adjustable radius in miles
  * - Respects admin-configured min/max bounds
@@ -123,13 +123,8 @@ export default function RadiusSlider({
           {...panResponder.panHandlers}
         >
           {/* Filled portion */}
-          <View
-            style={[
-              styles.filledTrack,
-              { width: `${percentage * 100}%` },
-            ]}
-          />
-          
+          <View style={[styles.filledTrack, { width: `${percentage * 100}%` }]} />
+
           {/* Thumb/Handle */}
           <View
             style={[

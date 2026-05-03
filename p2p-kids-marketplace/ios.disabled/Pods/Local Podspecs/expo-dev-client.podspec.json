@@ -23,14 +23,8 @@
     "EXUpdatesInterface": []
   },
   "configuration_pod_whitelist": {
-    "expo-dev-launcher": [
-      "debug"
-    ],
-    "expo-dev-menu": [
-      "debug"
-    ],
-    "EXManifests": [
-      "debug"
-    ]
+    "expo-dev-launcher": ["debug"],
+    "expo-dev-menu": ["debug"],
+    "EXManifests": ["debug"]
   }
 }

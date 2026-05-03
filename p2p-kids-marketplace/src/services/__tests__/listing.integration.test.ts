@@ -13,7 +13,9 @@ jest.mock('../subscription');
 jest.mock('../analytics');
 jest.mock('../../config/supabase');
 
-const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction<typeof getSubscriptionSummary>;
+const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction<
+  typeof getSubscriptionSummary
+>;
 const mockGetSubscriptionStatusString = getSubscriptionStatusString as jest.MockedFunction<
   typeof getSubscriptionStatusString
 >;
@@ -22,7 +24,8 @@ const mockSupabase = supabase as jest.Mocked<typeof supabase>;
 
 function makeThenable<T>(result: T) {
   return {
-    then: (onFulfilled: any, onRejected: any) => Promise.resolve(result).then(onFulfilled, onRejected),
+    then: (onFulfilled: any, onRejected: any) =>
+      Promise.resolve(result).then(onFulfilled, onRejected),
   } as any;
 }
 
@@ -193,18 +196,20 @@ describe('LISTING-V2-007: Listing Module Integration Tests', () => {
         eq: jest.fn(),
       };
       mockDeletedQuery.eq.mockReturnValue({
-        data: [{
-          id: listingId,
-          seller_id: 'seller-123',
-          title: 'Broken Item',
-          status: 'deleted',
-          deleted_at: new Date().toISOString(),
-          profiles: {
-            id: 'profile-123',
-            user_id: 'seller-123',
-            name: 'Alice Smith',
+        data: [
+          {
+            id: listingId,
+            seller_id: 'seller-123',
+            title: 'Broken Item',
+            status: 'deleted',
+            deleted_at: new Date().toISOString(),
+            profiles: {
+              id: 'profile-123',
+              user_id: 'seller-123',
+              name: 'Alice Smith',
+            },
           },
-        }],
+        ],
         error: null,
       });
       mockDeletedQuery.select.mockReturnValue(mockDeletedQuery);

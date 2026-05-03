@@ -14,12 +14,12 @@ import { getWalletSummary, getBalance } from '@/services/sp/wallet';
 
 /**
  * E2E Tests for SP Earning Logic
- * 
+ *
  * Prerequisites:
  * 1. Run migration 094_sp_earning_rpcs.sql in Supabase
  * 2. Have test users with active Kids Club+ subscriptions
  * 3. Have test listings created
- * 
+ *
  * Test users should be seeded with:
  * - User A: Active subscriber, no starter pack
  * - User B: Active subscriber, referrer
@@ -115,11 +115,7 @@ describe('SP-002 E2E: SP Earning Flows', () => {
       const refereeBalanceBefore = await getBalance(testRefereeId);
 
       // Award referral rewards
-      const result = await awardReferralReward(
-        testReferrerId,
-        testRefereeId,
-        testReferralId
-      );
+      const result = await awardReferralReward(testReferrerId, testRefereeId, testReferralId);
 
       expect(result.success).toBe(true);
       expect(result.sp_awarded).toBeGreaterThan(0);
@@ -139,11 +135,7 @@ describe('SP-002 E2E: SP Earning Flows', () => {
       }
 
       // Try to award again
-      const result = await awardReferralReward(
-        testReferrerId,
-        testRefereeId,
-        testReferralId
-      );
+      const result = await awardReferralReward(testReferrerId, testRefereeId, testReferralId);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('already processed');
@@ -160,11 +152,7 @@ describe('SP-002 E2E: SP Earning Flows', () => {
       const balanceBefore = await getBalance(testUserId);
       const rewardAmount = 100;
 
-      const result = await awardChallengeReward(
-        testUserId,
-        testChallengeId,
-        rewardAmount
-      );
+      const result = await awardChallengeReward(testUserId, testChallengeId, rewardAmount);
 
       expect(result.success).toBe(true);
       expect(result.sp_awarded).toBe(rewardAmount);
@@ -179,11 +167,7 @@ describe('SP-002 E2E: SP Earning Flows', () => {
         return;
       }
 
-      const result = await awardChallengeReward(
-        testUserId,
-        testChallengeId,
-        100
-      );
+      const result = await awardChallengeReward(testUserId, testChallengeId, 100);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('already claimed');
@@ -200,11 +184,7 @@ describe('SP-002 E2E: SP Earning Flows', () => {
       const balanceBefore = await getBalance(testUserId);
       const refundAmount = 50;
 
-      const result = await refundSpForCancelledTrade(
-        testUserId,
-        testTradeId,
-        refundAmount
-      );
+      const result = await refundSpForCancelledTrade(testUserId, testTradeId, refundAmount);
 
       expect(result.success).toBe(true);
       expect(result.sp_awarded).toBe(refundAmount);
@@ -219,11 +199,7 @@ describe('SP-002 E2E: SP Earning Flows', () => {
         return;
       }
 
-      const result = await refundSpForCancelledTrade(
-        testUserId,
-        testTradeId,
-        50
-      );
+      const result = await refundSpForCancelledTrade(testUserId, testTradeId, 50);
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('already processed');
@@ -248,9 +224,9 @@ describe('SP-002 E2E: SP Earning Flows', () => {
 
 /**
  * Test Data Setup Guide
- * 
+ *
  * To run these E2E tests, create a .env.test file with:
- * 
+ *
  * TEST_USER_ID=<uuid-of-active-subscriber>
  * TEST_LISTING_ID=<uuid-of-approved-listing>
  * TEST_REFERRER_ID=<uuid-of-referrer-subscriber>
@@ -259,18 +235,18 @@ describe('SP-002 E2E: SP Earning Flows', () => {
  * TEST_CHALLENGE_ID=<uuid-of-active-challenge>
  * TEST_TRADE_ID=<uuid-of-cancelled-trade>
  * TEST_FREE_USER_ID=<uuid-of-non-subscriber>
- * 
+ *
  * Run SQL to create test data:
- * 
+ *
  * -- Create test users with subscriptions
- * INSERT INTO auth.users (id, email) VALUES 
+ * INSERT INTO auth.users (id, email) VALUES
  *   ('test-user-1', 'testuser1@test.com'),
  *   ('test-user-2', 'testuser2@test.com');
- * 
+ *
  * INSERT INTO subscriptions (user_id, status, start_date) VALUES
  *   ('test-user-1', 'active', NOW()),
  *   ('test-user-2', 'active', NOW());
- * 
+ *
  * -- Create SP wallets
  * INSERT INTO sp_wallets (user_id) VALUES
  *   ('test-user-1'),

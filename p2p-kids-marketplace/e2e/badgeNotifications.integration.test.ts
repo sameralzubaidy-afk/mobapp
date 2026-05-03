@@ -16,13 +16,12 @@ describe('Badge Notification Integration Tests', () => {
     }
 
     // Verify notification schema exists
-    const { data: tables, error } = await supabase
-      .from('user_notifications')
-      .select('id')
-      .limit(1);
+    const { data: tables, error } = await supabase.from('user_notifications').select('id').limit(1);
 
     if (error && (error.code === '42P01' || error.code === 'PGRST205')) {
-      throw new Error('user_notifications table does not exist. Run notifications migrations first');
+      throw new Error(
+        'user_notifications table does not exist. Run notifications migrations first'
+      );
     }
   });
 
@@ -30,10 +29,7 @@ describe('Badge Notification Integration Tests', () => {
     if (!process.env.RUN_SUPABASE_E2E) return;
 
     // Cleanup test notifications
-    await supabase
-      .from('user_notifications')
-      .delete()
-      .eq('user_id', TEST_USER_ID);
+    await supabase.from('user_notifications').delete().eq('user_id', TEST_USER_ID);
   });
 
   describe('Badge Award Trigger', () => {
@@ -43,17 +39,18 @@ describe('Badge Notification Integration Tests', () => {
       }
 
       // Insert user badge (simulates badge award)
-      const { error: insertError } = await supabase
-        .from('user_badges')
-        .insert({
-          user_id: TEST_USER_ID,
-          badge_id: TEST_BADGE_ID,
-        });
+      const { error: insertError } = await supabase.from('user_badges').insert({
+        user_id: TEST_USER_ID,
+        badge_id: TEST_BADGE_ID,
+      });
 
       if (insertError && insertError.code !== '23503') {
         // 23503 = foreign key violation (badge doesn't exist in badges table)
         // This is expected in test environment if badge not seeded
-        console.warn('Badge insert failed (expected if test badge not seeded):', insertError.message);
+        console.warn(
+          'Badge insert failed (expected if test badge not seeded):',
+          insertError.message
+        );
       }
 
       // Wait for trigger to execute
@@ -68,7 +65,7 @@ describe('Badge Notification Integration Tests', () => {
         .eq('type', 'badge_earned');
 
       expect(fetchError).toBeNull();
-      
+
       // If badge insert succeeded, notification should exist
       if (!insertError) {
         expect(notifications).toBeTruthy();
@@ -117,7 +114,9 @@ describe('Badge Notification Integration Tests', () => {
       });
 
       if (error?.code === 'PGRST202') {
-        console.warn('Skipping milestone notification assertion: check_badge_milestones RPC not deployed');
+        console.warn(
+          'Skipping milestone notification assertion: check_badge_milestones RPC not deployed'
+        );
         return;
       }
 
@@ -158,12 +157,10 @@ describe('Badge Notification Integration Tests', () => {
       expect(updateError).toBeNull();
 
       // Award badge (would normally trigger notification)
-      await supabase
-        .from('user_badges')
-        .insert({
-          user_id: TEST_USER_ID,
-          badge_id: TEST_BADGE_ID,
-        });
+      await supabase.from('user_badges').insert({
+        user_id: TEST_USER_ID,
+        badge_id: TEST_BADGE_ID,
+      });
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
 

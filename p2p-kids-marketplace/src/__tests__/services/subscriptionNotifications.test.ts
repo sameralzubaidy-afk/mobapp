@@ -73,7 +73,10 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
           p_body: 'Test body',
         })
       );
-      expect(supabase.functions.invoke).toHaveBeenCalledWith('send-push-notification', expect.any(Object));
+      expect(supabase.functions.invoke).toHaveBeenCalledWith(
+        'send-push-notification',
+        expect.any(Object)
+      );
     });
 
     it('should bypass preferences for critical notifications', async () => {
@@ -232,9 +235,12 @@ describe('MODULE-14 NOTIF-V2-002: Subscription Notifications', () => {
       expect(rpcCall.p_title).toContain('Payment Failed');
       expect(rpcCall.p_data.critical).toBe(true);
       expect(rpcCall.p_data.retry_count).toBe(1);
-      
+
       // Should send push despite preferences being disabled (critical notification)
-      expect(supabase.functions.invoke).toHaveBeenCalledWith('send-push-notification', expect.any(Object));
+      expect(supabase.functions.invoke).toHaveBeenCalledWith(
+        'send-push-notification',
+        expect.any(Object)
+      );
     });
 
     it('should send escalated message for retry 2', async () => {

@@ -69,19 +69,15 @@ export default function ProfileCompletionScreen() {
       const filename = `avatars/${userId}-${timestamp}.jpg`;
 
       // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from('user-avatars')
-        .upload(filename, blob, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+      const { data, error } = await supabase.storage.from('user-avatars').upload(filename, blob, {
+        cacheControl: '3600',
+        upsert: false,
+      });
 
       if (error) throw error;
 
       // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('user-avatars')
-        .getPublicUrl(filename);
+      const { data: urlData } = supabase.storage.from('user-avatars').getPublicUrl(filename);
 
       return urlData.publicUrl;
     } catch (error) {
@@ -202,9 +198,7 @@ export default function ProfileCompletionScreen() {
                 editable={!loading}
                 maxLength={50}
               />
-              <Text style={styles.charCount}>
-                {displayName.length}/50
-              </Text>
+              <Text style={styles.charCount}>{displayName.length}/50</Text>
             </View>
 
             {/* Bio */}
@@ -221,9 +215,7 @@ export default function ProfileCompletionScreen() {
                 multiline
                 numberOfLines={4}
               />
-              <Text style={styles.charCount}>
-                {bio.length}/200
-              </Text>
+              <Text style={styles.charCount}>{bio.length}/200</Text>
             </View>
 
             {/* Continue button */}

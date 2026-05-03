@@ -4,7 +4,7 @@
  */
 
 describe('SUB-008 cancellation E2E placeholder', () => {
-	it('placeholder test', () => {
-		expect(true).toBe(true);
-	});
+  it('placeholder test', () => {
+    expect(true).toBe(true);
+  });
 });

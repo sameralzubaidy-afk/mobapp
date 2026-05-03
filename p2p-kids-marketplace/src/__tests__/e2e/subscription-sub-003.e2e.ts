@@ -20,7 +20,9 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
 
   const shouldSkipCase = (): boolean => {
     if (!canRunSuite) {
-      console.warn(`[SUB-003 E2E] Skipping case: ${skipReason || 'suite preconditions unavailable'}`);
+      console.warn(
+        `[SUB-003 E2E] Skipping case: ${skipReason || 'suite preconditions unavailable'}`
+      );
       return true;
     }
 
@@ -42,7 +44,7 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
 
   beforeAll(async () => {
     console.log('🧪 SUB-003 E2E Test: Setup');
-    
+
     // Create test user (simulate signup)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: TEST_USER_EMAIL,
@@ -64,11 +66,14 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
     console.log('✅ Test user created:', testUserId);
 
     // Create free subscription (simulates what happens after signup)
-    await supabase.from('subscriptions').upsert({
-      user_id: testUserId,
-      status: 'free',
-      trial_used_at: null,
-    }, { onConflict: 'user_id' });
+    await supabase.from('subscriptions').upsert(
+      {
+        user_id: testUserId,
+        status: 'free',
+        trial_used_at: null,
+      },
+      { onConflict: 'user_id' }
+    );
   });
 
   async function createIsolatedUserWithFreeSubscription(): Promise<string> {
@@ -89,11 +94,14 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
     }
 
     const isolatedUserId = authData.user.id;
-    await supabase.from('subscriptions').upsert({
-      user_id: isolatedUserId,
-      status: 'free',
-      trial_used_at: null,
-    }, { onConflict: 'user_id' });
+    await supabase.from('subscriptions').upsert(
+      {
+        user_id: isolatedUserId,
+        status: 'free',
+        trial_used_at: null,
+      },
+      { onConflict: 'user_id' }
+    );
 
     return isolatedUserId;
   }
@@ -166,7 +174,7 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
       expect(error).toBeNull();
       expect(subscription).toBeDefined();
       expect(subscription!.status).toBe('trial');
-      
+
       // MODULE-11 SUB-003: Verify reminder flags initialized
       expect(subscription!.trial_reminder_day_23_sent).toBe(false);
       expect(subscription!.trial_reminder_day_28_sent).toBe(false);
@@ -200,7 +208,7 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
       // Cancel and revert to free (simulate user cancelling trial)
       await supabase
         .from('subscriptions')
-        .update({ 
+        .update({
           status: 'free',
           trial_start_date: null,
           trial_end_date: null,
@@ -276,7 +284,9 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
 
       const startDate = new Date(subscription!.trial_start_date);
       const endDate = new Date(subscription!.trial_end_date);
-      const actualDuration = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const actualDuration = Math.round(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
 
       expect(actualDuration).toBeGreaterThanOrEqual(expectedDuration - 1);
       expect(actualDuration).toBeLessThanOrEqual(expectedDuration + 1);
@@ -306,7 +316,9 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
       // Verify flag updated
       const { data: sub1 } = await supabase
         .from('subscriptions')
-        .select('trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent')
+        .select(
+          'trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent'
+        )
         .eq('user_id', isolatedUserId)
         .single();
 
@@ -323,7 +335,9 @@ describe('MODULE-11 SUB-003 E2E: Start 30-Day Free Trial', () => {
       // Verify both flags
       const { data: sub2 } = await supabase
         .from('subscriptions')
-        .select('trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent')
+        .select(
+          'trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent'
+        )
         .eq('user_id', isolatedUserId)
         .single();
 

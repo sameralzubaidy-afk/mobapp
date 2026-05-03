@@ -8,14 +8,14 @@ import { createClient } from '@supabase/supabase-js';
 
 /**
  * E2E Tests for ID Badge Upload Flow
- * 
+ *
  * Prerequisites:
  * - Database migration 20260208000000_id_badge_verification_system.sql applied
  * - id_badge_verification_requests table exists
  * - id_badge_verification_messages table seeded
  * - id-badge-verification-screenshots storage bucket exists
  * - Test user account created
- * 
+ *
  * Note: These tests require SUPABASE_E2E_ENABLED=true and real Supabase credentials
  */
 
@@ -45,10 +45,7 @@ describeE2E('ID Badge Upload E2E', () => {
     if (!testUserId) return;
 
     const client = adminSupabase ?? supabase;
-    await client
-      .from('id_badge_verification_requests')
-      .delete()
-      .eq('user_id', testUserId);
+    await client.from('id_badge_verification_requests').delete().eq('user_id', testUserId);
   }
 
   beforeAll(async () => {
@@ -101,7 +98,7 @@ describeE2E('ID Badge Upload E2E', () => {
   describe('Configurable Messages', () => {
     it('should fetch disclaimer message from database', async () => {
       const message = await idBadgeService.getMessage('upload_disclaimer');
-      
+
       expect(message).toBeTruthy();
       expect(typeof message).toBe('string');
       expect(message.length).toBeGreaterThan(10);
@@ -109,7 +106,7 @@ describeE2E('ID Badge Upload E2E', () => {
 
     it('should return empty string for non-existent message key', async () => {
       const message = await idBadgeService.getMessage('nonexistent_key_12345');
-      
+
       expect(message).toBe('');
     });
 
@@ -131,7 +128,7 @@ describeE2E('ID Badge Upload E2E', () => {
   describe('Pending Request Check', () => {
     it('should return null when user has no pending request', async () => {
       const pending = await idBadgeService.checkPendingRequest(testUserId);
-      
+
       expect(pending).toBeNull();
     });
 
@@ -150,23 +147,20 @@ describeE2E('ID Badge Upload E2E', () => {
         .single();
 
       const pending = await idBadgeService.checkPendingRequest(testUserId);
-      
+
       expect(pending).toBeTruthy();
       expect(pending!.id).toBe(request!.id);
       expect(pending!.status).toBe('pending');
 
       // Cleanup
-      await supabase
-        .from('id_badge_verification_requests')
-        .delete()
-        .eq('id', request!.id);
+      await supabase.from('id_badge_verification_requests').delete().eq('id', request!.id);
     });
   });
 
   describe('Verification Status', () => {
     it('should return "none" when user has no requests', async () => {
       const status = await idBadgeService.getVerificationStatus(testUserId);
-      
+
       expect(status.status).toBe('none');
       expect(status.submittedAt).toBeUndefined();
     });
@@ -184,15 +178,12 @@ describeE2E('ID Badge Upload E2E', () => {
         .single();
 
       const status = await idBadgeService.getVerificationStatus(testUserId);
-      
+
       expect(status.status).toBe('pending');
       expect(status.submittedAt).toBeTruthy();
 
       // Cleanup
-      await supabase
-        .from('id_badge_verification_requests')
-        .delete()
-        .eq('id', request!.id);
+      await supabase.from('id_badge_verification_requests').delete().eq('id', request!.id);
     });
 
     it('should return "approved" status with reviewed_at', async () => {
@@ -210,15 +201,12 @@ describeE2E('ID Badge Upload E2E', () => {
         .single();
 
       const status = await idBadgeService.getVerificationStatus(testUserId);
-      
+
       expect(status.status).toBe('approved');
       expect(status.reviewedAt).toBeTruthy();
 
       // Cleanup
-      await supabase
-        .from('id_badge_verification_requests')
-        .delete()
-        .eq('id', request!.id);
+      await supabase.from('id_badge_verification_requests').delete().eq('id', request!.id);
     });
 
     it('should return "rejected" status with reason and notes', async () => {
@@ -237,51 +225,41 @@ describeE2E('ID Badge Upload E2E', () => {
         .single();
 
       const status = await idBadgeService.getVerificationStatus(testUserId);
-      
+
       expect(status.status).toBe('rejected');
       expect(status.rejectionReason).toBe('unclear_photo');
       expect(status.rejectionNotes).toBe('Please retake with better lighting');
 
       // Cleanup
-      await supabase
-        .from('id_badge_verification_requests')
-        .delete()
-        .eq('id', request!.id);
+      await supabase.from('id_badge_verification_requests').delete().eq('id', request!.id);
     });
   });
 
   describe('Duplicate Submission Prevention', () => {
     it('should prevent duplicate submission when pending request exists', async () => {
       // Create initial pending request
-      await supabase
-        .from('id_badge_verification_requests')
-        .insert({
-          user_id: testUserId,
-          status: 'pending',
-          submitted_at: new Date().toISOString(),
-        });
+      await supabase.from('id_badge_verification_requests').insert({
+        user_id: testUserId,
+        status: 'pending',
+        submitted_at: new Date().toISOString(),
+      });
 
       // Check for pending
       const pending = await idBadgeService.checkPendingRequest(testUserId);
       expect(pending).toBeTruthy();
 
       // Cleanup
-      await supabase
-        .from('id_badge_verification_requests')
-        .delete()
-        .eq('user_id', testUserId);
+      await supabase.from('id_badge_verification_requests').delete().eq('user_id', testUserId);
     });
 
     it('should allow submission after previous request was decided', async () => {
       // Create approved request (decided)
-      await supabase
-        .from('id_badge_verification_requests')
-        .insert({
-          user_id: testUserId,
-          status: 'approved',
-          submitted_at: new Date(Date.now() - 86400000).toISOString(),
-          reviewed_at: new Date().toISOString(),
-        });
+      await supabase.from('id_badge_verification_requests').insert({
+        user_id: testUserId,
+        status: 'approved',
+        submitted_at: new Date(Date.now() - 86400000).toISOString(),
+        reviewed_at: new Date().toISOString(),
+      });
 
       // Check for pending - should be null (only checks pending)
       const pending = await idBadgeService.checkPendingRequest(testUserId);
@@ -312,10 +290,7 @@ describeE2E('ID Badge Upload E2E', () => {
       expect(data!.some((row) => row.id === request!.id)).toBe(true);
 
       // Cleanup
-      await supabase
-        .from('id_badge_verification_requests')
-        .delete()
-        .eq('id', request!.id);
+      await supabase.from('id_badge_verification_requests').delete().eq('id', request!.id);
     });
 
     it('should allow user to insert their own request', async () => {
@@ -333,10 +308,7 @@ describeE2E('ID Badge Upload E2E', () => {
       expect(data!.user_id).toBe(testUserId);
 
       // Cleanup
-      await supabase
-        .from('id_badge_verification_requests')
-        .delete()
-        .eq('id', data!.id);
+      await supabase.from('id_badge_verification_requests').delete().eq('id', data!.id);
     });
   });
 

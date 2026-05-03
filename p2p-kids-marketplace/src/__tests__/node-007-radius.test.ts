@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/node-007-radius.test.ts
  * MODULE-03 NODE-007: Distance Radius Filter
- * 
+ *
  * Unit tests for distance radius filter functionality
  */
 
@@ -94,10 +94,13 @@ describe('NODE-007: Distance Radius Filter', () => {
 
       expect(supabase.from).toHaveBeenCalledWith('user_preferences');
       const mockInsert = (supabase.from as jest.Mock).mock.results[0].value;
-      expect(mockInsert.upsert).toHaveBeenCalledWith({
-        user_id: mockUserId,
-        preferred_radius_miles: 20,
-      }, { onConflict: 'user_id' });
+      expect(mockInsert.upsert).toHaveBeenCalledWith(
+        {
+          user_id: mockUserId,
+          preferred_radius_miles: 20,
+        },
+        { onConflict: 'user_id' }
+      );
     });
 
     it('should throw error on invalid input', async () => {

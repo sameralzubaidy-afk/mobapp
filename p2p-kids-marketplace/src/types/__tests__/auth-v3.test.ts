@@ -2,7 +2,7 @@
  * FILE: p2p-kids-marketplace/src/types/__tests__/auth-v3.test.ts
  * MODULE: MODULE-03-AUTH-V3-SOCIAL-LOGIN
  * TASK: AUTH-V3-002 - Shared Types & Error Classes - Unit Tests
- * 
+ *
  * Tests auth-v3 type definitions and error classes.
  */
 
@@ -197,7 +197,7 @@ describe('auth-v3 error classes', () => {
   describe('OAuthStateMismatchError', () => {
     it('should create error with correct code', () => {
       const error = new OAuthStateMismatchError();
-      
+
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(OAuthStateMismatchError);
       expect(error.code).toBe('OAUTH_STATE_MISMATCH');
@@ -207,7 +207,7 @@ describe('auth-v3 error classes', () => {
 
     it('should accept custom message', () => {
       const error = new OAuthStateMismatchError('Custom message');
-      
+
       expect(error.message).toBe('Custom message');
       expect(error.code).toBe('OAUTH_STATE_MISMATCH');
     });
@@ -216,7 +216,7 @@ describe('auth-v3 error classes', () => {
   describe('EmailMismatchError', () => {
     it('should create error with provider and account emails', () => {
       const error = new EmailMismatchError('provider@example.com', 'account@example.com');
-      
+
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(EmailMismatchError);
       expect(error.code).toBe('EMAIL_MISMATCH');
@@ -231,7 +231,7 @@ describe('auth-v3 error classes', () => {
   describe('LastLoginMethodError', () => {
     it('should create error with provider name', () => {
       const error = new LastLoginMethodError('google');
-      
+
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(LastLoginMethodError);
       expect(error.code).toBe('LAST_LOGIN_METHOD');
@@ -246,7 +246,7 @@ describe('auth-v3 error classes', () => {
     it('should create error with expiry timestamp', () => {
       const expiredAt = '2026-04-20T10:05:00Z';
       const error = new OTPExpiredError(expiredAt);
-      
+
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(OTPExpiredError);
       expect(error.code).toBe('OTP_EXPIRED');
@@ -259,7 +259,7 @@ describe('auth-v3 error classes', () => {
   describe('OTPRateLimitError', () => {
     it('should create error with retry seconds and limit type', () => {
       const error = new OTPRateLimitError(3600, '3 per hour');
-      
+
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(OTPRateLimitError);
       expect(error.code).toBe('OTP_RATE_LIMIT');
@@ -271,7 +271,7 @@ describe('auth-v3 error classes', () => {
 
     it('should round up minutes in message', () => {
       const error = new OTPRateLimitError(90, '3 per hour'); // 1.5 minutes
-      
+
       expect(error.message).toContain('2 minutes'); // ceil(1.5) = 2
     });
   });
@@ -283,7 +283,7 @@ describe('auth-v3 error classes', () => {
         'Password must contain at least one digit',
       ];
       const error = new WeakPasswordError(reasons);
-      
+
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(WeakPasswordError);
       expect(error.code).toBe('WEAK_PASSWORD');
@@ -295,18 +295,15 @@ describe('auth-v3 error classes', () => {
 
     it('should handle empty reasons array', () => {
       const error = new WeakPasswordError([]);
-      
+
       expect(error.reasons).toHaveLength(0);
     });
   });
 
   describe('AvatarDownloadError', () => {
     it('should create error with URL and reason', () => {
-      const error = new AvatarDownloadError(
-        'https://example.com/avatar.jpg',
-        'timeout'
-      );
-      
+      const error = new AvatarDownloadError('https://example.com/avatar.jpg', 'timeout');
+
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(AvatarDownloadError);
       expect(error.code).toBe('AVATAR_DOWNLOAD_FAILED');
@@ -321,7 +318,7 @@ describe('auth-v3 error classes', () => {
   describe('ProviderUnavailableError', () => {
     it('should create error with provider and status', () => {
       const error = new ProviderUnavailableError('google', '503');
-      
+
       expect(error).toBeInstanceOf(Error);
       expect(error).toBeInstanceOf(ProviderUnavailableError);
       expect(error.code).toBe('PROVIDER_UNAVAILABLE');
@@ -334,7 +331,7 @@ describe('auth-v3 error classes', () => {
 
     it('should capitalize provider name in message', () => {
       const error = new ProviderUnavailableError('facebook', 'timeout');
-      
+
       expect(error.message).toContain('Facebook'); // Not 'facebook'
     });
   });
@@ -342,7 +339,7 @@ describe('auth-v3 error classes', () => {
   describe('Error prototype chain', () => {
     it('should maintain instanceof checks after serialization', () => {
       const error = new EmailMismatchError('a@example.com', 'b@example.com');
-      
+
       // Simulate error being thrown and caught
       try {
         throw error;
@@ -355,7 +352,7 @@ describe('auth-v3 error classes', () => {
 
     it('should preserve error stack trace', () => {
       const error = new OTPRateLimitError(3600, '3 per hour');
-      
+
       expect(error.stack).toBeDefined();
       expect(error.stack).toContain('OTPRateLimitError');
     });
@@ -374,8 +371,8 @@ describe('auth-v3 error classes', () => {
         new ProviderUnavailableError('google', '503'),
       ];
 
-      const codes = errors.map(e => e.code);
-      
+      const codes = errors.map((e) => e.code);
+
       expect(codes).toEqual([
         'OAUTH_STATE_MISMATCH',
         'EMAIL_MISMATCH',

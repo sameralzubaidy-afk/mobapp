@@ -2,10 +2,10 @@
 
 /**
  * E2E Test: Badge Icon Management
- * 
+ *
  * Tests the complete flow of badge icon upload, retrieval, and deletion.
  * Requires: Supabase prod environment with badge-icons bucket configured.
- * 
+ *
  * TASK: BADGES-V2-006 - Badge Icon Management & Supabase Storage
  */
 
@@ -27,22 +27,26 @@ describe('E2E: Badge Icon Management', () => {
     console.log('[E2E] Setting up Badge Icon Management tests...');
 
     // 1. Verify Authentication
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) {
-      console.warn('[E2E Skip] No authenticated user found. Tests requiring admin privileges will fail.');
+      console.warn(
+        '[E2E Skip] No authenticated user found. Tests requiring admin privileges will fail.'
+      );
     }
 
     // 2. Verify badge-icons bucket exists (Resilient check)
     try {
       const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
-      
+
       if (bucketsError) {
         console.warn('[E2E Warning] Could not list buckets:', bucketsError.message);
         // If we can't list buckets, we'll try to proceed and let individual tests fail or skip
         return;
       }
-      
-      const badgeIconsBucket = buckets?.find(b => b.id === 'badge-icons');
+
+      const badgeIconsBucket = buckets?.find((b) => b.id === 'badge-icons');
       if (!badgeIconsBucket) {
         console.warn('[E2E Warning] "badge-icons" bucket not found in buckets list.');
       }
@@ -63,13 +67,13 @@ describe('E2E: Badge Icon Management', () => {
 
   it('should verify badge-icons bucket configuration', async () => {
     const { data: buckets, error } = await supabase.storage.listBuckets();
-    
+
     if (error) {
       console.warn('[E2E Skip] Could not list buckets:', error.message);
       return;
     }
 
-    const bucket = buckets?.find(b => b.id === 'badge-icons');
+    const bucket = buckets?.find((b) => b.id === 'badge-icons');
 
     if (!bucket) {
       console.warn('[E2E Skip] badge-icons bucket not found');
@@ -106,7 +110,7 @@ describe('E2E: Badge Icon Management', () => {
       console.warn('[E2E Skip] Could not create test badge:', error.message);
       return;
     }
-    
+
     expect(badge).toBeDefined();
     expect(badge?.id).toBeDefined();
 
@@ -201,7 +205,9 @@ describe('E2E: Badge Icon Management', () => {
     const testContent = new Uint8Array([137, 80, 78, 71]);
 
     // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
     // If user is not admin, upload should fail
     if (!user?.user_metadata?.is_admin) {
@@ -216,7 +222,9 @@ describe('E2E: Badge Icon Management', () => {
 
       // Handle connectivity errors gracefully
       if (error?.message === 'fetch failed') {
-        console.warn('[E2E Skip] Storage upload check failed due to network connectivity (fetch failed)');
+        console.warn(
+          '[E2E Skip] Storage upload check failed due to network connectivity (fetch failed)'
+        );
         return;
       }
 

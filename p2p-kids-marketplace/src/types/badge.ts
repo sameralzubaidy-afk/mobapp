@@ -45,7 +45,11 @@ export interface BadgeConfigHistory {
   changed_at: string;
 }
 
-export type BadgeAuditActionType = 'manual_award' | 'manual_revoke' | 'config_change' | 'bulk_award';
+export type BadgeAuditActionType =
+  | 'manual_award'
+  | 'manual_revoke'
+  | 'config_change'
+  | 'bulk_award';
 
 export interface BadgeAuditLog {
   id: string;

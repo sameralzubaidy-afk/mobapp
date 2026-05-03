@@ -4,7 +4,7 @@
  * MODULE-05-DISCOVERY-V3: Enhanced with 13-param search + filters
  * Task: DISCOVERY-V2-001 - Full-Text Search
  * Task: DISCOVERY-V3-003 - Services Layer
- * 
+ *
  * Handles search, browsing, and recommendation queries
  */
 
@@ -36,7 +36,9 @@ const attachListingImages = async <T extends { id: string }>(
     return [];
   }
 
-  const fromResult = (supabase as unknown as { from?: (table: string) => any }).from?.('item_images');
+  const fromResult = (supabase as unknown as { from?: (table: string) => any }).from?.(
+    'item_images'
+  );
   if (!fromResult || typeof fromResult.select !== 'function') {
     return rows as (T & { images: DiscoveryListingImageView[] })[];
   }
@@ -104,18 +106,15 @@ export async function searchListings(
     const spEligibleOnly = filters?.spEligibleOnly ?? false;
     const limit = filters?.limit ?? 20;
     const offset = filters?.offset ?? 0;
-    const categoryIds = filters?.categoryIds && filters.categoryIds.length > 0
-      ? filters.categoryIds
-      : null;
+    const categoryIds =
+      filters?.categoryIds && filters.categoryIds.length > 0 ? filters.categoryIds : null;
     const condition = filters?.condition ?? null;
     const minPrice = filters?.minPrice ?? null;
     const maxPrice = filters?.maxPrice ?? null;
     const ageGroup = filters?.ageGroup ?? null;
     const gender = filters?.gender ?? null;
     const brand = filters?.brand ?? null;
-    const colors = filters?.colors && filters.colors.length > 0
-      ? filters.colors
-      : null;
+    const colors = filters?.colors && filters.colors.length > 0 ? filters.colors : null;
     const sortBy = filters?.sortBy ?? 'relevance';
 
     // Call RPC function for full-text search with all 13 params
@@ -145,25 +144,34 @@ export async function searchListings(
       query: trimmedQuery.substring(0, 100), // Limit PII length
       result_count: data?.length ?? 0,
       sp_eligible_only: spEligibleOnly,
-      has_filters: !!(categoryIds || condition || minPrice || maxPrice || ageGroup || gender || brand || colors),
+      has_filters: !!(
+        categoryIds ||
+        condition ||
+        minPrice ||
+        maxPrice ||
+        ageGroup ||
+        gender ||
+        brand ||
+        colors
+      ),
       sort_by: sortBy,
     });
 
     const normalizedResults: SearchResult[] = (data || []).map((item: any) => ({
       ...item,
-      seller: item.seller_name ? {
-        name: item.seller_name,
-        avatar_url: item.seller_avatar_url,
-        verification_status: item.seller_verification_status
-      } : undefined
+      seller: item.seller_name
+        ? {
+            name: item.seller_name,
+            avatar_url: item.seller_avatar_url,
+            verification_status: item.seller_verification_status,
+          }
+        : undefined,
     }));
 
     return attachListingImages(normalizedResults);
   } catch (err) {
     console.error('[searchListings] Error:', err);
-    throw new Error(
-      err instanceof Error ? err.message : 'Failed to search listings'
-    );
+    throw new Error(err instanceof Error ? err.message : 'Failed to search listings');
   }
 }
 
@@ -213,26 +221,26 @@ export async function searchListingsByCategory(
 
     const normalizedResults: CategoryResult[] = (data || []).map((item: any) => ({
       ...item,
-      seller: item.seller_name ? {
-        name: item.seller_name,
-        avatar_url: item.seller_avatar_url,
-        verification_status: item.seller_verification_status
-      } : undefined
+      seller: item.seller_name
+        ? {
+            name: item.seller_name,
+            avatar_url: item.seller_avatar_url,
+            verification_status: item.seller_verification_status,
+          }
+        : undefined,
     }));
 
     return attachListingImages(normalizedResults);
   } catch (err) {
     console.error('[searchListingsByCategory] Error:', err);
-    throw new Error(
-      err instanceof Error ? err.message : 'Failed to browse category'
-    );
+    throw new Error(err instanceof Error ? err.message : 'Failed to browse category');
   }
 }
 
 /**
  * Fetch listings by category name with optional SP filter
  * Resolves category name to ID and calls searchListingsByCategory
- * 
+ *
  * @param categoryName - Name of the category (e.g., 'Toys', 'Books')
  * @param spEligibleOnly - Filter for SP-eligible items
  * @returns Array of category results
@@ -316,19 +324,19 @@ export async function searchListingsByCategoryAndQuery(
 
     const normalizedResults: SearchResult[] = (data || []).map((item: any) => ({
       ...item,
-      seller: item.seller_name ? {
-        name: item.seller_name,
-        avatar_url: item.seller_avatar_url,
-        verification_status: item.seller_verification_status
-      } : undefined
+      seller: item.seller_name
+        ? {
+            name: item.seller_name,
+            avatar_url: item.seller_avatar_url,
+            verification_status: item.seller_verification_status,
+          }
+        : undefined,
     }));
 
     return attachListingImages(normalizedResults);
   } catch (err) {
     console.error('[searchListingsByCategoryAndQuery] Error:', err);
-    throw new Error(
-      err instanceof Error ? err.message : 'Failed to search category listings'
-    );
+    throw new Error(err instanceof Error ? err.message : 'Failed to search category listings');
   }
 }
 
@@ -377,11 +385,13 @@ export async function getRecommendations(
 
     const normalizedResults: Recommendation[] = (data || []).map((item: any) => ({
       ...item,
-      seller: item.seller_name ? {
-        name: item.seller_name,
-        avatar_url: item.seller_avatar_url,
-        verification_status: item.seller_verification_status
-      } : undefined
+      seller: item.seller_name
+        ? {
+            name: item.seller_name,
+            avatar_url: item.seller_avatar_url,
+            verification_status: item.seller_verification_status,
+          }
+        : undefined,
     }));
 
     return attachListingImages(normalizedResults);
@@ -396,19 +406,16 @@ export async function getRecommendations(
 /**
  * Suggest spelling correction for search query
  * V3: Client-side typo correction using Levenshtein distance
- * 
+ *
  * @param query - The potentially misspelled search query
  * @param recentSearches - Array of recent valid searches to match against
  * @returns Suggested correction or null if no close match found
- * 
+ *
  * @example
  * suggestSpellingCorrection('bycicle', ['bicycle', 'tricycle', 'scooter'])
  * // Returns: 'bicycle'
  */
-export function suggestSpellingCorrection(
-  query: string,
-  recentSearches: string[]
-): string | null {
+export function suggestSpellingCorrection(query: string, recentSearches: string[]): string | null {
   if (!query || query.trim().length === 0) {
     return null;
   }

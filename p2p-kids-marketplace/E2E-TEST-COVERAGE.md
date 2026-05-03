@@ -3,12 +3,14 @@
 ## Current Status
 
 ### ✅ COVERED (2 test users exist)
+
 - **AUTH Tests** (auth.integration.test.ts)
   - Signup → Phone Verification → Profile → Trial Enrollment
   - Email-based authentication
   - Session management
 
 ### ❌ NOT COVERED (missing test data)
+
 - **TRADE Tests** (trade-flow-v2.e2e.ts)
   - Requires: 3+ items in database with seller_id
   - Requires: Stripe test payment methods
@@ -19,7 +21,7 @@
   - Requires: Items across multiple categories
   - **FIX**: Seed script now creates items with proper search fields
 
-- **REVIEWS Tests** (review-*.e2e.ts)
+- **REVIEWS Tests** (review-\*.e2e.ts)
   - Requires: Completed trades to review
   - Requires: Multiple user interactions
   - **STATUS**: Can run after completing trade tests
@@ -27,12 +29,14 @@
 ## What You Need To Do
 
 ### 1. Fresh Seed (Includes Items)
+
 ```bash
 npm run reset:staging -- --force
 npm run seed:staging
 ```
 
 ### 2. Verify Test Data
+
 ```bash
 # Check users created
 SELECT id, email, name FROM profiles WHERE email LIKE 'test-%@kidsmarketplace.test';
@@ -45,11 +49,12 @@ SELECT * FROM trades;
 ```
 
 ### 3. Run E2E Tests
+
 ```bash
 # Auth tests (should pass)
 npm run test:auth
 
-# Trade tests (requires items) 
+# Trade tests (requires items)
 npm run test:trades
 
 # Discovery tests (requires items)
@@ -63,14 +68,14 @@ npm run test:all
 
 After seeding, you'll have:
 
-| Resource | Count | Purpose |
-|----------|-------|---------|
-| Test Users | 2 | Buyer + Seller |
-| Items/Listings | 3 | Trade flow testing |
-| Trades | 1 | Pending trade state |
-| Profiles | 2 | Verified & complete |
-| Zip Code | 1 | 06850 (your location) |
-| DOB | Both set | 2000-01-01 (24+ years old) |
+| Resource       | Count    | Purpose                    |
+| -------------- | -------- | -------------------------- |
+| Test Users     | 2        | Buyer + Seller             |
+| Items/Listings | 3        | Trade flow testing         |
+| Trades         | 1        | Pending trade state        |
+| Profiles       | 2        | Verified & complete        |
+| Zip Code       | 1        | 06850 (your location)      |
+| DOB            | Both set | 2000-01-01 (24+ years old) |
 
 ## Known Limitations
 

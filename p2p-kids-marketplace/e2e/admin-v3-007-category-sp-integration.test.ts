@@ -2,12 +2,12 @@
  * File: p2p-kids-marketplace/e2e/admin-v3-007-category-sp-integration.test.ts
  * TASK ADMIN-V3-007: Integration tests for category SP calculations
  * Module: MODULE-12-ADMIN-V3-CATEGORIES
- * 
+ *
  * Tests against staging Supabase:
  * - Category-specific SP earning and spending calculations
  * - Bonus category filtering
  * - Active category visibility regardless of item_count
- * 
+ *
  * Run: RUN_SUPABASE_E2E=true npm run test:e2e
  */
 
@@ -35,10 +35,10 @@ describe('Category SP Integration (MODULE-12 V3)', () => {
       const bonusCategories = await getBonusCategories();
 
       expect(bonusCategories).toBeTruthy();
-      
+
       // Verify all returned categories have sp_earning_multiplier > 1.10
       bonusCategories.forEach((cat) => {
-        expect(cat.sp_earning_multiplier).toBeGreaterThan(1.10);
+        expect(cat.sp_earning_multiplier).toBeGreaterThan(1.1);
         expect(cat.is_active).toBe(true);
       });
     });
@@ -46,7 +46,7 @@ describe('Category SP Integration (MODULE-12 V3)', () => {
     it('calculateCategorySP applies correct rounding rules', async () => {
       // Find a bonus category for testing
       const bonusCategories = await getBonusCategories();
-      
+
       if (bonusCategories.length === 0) {
         console.warn('No bonus categories found - skipping test');
         return;
@@ -59,7 +59,7 @@ describe('Category SP Integration (MODULE-12 V3)', () => {
 
       expect(result).toBeTruthy();
       expect(result!.earn_sp).toBe(
-        Math.round(testPrice * (testCategory.sp_earning_multiplier || 1.10))
+        Math.round(testPrice * (testCategory.sp_earning_multiplier || 1.1))
       );
       expect(result!.max_spend_sp).toBe(
         Math.floor((testPrice * (testCategory.sp_spending_cap_percent || 70)) / 100)

@@ -182,9 +182,9 @@ export default function UserDashboardScreen() {
     if (isFocused) {
       if (!hasRefreshedRef.current) {
         console.log('[Dashboard] First focus refresh, refreshing session data...');
-          Promise.all([refreshSession(), refetchSubscription()]).catch((error) => {
-            console.warn('[Dashboard] Focus refresh failed:', error);
-          });
+        Promise.all([refreshSession(), refetchSubscription()]).catch((error) => {
+          console.warn('[Dashboard] Focus refresh failed:', error);
+        });
         hasRefreshedRef.current = true;
       }
     } else {
@@ -383,13 +383,13 @@ export default function UserDashboardScreen() {
 
             {(subscription.status === 'grace' || subscription.status === 'grace_period') &&
               daysUntilExpiry !== null && (
-              <View style={styles.cardRow}>
-                <Text style={styles.label}>Grace Period Ends In:</Text>
-                <Text style={[styles.value, { color: '#FF3B30' }]}>
-                  {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
-                </Text>
-              </View>
-            )}
+                <View style={styles.cardRow}>
+                  <Text style={styles.label}>Grace Period Ends In:</Text>
+                  <Text style={[styles.value, { color: '#FF3B30' }]}>
+                    {daysUntilExpiry} {daysUntilExpiry === 1 ? 'day' : 'days'}
+                  </Text>
+                </View>
+              )}
 
             {(subscription.status === 'free' ||
               subscription.status === 'canceled' ||

@@ -12,7 +12,7 @@ export type TestUser = {
   nodeId?: string;
 };
 
-const testUsers: TestUser[] = (users as unknown) as TestUser[];
+const testUsers: TestUser[] = users as unknown as TestUser[];
 
 export function getAllTestUsers(): TestUser[] {
   return testUsers;

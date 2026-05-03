@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/chat.ts
  * MODULE-07 MSG-001: Chat Service with Supabase Realtime
- * 
+ *
  * Implements:
  * - sendMessage: Send text message to trade chat
  * - getMessages: Fetch all messages for a trade (excluding deleted)
@@ -71,13 +71,11 @@ export interface PresenceItem extends Record<string, unknown> {
 
 /**
  * Send a text message to a trade chat
- * 
+ *
  * @param input - Message input (tradeId, senderId, content)
  * @returns Result with success flag and message or error
  */
-export async function sendMessage(
-  input: SendMessageInput
-): Promise<SendMessageResult> {
+export async function sendMessage(input: SendMessageInput): Promise<SendMessageResult> {
   const { tradeId, senderId, content } = input;
 
   // Validate input
@@ -89,9 +87,11 @@ export async function sendMessage(
   }
 
   const trimmedContent = content.trim();
-  
+
   if (trimmedContent.length > 2000) {
-    console.error(`[chat.sendMessage] ⚠️ REJECTED: Message exceeds 2000 chars (${trimmedContent.length} chars)`);
+    console.error(
+      `[chat.sendMessage] ⚠️ REJECTED: Message exceeds 2000 chars (${trimmedContent.length} chars)`
+    );
     return {
       success: false,
       error: `Message content exceeds 2000 characters (current: ${trimmedContent.length})`,
@@ -134,7 +134,7 @@ export async function sendMessage(
 
 /**
  * Fetch all messages for a trade (excluding deleted)
- * 
+ *
  * @param tradeId - Trade ID to fetch messages for
  * @returns Array of messages sorted by created_at (oldest first)
  */
@@ -166,7 +166,7 @@ export async function getMessages(tradeId: string): Promise<Message[]> {
 
 /**
  * Subscribe to real-time message updates for a trade
- * 
+ *
  * @param tradeId - Trade ID to subscribe to
  * @param onMessage - Callback when new message arrives
  * @returns RealtimeChannel for cleanup
@@ -186,14 +186,13 @@ export function subscribeToMessages(
         filter: `trade_id=eq.${tradeId}`,
       },
       async (payload) => {
-        
         // Fetch full message with sender details
         const { data, error } = await supabase
           .from('messages')
           .select('*, sender:profiles(first_name:name, profile_image_url:avatar_url)')
           .eq('id', payload.new.id)
           .single();
-          
+
         if (!error && data) {
           onMessage(data as Message);
         } else {
@@ -209,12 +208,10 @@ export function subscribeToMessages(
 
 /**
  * Unsubscribe from real-time messages
- * 
+ *
  * @param channel - RealtimeChannel to unsubscribe
  */
-export async function unsubscribeFromMessages(
-  channel: RealtimeChannel
-): Promise<void> {
+export async function unsubscribeFromMessages(channel: RealtimeChannel): Promise<void> {
   if (channel) {
     await channel.unsubscribe();
   }
@@ -240,13 +237,11 @@ export interface Conversation {
 /**
  * Get all conversations for the current user
  * Shows trades with messages, ordered by most recent message
- * 
+ *
  * @param userId - Current user ID
  * @returns Array of conversations with last message preview and unread count
  */
-export async function getConversations(
-  userId: string
-): Promise<Conversation[]> {
+export async function getConversations(userId: string): Promise<Conversation[]> {
   if (!userId) {
     console.error('[chat.getConversations] Missing userId');
     return [];
@@ -256,7 +251,8 @@ export async function getConversations(
     // Fetch all trades where user is buyer or seller (without joining to users table yet)
     const { data: trades, error: tradesError } = await supabase
       .from('trades')
-      .select(`
+      .select(
+        `
         id,
         buyer_id,
         seller_id,
@@ -265,7 +261,8 @@ export async function getConversations(
           title,
           price
         )
-      `)
+      `
+      )
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
       .order('created_at', { ascending: false });
 
@@ -273,9 +270,6 @@ export async function getConversations(
       console.error('[chat.getConversations] Error fetching trades:', tradesError);
       return [];
     }
-
-
-
 
     // For each trade, get last message and unread count
     const conversations = await Promise.all(
@@ -324,10 +318,17 @@ export async function getConversations(
             .single();
 
           if (verificationData) {
-            otherUserVerificationStatus = verificationData.status as 'none' | 'pending' | 'approved';
+            otherUserVerificationStatus = verificationData.status as
+              | 'none'
+              | 'pending'
+              | 'approved';
           }
         } catch (error) {
-          console.warn('[chat.getConversations] Could not fetch profile or verification status for', otherUserId, error);
+          console.warn(
+            '[chat.getConversations] Could not fetch profile or verification status for',
+            otherUserId,
+            error
+          );
         }
 
         // Get unread count based on last time user viewed this trade
@@ -352,7 +353,10 @@ export async function getConversations(
               return Number.isFinite(msgTime) && msgTime > lastViewedMs;
             }).length ?? 0;
         } catch {
-          console.warn('[chat.getConversations] Could not compute unread count for trade:', trade.id);
+          console.warn(
+            '[chat.getConversations] Could not compute unread count for trade:',
+            trade.id
+          );
         }
 
         return {
@@ -375,9 +379,7 @@ export async function getConversations(
     const validConversations = conversations
       .filter((c): c is Conversation => c !== null)
       .sort(
-        (a, b) =>
-          new Date(b.last_message_time).getTime() -
-          new Date(a.last_message_time).getTime()
+        (a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
       );
 
     return validConversations;
@@ -390,15 +392,12 @@ export async function getConversations(
 /**
  * Get unread message count for a specific trade
  * Compares message timestamps against the last time user viewed the trade
- * 
+ *
  * @param tradeId - Trade ID
  * @param userId - Current user ID
  * @returns Number of unread messages
  */
-export async function getUnreadCount(
-  tradeId: string,
-  userId: string
-): Promise<number> {
+export async function getUnreadCount(tradeId: string, userId: string): Promise<number> {
   if (!tradeId || !userId) {
     return 0;
   }
@@ -449,14 +448,11 @@ export async function getUnreadCount(
  * Mark all messages in a trade as read
  * Stores the current timestamp as the "last viewed" time
  * This enables accurate unread count tracking without DB changes
- * 
+ *
  * @param tradeId - Trade ID
  * @param userId - Current user ID
  */
-export async function markAsRead(
-  tradeId: string,
-  userId: string
-): Promise<void> {
+export async function markAsRead(tradeId: string, userId: string): Promise<void> {
   if (!tradeId || !userId) {
     return;
   }
@@ -473,13 +469,11 @@ export async function markAsRead(
 
 /**
  * Compress an image before uploading to reduce file size
- * 
+ *
  * @param imageUri - Local image URI to compress
  * @returns Compressed image result with URI and base64 data
  */
-export async function compressImage(
-  imageUri: string
-): Promise<{
+export async function compressImage(imageUri: string): Promise<{
   success: boolean;
   uri?: string;
   base64?: string;
@@ -488,7 +482,6 @@ export async function compressImage(
   error?: string;
 }> {
   try {
-    
     const result = await ImageManipulator.manipulateAsync(
       imageUri,
       [
@@ -509,8 +502,6 @@ export async function compressImage(
       };
     }
 
-
-    
     return {
       success: true,
       uri: result.uri,
@@ -530,7 +521,7 @@ export async function compressImage(
 
 /**
  * Upload an image to Supabase Storage chat-images bucket
- * 
+ *
  * @param tradeId - Trade ID for organizing images
  * @param senderId - User ID of sender
  * @param base64Data - Base64 encoded image data
@@ -558,17 +549,14 @@ export async function uploadChatImage(
     const randomId = Math.random().toString(36).substring(2, 15);
     const filename = `${tradeId}/${senderId}/${timestamp}-${randomId}.jpg`;
 
-
     // Convert base64 to ArrayBuffer
     const fileBuffer = decode(base64Data);
 
     // Upload to Supabase Storage
-    const { error } = await supabase.storage
-      .from('chat-images')
-      .upload(filename, fileBuffer, {
-        contentType: 'image/jpeg',
-        upsert: false,
-      });
+    const { error } = await supabase.storage.from('chat-images').upload(filename, fileBuffer, {
+      contentType: 'image/jpeg',
+      upsert: false,
+    });
 
     if (error) {
       console.error('[chat.uploadChatImage] Upload error:', error);
@@ -579,11 +567,8 @@ export async function uploadChatImage(
     }
 
     // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('chat-images')
-      .getPublicUrl(filename);
+    const { data: urlData } = supabase.storage.from('chat-images').getPublicUrl(filename);
 
-    
     return {
       success: true,
       publicUrl: urlData.publicUrl,
@@ -600,7 +585,7 @@ export async function uploadChatImage(
 
 /**
  * MSG-008: Update delivery status for a message
- * 
+ *
  * @param messageId - Message ID to update
  * @param status - New status (sent, delivered, read)
  * @returns Success boolean
@@ -615,11 +600,10 @@ export async function updateDeliveryStatus(
   }
 
   try {
-    const { data, error } = await supabase
-      .rpc('update_message_delivery_status', {
-        p_message_id: messageId,
-        p_status: status,
-      });
+    const { data, error } = await supabase.rpc('update_message_delivery_status', {
+      p_message_id: messageId,
+      p_status: status,
+    });
 
     if (error) {
       console.error('[chat.updateDeliveryStatus] Error:', error);
@@ -635,7 +619,7 @@ export async function updateDeliveryStatus(
 
 /**
  * MSG-008: Mark all messages in a trade as delivered (when chat opened)
- * 
+ *
  * @param tradeId - Trade ID
  * @param userId - Current user ID
  * @returns Number of messages updated
@@ -649,11 +633,10 @@ export async function markTradeMessagesAsDelivered(
   }
 
   try {
-    const { data, error } = await supabase
-      .rpc('mark_trade_messages_delivered', {
-        p_trade_id: tradeId,
-        p_user_id: userId,
-      });
+    const { data, error } = await supabase.rpc('mark_trade_messages_delivered', {
+      p_trade_id: tradeId,
+      p_user_id: userId,
+    });
 
     if (error) {
       console.error('[chat.markTradeMessagesAsDelivered] Error:', error);
@@ -670,25 +653,21 @@ export async function markTradeMessagesAsDelivered(
 
 /**
  * MSG-008: Mark all messages in a trade as read (when chat is actively viewed)
- * 
+ *
  * @param tradeId - Trade ID
  * @param userId - Current user ID
  * @returns Number of messages updated
  */
-export async function markTradeMessagesAsRead(
-  tradeId: string,
-  userId: string
-): Promise<number> {
+export async function markTradeMessagesAsRead(tradeId: string, userId: string): Promise<number> {
   if (!tradeId || !userId) {
     return 0;
   }
 
   try {
-    const { data, error } = await supabase
-      .rpc('mark_trade_messages_read', {
-        p_trade_id: tradeId,
-        p_user_id: userId,
-      });
+    const { data, error } = await supabase.rpc('mark_trade_messages_read', {
+      p_trade_id: tradeId,
+      p_user_id: userId,
+    });
 
     if (error) {
       console.error('[chat.markTradeMessagesAsRead] Error:', error);
@@ -704,7 +683,7 @@ export async function markTradeMessagesAsRead(
 
 /**
  * MSG-009: Broadcast typing status via Realtime presence
- * 
+ *
  * @param tradeId - Trade ID
  * @param userId - Current user ID
  * @param isTyping - Whether user is typing
@@ -750,7 +729,9 @@ export async function broadcastTypingStatus(
       } catch (err) {
         console.warn('[chat.broadcastTypingStatus] Error calling channel.track:', err);
       }
-    } else if (typeof (channel as { send?: (event: string, payload: unknown) => void }).send === 'function') {
+    } else if (
+      typeof (channel as { send?: (event: string, payload: unknown) => void }).send === 'function'
+    ) {
       try {
         // Fallback to a generic send/broadcast if track is not available
         (channel as { send: (event: string, payload: unknown) => void }).send('broadcastTyping', {
@@ -765,12 +746,11 @@ export async function broadcastTypingStatus(
   } catch (err) {
     console.warn('[chat.broadcastTypingStatus] Unexpected error:', err);
   }
-
 }
 
 /**
  * MSG-009: Subscribe to typing status updates
- * 
+ *
  * @param tradeId - Trade ID
  * @param onTypingChange - Callback when typing status changes (userId, isTyping)
  * @returns Unsubscribe function
@@ -779,21 +759,20 @@ export function subscribeToTypingStatus(
   tradeId: string,
   onTypingChange: (userId: string, isTyping: boolean) => void
 ): () => void {
-  const channel = supabase
-    .channel(`presence-trade-${tradeId}`, {
-      config: {
-        presence: {
-          key: 'typing',
-        },
+  const channel = supabase.channel(`presence-trade-${tradeId}`, {
+    config: {
+      presence: {
+        key: 'typing',
       },
-    });
+    },
+  });
 
   const syncTypingStatus = () => {
     const state = channel.presenceState();
-    
+
     // Create a set of users currently typing based on full presence state
     const currentTypingUsers = new Set<string>();
-    
+
     Object.keys(state).forEach((key) => {
       const presences = state[key] as unknown as PresenceItem[];
       presences?.forEach((p) => {
@@ -836,7 +815,7 @@ export function subscribeToTypingStatus(
 /**
  * Send an image message to a trade chat
  * Compresses the image, uploads to storage, then creates the message record
- * 
+ *
  * @param input - Image message input (tradeId, senderId, imageUri)
  * @returns Result with success flag and message or error
  */
@@ -853,7 +832,6 @@ export async function sendImageMessage(
     };
   }
 
-
   try {
     // 1. Compress the image
     const compressionResult = await compressImage(imageUri);
@@ -865,12 +843,8 @@ export async function sendImageMessage(
     }
 
     // 2. Upload to storage
-    const uploadResult = await uploadChatImage(
-      tradeId,
-      senderId,
-      compressionResult.base64
-    );
-    
+    const uploadResult = await uploadChatImage(tradeId, senderId, compressionResult.base64);
+
     if (!uploadResult.success || !uploadResult.publicUrl) {
       return {
         success: false,

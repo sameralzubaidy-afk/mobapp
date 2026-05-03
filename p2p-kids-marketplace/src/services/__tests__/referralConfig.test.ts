@@ -112,9 +112,7 @@ describe('ReferralConfigService', () => {
 
   describe('isProgramEnabled', () => {
     it('should return program enabled status', async () => {
-      const mockData = [
-        { config_key: 'referral_program_enabled', config_value: 'true' },
-      ];
+      const mockData = [{ config_key: 'referral_program_enabled', config_value: 'true' }];
 
       (supabase.from as any).mockReturnValue({
         select: jest.fn().mockReturnValue({
@@ -133,9 +131,7 @@ describe('ReferralConfigService', () => {
 
   describe('getShareMessage', () => {
     it('should generate share message with dynamic SP values', async () => {
-      const mockData = [
-        { config_key: 'referral_reward_referee_sp', config_value: '20' },
-      ];
+      const mockData = [{ config_key: 'referral_reward_referee_sp', config_value: '20' }];
 
       (supabase.from as any).mockReturnValue({
         select: jest.fn().mockReturnValue({
@@ -156,9 +152,7 @@ describe('ReferralConfigService', () => {
 
   describe('clearCache', () => {
     it('should clear cache', async () => {
-      const mockData = [
-        { config_key: 'referral_reward_referrer_sp', config_value: '25' },
-      ];
+      const mockData = [{ config_key: 'referral_reward_referrer_sp', config_value: '25' }];
 
       (supabase.from as any).mockReturnValue({
         select: jest.fn().mockReturnValue({

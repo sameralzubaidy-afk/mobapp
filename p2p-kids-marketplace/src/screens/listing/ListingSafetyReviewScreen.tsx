@@ -86,34 +86,33 @@ export default function ListingSafetyReviewScreen() {
     }
 
     if (trimmedReason.length < 10) {
-      Alert.alert('Appeal Reason Too Short', 'Please provide at least 10 characters so admin can review context.');
+      Alert.alert(
+        'Appeal Reason Too Short',
+        'Please provide at least 10 characters so admin can review context.'
+      );
       return;
     }
 
-    Alert.alert(
-      'Submit Appeal',
-      'This will send your listing back for admin review.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Submit Appeal',
-          onPress: async () => {
-            try {
-              setSubmitting(true);
-              const updated = await submitListingAppeal(listing.id, session.user.id, trimmedReason);
-              setListing(updated);
-              setAppealReason(updated.appeal_reason || '');
-              Alert.alert('Appeal Submitted', 'Your listing is back under review.');
-            } catch (err) {
-              const message = err instanceof Error ? err.message : 'Failed to submit appeal';
-              Alert.alert('Error', message);
-            } finally {
-              setSubmitting(false);
-            }
-          },
+    Alert.alert('Submit Appeal', 'This will send your listing back for admin review.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Submit Appeal',
+        onPress: async () => {
+          try {
+            setSubmitting(true);
+            const updated = await submitListingAppeal(listing.id, session.user.id, trimmedReason);
+            setListing(updated);
+            setAppealReason(updated.appeal_reason || '');
+            Alert.alert('Appeal Submitted', 'Your listing is back under review.');
+          } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to submit appeal';
+            Alert.alert('Error', message);
+          } finally {
+            setSubmitting(false);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleNeedsEditsResubmit = async () => {
@@ -132,10 +131,7 @@ export default function ListingSafetyReviewScreen() {
           onPress: async () => {
             try {
               setSubmitting(true);
-              const updated = await submitListingNeedsEditsReReview(
-                listing.id,
-                session.user.id
-              );
+              const updated = await submitListingNeedsEditsReReview(listing.id, session.user.id);
               setListing(updated);
               Alert.alert('Submitted', 'Your listing is back under review.', [
                 {
@@ -144,8 +140,7 @@ export default function ListingSafetyReviewScreen() {
                 },
               ]);
             } catch (err) {
-              const message =
-                err instanceof Error ? err.message : 'Failed to submit for re-review';
+              const message = err instanceof Error ? err.message : 'Failed to submit for re-review';
               Alert.alert('Error', message);
             } finally {
               setSubmitting(false);
@@ -187,7 +182,7 @@ export default function ListingSafetyReviewScreen() {
     : 0;
   const lastFlaggedAt = listing.flagged_at ?? (needsEdits ? listing.updated_at : null);
   const lastRejectedAt =
-    listing.rejected_at ?? (needsEdits ? listing.flagged_at ?? listing.updated_at : null);
+    listing.rejected_at ?? (needsEdits ? (listing.flagged_at ?? listing.updated_at) : null);
   const adminNeedsEditsNote =
     listing.moderation_note?.trim() || listing.rejection_reason?.trim() || null;
 
@@ -208,8 +203,26 @@ export default function ListingSafetyReviewScreen() {
           <Text style={styles.itemTitle}>{listing.title}</Text>
           <Text style={styles.itemPrice}>${listing.price.toFixed(2)}</Text>
 
-          <View style={[styles.statusBadge, isRejected ? styles.statusRejected : needsEdits ? styles.statusNeedsEdits : styles.statusFlagged]}>
-            <Text style={[styles.statusText, isRejected ? styles.statusTextRejected : needsEdits ? styles.statusTextNeedsEdits : styles.statusTextFlagged]}>
+          <View
+            style={[
+              styles.statusBadge,
+              isRejected
+                ? styles.statusRejected
+                : needsEdits
+                  ? styles.statusNeedsEdits
+                  : styles.statusFlagged,
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                isRejected
+                  ? styles.statusTextRejected
+                  : needsEdits
+                    ? styles.statusTextNeedsEdits
+                    : styles.statusTextFlagged,
+              ]}
+            >
               {listing.status === 'needs_edits' ? 'NEEDS EDITS' : listing.status.toUpperCase()}
             </Text>
           </View>
@@ -247,14 +260,17 @@ export default function ListingSafetyReviewScreen() {
                 placeholderTextColor="#6B7280"
                 textAlignVertical="top"
               />
-              <Text style={styles.appealHelperText}>{appealReason.trim().length}/500 characters</Text>
+              <Text style={styles.appealHelperText}>
+                {appealReason.trim().length}/500 characters
+              </Text>
             </View>
           )}
 
           {isFlagged && (
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
-                Your listing is currently under admin review. You can edit details if needed while waiting.
+                Your listing is currently under admin review. You can edit details if needed while
+                waiting.
               </Text>
             </View>
           )}
@@ -262,7 +278,8 @@ export default function ListingSafetyReviewScreen() {
           {needsEdits && (
             <View style={styles.infoBoxNeedsEdits}>
               <Text style={styles.infoTextNeedsEdits}>
-                Please address the admin's edit request above and update your listing. Once you make the edits, your listing will be re-reviewed.
+                Please address the admin's edit request above and update your listing. Once you make
+                the edits, your listing will be re-reviewed.
               </Text>
             </View>
           )}
@@ -311,11 +328,16 @@ export default function ListingSafetyReviewScreen() {
 
         {isRejected && (
           <TouchableOpacity
-            style={[styles.primaryButton, (submitting || !appealReason.trim()) && styles.disabledButton]}
+            style={[
+              styles.primaryButton,
+              (submitting || !appealReason.trim()) && styles.disabledButton,
+            ]}
             onPress={handleAppeal}
             disabled={submitting || !appealReason.trim()}
           >
-            <Text style={styles.primaryButtonText}>{submitting ? 'Submitting...' : 'Appeal Decision'}</Text>
+            <Text style={styles.primaryButtonText}>
+              {submitting ? 'Submitting...' : 'Appeal Decision'}
+            </Text>
           </TouchableOpacity>
         )}
 

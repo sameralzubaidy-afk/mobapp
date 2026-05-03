@@ -23,18 +23,14 @@ jest.mock('@expo/vector-icons', () => {
 
 describe('StarRating Component', () => {
   it('should render 5 stars', () => {
-    const { getAllByTestId } = render(
-      <StarRating rating={0} editable={false} />
-    );
+    const { getAllByTestId } = render(<StarRating rating={0} editable={false} />);
 
     const stars = getAllByTestId(/^star-\d+$/);
     expect(stars).toHaveLength(5);
   });
 
   it('should display filled stars based on rating', () => {
-    const { getByTestId } = render(
-      <StarRating rating={3} editable={false} />
-    );
+    const { getByTestId } = render(<StarRating rating={3} editable={false} />);
 
     // Check that stars 1-3 are filled, 4-5 are empty
     // This is a simplified test - actual implementation would check icon names
@@ -49,11 +45,7 @@ describe('StarRating Component', () => {
     const mockOnRatingChange = jest.fn();
 
     const { getByTestId } = render(
-      <StarRating
-        rating={0}
-        onRatingChange={mockOnRatingChange}
-        editable={true}
-      />
+      <StarRating rating={0} onRatingChange={mockOnRatingChange} editable={true} />
     );
 
     const star3 = getByTestId('star-3');
@@ -66,11 +58,7 @@ describe('StarRating Component', () => {
     const mockOnRatingChange = jest.fn();
 
     const { getByTestId } = render(
-      <StarRating
-        rating={0}
-        onRatingChange={mockOnRatingChange}
-        editable={false}
-      />
+      <StarRating rating={0} onRatingChange={mockOnRatingChange} editable={false} />
     );
 
     const star3 = getByTestId('star-3');
@@ -80,18 +68,14 @@ describe('StarRating Component', () => {
   });
 
   it('should use custom size prop', () => {
-    const { getByTestId } = render(
-      <StarRating rating={3} editable={false} size={48} />
-    );
+    const { getByTestId } = render(<StarRating rating={3} editable={false} size={48} />);
 
     const starIcon = getByTestId('star-icon-1');
     expect(starIcon.props.size).toBe(48);
   });
 
   it('should use custom color prop', () => {
-    const { getByTestId } = render(
-      <StarRating rating={3} editable={false} color="#FF0000" />
-    );
+    const { getByTestId } = render(<StarRating rating={3} editable={false} color="#FF0000" />);
 
     const starIcon = getByTestId('star-icon-1');
     expect(starIcon.props.color).toBe('#FF0000');

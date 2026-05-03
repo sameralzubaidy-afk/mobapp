@@ -123,7 +123,7 @@ describe('Trade Milestone Badges', () => {
     expect(userBadges?.length).toBeGreaterThan(0);
   });
 
-  // SKIP: This test uses dynamic user creation which is unreliable  
+  // SKIP: This test uses dynamic user creation which is unreliable
   // Use seeded test users and actual trade completions instead
   it.skip('should not award duplicate badges', async () => {
     if (runtimeSkip) return;

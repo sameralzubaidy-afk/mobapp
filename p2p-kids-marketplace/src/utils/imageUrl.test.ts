@@ -51,7 +51,8 @@ describe('imageUrl utilities', () => {
 
   describe('getImageUrl', () => {
     it('prefers CDN URL when both available', () => {
-      const cdnUrl = 'https://p2p-kids-cf-worker-dev.samer-alzubaidy.workers.dev/item-images/abc.jpg';
+      const cdnUrl =
+        'https://p2p-kids-cf-worker-dev.samer-alzubaidy.workers.dev/item-images/abc.jpg';
       const publicUrl =
         'https://drntwgporzabmxdqykrp.supabase.co/storage/v1/object/public/item-images/abc.jpg';
 
@@ -69,7 +70,8 @@ describe('imageUrl utilities', () => {
     });
 
     it('uses CDN URL directly if only CDN provided', () => {
-      const cdnUrl = 'https://p2p-kids-cf-worker-dev.samer-alzubaidy.workers.dev/item-images/test.jpg';
+      const cdnUrl =
+        'https://p2p-kids-cf-worker-dev.samer-alzubaidy.workers.dev/item-images/test.jpg';
 
       const result = getImageUrl(cdnUrl, undefined);
       expect(result).toBe(cdnUrl);
@@ -94,8 +96,7 @@ describe('imageUrl utilities', () => {
     });
 
     it('returns true for configured CDN URL', () => {
-      const url =
-        'https://p2p-kids-cf-worker-dev.samer-alzubaidy.workers.dev/item-images/xyz.jpg';
+      const url = 'https://p2p-kids-cf-worker-dev.samer-alzubaidy.workers.dev/item-images/xyz.jpg';
       expect(isCdnUrl(url)).toBe(true);
     });
 

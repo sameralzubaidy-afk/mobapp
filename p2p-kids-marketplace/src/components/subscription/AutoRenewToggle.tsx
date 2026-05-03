@@ -1,20 +1,13 @@
 /**
  * FILE: p2p-kids-marketplace/src/components/subscription/AutoRenewToggle.tsx
  * MODULE-11 TASK SUB-017: Auto-Renew Toggle Component
- * 
+ *
  * Allows users to enable/disable auto-renewal for their subscription.
  * Shows warning when disabling and updates both Stripe and database.
  */
 
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Switch,
-  Alert,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, Switch, Alert, ActivityIndicator } from 'react-native';
 import { updateAutoRenew } from '@/services/subscription';
 
 interface AutoRenewToggleProps {
@@ -52,15 +45,12 @@ export function AutoRenewToggle({ initialValue, onToggled }: AutoRenewToggleProp
   const performToggle = async (newValue: boolean) => {
     try {
       setIsUpdating(true);
-      
+
       const result = await updateAutoRenew(newValue);
 
       if (result.success) {
         setIsEnabled(newValue);
-        Alert.alert(
-          'Success',
-          result.message
-        );
+        Alert.alert('Success', result.message);
         onToggled?.(newValue);
       } else {
         Alert.alert('Error', result.message);
@@ -103,7 +93,8 @@ export function AutoRenewToggle({ initialValue, onToggled }: AutoRenewToggleProp
         <View style={styles.warningBox}>
           <Text style={styles.warningIcon}>⚠️</Text>
           <Text style={styles.warningText}>
-            Auto-renew is disabled. Your subscription will end after this period unless you re-enable it.
+            Auto-renew is disabled. Your subscription will end after this period unless you
+            re-enable it.
           </Text>
         </View>
       )}

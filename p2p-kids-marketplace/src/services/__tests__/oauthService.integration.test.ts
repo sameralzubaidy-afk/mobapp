@@ -7,8 +7,7 @@ import { supabase } from '../supabase/client';
 import { isProviderLinked } from '../oauthService';
 
 // Skip if not in E2E mode
-const describeE2E =
-  process.env.RUN_SUPABASE_E2E === 'true' ? describe : describe.skip;
+const describeE2E = process.env.RUN_SUPABASE_E2E === 'true' ? describe : describe.skip;
 
 describeE2E('OAuthService Integration Tests', () => {
   describe('isProviderLinked', () => {
@@ -43,7 +42,7 @@ describeE2E('OAuthService Integration Tests', () => {
     it('should have OAuth providers configured in Supabase', async () => {
       // Note: This test documents expected configuration
       // Actual provider enablement must be done manually in Supabase Dashboard
-      
+
       // We can verify that signInWithOAuth exists and doesn't throw immediately
       const authMethods = supabase.auth.signInWithOAuth;
       expect(authMethods).toBeDefined();
@@ -54,10 +53,7 @@ describeE2E('OAuthService Integration Tests', () => {
   describe('Database Schema Validation', () => {
     it('should have user_linked_providers view available', async () => {
       // Verify the view exists by attempting to query it
-      const { error } = await supabase
-        .from('user_linked_providers')
-        .select('provider')
-        .limit(0);
+      const { error } = await supabase.from('user_linked_providers').select('provider').limit(0);
 
       // Should not error - view should exist even if empty
       expect(error).toBeNull();
@@ -67,19 +63,19 @@ describeE2E('OAuthService Integration Tests', () => {
 
 /**
  * Manual verification steps (cannot be automated):
- * 
+ *
  * 1. Supabase Dashboard → Authentication → Providers
  *    - Verify Google provider is enabled
- *    - Verify Facebook provider is enabled  
+ *    - Verify Facebook provider is enabled
  *    - Verify Apple provider is enabled
- * 
+ *
  * 2. Verify OAuth redirect URIs are configured:
  *    - p2pkidsmarketplace://oauth-callback
- * 
+ *
  * 3. Verify native SDK configurations:
  *    - iOS: expo-apple-authentication configured
  *    - Android: Google Services JSON present
  *    - Both: Facebook SDK configured
- * 
+ *
  * These steps must be completed before manual testing.
  */

@@ -235,10 +235,7 @@ describe('ChatScreen Image Sharing E2E', () => {
     });
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith(
-        'Error',
-        'Failed to upload image'
-      );
+      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to upload image');
     });
   });
 

@@ -1,7 +1,7 @@
 /**
  * Unit tests for chat.ts conversation functions
  * MODULE-07 MSG-002: Conversation List Tests
- * 
+ *
  * Tests:
  * - getConversations: Fetch all conversations with last message preview
  * - getUnreadCount: Get unread message count for a trade
@@ -66,7 +66,7 @@ describe('chat.ts - Conversation Functions', () => {
           listing: {
             id: 'item-1',
             title: 'Test Item',
-            price: 25.50,
+            price: 25.5,
           },
           buyer: {
             id: 'user-123',
@@ -138,7 +138,7 @@ describe('chat.ts - Conversation Functions', () => {
         other_user_avatar_url: undefined,
         other_user_verification_status: 'none',
         listing_title: 'Test Item',
-        listing_price: 25.50,
+        listing_price: 25.5,
         last_message_content: 'Hello!',
         last_message_time: mockLastMessage.created_at,
         unread_count: 2,
@@ -151,7 +151,7 @@ describe('chat.ts - Conversation Functions', () => {
           id: 'trade-1',
           buyer_id: 'user-123',
           seller_id: 'user-456',
-          listing: { id: 'item-1', title: 'Test Item', price: 25.50 },
+          listing: { id: 'item-1', title: 'Test Item', price: 25.5 },
           buyer: { id: 'user-123', first_name: 'Buyer' },
           seller: { id: 'user-456', first_name: 'Seller' },
         },

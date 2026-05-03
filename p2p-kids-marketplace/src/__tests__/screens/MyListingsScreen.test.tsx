@@ -81,9 +81,7 @@ describe('MyListingsScreen', () => {
       } as any,
     ]);
 
-    const { findByLabelText } = render(
-      <MyListingsScreen navigation={mockNavigation as any} />
-    );
+    const { findByLabelText } = render(<MyListingsScreen navigation={mockNavigation as any} />);
 
     await waitFor(() => {
       expect(mockGetMyListings).toHaveBeenCalledWith('seller-1');

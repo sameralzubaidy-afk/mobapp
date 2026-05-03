@@ -36,8 +36,12 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
   });
   const [disclaimerText, setDisclaimerText] = useState('');
   const [submitButtonLabel, setSubmitButtonLabel] = useState('Submit for Verification');
-  const [pendingStatusText, setPendingStatusText] = useState('You already have a pending verification request. We will review it within 24 hours and notify you of the decision.');
-  const [submissionSuccessText, setSubmissionSuccessText] = useState('Your verification request has been submitted. We will review it within 24 hours and notify you of the decision via email and push notification.');
+  const [pendingStatusText, setPendingStatusText] = useState(
+    'You already have a pending verification request. We will review it within 24 hours and notify you of the decision.'
+  );
+  const [submissionSuccessText, setSubmissionSuccessText] = useState(
+    'Your verification request has been submitted. We will review it within 24 hours and notify you of the decision via email and push notification.'
+  );
   const [hasActivePending, setHasActivePending] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +68,10 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
       ]);
 
       if (disclaimer) setDisclaimerText(disclaimer);
-      else setDisclaimerText('We will not store your ID image. It will be deleted after verification.');
+      else
+        setDisclaimerText(
+          'We will not store your ID image. It will be deleted after verification.'
+        );
 
       if (submitLabel) setSubmitButtonLabel(submitLabel);
       if (pendingText) setPendingStatusText(pendingText);
@@ -177,10 +184,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
         pendingRequestId: requestId,
       }));
 
-      Alert.alert(
-        'Submitted Successfully',
-        submissionSuccessText
-      );
+      Alert.alert('Submitted Successfully', submissionSuccessText);
 
       setTimeout(() => {
         navigation.goBack();
@@ -189,10 +193,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
       setState((prev) => ({
         ...prev,
         uploading: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Upload failed. Please try again.',
+        error: error instanceof Error ? error.message : 'Upload failed. Please try again.',
       }));
     }
   };
@@ -213,9 +214,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
         <View style={styles.centeredContainer}>
           <Text style={styles.statusEmoji}>⏳</Text>
           <Text style={[styles.title, { textAlign: 'center' }]}>Verification Pending</Text>
-          <Text style={[styles.message, { textAlign: 'center' }]}>
-            {pendingStatusText}
-          </Text>
+          <Text style={[styles.message, { textAlign: 'center' }]}>{pendingStatusText}</Text>
           <TouchableOpacity
             style={[styles.backButton, { width: '100%' }]}
             onPress={() => navigation.goBack()}
@@ -263,15 +262,10 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
 
         {state.selectedImage ? (
           <View style={styles.imagePreview}>
-            <Image
-              source={{ uri: state.selectedImage }}
-              style={styles.image}
-            />
+            <Image source={{ uri: state.selectedImage }} style={styles.image} />
             <TouchableOpacity
               style={styles.changeButton}
-              onPress={() =>
-                setState((prev) => ({ ...prev, selectedImage: null }))
-              }
+              onPress={() => setState((prev) => ({ ...prev, selectedImage: null }))}
             >
               <Text style={styles.changeButtonText}>Change Image</Text>
             </TouchableOpacity>
@@ -281,13 +275,8 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
             <TouchableOpacity style={styles.button} onPress={takePhoto}>
               <Text style={styles.buttonText}>Take Photo</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.secondaryButton]}
-              onPress={pickImage}
-            >
-              <Text style={styles.secondaryButtonText}>
-                Choose from Gallery
-              </Text>
+            <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={pickImage}>
+              <Text style={styles.secondaryButtonText}>Choose from Gallery</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -299,10 +288,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
         )}
 
         <TouchableOpacity
-          style={[
-            styles.submitButton,
-            !state.selectedImage && styles.disabledButton,
-          ]}
+          style={[styles.submitButton, !state.selectedImage && styles.disabledButton]}
           onPress={handleSubmit}
           disabled={!state.selectedImage || state.uploading}
         >
@@ -314,8 +300,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
         </TouchableOpacity>
 
         <Text style={styles.helpText}>
-          Tips: Make sure your ID is clearly visible, well-lit, and the photo is
-          in focus.
+          Tips: Make sure your ID is clearly visible, well-lit, and the photo is in focus.
         </Text>
       </ScrollView>
     </SafeAreaView>

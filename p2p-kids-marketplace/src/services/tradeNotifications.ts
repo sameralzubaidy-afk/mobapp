@@ -60,13 +60,20 @@ export interface GetTradeNotificationsResult {
 
 function buildPushTitle(type: TradeNotificationType): string {
   switch (type) {
-    case 'trade_request':   return 'New Trade Request! 💬';
-    case 'trade_completion_requested': return 'Trade Ready for Your Confirmation';
-    case 'trade_accepted':  return 'Trade Accepted! ✅';
-    case 'trade_rejected':  return 'Trade Declined';
-    case 'trade_completed': return 'Trade Complete! 🎉';
-    case 'trade_cancelled': return 'Trade Cancelled';
-    default:                return 'Trade Update';
+    case 'trade_request':
+      return 'New Trade Request! 💬';
+    case 'trade_completion_requested':
+      return 'Trade Ready for Your Confirmation';
+    case 'trade_accepted':
+      return 'Trade Accepted! ✅';
+    case 'trade_rejected':
+      return 'Trade Declined';
+    case 'trade_completed':
+      return 'Trade Complete! 🎉';
+    case 'trade_cancelled':
+      return 'Trade Cancelled';
+    default:
+      return 'Trade Update';
   }
 }
 
@@ -106,7 +113,9 @@ export async function sendTradeNotificationPush(
 
     // If preference row exists and push is disabled, skip push
     if (prefs !== null && prefs.push_enabled === false) {
-      console.log(`[tradeNotifications] push disabled for user ${recipientUserId} (trades category)`);
+      console.log(
+        `[tradeNotifications] push disabled for user ${recipientUserId} (trades category)`
+      );
       return { success: true };
     }
 
@@ -135,7 +144,10 @@ export async function sendTradeNotificationPush(
     return { success: true };
   } catch (err) {
     const error = err as Error;
-    console.error('[tradeNotifications] Unexpected error in sendTradeNotificationPush:', error.message);
+    console.error(
+      '[tradeNotifications] Unexpected error in sendTradeNotificationPush:',
+      error.message
+    );
     return { success: false, error: error.message };
   }
 }
@@ -203,7 +215,10 @@ export async function markTradeNotificationRead(
     return { success: true };
   } catch (err) {
     const error = err as Error;
-    console.error('[tradeNotifications] Unexpected error in markTradeNotificationRead:', error.message);
+    console.error(
+      '[tradeNotifications] Unexpected error in markTradeNotificationRead:',
+      error.message
+    );
     return { success: false, error: error.message };
   }
 }
@@ -225,14 +240,20 @@ export async function markAllTradeNotificationsRead(
       .is('read_at', null);
 
     if (error) {
-      console.error('[tradeNotifications] Error marking all trade notifications read:', error.message);
+      console.error(
+        '[tradeNotifications] Error marking all trade notifications read:',
+        error.message
+      );
       return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (err) {
     const error = err as Error;
-    console.error('[tradeNotifications] Unexpected error in markAllTradeNotificationsRead:', error.message);
+    console.error(
+      '[tradeNotifications] Unexpected error in markAllTradeNotificationsRead:',
+      error.message
+    );
     return { success: false, error: error.message };
   }
 }
@@ -261,7 +282,10 @@ export async function getUnreadTradeNotificationCount(
     return { count: count ?? 0 };
   } catch (err) {
     const error = err as Error;
-    console.error('[tradeNotifications] Unexpected error in getUnreadTradeNotificationCount:', error.message);
+    console.error(
+      '[tradeNotifications] Unexpected error in getUnreadTradeNotificationCount:',
+      error.message
+    );
     return { count: 0, error: error.message };
   }
 }

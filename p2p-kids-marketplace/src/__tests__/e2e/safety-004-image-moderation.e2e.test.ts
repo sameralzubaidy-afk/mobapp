@@ -1,13 +1,13 @@
 /**
  * E2E Integration tests for SAFETY-004: Google Vision Image Moderation
  * Tests moderate-image Edge Function with real Supabase backend
- * 
+ *
  * Prerequisites:
  * - GOOGLE_VISION_API_KEY must be set in Supabase Edge Function secrets
  * - Migration 306 must be applied (ai_moderation_logs table)
  * - item-images storage bucket must exist (SAFETY-P001)
  * - Test item must exist in database
- * 
+ *
  * Run: RUN_SUPABASE_E2E=true npm run test:e2e -- safety-004-image-moderation
  */
 
@@ -198,10 +198,7 @@ describeE2E('SAFETY-004: Image Moderation E2E', () => {
     it('[TC-005] should verify ai_moderation_logs table exists', async () => {
       if (shouldSkip()) return;
 
-      const { data, error } = await supabase
-        .from('ai_moderation_logs')
-        .select('*')
-        .limit(1);
+      const { data, error } = await supabase.from('ai_moderation_logs').select('*').limit(1);
 
       expect(error).toBeNull();
       expect(data).toBeDefined();

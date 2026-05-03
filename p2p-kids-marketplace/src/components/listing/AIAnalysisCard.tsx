@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/listing/AIAnalysisCard.tsx
  * MODULE-04 LISTING-V3-008: AI Analysis Card
  * Task: LISTING-V3-008 - Sliding card with AI suggestions
- * 
+ *
  * Features:
  * - Apply All button (skips filled fields)
  * - Per-field Use buttons
@@ -11,14 +11,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, ScrollView } from 'react-native';
 import { AIAnalysisResult } from '../../types/listing';
 
 export interface AIAnalysisCardProps {
@@ -61,11 +54,7 @@ export function AIAnalysisCard({
     return 'Low';
   };
 
-  const renderField = (
-    label: string,
-    field: keyof AIAnalysisResult,
-    value: any
-  ) => {
+  const renderField = (label: string, field: keyof AIAnalysisResult, value: any) => {
     const fieldData = analysis[field];
     if (!fieldData || typeof fieldData !== 'object' || !('value' in fieldData)) {
       return null;
@@ -84,10 +73,7 @@ export function AIAnalysisCard({
           </Text>
           <View style={styles.confidenceBadge}>
             <View
-              style={[
-                styles.confidenceDot,
-                { backgroundColor: getConfidenceColor(confidence) },
-              ]}
+              style={[styles.confidenceDot, { backgroundColor: getConfidenceColor(confidence) }]}
             />
             <Text style={styles.confidenceText}>
               {getConfidenceLabel(confidence)} ({Math.round(confidence * 100)}%)

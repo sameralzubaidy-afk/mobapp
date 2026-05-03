@@ -20,7 +20,9 @@ describe('LISTING-V3-006 bulk integration', () => {
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
     if (!url || !key) {
-      throw new Error('SUPABASE_URL and (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY) are required');
+      throw new Error(
+        'SUPABASE_URL and (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY) are required'
+      );
     }
 
     supabase = createClient(url, key);

@@ -78,7 +78,9 @@ export function PhotoGroupingView({
             <View style={styles.moveButtonsRow}>
               {groupIndex > 0 && (
                 <TouchableOpacity
-                  onPress={() => onMovePhotoBetweenGroups(item.id, group.groupId, groups[groupIndex - 1].groupId)}
+                  onPress={() =>
+                    onMovePhotoBetweenGroups(item.id, group.groupId, groups[groupIndex - 1].groupId)
+                  }
                   style={styles.moveButton}
                   testID={`move-prev-${group.groupId}-${item.id}`}
                 >
@@ -87,7 +89,9 @@ export function PhotoGroupingView({
               )}
               {groupIndex < groups.length - 1 && (
                 <TouchableOpacity
-                  onPress={() => onMovePhotoBetweenGroups(item.id, group.groupId, groups[groupIndex + 1].groupId)}
+                  onPress={() =>
+                    onMovePhotoBetweenGroups(item.id, group.groupId, groups[groupIndex + 1].groupId)
+                  }
                   style={styles.moveButton}
                   testID={`move-next-${group.groupId}-${item.id}`}
                 >
@@ -103,13 +107,17 @@ export function PhotoGroupingView({
   return (
     <View style={styles.container} testID="photo-grouping-view">
       <Text style={styles.title}>Group Photos Into Items</Text>
-      <Text style={styles.subtitle}>Reorder with left/right controls. Move photos between groups with item arrows.</Text>
+      <Text style={styles.subtitle}>
+        Reorder with left/right controls. Move photos between groups with item arrows.
+      </Text>
 
       {groups.map((group, index) => (
         <View key={group.groupId} style={styles.groupCard}>
           <View style={styles.groupHeader}>
             <Text style={styles.groupTitle}>Item {index + 1}</Text>
-            <Text style={styles.groupMeta}>{group.photos.length}/{maxPerGroup} photos</Text>
+            <Text style={styles.groupMeta}>
+              {group.photos.length}/{maxPerGroup} photos
+            </Text>
           </View>
 
           <FlatList
@@ -123,7 +131,11 @@ export function PhotoGroupingView({
         </View>
       ))}
 
-      <TouchableOpacity style={styles.confirmButton} onPress={onConfirmGrouping} testID="confirm-grouping-button">
+      <TouchableOpacity
+        style={styles.confirmButton}
+        onPress={onConfirmGrouping}
+        testID="confirm-grouping-button"
+      >
         <Text style={styles.confirmButtonText}>Confirm Grouping</Text>
       </TouchableOpacity>
     </View>

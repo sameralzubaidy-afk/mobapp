@@ -44,25 +44,25 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
     badgeCount?: number;
   }) => {
     const active = routeName ? isActive(routeName) : false;
-    const handlePress = onPress || (() => {
-      if (routeName) {
-        (navigation as any).navigate(routeName);
-      }
-    });
+    const handlePress =
+      onPress ||
+      (() => {
+        if (routeName) {
+          (navigation as any).navigate(routeName);
+        }
+      });
 
     return (
       <TouchableOpacity
         style={[styles.navItem, active && styles.navItemActive]}
         onPress={handlePress}
-        testID={"nav-" + label.replace(/\s+/g, '-').toLowerCase()}
+        testID={'nav-' + label.replace(/\s+/g, '-').toLowerCase()}
       >
         <View style={styles.emojiWrapper}>
           <Text style={styles.emoji}>{emoji}</Text>
           {typeof badgeCount === 'number' && badgeCount > 0 && (
             <View testID="notification-badge" style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {badgeCount > 99 ? '99+' : String(badgeCount)}
-              </Text>
+              <Text style={styles.badgeText}>{badgeCount > 99 ? '99+' : String(badgeCount)}</Text>
             </View>
           )}
         </View>
@@ -75,18 +75,9 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
     <View style={styles.container}>
       <NavItem emoji="🏠" label="Home" routeName="Home" />
       <NavItem emoji="�" label="Discover" routeName="Discover" />
-      <NavItem
-        emoji="💰"
-        label="Sell"
-        onPress={() => setSellSheetVisible(true)}
-      />
+      <NavItem emoji="💰" label="Sell" onPress={() => setSellSheetVisible(true)} />
       <NavItem emoji="📋" label="My Items" routeName="MyListings" />
-      <NavItem
-        emoji="🔔"
-        label="Alerts"
-        routeName="Notifications"
-        badgeCount={unreadCount}
-      />
+      <NavItem emoji="🔔" label="Alerts" routeName="Notifications" badgeCount={unreadCount} />
       <NavItem emoji="👤" label="Profile" routeName="Profile" />
       {showHelp && (
         <NavItem

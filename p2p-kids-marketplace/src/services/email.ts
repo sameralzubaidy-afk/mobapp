@@ -68,9 +68,7 @@ export const sendEmail = async ({
 /**
  * Send welcome email to new users
  */
-export const sendWelcomeEmail = async (
-  data: WelcomeEmailData
-): Promise<SendEmailResult> => {
+export const sendWelcomeEmail = async (data: WelcomeEmailData): Promise<SendEmailResult> => {
   if (!process.env.EXPO_PUBLIC_SENDGRID_API_KEY && !process.env.SENDGRID_API_KEY) {
     console.warn('SendGrid API key not configured. Email sending skipped.');
     return { success: false, error: 'SendGrid API key not configured' };
@@ -108,7 +106,8 @@ export const sendPasswordResetEmail = async (
     return { success: false, error: 'SendGrid API key not configured' };
   }
 
-  const resetLink = data.resetLink || `https://p2pkidsmarketplace.com/reset-password?token=${data.resetToken}`;
+  const resetLink =
+    data.resetLink || `https://p2pkidsmarketplace.com/reset-password?token=${data.resetToken}`;
 
   const msg = {
     to: data.email,
@@ -160,7 +159,10 @@ export const sendTradeNotificationEmail = async (
     return { success: true };
   } catch (err) {
     const error = err as Error;
-    console.warn(`⚠️ Failed to send trade notification email to ${data.sellerEmail}:`, error.message);
+    console.warn(
+      `⚠️ Failed to send trade notification email to ${data.sellerEmail}:`,
+      error.message
+    );
     return { success: false, error };
   }
 };

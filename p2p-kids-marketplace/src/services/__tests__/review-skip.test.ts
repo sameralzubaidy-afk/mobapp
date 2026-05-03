@@ -49,7 +49,7 @@ describe('skipReview', () => {
 
   it('should log skip event for analytics (console verification)', async () => {
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-    
+
     const params = {
       tradeId: 'trade-123',
       userId: 'user-456',

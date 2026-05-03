@@ -32,7 +32,11 @@ import { getItemById, Item } from '@/services/items';
 import { initiateTradeV2, processTradePayment } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
-import { getTransactionFee, getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
+import {
+  getTransactionFee,
+  getPaymentMethod,
+  type PaymentMethodInfo,
+} from '@/services/subscription';
 import { calculateCategorySP } from '@/services/categoryService';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
@@ -205,7 +209,7 @@ export default function TradeInitiationScreen() {
       if (Number.isFinite(feeCents) && feeCents >= 0) {
         setTransactionFeeCents(Math.round(feeCents));
       }
-      
+
       // MODULE-12 V3: Use category-specific SP spending cap
       if (itemData.category_id) {
         const spConfig = await calculateCategorySP(itemData.category_id, itemData.price);
@@ -214,7 +218,9 @@ export default function TradeInitiationScreen() {
           setMaxSpPercentage(spConfig.spend_percent);
         } else {
           // Fallback to global admin config
-          const fallbackMaxSp = Math.floor((itemData.price * (config?.sp_max_percentage_per_purchase || 50)) / 100);
+          const fallbackMaxSp = Math.floor(
+            (itemData.price * (config?.sp_max_percentage_per_purchase || 50)) / 100
+          );
           setMaxSpAllowed(fallbackMaxSp);
           if (config?.sp_max_percentage_per_purchase) {
             setMaxSpPercentage(config.sp_max_percentage_per_purchase);
@@ -234,7 +240,7 @@ export default function TradeInitiationScreen() {
       setLoading(false);
     }
   };
-  
+
   // MODULE-12 V3: Use category-specific max SP cap (already calculated in fetchData)
   if (loading || !item) {
     return (
@@ -459,281 +465,282 @@ export default function TradeInitiationScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 24}
       >
-      <ScrollView
-        ref={scrollViewRef}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-      >
-        <Text style={styles.title}>Confirm Your Trade</Text>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        >
+          <Text style={styles.title}>Confirm Your Trade</Text>
 
-        <WalletWarningBanner walletState={walletState} />
+          <WalletWarningBanner walletState={walletState} />
 
-        {/* Item Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Item</Text>
-          <View style={styles.itemRow}>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemTitle}>{item.title}</Text>
-              <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Swap Points Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Swap Points Discount</Text>
-            <Text style={styles.walletBalance}>Balance: {availableSp} SP</Text>
-          </View>
-
-          {!isSubscriber ? (
-            <View style={styles.upgradeContainer}>
-              <Text style={styles.upgradeText}>
-                Swap Points are a Kids Club+ feature. Join now to save up to {maxSpPercentage}% on
-                every trade!
-              </Text>
-              <Pressable
-                style={styles.upgradeButton}
-                onPress={() => navigation.navigate('SubscriptionChoice')}
-              >
-                <Text style={styles.upgradeButtonText}>Upgrade to Kids Club+</Text>
-              </Pressable>
-            </View>
-          ) : !subStatus.canSpendSP ? (
-            <Text style={styles.infoText}>
-              {walletState === 'frozen'
-                ? 'Your Swap Points wallet is frozen. Renew your subscription to restore SP spending.'
-                : walletState === 'suspended'
-                  ? 'Your Swap Points wallet is suspended. Please contact support for assistance.'
-                  : walletState === 'grace_period'
-                    ? 'Your wallet is in grace period. Renew your subscription to spend Swap Points.'
-                    : 'Swap Points are currently unavailable.'}
-            </Text>
-          ) : !item.accepts_swap_points ? (
-            <Text style={styles.infoText}>
-              This seller does not accept Swap Points for this item.
-            </Text>
-          ) : maxSpToUse === 0 ? (
-            <Text style={styles.infoText}>
-              {availableSp === 0
-                ? "You don't have any Swap Points yet."
-                : 'This item is too cheap to use Swap Points.'}
-            </Text>
-          ) : (
-            <View style={styles.spControls}>
-              <View style={styles.spRow}>
-                <Pressable
-                  onPress={decrementSp}
-                  style={[styles.spButton, spAmount === 0 && styles.spButtonDisabled]}
-                  disabled={spAmount === 0}
-                >
-                  <Text style={styles.spButtonText}>−</Text>
-                </Pressable>
-                <View style={styles.spValueContainer}>
-                  <TextInput
-                    style={styles.spInput}
-                    value={spAmount === 0 ? '' : spAmount.toString()}
-                    onChangeText={handleSpInputChange}
-                    keyboardType="decimal-pad"
-                    maxLength={8}
-                    selectTextOnFocus
-                    placeholder="0.00"
-                  />
-                  <Text style={styles.spLabel}>SP</Text>
-                </View>
-                <Pressable
-                  onPress={incrementSp}
-                  style={[styles.spButton, spAmount >= maxSpToUse && styles.spButtonDisabled]}
-                  disabled={spAmount >= maxSpToUse}
-                >
-                  <Text style={styles.spButtonText}>+</Text>
-                </Pressable>
-              </View>
-              <Text style={styles.spLimitText}>
-                Max discount: {maxSpToUse.toFixed(2)} SP ({maxSpPercentage}% of price)
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Fee Breakdown */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Order Summary</Text>
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Item Price</Text>
-            <Text style={styles.breakdownValue}>${item.price.toFixed(2)}</Text>
-          </View>
-
-          {spAmount > 0 && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>SP Discount</Text>
-              <Text style={[styles.breakdownValue, styles.discountText]}>
-                -${(spAmount * (spToCashRate / 100)).toFixed(2)}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.breakdownRow}>
-            <View>
-              <Text style={styles.breakdownLabel}>Platform Fee</Text>
-              <Text style={styles.feeSubtext}>
-                {subStatus.canSpendSP ? 'Kids Club+ Rate' : 'Standard Rate'}
-              </Text>
-            </View>
-            <Text style={styles.breakdownValue}>${(platformFeeCents / 100).toFixed(2)}</Text>
-          </View>
-
-          <View style={[styles.breakdownRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total Cash Due (Item + Fee)</Text>
-            <Text style={styles.totalValue}>${cashAmount.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        {/* Payment Section */}
-        {cashAmountCents > 0 && (
+          {/* Item Summary */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Payment Method</Text>
-            {loadingSavedPaymentMethod && (
-              <View style={styles.paymentModeLoadingContainer}>
-                <ActivityIndicator size="small" color="#3b82f6" />
-                <Text style={styles.paymentModeLoadingText}>Checking saved cards...</Text>
+            <Text style={styles.sectionTitle}>Item</Text>
+            <View style={styles.itemRow}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemTitle}>{item.title}</Text>
+                <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
               </View>
-            )}
+            </View>
+          </View>
 
-            {!!savedPaymentMethod && (
-              <View style={styles.paymentModeSelector}>
-                <Pressable
-                  onPress={() => {
-                    setPaymentInputMode('saved');
-                    setCardComplete(true);
-                  }}
-                  style={[
-                    styles.paymentModeOption,
-                    paymentInputMode === 'saved' && styles.paymentModeOptionSelected,
-                  ]}
-                >
-                  <Text style={styles.paymentModeTitle}>Use Saved Card</Text>
-                  <Text style={styles.paymentModeSubtitle}>
-                    {savedPaymentMethod.brand?.toUpperCase()} •••• {savedPaymentMethod.last4}
-                  </Text>
-                </Pressable>
+          {/* Swap Points Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Swap Points Discount</Text>
+              <Text style={styles.walletBalance}>Balance: {availableSp} SP</Text>
+            </View>
 
+            {!isSubscriber ? (
+              <View style={styles.upgradeContainer}>
+                <Text style={styles.upgradeText}>
+                  Swap Points are a Kids Club+ feature. Join now to save up to {maxSpPercentage}% on
+                  every trade!
+                </Text>
                 <Pressable
-                  onPress={() => {
-                    setPaymentInputMode('new');
-                    setCardComplete(false);
-                  }}
-                  style={[
-                    styles.paymentModeOption,
-                    paymentInputMode === 'new' && styles.paymentModeOptionSelected,
-                  ]}
+                  style={styles.upgradeButton}
+                  onPress={() => navigation.navigate('SubscriptionChoice')}
                 >
-                  <Text style={styles.paymentModeTitle}>Use New Card</Text>
-                  <Text style={styles.paymentModeSubtitle}>Enter different card details</Text>
+                  <Text style={styles.upgradeButtonText}>Upgrade to Kids Club+</Text>
                 </Pressable>
               </View>
-            )}
-
-            {paymentInputMode === 'saved' && savedPaymentMethod ? (
-              <View style={styles.savedCardInfoContainer}>
-                <Text style={styles.savedCardInfoText}>
-                  Paying with {savedPaymentMethod.brand?.toUpperCase()} •••• {savedPaymentMethod.last4}
-                </Text>
-                <Text style={styles.savedCardInfoSubtext}>
-                  Expires {String(savedPaymentMethod.exp_month).padStart(2, '0')}/{savedPaymentMethod.exp_year}
-                </Text>
-              </View>
-            ) : stripeReady ? (
-              <CardField
-                postalCodeEnabled={true}
-                placeholders={{
-                  number: '4242 4242 4242 4242',
-                }}
-                cardStyle={{
-                  backgroundColor: '#FFFFFF',
-                  textColor: '#000000',
-                  placeholderColor: '#A0AEC0',
-                  borderColor: '#E5E7EB',
-                  borderWidth: 1,
-                  borderRadius: 8,
-                }}
-                style={styles.cardField}
-                onCardChange={(cardDetails) => {
-                  setCardComplete(cardDetails.complete ?? false);
-                }}
-                onFocus={() => {
-                  requestAnimationFrame(() => {
-                    scrollViewRef.current?.scrollToEnd({ animated: true });
-                  });
-                }}
-              />
-            ) : stripeError === null ? (
-              <View style={{ height: 100, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="small" color="#3b82f6" />
-                <Text style={{ marginTop: 8, color: '#6b7280' }}>Loading secure payment...</Text>
-              </View>
+            ) : !subStatus.canSpendSP ? (
+              <Text style={styles.infoText}>
+                {walletState === 'frozen'
+                  ? 'Your Swap Points wallet is frozen. Renew your subscription to restore SP spending.'
+                  : walletState === 'suspended'
+                    ? 'Your Swap Points wallet is suspended. Please contact support for assistance.'
+                    : walletState === 'grace_period'
+                      ? 'Your wallet is in grace period. Renew your subscription to spend Swap Points.'
+                      : 'Swap Points are currently unavailable.'}
+              </Text>
+            ) : !item.accepts_swap_points ? (
+              <Text style={styles.infoText}>
+                This seller does not accept Swap Points for this item.
+              </Text>
+            ) : maxSpToUse === 0 ? (
+              <Text style={styles.infoText}>
+                {availableSp === 0
+                  ? "You don't have any Swap Points yet."
+                  : 'This item is too cheap to use Swap Points.'}
+              </Text>
             ) : (
-              <View style={styles.paymentErrorContainer}>
-                <Text style={styles.paymentErrorText}>
-                  {stripeError || 'Unable to load card fields.'}
+              <View style={styles.spControls}>
+                <View style={styles.spRow}>
+                  <Pressable
+                    onPress={decrementSp}
+                    style={[styles.spButton, spAmount === 0 && styles.spButtonDisabled]}
+                    disabled={spAmount === 0}
+                  >
+                    <Text style={styles.spButtonText}>−</Text>
+                  </Pressable>
+                  <View style={styles.spValueContainer}>
+                    <TextInput
+                      style={styles.spInput}
+                      value={spAmount === 0 ? '' : spAmount.toString()}
+                      onChangeText={handleSpInputChange}
+                      keyboardType="decimal-pad"
+                      maxLength={8}
+                      selectTextOnFocus
+                      placeholder="0.00"
+                    />
+                    <Text style={styles.spLabel}>SP</Text>
+                  </View>
+                  <Pressable
+                    onPress={incrementSp}
+                    style={[styles.spButton, spAmount >= maxSpToUse && styles.spButtonDisabled]}
+                    disabled={spAmount >= maxSpToUse}
+                  >
+                    <Text style={styles.spButtonText}>+</Text>
+                  </Pressable>
+                </View>
+                <Text style={styles.spLimitText}>
+                  Max discount: {maxSpToUse.toFixed(2)} SP ({maxSpPercentage}% of price)
                 </Text>
-                <Pressable
-                  style={styles.retryPaymentButton}
-                  onPress={() => {
-                    if (!hasStripeNativeModule) {
-                      setStripeReady(false);
-                      setStripeError(
-                        'This app build does not include Stripe native components. Please install the latest staging build.'
-                      );
-                      return;
-                    }
-
-                    if (!stripePublishableKeyLooksValid) {
-                      setStripeReady(false);
-                      setStripeError('Stripe publishable key is missing or invalid in app configuration.');
-                      return;
-                    }
-
-                    setStripeReady(true);
-                    setStripeError(null);
-                  }}
-                >
-                  <Text style={styles.retryPaymentButtonText}>Retry Payment Fields</Text>
-                </Pressable>
               </View>
             )}
           </View>
-        )}
 
-        <View style={styles.footer}>
-          <Text style={styles.disclaimer}>
-            By confirming, you agree to the trade terms. Swap Points will be deducted immediately.
-          </Text>
-          <Pressable
-            style={[
-              styles.confirmButton,
-              submitting && styles.confirmButtonDisabled,
-            ]}
-            onPress={handleConfirmPurchase}
-            disabled={submitting}
-            testID="confirm-trade-button"
-          >
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.confirmButtonText}>Confirm & Pay ${cashAmount.toFixed(2)}</Text>
+          {/* Fee Breakdown */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Order Summary</Text>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Item Price</Text>
+              <Text style={styles.breakdownValue}>${item.price.toFixed(2)}</Text>
+            </View>
+
+            {spAmount > 0 && (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>SP Discount</Text>
+                <Text style={[styles.breakdownValue, styles.discountText]}>
+                  -${(spAmount * (spToCashRate / 100)).toFixed(2)}
+                </Text>
+              </View>
             )}
-          </Pressable>
-          <Pressable
-            style={styles.cancelButton}
-            onPress={() => navigation.goBack()}
-            disabled={submitting}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
+
+            <View style={styles.breakdownRow}>
+              <View>
+                <Text style={styles.breakdownLabel}>Platform Fee</Text>
+                <Text style={styles.feeSubtext}>
+                  {subStatus.canSpendSP ? 'Kids Club+ Rate' : 'Standard Rate'}
+                </Text>
+              </View>
+              <Text style={styles.breakdownValue}>${(platformFeeCents / 100).toFixed(2)}</Text>
+            </View>
+
+            <View style={[styles.breakdownRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>Total Cash Due (Item + Fee)</Text>
+              <Text style={styles.totalValue}>${cashAmount.toFixed(2)}</Text>
+            </View>
+          </View>
+
+          {/* Payment Section */}
+          {cashAmountCents > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Payment Method</Text>
+              {loadingSavedPaymentMethod && (
+                <View style={styles.paymentModeLoadingContainer}>
+                  <ActivityIndicator size="small" color="#3b82f6" />
+                  <Text style={styles.paymentModeLoadingText}>Checking saved cards...</Text>
+                </View>
+              )}
+
+              {!!savedPaymentMethod && (
+                <View style={styles.paymentModeSelector}>
+                  <Pressable
+                    onPress={() => {
+                      setPaymentInputMode('saved');
+                      setCardComplete(true);
+                    }}
+                    style={[
+                      styles.paymentModeOption,
+                      paymentInputMode === 'saved' && styles.paymentModeOptionSelected,
+                    ]}
+                  >
+                    <Text style={styles.paymentModeTitle}>Use Saved Card</Text>
+                    <Text style={styles.paymentModeSubtitle}>
+                      {savedPaymentMethod.brand?.toUpperCase()} •••• {savedPaymentMethod.last4}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      setPaymentInputMode('new');
+                      setCardComplete(false);
+                    }}
+                    style={[
+                      styles.paymentModeOption,
+                      paymentInputMode === 'new' && styles.paymentModeOptionSelected,
+                    ]}
+                  >
+                    <Text style={styles.paymentModeTitle}>Use New Card</Text>
+                    <Text style={styles.paymentModeSubtitle}>Enter different card details</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {paymentInputMode === 'saved' && savedPaymentMethod ? (
+                <View style={styles.savedCardInfoContainer}>
+                  <Text style={styles.savedCardInfoText}>
+                    Paying with {savedPaymentMethod.brand?.toUpperCase()} ••••{' '}
+                    {savedPaymentMethod.last4}
+                  </Text>
+                  <Text style={styles.savedCardInfoSubtext}>
+                    Expires {String(savedPaymentMethod.exp_month).padStart(2, '0')}/
+                    {savedPaymentMethod.exp_year}
+                  </Text>
+                </View>
+              ) : stripeReady ? (
+                <CardField
+                  postalCodeEnabled={true}
+                  placeholders={{
+                    number: '4242 4242 4242 4242',
+                  }}
+                  cardStyle={{
+                    backgroundColor: '#FFFFFF',
+                    textColor: '#000000',
+                    placeholderColor: '#A0AEC0',
+                    borderColor: '#E5E7EB',
+                    borderWidth: 1,
+                    borderRadius: 8,
+                  }}
+                  style={styles.cardField}
+                  onCardChange={(cardDetails) => {
+                    setCardComplete(cardDetails.complete ?? false);
+                  }}
+                  onFocus={() => {
+                    requestAnimationFrame(() => {
+                      scrollViewRef.current?.scrollToEnd({ animated: true });
+                    });
+                  }}
+                />
+              ) : stripeError === null ? (
+                <View style={{ height: 100, justifyContent: 'center', alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#3b82f6" />
+                  <Text style={{ marginTop: 8, color: '#6b7280' }}>Loading secure payment...</Text>
+                </View>
+              ) : (
+                <View style={styles.paymentErrorContainer}>
+                  <Text style={styles.paymentErrorText}>
+                    {stripeError || 'Unable to load card fields.'}
+                  </Text>
+                  <Pressable
+                    style={styles.retryPaymentButton}
+                    onPress={() => {
+                      if (!hasStripeNativeModule) {
+                        setStripeReady(false);
+                        setStripeError(
+                          'This app build does not include Stripe native components. Please install the latest staging build.'
+                        );
+                        return;
+                      }
+
+                      if (!stripePublishableKeyLooksValid) {
+                        setStripeReady(false);
+                        setStripeError(
+                          'Stripe publishable key is missing or invalid in app configuration.'
+                        );
+                        return;
+                      }
+
+                      setStripeReady(true);
+                      setStripeError(null);
+                    }}
+                  >
+                    <Text style={styles.retryPaymentButtonText}>Retry Payment Fields</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={styles.footer}>
+            <Text style={styles.disclaimer}>
+              By confirming, you agree to the trade terms. Swap Points will be deducted immediately.
+            </Text>
+            <Pressable
+              style={[styles.confirmButton, submitting && styles.confirmButtonDisabled]}
+              onPress={handleConfirmPurchase}
+              disabled={submitting}
+              testID="confirm-trade-button"
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.confirmButtonText}>Confirm & Pay ${cashAmount.toFixed(2)}</Text>
+              )}
+            </Pressable>
+            <Pressable
+              style={styles.cancelButton}
+              onPress={() => navigation.goBack()}
+              disabled={submitting}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       {/* Disclaimer Modal - Conditional render to prevent aggressive native view parsing */}

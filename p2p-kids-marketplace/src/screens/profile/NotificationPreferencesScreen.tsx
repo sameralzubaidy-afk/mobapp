@@ -15,11 +15,11 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { 
-  getNotificationPreferences, 
+import {
+  getNotificationPreferences,
   updateNotificationPreference,
   NotificationPreference,
-  NotificationCategory 
+  NotificationCategory,
 } from '@/services/notificationPreferences';
 
 const CATEGORY_LABELS: Record<NotificationCategory, string> = {
@@ -94,7 +94,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
   };
 
   const handleToggle = async (
-    category: NotificationCategory, 
+    category: NotificationCategory,
     field: 'push_enabled' | 'in_app_enabled' | 'email_enabled',
     value: boolean
   ) => {
@@ -102,17 +102,17 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
     setUpdating(updateKey);
 
     // Optimistic update
-    setPreferences(prev => prev.map(p => 
-      p.category === category ? { ...p, [field]: value } : p
-    ));
+    setPreferences((prev) =>
+      prev.map((p) => (p.category === category ? { ...p, [field]: value } : p))
+    );
 
     const result = await updateNotificationPreference(category, { [field]: value });
-    
+
     if (!result.success) {
       // Revert on failure
-      setPreferences(prev => prev.map(p => 
-        p.category === category ? { ...p, [field]: !value } : p
-      ));
+      setPreferences((prev) =>
+        prev.map((p) => (p.category === category ? { ...p, [field]: !value } : p))
+      );
       Alert.alert('Error', result.error || 'Failed to update preference');
     }
 
@@ -129,9 +129,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
     setUpdating(updateKey);
 
     setPreferences((prev) =>
-      prev.map((p) =>
-        p.category === 'subscription' ? { ...p, quiet_hours_enabled: value } : p
-      )
+      prev.map((p) => (p.category === 'subscription' ? { ...p, quiet_hours_enabled: value } : p))
     );
 
     const result = await updateNotificationPreference('subscription', {
@@ -140,9 +138,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
 
     if (!result.success) {
       setPreferences((prev) =>
-        prev.map((p) =>
-          p.category === 'subscription' ? { ...p, quiet_hours_enabled: !value } : p
-        )
+        prev.map((p) => (p.category === 'subscription' ? { ...p, quiet_hours_enabled: !value } : p))
       );
       Alert.alert('Error', result.error || 'Failed to update quiet hours setting');
     }
@@ -206,9 +202,9 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity 
+          <TouchableOpacity
             testID="back-button"
-            onPress={() => navigation.goBack()} 
+            onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
             <Ionicons name="arrow-back" size={24} color="#1F2937" />
@@ -226,7 +222,8 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
               <Ionicons name="notifications-off-outline" size={48} color="#D1D5DB" />
               <Text style={styles.emptyTitle}>No preferences found</Text>
               <Text style={styles.emptyText}>
-                We couldn't load your notification settings. Tap the button below to initialize them.
+                We couldn't load your notification settings. Tap the button below to initialize
+                them.
               </Text>
               <TouchableOpacity style={styles.retryButton} onPress={loadPreferences}>
                 <Text style={styles.retryButtonText}>Initialize Settings</Text>
@@ -234,14 +231,18 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
             </View>
           ) : (
             preferences.map((pref) => (
-              <View 
-                key={pref.category} 
+              <View
+                key={pref.category}
                 testID={`category-section-${pref.category}`}
                 style={styles.categoryCard}
               >
                 <View style={styles.categoryHeader}>
                   <View style={styles.categoryIconContainer}>
-                    <Ionicons name={CATEGORY_ICONS[pref.category] as any} size={20} color="#3B82F6" />
+                    <Ionicons
+                      name={CATEGORY_ICONS[pref.category] as any}
+                      size={20}
+                      color="#3B82F6"
+                    />
                   </View>
                   <Text style={styles.categoryTitle}>{CATEGORY_LABELS[pref.category]}</Text>
                 </View>
@@ -309,7 +310,9 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                 <View style={styles.settingItem}>
                   <View style={styles.settingTextContainer}>
                     <Text style={styles.settingLabel}>Enable Quiet Hours</Text>
-                    <Text style={styles.settingSublabel}>Pause push notifications during selected hours</Text>
+                    <Text style={styles.settingSublabel}>
+                      Pause push notifications during selected hours
+                    </Text>
                   </View>
                   <Switch
                     testID="toggle-quiet-hours-enabled"
@@ -372,9 +375,14 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
               </View>
             </View>
           )}
-          
+
           <View style={styles.footer}>
-            <Ionicons name="information-circle-outline" size={16} color="#6B7280" style={{ marginRight: 6 }} />
+            <Ionicons
+              name="information-circle-outline"
+              size={16}
+              color="#6B7280"
+              style={{ marginRight: 6 }}
+            />
             <Text style={styles.footerText}>
               Critical system alerts and safety notifications cannot be disabled.
             </Text>

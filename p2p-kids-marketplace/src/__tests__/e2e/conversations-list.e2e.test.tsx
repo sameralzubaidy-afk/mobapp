@@ -98,9 +98,7 @@ describe('ConversationsListScreen E2E', () => {
   };
 
   it('should display loading state initially', async () => {
-    (chatService.getConversations as jest.Mock).mockImplementation(
-      () => new Promise(() => {})
-    );
+    (chatService.getConversations as jest.Mock).mockImplementation(() => new Promise(() => {}));
 
     const { getByText } = renderScreen();
     expect(getByText('Loading conversations...')).toBeTruthy();

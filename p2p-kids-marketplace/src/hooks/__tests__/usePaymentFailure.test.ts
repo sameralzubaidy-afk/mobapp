@@ -204,4 +204,3 @@ describe('usePaymentFailure', () => {
     expect(result.current.loading).toBe(true);
   });
 });
-

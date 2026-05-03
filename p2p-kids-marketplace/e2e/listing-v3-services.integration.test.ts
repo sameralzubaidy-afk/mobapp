@@ -1,7 +1,7 @@
 /**
  * Integration tests for V3 Listing Creation Flow
  * MODULE-04 LISTING-V3: TASK LISTING-V3-003
- * 
+ *
  * Tests end-to-end flows using production Supabase
  * Run with: RUN_SUPABASE_E2E=true npm run test:e2e
  */
@@ -50,10 +50,8 @@ describe('V3 Listing Creation Flow (E2E)', () => {
         },
       ];
 
-      const result = await photoService.uploadPhotoBatch(
-        mockPhotos,
-        TEST_SELLER_ID,
-        (progress) => console.log(`Upload progress: ${progress}%`)
+      const result = await photoService.uploadPhotoBatch(mockPhotos, TEST_SELLER_ID, (progress) =>
+        console.log(`Upload progress: ${progress}%`)
       );
 
       expect(result.urls.length).toBeGreaterThan(0);
@@ -125,7 +123,7 @@ describe('V3 Listing Creation Flow (E2E)', () => {
 
       // May be empty if < 5 sales, which is expected
       expect(Array.isArray(suggestions)).toBe(true);
-      
+
       if (suggestions.length > 0) {
         expect(suggestions[0]).toHaveProperty('id');
         expect(suggestions[0]).toHaveProperty('label');
@@ -150,7 +148,7 @@ describe('V3 Listing Creation Flow (E2E)', () => {
       const categories = await categoryService.getCategoriesWithCounts();
 
       expect(Array.isArray(categories)).toBe(true);
-      categories.forEach(cat => {
+      categories.forEach((cat) => {
         expect(cat).toHaveProperty('id');
         expect(cat).toHaveProperty('name');
         expect(cat).toHaveProperty('item_count');
@@ -159,7 +157,7 @@ describe('V3 Listing Creation Flow (E2E)', () => {
 
     it('should save and retrieve recent categories', async () => {
       const categoryId = 'test-cat-123';
-      
+
       await categoryService.saveRecentCategory(TEST_SELLER_ID, categoryId);
       const recent = await categoryService.getRecentCategories(TEST_SELLER_ID);
 

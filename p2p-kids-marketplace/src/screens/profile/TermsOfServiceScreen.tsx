@@ -141,7 +141,9 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
 
         <View style={styles.metaContainer}>
           <View style={styles.versionBadge}>
-            <Text style={styles.versionText} testID="tos-version">Version {policy.version}</Text>
+            <Text style={styles.versionText} testID="tos-version">
+              Version {policy.version}
+            </Text>
           </View>
           {policy.effective_date && (
             <Text style={styles.effectiveDate}>
@@ -151,9 +153,7 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.contentContainer} testID="tos-content">
-          <Markdown>
-            {policy.content}
-          </Markdown>
+          <Markdown>{policy.content}</Markdown>
         </View>
       </ScrollView>
 

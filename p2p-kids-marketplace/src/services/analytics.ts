@@ -1,9 +1,9 @@
 /**
  * File: src/services/analytics.ts
- * 
+ *
  * Simple analytics service wrapper for Firebase Analytics.
  * Tracks user events across the app.
- * 
+ *
  * Currently a stub - will be fully implemented with Firebase Analytics SDK
  */
 
@@ -31,7 +31,9 @@ export const trackEvent = (eventName: string, params?: AnalyticsEventParams): vo
       const payload = safeJson(params);
       // Match iOS-style readability: "DEBUG  [Analytics] ... {json}"
       // eslint-disable-next-line no-console
-      console.debug(`DEBUG  [Analytics] Event tracked: ${eventName}${payload ? ` ${payload}` : ''}`);
+      console.debug(
+        `DEBUG  [Analytics] Event tracked: ${eventName}${payload ? ` ${payload}` : ''}`
+      );
     }
   } catch (err) {
     const error = err as Error;
@@ -50,7 +52,9 @@ export const setUserProperties = (userId: string, properties: Record<string, unk
     if (process.env.NODE_ENV !== 'production') {
       const payload = safeJson(properties);
       // eslint-disable-next-line no-console
-      console.debug(`DEBUG  [Analytics] User properties set for ${userId}${payload ? ` ${payload}` : ''}`);
+      console.debug(
+        `DEBUG  [Analytics] User properties set for ${userId}${payload ? ` ${payload}` : ''}`
+      );
     }
   } catch (err) {
     const error = err as Error;

@@ -19,7 +19,9 @@ const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 const shouldSkip = !supabaseUrl || !supabaseKey || !createClient;
 
 if (shouldSkip) {
-  console.warn('⏭️  Skipping badge real-time integration tests: Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+  console.warn(
+    '⏭️  Skipping badge real-time integration tests: Missing SUPABASE_URL or SUPABASE_ANON_KEY'
+  );
 }
 
 const supabase = !shouldSkip ? createClient(supabaseUrl, supabaseKey) : null;

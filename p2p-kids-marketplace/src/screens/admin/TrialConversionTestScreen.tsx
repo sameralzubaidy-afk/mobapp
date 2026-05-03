@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/admin/TrialConversionTestScreen.tsx
  * MODULE-11 TASK SUB-005: Trial Conversion Test Screen
- * 
+ *
  * Admin/test screen for manually testing trial conversion logic
  */
 
@@ -35,10 +35,7 @@ export default function TrialConversionTestScreen() {
   const loadTrialStatus = async () => {
     setLoading(true);
     try {
-      const [status, expired] = await Promise.all([
-        getTrialStatus(),
-        hasTrialExpired(),
-      ]);
+      const [status, expired] = await Promise.all([getTrialStatus(), hasTrialExpired()]);
 
       setTrialStatus(status);
       setIsExpired(expired);
@@ -57,11 +54,9 @@ export default function TrialConversionTestScreen() {
       const result = await triggerTrialConversion();
 
       if (result.success) {
-        Alert.alert(
-          'Conversion Triggered',
-          `Result: ${JSON.stringify(result.result, null, 2)}`,
-          [{ text: 'OK', onPress: () => loadTrialStatus() }]
-        );
+        Alert.alert('Conversion Triggered', `Result: ${JSON.stringify(result.result, null, 2)}`, [
+          { text: 'OK', onPress: () => loadTrialStatus() },
+        ]);
       } else {
         Alert.alert('Conversion Failed', result.error || 'Unknown error');
       }
@@ -114,26 +109,20 @@ export default function TrialConversionTestScreen() {
           <View style={styles.card}>
             <View style={styles.row}>
               <Text style={styles.label}>Status:</Text>
-              <Text
-                style={[styles.value, { color: getStatusColor(trialStatus.status) }]}
-              >
+              <Text style={[styles.value, { color: getStatusColor(trialStatus.status) }]}>
                 {trialStatus.status.toUpperCase()}
               </Text>
             </View>
 
             <View style={styles.row}>
               <Text style={styles.label}>Trial Ends At:</Text>
-              <Text style={styles.value}>
-                {formatDate(trialStatus.trial_ends_at)}
-              </Text>
+              <Text style={styles.value}>{formatDate(trialStatus.trial_ends_at)}</Text>
             </View>
 
             <View style={styles.row}>
               <Text style={styles.label}>Days Remaining:</Text>
               <Text style={styles.value}>
-                {trialStatus.days_remaining !== null
-                  ? `${trialStatus.days_remaining} days`
-                  : 'N/A'}
+                {trialStatus.days_remaining !== null ? `${trialStatus.days_remaining} days` : 'N/A'}
               </Text>
             </View>
 
@@ -201,9 +190,7 @@ export default function TrialConversionTestScreen() {
       </View>
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Last refreshed: {lastRefresh.toLocaleTimeString()}
-        </Text>
+        <Text style={styles.footerText}>Last refreshed: {lastRefresh.toLocaleTimeString()}</Text>
       </View>
     </ScrollView>
   );

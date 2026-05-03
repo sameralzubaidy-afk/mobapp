@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/e2e/subscription-sub-006.e2e.ts
  * MODULE-11 TASK SUB-006: E2E Tests for Trial-to-Paid Conversion
- * 
+ *
  * Prerequisites:
  * - RUN_SUPABASE_E2E=true
  * - Valid Supabase credentials in .env
@@ -77,7 +77,9 @@ describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
     expect(data).toBeTruthy();
     expect((data ?? []).length).toBe(2);
 
-    const monthlyPriceRow = (data ?? []).find((row: any) => row.key === 'subscription_price_monthly');
+    const monthlyPriceRow = (data ?? []).find(
+      (row: any) => row.key === 'subscription_price_monthly'
+    );
     const trialDaysRow = (data ?? []).find((row: any) => row.key === 'trial_period_days');
 
     expect(monthlyPriceRow).toBeTruthy();
@@ -117,14 +119,13 @@ describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
       password: testUserPassword,
     });
 
-    const { data, error } = await supabase.functions.invoke(
-      'setup-subscription-payment',
-      { method: 'POST' }
-    );
+    const { data, error } = await supabase.functions.invoke('setup-subscription-payment', {
+      method: 'POST',
+    });
 
     // Should return setup data (or error if Stripe keys missing)
     console.log('Setup function response:', { data, error });
-    
+
     // Function exists if we get any response (even if Stripe config is incomplete)
     expect(data || error).toBeTruthy();
     console.log('✅ setup-subscription-payment function is deployed');
@@ -142,17 +143,14 @@ describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
       password: testUserPassword,
     });
 
-    const { data, error } = await supabase.functions.invoke(
-      'create-subscription-payment',
-      {
-        method: 'POST',
-        body: { paymentMethodId: 'pm_test_invalid' },
-      }
-    );
+    const { data, error } = await supabase.functions.invoke('create-subscription-payment', {
+      method: 'POST',
+      body: { paymentMethodId: 'pm_test_invalid' },
+    });
 
     // Should return error for invalid payment method (but function exists)
     console.log('Create function response:', { data, error });
-    
+
     // Function exists if we get any response
     expect(data || error).toBeTruthy();
     console.log('✅ create-subscription-payment function is deployed');
@@ -167,7 +165,9 @@ describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
     // Check if subscription exists for test user
     const { data, error } = await supabase
       .from('subscriptions')
-      .select('id, stripe_customer_id, stripe_subscription_id, stripe_payment_method_id, current_period_start, current_period_end')
+      .select(
+        'id, stripe_customer_id, stripe_subscription_id, stripe_payment_method_id, current_period_start, current_period_end'
+      )
       .eq('user_id', testUserId)
       .maybeSingle();
 
@@ -205,7 +205,7 @@ describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
 
     // This test requires actual Stripe test keys
     // We'll verify the function accepts the correct format
-    
+
     const mockPaymentMethodId = 'pm_test_1234567890abcdef';
 
     await supabase.auth.signInWithPassword({
@@ -213,17 +213,14 @@ describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
       password: testUserPassword,
     });
 
-    const { data, error } = await supabase.functions.invoke(
-      'create-subscription-payment',
-      {
-        method: 'POST',
-        body: { paymentMethodId: mockPaymentMethodId },
-      }
-    );
+    const { data, error } = await supabase.functions.invoke('create-subscription-payment', {
+      method: 'POST',
+      body: { paymentMethodId: mockPaymentMethodId },
+    });
 
     // Should fail with Stripe error (not validation error)
     console.log('Payment method attach result:', { data, error });
-    
+
     // If we get a Stripe-specific error, it means validation passed
     if (error || (data && !data.success)) {
       console.log('✅ Function correctly validates payment method format');

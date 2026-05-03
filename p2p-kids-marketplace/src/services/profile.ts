@@ -2,7 +2,13 @@
 // Profile management service for AUTH-005, AUTH-006, AUTH-007
 
 import { supabase } from './supabase/client';
-import type { UploadAvatarResult, User, ProfileSetupData, ProfileUpdateData, NodeAssignment } from '@/types/profile.types';
+import type {
+  UploadAvatarResult,
+  User,
+  ProfileSetupData,
+  ProfileUpdateData,
+  NodeAssignment,
+} from '@/types/profile.types';
 import { assignNodeByZipCode, incrementNodeMemberCount } from './location';
 import { getImageUrl } from '@/utils/imageUrl';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -16,7 +22,7 @@ const AVATAR_BUCKET = 'user-avatars';
  * - Returns exact match if active node exists for ZIP
  * - Returns nearest active node if ZIP is not active
  * - Signals if ZIP is not active (match_type='nearest') for waitlist popup
- * 
+ *
  * IMPORTANT: This function DOES NOT show the popup.
  * The calling code (LocationPickerScreen) handles the popup logic.
  */
@@ -51,19 +57,19 @@ export const findNearestNode = async (zipCode: string): Promise<NodeAssignment |
 export const setupUserProfile = async (
   userId: string,
   profileData: ProfileSetupData
-): Promise<{ 
-  user: User | null; 
-  error: Error | object | null; 
-  needsWaitlist?: boolean; 
+): Promise<{
+  user: User | null;
+  error: Error | object | null;
+  needsWaitlist?: boolean;
   zipCode?: string;
-  matchType?: 'zip' | 'nearest';  // NODE-003: Signal if ZIP is inactive
+  matchType?: 'zip' | 'nearest'; // NODE-003: Signal if ZIP is inactive
   assignedNodeId?: string;
   assignedNodeName?: string;
 }> => {
   try {
     // Step 1: NODE-003 - Find nearest active node (exact match or fallback)
     const nodeAssignment = await findNearestNode(profileData.zip_code);
-    
+
     let needsWaitlist = false;
     let assignedNodeId: string | null = null;
     let matchType: 'zip' | 'nearest' | undefined = undefined;
@@ -75,7 +81,7 @@ export const setupUserProfile = async (
       assignedNodeId = nodeAssignment.node_id;
       // NODE-003: Check if this was an exact match or fallback
       matchType = nodeAssignment.is_exact_match ? 'zip' : 'nearest';
-      
+
       // NODE-003: If fallback (inactive ZIP), signal waitlist needed
       if (matchType === 'nearest') {
         needsWaitlist = true;
@@ -85,7 +91,7 @@ export const setupUserProfile = async (
     // Step 2: Create or update user profile in database
     // Note: A trigger auto-creates a minimal profile on signup, so we use upsert
     // We explicitly include email and phone here to ensure they are captured even if the trigger fails
-    
+
     // CRITICAL: Preserve referral fields set by auth trigger
     // The trigger sets referral_code + referred_by on signup, and we must not overwrite them
     const { data: existingProfile } = await supabase
@@ -116,9 +122,9 @@ export const setupUserProfile = async (
 
     const { error: insertError } = await supabase
       .from('profiles')
-      .upsert(dbProfileData, { 
+      .upsert(dbProfileData, {
         onConflict: 'user_id',
-        ignoreDuplicates: false 
+        ignoreDuplicates: false,
       })
       .select()
       .single();
@@ -144,8 +150,8 @@ export const setupUserProfile = async (
       return { user: null, error: userError };
     }
 
-    return { 
-      user: userData.user as User, 
+    return {
+      user: userData.user as User,
       error: null,
       needsWaitlist,
       zipCode: profileData.zip_code,
@@ -167,7 +173,12 @@ export const setupUserProfile = async (
 export const updateUserProfile = async (
   userId: string,
   updates: ProfileUpdateData
-): Promise<{ user: User | null; error: Error | object | null; needsWaitlist?: boolean; zipCode?: string }> => {
+): Promise<{
+  user: User | null;
+  error: Error | object | null;
+  needsWaitlist?: boolean;
+  zipCode?: string;
+}> => {
   try {
     const updatePayload: Record<string, string | null> = {
       updated_at: new Date().toISOString(),
@@ -189,7 +200,9 @@ export const updateUserProfile = async (
     if (updates.phone !== undefined) {
       try {
         // Call server-side Edge Function to update auth user phone using service role
-        const invokeRes = await supabase.functions.invoke('auth-update-phone', { body: { user_id: userId, phone: updates.phone } });
+        const invokeRes = await supabase.functions.invoke('auth-update-phone', {
+          body: { user_id: userId, phone: updates.phone },
+        });
         const fnData = invokeRes?.data;
         const fnError = invokeRes?.error;
         if (fnError) {
@@ -197,11 +210,23 @@ export const updateUserProfile = async (
           phoneUpdateError = fnError;
         }
         if (fnData && fnData.error) {
-          console.error('Failed to update auth user phone via function (function error):', fnData.error);
+          console.error(
+            'Failed to update auth user phone via function (function error):',
+            fnData.error
+          );
           // If the function is not configured (missing service role key), fall back to updating the profile record locally
           if (typeof fnData.error === 'string' && fnData.error.includes('service role')) {
-            console.warn('auth-update-phone not configured; updating phone on profiles table as fallback');
-            const { error: profileErr } = await supabase.from('profiles').update({ phone: updates.phone, phone_verified: true, phone_verified_at: new Date().toISOString() }).eq('user_id', userId);
+            console.warn(
+              'auth-update-phone not configured; updating phone on profiles table as fallback'
+            );
+            const { error: profileErr } = await supabase
+              .from('profiles')
+              .update({
+                phone: updates.phone,
+                phone_verified: true,
+                phone_verified_at: new Date().toISOString(),
+              })
+              .eq('user_id', userId);
             if (profileErr) {
               console.error('Fallback profile phone update failed:', profileErr);
               phoneUpdateError = profileErr;
@@ -253,7 +278,12 @@ export const updateUserProfile = async (
 
     // If phone update failed earlier, surface that as a partial error while returning user
     if (phoneUpdateError) {
-      return { user: userData.user as User, error: phoneUpdateError, needsWaitlist, zipCode: userZip };
+      return {
+        user: userData.user as User,
+        error: phoneUpdateError,
+        needsWaitlist,
+        zipCode: userZip,
+      };
     }
 
     return { user: userData.user as User, error: null, needsWaitlist, zipCode: userZip };
@@ -263,9 +293,7 @@ export const updateUserProfile = async (
   }
 };
 
-export const resolveAvatarUrl = async (
-  avatarPathOrUrl?: string | null
-): Promise<string | null> => {
+export const resolveAvatarUrl = async (avatarPathOrUrl?: string | null): Promise<string | null> => {
   if (!avatarPathOrUrl) {
     return null;
   }
@@ -285,8 +313,7 @@ export const resolveAvatarUrl = async (
 
   // Fallback: if public URLs are not available (bucket is private), try a signed URL.
   try {
-    const { data: signedData, error: signedError } = await supabase
-      .storage
+    const { data: signedData, error: signedError } = await supabase.storage
       .from(AVATAR_BUCKET)
       .createSignedUrl(avatarPathOrUrl, 60);
 
@@ -303,7 +330,9 @@ export const resolveAvatarUrl = async (
 /**
  * Get current user profile from database
  */
-export const getUserProfile = async (userId: string): Promise<{ user: User | null; error: Error | object | null }> => {
+export const getUserProfile = async (
+  userId: string
+): Promise<{ user: User | null; error: Error | object | null }> => {
   try {
     const { data, error } = await supabase
       .from('profiles')
@@ -358,7 +387,7 @@ export const uploadProfileAvatar = async (
       return {
         url: null,
         path: null,
-        error: new Error('Unable to read image data for upload (missing base64)')
+        error: new Error('Unable to read image data for upload (missing base64)'),
       };
     }
 
@@ -375,12 +404,10 @@ export const uploadProfileAvatar = async (
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       // Upload to Supabase Storage
-      const { error } = await supabase.storage
-        .from(AVATAR_BUCKET)
-        .upload(filePath, uploadBody, {
-          contentType,
-          upsert: true,
-        });
+      const { error } = await supabase.storage.from(AVATAR_BUCKET).upload(filePath, uploadBody, {
+        contentType,
+        upsert: true,
+      });
 
       if (error) {
         lastError = error as Error;
@@ -389,38 +416,44 @@ export const uploadProfileAvatar = async (
           status: (error as any).status,
           statusCode: (error as any).statusCode,
         });
-        
+
         // Diagnose error type
         if (error.message?.includes('Network')) {
           console.error('→ NETWORK ERROR: Retrying with backoff...');
-        } else if (error.message?.includes('row-level security') || error.message?.includes('violates')) {
+        } else if (
+          error.message?.includes('row-level security') ||
+          error.message?.includes('violates')
+        ) {
           console.error('→ RLS ERROR: Storage policies may be misconfigured');
           return {
             url: null,
             path: null,
-            error: new Error('Storage not configured. Please contact support. (Profile will be created without avatar)')
+            error: new Error(
+              'Storage not configured. Please contact support. (Profile will be created without avatar)'
+            ),
           };
         } else if (error.message?.includes('not found')) {
           console.error('→ BUCKET ERROR: Storage bucket not found');
           return { url: null, path: null, error };
         }
-        
+
         // Retry if not a permanent error
         if (attempt < maxRetries - 1) {
           const waitMs = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
           console.warn(`⏳ Retrying in ${waitMs}ms...`);
-          await new Promise(resolve => setTimeout(resolve, waitMs));
+          await new Promise((resolve) => setTimeout(resolve, waitMs));
           continue;
         }
-        
+
         return { url: null, path: null, error };
       }
 
       // Get public URL; use fallback if not provided
       const { data: urlData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filePath);
-      
+
       // The publicUrl property exists on the data object returned by getPublicUrl
-      const publicUrl = urlData?.publicUrl || 
+      const publicUrl =
+        urlData?.publicUrl ||
         `${process.env.EXPO_PUBLIC_SUPABASE_URL || (supabase as any).url}/storage/v1/object/public/user-avatars/${filePath}`;
 
       console.log('✅ Avatar uploaded successfully');
@@ -444,20 +477,20 @@ export const uploadProfileAvatar = async (
           );
         }
       }
-      
+
       if (attempt < maxRetries - 1) {
         const waitMs = Math.pow(2, attempt) * 1000;
         console.warn(`⏳ Retrying in ${waitMs}ms...`);
-        await new Promise(resolve => setTimeout(resolve, waitMs));
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
         continue;
       }
     }
   }
-  
+
   console.error('❌ Avatar upload failed after maximum retries');
-  return { 
-    url: null, 
-    path: null, 
-    error: lastError || new Error('Upload failed after maximum retries') 
+  return {
+    url: null,
+    path: null,
+    error: lastError || new Error('Upload failed after maximum retries'),
   };
 };

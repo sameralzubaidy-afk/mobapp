@@ -8,7 +8,7 @@ import {
   calculatePayoutFeeCents,
   computeNetPayoutCents,
   getPayoutStatusMessage,
-  formatPayoutAmount
+  formatPayoutAmount,
 } from '../payoutRouter';
 
 describe('payoutRouter', () => {
@@ -17,7 +17,7 @@ describe('payoutRouter', () => {
       // $100 = 10000 cents
       // Fee = (10000 * 0.0025) + 25 = 25 + 25 = 50 cents
       expect(calculatePayoutFeeCents('stripe_connect', 10000)).toBe(50);
-      
+
       // $50 = 5000 cents
       // Fee = (5000 * 0.0025) + 25 = 12.5 + 25 = 37.5 -> 38 cents (rounded)
       expect(calculatePayoutFeeCents('stripe_connect', 5000)).toBe(38);
@@ -27,11 +27,11 @@ describe('payoutRouter', () => {
       // $50 = 5000 cents
       // Fee = 5000 * 0.02 = 100 cents
       expect(calculatePayoutFeeCents('paypal', 5000)).toBe(100);
-      
+
       // $10 = 1000 cents
       // Fee = 1000 * 0.02 = 20 cents
       expect(calculatePayoutFeeCents('paypal', 1000)).toBe(20);
-      
+
       // $2000 = 200000 cents
       // Fee = 200000 * 0.02 = 4000 cents, capped at 2000 cents ($20)
       expect(calculatePayoutFeeCents('paypal', 200000)).toBe(2000);

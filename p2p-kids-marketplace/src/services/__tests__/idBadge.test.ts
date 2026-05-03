@@ -230,7 +230,8 @@ describe('idBadgeService', () => {
       const mockFrom = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn()
+        single: jest
+          .fn()
           .mockResolvedValueOnce({ data: mockProfile, error: null }) // Profile fetch
           .mockResolvedValueOnce({ data: mockInsertResult, error: null }), // Request insert
         insert: jest.fn().mockReturnThis(),
@@ -238,19 +239,23 @@ describe('idBadgeService', () => {
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
       // Mock functions invoke
-      (require('../supabase/client').supabase.functions.invoke) = jest.fn().mockResolvedValue({ data: null, error: null });
+      require('../supabase/client').supabase.functions.invoke = jest
+        .fn()
+        .mockResolvedValue({ data: null, error: null });
 
       const result = await idBadgeService.submitVerificationRequest(mockUserId, mockImageUri);
 
       expect(result).toBe('request-123');
       expect(supabase.from).toHaveBeenCalledWith('profiles');
       expect(supabase.from).toHaveBeenCalledWith('id_badge_verification_requests');
-      expect(mockFrom.insert).toHaveBeenCalledWith(expect.objectContaining({
-        user_id: mockUserId,
-        status: 'pending',
-        first_name: 'John',
-        last_name: 'Doe',
-      }));
+      expect(mockFrom.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: mockUserId,
+          status: 'pending',
+          first_name: 'John',
+          last_name: 'Doe',
+        })
+      );
     });
 
     it('should throw error if profile fetch fails', async () => {
@@ -261,8 +266,9 @@ describe('idBadgeService', () => {
       };
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
-      await expect(idBadgeService.submitVerificationRequest(mockUserId, mockImageUri))
-        .rejects.toThrow('Profile error');
+      await expect(
+        idBadgeService.submitVerificationRequest(mockUserId, mockImageUri)
+      ).rejects.toThrow('Profile error');
     });
   });
 });

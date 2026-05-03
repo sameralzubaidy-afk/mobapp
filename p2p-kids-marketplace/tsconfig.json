@@ -11,45 +11,20 @@
     "jsx": "react-native",
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "src/*"
-      ],
-      "@components/*": [
-        "src/components/*"
-      ],
-      "@screens/*": [
-        "src/screens/*"
-      ],
-      "@navigation/*": [
-        "src/navigation/*"
-      ],
-      "@services/*": [
-        "src/services/*"
-      ],
-      "@hooks/*": [
-        "src/hooks/*"
-      ],
-      "@store/*": [
-        "src/store/*"
-      ],
-      "@utils/*": [
-        "src/utils/*"
-      ],
-      "@types/*": [
-        "src/types/*"
-      ],
-      "@constants/*": [
-        "src/constants/*"
-      ],
-      "@assets/*": [
-        "src/assets/*"
-      ]
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@screens/*": ["src/screens/*"],
+      "@navigation/*": ["src/navigation/*"],
+      "@services/*": ["src/services/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@store/*": ["src/store/*"],
+      "@utils/*": ["src/utils/*"],
+      "@types/*": ["src/types/*"],
+      "@constants/*": ["src/constants/*"],
+      "@assets/*": ["src/assets/*"]
     }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx"
-  ],
+  "include": ["**/*.ts", "**/*.tsx"],
   "exclude": [
     "node_modules",
     "e2e",

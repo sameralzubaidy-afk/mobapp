@@ -55,8 +55,7 @@ export function useGracePeriodStatus({
 
     let message: string;
     if (daysRemaining === 0 || endsToday) {
-      message =
-        'Your grace period ends today! Re-subscribe now to keep your Swap Points.';
+      message = 'Your grace period ends today! Re-subscribe now to keep your Swap Points.';
     } else if (daysRemaining === 1) {
       message = 'Only 1 day left! Re-subscribe to keep your Swap Points.';
     } else if (daysRemaining <= 7) {

@@ -52,7 +52,7 @@ describe('Profile Service', () => {
       });
 
       const result = await findNearestNode('06851'); // Norwalk, CT zip
-      
+
       expect(result).toBeTruthy();
       expect(result?.node_id).toBe('1');
       expect(result?.node_name).toContain('Norwalk');

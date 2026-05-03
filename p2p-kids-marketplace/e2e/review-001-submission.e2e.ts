@@ -14,7 +14,7 @@ describe('REVIEW-001: Review Submission Flow', () => {
 
   /**
    * Test Case 1: Submit review with rating and comment
-   * 
+   *
    * Prerequisites:
    * - User is logged in
    * - User has a completed trade
@@ -198,16 +198,16 @@ describe('REVIEW-001: Review Submission Flow', () => {
 
 /**
  * Test Data Requirements:
- * 
+ *
  * For these E2E tests to run, you need:
- * 
+ *
  * 1. At least 7 completed trades for the test user
  * 2. Test user must be either buyer or seller in each trade
  * 3. Trades should be in various states:
  *    - Some already reviewed
  *    - Some not yet reviewed
  *    - Some still in progress (not completed)
- * 
+ *
  * Setup Script (run before E2E tests):
  * ```sql
  * -- Create test trades

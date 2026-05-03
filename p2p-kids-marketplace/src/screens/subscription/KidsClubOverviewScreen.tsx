@@ -61,11 +61,14 @@ export default function KidsClubOverviewScreen() {
   const [monthlyPrice, setMonthlyPrice] = useState<number | null>(null);
 
   useEffect(() => {
-    import('../../services/adminConfig').then(service => {
-      service.getSubscriptionPrice(true).then(setMonthlyPrice).catch((err) => {
-        console.error('[KidsClubOverview] Failed to load price:', err);
-        setMonthlyPrice(0); // Show 0 if config missing
-      });
+    import('../../services/adminConfig').then((service) => {
+      service
+        .getSubscriptionPrice(true)
+        .then(setMonthlyPrice)
+        .catch((err) => {
+          console.error('[KidsClubOverview] Failed to load price:', err);
+          setMonthlyPrice(0); // Show 0 if config missing
+        });
     });
   }, []);
 
@@ -258,7 +261,10 @@ export default function KidsClubOverviewScreen() {
         <View style={styles.finePrintSection}>
           <Text style={styles.finePrintTitle}>Fine print</Text>
           <Text style={styles.finePrint}>
-            After your free trial, Kids Club+ is just {monthlyPrice ? formatPrice(monthlyPrice * 100) : 'loading...'}/month. Cancel anytime with no penalty. Your Swap Points remain frozen for {gracePeriodDays} days if you cancel.
+            After your free trial, Kids Club+ is just{' '}
+            {monthlyPrice ? formatPrice(monthlyPrice * 100) : 'loading...'}/month. Cancel anytime
+            with no penalty. Your Swap Points remain frozen for {gracePeriodDays} days if you
+            cancel.
           </Text>
         </View>
       </ScrollView>
@@ -274,29 +280,34 @@ export default function KidsClubOverviewScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Cancel Subscription</Text>
             <Text style={styles.modalText}>
-              Are you sure you want to cancel? You'll lose access to exclusive badges, zero fees, and monthly rewards at the end of your billing cycle.
+              Are you sure you want to cancel? You'll lose access to exclusive badges, zero fees,
+              and monthly rewards at the end of your billing cycle.
             </Text>
-            
+
             <View style={styles.reasonList}>
               {CANCELLATION_REASONS.map((reason) => (
                 <TouchableOpacity
                   key={reason.id}
                   style={[
                     styles.reasonItem,
-                    selectedReasonId === reason.id && styles.selectedReasonItem
+                    selectedReasonId === reason.id && styles.selectedReasonItem,
                   ]}
                   onPress={() => setSelectedReasonId(reason.id)}
                 >
-                  <View style={[
-                    styles.radioButton,
-                    selectedReasonId === reason.id && styles.radioButtonSelected
-                  ]}>
+                  <View
+                    style={[
+                      styles.radioButton,
+                      selectedReasonId === reason.id && styles.radioButtonSelected,
+                    ]}
+                  >
                     {selectedReasonId === reason.id && <View style={styles.radioButtonInner} />}
                   </View>
-                  <Text style={[
-                    styles.reasonText,
-                    selectedReasonId === reason.id && styles.selectedReasonText
-                  ]}>
+                  <Text
+                    style={[
+                      styles.reasonText,
+                      selectedReasonId === reason.id && styles.selectedReasonText,
+                    ]}
+                  >
                     {reason.label}
                   </Text>
                 </TouchableOpacity>
@@ -326,16 +337,16 @@ export default function KidsClubOverviewScreen() {
               >
                 <Text style={styles.secondaryButtonText}>Keep Membership</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
                 style={[styles.modalButton, styles.destructiveButton]}
                 onPress={handleCancelSubscription}
                 disabled={cancelling}
               >
                 {cancelling ? (
-                   <ActivityIndicator color="#DC2626" size="small" />
+                  <ActivityIndicator color="#DC2626" size="small" />
                 ) : (
-                   <Text style={styles.destructiveButtonText}>Confirm Cancellation</Text>
+                  <Text style={styles.destructiveButtonText}>Confirm Cancellation</Text>
                 )}
               </TouchableOpacity>
             </View>

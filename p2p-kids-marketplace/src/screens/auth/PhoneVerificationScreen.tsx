@@ -80,7 +80,7 @@ export default function PhoneVerificationScreen() {
     }
 
     // Auto-verify when all 6 digits entered
-    if (index === 5 && text && newCode.every(digit => digit)) {
+    if (index === 5 && text && newCode.every((digit) => digit)) {
       handleVerify(newCode.join(''));
     }
   };
@@ -107,19 +107,15 @@ export default function PhoneVerificationScreen() {
     setLoading(false);
 
     if (result.success) {
-      Alert.alert(
-        'Success!',
-        'Your phone number has been verified. Let\'s complete your profile!',
-        [
-          {
-            text: 'Continue',
-            onPress: () => {
-              // Navigate to ProfileSetup screen (consolidated profile + zip code setup)
-              (navigation as any).navigate('ProfileSetup', { userId });
-            },
+      Alert.alert('Success!', "Your phone number has been verified. Let's complete your profile!", [
+        {
+          text: 'Continue',
+          onPress: () => {
+            // Navigate to ProfileSetup screen (consolidated profile + zip code setup)
+            (navigation as any).navigate('ProfileSetup', { userId });
           },
-        ]
-      );
+        },
+      ]);
     } else {
       Alert.alert('Verification Failed', result.error || 'Invalid code');
       // Clear code inputs on error
@@ -167,7 +163,7 @@ export default function PhoneVerificationScreen() {
           <TouchableOpacity
             style={[styles.verifyButton, loading && styles.verifyButtonDisabled]}
             onPress={() => handleVerify()}
-            disabled={loading || code.some(digit => !digit)}
+            disabled={loading || code.some((digit) => !digit)}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -178,10 +174,7 @@ export default function PhoneVerificationScreen() {
 
           <View style={styles.resendContainer}>
             <Text style={styles.resendText}>Didn't receive the code?</Text>
-            <TouchableOpacity
-              onPress={handleResendCode}
-              disabled={countdown > 0 || resending}
-            >
+            <TouchableOpacity onPress={handleResendCode} disabled={countdown > 0 || resending}>
               <Text
                 style={[
                   styles.resendButton,
@@ -191,16 +184,13 @@ export default function PhoneVerificationScreen() {
                 {resending
                   ? 'Sending...'
                   : countdown > 0
-                  ? `Resend in ${countdown}s`
-                  : 'Resend Code'}
+                    ? `Resend in ${countdown}s`
+                    : 'Resend Code'}
               </Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={styles.changeNumberButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.changeNumberButton} onPress={() => navigation.goBack()}>
             <Text style={styles.changeNumberText}>Change Phone Number</Text>
           </TouchableOpacity>
         </View>

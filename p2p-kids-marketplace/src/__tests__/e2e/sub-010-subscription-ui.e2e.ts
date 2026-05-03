@@ -73,7 +73,7 @@ describe('SUB-010: Subscription UI Components', () => {
     it('should display trial status for trial users', async () => {
       // TODO: Set up test user with trial subscription
       // This requires test data seeding or API mocking
-      
+
       await device.openURL({ url: 'p2pkidsmarketplace://kids-club-overview' });
 
       // Conditional check based on test user state

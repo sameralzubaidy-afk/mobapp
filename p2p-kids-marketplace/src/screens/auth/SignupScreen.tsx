@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/screens/auth/SignupScreen.tsx
 // MODULE-03 AUTH-V2-002: User Signup with Automatic Trial Activation
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 import { isAtLeastAge } from '@/utils/age';
 import { getAllTestUsers, getRandomTestUser, TestUser } from '@/utils/testUsers';
 import { DateOfBirthPicker } from '@/components/DateOfBirthPicker';
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
+import { OAuthProvider } from '@/types/auth-v3';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
 // TODO: Integrate Sentry
@@ -28,6 +30,7 @@ import { DateOfBirthPicker } from '@/components/DateOfBirthPicker';
 
 export default function SignupScreen() {
   const navigation = useNavigation();
+  const emailInputRef = useRef<TextInput>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -297,8 +300,7 @@ export default function SignupScreen() {
       error.message?.includes('terms_of_service') ||
       error.message?.includes('privacy_policy')
     ) {
-      errorMessage =
-        'Signup could not save your policy agreement. Please try again in a moment.';
+      errorMessage = 'Signup could not save your policy agreement. Please try again in a moment.';
     } else if (error.message) {
       errorMessage = error.message;
     }
@@ -319,15 +321,35 @@ export default function SignupScreen() {
     setErrors({});
   }
 
+  const handleSocialSignupSuccess = () => {
+    // Root navigator transitions based on auth session + onboarding state.
+  };
+
+  const handleAccountExists = (email: string, provider: OAuthProvider) => {
+    Alert.alert(
+      'Account Exists',
+      `An account with ${email} already exists. Continue to Login and link ${provider}.`,
+      [
+        {
+          text: 'Go to Login',
+          onPress: () => (navigation as any).navigate('Login'),
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity 
-            style={styles.backButton} 
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TouchableOpacity
+            style={styles.backButton}
             onPress={() => navigation.goBack()}
             testID="signup-back-button"
           >
@@ -339,260 +361,269 @@ export default function SignupScreen() {
             <Text style={styles.subtitle}>Join the Kids P2P Marketplace</Text>
           </View>
 
+          <SocialLoginButtons
+            mode="signup"
+            onSignupSuccess={handleSocialSignupSuccess}
+            onAccountExists={handleAccountExists}
+            emailInputRef={emailInputRef}
+            testID="signup-social-buttons"
+          />
+
           <View style={styles.form}>
-          {/* Name Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={[styles.input, errors.name && styles.inputError]}
-              placeholder="Enter your full name"
-              value={formData.name}
-              testID="signup-display-name-input"
-              onChangeText={(text) => {
-                setFormData({ ...formData, name: text });
-                if (errors.name) {
-                  setErrors({ ...errors, name: '' });
-                }
-              }}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
-            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-          </View>
-
-          {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
-              placeholder="Enter your email"
-              value={formData.email}
-              testID="signup-email-input"
-              onChangeText={(text) => {
-                setFormData({ ...formData, email: text });
-                if (errors.email) {
-                  setErrors({ ...errors, email: '' });
-                }
-              }}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoCorrect={false}
-            />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-          </View>
-
-          {/* Phone Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={[styles.input, errors.phone && styles.inputError]}
-              placeholder="+1234567890"
-              value={formData.phone}
-              testID="signup-phone-input"
-              onChangeText={(text) => {
-                setFormData({ ...formData, phone: text });
-                if (errors.phone) {
-                  setErrors({ ...errors, phone: '' });
-                }
-              }}
-              keyboardType="phone-pad"
-              autoCorrect={false}
-            />
-            {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-          </View>
-
-          {/* DOB Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date of Birth</Text>
-            <DateOfBirthPicker
-              value={formData.dob}
-              onChangeText={(text) => {
-                setFormData({ ...formData, dob: text });
-                if (errors.dob) {
-                  setErrors({ ...errors, dob: '' });
-                }
-              }}
-              error={!!errors.dob}
-              testID="signup-dob-picker"
-            />
-            {errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
-          </View>
-
-          {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputWrapper}>
+            {/* Name Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Full Name</Text>
               <TextInput
-                style={[styles.input, errors.password && styles.inputError, styles.inputWithIcon]}
-                placeholder="Enter your password"
-                value={formData.password}
-                testID="signup-password-input"
+                style={[styles.input, errors.name && styles.inputError]}
+                placeholder="Enter your full name"
+                value={formData.name}
+                testID="signup-display-name-input"
                 onChangeText={(text) => {
-                  setFormData({ ...formData, password: text });
-                  if (errors.password) {
-                    setErrors({ ...errors, password: '' });
+                  setFormData({ ...formData, name: text });
+                  if (errors.name) {
+                    setErrors({ ...errors, name: '' });
                   }
                 }}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
+                autoCapitalize="words"
                 autoCorrect={false}
-                autoComplete="password-new"
-                textContentType="newPassword"
-                passwordRules="minlength: 8; required: upper; required: lower; required: digit;"
               />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => setShowPassword(!showPassword)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
-              </TouchableOpacity>
+              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
             </View>
-            {errors.password && (
-              <Text testID="signup-password-error" style={styles.errorText}>
-                {errors.password}
-              </Text>
-            )}
-            <Text style={styles.helperText}>
-              Must be 8+ characters with uppercase, lowercase, and number
-            </Text>
-          </View>
 
-          {/* Confirm Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Confirm Password</Text>
-            <View style={styles.inputWrapper}>
+            {/* Email Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Email</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  errors.confirmPassword && styles.inputError,
-                  styles.inputWithIcon,
-                ]}
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                testID="signup-confirm-password-input"
+                style={[styles.input, errors.email && styles.inputError]}
+                placeholder="Enter your email"
+                value={formData.email}
+                testID="signup-email-input"
+                ref={emailInputRef}
                 onChangeText={(text) => {
-                  setFormData({ ...formData, confirmPassword: text });
-                  if (errors.confirmPassword) {
-                    setErrors({ ...errors, confirmPassword: '' });
+                  setFormData({ ...formData, email: text });
+                  if (errors.email) {
+                    setErrors({ ...errors, email: '' });
                   }
                 }}
-                secureTextEntry={!showConfirmPassword}
                 autoCapitalize="none"
+                keyboardType="email-address"
                 autoCorrect={false}
-                autoComplete="password-new"
-                textContentType="newPassword"
               />
-              <TouchableOpacity
-                style={styles.eyeIcon}
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.eyeIconText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
-              </TouchableOpacity>
+              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
             </View>
-            {errors.confirmPassword && (
-              <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-            )}
-          </View>
 
-          {/* Referral Code Input (Optional) */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Referral Code (Optional)</Text>
-            <TextInput
-              style={[styles.input, errors.referralCode && styles.inputError]}
-              placeholder="Enter referral code"
-              value={formData.referralCode}
-              testID="referralCode-input"
-              onChangeText={(text) => {
-                setFormData({ ...formData, referralCode: text });
-                if (errors.referralCode) {
-                  setErrors({ ...errors, referralCode: '' });
-                }
-              }}
-              autoCapitalize="none"
-              maxLength={8}
-              autoCorrect={false}
-              autoComplete="off"
-            />
-            {errors.referralCode && <Text style={styles.errorText}>{errors.referralCode}</Text>}
-            <Text style={styles.helperText}>
-              Get 5 bonus points when you complete your first trade!
-            </Text>
-          </View>
+            {/* Phone Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Phone Number</Text>
+              <TextInput
+                style={[styles.input, errors.phone && styles.inputError]}
+                placeholder="+1234567890"
+                value={formData.phone}
+                testID="signup-phone-input"
+                onChangeText={(text) => {
+                  setFormData({ ...formData, phone: text });
+                  if (errors.phone) {
+                    setErrors({ ...errors, phone: '' });
+                  }
+                }}
+                keyboardType="phone-pad"
+                autoCorrect={false}
+              />
+              {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
+            </View>
 
-          {__DEV__ && (
-            <View style={{ marginBottom: 12 }}>
-              <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Dev: Autofill</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
+            {/* DOB Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Date of Birth</Text>
+              <DateOfBirthPicker
+                value={formData.dob}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, dob: text });
+                  if (errors.dob) {
+                    setErrors({ ...errors, dob: '' });
+                  }
+                }}
+                error={!!errors.dob}
+                testID="signup-dob-picker"
+              />
+              {errors.dob && <Text style={styles.errorText}>{errors.dob}</Text>}
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={[styles.input, errors.password && styles.inputError, styles.inputWithIcon]}
+                  placeholder="Enter your password"
+                  value={formData.password}
+                  testID="signup-password-input"
+                  onChangeText={(text) => {
+                    setFormData({ ...formData, password: text });
+                    if (errors.password) {
+                      setErrors({ ...errors, password: '' });
+                    }
+                  }}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="password-new"
+                  textContentType="newPassword"
+                  passwordRules="minlength: 8; required: upper; required: lower; required: digit;"
+                />
                 <TouchableOpacity
-                  testID="dev-fill-random-user"
-                  style={{ padding: 8, backgroundColor: '#eee', borderRadius: 6 }}
-                  onPress={() => applyTestUser(getRandomTestUser())}
+                  style={styles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.7}
                 >
-                  <Text>Fill Random</Text>
+                  <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
                 </TouchableOpacity>
-                {getAllTestUsers()
-                  .slice(0, 3)
-                  .map((u) => (
-                    <TouchableOpacity
-                      key={u.id}
-                      testID={`dev-fill-${u.id}`}
-                      style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 6 }}
-                      onPress={() => applyTestUser(u)}
-                    >
-                      <Text>{u.firstName}</Text>
-                    </TouchableOpacity>
-                  ))}
               </View>
-            </View>
-          )}
-
-          {/* Signup Button */}
-          <TouchableOpacity
-            style={[styles.signupButton, loading && styles.signupButtonDisabled]}
-            onPress={handleSignup}
-            disabled={loading}
-            testID="signup-submit-button"
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.signupButtonText}>Create Account</Text>
-            )}
-          </TouchableOpacity>
-
-          {/* Login Link */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => (navigation as any).navigate('Login')}>
-              <Text style={styles.loginLink}>Log In</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Terms and Privacy */}
-          <View style={styles.terms}>
-            <Text style={styles.termsText}>
-              By signing up, you agree to our{' '}
-              <Text
-                style={styles.termsLink}
-                testID="tos-link"
-                onPress={() => (navigation as any).navigate('TermsOfService')}
-              >
-                Terms of Service
-              </Text>{' '}
-              and{' '}
-              <Text
-                style={styles.termsLink}
-                testID="privacy-policy-link"
-                onPress={() => (navigation as any).navigate('PrivacyPolicy')}
-              >
-                Privacy Policy
+              {errors.password && (
+                <Text testID="signup-password-error" style={styles.errorText}>
+                  {errors.password}
+                </Text>
+              )}
+              <Text style={styles.helperText}>
+                Must be 8+ characters with uppercase, lowercase, and number
               </Text>
-            </Text>
+            </View>
+
+            {/* Confirm Password Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Confirm Password</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    errors.confirmPassword && styles.inputError,
+                    styles.inputWithIcon,
+                  ]}
+                  placeholder="Confirm your password"
+                  value={formData.confirmPassword}
+                  testID="signup-confirm-password-input"
+                  onChangeText={(text) => {
+                    setFormData({ ...formData, confirmPassword: text });
+                    if (errors.confirmPassword) {
+                      setErrors({ ...errors, confirmPassword: '' });
+                    }
+                  }}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="password-new"
+                  textContentType="newPassword"
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.eyeIconText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                </TouchableOpacity>
+              </View>
+              {errors.confirmPassword && (
+                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+              )}
+            </View>
+
+            {/* Referral Code Input (Optional) */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Referral Code (Optional)</Text>
+              <TextInput
+                style={[styles.input, errors.referralCode && styles.inputError]}
+                placeholder="Enter referral code"
+                value={formData.referralCode}
+                testID="referralCode-input"
+                onChangeText={(text) => {
+                  setFormData({ ...formData, referralCode: text });
+                  if (errors.referralCode) {
+                    setErrors({ ...errors, referralCode: '' });
+                  }
+                }}
+                autoCapitalize="none"
+                maxLength={8}
+                autoCorrect={false}
+                autoComplete="off"
+              />
+              {errors.referralCode && <Text style={styles.errorText}>{errors.referralCode}</Text>}
+              <Text style={styles.helperText}>
+                Get 5 bonus points when you complete your first trade!
+              </Text>
+            </View>
+
+            {__DEV__ && (
+              <View style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Dev: Autofill</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity
+                    testID="dev-fill-random-user"
+                    style={{ padding: 8, backgroundColor: '#eee', borderRadius: 6 }}
+                    onPress={() => applyTestUser(getRandomTestUser())}
+                  >
+                    <Text>Fill Random</Text>
+                  </TouchableOpacity>
+                  {getAllTestUsers()
+                    .slice(0, 3)
+                    .map((u) => (
+                      <TouchableOpacity
+                        key={u.id}
+                        testID={`dev-fill-${u.id}`}
+                        style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 6 }}
+                        onPress={() => applyTestUser(u)}
+                      >
+                        <Text>{u.firstName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                </View>
+              </View>
+            )}
+
+            {/* Signup Button */}
+            <TouchableOpacity
+              style={[styles.signupButton, loading && styles.signupButtonDisabled]}
+              onPress={handleSignup}
+              disabled={loading}
+              testID="signup-submit-button"
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.signupButtonText}>Create Account</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Login Link */}
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => (navigation as any).navigate('Login')}>
+                <Text style={styles.loginLink}>Log In</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Terms and Privacy */}
+            <View style={styles.terms}>
+              <Text style={styles.termsText}>
+                By signing up, you agree to our{' '}
+                <Text
+                  style={styles.termsLink}
+                  testID="tos-link"
+                  onPress={() => (navigation as any).navigate('TermsOfService')}
+                >
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={styles.termsLink}
+                  testID="privacy-policy-link"
+                  onPress={() => (navigation as any).navigate('PrivacyPolicy')}
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

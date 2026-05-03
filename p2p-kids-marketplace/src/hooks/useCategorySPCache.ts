@@ -2,10 +2,10 @@
  * File: p2p-kids-marketplace/src/hooks/useCategorySPCache.ts
  * MODULE-04 LISTING-V3-011: Category SP Multiplier Cache Hook
  * Task: LISTING-V3-011 - SP earnings preview for single & bulk listing
- * 
+ *
  * Purpose: Fetch category SP multipliers once, cache in AsyncStorage for 24h
  * Performance: Client-side optimistic calculation (no API calls per listing)
- * 
+ *
  * @see BRD US-SUB-002: SP earnings preview requirement
  */
 
@@ -15,7 +15,7 @@ import { getCategoriesWithCounts } from '../services/categoryService';
 
 const STORAGE_KEY = '@kids_marketplace:category_sp_multipliers';
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const DEFAULT_MULTIPLIER = 1.10;
+const DEFAULT_MULTIPLIER = 1.1;
 
 export interface CategorySPMultiplier {
   category_id: string;
@@ -48,7 +48,7 @@ export interface UseCategorySPCacheReturn {
 
 /**
  * Hook to cache and retrieve category SP multipliers
- * 
+ *
  * Caching strategy (Decision 7 - Option C):
  * - Fetch on app start
  * - Cache in AsyncStorage with 24h TTL
@@ -110,7 +110,7 @@ export function useCategorySPCache(): UseCategorySPCacheReturn {
       if (!stored) return null;
 
       const parsed: CachedData = JSON.parse(stored);
-      
+
       // Validate structure
       if (!parsed.data || !Array.isArray(parsed.data) || !parsed.cachedAt) {
         console.warn('[useCategorySPCache] Invalid cache structure, ignoring');
@@ -154,9 +154,7 @@ export function useCategorySPCache(): UseCategorySPCacheReturn {
    */
   const fetchFromAPI = useCallback(async (): Promise<CategorySPMultiplier[]> => {
     const result = await getCategoriesWithCounts();
-    const categories = Array.isArray(result)
-      ? result
-      : (result as any)?.categories;
+    const categories = Array.isArray(result) ? result : (result as any)?.categories;
 
     if (!Array.isArray(categories)) {
       throw new Error('Failed to fetch categories');
@@ -174,43 +172,46 @@ export function useCategorySPCache(): UseCategorySPCacheReturn {
   /**
    * Refresh cache from API
    */
-  const refreshInternal = useCallback(async (silent: boolean = false): Promise<void> => {
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
-
-    try {
-      const data = await fetchFromAPI();
-
-      applyCategoryData(data);
-
-      // Save to cache
-      await saveCache(data);
-    } catch (err: any) {
-      console.error('[useCategorySPCache] Refresh error:', err);
-      
-      // Try to use stale cache if available
-      const cached = await loadCache();
-      if (cached) {
-        console.warn('[useCategorySPCache] Using stale cache due to network error');
-
-        if (!silent) {
-          applyCategoryData(cached.data);
-          setError('Using cached data (network unavailable)');
-        }
-      } else {
-        // No cache available - default to empty (getMultiplier will return 1.10)
-        if (!silent) {
-          setError(err.message || 'Failed to load SP multipliers');
-        }
-      }
-    } finally {
+  const refreshInternal = useCallback(
+    async (silent: boolean = false): Promise<void> => {
       if (!silent) {
-        setLoading(false);
+        setLoading(true);
+        setError(null);
       }
-    }
-  }, [fetchFromAPI, saveCache, loadCache, applyCategoryData]);
+
+      try {
+        const data = await fetchFromAPI();
+
+        applyCategoryData(data);
+
+        // Save to cache
+        await saveCache(data);
+      } catch (err: any) {
+        console.error('[useCategorySPCache] Refresh error:', err);
+
+        // Try to use stale cache if available
+        const cached = await loadCache();
+        if (cached) {
+          console.warn('[useCategorySPCache] Using stale cache due to network error');
+
+          if (!silent) {
+            applyCategoryData(cached.data);
+            setError('Using cached data (network unavailable)');
+          }
+        } else {
+          // No cache available - default to empty (getMultiplier will return 1.10)
+          if (!silent) {
+            setError(err.message || 'Failed to load SP multipliers');
+          }
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [fetchFromAPI, saveCache, loadCache, applyCategoryData]
+  );
 
   const refresh = useCallback(async (): Promise<void> => {
     await refreshInternal(false);

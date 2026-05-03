@@ -1,7 +1,7 @@
 /**
  * Trade Payment Integration Tests (TRADE-V2-003)
  * File: p2p-kids-marketplace/src/__tests__/integration/trade-payment.integration.test.ts
- * 
+ *
  * SKIPPED: This test file requires real Supabase connectivity.
  * In CI/test environments, use mocked tests instead.
  */

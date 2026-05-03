@@ -1,15 +1,22 @@
 // File: p2p-kids-marketplace/src/__tests__/sp/wallet.test.ts
 // MODULE-09 SP-001: Unit tests for SP Wallet Service
 
-import { getWallet, getBalance, canSpendSP, getLedgerHistory, getSPConfig, getWalletSummary } from '@/services/sp/wallet';
+import {
+  getWallet,
+  getBalance,
+  canSpendSP,
+  getLedgerHistory,
+  getSPConfig,
+  getWalletSummary,
+} from '@/services/sp/wallet';
 import { supabase } from '@/config/supabase';
 
 // Mock Supabase
 jest.mock('@/config/supabase', () => ({
   supabase: {
     from: jest.fn(),
-    rpc: jest.fn()
-  }
+    rpc: jest.fn(),
+  },
 }));
 
 describe('SP Wallet Service', () => {
@@ -26,13 +33,13 @@ describe('SP Wallet Service', () => {
         pending_balance: 0,
         lifetime_earned: 100,
         lifetime_spent: 0,
-        state: 'active'
+        state: 'active',
       };
 
       (supabase.from as any).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: mockWallet, error: null })
+        single: jest.fn().mockResolvedValue({ data: mockWallet, error: null }),
       });
 
       const wallet = await getWallet('user-123');
@@ -47,21 +54,21 @@ describe('SP Wallet Service', () => {
         pending_balance: 0,
         lifetime_earned: 0,
         lifetime_spent: 0,
-        state: 'active'
+        state: 'active',
       };
 
       (supabase.from as any).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValueOnce({ data: null, error: { code: 'PGRST116' } }),
-        insert: jest.fn().mockReturnThis()
+        insert: jest.fn().mockReturnThis(),
       });
 
       // Second select mock for the created wallet
       (supabase.from as any).mockReturnValueOnce({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: mockNewWallet, error: null })
+        single: jest.fn().mockResolvedValue({ data: mockNewWallet, error: null }),
       });
 
       const wallet = await getWallet('user-new');
@@ -75,13 +82,13 @@ describe('SP Wallet Service', () => {
         id: 'wallet-123',
         user_id: 'user-123',
         available_balance: 250,
-        state: 'active'
+        state: 'active',
       };
 
       (supabase.from as any).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: mockWallet, error: null })
+        single: jest.fn().mockResolvedValue({ data: mockWallet, error: null }),
       });
 
       const balance = await getBalance('user-123');
@@ -93,7 +100,7 @@ describe('SP Wallet Service', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } }),
-        insert: jest.fn().mockReturnThis()
+        insert: jest.fn().mockReturnThis(),
       });
 
       const balance = await getBalance('user-no-wallet');
@@ -108,15 +115,15 @@ describe('SP Wallet Service', () => {
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           in: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: { status: 'active' }, error: null })
+          single: jest.fn().mockResolvedValue({ data: { status: 'active' }, error: null }),
         })
         .mockReturnValueOnce({
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ 
-            data: { id: 'wallet-123', state: 'active' }, 
-            error: null 
-          })
+          single: jest.fn().mockResolvedValue({
+            data: { id: 'wallet-123', state: 'active' },
+            error: null,
+          }),
         });
 
       const result = await canSpendSP('user-123');
@@ -128,7 +135,7 @@ describe('SP Wallet Service', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         in: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: null, error: null })
+        single: jest.fn().mockResolvedValue({ data: null, error: null }),
       });
 
       const result = await canSpendSP('user-free');
@@ -142,15 +149,15 @@ describe('SP Wallet Service', () => {
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           in: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: { status: 'active' }, error: null })
+          single: jest.fn().mockResolvedValue({ data: { status: 'active' }, error: null }),
         })
         .mockReturnValueOnce({
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ 
-            data: { id: 'wallet-123', state: 'frozen' }, 
-            error: null 
-          })
+          single: jest.fn().mockResolvedValue({
+            data: { id: 'wallet-123', state: 'frozen' },
+            error: null,
+          }),
         });
 
       const result = await canSpendSP('user-123');
@@ -167,22 +174,22 @@ describe('SP Wallet Service', () => {
           user_id: 'user-123',
           transaction_type: 'earn_reward',
           amount: 100,
-          created_at: '2024-01-01T00:00:00Z'
+          created_at: '2024-01-01T00:00:00Z',
         },
         {
           id: 'entry-2',
           user_id: 'user-123',
           transaction_type: 'spend_purchase',
           amount: -50,
-          created_at: '2024-01-02T00:00:00Z'
-        }
+          created_at: '2024-01-02T00:00:00Z',
+        },
       ];
 
       (supabase.from as any).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
-        range: jest.fn().mockResolvedValue({ data: mockEntries, error: null })
+        range: jest.fn().mockResolvedValue({ data: mockEntries, error: null }),
       });
 
       const entries = await getLedgerHistory('user-123');
@@ -193,9 +200,9 @@ describe('SP Wallet Service', () => {
 
   describe('getSPConfig', () => {
     it('should return config value', async () => {
-      (supabase.rpc as any).mockResolvedValue({ 
-        data: 10, 
-        error: null 
+      (supabase.rpc as any).mockResolvedValue({
+        data: 10,
+        error: null,
       });
 
       const value = await getSPConfig('starter_pack_amount');
@@ -203,9 +210,9 @@ describe('SP Wallet Service', () => {
     });
 
     it('should return null on error', async () => {
-      (supabase.rpc as any).mockResolvedValue({ 
-        data: null, 
-        error: new Error('Config not found') 
+      (supabase.rpc as any).mockResolvedValue({
+        data: null,
+        error: new Error('Config not found'),
       });
 
       const value = await getSPConfig('invalid_key');
@@ -215,17 +222,19 @@ describe('SP Wallet Service', () => {
 
   describe('getWalletSummary', () => {
     it('should return wallet summary', async () => {
-      const mockSummary = [{
-        available_points: 100,
-        pending_points: 0,
-        lifetime_earned: 150,
-        lifetime_spent: 50,
-        wallet_state: 'active'
-      }];
+      const mockSummary = [
+        {
+          available_points: 100,
+          pending_points: 0,
+          lifetime_earned: 150,
+          lifetime_spent: 50,
+          wallet_state: 'active',
+        },
+      ];
 
-      (supabase.rpc as any).mockResolvedValue({ 
-        data: mockSummary, 
-        error: null 
+      (supabase.rpc as any).mockResolvedValue({
+        data: mockSummary,
+        error: null,
       });
 
       const summary = await getWalletSummary('user-123');
@@ -234,9 +243,9 @@ describe('SP Wallet Service', () => {
     });
 
     it('should return empty summary if no wallet', async () => {
-      (supabase.rpc as any).mockResolvedValue({ 
-        data: [], 
-        error: null 
+      (supabase.rpc as any).mockResolvedValue({
+        data: [],
+        error: null,
       });
 
       const summary = await getWalletSummary('user-no-wallet');

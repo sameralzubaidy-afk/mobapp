@@ -2,7 +2,7 @@
  * UnsubscribeScreen
  * MODULE: MODULE-14-NOTIFICATIONS-V2 (NOTIF-V2-009)
  * TASK: Email unsubscribe flow
- * 
+ *
  * Allows users to unsubscribe from email notifications using a token
  * from an unsubscribe link in an email.
  */
@@ -97,18 +97,16 @@ export default function UnsubscribeScreen() {
           <View style={styles.successIcon}>
             <Text style={styles.successIconText}>✓</Text>
           </View>
-          <Text style={styles.title} testID="success-title">You've Been Unsubscribed</Text>
+          <Text style={styles.title} testID="success-title">
+            You've Been Unsubscribed
+          </Text>
           <Text style={styles.message}>
             You will no longer receive {category} email notifications.
           </Text>
           <Text style={styles.note}>
             You can manage your notification preferences anytime in the app settings.
           </Text>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleGoHome}
-            testID="go-home-button"
-          >
+          <TouchableOpacity style={styles.button} onPress={handleGoHome} testID="go-home-button">
             <Text style={styles.buttonText}>Go to Home</Text>
           </TouchableOpacity>
         </View>
@@ -122,13 +120,11 @@ export default function UnsubscribeScreen() {
         <View style={styles.errorIcon}>
           <Text style={styles.errorIconText}>✕</Text>
         </View>
-        <Text style={styles.title} testID="error-title">Unable to Unsubscribe</Text>
+        <Text style={styles.title} testID="error-title">
+          Unable to Unsubscribe
+        </Text>
         <Text style={styles.errorMessage}>{error}</Text>
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleGoHome}
-          testID="go-home-button"
-        >
+        <TouchableOpacity style={styles.button} onPress={handleGoHome} testID="go-home-button">
           <Text style={styles.buttonText}>Go to Home</Text>
         </TouchableOpacity>
       </View>

@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/discovery/CategoryFilterChip.tsx
  * TASK ADMIN-V3-007: Category Filter Chip
  * Module: MODULE-12-ADMIN-V3-CATEGORIES
- * 
+ *
  * Renders a filter chip for categories in discovery/search flows.
  */
 
@@ -65,11 +65,7 @@ export function CategoryFilterChip({
     >
       {/* Icon */}
       {icon_url ? (
-        <Image
-          source={{ uri: icon_url }}
-          style={styles.iconImage}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: icon_url }} style={styles.iconImage} resizeMode="cover" />
       ) : icon && icon.trim().length > 0 ? (
         <Text style={styles.iconText}>{icon}</Text>
       ) : (

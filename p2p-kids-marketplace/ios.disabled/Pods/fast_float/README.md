@@ -1,4 +1,3 @@
-
 ## fast_float number parsing library: 4x faster than strtod
 
 [![Ubuntu 22.04 CI (GCC 11)](https://github.com/fastfloat/fast_float/actions/workflows/ubuntu22.yml/badge.svg)](https://github.com/fastfloat/fast_float/actions/workflows/ubuntu22.yml)
@@ -106,22 +105,22 @@ fixed point and scientific notation respectively. The default is
 The library seeks to follow the C++17 (see
 [28.2.3.(6.1)](https://eel.is/c++draft/charconv.from.chars#6.1)) specification.
 
-* The `from_chars` function does not skip leading white-space characters (unless
+- The `from_chars` function does not skip leading white-space characters (unless
   `fast_float::chars_format::skip_white_space` is set).
-* [A leading `+` sign](https://en.cppreference.com/w/cpp/utility/from_chars) is
+- [A leading `+` sign](https://en.cppreference.com/w/cpp/utility/from_chars) is
   forbidden (unless `fast_float::chars_format::allow_leading_plus` is set).
-* It is generally impossible to represent a decimal value exactly as binary
+- It is generally impossible to represent a decimal value exactly as binary
   floating-point number (`float` and `double` types). We seek the nearest value.
   We round to an even mantissa when we are in-between two binary floating-point
   numbers.
 
 Furthermore, we have the following restrictions:
 
-* We support `float` and `double`, but not `long double`. We also support
+- We support `float` and `double`, but not `long double`. We also support
   fixed-width floating-point types such as `std::float64_t`, `std::float32_t`,
   `std::float16_t`, and `std::bfloat16_t`.
-* We only support the decimal format: we do not support hexadecimal strings.
-* For values that are either very large or very small (e.g., `1e9999`), we
+- We only support the decimal format: we do not support hexadecimal strings.
+- For values that are either very large or very small (e.g., `1e9999`), we
   represent it using the infinity or negative infinity value and the returned
   `ec` is set to `std::errc::result_out_of_range`.
 
@@ -361,17 +360,17 @@ int main() {
 
 The fast_float library is part of:
 
-* GCC (as of version 12): the `from_chars` function in GCC relies on fast_float,
-* [Chromium](https://github.com/Chromium/Chromium), the engine behind Google
+- GCC (as of version 12): the `from_chars` function in GCC relies on fast_float,
+- [Chromium](https://github.com/Chromium/Chromium), the engine behind Google
   Chrome, Microsoft Edge, and Opera,
-* [WebKit](https://github.com/WebKit/WebKit), the engine behind Safari (Apple's
+- [WebKit](https://github.com/WebKit/WebKit), the engine behind Safari (Apple's
   web browser),
-* [DuckDB](https://duckdb.org),
-* [Redis](https://github.com/redis/redis) and [Valkey](https://github.com/valkey-io/valkey),
-* [Apache Arrow](https://github.com/apache/arrow/pull/8494) where it multiplied
+- [DuckDB](https://duckdb.org),
+- [Redis](https://github.com/redis/redis) and [Valkey](https://github.com/valkey-io/valkey),
+- [Apache Arrow](https://github.com/apache/arrow/pull/8494) where it multiplied
   the number parsing speed by two or three times,
-* [Google Jsonnet](https://github.com/google/jsonnet),
-* [ClickHouse](https://github.com/ClickHouse/ClickHouse).
+- [Google Jsonnet](https://github.com/google/jsonnet),
+- [ClickHouse](https://github.com/ClickHouse/ClickHouse).
 
 The fastfloat algorithm is part of the [LLVM standard
 libraries](https://github.com/llvm/llvm-project/commit/87c016078ad72c46505461e4ff8bfa04819fe7ba).
@@ -387,25 +386,25 @@ framework](https://github.com/microsoft/LightGBM).
 
 ## References
 
-* Daniel Lemire, [Number Parsing at a Gigabyte per
+- Daniel Lemire, [Number Parsing at a Gigabyte per
   Second](https://arxiv.org/abs/2101.11408), Software: Practice and Experience
   51 (8), 2021.
-* Noble Mushtak, Daniel Lemire, [Fast Number Parsing Without
+- Noble Mushtak, Daniel Lemire, [Fast Number Parsing Without
   Fallback](https://arxiv.org/abs/2212.06644), Software: Practice and Experience
   53 (7), 2023.
 
 ## Other programming languages
 
-* [There is an R binding](https://github.com/eddelbuettel/rcppfastfloat) called
+- [There is an R binding](https://github.com/eddelbuettel/rcppfastfloat) called
   `rcppfastfloat`.
-* [There is a Rust port of the fast_float
+- [There is a Rust port of the fast_float
   library](https://github.com/aldanor/fast-float-rust/) called
   `fast-float-rust`.
-* [There is a Java port of the fast_float
+- [There is a Java port of the fast_float
   library](https://github.com/wrandelshofer/FastDoubleParser) called
   `FastDoubleParser`. It used for important systems such as
   [Jackson](https://github.com/FasterXML/jackson-core).
-* [There is a C# port of the fast_float
+- [There is a C# port of the fast_float
   library](https://github.com/CarlVerret/csFastFloat) called `csFastFloat`.
 
 ## How fast is it?
@@ -510,11 +509,11 @@ sudo ./build/benchmarks/realbenchmark
 
 ## Packages
 
-* The fast_float library is part of the [Conan package
+- The fast_float library is part of the [Conan package
   manager](https://conan.io/center/recipes/fast_float).
-* It is part of the [brew package
+- It is part of the [brew package
   manager](https://formulae.brew.sh/formula/fast_float).
-* Some Linux distribution like Fedora include fast_float (e.g., as
+- Some Linux distribution like Fedora include fast_float (e.g., as
   `fast_float-devel`).
 
 ## Credit

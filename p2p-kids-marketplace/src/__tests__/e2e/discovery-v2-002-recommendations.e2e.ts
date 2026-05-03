@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/__tests__/e2e/discovery-v2-002-recommendations.e2e.ts
  * MODULE-05-DISCOVERY-V2: Recommendations E2E Test
  * Task: DISCOVERY-V2-002 - Subscriber-Personalized Recommendations
- * 
+ *
  * End-to-end test for personalized recommendations flow
  */
 
@@ -35,17 +35,17 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
       .select('id')
       .eq('id', testUserId)
       .single();
-    
+
     const { data: sellerExists } = await supabase
       .from('profiles')
       .select('id')
       .eq('id', testSellerId)
       .single();
-    
+
     if (!buyerExists || !sellerExists) {
       throw new Error('Test users not found. Run `npm run seed:staging` first.');
     }
-    
+
     console.log('✅ Test users verified');
 
     // Create test items (some SP-eligible, some not)
@@ -54,7 +54,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
         seller_id: testSellerId,
         title: 'SP-Eligible Affordable Item',
         description: 'Item within SP budget',
-        price: 15.00, // Affordable with 50 SP
+        price: 15.0, // Affordable with 50 SP
         accepts_swap_points: true,
         status: 'available',
         condition: 'good',
@@ -63,7 +63,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
         seller_id: testSellerId,
         title: 'SP-Eligible Expensive Item',
         description: 'Item outside SP budget',
-        price: 75.00, // Not affordable with 50 SP
+        price: 75.0, // Not affordable with 50 SP
         accepts_swap_points: true,
         status: 'available',
         condition: 'excellent',
@@ -72,7 +72,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
         seller_id: testSellerId,
         title: 'Cash-Only Item',
         description: 'No SP accepted',
-        price: 20.00,
+        price: 20.0,
         accepts_swap_points: false,
         status: 'available',
         condition: 'good',
@@ -80,12 +80,8 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
     ];
 
     for (const item of itemsToCreate) {
-      const { data, error } = await supabase
-        .from('items')
-        .insert(item)
-        .select('id')
-        .single();
-      
+      const { data, error } = await supabase.from('items').insert(item).select('id').single();
+
       if (error || !data) {
         console.error('Failed to create test item:', error);
       } else {
@@ -99,12 +95,12 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
     if (testItemIds.length > 0) {
       await supabase.from('items').delete().in('id', testItemIds);
     }
-    
+
     if (testUserId) {
       await supabase.from('sp_wallets').delete().eq('user_id', testUserId);
       await supabase.from('profiles').delete().eq('id', testUserId);
     }
-    
+
     if (testSellerId) {
       await supabase.from('profiles').delete().eq('id', testSellerId);
     }
@@ -121,12 +117,12 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
     expect(error).toBeNull();
     expect(data).toBeDefined();
     expect(Array.isArray(data)).toBe(true);
-    
+
     if (data && data.length > 0) {
       // Verify SP-eligible items have higher scores
       const spItems = data.filter((item: any) => item.accepts_swap_points);
       const nonSpItems = data.filter((item: any) => !item.accepts_swap_points);
-      
+
       if (spItems.length > 0 && nonSpItems.length > 0) {
         expect(spItems[0].score).toBeGreaterThan(nonSpItems[0].score);
       }
@@ -143,13 +139,13 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
     // Assert
     expect(error).toBeNull();
     expect(data).toBeDefined();
-    
+
     if (data && data.length > 0) {
       // Find affordable SP items (price <= 50 SP = $50)
-      const affordableSpItems = data.filter((item: any) => 
-        item.accepts_swap_points && item.price <= 50
+      const affordableSpItems = data.filter(
+        (item: any) => item.accepts_swap_points && item.price <= 50
       );
-      
+
       // These should have higher scores (base + SP bonus + affordability bonus)
       if (affordableSpItems.length > 0) {
         expect(affordableSpItems[0].score).toBeGreaterThanOrEqual(150);
@@ -164,7 +160,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
       .insert({
         seller_id: testUserId, // User's own item
         title: 'My Own Item',
-        price: 10.00,
+        price: 10.0,
         accepts_swap_points: true,
         status: 'available',
       })
@@ -180,11 +176,11 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
     // Assert
     expect(error).toBeNull();
     expect(data).toBeDefined();
-    
+
     if (data && ownItem) {
       const hasOwnItem = data.some((item: any) => item.id === ownItem.id);
       expect(hasOwnItem).toBe(false);
-      
+
       // Cleanup
       await supabase.from('items').delete().eq('id', ownItem.id);
     }
@@ -206,7 +202,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
       }
       throw new Error('Failed to create free user');
     }
-    
+
     const freeUserId = freeUserAuth.user.id;
 
     // Act
@@ -218,7 +214,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
     // Assert - should not error, just return recommendations with lower scores
     expect(error).toBeNull();
     expect(data).toBeDefined();
-    
+
     // Cleanup
     await supabase.from('profiles').delete().eq('id', freeUserId);
   });
@@ -233,7 +229,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
     // Assert
     expect(error).toBeNull();
     expect(data).toBeDefined();
-    
+
     if (data && data.length > 1) {
       // Verify descending score order
       for (let i = 0; i < data.length - 1; i++) {
@@ -252,7 +248,7 @@ describeSupabaseE2E('DISCOVERY-V2-002: Subscriber-Personalized Recommendations E
     // Assert
     expect(error).toBeNull();
     expect(data).toBeDefined();
-    
+
     if (data) {
       expect(data.length).toBeLessThanOrEqual(2);
     }

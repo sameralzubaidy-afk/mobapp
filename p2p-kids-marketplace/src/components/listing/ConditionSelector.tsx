@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/listing/ConditionSelector.tsx
  * MODULE-04 LISTING-V3-008: Condition Selector
  * Task: LISTING-V3-008 - 5 radio rows with photo guide button
- * 
+ *
  * Features:
  * - 5 condition options (new, like_new, good, fair, worn)
  * - Photo guide button per condition
@@ -10,12 +10,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Condition } from '../../types/listing';
 
 const CONDITIONS: Array<{ value: Condition; label: string; description: string }> = [
@@ -42,7 +37,7 @@ export function ConditionSelector({
   return (
     <View style={styles.container} testID={testID}>
       <Text style={styles.title}>Condition</Text>
-      
+
       {CONDITIONS.map((condition) => {
         const isSelected = value === condition.value;
 
@@ -59,7 +54,7 @@ export function ConditionSelector({
               <View style={styles.radio}>
                 {isSelected && <View style={styles.radioSelected} />}
               </View>
-              
+
               <View style={styles.labelContainer}>
                 <Text style={styles.label}>{condition.label}</Text>
                 <Text style={styles.description}>{condition.description}</Text>

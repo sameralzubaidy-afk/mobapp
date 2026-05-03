@@ -2,11 +2,16 @@
  * FILE: p2p-kids-marketplace/src/services/__tests__/safety.test.ts
  * MODULE: MODULE-13-SAFETY-COMPLIANCE
  * TASK: SAFETY-002 - CPSC Recall Matching Logic - Unit Tests
- * 
+ *
  * Tests safety service functions with mocked Supabase client.
  */
 
-import { checkItemSafety, getItemSafetyFlags, isCpscCheckEnabled, getCpscMatchThreshold } from '../safety';
+import {
+  checkItemSafety,
+  getItemSafetyFlags,
+  isCpscCheckEnabled,
+  getCpscMatchThreshold,
+} from '../safety';
 import { supabase } from '../../config/supabase';
 
 // Mock Supabase
@@ -81,7 +86,7 @@ describe('safety service', () => {
         confidence: 0.85,
       };
 
-      (supabase.functions.invoke as jest. Mock).mockResolvedValueOnce({
+      (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
         data: mockResponse,
         error: null,
       });
@@ -139,10 +144,7 @@ describe('safety service', () => {
         error: null,
       });
 
-      const result = await checkItemSafety(
-        '111e4567-e89b-12d3-a456-426614174004',
-        'Simple Title'
-      );
+      const result = await checkItemSafety('111e4567-e89b-12d3-a456-426614174004', 'Simple Title');
 
       expect(result.success).toBe(true);
       expect(supabase.functions.invoke).toHaveBeenCalledWith('check-item-safety', {

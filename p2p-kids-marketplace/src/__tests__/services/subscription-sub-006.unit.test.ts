@@ -55,10 +55,9 @@ describe('SUB-006: Trial-to-Paid Conversion Service', () => {
       const result = await setupSubscriptionPaymentSheet();
 
       expect(result).toEqual(mockSetupData);
-      expect(supabase.functions.invoke).toHaveBeenCalledWith(
-        'setup-subscription-payment',
-        { method: 'POST' }
-      );
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('setup-subscription-payment', {
+        method: 'POST',
+      });
     });
 
     it('should return null on error', async () => {
@@ -73,9 +72,7 @@ describe('SUB-006: Trial-to-Paid Conversion Service', () => {
     });
 
     it('should handle unexpected errors', async () => {
-      (supabase.functions.invoke as jest.Mock).mockRejectedValue(
-        new Error('Network error')
-      );
+      (supabase.functions.invoke as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       const result = await setupSubscriptionPaymentSheet();
 
@@ -105,13 +102,10 @@ describe('SUB-006: Trial-to-Paid Conversion Service', () => {
 
       expect(result.success).toBe(true);
       expect(result.subscription).toEqual(mockSubscription);
-      expect(supabase.functions.invoke).toHaveBeenCalledWith(
-        'create-subscription-payment',
-        {
-          method: 'POST',
-          body: { paymentMethodId: mockPaymentMethodId },
-        }
-      );
+      expect(supabase.functions.invoke).toHaveBeenCalledWith('create-subscription-payment', {
+        method: 'POST',
+        body: { paymentMethodId: mockPaymentMethodId },
+      });
     });
 
     it('should handle API errors', async () => {
@@ -142,9 +136,7 @@ describe('SUB-006: Trial-to-Paid Conversion Service', () => {
     });
 
     it('should handle unexpected errors', async () => {
-      (supabase.functions.invoke as jest.Mock).mockRejectedValue(
-        new Error('Network error')
-      );
+      (supabase.functions.invoke as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       const result = await convertTrialToPaidSubscription(mockPaymentMethodId);
 

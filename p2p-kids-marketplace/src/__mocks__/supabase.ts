@@ -96,7 +96,10 @@ const makeQueryBuilder = (table: string) => {
   });
 
   builder.then = (onFulfilled: any, onRejected: any) =>
-    Promise.resolve(resolveTableResponse(table, currentOperation, false)).then(onFulfilled, onRejected);
+    Promise.resolve(resolveTableResponse(table, currentOperation, false)).then(
+      onFulfilled,
+      onRejected
+    );
 
   return builder;
 };

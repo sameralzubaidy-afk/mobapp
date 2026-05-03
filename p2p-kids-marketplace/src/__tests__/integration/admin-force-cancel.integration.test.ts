@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/__tests__/integration/admin-force-cancel.integration.test.ts
  * TASK TRADE-V2-009: Integration test for admin force-cancel trade
- * 
+ *
  * Tests admin tools for trade management:
  * - Admin can force-cancel trades
  * - Audit log entries created
@@ -43,7 +43,7 @@ describeSupabase('Admin Force-Cancel Trade Integration (TRADE-V2-009)', () => {
     if (error) {
       throw new Error('Cannot run integration tests: Supabase not accessible');
     }
-    
+
     // Prefer deriving stable fixtures from an existing trade row.
     const { data: tradeFixture } = await supabase
       .from('trades')
@@ -96,7 +96,7 @@ describeSupabase('Admin Force-Cancel Trade Integration (TRADE-V2-009)', () => {
     if (!TEST_CONFIG.adminUserId) {
       TEST_CONFIG.adminUserId = TEST_CONFIG.sellerId;
     }
-    
+
     console.log('✅ Supabase connection verified');
   });
 
@@ -130,14 +130,11 @@ describeSupabase('Admin Force-Cancel Trade Integration (TRADE-V2-009)', () => {
       testTradeIds.push(tradeId);
 
       // ACT: Admin force-cancels the trade
-      const { error: cancelError } = await supabase.rpc(
-        'admin_force_cancel_trade_db',
-        {
-          p_trade_id: tradeId,
-          p_admin_user_id: TEST_CONFIG.adminUserId,
-          p_reason: 'Test: Admin intervention for policy violation',
-        }
-      );
+      const { error: cancelError } = await supabase.rpc('admin_force_cancel_trade_db', {
+        p_trade_id: tradeId,
+        p_admin_user_id: TEST_CONFIG.adminUserId,
+        p_reason: 'Test: Admin intervention for policy violation',
+      });
 
       // ASSERT: Cancel succeeded
       expect(cancelError).toBeNull();
@@ -308,7 +305,9 @@ describeSupabase('Admin Force-Cancel Trade Integration (TRADE-V2-009)', () => {
         .single();
 
       if (createError1 || !trade1) {
-        throw new Error(`Failed to create first pending trade: ${createError1?.message || 'unknown'}`);
+        throw new Error(
+          `Failed to create first pending trade: ${createError1?.message || 'unknown'}`
+        );
       }
 
       const { data: trade2, error: createError2 } = await supabase
@@ -326,7 +325,9 @@ describeSupabase('Admin Force-Cancel Trade Integration (TRADE-V2-009)', () => {
         .single();
 
       if (createError2 || !trade2) {
-        throw new Error(`Failed to create second pending trade: ${createError2?.message || 'unknown'}`);
+        throw new Error(
+          `Failed to create second pending trade: ${createError2?.message || 'unknown'}`
+        );
       }
 
       testTradeIds.push(trade1.id, trade2.id);

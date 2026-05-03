@@ -133,9 +133,9 @@ describe('Payout Fee Calculations', () => {
       const itemPrice = 5000; // $50
       const platformFee = 0; // $0
       const payoutFee = getPayoutFeeCents('stripe_connect', itemPrice);
-      
+
       expect(payoutFee).toBe(13 + 25); // $0.13 + $0.25 = $0.38
-      
+
       const net = computeNetPayoutCents(itemPrice, platformFee, payoutFee);
       expect(net).toBe(4962); // $49.62
     });
@@ -144,9 +144,9 @@ describe('Payout Fee Calculations', () => {
       const itemPrice = 20000; // $200
       const platformFee = 0;
       const payoutFee = getPayoutFeeCents('paypal', itemPrice);
-      
+
       expect(payoutFee).toBe(400); // 2% = $4.00
-      
+
       const net = computeNetPayoutCents(itemPrice, platformFee, payoutFee);
       expect(net).toBe(19600); // $196.00
     });
@@ -155,9 +155,9 @@ describe('Payout Fee Calculations', () => {
       const itemPrice = 150000; // $1500
       const platformFee = 0;
       const payoutFee = getPayoutFeeCents('venmo', itemPrice);
-      
+
       expect(payoutFee).toBe(2000); // Capped at $20.00
-      
+
       const net = computeNetPayoutCents(itemPrice, platformFee, payoutFee);
       expect(net).toBe(148000); // $1480.00
     });

@@ -1,7 +1,7 @@
 // File: src/__tests__/integration/accountService.integration.test.ts
 // TASK: AUTH-V3-004 — AccountService Integration Tests
 // Source: MODULE-03-AUTH-V3-SOCIAL-LOGIN.md v1.0
-// 
+//
 // ⚠️ INTEGRATION TEST: Runs against Supabase staging
 // Required env: RUN_SUPABASE_E2E=true
 // SQL prereqs: user_linked_providers view, link_social_account RPC, admin_audit_logs table
@@ -14,10 +14,7 @@ import {
   countLoginMethods,
 } from '../../services/accountService';
 import { supabase } from '../../config/supabase';
-import {
-  EmailMismatchError,
-  LastLoginMethodError,
-} from '../../types/auth-v3-errors';
+import { EmailMismatchError, LastLoginMethodError } from '../../types/auth-v3-errors';
 
 // Skip unless explicitly enabled
 const describeIf = process.env.RUN_SUPABASE_E2E === 'true' ? describe : describe.skip;
@@ -122,9 +119,9 @@ describeIf('AccountService Integration Tests', () => {
         providerUserId: 'google-test-123',
       };
 
-      await expect(
-        linkSocialAccount('google', mockProfile, 'TestPassword123!'),
-      ).rejects.toThrow('Not authenticated');
+      await expect(linkSocialAccount('google', mockProfile, 'TestPassword123!')).rejects.toThrow(
+        'Not authenticated'
+      );
 
       // Sign back in for other tests
       await supabase.auth.signInWithPassword({
@@ -139,9 +136,7 @@ describeIf('AccountService Integration Tests', () => {
       // Sign out
       await supabase.auth.signOut();
 
-      await expect(
-        unlinkSocialAccount('google'),
-      ).rejects.toThrow('Not authenticated');
+      await expect(unlinkSocialAccount('google')).rejects.toThrow('Not authenticated');
 
       // Sign back in for other tests
       await supabase.auth.signInWithPassword({

@@ -15,16 +15,16 @@ export type OAuthProvider = 'google' | 'facebook' | 'apple';
 export interface ProviderProfile {
   /** Full name from provider (e.g., "John Doe") */
   name: string;
-  
+
   /** Email from provider (already verified by provider) */
   email: string;
-  
+
   /** Avatar URL from provider (optional - may not exist for Apple) */
   avatar?: string;
-  
+
   /** Which provider this profile came from */
   provider: OAuthProvider;
-  
+
   /** Provider's unique user ID (e.g., Google sub, Facebook id) */
   providerUserId: string;
 }
@@ -36,10 +36,10 @@ export interface ProviderProfile {
 export interface LinkedProvider {
   /** Which provider is linked */
   provider: OAuthProvider;
-  
+
   /** Email address registered with this provider */
   providerEmail: string;
-  
+
   /** ISO timestamp when this provider was linked */
   linkedAt: string;
 }
@@ -51,13 +51,13 @@ export interface LinkedProvider {
 export interface OAuthSession {
   /** Cryptographically random state token (32 bytes base64) */
   state: string;
-  
+
   /** Which provider this session is for */
   provider: OAuthProvider;
-  
+
   /** ISO timestamp when state was generated */
   createdAt: string;
-  
+
   /** Return URL after OAuth callback (deep link) */
   returnUrl?: string;
 }
@@ -69,19 +69,19 @@ export interface OAuthSession {
 export interface AuthResult {
   /** Whether the operation succeeded */
   success: boolean;
-  
+
   /** User ID if success=true */
   userId?: string;
-  
+
   /** Session token if success=true */
   sessionToken?: string;
-  
+
   /** Error code if success=false (stable codes from auth-v3-errors.ts) */
   errorCode?: string;
-  
+
   /** Human-readable error message if success=false */
   errorMessage?: string;
-  
+
   /** Additional metadata (e.g., trial activated, phone required) */
   metadata?: Record<string, unknown>;
 }
@@ -93,22 +93,22 @@ export interface AuthResult {
 export interface PhoneVerificationCode {
   /** Unique ID for this verification attempt */
   id: string;
-  
+
   /** User ID requesting verification */
   userId: string;
-  
+
   /** Phone number (E.164 format, e.g., +14155551234) */
   phone: string;
-  
+
   /** Bcrypt hash of the 6-digit OTP code (never store plaintext) */
   codeHash: string;
-  
+
   /** Number of failed verification attempts for this code */
   attempts: number;
-  
+
   /** ISO timestamp when code was generated */
   createdAt: string;
-  
+
   /** ISO timestamp when code expires (5 minutes from created_at) */
   expiresAt: string;
 }
@@ -120,7 +120,7 @@ export interface PhoneVerificationCode {
 export interface PasswordStrengthResult {
   /** Whether password meets all strength requirements */
   valid: boolean;
-  
+
   /** Array of reasons password failed (empty if valid=true) */
   reasons: string[];
 }

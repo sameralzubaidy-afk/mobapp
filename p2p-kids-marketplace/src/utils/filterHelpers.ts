@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/utils/filterHelpers.ts
  * MODULE-05-DISCOVERY-V3: Filter Helper Utilities
  * Task: DISCOVERY-V3-004
- * 
+ *
  * Provides utility functions for filter management, validation, and display
  */
 
@@ -10,10 +10,10 @@ import { DiscoveryFilters, SortOption } from '../types/discovery';
 
 /**
  * Count the number of active filters (excluding defaults)
- * 
+ *
  * @param filters - The current filter state
  * @returns Number of active filters
- * 
+ *
  * @example
  * countActiveFilters(getDefaultFilters()) // 0
  * countActiveFilters({ ...getDefaultFilters(), brand: 'Nike' }) // 1
@@ -75,11 +75,11 @@ export function countActiveFilters(filters: DiscoveryFilters): number {
 
 /**
  * Format a filter key-value pair into a human-readable chip label
- * 
+ *
  * @param key - The filter key (camelCase)
  * @param value - The filter value
  * @returns Formatted label string
- * 
+ *
  * @example
  * formatFilterChipLabel('ageGroup', '3-5') // 'Age: 3-5'
  * formatFilterChipLabel('condition', 'like_new') // 'Condition: Like New'
@@ -103,7 +103,7 @@ export function formatFilterChipLabel(key: string, value: any): string {
       // Convert snake_case to Title Case
       const conditionFormatted = String(value)
         .split('_')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
       return `Condition: ${conditionFormatted}`;
 
@@ -133,7 +133,9 @@ export function formatFilterChipLabel(key: string, value: any): string {
     case 'colors':
       // For multiple colors, just show count
       if (Array.isArray(value)) {
-        return value.length === 1 ? String(value[0]).charAt(0).toUpperCase() + String(value[0]).slice(1) : `${value.length} Colors`;
+        return value.length === 1
+          ? String(value[0]).charAt(0).toUpperCase() + String(value[0]).slice(1)
+          : `${value.length} Colors`;
       }
       return 'Color';
 
@@ -146,7 +148,7 @@ export function formatFilterChipLabel(key: string, value: any): string {
         .replace(/([A-Z])/g, ' $1')
         .trim()
         .split(' ')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
       return `${formatted}: ${value}`;
   }
@@ -154,11 +156,11 @@ export function formatFilterChipLabel(key: string, value: any): string {
 
 /**
  * Validate price range (min must not exceed max)
- * 
+ *
  * @param min - Minimum price (optional)
  * @param max - Maximum price (optional)
  * @returns true if valid, false if min > max
- * 
+ *
  * @example
  * validatePriceRange(10, 20) // true
  * validatePriceRange(20, 10) // false
@@ -178,9 +180,9 @@ export function validatePriceRange(min?: number, max?: number): boolean {
 
 /**
  * Get the default filter state
- * 
+ *
  * @returns Default DiscoveryFilters object
- * 
+ *
  * @example
  * const defaults = getDefaultFilters();
  * // { sortBy: 'relevance', spEligibleOnly: false }

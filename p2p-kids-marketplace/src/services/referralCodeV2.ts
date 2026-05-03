@@ -66,27 +66,27 @@ export class ReferralCodeServiceV2 {
    */
   static async createReferralCode(userId: string): Promise<string> {
     try {
-        // Fallback to table update first as it's more direct
-        const code = Math.random().toString(36).substring(2, 10).toLowerCase();
-        
-        const { error } = await supabase
-          .from('profiles')
-          .update({ referral_code: code })
-          .eq('user_id', userId);
+      // Fallback to table update first as it's more direct
+      const code = Math.random().toString(36).substring(2, 10).toLowerCase();
 
-        if (!error) return code;
+      const { error } = await supabase
+        .from('profiles')
+        .update({ referral_code: code })
+        .eq('user_id', userId);
 
-        // Fallback to RPC if update fails
-        const { data: rpcData, error: rpcError } = await supabase.rpc('create_referral_code', {
-          p_user_id: userId,
-        });
+      if (!error) return code;
 
-        if (rpcError) throw rpcError;
-        return rpcData.code || rpcData;
+      // Fallback to RPC if update fails
+      const { data: rpcData, error: rpcError } = await supabase.rpc('create_referral_code', {
+        p_user_id: userId,
+      });
+
+      if (rpcError) throw rpcError;
+      return rpcData.code || rpcData;
     } catch (error) {
-        const err = error as Error;
-        console.error('Create referral code error:', err);
-        throw new Error(`Failed to create referral code: ${err.message}`);
+      const err = error as Error;
+      console.error('Create referral code error:', err);
+      throw new Error(`Failed to create referral code: ${err.message}`);
     }
   }
 
@@ -96,7 +96,7 @@ export class ReferralCodeServiceV2 {
   static async checkCodeExists(code: string): Promise<boolean> {
     try {
       if (!code || code.trim().length === 0) return false;
-      
+
       const { data, error } = await supabase.rpc('check_referral_code_exists', {
         p_code: code.trim().toLowerCase(),
       });
@@ -108,9 +108,9 @@ export class ReferralCodeServiceV2 {
           .select('user_id')
           .eq('referral_code', code.trim().toLowerCase())
           .limit(1);
-        
+
         if (profileError) return false;
-        return (profileData && profileData.length > 0);
+        return profileData && profileData.length > 0;
       }
 
       return !!data;
@@ -153,13 +153,13 @@ export class ReferralCodeServiceV2 {
   }
 
   /**
-  * Get referral statistics for user
-  */
+   * Get referral statistics for user
+   */
   static async getReferralStats(userId: string): Promise<ReferralStats> {
     try {
       const [referralsResult, config] = await Promise.all([
         supabase.from('referrals').select('*').eq('referrer_user_id', userId),
-        ReferralRewardsService.getConfiguredRewardAmounts()
+        ReferralRewardsService.getConfiguredRewardAmounts(),
       ]);
 
       if (referralsResult.error) {
@@ -170,7 +170,7 @@ export class ReferralCodeServiceV2 {
       const total_referrals = data?.length || 0;
       const pending_referrals = data?.filter((r) => r.status === 'pending').length || 0;
       const completed_referrals = data?.filter((r) => r.status === 'completed').length || 0;
-      
+
       const total_sp_earned = completed_referrals * config.referrer_sp;
       const trial_extensions_used = data?.filter((r) => r.trial_extension_applied).length || 0;
 
@@ -200,12 +200,14 @@ export class ReferralCodeServiceV2 {
     try {
       const { data, error } = await supabase
         .from('referrals')
-        .select(`
+        .select(
+          `
           *,
           profiles:profiles!referrals_referred_profile_fkey (
             name
           )
-        `)
+        `
+        )
         .eq('referrer_user_id', userId)
         .order('created_at', { ascending: false });
 
@@ -215,14 +217,14 @@ export class ReferralCodeServiceV2 {
           .select('*')
           .eq('referrer_user_id', userId)
           .order('created_at', { ascending: false });
-        
+
         if (rawError) throw rawError;
         return rawData || [];
       }
 
       return (data || []).map((referral: any) => ({
         ...referral,
-        referred_user_name: referral.profiles?.name || null
+        referred_user_name: referral.profiles?.name || null,
       }));
     } catch (error) {
       console.error('Get referral history error:', error);

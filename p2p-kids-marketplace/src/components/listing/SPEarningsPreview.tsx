@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/listing/SPEarningsPreview.tsx
  * MODULE-04 LISTING-V3-011: SP Earnings Preview Component
  * Task: LISTING-V3-011 - SP earnings preview for single & bulk listing
- * 
+ *
  * Purpose: Show real-time SP earnings estimate for single item listing
  * UX Decisions implemented:
  * - Decision 1: Show only when "Accept SP" toggle is ON (always visible for education)
@@ -12,18 +12,12 @@
  * - Decision 6: Free users see grayed-out estimate + upgrade CTA
  * - Decision 9: "Other" category shows 1.10x default + disclaimer
  * - Decision 10: Disclaimer with (i) icon tooltip
- * 
+ *
  * @see BRD US-SUB-002: SP earnings preview requirement
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCategorySPCache } from '../../hooks/useCategorySPCache';
 import { calculateEarnedSP, formatSP, formatMultiplier } from '../../utils/spCalculations';
@@ -52,7 +46,12 @@ export function SPEarningsPreview({
   onUpgradePress,
   testID = 'sp-earnings-preview',
 }: SPEarningsPreviewProps) {
-  const { getMultiplier, getCategoryName, loading: cacheLoading, error: cacheError } = useCategorySPCache();
+  const {
+    getMultiplier,
+    getCategoryName,
+    loading: cacheLoading,
+    error: cacheError,
+  } = useCategorySPCache();
   const [showTooltip, setShowTooltip] = useState(false);
 
   // Debounce price to avoid excessive recalculations while typing
@@ -74,7 +73,8 @@ export function SPEarningsPreview({
     return {
       sp,
       multiplier,
-      isOtherCategory: categoryId === 'other' || getCategoryName(categoryId).toLowerCase() === 'other',
+      isOtherCategory:
+        categoryId === 'other' || getCategoryName(categoryId).toLowerCase() === 'other',
     };
   }, [categoryId, debouncedPrice, getMultiplier, getCategoryName]);
 
@@ -171,9 +171,7 @@ export function SPEarningsPreview({
         {estimate.isOtherCategory && (
           <View style={styles.disclaimerContainer} testID="other-category-disclaimer">
             <Text style={styles.disclaimerIcon}>⚠️</Text>
-            <Text style={styles.disclaimerText}>
-              Base rate - may change after admin approval
-            </Text>
+            <Text style={styles.disclaimerText}>Base rate - may change after admin approval</Text>
           </View>
         )}
       </View>

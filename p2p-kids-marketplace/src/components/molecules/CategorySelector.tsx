@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/components/molecules/CategorySelector.tsx
  * MODULE-05-DISCOVERY-V2: Category Browsing
- * 
+ *
  * Horizontal scrollable category selector for the Home Feed.
  */
 
@@ -25,8 +25,8 @@ export default function CategorySelector() {
   return (
     <View style={styles.container}>
       <Text style={styles.sectionTitle}>Browse Categories</Text>
-      <ScrollView 
-        horizontal 
+      <ScrollView
+        horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >

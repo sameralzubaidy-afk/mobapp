@@ -72,10 +72,26 @@ export function BulkIntroSheet({ forceVisible, onDismiss }: BulkIntroSheetProps)
           <Text style={styles.title}>List several items at once</Text>
           <Text style={styles.subtitle}>It only takes 4 quick steps:</Text>
 
-          <Step n="1" title="Pick your photos" body="Choose up to 30 photos from your library. We start each photo as its own item." />
-          <Step n="2" title="Group similar photos" body="Long-press to multi-select photos that show the same item, then tap Merge." />
-          <Step n="3" title="Review with AI help" body="We auto-fill title, condition, and brand for each item. You just confirm or edit." />
-          <Step n="4" title="Publish all at once" body="Skip any item, or fix missing fields, then publish the rest." />
+          <Step
+            n="1"
+            title="Pick your photos"
+            body="Choose up to 30 photos from your library. We start each photo as its own item."
+          />
+          <Step
+            n="2"
+            title="Group similar photos"
+            body="Long-press to multi-select photos that show the same item, then tap Merge."
+          />
+          <Step
+            n="3"
+            title="Review with AI help"
+            body="We auto-fill title, condition, and brand for each item. You just confirm or edit."
+          />
+          <Step
+            n="4"
+            title="Publish all at once"
+            body="Skip any item, or fix missing fields, then publish the rest."
+          />
 
           <TouchableOpacity
             style={styles.dismiss}

@@ -266,7 +266,7 @@ describe('imageModeration service', () => {
 
     it('should handle empty image array', async () => {
       const results = await moderateListingImages('item-empty', []);
-      
+
       expect(results).toEqual([]);
       expect(mockInvoke).not.toHaveBeenCalled();
     });

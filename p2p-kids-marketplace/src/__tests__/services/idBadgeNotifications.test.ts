@@ -52,10 +52,10 @@ describe('ID Badge Notification Service', () => {
         eq: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
             maybeSingle: jest.fn().mockResolvedValue({
-              data: { 
-                push_enabled: false, 
-                in_app_enabled: true, 
-                email_enabled: true 
+              data: {
+                push_enabled: false,
+                in_app_enabled: true,
+                email_enabled: true,
               },
               error: null,
             }),
@@ -159,9 +159,9 @@ describe('ID Badge Notification Service', () => {
         title: 'ID Verification Request',
         body: 'Your ID verification was not approved. Reason: unclear photo',
         channels: ['in_app'],
-        data: { 
-          requestId: 'req-123', 
-          decision: 'rejected', 
+        data: {
+          requestId: 'req-123',
+          decision: 'rejected',
           reason: 'unclear_photo',
           screen: 'IDVerificationUpload',
         },
@@ -183,19 +183,15 @@ describe('ID Badge Notification Service', () => {
   describe('Message Template Variables', () => {
     it('should replace template variables correctly', () => {
       const template = 'Hi {first_name}, your verification was {status}.';
-      const replaced = template
-        .replace(/{first_name}/g, 'John')
-        .replace(/{status}/g, 'approved');
-      
+      const replaced = template.replace(/{first_name}/g, 'John').replace(/{status}/g, 'approved');
+
       expect(replaced).toBe('Hi John, your verification was approved.');
     });
 
     it('should handle missing variables gracefully', () => {
       const template = 'Hi {first_name}, reason: {rejection_reason}';
-      const replaced = template
-        .replace(/{first_name}/g, 'Jane')
-        .replace(/{rejection_reason}/g, '');
-      
+      const replaced = template.replace(/{first_name}/g, 'Jane').replace(/{rejection_reason}/g, '');
+
       expect(replaced).toBe('Hi Jane, reason: ');
     });
 
@@ -204,7 +200,7 @@ describe('ID Badge Notification Service', () => {
       const replaced = template
         .replace(/{rejection_reason}/g, 'unclear photo')
         .replace(/{admin_notes}/g, 'Please retake with better lighting');
-      
+
       expect(replaced).toBe('Reason: unclear photo. Notes: Please retake with better lighting');
     });
   });
@@ -288,9 +284,9 @@ describe('ID Badge Notification Service', () => {
         action_type: 'id_badge_rejected',
         entity_type: 'id_badge_verification',
         entity_id: 'req-123',
-        details: { 
-          rejectionReason: 'unclear_photo', 
-          rejectionNotes: 'Please retake with better lighting' 
+        details: {
+          rejectionReason: 'unclear_photo',
+          rejectionNotes: 'Please retake with better lighting',
         },
         notes: 'ID badge rejected for user user-123',
       });

@@ -43,9 +43,7 @@ export async function getTrialReminderStatus(): Promise<TrialReminderStatus | nu
       return null;
     }
 
-    const daysRemaining = data.trial_end_date
-      ? calculateDaysRemaining(data.trial_end_date)
-      : null;
+    const daysRemaining = data.trial_end_date ? calculateDaysRemaining(data.trial_end_date) : null;
 
     return {
       day23Sent: data.trial_reminder_day_23_sent || false,
@@ -105,7 +103,7 @@ export async function getTrialReminderMessage(): Promise<{
       shouldShow: true,
       title: '⏰ 2 Days Left in Your Free Trial',
       message:
-        'Add a payment method now to keep earning and spending Swap Points. Don\'t lose your rewards!',
+        "Add a payment method now to keep earning and spending Swap Points. Don't lose your rewards!",
       daysRemaining,
     };
   }
@@ -115,8 +113,7 @@ export async function getTrialReminderMessage(): Promise<{
     return {
       shouldShow: true,
       title: '🚨 Last Day of Your Free Trial!',
-      message:
-        'Your trial ends tomorrow! Subscribe now to keep your Swap Points active.',
+      message: 'Your trial ends tomorrow! Subscribe now to keep your Swap Points active.',
       daysRemaining,
     };
   }

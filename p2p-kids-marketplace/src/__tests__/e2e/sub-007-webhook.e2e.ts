@@ -20,7 +20,7 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   throw new Error(
     'E2E tests require SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars.\n' +
-      'Set them in p2p-kids-marketplace/.env.local',
+      'Set them in p2p-kids-marketplace/.env.local'
   );
 }
 
@@ -32,7 +32,7 @@ async function getSubByStripeId(stripeSubId: string) {
   const { data, error } = await supabase
     .from('subscriptions')
     .select(
-      'id, user_id, status, grace_ends_at, grace_started_at, payment_retry_count, payment_failed_at, current_period_end',
+      'id, user_id, status, grace_ends_at, grace_started_at, payment_retry_count, payment_failed_at, current_period_end'
     )
     .eq('stripe_subscription_id', stripeSubId)
     .maybeSingle();
@@ -46,7 +46,7 @@ async function getSubByUserId(userId: string) {
   const { data, error } = await supabase
     .from('subscriptions')
     .select(
-      'id, user_id, status, grace_ends_at, grace_started_at, payment_retry_count, payment_failed_at, stripe_subscription_id',
+      'id, user_id, status, grace_ends_at, grace_started_at, payment_retry_count, payment_failed_at, stripe_subscription_id'
     )
     .eq('user_id', userId)
     .maybeSingle();
@@ -96,7 +96,7 @@ describe('SUB-007: Stripe Webhook Subscription State Machine (E2E)', () => {
   beforeAll(async () => {
     if (!TEST_USER_ID) {
       console.warn(
-        '[SUB-007 E2E] SUB_007_TEST_USER_ID not set — set it in .env.local to run E2E tests against a real user.',
+        '[SUB-007 E2E] SUB_007_TEST_USER_ID not set — set it in .env.local to run E2E tests against a real user.'
       );
       return;
     }
@@ -105,7 +105,7 @@ describe('SUB-007: Stripe Webhook Subscription State Machine (E2E)', () => {
     if (!sub) {
       throw new Error(
         `No subscription found for TEST_USER_ID=${TEST_USER_ID}. ` +
-          'Ensure the user has a subscription row in the subscriptions table.',
+          'Ensure the user has a subscription row in the subscriptions table.'
       );
     }
     testSubId = sub.id;

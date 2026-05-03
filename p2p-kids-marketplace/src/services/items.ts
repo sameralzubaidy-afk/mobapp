@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/items.ts
  * MODULE-03 NODE-006: Node-Specific Item Filtering
- * 
+ *
  * Handles:
  * - Item listing queries with node-based filtering
  * - Cross-node search within radius
@@ -73,23 +73,22 @@ export interface Item {
 
 /**
  * Get items with filters (NODE-006: Node-based filtering)
- * 
+ *
  * @param filters - Filter criteria
  * @param userId - Current user ID (for analytics)
  * @returns Array of items
  */
-export const getItems = async (
-  filters: ItemFilters,
-  userId: string
-): Promise<Item[]> => {
+export const getItems = async (filters: ItemFilters, userId: string): Promise<Item[]> => {
   try {
     // FIX: PostgREST has FK ambiguity with items->profiles.
     // Solution: fetch items, profiles, and join in app code to avoid PGRST108 error.
-    
+
     // Step 1: Fetch items with direct filters (no relationship embedding)
     let query = supabase
       .from('items')
-      .select('id, seller_id, title, description, price, category_id, condition, status, accepts_swap_points, created_at, updated_at, sold_at')
+      .select(
+        'id, seller_id, title, description, price, category_id, condition, status, accepts_swap_points, created_at, updated_at, sold_at'
+      )
       .eq('status', 'available');
 
     // Category filter
@@ -138,22 +137,26 @@ export const getItems = async (
     const sellerIds = [...new Set(filteredItems.map((i: { seller_id: string }) => i.seller_id))];
     const { data: profiles } = await supabase
       .from('profiles')
-      .select(`
+      .select(
+        `
         user_id, 
         name, 
         avatar_url, 
         node_id,
         verification:id_badge_verification_requests(status)
-      `)
+      `
+      )
       .in('user_id', sellerIds);
 
-    const profileMap = new Map<string, any>((profiles || []).map((p: any) => [
-      p.user_id, 
-      {
-        ...p,
-        verification_status: p.verification?.[0]?.status || 'none'
-      }
-    ]));
+    const profileMap = new Map<string, any>(
+      (profiles || []).map((p: any) => [
+        p.user_id,
+        {
+          ...p,
+          verification_status: p.verification?.[0]?.status || 'none',
+        },
+      ])
+    );
 
     // Step 3: Apply node filter (after fetching profiles)
     if (filters.node_id && !filters.include_all_nodes) {
@@ -168,12 +171,16 @@ export const getItems = async (
     }
 
     // Step 4: Fetch node details
-    const nodeIds = Array.from(profileMap.values()).map((p: any) => p.node_id).filter(Boolean) as string[];
+    const nodeIds = Array.from(profileMap.values())
+      .map((p: any) => p.node_id)
+      .filter(Boolean) as string[];
     const { data: nodes } = await supabase
       .from('geographic_nodes')
       .select('id, name, city, state')
       .in('id', nodeIds as string[]);
-    const nodeMap = new Map((nodes || []).map((n: { id: string; name: string; city: string; state: string }) => [n.id, n]));
+    const nodeMap = new Map(
+      (nodes || []).map((n: { id: string; name: string; city: string; state: string }) => [n.id, n])
+    );
 
     // Step 5: Fetch item images
     const itemIds = filteredItems.map((i: { id: string }) => i.id);
@@ -181,39 +188,59 @@ export const getItems = async (
       .from('item_images')
       .select('id, item_id, url, thumbnail_url, display_order')
       .in('item_id', itemIds);
-    const imageMap = new Map<string, { id: string; url: string; thumbnail_url: string | null; display_order: number }[]>();
-    (images || []).forEach((img: { id: string; item_id: string; url: string; thumbnail_url: string | null; display_order: number }) => {
-      if (!imageMap.has(img.item_id)) {
-        imageMap.set(img.item_id, []);
+    const imageMap = new Map<
+      string,
+      { id: string; url: string; thumbnail_url: string | null; display_order: number }[]
+    >();
+    (images || []).forEach(
+      (img: {
+        id: string;
+        item_id: string;
+        url: string;
+        thumbnail_url: string | null;
+        display_order: number;
+      }) => {
+        if (!imageMap.has(img.item_id)) {
+          imageMap.set(img.item_id, []);
+        }
+        imageMap.get(img.item_id)?.push(img);
       }
-      imageMap.get(img.item_id)?.push(img);
-    });
+    );
 
     // Step 6: Fetch categories
-    const catIds = filteredItems.map((i: { category_id: string | null }) => i.category_id).filter(Boolean);
+    const catIds = filteredItems
+      .map((i: { category_id: string | null }) => i.category_id)
+      .filter(Boolean);
     const { data: categories } = await supabase
       .from('categories')
       .select('id, name, icon')
       .in('id', catIds as string[]);
-    const categoryMap = new Map((categories || []).map((c: { id: string; name: string; icon: string | null }) => [c.id, c]));
+    const categoryMap = new Map(
+      (categories || []).map((c: { id: string; name: string; icon: string | null }) => [c.id, c])
+    );
 
     // Step 7: Merge all data
     const finalItems = filteredItems.map((item: Record<string, unknown>) => {
       const profile = profileMap.get(item.seller_id as string);
       const node = nodeMap.get(profile?.node_id as string);
-      const itemImages = (imageMap.get(item.id as string) || []).sort((a: { display_order: number }, b: { display_order: number }) => a.display_order - b.display_order);
+      const itemImages = (imageMap.get(item.id as string) || []).sort(
+        (a: { display_order: number }, b: { display_order: number }) =>
+          a.display_order - b.display_order
+      );
       const category = categoryMap.get(item.category_id as string);
 
       return {
         ...item,
-        seller: profile ? {
-          id: profile.user_id,
-          name: profile.name,
-          avatar_url: profile.avatar_url,
-          node_id: profile.node_id,
-          node: node || null,
-          verification_status: profile.verification_status,
-        } : undefined,
+        seller: profile
+          ? {
+              id: profile.user_id,
+              name: profile.name,
+              avatar_url: profile.avatar_url,
+              node_id: profile.node_id,
+              node: node || null,
+              verification_status: profile.verification_status,
+            }
+          : undefined,
         category: category || null,
         images: itemImages,
       };
@@ -239,7 +266,7 @@ export const getItems = async (
 
 /**
  * Get items within distance radius (NODE-007: Cross-node search)
- * 
+ *
  * @param userNodeId - User's node ID
  * @param radiusMiles - Search radius in miles
  * @param userId - Current user ID
@@ -272,14 +299,11 @@ export const getItemsWithinRadius = async (
     }
 
     // Find all nodes within radius
-    const { data: nearbyNodes, error: nodesError } = await supabase.rpc(
-      'get_nodes_within_radius',
-      {
-        center_lat: userNode.latitude,
-        center_lng: userNode.longitude,
-        radius_miles: radiusMiles,
-      }
-    );
+    const { data: nearbyNodes, error: nodesError } = await supabase.rpc('get_nodes_within_radius', {
+      center_lat: userNode.latitude,
+      center_lng: userNode.longitude,
+      radius_miles: radiusMiles,
+    });
 
     if (nodesError) {
       console.error('❌ Nearby nodes lookup error:', nodesError);
@@ -291,7 +315,6 @@ export const getItemsWithinRadius = async (
     if (nodeIds.length === 0) {
       return [];
     }
-
 
     // Fetch sellers in the nearby nodes
     const { data: sellersInRadius } = await supabase
@@ -307,7 +330,9 @@ export const getItemsWithinRadius = async (
     // Fetch items from those sellers
     let query = supabase
       .from('items')
-      .select('id, seller_id, title, description, price, category_id, condition, status, accepts_swap_points, created_at, updated_at, sold_at')
+      .select(
+        'id, seller_id, title, description, price, category_id, condition, status, accepts_swap_points, created_at, updated_at, sold_at'
+      )
       .eq('status', 'available')
       .in('seller_id', sellerIds);
 
@@ -333,7 +358,9 @@ export const getItemsWithinRadius = async (
       );
     }
 
-    const { data: items, error: itemsError } = await query.order('created_at', { ascending: false });
+    const { data: items, error: itemsError } = await query.order('created_at', {
+      ascending: false,
+    });
 
     if (itemsError) {
       console.error('❌ Items within radius error:', itemsError);
@@ -349,30 +376,41 @@ export const getItemsWithinRadius = async (
     const itemSellerIds = [...new Set(itemsList.map((i: { seller_id: string }) => i.seller_id))];
     const { data: profiles } = await supabase
       .from('profiles')
-      .select(`
+      .select(
+        `
         user_id, 
         name, 
         avatar_url, 
         node_id,
         verification:id_badge_verification_requests(status)
-      `)
+      `
+      )
       .in('user_id', itemSellerIds);
 
-    const profileMap = new Map<string, any>((profiles || []).map((p: any) => [
-      p.user_id, 
-      {
-        ...p,
-        verification_status: p.verification?.[0]?.status || 'none'
-      }
-    ]));
+    const profileMap = new Map<string, any>(
+      (profiles || []).map((p: any) => [
+        p.user_id,
+        {
+          ...p,
+          verification_status: p.verification?.[0]?.status || 'none',
+        },
+      ])
+    );
 
     // Fetch node details
-    const nodeIdList = Array.from(profileMap.values()).map((p: any) => p.node_id).filter(Boolean) as string[];
+    const nodeIdList = Array.from(profileMap.values())
+      .map((p: any) => p.node_id)
+      .filter(Boolean) as string[];
     const { data: nodeData } = await supabase
       .from('geographic_nodes')
       .select('id, name, city, state')
       .in('id', nodeIdList as string[]);
-    const nodeMap = new Map((nodeData || []).map((n: { id: string; name: string; city: string; state: string }) => [n.id, n]));
+    const nodeMap = new Map(
+      (nodeData || []).map((n: { id: string; name: string; city: string; state: string }) => [
+        n.id,
+        n,
+      ])
+    );
 
     // Fetch images
     const itemIdsToFetch = itemsList.map((i: { id: string }) => i.id);
@@ -380,38 +418,58 @@ export const getItemsWithinRadius = async (
       .from('item_images')
       .select('id, item_id, url, thumbnail_url, display_order')
       .in('item_id', itemIdsToFetch);
-    const imageMap = new Map<string, { id: string; url: string; thumbnail_url: string | null; display_order: number }[]>();
-    (images || []).forEach((img: { id: string; item_id: string; url: string; thumbnail_url: string | null; display_order: number }) => {
-      if (!imageMap.has(img.item_id)) {
-        imageMap.set(img.item_id, []);
+    const imageMap = new Map<
+      string,
+      { id: string; url: string; thumbnail_url: string | null; display_order: number }[]
+    >();
+    (images || []).forEach(
+      (img: {
+        id: string;
+        item_id: string;
+        url: string;
+        thumbnail_url: string | null;
+        display_order: number;
+      }) => {
+        if (!imageMap.has(img.item_id)) {
+          imageMap.set(img.item_id, []);
+        }
+        imageMap.get(img.item_id)?.push(img);
       }
-      imageMap.get(img.item_id)?.push(img);
-    });
+    );
 
     // Fetch categories
-    const catIds = itemsList.map((i: { category_id: string | null }) => i.category_id).filter(Boolean);
+    const catIds = itemsList
+      .map((i: { category_id: string | null }) => i.category_id)
+      .filter(Boolean);
     const { data: catData } = await supabase
       .from('categories')
       .select('id, name, icon')
       .in('id', catIds as string[]);
-    const categoryMap = new Map((catData || []).map((c: { id: string; name: string; icon: string | null }) => [c.id, c]));
+    const categoryMap = new Map(
+      (catData || []).map((c: { id: string; name: string; icon: string | null }) => [c.id, c])
+    );
 
     const finalItems = itemsList.map((item: Record<string, unknown>) => {
       const profile = profileMap.get(item.seller_id as string);
       const node = nodeMap.get(profile?.node_id as string);
-      const itemImages = (imageMap.get(item.id as string) || []).sort((a: { display_order: number }, b: { display_order: number }) => a.display_order - b.display_order);
+      const itemImages = (imageMap.get(item.id as string) || []).sort(
+        (a: { display_order: number }, b: { display_order: number }) =>
+          a.display_order - b.display_order
+      );
       const category = categoryMap.get(item.category_id as string);
 
       return {
         ...item,
-        seller: profile ? {
-          id: profile.user_id,
-          name: profile.name,
-          avatar_url: profile.avatar_url,
-          node_id: profile.node_id,
-          node: node || null,
-          verification_status: profile.verification_status,
-        } : undefined,
+        seller: profile
+          ? {
+              id: profile.user_id,
+              name: profile.name,
+              avatar_url: profile.avatar_url,
+              node_id: profile.node_id,
+              node: node || null,
+              verification_status: profile.verification_status,
+            }
+          : undefined,
         category: category || null,
         images: itemImages,
       };
@@ -435,7 +493,7 @@ export const getItemsWithinRadius = async (
 
 /**
  * Get single item by ID
- * 
+ *
  * @param itemId - Item ID
  * @returns Item details
  */
@@ -444,7 +502,8 @@ export const getItemById = async (itemId: string): Promise<Item | null> => {
     // Try fetching with relationship expansion first
     const { data, error } = await supabase
       .from('items')
-      .select(`
+      .select(
+        `
         *,
         seller:profiles(
           user_id,
@@ -461,13 +520,14 @@ export const getItemById = async (itemId: string): Promise<Item | null> => {
         ),
         category:categories(id, name, icon),
         images:item_images(id, url, thumbnail_url, display_order)
-      `)
+      `
+      )
       .eq('id', itemId)
       .maybeSingle();
 
     if (error) {
       console.warn('⚠️ getItemById join failed, falling back to separate fetches:', error.message);
-      
+
       // Fallback: Fetch item first, then related data (more resilient to schema cache issues)
       const { data: item, error: itemError } = await supabase
         .from('items')
@@ -478,16 +538,26 @@ export const getItemById = async (itemId: string): Promise<Item | null> => {
       if (itemError || !item) return null;
 
       const [sellerRes, categoryRes, imagesRes] = await Promise.all([
-        supabase.from('profiles').select('*, node:nodes(*)').eq('user_id', item.seller_id).maybeSingle(),
-        item.category_id ? supabase.from('categories').select('*').eq('id', item.category_id).maybeSingle() : Promise.resolve({ data: null }),
-        supabase.from('item_images').select('*').eq('item_id', itemId).order('display_order', { ascending: true })
+        supabase
+          .from('profiles')
+          .select('*, node:nodes(*)')
+          .eq('user_id', item.seller_id)
+          .maybeSingle(),
+        item.category_id
+          ? supabase.from('categories').select('*').eq('id', item.category_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabase
+          .from('item_images')
+          .select('*')
+          .eq('item_id', itemId)
+          .order('display_order', { ascending: true }),
       ]);
 
       return {
         ...item,
         seller: sellerRes.data,
         category: categoryRes.data,
-        images: imagesRes.data || []
+        images: imagesRes.data || [],
       } as Item;
     }
 
@@ -507,7 +577,7 @@ export const getItemById = async (itemId: string): Promise<Item | null> => {
 
 /**
  * Get all categories
- * 
+ *
  * @returns Array of categories
  */
 export const getCategories = async () => {
@@ -530,7 +600,7 @@ export const getCategories = async () => {
 /**
  * Create new item listing
  * (Will be expanded in MODULE-04)
- * 
+ *
  * @param itemData - Item data
  * @returns Created item
  */
@@ -543,8 +613,10 @@ export const createItem = async (itemData: {
   accepts_swap_points?: boolean;
 }): Promise<Item> => {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     if (!user) {
       throw new Error('User not authenticated');
     }
@@ -555,7 +627,10 @@ export const createItem = async (itemData: {
     );
 
     if (eligibilityError) {
-      console.warn('⚠️ SP eligibility check failed, continuing with pending review:', eligibilityError);
+      console.warn(
+        '⚠️ SP eligibility check failed, continuing with pending review:',
+        eligibilityError
+      );
     }
 
     // Get current subscription status for audit trail

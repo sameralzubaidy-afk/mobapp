@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/__tests__/discovery-v2-003.e2e.ts
  * MODULE-05-DISCOVERY-V2: End-to-End Tests
  * Task: DISCOVERY-V2-003 - Category Browsing with SP Filter
- * 
+ *
  * E2E tests for category browsing functionality
  */
 
@@ -11,12 +11,12 @@ import { supabase } from '../config/supabase';
 
 /**
  * E2E Test: Category Browsing (DISCOVERY-V2-003)
- * 
+ *
  * Prerequisites:
  * - Supabase production instance must be running
  * - Database migrations applied
  * - Test data with categories and listings created
- * 
+ *
  * Run with: npm test src/__tests__/discovery-v2-003.e2e.ts
  */
 describe('E2E: DISCOVERY-V2-003 - Category Browsing', () => {
@@ -29,11 +29,8 @@ describe('E2E: DISCOVERY-V2-003 - Category Browsing', () => {
 
     beforeAll(async () => {
       // Fetch a real category name from the database to use for testing
-      const { data: categories, error } = await supabase
-        .from('categories')
-        .select('name')
-        .limit(1);
-      
+      const { data: categories, error } = await supabase.from('categories').select('name').limit(1);
+
       if (categories && categories.length > 0) {
         realCategoryName = categories[0].name;
         console.log(`Using real category for E2E test: ${realCategoryName}`);
@@ -59,7 +56,7 @@ describe('E2E: DISCOVERY-V2-003 - Category Browsing', () => {
         expect(item).toHaveProperty('category_id');
         // Since we fetched by category name, the category_id should be consistent
         const categoryId = item.category_id;
-        expect(results.every(r => r.category_id === categoryId)).toBe(true);
+        expect(results.every((r) => r.category_id === categoryId)).toBe(true);
       }
     });
 
@@ -71,7 +68,7 @@ describe('E2E: DISCOVERY-V2-003 - Category Browsing', () => {
       expect(Array.isArray(results)).toBe(true);
       // All results should have accepts_swap_points = true
       if (results.length > 0) {
-        expect(results.every(r => r.accepts_swap_points)).toBe(true);
+        expect(results.every((r) => r.accepts_swap_points)).toBe(true);
       }
     });
 
@@ -110,7 +107,9 @@ describe('E2E: DISCOVERY-V2-003 - Category Browsing', () => {
       // Assert
       const duration = performance.now() - startTime;
       expect(duration).toBeLessThan(500);
-      console.log(`Category fetch for "${realCategoryName}" completed in ${duration.toFixed(2)}ms with ${results.length} results`);
+      console.log(
+        `Category fetch for "${realCategoryName}" completed in ${duration.toFixed(2)}ms with ${results.length} results`
+      );
     });
   });
 });

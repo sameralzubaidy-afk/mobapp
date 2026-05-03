@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/services/__tests__/listing.test.ts
  * MODULE-04 LISTING-V2: Unit tests for listing service
- * 
+ *
  * Tests:
  * - LISTING-V2-002: Create listing with SP payment preference
  * - LISTING-V2-003: Edit and delete listing with V2 rules
@@ -18,7 +18,9 @@ jest.mock('../subscription');
 jest.mock('../analytics');
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
-const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction<typeof getSubscriptionSummary>;
+const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction<
+  typeof getSubscriptionSummary
+>;
 const mockTrackEvent = trackEvent as jest.MockedFunction<typeof trackEvent>;
 
 describe('listing service', () => {
@@ -77,10 +79,13 @@ describe('listing service', () => {
 
       expect(result).toEqual(mockListing);
       expect(mockGetSubscriptionSummary).toHaveBeenCalledWith('user-123');
-      expect(mockTrackEvent).toHaveBeenCalledWith('listing_created', expect.objectContaining({
-        listing_id: 'listing-123',
-        accepts_swap_points: true,
-      }));
+      expect(mockTrackEvent).toHaveBeenCalledWith(
+        'listing_created',
+        expect.objectContaining({
+          listing_id: 'listing-123',
+          accepts_swap_points: true,
+        })
+      );
     });
 
     it('should reject SP payment for non-subscriber', async () => {
@@ -171,9 +176,12 @@ describe('listing service', () => {
       });
 
       expect(result.title).toBe('New Title');
-      expect(mockTrackEvent).toHaveBeenCalledWith('listing_updated', expect.objectContaining({
-        listing_id: 'listing-123',
-      }));
+      expect(mockTrackEvent).toHaveBeenCalledWith(
+        'listing_updated',
+        expect.objectContaining({
+          listing_id: 'listing-123',
+        })
+      );
     });
 
     it('should reject update from non-owner', async () => {
@@ -313,9 +321,12 @@ describe('listing service', () => {
 
       // Verify soft delete (update to status='deleted')
       expect(mockSupabase.from).toHaveBeenCalledWith('items');
-      expect(mockTrackEvent).toHaveBeenCalledWith('listing_deleted', expect.objectContaining({
-        listing_id: 'listing-123',
-      }));
+      expect(mockTrackEvent).toHaveBeenCalledWith(
+        'listing_deleted',
+        expect.objectContaining({
+          listing_id: 'listing-123',
+        })
+      );
     });
 
     it('should reject delete from non-owner', async () => {

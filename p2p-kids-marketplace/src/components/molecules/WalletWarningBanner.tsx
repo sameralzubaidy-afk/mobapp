@@ -13,7 +13,7 @@ interface WalletWarningBannerProps {
 /**
  * WalletWarningBanner displays state-specific warnings for non-active wallet states.
  * Used in WalletScreen and CheckoutScreen to communicate wallet restrictions to users.
- * 
+ *
  * Visibility Rules:
  * - active: No banner shown (normal operation)
  * - frozen: Blue banner (subscription in grace period, cannot spend)
@@ -31,16 +31,10 @@ const WalletWarningBanner: React.FC<WalletWarningBannerProps> = ({ walletState }
 
   return (
     <View style={[styles.container, { backgroundColor: config.bgColor }]}>
-      <Text style={[styles.icon, { color: config.iconColor }]}>
-        {config.icon}
-      </Text>
+      <Text style={[styles.icon, { color: config.iconColor }]}>{config.icon}</Text>
       <View style={styles.textContainer}>
-        <Text style={[styles.title, { color: config.textColor }]}>
-          {config.title}
-        </Text>
-        <Text style={[styles.message, { color: config.textColor }]}>
-          {config.message}
-        </Text>
+        <Text style={[styles.title, { color: config.textColor }]}>{config.title}</Text>
+        <Text style={[styles.message, { color: config.textColor }]}>{config.message}</Text>
       </View>
     </View>
   );
@@ -52,7 +46,8 @@ function getWarningConfig(state: WalletState) {
       return {
         icon: '⚠️',
         title: 'Swap Points Frozen',
-        message: 'Your subscription is in grace period. Renew your subscription to restore SP access.',
+        message:
+          'Your subscription is in grace period. Renew your subscription to restore SP access.',
         bgColor: '#DBEAFE', // blue-100
         iconColor: '#1E40AF', // blue-800
         textColor: '#1E3A8A', // blue-900

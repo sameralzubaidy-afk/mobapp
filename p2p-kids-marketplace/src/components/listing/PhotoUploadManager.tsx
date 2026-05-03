@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/components/listing/PhotoUploadManager.tsx
  * MODULE-04 LISTING-V3-008: Photo Upload Manager Component
  * Task: LISTING-V3-008 - Step-1 photo grid with reorder capability
- * 
+ *
  * Features:
  * - Max 10 photos
  * - First photo marked as "Cover"
@@ -10,14 +10,7 @@
  */
 
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  FlatList,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Image, FlatList, StyleSheet } from 'react-native';
 import { PhotoAsset } from '../../types/listing';
 
 export interface PhotoUploadManagerProps {

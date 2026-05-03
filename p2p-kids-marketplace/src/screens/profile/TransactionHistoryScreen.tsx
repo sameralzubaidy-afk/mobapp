@@ -1,7 +1,7 @@
 /**
  * File: p2p-kids-marketplace/src/screens/profile/TransactionHistoryScreen.tsx
  * MODULE-11 TASK SUB-015: Billing History Screen
- * 
+ *
  * Displays the user's Stripe billing history entries from the billing_history table.
  */
 
@@ -81,8 +81,18 @@ export default function TransactionHistoryScreen() {
       </View>
       <View style={styles.itemFooter}>
         <Text style={styles.date}>{formatDate(item.charged_at)}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: item.status === 'succeeded' ? '#dcfce7' : '#fee2e2' }]}>
-          <Text style={[styles.statusText, { color: item.status === 'succeeded' ? '#166534' : '#991b1b' }]}>
+        <View
+          style={[
+            styles.statusBadge,
+            { backgroundColor: item.status === 'succeeded' ? '#dcfce7' : '#fee2e2' },
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusText,
+              { color: item.status === 'succeeded' ? '#166534' : '#991b1b' },
+            ]}
+          >
             {item.status.toUpperCase()}
           </Text>
         </View>

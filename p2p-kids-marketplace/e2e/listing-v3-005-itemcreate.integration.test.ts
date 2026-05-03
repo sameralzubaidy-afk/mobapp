@@ -2,18 +2,24 @@
  * File: e2e/listing-v3-005-itemcreate.integration.test.ts
  * MODULE-04 LISTING-V3-005: Integration Tests for ItemCreate Flow
  * Task: LISTING-V3-005 - Test full photo-first listing creation against staging Supabase
- * 
+ *
  * Tests:
  * - Full flow: photo upload → AI analysis → form fill → publish
  * - Draft persistence and recovery
  * - Category "Other" flag creation
  * - Price suggestions based on real data
- * 
+ *
  * Run: RUN_SUPABASE_E2E=true npm run test:e2e
  */
 
 import { supabase } from '../src/config/supabase';
-import { createItemDraft, updateItemDraft, publishDraft, deleteDraft, getItemDraft } from '../src/services/draftService';
+import {
+  createItemDraft,
+  updateItemDraft,
+  publishDraft,
+  deleteDraft,
+  getItemDraft,
+} from '../src/services/draftService';
 import { analyzePhotosBatch } from '../src/services/aiService';
 import { uploadPhotoBatch } from '../src/services/photoService';
 import { createItem } from '../src/services/items';
@@ -44,7 +50,8 @@ describeIfE2E('LISTING-V3-005: ItemCreate Integration Tests', () => {
 
     if (!email || !password) {
       canRunSuite = false;
-      skipReason = 'Set SUPABASE_E2E_TEST_EMAIL and SUPABASE_E2E_TEST_PASSWORD for authenticated E2E';
+      skipReason =
+        'Set SUPABASE_E2E_TEST_EMAIL and SUPABASE_E2E_TEST_PASSWORD for authenticated E2E';
       return;
     }
 
@@ -162,9 +169,7 @@ describeIfE2E('LISTING-V3-005: ItemCreate Integration Tests', () => {
   describe('AI Analysis Flow', () => {
     itE2E('should analyze photos and return suggestions', async () => {
       // Mock photo URLs (in real E2E, these would be uploaded photos)
-      const photoUrls = [
-        'https://example.com/test-photo-1.jpg',
-      ];
+      const photoUrls = ['https://example.com/test-photo-1.jpg'];
 
       // In staging, AI service should return analysis
       // For now, verify service contract
@@ -326,7 +331,7 @@ describeIfE2E('LISTING-V3-005: ItemCreate Integration Tests', () => {
       const aiSuggestions = {
         title: { value: 'Nike Sneakers', confidence: 0.85 },
         category: { value: { categoryId: 'test-category-1' }, confidence: 0.75 },
-        condition: { value: 'like_new', confidence: 0.80 },
+        condition: { value: 'like_new', confidence: 0.8 },
       };
 
       await updateItemDraft(draft!.id, {
@@ -358,11 +363,7 @@ describeIfE2E('LISTING-V3-005: ItemCreate Integration Tests', () => {
       expect(itemId).toBeDefined();
 
       // 7. Verify item exists
-      const { data: item } = await supabase
-        .from('items')
-        .select('*')
-        .eq('id', itemId)
-        .single();
+      const { data: item } = await supabase.from('items').select('*').eq('id', itemId).single();
 
       expect(item).toBeDefined();
       expect(item.title).toBe('Nike Sneakers Size 5');
