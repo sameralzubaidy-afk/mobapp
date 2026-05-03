@@ -57,53 +57,52 @@ My Example 1
 
 
 
-## TASK EDU-001: Schema Migrations — Sections, Examples, Analytics + Seed + Publish RPCs
+## TASK EDU-003: Backend Services — Content + Example + SP Calculator + Analytics
 
 I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
-Tasks: ## TASK EDU-001: Schema Migrations — Sections, Examples, Analytics + Seed + Publish RPCs
+Tasks: ## TASK EDU-003: Backend Services — Content + Example + SP Calculator + Analytics
 
-scope is 
-
-Create the three content tables (`education_sections`, `education_examples`, `education_analytics`) with RLS, partial unique index for single-published-per-type, the `publish_section` / `unpublish_section` SECURITY DEFINER RPCs, 2 new columns on `user_profiles` (`onboarding_completed_at`, `onboarding_skipped_at`, `education_prompts_seen`, `education_prompts_suppressed_at`), and the initial seed content (4 sections + 3 example scenarios).
+Define the shared TypeScript types (`EducationSection`, `SectionType`, `EducationExample`, `SPCalculation`, `BonusCategory`, `EducationAnalyticsEvent`) and typed error classes (`ContentValidationError`, `UnauthorizedError`, `DuplicatePublishedSectionError`) used across mobile + admin-portal.
 
 ### Scope
 
-- 4 Supabase migrations (`20260420000018`–`20260420000021`) in strict order.
-- All CHECK constraints, RLS policies, partial unique indexes, triggers, comments.
-- Seed content for the 4 core sections (`sp_definition`, `sp_earning`, `sp_spending`, `safety`) and 3 examples.
-- `user_profiles` additions for onboarding + prompt tracking.
+Implement four service modules (mobile-side for user reads, admin-portal-side for CMS writes): `ContentService` (get sections, publish/unpublish via RPC), `ExampleService` (CRUD + on-read SP calculation delegation), `SPCalculatorService` (thin wrapper over MODULE-12 V3's `calculateCategorySP` shaped to `SPCalculation`), and `AnalyticsService` (append-only event logging + admin aggregations).
 
-**Out of scope:**
-- Analytics materialized views (deferred — raw queries for MVP).
-- Seeding `education_examples.category_id` values (admin links via CMS after launch).
-- Pre-aggregated analytics tables (deferred).
+### Scope
 
-### Files to Create
+- 4 mobile services (read-only + analytics write) + 3 admin services (CMS writes + analytics reads).
+- Delegation to MODULE-12 V3 for all SP math.
+- React Query-friendly signatures (Promise-returning, stable keys).
+- Analytics: fire-and-forget on mobile; `console.warn` on write failure.
 
-| File | Purpose |
-|---|---|
-| `supabase/migrations/20260420000018_create_education_sections.sql` | `education_sections` table + RLS + partial unique index + trigger |
-| `supabase/migrations/20260420000019_create_education_examples.sql` | `education_examples` table + RLS + indexes + trigger |
-| `supabase/migrations/20260420000020_create_education_analytics_and_seed.sql` | `education_analytics` table + RLS (INSERT-only) + `user_profiles` columns + seed content |
-| `supabase/migrations/20260420000021_education_publish_rpcs.sql` | `publish_section(id UUID)` + `unpublish_section(id UUID)` SECURITY DEFINER RPCs |
+### Files to Create / Modify
+
+| Path | Action | Key Exports |
+|---|---|---|
+| `p2p-kids-marketplace/src/services/educationContentService.ts` | NEW | `getPublishedSections`, `getSectionByType` |
+| `p2p-kids-marketplace/src/services/educationExampleService.ts` | NEW | `getPublishedExamples`, `calculateExampleSP` |
+| `p2p-kids-marketplace/src/services/spCalculatorService.ts` | NEW | `calculateSP`, `getBonusCategories` (delegates to MODULE-12 V3) |
+| `p2p-kids-marketplace/src/services/educationAnalyticsService.ts` | NEW | `trackEducationEvent`, `shouldShowOnboarding`, `markOnboardingComplete`, `markOnboardingSkipped`, `markPromptSeen`, `shouldShowPrompt` |
+| `admin-portal/src/services/educationContentService.ts` | NEW | `getAllSections` (drafts+published), `updateSection`, `publishSection` (RPC), `unpublishSection` (RPC), `createSection` |
+| `admin-portal/src/services/educationExampleService.ts` | NEW | `getAllExamples`, `createExample`, `updateExample`, `deleteExample` |
+| `admin-portal/src/services/educationAnalyticsService.ts` | NEW | `getEducationAnalytics(dateRange)` — aggregations |
 
 ### Acceptance Criteria
 
-- [ ] Four migration files exist at the exact paths above.
-- [ ] `education_sections` has `id, title, body, image_url, display_order, section_type, is_published, published_at, published_by, created_at, updated_at` with CHECKs (`LENGTH(title) BETWEEN 3 AND 100`, `LENGTH(body) BETWEEN 10 AND 2000`, `LENGTH(image_url) <= 500`, `section_type IN (…)`).
-- [ ] Partial unique index `uq_education_sections_one_published_per_type` on `(section_type) WHERE is_published = true`.
-- [ ] RLS: "Anyone can view published sections" (FOR SELECT `USING (is_published = true)`) + "Admin can manage all sections" (FOR ALL via `user_roles`).
-- [ ] Trigger `education_sections_updated_at` sets `updated_at = now()` on UPDATE.
-- [ ] `education_examples` has `id, item_name, item_price, category_id, display_order, is_published, created_at, updated_at` with `item_price > 0 AND <= 10000`; same RLS model as sections; same updated-at trigger.
-- [ ] `education_analytics` has `id, user_id (nullable), event_type, event_data jsonb, created_at`; RLS allows INSERT by authenticated users, SELECT by admin only, NO UPDATE/DELETE policies (effectively blocked).
-- [ ] `user_profiles` gains columns `onboarding_completed_at TIMESTAMPTZ`, `onboarding_skipped_at TIMESTAMPTZ`, `education_prompts_seen JSONB DEFAULT '[]'::jsonb`, `education_prompts_suppressed_at TIMESTAMPTZ`.
-- [ ] Indexes: `idx_education_sections_published (display_order) WHERE is_published = true`, `idx_education_sections_type (section_type, is_published)`, `idx_education_examples_published (display_order) WHERE is_published = true`, `idx_education_analytics_event_type (event_type, created_at DESC)`, `idx_education_analytics_user (user_id, created_at DESC)`.
-- [ ] Seed: 4 published sections (sp_definition, sp_earning, sp_spending, safety) + 3 draft examples (category_id = NULL; admin links later).
-- [ ] RPCs `publish_section(id)` + `unpublish_section(id)` are `SECURITY DEFINER`, check `user_roles.role = 'admin'`, and `publish_section` unpublishes the previous row of the same `section_type` atomically.
-- [ ] All migrations idempotent (`IF NOT EXISTS`, `CREATE OR REPLACE`, `ON CONFLICT DO NOTHING` for seed).
-- [ ] Commented verification queries at the bottom of each file.
-
+- [ ] `getPublishedSections()` SELECTs `is_published=true` ordered by `display_order`; cached 5 min.
+- [ ] `getSectionByType(type)` returns the single published row or `null`.
+- [ ] `calculateExampleSP(price, categoryId)` internally calls MODULE-12 V3 `categoryService.calculateCategorySP(categoryId, price)` and shapes to `{ earn_sp, max_use_sp, cash_paid, fee, is_bonus }`. If category is missing/inactive → returns `null`.
+- [ ] `calculateSP(itemPrice, categoryId, mode, spToUse?)` returns `SPCalculation` discriminated union; delegates 100% of math to MODULE-12 V3.
+- [ ] `getBonusCategories()` delegates to MODULE-12 V3 `spConfigService.getBonusCategories()` — does NOT re-query.
+- [ ] `trackEducationEvent(eventType, eventData?)` is fire-and-forget (returns `Promise<void>` that never rejects); logs via `console.warn` on failure.
+- [ ] `shouldShowOnboarding(userId)` returns `true` iff both `onboarding_completed_at IS NULL` and `onboarding_skipped_at IS NULL`.
+- [ ] `markPromptSeen(userId, key)` appends `key` to `user_profiles.education_prompts_seen` (JSONB array; idempotent).
+- [ ] Admin `publishSection(id)` calls RPC `publish_section(id)` — never does the transition client-side.
+- [ ] Admin `createExample({item_name, item_price, category_id?})` starts with `is_published = false`; `deleteExample(id)` refuses when `is_published = true`.
+- [ ] `getEducationAnalytics({startDate, endDate})` returns `{ onboarding: { started, completed, skipped, completionRate }, help: { views, sectionExpansionsByType }, calculator: { uses, uniqueUsers, priceBucketHistogram } }`.
+- [ ] All services use strict TS; no `any`; no ad-hoc `as` casts.
+- [ ] Unit tests cover happy paths + null-category + admin-only-enforcement.
 
 i want you to 
 

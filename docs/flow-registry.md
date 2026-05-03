@@ -2710,7 +2710,18 @@ This file is the canonical registry of end-to-end flows and their required regre
     - RLS policies: Anyone views published, admin manages all; analytics INSERT-only (no UPDATE/DELETE)
     - Migration files: `20260420000018..000021`
     - Manual test guide: `docs/manual_testing/EDU-001-SCHEMA-MIGRATIONS.md` (14 SQL test cases)
-  - EDU-002 (Types & Errors): Shared TypeScript types for sections/examples/calculator/analytics
+  - **EDU-002 (Types & Errors) - COMPLETE ✅:** Shared TypeScript types for sections/examples/calculator/analytics
+    - Mobile types: `education.ts` (EducationSection, SectionType, EducationExample, SPCalculation, EducationAnalyticsEvent, BonusCategory re-export)
+    - Mobile errors: `education-errors.ts` (ContentValidationError, AnalyticsWriteError)
+    - Admin types: `education.ts` (all mobile types + CreateSectionInput, UpdateSectionInput, CreateExampleInput, UpdateExampleInput, EducationAnalytics)
+    - Admin errors: `education-errors.ts` (ContentValidationError, UnauthorizedError, DuplicatePublishedSectionError)
+    - Test coverage: 61/61 unit tests PASS (27 mobile + 34 admin)
+    - No `any` types (strict TypeScript)
+    - Package independence verified (mobile doesn't import admin, admin doesn't import mobile)
+    - BonusCategory reused from MODULE-12 V3 (no duplication in mobile)
+    - Discriminated union: SPCalculation on mode ('sell' | 'buy')
+    - Manual test guide: `docs/EDU-002-MANUAL-TESTING-GUIDE.md` (10 test cases)
+    - Summary: `docs/EDU-002-IMPLEMENTATION-SUMMARY.md`
   - EDU-003 (Backend Services): Content service, example service, SP calculator, analytics service
   - EDU-004 (Onboarding Carousel): 5-screen skippable carousel on first app open
   - EDU-005 (Help Screen): Accordion sections + embedded SP calculator + bonus categories
