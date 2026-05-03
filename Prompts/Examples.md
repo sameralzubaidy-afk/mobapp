@@ -56,45 +56,45 @@ Supabase: supabase/
 My Example 1
 
 
-## TASK EDU-004: Mobile UI — OnboardingCarousel + First-Run Gating
+## TASK EDU-005: Mobile UI — HelpScreen (Accordion + Embedded Calculator + Bonus Categories)
+
 
 I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
-Tasks: ## TASK EDU-004: Mobile UI — OnboardingCarousel + First-Run Gating
+Tasks: ## TASK EDU-005: Mobile UI — HelpScreen (Accordion + Embedded Calculator + Bonus Categories)
 
 Define the shared TypeScript types (`EducationSection`, `SectionType`, `EducationExample`, `SPCalculation`, `BonusCategory`, `EducationAnalyticsEvent`) and typed error classes (`ContentValidationError`, `UnauthorizedError`, `DuplicatePublishedSectionError`) used across mobile + admin-portal.
 
 ### Scope
 
-Build the 5-screen swipeable onboarding carousel that shows on first app open, with progress dots, skip/next buttons, analytics hooks, and completion tracking via `markOnboardingComplete` / `markOnboardingSkipped`.
+Build the always-accessible `HelpScreen` (Settings → Help → How Trading Works): accordion of published sections (SP Definition expanded by default), embedded `SPCalculator`, and "Bonus Categories" list showing every category with `sp_earning_multiplier > 1.10`.
 
 ### Scope
-- 1 new screen + 1 new carousel component + 5 screen-data entries.
-- First-run gate wired into app root (after auth, before main tabs).
-- Asset directory for onboarding illustrations.
+- 1 new screen + 2 new components (`EducationSectionAccordion`, `BonusCategoriesList`).
+- Pull-to-refresh.
+- Deep link via `?section=sp_spending` query param.
+- Settings menu entry wired into MODULE-03 V2 Settings.
+
 
 ### Files to Create / Modify
 
 | Path | Action | Purpose |
 |---|---|---|
-| `p2p-kids-marketplace/src/screens/onboarding/OnboardingScreen.tsx` | NEW | Root screen — carousel container + gating |
-| `p2p-kids-marketplace/src/components/onboarding/OnboardingCarousel.tsx` | NEW | Swipeable 5-screen carousel with progress dots |
-| `p2p-kids-marketplace/src/components/onboarding/OnboardingScreenCard.tsx` | NEW | Single screen (illustration + title + body) |
-| `p2p-kids-marketplace/src/data/onboarding-screens.ts` | NEW | 5 static screen definitions (welcome + 3 SP + safety) |
-| `p2p-kids-marketplace/src/assets/onboarding/` | NEW | 5 illustration PNGs (placeholder until design delivers) |
-| `p2p-kids-marketplace/src/navigation/RootNavigator.tsx` | MODIFY | Check `shouldShowOnboarding(user.id)` → route to `OnboardingScreen` before `MainTabs` |
+| `p2p-kids-marketplace/src/screens/help/HelpScreen.tsx` | NEW | Route `/settings/help`; accordion + calculator + bonus list |
+| `p2p-kids-marketplace/src/components/education/EducationSectionAccordion.tsx` | NEW | Expand/collapse animated section |
+| `p2p-kids-marketplace/src/components/education/BonusCategoriesList.tsx` | NEW | List of bonus categories with badges + earn-rate text |
+| `p2p-kids-marketplace/src/screens/settings/SettingsScreen.tsx` | MODIFY | Add "Help → How Trading Works" row |
 
 ### Acceptance Criteria
 
-- [ ] Carousel renders 5 screens; swipe left/right navigates; keyboard arrow keys work on web.
-- [ ] Progress dots update (filled = current; ghosted = others).
-- [ ] "Skip" button on every screen calls `markOnboardingSkipped` → navigates to `MainTabs`.
-- [ ] Final screen shows "Get Started" → calls `markOnboardingComplete` → navigates to `MainTabs`.
-- [ ] `onboarding_start` analytics event fires on first render (guarded against duplicates per mount).
-- [ ] `onboarding_complete` or `onboarding_skip` fires on exit path; `section_expand` events NOT fired here (those live in HelpScreen).
-- [ ] Subsequent app opens: `shouldShowOnboarding(user.id)` returns `false` → carousel bypassed.
-- [ ] Full a11y: each screen announces `"Onboarding, step N of 5, <title>"`; skip button has `accessibilityLabel="Skip onboarding"`.
-- [ ] No reference to MODULE-12 V3 category data (onboarding content is static and admin-controlled via sections — screens 2–4 pull body from `getSectionByType('sp_definition'|'sp_earning'|'sp_spending')`; screen 5 from `'safety'`).
+- [ ] Route reachable from Settings. Initial load < 1 s with sections cached.
+- [ ] Accordion: `sp_definition` expanded by default; other sections collapsed; tap header toggles; `accessibilityState={expanded}` announced.
+- [ ] Each section renders body as plain text with newline preservation (no markdown).
+- [ ] Calculator embedded below sections; defaults to "Select a category".
+- [ ] "Bonus Categories" section renders under the calculator: list of categories where `sp_earning_multiplier > 1.10` sorted DESC by multiplier; each row shows icon + name + `BonusCategoryBadge` + formatted earn-rate (e.g. `"Earn 1.30× SP"`).
+- [ ] Analytics events: `help_view` on mount (once per mount); `section_expand` on each expand (event_data: `{ section_type }`).
+- [ ] Deep-link: opening `/settings/help?section=sp_spending` auto-expands that section and scrolls into view.
+- [ ] Pull-to-refresh invalidates `['education-sections']` + `['bonus-categories']` query keys.
 
 
 i want you to 

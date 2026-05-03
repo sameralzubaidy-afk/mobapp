@@ -15,7 +15,7 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { sendPhoneVerificationCode, verifyPhoneCode } from '@/services/verification';
+import { sendPhoneVerificationCode, verifyPhoneCode } from '@/services/phoneService';
 
 interface RouteParams {
   userId: string;
@@ -52,17 +52,22 @@ export default function PhoneVerificationScreen() {
     if (countdown > 0) return;
 
     setResending(true);
-    const result = await sendPhoneVerificationCode(userId, phone);
-    setResending(false);
-
-    if (result.success) {
-      Alert.alert(
-        'Code Sent',
-        `A verification code has been sent to ${phone}\n\n🧪 For testing, use code: 123456`
-      );
+    try {
+      const result = await sendPhoneVerificationCode(phone);
+      if (result.devBypass && result.devBypassCode) {
+        Alert.alert(
+          'Code Sent (DEV Bypass)',
+          `SMS provider is unavailable in development. Use code: ${result.devBypassCode}`
+        );
+      } else {
+        Alert.alert('Code Sent', `A verification code has been sent to ${phone}`);
+      }
       setCountdown(60); // 60 second cooldown
-    } else {
-      Alert.alert('Error', result.error || 'Failed to send verification code');
+    } catch (error) {
+      const err = error as Error;
+      Alert.alert('Error', err.message || 'Failed to send verification code');
+    } finally {
+      setResending(false);
     }
   };
 
@@ -101,12 +106,9 @@ export default function PhoneVerificationScreen() {
     }
 
     setLoading(true);
-
-    const result = await verifyPhoneCode(userId, phone, verificationCode);
-
-    setLoading(false);
-
-    if (result.success) {
+    try {
+      await verifyPhoneCode(phone, verificationCode);
+      setLoading(false);
       Alert.alert('Success!', "Your phone number has been verified. Let's complete your profile!", [
         {
           text: 'Continue',
@@ -116,8 +118,10 @@ export default function PhoneVerificationScreen() {
           },
         },
       ]);
-    } else {
-      Alert.alert('Verification Failed', result.error || 'Invalid code');
+    } catch (error) {
+      setLoading(false);
+      const err = error as Error;
+      Alert.alert('Verification Failed', err.message || 'Invalid code');
       // Clear code inputs on error
       setCode(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
@@ -135,10 +139,6 @@ export default function PhoneVerificationScreen() {
           <Text style={styles.subtitle}>
             We sent a 6-digit code to{'\n'}
             <Text style={styles.phone}>{phone}</Text>
-          </Text>
-
-          <Text style={styles.testNote}>
-            🧪 For testing, use code: <Text style={styles.testCode}>123456</Text>
           </Text>
 
           <View style={styles.codeContainer}>
@@ -229,22 +229,6 @@ const styles = StyleSheet.create({
   phone: {
     fontWeight: '600',
     color: '#1a1a1a',
-  },
-  testNote: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 32,
-    backgroundColor: '#fff3cd',
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ffc107',
-  },
-  testCode: {
-    fontWeight: 'bold',
-    color: '#ff6b35',
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   codeContainer: {
     flexDirection: 'row',

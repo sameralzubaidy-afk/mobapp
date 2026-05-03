@@ -64,12 +64,18 @@ export function usePhoneVerification() {
     setState((prev) => ({ ...prev, isSending: true, error: null }));
 
     try {
-      await sendPhoneVerificationCode(state.phone);
+      const result = await sendPhoneVerificationCode(state.phone);
+
+      const helperMessage =
+        result.devBypass && result.devBypassCode
+          ? `DEV mode: use code ${result.devBypassCode}`
+          : null;
 
       setState((prev) => ({
         ...prev,
         isSending: false,
         step: 'code',
+        error: helperMessage,
         resendCountdown: 60,
         canResend: false,
       }));

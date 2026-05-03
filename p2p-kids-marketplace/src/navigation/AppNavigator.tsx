@@ -28,6 +28,8 @@ import SubscriptionChoiceScreen from '@/screens/onboarding/SubscriptionChoiceScr
 import LocationPickerScreen from '@/screens/onboarding/LocationPickerScreen';
 import NodeSelectionScreen from '@/screens/onboarding/NodeSelectionScreen';
 import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScreen';
+// MODULE-18 EDU-004: Trading education onboarding carousel
+import OnboardingScreen from '@/screens/onboarding/OnboardingScreen';
 import CreateListingScreen from '@/screens/listing/CreateListingScreen';
 import ItemCreateScreen from '@/screens/ItemCreateScreen';
 import BulkListingCreateScreen from '@/screens/BulkListingCreateScreen';
@@ -121,16 +123,20 @@ const navigationRef = createNavigationContainerRef<any>();
 
 /**
  * MODULE-03 AUTH-V2-003: RootNavigator
+ * MODULE-18 EDU-004: Onboarding carousel first-run gating
  *
  * Handles both authenticated and unauthenticated state transitions
  *
  * KEY FIX: Check BOTH session AND onboarding_completed status
- * - If session exists BUT onboarding not complete → show onboarding stack
+ * - If session exists BUT onboarding carousel not complete → show carousel
  * - If session exists AND onboarding complete → show authenticated/dashboard stack
  * - If no session → show landing/auth stack
  */
 function RootNavigator() {
   const { session, isLoading } = React.useContext(AuthContext);
+  const [shouldShowOnboardingCarousel, setShouldShowOnboardingCarousel] = React.useState(false);
+  const [onboardingCheckComplete, setOnboardingCheckComplete] = React.useState(false);
+  const currentUserId = session?.user?.id ?? null;
 
   // Fail-open guard: if some startup network call hangs, do not block the entire UI forever.
   // We still prefer waiting for auth init, but after a short grace period, render the auth stack.
@@ -153,6 +159,51 @@ function RootNavigator() {
   const lastRouteNameRef = React.useRef<string | undefined>(undefined);
   const pendingNotificationDataRef = React.useRef<NotificationDeepLinkData | null>(null);
   const notificationSourceRef = React.useRef<'push' | 'in_app' | 'cold_start'>('push');
+
+  // MODULE-18 EDU-004: Check if onboarding carousel should be shown
+  React.useEffect(() => {
+    let cancelled = false;
+
+    async function checkOnboarding() {
+      // Reset gate state whenever auth user changes to avoid stale decisions
+      // leaking across logout/login transitions.
+      setShouldShowOnboardingCarousel(false);
+      setOnboardingCheckComplete(false);
+
+      if (!currentUserId) {
+        setShouldShowOnboardingCarousel(false);
+        setOnboardingCheckComplete(true);
+        return;
+      }
+
+      try {
+        const { shouldShowOnboarding } = await import('@/services/educationAnalyticsService');
+        const shouldShow = await shouldShowOnboarding(currentUserId);
+
+        if (cancelled) {
+          return;
+        }
+
+        setShouldShowOnboardingCarousel(shouldShow);
+        setOnboardingCheckComplete(true);
+      } catch (error) {
+        console.error('[NAV] Onboarding check error:', error);
+
+        if (cancelled) {
+          return;
+        }
+
+        setShouldShowOnboardingCarousel(false);
+        setOnboardingCheckComplete(true);
+      }
+    }
+
+    void checkOnboarding();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId]);
 
   /**
    * MODULE-14 TASK NOTIF-V2-008: Enhanced notification navigation handler
@@ -285,7 +336,7 @@ function RootNavigator() {
     }
   }, [handleNotificationNavigation, logRouteChange]);
 
-  if (isLoading && !forceRender) {
+  if ((isLoading && !forceRender) || (session && !onboardingCheckComplete)) {
     return (
       <View
         style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}
@@ -300,6 +351,10 @@ function RootNavigator() {
   const isAuthenticated = session !== null;
   const isSuspended = session?.user?.account_status === 'suspended';
 
+  // MODULE-18 EDU-004: Show onboarding carousel if needed
+  const showOnboardingCarousel = isAuthenticated && shouldShowOnboardingCarousel;
+  const navigatorKey = `${currentUserId ?? 'guest'}:${showOnboardingCarousel ? 'onboarding' : 'home'}`;
+
   return (
     <NavigationContainer
       ref={navigationRef}
@@ -307,7 +362,7 @@ function RootNavigator() {
       onReady={onNavigationReady}
       onStateChange={onNavigationStateChange}
     >
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator key={navigatorKey} screenOptions={{ headerShown: false }}>
         {isAuthenticated && isSuspended ? (
           // Authenticated + Suspended -> blocked account screen
           <Stack.Screen
@@ -318,6 +373,15 @@ function RootNavigator() {
         ) : isAuthenticated ? (
           // Authenticated users -> Dashboard stack
           <>
+            {showOnboardingCarousel ? (
+              // MODULE-18 EDU-004: Onboarding carousel (first-run only)
+              <Stack.Screen
+                name="Onboarding"
+                component={OnboardingScreen}
+                options={{ headerShown: false }}
+              />
+            ) : null}
+
             <Stack.Screen
               name="Home"
               component={UserDashboardScreen}

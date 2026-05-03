@@ -17,18 +17,25 @@ import { setupUserProfile, uploadProfileAvatar } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
 import { upsertZipWaitlist } from '@/services/waitlist';
 import type { ProfileSetupData } from '@/types/profile.types';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function ProfileSetupScreen({ navigation }: any) {
+  const { refreshSession } = useAuth();
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const [displayName, setDisplayName] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [localImageUri, setLocalImageUri] = useState<string | null>(null);
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const continueToPostAuthFlow = async () => {
+    // RootNavigator owns first-run onboarding gating. After profile setup,
+    // refresh auth context and let RootNavigator route to EDU carousel/Home.
+    await refreshSession(false);
+  };
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
@@ -126,15 +133,8 @@ export default function ProfileSetupScreen({ navigation }: any) {
         phone: currentUser.user_metadata?.phone || currentUser.phone,
       };
 
-      const {
-        user,
-        error,
-        needsWaitlist,
-        zipCode: userZip,
-        matchType,
-        assignedNodeId,
-        assignedNodeName,
-      } = await setupUserProfile(currentUser.id, profileData);
+      const { error, needsWaitlist, zipCode: userZip, matchType, assignedNodeId, assignedNodeName } =
+        await setupUserProfile(currentUser.id, profileData);
 
       if (error) {
         throw error;
@@ -153,8 +153,7 @@ export default function ProfileSetupScreen({ navigation }: any) {
               style: 'cancel',
               onPress: () => {
                 console.log('✅ [NODE-003] User skipped waitlist');
-                // Continue to subscription choice
-                navigation.replace('SubscriptionChoice', { userId: currentUser.id });
+                void continueToPostAuthFlow();
               },
             },
             {
@@ -180,8 +179,9 @@ export default function ProfileSetupScreen({ navigation }: any) {
                     [
                       {
                         text: 'Got it',
-                        onPress: () =>
-                          navigation.replace('SubscriptionChoice', { userId: currentUser.id }),
+                        onPress: () => {
+                          void continueToPostAuthFlow();
+                        },
                       },
                     ]
                   );
@@ -190,8 +190,9 @@ export default function ProfileSetupScreen({ navigation }: any) {
                   Alert.alert('Info', 'Could not add to waitlist, but you can still use the app!', [
                     {
                       text: 'OK',
-                      onPress: () =>
-                        navigation.replace('SubscriptionChoice', { userId: currentUser.id }),
+                      onPress: () => {
+                        void continueToPostAuthFlow();
+                      },
                     },
                   ]);
                 }
@@ -200,13 +201,12 @@ export default function ProfileSetupScreen({ navigation }: any) {
           ]
         );
       } else {
-        // Profile created successfully - navigate to subscription choice
+        // Profile created successfully - let RootNavigator choose next screen.
         Alert.alert('Success', 'Your profile has been created!', [
           {
             text: 'OK',
             onPress: () => {
-              // Navigate to subscription choice screen
-              navigation.replace('SubscriptionChoice', { userId: currentUser.id });
+              void continueToPostAuthFlow();
             },
           },
         ]);

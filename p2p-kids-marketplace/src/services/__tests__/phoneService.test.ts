@@ -49,7 +49,7 @@ describe('phoneService', () => {
       const result = await isPhoneRequired('user-123');
 
       expect(result).toBe(true);
-      expect(mockSupabase.from).toHaveBeenCalledWith('user_profiles');
+      expect(mockSupabase.from).toHaveBeenCalledWith('profiles');
     });
 
     it('should return false when phone_verified_at is set', async () => {

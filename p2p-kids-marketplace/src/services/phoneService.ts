@@ -4,6 +4,53 @@
 
 import { supabase } from './supabase/client';
 
+export const DEV_SMS_BYPASS_CODE = '123456';
+
+type SendPhoneVerificationResult = {
+  devBypass: boolean;
+  devBypassCode?: string;
+};
+
+type EdgeFunctionErrorPayload = {
+  error?: string;
+  code?: string;
+  retryAfterSeconds?: number;
+};
+
+let devSmsBypassContext: { userId: string; phone: string } | null = null;
+
+function isDevSmsBypassEnabled(): boolean {
+  if (process.env.NODE_ENV === 'test') {
+    return process.env.EXPO_PUBLIC_DEV_SMS_BYPASS === 'true';
+  }
+
+  return (
+    process.env.EXPO_PUBLIC_DEV_SMS_BYPASS === 'true' ||
+    process.env.EXPO_PUBLIC_ENVIRONMENT === 'development' ||
+    __DEV__
+  );
+}
+
+async function parseEdgeFunctionErrorPayload(error: unknown): Promise<EdgeFunctionErrorPayload | null> {
+  const context = (error as { context?: { clone?: () => { json?: () => Promise<unknown> } } })
+    ?.context;
+
+  if (!context?.clone) {
+    return null;
+  }
+
+  try {
+    const payload = await context.clone().json?.();
+    if (!payload || typeof payload !== 'object') {
+      return null;
+    }
+
+    return payload as EdgeFunctionErrorPayload;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Error codes for phone verification operations
  */
@@ -57,9 +104,9 @@ export class OTPExpiredError extends Error {
 export async function isPhoneRequired(userId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('phone_verified_at')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (error) {
@@ -103,7 +150,7 @@ export async function isPhoneRequired(userId: string): Promise<boolean> {
  * }
  * ```
  */
-export async function sendPhoneVerificationCode(phone: string): Promise<void> {
+export async function sendPhoneVerificationCode(phone: string): Promise<SendPhoneVerificationResult> {
   try {
     const {
       data: { user },
@@ -121,7 +168,27 @@ export async function sendPhoneVerificationCode(phone: string): Promise<void> {
 
     if (error) {
       console.error('[phoneService] send-phone-otp invoke error:', error);
-      throw new Error(`Failed to send verification code: ${error.message}`);
+
+      const payload = await parseEdgeFunctionErrorPayload(error);
+
+      if (payload?.code === PhoneVerificationErrorCode.RATE_LIMIT_EXCEEDED) {
+        throw new OTPRateLimitError(payload.error || 'Rate limit exceeded', payload.retryAfterSeconds || 3600);
+      }
+
+      const shouldDevBypass =
+        isDevSmsBypassEnabled() &&
+        (payload?.code === PhoneVerificationErrorCode.SEND_FAILED ||
+          payload?.error?.toLowerCase().includes('twilio') ||
+          payload?.error?.toLowerCase().includes('sms'));
+
+      if (shouldDevBypass) {
+        devSmsBypassContext = { userId: user.id, phone };
+        console.warn('[phoneService] DEV SMS bypass activated due to Edge Function failure.');
+        return { devBypass: true, devBypassCode: DEV_SMS_BYPASS_CODE };
+      }
+
+      const message = payload?.error || error.message;
+      throw new Error(`Failed to send verification code: ${message}`);
     }
 
     // Check response for errors
@@ -139,6 +206,7 @@ export async function sendPhoneVerificationCode(phone: string): Promise<void> {
     }
 
     console.log('[phoneService] Verification code sent to', phone);
+    return { devBypass: false };
   } catch (err) {
     const error = err as Error;
     console.error('[phoneService] sendPhoneVerificationCode failed:', error);
@@ -161,8 +229,8 @@ export async function sendPhoneVerificationCode(phone: string): Promise<void> {
  * 2. Compares code using pgcrypto: crypt(code, code_hash) = code_hash
  * 3. Increments attempts counter
  * 4. On success:
- *    - UPDATEs user_profiles.phone_verified_at = now()
- *    - UPDATEs user_profiles.phone_verification_method = 'sms'
+ *    - UPDATEs profiles.phone_verified_at = now()
+ *    - UPDATEs profiles.phone_verification_method = 'sms'
  *    - Writes audit_log entry
  *
  * @param phone - Phone number that was verified
@@ -195,6 +263,42 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
 
     if (userError || !user) {
       throw new Error('Not authenticated');
+    }
+
+    const bypassContext = devSmsBypassContext;
+
+    if (
+      isDevSmsBypassEnabled() &&
+      code === DEV_SMS_BYPASS_CODE &&
+      bypassContext?.userId === user.id &&
+      bypassContext?.phone === phone
+    ) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          phone_verified_at: new Date().toISOString(),
+          phone_verification_method: 'sms',
+        })
+        .eq('user_id', user.id);
+
+      if (profileError) {
+        console.error('[phoneService] DEV bypass profile update failed:', profileError);
+        throw new Error('Failed to save verification status');
+      }
+
+      await supabase.from('admin_audit_logs').insert({
+        user_id: user.id,
+        action: 'phone_verified',
+        details: {
+          phone,
+          method: 'sms_dev_bypass',
+          verified_at: new Date().toISOString(),
+        },
+      });
+
+      console.warn('[phoneService] DEV SMS bypass verification successful:', phone);
+      devSmsBypassContext = null;
+      return;
     }
 
     // 1. Get latest unexpired verification code for this phone + user
@@ -251,12 +355,12 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
 
     // 4. On success: Update user profile
     const { error: profileError } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .update({
         phone_verified_at: new Date().toISOString(),
         phone_verification_method: 'sms',
       })
-      .eq('id', user.id);
+      .eq('user_id', user.id);
 
     if (profileError) {
       console.error('[phoneService] Failed to update profile:', profileError);
