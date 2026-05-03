@@ -59,7 +59,6 @@ My Example 1
 
 ## TASK EDU-001: Schema Migrations — Sections, Examples, Analytics + Seed + Publish RPCs
 
-
 I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
 Tasks: ## TASK EDU-001: Schema Migrations — Sections, Examples, Analytics + Seed + Publish RPCs

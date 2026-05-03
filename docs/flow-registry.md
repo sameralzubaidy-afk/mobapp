@@ -2698,6 +2698,63 @@ This file is the canonical registry of end-to-end flows and their required regre
     - NOTIF-V2-001 (Notification Schema & Preferences)
     - MODULE-08 (Badges V2 - user_badges, badges tables)
 
+### FLOW-19: Trading Education – Onboarding, Help Content, SP Calculator (MODULE-18 V1)
+- Purpose: Educate users about Swap Points, trading mechanics, and safety via configurable content, interactive SP calculator, and contextual prompts
+- Covers:
+  - **EDU-001 (Schema Migrations):** Database schema for education tables + publish/unpublish RPCs
+    - Tables: `education_sections` (configurable help content), `education_examples` (SP calculator demos), `education_analytics` (engagement tracking)
+    - Profiles columns: `onboarding_completed_at`, `onboarding_skipped_at`, `education_prompts_seen`, `education_prompts_suppressed_at`
+    - Partial unique index: `uq_education_sections_one_published_per_type` (one published row per section_type)
+    - RPCs: `publish_section(id)`, `unpublish_section(id)` (SECURITY DEFINER, admin-only, atomic publish/unpublish)
+    - Seed content: 4 published sections (sp_definition, sp_earning, sp_spending, safety) + 3 draft examples
+    - RLS policies: Anyone views published, admin manages all; analytics INSERT-only (no UPDATE/DELETE)
+    - Migration files: `20260420000018..000021`
+    - Manual test guide: `docs/manual_testing/EDU-001-SCHEMA-MIGRATIONS.md` (14 SQL test cases)
+  - EDU-002 (Types & Errors): Shared TypeScript types for sections/examples/calculator/analytics
+  - EDU-003 (Backend Services): Content service, example service, SP calculator, analytics service
+  - EDU-004 (Onboarding Carousel): 5-screen skippable carousel on first app open
+  - EDU-005 (Help Screen): Accordion sections + embedded SP calculator + bonus categories
+  - EDU-006 (SP Calculator Widget): Placed in Help, Sell tab, Checkout; category-aware calculations
+  - EDU-007 (Contextual Prompts): 1-time prompts before first listing/purchase
+  - EDU-008 (Admin CMS): Section/example editor + publish/draft + preview
+  - EDU-009 (Admin Analytics): Dashboard for onboarding/help/calculator metrics
+  - EDU-010 (Tests): Jest unit + PgTAP + Playwright + Maestro
+- Database:
+  - Tables: `education_sections`, `education_examples`, `education_analytics`
+  - Columns added to `profiles`: onboarding_completed_at, onboarding_skipped_at, education_prompts_seen, education_prompts_suppressed_at
+  - Partial unique index enforces one published row per section_type
+  - RLS: Published content visible to all; draft content admin-only; analytics append-only
+  - Triggers: `education_sections_updated_at`, `education_examples_updated_at`
+  - Indexes: `idx_education_sections_published`, `idx_education_sections_type`, `idx_education_examples_published`, `idx_education_analytics_event_type`, `idx_education_analytics_user`
+- Key Rules:
+  - SP calculations MUST call MODULE-12 V3 `calculateCategorySP()` (never hardcode rates)
+  - Bonus badge shows iff `sp_earning_multiplier > 1.10` (strict greater-than, not equal)
+  - Published content is append-only from user perspective (admin unpublishes atomically)
+  - Onboarding shown exactly once (both completed_at and skipped_at NULL)
+  - Contextual prompts strict 1-time (tracked via JSONB array in profiles)
+  - Admin RPCs enforce `user_roles.role = 'admin'` server-side (SECURITY DEFINER)
+  - Examples store price + category_id ONLY (SP values computed on read)
+  - Analytics append-only with NO PII (price buckets, category IDs only)
+- Testing:
+  - Manual (SQL): `docs/manual_testing/EDU-001-SCHEMA-MIGRATIONS.md` (14 test cases for migrations)
+  - Unit tests: (EDU-002..EDU-010 deliverables TBD)
+  - Integration tests: (EDU-010 deliverable TBD)
+  - Maestro flows: (EDU-010 deliverable TBD)
+- Smoke: (manual SQL verification for EDU-001)
+  - All 3 tables created with RLS enabled
+  - Partial unique index exists and enforces one published per section_type
+  - 4 profiles columns added (onboarding_completed_at, onboarding_skipped_at, education_prompts_seen, education_prompts_suppressed_at)
+  - 4 seed sections published (sp_definition, sp_earning, sp_spending, safety)
+  - 3 seed examples created (draft, category_id NULL)
+  - publish_section RPC unpublishes previous row atomically
+  - Non-admin cannot call publish_section (throws UnauthorizedError)
+  - Analytics UPDATE/DELETE blocked by RLS (append-only enforcement)
+- Tier: Tier 2 (DB migrations, triggers, RPC, RLS policies)
+- Dependencies:
+  - MODULE-01 (user_roles, profiles tables)
+  - MODULE-12 V3 (categories table, SP rate functions)
+  - MODULE-09 V2 (SP balance for calculator context)
+
 - **NOTIF-V2-005 (MODULE-14): Push Notification Delivery Engine (2026-04-13)**
   - Purpose: Centralized push notification delivery with rate limiting, quiet hours, deduplication, retry mechanism, and receipt tracking
   - Database:
