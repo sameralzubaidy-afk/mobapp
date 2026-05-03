@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Image, StyleSheet, Text, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+const loggedAvatarLoadFailures = new Set<string>();
+
 /**
  * Avatar component that displays user profile images
  *
@@ -61,7 +63,10 @@ export default function Avatar({
         source={{ uri: imageUrl }}
         style={{ width: size, height: size, borderRadius: size / 2 }}
         onError={() => {
-          console.warn(`[Avatar] Failed to load image: ${imageUrl}`);
+          if (!loggedAvatarLoadFailures.has(imageUrl)) {
+            loggedAvatarLoadFailures.add(imageUrl);
+            console.warn(`[Avatar] Failed to load image: ${imageUrl}`);
+          }
         }}
       />
     );

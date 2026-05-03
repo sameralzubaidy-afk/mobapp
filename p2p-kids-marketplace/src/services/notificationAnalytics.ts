@@ -8,7 +8,7 @@
  */
 
 import { supabase } from '@/config/supabase';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 
 export interface NotificationEvent {
   notification_id: string;
@@ -18,6 +18,14 @@ export interface NotificationEvent {
 
 export class NotificationAnalyticsService {
   private static initialized = false;
+
+  private static getNotificationsModule(): (typeof import('expo-notifications')) | null {
+    if (Constants?.appOwnership === 'expo') {
+      return null;
+    }
+
+    return require('expo-notifications') as typeof import('expo-notifications');
+  }
 
   private static getNotificationId(
     notificationData: Record<string, unknown> | undefined
@@ -142,6 +150,13 @@ export class NotificationAnalyticsService {
   static initialize(): void {
     if (this.initialized) {
       console.warn('[NotificationAnalytics] Already initialized, skipping');
+      return;
+    }
+
+    const Notifications = this.getNotificationsModule();
+    if (!Notifications) {
+      this.initialized = true;
+      console.log('[NotificationAnalytics] Skipped in Expo Go (dev build required for remote push)');
       return;
     }
 

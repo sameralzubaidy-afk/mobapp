@@ -3,7 +3,6 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HelpScreen from '../../../screens/help/HelpScreen';
 import * as educationContentService from '../../../services/educationContentService';
 import * as educationAnalyticsService from '../../../services/educationAnalyticsService';
@@ -48,33 +47,15 @@ const mockRoute = {
   params: {},
 };
 
-const createTestQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
 describe('HelpScreen', () => {
-  let queryClient: QueryClient;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    queryClient = createTestQueryClient();
     (educationContentService.getPublishedSections as jest.Mock).mockResolvedValue(mockSections);
     (educationAnalyticsService.trackEducationEvent as jest.Mock).mockResolvedValue(undefined);
   });
 
-  const renderWithProviders = (component: React.ReactElement) => {
-    return render(
-      <QueryClientProvider client={queryClient}>{component}</QueryClientProvider>
-    );
-  };
-
   it('renders correctly with all sections', async () => {
-    const { getByText, getByTestId } = renderWithProviders(
+    const { getByText, getByTestId } = render(
       <HelpScreen navigation={mockNavigation} route={mockRoute} />
     );
 
@@ -86,9 +67,7 @@ describe('HelpScreen', () => {
   });
 
   it('loads and displays published sections', async () => {
-    const { getByTestId } = renderWithProviders(
-      <HelpScreen navigation={mockNavigation} route={mockRoute} />
-    );
+    const { getByTestId } = render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
       expect(educationContentService.getPublishedSections).toHaveBeenCalled();
@@ -98,7 +77,7 @@ describe('HelpScreen', () => {
   });
 
   it('tracks help_view analytics event on mount', async () => {
-    renderWithProviders(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
+    render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
       expect(educationAnalyticsService.trackEducationEvent).toHaveBeenCalledWith('help_view', {});
@@ -106,9 +85,7 @@ describe('HelpScreen', () => {
   });
 
   it('sp_definition section is expanded by default', async () => {
-    const { getByTestId } = renderWithProviders(
-      <HelpScreen navigation={mockNavigation} route={mockRoute} />
-    );
+    const { getByTestId } = render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
       expect(getByTestId('help-section-sp_definition-content')).toBeTruthy();
@@ -120,7 +97,7 @@ describe('HelpScreen', () => {
       params: { section: 'sp_earning' },
     };
 
-    const { getByTestId } = renderWithProviders(
+    const { getByTestId } = render(
       <HelpScreen navigation={mockNavigation} route={deepLinkRoute} />
     );
 
@@ -131,9 +108,7 @@ describe('HelpScreen', () => {
   });
 
   it('displays SP calculator', async () => {
-    const { getByTestId } = renderWithProviders(
-      <HelpScreen navigation={mockNavigation} route={mockRoute} />
-    );
+    const { getByTestId } = render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
       expect(getByTestId('help-sp-calculator')).toBeTruthy();
@@ -141,19 +116,15 @@ describe('HelpScreen', () => {
   });
 
   it('displays bonus categories list', async () => {
-    const { getByTestID } = renderWithProviders(
-      <HelpScreen navigation={mockNavigation} route={mockRoute} />
-    );
+    const { getByTestId } = render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
-      expect(getByTestID('help-bonus-categories')).toBeTruthy();
+      expect(getByTestId('help-bonus-categories')).toBeTruthy();
     });
   });
 
   it('handles pull-to-refresh', async () => {
-    const { getByTestId } = renderWithProviders(
-      <HelpScreen navigation={mockNavigation} route={mockRoute} />
-    );
+    const { getByTestId } = render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
       expect(getByTestId('help-refresh-control')).toBeTruthy();
@@ -168,9 +139,7 @@ describe('HelpScreen', () => {
   });
 
   it('navigates back when back button pressed', async () => {
-    const { getByTestId } = renderWithProviders(
-      <HelpScreen navigation={mockNavigation} route={mockRoute} />
-    );
+    const { getByTestId } = render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
       expect(getByTestId('help-back-button')).toBeTruthy();
@@ -188,7 +157,7 @@ describe('HelpScreen', () => {
 
     const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
 
-    renderWithProviders(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
+    render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
       expect(alertSpy).toHaveBeenCalledWith(

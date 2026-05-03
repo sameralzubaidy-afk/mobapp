@@ -69,11 +69,9 @@ I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
 Tasks: ## TASK EDU-006: Mobile UI — SPCalculator widget + BonusCategoryBadge (3 placements)
 
-
-### Scope
+### Description
 Build the reusable `SPCalculator` widget (category dropdown + price input + live-computed sell/buy panels) and the `BonusCategoryBadge` component, then mount the calculator in 3 placements: Help (free-form), Sell tab (auto-fills from listing, user-overridable), Checkout (locked to item's category).
 
-### Scope
 **In scope:**
 - 2 new components + 3 placement integrations.
 - Client-side math ONLY via `spCalculatorService.calculateSP` (which delegates to MODULE-12 V3).

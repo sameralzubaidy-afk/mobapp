@@ -2756,7 +2756,70 @@ This file is the canonical registry of end-to-end flows and their required regre
       - No hardcoded SP rates: ✅ VERIFIED (`grep -rn "1\.10\|1\.30\|70\|80" spCalculatorService.ts` → no matches)
       - Admin publish uses RPC: ✅ VERIFIED (no direct `UPDATE is_published` in admin service)
   - EDU-004 (Onboarding Carousel): 5-screen skippable carousel on first app open
-  - EDU-005 (Help Screen): Accordion sections + embedded SP calculator + bonus categories
+  - **EDU-005 (Help Screen) - COMPLETE ✅:** Accordion sections + embedded SP calculator + bonus categories
+    - Module: MODULE-18 V1 (Task EDU-005)
+    - Status: **COMPLETE (2026-05-03)**
+    - Scope:
+      - NEW screens (1 file):
+        - `p2p-kids-marketplace/src/screens/help/HelpScreen.tsx` - Always-accessible help with accordion, calculator, bonus list
+      - NEW components (4 files):
+        - `p2p-kids-marketplace/src/components/education/EducationSectionAccordion.tsx` - Expand/collapse animated section
+        - `p2p-kids-marketplace/src/components/education/SPCalculator.tsx` - Category-aware SP calculator widget
+        - `p2p-kids-marketplace/src/components/education/BonusCategoriesList.tsx` - Bonus categories list (sp_earning_multiplier > 1.10)
+        - `p2p-kids-marketplace/src/components/education/BonusCategoryBadge.tsx` - Badge component (⭐/🏆)
+      - MODIFIED screens (1 file):
+        - `p2p-kids-marketplace/src/screens/profile/SettingsScreen.tsx` - Added "Help → How Trading Works" menu entry
+      - MODIFIED navigation (2 files):
+        - `p2p-kids-marketplace/src/navigation/types.ts` - Added Help: { section?: string } | undefined route
+        - `p2p-kids-marketplace/src/navigation/AppNavigator.tsx` - Registered Help screen
+    - Features:
+      - Route: Settings → Help → How Trading Works (`/settings/help`)
+      - Deep link support: `?section=sp_spending` auto-expands specific section and scrolls into view
+      - Default state: `sp_definition` section expanded on initial load
+      - Accordion: Tap header toggles expand/collapse; chevron rotation animation; `accessibilityState={expanded}` announced
+      - Section body: Plain text with newline preservation (no markdown/HTML)
+      - SP Calculator: Embedded below sections; defaults to "Select a category"; sell/buy modes; delegated to MODULE-12 V3
+      - Bonus Categories: List of categories where `sp_earning_multiplier > 1.10`; sorted DESC by multiplier; shows icon + name + badge + earn-rate text (e.g., "Earn 1.30× SP")
+      - Pull-to-refresh: Invalidates `['education-sections']` + `['bonus-categories']` query keys
+      - Analytics: `help_view` on mount (once per mount); `section_expand` on each expand (event_data: { section_type })
+      - Cache: Published sections cached 5 minutes (React Query staleTime)
+      - Performance target: Initial load < 1 second with sections cached
+    - Tests:
+      - Unit tests (2 files):
+        - `src/__tests__/components/education/SPCalculator.test.tsx` - 20 test cases (sell mode, buy mode, readonly, error handling, analytics)
+        - `src/__tests__/screens/help/HelpScreen.test.tsx` - 12 test cases (load sections, default expansion, deep link, pull-to-refresh, navigation, error handling)
+      - Integration tests (1 file):
+        - `src/__tests__/integration/help-screen.integration.test.ts` - 6 test cases (RUN_SUPABASE_E2E=true)
+      - Maestro flow:
+        - `.maestro/help-screen-education.yaml` - 6 states: default load, section expansion, calculator interaction, bonus categories, pull-to-refresh, back navigation
+      - Manual test guide:
+        - `EDU-005-MANUAL-TESTING-GUIDE.md` - 12 test cases (navigation, accordion, calculator, bonus categories, deep link, pull-to-refresh, analytics, accessibility, error handling)
+    - testIDs:
+      - `help-screen`, `help-back-button`, `help-refresh-control`, `help-scroll-view`
+      - `help-section-{section_type}-header`, `help-section-{section_type}-content`, `help-section-{section_type}-image`
+      - `help-sp-calculator`, `{testID}-category-picker`, `{testID}-price-input`, `{testID}-calculate-button`, `{testID}-result`
+      - `help-bonus-categories`, `help-bonus-categories-item-{id}`, `help-bonus-categories-badge-{id}`
+      - `settings-help-button` (in SettingsScreen)
+    - Verification Criteria (from MODULE-18-VERIFICATION-TRADING-EDUCATION.md § 5):
+      - ✅ Route reachable from Settings; initial load < 1s with sections cached
+      - ✅ `sp_definition` expanded by default; other sections collapsed
+      - ✅ Tap header toggles; `accessibilityState={expanded}` announced
+      - ✅ Section body rendered as plain text with newline preservation
+      - ✅ Calculator defaults to "Select a category"
+      - ✅ Bonus Categories section renders categories where `sp_earning_multiplier > 1.10`; sorted DESC by multiplier
+      - ✅ Analytics: `help_view` on mount (once); `section_expand` on each expand
+      - ✅ Deep link `?section=sp_spending` auto-expands section and scrolls into view
+      - ✅ Pull-to-refresh invalidates cache
+      - ✅ All unit tests pass (npm run test:unit)
+      - ✅ Integration tests pass (RUN_SUPABASE_E2E=true npm run test:e2e)
+      - ✅ Maestro flow passes (npm run test:maestro:ios & npm run test:maestro:android)
+    - Dependencies:
+      - EDU-001 (education_sections table exists with published content)
+      - EDU-002 (EducationSection, SPCalculation, BonusCategory types exist)
+      - EDU-003 (educationContentService, spCalculatorService, educationAnalyticsService exist)
+      - MODULE-12 V3 (getBonusCategories, calculateCategorySP functions)
+      - MODULE-03 V2 (Settings shell exists)
+    - Tier: Tier 0 (always - typecheck + lint + unit tests); Tier 1 (UI/service changes - Maestro flow)
   - EDU-006 (SP Calculator Widget): Placed in Help, Sell tab, Checkout; category-aware calculations
   - EDU-007 (Contextual Prompts): 1-time prompts before first listing/purchase
   - EDU-008 (Admin CMS): Section/example editor + publish/draft + preview

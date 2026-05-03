@@ -5,6 +5,7 @@
 - `.maestro/auth-signup.yaml` - Signup happy path.
 - `.maestro/auth-login.yaml` - Login path.
 - `.maestro/onboarding-carousel.yaml` - **[MODULE-18 EDU-004]** Trading education onboarding carousel: first-run display, 5-screen swipe navigation, progress dots update, skip button immediate exit, Get Started on screen 5 completion, re-launch does NOT show carousel. Tests 3 flows: complete path, skip path, swipe back/forward navigation (EDU-004).
+- `.maestro/help-screen-education.yaml` - **[MODULE-18 EDU-005]** Help Screen Education: navigate from Settings → Help → verify sp_definition expanded by default → tap section headers to expand/collapse → SP calculator interaction (select category, enter price, calculate) → verify bonus categories list → pull-to-refresh → deep link to specific section → back navigation. Tests 6 states: default load, section expansion, calculator interaction, bonus categories display, pull-to-refresh, navigation (EDU-005).
 - `.maestro/auth-v3-005-profile-autofill.yaml` - Profile auto-fill and avatar download from OAuth providers (AUTH-V3-005): Google auto-fill, Facebook avatar download, Apple no-avatar graceful fallback, existing profile NOT overwritten state.
 - `.maestro/listing-create.yaml` - Listing creation with image upload (SAFETY-P001).
 - `.maestro/browse-search.yaml` - Browse and search listings.

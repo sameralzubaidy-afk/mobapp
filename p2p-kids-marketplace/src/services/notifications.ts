@@ -1,22 +1,38 @@
 // File: p2p-kids-marketplace/src/services/notifications.ts
 // Handles Expo Push Notifications registration, token management, and local/remote notification sending
 
-import * as Notifications from 'expo-notifications';
+import type * as NotificationsType from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-/**
- * Configure notification behavior when app is in foreground
- */
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+const isExpoGo = Constants?.appOwnership === 'expo';
+let notificationsModule: typeof NotificationsType | null = null;
+let notificationHandlerConfigured = false;
+
+function getNotificationsModule(): typeof NotificationsType | null {
+  if (isExpoGo) {
+    return null;
+  }
+
+  if (!notificationsModule) {
+    notificationsModule = require('expo-notifications') as typeof import('expo-notifications');
+  }
+
+  if (notificationsModule && !notificationHandlerConfigured) {
+    notificationsModule.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+    notificationHandlerConfigured = true;
+  }
+
+  return notificationsModule;
+}
 
 export interface PushNotificationToken {
   token: string;
@@ -35,6 +51,12 @@ export interface NotificationData {
  * @returns Push token string or null if registration failed
  */
 export const registerForPushNotifications = async (): Promise<string | null> => {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
+    console.warn('[notifications] Expo Go detected. Push registration is disabled; use a dev build.');
+    return null;
+  }
+
   // Only works on physical devices
   if (!Device.isDevice) {
     console.warn('Push notifications only work on physical devices');
@@ -148,6 +170,11 @@ export const sendLocalNotification = async (
   body: string,
   data?: NotificationData
 ): Promise<void> => {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
+    return;
+  }
+
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -179,6 +206,11 @@ export const scheduleNotification = async (
   seconds: number,
   data?: NotificationData
 ): Promise<void> => {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
+    return;
+  }
+
   try {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -202,6 +234,11 @@ export const scheduleNotification = async (
  * Cancel all scheduled notifications
  */
 export const cancelAllNotifications = async (): Promise<void> => {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
+    return;
+  }
+
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch (err) {
@@ -217,6 +254,11 @@ export const cancelAllNotifications = async (): Promise<void> => {
  * @returns Cleanup function to remove listeners
  */
 export const createNotificationObserver = () => {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
+    return () => {};
+  }
+
   // Listen for notifications received while app is open
   const notificationListener = Notifications.addNotificationReceivedListener((_notification) => {
     // Notification received logic
@@ -244,6 +286,11 @@ export const useNotificationObserver = createNotificationObserver;
  * (without saving to database - for UI display or debugging)
  */
 export const getCurrentPushToken = async (): Promise<string | null> => {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
+    return null;
+  }
+
   if (!Device.isDevice) {
     return null;
   }

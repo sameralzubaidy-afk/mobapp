@@ -9,15 +9,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import { Ionicons } from '@expo/vector-icons';
 import { getCategoriesWithCounts } from '../../services/categoryService';
 import { calculateSP } from '../../services/spCalculatorService';
 import type { SPCalculation } from '../../types/education';
 import type { CategoryWithCount } from '../../services/categoryService';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
+import { CategorySelectModal } from '../listing/CategorySelectModal';
 
 interface SPCalculatorProps {
   mode: 'sell' | 'buy';
@@ -42,6 +40,7 @@ export function SPCalculator({
   const [result, setResult] = useState<SPCalculation | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
 
   // Load categories on mount
   useEffect(() => {
@@ -114,37 +113,33 @@ export function SPCalculator({
     );
   }
 
+  const selectedCategory = categories.find((cat) => cat.id === selectedCategoryId);
+
   return (
     <View style={styles.container} testID={testID}>
       <Text style={styles.label}>
-        {mode === 'sell' ? 'Calculate SP You'll Earn' : 'Calculate SP You Can Use'}
+        {mode === 'sell' ? 'Calculate SP You\'ll Earn' : 'Calculate SP You Can Use'}
       </Text>
 
       {/* Category Picker */}
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Category</Text>
-        <View style={[styles.pickerContainer, readonly && styles.readonlyContainer]}>
-          <Picker
-            selectedValue={selectedCategoryId}
-            onValueChange={(value) => {
-              if (!readonly) {
-                setSelectedCategoryId(value);
-                if (price && value) {
-                  handleCalculate(price, value);
-                }
-              }
-            }}
-            enabled={!readonly}
-            style={styles.picker}
-            testID={`${testID}-category-picker`}
-            accessibilityLabel="Category"
-          >
-            <Picker.Item label="Select a category" value="" />
-            {categories.map((cat) => (
-              <Picker.Item key={cat.id} label={cat.name} value={cat.id} />
-            ))}
-          </Picker>
-        </View>
+        <TouchableOpacity
+          style={[styles.categoryButton, readonly && styles.readonlyContainer]}
+          onPress={() => {
+            if (!readonly) {
+              setShowCategoryModal(true);
+            }
+          }}
+          disabled={readonly}
+          testID={`${testID}-category-picker`}
+          accessibilityLabel="Category"
+          accessibilityRole="button"
+        >
+          <Text style={[styles.categoryButtonText, !selectedCategory && styles.categoryPlaceholder]}>
+            {selectedCategory ? selectedCategory.name : 'Select a category'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Price Input */}
@@ -199,7 +194,7 @@ export function SPCalculator({
           testID={`${testID}-result`}
           accessibilityLiveRegion="polite"
         >
-          {mode === 'sell' ? (
+          {mode === 'sell' && result.mode === 'sell' ? (
             <View style={styles.resultContent}>
               <View style={styles.resultRow}>
                 <Text style={styles.resultLabel}>You'll earn:</Text>
@@ -211,7 +206,7 @@ export function SPCalculator({
                 <Text style={styles.bonusText}>Bonus category! Earns {result.multiplier}× SP</Text>
               )}
             </View>
-          ) : (
+          ) : result.mode === 'buy' ? (
             <View style={styles.resultContent}>
               <View style={styles.resultRow}>
                 <Text style={styles.resultLabel}>Max SP you can use:</Text>
@@ -230,7 +225,7 @@ export function SPCalculator({
                 <Text style={styles.totalValue}>${result.total_cost.toFixed(2)}</Text>
               </View>
             </View>
-          )}
+          ) : null}
         </View>
       )}
 
@@ -239,6 +234,24 @@ export function SPCalculator({
           {readonly ? 'Calculating...' : 'Tap Calculate to see results'}
         </Text>
       )}
+
+      <CategorySelectModal
+        visible={showCategoryModal}
+        categories={categories}
+        recent={[]}
+        onSelect={(cat) => {
+          setSelectedCategoryId(cat.id);
+          setShowCategoryModal(false);
+          if (price) {
+            handleCalculate(price, cat.id);
+          }
+        }}
+        onSelectOther={() => {
+          setShowCategoryModal(false);
+        }}
+        onClose={() => setShowCategoryModal(false)}
+        testID={`${testID}-category-modal`}
+      />
     </View>
   );
 }
@@ -265,19 +278,25 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     marginBottom: 6,
   },
-  pickerContainer: {
+  categoryButton: {
     backgroundColor: '#FFF',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#D1D5DB',
-    overflow: 'hidden',
+    minHeight: 50,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
   },
   readonlyContainer: {
     backgroundColor: '#F3F4F6',
     borderColor: '#E5E7EB',
   },
-  picker: {
-    height: Platform.OS === 'ios' ? 44 : 50,
+  categoryButtonText: {
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  categoryPlaceholder: {
+    color: '#9CA3AF',
   },
   input: {
     backgroundColor: '#FFF',

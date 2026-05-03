@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useQueryClient } from '@tanstack/react-query';
 import { getPublishedSections } from '../../services/educationContentService';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
 import type { EducationSection } from '../../types/education';
@@ -31,7 +30,6 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string>('sp_definition');
-  const queryClient = useQueryClient();
   const scrollViewRef = useRef<ScrollView>(null);
   const sectionRefs = useRef<{ [key: string]: View | null }>({});
   const hasTrackedView = useRef(false);
@@ -61,7 +59,7 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
         const sectionRef = sectionRefs.current[deepLinkSection];
         if (sectionRef && scrollViewRef.current) {
           sectionRef.measureLayout(
-            // @ts-ignore - measureLayout exists on View
+            // @ts-expect-error - ScrollView native ref supports measureLayout target at runtime
             scrollViewRef.current,
             (x, y) => {
               scrollViewRef.current?.scrollTo({ y: y - 20, animated: true });
@@ -91,9 +89,6 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
-      // Invalidate cache
-      queryClient.invalidateQueries({ queryKey: ['education-sections'] });
-      queryClient.invalidateQueries({ queryKey: ['bonus-categories'] });
       await loadSections();
     } catch (error) {
       console.error('[HelpScreen] Refresh error:', error);

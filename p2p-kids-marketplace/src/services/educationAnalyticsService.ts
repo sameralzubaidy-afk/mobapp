@@ -4,6 +4,35 @@
 import { supabase } from '../config/supabase';
 import type { EducationAnalyticsEventType } from '../types/education';
 
+let hasLoggedMissingEducationSchema = false;
+
+function isMissingEducationSchemaError(error: any): boolean {
+  const code = error?.code;
+  const message = String(error?.message || '').toLowerCase();
+
+  if (code === '42P01' || code === '42703' || code === 'PGRST204') {
+    return true;
+  }
+
+  return (
+    message.includes('relation') ||
+    message.includes('does not exist') ||
+    message.includes('column')
+  );
+}
+
+function warnMissingSchemaOnce(context: string, error: any): void {
+  if (hasLoggedMissingEducationSchema) {
+    return;
+  }
+
+  hasLoggedMissingEducationSchema = true;
+  console.warn(
+    `[educationAnalyticsService] ${context} skipped because education schema/migrations are unavailable`,
+    error
+  );
+}
+
 /**
  * Track education analytics event
  * Fire-and-forget: never throws, logs errors via console.warn
@@ -29,9 +58,19 @@ export async function trackEducationEvent(
     });
 
     if (error) {
+      if (isMissingEducationSchemaError(error)) {
+        warnMissingSchemaOnce('trackEducationEvent', error);
+        return;
+      }
+
       console.warn('[educationAnalyticsService] Track event failed:', error);
     }
   } catch (error: any) {
+    if (isMissingEducationSchemaError(error)) {
+      warnMissingSchemaOnce('trackEducationEvent', error);
+      return;
+    }
+
     // Swallow all errors — analytics must never block UX
     console.warn('[educationAnalyticsService] Track event error:', error);
   }
@@ -47,7 +86,7 @@ export async function trackEducationEvent(
 export async function shouldShowOnboarding(userId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('onboarding_completed_at, onboarding_skipped_at')
       .eq('user_id', userId)
       .maybeSingle();
@@ -57,8 +96,13 @@ export async function shouldShowOnboarding(userId: string): Promise<boolean> {
 
     return data.onboarding_completed_at === null && data.onboarding_skipped_at === null;
   } catch (error: any) {
-    console.error('[educationAnalyticsService] Should show onboarding error:', error);
-    return true; // Default to showing onboarding on error
+    if (isMissingEducationSchemaError(error)) {
+      warnMissingSchemaOnce('shouldShowOnboarding', error);
+      return false;
+    }
+
+    console.warn('[educationAnalyticsService] Should show onboarding error:', error);
+    return false; // Fail open to avoid blocking users in onboarding loop
   }
 }
 
@@ -72,7 +116,7 @@ export async function shouldShowOnboarding(userId: string): Promise<boolean> {
 export async function markOnboardingComplete(userId: string): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .update({ onboarding_completed_at: new Date().toISOString() })
       .eq('user_id', userId);
 
@@ -80,7 +124,12 @@ export async function markOnboardingComplete(userId: string): Promise<boolean> {
 
     return true;
   } catch (error: any) {
-    console.error('[educationAnalyticsService] Mark onboarding complete error:', error);
+    if (isMissingEducationSchemaError(error)) {
+      warnMissingSchemaOnce('markOnboardingComplete', error);
+      return false;
+    }
+
+    console.warn('[educationAnalyticsService] Mark onboarding complete error:', error);
     return false;
   }
 }
@@ -95,7 +144,7 @@ export async function markOnboardingComplete(userId: string): Promise<boolean> {
 export async function markOnboardingSkipped(userId: string): Promise<boolean> {
   try {
     const { error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .update({ onboarding_skipped_at: new Date().toISOString() })
       .eq('user_id', userId);
 
@@ -103,7 +152,12 @@ export async function markOnboardingSkipped(userId: string): Promise<boolean> {
 
     return true;
   } catch (error: any) {
-    console.error('[educationAnalyticsService] Mark onboarding skipped error:', error);
+    if (isMissingEducationSchemaError(error)) {
+      warnMissingSchemaOnce('markOnboardingSkipped', error);
+      return false;
+    }
+
+    console.warn('[educationAnalyticsService] Mark onboarding skipped error:', error);
     return false;
   }
 }
@@ -120,7 +174,7 @@ export async function markPromptSeen(userId: string, key: string): Promise<boole
   try {
     // Get current seen prompts
     const { data: profile, error: fetchError } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('education_prompts_seen')
       .eq('user_id', userId)
       .maybeSingle();
@@ -135,7 +189,7 @@ export async function markPromptSeen(userId: string, key: string): Promise<boole
       const updatedSeen = [...currentSeen, key];
 
       const { error: updateError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ education_prompts_seen: updatedSeen })
         .eq('user_id', userId);
 
@@ -144,7 +198,12 @@ export async function markPromptSeen(userId: string, key: string): Promise<boole
 
     return true;
   } catch (error: any) {
-    console.error('[educationAnalyticsService] Mark prompt seen error:', error);
+    if (isMissingEducationSchemaError(error)) {
+      warnMissingSchemaOnce('markPromptSeen', error);
+      return false;
+    }
+
+    console.warn('[educationAnalyticsService] Mark prompt seen error:', error);
     return false;
   }
 }
@@ -163,7 +222,7 @@ export async function markPromptSeen(userId: string, key: string): Promise<boole
 export async function shouldShowPrompt(userId: string, key: string): Promise<boolean> {
   try {
     const { data: profile, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('education_prompts_seen, education_prompts_suppressed_at, onboarding_skipped_at')
       .eq('user_id', userId)
       .maybeSingle();
@@ -187,7 +246,7 @@ export async function shouldShowPrompt(userId: string, key: string): Promise<boo
     if (profile.onboarding_skipped_at !== null && seenPrompts.length >= 3) {
       // Set suppression flag
       await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ education_prompts_suppressed_at: new Date().toISOString() })
         .eq('user_id', userId);
 
@@ -196,7 +255,12 @@ export async function shouldShowPrompt(userId: string, key: string): Promise<boo
 
     return true;
   } catch (error: any) {
-    console.error('[educationAnalyticsService] Should show prompt error:', error);
+    if (isMissingEducationSchemaError(error)) {
+      warnMissingSchemaOnce('shouldShowPrompt', error);
+      return false;
+    }
+
+    console.warn('[educationAnalyticsService] Should show prompt error:', error);
     return true; // Default to showing prompt on error
   }
 }

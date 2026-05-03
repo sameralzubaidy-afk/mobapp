@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import DiscoverScreen from '@/screens/home/DiscoverScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
@@ -274,6 +274,12 @@ function RootNavigator() {
 
   // Handle notification taps while app is running (foreground/background)
   React.useEffect(() => {
+    if (Constants?.appOwnership === 'expo') {
+      return;
+    }
+
+    const Notifications = require('expo-notifications') as typeof import('expo-notifications');
+
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const data = response.notification.request.content.data as NotificationDeepLinkData;
@@ -282,14 +288,18 @@ function RootNavigator() {
     );
 
     // Handle cold-start notification taps (app was killed, opened via notification)
-    void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (!response) {
-        return;
-      }
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (!response) {
+          return;
+        }
 
-      const data = response.notification.request.content.data as NotificationDeepLinkData;
-      handleNotificationNavigation(data, 'cold_start');
-    });
+        const data = response.notification.request.content.data as NotificationDeepLinkData;
+        handleNotificationNavigation(data, 'cold_start');
+      })
+      .catch((error) => {
+        console.warn('[NAV] getLastNotificationResponseAsync failed', error);
+      });
 
     return () => {
       responseSubscription.remove();
