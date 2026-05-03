@@ -56,53 +56,46 @@ Supabase: supabase/
 My Example 1
 
 
-
-## TASK EDU-003: Backend Services — Content + Example + SP Calculator + Analytics
+## TASK EDU-004: Mobile UI — OnboardingCarousel + First-Run Gating
 
 I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
-Tasks: ## TASK EDU-003: Backend Services — Content + Example + SP Calculator + Analytics
+Tasks: ## TASK EDU-004: Mobile UI — OnboardingCarousel + First-Run Gating
 
 Define the shared TypeScript types (`EducationSection`, `SectionType`, `EducationExample`, `SPCalculation`, `BonusCategory`, `EducationAnalyticsEvent`) and typed error classes (`ContentValidationError`, `UnauthorizedError`, `DuplicatePublishedSectionError`) used across mobile + admin-portal.
 
 ### Scope
 
-Implement four service modules (mobile-side for user reads, admin-portal-side for CMS writes): `ContentService` (get sections, publish/unpublish via RPC), `ExampleService` (CRUD + on-read SP calculation delegation), `SPCalculatorService` (thin wrapper over MODULE-12 V3's `calculateCategorySP` shaped to `SPCalculation`), and `AnalyticsService` (append-only event logging + admin aggregations).
+Build the 5-screen swipeable onboarding carousel that shows on first app open, with progress dots, skip/next buttons, analytics hooks, and completion tracking via `markOnboardingComplete` / `markOnboardingSkipped`.
 
 ### Scope
-
-- 4 mobile services (read-only + analytics write) + 3 admin services (CMS writes + analytics reads).
-- Delegation to MODULE-12 V3 for all SP math.
-- React Query-friendly signatures (Promise-returning, stable keys).
-- Analytics: fire-and-forget on mobile; `console.warn` on write failure.
+- 1 new screen + 1 new carousel component + 5 screen-data entries.
+- First-run gate wired into app root (after auth, before main tabs).
+- Asset directory for onboarding illustrations.
 
 ### Files to Create / Modify
 
-| Path | Action | Key Exports |
+| Path | Action | Purpose |
 |---|---|---|
-| `p2p-kids-marketplace/src/services/educationContentService.ts` | NEW | `getPublishedSections`, `getSectionByType` |
-| `p2p-kids-marketplace/src/services/educationExampleService.ts` | NEW | `getPublishedExamples`, `calculateExampleSP` |
-| `p2p-kids-marketplace/src/services/spCalculatorService.ts` | NEW | `calculateSP`, `getBonusCategories` (delegates to MODULE-12 V3) |
-| `p2p-kids-marketplace/src/services/educationAnalyticsService.ts` | NEW | `trackEducationEvent`, `shouldShowOnboarding`, `markOnboardingComplete`, `markOnboardingSkipped`, `markPromptSeen`, `shouldShowPrompt` |
-| `admin-portal/src/services/educationContentService.ts` | NEW | `getAllSections` (drafts+published), `updateSection`, `publishSection` (RPC), `unpublishSection` (RPC), `createSection` |
-| `admin-portal/src/services/educationExampleService.ts` | NEW | `getAllExamples`, `createExample`, `updateExample`, `deleteExample` |
-| `admin-portal/src/services/educationAnalyticsService.ts` | NEW | `getEducationAnalytics(dateRange)` — aggregations |
+| `p2p-kids-marketplace/src/screens/onboarding/OnboardingScreen.tsx` | NEW | Root screen — carousel container + gating |
+| `p2p-kids-marketplace/src/components/onboarding/OnboardingCarousel.tsx` | NEW | Swipeable 5-screen carousel with progress dots |
+| `p2p-kids-marketplace/src/components/onboarding/OnboardingScreenCard.tsx` | NEW | Single screen (illustration + title + body) |
+| `p2p-kids-marketplace/src/data/onboarding-screens.ts` | NEW | 5 static screen definitions (welcome + 3 SP + safety) |
+| `p2p-kids-marketplace/src/assets/onboarding/` | NEW | 5 illustration PNGs (placeholder until design delivers) |
+| `p2p-kids-marketplace/src/navigation/RootNavigator.tsx` | MODIFY | Check `shouldShowOnboarding(user.id)` → route to `OnboardingScreen` before `MainTabs` |
 
 ### Acceptance Criteria
 
-- [ ] `getPublishedSections()` SELECTs `is_published=true` ordered by `display_order`; cached 5 min.
-- [ ] `getSectionByType(type)` returns the single published row or `null`.
-- [ ] `calculateExampleSP(price, categoryId)` internally calls MODULE-12 V3 `categoryService.calculateCategorySP(categoryId, price)` and shapes to `{ earn_sp, max_use_sp, cash_paid, fee, is_bonus }`. If category is missing/inactive → returns `null`.
-- [ ] `calculateSP(itemPrice, categoryId, mode, spToUse?)` returns `SPCalculation` discriminated union; delegates 100% of math to MODULE-12 V3.
-- [ ] `getBonusCategories()` delegates to MODULE-12 V3 `spConfigService.getBonusCategories()` — does NOT re-query.
-- [ ] `trackEducationEvent(eventType, eventData?)` is fire-and-forget (returns `Promise<void>` that never rejects); logs via `console.warn` on failure.
-- [ ] `shouldShowOnboarding(userId)` returns `true` iff both `onboarding_completed_at IS NULL` and `onboarding_skipped_at IS NULL`.
-- [ ] `markPromptSeen(userId, key)` appends `key` to `user_profiles.education_prompts_seen` (JSONB array; idempotent).
-- [ ] Admin `publishSection(id)` calls RPC `publish_section(id)` — never does the transition client-side.
-- [ ] Admin `createExample({item_name, item_price, category_id?})` starts with `is_published = false`; `deleteExample(id)` refuses when `is_published = true`.
-- [ ] `getEducationAnalytics({startDate, endDate})` returns `{ onboarding: { started, completed, skipped, completionRate }, help: { views, sectionExpansionsByType }, calculator: { uses, uniqueUsers, priceBucketHistogram } }`.
-- [ ] All services use strict TS; no `any`; no ad-hoc `as` casts.
-- [ ] Unit tests cover happy paths + null-category + admin-only-enforcement.
+- [ ] Carousel renders 5 screens; swipe left/right navigates; keyboard arrow keys work on web.
+- [ ] Progress dots update (filled = current; ghosted = others).
+- [ ] "Skip" button on every screen calls `markOnboardingSkipped` → navigates to `MainTabs`.
+- [ ] Final screen shows "Get Started" → calls `markOnboardingComplete` → navigates to `MainTabs`.
+- [ ] `onboarding_start` analytics event fires on first render (guarded against duplicates per mount).
+- [ ] `onboarding_complete` or `onboarding_skip` fires on exit path; `section_expand` events NOT fired here (those live in HelpScreen).
+- [ ] Subsequent app opens: `shouldShowOnboarding(user.id)` returns `false` → carousel bypassed.
+- [ ] Full a11y: each screen announces `"Onboarding, step N of 5, <title>"`; skip button has `accessibilityLabel="Skip onboarding"`.
+- [ ] No reference to MODULE-12 V3 category data (onboarding content is static and admin-controlled via sections — screens 2–4 pull body from `getSectionByType('sp_definition'|'sp_earning'|'sp_spending')`; screen 5 from `'safety'`).
+
 
 i want you to 
 
