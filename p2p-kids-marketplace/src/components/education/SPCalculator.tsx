@@ -1,7 +1,7 @@
 // FILE: p2p-kids-marketplace/src/components/education/SPCalculator.tsx
 // MODULE-18 EDU-006: SP Calculator widget (reusable across Help, Sell, Checkout)
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,47 +12,38 @@ import {
 } from 'react-native';
 import { getCategoriesWithCounts } from '../../services/categoryService';
 import { calculateSP } from '../../services/spCalculatorService';
-import type { SPCalculation } from '../../types/education';
+import type { SPCalculation, SellSPCalculation, BuySPCalculation } from '../../types/education';
 import type { CategoryWithCount } from '../../services/categoryService';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
 import { CategorySelectModal } from '../listing/CategorySelectModal';
+import { BonusCategoryBadge } from './BonusCategoryBadge';
 
 interface SPCalculatorProps {
-  mode: 'sell' | 'buy';
-  defaultCategoryId?: string; // Auto-fill from context (Sell/Checkout)
-  defaultPrice?: number; // Auto-fill from item (Checkout)
-  readonly?: boolean; // Disable editing (Checkout mode)
-  onCalculate?: (result: SPCalculation | null) => void;
+  mode: 'free' | 'auto' | 'locked';
+  initialCategoryId?: string; // Pre-fill category (auto/locked modes)
+  initialPrice?: number; // Pre-fill price (locked mode)
+  onCalculate?: (sellResult: SPCalculation | null, buyResult: SPCalculation | null) => void;
   testID?: string;
 }
 
 export function SPCalculator({
   mode,
-  defaultCategoryId,
-  defaultPrice,
-  readonly = false,
+  initialCategoryId,
+  initialPrice,
   onCalculate,
   testID = 'sp-calculator',
 }: SPCalculatorProps) {
   const [categories, setCategories] = useState<CategoryWithCount[]>([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(defaultCategoryId || '');
-  const [price, setPrice] = useState<string>(defaultPrice?.toFixed(2) || '');
-  const [result, setResult] = useState<SPCalculation | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(initialCategoryId || '');
+  const [price, setPrice] = useState<string>(initialPrice?.toFixed(2) || '');
+  const [sellResult, setSellResult] = useState<SellSPCalculation | null>(null);
+  const [buyResult, setBuyResult] = useState<BuySPCalculation | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hasAttemptedCalculation, setHasAttemptedCalculation] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
 
-  // Load categories on mount
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  // Auto-calculate when defaults provided (Checkout mode)
-  useEffect(() => {
-    if (readonly && defaultCategoryId && defaultPrice) {
-      handleCalculate(defaultPrice.toString(), defaultCategoryId);
-    }
-  }, [readonly, defaultCategoryId, defaultPrice]);
+  const isEditable = mode !== 'locked';
 
   const loadCategories = async () => {
     try {
@@ -66,37 +57,91 @@ export function SPCalculator({
     }
   };
 
-  const handleCalculate = async (priceInput?: string, categoryId?: string) => {
-    const finalPrice = priceInput || price;
-    const finalCategoryId = categoryId || selectedCategoryId;
-
-    const priceNum = parseFloat(finalPrice);
-    if (!finalCategoryId || !finalPrice || isNaN(priceNum) || priceNum <= 0) {
-      setResult(null);
-      onCalculate?.(null);
+  const handleCalculate = useCallback(async (priceInput: string, categoryId: string) => {
+    const priceNum = parseFloat(priceInput);
+    if (!categoryId || !priceInput || isNaN(priceNum) || priceNum <= 0 || priceNum > 10000) {
+      setSellResult(null);
+      setBuyResult(null);
+      setHasAttemptedCalculation(false);
+      onCalculate?.(null, null);
       return;
     }
 
     try {
       setLoading(true);
-      const calcResult = await calculateSP(priceNum, finalCategoryId, mode);
-      setResult(calcResult);
-      onCalculate?.(calcResult);
+      // Calculate BOTH sell and buy simultaneously
+      const [sellCalc, buyCalc] = await Promise.all([
+        calculateSP(priceNum, categoryId, 'sell'),
+        calculateSP(priceNum, categoryId, 'buy'),
+      ]);
 
-      // Track analytics
-      await trackEducationEvent('calculator_use', {
+      // Type narrowing: sellCalc is SellSPCalculation, buyCalc is BuySPCalculation
+      setSellResult(sellCalc as SellSPCalculation | null);
+      setBuyResult(buyCalc as BuySPCalculation | null);
+      onCalculate?.(sellCalc, buyCalc);
+      setHasAttemptedCalculation(true);
+
+      // Fire-and-forget analytics to avoid blocking UI rendering.
+      void trackEducationEvent('calculator_use', {
         mode,
-        category_id: finalCategoryId,
-        item_price_bucket: getPriceBucket(priceNum),
+        category_id: categoryId,
+        price_bucket: getPriceBucket(priceNum),
       });
     } catch (error) {
       console.error('[SPCalculator] Calculate error:', error);
-      setResult(null);
-      onCalculate?.(null);
+      setSellResult(null);
+      setBuyResult(null);
+      setHasAttemptedCalculation(true);
+      onCalculate?.(null, null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [mode, onCalculate]);
+
+  // Load categories on mount
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  // Auto-calculate when locked mode with initial values
+  useEffect(() => {
+    if (mode === 'locked' && initialCategoryId && initialPrice) {
+      void handleCalculate(initialPrice.toString(), initialCategoryId);
+    }
+  }, [mode, initialCategoryId, initialPrice, handleCalculate]);
+
+  // Live-calculation for editable modes (free/auto)
+  useEffect(() => {
+    if (!isEditable) {
+      return;
+    }
+
+    if (!selectedCategoryId || !price) {
+      setSellResult(null);
+      setBuyResult(null);
+      setHasAttemptedCalculation(false);
+      return;
+    }
+
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum <= 0 || priceNum > 10000) {
+      setSellResult(null);
+      setBuyResult(null);
+      setHasAttemptedCalculation(false);
+      return;
+    }
+
+    // Clear stale data while recomputing new input values.
+    setSellResult(null);
+    setBuyResult(null);
+    setHasAttemptedCalculation(false);
+
+    const timeout = setTimeout(() => {
+      void handleCalculate(price, selectedCategoryId);
+    }, 200);
+
+    return () => clearTimeout(timeout);
+  }, [isEditable, selectedCategoryId, price, handleCalculate]);
 
   const getPriceBucket = (price: number): string => {
     if (price < 10) return '<10';
@@ -117,21 +162,19 @@ export function SPCalculator({
 
   return (
     <View style={styles.container} testID={testID}>
-      <Text style={styles.label}>
-        {mode === 'sell' ? 'Calculate SP You\'ll Earn' : 'Calculate SP You Can Use'}
-      </Text>
+      <Text style={styles.label}>Calculate Your Swap Points</Text>
 
       {/* Category Picker */}
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Category</Text>
         <TouchableOpacity
-          style={[styles.categoryButton, readonly && styles.readonlyContainer]}
+          style={[styles.categoryButton, !isEditable && styles.readonlyContainer]}
           onPress={() => {
-            if (!readonly) {
+            if (isEditable) {
               setShowCategoryModal(true);
             }
           }}
-          disabled={readonly}
+          disabled={!isEditable}
           testID={`${testID}-category-picker`}
           accessibilityLabel="Category"
           accessibilityRole="button"
@@ -146,93 +189,101 @@ export function SPCalculator({
       <View style={styles.inputGroup}>
         <Text style={styles.inputLabel}>Item Price ($)</Text>
         <TextInput
-          style={[styles.input, readonly && styles.readonlyInput]}
+          style={[styles.input, !isEditable && styles.readonlyInput]}
           value={price}
           onChangeText={(text) => {
-            if (!readonly) {
-              setPrice(text);
-            }
-          }}
-          onBlur={() => {
-            if (selectedCategoryId && price) {
-              handleCalculate();
+            if (isEditable) {
+              // Enforce 0-10000 with 2 decimals
+              const num = parseFloat(text);
+              if (text === '' || (!isNaN(num) && num >= 0 && num <= 10000)) {
+                setPrice(text);
+              }
             }
           }}
           keyboardType="decimal-pad"
           placeholder="0.00"
-          editable={!readonly}
+          editable={isEditable}
           testID={`${testID}-price-input`}
-          accessibilityLabel="Item price in dollars"
+          accessibilityLabel="Item price, currency"
         />
       </View>
 
-      {/* Calculate Button (non-readonly mode) */}
-      {!readonly && (
-        <TouchableOpacity
-          style={[
-            styles.calculateButton,
-            (!selectedCategoryId || !price) && styles.calculateButtonDisabled,
-          ]}
-          onPress={() => handleCalculate()}
-          disabled={!selectedCategoryId || !price || loading}
-          testID={`${testID}-calculate-button`}
-          accessibilityRole="button"
-          accessibilityLabel="Calculate Swap Points"
-        >
-          {loading ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <Text style={styles.calculateButtonText}>Calculate</Text>
-          )}
-        </TouchableOpacity>
-      )}
-
-      {/* Result Display */}
-      {result && (
+      {/* Results Display - BOTH sell and buy panels */}
+      {selectedCategoryId && price && (sellResult || buyResult) ? (
         <View
-          style={styles.resultContainer}
-          testID={`${testID}-result`}
+          style={styles.resultsContainer}
+          testID={`${testID}-results`}
           accessibilityLiveRegion="polite"
         >
-          {mode === 'sell' && result.mode === 'sell' ? (
-            <View style={styles.resultContent}>
+          {/* Sell Panel */}
+          {sellResult && (
+            <View style={styles.resultPanel} testID={`${testID}-sell-panel`}>
+              <Text style={styles.panelTitle}>If You Sell:</Text>
               <View style={styles.resultRow}>
                 <Text style={styles.resultLabel}>You'll earn:</Text>
-                <Text style={styles.resultValue}>
-                  {result.earn_sp} SP {result.is_bonus && '⭐'}
-                </Text>
+                <View style={styles.resultValueContainer}>
+                  <Text style={styles.resultValue}>{sellResult.earn_sp} SP</Text>
+                  {sellResult.is_bonus && (
+                    <BonusCategoryBadge
+                      iconUrl={selectedCategory?.bonus_badge_icon_url}
+                      testID={`${testID}-sell-bonus-badge`}
+                    />
+                  )}
+                </View>
               </View>
-              {result.is_bonus && (
-                <Text style={styles.bonusText}>Bonus category! Earns {result.multiplier}× SP</Text>
+              {sellResult.is_bonus && (
+                <Text style={styles.bonusText}>
+                  Bonus category! Earns {sellResult.multiplier}× SP
+                </Text>
               )}
             </View>
-          ) : result.mode === 'buy' ? (
-            <View style={styles.resultContent}>
+          )}
+
+          {/* Buy Panel */}
+          {buyResult && (
+            <View style={styles.resultPanel} testID={`${testID}-buy-panel`}>
+              <Text style={styles.panelTitle}>If You Buy:</Text>
               <View style={styles.resultRow}>
                 <Text style={styles.resultLabel}>Max SP you can use:</Text>
-                <Text style={styles.resultValue}>{result.max_sp_usable} SP</Text>
+                <Text style={styles.resultValue}>{buyResult.max_sp_usable} SP</Text>
               </View>
               <View style={styles.resultRow}>
-                <Text style={styles.resultLabel}>Cash you'll pay:</Text>
-                <Text style={styles.resultValue}>${result.cash_paid.toFixed(2)}</Text>
+                <Text style={styles.resultLabel}>Cash you'll pay after SP:</Text>
+                <Text style={styles.resultValue}>${buyResult.cash_paid.toFixed(2)}</Text>
               </View>
               <View style={styles.resultRow}>
-                <Text style={styles.resultLabel}>Platform fee (10%):</Text>
-                <Text style={styles.resultValue}>${result.fee.toFixed(2)}</Text>
+                <Text style={styles.resultLabel}>Platform fee:</Text>
+                <Text style={styles.resultValue}>${buyResult.fee.toFixed(2)}</Text>
               </View>
               <View style={[styles.resultRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total cost:</Text>
-                <Text style={styles.totalValue}>${result.total_cost.toFixed(2)}</Text>
+                <Text style={styles.totalValue}>${buyResult.total_cost.toFixed(2)}</Text>
               </View>
             </View>
-          ) : null}
+          )}
         </View>
-      )}
-
-      {!result && selectedCategoryId && price && !loading && (
+      ) : loading && selectedCategoryId && price ? (
         <Text style={styles.placeholderText} testID={`${testID}-placeholder`}>
-          {readonly ? 'Calculating...' : 'Tap Calculate to see results'}
+          Calculating...
         </Text>
+      ) : !loading && !selectedCategoryId ? (
+        <Text style={styles.placeholderText} testID={`${testID}-empty-state`}>
+          Select a category to see your SP
+        </Text>
+      ) : !loading && selectedCategoryId && !price ? (
+        <Text style={styles.placeholderText} testID={`${testID}-price-hint`}>
+          Enter a price to calculate
+        </Text>
+      ) : !loading && selectedCategoryId && price && hasAttemptedCalculation ? (
+        <Text style={styles.errorText} testID={`${testID}-calc-error`}>
+          Unable to calculate right now. Try another category or price.
+        </Text>
+      ) : null}
+
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color="#3B82F6" />
+        </View>
       )}
 
       <CategorySelectModal
@@ -242,9 +293,6 @@ export function SPCalculator({
         onSelect={(cat) => {
           setSelectedCategoryId(cat.id);
           setShowCategoryModal(false);
-          if (price) {
-            handleCalculate(price, cat.id);
-          }
         }}
         onSelectOther={() => {
           setShowCategoryModal(false);
@@ -313,45 +361,43 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     color: '#6B7280',
   },
-  calculateButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 4,
+  resultsContainer: {
+    marginTop: 16,
+    gap: 12,
   },
-  calculateButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  calculateButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  resultContainer: {
+  resultPanel: {
     backgroundColor: '#EFF6FF',
     borderRadius: 8,
     padding: 12,
-    marginTop: 12,
     borderWidth: 1,
     borderColor: '#BFDBFE',
   },
-  resultContent: {
-    gap: 8,
+  panelTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
   },
   resultRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginVertical: 4,
   },
   resultLabel: {
     fontSize: 14,
     color: '#4B5563',
+    flex: 1,
   },
   resultValue: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  resultValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   bonusText: {
     fontSize: 12,
@@ -379,7 +425,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 16,
+    marginBottom: 8,
     fontStyle: 'italic',
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#B91C1C',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  loadingContainer: {
+    marginTop: 16,
+    alignItems: 'center',
   },
 });

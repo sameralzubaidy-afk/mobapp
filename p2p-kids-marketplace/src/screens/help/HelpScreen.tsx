@@ -164,7 +164,7 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
           <View style={styles.calculatorSection}>
             <Text style={styles.sectionTitle}>Try the SP Calculator</Text>
             <SPCalculator
-              mode="sell"
+              mode="free"
               testID="help-sp-calculator"
             />
           </View>

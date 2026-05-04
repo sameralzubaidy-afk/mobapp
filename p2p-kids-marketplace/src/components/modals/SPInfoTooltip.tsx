@@ -29,6 +29,11 @@ export function SPInfoTooltip({
   onLearnMore,
   testID = 'sp-info-tooltip',
 }: SPInfoTooltipProps) {
+  const handleLearnMore = () => {
+    onClose();
+    onLearnMore?.();
+  };
+
   return (
     <Modal
       visible={visible}
@@ -86,7 +91,7 @@ export function SPInfoTooltip({
               {onLearnMore && (
                 <TouchableOpacity
                   style={styles.learnMoreButton}
-                  onPress={onLearnMore}
+                  onPress={handleLearnMore}
                   accessibilityLabel="Learn more about Swap Points"
                   accessibilityRole="button"
                   testID="learn-more-button"

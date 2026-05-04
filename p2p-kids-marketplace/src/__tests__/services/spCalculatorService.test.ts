@@ -3,13 +3,19 @@
 
 import { calculateSP, getBonusCategories } from '../../services/spCalculatorService';
 import * as categoryService from '../../services/categoryService';
+import * as adminConfigService from '../../services/adminConfig';
 
 // Mock category service (MODULE-12 V3)
 jest.mock('../../services/categoryService');
+jest.mock('../../services/adminConfig');
 
 describe('spCalculatorService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (adminConfigService.getAdminConfig as jest.Mock).mockResolvedValue({
+      platform_fee_buyer_percentage: 2.5,
+      platform_fee_buyer_fixed_cents: 25,
+    });
   });
 
   describe('calculateSP', () => {
@@ -66,8 +72,33 @@ describe('spCalculatorService', () => {
         sp_spending_cap_percent: 70,
         sp_to_use: 10,
         cash_paid: 10, // 20 - 10
-        fee: 2, // Math.round(20 * 0.1 * 100) / 100
-        total_cost: 12, // 10 + 2
+        fee: 0.75, // 2.5% of 20 + $0.25 fixed
+        total_cost: 10.75, // 10 + 0.75
+        is_bonus: true,
+      });
+    });
+
+    it('should default buy mode SP usage to max_sp_usable for preview', async () => {
+      (categoryService.getCategoryById as jest.Mock).mockResolvedValue(mockCategory);
+      (categoryService.calculateCategorySP as jest.Mock).mockResolvedValue({
+        earn_sp: 26,
+        max_spend_sp: 14,
+        spend_percent: 70,
+      });
+
+      const result = await calculateSP(20, 'cat-1', 'buy');
+
+      expect(result).toEqual({
+        mode: 'buy',
+        price: 20,
+        category_id: 'cat-1',
+        category_name: 'LEGO',
+        max_sp_usable: 14,
+        sp_spending_cap_percent: 70,
+        sp_to_use: 14,
+        cash_paid: 6,
+        fee: 0.75,
+        total_cost: 6.75,
         is_bonus: true,
       });
     });

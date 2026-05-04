@@ -3,6 +3,17 @@
 
 import type { SPCalculation, BonusCategory } from '../types/education';
 import { calculateCategorySP, getCategoryById, getBonusCategories as getV3BonusCategories } from './categoryService';
+import { getAdminConfig } from './adminConfig';
+
+function roundToCents(amount: number): number {
+  return Math.round(amount * 100) / 100;
+}
+
+function calculateBuyerPlatformFee(itemPrice: number, feePercentage: number, fixedCents: number): number {
+  const percentComponent = itemPrice * (feePercentage / 100);
+  const fixedComponent = fixedCents / 100;
+  return roundToCents(percentComponent + fixedComponent);
+}
 
 /**
  * Calculate SP for an item (sell or buy mode)
@@ -50,10 +61,17 @@ export async function calculateSP(
       };
     } else {
       // Buy mode
-      const spAmount = spToUse || 0;
-      const cashPaid = itemPrice - spAmount;
-      const fee = Math.round(itemPrice * 0.1 * 100) / 100; // 10% platform fee
-      const totalCost = cashPaid + fee;
+      const adminConfig = await getAdminConfig();
+      const feePercentage = Number(adminConfig.platform_fee_buyer_percentage ?? 0);
+      const feeFixedCents = Number(adminConfig.platform_fee_buyer_fixed_cents ?? 0);
+
+      // For educational preview, default to max usable SP when caller does not provide a value.
+      const requestedSp = spToUse ?? spResult.max_spend_sp;
+      const clampedSp = Math.max(0, Math.min(requestedSp, spResult.max_spend_sp));
+
+      const cashPaid = roundToCents(Math.max(0, itemPrice - clampedSp));
+      const fee = calculateBuyerPlatformFee(itemPrice, feePercentage, feeFixedCents);
+      const totalCost = roundToCents(cashPaid + fee);
 
       return {
         mode: 'buy',
@@ -62,10 +80,10 @@ export async function calculateSP(
         category_name: category.name,
         max_sp_usable: spResult.max_spend_sp,
         sp_spending_cap_percent: capPercent,
-        sp_to_use: spAmount,
-        cash_paid: Math.max(0, cashPaid),
+        sp_to_use: clampedSp,
+        cash_paid: cashPaid,
         fee,
-        total_cost: Math.max(fee, totalCost),
+        total_cost: totalCost,
         is_bonus: isBonus,
       };
     }

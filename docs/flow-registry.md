@@ -2820,7 +2820,61 @@ This file is the canonical registry of end-to-end flows and their required regre
       - MODULE-12 V3 (getBonusCategories, calculateCategorySP functions)
       - MODULE-03 V2 (Settings shell exists)
     - Tier: Tier 0 (always - typecheck + lint + unit tests); Tier 1 (UI/service changes - Maestro flow)
-  - EDU-006 (SP Calculator Widget): Placed in Help, Sell tab, Checkout; category-aware calculations
+  - **EDU-006 (SP Calculator Widget + BonusCategoryBadge) - COMPLETE ✅:** Reusable calculator in Help + Sell, with legacy checkout preserved and SP info tooltip
+    - Module: MODULE-18 V1 (Task EDU-006)
+    - Status: **COMPLETE (2026-05-03)**
+    - Scope:
+      - REFACTORED components (2 files):
+        - `p2p-kids-marketplace/src/components/education/SPCalculator.tsx` - Now shows BOTH sell + buy panels simultaneously; mode changed from 'sell'|'buy' to 'free'|'auto'
+        - `p2p-kids-marketplace/src/components/education/BonusCategoryBadge.tsx` - Enhanced with expo-image support; loads bonus_badge_icon_url or falls back to ⭐ emoji
+      - MODIFIED screens (3 files):
+        - `p2p-kids-marketplace/src/screens/help/HelpScreen.tsx` - Calculator mode="free" (user selects category + price)
+        - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` - Calculator mode="auto" (pre-fills category from listing draft, user can override)
+        - `p2p-kids-marketplace/src/screens/trade/TradeInitiationScreen.tsx` - Legacy checkout restored; added SP info icon + `SPInfoTooltip` modal, no embedded calculator
+    - Features:
+      - **Dual-panel display:** Calculator now calls calculateSP TWICE (Promise.all) and renders both sell + buy results simultaneously
+      - **Calculator modes:**
+        - `free`: Empty initial state, both category and price editable (HelpScreen)
+        - `auto`: Pre-fills category/price from context, both editable (ItemCreateScreen)
+      - **Checkout behavior:** TradeInitiationScreen uses legacy checkout sections and an SP info icon/modal (`SPInfoTooltip`) for education context
+      - **Price limits:** Enforced 0-10000 range, 2 decimal precision, client-side validation
+      - **Analytics:** `calculator_use` event with price buckets ('<10', '10-50', '50-100', '>100') — NO exact price logged (privacy)
+      - **Bonus badge:** Conditionally renders if category's `sp_earning_multiplier > 1.10`; loads `bonus_badge_icon_url` from categories table via expo-image Image component; falls back to ⭐ emoji on error
+      - **Accessibility:** Category picker labeled "Category, button"; price input labeled "Item price, currency"; results container has `accessibilityLiveRegion="polite"`
+    - Tests:
+      - Unit tests (2 files):
+        - `src/__tests__/components/education/SPCalculator-EDU-006.test.tsx` - 45 test cases covering all 3 modes, dual panels, price limits, analytics buckets, bonus badge rendering, accessibility
+        - `src/__tests__/components/education/BonusCategoryBadge-EDU-006.test.tsx` - 6 test cases (image load, emoji fallback, error handling, accessibility)
+      - Integration tests (1 file):
+        - `e2e/edu-006-sp-calculator.integration.test.ts` - 8 test cases (RUN_SUPABASE_E2E=true): real category data, dual calculations, bonus flags, price boundaries
+      - Maestro flow:
+        - `.maestro/edu-006-sp-calculator-placements.yaml` - Tests free (HelpScreen), auto (ItemCreateScreen), and legacy checkout + SP info tooltip (TradeInitiationScreen)
+      - Manual test guide:
+        - `EDU-006-MANUAL-TESTING-GUIDE.md` - 16 test cases (iOS + Android simulators): all 3 placements, price limits, analytics, bonus badges, accessibility, cross-platform regression
+    - testIDs:
+      - `help-sp-calculator`, `item-create-sp-calculator`, `trade-sp-info-icon`, `trade-sp-info-tooltip`
+      - `{testID}-category-picker`, `{testID}-category-modal`, `{testID}-price-input`
+      - `{testID}-empty-state`, `{testID}-sell-panel`, `{testID}-buy-panel`
+      - `{testID}-sell-bonus-badge`, `{testID}-buy-bonus-badge` (conditional)
+      - `{testID}-results` (live region container)
+    - Verification Criteria (from MODULE-18-VERIFICATION-TRADING-EDUCATION.md § 6):
+      - ✅ Calculator renders in 2 placements: HelpScreen (free), ItemCreateScreen (auto)
+      - ✅ Free mode: empty state, both inputs editable, dual panels on calculate
+      - ✅ Auto mode: pre-filled from context, both inputs editable, dual panels on calculate
+      - ✅ TradeInitiationScreen keeps legacy checkout UI and provides SP explanation via info icon + tooltip modal
+      - ✅ Price enforced: 0-10000, 2 decimals max
+      - ✅ Analytics: price bucketed ('<10', '10-50', '50-100', '>100'), no exact price logged
+      - ✅ Bonus badge: renders if `sp_earning_multiplier > 1.10`; loads icon URL or shows emoji fallback
+      - ✅ Accessibility: labels, roles, live region on results
+      - ✅ All unit tests pass (npm run test:unit)
+      - ✅ Integration tests pass (RUN_SUPABASE_E2E=true npm run test:e2e)
+      - ✅ Maestro flow passes (both iOS + Android)
+    - Dependencies:
+      - EDU-003 (spCalculatorService.calculateSP exists and delegates to MODULE-12 V3)
+      - EDU-003 (educationAnalyticsService.trackEducationEvent exists)
+      - MODULE-12 V3 (categoryService.getCategoriesWithCounts, categories.bonus_badge_icon_url column)
+      - MODULE-09 V2 (fee calculations match trade flow)
+    - Tier: Tier 0 (always - typecheck + lint + unit tests); Tier 1 (UI changes - Maestro flow)
   - EDU-007 (Contextual Prompts): 1-time prompts before first listing/purchase
   - EDU-008 (Admin CMS): Section/example editor + publish/draft + preview
   - EDU-009 (Admin Analytics): Dashboard for onboarding/help/calculator metrics

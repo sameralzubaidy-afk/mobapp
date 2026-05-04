@@ -42,6 +42,7 @@ import { CardField, useStripe } from '@stripe/stripe-react-native';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { supabase } from '@/config/supabase';
+import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 
 type TradeInitiationRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -71,6 +72,7 @@ export default function TradeInitiationScreen() {
   const [transactionFeeCents, setTransactionFeeCents] = useState(299);
   const [cardComplete, setCardComplete] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);
   const [stripeReady, setStripeReady] = useState(false);
   const [stripeError, setStripeError] = useState<string | null>(null);
   const [savedPaymentMethod, setSavedPaymentMethod] = useState<PaymentMethodInfo | null>(null);
@@ -489,7 +491,18 @@ export default function TradeInitiationScreen() {
           {/* Swap Points Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Swap Points Discount</Text>
+              <View style={styles.spHeaderLeft}>
+                <Text style={styles.sectionTitle}>Swap Points Discount</Text>
+                <Pressable
+                  onPress={() => setShowSpInfoTooltip(true)}
+                  accessibilityLabel="What are Swap Points? Tap to learn more"
+                  accessibilityRole="button"
+                  testID="trade-sp-info-icon"
+                  style={styles.infoIcon}
+                >
+                  <Text style={styles.infoIconText}>i</Text>
+                </Pressable>
+              </View>
               <Text style={styles.walletBalance}>Balance: {availableSp} SP</Text>
             </View>
 
@@ -752,6 +765,12 @@ export default function TradeInitiationScreen() {
           testID="trade-disclaimer-modal"
         />
       )}
+
+      <SPInfoTooltip
+        visible={showSpInfoTooltip}
+        onClose={() => setShowSpInfoTooltip(false)}
+        testID="trade-sp-info-tooltip"
+      />
     </SafeAreaView>
   );
 }
@@ -801,6 +820,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  spHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoIconText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 12,
   },
   sectionTitle: {
     fontSize: 16,

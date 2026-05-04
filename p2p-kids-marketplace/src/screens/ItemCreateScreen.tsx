@@ -869,8 +869,7 @@ export default function ItemCreateScreen() {
               price={parseFloat(priceInput) || 0}
               isSubscriber={canAcceptSP}
               onLearnMore={() => {
-                // TODO: Navigate to SP education screen (placeholder)
-                Alert.alert('Swap Points', 'Learn more about Swap Points in the help section.');
+                navigation.navigate('Help', { section: 'sp_definition' });
               }}
               onUpgradePress={() => navigation.navigate('SubscriptionChoice')}
               testID="sp-earnings-preview"

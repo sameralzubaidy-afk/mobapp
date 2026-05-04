@@ -21,9 +21,9 @@ import {
   Modal,
   StyleSheet,
   FlatList,
-  SafeAreaView,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { BonusBadge } from '../shared/BonusBadge';
 
 export interface Category {

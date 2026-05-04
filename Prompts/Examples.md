@@ -55,53 +55,40 @@ Supabase: supabase/
 -----
 My Example 1
 
-
-
-## TASK EDU-006: Mobile UI — SPCalculator widget + BonusCategoryBadge (3 placements)
-
-**Duration:** 3 hours
-**Priority:** High
-**Dependencies:** EDU-003
-
-### Description
-
+## TASK EDU-007: Mobile UI — Contextual Prompts (First Listing + First Purchase)
 I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
-Tasks: ## TASK EDU-006: Mobile UI — SPCalculator widget + BonusCategoryBadge (3 placements)
+Tasks: ## TASK EDU-007: Mobile UI — Contextual Prompts (First Listing + First Purchase)
 
 ### Description
-Build the reusable `SPCalculator` widget (category dropdown + price input + live-computed sell/buy panels) and the `BonusCategoryBadge` component, then mount the calculator in 3 placements: Help (free-form), Sell tab (auto-fills from listing, user-overridable), Checkout (locked to item's category).
+Add 1-time contextual prompt modals that open before the user's first listing creation (`'seller_first_listing'`) and first purchase (`'buyer_first_purchase'`), with "Got it" and "Learn more" actions (the latter deep-links to `HelpScreen`). Dismissal is permanent per key, and 3 dismissals disable all future prompts.
 
+### Scope
 **In scope:**
-- 2 new components + 3 placement integrations.
-- Client-side math ONLY via `spCalculatorService.calculateSP` (which delegates to MODULE-12 V3).
-- Analytics event `calculator_use` with price bucket + category + mode.
-- A11y on inputs + live region on results.
+- 2 new modal components + 1 shared base modal.
+- Gating logic: `shouldShowPrompt(userId, key)` + `markPromptSeen(userId, key)`.
+- Wiring into `ItemCreateScreen` (before publish flow AFTER phone verification from MODULE-03 V3) and `CheckoutScreen` (before initiate AFTER phone verification).
 
 ### Files to Create / Modify
 
 | Path | Action | Purpose |
 |---|---|---|
-| `p2p-kids-marketplace/src/components/education/SPCalculator.tsx` | NEW | Full widget: category dropdown + price input + sell/buy result panels |
-| `p2p-kids-marketplace/src/components/education/BonusCategoryBadge.tsx` | NEW | ⭐ or custom `bonus_badge_icon_url` per category |
-| `p2p-kids-marketplace/src/screens/help/HelpScreen.tsx` | MODIFY | Mount unlocked calculator |
-| `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` | MODIFY | Mount auto-filled calculator (auto-fills category from current draft; user can override) |
-| `p2p-kids-marketplace/src/screens/checkout/CheckoutScreen.tsx` | MODIFY | Mount locked calculator (category pinned to item.category_id) |
+| `p2p-kids-marketplace/src/components/education/ContextualPromptModal.tsx` | NEW | Shared modal shell (title + body + 2 CTAs) |
+| `p2p-kids-marketplace/src/components/education/SellerFirstListingPrompt.tsx` | NEW | Wraps shell with seller-specific copy |
+| `p2p-kids-marketplace/src/components/education/BuyerFirstPurchasePrompt.tsx` | NEW | Wraps shell with buyer-specific copy |
+| `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` | MODIFY | Before publish (and AFTER phone gate): if `shouldShowPrompt('seller_first_listing')` → show modal; proceed after dismissal |
+| `p2p-kids-marketplace/src/screens/checkout/CheckoutScreen.tsx` | MODIFY | Before initiate (and AFTER phone gate): same pattern with `'buyer_first_purchase'` |
 
 ### Acceptance Criteria
 
-- [ ] `SPCalculator` props: `{ mode: 'free' | 'auto' | 'locked'; initialCategoryId?: string; initialPrice?: number }`.
-  - `free`: dropdown empty until user picks.
-  - `auto`: dropdown pre-filled, editable.
-  - `locked`: dropdown disabled, selection pinned.
-- [ ] On category change OR price change, widget calls `calculateSP(price, categoryId, 'sell')` AND `calculateSP(price, categoryId, 'buy')` and renders both panels simultaneously.
-- [ ] Result updates within 100 ms of input (client-side math; no network).
-- [ ] Bonus badge renders next to the `earn_sp` value when `is_bonus_category === true`.
-- [ ] Price input accepts 0–10000 with 2 decimals; min/max enforced client-side.
-- [ ] When no category selected, panels render placeholder "Select a category to see your SP".
-- [ ] `calculator_use` analytics fires debounced 1 s after the last edit with `{ category_id, price_bucket, mode }` — never the exact price.
-- [ ] `BonusCategoryBadge` uses `categories.bonus_badge_icon_url` if present (via `expo-image` with fallback to ⭐ emoji on error).
-- [ ] A11y: price input `accessibilityLabel="Item price, currency"`; category dropdown `accessibilityLabel="Category"`; results container `accessibilityLiveRegion="polite"`.
+- [ ] Each prompt shown at most once per user (enforced by `markPromptSeen` on any exit).
+- [ ] "Learn more" navigates to `/settings/help` with appropriate `?section=` deep link and counts as a `markPromptSeen` (permanent).
+- [ ] If `education_prompts_suppressed_at IS NOT NULL`, no prompts are shown regardless of `education_prompts_seen`.
+- [ ] Suppression activates automatically when user has `onboarding_skipped_at IS NOT NULL` AND `education_prompts_seen` contains ≥ 3 keys — computed in `shouldShowPrompt` before any DB write.
+- [ ] Content body references category bonus concepts ("Some categories earn bonus SP ⭐") without naming specific multipliers (those are dynamic per MODULE-12 V3).
+- [ ] Analytics: `contextual_prompt_view` fires on mount; `contextual_prompt_dismiss` fires on "Got it" / swipe / Esc.
+- [ ] Modal is DISMISSIBLE (swipe down / Esc / "Got it" / "Learn more" all valid) — UNLIKE the phone-verification modal from MODULE-03 V3 which is non-dismissible in these contexts.
+- [ ] Ordering with phone gate from MODULE-03 V3: phone verification runs FIRST (non-dismissible); contextual prompt runs AFTER (dismissible).
 
 i want you to 
 
