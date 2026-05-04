@@ -4682,3 +4682,134 @@ Satisfied Items:
   | **TOTAL** | **34** | **✅ IMPLEMENTATION COMPLETE** |
 
 ---
+
+### FLOW-21: Education Content Management (Admin CMS) — EDU-008
+- **Purpose**: Admin portal for managing trading education sections and examples with mobile preview
+- **Scope**: Admin portal only (`p2p-kids-admin/`)
+- **Module**: MODULE-18 Trading Education V1 (TASK EDU-008)
+- **Added**: January 2025
+
+- **Features**:
+  - Section CRUD: Create, edit, preview, publish, unpublish education sections
+  - Example CRUD: Create, edit, delete examples with real-time SP calculations
+  - Section types: general, sp_definition, sp_earning, sp_spending, safety, example
+  - Mobile preview: iPhone-shaped preview modal for sections
+  - Publish confirmation: Warning modal before publishing (unpublishes other sections of same type)
+  - Category integration: Examples use category SP rates for computation
+  - Bonus badge display: Examples show ⭐ for bonus categories (multiplier > 1.10)
+
+- **Components**:
+  - `p2p-kids-admin/src/app/education/page.tsx` (main page with 3 tabs)
+  - `p2p-kids-admin/src/app/education/components/SectionTable.tsx`
+  - `p2p-kids-admin/src/app/education/components/SectionForm.tsx`
+  - `p2p-kids-admin/src/app/education/components/ExampleTable.tsx`
+  - `p2p-kids-admin/src/app/education/components/ExampleForm.tsx`
+  - `p2p-kids-admin/src/app/education/components/MobilePreview.tsx`
+  - `p2p-kids-admin/src/app/education/components/PublishConfirmation.tsx`
+  - `p2p-kids-admin/src/hooks/useEducationContent.ts` (custom hook - no React Query)
+  - `p2p-kids-admin/src/lib/educationContentService.ts` (sections - existing)
+  - `p2p-kids-admin/src/lib/educationExampleService.ts` (examples - extended)
+
+- **Database**:
+  - Tables: `education_sections`, `education_examples` (created in EDU-001 migration)
+  - RPC Functions: `publish_section`, `unpublish_section`, `publish_example`, `unpublish_example`
+  - Constraints: title 3-100 chars, body 10-2000 chars, price 0.01-10000, image_url ≤500 chars
+
+- **Navigation**:
+  - Sidebar: Content Management → **Education** (between Categories and Policies)
+  - Icon: GraduationCap
+  - Route: `/education`
+
+- **testID Coverage**:
+  - Page: `education-content-page`, `tab-sections`, `tab-examples`, `tab-analytics`
+  - Section Table: `section-table`, `section-row-{id}`, `status-badge-{id}`, `btn-edit-{id}`, `btn-preview-{id}`, `btn-publish-{id}`, `btn-unpublish-{id}`
+  - Section Form: `section-form-backdrop`, `section-form-modal`, `input-section-title`, `input-section-body`, `input-section-image-url`, `select-section-type`, `input-section-display-order`
+  - Example Table: `example-table`, `example-row-{id}`, `status-badge-{id}`, `btn-edit-{id}`, `btn-publish-{id}`, `btn-unpublish-{id}`, `btn-delete-{id}`
+  - Example Form: `example-form-backdrop`, `example-form-modal`, `input-example-item-name`, `input-example-price`, `select-example-category`, `input-example-display-order`
+  - Modals: `mobile-preview-backdrop`, `mobile-preview-modal`, `publish-confirmation-backdrop`, `publish-confirmation-modal`
+
+- **Tier 0** (ALWAYS run):
+  ```bash
+  cd p2p-kids-admin
+  npm run typecheck       # MUST pass ✅
+  npm run lint            # MUST pass ✅ (warnings OK, errors fixed)
+  ```
+
+- **Tier 1** (Targeted smoke for impacted flows):
+  - Manual TCs: TC-EDU-008-003 (create section), TC-EDU-008-007 (publish), TC-EDU-008-009 (create example with SP)
+  - Maestro: `.maestro/education-content-management.yaml`
+  - Verify:
+    - Section publish/unpublish workflow
+    - Example SP calculations match category rates
+    - Mobile preview renders correctly
+    - Publish confirmation prevents accidental overwrites
+
+- **Tier 2** (Full regression when DB schema changes):
+  - Only if `education_sections` or `education_examples` schema changes
+  - Run all 22 manual test cases from `EDU-008-MANUAL-TESTING-GUIDE.md`
+
+- **Change Classification**: B + C (API contracts + UI)
+- **Impacted Flows**:
+  - **FLOW-21** (self - new flow)
+  - Integration with FLOW-04 (category SP rates used for example calculations)
+
+- **Critical Rules Enforced**:
+  - Only ONE section per `section_type` can be published at a time
+  - Published examples cannot be deleted (must unpublish first)
+  - Section type cannot be changed after creation
+  - SP calculations: `earnSP = round(price × multiplier)`, `maxUseSP = floor(price × cap / 100)`
+  - Character limits enforced client-side: title 3-100, body 10-2000, image_url ≤500
+  - Price range: $0.01 - $10,000
+
+- **Accessibility**:
+  - Focus trap on all modals
+  - Esc key closes all modals
+  - Tab key cycles through focusable elements
+  - First element receives focus on modal open
+
+- **Tests** (EDU-008):
+  | Category | Total | Status |
+  |----------|-------|--------|
+  | Tier 0 (Typecheck/Lint) | 2 | ✅ PASS |
+  | Unit Tests | 7 components | ⏳ PENDING |
+  | Integration Tests | 1 E2E flow | ⏳ PENDING |
+  | Maestro UI Tests | 1 flow | ⏳ PENDING |
+  | Manual Test Cases | 22 | ⏳ PENDING |
+  | **TOTAL** | **33** | **⏳ UI COMPLETE, TESTS PENDING** |
+
+---
+
+### FLOW-EDU-001: Education Analytics Dashboard (Admin Portal)
+- Purpose: Admin analytics for trading education engagement
+- Module: MODULE-18-TRADING-EDUCATION V1 (TASK EDU-009)
+- Scope:
+  - `p2p-kids-admin/src/components/education/AnalyticsDashboard.tsx`
+  - `p2p-kids-admin/src/hooks/useEducationAnalytics.ts`
+  - `p2p-kids-admin/src/lib/educationAnalyticsService.ts`
+  - Date range picker (reused from MODULE-12 V3)
+- Features:
+  - Onboarding funnel (started/completed/skipped + completion rate)
+  - Completion rate warning when < 50% (color-coded red)
+  - Help section metrics (total views + top 5 expanded sections)
+  - Calculator usage (uses + unique users + price bucket histogram)
+  - Date range selection (7/30/90 days, default 30)
+  - Empty state per card when no data
+- Tests:
+  - Unit: `p2p-kids-admin/src/__tests__/hooks/useEducationAnalytics.test.ts` (coverage ≥85%)
+  - Unit: `p2p-kids-admin/src/__tests__/components/education/*.test.tsx` (4 component tests)
+  - Integration: `p2p-kids-admin/src/__tests__/integration/educationAnalytics.integration.test.ts`
+  - Manual: `EDU-009-MANUAL-TESTING-GUIDE.md` (15 test cases)
+- Prerequisites (manual ops):
+  - `education_analytics` table exists (migration 20260420000020)
+  - Sample analytics data seeded or generated from user activity
+  - Admin user authenticated
+- Validation:
+  - `npm run typecheck` (must pass)
+  - `npm run lint` (must pass)
+  - `npm run test` (all analytics tests green)
+  - `RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+  - Initial dashboard load < 2s on staging
+- Regression:
+  - Tier 0: typecheck + lint (always)
+  - Tier 1: unit tests for analytics hook/cards (when analytics components change)
+  - Tier 2: integration tests + manual TC-001 through TC-015 (when analytics service or table schema changes)

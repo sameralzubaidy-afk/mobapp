@@ -55,40 +55,41 @@ Supabase: supabase/
 -----
 My Example 1
 
-## TASK EDU-007: Mobile UI — Contextual Prompts (First Listing + First Purchase)
+
+
+## TASK EDU-009: Admin Portal — AnalyticsDashboard
+
+
 I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
-Tasks: ## TASK EDU-007: Mobile UI — Contextual Prompts (First Listing + First Purchase)
+Tasks: ## TASK EDU-009: Admin Portal — AnalyticsDashboard
 
 ### Description
-Add 1-time contextual prompt modals that open before the user's first listing creation (`'seller_first_listing'`) and first purchase (`'buyer_first_purchase'`), with "Got it" and "Learn more" actions (the latter deep-links to `HelpScreen`). Dismissal is permanent per key, and 3 dismissals disable all future prompts.
+Build the Analytics tab inside `EducationContentPage`: onboarding funnel (started / completed / skipped / completion rate), help section metrics (views + avg time + top expanded sections), and calculator usage (uses + unique users + price-bucket histogram). Date range picker 7 / 30 / 90 days (default 30).
 
 ### Scope
-**In scope:**
-- 2 new modal components + 1 shared base modal.
-- Gating logic: `shouldShowPrompt(userId, key)` + `markPromptSeen(userId, key)`.
-- Wiring into `ItemCreateScreen` (before publish flow AFTER phone verification from MODULE-03 V3) and `CheckoutScreen` (before initiate AFTER phone verification).
 
-### Files to Create / Modify
+- 1 new dashboard component + 4 chart/metric cards.
+- Date range default 30 days; shared with MODULE-12 V3 `DateRangePicker` if present (reuse over re-implement).
 
-| Path | Action | Purpose |
-|---|---|---|
-| `p2p-kids-marketplace/src/components/education/ContextualPromptModal.tsx` | NEW | Shared modal shell (title + body + 2 CTAs) |
-| `p2p-kids-marketplace/src/components/education/SellerFirstListingPrompt.tsx` | NEW | Wraps shell with seller-specific copy |
-| `p2p-kids-marketplace/src/components/education/BuyerFirstPurchasePrompt.tsx` | NEW | Wraps shell with buyer-specific copy |
-| `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` | MODIFY | Before publish (and AFTER phone gate): if `shouldShowPrompt('seller_first_listing')` → show modal; proceed after dismissal |
-| `p2p-kids-marketplace/src/screens/checkout/CheckoutScreen.tsx` | MODIFY | Before initiate (and AFTER phone gate): same pattern with `'buyer_first_purchase'` |
+### Files to Create
+
+| Path | Purpose |
+|---|---|
+| `admin-portal/src/components/education/AnalyticsDashboard.tsx` | Container + date range + 3 metric sections |
+| `admin-portal/src/components/education/OnboardingFunnelCard.tsx` | Started → Completed / Skipped funnel |
+| `admin-portal/src/components/education/HelpMetricsCard.tsx` | Total views + avg time + top sections bar chart |
+| `admin-portal/src/components/education/CalculatorUsageCard.tsx` | Uses + unique users + price-bucket histogram |
+| `admin-portal/src/hooks/useEducationAnalytics.ts` | Date-ranged fetch |
 
 ### Acceptance Criteria
 
-- [ ] Each prompt shown at most once per user (enforced by `markPromptSeen` on any exit).
-- [ ] "Learn more" navigates to `/settings/help` with appropriate `?section=` deep link and counts as a `markPromptSeen` (permanent).
-- [ ] If `education_prompts_suppressed_at IS NOT NULL`, no prompts are shown regardless of `education_prompts_seen`.
-- [ ] Suppression activates automatically when user has `onboarding_skipped_at IS NOT NULL` AND `education_prompts_seen` contains ≥ 3 keys — computed in `shouldShowPrompt` before any DB write.
-- [ ] Content body references category bonus concepts ("Some categories earn bonus SP ⭐") without naming specific multipliers (those are dynamic per MODULE-12 V3).
-- [ ] Analytics: `contextual_prompt_view` fires on mount; `contextual_prompt_dismiss` fires on "Got it" / swipe / Esc.
-- [ ] Modal is DISMISSIBLE (swipe down / Esc / "Got it" / "Learn more" all valid) — UNLIKE the phone-verification modal from MODULE-03 V3 which is non-dismissible in these contexts.
-- [ ] Ordering with phone gate from MODULE-03 V3: phone verification runs FIRST (non-dismissible); contextual prompt runs AFTER (dismissible).
+- [ ] Date range defaults to last 30 days; 7 / 30 / 90 options.
+- [ ] Onboarding funnel shows counts + completion rate with color-coded warn if `completionRate < 50%`.
+- [ ] Help metrics card shows top 5 expanded sections sorted DESC.
+- [ ] Calculator usage card shows price bucket histogram (`<10`, `10-50`, `50-100`, `>100`).
+- [ ] Empty-state per card: "No data for selected range".
+- [ ] Initial load < 2 s on staging data.
 
 i want you to 
 
