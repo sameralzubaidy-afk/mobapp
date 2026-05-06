@@ -2,7 +2,7 @@
 // FLOW-01: Auth Signup Screen (Redesigned)
 // Design System: Prompts/re-desing/design-system.md
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
   TextInput as RNTextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { signupWithTrial } from '@/services/auth';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 import { isAtLeastAge } from '@/utils/age';
@@ -24,6 +24,7 @@ import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import { OAuthProvider } from '@/types/auth-v3';
 import { Button, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
+import { getAllTestUsers, TestUser } from '@/utils/testUsers';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
 // TODO: Integrate Sentry
@@ -31,6 +32,7 @@ import { theme } from '@/theme';
 
 export default function SignupScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const emailInputRef = useRef<RNTextInput>(null);
   const [formData, setFormData] = useState({
     name: '',
@@ -43,8 +45,16 @@ export default function SignupScreen() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    const params = (route as any).params as { prefillTestUserId?: string } | undefined;
+    if (!__DEV__ || !params?.prefillTestUserId) return;
+
+    const user = getAllTestUsers().find((candidate) => candidate.id === params.prefillTestUserId);
+    if (user) {
+      applyTestUser(user);
+    }
+  }, [route]);
 
   // Dev-only navigation params handled elsewhere if needed
 
@@ -313,6 +323,19 @@ export default function SignupScreen() {
     // Root navigator transitions based on auth session + onboarding state.
   };
 
+  const applyTestUser = (user: TestUser) => {
+    setFormData({
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      phone: user.phone,
+      dob: user.dob,
+      password: user.password,
+      confirmPassword: user.password,
+      referralCode: '',
+    });
+    setErrors({});
+  };
+
   const handleAccountExists = (email: string, provider: OAuthProvider) => {
     Alert.alert(
       'Account Exists',
@@ -479,6 +502,26 @@ export default function SignupScreen() {
               testID="referralCode-input"
             />
 
+            {__DEV__ && (
+              <View style={styles.devAutofillSection}>
+                <Text style={styles.devAutofillTitle}>Dev: Autofill Test Users</Text>
+                <View style={styles.devAutofillButtonsRow}>
+                  {getAllTestUsers()
+                    .slice(0, 3)
+                    .map((user) => (
+                      <TouchableOpacity
+                        key={user.id}
+                        onPress={() => applyTestUser(user)}
+                        style={styles.devAutofillButton}
+                        testID={`dev-fill-${user.id}`}
+                      >
+                        <Text style={styles.devAutofillButtonText}>{user.firstName}</Text>
+                      </TouchableOpacity>
+                    ))}
+                </View>
+              </View>
+            )}
+
             {/* Signup Button */}
             <Button
               variant="primary"
@@ -576,6 +619,35 @@ const styles = StyleSheet.create({
 
   inputGroup: {
     marginBottom: theme.spacing.md,
+  },
+
+  devAutofillSection: {
+    marginBottom: theme.spacing.md,
+  },
+
+  devAutofillTitle: {
+    ...theme.typography.caption,
+    color: theme.textColors.tertiary,
+    marginBottom: theme.spacing.sm,
+  },
+
+  devAutofillButtonsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+
+  devAutofillButton: {
+    flex: 1,
+    paddingVertical: theme.spacing.sm,
+    alignItems: 'center',
+    borderRadius: theme.borderRadius.small,
+    backgroundColor: theme.backgroundColors.input,
+  },
+
+  devAutofillButtonText: {
+    ...theme.typography.bodySmall,
+    color: theme.textColors.primary,
+    fontFamily: theme.fontFamily.medium,
   },
 
   label: {

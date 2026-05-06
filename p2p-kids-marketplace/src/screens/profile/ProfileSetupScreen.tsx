@@ -18,6 +18,7 @@ import { getCurrentUser } from '@/services/supabase/auth';
 import { upsertZipWaitlist } from '@/services/waitlist';
 import type { ProfileSetupData } from '@/types/profile.types';
 import { useAuth } from '@/hooks/useAuth';
+import { User, Camera, MapPin } from 'phosphor-react-native';
 
 export default function ProfileSetupScreen({ navigation }: any) {
   const { refreshSession } = useAuth();
@@ -221,7 +222,11 @@ export default function ProfileSetupScreen({ navigation }: any) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      testID="profile-setup-screen"
+    >
       <View style={styles.header}>
         <Text style={styles.title}>Complete Your Profile</Text>
         <Text style={styles.subtitle}>
@@ -235,64 +240,93 @@ export default function ProfileSetupScreen({ navigation }: any) {
           style={styles.avatarButton}
           onPress={handlePickImage}
           disabled={uploadingImage}
+          testID="avatar-upload-button"
         >
           {localImageUri ? (
             <Image source={{ uri: localImageUri }} style={styles.avatarImage} />
           ) : (
             <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarPlaceholderText}>📷</Text>
-              <Text style={styles.avatarPlaceholderSubtext}>Add Photo</Text>
+              <Camera size={40} color="#6B6B6B" weight="regular" />
             </View>
           )}
         </TouchableOpacity>
         {uploadingImage && (
-          <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 8 }} />
+          <ActivityIndicator size="small" color="#5DBB8E" style={{ marginTop: 8 }} />
         )}
       </View>
 
       {/* Display Name */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Display Name *</Text>
-        <TextInput
-          style={[styles.input, errors.displayName && styles.inputError]}
-          placeholder="Enter your display name"
-          value={displayName}
-          onChangeText={setDisplayName}
-          autoCapitalize="words"
-          maxLength={50}
-        />
-        {errors.displayName && <Text style={styles.errorText}>{errors.displayName}</Text>}
+        <Text style={styles.label} testID="display-name-label">
+          DISPLAY NAME
+        </Text>
+        <View style={[styles.inputWrapper, errors.displayName && styles.inputError]}>
+          <User size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your display name"
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholderTextColor="#999999"
+            autoCapitalize="words"
+            maxLength={50}
+            testID="profile-setup-display-name-input"
+          />
+        </View>
+        {errors.displayName && (
+          <Text style={styles.errorText} testID="display-name-error">
+            {errors.displayName}
+          </Text>
+        )}
       </View>
 
       {/* Zip Code */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Zip Code *</Text>
-        <TextInput
-          style={[styles.input, errors.zipCode && styles.inputError]}
-          placeholder="Enter your 5-digit zip code"
-          value={zipCode}
-          onChangeText={setZipCode}
-          keyboardType="number-pad"
-          maxLength={5}
-        />
-        {errors.zipCode && <Text style={styles.errorText}>{errors.zipCode}</Text>}
+        <Text style={styles.label} testID="zip-code-label">
+          ZIP CODE
+        </Text>
+        <View style={[styles.inputWrapper, errors.zipCode && styles.inputError]}>
+          <MapPin size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your 5-digit zip code"
+            value={zipCode}
+            onChangeText={setZipCode}
+            placeholderTextColor="#999999"
+            keyboardType="number-pad"
+            maxLength={5}
+            testID="zip-code-input"
+          />
+        </View>
+        {errors.zipCode && (
+          <Text style={styles.errorText} testID="zip-code-error">
+            {errors.zipCode}
+          </Text>
+        )}
         <Text style={styles.helpText}>We'll assign you to your nearest community node</Text>
       </View>
 
       {/* Bio (Optional) */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Bio (Optional)</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Tell us a bit about yourself..."
-          value={bio}
-          onChangeText={setBio}
-          multiline
-          numberOfLines={4}
-          maxLength={200}
-          textAlignVertical="top"
-        />
-        <Text style={styles.helpText}>{bio.length}/200 characters</Text>
+        <Text style={styles.label} testID="bio-label">
+          BIO (OPTIONAL)
+        </Text>
+        <View style={[styles.inputWrapper, styles.textArea]}>
+          <TextInput
+            style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+            placeholder="Tell us a bit about yourself..."
+            value={bio}
+            onChangeText={setBio}
+            placeholderTextColor="#999999"
+            multiline
+            numberOfLines={4}
+            maxLength={200}
+            testID="profile-setup-bio-input"
+          />
+        </View>
+        <Text style={styles.helpText} testID="bio-char-count">
+          {bio.length}/200 characters
+        </Text>
       </View>
 
       {/* Submit Button */}
@@ -300,6 +334,7 @@ export default function ProfileSetupScreen({ navigation }: any) {
         style={[styles.submitButton, loading && styles.submitButtonDisabled]}
         onPress={handleSubmit}
         disabled={loading}
+        testID="complete-setup-button"
       >
         {loading ? (
           <ActivityIndicator size="small" color="#FFFFFF" />
@@ -314,10 +349,10 @@ export default function ProfileSetupScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
-    padding: 20,
+    padding: 24,
     paddingBottom: 40,
   },
   header: {
@@ -325,14 +360,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
     lineHeight: 22,
   },
   avatarSection: {
@@ -352,66 +387,67 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatarPlaceholderText: {
-    fontSize: 40,
-  },
-  avatarPlaceholderSubtext: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
   },
   inputGroup: {
     marginBottom: 24,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B6B6B',
+    textTransform: 'uppercase',
     marginBottom: 8,
   },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 12,
+    height: 52,
+    paddingHorizontal: 16,
+  },
   input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
+    flex: 1,
     fontSize: 16,
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#E85D75',
   },
   textArea: {
-    minHeight: 100,
-    paddingTop: 12,
+    height: 120,
+    alignItems: 'flex-start',
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   errorText: {
-    color: '#EF4444',
+    color: '#E85D75',
     fontSize: 14,
     marginTop: 4,
   },
   helpText: {
-    color: '#6B7280',
+    color: '#999999',
     fontSize: 14,
     marginTop: 4,
   },
   submitButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    height: 52,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
   },
   submitButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   submitButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
 });

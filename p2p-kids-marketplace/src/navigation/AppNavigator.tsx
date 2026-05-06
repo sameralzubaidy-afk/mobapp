@@ -3,6 +3,7 @@ import { NavigationContainer, createNavigationContainerRef } from '@react-naviga
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View } from 'react-native';
 import Constants from 'expo-constants';
+import * as ExpoLinking from 'expo-linking';
 import DiscoverScreen from '@/screens/home/DiscoverScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
@@ -77,7 +78,7 @@ const Stack = createStackNavigator();
 
 // Deep linking configuration for password reset
 const linking = {
-  prefixes: ['p2pkidsmarketplace://', 'https://p2pkidsmarketplace.com'],
+  prefixes: [ExpoLinking.createURL('/'), 'p2pkidsmarketplace://', 'https://p2pkidsmarketplace.com'],
   config: {
     screens: {
       ResetPassword: 'reset-password',

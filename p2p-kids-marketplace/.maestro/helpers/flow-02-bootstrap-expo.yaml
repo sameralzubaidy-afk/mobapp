@@ -1,0 +1,106 @@
+# FLOW: flow-02-bootstrap-expo
+# Purpose: Deterministic startup for FLOW-02 onboarding/profile UI checks in Expo Go.
+
+appId: host.exp.Exponent
+---
+
+# Launch Expo Go for reusable reruns.
+- launchApp
+- openLink: exp://127.0.0.1:8081
+- waitForAnimationToEnd
+
+# Expo Go may show a developer menu education sheet.
+- runFlow:
+                when:
+                        visible:
+                                text: This is the developer menu.
+                commands:
+                        - tapOn:
+                                        text: Continue
+                        - waitForAnimationToEnd
+
+# Fallback selector for variants that only expose the button text.
+- runFlow:
+                when:
+                        visible:
+                                text: Continue
+                commands:
+                        - tapOn:
+                                        text: Continue
+                        - waitForAnimationToEnd
+
+# Fallback for system overlays that do not expose selectable text.
+- pressKey: Enter
+- waitForAnimationToEnd
+
+# Last-resort modal dismissal for Expo Go tutorial sheet.
+- tapOn:
+        point: "50%,92%"
+- waitForAnimationToEnd
+
+# iOS credential-save sheet can block interactions.
+- runFlow:
+        when:
+          visible:
+                text: Save Password?
+        commands:
+          - tapOn:
+                  text: Not Now
+          - waitForAnimationToEnd
+
+# Expo Go sometimes opens Home first. Tap the recent project if visible.
+- runFlow:
+                when:
+                        visible:
+                                text: p2p-kids-marketplace
+                commands:
+                        - tapOn:
+                                        text: p2p-kids-marketplace
+                        - waitForAnimationToEnd
+
+# Enter FLOW-02 from a stable route with a synthetic user id.
+- openLink: exp://127.0.0.1:8081/--/profile-completion?userId=maestro-flow-02-user
+- waitForAnimationToEnd
+
+# Dismiss late-appearing developer menu education sheet after route open.
+- runFlow:
+                when:
+                        visible:
+                                text: This is the developer menu.
+                commands:
+                        - tapOn:
+                                        text: Continue
+                        - waitForAnimationToEnd
+
+- runFlow:
+                when:
+                        visible:
+                                text: Continue
+                commands:
+                        - tapOn:
+                                        text: Continue
+                        - waitForAnimationToEnd
+
+- pressKey: Enter
+- waitForAnimationToEnd
+
+- tapOn:
+        point: "50%,92%"
+- waitForAnimationToEnd
+
+# Fallback: Continue button is not always exposed as selectable text in Expo Go.
+- runFlow:
+                when:
+                        visible:
+                                text: p2p-kids-marketplace
+                        notVisible:
+                                id: profile-completion-screen
+                commands:
+                        - tapOn:
+                                        point: "50%,96%"
+                        - waitForAnimationToEnd
+                        - openLink: exp://127.0.0.1:8081/--/profile-completion?userId=maestro-flow-02-user
+                        - waitForAnimationToEnd
+
+- assertVisible:
+    id: profile-completion-screen

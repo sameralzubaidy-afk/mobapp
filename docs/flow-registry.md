@@ -15,6 +15,35 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-01: Auth – Signup/Login/Logout/Session Restore
 - Smoke: (manual)
   - Signup -> logged in -> kill app -> relaunch -> session restores.
+  - **MODULE-15.1-UI-REDESIGN-FLOW-01 (2026-05-05):** Auth screens redesigned to Whisk-inspired design system
+    - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-01)
+    - Scope:
+      - All 7 auth screens redesigned: Landing, Login, Signup, PhoneVerification, ForgotPassword, ResetPassword, SuspendedAccount
+      - Design system: Whisk green (#5DBB8E), filled inputs (no borders), pill-shaped buttons, Phosphor icons
+      - UI components: Button, TextInput, OTPInput already existed and follow design system
+      - Theme system in place with correct colors
+    - Tests:
+      - Unit: `__tests__/screens/auth/LandingScreen.test.tsx` (coverage ≥85%)
+      - Unit: `__tests__/screens/auth/LoginScreen.test.tsx` (coverage ≥85%)
+      - Unit: `__tests__/screens/auth/SignupScreen.test.tsx` (coverage ≥85%)
+      - Integration: `__tests__/integration/auth-flow-01.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Maestro: `.maestro/module-15.1-flow-01-auth.yaml` (all 7 screens UI + navigation)
+      - Maestro helper: `.maestro/helpers/auth-bootstrap-expo.yaml` (deterministic Expo Go startup + auth-state normalization)
+      - Focused Maestro case: `.maestro/tc-004-login-password-toggle.yaml`
+      - Manual: `MODULE-15.1-FLOW-01-MANUAL-TESTING.md` (22 test cases + regression checklist)
+    - Prerequisites:
+      - phosphor-react-native installed (version 3.0.6) ✅
+      - Theme system with correct colors ✅
+      - Button/TextInput components exist ✅
+    - Validation:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm run test:unit` (all auth screen tests green)
+      - `RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+      - `npm run test:maestro:ios -- .maestro/module-15.1-flow-01-auth.yaml` (repeatable full FLOW-01 run)
+      - `npm run test:maestro:ios -- .maestro/tc-004-login-password-toggle.yaml` (repeatable focused TC-004 run)
+      - `npm run test:maestro:android -- .maestro/module-15.1-flow-01-auth.yaml` (Android simulator run)
+      - Manual testing required for complete flows (see MODULE-15.1-FLOW-01-MANUAL-TESTING.md)
   - **AUTH-V3-003-OAUTH-SERVICE (2026-05-01):** Social login via Google, Facebook, Apple
     - Module: MODULE-03-AUTH-V3-SOCIAL-LOGIN (TASK AUTH-V3-003)
     - Scope:
@@ -379,6 +408,42 @@ This file is the canonical registry of end-to-end flows and their required regre
   - New user gets profile row (or profile fetch does not crash).
   - Upload profile avatar -> profile screen re-renders with the new image (avatar URL resolves from `profiles.avatar_url` storage path).
   - Profile realtime listener does not resubscribe continuously while onboarding/profile updates.
+  - **MODULE-15.1-UI-REDESIGN-FLOW-02 (2026-05-06):** Onboarding & Profile screens redesigned to Whisk-inspired "Pass It Up" design system
+    - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-02)
+    - Scope:
+      - 5 onboarding/profile screens redesigned: WelcomeScreen, ProfileCompletionScreen, FeatureHighlightsScreen, OnboardingCarousel, ProfileSetupScreen
+      - Design system: Whisk green (#5DBB8E), filled inputs (backgroundColor #F0F0F0, borderRadius 12, height 52, NO borderWidth), pill-shaped buttons (borderRadius 26, height 52), Phosphor icons v3
+      - Phosphor icons integrated: User, Camera, MapPin, CaretRight (20-40px, regular weight, #6B6B6B)
+      - Color palette: Primary text #1A1A1A, secondary text #6B6B6B, tertiary/placeholder #999999, error #E85D75, background #FFFFFF
+      - Typography: Headlines 24-28px fontWeight '600', labels 13px fontWeight '500' uppercase, body 16px
+      - Component updates: Consistent filled input wrappers with icons, green pagination dots (active #5DBB8E, inactive #E0E0E0)
+    - Tests:
+      - Unit: `src/screens/onboarding/__tests__/WelcomeScreen.test.tsx`
+      - Unit: `src/screens/onboarding/__tests__/ProfileCompletionScreen.test.tsx`
+      - Unit: `src/screens/onboarding/__tests__/FeatureHighlightsScreen.test.tsx`
+      - Unit: `src/screens/profile/__tests__/ProfileSetupScreen.test.tsx`
+      - Unit: `src/components/onboarding/__tests__/OnboardingCarousel.test.tsx`
+      - Integration: `src/__tests__/integration/flow-02-onboarding.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Maestro: `.maestro/module-15.1-flow-02-onboarding.yaml` (all 5 screens UI + avatar upload + 4-slide carousel + 5-slide carousel)
+      - Manual: `MODULE-15.1-FLOW-02-MANUAL-TESTING.md` (10 test cases covering visual design, interactions, E2E flow)
+    - Prerequisites:
+      - phosphor-react-native installed (version 3.0.6) ✅
+      - All screens already existed ✅
+      - Supabase profile service functional ✅
+    - Validation:
+      - `npm run typecheck` (must pass) ✅
+      - `npm run lint` (must pass)
+      - `npm run test:unit` (all onboarding screen tests green)
+      - `RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+      - `npm run test:maestro:ios` (Maestro tests pass)
+      - `npm run test:maestro:android` (Maestro tests pass)
+      - Manual testing required for complete flows (see MODULE-15.1-FLOW-02-MANUAL-TESTING.md)
+    - Visual Changes Summary:
+      - WelcomeScreen: Headline 28px semibold #1A1A1A, Get Started button green pill
+      - ProfileCompletionScreen: Circular avatar 120px with Camera icon, filled inputs with User icon, bio 120px multiline
+      - FeatureHighlightsScreen: 4 slides with pagination dots (green active), Next button with CaretRight icon, Get Started on slide 4
+      - OnboardingCarousel: 5 slides with elongated green active dot (24px), Get Started button green pill
+      - ProfileSetupScreen: Avatar with Camera icon, filled inputs (User, MapPin icons), Complete Setup button green pill
 
 ### FLOW-03: Node/ZIP Gating + Waitlist
 - Smoke: (manual)

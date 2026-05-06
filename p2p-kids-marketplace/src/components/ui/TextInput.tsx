@@ -11,7 +11,9 @@ import {
   TextInputProps as RNTextInputProps,
   ViewStyle,
   TextStyle,
+  TouchableOpacity,
 } from 'react-native';
+import { Eye, EyeSlash } from 'phosphor-react-native';
 import { theme } from '@/theme';
 
 interface TextInputProps extends RNTextInputProps {
@@ -29,29 +31,54 @@ export const TextInput: React.FC<TextInputProps> = ({
   containerStyle,
   inputStyle,
   editable = true,
+  secureTextEntry,
+  testID,
   ...props
 }) => {
   const [isFocused, setIsFocused] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
+  const isSecureField = Boolean(secureTextEntry);
+  const resolvedSecureTextEntry = isSecureField ? !isPasswordVisible : secureTextEntry;
 
   const inputContainerStyle = [
     styles.inputContainer,
     isFocused && styles.inputFocused,
     error && styles.inputError,
     !editable && styles.inputDisabled,
-    inputStyle,
   ];
 
   return (
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <RNTextInput
-        style={inputContainerStyle}
-        placeholderTextColor={theme.colors.neutral[500]}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        editable={editable}
-        {...props}
-      />
+      <View style={inputContainerStyle}>
+        <RNTextInput
+          style={[styles.input, inputStyle]}
+          testID={testID}
+          placeholderTextColor={theme.colors.neutral[500]}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          editable={editable}
+          secureTextEntry={resolvedSecureTextEntry}
+          {...props}
+        />
+        {isSecureField && (
+          <TouchableOpacity
+            style={styles.eyeButton}
+            onPress={() => setIsPasswordVisible((previous) => !previous)}
+            disabled={!editable}
+            testID={testID ? `${testID}-toggle-button` : undefined}
+            accessibilityRole="button"
+            accessibilityLabel={isPasswordVisible ? 'Hide password' : 'Show password'}
+          >
+            {isPasswordVisible ? (
+              <EyeSlash size={20} color={theme.textColors.secondary} weight="regular" />
+            ) : (
+              <Eye size={20} color={theme.textColors.secondary} weight="regular" />
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
       {helperText && !error && <Text style={styles.helperText}>{helperText}</Text>}
     </View>
@@ -76,6 +103,12 @@ const styles = StyleSheet.create({
     borderWidth: 0, // No border in filled style
     borderRadius: 12,
     paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  input: {
+    flex: 1,
     ...theme.typography.body,
     color: theme.textColors.primary,
   },
@@ -91,7 +124,11 @@ const styles = StyleSheet.create({
 
   inputDisabled: {
     backgroundColor: theme.backgroundColors.inputDisabled,
-    color: theme.colors.neutral[500],
+  },
+
+  eyeButton: {
+    marginLeft: theme.spacing.sm,
+    padding: theme.spacing.xs,
   },
 
   helperText: {

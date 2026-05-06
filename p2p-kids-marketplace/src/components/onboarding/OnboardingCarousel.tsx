@@ -133,9 +133,13 @@ export default function OnboardingCarousel({
 
   // Render a single screen
   const renderScreen = useCallback(
-    ({ item }: { item: (typeof ONBOARDING_SCREENS)[number] }) => {
+    ({ item, index }: { item: (typeof ONBOARDING_SCREENS)[number]; index: number }) => {
       const dbBody = item.sectionType ? dbSections[item.sectionType] : null;
-      return <OnboardingScreenCard screen={item} dbBody={dbBody} />;
+      return (
+        <View testID={`onboarding-slide-${index}`}>
+          <OnboardingScreenCard screen={item} dbBody={dbBody} />
+        </View>
+      );
     },
     [dbSections]
   );
@@ -160,12 +164,12 @@ export default function OnboardingCarousel({
       />
 
       {/* Progress dots */}
-      <View style={styles.progressContainer} accessible={false}>
+      <View style={styles.progressContainer} accessible={false} testID="onboarding-pagination-dots">
         {ONBOARDING_SCREENS.map((screen, index) => (
           <View
             key={screen.id}
             style={[styles.dot, index === currentIndex && styles.dotActive]}
-            testID={`progress-dot-${index}`}
+            testID={`onboarding-dot-${index}`}
           />
         ))}
       </View>
@@ -190,7 +194,7 @@ export default function OnboardingCarousel({
             onPress={onComplete}
             accessibilityLabel="Get Started"
             accessibilityRole="button"
-            testID="get-started-button"
+            testID="onboarding-get-started-button"
           >
             <Text style={styles.getStartedButtonText}>Get Started</Text>
           </TouchableOpacity>
@@ -216,10 +220,10 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#D1D1D6', // Ghosted
+    backgroundColor: '#E0E0E0', // Inactive
   },
   dotActive: {
-    backgroundColor: '#007AFF', // Filled
+    backgroundColor: '#5DBB8E', // Active - green
     width: 24, // Elongated active dot
   },
   buttonContainer: {
@@ -236,17 +240,20 @@ const styles = StyleSheet.create({
   skipButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: '#6B6B6B',
   },
   getStartedButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: 12,
+    borderRadius: 26,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   getStartedButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 });

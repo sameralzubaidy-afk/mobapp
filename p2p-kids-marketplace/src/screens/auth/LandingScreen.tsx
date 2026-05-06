@@ -4,7 +4,7 @@
 // Requirements: Hero section, value prop, social proof, CTA buttons
 
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,51 +22,49 @@ export default function LandingScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section */}
-        <View style={styles.hero}>
-          {/* Logo */}
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoEmoji}>🤝</Text>
-            <Text style={styles.appName}>Pass It Up</Text>
+        <View style={styles.mainContent}>
+          {/* Logo Section */}
+          <View style={styles.hero}>
+            <View style={styles.logoContainer}>
+              <View style={styles.logoViewport}>
+                <Image
+                  source={require('../../../assets/app-logo.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                  testID="app-logo"
+                />
+              </View>
+              <Text style={styles.appName}>Pass It Up</Text>
+            </View>
+
+            {/* Subtitle */}
+            <View style={styles.valueProposition}>
+              <Text style={styles.subTagline}>
+                Local community • Parent-approved • Earn rewards
+              </Text>
+            </View>
           </View>
 
-          {/* Value Proposition */}
-          <View style={styles.valueProposition}>
-            <Text style={styles.tagline}>
-              The safe marketplace for kids to buy, sell, and trade
-            </Text>
-            <Text style={styles.subTagline}>
-              Local community • Parent-approved • Earn rewards
-            </Text>
+          {/* Action Buttons */}
+          <View style={styles.actions}>
+            <Button
+              variant="primary"
+              size="large"
+              onPress={() => navigation.navigate('Signup')}
+              testID="landing-signup-button"
+            >
+              Get Started
+            </Button>
+
+            <Button
+              variant="secondary"
+              size="large"
+              onPress={() => navigation.navigate('Login')}
+              testID="landing-login-button"
+            >
+              Log In
+            </Button>
           </View>
-
-          {/* Feature Highlights */}
-          <View style={styles.features}>
-            <FeatureItem emoji="🔒" title="Safe & Secure" description="Parent-verified accounts" />
-            <FeatureItem emoji="💰" title="Earn Points" description="Trade and get rewarded" />
-            <FeatureItem emoji="🌍" title="Local First" description="Meet nearby neighbors" />
-          </View>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.actions}>
-          <Button
-            variant="primary"
-            size="large"
-            onPress={() => navigation.navigate('Signup')}
-            testID="landing-signup-button"
-          >
-            Get Started
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="large"
-            onPress={() => navigation.navigate('Login')}
-            testID="landing-login-button"
-          >
-            Log In
-          </Button>
         </View>
 
         {/* Footer */}
@@ -93,25 +91,11 @@ export default function LandingScreen() {
   );
 }
 
-// Feature Item Component
-interface FeatureItemProps {
-  emoji: string;
-  title: string;
-  description: string;
-}
-
-const FeatureItem: React.FC<FeatureItemProps> = ({ emoji, title, description }) => (
-  <View style={styles.featureItem}>
-    <Text style={styles.featureEmoji}>{emoji}</Text>
-    <Text style={styles.featureTitle}>{title}</Text>
-    <Text style={styles.featureDescription}>{description}</Text>
-  </View>
-);
-
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.backgroundColors.page,
+    backgroundColor: '#FAFAFA',
   },
 
   scrollContent: {
@@ -120,98 +104,75 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.xl,
   },
 
-  hero: {
+  mainContent: {
     flex: 1,
     justifyContent: 'center',
+    paddingVertical: theme.spacing.xxl,
+  },
+
+  hero: {
     alignItems: 'center',
-    paddingTop: theme.spacing.xl,
+    marginBottom: theme.spacing.xxl,
   },
 
   logoContainer: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
   },
 
-  logoEmoji: {
-    fontSize: 80,
+  logoViewport: {
+    width: 280,
+    height: 280,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: theme.spacing.md,
+  },
+
+  logo: {
+    width: 280,
+    height: 280,
+    transform: [{ scale: 3 }],
   },
 
   appName: {
     ...theme.typography.h1,
+    fontSize: 32,
     color: theme.textColors.primary,
     textAlign: 'center',
   },
 
   valueProposition: {
-    marginBottom: theme.spacing.xxl,
-    paddingHorizontal: theme.spacing.md,
-  },
-
-  tagline: {
-    ...theme.typography.h3,
-    color: theme.textColors.primary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
   },
 
   subTagline: {
     ...theme.typography.body,
     color: theme.textColors.secondary,
     textAlign: 'center',
-  },
-
-  features: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: theme.spacing.xl,
-  },
-
-  featureItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: theme.spacing.sm,
-  },
-
-  featureEmoji: {
-    fontSize: 40,
-    marginBottom: theme.spacing.sm,
-  },
-
-  featureTitle: {
-    ...theme.typography.label,
-    color: theme.textColors.primary,
-    textAlign: 'center',
-    marginBottom: theme.spacing.xs,
-    textTransform: 'none',
-  },
-
-  featureDescription: {
-    ...theme.typography.bodySmall,
-    color: theme.textColors.tertiary,
-    textAlign: 'center',
+    lineHeight: 24,
   },
 
   actions: {
     gap: theme.spacing.md,
     paddingHorizontal: theme.spacing.md,
+    marginTop: theme.spacing.xl,
   },
 
   footer: {
-    marginTop: theme.spacing.xl,
-    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.xxl,
+    paddingBottom: theme.spacing.md,
   },
 
   footerText: {
-    ...theme.typography.bodySmall,
-    color: theme.textColors.tertiary,
+    ...theme.typography.caption,
     textAlign: 'center',
-    lineHeight: 18,
+    color: theme.textColors.tertiary,
   },
 
   footerLink: {
-    color: theme.textColors.link,
-    textDecorationLine: 'underline',
+    color: theme.textColors.secondary,
+    fontWeight: '500',
   },
 });

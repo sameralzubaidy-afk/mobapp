@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase';
+import { User, Camera } from 'phosphor-react-native';
 
 interface RouteParams {
   userId: string;
@@ -69,7 +70,7 @@ export default function ProfileCompletionScreen() {
       const filename = `avatars/${userId}-${timestamp}.jpg`;
 
       // Upload to Supabase Storage
-      const { data, error } = await supabase.storage.from('user-avatars').upload(filename, blob, {
+      const { error } = await supabase.storage.from('user-avatars').upload(filename, blob, {
         cacheControl: '3600',
         upsert: false,
       });
@@ -146,7 +147,7 @@ export default function ProfileCompletionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="profile-completion-screen">
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -168,54 +169,69 @@ export default function ProfileCompletionScreen() {
               style={styles.avatarContainer}
               onPress={handlePickImage}
               disabled={uploading}
+              testID="avatar-upload-button"
             >
               {avatarUri ? (
                 <Image source={{ uri: avatarUri }} style={styles.avatar} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarPlaceholderText}>📷</Text>
-                  <Text style={styles.avatarPlaceholderLabel}>Add Photo</Text>
+                  <Camera size={40} color="#6B6B6B" weight="regular" />
                 </View>
               )}
             </TouchableOpacity>
 
             {uploading && (
               <View style={styles.uploadingContainer}>
-                <ActivityIndicator size="small" color="#007AFF" />
+                <ActivityIndicator size="small" color="#5DBB8E" />
                 <Text style={styles.uploadingText}>Uploading...</Text>
               </View>
             )}
 
             {/* Display Name */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Display Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your display name"
-                value={displayName}
-                onChangeText={setDisplayName}
-                placeholderTextColor="#999"
-                editable={!loading}
-                maxLength={50}
-              />
-              <Text style={styles.charCount}>{displayName.length}/50</Text>
+              <Text style={styles.label} testID="display-name-label">
+                DISPLAY NAME
+              </Text>
+              <View style={styles.inputWrapper}>
+                <User size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your display name"
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  placeholderTextColor="#999999"
+                  editable={!loading}
+                  maxLength={50}
+                  testID="display-name-input"
+                />
+              </View>
+              <Text style={styles.charCount} testID="display-name-char-count">
+                {displayName.length}/50
+              </Text>
             </View>
 
             {/* Bio */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Bio (Optional)</Text>
-              <TextInput
-                style={[styles.input, styles.bioInput]}
-                placeholder="Tell other traders about yourself..."
-                value={bio}
-                onChangeText={setBio}
-                placeholderTextColor="#999"
-                editable={!loading}
-                maxLength={200}
-                multiline
-                numberOfLines={4}
-              />
-              <Text style={styles.charCount}>{bio.length}/200</Text>
+              <Text style={styles.label} testID="bio-label">
+                BIO (OPTIONAL)
+              </Text>
+              <View style={[styles.inputWrapper, styles.bioInput]}>
+                <TextInput
+                  style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+                  placeholder="Tell other traders about yourself..."
+                  value={bio}
+                  onChangeText={setBio}
+                  placeholderTextColor="#999999"
+                  editable={!loading}
+                  maxLength={200}
+                  multiline
+                  numberOfLines={4}
+                  testID="bio-input"
+                />
+              </View>
+              <Text style={styles.charCount} testID="bio-char-count">
+                {bio.length}/200
+              </Text>
             </View>
 
             {/* Continue button */}
@@ -223,6 +239,7 @@ export default function ProfileCompletionScreen() {
               style={[styles.button, loading && styles.buttonDisabled]}
               onPress={handleContinue}
               disabled={loading || uploading}
+              testID="save-profile-button"
             >
               {loading ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -238,6 +255,7 @@ export default function ProfileCompletionScreen() {
                 (navigation as any).navigate('LocationPicker', { userId });
               }}
               disabled={loading || uploading}
+              testID="skip-button"
             >
               <Text style={styles.skipButtonText}>Skip for now</Text>
             </TouchableOpacity>
@@ -251,7 +269,7 @@ export default function ProfileCompletionScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   keyboardView: {
     flex: 1,
@@ -260,28 +278,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 20,
+    padding: 24,
   },
   progressBar: {
     height: 4,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#E0E0E0',
     borderRadius: 2,
     marginBottom: 30,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#6B6B6B',
     lineHeight: 24,
     marginBottom: 30,
   },
@@ -298,84 +316,80 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    borderStyle: 'dashed',
-  },
-  avatarPlaceholderText: {
-    fontSize: 40,
-    marginBottom: 4,
-  },
-  avatarPlaceholderLabel: {
-    fontSize: 12,
-    color: '#999',
   },
   uploadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: -20,
     marginBottom: 20,
   },
   uploadingText: {
     marginLeft: 8,
-    color: '#666',
+    fontSize: 14,
+    color: '#6B6B6B',
   },
   formGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#000',
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B6B6B',
+    textTransform: 'uppercase',
     marginBottom: 8,
   },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 12,
+    height: 52,
+    paddingHorizontal: 16,
+  },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    flex: 1,
     fontSize: 16,
-    color: '#000',
-    backgroundColor: '#fafafa',
+    color: '#1A1A1A',
   },
   bioInput: {
-    minHeight: 100,
-    textAlignVertical: 'top',
-    paddingVertical: 12,
+    height: 120,
+    alignItems: 'flex-start',
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   charCount: {
     fontSize: 12,
-    color: '#999',
-    marginTop: 4,
+    color: '#999999',
     textAlign: 'right',
+    marginTop: 4,
   },
   button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingVertical: 14,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    height: 52,
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: 10,
-    marginBottom: 12,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
   skipButton: {
+    marginTop: 16,
     paddingVertical: 12,
     alignItems: 'center',
   },
   skipButtonText: {
-    color: '#007AFF',
     fontSize: 14,
-    fontWeight: '500',
+    color: '#6B6B6B',
   },
 });

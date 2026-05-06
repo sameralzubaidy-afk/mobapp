@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 16,
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   body: {
     fontSize: 16,
     fontWeight: '400',
-    color: '#4A4A4A',
+    color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 24,
     maxWidth: 320,

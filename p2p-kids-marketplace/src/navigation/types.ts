@@ -7,6 +7,12 @@ export type RootStackParamList = {
   SuspendedAccount: undefined;
   PhoneVerification: undefined;
   ProfileSetup: undefined;
+  Welcome: { userId?: string } | undefined;
+  ProfileCompletion: { userId?: string } | undefined;
+  LocationPicker: { userId?: string } | undefined;
+  NodeSelection: { userId?: string; zipCode?: string } | undefined;
+  FeatureHighlights: { userId?: string } | undefined;
+  Onboarding: undefined;
   Profile: { userId?: string } | undefined;
   EditProfile: undefined;
   ForgotPassword: undefined;
@@ -23,7 +29,7 @@ export type RootStackParamList = {
   CategoryBrowse: { category: string };
   // Subscription routes
   Subscription: undefined;
-  SubscriptionChoice: undefined;
+  SubscriptionChoice: { userId?: string } | undefined;
   // MODULE-11 SUB-006: Trial conversion
   ContinueKidsClub: undefined;
   // MODULE-11 SUB-008: Manage subscription

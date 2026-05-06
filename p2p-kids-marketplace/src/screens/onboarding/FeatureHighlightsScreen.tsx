@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { supabase } from '@/services/supabase';
 import { AuthContext } from '@/contexts/AuthContext';
+import { CaretRight } from 'phosphor-react-native';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
 
@@ -36,11 +36,12 @@ export default function FeatureHighlightsScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { userId: routeUserId } = (route.params as any) || {};
-  const { session, refreshSession } = React.useContext(AuthContext);
+  const { session } = React.useContext(AuthContext);
 
   // Use session user ID if available, otherwise fall back to route params
   const userId = session?.user?.id || routeUserId;
 
+  const scrollViewRef = useRef<ScrollView | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const handleScroll = (event: any) => {
@@ -62,10 +63,18 @@ export default function FeatureHighlightsScreen() {
     }
   };
 
-  const isLastSlide = currentIndex === features.length - 1;
+  const handleNext = (index: number) => {
+    const nextIndex = index + 1;
+    if (nextIndex >= features.length) {
+      return;
+    }
+
+    scrollViewRef.current?.scrollTo({ x: nextIndex * width, animated: true });
+    setCurrentIndex(nextIndex);
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="feature-highlights-screen">
       {/* Progress Indicator */}
       <View style={styles.progressContainer}>
         <View style={[styles.progressBar, styles.progressActive]} />
@@ -75,40 +84,62 @@ export default function FeatureHighlightsScreen() {
 
       {/* Feature Carousel */}
       <ScrollView
+        ref={scrollViewRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         style={styles.scrollView}
+        testID="feature-highlights-carousel"
       >
         {features.map((feature: (typeof features)[0], index: number) => (
-          <View key={index} style={[styles.slide, { width }]}>
+          <View key={index} style={[styles.slide, { width }]} testID={`feature-slide-${index}`}>
             <View style={styles.slideContent}>
               <Text style={styles.emoji}>{feature.emoji}</Text>
-              <Text style={styles.featureTitle}>{feature.title}</Text>
-              <Text style={styles.featureDescription}>{feature.description}</Text>
+              <Text style={styles.featureTitle} testID={`feature-title-${index}`}>
+                {feature.title}
+              </Text>
+              <Text style={styles.featureDescription} testID={`feature-description-${index}`}>
+                {feature.description}
+              </Text>
             </View>
 
             {/* Pagination Dots */}
-            <View style={styles.paginationContainer}>
+            <View
+              style={styles.paginationContainer}
+              testID={index === currentIndex ? 'pagination-dots' : `pagination-dots-${index}`}
+            >
               {features.map((_: (typeof features)[0], dotIndex: number) => (
                 <View
                   key={dotIndex}
-                  style={[styles.dot, dotIndex === index ? styles.dotActive : styles.dotInactive]}
+                  style={[
+                    styles.dot,
+                    dotIndex === currentIndex ? styles.dotActive : styles.dotInactive,
+                  ]}
+                  testID={`feature-dot-${dotIndex}`}
                 />
               ))}
             </View>
 
             {/* Action Button */}
             {index === features.length - 1 ? (
-              <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleGetStarted}
+                testID={index === currentIndex ? 'get-started-button' : `get-started-button-${index}`}
+              >
                 <Text style={styles.buttonText}>Get Started</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.skipContainer}>
-                <TouchableOpacity onPress={handleGetStarted}>
-                  <Text style={styles.skipText}>Skip</Text>
+                <TouchableOpacity
+                  style={styles.nextButton}
+                  onPress={() => handleNext(index)}
+                  testID={index === currentIndex ? 'next-button' : `next-button-${index}`}
+                >
+                  <Text style={styles.nextButtonText}>Next</Text>
+                  <CaretRight size={20} color="#FFFFFF" weight="regular" />
                 </TouchableOpacity>
               </View>
             )}
@@ -122,7 +153,7 @@ export default function FeatureHighlightsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     paddingTop: 60,
     paddingBottom: 40,
   },
@@ -138,10 +169,10 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   progressActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#5DBB8E',
   },
   progressInactive: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#E0E0E0',
   },
   scrollView: {
     flex: 1,
@@ -159,15 +190,15 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   featureTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111',
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 16,
   },
   featureDescription: {
     fontSize: 16,
-    color: '#666',
+    color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 32,
@@ -184,28 +215,44 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   dotActive: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#5DBB8E',
   },
   dotInactive: {
-    backgroundColor: '#d1d5db',
+    backgroundColor: '#E0E0E0',
   },
   button: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    height: 52,
+    paddingHorizontal: 32,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
   skipContainer: {
     alignItems: 'center',
-    padding: 16,
+  },
+  nextButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    height: 52,
+    paddingHorizontal: 32,
+    justifyContent: 'center',
+  },
+  nextButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginRight: 8,
   },
   skipText: {
-    color: '#666',
-    fontSize: 16,
+    fontSize: 14,
+    color: '#6B6B6B',
   },
 });

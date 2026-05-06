@@ -66,23 +66,23 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} testID="welcome-screen">
       <View style={styles.content}>
         {/* Logo/Illustration */}
         <Text style={styles.emoji}>🌟</Text>
 
         {/* Title */}
-        <Text style={styles.title}>Welcome to{'\n'}P2P Kids Marketplace</Text>
+        <Text style={styles.title} testID="welcome-headline">Welcome to{'\n'}P2P Kids Marketplace</Text>
 
         {/* Description */}
-        <Text style={styles.description}>
+        <Text style={styles.description} testID="welcome-description">
           A safe space for kids to trade items,{'\n'}
           learn entrepreneurship, and build{'\n'}
           their community
         </Text>
 
         {/* Get Started Button */}
-        <TouchableOpacity style={styles.button} onPress={handleGetStarted} disabled={loading}>
+        <TouchableOpacity style={styles.button} onPress={handleGetStarted} disabled={loading} testID="welcome-get-started-button">
           {loading ? (
             <ActivityIndicator color="#fff" />
           ) : (
@@ -97,7 +97,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     padding: 24,
   },
   content: {
@@ -110,28 +110,30 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#111',
+    fontSize: 28,
+    fontWeight: '600',
+    color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 16,
   },
   description: {
     fontSize: 16,
-    color: '#666',
+    color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 48,
   },
   button: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 8,
-    paddingVertical: 16,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    height: 52,
     paddingHorizontal: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

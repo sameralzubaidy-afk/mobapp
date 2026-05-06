@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { AppleLogo } from 'phosphor-react-native';
 import { OAuthProvider, ProviderProfile } from '@/types/auth-v3';
 import { initiateSocialLogin, handleOAuthCallback } from '@/services/oauthService';
 import { checkAccountExists } from '@/services/accountService';
@@ -390,7 +391,7 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
           disabled={loadingProvider !== null}
           testID="apple-login-button"
         >
-          <Text style={styles.iconText}></Text>
+          <AppleLogo size={20} weight="bold" color="#1A1A1A" />
         </TouchableOpacity>
 
         {/* Facebook */}

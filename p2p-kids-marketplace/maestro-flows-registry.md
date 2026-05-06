@@ -4,6 +4,9 @@
 
 - `.maestro/auth-signup.yaml` - Signup happy path.
 - `.maestro/auth-login.yaml` - Login path.
+- `.maestro/module-15.1-flow-01-auth.yaml` - **[MODULE-15.1 FLOW-01]** Reusable auth UI regression flow (Landing/Login/Signup/Forgot Password + validation states) using shared Expo bootstrap helper.
+- `.maestro/module-15.1-flow-02-onboarding.yaml` - **[MODULE-15.1 FLOW-02]** Onboarding and profile redesign regression (Welcome, ProfileCompletion, FeatureHighlights, OnboardingCarousel, ProfileSetup) with testID-based simulator automation.
+- `.maestro/tc-004-login-password-toggle.yaml` - Focused FLOW-01 TC-004 password visibility toggle test that reuses shared Expo bootstrap helper.
 - `.maestro/onboarding-carousel.yaml` - **[MODULE-18 EDU-004]** Trading education onboarding carousel: first-run display, 5-screen swipe navigation, progress dots update, skip button immediate exit, Get Started on screen 5 completion, re-launch does NOT show carousel. Tests 3 flows: complete path, skip path, swipe back/forward navigation (EDU-004).
 - `.maestro/help-screen-education.yaml` - **[MODULE-18 EDU-005]** Help Screen Education: navigate from Settings → Help → verify sp_definition expanded by default → tap section headers to expand/collapse → SP calculator interaction (select category, enter price, calculate) → verify bonus categories list → pull-to-refresh → deep link to specific section → back navigation. Tests 6 states: default load, section expansion, calculator interaction, bonus categories display, pull-to-refresh, navigation (EDU-005).
 - `.maestro/auth-v3-005-profile-autofill.yaml` - Profile auto-fill and avatar download from OAuth providers (AUTH-V3-005): Google auto-fill, Facebook avatar download, Apple no-avatar graceful fallback, existing profile NOT overwritten state.
@@ -41,3 +44,7 @@
 - `.maestro/admin-sp-analytics-dashboard.yaml` - **[ADMIN]** SP Analytics Dashboard: navigate to SP Analytics page → verify date range picker (7/30/90 days) → metrics table displays velocity/gap/cash per category → anomaly alerts panel shows flagged categories → click flagged category navigates to category edit with SP Config tab → click table row deep-links to category → CSV export button functional → verify metric highlighting and badge rendering (ADMIN-V3-006).
 - `.maestro/buyer-category-filter.yaml` - **[MOBILE-BUYER]** Buyer Category Filter Modal: open category filter from Browse → verify empty categories (item_count=0) hidden → verify bonus badges visible for categories with sp_earning_multiplier > 1.10 → verify SP preview shown for Kids Club+ subscribers → select category → verify filter chip displayed → clear filter (ADMIN-V3-009).
 - `.maestro/seller-other-flow.yaml` - **[MOBILE-SELLER]** Seller "Other" Category Suggestion: navigate to Create Listing → add photos → select "Other" category → custom name input appears → enter custom category name → fill required fields → publish → verify suggestion created in category_suggestions table (ADMIN-V3-009).
+
+## Shared Helper Flows
+
+- `.maestro/helpers/auth-bootstrap-expo.yaml` - Reusable startup normalization for Expo Go auth flows (open Metro app, recover from suspended/authenticated state, normalize to Landing).

@@ -37,6 +37,7 @@ export default function PhoneVerificationScreen() {
   // Auto-send code on mount
   useEffect(() => {
     handleResendCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Countdown timer for resend button
@@ -102,6 +103,38 @@ export default function PhoneVerificationScreen() {
     }
   };
 
+  const handleDevFillTestCode = () => {
+    if (!__DEV__) return;
+    setCode('123456');
+    setError(false);
+  };
+
+  const handleDevVerifyTestCode = async () => {
+    if (!__DEV__) return;
+    setCode('123456');
+    setError(false);
+    setLoading(true);
+
+    try {
+      await verifyPhoneCode(phone, '123456');
+      setLoading(false);
+      Alert.alert('Success!', "Your phone number has been verified. Let's complete your profile!", [
+        {
+          text: 'Continue',
+          onPress: () => {
+            (navigation as any).navigate('ProfileSetup', { userId });
+          },
+        },
+      ]);
+    } catch (error) {
+      setLoading(false);
+      setError(true);
+      const err = error as Error;
+      Alert.alert('Verification Failed', err.message || 'Invalid code');
+      setCode('');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
@@ -130,6 +163,28 @@ export default function PhoneVerificationScreen() {
               error={error}
             />
           </View>
+
+          {__DEV__ && (
+            <View style={styles.devOtpSection}>
+              <Text style={styles.devOtpHint}>Dev: OTP bypass code is 123456</Text>
+              <View style={styles.devOtpButtonsRow}>
+                <TouchableOpacity
+                  onPress={handleDevFillTestCode}
+                  style={styles.devOtpButton}
+                  testID="dev-fill-otp-123456"
+                >
+                  <Text style={styles.devOtpButtonText}>Fill 123456</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleDevVerifyTestCode}
+                  style={styles.devOtpButton}
+                  testID="dev-verify-otp-123456"
+                >
+                  <Text style={styles.devOtpButtonText}>Use & Verify</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {/* Verify Button */}
           <Button
@@ -220,6 +275,36 @@ const styles = StyleSheet.create({
 
   otpContainer: {
     marginBottom: theme.spacing.xl,
+  },
+
+  devOtpSection: {
+    marginBottom: theme.spacing.lg,
+  },
+
+  devOtpHint: {
+    ...theme.typography.caption,
+    color: theme.textColors.tertiary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+
+  devOtpButtonsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+
+  devOtpButton: {
+    flex: 1,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.backgroundColors.input,
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+  },
+
+  devOtpButtonText: {
+    ...theme.typography.bodySmall,
+    color: theme.textColors.primary,
+    fontFamily: theme.fontFamily.medium,
   },
 
   verifyButton: {

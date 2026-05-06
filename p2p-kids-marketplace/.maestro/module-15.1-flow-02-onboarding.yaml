@@ -1,0 +1,120 @@
+# FLOW: MODULE-15.1-FLOW-02 Onboarding/Profile (Deterministic + Reusable)
+# Purpose: Stable UI verification for redesigned onboarding/profile screens.
+# Strategy: Normalize Expo startup, then deep-link each target screen.
+
+appId: host.exp.Exponent
+---
+
+# Bootstrap app into deterministic state.
+- runFlow:
+    file: helpers/flow-02-bootstrap-expo.yaml
+
+# TEST FLOW-02-001: ProfileCompletionScreen
+- assertVisible:
+    id: profile-completion-screen
+- assertVisible:
+    id: display-name-label
+- assertVisible:
+    id: display-name-input
+- tapOn:
+    id: display-name-input
+- inputText: Maestro User
+- hideKeyboard
+- assertVisible:
+    id: bio-label
+- tapOn:
+    id: bio-input
+- inputText: FLOW-02 reusable Maestro test bio
+- hideKeyboard
+- assertVisible:
+    id: bio-char-count
+- assertVisible:
+    id: save-profile-button
+- assertVisible:
+    id: skip-button
+
+# TEST FLOW-02-002: FeatureHighlightsScreen (4-slide carousel)
+- openLink: exp://127.0.0.1:8081/--/feature-highlights?userId=maestro-flow-02-user
+- waitForAnimationToEnd
+- assertVisible:
+    id: feature-highlights-screen
+- assertVisible:
+    id: feature-slide-0
+- assertVisible:
+    id: pagination-dots
+- swipe:
+    direction: LEFT
+- waitForAnimationToEnd
+- assertVisible:
+    id: feature-slide-1
+- swipe:
+    direction: LEFT
+- waitForAnimationToEnd
+- assertVisible:
+    id: feature-slide-2
+- swipe:
+    direction: LEFT
+- waitForAnimationToEnd
+- assertVisible:
+    id: feature-slide-3
+- assertVisible:
+    id: get-started-button
+
+# TEST FLOW-02-003: WelcomeScreen (visual state)
+- tapOn:
+    id: get-started-button
+- waitForAnimationToEnd
+- assertVisible:
+    id: welcome-screen
+- assertVisible:
+    id: welcome-headline
+- assertVisible:
+    id: welcome-description
+- assertVisible:
+    id: welcome-get-started-button
+
+# TEST FLOW-02-004: ProfileSetupScreen (validation state)
+- openLink: exp://127.0.0.1:8081/--/profile-setup
+- waitForAnimationToEnd
+- assertVisible:
+    id: profile-setup-screen
+- assertVisible:
+    id: display-name-label
+- assertVisible:
+    id: zip-code-label
+- assertVisible:
+    id: bio-label
+- tapOn:
+    id: complete-setup-button
+- assertVisible:
+    id: display-name-error
+- assertVisible:
+    id: zip-code-error
+
+# TEST FLOW-02-005: Optional OnboardingCarousel assertions
+# This carousel is auth-gated by RootNavigator. Run only when visible.
+- runFlow:
+    when:
+      visible:
+        id: onboarding-carousel
+    commands:
+      - assertVisible:
+          id: onboarding-slide-0
+      - assertVisible:
+          id: onboarding-pagination-dots
+      - swipe:
+          direction: LEFT
+      - waitForAnimationToEnd
+      - swipe:
+          direction: LEFT
+      - waitForAnimationToEnd
+      - swipe:
+          direction: LEFT
+      - waitForAnimationToEnd
+      - swipe:
+          direction: LEFT
+      - waitForAnimationToEnd
+      - assertVisible:
+          id: onboarding-slide-4
+      - assertVisible:
+          id: onboarding-get-started-button

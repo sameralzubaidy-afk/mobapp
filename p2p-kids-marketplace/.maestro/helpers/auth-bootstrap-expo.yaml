@@ -1,0 +1,98 @@
+# FLOW: auth-bootstrap-expo
+# Purpose: Reusable app entry + auth state normalization for Expo Go based Maestro flows.
+# Usage: runFlow this file at the top of any auth-related flow.
+
+appId: host.exp.Exponent
+---
+
+- launchApp
+- openLink: exp://127.0.0.1:8081
+- waitForAnimationToEnd
+
+# iOS credential-save sheet can block interactions; dismiss if shown.
+- runFlow:
+    when:
+      visible:
+        text: Save Password?
+    commands:
+      - tapOn:
+          text: Not Now
+      - waitForAnimationToEnd
+
+# Expo Go sometimes opens Home first. Tap the recent project if visible.
+- runFlow:
+    when:
+      visible:
+        text: p2p-kids-marketplace
+    commands:
+      - tapOn:
+          text: p2p-kids-marketplace
+      - waitForAnimationToEnd
+
+# If app opens in suspended state, log out to reset session.
+- runFlow:
+    when:
+      visible:
+        text: Account Suspended
+    commands:
+      - tapOn:
+          text: Log Out
+      - waitForAnimationToEnd
+
+# If app opens while authenticated, force logout from Profile tab.
+- runFlow:
+    when:
+      visible:
+        id: nav-profile
+    commands:
+      - tapOn:
+          id: nav-profile
+      - waitForAnimationToEnd
+      - tapOn:
+          id: profile-logout-button
+      - waitForAnimationToEnd
+      - tapOn:
+          text: Logout
+      - waitForAnimationToEnd
+
+# Normalize to Landing from common auth screens.
+- runFlow:
+    when:
+      visible:
+        id: login-back-button
+    commands:
+      - tapOn:
+          id: login-back-button
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: signup-back-button
+    commands:
+      - tapOn:
+          id: signup-back-button
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Back to Login
+    commands:
+      - tapOn:
+          text: Back to Login
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              id: login-back-button
+          commands:
+            - tapOn:
+                id: login-back-button
+            - waitForAnimationToEnd
+
+# Hard precondition for downstream test steps.
+- assertVisible:
+    id: landing-login-button
+- assertVisible:
+    id: landing-signup-button

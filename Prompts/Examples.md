@@ -56,13 +56,38 @@ Supabase: supabase/
 My Example 1
 
 
-### TASK FLOW-01: Authentication & Session Management
+### TASK FLOW-02: Profiles & Onboarding
 
-MODULE-15.1-UI-redesign.md
-
-I’m working on the  MODULE-15.1-UI-redesign.md tasks
+I’m working on the MODULE-15.1-UI-redesign.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
-Tasks: 
+Tasks: ### TASK FLOW-02: Profiles & Onboarding
+
+Scope
+
+Redesign the post-signup onboarding and profile setup screens. This flow is the first experience after account creation. The Feature Highlights carousel is the primary place where Storyset illustrations are used — it introduces app features in a clean, visual format. Profile screens adopt the same filled-input design language as auth screens.
+
+#### Scope — Files to Modify
+
+| # | Screen | File | Change Type |
+|---|--------|------|-------------|
+| 1 | Welcome Screen | `src/screens/onboarding/WelcomeScreen.tsx` | Restyle only |
+| 2 | Profile Completion | `src/screens/onboarding/ProfileCompletionScreen.tsx` | Restyle only |
+| 3 | Feature Highlights Carousel | `src/screens/onboarding/FeatureHighlightsScreen.tsx` | Restyle + add illustrations |
+| 4 | Onboarding Carousel (Trading Ed) | `src/screens/onboarding/OnboardingScreen.tsx` | Restyle only |
+| 5 | Profile Setup | `src/screens/profile/ProfileSetupScreen.tsx` | Restyle only |
+
+#### Acceptance Criteria — FLOW-02 (Visual Only)
+
+- [ ] WelcomeScreen headline is 28px semibold, centered, on white background
+- [ ] Avatar upload area is circular (120px), `#F0F0F0` background, `Camera` icon centered
+- [ ] `User`, `Camera`, `CalendarBlank` icons (Phosphor) appear on profile input screens
+- [ ] FeatureHighlightsScreen has exactly 4 slides with illustrations (or labeled placeholders)
+- [ ] Carousel pagination dots: active `#5DBB8E`, inactive `#E0E0E0`, 8px circles
+- [ ] Slide 4 shows "Get Started" button; slides 1–3 show "Next" with `CaretRight` icon
+- [ ] Button on slide 4 navigates correctly (existing nav call preserved)
+- [ ] OnboardingScreen uses large Phosphor icons (80px) as slide hero visuals — no placeholder boxes
+- [ ] All input fields on profile screens use filled style (`#F0F0F0`, 12px radius, no border)
+- [ ] All primary buttons are green pill (52px, `borderRadius: 26`)
 
 i want you to 
 
@@ -97,7 +122,7 @@ MODULE-15.1-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi
 > ⚠️ RULE 1: Tests required regardless of change size. No exceptions.
 
 #### Unit Tests
-1- Search the codebase for existing implementations using:
+1- Search the codebase for existing Tests using:
    - Feature keywords
    - Table names
    - Function names
@@ -109,7 +134,7 @@ MODULE-15.1-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi
 - Run: `npm run test:unit` → must PASS ✅
 
 #### Integration Tests
-1- Search the codebase for existing implementations using:
+1- Search the codebase for existing Tests using:
    - Feature keywords
    - Table names
    - Function names
@@ -120,7 +145,7 @@ MODULE-15.1-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi
 - List any required SQL separately and wait for confirmation
 
 #### Maestro UI Flow Tests
-1- Search the codebase for existing implementations using:
+1- Search the codebase for existing Tests using:
    - Feature keywords
    - Table names
    - Function names

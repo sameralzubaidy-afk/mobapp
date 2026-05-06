@@ -267,12 +267,8 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
 
     const bypassContext = devSmsBypassContext;
 
-    if (
-      isDevSmsBypassEnabled() &&
-      code === DEV_SMS_BYPASS_CODE &&
-      bypassContext?.userId === user.id &&
-      bypassContext?.phone === phone
-    ) {
+    // In development/testing, always allow the canonical bypass code for the signed-in user.
+    if (isDevSmsBypassEnabled() && code === DEV_SMS_BYPASS_CODE) {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -291,6 +287,7 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<void
         action: 'phone_verified',
         details: {
           phone,
+          bypass_context_phone: bypassContext?.phone,
           method: 'sms_dev_bypass',
           verified_at: new Date().toISOString(),
         },

@@ -90,19 +90,9 @@ export default function ForgotPasswordScreen() {
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.successContent}>
           <View style={styles.successHeader}>
-            <Text style={styles.successEmoji}>📧</Text>
-            <Text style={styles.successTitle}>Check Your Email</Text>
+            <Text style={styles.successTitle}>Check Your Inbox</Text>
             <Text style={styles.successSubtitle}>
-              We've sent a password reset link to{'\n'}
-              <Text style={styles.successEmail}>{email}</Text>
-            </Text>
-          </View>
-
-          <View style={styles.instructionsCard}>
-            <Text style={styles.instructionsText}>
-              • Check your inbox and spam folder{'\n'}
-              • Click the reset link in the email{'\n'}
-              • You'll be redirected to set a new password
+              Check your inbox! If you have an account with us, you'll find a link to reset your password. Don't forget to check your spam folder if you don't see it in a few minutes.
             </Text>
           </View>
 
