@@ -1,7 +1,7 @@
 import { bulkListingReducer, BulkFlowState } from '../bulkListingStateMachine';
 
 describe('bulkListingReducer', () => {
-  const cases: Array<{ from: BulkFlowState; action: any; expected: BulkFlowState }> = [
+  const cases: { from: BulkFlowState; action: any; expected: BulkFlowState }[] = [
     { from: 'IDLE', action: { type: 'PHOTOS_ADDED' }, expected: 'ADDING_PHOTOS' },
     { from: 'ADDING_PHOTOS', action: { type: 'GROUPS_READY' }, expected: 'GROUPING' },
     { from: 'GROUPING', action: { type: 'AI_START' }, expected: 'AI_ANALYZING' },

@@ -9,6 +9,8 @@
 
 import { cancelSubscription, CancelSubscriptionResult } from '../../services/subscription';
 
+import { supabase } from '../../config/supabase';
+
 // Mock Supabase
 jest.mock('../../config/supabase', () => ({
   supabase: {
@@ -20,8 +22,6 @@ jest.mock('../../config/supabase', () => ({
     },
   },
 }));
-
-import { supabase } from '../../config/supabase';
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
 

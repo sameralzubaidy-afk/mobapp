@@ -3,6 +3,8 @@
 
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 
+import { supabase } from '@/services/supabase/client';
+
 // Mock supabase
 jest.mock('@/services/supabase/client', () => ({
   supabase: {
@@ -17,8 +19,6 @@ jest.mock('@/services/supabase/client', () => ({
     rpc: jest.fn(),
   },
 }));
-
-import { supabase } from '@/services/supabase/client';
 
 describe('ReferralCodeServiceV2', () => {
   beforeEach(() => {

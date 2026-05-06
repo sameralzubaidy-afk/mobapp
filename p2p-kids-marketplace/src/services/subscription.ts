@@ -187,7 +187,7 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     }
 
     // Determine expiration date based on status
-    let expiresAt = sub.trial_ends_at || sub.current_period_end || null;
+    const expiresAt = sub.trial_ends_at || sub.current_period_end || null;
 
     return {
       status,

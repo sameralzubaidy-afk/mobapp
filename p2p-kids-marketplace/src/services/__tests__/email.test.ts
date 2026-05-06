@@ -11,13 +11,13 @@ import {
   sendSubscriptionStatusEmail,
 } from '@/services/email';
 
+import sgMail from '@sendgrid/mail';
+
 // Mock SendGrid before importing
 jest.mock('@sendgrid/mail', () => ({
   setApiKey: jest.fn(),
   send: jest.fn().mockResolvedValue([{ statusCode: 202 }]),
 }));
-
-import sgMail from '@sendgrid/mail';
 
 const mockSendGrid = sgMail as jest.Mocked<typeof sgMail>;
 

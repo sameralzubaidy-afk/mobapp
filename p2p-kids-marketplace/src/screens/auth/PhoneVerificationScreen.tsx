@@ -1,21 +1,22 @@
-// File: src/screens/auth/PhoneVerificationScreen.tsx
-// Phone verification screen for verifying user phone number via SMS code
+// File: p2p-kids-marketplace/src/screens/auth/PhoneVerificationScreen.tsx
+// FLOW-01: Auth Phone Verification Screen (Redesigned)
+// Design System: Prompts/re-desing/design-system.md
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   StyleSheet,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { sendPhoneVerificationCode, verifyPhoneCode } from '@/services/phoneService';
+import { Button, OTPInput } from '@/components/ui';
+import { theme } from '@/theme';
 
 interface RouteParams {
   userId: string;
@@ -27,13 +28,11 @@ export default function PhoneVerificationScreen() {
   const route = useRoute();
   const { userId, phone } = route.params as RouteParams;
 
-  const [code, setCode] = useState(['', '', '', '', '', '']);
+  const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
-
-  // Refs for TextInputs to manage focus
-  const inputRefs = useRef<(TextInput | null)[]>([]);
+  const [error, setError] = useState(false);
 
   // Auto-send code on mount
   useEffect(() => {
@@ -71,43 +70,18 @@ export default function PhoneVerificationScreen() {
     }
   };
 
-  const handleCodeChange = (text: string, index: number) => {
-    // Only allow numbers
-    if (text && !/^\d+$/.test(text)) return;
-
-    const newCode = [...code];
-    newCode[index] = text;
-    setCode(newCode);
-
-    // Auto-focus next input
-    if (text && index < 5) {
-      inputRefs.current[index + 1]?.focus();
-    }
-
-    // Auto-verify when all 6 digits entered
-    if (index === 5 && text && newCode.every((digit) => digit)) {
-      handleVerify(newCode.join(''));
-    }
-  };
-
-  const handleKeyPress = (key: string, index: number) => {
-    // Handle backspace
-    if (key === 'Backspace' && !code[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleVerify = async (codeToVerify?: string) => {
-    const verificationCode = codeToVerify || code.join('');
-
-    if (verificationCode.length !== 6) {
+  const handleVerify = async () => {
+    if (code.length !== 6) {
+      setError(true);
       Alert.alert('Invalid Code', 'Please enter all 6 digits');
       return;
     }
 
     setLoading(true);
+    setError(false);
+
     try {
-      await verifyPhoneCode(phone, verificationCode);
+      await verifyPhoneCode(phone, code);
       setLoading(false);
       Alert.alert('Success!', "Your phone number has been verified. Let's complete your profile!", [
         {
@@ -120,61 +94,62 @@ export default function PhoneVerificationScreen() {
       ]);
     } catch (error) {
       setLoading(false);
+      setError(true);
       const err = error as Error;
       Alert.alert('Verification Failed', err.message || 'Invalid code');
       // Clear code inputs on error
-      setCode(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
+      setCode('');
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Verify Your Phone</Text>
-          <Text style={styles.subtitle}>
-            We sent a 6-digit code to{'\n'}
-            <Text style={styles.phone}>{phone}</Text>
-          </Text>
-
-          <View style={styles.codeContainer}>
-            {code.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref: TextInput | null) => {
-                  inputRefs.current[index] = ref;
-                }}
-                style={[styles.codeInput, digit && styles.codeInputFilled]}
-                value={digit}
-                onChangeText={(text) => handleCodeChange(text, index)}
-                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-                keyboardType="number-pad"
-                maxLength={1}
-                selectTextOnFocus
-                autoFocus={index === 0}
-              />
-            ))}
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Verify Your Phone</Text>
+            <Text style={styles.subtitle}>
+              We sent a 6-digit code to{'\n'}
+              <Text style={styles.phone}>{phone}</Text>
+            </Text>
           </View>
 
-          <TouchableOpacity
-            style={[styles.verifyButton, loading && styles.verifyButtonDisabled]}
-            onPress={() => handleVerify()}
-            disabled={loading || code.some((digit) => !digit)}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.verifyButtonText}>Verify</Text>
-            )}
-          </TouchableOpacity>
+          {/* OTP Input */}
+          <View style={styles.otpContainer}>
+            <OTPInput
+              length={6}
+              value={code}
+              onChange={(newCode) => {
+                setCode(newCode);
+                setError(false);
+              }}
+              error={error}
+            />
+          </View>
 
+          {/* Verify Button */}
+          <Button
+            variant="primary"
+            size="large"
+            onPress={handleVerify}
+            disabled={loading || code.length !== 6}
+            loading={loading}
+            style={styles.verifyButton}
+          >
+            Verify
+          </Button>
+
+          {/* Resend Section */}
           <View style={styles.resendContainer}>
             <Text style={styles.resendText}>Didn't receive the code?</Text>
-            <TouchableOpacity onPress={handleResendCode} disabled={countdown > 0 || resending}>
+            <TouchableOpacity
+              onPress={handleResendCode}
+              disabled={countdown > 0 || resending}
+            >
               <Text
                 style={[
                   styles.resendButton,
@@ -190,7 +165,11 @@ export default function PhoneVerificationScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.changeNumberButton} onPress={() => navigation.goBack()}>
+          {/* Change Number Link */}
+          <TouchableOpacity
+            style={styles.changeNumberButton}
+            onPress={() => navigation.goBack()}
+          >
             <Text style={styles.changeNumberText}>Change Phone Number</Text>
           </TouchableOpacity>
         </View>
@@ -202,96 +181,82 @@ export default function PhoneVerificationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.backgroundColors.page,
   },
+
   keyboardView: {
     flex: 1,
   },
+
   content: {
     flex: 1,
-    padding: 24,
+    padding: theme.componentSpacing.pageMargin,
     justifyContent: 'center',
   },
+
+  header: {
+    marginBottom: theme.spacing.xl,
+    alignItems: 'center',
+  },
+
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 8,
+    ...theme.typography.h1,
+    color: theme.textColors.primary,
+    marginBottom: theme.spacing.sm,
     textAlign: 'center',
   },
+
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
     textAlign: 'center',
-    marginBottom: 16,
     lineHeight: 24,
   },
+
   phone: {
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: theme.fontFamily.semiBold,
+    color: theme.textColors.primary,
   },
-  codeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 32,
+
+  otpContainer: {
+    marginBottom: theme.spacing.xl,
   },
-  codeInput: {
-    width: 50,
-    height: 60,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    borderRadius: 12,
-    fontSize: 24,
-    fontWeight: '600',
-    textAlign: 'center',
-    color: '#1a1a1a',
-  },
-  codeInputFilled: {
-    borderColor: '#ff6b35',
-    backgroundColor: '#fff5f2',
-  },
+
   verifyButton: {
-    backgroundColor: '#ff6b35',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: theme.spacing.lg,
   },
-  verifyButtonDisabled: {
-    backgroundColor: '#ffa07a',
-    opacity: 0.6,
-  },
-  verifyButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
+
   resendContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
+
   resendText: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 8,
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
+    marginRight: theme.spacing.sm,
   },
+
   resendButton: {
-    fontSize: 14,
-    color: '#ff6b35',
-    fontWeight: '600',
+    ...theme.typography.body,
+    color: theme.colors.accent[500],
+    fontFamily: theme.fontFamily.semiBold,
   },
+
   resendButtonDisabled: {
-    color: '#ccc',
+    color: theme.colors.neutral[300],
   },
+
   changeNumberButton: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: theme.spacing.md,
   },
+
   changeNumberText: {
-    fontSize: 14,
-    color: '#666',
+    ...theme.typography.body,
+    color: theme.textColors.tertiary,
     textDecorationLine: 'underline',
   },
 });

@@ -3,6 +3,7 @@
 
 import { supabase } from './supabase/client';
 import { sendVerificationCode } from './aws/sns';
+import { isTestOTPCode, bypassOTPVerification } from './devTestingService';
 
 /**
  * Generate a random 6-digit verification code
@@ -96,60 +97,10 @@ export const verifyPhoneCode = async (
   code: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    // TEST CODE: Always accept '123456' for testing (documented in parking lot)
-    if (code === '123456') {
-      console.warn('🧪 [TEST MODE] Using hardcoded test code 123456');
-      console.warn('🧪 [TEST MODE] Attempting to verify phone for user_id:', userId);
-
-      // Ensure a verified code row exists for test purposes so RPC check passes
-      try {
-        const { error: insertErr } = await supabase.from('phone_verification_codes').insert({
-          user_id: userId,
-          phone,
-          code: '123456',
-          verified: true,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date().toISOString(),
-        });
-        if (insertErr) {
-          console.error('❌ [TEST MODE] Failed to insert test verified row:', insertErr);
-          throw insertErr;
-        }
-      } catch (e) {
-        console.error('❌ [TEST MODE] Exception creating test verified row:', e);
-        throw e;
-      }
-
-      // Use database function to bypass RLS
-      // This function has SECURITY DEFINER privilege and can update any profile
-      const { data: result, error: rpcError } = await supabase.rpc('verify_user_phone', {
-        p_user_id: userId,
-        p_phone: phone,
-      });
-
-      if (rpcError) {
-        console.error('❌ [TEST MODE] RPC error:', rpcError);
-        console.error('❌ [TEST MODE] Error details:', JSON.stringify(rpcError, null, 2));
-        throw rpcError;
-      }
-
-      const rpcResult = result as {
-        success: boolean;
-        message?: string;
-        rows_updated?: number;
-      } | null;
-
-      if (rpcResult && rpcResult.success) {
-        console.warn('✅ [TEST MODE] Phone verified successfully via database function');
-        console.warn('✅ [TEST MODE] Rows updated:', rpcResult.rows_updated);
-        return { success: true };
-      } else {
-        console.error('❌ [TEST MODE] Verification failed:', rpcResult?.message || 'Unknown error');
-        return {
-          success: false,
-          error: rpcResult?.message || 'Failed to verify phone',
-        };
-      }
+    // TEST CODE: Use centralized dev testing service for test OTP bypass
+    if (isTestOTPCode(code)) {
+      console.warn('🧪 [DEV] Using test OTP bypass service');
+      return await bypassOTPVerification(userId, phone);
     }
 
     // Get most recent unverified code for this user/phone

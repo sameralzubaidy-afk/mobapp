@@ -1,123 +1,72 @@
 // File: p2p-kids-marketplace/src/screens/auth/LandingScreen.tsx
-// MODULE-03 AUTH-V2-003: Landing Screen (Pre-Login & Post-Login)
+// FLOW-01: Auth Landing Screen (Complete Rewrite)
+// Design System: Prompts/re-desing/design-system.md
+// Requirements: Hero section, value prop, social proof, CTA buttons
 
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../hooks/useAuth';
-import { AuthSession } from '@/types/user';
+import { Button } from '@/components/ui';
+import { theme } from '@/theme';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
 export default function LandingScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const isFocused = useIsFocused();
-  const { session, refreshSession, setSession } = useAuth();
-
-  const handleSkipAuth = () => {
-    if (!__DEV__) {
-      (navigation as any).navigate('Login');
-      return;
-    }
-
-    const now = new Date().toISOString();
-    const mockSession: AuthSession = {
-      user: {
-        id: '00000000-0000-0000-0000-000000000002',
-        user_id: '00000000-0000-0000-0000-000000000001',
-        email: 'dev.maestro@example.com',
-        name: 'Dev Maestro User',
-        display_name: 'Dev Maestro User',
-        profile_completed: true,
-        onboarding_completed: true,
-        onboarding_completed_at: now,
-        phone_verified: true,
-        parental_consent_verified: true,
-        created_at: now,
-        updated_at: now,
-      },
-      subscription_status: 'free',
-      can_spend_sp: false,
-      available_points: 0,
-      pending_points: 0,
-      lifetime_earned: 0,
-      lifetime_spent: 0,
-      wallet_state: 'inactive', // ADMIN-V2-003
-    };
-
-    setSession(mockSession);
-  };
-
-  // Refresh session when screen comes into focus
-  useEffect(() => {
-    if (isFocused && session) {
-      if (session.user?.user_id === '00000000-0000-0000-0000-000000000001') {
-        return;
-      }
-      refreshSession();
-    }
-  }, [isFocused, session, refreshSession]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Logo / Icon */}
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>🤝</Text>
-          <Text style={styles.appName}>Kids P2P Marketplace</Text>
-        </View>
-
-        {/* Tagline */}
-        <View style={styles.taglineContainer}>
-          <Text style={styles.tagline}>
-            A safe space for kids to trade, learn, and grow together
-          </Text>
-        </View>
-
-        {/* Feature Highlights */}
-        <View style={styles.featuresContainer}>
-          <View style={styles.feature}>
-            <Text style={styles.featureEmoji}>🔒</Text>
-            <Text style={styles.featureText}>Safe & Secure</Text>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero Section */}
+        <View style={styles.hero}>
+          {/* Logo */}
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoEmoji}>🤝</Text>
+            <Text style={styles.appName}>Pass It Up</Text>
           </View>
-          <View style={styles.feature}>
-            <Text style={styles.featureEmoji}>🌟</Text>
-            <Text style={styles.featureText}>Earn Points</Text>
+
+          {/* Value Proposition */}
+          <View style={styles.valueProposition}>
+            <Text style={styles.tagline}>
+              The safe marketplace for kids to buy, sell, and trade
+            </Text>
+            <Text style={styles.subTagline}>
+              Local community • Parent-approved • Earn rewards
+            </Text>
           </View>
-          <View style={styles.feature}>
-            <Text style={styles.featureEmoji}>🏆</Text>
-            <Text style={styles.featureText}>Build Reputation</Text>
+
+          {/* Feature Highlights */}
+          <View style={styles.features}>
+            <FeatureItem emoji="🔒" title="Safe & Secure" description="Parent-verified accounts" />
+            <FeatureItem emoji="💰" title="Earn Points" description="Trade and get rewarded" />
+            <FeatureItem emoji="🌍" title="Local First" description="Meet nearby neighbors" />
           </View>
         </View>
 
         {/* Action Buttons */}
-        <View style={styles.buttonsContainer}>
-          <TouchableOpacity
-            style={styles.signupButton}
-            onPress={() => (navigation as any).navigate('Signup')}
+        <View style={styles.actions}>
+          <Button
+            variant="primary"
+            size="large"
+            onPress={() => navigation.navigate('Signup')}
             testID="landing-signup-button"
           >
-            <Text style={styles.signupButtonText}>Sign Up</Text>
-          </TouchableOpacity>
+            Get Started
+          </Button>
 
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={() => (navigation as any).navigate('Login')}
+          <Button
+            variant="secondary"
+            size="large"
+            onPress={() => navigation.navigate('Login')}
             testID="landing-login-button"
           >
-            <Text style={styles.loginButtonText}>Log In</Text>
-          </TouchableOpacity>
-
-          {/* Test button to skip auth */}
-          <TouchableOpacity
-            style={styles.testButton}
-            onPress={handleSkipAuth}
-            testID="landing-skip-auth-button"
-          >
-            <Text style={styles.testButtonText}>Skip Auth (Test)</Text>
-          </TouchableOpacity>
+            Log In
+          </Button>
         </View>
 
         {/* Footer */}
@@ -126,136 +75,143 @@ export default function LandingScreen() {
             By continuing, you agree to our{' '}
             <Text
               style={styles.footerLink}
-              onPress={() => (navigation as any).navigate('TermsOfService')}
+              onPress={() => navigation.navigate('TermsOfService' as any)}
             >
               Terms
             </Text>{' '}
             and{' '}
             <Text
               style={styles.footerLink}
-              onPress={() => (navigation as any).navigate('PrivacyPolicy')}
+              onPress={() => navigation.navigate('PrivacyPolicy' as any)}
             >
               Privacy Policy
             </Text>
           </Text>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
+// Feature Item Component
+interface FeatureItemProps {
+  emoji: string;
+  title: string;
+  description: string;
+}
+
+const FeatureItem: React.FC<FeatureItemProps> = ({ emoji, title, description }) => (
+  <View style={styles.featureItem}>
+    <Text style={styles.featureEmoji}>{emoji}</Text>
+    <Text style={styles.featureTitle}>{title}</Text>
+    <Text style={styles.featureDescription}>{description}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.backgroundColors.page,
   },
-  content: {
+
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: theme.componentSpacing.pageMargin,
+    paddingBottom: theme.spacing.xl,
+  },
+
+  hero: {
     flex: 1,
-    paddingHorizontal: 24,
     justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: theme.spacing.xl,
   },
+
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: theme.spacing.xl,
   },
+
   logoEmoji: {
     fontSize: 80,
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
+
   appName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    ...theme.typography.h1,
+    color: theme.textColors.primary,
     textAlign: 'center',
   },
-  taglineContainer: {
-    marginBottom: 48,
+
+  valueProposition: {
+    marginBottom: theme.spacing.xxl,
+    paddingHorizontal: theme.spacing.md,
   },
+
   tagline: {
-    fontSize: 18,
-    color: '#666',
+    ...theme.typography.h3,
+    color: theme.textColors.primary,
     textAlign: 'center',
-    lineHeight: 26,
+    marginBottom: theme.spacing.sm,
   },
-  featuresContainer: {
+
+  subTagline: {
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
+    textAlign: 'center',
+  },
+
+  features: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 60,
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: theme.spacing.xl,
   },
-  feature: {
-    alignItems: 'center',
+
+  featureItem: {
     flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.sm,
   },
+
   featureEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
+    fontSize: 40,
+    marginBottom: theme.spacing.sm,
   },
-  featureText: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '600',
+
+  featureTitle: {
+    ...theme.typography.label,
+    color: theme.textColors.primary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.xs,
+    textTransform: 'none',
+  },
+
+  featureDescription: {
+    ...theme.typography.bodySmall,
+    color: theme.textColors.tertiary,
     textAlign: 'center',
   },
-  buttonsContainer: {
-    gap: 16,
+
+  actions: {
+    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
   },
-  signupButton: {
-    height: 56,
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  signupButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  loginButton: {
-    height: 56,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#007AFF',
-  },
-  loginButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  testButton: {
-    height: 44,
-    backgroundColor: '#f59e0b',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  testButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
+
   footer: {
-    marginTop: 40,
-    paddingBottom: 20,
+    marginTop: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.lg,
   },
+
   footerText: {
-    fontSize: 12,
-    color: '#999',
+    ...theme.typography.bodySmall,
+    color: theme.textColors.tertiary,
     textAlign: 'center',
     lineHeight: 18,
   },
+
   footerLink: {
-    color: '#007AFF',
-    fontWeight: '600',
+    color: theme.textColors.link,
+    textDecorationLine: 'underline',
   },
 });

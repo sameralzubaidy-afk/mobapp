@@ -14,7 +14,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 type Gender = 'boy' | 'girl' | 'unisex';
 
-const GENDER_OPTIONS: Array<{ value: Gender | null; label: string }> = [
+const GENDER_OPTIONS: { value: Gender | null; label: string }[] = [
   { value: 'boy', label: 'Boy' },
   { value: 'girl', label: 'Girl' },
   { value: 'unisex', label: 'Unisex' },

@@ -1,18 +1,18 @@
-// File: p2p-kids-marketplace/src/screens/LoginScreen.tsx
-// MODULE-03 AUTH-V2-003: Login with Subscription Context
+// File: p2p-kids-marketplace/src/screens/auth/LoginScreen.tsx
+// FLOW-01: Auth Login Screen (Redesigned)
+// Design System: Prompts/re-desing/design-system.md
 
 import React, { useRef, useState } from 'react';
 import {
   ScrollView,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  TextInput as RNTextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -20,7 +20,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { loginWithContext } from '@/services/auth';
 import { AuthError } from '@/types/user';
 import { useAuth } from '@/hooks/useAuth';
-import { AuthSession } from '@/types/user';
+import { Button, TextInput } from '@/components/ui';
+import { theme } from '@/theme';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import { OAuthProvider } from '@/types/auth-v3';
 
@@ -30,36 +31,7 @@ type NavigationProp = NativeStackNavigationProp<any>;
 export default function LoginScreen() {
   const { setSession } = useAuth();
   const navigation = useNavigation<NavigationProp>();
-  const emailInputRef = useRef<TextInput>(null);
-
-  const handleDevSkipAuth = () => {
-    const now = new Date().toISOString();
-    const mockSession: AuthSession = {
-      user: {
-        id: '00000000-0000-0000-0000-000000000002',
-        user_id: '00000000-0000-0000-0000-000000000001',
-        email: 'dev.maestro@example.com',
-        name: 'Dev Maestro User',
-        display_name: 'Dev Maestro User',
-        profile_completed: true,
-        onboarding_completed: true,
-        onboarding_completed_at: now,
-        phone_verified: true,
-        parental_consent_verified: true,
-        created_at: now,
-        updated_at: now,
-      },
-      subscription_status: 'free',
-      can_spend_sp: false,
-      available_points: 0,
-      pending_points: 0,
-      lifetime_earned: 0,
-      lifetime_spent: 0,
-      wallet_state: 'inactive', // ADMIN-V2-003
-    };
-
-    setSession(mockSession);
-  };
+  const emailInputRef = useRef<RNTextInput>(null);
 
   // Form state
   const [email, setEmail] = useState('');
@@ -164,7 +136,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -172,8 +144,10 @@ export default function LoginScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <View style={styles.content}>
+            {/* Back Button */}
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => navigation.goBack()}
@@ -190,6 +164,7 @@ export default function LoginScreen() {
               </Text>
             </View>
 
+            {/* Social Login Buttons */}
             <SocialLoginButtons
               mode="login"
               onLoginSuccess={handleSocialLoginSuccess}
@@ -201,64 +176,51 @@ export default function LoginScreen() {
             {/* Form */}
             <View style={styles.form}>
               {/* Email */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
-                <TextInput
-                  style={[styles.input, errors.email && styles.inputError]}
-                  placeholder="your.email@example.com"
-                  placeholderTextColor="#6B7280"
-                  value={email}
-                  testID="login-email-input"
-                  ref={emailInputRef}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoComplete="email"
-                  editable={!loading}
-                />
-                {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-              </View>
+              <TextInput
+                label="Email"
+                placeholder="your.email@example.com"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errors.email) setErrors({ ...errors, email: '' });
+                }}
+                error={errors.email}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                editable={!loading}
+                testID="login-email-input"
+              />
 
               {/* Password */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  style={[styles.input, errors.password && styles.inputError]}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#6B7280"
-                  value={password}
-                  testID="login-password-input"
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoComplete="password"
-                  editable={!loading}
-                />
-                {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-              </View>
+              <TextInput
+                label="Password"
+                placeholder="Enter your password"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errors.password) setErrors({ ...errors, password: '' });
+                }}
+                error={errors.password}
+                secureTextEntry
+                autoCapitalize="none"
+                autoComplete="password"
+                editable={!loading}
+                testID="login-password-input"
+              />
 
               {/* Login Button */}
-              <TouchableOpacity
-                style={[styles.button, loading && styles.buttonDisabled]}
+              <Button
+                variant="primary"
+                size="large"
                 onPress={handleLogin}
+                disabled={loading}
+                loading={loading}
                 testID="login-submit-button"
-                disabled={loading}
+                style={styles.loginButton}
               >
-                {loading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.buttonText}>Log In</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.devSkipButton}
-                onPress={handleDevSkipAuth}
-                testID="login-skip-auth-button"
-                disabled={loading}
-              >
-                <Text style={styles.devSkipButtonText}>Skip Auth (Test)</Text>
-              </TouchableOpacity>
+                Log In
+              </Button>
 
               {/* Signup Link */}
               <View style={styles.footer}>
@@ -275,10 +237,7 @@ export default function LoginScreen() {
               {/* Forgot Password Link */}
               <TouchableOpacity
                 style={styles.forgotPassword}
-                onPress={() => {
-                  // TODO: Navigate to forgot password screen
-                  Alert.alert('Forgot Password', 'Feature coming soon!');
-                }}
+                onPress={() => navigation.navigate('ForgotPassword' as any)}
                 disabled={loading}
               >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
@@ -291,127 +250,93 @@ export default function LoginScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.backgroundColors.page,
   },
+
   keyboardAvoidingView: {
     flex: 1,
   },
+
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: theme.spacing.xl,
   },
+
   content: {
     flex: 1,
-    padding: 24,
+    padding: theme.componentSpacing.pageMargin,
     justifyContent: 'center',
   },
+
   backButton: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    padding: 10,
+    top: theme.spacing.md,
+    left: theme.spacing.md,
+    padding: theme.spacing.sm,
     zIndex: 10,
   },
+
   backButtonText: {
-    fontSize: 24,
-    color: '#007AFF',
-    fontWeight: 'bold',
+    ...theme.typography.h1,
+    color: theme.colors.primary[500],
   },
+
   header: {
-    marginBottom: 40,
+    marginBottom: theme.spacing.xl,
     alignItems: 'center',
   },
+
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
+    ...theme.typography.h1,
+    color: theme.textColors.primary,
+    marginBottom: theme.spacing.sm,
     textAlign: 'center',
   },
+
+  subtitle: {
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
+    textAlign: 'center',
+  },
+
   form: {
-    gap: 16,
+    gap: theme.spacing.md,
   },
-  inputGroup: {
-    marginBottom: 16,
+
+  loginButton: {
+    marginTop: theme.spacing.sm,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#111827',
-    backgroundColor: '#f9f9f9',
-  },
-  inputError: {
-    borderColor: '#ff3b30',
-  },
-  errorText: {
-    color: '#ff3b30',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: theme.spacing.md,
   },
+
   footerText: {
-    fontSize: 14,
-    color: '#666',
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
   },
+
   linkText: {
-    fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '600',
+    ...theme.typography.body,
+    color: theme.textColors.link,
+    fontFamily: theme.fontFamily.semiBold,
   },
+
   forgotPassword: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: theme.spacing.sm,
   },
+
   forgotPasswordText: {
-    fontSize: 14,
-    color: '#007AFF',
-  },
-  devSkipButton: {
-    backgroundColor: '#f59e0b',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  devSkipButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    ...theme.typography.body,
+    color: theme.textColors.link,
   },
 });
 

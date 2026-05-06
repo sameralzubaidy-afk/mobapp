@@ -43,7 +43,7 @@ describeWalletSuite('SP-001 E2E: SP Wallet', () => {
   }
 
   let testUserId: string;
-  let cleanupIds: string[] = [];
+  const cleanupIds: string[] = [];
 
   beforeAll(async () => {
     const email = `test-sp-${Date.now()}@test.com`;

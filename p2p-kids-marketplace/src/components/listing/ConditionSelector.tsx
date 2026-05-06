@@ -13,7 +13,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Condition } from '../../types/listing';
 
-const CONDITIONS: Array<{ value: Condition; label: string; description: string }> = [
+const CONDITIONS: { value: Condition; label: string; description: string }[] = [
   { value: 'new', label: 'New', description: 'Brand new with tags' },
   { value: 'like_new', label: 'Like New', description: 'Excellent condition, barely used' },
   { value: 'good', label: 'Good', description: 'Gently used, minor wear' },

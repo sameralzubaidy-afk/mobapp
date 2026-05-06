@@ -1,285 +1,44 @@
-# Implementation Guide: Pass It Up UX Redesign
-**Phase 2 & 3 Execution Plan**  
-*Last Updated: May 4, 2026*
+# Implementation Guide: Pass It Up
+**Code Implementation Plan**  
+*Last Updated: May 5, 2026*
 
 ---
 
 ## 📋 DOCUMENT OVERVIEW
 
-This guide provides the complete roadmap for executing the Pass It Up UX redesign from Figma design through code implementation.
+This guide provides the complete roadmap for implementing the Pass It Up app with the new design system.
 
 **Prerequisites**:
 - ✅ Document 1: app-overview.md (App concept & business model)
-- ✅ Document 2: design-system.md (Samsung Food design system)
-- ✅ Document 3: screen-flow-mapping.md (68 screens mapped to 18 flows)
-- ✅ Document 4: figma-agent-prompts.md (Copy-paste ready Figma prompts)
+- ✅ Document 2: design-system-passitup.md (Whisk-inspired design system)
+- ✅ Document 3: screen-flow-mapping.md (68 screens mapped to 27 flows)
+- ✅ Existing React Native codebase (p2p-kids-marketplace/)
 
 **Target Deliverables**:
-- Complete Figma design system with all 68+ screens
-- Production-ready React Native implementation
-- Custom icon set replacing Ionicons
-- Onboarding illustration assets
+- Production-ready React Native implementation with new design system
+- Custom icon set (Phosphor Icons - $49)
+- Onboarding illustration assets (Storyset)
 - Updated codebase with duplicate cleanup
 
 ---
 
-## 🎯 PHASE 2: FIGMA DESIGN EXECUTION
+## � DESIGN SYSTEM PREPARATION
 
-### 2.1 Figma MCP + Copilot Studio Setup
+### Asset Acquisition
 
-**Tools Required**:
-- Figma Professional account (with Make/Design features)
-- VS Code with GitHub Copilot
-- Figma MCP integration enabled
+#### **Custom Icon Set** ($49)
 
-**Setup Steps**:
+**Decision**: Purchase **Phosphor Icons** pack
 
-1. **Enable Figma MCP in VS Code**:
-   - Open VS Code Settings (Cmd+,)
-   - Search for "Copilot Agents"
-   - Enable Figma MCP integration
-   - Authenticate with Figma account
-
-2. **Create Figma Project Structure**:
-   ```
-   Pass It Up - UX Redesign
-   ├── 📄 Cover Page (project info, links to docs)
-   ├── 🎨 Design System (from FLOW-00)
-   ├── 📱 Screens (organized by flow)
-   │   ├── FLOW-01: Authentication
-   │   ├── FLOW-02: Onboarding
-   │   ├── FLOW-03: Location
-   │   └── ... (all 18 flows)
-   ├── 🧩 Components (reusable library)
-   └── 🔄 Prototypes (interactive flows)
-   ```
-
-3. **Import Foundation Documents**:
-   - Upload app-overview.md, design-system.md, screen-flow-mapping.md to Figma project description
-   - Link documents in Cover Page for easy reference
-   - Create design system tokens from design-system.md
-
-4. **Configure Figma Make Agent**:
-   - Open Figma Make panel
-   - For each flow, paste corresponding prompt from figma-agent-prompts.md
-   - Reference format: "See app-overview.md Section 4.1 for SP earning rules"
-   - Agent will auto-read linked documents
-
----
-
-### 2.2 Figma Hygiene Checklist
-
-**Naming Conventions**:
-- **Screens**: `[FLOW-##]-[ScreenName]` (e.g., `FLOW-01-LoginScreen`)
-- **Components**: `[Category]/[Name]` (e.g., `Button/Primary`, `Card/ItemCard`)
-- **Variants**: Use Figma properties (Type, State, Size)
-- **Colors**: Use design tokens from design-system.md (e.g., `Orange/600`, `Gray/50`)
-- **Typography**: Use text styles (e.g., `Heading/H2`, `Body/Regular`)
-
-**Layer Organization**:
-```
-Frame: [ScreenName]
-├── Header (auto-layout, fixed to top)
-├── Content (auto-layout, scrollable)
-│   ├── Section 1
-│   │   ├── Component Instance
-│   │   └── Component Instance
-│   └── Section 2
-└── Footer/Actions (auto-layout, fixed to bottom)
-```
-
-**Component Best Practices**:
-- ✅ Create variants for all state combinations (default, hover, pressed, disabled)
-- ✅ Use auto-layout for responsive sizing
-- ✅ Define 44x44px minimum touch targets
-- ✅ Apply 8px grid system (snap to 8px)
-- ✅ Use component properties for dynamic content (text, icons, images)
-- ✅ Create instance swap properties for icons
-- ✅ Document component usage in descriptions
-
-**Prototype Configuration**:
-- Use "Smart Animate" for transitions
-- Set 300ms ease-in-out for most animations
-- Configure overflow scrolling for long content
-- Add bottom tab bar navigation to all applicable screens
-- Link modal overlays to dismiss on background tap
-- Configure keyboard navigation for form flows
-
----
-
-### 2.3 Flow-by-Flow Implementation Order
-
-**Recommended Implementation Sequence** (based on dependencies & priority):
-
-#### **Week 1: Foundation & Core Navigation (P0)**
-
-**Day 1-2: Design System Setup**
-- [ ] **FLOW-00**: Create complete component library
-  - Colors, typography, spacing tokens
-  - Button variants (Primary, Secondary, Tertiary, Danger)
-  - Card components (Item Card, Trade Card, Info Card)
-  - Form inputs (Text Input, Dropdown, Date Picker, Slider)
-  - Modals (Full-Overlay, Bottom-Sheet, Action-Sheet)
-  - Navigation (Bottom Tabs, Header, Breadcrumbs)
-  - Status badges, loading states, empty states
-
-**Day 3-4: Authentication & Onboarding**
-- [ ] **FLOW-01**: Authentication (7 screens)
-  - Landing → Login → Signup → Phone Verification → Password Reset
-  - Social login buttons, OTP input, error states
-  - Test flow: Complete signup → verify phone → login
-- [ ] **FLOW-02**: Onboarding (5 screens)
-  - Welcome → Profile Completion → Feature Highlights → Education Carousel
-  - Avatar upload, DOB picker, illustrated slides
-  - Budget: $20-40 for custom illustrations (commission or purchase)
-  - Test flow: New user completes onboarding → reaches Discover screen
-
-**Day 5: Location & Discovery**
-- [ ] **FLOW-03**: Node/ZIP Gating (2 screens)
-  - ZIP input, radius slider, node selection cards
-  - Test flow: Enter ZIP → select node → save location
-- [ ] **FLOW-06**: Discovery (3 screens)
-  - Discover feed, Category Browse, Item Detail
-  - Search/filter modal, item carousel, SP earn badge
-  - Test flow: Browse items → filter → view detail → navigate to checkout
-
-#### **Week 2: Marketplace Core (P0)**
-
-**Day 1-3: Listings**
-- [ ] **FLOW-04**: Listing Management (5 screens)
-  - ItemCreate (4-step stepper), BulkItemCreate, EditListing, MyListings, SafetyReview
-  - Photo upload with drag-drop, category picker (hierarchical), fee summary
-  - Test flow: Create listing → upload photos → set price → publish → edit → delete
-
-**Day 4-5: Cart & Checkout**
-- [ ] **FLOW-07**: Cart & Bundling (2 screens) ⭐ NEW MVP-critical
-  - CartScreen, CartCheckoutScreen
-  - Multi-item checkout, SP allocation strategies (even vs. custom)
-  - Test flow: Add multiple items to cart → allocate SP → checkout → success
-- [ ] **FLOW-08**: Trade Flow (6 screens)
-  - Trade initiation, detail, list, timeline, success, active trades
-  - 5-step timeline component, state-specific actions
-  - Test flow: Single-item checkout → track trade → mark complete → rate
-
-#### **Week 3: Loyalty & Revenue (P0/P1)**
-
-**Day 1-2: SP System**
-- [ ] **FLOW-10**: SP Wallet (3 screens)
-  - Balance view, transaction history, breakdown
-  - Gradient hero card, transaction filtering, pending release timeline
-  - Test flow: View balance → see breakdown → view transaction detail
-- [ ] **FLOW-11**: SP Earn/Spend (integrated components)
-  - SP earn badge (compact + expanded), calculation tooltip
-  - Subscription tier comparison modal
-  - Test flow: View item → see SP badge → tap for calculation → subscribe
-
-**Day 3-4: Subscriptions**
-- [ ] **FLOW-12**: Subscription Management (4 screens)
-  - Management, upgrade, cancellation, success
-  - Tier comparison cards, billing info, trial banners
-  - Test flow: View plans → start trial → upgrade → manage → cancel
-- [ ] **FLOW-17**: Subscription Events (3 screens)
-  - Trial alerts, payment reminders, tier change confirmation
-  - Integrated with FLOW-12 and notification system
-  - Test flow: Trial ending alert → upgrade prompt → payment success
-
-#### **Week 4: Communication & Support (P1)**
-
-**Day 1-2: Messaging**
-- [ ] **FLOW-13**: Messaging & Coordination (3 screens)
-  - Conversation list, chat interface, trade context panel
-  - Message bubbles, quick replies, attachment support
-  - Test flow: Start conversation → send messages → share listing → coordinate pickup
-
-**Day 3-4: Notifications & Support**
-- [ ] **FLOW-15**: Notifications (3 screens)
-  - Notification list, settings, push preferences
-  - Grouped notifications, swipe actions, mark all read
-  - Test flow: Receive notification → view detail → configure preferences
-- [ ] **FLOW-16**: Support & Help Center (4 screens)
-  - Help home, article detail, contact support, ticket submission
-  - Searchable FAQ, category navigation, ticket tracking
-  - Test flow: Search help → read article → submit ticket → view response
-
-#### **Week 5: Growth & Safety (P1/P2)**
-
-**Day 1-2: Referrals & Safety**
-- [ ] **FLOW-14**: Referral Program (2 screens)
-  - Referral dashboard, code sharing modal
-  - Progress tracking, reward claims, social sharing
-  - Test flow: Generate code → share → track referral → claim reward
-- [ ] **FLOW-18**: CPSC Recalls & Admin Actions (4 screens)
-  - Admin recall creation, user recall alert, appeal submission, admin appeal review
-  - Recall details card, affected listings, appeal flow
-  - Test flow: Admin creates recall → user receives alert → submits appeal → admin reviews
-
-**Day 3-5: Polish & Cross-Flow Testing**
-- [ ] Create all interactive prototypes linking flows
-- [ ] Test complete user journeys (see Section 2.4)
-- [ ] Validate design system consistency across all screens
-- [ ] Export assets (icons, illustrations, images)
-- [ ] Prepare developer handoff package
-
----
-
-### 2.4 Testing Cadence & Validation
-
-**Daily Review Checklist**:
-- [ ] All screens use design tokens (no hardcoded colors/typography)
-- [ ] Touch targets meet 44x44px minimum
-- [ ] Auto-layout applied consistently (no absolute positioning)
-- [ ] Components linked to library (not detached)
-- [ ] Prototype flows navigate correctly
-- [ ] Modals dismiss properly
-- [ ] Forms validate inputs
-- [ ] Empty states designed for all list views
-- [ ] Loading states designed for async operations
-- [ ] Error states designed for failures
-
-**Weekly Cross-Flow Validation**:
-
-**Week 1 Checkpoint**: Foundation flows functional
-- [ ] Complete user signup → onboarding → location selection → reach Discover
-- [ ] All design system components documented and reusable
-- [ ] Bottom tab navigation consistent across screens
-
-**Week 2 Checkpoint**: Marketplace flows complete
-- [ ] Create listing → publish → view in Discover → edit → delete
-- [ ] Add to cart → checkout (single item) → complete trade → rate seller
-- [ ] Multi-item cart → allocate SP → checkout → track multiple trades
-
-**Week 3 Checkpoint**: Loyalty system integrated
-- [ ] View SP balance → see breakdown → view transaction history
-- [ ] Subscribe to Premium → verify SP earning enabled → upgrade to Pro
-- [ ] Sell item → earn SP → track pending release → SP available
-
-**Week 4 Checkpoint**: Communication flows functional
-- [ ] Send message to seller → coordinate pickup → complete trade
-- [ ] Receive notification → view detail → navigate to source (trade/message/etc)
-- [ ] Submit support ticket → receive response → view in ticket list
-
-**Week 5 Final Validation**: Complete user journeys
-- [ ] **New User Journey**: Signup → onboard → select location → subscribe → create listing → sell item → earn SP → get paid
-- [ ] **Buyer Journey**: Discover item → view detail → add to cart → allocate SP → checkout → complete trade → rate seller
-- [ ] **Multi-Item Journey**: Add 3 items to cart → allocate SP (custom strategy) → checkout → coordinate pickups → complete trades
-- [ ] **Referral Journey**: Share code → friend signs up → track referral → claim reward
-- [ ] **Support Journey**: Search help → submit ticket → receive response → resolve issue
-- [ ] **Safety Journey**: Admin creates recall → user receives alert → submits appeal → admin reviews
-
----
-
-### 2.5 Asset Preparation
-
-#### **Custom Icon Set** ($100 budget allocated)
-
-**Requirements**:
-- **Quantity**: ~100 unique icons (replace all Ionicons usage)
+**Specifications**:
+- **Quantity**: 6,000+ icons (more than enough to replace all Ionicons)
 - **Style**: Line icons, 2px stroke weight, rounded caps
 - **Sizes**: 20px, 24px, 32px (default 24px)
 - **Format**: SVG (optimized, single color)
-- **Color**: Designed in black (#000000), will be colored via CSS/props
+- **Cost**: $49 one-time purchase
+- **Benefits**: Immediate availability, React Native support, regular updates
 
-**Icon Categories** (reference current Ionicons usage):
+**Icon Categories Covered**:
 - Navigation: home, search, messages, profile, back, forward, menu
 - Actions: add, edit, delete, share, bookmark, filter, sort
 - Commerce: cart, price-tag, wallet, coin, receipt
@@ -289,141 +48,457 @@ Frame: [ScreenName]
 - Social: heart, star, thumbs-up, flag, shield
 - Misc: location, calendar, clock, settings, help
 
-**Sourcing Options**:
-1. **Commission Custom Set**: Fiverr/Upwork icon designer ($80-100, 3-5 day turnaround)
-   - Pros: Unique, perfectly aligned with brand
-   - Cons: Longer timeline, revision cycles
-2. **Purchase Icon Pack**: Streamline Icons, Phosphor Icons, Lucide Icons ($30-60)
-   - Pros: Immediate, consistent, comprehensive
-   - Cons: Less unique, may need customization
-3. **Mix Approach**: Purchase base pack ($40) + commission custom icons ($60) for unique needs
-   - Pros: Balance of speed and customization
-   - Cons: Potential style inconsistency
-
-**Recommended**: Purchase **Phosphor Icons** pack ($49) — matches design system aesthetic, 6,000+ icons, regular updates, React Native support.
-
 **Implementation**:
-- Export SVGs from Figma with "Include 'id' attribute" unchecked
-- Optimize with SVGO (remove unnecessary attributes)
-- Create React Native components using `react-native-svg`
-- Organize: `src/components/icons/[IconName].tsx`
+```bash
+# Install Phosphor Icons for React Native
+npm install phosphor-react-native
 
-#### **Onboarding Illustrations** ($20-40 budget)
+# Usage in components
+import { House, MagnifyingGlass, ChatCircle } from 'phosphor-react-native';
 
-**Requirements**:
-- **Quantity**: 3-4 illustrations for FLOW-02 Feature Highlights
-- **Style**: Friendly, colorful, modern (aligned with Samsung Food aesthetic)
+<House size={24} color="#5DBB8E" weight="regular" />
+```
+
+**Organization**:
+- Use directly from package (no need to create custom components)
+- Standardize weight: `regular` (default), `bold` (emphasis), `fill` (selected state)
+- Color via props: `#5DBB8E` (primary green), `#1A1A1A` (default), `#6B6B6B` (muted)
+
+#### **Onboarding Illustrations**
+
+**Decision**: Use **Storyset** (free with customization)
+
+**Specifications**:
+- **Quantity**: 3-4 illustrations for Feature Highlights carousel
 - **Themes**:
   1. Swap Points earning (coins, rewards, celebration)
   2. Safe local trading (handshake, location, shield)
   3. Kids items marketplace (toys, clothes, books, happy families)
   4. Sustainable reuse (recycling, earth, growth)
-- **Size**: ~400x300px (2x resolution for retina)
-- **Format**: PNG with transparency OR SVG
+- **Size**: 400x300px @ 2x resolution (800x600px)
+- **Format**: PNG with transparency
+- **Cost**: Free (commercial license included)
 
-**Sourcing Options**:
-1. **Commission Illustrator**: Fiverr ($20-40 for 4 illustrations, 2-3 day turnaround)
-2. **Purchase Illustration Pack**: Storyset, unDraw ($0-30 for customizable sets)
-3. **AI Generation**: Midjourney/DALL-E ($10-20 for prompts + editing)
-
-**Recommended**: **Storyset** — free customizable illustrations with color palette matching, commercial license included.
+**Customization Steps**:
+1. Visit [Storyset.com](https://storyset.com)
+2. Search for relevant illustration sets (e.g., "shopping", "family", "recycling")
+3. Customize colors to match brand palette:
+   - Primary: #5DBB8E (Whisk green)
+   - Accent: #F59E0B (SP gold)
+   - Neutral: #1A1A1A, #6B6B6B
+4. Download as PNG @ 2x resolution
+5. Optimize with ImageOptim or TinyPNG
 
 **Implementation**:
-- Export from Figma at 2x resolution
-- Optimize PNGs with ImageOptim or TinyPNG
-- Store in `src/assets/illustrations/`
-- Reference in FeatureHighlightsScreen carousel
+```bash
+# Store in assets folder
+src/assets/illustrations/
+├── onboarding-sp-earning.png
+├── onboarding-safe-trading.png
+├── onboarding-marketplace.png
+└── onboarding-sustainable.png
+
+# Usage in screens
+<Image
+  source={require('@/assets/illustrations/onboarding-sp-earning.png')}
+  style={{ width: 280, height: 210 }}
+  resizeMode="contain"
+/>
+```
 
 #### **Other Assets**
 
-**Empty State Illustrations** (optional, $0-20):
-- Empty cart, no messages, no transactions, no listings
-- Can use icons + text OR simple illustrations
-- Recommended: Use custom icon set + typography (no additional cost)
+**Empty State Illustrations**:
+- Use Phosphor Icons + typography (no additional cost)
+- Examples: `Package` icon for empty cart, `ChatCircleSlash` for no messages
+- Style: 64px icon in #E0E0E0, centered with 16px body text below
 
-**App Icon & Splash Screen** (deferred to Phase 3):
-- Will be designed after Figma screens complete
+**App Icon & Splash Screen**:
+- Design after core screens implemented
 - Requires brand mark/logo (not in current scope)
 - Budget: TBD
 
 ---
 
-### 2.6 Developer Handoff Package
+## 🤖 AI AGENT ASSET REFERENCE
 
-**Export Checklist**:
+This section provides a curated reference for AI agents implementing screens. Use this to select appropriate icons and illustrations for each UI element.
 
-**Design Files**:
-- [ ] Figma file link with edit access for developers
-- [ ] PDF export of all screens (for quick reference)
-- [ ] Design system style guide (auto-generated from Figma)
+### Phosphor Icons Quick Reference
 
-**Assets**:
-- [ ] Custom icon set (SVG folder + React Native components)
-- [ ] Onboarding illustrations (PNG 2x + 3x)
-- [ ] Component specifications (spacing, sizing, variants)
+**Installation**: `npm install phosphor-react-native`
 
-**Documentation**:
-- [ ] app-overview.md (product context)
-- [ ] design-system.md (design tokens, component specs)
-- [ ] screen-flow-mapping.md (screen inventory, flow logic)
-- [ ] figma-agent-prompts.md (design intent for each flow)
-- [ ] implementation-guide.md (this document)
+**Import Pattern**:
+```typescript
+import { IconName } from 'phosphor-react-native';
 
-**Prototypes**:
-- [ ] Share interactive Figma prototype links for each flow
-- [ ] Embed prototype videos for key user journeys (optional)
+// Usage
+<IconName size={24} color="#5DBB8E" weight="regular" />
+```
 
-**Design Tokens Export**:
-- [ ] Colors (JSON format for React Native theme)
-- [ ] Typography scales (font sizes, weights, line heights)
-- [ ] Spacing values (8px grid system)
-- [ ] Border radius values
-- [ ] Shadow styles
+**Weight Options**: `regular` (default), `bold` (emphasis), `fill` (selected/active state)
 
-**Example Design Token Export** (`design-tokens.json`):
-```json
-{
-  "colors": {
-    "primary": {
-      "50": "#FFF4F0",
-      "100": "#FFE9E0",
-      "200": "#FFD3C1",
-      "300": "#FFBDA2",
-      "400": "#FFA783",
-      "500": "#FF9164",
-      "600": "#FF6B35",
-      "700": "#E85A1F",
-      "800": "#CC4A0F",
-      "900": "#B03A00"
-    },
-    "secondary": {
-      "50": "#E6F7F5",
-      "...": "..."
-    }
-  },
-  "typography": {
-    "heading": {
-      "display-1": {"size": 32, "weight": 700, "lineHeight": 40},
-      "h1": {"size": 28, "weight": 700, "lineHeight": 36},
-      "...": "..."
-    }
-  },
-  "spacing": [0, 4, 8, 12, 16, 24, 32, 48, 64],
-  "borderRadius": {
-    "sm": 8,
-    "md": 12,
-    "lg": 16,
-    "xl": 24,
-    "full": 9999
-  }
-}
+**Color Conventions**:
+- Primary action: `#5DBB8E` (green)
+- Default/neutral: `#1A1A1A` (dark)
+- Muted/secondary: `#6B6B6B` (gray)
+- Disabled: `#E0E0E0` (light gray)
+- SP/rewards: `#F59E0B` (gold)
+
+#### **Navigation Icons** (Tab Bar, Headers, Back Buttons)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `House` | Home/Dashboard tab | 24px | Primary green (active), gray (inactive) |
+| `MagnifyingGlass` | Search/Discover tab | 24px | Primary green (active), gray (inactive) |
+| `ChatCircle` | Messages tab | 24px | Primary green (active), gray (inactive) |
+| `User` | Profile tab | 24px | Primary green (active), gray (inactive) |
+| `ShoppingCart` | Cart tab (optional 5th tab) | 24px | Primary green (active), gray (inactive) |
+| `CaretLeft` | Back button (iOS style) | 20px | Dark |
+| `ArrowLeft` | Back button (Android style) | 24px | Dark |
+| `X` | Close modal/screen | 24px | Dark |
+| `List` | Menu/hamburger | 24px | Dark |
+| `DotsThree` | More options (vertical) | 24px | Dark |
+| `DotsThreeOutline` | More options (horizontal) | 24px | Dark |
+
+#### **Action Icons** (Buttons, CTAs, User Actions)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `Plus` | Add to cart, create listing, add item | 20px | White (on colored bg), primary (on white) |
+| `PlusCircle` | Add action (standalone) | 32px | Primary green |
+| `PencilSimple` | Edit listing, edit profile | 20px | Dark |
+| `Trash` | Delete item, remove from cart | 20px | Error red (#E85D75) |
+| `Check` | Confirm, complete, approve | 20px | Success green |
+| `CheckCircle` | Success state | 32px | Success green |
+| `Share` | Share listing, referral code | 20px | Dark |
+| `ShareNetwork` | Social sharing | 20px | Dark |
+| `BookmarkSimple` | Save for later (outline) | 20px | Dark |
+| `BookmarkSimple` (fill) | Saved item (filled) | 20px | Primary green |
+| `Heart` | Favorite (outline) | 20px | Dark |
+| `Heart` (fill) | Favorited (filled) | 20px | Error red |
+| `FunnelSimple` | Filter results | 20px | Dark |
+| `SortAscending` | Sort options | 20px | Dark |
+| `SlidersHorizontal` | Settings, preferences | 20px | Dark |
+| `Camera` | Take photo, upload image | 24px | Primary green |
+| `Image` | Select from gallery | 24px | Dark |
+| `Upload` | Upload file/photo | 20px | Primary green |
+| `Download` | Download receipt, export | 20px | Dark |
+| `ArrowClockwise` | Refresh, retry | 20px | Dark |
+| `SignOut` | Logout | 20px | Dark |
+
+#### **Commerce Icons** (Listings, Transactions, Money)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `ShoppingCart` | Add to cart button | 20px | White (on green button) |
+| `ShoppingCartSimple` | Cart icon (header) | 24px | Dark |
+| `Tag` | Price tag, pricing | 20px | Dark |
+| `CurrencyDollar` | Price, payment | 20px | Dark |
+| `Wallet` | SP wallet, balance | 24px | SP gold (#F59E0B) |
+| `Coins` | Swap Points, SP earning | 24px | SP gold (#F59E0B) |
+| `CreditCard` | Payment method | 20px | Dark |
+| `Receipt` | Order summary, transaction | 20px | Dark |
+| `Package` | Shipping, delivery, item | 24px | Dark |
+| `Storefront` | My listings, seller profile | 24px | Primary green |
+| `Barcode` | Product code, SKU | 20px | Dark |
+| `QrCode` | QR code scanner | 24px | Dark |
+| `Percent` | Discount, fee | 20px | SP gold |
+| `TrendUp` | Revenue growth, analytics | 20px | Success green |
+| `ChartLine` | Analytics, insights | 24px | Dark |
+
+#### **Communication Icons** (Messages, Notifications, Social)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `ChatCircle` | Messages, conversation | 24px | Primary green |
+| `ChatCircleDots` | Chat bubble (typing indicator) | 20px | Gray |
+| `PaperPlaneRight` | Send message | 20px | Primary green |
+| `Bell` | Notifications | 24px | Dark |
+| `Bell` (fill) | Unread notifications | 24px | Warning (#FFA726) |
+| `Phone` | Call, phone verification | 20px | Dark |
+| `Envelope` | Email | 20px | Dark |
+| `EnvelopeSimple` | Mail (simple) | 20px | Dark |
+| `At` | Email, mention | 16px | Dark |
+| `PaperClip` | Attachment | 20px | Dark |
+| `Smiley` | Emoji picker | 20px | Dark |
+| `VideoCamera` | Video call | 20px | Dark |
+| `Microphone` | Voice message | 20px | Dark |
+| `ThumbsUp` | Like, approve | 20px | Primary green |
+| `ThumbsDown` | Dislike, reject | 20px | Error red |
+| `Flag` | Report, flag content | 20px | Error red |
+| `Warning` | Warning, alert | 20px | Warning (#FFA726) |
+| `WarningCircle` | Caution, important | 24px | Warning |
+| `Info` | Information, help tooltip | 20px | Info blue (#5B8FB9) |
+
+#### **Status & Feedback Icons** (States, Progress, Alerts)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `CheckCircle` | Success, completed | 32px | Success green (#5DBB8E) |
+| `XCircle` | Error, failed | 32px | Error red (#E85D75) |
+| `WarningCircle` | Warning, caution | 32px | Warning (#FFA726) |
+| `InfoCircle` | Information, tip | 32px | Info blue (#5B8FB9) |
+| `Clock` | Pending, waiting | 24px | Gray |
+| `ClockCountdown` | Timer, expiring soon | 24px | Warning |
+| `Hourglass` | Processing, loading | 24px | Gray |
+| `Spinner` | Loading indicator | 24px | Primary green |
+| `CircleNotch` | Loading spinner (animated) | 24px | Primary green |
+| `CheckSquare` | Checkbox (checked) | 20px | Primary green |
+| `Square` | Checkbox (unchecked) | 20px | Gray |
+| `RadioButton` | Radio selected | 20px | Primary green |
+| `Circle` | Radio unselected | 20px | Gray |
+| `Eye` | Show password, view item | 20px | Dark |
+| `EyeSlash` | Hide password, hidden | 20px | Dark |
+| `Lock` | Secure, locked, password | 20px | Dark |
+| `LockOpen` | Unlocked, accessible | 20px | Primary green |
+| `ShieldCheck` | Verified, safe | 24px | Success green |
+| `ShieldWarning` | Safety concern, recall | 24px | Error red |
+| `Star` | Rating (outline) | 20px | Gray |
+| `Star` (fill) | Rating (filled) | 20px | SP gold (#F59E0B) |
+
+#### **User & Profile Icons** (Account, Identity, Roles)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `User` | Profile, account | 24px | Dark |
+| `UserCircle` | Avatar placeholder | 64px | Gray (#E0E0E0) |
+| `Users` | Community, users | 24px | Dark |
+| `UserPlus` | Add friend, referral | 20px | Primary green |
+| `Crown` | Premium subscriber, Pro tier | 20px | SP gold (#F59E0B) |
+| `CrownSimple` | Basic subscriber | 20px | Gray |
+| `Certificate` | Badge, achievement | 24px | SP gold |
+| `Medal` | Top seller, featured | 24px | SP gold |
+| `IdentificationCard` | ID verification | 24px | Dark |
+| `Baby` | Kids category, age gate | 24px | Primary green |
+| `GenderMale` | Boy items category | 20px | Info blue |
+| `GenderFemale` | Girl items category | 20px | Error red |
+| `GenderNeuter` | Gender-neutral items | 20px | Gray |
+
+#### **Location & Maps Icons** (Address, Node, ZIP)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `MapPin` | Location, address | 20px | Primary green |
+| `MapPinLine` | Node selection | 24px | Primary green |
+| `MapTrifold` | Map view, area | 24px | Dark |
+| `Crosshair` | Current location, GPS | 20px | Primary green |
+| `NavigationArrow` | Directions, navigate | 20px | Dark |
+| `Compass` | Explore, discover nearby | 24px | Primary green |
+| `House` | Home address | 20px | Dark |
+| `Buildings` | Node/neighborhood | 24px | Primary green |
+| `GlobeHemisphereWest` | Region, area | 24px | Dark |
+
+#### **Category & Item Icons** (Product Types, Classifications)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `Tshirt` | Clothing category | 32px | Primary green |
+| `Sneaker` | Shoes category | 32px | Primary green |
+| `Backpack` | Bags, accessories | 32px | Primary green |
+| `GameController` | Toys, games | 32px | Primary green |
+| `BookOpen` | Books, education | 32px | Primary green |
+| `Baby` | Baby items | 32px | Primary green |
+| `Bicycle` | Sports, outdoor | 32px | Primary green |
+| `MusicNote` | Music, instruments | 32px | Primary green |
+| `PaintBrush` | Arts & crafts | 32px | Primary green |
+| `Laptop` | Electronics | 32px | Primary green |
+| `Bed` | Furniture, home | 32px | Primary green |
+| `FirstAid` | Health, safety | 32px | Primary green |
+| `Gift` | Gift items, special | 32px | SP gold |
+| `Sparkle` | Featured, special offer | 20px | SP gold |
+| `Lightning` | Flash sale, urgent | 20px | Warning |
+
+#### **Settings & System Icons** (Preferences, App Controls)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `Gear` | Settings, preferences | 24px | Dark |
+| `Wrench` | Tools, admin | 24px | Dark |
+| `ToggleLeft` | Toggle OFF | 24px | Gray |
+| `ToggleRight` | Toggle ON | 24px | Primary green |
+| `Moon` | Dark mode | 20px | Dark |
+| `Sun` | Light mode | 20px | SP gold |
+| `Palette` | Theme, appearance | 20px | Dark |
+| `TextAa` | Font size, accessibility | 20px | Dark |
+| `SpeakerHigh` | Sound ON | 20px | Dark |
+| `SpeakerSlash` | Sound OFF/muted | 20px | Gray |
+| `Translate` | Language, translation | 20px | Dark |
+| `Question` | Help, FAQ | 24px | Info blue |
+| `QuestionMark` | Unknown, unclear | 20px | Gray |
+| `Lifebuoy` | Support, help center | 24px | Primary green |
+| `ChatsCircle` | Customer support chat | 24px | Primary green |
+| `Bug` | Report bug | 20px | Error red |
+| `FileText` | Terms, policy, document | 20px | Dark |
+| `Newspaper` | News, updates | 20px | Dark |
+| `MegaPhone` | Announcements | 24px | Primary green |
+
+#### **Empty State Icons** (No Content, Errors)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `Package` | Empty cart, no orders | 64px | Light gray (#E0E0E0) |
+| `Storefront` | No listings yet | 64px | Light gray |
+| `ChatCircleSlash` | No messages | 64px | Light gray |
+| `Bell` (outline) | No notifications | 64px | Light gray |
+| `MagnifyingGlass` | No search results | 64px | Light gray |
+| `FolderOpen` | Empty folder | 64px | Light gray |
+| `Tray` | Empty state (generic) | 64px | Light gray |
+| `CloudSlash` | Offline, no connection | 64px | Light gray |
+| `WifiSlash` | No internet | 64px | Light gray |
+| `WarningOctagon` | Error state | 64px | Error red |
+| `ProhibitInset` | Restricted, blocked | 64px | Error red |
+
+#### **Time & Calendar Icons** (Dates, Scheduling)
+
+| Icon Name | Usage | Size | Color |
+|-----------|-------|------|-------|
+| `Calendar` | Date picker, schedule | 20px | Dark |
+| `CalendarBlank` | Calendar view | 24px | Dark |
+| `CalendarCheck` | Appointment confirmed | 20px | Success green |
+| `Clock` | Time, timestamp | 20px | Dark |
+| `Timer` | Countdown, expires | 20px | Warning |
+| `Alarm` | Reminder, alert | 20px | Warning |
+| `Hourglass` | Duration, waiting | 20px | Gray |
+
+**Usage Example in Screen Implementation**:
+```typescript
+// In LoginScreen.tsx
+import { EnvelopeSimple, Lock, Eye, EyeSlash } from 'phosphor-react-native';
+
+// Email input icon
+<EnvelopeSimple size={20} color="#6B6B6B" weight="regular" />
+
+// Password input icon
+<Lock size={20} color="#6B6B6B" weight="regular" />
+
+// Toggle password visibility
+{showPassword ? (
+  <EyeSlash size={20} color="#1A1A1A" weight="regular" />
+) : (
+  <Eye size={20} color="#1A1A1A" weight="regular" />
+)}
 ```
 
 ---
 
-## 🛠 PHASE 3: CODE IMPLEMENTATION
+### Storyset Illustrations Catalog
 
-### 3.1 Pre-Implementation Cleanup
+**Location**: `src/assets/illustrations/`
+
+**Format**: PNG with transparency, 800x600px (2x resolution)
+
+**Color Customization**: All illustrations use brand colors (green #5DBB8E, gold #F59E0B)
+
+#### **Illustration Inventory**
+
+| Filename | Description | Usage Context | Dimensions |
+|----------|-------------|---------------|------------|
+| `onboarding-sp-earning.png` | Cartoon of coins, piggy bank, and confetti celebrating rewards | FLOW-02: Feature Highlights screen, slide 1 - explains SP earning | 280x210pt |
+| `onboarding-safe-trading.png` | Friendly handshake between two people with shield and location pin | FLOW-02: Feature Highlights screen, slide 2 - explains safe local trades | 280x210pt |
+| `onboarding-marketplace.png` | Diverse families browsing items (toys, clothes, books) with happy children | FLOW-02: Feature Highlights screen, slide 3 - explains kids marketplace | 280x210pt |
+| `onboarding-sustainable.png` | Earth with recycling arrows, growing plants, and reuse symbols | FLOW-02: Feature Highlights screen, slide 4 - explains sustainability | 280x210pt |
+
+#### **Empty State Illustrations** (Icon-Based, No Custom Assets)
+
+For empty states, use **Phosphor Icons at 64px** in light gray (#E0E0E0) with 16px body text below:
+
+| Screen | Icon | Text |
+|--------|------|------|
+| Empty Cart | `Package` | "Your cart is empty\nStart adding items!" |
+| No Messages | `ChatCircleSlash` | "No messages yet\nStart a conversation!" |
+| No Notifications | `Bell` (outline) | "You're all caught up!\nNo new notifications" |
+| No Listings | `Storefront` | "No listings yet\nCreate your first item!" |
+| No Search Results | `MagnifyingGlass` | "No items found\nTry different keywords" |
+| No Transaction History | `Receipt` | "No transactions yet\nStart trading to see history" |
+| Offline State | `WifiSlash` | "No internet connection\nCheck your network" |
+
+**Implementation Example**:
+```typescript
+// EmptyState component
+import { Package } from 'phosphor-react-native';
+
+<View style={styles.emptyState}>
+  <Package size={64} color="#E0E0E0" weight="regular" />
+  <Text style={styles.emptyTitle}>Your cart is empty</Text>
+  <Text style={styles.emptySubtitle}>Start adding items!</Text>
+</View>
+```
+
+#### **Visual Guidelines for Illustrations**
+
+**When to Use Illustrations**:
+- ✅ **Onboarding**: Explain key concepts (4 carousel slides)
+- ✅ **Feature Education**: First-time user guides, tooltips
+- ✅ **Success States**: After completing major actions (listing published, trade complete)
+- ✅ **Error States**: Friendly error messages (server error, no internet)
+- ❌ **Regular Content**: Don't overuse - reserve for special moments
+
+**Illustration Placement**:
+- **Onboarding Carousel**: Center-aligned, 280x210pt, 24px margin from top
+- **Modals**: Top section, 200x150pt, above title
+- **Success Screens**: Full-width hero, 320x240pt
+- **Error States**: Center-aligned, 240x180pt
+
+**Color Usage in Custom Illustrations**:
+- **Primary objects**: Whisk green (#5DBB8E)
+- **Accent elements**: SP gold (#F59E0B)
+- **Backgrounds**: White or very light tint (#F7F7F7)
+- **Details**: Dark gray (#1A1A1A) for outlines, medium gray (#6B6B6B) for secondary elements
+
+**Tone & Style**:
+- Friendly, approachable, optimistic
+- Diverse representation (different family types, ethnicities)
+- Simple, clean linework (matches Phosphor Icons aesthetic)
+- Minimal text in illustrations (text should be in UI, not image)
+
+---
+
+### AI Agent Usage Instructions
+
+**For AI Agents Implementing Screens**:
+
+1. **Icon Selection**:
+   - Reference the table above for the specific use case
+   - Use the exact icon name (case-sensitive)
+   - Default to `weight="regular"` unless emphasizing (use `bold`) or showing active state (use `fill`)
+   - Use color codes from the design system (avoid hardcoded colors)
+
+2. **Import Statement**:
+   ```typescript
+   import { IconName1, IconName2, IconName3 } from 'phosphor-react-native';
+   ```
+
+3. **Illustration Usage**:
+   - Check the illustration inventory table for available assets
+   - Use exact filename (e.g., `onboarding-sp-earning.png`)
+   - Follow dimension guidelines (don't scale arbitrarily)
+   - For empty states, use Phosphor Icons instead of custom illustrations
+
+4. **Fallback Strategy**:
+   - If needed icon is NOT in curated list above, search full Phosphor Icons catalog at [phosphoricons.com](https://phosphoricons.com)
+   - If NO suitable Phosphor icon exists, use a simple text label or ask for clarification
+
+5. **Consistency Checks**:
+   - ✅ Same icon used for same action across all screens (e.g., always `Trash` for delete)
+   - ✅ Icon size appropriate for context (24px for tabs, 20px for buttons, 64px for empty states)
+   - ✅ Color follows semantic meaning (green = primary/success, red = error/delete, gold = SP/rewards)
+
+**Example Screen Implementation Prompt**:
+```
+Implement LoginScreen with:
+- Email input with EnvelopeSimple icon (20px, gray #6B6B6B)
+- Password input with Lock icon (20px, gray #6B6B6B)
+- Show/hide password toggle using Eye/EyeSlash icons (20px, dark #1A1A1A)
+- Social login buttons with circular icons (Apple, Google, Facebook - 50x50px)
+- All using Phosphor Icons from phosphor-react-native package
+```
+
+---
+
+## 🛠 CODE IMPLEMENTATION
+
+### Pre-Implementation Cleanup
 
 **Duplicate File Removal** (reference PHASE-0-AUDIT-RESULTS.md):
 
@@ -464,41 +539,51 @@ npm install react-native-reanimated  # For animations
 
 ---
 
-### 3.2 Design System Implementation
+### Design System Implementation
 
 **Step 1: Create Theme Provider** (`src/theme/theme.ts`)
 
 ```typescript
 import { createTheme } from '@shopify/restyle';
 
-// Import design tokens from Figma export
-import designTokens from './design-tokens.json';
-
 const theme = createTheme({
   colors: {
-    // Primary Orange
-    orange50: '#FFF4F0',
-    orange600: '#FF6B35',
-    // ... all color tokens
+    // Primary Green (Whisk-inspired)
+    green500: '#5DBB8E',      // Primary
+    green400: '#7FCAA3',      // Light
+    green600: '#4DAA7A',      // Dark
+    green50: '#E8F5F0',       // Tint
+    
+    // Text colors
+    textPrimary: '#1A1A1A',
+    textSecondary: '#6B6B6B',
+    textTertiary: '#999999',
+    
+    // Background
+    background: '#FFFFFF',
+    backgroundSecondary: '#F7F7F7',
+    inputFilled: '#F0F0F0',
     
     // Semantic colors
-    textPrimary: '#1F2937',  // gray-900
-    textSecondary: '#6B7280', // gray-600
-    background: '#FFFFFF',
-    error: '#EF4444',
-    success: '#10B981',
+    error: '#E85D75',
+    warning: '#FFA726',
+    info: '#5B8FB9',
+    success: '#5DBB8E',
+    
+    // SP Gold
+    spGold: '#F59E0B',
   },
   spacing: {
     xs: 4,
     sm: 8,
     md: 12,
     lg: 16,
-    xl: 24,
-    xxl: 32,
-    xxxl: 48,
+    xl: 20,
+    xxl: 24,
+    xxxl: 32,
   },
   textVariants: {
-    'heading-display-1': {
+    'heading-h1': {
       fontFamily: 'Outfit-Bold',
       fontSize: 32,
       lineHeight: 40,
@@ -653,16 +738,16 @@ export const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 12,
-    borderWidth: 2,
+    borderRadius: 26, // Pill-shaped: height/2 (52px height → 26px radius)
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 44, // Touch target minimum
+    minHeight: 52, // Large button (Whisk spec)
   },
   label: {
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Outfit-SemiBold',
     fontWeight: '600',
+    fontSize: 16,
   },
   icon: {
     marginRight: 8,
@@ -670,14 +755,75 @@ const styles = StyleSheet.create({
 });
 ```
 
+**Step 3: Create Filled Input Component** (`src/components/ui/Input.tsx`)
+
+```typescript
+import React from 'react';
+import { View, TextInput, Text, StyleSheet } from 'react-native';
+
+export const Input: React.FC<{
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  error?: string;
+}> = ({ label, value, onChangeText, placeholder, error }) => {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        style={[styles.input, error && styles.inputError]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#999999"
+      />
+      {error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    marginBottom: 16,
+  },
+  label: {
+    fontFamily: 'Inter-Medium',
+    fontSize: 13,
+    color: '#1A1A1A',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  input: {
+    backgroundColor: '#F0F0F0', // Filled style (no border)
+    borderRadius: 12,
+    height: 52,
+    paddingHorizontal: 16,
+    fontFamily: 'Inter-Regular',
+    fontSize: 16,
+    color: '#1A1A1A',
+  },
+  inputError: {
+    borderWidth: 1,
+    borderColor: '#E85D75',
+  },
+  errorText: {
+    fontFamily: 'Inter-Regular',
+    fontSize: 12,
+    color: '#E85D75',
+    marginTop: 4,
+  },
+});
+```
+
 ---
 
-### 3.3 Screen-by-Screen Implementation Order
+### Screen-by-Screen Implementation Order
 
-**Implementation follows Figma completion order** (see Section 2.3)
+**Implementation follows design system preparation** (see Section 2)
 
 **Week 1: Foundation**
-- [ ] Set up theme provider, custom icons, base components
+- [ ] Set up theme provider, Phosphor Icons, base components
 - [ ] Implement FLOW-01 (Authentication screens)
 - [ ] Implement FLOW-02 (Onboarding screens)
 - [ ] Implement FLOW-03 (Location screens)
@@ -705,7 +851,7 @@ const styles = StyleSheet.create({
 
 ---
 
-### 3.4 New Feature Implementation: FLOW-07 (Cart & Bundling)
+### New Feature Implementation: FLOW-07 (Cart & Bundling)
 
 **Backend Requirements** (Supabase):
 
@@ -793,7 +939,7 @@ export const CartCheckoutScreen = ({ route }) => {
 
 ---
 
-### 3.5 Testing Strategy
+### Testing Strategy
 
 **Unit Tests** (Jest):
 - [ ] Theme provider renders correctly
@@ -822,7 +968,7 @@ export const CartCheckoutScreen = ({ route }) => {
 
 ---
 
-### 3.6 Deployment Checklist
+### Deployment Checklist
 
 **Pre-Deployment**:
 - [ ] All Figma screens implemented
@@ -849,52 +995,42 @@ export const CartCheckoutScreen = ({ route }) => {
 
 ## 📊 PROJECT TIMELINE
 
-**Estimated Duration**: 5 weeks design + 5 weeks implementation = **10 weeks total**
+**Estimated Duration**: **5 weeks implementation**
 
 | Phase | Duration | Deliverables |
 |-------|----------|--------------|
-| **Phase 2: Figma Design** | 5 weeks | Complete design system, 68+ screens, prototypes, assets |
-| Week 1 | 5 days | Foundation, auth, onboarding, location, discovery |
-| Week 2 | 5 days | Listings, cart, trade flow |
-| Week 3 | 5 days | SP wallet, subscriptions, events |
-| Week 4 | 5 days | Messaging, notifications, support |
-| Week 5 | 5 days | Referrals, safety, polish, handoff |
-| **Phase 3: Code Implementation** | 5 weeks | Production-ready React Native app |
-| Week 1 | 5 days | Theme, icons, base components, foundation flows |
-| Week 2 | 5 days | Marketplace flows + cart backend/frontend |
-| Week 3 | 5 days | Loyalty system flows |
-| Week 4 | 5 days | Communication flows |
-| Week 5 | 5 days | Growth/safety flows, testing, deployment |
+| **Code Implementation** | 5 weeks | Production-ready React Native app |
+| Week 1 | 5 days | Theme setup, Phosphor Icons integration, base components, foundation flows (auth, onboarding) |
+| Week 2 | 5 days | Marketplace flows (listings, cart, checkout) + backend/frontend integration |
+| Week 3 | 5 days | Loyalty system flows (SP wallet, subscriptions, events) |
+| Week 4 | 5 days | Communication flows (messaging, notifications, support) |
+| Week 5 | 5 days | Growth/safety flows (referrals, recalls), testing, deployment |
 
 **Critical Path**:
-1. Design system completion (gates all screen design)
-2. Custom icon procurement (gates code implementation)
+1. Phosphor Icons installation (gates component development)
+2. Design system theme setup (gates all screen implementation)
 3. Cart backend implementation (gates multi-item checkout)
 4. Figma prototype completion (gates developer handoff)
 
 **Risks & Mitigation**:
-- **Risk**: Custom icon delivery delay → **Mitigation**: Purchase icon pack instead of commission
-- **Risk**: Figma MCP integration issues → **Mitigation**: Manual design as fallback
+- **Risk**: Phosphor Icons integration issues → **Mitigation**: Fallback to react-native-vector-icons during development, migrate icons gradually
 - **Risk**: Cart backend complexity → **Mitigation**: Allocate 2 developers, extra testing time
-- **Risk**: Scope creep during design → **Mitigation**: Stick to 18 flows in figma-agent-prompts.md, defer new requests to Phase 4
+- **Risk**: Scope creep during implementation → **Mitigation**: Stick to 27 flows documented in screen-flow-mapping.md, defer new requests to post-launch
 
 ---
 
 ## 🎯 SUCCESS CRITERIA
 
-**Design Phase (Phase 2)**:
-- ✅ All 68+ screens designed in Figma
-- ✅ Design system 100% applied (no violations)
-- ✅ Interactive prototypes for all 18 flows
-- ✅ Custom icon set integrated (100+ icons)
-- ✅ Onboarding illustrations created (3-4 illustrations)
-- ✅ Developer handoff package complete
+**Asset Preparation**:
+- ✅ Phosphor Icons installed and configured
+- ✅ Storyset illustrations customized and optimized
+- ✅ Design system theme tokens created
 
-**Implementation Phase (Phase 3)**:
-- ✅ Theme provider with design tokens active
-- ✅ All Ionicons replaced with custom icons
+**Implementation Phase**:
+- ✅ Theme provider with Whisk green design tokens active
+- ✅ All Ionicons replaced with Phosphor Icons
 - ✅ Cart feature fully functional (MVP-critical)
-- ✅ All screens match Figma designs (90%+ visual parity)
+- ✅ All screens use filled inputs and pill buttons
 - ✅ All E2E tests passing
 - ✅ App deployed to production
 
@@ -911,43 +1047,41 @@ export const CartCheckoutScreen = ({ route }) => {
 
 ## 📚 REFERENCE DOCUMENTS
 
-**Phase 1 Deliverables** (foundation):
+**Foundation Documents**:
 1. [app-overview.md](./app-overview.md) — App concept, personas, business model
-2. [design-system.md](./design-system.md) — Samsung Food design system
-3. [screen-flow-mapping.md](./screen-flow-mapping.md) — 68 screens mapped to 18 flows
-4. [figma-agent-prompts.md](./figma-agent-prompts.md) — Copy-paste ready Figma prompts
+2. [design-system-passitup.md](./design-system-passitup.md) — Whisk-inspired design system
+3. [screen-flow-mapping.md](./screen-flow-mapping.md) — 68 screens mapped to 27 flows
+4. [figma-agent-prompts.md](./figma-agent-prompts.md) — Screen design documentation with field inventories
 
 **Phase 0 Audit**:
 - [PHASE-0-AUDIT-RESULTS.md](./PHASE-0-AUDIT-RESULTS.md) — Codebase audit, duplicate cleanup decisions
 
 **External Resources**:
-- [Samsung Food](https://samsungfood.com) — Design aesthetic reference
-- [Phosphor Icons](https://phosphoricons.com) — Recommended icon set
-- [Storyset](https://storyset.com) — Recommended illustration source
-- [Figma MCP Documentation](https://www.figma.com/mcp-docs) — Integration guide
+- [Whisk](https://whisk.com) — Design aesthetic reference
+- [Phosphor Icons](https://phosphoricons.com) — Icon set ($49)
+- [Storyset](https://storyset.com) — Illustrations (free)
 
 ---
 
 ## 🚀 NEXT STEPS
 
 **Immediate Actions**:
-1. **Set up Figma project** — Create folder structure, upload docs
-2. **Purchase custom icon set** — Phosphor Icons ($49)
-3. **Source onboarding illustrations** — Storyset (free)
-4. **Begin FLOW-00 (Design System)** — Create component library
-5. **Schedule weekly checkpoints** — Review progress, validate quality
+1. **Purchase Phosphor Icons** — $49 for React Native icon pack
+2. **Download Storyset illustrations** — Free, customize with brand colors
+3. **Set up theme system** — Create theme.ts with Whisk green palette
+4. **Install Phosphor Icons** — `npm install phosphor-react-native`
+5. **Create base components** — Button (pill-shaped), Input (filled), OTP, Social Login
 
 **Week 1 Goals**:
-- [ ] Figma project set up with all foundation documents
-- [ ] FLOW-00 (Design System) complete
-- [ ] FLOW-01 (Authentication) complete
-- [ ] FLOW-02 (Onboarding) complete with illustrations
-- [ ] FLOW-03 (Location) complete
-- [ ] FLOW-06 (Discovery) complete
-- [ ] All Week 1 screens prototyped and validated
+- [ ] Theme provider configured with green color palette
+- [ ] Phosphor Icons installed and working
+- [ ] Base UI components created (Button, Input)
+- [ ] FLOW-01 (Authentication) screens implemented
+- [ ] FLOW-02 (Onboarding) screens implemented with Storyset illustrations
+- [ ] FLOW-03 (Location) screens implemented
 
 ---
 
 **This implementation guide is now complete and ready for execution!** 🎉
 
-If you have questions or need clarification on any section, please refer to the source documents or ask for assistance. Good luck with the redesign! 🚀
+If you have questions or need clarification on any section, please refer to the design-system-passitup.md or ask for assistance. Good luck with the implementation! 🚀

@@ -160,7 +160,7 @@ export async function getTrialExtensionStats(userId: string): Promise<{
  * @returns Array of trial extension events
  */
 export async function getTrialExtensionHistory(userId: string): Promise<
-  Array<{
+  {
     id: string;
     event_type: string;
     metadata: {
@@ -171,7 +171,7 @@ export async function getTrialExtensionHistory(userId: string): Promise<
       extensions_remaining?: number;
     };
     created_at: string;
-  }>
+  }[]
 > {
   try {
     const { data, error } = await supabase

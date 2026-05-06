@@ -1,17 +1,23 @@
+// File: p2p-kids-marketplace/src/screens/auth/ResetPasswordScreen.tsx
+// FLOW-01: Auth Reset Password Screen (Redesigned)
+// Design System: Prompts/re-desing/design-system.md
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/services/supabase/client';
+import { Button, TextInput } from '@/components/ui';
+import { theme } from '@/theme';
 
 export default function ResetPasswordScreen() {
   const navigation = useNavigation();
@@ -209,155 +215,214 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1, backgroundColor: '#fff' }}
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: 'center' }}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
-        <View style={{ marginBottom: 32 }}>
-          <Text style={{ fontSize: 32, fontWeight: 'bold', color: '#111', marginBottom: 8 }}>
-            Reset Password
-          </Text>
-          <Text style={{ fontSize: 16, color: '#666', lineHeight: 24 }}>
-            Enter your new password below.
-          </Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.title}>Reset Password</Text>
+            <Text style={styles.subtitle}>Enter your new password below.</Text>
+          </View>
 
-        <View style={{ marginBottom: 20 }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#111', marginBottom: 8 }}>
-            New Password
-          </Text>
+          {/* New Password Input */}
           <TextInput
+            label="New Password"
+            placeholder="Enter new password"
             value={password}
             onChangeText={(text) => {
               setPassword(text);
               setErrors({});
             }}
-            placeholder="Enter new password"
+            error={errors.password}
             secureTextEntry
             autoCapitalize="none"
             autoComplete="password-new"
             autoCorrect={false}
             editable={!loading}
-            style={{
-              borderWidth: 1,
-              borderColor: errors.password ? '#ff3b30' : '#ddd',
-              borderRadius: 12,
-              padding: 16,
-              fontSize: 16,
-              backgroundColor: loading ? '#f8f9fa' : '#fff',
-            }}
+            containerStyle={styles.input}
           />
-          {errors.password && (
-            <Text style={{ color: '#ff3b30', fontSize: 12, marginTop: 4 }}>{errors.password}</Text>
-          )}
-        </View>
 
-        <View style={{ marginBottom: 24 }}>
-          <Text style={{ fontSize: 14, fontWeight: '600', color: '#111', marginBottom: 8 }}>
-            Confirm Password
-          </Text>
+          {/* Confirm Password Input */}
           <TextInput
+            label="Confirm Password"
+            placeholder="Confirm new password"
             value={confirmPassword}
             onChangeText={(text) => {
               setConfirmPassword(text);
               setErrors({});
             }}
-            placeholder="Confirm new password"
+            error={errors.confirmPassword}
             secureTextEntry
             autoCapitalize="none"
             autoComplete="password-new"
             autoCorrect={false}
             editable={!loading}
-            style={{
-              borderWidth: 1,
-              borderColor: errors.confirmPassword ? '#ff3b30' : '#ddd',
-              borderRadius: 12,
-              padding: 16,
-              fontSize: 16,
-              backgroundColor: loading ? '#f8f9fa' : '#fff',
-            }}
+            containerStyle={styles.input}
           />
-          {errors.confirmPassword && (
-            <Text style={{ color: '#ff3b30', fontSize: 12, marginTop: 4 }}>
-              {errors.confirmPassword}
-            </Text>
-          )}
-        </View>
 
-        {linkError ? (
-          <View
-            style={{ backgroundColor: '#fff6f6', padding: 16, borderRadius: 12, marginBottom: 24 }}
-          >
-            <Text style={{ fontSize: 14, fontWeight: '600', color: '#b00020', marginBottom: 8 }}>
-              Link Error
-            </Text>
-            <Text style={{ fontSize: 14, color: '#666', lineHeight: 20, marginBottom: 12 }}>
-              {linkError}
-            </Text>
-            <TouchableOpacity
-              onPress={() => {
-                // Navigate back to Forgot Password to request a new email
-                (navigation as any).navigate('ForgotPassword');
-              }}
-              style={{
-                padding: 12,
-                backgroundColor: '#007AFF',
-                borderRadius: 8,
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ color: '#fff', fontWeight: '600' }}>Request New Reset Email</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View
-            style={{ backgroundColor: '#f8f9fa', padding: 16, borderRadius: 12, marginBottom: 24 }}
-          >
-            <Text style={{ fontSize: 14, fontWeight: '600', color: '#111', marginBottom: 8 }}>
-              Password Requirements:
-            </Text>
-            <Text style={{ fontSize: 14, color: '#666', lineHeight: 20 }}>
-              • At least 8 characters{'\n'}• Contains uppercase letter{'\n'}• Contains lowercase
-              letter{'\n'}• Contains number
-            </Text>
-          </View>
-        )}
-
-        <TouchableOpacity
-          onPress={handleResetPassword}
-          disabled={loading || !password || !confirmPassword}
-          style={{
-            backgroundColor: loading || !password || !confirmPassword ? '#ccc' : '#007AFF',
-            padding: 16,
-            borderRadius: 12,
-            alignItems: 'center',
-            marginBottom: 16,
-          }}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
+          {/* Link Error Card */}
+          {linkError ? (
+            <View style={styles.errorCard}>
+              <Text style={styles.errorCardTitle}>Link Error</Text>
+              <Text style={styles.errorCardMessage}>{linkError}</Text>
+              <Button
+                variant="primary"
+                size="medium"
+                onPress={() => (navigation as any).navigate('ForgotPassword')}
+                style={styles.errorCardButton}
+              >
+                Request New Reset Email
+              </Button>
+            </View>
           ) : (
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Reset Password</Text>
+            <View style={styles.requirementsCard}>
+              <Text style={styles.requirementsTitle}>Password Requirements:</Text>
+              <Text style={styles.requirementsText}>
+                • At least 8 characters{'\n'}
+                • Contains uppercase letter{'\n'}
+                • Contains lowercase letter{'\n'}
+                • Contains number
+              </Text>
+            </View>
           )}
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => {
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' as never }],
-            });
-          }}
-          disabled={loading}
-          style={{ padding: 16, alignItems: 'center' }}
-        >
-          <Text style={{ color: loading ? '#ccc' : '#666', fontSize: 16 }}>Back to Login</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {/* Reset Button */}
+          <Button
+            variant="primary"
+            size="large"
+            onPress={handleResetPassword}
+            disabled={loading || !password || !confirmPassword}
+            loading={loading}
+            style={styles.resetButton}
+          >
+            Reset Password
+          </Button>
+
+          {/* Back to Login Link */}
+          <TouchableOpacity
+            onPress={() => {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' as never }],
+              });
+            }}
+            disabled={loading}
+            style={styles.backLinkButton}
+          >
+            <Text style={[styles.backLinkText, loading && styles.backLinkTextDisabled]}>
+              Back to Login
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.backgroundColors.page,
+  },
+
+  keyboardView: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    flexGrow: 1,
+    padding: theme.componentSpacing.pageMargin,
+    justifyContent: 'center',
+    paddingBottom: theme.spacing.xl,
+  },
+
+  header: {
+    marginBottom: theme.spacing.xl,
+  },
+
+  title: {
+    ...theme.typography.h1,
+    color: theme.textColors.primary,
+    marginBottom: theme.spacing.sm,
+  },
+
+  subtitle: {
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
+    lineHeight: 24,
+  },
+
+  input: {
+    marginBottom: theme.spacing.md,
+  },
+
+  errorCard: {
+    backgroundColor: theme.colors.error[100],
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.lg,
+  },
+
+  errorCardTitle: {
+    ...theme.typography.label,
+    color: theme.textColors.error,
+    marginBottom: theme.spacing.sm,
+    textTransform: 'uppercase',
+  },
+
+  errorCardMessage: {
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
+    lineHeight: 20,
+    marginBottom: theme.spacing.md,
+  },
+
+  errorCardButton: {
+    width: '100%',
+  },
+
+  requirementsCard: {
+    backgroundColor: theme.colors.neutral[100],
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.lg,
+  },
+
+  requirementsTitle: {
+    ...theme.typography.label,
+    color: theme.textColors.primary,
+    marginBottom: theme.spacing.sm,
+    textTransform: 'uppercase',
+  },
+
+  requirementsText: {
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
+    lineHeight: 20,
+  },
+
+  resetButton: {
+    marginBottom: theme.spacing.md,
+  },
+
+  backLinkButton: {
+    alignItems: 'center',
+    paddingVertical: theme.spacing.md,
+  },
+
+  backLinkText: {
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
+  },
+
+  backLinkTextDisabled: {
+    color: theme.colors.neutral[300],
+  },
+});

@@ -90,11 +90,11 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
   }
 
   try {
-    let configRows: Array<{
+    let configRows: {
       key: string;
       value: string | boolean | number;
       data_type: string;
-    }> | null = null;
+    }[] | null = null;
 
     const { data: keyValueRows, error: keyValueError } = await supabase
       .from('admin_config')
@@ -102,11 +102,11 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
       .eq('is_active', true);
 
     if (!keyValueError && keyValueRows) {
-      configRows = keyValueRows as Array<{
+      configRows = keyValueRows as {
         key: string;
         value: string | boolean | number;
         data_type: string;
-      }>;
+      }[];
     } else {
       const { data: legacyRows, error: legacyError } = await supabase
         .from('admin_config')

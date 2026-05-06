@@ -56,40 +56,13 @@ Supabase: supabase/
 My Example 1
 
 
+### TASK FLOW-01: Authentication & Session Management
 
-## TASK EDU-009: Admin Portal — AnalyticsDashboard
+MODULE-15.1-UI-redesign.md
 
-
-I’m working on the  MODULE-18-TRADING-EDUCATION.md tasks
-Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-18-TRADING-EDUCATION.md
-Tasks: ## TASK EDU-009: Admin Portal — AnalyticsDashboard
-
-### Description
-Build the Analytics tab inside `EducationContentPage`: onboarding funnel (started / completed / skipped / completion rate), help section metrics (views + avg time + top expanded sections), and calculator usage (uses + unique users + price-bucket histogram). Date range picker 7 / 30 / 90 days (default 30).
-
-### Scope
-
-- 1 new dashboard component + 4 chart/metric cards.
-- Date range default 30 days; shared with MODULE-12 V3 `DateRangePicker` if present (reuse over re-implement).
-
-### Files to Create
-
-| Path | Purpose |
-|---|---|
-| `admin-portal/src/components/education/AnalyticsDashboard.tsx` | Container + date range + 3 metric sections |
-| `admin-portal/src/components/education/OnboardingFunnelCard.tsx` | Started → Completed / Skipped funnel |
-| `admin-portal/src/components/education/HelpMetricsCard.tsx` | Total views + avg time + top sections bar chart |
-| `admin-portal/src/components/education/CalculatorUsageCard.tsx` | Uses + unique users + price-bucket histogram |
-| `admin-portal/src/hooks/useEducationAnalytics.ts` | Date-ranged fetch |
-
-### Acceptance Criteria
-
-- [ ] Date range defaults to last 30 days; 7 / 30 / 90 options.
-- [ ] Onboarding funnel shows counts + completion rate with color-coded warn if `completionRate < 50%`.
-- [ ] Help metrics card shows top 5 expanded sections sorted DESC.
-- [ ] Calculator usage card shows price bucket histogram (`<10`, `10-50`, `50-100`, `>100`).
-- [ ] Empty-state per card: "No data for selected range".
-- [ ] Initial load < 2 s on staging data.
+I’m working on the  MODULE-15.1-UI-redesign.md tasks
+Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
+Tasks: 
 
 i want you to 
 
@@ -107,9 +80,9 @@ i want you to
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
 4. Forbidden: Re-implementing logic that already exists under a different name
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-18-VERIFICATION-TRADING-EDUCATION.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-15.1-VERIFICATION.md
 6. Show me the files you create or edit with their full paths
-MODULE-18-VERIFICATION-TRADING-EDUCATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/MODULE-18-VERIFICATION-TRADING-EDUCATION.md
+MODULE-15.1-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/MODULE-15.1-VERIFICATION.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 
@@ -124,6 +97,11 @@ MODULE-18-VERIFICATION-TRADING-EDUCATION.md are now satisfied (location in /User
 > ⚠️ RULE 1: Tests required regardless of change size. No exceptions.
 
 #### Unit Tests
+1- Search the codebase for existing implementations using:
+   - Feature keywords
+   - Table names
+   - Function names
+   - UI labels (admin buttons, status names, etc.)
 - Location: `__tests__/`
 - One test per function/hook/service
 - One render test per row in state matrix (if conditional UI)
@@ -131,12 +109,22 @@ MODULE-18-VERIFICATION-TRADING-EDUCATION.md are now satisfied (location in /User
 - Run: `npm run test:unit` → must PASS ✅
 
 #### Integration Tests
+1- Search the codebase for existing implementations using:
+   - Feature keywords
+   - Table names
+   - Function names
+   - UI labels (admin buttons, status names, etc.)
 - Location: `__tests__/integration/` or `e2e/*.integration.test.ts`
 - Run against staging Supabase
 - Run: `RUN_SUPABASE_E2E=true npm run test:e2e` → must PASS ✅
 - List any required SQL separately and wait for confirmation
 
 #### Maestro UI Flow Tests
+1- Search the codebase for existing implementations using:
+   - Feature keywords
+   - Table names
+   - Function names
+   - UI labels (admin buttons, status names, etc.)
 > ⚠️ RULE 3: Maestro YAML must be delivered in same response as TC markdown.
 
 - Check `.maestro/` for existing flow — update if exists, create if not

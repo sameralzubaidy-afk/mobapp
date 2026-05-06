@@ -207,7 +207,7 @@ describe('Mobile Category Type Definitions', () => {
     });
 
     it('should accept all status values', () => {
-      const statuses: Array<CategorySuggestion['status']> = [
+      const statuses: CategorySuggestion['status'][] = [
         'pending',
         'approved',
         'rejected',

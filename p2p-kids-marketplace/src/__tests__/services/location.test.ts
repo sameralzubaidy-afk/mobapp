@@ -15,6 +15,9 @@ import {
   checkZipCodeHasActiveNode,
 } from '../../services/location';
 
+import { supabase } from '../../services/supabase';
+import { trackEvent } from '../../services/analytics';
+
 // Mock Supabase and analytics
 jest.mock('../../services/supabase', () => ({
   supabase: {
@@ -29,9 +32,6 @@ jest.mock('../../services/analytics', () => ({
 
 // Mock fetch for ZIP code lookup
 global.fetch = jest.fn();
-
-import { supabase } from '../../services/supabase';
-import { trackEvent } from '../../services/analytics';
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
 const mockTrackEvent = trackEvent as jest.MockedFunction<typeof trackEvent>;

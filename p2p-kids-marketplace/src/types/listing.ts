@@ -281,14 +281,14 @@ export interface ItemDraft {
  * MODULE-04 V3: Result of publishing multiple items at once
  */
 export interface BulkPublishResult {
-  published: Array<{
+  published: {
     groupId: string;
     itemId: string;
-  }>;
-  failed: Array<{
+  }[];
+  failed: {
     groupId: string;
     error: string;
-  }>;
+  }[];
   totalPublished: number;
   totalFailed: number;
 }

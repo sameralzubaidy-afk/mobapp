@@ -21,7 +21,7 @@ const SKIP_E2E = !process.env.RUN_SUPABASE_E2E || !TEST_USER_EMAIL || !TEST_USER
 (SKIP_E2E ? describe.skip : describe)('E2E: Item Images Storage Bucket', () => {
   let testUserId: string;
   let testItemId: string;
-  let uploadedPaths: string[] = [];
+  const uploadedPaths: string[] = [];
 
   beforeAll(async () => {
     // Authenticate as test user

@@ -227,7 +227,7 @@ describe('reportReview', () => {
       };
     });
 
-    const validReasons: Array<'spam' | 'offensive' | 'false_info' | 'other'> = [
+    const validReasons: ('spam' | 'offensive' | 'false_info' | 'other')[] = [
       'spam',
       'offensive',
       'false_info',

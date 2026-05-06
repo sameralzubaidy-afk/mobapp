@@ -13,17 +13,12 @@ import SignupScreen from '@/screens/auth/SignupScreen';
 import PhoneVerificationScreen from '@/screens/auth/PhoneVerificationScreen';
 import LandingScreen from '@/screens/auth/LandingScreen';
 import SuspendedAccountScreen from '@/screens/auth/SuspendedAccountScreen';
-// NOTE: Some profile/onboarding screens use expo-image-picker.
-// Require them lazily to avoid startup crash when native module is unavailable.
-const ProfileSetupScreen = require('@/screens/profile/ProfileSetupScreen').default;
-const EditProfileScreen = require('@/screens/profile/EditProfileScreen').default;
 import ProfileScreen from '@/screens/profile/ProfileScreen';
 import BadgesScreen from '@/screens/profile/BadgesScreen';
 import LeaderboardScreen from '@/screens/profile/LeaderboardScreen';
 import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '@/screens/auth/ResetPasswordScreen';
 import WelcomeScreen from '@/screens/onboarding/WelcomeScreen';
-const ProfileCompletionScreen = require('@/screens/onboarding/ProfileCompletionScreen').default;
 import SubscriptionChoiceScreen from '@/screens/onboarding/SubscriptionChoiceScreen';
 import LocationPickerScreen from '@/screens/onboarding/LocationPickerScreen';
 import NodeSelectionScreen from '@/screens/onboarding/NodeSelectionScreen';
@@ -53,7 +48,6 @@ import KidsClubOverviewScreen from '@/screens/subscription/KidsClubOverviewScree
 import TransactionHistoryScreen from '@/screens/profile/TransactionHistoryScreen';
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
-const IDVerificationUploadScreen = require('@/screens/profile/IDVerificationUploadScreen').default;
 import SettingsScreen from '@/screens/profile/SettingsScreen';
 import LinkedAccountsScreen from '@/screens/profile/LinkedAccountsScreen';
 import NotificationPreferencesScreen from '@/screens/profile/NotificationPreferencesScreen';
@@ -72,6 +66,12 @@ import {
   logDeepLinkNavigation,
   type NotificationDeepLinkData,
 } from '@/services/deepLink';
+// NOTE: Some profile/onboarding screens use expo-image-picker.
+// Require them lazily to avoid startup crash when native module is unavailable.
+const ProfileSetupScreen = require('@/screens/profile/ProfileSetupScreen').default;
+const EditProfileScreen = require('@/screens/profile/EditProfileScreen').default;
+const ProfileCompletionScreen = require('@/screens/onboarding/ProfileCompletionScreen').default;
+const IDVerificationUploadScreen = require('@/screens/profile/IDVerificationUploadScreen').default;
 
 const Stack = createStackNavigator();
 

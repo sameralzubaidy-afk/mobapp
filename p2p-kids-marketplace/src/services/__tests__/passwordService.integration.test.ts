@@ -23,7 +23,7 @@ describeE2E('passwordService Integration Tests', () => {
 
   beforeAll(async () => {
     // Prefer an existing session; fall back to test credentials when provided.
-    let { data, error } = await supabase.auth.getUser();
+    const { data, error } = await supabase.auth.getUser();
     let user = data.user;
 
     if ((!user || error) && process.env.TEST_USER_EMAIL && process.env.TEST_USER_PASSWORD) {

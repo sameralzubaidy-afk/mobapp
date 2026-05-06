@@ -66,6 +66,140 @@ Landing → [Sign Up / Log In]
 - Navigation to onboarding or dashboard
 
 **Design Requirements**:
+
+<!-- TODO: UPDATE DESIGN REQUIREMENTS TO MATCH WHISK APP STYLE
+Test these changes on Landing, Login, Signup, and Phone Verification screens first before applying to other flows.
+
+VISUAL STYLE (Whisk-inspired):
+- Color Palette:
+  * Primary accent: Green (#5DBB8E or similar - match Whisk's CTA green)
+  * Background: White/light neutral (#FAFAFA)
+  * Text: Dark gray (#1A1A1A) for primary, light gray (#6B6B6B) for secondary
+  * Success: Green (same as primary)
+  * Error: Soft red (#E85D75)
+  
+- Typography:
+  * Font: System font (San Francisco on iOS, Roboto on Android) or Inter
+  * Heading: 24-28px, semibold
+  * Body: 15-16px, regular
+  * Input labels: 13-14px, medium, uppercase or title case
+  
+- Spacing:
+  * Screen padding: 20-24px horizontal
+  * Vertical rhythm: 16-20px between sections
+  * Minimal whitespace, clean grouping
+
+COMPONENT SPECS:
+
+1. PRIMARY BUTTONS (all CTAs)
+   - Style: Pill-shaped (fully rounded corners: borderRadius = height/2)
+   - Height: 50-52px (minimal, matches Whisk)
+   - Background: Green accent (#5DBB8E)
+   - Text: White, 16px, semibold
+   - Width: Full-width minus screen padding
+   - Disabled state: 50% opacity
+   - Pressed state: Slightly darker green (#4DAA7A)
+
+2. SECONDARY BUTTONS (e.g., "Add preferences later")
+   - Style: Text-only (no border) or ghost (light border)
+   - Height: 48px
+   - Text: Green accent or gray, 15px, medium
+   - No background fill
+
+3. INPUT FIELDS (Filled style)
+   - Style: Light gray background (#F0F0F0), rounded corners (12px)
+   - Height: 52px
+   - Padding: 16px horizontal
+   - Text: 16px, dark gray
+   - Placeholder: Light gray (#999)
+   - Label: Above input, 13px, uppercase or title case, gray
+   - Border: None (use background only)
+   - Focus state: Slightly darker background or thin accent border
+   - Error state: Red background tint + error message below
+
+4. SOCIAL LOGIN BUTTONS (Icon-only, compact)
+   - Layout: Horizontal row of 3 circular icons
+   - Icon size: 48-52px diameter circles
+   - Background: White with light border OR filled with brand colors
+   - Icons: Google (G logo), Apple (Apple icon), Facebook (f logo)
+   - Spacing: 12-16px between icons
+   - Position: Below main CTA, centered
+   - Label above row: "Or continue with" (13px, gray, centered)
+
+5. OTP INPUT (Single field, auto-formatted)
+   - Style: Single filled input field (not 6 separate boxes)
+   - Auto-format: Displays as "1 2 3 4 5 6" with spacing
+   - Height: 52px
+   - Font: Monospace or tabular numbers, 20px
+   - Letter-spacing: 8-10px between digits
+   - Max length: 6 digits
+   - Auto-focus on mount
+   - Clear/backspace support
+
+6. ILLUSTRATIONS (Minimalist line art)
+   - Style: Simple line drawings, single-color or 2-3 neutral colors
+   - Size: 180-240px square for onboarding, smaller for inline
+   - Colors: Black/dark gray outlines, green accent highlights
+   - Examples: Person with phone, checkmark, lock icon
+   - Budget: $20-40 from design budget OR use free Undraw/Streamline icons
+
+7. DIVIDERS ("or" separator)
+   - Style: Thin horizontal line (1px, #E0E0E0) with centered text
+   - Text: "or" (13px, gray, uppercase)
+   - Spacing: 20px above/below
+
+SCREEN-SPECIFIC UPDATES:
+
+**Landing Screen**:
+- Clean white background
+- Minimalist illustration at top (240px, centered, person holding item + green accent)
+- Headline: 28px, semibold, dark gray, centered, "Welcome to Pass It Up"
+- Subheading: 15px, gray, centered, "Buy, sell, and trade gently used kids' items locally"
+- Primary CTA: Green pill button, "Get Started" (full-width)
+- Secondary CTA: Text button below, "Already have an account? Log In"
+- No social proof/testimonials (clean first impression)
+
+**Login Screen**:
+- Simple header: "Log In" (24px, semibold, left-aligned or centered)
+- Email input: Filled style, keyboard type email, autocomplete, label "Email"
+- Password input: Filled style, secure entry, show/hide toggle, label "Password"
+- Forgot password link: Below password field, 14px, green, "Forgot password?"
+- Primary CTA: Green pill button, "Log In"
+- OR divider: Thin line + "or" text
+- Social login: 3 circular icon buttons (Google, Apple, Facebook), centered row
+- Sign up link: Below, "Don't have an account? Sign Up"
+
+**Signup Screen**:
+- Header: "Create Account" (24px, semibold)
+- Email input: Filled style, validation, label "Email"
+- Password input: Filled style, strength indicator below (optional), label "Password"
+- Password confirmation: Filled style, match validation, label "Confirm Password"
+- Terms checkbox: 14px, "I agree to Terms & Privacy Policy" (links)
+- Primary CTA: Green pill button, "Sign Up"
+- OR divider
+- Social login: 3 circular icon buttons
+- Login link: Below, "Already have an account? Log In"
+
+**Phone Verification Screen**:
+- Header: "Verify Your Phone" (24px, semibold, centered)
+- Subtext: 15px, gray, centered, "Enter the 6-digit code sent to +1 (XXX) XXX-XXXX"
+- OTP input: Single filled field, 52px height, centered, auto-formatted digits
+- Error state: Red tint + message below input
+- Resend code: Below input, 14px, "Didn't receive code? Resend" (green link)
+- Countdown timer: "Resend in 0:30" (gray, non-clickable)
+- Primary CTA: Green pill button, "Verify" (auto-submit on 6 digits OR manual)
+- Edit phone number: Text link, "Change phone number"
+
+NOTES:
+- Test these specs on 4 key screens FIRST
+- Get user feedback before applying to other flows
+- Maintain accessibility: WCAG AA contrast ratios, touch targets 44x44px min
+- Ensure consistency with Whisk's minimal, friendly aesthetic
+- Keep hierarchy clear: one primary action per screen
+
+END TODO -->
+
+**Current Design Requirements** (to be replaced with TODO specs above):
 - **Landing**: Hero section, value prop, social proof, CTA buttons
 - **Login/Signup**: Clean forms, social login buttons (3 providers), "or" divider
 - **Phone Verification**: OTP input (6 boxes), resend code, countdown timer

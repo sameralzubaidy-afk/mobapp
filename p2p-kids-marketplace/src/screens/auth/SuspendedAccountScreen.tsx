@@ -1,6 +1,13 @@
+// File: p2p-kids-marketplace/src/screens/auth/SuspendedAccountScreen.tsx
+// FLOW-01: Auth Suspended Account Screen (Redesigned)
+// Design System: Prompts/re-desing/design-system.md
+
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui';
+import { theme } from '@/theme';
 
 const PLACEHOLDER_SUPPORT_EMAIL = 'admin-support@kidsmarketplace.app';
 
@@ -16,84 +23,89 @@ export default function SuspendedAccountScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.icon}>🚫</Text>
-        <Text style={styles.title}>Account Suspended</Text>
-        <Text style={styles.message}>
-          Your account is currently suspended. Please contact admin for help.
-        </Text>
-        <Text style={styles.supportLabel}>Support Email</Text>
-        <Text style={styles.supportEmail}>{PLACEHOLDER_SUPPORT_EMAIL}</Text>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.content}>
+        <View style={styles.card}>
+          <Text style={styles.icon}>🚫</Text>
+          <Text style={styles.title}>Account Suspended</Text>
+          <Text style={styles.message}>
+            Your account is currently suspended. Please contact admin for help.
+          </Text>
+          <Text style={styles.supportLabel}>Support Email</Text>
+          <Text style={styles.supportEmail}>{PLACEHOLDER_SUPPORT_EMAIL}</Text>
 
-        <TouchableOpacity style={styles.button} onPress={handleLogout}>
-          <Text style={styles.buttonText}>Log Out</Text>
-        </TouchableOpacity>
+          <Button
+            variant="primary"
+            size="large"
+            onPress={handleLogout}
+            style={styles.logoutButton}
+          >
+            Log Out
+          </Button>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.backgroundColors.page,
+  },
+
+  content: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F7F7FB',
-    padding: 24,
+    padding: theme.componentSpacing.pageMargin,
   },
+
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: theme.backgroundColors.card,
+    borderRadius: theme.borderRadius.large,
+    padding: theme.spacing.lg,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 4,
+    ...theme.shadows.level2,
   },
+
   icon: {
     fontSize: 42,
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
+
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  message: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#4B5563',
+    ...theme.typography.h2,
+    color: theme.textColors.primary,
+    marginBottom: theme.spacing.sm,
     textAlign: 'center',
-    marginBottom: 18,
   },
+
+  message: {
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: theme.spacing.md,
+  },
+
   supportLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B7280',
+    ...theme.typography.label,
+    color: theme.textColors.secondary,
+    textTransform: 'uppercase',
   },
+
   supportEmail: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#7C3AED',
-    marginTop: 4,
-    marginBottom: 20,
+    ...theme.typography.body,
+    color: theme.colors.secondary[500],
+    fontFamily: theme.fontFamily.semiBold,
+    marginTop: theme.spacing.xs,
+    marginBottom: theme.spacing.lg,
   },
-  button: {
+
+  logoutButton: {
     width: '100%',
-    backgroundColor: '#111827',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
   },
 });

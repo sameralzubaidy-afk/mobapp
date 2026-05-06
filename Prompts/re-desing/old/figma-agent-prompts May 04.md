@@ -130,6 +130,17 @@ DELIVERABLES:
 - Mobile frame template (375x812px with safe areas)
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Use component properties for variants (not manual variant creation)
 - Boolean properties for optional elements (icons, labels)
 - Instance swap properties for content slots
@@ -186,6 +197,19 @@ CTA Section (bottom, above safe area):
 Auto-layout: Vertical, 24px gap between sections, 16px horizontal padding
 
 ---
+FIELD INVENTORY — LandingScreen:
+
+INPUT FIELDS (user-editable):
+- None (marketing/landing screen only)
+
+DISPLAY FIELDS (read-only):
+- App logo + "Pass It Up" name: static brand asset
+- Tagline: "Buy, sell, save. Kids gear made easy." (static)
+- Value props x3: icon + marketing copy (static)
+- "Sign Up" button: navigates to SignupScreen
+- "Log In" button: navigates to LoginScreen
+- Terms & Privacy disclaimer: links to TermsOfServiceScreen and PrivacyPolicyScreen
+---
 
 SCREEN 2: LoginScreen
 Frame: 375x812px, white background
@@ -219,6 +243,19 @@ Bottom Link:
 Constraints: Form section starts at 24px from top (below header), buttons fixed to bottom with 16px padding
 
 ---
+FIELD INVENTORY — LoginScreen:
+
+INPUT FIELDS (user-editable):
+- Email: text input, required, keyboard: email, placeholder "you@example.com"
+- Password: password input, required, toggle show/hide icon
+
+DISPLAY FIELDS (read-only):
+- "Forgot Password?" link: navigates to ForgotPasswordScreen
+- Social login buttons (Google, Facebook, Apple): OAuth sign-in actions
+- "Don't have an account? Sign Up" link: navigates to SignupScreen
+- Inline error messages: "Invalid credentials", "Account not found", "Account deleted" (dynamic)
+- Subscription status badge (post-login): free | trial | active (from session)
+---
 
 SCREEN 3: SignupScreen
 Frame: 375x812px, white background
@@ -228,10 +265,16 @@ Header:
 - "Sign Up" title (Heading/H2, gray-900)
 
 Form Section (auto-layout vertical, 16px gap):
-- Email Input (Form-Input/Default, label "Email", placeholder "you@example.com")
-- Password Input (Form-Input/Default, label "Create Password", placeholder "Min 8 characters")
+- Full Name Input (Form-Input/Default, label "Full Name", placeholder "Enter your full name", required asterisk)
+- Email Input (Form-Input/Default, label "Email", placeholder "you@example.com", required asterisk)
+- Phone Number Input (Form-Input/Default, label "Phone Number", placeholder "+1 (555) 123-4567", keyboard: phone-pad, required asterisk)
+- Date of Birth Input (Form-Input/Default, label "Date of Birth", date picker icon right-aligned, required asterisk)
+- Age note below DOB (Body/Small, gray-600): "You must be 18 or older to use Pass It Up"
+- Password Input (Form-Input/Default, label "Create Password", placeholder "Min 8 characters", required asterisk)
 - Password strength indicator below (horizontal bar, 4px height, gray-200 bg, green fill based on strength)
-- Confirm Password Input (Form-Input/Default, label "Confirm Password")
+- Confirm Password Input (Form-Input/Default, label "Confirm Password", required asterisk)
+- Referral Code Input (Form-Input/Default, label "Referral Code (Optional)", placeholder "Enter code if you have one")
+- Helper text below (Body/Small, gray-500): "Have a friend's code? Get bonus SP!"
 
 Sign Up Button:
 - Button/Primary/Large, "Sign Up" label, full-width
@@ -246,6 +289,31 @@ Terms Checkbox:
 Bottom Link:
 - "Already have an account? Log In" (Body/Regular, centered, "Log In" in orange)
 
+---
+FIELD INVENTORY — SignupScreen:
+
+INPUT FIELDS (user-editable):
+- Full Name: text input, required, min 2 / max 100 characters
+- Email: text input, required, keyboard: email, placeholder "you@example.com"
+- Phone Number: text input, required, keyboard: phone-pad, format +1XXXXXXXXXX or 10+ digits
+- Date of Birth: date picker, required, validates user is 18+ years old (COPPA compliance)
+- Password: password input, required, min 8 chars, must include uppercase + lowercase + number; toggle show/hide
+- Confirm Password: password input, required, must exactly match Password
+- Referral Code: text input, optional, exactly 8 alphanumeric characters lowercase
+- Terms & Privacy Checkbox: checkbox, required (Sign Up button disabled until checked)
+
+DISPLAY FIELDS (read-only):
+- Password strength indicator: visual bar, updates live (gray → red → yellow → green)
+- Age validation error: "You must be 18 or older" (shown if DOB fails 18+ check)
+- Referral code validation: "Valid code!" (green) or "Invalid code" (red), checked live
+- Referral code helper: "Have a friend's code? Get bonus SP!" (static)
+- "Already have an account? Log In" link: navigates to LoginScreen
+- Terms of Service link: navigates to TermsOfServiceScreen
+- Privacy Policy link: navigates to PrivacyPolicyScreen
+
+AUTO-CALCULATED:
+- Age: derived from Date of Birth, must be ≥18 (not shown to user)
+- Trial subscription auto-enrolled on successful account creation
 ---
 
 SCREEN 4: PhoneVerificationScreen
@@ -284,6 +352,23 @@ Verify Button:
 Auto-layout: Vertical, 24px gap between sections
 
 ---
+FIELD INVENTORY — PhoneVerificationScreen:
+
+INPUT FIELDS (user-editable):
+- OTP Code: 6-digit numeric input (6 separate boxes), required, numeric keyboard, auto-advances on each digit
+- "Edit" tap: returns to previous screen to change phone number
+
+DISPLAY FIELDS (read-only):
+- Phone number: displays number passed from SignupScreen (e.g., "+1 (555) 123-4567")
+- Countdown timer: "Resend in 0:45" (counts down from 60 seconds)
+- "Resend Code" button: enabled after countdown expires
+- Inline error: "Invalid or expired code" (dynamic)
+
+AUTO-CALCULATED:
+- Verification code auto-sent on screen mount
+- Auto-submits when all 6 digits entered (no tap required)
+- Countdown timer decrements every 1 second
+---
 
 SCREEN 5: ForgotPasswordScreen
 Frame: 375x812px, white background
@@ -317,6 +402,19 @@ Success State (show after button tap):
 - "Open Email App" button (Button/Primary/Large)
 - "Didn't receive it? Resend" (Body/Small, orange, centered)
 
+---
+FIELD INVENTORY — ForgotPasswordScreen:
+
+INPUT FIELDS (user-editable):
+- Email: text input, required, keyboard: email, placeholder "you@example.com"
+
+DISPLAY FIELDS (read-only):
+- Instructions: "Enter your email and we'll send you a link to reset your password" (static)
+- Success state (shown after submit): checkmark icon + "Check your email" heading + "We sent a reset link to [email]" (dynamic email)
+- "Open Email App" button: opens device email app (success state only)
+- "Didn't receive it? Resend" link: re-triggers reset email
+- "Back to Log In" link: navigates to LoginScreen
+- Error states: SMTP error, rate limit exceeded, email not found (inline, dynamic)
 ---
 
 SCREEN 6: ResetPasswordScreen
@@ -352,6 +450,27 @@ Success State (show after reset):
 - "Continue to Log In" button (Button/Primary/Large)
 
 ---
+FIELD INVENTORY — ResetPasswordScreen:
+
+INPUT FIELDS (user-editable):
+- New Password: password input, required, min 8 chars, must include uppercase + lowercase + number; toggle show/hide
+- Confirm New Password: password input, required, must exactly match New Password
+
+DISPLAY FIELDS (read-only):
+- Password requirements checklist (4 items, icons update live as user types):
+  • "At least 8 characters"
+  • "Contains uppercase letter"
+  • "Contains number"
+  • "Contains special character"
+- Password strength indicator: same bar as SignupScreen (live)
+- Success state: green checkmark + "Password Reset!" + "Continue to Log In" button
+- Error state: "Reset link expired or invalid" with link back to ForgotPasswordScreen
+
+AUTO-CALCULATED:
+- Access token + refresh token parsed from deep link URL fragment on mount
+- Auth session set automatically from tokens
+- Checklist items toggle green/gray live as user types
+---
 
 SCREEN 7: SuspendedAccountScreen
 Frame: 375x812px, white background
@@ -384,6 +503,20 @@ Footer:
 - "Terms of Service" link (Body/Small, orange, centered, underline)
 
 ---
+FIELD INVENTORY — SuspendedAccountScreen:
+
+INPUT FIELDS (user-editable):
+- "Contact Support" button: opens external support channel (mailto or in-app)
+
+DISPLAY FIELDS (read-only):
+- Alert icon: red exclamation circle (static)
+- "Account Suspended" heading (static)
+- Suspension message: "Your account has been suspended due to violation of our Terms of Service." (static)
+- Reason text: admin-provided reason string (dynamic, from DB)
+- Suspension date: ISO date string formatted (dynamic, from DB)
+- Support email: "admin-support@kidsmarketplace.app" (static)
+- "Terms of Service" link: navigates to TermsOfServiceScreen
+---
 
 NAVIGATION FLOW:
 - Landing → Sign Up → Phone Verification → (Onboarding - next flow)
@@ -392,6 +525,17 @@ NAVIGATION FLOW:
 - Suspended Account → Contact Support (external)
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Use auto-layout for all screens (no absolute positioning)
 - Create variants for input states (default, focus, error, filled)
 - Create variants for button states (default, hover, pressed, disabled)
@@ -449,6 +593,21 @@ Progress Indicator:
 - Centered above button (indicates step 1 of 4)
 
 ---
+FIELD INVENTORY — WelcomeScreen:
+
+INPUT FIELDS (user-editable):
+- "Get Started" button: navigates to ProfileCompletionScreen (primary action)
+
+DISPLAY FIELDS (read-only):
+- Hero illustration: branded asset (placeholder until custom art delivered)
+- "Pass It Up" logo: static
+- "Welcome!" heading + subtitle: static copy
+- Value props x3 (Safe Trades, Earn SP, Quick Listing): static marketing cards
+- Progress dots (4 dots): step 1 of 4, first dot orange (static)
+
+AUTO-CALCULATED:
+- Sets onboarding_completed = true and profile_completed = true upon completion of full flow
+---
 
 SCREEN 2: ProfileCompletionScreen
 Frame: 375x812px, white background
@@ -467,9 +626,12 @@ Avatar Upload Section (centered):
 
 Form Fields (auto-layout vertical, 16px gap, starts 24px below avatar):
 - Display Name Input (Form-Input/Default, label "Display Name", placeholder "How should we call you?", required asterisk)
-- Character count below (Body/Small, gray-500): "0/30"
+- Character count below (Body/Small, gray-500): "0/50"
 - Date of Birth Input (Form-Input/Default, label "Date of Birth", date picker icon right-aligned, required asterisk)
 - Age verification text below (Body/Small, gray-600): "You must be 18+ to use Pass It Up"
+- Bio Input (Form-Input/Textarea, label "About Me", placeholder "Tell us a little about yourself...", optional)
+- Character count below (Body/Small, gray-500): "0/200"
+- Helper text (Body/Small, gray-600): "Optional — you can edit this later in your profile"
 
 Continue Button:
 - Button/Primary/Large, "Continue" label, full-width
@@ -480,6 +642,24 @@ Skip Link:
 - "Skip for now" (Body/Small, gray-500, centered, above button)
 - Crossed out (intentionally disabled per requirements)
 
+---
+FIELD INVENTORY — ProfileCompletionScreen:
+
+INPUT FIELDS (user-editable):
+- Avatar: image upload, optional, accepts jpg/png, crops to 1:1 circle
+- Display Name: text input, required, min 2 / max 50 characters, placeholder "How should we call you?"
+- Date of Birth: date picker, required, validates user is 18+ years old
+- About Me (Bio): textarea, optional, max 200 characters, placeholder "Tell us a little about yourself..."
+
+DISPLAY FIELDS (read-only):
+- Progress bar: step 1 of 4, 25% filled (orange)
+- Display Name character count: "0/50", updates live
+- Age verification note: "You must be 18+ to use Pass It Up" (static, below DOB)
+- Bio character count: "0/200", updates live
+- Bio helper text: "Optional — you can edit this later in your profile" (static)
+
+AUTO-CALCULATED (not shown to user):
+- Age: derived from Date of Birth at time of submission
 ---
 
 SCREEN 3: FeatureHighlightsScreen (Carousel)
@@ -517,6 +697,18 @@ Auto-layout: Vertical, 32px gap between illustration and heading, 16px gap headi
 
 Prototype: Swipe horizontal to navigate slides, "Next" advances one slide, "Skip" jumps to OnboardingScreen
 
+---
+FIELD INVENTORY — FeatureHighlightsScreen:
+
+INPUT FIELDS (user-editable):
+- "Next" / "Get Started" button: advances slides, last slide navigates to OnboardingScreen
+- "Skip" link: skips carousel, navigates directly to OnboardingScreen
+- Swipe gesture: horizontal swipe to advance/go back between slides
+
+DISPLAY FIELDS (read-only):
+- Slide content x4 (illustration, heading, body copy): static marketing content
+- Progress dots (4 dots): current slide highlighted orange (updates with swipe)
+- "Next" button label changes to "Get Started" on slide 4 (dynamic)
 ---
 
 SCREEN 4: OnboardingScreen (Trading Education Carousel)
@@ -564,6 +756,22 @@ Shared Elements:
 Prototype: Swipe to navigate, "Done" advances to next flow (Location Picker)
 
 ---
+FIELD INVENTORY — OnboardingScreen (Trading Education):
+
+INPUT FIELDS (user-editable):
+- "Next" / "Done" button: advances slides, last slide navigates to LocationPickerScreen (FLOW-03)
+- "Skip Tutorial" link: skips carousel, navigates directly to LocationPickerScreen
+- Swipe gesture: horizontal swipe to navigate slides
+
+DISPLAY FIELDS (read-only):
+- Slide content x3 (How to Buy, How to Sell, Swap Points 101): static educational steps
+- Progress dots (3 dots): current slide highlighted orange
+- "Next" button label changes to "Done" on slide 3 (dynamic)
+
+AUTO-CALCULATED:
+- markOnboardingComplete() RPC called when user taps "Done"
+- markOnboardingSkipped() RPC called when user taps "Skip Tutorial"
+---
 
 SCREEN 5: ProfileSetupScreen (Post-OTP Variant)
 Frame: 375x812px, white background
@@ -592,12 +800,43 @@ Difference from ProfileCompletionScreen:
 - Context-aware based on signup path (social vs. email/password)
 
 ---
+FIELD INVENTORY — ProfileSetupScreen (Post-OTP Variant):
+
+INPUT FIELDS (user-editable):
+- Avatar: image upload, optional, accepts jpg/png, crops to 1:1 circle
+- Display Name: text input, required, min 2 / max 50 characters (may be pre-filled from phone/social account)
+- Date of Birth: date picker, required, validates user is 18+ years old
+- About Me (Bio): textarea, optional, max 200 characters
+
+DISPLAY FIELDS (read-only):
+- "Almost There!" heading + subtitle: static
+- Avatar preview/placeholder
+- Location preview hint: "You'll choose your neighborhood next" (static)
+- Upload progress indicator (while avatar uploads)
+- Validation errors: DOB age check, name length (dynamic)
+
+AUTO-CALCULATED:
+- Avatar uploaded to user-avatars storage bucket, public URL stored in profiles.avatar_url
+- assignNodeByZipCode() RPC triggered on profile completion if ZIP already known
+- Determines if waitlist popup should show (based on nearest node match)
+---
 
 NAVIGATION FLOW:
 - Welcome → Profile Completion → Feature Highlights → Trading Education → Location Picker (FLOW-03)
 - Alternative: Phone Verification → ProfileSetup → Location Picker
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Create carousel component for FeatureHighlights and OnboardingScreen (horizontal scroll frame)
 - Use instance swap for slide content
 - Create illustration placeholders with proper dimensions (will be replaced with custom art)
@@ -643,14 +882,30 @@ Heading:
 Instructions:
 - "Enter your ZIP code to find your local marketplace community" (Body/Regular, gray-700, centered, 32px horizontal padding)
 
-ZIP Input Section:
-- Large ZIP input field (Form-Input/Default component, centered, 200px width)
-- Label: "ZIP Code" (Body/Regular-Medium, gray-900)
+Location Input Section (auto-layout vertical, 16px gap):
+
+City Input:
+- Form-Input/Default component, full-width
+- Label: "City" (Body/Regular-Medium, gray-900, required asterisk)
+- Placeholder: "Los Angeles"
+- Text input, capitalization: words
+- Validation: Required, min 2 characters
+
+State Input:
+- Form-Input/Default component, full-width
+- Label: "State" (Body/Regular-Medium, gray-900, required asterisk)
+- Placeholder: "California"
+- Text input or dropdown (US states), capitalization: words
+- Validation: Required
+
+ZIP Code Input:
+- Form-Input/Default component, full-width
+- Label: "ZIP Code" (Body/Regular-Medium, gray-900, required asterisk)
 - Placeholder: "90210"
 - Input: 5 digits, numeric keyboard, auto-format
 - Validation: Real-time check (green checkmark icon appears if valid, red X if invalid)
 
-Search Radius Slider (24px below ZIP input):
+Search Radius Slider (24px below location inputs):
 - Label: "Search Radius" (Body/Regular-Medium, gray-900)
 - Slider component (full-width minus 32px padding):
   - Track: gray-200 bg, 4px height
@@ -670,11 +925,26 @@ Map Preview (optional):
 Continue Button:
 - Button/Primary/Large, "Find My Community" label, full-width
 - Fixed to bottom
-- Disabled until valid 5-digit ZIP entered
+- Disabled until all required fields completed: City, State, and valid 5-digit ZIP
 
 Privacy Note:
 - "We use your location to connect you with local families. Your exact address is never shared." (Body/Small, gray-500, centered, 16px horizontal padding, above button)
 
+---
+FIELD INVENTORY — LocationPickerScreen:
+
+INPUT FIELDS (user-editable):
+- City: text input, required, capitalization: words, min 2 chars, placeholder "Los Angeles"
+- State: text input or dropdown (US states), required, placeholder "California"
+- ZIP Code: numeric input, required, exactly 5 digits, numeric keyboard, placeholder "90210"
+- Search Radius: slider, required, range 5–50 miles, default 15 miles
+- "Use my current location": tap action (auto-fills City, State, ZIP via device GPS)
+
+DISPLAY FIELDS (read-only):
+- ZIP validation icon: green checkmark (valid) or red X (invalid), updates live
+- Radius value label: "15 miles" updates live as slider moves
+- Privacy note: "Your exact address is never shared." (static)
+- Map preview: optional read-only map thumbnail (non-interactive)
 ---
 
 SCREEN 2: NodeSelectionScreen
@@ -731,12 +1001,46 @@ Edit Location:
 - Returns to LocationPickerScreen with current values pre-filled
 
 ---
+FIELD INVENTORY — NodeSelectionScreen:
+
+INPUT FIELDS (user-editable):
+- "Select Community" / "Selected" button (per node card): selects which community to join
+- "Continue" button: appears after selection, advances to Subscription Choice (FLOW-12)
+- "Change location" link: navigates back to LocationPickerScreen
+- "Join Waitlist" button (empty state only): opens Waitlist Modal
+- "Try a different ZIP" link (empty state only): navigates back to LocationPickerScreen
+- Waitlist Modal — Email: text input, optional (pre-filled if available), keyboard: email
+
+DISPLAY FIELDS (read-only):
+- Node cards (1–5): name, distance badge (e.g. "3.2 mi"), active listings count, member count, description
+- ZIP + radius summary: "90210 • 15 miles" (from previous screen, dynamic)
+- "We found [X] communities near you" heading (dynamic count)
+- Node status: active or inactive (affects button shown)
+- Empty state: illustration + "No communities in your area yet" (conditional)
+- Waitlist Modal: ZIP display read-only, email pre-filled if known
+
+AUTO-CALCULATED:
+- Node data loaded by nodeId from assignNodeByZipCode() result
+- Node status determines which button variant to show (Join vs. Looks Good)
+- waitlist_registrations entry created if user joins waitlist
+---
 
 NAVIGATION FLOW:
 - Location Picker → Node Selection → (Subscription Choice - next flow)
 - Alternative: No nodes → Waitlist Modal → Email confirmation → Exit onboarding
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Slider component with interactive prototype (drag thumb updates value display)
 - Node card component with selected/unselected variant (boolean property)
 - Empty state variant for NodeSelectionScreen
@@ -829,6 +1133,31 @@ Bottom Tab Bar (fixed, 72px height including safe area):
 - Icons 24px, labels Body/Small
 
 ---
+FIELD INVENTORY — DiscoverScreen:
+
+INPUT FIELDS (user-editable):
+- Search query: text input, debounced 200ms, placeholder "Search kids gear..."
+- Category shortcut chips: single-select tap (filters by category)
+- Filter button: opens SearchFilterModal (tracks active filter count)
+- Sort dropdown: single-select (Most Relevant | Newest First | Price Low–High | Price High–Low | Distance Nearest)
+- Favorite heart (per item card): toggle saved/unsaved
+- Pull-to-refresh: RefreshControl gesture
+
+DISPLAY FIELDS (read-only):
+- Item cards grid (2 columns): image, title, price, SP badge, distance (dynamic from DB)
+- Active filter chips row: applied filters with remove × (dynamic)
+- Filter count badge: red dot with number on filter button (dynamic)
+- Autocomplete suggestions: up to 5 items based on query (dynamic)
+- Spell correction: "Did you mean X?" (dynamic, conditional)
+- Empty state: "No items found" + Clear Filters button (conditional)
+- "Popular Near You" section header + "See all" link (dynamic count)
+
+AUTO-CALCULATED:
+- debouncedQuery (200ms keystroke delay, 0ms for filter/sort)
+- countActiveFilters() — number shown on filter badge
+- suggestSpellingCorrection() for common typos
+- Pagination offset tracking for infinite scroll (20 per page)
+---
 
 SCREEN 2: CategoryBrowseScreen
 Frame: 375x812px, white background
@@ -858,6 +1187,27 @@ Filter by Size Section (horizontal scroll, if applicable to category):
 
 Empty State (same as DiscoverScreen)
 
+---
+FIELD INVENTORY — CategoryBrowseScreen:
+
+INPUT FIELDS (user-editable):
+- SP-eligible filter toggle (Switch): filters to only SP-accepting listings
+- Size chips: multi-select, category-dependent (clothing/shoe sizes)
+- Filter button: opens SearchFilterModal
+- Favorite heart (per item card): toggle saved/unsaved
+- Pull-to-refresh: RefreshControl gesture
+
+DISPLAY FIELDS (read-only):
+- Category name in header (dynamic, from navigation params)
+- Item count: "142 items" (dynamic)
+- Item cards grid: same 2-column layout as DiscoverScreen (dynamic from DB)
+- Breadcrumb: "All Categories > Clothing > Boys" (dynamic, if subcategory)
+- SP toggle explanation text (static)
+- Empty state: illustration + "No items" message (conditional)
+
+AUTO-CALCULATED:
+- fetchListingsByCategory(category, spEligibleOnly) RPC
+- Filtered items based on SP toggle state
 ---
 
 SCREEN 3: ItemDetailScreen
@@ -915,6 +1265,38 @@ Bottom CTA Section (fixed to bottom, white bg, shadow, safe area insets):
 Shipping/Pickup Info (above CTA, 12px padding, gray-50 bg):
 - Icon (truck 20px, gray-600) + Text (Body/Small, gray-700): "Local pickup in Santa Monica • Meet safely"
 
+---
+FIELD INVENTORY — ItemDetailScreen:
+
+INPUT FIELDS (user-editable):
+- "Buy Now" button: navigates to TradeInitiationScreen (FLOW-08)
+- "Add to Cart" button: adds item to active cart (FLOW-07)
+- Favorite heart (top-right of image): toggle saved/unsaved
+- "Contact Seller" / message button: opens ChatScreen (FLOW-13)
+- "Read more" link: expands full description (toggle)
+
+DISPLAY FIELDS (read-only):
+- Item images carousel: up to 6 images, page dots, image counter "1 / 4" (dynamic from item_images)
+- Item title (dynamic)
+- Item price (dynamic): "$24"
+- SP earn badge (dynamic, conditional): "Earn 250 SP" (only if seller accepts SP)
+- Item condition badge (dynamic): "Like New"
+- Category breadcrumb (dynamic): "Clothing > Outerwear"
+- Description text (dynamic, 3 lines max + Read More)
+- Specs grid (dynamic): Category, Size, Brand, Condition, Location, Posted date
+- Seller avatar + display name (dynamic)
+- Seller star rating + review count (dynamic)
+- Seller verification badge (dynamic: Premium Member, ID Verified)
+- Transaction fee display (dynamic: $0.99 subscriber | $2.99 free user)
+- Safety recall banner (conditional red banner — only if CPSC recall detected)
+- Pickup info: "Local pickup in [City] • Meet safely" (dynamic city)
+
+AUTO-CALCULATED:
+- buyerCanSpendSP (from session.can_spend_sp)
+- hasActiveTrade (hasActiveTradeBetween RPC) — controls seller name visibility
+- sellerRating (getSellerRating RPC)
+- Fee amount based on buyer subscription tier
+- sellerVerificationStatus (idBadgeService.getVerificationStatus RPC)
 ---
 
 MODAL: SearchFilterModal
@@ -1004,6 +1386,26 @@ Sort Dropdown Menu (show when dropdown tapped on DiscoverScreen):
 - "Apply" button (Button/Primary/Medium)
 
 ---
+FIELD INVENTORY — SearchFilterModal:
+
+INPUT FIELDS (user-editable):
+- Category chips: multi-select (Clothing, Toys, Gear, Books, Sports, Baby, Furniture, Electronics, +more)
+- Condition chips: single-select (New | Like New | Good | Fair)
+- Price range: min text input (numeric) + max text input (numeric) + dual-thumb slider ($0–$500)
+- Size chips: multi-select, category-dependent (clothing sizes, shoe sizes)
+- Brand search input: text input + popular brand chips multi-select
+- Age range chips: multi-select (0-6mo, 6-12mo, 1-2yr, 2-4yr, 4-6yr, 6-8yr, 8-10yr, 10-12yr, 12+yr)
+- Distance radius slider: 1–50 miles, default 15 miles
+- Keywords: text input, multi-entry, creates removable chips
+- "Clear all" link: resets all filters
+- "Show [X] results" button: applies filters, closes modal
+
+DISPLAY FIELDS (read-only):
+- Active filter count: "[N] active" badge in header (dynamic, updates live)
+- "Show [X] results" button label: count updates live as filters change (dynamic)
+- Location "From [ZIP]": user's current ZIP (dynamic)
+- Popular brand chips list (static pre-populated)
+---
 
 NAVIGATION FLOW:
 - Discover → Item Detail → Buy Now (FLOW-08)
@@ -1012,6 +1414,17 @@ NAVIGATION FLOW:
 - Discover → Search → Type query → Results → Item Detail
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - ItemCard component with favorite toggle (boolean property)
 - SearchFilterModal with section components (auto-layout vertical, 24px gap between sections)
 - Filter chips with selected/unselected variants (component property)
@@ -1216,6 +1629,47 @@ Success State (show after publish):
 - "Go to My Listings" link (Body/Regular, orange, centered)
 
 ---
+FIELD INVENTORY — ItemCreateScreen:
+
+INPUT FIELDS (user-editable — across 4 steps):
+Step 1 — Photos:
+- Photos: up to 6 image uploads (camera or gallery), reorderable by drag, first = cover, required (min 1)
+Step 2 — Details:
+- Category: hierarchical picker, required, auto-suggested from AI photo analysis
+- Title: text input, required, min 3 / max 80 chars (may be AI pre-filled)
+- Description: textarea, optional, max 500 chars
+- Condition: chip selector, required (New | Like New | Good | Fair), default Good
+- Size: dropdown, optional, category-dependent
+- Brand: autocomplete text input, optional (popular brand chips for quick-select)
+- Colors: multi-select chips, optional
+- Age Group: dropdown, optional (0-2 | 3-5 | 6-8 | 9-12 | 13+)
+- Gender: dropdown, optional (Boy | Girl | Unisex)
+Step 3 — Price:
+- Price: numeric input, required, min $1 / max $10,000
+- Accepts Swap Points: boolean toggle, optional (only visible if canAcceptSP = true)
+Step 4 — Review:
+- Confirmation checkbox: required (must agree to listing terms before publish)
+- "Save Draft" link: available at any step
+
+DISPLAY FIELDS (read-only):
+- 4-step progress stepper: Photo → Details → Price → Review (highlights current step)
+- AI-suggested title: pre-filled with "Suggested" teal tag (dynamic, conditional)
+- Category auto-detected: green ✓ if AI matched, gray ? if manual
+- Title character count: "X/80", updates live
+- Description character count: "0/500", updates live
+- SP earn preview: coin icon + "250 SP" calculated from price (dynamic)
+- AI price suggestion: "$20–$28 based on similar items" (dynamic, conditional)
+- Subscription banner: "Upgrade to Premium to earn SP" (conditional if !canAcceptSP)
+- Safety checks: "No recalls detected" / "Moderation in progress" / "Recall blocked" (dynamic)
+- Success state: confetti + "Listing Published!" (shown after publish)
+
+AUTO-CALCULATED:
+- AI category + title suggestions (useAIAnalysis hook from uploaded photo URLs)
+- SP earn amount = price × SP rate (from admin config)
+- canAcceptSP (from getSubscriptionSummary RPC)
+- Draft auto-save every 30 seconds (useItemDraft hook)
+- Final listing status = 'available' or 'pending' (from admin approval settings)
+---
 
 SCREEN 2: BulkListingCreateScreen
 Frame: 375x812px, white background
@@ -1255,6 +1709,27 @@ Batch Actions (fixed to bottom):
 - "Publish All" button (Button/Primary/Large, full-width, 12px below batch inputs)
 
 ---
+FIELD INVENTORY — BulkListingCreateScreen:
+
+INPUT FIELDS (user-editable):
+- Photos: up to 30 multi-select uploads from gallery, required (min 1)
+- Per-item group: price (numeric, required), condition (chip-select, required), size (dropdown, optional)
+- "Set price for all": numeric input, applies same price to all grouped items
+- "Set condition for all": dropdown, applies same condition to all grouped items
+- "Edit Details" link (per group): opens full edit view for that item
+- Remove button (per group): removes item from bulk batch
+- "Publish All" button: publishes all valid grouped items
+
+DISPLAY FIELDS (read-only):
+- Photo thumbnails grid (3 columns, 110×110px): color-bordered by AI group (dynamic)
+- "We found [X] items" heading: AI-detected group count (dynamic)
+- Per-group: auto-detected category + title + photo thumbnails (dynamic)
+- Group color borders (orange, teal, yellow per group) (dynamic)
+
+AUTO-CALCULATED:
+- AI visual grouping of uploaded photos into item clusters
+- Auto-detected category + title per group (AI analysis)
+---
 
 SCREEN 3: EditListingScreen
 Frame: 375x812px, white background
@@ -1288,6 +1763,34 @@ Delete Confirmation Modal (show when trash icon tapped):
 - "Delete" button (Button/Destructive/Large, full-width)
 - "Cancel" button (Button/Secondary/Large, full-width, 12px below)
 
+---
+FIELD INVENTORY — EditListingScreen:
+
+INPUT FIELDS (user-editable — same fields as ItemCreateScreen, all pre-filled):
+- Photos: current photos shown, can add/remove/reorder, up to 6
+- Category: hierarchical picker, pre-filled
+- Title: text input, required, min 3 / max 80 chars, pre-filled
+- Description: textarea, optional, max 500 chars, pre-filled
+- Condition: chip selector, required, pre-filled
+- Size: dropdown, optional, pre-filled
+- Brand: autocomplete input, optional, pre-filled
+- Colors: multi-select chips, optional
+- Age Group: dropdown, optional (0-2 | 3-5 | 6-8 | 9-12 | 13+)
+- Gender: dropdown, optional (Boy | Girl | Unisex)
+- Price: numeric input, required, pre-filled
+- Accepts Swap Points: boolean toggle, pre-filled
+- Delete (trash icon): opens Delete Confirmation Modal
+
+DISPLAY FIELDS (read-only):
+- Pre-filled form data from DB (dynamic, from getListingById)
+- Status banner: "This listing is sold." or "This listing expired." (conditional, gray)
+- Republish button: conditional (visible only if listing is expired)
+- Delete Confirmation Modal: warning icon + destructive confirm button (conditional)
+
+AUTO-CALCULATED:
+- Pre-fill from getListingById(listingId) RPC
+- Ownership check: seller_id === session.user.id
+- Re-approval triggered if major fields (category, title) changed
 ---
 
 SCREEN 4: MyListingsScreen
@@ -1348,6 +1851,29 @@ Filter & Sort (top-right, below header):
 Bottom Tab Bar (same as DiscoverScreen)
 
 ---
+FIELD INVENTORY — MyListingsScreen:
+
+INPUT FIELDS (user-editable):
+- Status filter tabs: single-select (All | Pending | Needs Edits | Rejected | Active | Sold | Drafts)
+- "+ Create" FAB button: opens choice sheet (List One Item | Bulk Upload)
+- 3-dot action menu (per listing card): Edit | Mark as Sold | Republish | Share | Delete
+- Draft swipe-to-discard: swipe left gesture on draft cards
+- Pull-to-refresh: RefreshControl gesture
+
+DISPLAY FIELDS (read-only):
+- Summary stats bar: total active, total sold, lifetime earnings (dynamic from getListingSummary RPC)
+- Listing cards: thumbnail, title, status badge, price, SP badge, posted date, view count, favorite count (dynamic)
+- Status badges: Pending (yellow) | Needs Edits (orange) | Rejected (red) | Active (green) | Sold (gray) | Draft (yellow)
+- Tab count badges: "(5)" per tab (dynamic)
+- Time ago: "2h ago", "3d ago" (dynamic, calculated)
+- Empty state: illustration + "No listings yet" + Create Listing CTA (conditional)
+
+AUTO-CALCULATED:
+- getMyListings() filtered by selectedStatus RPC
+- getListingSummary() for stats bar
+- getActiveDrafts() for Drafts tab
+- Time ago from created_at timestamp
+---
 
 SCREEN 5: ListingSafetyReviewScreen
 Frame: 375x812px, white background
@@ -1388,6 +1914,31 @@ Appeal Modal (if Appeal tapped):
 - Note: "Our team will review within 24 hours" (Body/Small, gray-600)
 
 ---
+FIELD INVENTORY — ListingSafetyReviewScreen:
+
+INPUT FIELDS (user-editable):
+- "Remove Listing" button: permanently removes the recalled/rejected listing
+- "Appeal This Decision" link: opens Appeal Modal
+- Appeal reason: textarea, min 10 chars (in Appeal Modal)
+- "Submit Appeal" button: submits appeal to admin (in Appeal Modal)
+- "Submit for Re-Review" button: conditional, visible only if status = needs_edits
+
+DISPLAY FIELDS (read-only):
+- Recall alert banner: "Recall Alert" red header (static)
+- CPSC recall details: product name, recall date, reason, CPSC ID number (dynamic from DB)
+- Item thumbnail + title + category + condition (dynamic from DB)
+- "View Full Recall Details" link: external CPSC.gov URL (dynamic)
+- Block message: "This listing has been automatically removed from search" (static)
+- Admin rejection reason/note (dynamic, from DB)
+- Appeal count: number of appeals already submitted (dynamic)
+- Flagged/rejected date (dynamic)
+- Appeal status badge: "In Review" | "Rejected" | "Pending" (dynamic, conditional)
+
+AUTO-CALCULATED:
+- isRejected, isFlagged, needsEdits derived from listing.status field
+- Appeal count from listing.appeal_count
+- submitListingAppeal() or submitListingNeedsEditsReReview() RPC on submit
+---
 
 MODALS & COMPONENTS:
 
@@ -1423,6 +1974,17 @@ NAVIGATION FLOW:
 - Safety: Recall detected (background) → Notification → ListingSafetyReview → Remove/Appeal
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Create stepper component with 4 steps (progress indicator)
 - Photo grid with drag-and-drop prototype (simulate reorder)
 - Upload progress overlay component
@@ -1504,6 +2066,33 @@ Saved for Later Section (optional, below cart items):
 - "Saved for Later (2)" (Body/Regular-Medium, gray-900)
 - Similar card layout, but "Move to Cart" button instead of remove
 
+---
+FIELD INVENTORY — CartScreen:
+
+INPUT FIELDS (user-editable):
+- Item checkboxes: per-item checkbox, multi-select, enables bulk actions row
+- "Select All" checkbox: selects all cart items for bulk action
+- Remove button (per item, X icon): removes single item from cart immediately
+- "Remove selected" link (bulk actions bar): removes all checked items
+- "Move to Cart" button (per saved-for-later item): moves item back to active cart
+- "Clear Cart" button (trash icon, header): clears entire cart with confirmation
+- "Checkout" button: advances to CartCheckoutScreen
+- "Browse Items" button (empty state): navigates to DiscoverScreen
+
+DISPLAY FIELDS (read-only):
+- Cart item cards: thumbnail, title, seller avatar + name, condition + distance, price (dynamic from DB)
+- Item count in header: "(3 items)" (dynamic)
+- Subtotal: "$72.00" (dynamic, sum of all cart item prices)
+- Platform fees estimate: "$3.60–$5.76" (dynamic, 5–8% tier-dependent range)
+- Total estimate: "$75.60–$77.76" (dynamic)
+- "Saved for Later (2)" section: items the buyer saved for later (dynamic)
+- Bulk actions bar: "X selected" count + "Remove selected" link (dynamic, conditional on selections)
+- Empty state: illustration + "Your cart is empty" + Browse Items CTA (conditional)
+
+AUTO-CALCULATED:
+- Subtotal: sum of all cart item prices
+- Fee range: buyer subscription tier determines 5% (Pro) to 8% (Free) fee
+- Total: subtotal + estimated fee range
 ---
 
 SCREEN 2: CartCheckoutScreen
@@ -1619,6 +2208,38 @@ Success State (after payment processed):
   - "Continue Shopping" button (Button/Secondary/Large)
 
 ---
+FIELD INVENTORY — CartCheckoutScreen:
+
+INPUT FIELDS (user-editable):
+- Order summary section toggle: tappable header to expand/collapse item list
+- Payment method: saved card (tap "Change") or new Stripe card input (card number, expiry, CVC, ZIP)
+- SP allocation strategy: radio button (Apply Evenly Across All Items | Choose Per Item)
+- SP per-item slider (Option 2 only): 0% to admin-configured max per item
+- Delivery notes: textarea, optional, placeholder "Add notes for sellers about pickup arrangements..."
+- Terms checkbox: required, must be checked before Confirm & Pay enables
+- "View Full Terms" link: opens Disclaimer Modal (scrollable multi-item checkout policy)
+- "Confirm & Pay" button: processes payment for all cart items simultaneously
+- "I Understand" button (Disclaimer Modal): closes modal
+
+DISPLAY FIELDS (read-only):
+- Order summary: mini item cards (thumbnail, title, price) when expanded (dynamic)
+- Item count badge: "3 items" in section header (dynamic)
+- Saved card: brand icon + "****4242" (dynamic, or Stripe card input if no card saved)
+- SP available balance: "750 SP ~$7.50" (dynamic from sp_wallets)
+- SP allocation preview: per-item SP amount breakdown (dynamic, updates with strategy/slider)
+- SP remaining after purchase: "0 SP remaining" (dynamic)
+- SP cap banner: "Maximum SP usage is X%" (conditional orange banner, shown if cap exceeded)
+- Price breakdown card: subtotal, platform fees, SP discount, total (dynamic, updates live)
+- "Final amount may vary based on your membership tier" disclaimer (static)
+- Step indicator: "Step 1 of 2" (static)
+- Success modal: "Payment Successful!" + "You have 3 active trades" (conditional, shown after payment)
+
+AUTO-CALCULATED:
+- SP allocation per item (even distribution or per-slider value)
+- Total after SP discount
+- Fee amount based on buyer's subscription tier
+- Payment split: card charge + SP cash value
+---
 
 NAVIGATION FLOW:
 - Item Detail → Add to Cart → Cart badge updates
@@ -1626,6 +2247,17 @@ NAVIGATION FLOW:
 - Cart → Empty State → Browse Items → Discover
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Checkbox component for bulk selection (boolean property)
 - Cart item card with remove animation (prototype fade-out)
 - Collapsible section component (expanded/collapsed variants)
@@ -1737,6 +2369,31 @@ DisclaimerModal (full terms):
 - "I Understand" button (Button/Primary/Large)
 
 ---
+FIELD INVENTORY — TradeInitiationScreen:
+
+INPUT FIELDS (user-editable):
+- Payment method: saved card (tap "Change") or new Stripe card input (card number, expiry, CVC, ZIP)
+- SP slider: 0% to admin-configured max (30–70% of item price)
+- Disclaimer checkbox: required, must agree to Trading Policy before paying
+- "View Terms" link: opens DisclaimerModal (safe meetup + SP mechanics)
+- "Confirm & Pay" button: processes payment, creates trade record
+- "I Understand" button (DisclaimerModal): closes modal
+
+DISPLAY FIELDS (read-only):
+- Item summary card: image, title, condition badge, seller avatar + name + star rating (dynamic from DB)
+- SP available balance: "750 SP ~$7.50" (dynamic from sp_wallets)
+- SP amount live display: "250 SP" + "$2.50 • 10% of total" (dynamic, updates with slider position)
+- SP remaining after purchase: "500 SP remaining after purchase" (dynamic)
+- SP cap explanation banner (conditional, orange): "Maximum SP usage is X% of purchase price" (shown if cap approached)
+- Price breakdown card: item price, platform fee (5–8%), SP discount, total due, card + SP split (dynamic, updates live)
+- Buyer protection bullet points: safe meetup, inspect before confirming, payment held securely (static)
+
+AUTO-CALCULATED:
+- SP spend amount: slider position × item price
+- Total due: item price + platform fee − SP cash value
+- Card charge: total due − SP cash value
+- Platform fee based on buyer's subscription tier (5% Pro / 8% Free)
+---
 
 SCREEN 2: TradeDetailScreen
 Frame: 375x812px, white background
@@ -1808,6 +2465,33 @@ More Menu Options (when 3-dots tapped):
 - "Report Issue" (flag icon, red text) — if not completed
 - "Contact Support" (support icon)
 
+---
+FIELD INVENTORY — TradeDetailScreen:
+
+INPUT FIELDS (user-editable):
+- "Mark as Complete" button (buyer or seller, state = in_progress): advances trade state
+- "Confirm Received" button (buyer only, state = seller_marked_completed): sets state → completed
+- "Message Buyer" / "Message Seller" button: opens ConversationDetailScreen (FLOW-13)
+- "Report Issue" link: opens issue/dispute report flow
+- "Rate [Other Party]" button (state = completed): opens Rating Modal (star selector + review)
+- "Download Receipt" link (state = completed): generates/downloads PDF receipt
+- More menu (3-dots icon): View Timeline | Download Receipt | Share Trade | Report Issue | Contact Support
+- "View Trade Timeline →" link: navigates to TradeTimelineScreen
+
+DISPLAY FIELDS (read-only):
+- Trade status badge: In Progress (yellow) | Waiting for You (orange) | Completed (green) | Cancelled (red) (dynamic)
+- Trade ID: "TXN-A1B2C3D4" (monospace font, dynamic)
+- Created date: "May 4, 2026 at 2:30 PM" (dynamic)
+- Item image + title + price + condition badge (dynamic from DB)
+- Buyer and seller cards: avatar, display name, star rating (dynamic from DB)
+- Transaction details: item price, platform fee, SP applied, total paid, payment method, SP deducted (pending/released) (dynamic)
+- State-specific info banner: "Seller marked complete. Confirm when you receive the item." (conditional, yellow, dynamic)
+- Action buttons change based on trade.status + user role (buyer/seller) (dynamic)
+
+AUTO-CALCULATED:
+- Trade state machine: created → payment_confirmed → in_progress → seller_marked_completed → completed
+- Both parties must mark complete for state = completed
+- SP released from pending → available after both sides confirm
 ---
 
 SCREEN 3: TradeListScreen (variant of ActiveTradesScreen - see Screen 6)
@@ -1883,6 +2567,27 @@ Next Action Banner (fixed to bottom, if not completed):
 - CTA button (Button/Primary/Large, full-width, 8px below text)
 
 ---
+FIELD INVENTORY — TradeTimelineScreen:
+
+INPUT FIELDS (user-editable):
+- "Confirm Received" action button (Step 4, buyer + state = seller_marked_completed): advances trade to completed
+- "Download Receipt" link (Step 5, state = completed): downloads PDF receipt
+- Bottom action banner CTA button: "Mark as Complete" or "Confirm Received" (conditional, based on pending action)
+
+DISPLAY FIELDS (read-only):
+- Trade ID subtitle: "TXN-A1B2C3D4" (dynamic, monospace)
+- 5-step timeline: step circles (orange filled = completed, orange pulse = current, gray = pending), connector lines, step labels, timestamps, descriptions (all dynamic)
+  - Step 1 (Trade Created): payment amount + SP applied (dynamic)
+  - Step 2 (Payment Confirmed): Stripe transaction ID (dynamic)
+  - Step 3 (Awaiting Completion): seller name hint for coordination (dynamic)
+  - Step 4 (Seller Confirmed): "Waiting for you to confirm delivery" (conditional, dynamic)
+  - Step 5 (Trade Complete): SP released badge + Download Receipt link (conditional, dynamic)
+- Bottom action banner: "Action Required: Mark trade as complete when you receive the item" (conditional, only shown if action pending)
+
+AUTO-CALCULATED:
+- Step completion status derived from trade.status field
+- Current active step determined by trade state machine position
+---
 
 SCREEN 5: TradeSuccessScreen (Celebration)
 Frame: 375x812px, white background
@@ -1918,6 +2623,28 @@ Rating Modal (show when "Rate" button tapped):
 - "Submit Rating" button (Button/Primary/Large)
 - "Skip" link (Body/Small, gray-500, centered)
 
+---
+FIELD INVENTORY — TradeSuccessScreen:
+
+INPUT FIELDS (user-editable):
+- "Rate [Seller Name]" button: opens Rating Modal
+- Rating Modal — star input: 1–5 star tap selector (required to submit)
+- Rating Modal — review textarea: optional free text, 3 rows
+- "Submit Rating" button (Rating Modal): submits rating to DB
+- "Skip" link (Rating Modal): skips rating, closes modal
+- "View Receipt" button: downloads/shows PDF receipt
+- "Continue Shopping" link: navigates to DiscoverScreen
+
+DISPLAY FIELDS (read-only):
+- Confetti animation / success icon (green checkmark, 120×120px) (static)
+- "Trade Complete!" heading (static)
+- "You successfully purchased [Item Name] from [Seller Name]" (dynamic)
+- Transaction summary card: amount paid, SP applied, SP status "Released to available", new SP balance (dynamic)
+- SP release confirmation badge (green, dynamic)
+
+AUTO-CALCULATED:
+- New SP balance = previous available + released pending SP
+- SP status change: pending → available after both parties confirm
 ---
 
 SCREEN 6: ActiveTradesScreen
@@ -1979,6 +2706,28 @@ Filter Modal (when filter icon tapped):
 Bottom Tab Bar (same as DiscoverScreen)
 
 ---
+FIELD INVENTORY — ActiveTradesScreen:
+
+INPUT FIELDS (user-editable):
+- Filter tabs: single-select (Active | Completed | All)
+- Trade card tap: navigates to TradeDetailScreen
+- Filter icon (header): opens Filter Modal
+- Filter Modal: multi-select status (In Progress | Waiting for Buyer | Waiting for Seller | Completed | Cancelled) + role (As Buyer | As Seller) + date range
+- "Browse Items" button (empty state): navigates to DiscoverScreen
+
+DISPLAY FIELDS (read-only):
+- Trade cards: thumbnail, title, other party avatar + name + role (Buyer/Seller), status badge, date, amount, SP badge (dynamic from DB)
+- Status badges: In Progress (yellow) | Waiting for You (orange) | Completed (green) | Cancelled (red) (dynamic)
+- "Action required: Mark as complete" banner (conditional per card, orange-50 bg, dynamic)
+- Trade count: "3 active trades" (dynamic)
+- Tab count badges: "(3)" per tab (dynamic)
+- Empty state: illustration + "No trades yet" + Browse Items CTA (conditional)
+
+AUTO-CALCULATED:
+- getActiveTradesForUser() RPC filtered by selectedTab
+- Role label (Buyer/Seller) from trades.buyer_id vs session.user.id
+- "Action required" banner shown when trade.status = 'seller_marked_completed' AND current user is buyer
+---
 
 NAVIGATION FLOW:
 - Item Detail → Buy Now → Trade Initiation → Payment → Success → Trade Detail
@@ -1987,6 +2736,17 @@ NAVIGATION FLOW:
 - Trade Complete → Rate → Submit → Back to Active Trades
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - SP slider with real-time calculation (interactive prototype)
 - Timeline component with 5 steps, pulse animation on current step
 - Trade state variants (in_progress, seller_marked_completed, completed, cancelled)
@@ -2124,6 +2884,31 @@ Load More Button (bottom, if more transactions):
 Bottom Tab Bar (same as DiscoverScreen)
 
 ---
+FIELD INVENTORY — SpWalletScreen:
+
+INPUT FIELDS (user-editable):
+- "Earn SP" quick action button: navigates to MyListingsScreen (create listing)
+- "Spend SP" quick action button: navigates to DiscoverScreen
+- "Learn More" quick action button: opens SP info/education modal
+- Transaction type filter dropdown: All Types | Earned | Spent | Pending | Expired
+- Transaction card tap: navigates to SpTransactionDetailScreen
+- "View Balance Details →" link: navigates to SpBalanceBreakdownScreen
+- "Load More Transactions" button: paginates next page of transactions
+- "Start Selling" button (empty state): navigates to ItemCreateScreen
+- "View Plans" link (subscription banner): navigates to SubscriptionUpgradeScreen
+
+DISPLAY FIELDS (read-only):
+- Hero balance card (gradient orange-to-teal): current SP total, cash equivalent (~$X.XX), subscription tier badge (dynamic from sp_wallets + subscription)
+- Subscription status banner: trial ending warning or no-subscription prompt (conditional, dynamic)
+- Transaction cards: type icon + label, description, date/time, ±SP amount, status badge (dynamic from DB)
+- Amount color coding: Earned = green, Spent = orange, Pending = yellow, Expired = red (dynamic)
+- Empty state: illustration + "No transactions yet" (conditional)
+
+AUTO-CALCULATED:
+- Total SP balance from sp_wallets.total_balance
+- getSpTransactions() paginated, filtered by selected type
+- Subscription tier from getSubscriptionSummary RPC
+---
 
 SCREEN 2: SpTransactionDetailScreen
 Frame: 375x812px, white background
@@ -2172,6 +2957,26 @@ Actions Section (fixed to bottom):
 - "Download Receipt" link (Body/Regular, orange, centered)
 - "Report Issue" link (Body/Small, gray-600, centered, 12px below)
 
+---
+FIELD INVENTORY — SpTransactionDetailScreen:
+
+INPUT FIELDS (user-editable):
+- "Download Receipt" link: generates/downloads transaction receipt
+- "Report Issue" link: opens issue report flow
+- "View item" link (related item row): navigates to ItemDetailScreen
+- "View trade" link (related trade row): navigates to TradeDetailScreen
+
+DISPLAY FIELDS (read-only):
+- SP amount: "+250 SP" or "-100 SP" with color coding (Earned = green, Spent = orange, Pending = yellow, Expired = red) (dynamic)
+- Cash equivalent: "~$2.50" (dynamic)
+- Status badge: Completed | Pending | Expired (dynamic)
+- Transaction detail rows: ID (monospace), date, type, related item name (link), related trade ID (link), subscription tier, earning rate formula (dynamic from DB)
+- SP release timeline (conditional, if pending): 3-step timeline with dates and estimated release (dynamic)
+- Expiration warning banner (conditional, orange): "Expires in X days. Spend before [Date]!" (shown if expiring within 30 days)
+
+AUTO-CALCULATED:
+- SP release ETA: trade creation date + 24–72 hour release window
+- Days until expiration: sp_transactions.expires_at − today
 ---
 
 SCREEN 3: SpBalanceBreakdownScreen
@@ -2234,6 +3039,27 @@ SP Spend Cap Reminder (16px below earning):
     - "You can spend up to 30-70% of purchase price using SP (admin-configured)"
 
 ---
+FIELD INVENTORY — SpBalanceBreakdownScreen:
+
+INPUT FIELDS (user-editable):
+- "View Pending Transactions" link (Pending SP card): filters SpWalletScreen to Pending type
+- "Spend Now" button (Expiring Soon card): navigates to DiscoverScreen
+- "Upgrade Subscription" button (Earning Potential section): navigates to SubscriptionUpgradeScreen
+
+DISPLAY FIELDS (read-only):
+- Hero balance card (gradient): total SP + cash equivalent (dynamic from sp_wallets.total_balance)
+- Available SP card (green border): spendable balance + "Ready to use" (dynamic from sp_wallets.available_balance)
+- Pending SP card (yellow border): pending amount + "Awaiting buyer confirmation" (dynamic from sp_wallets.pending_balance)
+- Expiring Soon card (orange border): amount + expiration date (conditional, dynamic — shown if any SP expires within 30 days)
+- Total Earned Lifetime card: cumulative all-time SP earned (dynamic)
+- Earning potential section: current earning rate + Free/Premium/Pro comparison table (dynamic based on tier + admin config)
+- SP spend cap reminder: "Spend up to X%–X% of purchase price" (dynamic, admin-configured range)
+
+AUTO-CALCULATED:
+- All balance buckets from sp_wallets (available_balance, pending_balance, lifetime_earned)
+- Expiring SP calculated from sp_transactions where expires_at within 30 days
+- Current earning rate: base rate + subscription tier bonus from admin config
+---
 
 NAVIGATION FLOW:
 - Bottom Tab → Wallet → View Balance → Transaction History → Transaction Detail
@@ -2241,6 +3067,17 @@ NAVIGATION FLOW:
 - Trade Success → SP Earned notification → Wallet updates
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Gradient hero card component (orange-to-teal, reusable)
 - Transaction card variants (earned/spent/pending/expired with color coding)
 - Expandable filter dropdown/modal
@@ -2414,6 +3251,17 @@ NAVIGATION FLOW:
 - Item Card → SP Earn Badge (compact, visual interest)
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - SP earn badge component (compact + expanded variants)
 - Calculation tooltip modal with breakdown table
 - Subscription tier comparison cards (3 column layout)
@@ -2422,6 +3270,49 @@ FIGMA-SPECIFIC REQUIREMENTS:
 - Interactive prototype: slider updates SP amount, tooltip shows calculation
 - Create reusable SP value display component (amount + cash equivalent)
 - Tier badge variants (Free/Premium/Pro with brand colors)
+
+---
+FIELD INVENTORY — SP Earn/Spend Components (FLOW-11):
+
+SP Earn Badge (compact — on item cards):
+INPUT FIELDS: none (display only)
+DISPLAY FIELDS:
+- "Earn X SP" pill badge (top-right of item image): SP amount calculated from price × earning rate (dynamic)
+- Only displayed if seller has active subscription (canAcceptSP = true)
+
+SP Earn Badge (expanded — on ItemDetailScreen):
+INPUT FIELDS:
+- Info icon tap: opens Calculation Tooltip Modal
+DISPLAY FIELDS:
+- "Earn X SP (~$X.XX)" amount (dynamic, orange)
+- Calculation breakdown: "Based on $X price, X% base rate + X% tier bonus" (dynamic)
+- Subscription note + "View Plans" link (conditional, if current user not subscribed)
+
+Calculation Tooltip Modal:
+INPUT FIELDS:
+- "Got It" button: closes modal
+DISPLAY FIELDS:
+- Calculation table: item price, base rate, tier bonus, total rate, SP earned (all dynamic)
+- "SP released 24–72 hours after buyer confirms delivery" note (static)
+
+Subscription Tier Comparison Modal:
+INPUT FIELDS:
+- "Try Premium Free" button: navigates to SubscriptionUpgradeScreen (Premium pre-selected)
+- "Go Pro" button: navigates to SubscriptionUpgradeScreen (Pro pre-selected)
+- "Maybe Later" link: dismisses modal
+DISPLAY FIELDS:
+- 3-column tier table: Free / Premium / Pro feature lists with ✓/✗ icons (static)
+- Earning example: "On a $24 sale: Free = 0 SP, Premium = 240 SP, Pro = 312 SP" (static)
+
+SP Spend Slider (checkout — TradeInitiationScreen and CartCheckoutScreen):
+INPUT FIELDS:
+- Slider thumb: drag 0% to admin-configured max (30–70% of purchase price)
+DISPLAY FIELDS:
+- SP amount live: "X SP" + "$X.XX" cash equivalent (dynamic, updates with slider)
+- SP remaining after: "X SP remaining" (dynamic)
+- SP cap banner (conditional, orange): "Max SP usage is X%" (shown if cap reached)
+- Insufficient balance banner (conditional, red): "You have X SP available" (shown if wallet balance insufficient)
+---
 ```
 
 ---
@@ -2522,6 +3413,29 @@ Actions Section (fixed to bottom, white bg, shadow):
   - "Cancel Trial" link (Body/Small, gray-600, centered, 12px below)
 
 ---
+FIELD INVENTORY — SubscriptionManagementScreen:
+
+INPUT FIELDS (user-editable):
+- "Upgrade to Premium" button (Free plan): navigates to SubscriptionUpgradeScreen (Premium pre-selected)
+- "Upgrade to Pro" button (Free/Premium plan): navigates to SubscriptionUpgradeScreen (Pro pre-selected)
+- "Compare Plans" link: opens Subscription Tier Comparison Modal (FLOW-11)
+- "Update Payment" link: opens Stripe payment method update sheet
+- "View Billing History" link: navigates to billing history list
+- "Manage Plan" button (Pro plan): opens plan management options (pause/downgrade)
+- "Subscribe Now" button (Trial): navigates to SubscriptionUpgradeScreen
+- "Cancel Subscription" link: navigates to SubscriptionCancellationScreen
+- "Cancel Trial" link: navigates to SubscriptionCancellationScreen
+
+DISPLAY FIELDS (read-only):
+- Current plan card (gradient based on tier — gray=Free, teal=Premium, orange=Pro): tier badge icon, plan name, price, status + since/expires date (dynamic)
+- Benefits list: feature cards with icons, labels, descriptions (tier-dependent) (dynamic)
+- Billing info card: masked payment method, next billing date, amount (conditional, only if subscribed) (dynamic)
+- Trial countdown: "Trial ends in X days" (conditional, if trial active) (dynamic)
+
+AUTO-CALCULATED:
+- getSubscriptionSummary() RPC for current tier, billing_period_end, trial_end
+- Trial days remaining: subscription.trial_end − today
+---
 
 SCREEN 2: SubscriptionUpgradeScreen
 Frame: 375x812px, white background
@@ -2593,6 +3507,29 @@ Terms & Auto-Renewal Notice (16px below cards):
     - "View Full Terms" link (orange, underline)
 
 ---
+FIELD INVENTORY — SubscriptionUpgradeScreen:
+
+INPUT FIELDS (user-editable):
+- "Select Premium" button: initiates Premium subscription checkout (Stripe)
+- "Select Pro" button: initiates Pro subscription checkout (Stripe)
+- Terms checkbox: required before payment proceeds
+- "View Full Terms" link: opens subscription terms
+- "View Detailed Comparison →" link: opens Subscription Tier Comparison Modal (FLOW-11)
+- Payment method: Stripe payment sheet (card number, expiry, CVC, billing ZIP)
+
+DISPLAY FIELDS (read-only):
+- Trial banner: "Start with a 7-day free trial!" (conditional, shown if isTrialEligible = true) (dynamic)
+- Free plan card ($0/month): feature list with ✓/✗ icons (static)
+- Premium plan card ($4.99/month): "Popular" badge, features, earning example (static)
+- Pro plan card ($9.99/month): "Best Value" badge, features, earning example (static)
+- "Current Plan" badge (on currently active tier card) (dynamic)
+- Auto-renewal notice: "Subscription auto-renews monthly until cancelled." (static)
+- First-charge date (conditional): "First charge on [date]" shown if trial eligible (dynamic)
+
+AUTO-CALCULATED:
+- isTrialEligible: true if user has never had a paid subscription
+- Current plan badge placement from active subscription tier
+---
 
 SCREEN 3: SubscriptionCancellationScreen
 Frame: 375x812px, white background
@@ -2644,6 +3581,26 @@ Actions Section (fixed to bottom):
   - "Your benefits will remain active until [expiration date]"
 
 ---
+FIELD INVENTORY — SubscriptionCancellationScreen:
+
+INPUT FIELDS (user-editable):
+- "Downgrade to Premium" button (if cancelling Pro): switches to Premium instead of cancelling
+- Cancellation reason: radio button selector (Too expensive | Not selling enough | Don't use features | Technical issues | Other)
+- "Other" reason: textarea, conditional (visible only when "Other" radio selected)
+- "Keep My Subscription" button: dismisses cancellation, returns to SubscriptionManagementScreen
+- "Confirm Cancellation" button (destructive): submits cancellation to Stripe, schedules plan expiry
+
+DISPLAY FIELDS (read-only):
+- Warning icon + "Are you sure?" heading (static)
+- Current plan display: "You're currently on the Pro plan" (dynamic)
+- "What You'll Lose" list: 4 loss cards (Stop Earning SP, Lose SP Bonus, Reduced SP Spending, Priority Support Removed) — content adapts to current tier (dynamic)
+- Retention offer card: "Before you go..." + downgrade suggestion + benefits comparison (dynamic, tier-dependent)
+- Expiration date note: "Your benefits will remain active until [date]" (dynamic from subscription.current_period_end)
+
+AUTO-CALCULATED:
+- Plan expiration date: subscription.current_period_end
+- Loss item content adapts based on cancelling Pro vs. Premium
+---
 
 SCREEN 4: SubscriptionSuccessScreen
 Frame: 375x812px, white background
@@ -2691,6 +3648,28 @@ Actions (fixed to bottom):
 - "Manage Subscription" link (Body/Small, orange, centered, 12px below)
 
 ---
+FIELD INVENTORY — SubscriptionSuccessScreen:
+
+INPUT FIELDS (user-editable):
+- "Create Listing" button (Earn SP action card): navigates to ItemCreateScreen
+- "Open Wallet" button (View Wallet action card): navigates to SpWalletScreen
+- "Browse Items" button (Explore action card): navigates to DiscoverScreen
+- "Continue to App" button (fixed bottom): navigates to main app (DiscoverScreen)
+- "Manage Subscription" link: navigates to SubscriptionManagementScreen
+
+DISPLAY FIELDS (read-only):
+- Success animation / confetti (static)
+- "Welcome to [Pro/Premium]!" heading (dynamic, based on selected tier)
+- "Your subscription is now active" subtitle (static)
+- Plan summary card (gradient — teal for Premium, orange for Pro): plan name, price, billing info (dynamic)
+- Trial first-charge date: "Your 7-day trial starts now. First charge on [date]" (conditional, dynamic)
+- Immediate charge date: "Charged today. Next billing [date]" (conditional, dynamic)
+- What's Next action cards: SP earning rate, wallet link, explore link (tier-dependent, dynamic)
+
+AUTO-CALCULATED:
+- SP earning rate displayed = tier base rate + bonus from admin config
+- Billing dates from Stripe subscription object (trial_end or current_period_end)
+---
 
 NAVIGATION FLOW:
 - Profile → Subscription Management → View current plan
@@ -2699,6 +3678,17 @@ NAVIGATION FLOW:
 - Item Create (blocked if free) → Upgrade prompt → Upgrade Screen
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Plan card component with tier variants (Free/Premium/Pro)
 - Gradient hero cards (teal/orange based on tier)
 - Tier badge variants (Popular/Best Value/Current Plan)
@@ -2786,6 +3776,27 @@ Search Bar (top, below tabs):
 
 Bottom Tab Bar (same as DiscoverScreen, Messages tab active)
 
+---
+FIELD INVENTORY — ConversationsListScreen:
+
+INPUT FIELDS (user-editable):
+- Search bar: text input, placeholder "Search messages...", filters conversations by name or item
+- Filter tabs: single-select (All | Buying | Selling | Unread)
+- Conversation card tap: navigates to ConversationDetailScreen
+- Swipe left (per card): reveals "Delete" action (red, removes conversation)
+- Swipe right (per card): reveals "Archive" action (orange)
+- Pull-to-refresh: RefreshControl gesture
+
+DISPLAY FIELDS (read-only):
+- Conversation cards: avatar, unread badge (red dot), sender name, timestamp, item thumbnail + title (24×24px), last message preview (1 line), trade status badge (dynamic from DB)
+- Unread indicator: bold name + message text + blue dot next to timestamp (dynamic)
+- Tab count badges: "(5)" per tab (dynamic)
+- Unread count badge in header (dynamic)
+- Empty state: illustration + "No messages yet" + Browse Items CTA (conditional)
+
+AUTO-CALCULATED:
+- getConversations() filtered by tab (buying/selling) and unread status
+- Unread count: conversations where last_read_at < last_message_at
 ---
 
 SCREEN 2: ConversationDetailScreen
@@ -2875,6 +3886,34 @@ Location Share Message:
 - "Open in Maps" link (Body/Small, orange, underline)
 
 ---
+FIELD INVENTORY — ConversationDetailScreen:
+
+INPUT FIELDS (user-editable):
+- Message text input: text input, auto-expands up to 4 lines, placeholder "Type a message..."
+- Send button: submits message (disabled if input empty, enabled when text present)
+- Attachment button (paperclip icon): opens Attachment Options action sheet
+- Attachment options: Take Photo | Choose from Library | Share Location | Cancel
+- Quick reply suggestions: pre-populated tap buttons ("When can we meet?", "Is this still available?", etc.)
+- Long-press received message: Copy | Report
+- Long-press sent message: Copy | Delete
+- More menu (3-dots, header): Report User | Block User | Archive Conversation
+
+DISPLAY FIELDS (read-only):
+- Header: other party's avatar, display name, star rating + review count (dynamic from DB)
+- Trade context banner: item thumbnail, title, price, "View Item" link, trade status badge (conditional, dynamic)
+- Message bubbles: received (gray-100 bg) and sent (orange bg) with text, timestamps, delivery status icons (dynamic from DB)
+- Date separators: "Today" / "Yesterday" / date string (dynamic)
+- System messages: "Trade completed. You can now review [Name]." (conditional, dynamic)
+- Quick reply suggestions (horizontal scroll, static options, shown when trade is active)
+- Safety reminder banner (occasional, conditional): "Always meet in public places" (yellow)
+- Location share message: static map preview + address + "Open in Maps" link (conditional)
+- Delivery status icons: sent (✓), delivered (✓✓), read (orange ✓✓) (dynamic)
+
+AUTO-CALCULATED:
+- Messages ordered chronologically, newest at bottom
+- Delivery status from message.status field
+- System messages triggered automatically by trade state changes
+---
 
 SCREEN 3: MessageComposeScreen (Optional Modal)
 Context: Compose new message to seller (from ItemDetailScreen)
@@ -2910,6 +3949,22 @@ Actions:
 - Disabled until template selected or custom text entered
 
 ---
+FIELD INVENTORY — MessageComposeScreen (Modal):
+
+INPUT FIELDS (user-editable):
+- Template buttons (4 options): tap to pre-fill message ("Is this still available?", "Can we meet this weekend?", "Can you send more photos?", "I'm interested. When can I pick up?")
+- Custom message textarea: free text, 4 rows, placeholder "Type your message..."
+- "Send Message" button: creates new conversation + sends first message (disabled until template selected or text entered)
+
+DISPLAY FIELDS (read-only):
+- Item context: thumbnail, title, price (dynamic from navigation params)
+- Seller info: avatar, display name, star rating (dynamic from DB)
+- "Or write your own message" divider (static)
+
+AUTO-CALCULATED:
+- Creates new conversation record if first message between these two users for this item
+- Navigates to ConversationDetailScreen after send
+---
 
 NAVIGATION FLOW:
 - Bottom Tab → Messages → Conversation List → Select → Conversation Detail
@@ -2918,6 +3973,17 @@ NAVIGATION FLOW:
 - Conversation → View Item → Item Detail
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Conversation card component (unread variant with bold text)
 - Message bubble variants (sent/received/system)
 - Swipe action prototype (delete/archive)
@@ -3068,6 +4134,30 @@ Terms Link (bottom, 16px padding):
 - "View Referral Terms & Conditions" (Body/Small, orange, underline, centered)
 
 ---
+FIELD INVENTORY — ReferralProgramScreen:
+
+INPUT FIELDS (user-editable):
+- "Copy Code" button: copies referral code to clipboard (shows "Copied!" success state briefly)
+- "Copy Link" button: copies referral deep link to clipboard
+- Share buttons (per platform): Messages | WhatsApp | Instagram | Facebook | Twitter/X | More — triggers native system share sheet
+- "View Referral Terms & Conditions" link: opens referral terms
+
+DISPLAY FIELDS (read-only):
+- Hero card (gradient): "You get 500 SP • Your friend gets 500 SP When they complete their first trade" (dynamic reward amounts from admin config)
+- How It Works: 3 numbered step cards (Share Code → They Sign Up → You Both Earn) (static)
+- Referral code: "PASS2024" (monospace, dynamic from profiles.referral_code)
+- Referral deep link: "passitup.app/ref/[code]" (dynamic)
+- Share buttons row: platform icons (static list)
+- Referral stats: total invited count, completed count, total SP earned (dynamic from DB)
+- Referral history list: friend display name/avatar, signup status (Pending/Completed), date, SP amount awarded (dynamic from referrals table)
+- "Copied!" transient success state on copy buttons (conditional)
+- Empty history state: "No referrals yet" + CTA (conditional)
+
+AUTO-CALCULATED:
+- getReferralStats() RPC: totalInvited, completedCount, totalSpEarned
+- getReferralHistory() RPC: list of referral records with status + timestamps
+- Reward amounts from admin_config referral SP settings
+---
 
 SCREEN 2: ReferralSuccessScreen
 Frame: 375x812px, white background
@@ -3108,6 +4198,25 @@ Actions (fixed to bottom):
 - "Done" link (Body/Small, gray-600, centered, 12px below)
 
 ---
+FIELD INVENTORY — ReferralSuccessScreen:
+
+INPUT FIELDS (user-editable):
+- "Share Again" button: re-opens native share sheet with referral code/link
+- "View My Wallet" button: navigates to SpWalletScreen
+- "Done" link: dismisses screen, returns to previous screen (ProfileScreen or Home)
+
+DISPLAY FIELDS (read-only):
+- Confetti animation / success icon (green checkmark, 80×80px) (static)
+- "You Earned 500 SP!" heading (dynamic — SP reward amount from admin config)
+- "Thanks for inviting [Friend Name]" subtitle (dynamic — friend's display_name from referral record)
+- Reward card (gradient orange-to-teal): SP amount "+500 SP", cash equivalent "~$5.00", trigger reason "[Friend Name] completed their first trade!" (dynamic)
+- What's Next benefits list: unlimited referrals, 500 SP per referral, friend also earns 500 SP (static)
+- Referral code card + share buttons row (dynamic code, static platform list)
+
+AUTO-CALCULATED:
+- SP reward amount from admin_config referral SP settings
+- Friend display name from profiles.display_name via referral record
+---
 
 NAVIGATION FLOW:
 - Profile → Referrals → ReferralProgramScreen → Share code/link
@@ -3116,6 +4225,17 @@ NAVIGATION FLOW:
 - ReferralSuccess → View Wallet → SpWalletScreen (updated balance)
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Gradient hero card (orange-to-teal)
 - Step cards with colored left border + numbered circles
 - Referral code component (large, centered, monospace font)
@@ -3289,6 +4409,30 @@ Empty State (no notifications):
 Bottom Tab Bar (same as DiscoverScreen)
 
 ---
+FIELD INVENTORY — NotificationsListScreen:
+
+INPUT FIELDS (user-editable):
+- Filter tabs: single-select (All | Trades | Messages | SP | System)
+- "Mark all as read" link: marks all visible notifications as read
+- Notification card tap: navigates to related screen (TradeDetailScreen, ConversationDetailScreen, SpWalletScreen, etc. — based on type)
+- Swipe left (per card): "Mark as Read" action (blue button)
+- Swipe right (per card): "Delete" action (red button)
+- Settings icon (header): navigates to NotificationSettingsScreen
+- Per-card action button CTA: "View Trade" / "Reply" / "View Wallet" / "Renew Now" / "View Referrals" / "View Details" (varies by notification type)
+- Pull-to-refresh: RefreshControl gesture
+
+DISPLAY FIELDS (read-only):
+- Date separator sticky headers: "Today" / "Yesterday" / date string (dynamic, grouped by day)
+- Notification cards: type icon (colored circle), title, description (2 lines), timestamp, unread dot (dynamic from DB)
+- Read/unread visual: white bg = unread, gray-50 bg = read; bold title = unread (dynamic)
+- Tab count badges: "(3)" per tab (dynamic)
+- Unread count badge in header (orange circle with white number) (dynamic)
+- Empty state: bell illustration + "No notifications yet" + description (conditional)
+
+AUTO-CALCULATED:
+- getNotifications() paginated, filtered by selected tab type
+- Unread count: notifications WHERE read_at IS NULL
+---
 
 SCREEN 2: NotificationSettingsScreen
 Frame: 375x812px, white background
@@ -3382,6 +4526,28 @@ Save Button (fixed to bottom):
 - "Save Settings" button (Button/Primary/Large, full-width)
 
 ---
+FIELD INVENTORY — NotificationSettingsScreen:
+
+INPUT FIELDS (user-editable):
+- "All Notifications" master toggle: enables/disables all notification types globally
+- Per-category toggles (8 categories): Trade Updates | Messages | SP & Wallet | Subscriptions | Referrals | Listings | Safety Alerts (always-on, non-editable) | Marketing
+- Per-category sub-settings checkboxes (when category enabled): Push notifications / Email / In-app
+- Quiet Hours toggle: enables do-not-disturb time window
+- Quiet Hours "From" time picker: start time (default 9:00 PM, visible only when Quiet Hours is on)
+- Quiet Hours "To" time picker: end time (default 7:00 AM, visible only when Quiet Hours is on)
+- "Save Settings" button: persists all preferences to DB
+
+DISPLAY FIELDS (read-only):
+- Master toggle state: on/off (dynamic from DB preferences)
+- Per-category toggle states: on/off per category (dynamic)
+- Safety Alerts row: toggle grayed out + non-interactive + "Required for user safety" note (static, always enabled, cannot be disabled)
+- Quiet Hours time range: visible only when Quiet Hours is enabled (dynamic)
+- "Trade updates and safety alerts will still come through" quiet hours disclaimer note (static)
+
+AUTO-CALCULATED:
+- All preference states loaded from notification_preferences table
+- updateNotificationPreferences() RPC on Save
+---
 
 NAVIGATION FLOW:
 - Bottom Tab → Notifications badge → Notifications List
@@ -3390,6 +4556,17 @@ NAVIGATION FLOW:
 - Push notification received → Tap → Notifications List → Specific notification → Action
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Notification card component with type variants (trade/message/SP/system/referral/recall)
 - Icon circle component with color variants (orange/teal/purple/green/red/gray)
 - Swipe action prototype (mark read/delete)
@@ -3499,6 +4676,31 @@ Contact Info Section (bottom, 16px padding):
   - Response time (Body/Small, gray-500): "⏱ Avg. response: 2-4 hours"
 
 ---
+FIELD INVENTORY — HelpCenterScreen:
+
+INPUT FIELDS (user-editable):
+- Search bar: text input, placeholder "Search for help...", filters articles and categories by keyword
+- Trending search chips: pre-populated tappable chips ("How to earn SP", "Pickup safety", "Refunds")
+- Category cards: tappable, navigates to article list within that category
+- Popular article cards: tappable, navigates to FAQDetailScreen
+- Community resource links (Trading Guidelines, Safety Best Practices, Community Forum): external links
+- "Start Chat" button (Contact Support card): navigates to ContactSupportScreen
+- "View Tickets →" link (Active Tickets card, conditional): navigates to ticket list
+- "support@passitup.app" link: opens email client
+
+DISPLAY FIELDS (read-only):
+- Active Tickets card (conditional, orange-50 bg): shows open ticket count badge, only if user has open tickets (dynamic)
+- Contact Support card (teal-50 bg): static
+- Category cards: icon, title, article count per category (dynamic from DB)
+- Popular article cards: title, view count (dynamic from DB)
+- Community resources list (static links)
+- Contact info: email + "Avg. response: 2-4 hours" (static)
+
+AUTO-CALCULATED:
+- getHelpCategories() for category list + article counts
+- getPopularArticles() for most-viewed articles
+- getOpenTickets() for Active Tickets card conditional visibility
+---
 
 SCREEN 2: FAQDetailScreen
 Frame: 375x812px, white background
@@ -3548,6 +4750,30 @@ Still Need Help Card (16px below related):
   - "Contact our support team" (Body/Regular, gray-700)
   - "Contact Support" button (Button/Primary/Medium)
 
+---
+FIELD INVENTORY — FAQDetailScreen:
+
+INPUT FIELDS (user-editable):
+- Share icon (header, top-right): shares article URL via native share sheet
+- "Thumbs up" button: positive helpfulness vote (toggles green selected state)
+- "Thumbs down" button: negative helpfulness vote (toggles red selected state)
+- Related article cards: tappable, navigates to another FAQDetailScreen
+- "Contact Support" button (Still Need Help card): navigates to ContactSupportScreen
+- Breadcrumb links: "Help Center" / category name — tappable to navigate back
+- Internal article links (within content): tap to navigate to linked article or external resource
+
+DISPLAY FIELDS (read-only):
+- Breadcrumb trail: "Help Center > [Category]" (dynamic)
+- Article title (dynamic from DB)
+- View count + last updated date (dynamic)
+- Article rich-text content: headings, paragraphs, bullet lists, numbered lists, code blocks, callout boxes (info/warning/tip), images (dynamic, markdown-rendered from DB)
+- Thumbs feedback success text: "Thanks for your feedback!" (conditional, shown after voting)
+- Related articles list: 3–4 article cards (dynamic)
+- Still Need Help card: "Contact Support" CTA (static)
+
+AUTO-CALCULATED:
+- getArticleById(articleId) + getRelatedArticles() RPC
+- Article helpful/not-helpful counts updated on thumb tap
 ---
 
 SCREEN 3: ContactSupportScreen
@@ -3613,6 +4839,27 @@ Submit Button (fixed to bottom):
 - "Submit Request" button (Button/Primary/Large, full-width)
 - Disabled until category selected and description provided (min 20 chars)
 
+---
+FIELD INVENTORY — ContactSupportScreen:
+
+INPUT FIELDS (user-editable):
+- Issue category radio buttons: single-select (Problem with a trade | Payment or refund issue | SP question | Account/login issue | Subscription/billing | Safety concern | Technical issue | Other)
+- Related trade dropdown (conditional, visible only if "Problem with a trade" selected): selects from user's recent trades
+- Issue description textarea: required, min 20 / max 1000 chars, placeholder "Please provide details about your issue..."
+- Screenshot upload: optional, up to 5 images (photo grid, camera or gallery)
+- "Update email" link: navigates to profile email settings
+- "Submit Request" button: creates support ticket (disabled until category selected + description ≥20 chars)
+
+DISPLAY FIELDS (read-only):
+- Priority banner (conditional, purple-50 bg): "Priority Support — Avg. response: 1-2 hours" (shown only if user subscription tier = Pro)
+- Contact email confirmation: user's current email address (dynamic from auth session)
+- Attachment file preview thumbnails (dynamic, shown after upload)
+- Description character count: "0/1000" (dynamic, updates live)
+
+AUTO-CALCULATED:
+- Recent trades dropdown list from getActiveTradesForUser() RPC
+- createSupportTicket() on Submit
+- Priority flag set on ticket if subscription.tier = 'pro'
 ---
 
 SCREEN 4: TicketDetailScreen
@@ -3681,6 +4928,32 @@ Ticket Resolved State (if resolved):
   - "Reopen Ticket" button (Button/Tertiary/Medium)
 
 ---
+FIELD INVENTORY — TicketDetailScreen:
+
+INPUT FIELDS (user-editable):
+- Reply text input (fixed bottom, only when ticket is open): free text, auto-expands up to 4 lines
+- Attachment button (paperclip icon): opens photo upload for adding evidence to reply
+- Send button: submits reply message (disabled if input empty)
+- More menu (3-dots, header): Close Ticket | Download Conversation
+- "Was this helpful?" thumbs (resolved state): positive/negative feedback on resolution quality
+- "Reopen Ticket" button (resolved state): re-opens a resolved ticket
+- "View Trade →" link (ticket summary card): navigates to TradeDetailScreen
+
+DISPLAY FIELDS (read-only):
+- Ticket status badge: Open (yellow) | In Progress (blue) | Resolved (green) | Closed (gray) (dynamic)
+- Ticket ID (monospace, Fira Code): "#SUP-12345" (dynamic)
+- Created date (dynamic)
+- Ticket summary card: category icon + type label + related trade ID (dynamic)
+- Conversation thread: customer bubbles (teal-50 bg), support agent bubbles (gray-100 bg), system messages (centered gray chips) (dynamic from DB)
+- Agent name per support message (dynamic)
+- Resolved state card (conditional, green-50 bg): "This ticket has been resolved" + thumbs feedback (shown when ticket.status = resolved)
+- Reply input area hidden when ticket is Resolved or Closed
+
+AUTO-CALCULATED:
+- getTicketById(ticketId) for ticket data and message thread
+- Messages ordered chronologically, newest at bottom
+- Input disabled when ticket.status IN ('resolved', 'closed')
+---
 
 NAVIGATION FLOW:
 - Profile → Help → Help Center → Browse categories/articles
@@ -3690,6 +4963,17 @@ NAVIGATION FLOW:
 - Ticket Detail → Related Trade → Trade Detail Screen
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Category card component with icon variants (8 types)
 - Article card component (reusable)
 - FAQ content with rich text formatting (headings, lists, callouts, code blocks)
@@ -3773,6 +5057,26 @@ Actions Section (fixed to bottom):
   - Warning text below (Body/Small, red-600): "You'll lose SP earning immediately"
 
 ---
+FIELD INVENTORY — TrialEndingScreen:
+
+INPUT FIELDS (user-editable):
+- "Subscribe to Premium" button: navigates to SubscriptionUpgradeScreen (Premium pre-selected)
+- "Try Pro Instead" button: navigates to SubscriptionUpgradeScreen (Pro pre-selected)
+- "No Thanks" link: dismisses screen (shows "You'll lose SP earning immediately" warning)
+
+DISPLAY FIELDS (read-only):
+- Yellow clock icon + "Your Trial Ends Soon" heading (static)
+- Days remaining: "3 Days Left" (dynamic: subscription.trial_end − today)
+- Current benefits card (gradient teal): SP earn rate, unlimited listings, SP spend cap, marketplace access (dynamic, shows current trial tier's features)
+- "What Changes on [Expiry Date]" card (red-50 bg): SP earning stops, cannot list, spend cap reduced to 30% (dynamic — expiry date from subscription.trial_end)
+- Pricing reminder: "Continue for just $4.99/month" (static)
+- Trial results value card (orange-50 bg): items sold count, SP earned, potential monthly earnings estimate (dynamic from DB)
+
+AUTO-CALCULATED:
+- Trial days remaining: subscription.trial_end − today
+- Trial results via getTrialResults() RPC: items_sold, sp_earned_total
+- Potential earnings estimate: items_sold / trial_days × 30 × avg_SP_per_item
+---
 
 SCREEN 2: SubscriptionExpiredScreen
 Frame: 375x812px, white background
@@ -3834,6 +5138,26 @@ Actions:
 - "Maybe Later" link (Body/Small, gray-600, centered, 16px below cards)
 
 ---
+FIELD INVENTORY — SubscriptionExpiredScreen:
+
+INPUT FIELDS (user-editable):
+- "Reactivate Premium" button: initiates Premium subscription reactivation via Stripe
+- "Upgrade to Pro" button: initiates Pro subscription via Stripe
+- "Maybe Later" link: dismisses screen, continues with Free plan restrictions
+
+DISPLAY FIELDS (read-only):
+- Red X icon + "Your Subscription Expired" heading (static)
+- Expired date: "Expired on [date]" (dynamic from subscription.current_period_end)
+- Impact card (red-50 bg): SP earning stopped, cannot create new listings, SP spend cap reduced to 30%, SP balance preserved, still able to shop (dynamic, tier-dependent)
+- What You're Missing card (conditional): active listing count + potential SP value/month + lost earnings estimate (dynamic — shown only if user has active listings)
+- Reactivation offer card (gradient, conditional): "Welcome Back — Get 100 Bonus SP!" + "Limited time offer" (conditional, admin-configured bonus)
+- Pricing cards: Premium ($4.99/mo) + Pro ($9.99/mo Best Value badge) with key feature summaries (static)
+
+AUTO-CALCULATED:
+- Expired date from subscription.current_period_end
+- Potential missed earnings: active_listings_count × avg_sale_frequency × avg_SP_per_sale
+- isEligibleForWelcomeBackBonus from admin config + subscription history
+---
 
 SCREEN 3: PaymentFailedScreen
 Frame: 375x812px, white background
@@ -3890,6 +5214,26 @@ Actions Section (fixed to bottom):
 - "Contact Support" link (Body/Small, orange, centered, 12px below)
 - "Cancel Subscription" link (Body/Small, gray-600, centered, 12px below)
 
+---
+FIELD INVENTORY — PaymentFailedScreen:
+
+INPUT FIELDS (user-editable):
+- "Update Payment Now" button: opens Stripe payment method update sheet
+- "Change Card" button (Payment Method section): opens card update flow
+- "Contact Support" link: navigates to ContactSupportScreen
+- "Cancel Subscription" link: navigates to SubscriptionCancellationScreen
+
+DISPLAY FIELDS (read-only):
+- Orange credit-card-slash icon + "Payment Failed" heading (static)
+- Payment details card (orange-50 bg): amount, masked card number, attempt date, error reason "Card declined" (dynamic from Stripe webhook data)
+- Grace period banner (yellow-50 bg): "7 days to update payment before subscription is cancelled" + countdown "X days remaining" (dynamic)
+- Consequences card (gray-50 bg): subscription will cancel, SP earning stops, cannot list, SP balance preserved (static)
+- Current payment method display: card brand + masked number + "Declined" status in red (dynamic)
+- Alternative payment method icons: credit/debit card, Apple Pay, Google Pay (static)
+
+AUTO-CALCULATED:
+- Grace period days remaining: failed_payment_date + 7 − today
+- Payment error reason from Stripe decline_code on subscription invoice
 ---
 
 SCREEN 4: SubscriptionPausedScreen
@@ -3952,6 +5296,26 @@ Actions Section (fixed to bottom):
 - "View Account Status" button (Button/Secondary/Large, full-width, 12px below)
 
 ---
+FIELD INVENTORY — SubscriptionPausedScreen:
+
+INPUT FIELDS (user-editable):
+- "Change Card" button (Resolution Step 1): opens Stripe payment method update sheet
+- "Contact Support" button (Resolution Step 2): navigates to ContactSupportScreen
+- "Contact Support" button (fixed bottom): navigates to ContactSupportScreen
+- "View Account Status" button: navigates to SubscriptionManagementScreen
+- "support@passitup.app" link: opens email client
+
+DISPLAY FIELDS (read-only):
+- Gray pause icon + "Subscription Paused" heading (static)
+- Pause reason card (gray-100 bg): dynamic reason text (e.g., "Multiple failed payment attempts" / "Account under review") (dynamic from subscription record)
+- Current status card: what you can/cannot do — ✓ shop/spend SP/message; ✗ earn SP/list/Pro features (static)
+- Resolution steps card (teal-50 bg): 3-step numbered guide (1: Update payment, 2: Contact support, 3: Wait 24–48h) (static)
+- Support contact card: email + avg response time (static)
+
+AUTO-CALCULATED:
+- Pause reason and timestamp from subscription.status + subscription.pause_reason fields
+- Account capability flags derived from subscription.status = 'paused'
+---
 
 NAVIGATION FLOW:
 - Trial ending notification → Trial Ending Screen → Subscribe → Payment → Success
@@ -3960,6 +5324,17 @@ NAVIGATION FLOW:
 - Account paused (admin action) → Paused Screen → Contact Support → Resolution
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Status icon variants (clock/X/credit-card/pause with colored circles)
 - Urgency countdown component (days/hours remaining)
 - Impact card component (what changes, color-coded with checkmarks/X icons)
@@ -4100,6 +5475,29 @@ Appeal Submitted State (replace form after submission):
 - "You'll receive our decision via email" (Body/Small, gray-600, centered)
 
 ---
+FIELD INVENTORY — AccountSuspendedScreen:
+
+INPUT FIELDS (user-editable):
+- Appeal reason textarea: required, min 50 / max 1000 chars, placeholder "Explain why you believe this suspension is incorrect..."
+- Supporting documents upload: optional file upload (photos, screenshots)
+- "Submit Appeal" button: submits suspension appeal (disabled until textarea ≥50 chars)
+- "Contact Support" button: navigates to ContactSupportScreen
+- "View Community Guidelines" link: opens external community guidelines
+- "View Full Policy" link (policy reference card): navigates to relevant policy section
+
+DISPLAY FIELDS (read-only):
+- Red lock icon (120×120px) + "Account Suspended" heading (static)
+- Suspension details card (red-50 bg): effective date, suspension ID (monospace), duration, reason text (dynamic from DB)
+- Reason card: specific violation description + policy reference section (dynamic from admin action)
+- Evidence section (conditional): flagged items/trades list with thumbnails and "Flagged: [reason]" (dynamic, shown only if admin provided evidence)
+- Impact card (yellow-50 bg): restricted actions (cannot buy/sell/message/wallet/listings) vs. data security preserved (dynamic, flags adapted to suspension type)
+- Appeal process steps (teal-50 bg): 4-step numbered guide (static)
+- Post-submission state: green checkmark + "Appeal Submitted" (conditional, replaces form after submit)
+
+AUTO-CALCULATED:
+- Suspension data from account_flags or suspension_records table
+- submitSuspensionAppeal() RPC on Submit
+---
 
 SCREEN 3: ListingRemovedScreen
 Frame: 375x812px, white background
@@ -4175,6 +5573,29 @@ Actions Section (fixed to bottom):
 - "View Listing Guidelines" button (Button/Secondary/Large, full-width, 12px below)
 - "Contact Support" link (Body/Small, orange, centered, 12px below)
 
+---
+FIELD INVENTORY — ListingRemovedScreen:
+
+INPUT FIELDS (user-editable):
+- Appeal textarea: optional, explains why removal was a mistake (min 10 chars)
+- "Submit Appeal" button: submits listing removal appeal
+- "Create New Listing" button: navigates to ItemCreateScreen
+- "View Listing Guidelines" button: opens external listing policy
+- "Contact Support" link: navigates to ContactSupportScreen
+- "View Full Policy" link (policy reference): navigates to policy section
+
+DISPLAY FIELDS (read-only):
+- Orange alert triangle icon + "Listing Removed" heading (static)
+- Removed listing preview card: grayed-out thumbnail, title, "Removed on [date]" (dynamic from DB)
+- Removal reason card (orange-50 bg): violation type icon + label (e.g., "CPSC Recall" / "Prohibited Item" / "Policy Violation") + detailed explanation + policy reference (dynamic from admin action)
+- Evidence section (conditional): detection reasoning bullets (e.g., CPSC match, user reports, content scan) (dynamic, shown if admin provided evidence notes)
+- What Happens Now card: account active, other listings unaffected, can create new listings, repeated violations warning (static)
+- Remediation tips card (teal-50 bg): policy compliance tips + listing guidelines link (static)
+- Appeal status badge (conditional): "In Review" / "Rejected" / "Pending" (dynamic, shown after appeal submitted)
+
+AUTO-CALCULATED:
+- Listing removal data from listings table (status = 'removed', admin_notes, removal_reason)
+- submitListingRemovalAppeal() RPC on submit
 ---
 
 SCREEN 4: DisputeResolutionScreen
@@ -4294,6 +5715,37 @@ Actions Section (fixed to bottom):
   - "Download Summary" link (Body/Small, gray-600, centered, 12px below)
 
 ---
+FIELD INVENTORY — DisputeResolutionScreen:
+
+INPUT FIELDS (user-editable):
+- Response textarea (respondent only, if not yet responded): required, freeform explanation of their side
+- Evidence upload (optional): photos, receipts, screenshots
+- "Submit Response" button: submits respondent's reply (disabled until textarea has content)
+- "Add Information" button (under review, fixed bottom): opens additional info textarea
+- "Close Dispute" button (resolved state): closes the resolved dispute
+- "Submit Appeal" button (appeal card, if dissatisfied): submits appeal of resolution decision
+- "Contact Support" link: navigates to ContactSupportScreen
+- "Download Summary" link: downloads dispute PDF summary
+- "View Trade Details" link: navigates to TradeDetailScreen
+
+DISPLAY FIELDS (read-only):
+- Dispute status badge: Under Review (yellow) | Resolved (green) | Closed (gray) (dynamic)
+- Dispute ID (monospace): "DIS-A1B2C3D4" (dynamic)
+- Filed date (dynamic)
+- Dispute type card: icon + type label (Item Not as Described / Not Received / Payment Issue / Conduct / Refund) + filed by (Buyer/Seller) (dynamic)
+- Related trade card (teal-50 bg): item thumbnail, title, trade ID + "View Trade Details" link (dynamic)
+- Parties section: buyer and seller avatars, names, role badge (Claimant/Respondent) (dynamic)
+- Dispute details card: claimant's description text + submitted evidence images (dynamic)
+- Resolution timeline: 5 steps — Dispute Filed / Respondent Notified / Under Review / Decision Made / Dispute Closed (step states: completed/current-pulsing/future) (dynamic)
+- Communication thread: claimant bubbles, respondent bubbles, support agent bubbles, system messages (dynamic from DB)
+- Resolution decision card (conditional, green-50 or red-50): outcome, SP handling status, explanation, next steps (shown when dispute.status = resolved)
+- Appeal option card (conditional, yellow-50 bg): "Not satisfied? Appeal within 7 days" (shown when resolved)
+
+AUTO-CALCULATED:
+- Timeline step states derived from dispute.status state machine
+- getDisputeById(disputeId) with full message thread
+- submitDisputeResponse() on Submit
+---
 
 NAVIGATION FLOW:
 - CPSC recall detected (background) → Push notification → Recall Alert Screen → Remove/Appeal
@@ -4302,6 +5754,17 @@ NAVIGATION FLOW:
 - Trade dispute filed → Both parties notified → Dispute Resolution Screen → Communication → Decision
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Status icon variants (lock/alert/shield with colored circles: red/orange/yellow)
 - Violation card component with color-coded borders (red/orange/yellow based on severity)
 - Evidence display component (image grid, expandable)
@@ -4407,6 +5870,17 @@ Slide 4 — "Sustainable Shopping":
 - Stats row (auto-layout horizontal, 24px gap, centered): "🌱 Eco-Friendly" | "♻️ Reduce Waste" | "💰 Save Money"
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Auto-advance animation option (optional — set timeout or require tap)
 - Swipe gesture support for slide navigation (prototype)
 - Illustration budget: $20-40 (or use Storyset.com free customizable illustrations)
@@ -4502,6 +5976,17 @@ NAVIGATION FLOW:
 - HelpScreen → SP Calculator (free mode) → Bonus Categories
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Accordion expand/collapse animation (chevron rotation, height transition)
 - SPCalculatorWidget as reusable component (free + auto modes as variants)
 - Bonus category badge component (⭐/🏆 variants)
@@ -4510,6 +5995,60 @@ FIGMA-SPECIFIC REQUIREMENTS:
 - SP Calculator: live update on Calculate tap (not real-time slider)
 - Dual result panels visible simultaneously (sell + buy side by side on larger screens)
 - Interactive prototype: onboarding flow complete → lands on Discover
+
+---
+FIELD INVENTORY — FLOW-19 Education Screens:
+
+--- OnboardingEducationCarousel ---
+INPUT FIELDS (user-editable):
+- "Skip" link (top-right): dismisses carousel, marks onboarding_completed_at, navigates to DiscoverScreen
+- "Next" button: advances to next slide
+- "Get Started" button (last slide, replaces Next): marks onboarding_completed_at, navigates to DiscoverScreen
+- Swipe left/right gesture: advances or goes back between slides
+
+DISPLAY FIELDS (read-only):
+- Slide 1: Welcome illustration + "Pass It Up" wordmark + tagline (static)
+- Slide 2: SP illustration + "Earn Swap Points" + SP example pill (dynamic: SP reward % and cash equivalent from admin config)
+- Slide 3: Safety illustration + "Trade Safely" + safety tip pill (static)
+- Slide 4: Sustainability illustration + "Good for Kids, Good for the Planet" + eco-stats row (static)
+- Dot progress indicator: active slide = orange filled, inactive = gray-200 (dynamic per slide)
+
+AUTO-CALCULATED:
+- Shown only when profiles.onboarding_completed_at IS NULL
+- Sets profiles.onboarding_completed_at on "Get Started" or "Skip"
+
+--- HelpScreen ---
+INPUT FIELDS (user-editable):
+- Accordion section tap: expands/collapses section (chevron rotates 180°)
+- SPCalculatorWidget — Category picker: opens CategoryPicker modal (hierarchical, from FLOW-04)
+- SPCalculatorWidget — Price input: numeric text input, $0–$10,000
+- SPCalculatorWidget — "Calculate SP" button: triggers SP calculation and renders results panels
+- Pull-to-refresh: reloads DB-managed accordion content
+
+DISPLAY FIELDS (read-only):
+- 4 accordion sections (DB-configurable): "What are Swap Points?", "How do I earn SP?", "How do I spend SP?", "Trading Safety Tips" (dynamic from DB)
+- SPCalculatorWidget results (see below)
+- Bonus SP Categories list: category name, icon/emoji, earning multiplier badge ⭐/🏆 (dynamic from admin config)
+
+AUTO-CALCULATED:
+- Accordion content from help_content table (admin-managed)
+- Bonus category multipliers from category_sp_multipliers admin config table
+
+--- SPCalculatorWidget ---
+INPUT FIELDS (user-editable):
+- Category picker button: opens CategoryPicker modal
+- Price text input: numeric, $0.00–$10,000, 2-decimal precision
+- "Calculate SP" button: computes results for entered category + price
+
+DISPLAY FIELDS (read-only):
+- Category placeholder / selected category icon + name (dynamic)
+- Sell Results panel (green-50 bg, conditional — shown after Calculate): "+X SP earned" + "~$X.XX value" + bonus badge if multiplier >1.10 (dynamic)
+- Buy Results panel (teal-50 bg, conditional — shown after Calculate): "Up to X SP spendable" + "Save up to $X.XX" + spend cap note "X–X%" (dynamic)
+
+AUTO-CALCULATED:
+- SP earn = price × base_rate × category_multiplier (from admin config)
+- SP spend max = price × admin-configured spend cap %
+---
 ```
 
 ---
@@ -4642,6 +6181,17 @@ NAVIGATION FLOW:
 - Notification tap (approved/rejected) → ProfileScreen scrolls to ID Verification section
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - 4 status card state variants (not started / pending / approved / rejected)
 - Upload zone with 3 states (empty, selected/preview, duplicate-blocked)
 - Discrete upload progress states (not progress bar — step-by-step)
@@ -4649,6 +6199,50 @@ FIGMA-SPECIFIC REQUIREMENTS:
 - Confetti/celebration frame for approved state (one-time animation)
 - Disable duplicate submission: overlay "Verification Pending" on upload zone
 - Create ID card placeholder graphic (generic, no real ID data)
+
+---
+FIELD INVENTORY — IDVerificationUploadScreen:
+
+INPUT FIELDS (user-editable):
+- "Take Photo" button: opens camera to capture government-issued ID
+- "Choose from Gallery" button: opens photo library to select ID image
+- "Remove" link (photo preview): clears selected photo, returns to empty upload zone
+- "Retake" link (photo preview): re-opens camera or gallery picker
+- "Why do we need this?" link: opens Info Modal
+- "Got It" button (Info Modal): closes modal
+- "Submit for Verification" button: uploads photo + creates verification_requests record (disabled until photo selected)
+
+DISPLAY FIELDS (read-only):
+- 3-step progress indicator: Upload (active, orange) → Review → Decision (dynamic — shows Upload as current step)
+- Privacy protected trust banner (teal-50 bg): "Your ID is deleted immediately after review — never stored" (static)
+- Disclaimer card (gray-50 bg): accepted ID types, review timeline, configurable text from id_badge_verification_messages (dynamic from DB)
+- Upload zone empty state: camera icon + instructions (static)
+- Photo preview (conditional): full image fill + Remove/Retake links (shown after photo selected)
+- Upload quality tips: 4 tips for clear photo capture (static)
+- Duplicate prevention banner (conditional, orange-50 bg): "Verification Pending" + "View Status" button (replaces Submit when pending request already exists)
+
+AUTO-CALCULATED:
+- getIDVerificationStatus() to check for existing pending request
+- createIDVerificationRequest() on Submit
+
+---
+FIELD INVENTORY — IDVerificationStatusScreen (ProfileScreen embedded card):
+
+INPUT FIELDS (user-editable):
+- "Start Verification" button (State 1 — Not Started): navigates to IDVerificationUploadScreen
+- "Resubmit Verification" button (State 4 — Rejected): navigates to IDVerificationUploadScreen
+- "Contact Support" link (State 4 — Rejected): navigates to ContactSupportScreen
+
+DISPLAY FIELDS (read-only):
+- State 1 (Not Started): gray ID icon + "Get Verified" + description + "Start Verification" CTA (static)
+- State 2 (Pending Review): yellow clock icon + "Verification Pending" + 3-step progress bar (Upload ✓, Review active/pulsing, Decision pending) (dynamic)
+- State 3 (Approved): green checkmark icon + "Identity Verified ✓" + verified badge preview (orange + star) + "Verified on [date]" + one-time confetti/shimmer animation (dynamic)
+- State 4 (Rejected): red alert circle icon + "Verification Unsuccessful" + rejection reason + admin notes in italic (dynamic from verification_requests)
+
+AUTO-CALCULATED:
+- getIDVerificationStatus() RPC: returns status (not_started / pending / approved / rejected)
+- rejection_reason + admin_notes from verification_requests table
+---
 ```
 
 ---
@@ -4735,6 +6329,33 @@ Empty State (no payouts yet):
 - "Browse Listings" button (Button/Secondary/Large, centered)
 
 ---
+FIELD INVENTORY — SellerEarningsScreen:
+
+INPUT FIELDS (user-editable):
+- "Withdraw Funds" button (hero card): opens Withdrawal Modal (bottom-sheet)
+- Withdrawal Modal — amount input: numeric, pre-filled with available balance, max = available balance
+- Withdrawal Modal — payout method selector: dropdown, shows configured methods
+- Withdrawal Modal — "Confirm Withdrawal" button: initiates payout (disabled until amount > 0 and method selected)
+- "Payout Settings" link (header top-right): navigates to PayoutSettingsScreen
+- "Add Payout Method" button (no-method banner): navigates to PayoutSettingsScreen
+- Payout history filter: opens filter sheet (All / Completed / Processing / Failed)
+- Payout card tap: navigates to payout detail (if implemented)
+- "Browse Listings" button (empty state): navigates to DiscoverScreen
+- Pull-to-refresh: reloads balance + payout history
+
+DISPLAY FIELDS (read-only):
+- Earnings hero card (teal-to-green gradient): available balance + "Withdraw Funds" CTA (dynamic from seller_balances)
+- 3 mini breakdown cards: Pending (yellow-700) / Lifetime (gray-900) / Last Payout (teal-700) (dynamic)
+- No Payout Method banner (conditional, orange-50 bg): shown when no method is configured (dynamic)
+- Payout history list: provider badge (Stripe/PayPal/Bank with brand colors), date, Fira Code reference ID, amount, status pill (dynamic from DB)
+- Empty state (conditional): wallet illustration + "No payouts yet" (shown if history is empty)
+
+AUTO-CALCULATED:
+- Available balance from seller_balances.available_amount
+- Pending balance from in-flight trades not yet settled
+- Lifetime total = SUM of completed payouts
+- getPayoutHistory() filtered by selected status
+---
 
 SCREEN 2: PayoutSettingsScreen
 Frame: 375x812px, white background
@@ -4802,6 +6423,34 @@ Verification Pending Notice (FLOW-23 — integrated):
   - Two amount inputs (Body/Regular, inline): "$0.__ and $0.__"
   - "Verify Deposits" button (Button/Primary/Medium)
 
+---
+FIELD INVENTORY — PayoutSettingsScreen:
+
+INPUT FIELDS (user-editable):
+- "Withdraw All" link (Balance Section): pre-fills withdrawal amount = available balance in Withdrawal Modal
+- Withdrawal Modal — amount text input: numeric, max = available balance
+- Withdrawal Modal — payout method selector: dropdown, lists configured methods
+- Withdrawal Modal — "Confirm Withdrawal" button: initiates payout (disabled until amount > $0)
+- "Add Method" link (Payout Methods header): opens Add Method action sheet
+- Add Method — "Connect Stripe" option: opens Stripe Connect onboarding (external web view)
+- Add Method — "Add PayPal" option: shows PayPal email input + Save button
+- Add Method — "Add Venmo" option: shows Venmo @handle input + Save button
+- Per-method 3-dot menu: "Set as Default" / "Remove Method"
+- Micro-deposit verification — two amount inputs + "Verify Deposits" button (conditional, when method.status = pending_micro_deposit)
+
+DISPLAY FIELDS (read-only):
+- Eligibility banner: teal-50 (eligible, checkmark) or orange-50 (not eligible, reason) (dynamic from getPayoutEligibility())
+- Available balance card: "$47.50" + "Withdraw All" link (dynamic from seller_balances)
+- Payout method cards: provider logo, name, status badge (Verified ✓ green / Pending Verification yellow), detail text, Default pill (teal) (dynamic from DB)
+- Stripe Connect onboarding status (conditional): Pending / Onboarding Complete / Payouts Enabled (3-step inline states) (dynamic)
+- Micro-deposit notice (conditional, yellow-50 bg): shown when method awaiting verification (dynamic)
+
+AUTO-CALCULATED:
+- Payout eligibility from getPayoutEligibility() RPC
+- Stripe Connect onboarding URL from createStripeConnectLink() RPC
+- Micro-deposit verification via verifyMicroDeposits(amount1, amount2) RPC
+---
+
 NAVIGATION FLOW:
 - Profile → Seller Earnings → available balance → withdraw
 - Seller Earnings → Payout Settings → Add Stripe → Stripe onboarding → return verified
@@ -4809,6 +6458,17 @@ NAVIGATION FLOW:
 - Trade completed → seller balance increases → available for withdrawal
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Payout card variants: Stripe, PayPal, Venmo (different brand colors/logos)
 - Payout status badge variants (completed/processing/pending/failed)
 - Withdrawal modal as bottom-sheet component
@@ -4882,6 +6542,26 @@ Recovery Codes Section (16px below methods, only if MFA enabled):
   - "Regenerate Codes" link (Body/Small, red-600, 8px below)
 
 ---
+FIELD INVENTORY — MFAEnrollmentScreen:
+
+INPUT FIELDS (user-editable):
+- Authenticator App "Set Up" button: navigates to TOTPSetupScreen
+- SMS "Set Up" button: navigates to SMSSetupScreen
+- "View Recovery Codes" button (recovery section, shown if MFA enabled): displays backup codes modal
+- "Regenerate Codes" link: generates new recovery codes, invalidates old ones (requires confirmation)
+- Enable MFA toggle (if off): initiates setup via method selection
+- Remove MFA method button (3-dot or Remove link per method): removes the configured factor
+
+DISPLAY FIELDS (read-only):
+- MFA status header banner: green-50 "MFA Enabled" or gray-50 "MFA Not Enabled" (dynamic)
+- Authenticator App method card: shows "Set Up" button (not configured) OR "Verified ✓ [app name]" + Remove (configured) (dynamic)
+- SMS method card: shows "Set Up" button (not configured) OR "Verified ✓ +1 (555) 123-4567" + Remove (configured) (dynamic)
+- Recovery Codes section (conditional, yellow-50 bg): only shown when MFA is enabled (dynamic)
+
+AUTO-CALCULATED:
+- MFA enrollment status from supabase.auth.mfa.listFactors() 
+- Recovery code count from mfa_recovery_codes table
+---
 
 SCREEN 2: TOTPSetupScreen
 Frame: 375x812px, white background
@@ -4932,6 +6612,30 @@ Backup Codes Screen (after successful TOTP setup):
 - "Done" button (Button/Primary/Large, disabled until checkbox checked)
 
 ---
+FIELD INVENTORY — TOTPSetupScreen:
+
+INPUT FIELDS (user-editable):
+- Step 1 — "Copy Secret" link: copies TOTP secret key to clipboard
+- Step 1 — OTP app deep-link button ("Open in Authenticator"): pre-fills secret in app
+- Step 2 — OTP 6-box input: user enters TOTP code from authenticator app
+- Step 2 — "Verify & Enable" button: verifies code + enables TOTP factor (disabled until 6 digits entered)
+- Backup codes screen — "Copy All Codes" button: copies all 10 codes to clipboard
+- Backup codes screen — "Download as PDF" button: generates + downloads PDF
+- Backup codes screen — Confirmation checkbox: "I have saved my recovery codes"
+- Backup codes screen — "Done" button: completes TOTP setup (disabled until checkbox checked)
+
+DISPLAY FIELDS (read-only):
+- 2-step progress indicator: Scan → Verify (dynamic, active step highlighted)
+- Step 1: QR code (200×200px, auto-generated by Supabase Auth MFA) + plain-text secret key (monospace) (dynamic)
+- App suggestions: Google Authenticator, Authy, 1Password icons + names (static)
+- Step 2: "Enter the 6-digit code" prompt + OTP boxes with active/filled/error states (dynamic)
+- Error state (conditional): red border + error message if code invalid
+- Backup codes overlay (full-screen, not dismissible): 10 codes in 2-column grid (Fira Code), warning banner (dynamic from supabase.auth.mfa)
+
+AUTO-CALCULATED:
+- QR code content + secret from supabase.auth.mfa.enroll({ factorType: 'totp' })
+- Code verification via supabase.auth.mfa.challengeAndVerify()
+---
 
 SCREEN 3: SMSSetupScreen
 Frame: 375x812px, white background
@@ -4959,6 +6663,26 @@ Step 2 — Verify Code (same OTP input as TOTP step 2):
 - "Verify & Enable" button (Button/Primary/Large)
 
 ---
+FIELD INVENTORY — SMSSetupScreen:
+
+INPUT FIELDS (user-editable):
+- Step 1 — Country code selector: selects country + dialing code (e.g., +1 US)
+- Step 1 — Phone number text input: numeric, formatted for selected country
+- Step 1 — "Send Verification Code" button: sends SMS OTP (disabled until valid phone number entered)
+- Step 2 — OTP 6-box input: enters the SMS code received
+- Step 2 — "Resend Code" link: resends SMS (enabled after 60s cooldown; shows countdown while cooling)
+- Step 2 — "Verify & Enable" button: verifies code + enables SMS MFA factor (disabled until 6 digits)
+
+DISPLAY FIELDS (read-only):
+- 2-step progress indicator: Phone → Verify (dynamic)
+- Step 2 context: "Code sent to [phone number]" (dynamic, masked to last 4 digits)
+- Resend countdown: "Resend in Xs" (dynamic, counts down from 60)
+- Error state (conditional): red OTP boxes + error message if code invalid or expired (dynamic)
+
+AUTO-CALCULATED:
+- SMS OTP sent via supabase.auth.mfa.enroll({ factorType: 'phone' })
+- Code verification via supabase.auth.mfa.challengeAndVerify()
+---
 
 MODAL: MFAVerificationModal
 Trigger: Sensitive actions (withdraw funds, change email, remove payout method)
@@ -4974,6 +6698,28 @@ Content:
 - "Verify" button (Button/Primary/Large, full-width, disabled until 6 digits)
 - "Cancel" link (Body/Small, gray-600, centered, 8px below)
 
+---
+FIELD INVENTORY — MFAVerificationModal:
+
+INPUT FIELDS (user-editable):
+- OTP 6-box input: user enters TOTP or SMS 6-digit code
+- Method toggle link (conditional, if multiple methods enrolled): "Use SMS instead" / "Use authenticator app instead"
+- "Use backup code" link: switches input to single-field backup code entry
+- Backup code text input (conditional): 10-character code, Fira Code font
+- "Verify" button: submits MFA challenge (disabled until 6 digits or backup code entered)
+- "Cancel" link: dismisses modal without completing sensitive action
+
+DISPLAY FIELDS (read-only):
+- Lock icon (48px, orange-600) + "Confirm Your Identity" heading (static)
+- Context message: "To [action name], please verify with your authenticator" (dynamic, injected by calling screen)
+- Active OTP boxes: active/filled/error states per digit entry (dynamic)
+- Error state (conditional): red boxes + "Incorrect code. Try again." (dynamic)
+
+AUTO-CALCULATED:
+- MFA challenge via supabase.auth.mfa.challenge(factorId)
+- Verification via supabase.auth.mfa.verify({ factorId, challengeId, code })
+---
+
 NAVIGATION FLOW:
 - Settings → Security → Two-Factor Auth → MFAEnrollmentScreen
 - Enrollment → TOTP → QR code → verify → backup codes → done
@@ -4981,6 +6727,17 @@ NAVIGATION FLOW:
 - Withdraw funds → MFAVerificationModal → verify → proceed
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - OTP input: 6-box component with active/filled/error states
 - QR code placeholder (use a generic test QR image, 200x200px)
 - Backup codes grid with monospace Fira Code styling
@@ -5054,6 +6811,25 @@ Submit Button (fixed to bottom):
 - Loading state: "Submitting..."
 
 ---
+FIELD INVENTORY — RequestRefundScreen:
+
+INPUT FIELDS (user-editable):
+- Refund reason radio button group: 5 options (Item Not as Described / Item Not Received / Wrong Item / Damaged Item / Other), required
+- "Other" reason text area (conditional): shown when "Other" is selected, freeform, max 500 chars
+- Evidence photo upload: optional, up to 4 photos (reuses FLOW-04 photo grid component)
+- "Submit Refund Request" button: creates refund_requests record (disabled until reason selected)
+
+DISPLAY FIELDS (read-only):
+- Trade summary card (gray-50 bg): item thumbnail, title, price, trade ID (dynamic from DB)
+- Refund amount preview: "You'll receive $24.00 refund" (dynamic, equal to trade price)
+- SP return preview (conditional, orange text): "250 SP will be returned to your wallet" (dynamic, if SP was used)
+- Photo upload grid: up to 4 slots with add-photo tiles and remove X (dynamic)
+
+AUTO-CALCULATED:
+- refund_amount = original trade price
+- sp_to_return = SP spent on this trade (from trade_sp_allocations)
+- createRefundRequest() RPC on Submit
+---
 
 SCREEN 2: RefundStatusScreen
 Frame: 375x812px, white background
@@ -5099,6 +6875,23 @@ Actions Section (fixed to bottom, if applicable):
 - If denied: "Appeal Decision" button (Button/Secondary/Large)
 
 ---
+FIELD INVENTORY — RefundStatusScreen:
+
+INPUT FIELDS (user-editable):
+- "Contact Support" link: navigates to ContactSupportScreen
+- "Appeal Decision" button (conditional, Denied state): submits refund appeal
+- "Appeal Decision" link (in details card, Denied state): same action as button above
+
+DISPLAY FIELDS (read-only):
+- Status hero card: gradient + icon + status label + description (5 states: Requested/Under Review/Approved/Denied/Completed) (dynamic)
+- Refund details card: Request Date, Refund Amount, SP to Return (if applicable, orange), Payment Method, Expected Date (if approved), Decision Reason (if denied) (dynamic from refund_requests)
+- 4-step timeline: Submitted / Under Review / Decision Made / Processed (step states: completed/active-pulsing/future) (dynamic)
+
+AUTO-CALCULATED:
+- Refund state machine from refund_requests.status
+- Expected refund date estimate: requested_at + admin_review_sla_days
+- SP return amount from trade_sp_allocations
+---
 
 MODAL: CancelTradeModal
 Trigger: TradeDetailScreen → "Cancel Trade" (before buyer confirms pickup)
@@ -5122,6 +6915,22 @@ Content (auto-layout vertical, 16px gap, 24px padding):
   - "Yes, Cancel Trade" (Button/Danger/Large, red-600 bg, full-width)
   - "Keep Trade" (Button/Secondary/Large, full-width)
 
+---
+FIELD INVENTORY — CancelTradeModal:
+
+INPUT FIELDS (user-editable):
+- Reason textarea (optional): freeform cancellation reason, max 500 chars
+- "Yes, Cancel Trade" button: confirms cancellation (triggers trade cancellation + refund flow)
+- "Keep Trade" button: dismisses modal, no action taken
+
+DISPLAY FIELDS (read-only):
+- "Cancel This Trade?" heading (static)
+- Trade item card: thumbnail, title, price (dynamic from active trade)
+- Consequences list: 4 bullets (✅ full refund / ✅ SP returned / ❌ seller not paid / ❌ listing re-activated) (static)
+- Reason textarea label (static)
+
+AUTO-CALCULATED:
+- cancelTrade(tradeId, reason) RPC on confirm — triggers refund + SP reversal
 ---
 
 SCREEN 3: RefundHistoryScreen
@@ -5153,6 +6962,24 @@ Refund Card (reusable):
 
 Empty State: "No refund requests yet" + illustration
 
+---
+FIELD INVENTORY — RefundHistoryScreen:
+
+INPUT FIELDS (user-editable):
+- Status filter button: opens filter sheet (All / Approved / Denied / Pending / Completed)
+- Refund card tap: navigates to RefundStatusScreen for that request
+- Pull-to-refresh: reloads refund history list
+
+DISPLAY FIELDS (read-only):
+- Refund history list: item thumbnail, title, request date, refund amount, status badge pill (Approved/Denied/Pending/Completed with distinct colors) (dynamic from refund_requests)
+- Active filter badge (conditional): shown when filter ≠ All (dynamic)
+- Empty state (conditional): illustration + "No refund requests yet" (shown when list is empty) (static)
+
+AUTO-CALCULATED:
+- getRefundHistory(userId, statusFilter) RPC
+- Status badge color mapping: approved=green / denied=red / pending=yellow / completed=teal
+---
+
 NAVIGATION FLOW:
 - TradeDetailScreen → Report Issue → Request Refund → submit → RefundStatusScreen
 - TradeDetailScreen → Cancel Trade → CancelTradeModal → confirm → success state
@@ -5160,6 +6987,17 @@ NAVIGATION FLOW:
 - Notification: "Your refund was approved" → RefundStatusScreen
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Refund reason radio list (5 options, last triggers textarea)
 - Status hero card: 5 gradient variants (requested/under-review/approved/denied/completed)
 - Timeline with 4 steps, 3 completion states (done/active-pulsing/future)
@@ -5231,6 +7069,27 @@ Accept Section (Mode B — fixed to bottom, white bg, shadow top):
     - "Cancel" | "Decline & Exit" (logs out user, returns to Landing)
 
 ---
+FIELD INVENTORY — TermsOfServiceScreen:
+
+INPUT FIELDS (user-editable):
+- Mode B only — Required acceptance checkbox: "I have read and agree to the Terms of Service" (mandatory, unchecked by default)
+- Mode B only — "Accept & Continue" button: records TOS acceptance (disabled until checkbox checked)
+- Mode B only — "Decline" link: opens DeclineConfirmation alert dialog
+- DeclineConfirmation — "Decline & Exit" button: signs out user, returns to LandingScreen
+- DeclineConfirmation — "Cancel" button: dismisses alert, user stays on TOS screen
+
+DISPLAY FIELDS (read-only):
+- Version badge (top-right header area): "v1.0.0" (dynamic from TOS version in DB)
+- TOS markdown content: rendered policy text with bold section headings (dynamic from DB)
+- Effective date (dynamic from DB)
+- Accepted status chip (Mode A): green pill "Accepted on [date]" (shown in read-only mode if previously accepted) (dynamic)
+- Fade scroll gradient: indicates overflow content (dynamic based on scroll position)
+
+AUTO-CALCULATED:
+- TOS version from tos_versions table
+- User's acceptance status from user_tos_acceptances table
+- recordTosAcceptance(userId, version) on Accept
+---
 
 SCREEN 2: TOSAcceptanceModal (Version Update)
 Trigger: New TOS version published by admin, user opens app
@@ -5250,6 +7109,27 @@ Content (auto-layout vertical, 24px padding, 16px gap):
 - "Accept New Terms" button (Button/Primary/Large, full-width, disabled until checked)
 - "Remind Me Later" link (Body/Small, gray-600, centered, 8px below — if grace period allowed)
 
+---
+FIELD INVENTORY — TOSAcceptanceModal:
+
+INPUT FIELDS (user-editable):
+- "Read Full Terms" link: opens TermsOfServiceScreen in read-only mode
+- Required acceptance checkbox: "I agree to the updated Terms of Service" (mandatory)
+- "Accept New Terms" button: records acceptance of new TOS version (disabled until checkbox checked)
+- "Remind Me Later" link (conditional): defers modal until next app open (only if grace period is configured in DB)
+
+DISPLAY FIELDS (read-only):
+- Warning icon (orange) + "We've Updated Our Terms" heading (static)
+- Effective date (dynamic from tos_versions)
+- "What changed:" bullet list (dynamic from tos_versions.change_summary, max 5 bullets)
+- "Read Full Terms" link (static)
+
+AUTO-CALCULATED:
+- Latest TOS version from tos_versions table
+- Grace period allowed from tos_versions.grace_period_days
+- recordTosAcceptance(userId, version) on Accept
+---
+
 NAVIGATION FLOW:
 - Signup → account created → TOSAcceptanceModal (blocking) → accept → Onboarding
 - Settings → "Terms of Service" → TermsOfServiceScreen (read-only, shows accepted date)
@@ -5257,6 +7137,17 @@ NAVIGATION FLOW:
 - Decline → logout → LandingScreen
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Dual-mode screen (read-only vs. acceptance) — use Figma variants
 - Scroll depth tracking visual: fade gradient on content bottom (indicates more to scroll)
 - Checkbox component: required state (cannot proceed without check)
@@ -5299,6 +7190,25 @@ Key Differences from TOS:
 - Sections: Data collected, How we use it, Who we share with, Your rights, Contact us
 
 ---
+FIELD INVENTORY — PrivacyPolicyScreen:
+
+INPUT FIELDS (user-editable):
+- Mode B only — Optional acknowledgment checkbox: "I acknowledge the Privacy Policy" (not required)
+- Mode B only — "I Acknowledge" button: records optional acknowledgment (Button/Secondary/Large — lower emphasis)
+- Mode B only — "Close" button: dismisses screen without acknowledgment (Button/Tertiary/Large)
+
+DISPLAY FIELDS (read-only):
+- Version badge (dynamic from privacy_versions table)
+- Privacy policy markdown content: 5 sections (Data collected / Use / Sharing / Rights / Contact) (dynamic from DB)
+- Effective date (dynamic)
+- Acknowledgment status chip (Mode A, conditional): green "Acknowledged on [date]" (dynamic from user_privacy_acceptances)
+- Scroll fade gradient (dynamic on overflow)
+
+AUTO-CALCULATED:
+- Privacy policy version from privacy_versions table
+- User acknowledgment status from user_privacy_acceptances table
+- recordPrivacyAcknowledgment() on Acknowledge (optional)
+---
 
 SCREEN 2: PrivacyPolicyUpdateModal
 Trigger: New Privacy Policy version published, user opens app (non-blocking — can dismiss)
@@ -5315,6 +7225,23 @@ Content (auto-layout vertical, 24px padding, 16px gap):
 - "Dismiss" link (Body/Small, gray-600, centered, 8px below)
 - Settings tab badge indicator: orange dot on Settings icon until acknowledged
 
+---
+FIELD INVENTORY — PrivacyPolicyUpdateModal:
+
+INPUT FIELDS (user-editable):
+- "Review Policy" button: opens PrivacyPolicyScreen in read-only mode
+- "Dismiss" link: dismisses bottom-sheet, clears Settings badge dot when tapped
+- Swipe-down or tap-outside gesture: dismisses modal (non-blocking)
+
+DISPLAY FIELDS (read-only):
+- Shield icon (teal-600) + "Privacy Policy Updated" heading (static)
+- Effective date (dynamic from privacy_versions table)
+- Change bullet list: key changes (dynamic from privacy_versions.change_summary, max 5 bullets)
+- Settings tab badge dot (conditional): shown until user taps Dismiss or Review Policy (dynamic)
+
+AUTO-CALCULATED:
+- Latest privacy version from privacy_versions table
+- Badge dot clears when user interacts with modal (dismisses or reviews)
 ---
 
 SCREEN 3: DataRightsScreen
@@ -5351,6 +7278,28 @@ Data Rights Cards (auto-layout vertical, 16px gap, 16px padding):
 - Cookie icon (32px, gray-400) + "Cookie Preferences" (Heading/H3, gray-500)
 - "Coming soon — web app feature" (Body/Small, gray-400)
 
+---
+FIELD INVENTORY — DataRightsScreen:
+
+INPUT FIELDS (user-editable):
+- "Request Data Export" button: submits data export request (transitions to Requested state)
+- "Download File" button (conditional, Ready state): downloads prepared export file
+- "Request Account Deletion" button: opens Account Deletion Confirmation Modal
+- Deletion Confirmation Modal — text input: user must type "DELETE" to confirm
+- Deletion Confirmation Modal — "Permanently Delete Account" button: submits deletion request (disabled until input = "DELETE")
+- Deletion Confirmation Modal — "Cancel" link: dismisses modal, no action
+
+DISPLAY FIELDS (read-only):
+- Download Your Data card: status state (Default / Requested-Processing / Ready-to-Download) (dynamic)
+- Delete Account card (red-100 bg): permanent warning text (static)
+- Cookie Preferences card (gray-100): "Coming soon" placeholder (static)
+
+AUTO-CALCULATED:
+- Export status from data_export_requests table
+- requestDataExport(userId) on Request
+- requestAccountDeletion(userId) on Confirm
+---
+
 NAVIGATION FLOW:
 - Signup → TOS accepted → Privacy Policy link → PrivacyPolicyScreen (optional ack)
 - Settings → Privacy Policy → PrivacyPolicyScreen (read-only)
@@ -5358,6 +7307,17 @@ NAVIGATION FLOW:
 - Settings → Privacy → Your Data Rights → DataRightsScreen → download/delete
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - Non-blocking bottom-sheet (dismissible with swipe or tap outside)
 - Settings badge/dot component (unread policy update indicator)
 - Data Rights cards: 3 variants (download, delete, future)
@@ -5410,6 +7370,22 @@ Acknowledgment History (bottom of content, 16px padding):
 - Last acknowledged: "Last trade: May 3, 2026" (Body/Small, gray-600)
 
 ---
+FIELD INVENTORY — LiabilityDisclaimerScreen:
+
+INPUT FIELDS (user-editable):
+- None (read-only settings reference screen)
+
+DISPLAY FIELDS (read-only):
+- Version badge (top-right): "v1.0.0" (dynamic from disclaimer_versions table)
+- Info notice banner: "This disclaimer is shown when you make a purchase" (static)
+- Effective date + version metadata row (dynamic)
+- Full disclaimer markdown content: rendered policy sections with bold headings (dynamic from DB)
+- Acknowledgment history (conditional): "You have acknowledged this disclaimer N times" + last acknowledgment date (dynamic from disclaimer_acknowledgments table)
+
+AUTO-CALCULATED:
+- Disclaimer content from disclaimer_versions table (latest version)
+- Acknowledgment count + last acknowledged date from disclaimer_acknowledgments for current user
+---
 
 MODAL 1: DisclaimerModal (Per-Trade, BLOCKING)
 Trigger: Buyer taps "Confirm Purchase" on TradeInitiationScreen
@@ -5449,6 +7425,25 @@ Error State (if disclaimer load fails):
 - "Cancel" link
 
 ---
+FIELD INVENTORY — DisclaimerModal:
+
+INPUT FIELDS (user-editable):
+- Mandatory acknowledgment checkbox: "I have read and acknowledge this disclaimer" (required, always resets to unchecked on open)
+- "Accept & Continue" button: records acknowledgment + proceeds with trade (disabled until checkbox checked)
+- "Cancel" button: returns user to TradeInitiationScreen without proceeding
+- Error state — "Retry" button: re-fetches disclaimer content
+- Error state — "Cancel" link: returns to TradeInitiationScreen
+
+DISPLAY FIELDS (read-only):
+- Trade context card (gray-50 bg): item title + price for which the disclaimer is being acknowledged (dynamic from trade context)
+- Disclaimer content (ScrollView, max-height 300px): full disclaimer text with fade gradient at bottom if overflow (dynamic from disclaimer_versions)
+- Checkbox in unchecked/checked/error states (dynamic)
+- "Accept & Continue" button: lock icon when disabled, orange when enabled (dynamic)
+
+AUTO-CALCULATED:
+- Disclaimer content from getLatestDisclaimer() RPC
+- acknowledge_trade_disclaimer(tradeId, disclaimerVersionId) on Accept
+---
 
 MODAL 2: ListingPublishDisclaimerModal (First Listing)
 Trigger: Before seller's FIRST listing publication
@@ -5469,6 +7464,26 @@ Content:
 - "Accept & Publish" button (Button/Primary/Large, full-width, disabled until checked)
 - "Cancel" link (Body/Small, gray-600)
 
+---
+FIELD INVENTORY — ListingPublishDisclaimerModal:
+
+INPUT FIELDS (user-editable):
+- "Read Full Disclaimer" link: opens LiabilityDisclaimerScreen in read-only mode
+- Mandatory checkbox: "I understand my responsibilities as a seller" (required, shown once before first listing only)
+- "Accept & Publish" button: records seller disclaimer acceptance + publishes listing (disabled until checkbox checked)
+- "Cancel" link: dismisses modal, returns user to ItemCreateScreen without publishing
+
+DISPLAY FIELDS (read-only):
+- Megaphone icon (teal-600) + "Before You List Your First Item" heading (static)
+- Seller responsibilities card (teal-50 bg): 4 responsibility bullets (static)
+- "Read Full Disclaimer" link (static)
+
+AUTO-CALCULATED:
+- Shown only once (profiles.seller_disclaimer_accepted_at IS NULL)
+- Sets profiles.seller_disclaimer_accepted_at on Accept
+- Listing becomes Active after acknowledgment
+---
+
 NAVIGATION FLOW:
 - TradeInitiationScreen → "Confirm Purchase" → DisclaimerModal → checkbox check → "Accept" → trade proceeds
 - TradeInitiationScreen → "Confirm Purchase" → DisclaimerModal → "Cancel" → returns to TradeInitiationScreen
@@ -5476,6 +7491,17 @@ NAVIGATION FLOW:
 - Settings → "Liability Disclaimer" → LiabilityDisclaimerScreen (read-only, shows acknowledgment count)
 
 FIGMA-SPECIFIC REQUIREMENTS:
+
+- AI Empowerment: Treat these requirements as a starting point. Please provide suggestions for UI/UX improvements, alternative screen layouts, or propose new screens if they create a more ideal user experience.
+- AI Collaboration: Please ask clarification questions or push back on any requirements that do not make structural or UX sense.
+- Dependencies: Call out any design or flow dependencies you encounter while reading the prompts.
+- Recommendations: For any questions or pushback, please provide your specific recommendations for how to proceed.
+
+- Prototype Configuration: Use "Smart Animate" for transitions (300ms ease-in-out)
+- Prototype Configuration: Configure overflow scrolling for long content areas
+- Prototype Configuration: Add bottom tab bar navigation to all applicable screens
+- Prototype Configuration: Link all modal overlays to dismiss on background tap
+- Prototype Configuration: Configure keyboard navigation for form flows
 - DisclaimerModal: full-overlay non-dismissible (no tap-outside to close)
 - Mandatory checkbox: distinct required state (separate from optional checkboxes in other flows)
 - Checkbox Reset: resets to unchecked every time DisclaimerModal opens (no pre-checked state)

@@ -14,7 +14,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 type AgeGroup = '0-2' | '3-5' | '6-8' | '9-12' | '13+';
 
-const AGE_GROUPS: Array<{ value: AgeGroup; label: string }> = [
+const AGE_GROUPS: { value: AgeGroup; label: string }[] = [
   { value: '0-2', label: '0-2 years' },
   { value: '3-5', label: '3-5 years' },
   { value: '6-8', label: '6-8 years' },

@@ -21,7 +21,7 @@ import { Platform } from 'react-native';
 
 describe('E2E: Badge Icon Management', () => {
   let testBadgeId: string | null = null;
-  let uploadedIconPath: string | null = null;
+  const uploadedIconPath: string | null = null;
 
   beforeAll(async () => {
     console.log('[E2E] Setting up Badge Icon Management tests...');

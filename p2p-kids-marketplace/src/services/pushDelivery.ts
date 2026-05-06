@@ -224,7 +224,7 @@ async function removeFromRetryQueue(notificationId: string): Promise<void> {
 /**
  * Get active push tokens for user
  */
-async function getUserPushTokens(userId: string): Promise<Array<{ id: string; token: string }>> {
+async function getUserPushTokens(userId: string): Promise<{ id: string; token: string }[]> {
   try {
     const { data, error } = await supabase
       .from('push_tokens' as never)
@@ -236,7 +236,7 @@ async function getUserPushTokens(userId: string): Promise<Array<{ id: string; to
       return [];
     }
 
-    return (data || []) as Array<{ id: string; token: string }>;
+    return (data || []) as { id: string; token: string }[];
   } catch (err) {
     console.error('[pushDelivery] Get push tokens exception:', err);
     return [];
@@ -577,7 +577,7 @@ export async function processPushReceipts(ticketIds: string[]): Promise<void> {
 
     const payload = (await response.json()) as {
       data?: Record<string, ExpoPushReceipt>;
-      errors?: Array<{ code?: string; message?: string }>;
+      errors?: { code?: string; message?: string }[];
     };
 
     if (!response.ok) {

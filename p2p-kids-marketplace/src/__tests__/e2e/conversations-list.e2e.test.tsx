@@ -6,6 +6,13 @@
  */
 
 // Mock Expo Vector Icons BEFORE importing the screen (prevents ESM parse issues)
+import React from 'react';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import ConversationsListScreen from '../../screens/messaging/ConversationsListScreen';
+import { AuthContext } from '@/contexts/AuthContext';
+import * as chatService from '@/services/chat';
+
 jest.mock('@expo/vector-icons', () => ({
   __esModule: true,
   Ionicons: 'MockIcon',
@@ -61,13 +68,6 @@ jest.mock('@/config/supabase', () => ({
     })),
   },
 }));
-
-import React from 'react';
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import ConversationsListScreen from '../../screens/messaging/ConversationsListScreen';
-import { AuthContext } from '@/contexts/AuthContext';
-import * as chatService from '@/services/chat';
 
 describe('ConversationsListScreen E2E', () => {
   const mockSession = {

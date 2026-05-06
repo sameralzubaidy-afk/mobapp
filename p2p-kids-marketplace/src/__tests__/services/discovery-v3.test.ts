@@ -164,7 +164,7 @@ describe('discovery service V3', () => {
     it('should handle all sort options', async () => {
       mockRpc.mockResolvedValue({ data: mockSearchResults, error: null } as any);
 
-      const sortOptions: Array<'relevance' | 'newest' | 'price_asc' | 'price_desc'> = [
+      const sortOptions: ('relevance' | 'newest' | 'price_asc' | 'price_desc')[] = [
         'relevance',
         'newest',
         'price_asc',

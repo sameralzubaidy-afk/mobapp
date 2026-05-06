@@ -6,6 +6,11 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { supabase } from '../../config/supabase';
 
+import {
+  setupSubscriptionPaymentSheet,
+  convertTrialToPaidSubscription,
+} from '../../services/subscriptions/trialToPaidConversion';
+
 jest.mock('@stripe/stripe-react-native', () => ({
   useStripe: jest.fn(() => ({
     retrieveSetupIntent: jest.fn(),
@@ -18,11 +23,6 @@ jest.mock('@stripe/stripe-react-native', () => ({
     Canceled: 'Canceled',
   },
 }));
-
-import {
-  setupSubscriptionPaymentSheet,
-  convertTrialToPaidSubscription,
-} from '../../services/subscriptions/trialToPaidConversion';
 
 // Mock Supabase
 jest.mock('../../config/supabase', () => ({

@@ -53,22 +53,22 @@ export function calculateMaxSpendSP(price: number, spendingCapPercent: number): 
  * @returns { totalSP, breakdown: { categoryId, categoryName, count, sp }[] }
  */
 export function calculateBulkTotalSP(
-  items: Array<{
+  items: {
     category_id: string | null;
     price: number;
     includeInPublish?: boolean;
-  }>,
+  }[],
   getMultiplier: (categoryId: string | null) => number,
   categoryNames?: Map<string, string>
 ): {
   totalSP: number;
-  breakdown: Array<{
+  breakdown: {
     categoryId: string;
     categoryName: string;
     count: number;
     sp: number;
     multiplier: number;
-  }>;
+  }[];
 } {
   // Filter to items that will be published and have valid data
   const validItems = items.filter(

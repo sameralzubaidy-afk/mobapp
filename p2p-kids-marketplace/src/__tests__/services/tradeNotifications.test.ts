@@ -202,7 +202,7 @@ describe('sendTradeNotificationPush()', () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
     mockFunctionsInvoke.mockResolvedValue({ data: {}, error: null });
 
-    const cases: Array<[TradeNotificationType, string]> = [
+    const cases: [TradeNotificationType, string][] = [
       ['trade_request', 'New Trade Request! 💬'],
       ['trade_completion_requested', 'Trade Ready for Your Confirmation'],
       ['trade_accepted', 'Trade Accepted! ✅'],

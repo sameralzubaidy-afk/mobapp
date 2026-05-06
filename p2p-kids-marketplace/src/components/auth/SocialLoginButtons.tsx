@@ -6,7 +6,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
-import { ProviderButton } from './ProviderButton';
 import { OAuthProvider, ProviderProfile } from '@/types/auth-v3';
 import { initiateSocialLogin, handleOAuthCallback } from '@/services/oauthService';
 import { checkAccountExists } from '@/services/accountService';
@@ -345,12 +344,10 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
 
   return (
     <View style={styles.container} testID={testID || 'social-login-buttons'}>
-      {/* Divider with text */}
+      {/* Divider with text - Whisk style */}
       <View style={styles.divider}>
         <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>
-          {mode === 'login' ? 'Or sign in with' : 'Or continue with'}
-        </Text>
+        <Text style={styles.dividerText}>or</Text>
         <View style={styles.dividerLine} />
       </View>
 
@@ -374,32 +371,37 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
         </View>
       )}
 
-      {/* Provider buttons */}
+      {/* Circular icon buttons - Whisk style */}
       <View style={styles.buttonsContainer}>
-        <ProviderButton
-          provider="google"
-          mode={mode}
-          isLoading={loadingProvider === 'google'}
+        {/* Google */}
+        <TouchableOpacity
+          style={styles.iconButton}
           onPress={() => handleSocialLogin('google')}
+          disabled={loadingProvider !== null}
           testID="google-login-button"
-        />
+        >
+          <Text style={styles.iconText}>G</Text>
+        </TouchableOpacity>
 
-        <ProviderButton
-          provider="facebook"
-          mode={mode}
-          isLoading={loadingProvider === 'facebook'}
-          onPress={() => handleSocialLogin('facebook')}
-          testID="facebook-login-button"
-        />
-
-        {/* Apple button on BOTH iOS and Android per App Store compliance */}
-        <ProviderButton
-          provider="apple"
-          mode={mode}
-          isLoading={loadingProvider === 'apple'}
+        {/* Apple */}
+        <TouchableOpacity
+          style={styles.iconButton}
           onPress={() => handleSocialLogin('apple')}
+          disabled={loadingProvider !== null}
           testID="apple-login-button"
-        />
+        >
+          <Text style={styles.iconText}></Text>
+        </TouchableOpacity>
+
+        {/* Facebook */}
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => handleSocialLogin('facebook')}
+          disabled={loadingProvider !== null}
+          testID="facebook-login-button"
+        >
+          <Text style={styles.iconText}>f</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -409,11 +411,13 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     paddingVertical: 16,
+    alignItems: 'center',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    width: '100%',
   },
   dividerLine: {
     flex: 1,
@@ -422,12 +426,34 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     marginHorizontal: 12,
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#6B6B6B',
+    textTransform: 'lowercase',
   },
   buttonsContainer: {
-    width: '100%',
+    flexDirection: 'row', // Horizontal row
+    gap: 16,
+    justifyContent: 'center',
+  },
+  iconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25, // Circular
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  iconText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   errorBanner: {
     backgroundColor: '#FFF3E0',
@@ -436,6 +462,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderLeftWidth: 4,
     borderLeftColor: '#FF9800',
+    width: '100%',
   },
   errorText: {
     fontSize: 14,

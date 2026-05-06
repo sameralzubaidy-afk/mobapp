@@ -1,28 +1,29 @@
 // File: p2p-kids-marketplace/src/screens/auth/SignupScreen.tsx
-// MODULE-03 AUTH-V2-002: User Signup with Automatic Trial Activation
+// FLOW-01: Auth Signup Screen (Redesigned)
+// Design System: Prompts/re-desing/design-system.md
 
 import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Alert,
   StyleSheet,
+  TextInput as RNTextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { signupWithTrial } from '@/services/auth';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 import { isAtLeastAge } from '@/utils/age';
-import { getAllTestUsers, getRandomTestUser, TestUser } from '@/utils/testUsers';
 import { DateOfBirthPicker } from '@/components/DateOfBirthPicker';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import { OAuthProvider } from '@/types/auth-v3';
+import { Button, TextInput } from '@/components/ui';
+import { theme } from '@/theme';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
 // TODO: Integrate Sentry
@@ -30,7 +31,7 @@ import { OAuthProvider } from '@/types/auth-v3';
 
 export default function SignupScreen() {
   const navigation = useNavigation();
-  const emailInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<RNTextInput>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -308,19 +309,6 @@ export default function SignupScreen() {
     Alert.alert('Signup Failed', errorMessage);
   };
 
-  function applyTestUser(user: TestUser) {
-    setFormData({
-      name: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      phone: user.phone ?? '',
-      dob: user.dob ?? '',
-      password: user.password ?? '',
-      referralCode: '',
-      confirmPassword: user.password ?? '',
-    });
-    setErrors({});
-  }
-
   const handleSocialSignupSuccess = () => {
     // Root navigator transitions based on auth session + onboarding state.
   };
@@ -339,7 +327,7 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -347,7 +335,9 @@ export default function SignupScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
+          {/* Back Button */}
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
@@ -356,11 +346,13 @@ export default function SignupScreen() {
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
 
+          {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>Join the Kids P2P Marketplace</Text>
           </View>
 
+          {/* Social Login Buttons */}
           <SocialLoginButtons
             mode="signup"
             onSignupSuccess={handleSocialSignupSuccess}
@@ -369,68 +361,53 @@ export default function SignupScreen() {
             testID="signup-social-buttons"
           />
 
+          {/* Form */}
           <View style={styles.form}>
             {/* Name Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Full Name</Text>
-              <TextInput
-                style={[styles.input, errors.name && styles.inputError]}
-                placeholder="Enter your full name"
-                value={formData.name}
-                testID="signup-display-name-input"
-                onChangeText={(text) => {
-                  setFormData({ ...formData, name: text });
-                  if (errors.name) {
-                    setErrors({ ...errors, name: '' });
-                  }
-                }}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-              {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-            </View>
+            <TextInput
+              label="Full Name"
+              placeholder="Enter your full name"
+              value={formData.name}
+              onChangeText={(text) => {
+                setFormData({ ...formData, name: text });
+                if (errors.name) setErrors({ ...errors, name: '' });
+              }}
+              error={errors.name}
+              autoCapitalize="words"
+              autoCorrect={false}
+              testID="signup-display-name-input"
+            />
 
             {/* Email Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={[styles.input, errors.email && styles.inputError]}
-                placeholder="Enter your email"
-                value={formData.email}
-                testID="signup-email-input"
-                ref={emailInputRef}
-                onChangeText={(text) => {
-                  setFormData({ ...formData, email: text });
-                  if (errors.email) {
-                    setErrors({ ...errors, email: '' });
-                  }
-                }}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                autoCorrect={false}
-              />
-              {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
-            </View>
+            <TextInput
+              label="Email"
+              placeholder="Enter your email"
+              value={formData.email}
+              onChangeText={(text) => {
+                setFormData({ ...formData, email: text });
+                if (errors.email) setErrors({ ...errors, email: '' });
+              }}
+              error={errors.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              testID="signup-email-input"
+            />
 
             {/* Phone Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone Number</Text>
-              <TextInput
-                style={[styles.input, errors.phone && styles.inputError]}
-                placeholder="+1234567890"
-                value={formData.phone}
-                testID="signup-phone-input"
-                onChangeText={(text) => {
-                  setFormData({ ...formData, phone: text });
-                  if (errors.phone) {
-                    setErrors({ ...errors, phone: '' });
-                  }
-                }}
-                keyboardType="phone-pad"
-                autoCorrect={false}
-              />
-              {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-            </View>
+            <TextInput
+              label="Phone Number"
+              placeholder="+1234567890"
+              value={formData.phone}
+              onChangeText={(text) => {
+                setFormData({ ...formData, phone: text });
+                if (errors.phone) setErrors({ ...errors, phone: '' });
+              }}
+              error={errors.phone}
+              keyboardType="phone-pad"
+              autoCorrect={false}
+              testID="signup-phone-input"
+            />
 
             {/* DOB Input */}
             <View style={styles.inputGroup}>
@@ -439,9 +416,7 @@ export default function SignupScreen() {
                 value={formData.dob}
                 onChangeText={(text) => {
                   setFormData({ ...formData, dob: text });
-                  if (errors.dob) {
-                    setErrors({ ...errors, dob: '' });
-                  }
+                  if (errors.dob) setErrors({ ...errors, dob: '' });
                 }}
                 error={!!errors.dob}
                 testID="signup-dob-picker"
@@ -450,148 +425,72 @@ export default function SignupScreen() {
             </View>
 
             {/* Password Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={[styles.input, errors.password && styles.inputError, styles.inputWithIcon]}
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  testID="signup-password-input"
-                  onChangeText={(text) => {
-                    setFormData({ ...formData, password: text });
-                    if (errors.password) {
-                      setErrors({ ...errors, password: '' });
-                    }
-                  }}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="password-new"
-                  textContentType="newPassword"
-                  passwordRules="minlength: 8; required: upper; required: lower; required: digit;"
-                />
-                <TouchableOpacity
-                  style={styles.eyeIcon}
-                  onPress={() => setShowPassword(!showPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.eyeIconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
-                </TouchableOpacity>
-              </View>
-              {errors.password && (
-                <Text testID="signup-password-error" style={styles.errorText}>
-                  {errors.password}
-                </Text>
-              )}
-              <Text style={styles.helperText}>
-                Must be 8+ characters with uppercase, lowercase, and number
-              </Text>
-            </View>
+            <TextInput
+              label="Password"
+              placeholder="Enter your password"
+              value={formData.password}
+              onChangeText={(text) => {
+                setFormData({ ...formData, password: text });
+                if (errors.password) setErrors({ ...errors, password: '' });
+              }}
+              error={errors.password}
+              helperText="Must be 8+ characters with uppercase, lowercase, and number"
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="password-new"
+              textContentType="newPassword"
+              testID="signup-password-input"
+            />
 
             {/* Confirm Password Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={[
-                    styles.input,
-                    errors.confirmPassword && styles.inputError,
-                    styles.inputWithIcon,
-                  ]}
-                  placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  testID="signup-confirm-password-input"
-                  onChangeText={(text) => {
-                    setFormData({ ...formData, confirmPassword: text });
-                    if (errors.confirmPassword) {
-                      setErrors({ ...errors, confirmPassword: '' });
-                    }
-                  }}
-                  secureTextEntry={!showConfirmPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="password-new"
-                  textContentType="newPassword"
-                />
-                <TouchableOpacity
-                  style={styles.eyeIcon}
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.eyeIconText}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
-                </TouchableOpacity>
-              </View>
-              {errors.confirmPassword && (
-                <Text style={styles.errorText}>{errors.confirmPassword}</Text>
-              )}
-            </View>
+            <TextInput
+              label="Confirm Password"
+              placeholder="Confirm your password"
+              value={formData.confirmPassword}
+              onChangeText={(text) => {
+                setFormData({ ...formData, confirmPassword: text });
+                if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: '' });
+              }}
+              error={errors.confirmPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="password-new"
+              textContentType="newPassword"
+              testID="signup-confirm-password-input"
+            />
 
             {/* Referral Code Input (Optional) */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Referral Code (Optional)</Text>
-              <TextInput
-                style={[styles.input, errors.referralCode && styles.inputError]}
-                placeholder="Enter referral code"
-                value={formData.referralCode}
-                testID="referralCode-input"
-                onChangeText={(text) => {
-                  setFormData({ ...formData, referralCode: text });
-                  if (errors.referralCode) {
-                    setErrors({ ...errors, referralCode: '' });
-                  }
-                }}
-                autoCapitalize="none"
-                maxLength={8}
-                autoCorrect={false}
-                autoComplete="off"
-              />
-              {errors.referralCode && <Text style={styles.errorText}>{errors.referralCode}</Text>}
-              <Text style={styles.helperText}>
-                Get 5 bonus points when you complete your first trade!
-              </Text>
-            </View>
-
-            {__DEV__ && (
-              <View style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Dev: Autofill</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <TouchableOpacity
-                    testID="dev-fill-random-user"
-                    style={{ padding: 8, backgroundColor: '#eee', borderRadius: 6 }}
-                    onPress={() => applyTestUser(getRandomTestUser())}
-                  >
-                    <Text>Fill Random</Text>
-                  </TouchableOpacity>
-                  {getAllTestUsers()
-                    .slice(0, 3)
-                    .map((u) => (
-                      <TouchableOpacity
-                        key={u.id}
-                        testID={`dev-fill-${u.id}`}
-                        style={{ padding: 8, backgroundColor: '#f5f5f5', borderRadius: 6 }}
-                        onPress={() => applyTestUser(u)}
-                      >
-                        <Text>{u.firstName}</Text>
-                      </TouchableOpacity>
-                    ))}
-                </View>
-              </View>
-            )}
+            <TextInput
+              label="Referral Code (Optional)"
+              placeholder="Enter referral code"
+              value={formData.referralCode}
+              onChangeText={(text) => {
+                setFormData({ ...formData, referralCode: text });
+                if (errors.referralCode) setErrors({ ...errors, referralCode: '' });
+              }}
+              error={errors.referralCode}
+              helperText="Get 5 bonus points when you complete your first trade!"
+              autoCapitalize="none"
+              maxLength={8}
+              autoCorrect={false}
+              autoComplete="off"
+              testID="referralCode-input"
+            />
 
             {/* Signup Button */}
-            <TouchableOpacity
-              style={[styles.signupButton, loading && styles.signupButtonDisabled]}
+            <Button
+              variant="primary"
+              size="large"
               onPress={handleSignup}
               disabled={loading}
+              loading={loading}
               testID="signup-submit-button"
+              style={styles.signupButton}
             >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.signupButtonText}>Create Account</Text>
-              )}
-            </TouchableOpacity>
+              Create Account
+            </Button>
 
             {/* Login Link */}
             <View style={styles.footer}>
@@ -632,133 +531,104 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: theme.backgroundColors.page,
   },
+
   keyboardAvoidingView: {
     flex: 1,
   },
+
   scrollContent: {
     flexGrow: 1,
-    padding: 24,
+    padding: theme.componentSpacing.pageMargin,
+    paddingBottom: theme.spacing.xl,
   },
+
   backButton: {
-    marginBottom: 0,
+    marginBottom: theme.spacing.md,
     width: 40,
   },
+
   backButtonText: {
-    fontSize: 24,
-    color: '#007AFF',
-    fontWeight: 'bold',
+    ...theme.typography.h1,
+    color: theme.colors.primary[500],
   },
+
   header: {
-    marginTop: 10,
-    marginBottom: 32,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
   },
+
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 8,
+    ...theme.typography.h1,
+    color: theme.textColors.primary,
+    marginBottom: theme.spacing.sm,
   },
+
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
   },
+
   form: {
     flex: 1,
   },
+
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.md,
   },
+
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    ...theme.typography.label,
+    color: theme.textColors.secondary,
+    marginBottom: theme.spacing.sm,
+    textTransform: 'uppercase',
   },
-  inputWrapper: {
-    position: 'relative',
-  },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  inputWithIcon: {
-    paddingRight: 50,
-  },
-  inputError: {
-    borderColor: '#ff3b30',
-  },
+
   errorText: {
-    fontSize: 12,
-    color: '#ff3b30',
-    marginTop: 4,
+    ...theme.typography.bodySmall,
+    color: theme.textColors.error,
+    marginTop: theme.spacing.xs,
   },
-  helperText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
+
   signupButton: {
-    height: 50,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 12,
+    marginTop: theme.spacing.md,
   },
-  signupButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  signupButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
+
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: theme.spacing.lg,
   },
+
   footerText: {
-    fontSize: 14,
-    color: '#666',
+    ...theme.typography.body,
+    color: theme.textColors.secondary,
   },
+
   loginLink: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
+    ...theme.typography.body,
+    color: theme.textColors.link,
+    fontFamily: theme.fontFamily.semiBold,
   },
+
   terms: {
-    marginTop: 24,
-    paddingTop: 24,
+    marginTop: theme.spacing.lg,
+    paddingTop: theme.spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: theme.borderColors.divider,
   },
+
   termsText: {
-    fontSize: 12,
-    color: '#666',
+    ...theme.typography.bodySmall,
+    color: theme.textColors.secondary,
     textAlign: 'center',
     lineHeight: 18,
   },
+
   termsLink: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  eyeIcon: {
-    position: 'absolute',
-    right: 12,
-    top: 13,
-    padding: 4,
-    zIndex: 1,
-  },
-  eyeIconText: {
-    fontSize: 20,
+    color: theme.textColors.link,
+    fontFamily: theme.fontFamily.semiBold,
   },
 });

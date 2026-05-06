@@ -352,11 +352,11 @@ describe('ItemCreateScreen', () => {
       });
 
       const firstCallArgs = mockUploadPhotoBatch.mock.calls[0];
-      const uploadedAssets = firstCallArgs[0] as Array<{
+      const uploadedAssets = firstCallArgs[0] as {
         uri: string;
         width: number;
         height: number;
-      }>;
+      }[];
 
       expect(uploadedAssets).toHaveLength(1);
       expect(uploadedAssets[0].uri).toBe('new-photo.jpg');
