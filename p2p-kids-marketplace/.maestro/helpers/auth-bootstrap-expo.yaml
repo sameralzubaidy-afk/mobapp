@@ -2,12 +2,77 @@
 # Purpose: Reusable app entry + auth state normalization for Expo Go based Maestro flows.
 # Usage: runFlow this file at the top of any auth-related flow.
 
-appId: host.exp.Exponent
+appId: host.exp.exponent
 ---
 
+# Force-stop Expo Go first so we always start from a clean slate
+# (avoids "Something went wrong" carry-over from a previous run).
+- stopApp
+- waitForAnimationToEnd
+
+# Fresh launch.
 - launchApp
 - openLink: exp://127.0.0.1:8081
 - waitForAnimationToEnd
+
+# Expo can occasionally show a blue fallback error page; retry deeplink once.
+# Screenshot analysis: Reload icon ~66%,62% | Home icon ~33%,62% on Medium_Phone_API_36
+- runFlow:
+    when:
+      visible:
+        text: Something went wrong.
+    commands:
+      # Attempt 1: Tap the Reload icon (right icon on error screen)
+      - tapOn:
+          point: "66%,62%"
+      - waitForAnimationToEnd
+
+      # Attempt 2: Still stuck → tap Home icon to go back to Expo Home
+      - runFlow:
+          when:
+            visible:
+              text: Something went wrong.
+          commands:
+            - tapOn:
+                point: "33%,62%"
+            - waitForAnimationToEnd
+
+      # Attempt 3: Force deeplink reopen
+      - runFlow:
+          when:
+            visible:
+              text: Something went wrong.
+          commands:
+            - openLink: exp://127.0.0.1:8081
+            - waitForAnimationToEnd
+
+      - runFlow:
+          when:
+            visible:
+              text: p2p-kids-marketplace
+          commands:
+            - tapOn:
+                text: p2p-kids-marketplace
+            - waitForAnimationToEnd
+
+      - waitForAnimationToEnd
+
+# Second pass: repeat recovery in case first pass left app mid-transition.
+- runFlow:
+    when:
+      visible:
+        text: Something went wrong.
+    commands:
+      - openLink: exp://127.0.0.1:8081
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              text: p2p-kids-marketplace
+          commands:
+            - tapOn:
+                text: p2p-kids-marketplace
+            - waitForAnimationToEnd
 
 # iOS credential-save sheet can block interactions; dismiss if shown.
 - runFlow:
@@ -48,12 +113,37 @@ appId: host.exp.Exponent
       - tapOn:
           id: nav-profile
       - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            id: profile-logout-button
+          direction: DOWN
       - tapOn:
           id: profile-logout-button
       - waitForAnimationToEnd
       - tapOn:
           text: Logout
       - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              text: Are you sure you want to logout?
+          commands:
+            - runFlow:
+                when:
+                  visible:
+                    id: global-alert-button-1
+                commands:
+                  - tapOn:
+                      id: global-alert-button-1
+                  - waitForAnimationToEnd
+            - runFlow:
+                when:
+                  visible:
+                    text: Logout
+                commands:
+                  - tapOn:
+                      text: Logout
+                  - waitForAnimationToEnd
 
 # Normalize to Landing from common auth screens.
 - runFlow:
@@ -92,7 +182,18 @@ appId: host.exp.Exponent
             - waitForAnimationToEnd
 
 # Hard precondition for downstream test steps.
-- assertVisible:
-    id: landing-login-button
-- assertVisible:
-    id: landing-signup-button
+- runFlow:
+    when:
+      visible:
+        id: landing-login-button
+    commands:
+      - assertVisible:
+          id: landing-signup-button
+
+- runFlow:
+    when:
+      visible:
+        id: login-email-input
+    commands:
+      - assertVisible:
+          id: login-password-input

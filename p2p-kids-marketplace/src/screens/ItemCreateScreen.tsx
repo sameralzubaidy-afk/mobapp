@@ -25,6 +25,7 @@ import {
   ActivityIndicator,
   Switch,
 } from 'react-native';
+import { Coins, Tag } from 'phosphor-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -81,6 +82,8 @@ type CreateScreenAction =
   | { type: 'PUBLISH_START' }
   | { type: 'PUBLISH_SUCCESS' }
   | { type: 'PUBLISH_ERROR' };
+
+const AI_ANALYSIS_BLOCKING_TIMEOUT_MS = 7000;
 
 // State reducer
 function stateReducer(state: CreateScreenState, action: CreateScreenAction): CreateScreenState {
@@ -152,10 +155,12 @@ export default function ItemCreateScreen() {
   const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [isDraftHydrated, setIsDraftHydrated] = useState(!draftId);
+  const [allowManualWhileAnalyzing, setAllowManualWhileAnalyzing] = useState(false);
 
   // AUTH-V3-008: Phone verification modal state
   const [showPhoneVerificationModal, setShowPhoneVerificationModal] = useState(false);
   const [phoneVerificationPending, setPhoneVerificationPending] = useState(false);
+  const aiBlockingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Draft management
   const {
@@ -174,16 +179,44 @@ export default function ItemCreateScreen() {
     retry: retryAI,
   } = useAIAnalysis(uploadedPhotoUrls, sellerId);
 
+  const clearAIBlockingTimeout = useCallback(() => {
+    if (aiBlockingTimeoutRef.current) {
+      clearTimeout(aiBlockingTimeoutRef.current);
+      aiBlockingTimeoutRef.current = null;
+    }
+  }, []);
+
+  const loadSubscription = useCallback(async () => {
+    if (!session?.user?.id) {
+      setCheckingSubscription(false);
+      return;
+    }
+    try {
+      setCheckingSubscription(true);
+      const summary = await getSubscriptionSummary(session.user.id);
+      setCanAcceptSP(summary.can_spend_sp);
+      // If user lost subscription, reset toggle
+      if (!summary.can_spend_sp) {
+        setAcceptsSwapPoints(false);
+      }
+    } catch (err: any) {
+      console.error('[ItemCreateScreen] loadSubscription error:', err);
+      setCanAcceptSP(false);
+    } finally {
+      setCheckingSubscription(false);
+    }
+  }, [session?.user?.id]);
+
   // Load categories + subscription status on mount and on screen focus
   useEffect(() => {
     loadCategories();
-    loadSubscription();
-  }, []);
+    void loadSubscription();
+  }, [loadSubscription]);
 
   useFocusEffect(
     useCallback(() => {
-      loadSubscription();
-    }, [session?.user?.id])
+      void loadSubscription();
+    }, [loadSubscription])
   );
 
   // Reset hydration guards when navigating to a different draft.
@@ -284,6 +317,23 @@ export default function ItemCreateScreen() {
     }
   }, [aiStatus, aiResult, flowState]);
 
+  // Prevent AI latency from blocking listing creation.
+  useEffect(() => {
+    if (aiStatus !== 'analyzing') {
+      clearAIBlockingTimeout();
+      setAllowManualWhileAnalyzing(false);
+      return;
+    }
+
+    setAllowManualWhileAnalyzing(false);
+    clearAIBlockingTimeout();
+    aiBlockingTimeoutRef.current = setTimeout(() => {
+      setAllowManualWhileAnalyzing(true);
+    }, AI_ANALYSIS_BLOCKING_TIMEOUT_MS);
+
+    return clearAIBlockingTimeout;
+  }, [aiStatus, clearAIBlockingTimeout]);
+
   // Auto-save draft on changes
   useEffect(() => {
     if (!isDraftHydrated) {
@@ -361,27 +411,6 @@ export default function ItemCreateScreen() {
       };
     }, [saveNow])
   );
-
-  const loadSubscription = async () => {
-    if (!session?.user?.id) {
-      setCheckingSubscription(false);
-      return;
-    }
-    try {
-      setCheckingSubscription(true);
-      const summary = await getSubscriptionSummary(session.user.id);
-      setCanAcceptSP(summary.can_spend_sp);
-      // If user lost subscription, reset toggle
-      if (!summary.can_spend_sp) {
-        setAcceptsSwapPoints(false);
-      }
-    } catch (err: any) {
-      console.error('[ItemCreateScreen] loadSubscription error:', err);
-      setCanAcceptSP(false);
-    } finally {
-      setCheckingSubscription(false);
-    }
-  };
 
   const loadCategories = async () => {
     try {
@@ -559,6 +588,11 @@ export default function ItemCreateScreen() {
     setShowConditionGuide(true);
   };
 
+  const handleContinueWithoutAI = () => {
+    clearAIBlockingTimeout();
+    setAllowManualWhileAnalyzing(true);
+  };
+
   const canPublish = (): boolean => {
     const isOtherCategory =
       category?.id === 'other' || category?.name?.trim().toLowerCase() === 'other';
@@ -660,6 +694,8 @@ export default function ItemCreateScreen() {
   };
 
   const isPublishing = flowState === 'PUBLISHING';
+  const isAnalyzing = aiStatus === 'analyzing';
+  const isAnalyzingBlocking = isAnalyzing && !allowManualWhileAnalyzing;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -675,7 +711,7 @@ export default function ItemCreateScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Listing</Text>
         <View style={styles.headerRight}>
-          {aiStatus === 'analyzing' && <ActivityIndicator size="small" color="#007AFF" />}
+          {aiStatus === 'analyzing' && <ActivityIndicator size="small" color="#5DBB8E" />}
         </View>
       </View>
 
@@ -727,6 +763,7 @@ export default function ItemCreateScreen() {
                 onChangeText={setTitle}
                 placeholder="e.g., Nike Sneakers Size 5"
                 maxLength={100}
+                editable={!isAnalyzingBlocking}
                 testID="title-input"
               />
             </View>
@@ -742,6 +779,7 @@ export default function ItemCreateScreen() {
                 multiline
                 numberOfLines={4}
                 maxLength={500}
+                editable={!isAnalyzingBlocking}
                 testID="description-input"
               />
             </View>
@@ -752,8 +790,10 @@ export default function ItemCreateScreen() {
               <TouchableOpacity
                 style={styles.selectButton}
                 onPress={() => setShowCategoryModal(true)}
+                disabled={isAnalyzingBlocking}
                 testID="category-select-button"
               >
+                <Tag size={20} color="#6B6B6B" weight="regular" />
                 <Text style={styles.selectButtonText}>
                   {category ? category.name : 'Select category'}
                 </Text>
@@ -769,6 +809,7 @@ export default function ItemCreateScreen() {
                   onChangeText={setRequestedCategoryName}
                   placeholder="e.g., Board Games"
                   maxLength={100}
+                  editable={!isAnalyzingBlocking}
                   testID="custom-category-name-input"
                 />
                 <Text style={styles.helperText}>
@@ -807,7 +848,7 @@ export default function ItemCreateScreen() {
               <Text style={styles.spSectionTitle}>Payment Preference</Text>
               {checkingSubscription ? (
                 <View style={styles.spLoadingRow}>
-                  <ActivityIndicator size="small" color="#007AFF" />
+                  <ActivityIndicator size="small" color="#5DBB8E" />
                   <Text style={styles.spLoadingText}>Checking subscription...</Text>
                 </View>
               ) : canAcceptSP ? (
@@ -816,19 +857,20 @@ export default function ItemCreateScreen() {
                     <View style={styles.spToggleLabelGroup}>
                       <Text style={styles.spToggleLabel}>Accept Swap Points?</Text>
                       <Text style={styles.spToggleHint}>
-                        Allow buyers to pay up to 50% with Swap Points
+                        Allow buyers to pay with Swap Points
                       </Text>
                     </View>
                     <Switch
                       value={acceptsSwapPoints}
                       onValueChange={setAcceptsSwapPoints}
-                      trackColor={{ false: '#ccc', true: '#34C759' }}
+                      trackColor={{ false: '#ccc', true: '#5DBB8E' }}
                       thumbColor="#fff"
                       testID="sp-toggle"
                     />
                   </View>
                   {acceptsSwapPoints && (
                     <View style={styles.spEligibleBadge}>
+                      <Coins size={16} color="#F59E0B" weight="regular" />
                       <Text style={styles.spEligibleText}>✓ SP Eligible</Text>
                     </View>
                   )}
@@ -859,6 +901,7 @@ export default function ItemCreateScreen() {
                 placeholder="0.00"
                 keyboardType="decimal-pad"
                 maxLength={10}
+                editable={!isAnalyzingBlocking}
                 testID="manual-price-input"
               />
             </View>
@@ -908,7 +951,7 @@ export default function ItemCreateScreen() {
       <Modal visible={isPublishing} animationType="fade" transparent>
         <View style={styles.processingOverlay}>
           <View style={styles.processingCard}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color="#5DBB8E" />
             <Text style={styles.processingTitle}>Submitting Item For Review...</Text>
             <Text style={styles.processingMessage}>
               Please wait. We are uploading your item and preparing it for admin review.
@@ -976,6 +1019,30 @@ export default function ItemCreateScreen() {
         required={true}
         testID="listing-phone-verification"
       />
+
+      {/* AI Analysis Loading Overlay */}
+      <Modal visible={isAnalyzingBlocking} animationType="fade" transparent>
+        <View style={styles.aiLoadingOverlay}>
+          <View style={styles.aiLoadingCard}>
+            <ActivityIndicator size="large" color="#5DBB8E" />
+            <Text style={styles.aiLoadingTitle}>Analyzing Your Photos...</Text>
+            <Text style={styles.aiLoadingMessage}>
+              Our AI is reviewing your photos to suggest item details.
+            </Text>
+            <Text style={styles.aiLoadingHint}>
+              If this takes too long, continue manually now and we will show suggestions when ready.
+            </Text>
+            <TouchableOpacity
+              style={styles.aiContinueButton}
+              onPress={handleContinueWithoutAI}
+              accessibilityRole="button"
+              testID="ai-continue-manual-button"
+            >
+              <Text style={styles.aiContinueButtonText}>Continue Without AI</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -983,7 +1050,7 @@ export default function ItemCreateScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -997,12 +1064,12 @@ const styles = StyleSheet.create({
   },
   backButton: {
     fontSize: 28,
-    color: '#007AFF',
+    color: '#5DBB8E',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
   },
   headerRight: {
     width: 28,
@@ -1022,32 +1089,36 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   input: {
     fontSize: 16,
-    color: '#000000',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: '#FFFFFF',
+    color: '#1A1A1A',
+    borderWidth: 0,
+    borderRadius: 12,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    backgroundColor: '#F0F0F0',
   },
   textArea: {
-    height: 100,
+    minHeight: 100,
+    paddingVertical: 12,
     textAlignVertical: 'top',
   },
   selectButton: {
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: '#FFFFFF',
+    borderWidth: 0,
+    borderRadius: 12,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    backgroundColor: '#F0F0F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   selectButtonText: {
     fontSize: 16,
-    color: '#000000',
+    color: '#1A1A1A',
   },
   helperText: {
     marginTop: 8,
@@ -1081,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   aiRetryButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
     borderRadius: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -1094,13 +1165,13 @@ const styles = StyleSheet.create({
   spSection: {
     marginBottom: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
   },
   spSectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 12,
   },
   spLoadingRow: {
@@ -1110,7 +1181,7 @@ const styles = StyleSheet.create({
   },
   spLoadingText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6B6B6B',
     marginLeft: 8,
   },
   spToggleRow: {
@@ -1125,7 +1196,7 @@ const styles = StyleSheet.create({
   spToggleLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 2,
   },
   spToggleHint: {
@@ -1134,33 +1205,38 @@ const styles = StyleSheet.create({
   },
   spEligibleBadge: {
     marginTop: 10,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 6,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   spEligibleText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#2E7D32',
+    fontWeight: '500',
+    color: '#F59E0B',
   },
   spUpgradePrompt: {
-    backgroundColor: '#FFF8E1',
-    borderRadius: 8,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
     padding: 12,
   },
   spUpgradeText: {
     fontSize: 14,
-    color: '#795548',
+    color: '#7A5A2A',
     marginBottom: 10,
   },
   spUpgradeButton: {
-    backgroundColor: '#FF9800',
-    borderRadius: 6,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 24,
+    minHeight: 48,
     paddingVertical: 8,
     paddingHorizontal: 16,
     alignSelf: 'flex-start',
+    justifyContent: 'center',
   },
   spUpgradeButtonText: {
     fontSize: 14,
@@ -1192,10 +1268,12 @@ const styles = StyleSheet.create({
   },
   submitModalPrimaryButton: {
     marginTop: 8,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   submitModalPrimaryButtonText: {
     color: '#FFFFFF',
@@ -1205,15 +1283,17 @@ const styles = StyleSheet.create({
   submitModalSecondaryButton: {
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 8,
+    borderColor: '#6B6B6B',
+    borderRadius: 24,
+    minHeight: 48,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   submitModalSecondaryButtonText: {
-    color: '#007AFF',
+    color: '#6B6B6B',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   processingOverlay: {
     flex: 1,
@@ -1241,5 +1321,53 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#555555',
     textAlign: 'center',
+  },
+  aiLoadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  aiLoadingCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  aiLoadingTitle: {
+    marginTop: 14,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F1F1F',
+    textAlign: 'center',
+  },
+  aiLoadingMessage: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#555555',
+    textAlign: 'center',
+  },
+  aiLoadingHint: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#6B6B6B',
+    textAlign: 'center',
+  },
+  aiContinueButton: {
+    marginTop: 16,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 24,
+    minHeight: 44,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiContinueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

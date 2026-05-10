@@ -1,10 +1,15 @@
 # FLOW: flow-02-bootstrap-expo
 # Purpose: Deterministic startup for FLOW-02 onboarding/profile UI checks in Expo Go.
 
-appId: host.exp.Exponent
+appId: host.exp.exponent
 ---
 
-# Launch Expo Go for reusable reruns.
+# Force-stop Expo Go first so we always start from a clean slate
+# (avoids "Something went wrong" carry-over from a previous run).
+- stopApp
+- waitForAnimationToEnd
+
+# Fresh launch.
 - launchApp
 - openLink: exp://127.0.0.1:8081
 - waitForAnimationToEnd
@@ -59,7 +64,7 @@ appId: host.exp.Exponent
                         - waitForAnimationToEnd
 
 # Enter FLOW-02 from a stable route with a synthetic user id.
-- openLink: exp://127.0.0.1:8081/--/profile-completion?userId=maestro-flow-02-user
+- openLink: exp://127.0.0.1:8081/--/profile-setup?userId=maestro-flow-02-user
 - waitForAnimationToEnd
 
 # Dismiss late-appearing developer menu education sheet after route open.
@@ -94,13 +99,13 @@ appId: host.exp.Exponent
                         visible:
                                 text: p2p-kids-marketplace
                         notVisible:
-                                id: profile-completion-screen
+                                id: profile-setup-screen
                 commands:
                         - tapOn:
                                         point: "50%,96%"
                         - waitForAnimationToEnd
-                        - openLink: exp://127.0.0.1:8081/--/profile-completion?userId=maestro-flow-02-user
+                        - openLink: exp://127.0.0.1:8081/--/profile-setup?userId=maestro-flow-02-user
                         - waitForAnimationToEnd
 
 - assertVisible:
-    id: profile-completion-screen
+    id: profile-setup-screen

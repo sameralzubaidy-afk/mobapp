@@ -50,7 +50,9 @@ export default function PasswordReauthModal({
 
     try {
       // 1. Get current user's email
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user?.email) {
         throw new Error('User email not found');
       }
@@ -106,7 +108,7 @@ export default function PasswordReauthModal({
               {/* Header */}
               <View style={styles.header}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="lock-closed-outline" size={24} color="#3B82F6" />
+                  <Ionicons name="lock-closed-outline" size={24} color="#5DBB8E" />
                 </View>
                 <Text style={styles.title}>Verify Password</Text>
                 <Text style={styles.subtitle}>
@@ -142,7 +144,7 @@ export default function PasswordReauthModal({
                     <Ionicons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                       size={20}
-                      color="#6B7280"
+                      color="#6B6B6B"
                     />
                   </TouchableOpacity>
                 </View>
@@ -165,7 +167,10 @@ export default function PasswordReauthModal({
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.confirmButton, (!password || isVerifying) && styles.disabledButton]}
+                  style={[
+                    styles.confirmButton,
+                    (!password || isVerifying) && styles.disabledButton,
+                  ]}
                   onPress={handleConfirm}
                   disabled={!password || isVerifying}
                 >
@@ -216,7 +221,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#E8F5F0',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -224,12 +229,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -239,26 +244,26 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#6B6B6B',
     marginBottom: 6,
   },
   passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderWidth: 0,
     borderRadius: 8,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F0F0F0',
   },
   input: {
     flex: 1,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   inputError: {
-    borderColor: '#DC2626',
+    borderWidth: 1,
+    borderColor: '#E85D75',
   },
   eyeIcon: {
     padding: 10,
@@ -284,20 +289,22 @@ const styles = StyleSheet.create({
     marginRight: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#E0E0E0',
   },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: '#6B6B6B',
   },
   confirmButton: {
     flex: 1,
     paddingVertical: 12,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#5DBB8E',
     alignItems: 'center',
     marginLeft: 8,
-    borderRadius: 8,
+    borderRadius: 26,
+    minHeight: 52,
+    justifyContent: 'center',
   },
   confirmButtonText: {
     fontSize: 16,
@@ -305,6 +312,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   disabledButton: {
-    backgroundColor: '#93C5FD',
+    backgroundColor: '#CCCCCC',
   },
 });

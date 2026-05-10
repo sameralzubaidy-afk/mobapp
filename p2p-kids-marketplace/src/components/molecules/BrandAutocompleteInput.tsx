@@ -167,7 +167,7 @@ export function BrandAutocompleteInput({
 
         {isLoading && (
           <View style={styles.loadingIndicator}>
-            <ActivityIndicator size="small" color="#007AFF" />
+            <ActivityIndicator size="small" color="#5DBB8E" />
           </View>
         )}
       </View>
@@ -212,19 +212,19 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderWidth: 0,
+    borderRadius: 12,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 16,
-    color: '#000000',
-    backgroundColor: '#FFFFFF',
+    color: '#1A1A1A',
+    backgroundColor: '#F0F0F0',
   },
   loadingIndicator: {
     position: 'absolute',
-    right: 12,
-    top: 10,
+    right: 14,
+    top: 14,
   },
   suggestionsContainer: {
     marginTop: 4,

@@ -8,9 +8,6 @@ export type RootStackParamList = {
   PhoneVerification: undefined;
   ProfileSetup: undefined;
   Welcome: { userId?: string } | undefined;
-  ProfileCompletion: { userId?: string } | undefined;
-  LocationPicker: { userId?: string } | undefined;
-  NodeSelection: { userId?: string; zipCode?: string } | undefined;
   FeatureHighlights: { userId?: string } | undefined;
   Onboarding: undefined;
   Profile: { userId?: string } | undefined;
@@ -46,9 +43,11 @@ export type RootStackParamList = {
   TransactionHistory: undefined;
   // Trade routes
   TradeInitiation: { itemId: string };
+  TradeReview: { tradeId: string };
   TradeTimeline: { tradeId: string };
   TradeDetail: { tradeId: string };
   TradeList: undefined;
+  TradeDispute: { tradeId: string };
   TradeSuccess: { tradeId: string };
   // MODULE-07: Messaging routes
   Chat: { tradeId: string };
@@ -67,6 +66,10 @@ export type RootStackParamList = {
   // MODULE-09: Swap Points routes
   SpWallet: undefined;
   SpWalletScreen: undefined;
+  // MODULE-15.1 FLOW-10/11: SP Transaction History
+  SpTransactionHistory: undefined;
+  // MODULE-15.1 FLOW-10/11: SP Transaction History
+  SpTransactionHistory: undefined;
   // MODULE-11: Referral routes
   ReferralDashboard: undefined;
   Settings: undefined;
@@ -84,4 +87,7 @@ export type RootStackParamList = {
   PrivacyPolicy: { requireAcceptance?: boolean; onAccept?: () => void } | undefined;
   // MODULE-13 SAFETY-012: Liability Disclaimer
   LiabilityDisclaimer: undefined;
+  // MODULE-15.1 FLOW-07: Cart & Bundling
+  Cart: undefined;
+  BundleBuilder: { sellerId: string; sellerName?: string };
 };

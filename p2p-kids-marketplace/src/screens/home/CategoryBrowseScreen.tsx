@@ -1,9 +1,10 @@
 /**
  * File: p2p-kids-marketplace/src/screens/home/CategoryBrowseScreen.tsx
- * MODULE-05-DISCOVERY-V2: Category Browsing with SP Filter
- * Task: DISCOVERY-V2-003
+ * MODULE-15.1-UI-REDESIGN: Category Browse Screen
+ * Task: FLOW-06 Discovery & Search - Category Browsing
  *
- * Screen for browsing items by category with SP-eligible filter toggle.
+ * Screen for browsing items by category.
+ * Redesigned with Phosphor icons and Whisk design system.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -11,11 +12,9 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
-  Switch,
   StyleSheet,
-  Image,
   SafeAreaView,
   RefreshControl,
 } from 'react-native';
@@ -23,9 +22,16 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { fetchListingsByCategory } from '../../services/discovery';
 import { CategoryResult } from '../../types/discovery';
 import { trackEvent } from '../../services/analytics';
-import Avatar from '../../components/atoms/Avatar';
-import { ListingImage } from '../../components/atoms';
+import { ItemCard } from '../../components/molecules';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import {
+  TShirt,
+  Sneaker,
+  Backpack,
+  GameController,
+  BookOpen,
+  CaretLeft,
+} from 'phosphor-react-native';
 
 type ParamList = {
   CategoryBrowse: {
@@ -41,21 +47,38 @@ export default function CategoryBrowseScreen() {
   const [listings, setListings] = useState<CategoryResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [spEligibleOnly, setSpEligibleOnly] = useState(false);
+
+  // Map category name to Phosphor icon
+  const getCategoryIcon = () => {
+    const categoryLower = category.toLowerCase();
+    if (categoryLower.includes('cloth') || categoryLower.includes('apparel')) {
+      return <TShirt size={32} color="#5DBB8E" weight="regular" />;
+    }
+    if (categoryLower.includes('shoe') || categoryLower.includes('sneaker')) {
+      return <Sneaker size={32} color="#5DBB8E" weight="regular" />;
+    }
+    if (categoryLower.includes('book')) {
+      return <BookOpen size={32} color="#5DBB8E" weight="regular" />;
+    }
+    if (categoryLower.includes('game') || categoryLower.includes('toy')) {
+      return <GameController size={32} color="#5DBB8E" weight="regular" />;
+    }
+    // Default icon
+    return <Backpack size={32} color="#5DBB8E" weight="regular" />;
+  };
 
   useEffect(() => {
     loadListings();
-  }, [category, spEligibleOnly]);
+  }, [category]);
 
   const loadListings = async (isRefreshing = false) => {
     if (!isRefreshing) setLoading(true);
     try {
-      const data = await fetchListingsByCategory(category, spEligibleOnly);
+      const data = await fetchListingsByCategory(category, false);
       setListings(data);
 
       trackEvent('view_category_results', {
         category,
-        sp_eligible_only: spEligibleOnly,
         result_count: data.length,
       });
     } catch (error) {
@@ -72,75 +95,53 @@ export default function CategoryBrowseScreen() {
   };
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.headerTop}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>{category}</Text>
-      </View>
-
-      <View style={styles.filterContainer}>
-        <View style={styles.filterInfo}>
-          <Text style={styles.filterLabel}>Show only SP-eligible</Text>
-          <Text style={styles.filterSublabel}>Items you can buy with Swap Points</Text>
+    <View style={styles.header} testID="category-browse-header">
+      <View style={styles.headerRow}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          hitSlop={8}
+          testID="category-back-button"
+        >
+          <CaretLeft size={24} color="#1A1A1A" weight="regular" />
+        </Pressable>
+        <View style={styles.categoryHeader}>
+          <View testID="category-icon">{getCategoryIcon()}</View>
+          <Text style={styles.title}>{category}</Text>
         </View>
-        <Switch
-          value={spEligibleOnly}
-          onValueChange={setSpEligibleOnly}
-          trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
-          thumbColor="#fff"
-        />
       </View>
     </View>
   );
 
-  const renderItem = ({ item }: { item: CategoryResult }) => (
-    <TouchableOpacity
-      style={styles.itemCard}
-      onPress={() => (navigation as any).navigate('ListingDetail', { listing_id: item.id })}
-    >
-      <View style={styles.imagePlaceholder}>
-        <ListingImage
-          url={item.images && item.images.length > 0 ? item.images[0].url : null}
-          containerStyle={styles.itemImage}
-          imageStyle={styles.itemImage}
-        />
-        {item.seller && (
-          <View style={styles.sellerAvatarOverlay}>
-            <Avatar
-              imageUrl={item.seller.avatar_url || undefined}
-              name={item.seller.name}
-              size={32}
-              verificationStatus={item.seller.verification_status}
-            />
-          </View>
-        )}
-      </View>
+  const renderItem = ({ item }: { item: CategoryResult }) => {
+    const mainImageUrl = item.images && item.images.length > 0 ? item.images[0].url : null;
 
-      <View style={styles.itemDetails}>
-        <Text style={styles.itemTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.itemPrice}>${Number(item.price).toFixed(2)}</Text>
-
-        {item.accepts_swap_points && (
-          <View style={styles.spBadge}>
-            <Text style={styles.spBadgeText}>✓ SP Eligible</Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
+    return (
+      <ItemCard
+        id={item.id}
+        title={item.title}
+        price={Number(item.price)}
+        imageUrl={mainImageUrl}
+        isFavorite={false}
+        acceptsSwapPoints={item.accepts_swap_points}
+        onPress={() => (navigation as any).navigate('ListingDetail', { listing_id: item.id })}
+        onFavoritePress={() => {
+          console.log('[CategoryBrowseScreen] Favorite toggled:', item.id);
+        }}
+        onSharePress={() => {
+          console.log('[CategoryBrowseScreen] Share pressed:', item.id);
+        }}
+        testID={`category-item-${item.id}`}
+      />
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Text style={styles.emptyIcon}>🔍</Text>
       <Text style={styles.emptyTitle}>No items found</Text>
       <Text style={styles.emptyText}>
-        {spEligibleOnly
-          ? `There are no SP-eligible items in ${category} right now.`
-          : `Be the first to list something in ${category}!`}
+        Be the first to list something in {category}!
       </Text>
     </View>
   );
@@ -151,19 +152,20 @@ export default function CategoryBrowseScreen() {
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <ActivityIndicator size="large" color="#5DBB8E" />
         </View>
       ) : (
         <FlatList
+          testID="category-browse-list"
           data={listings}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
           numColumns={2}
-          columnWrapperStyle={styles.row}
+          columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={renderEmptyState}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
           }
         />
       )}
@@ -175,126 +177,46 @@ export default function CategoryBrowseScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#FFFFFF',
   },
   header: {
-    backgroundColor: '#fff',
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#F0F0F0',
   },
-  headerTop: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
   },
   backButton: {
-    padding: 8,
+    padding: 4,
     marginRight: 8,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: '#3b82f6',
-    fontWeight: 'bold',
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#111',
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f3f4f6',
-    padding: 12,
-    borderRadius: 12,
-  },
-  filterInfo: {
-    flex: 1,
-  },
-  filterLabel: {
-    fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
-  },
-  filterSublabel: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 2,
+    color: '#1A1A1A',
+    marginLeft: 12,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  row: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-  },
   listContent: {
-    paddingVertical: 8,
+    padding: 16,
     flexGrow: 1,
   },
-  itemCard: {
-    flex: 0.48,
-    backgroundColor: '#fff',
-    margin: 8,
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderBottomWidth: 3,
-    borderColor: '#e5e7eb',
-  },
-  imagePlaceholder: {
-    width: '100%',
-    aspectRatio: 1,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  itemImage: {
-    width: '100%',
-    height: '100%',
-  },
-  placeholderEmoji: {
-    fontSize: 40,
-  },
-  sellerAvatarOverlay: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderRadius: 16,
-    padding: 2,
-  },
-  itemDetails: {
-    padding: 10,
-  },
-  itemTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1f2937',
-    height: 40,
-  },
-  itemPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#059669',
-    marginTop: 4,
-  },
-  spBadge: {
-    marginTop: 6,
-    backgroundColor: '#dbeafe',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  spBadgeText: {
-    fontSize: 10,
-    color: '#1e40af',
-    fontWeight: 'bold',
+  columnWrapper: {
+    gap: 12,
+    marginBottom: 12,
   },
   emptyState: {
     flex: 1,
@@ -303,18 +225,19 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   emptyIcon: {
-    fontSize: 60,
+    fontSize: 64,
     marginBottom: 16,
+    opacity: 0.3,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#374151',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 20,
   },

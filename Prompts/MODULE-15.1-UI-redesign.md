@@ -758,7 +758,7 @@ import { User, Camera, CalendarBlank } from 'phosphor-react-native';
 ---
 ---
 
-### TASK FLOW-03: Node / ZIP Gating
+### TASK FLOW-03: Node / ZIP Gating ( Removed and not needed)
 
 **Duration:** 6 hours  
 **Priority:** P1 (High) — Location-based access control  

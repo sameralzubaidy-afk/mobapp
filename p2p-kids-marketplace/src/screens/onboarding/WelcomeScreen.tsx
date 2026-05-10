@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { supabase } from '@/config/supabase';
@@ -68,17 +68,22 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.container} testID="welcome-screen">
       <View style={styles.content}>
-        {/* Logo/Illustration */}
-        <Text style={styles.emoji}>🌟</Text>
+        {/* Illustration */}
+        <Image
+          source={require('../../../assets/illustrations/welcome.png')}
+          style={styles.illustration}
+          resizeMode="contain"
+          testID="welcome-illustration"
+        />
 
         {/* Title */}
-        <Text style={styles.title} testID="welcome-headline">Welcome to{'\n'}P2P Kids Marketplace</Text>
+        <Text style={styles.title} testID="welcome-headline">
+          Welcome to a safe, neighborhood marketplace built exclusively for local families.
+        </Text>
 
         {/* Description */}
         <Text style={styles.description} testID="welcome-description">
-          A safe space for kids to trade items,{'\n'}
-          learn entrepreneurship, and build{'\n'}
-          their community
+          Join a trusted community where you can easily buy and sell pre-loved items with people you know and count on.
         </Text>
 
         {/* Get Started Button */}
@@ -105,16 +110,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: 80,
-    marginBottom: 24,
+  illustration: {
+    width: 240,
+    height: 240,
+    marginBottom: 32,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '600',
     color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 16,
+    lineHeight: 32,
   },
   description: {
     fontSize: 16,

@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { render, fireEvent, screen } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import { PhotoUploadManager } from '../../listing/PhotoUploadManager';
 import { PhotoAsset } from '../../../types/listing';
 
@@ -45,6 +45,7 @@ describe('PhotoUploadManager', () => {
       expect(getByTestId('photo-upload-manager')).toBeTruthy();
       expect(getByText('Photos *')).toBeTruthy();
       expect(getByTestId('add-photos-button')).toBeTruthy();
+      expect(getByTestId('camera-icon-photo-slot')).toBeTruthy();
     });
 
     it('renders with photos', () => {
@@ -84,6 +85,19 @@ describe('PhotoUploadManager', () => {
       );
 
       expect(getByText('(3/10 photos)')).toBeTruthy();
+    });
+
+    it('renders at least one empty dashed slot while under max', () => {
+      const { getByTestId } = render(
+        <PhotoUploadManager
+          photos={mockPhotos}
+          onAddPhotos={mockOnAddPhotos}
+          onRemovePhoto={mockOnRemovePhoto}
+          onReorder={mockOnReorder}
+        />
+      );
+
+      expect(getByTestId('add-photos-button')).toBeTruthy();
     });
   });
 

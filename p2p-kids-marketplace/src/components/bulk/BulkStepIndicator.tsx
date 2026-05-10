@@ -88,12 +88,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   dotReached: {
-    borderColor: '#16A34A',
-    backgroundColor: '#DCFCE7',
+    borderColor: '#5DBB8E',
+    backgroundColor: '#E8F5F0',
   },
   dotCurrent: {
-    borderColor: '#2563EB',
-    backgroundColor: '#2563EB',
+    borderColor: '#5DBB8E',
+    backgroundColor: '#5DBB8E',
   },
   dotText: {
     fontSize: 12,
@@ -120,6 +120,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   lineReached: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#5DBB8E',
   },
 });

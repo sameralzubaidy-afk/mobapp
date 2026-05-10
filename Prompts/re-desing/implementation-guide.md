@@ -1023,7 +1023,7 @@ export const CartCheckoutScreen = ({ route }) => {
 
 **Asset Preparation**:
 - ✅ Phosphor Icons installed and configured
-- ✅ Storyset illustrations customized and optimized
+- ✅ Storyset ![alt text](image.png)strations customized and optimized
 - ✅ Design system theme tokens created
 
 **Implementation Phase**:

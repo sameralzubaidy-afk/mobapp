@@ -27,6 +27,10 @@ export default function OnboardingScreenCard({
 }: OnboardingScreenCardProps): React.JSX.Element {
   // Use DB content if available, otherwise fallback to static
   const body = dbBody || screen.body;
+  const isWelcomeIllustration = screen.illustrationName === 'welcome.png';
+  const isPointsIllustration = screen.illustrationName === 'swap-points-intro.png';
+  const isSPEarningIllustration = screen.illustrationName === 'onboarding-sp-earning.png';
+  const isLargeIllustration = isWelcomeIllustration || isPointsIllustration || isSPEarningIllustration;
 
   return (
     <View
@@ -36,10 +40,20 @@ export default function OnboardingScreenCard({
       accessibilityRole="text"
     >
       {/* Illustration */}
-      <View style={styles.illustrationContainer}>
+      <View
+        style={[
+          styles.illustrationContainer,
+          isLargeIllustration && styles.welcomeIllustrationContainer,
+        ]}
+      >
         <Image
           source={getIllustrationSource(screen.illustrationName)}
-          style={styles.illustration}
+          style={[
+            styles.illustration,
+            isWelcomeIllustration && styles.welcomeIllustration,
+            isPointsIllustration && styles.pointsIllustration,
+            isSPEarningIllustration && styles.spEarningIllustration,
+          ]}
           resizeMode="contain"
           accessible={true}
           accessibilityLabel={`${screen.title} illustration`}
@@ -65,9 +79,9 @@ function getIllustrationSource(name: string): any {
   // Map asset names to local requires
   // TODO(DESIGN): Replace with final illustrations
   const illustrations: Record<string, any> = {
-    'welcome.png': require('../../assets/onboarding/welcome.png'),
-    'swap-points-intro.png': require('../../assets/onboarding/swap-points-intro.png'),
-    'earning-sp.png': require('../../assets/onboarding/earning-sp.png'),
+    'welcome.png': require('../../../assets/illustrations/welcome.png'),
+    'swap-points-intro.png': require('../../../assets/illustrations/pionts.png'),
+    'onboarding-sp-earning.png': require('../../../assets/illustrations/onboarding-sp-earning.png'),
     'spending-sp.png': require('../../assets/onboarding/spending-sp.png'),
     'safety.png': require('../../assets/onboarding/safety.png'),
   };
@@ -91,10 +105,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
+    overflow: 'visible',
+  },
+  welcomeIllustrationContainer: {
+    height: 320,
+    marginBottom: 40,
   },
   illustration: {
     width: '100%',
     height: '100%',
+  },
+  welcomeIllustration: {
+    transform: [{ scale: 1.5 }],
+  },
+  pointsIllustration: {
+    transform: [{ scale: 1.2 }],
+  },
+  spEarningIllustration: {
+    transform: [{ scale: 1.35 }],
   },
   title: {
     fontSize: 24,

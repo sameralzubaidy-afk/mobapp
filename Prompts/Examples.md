@@ -56,38 +56,37 @@ Supabase: supabase/
 My Example 1
 
 
-### TASK FLOW-02: Profiles & Onboarding
+
+
+### TASK FLOW-10/11: SP Wallet
 
 I’m working on the MODULE-15.1-UI-redesign.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
-Tasks: ### TASK FLOW-02: Profiles & Onboarding
+Tasks: ### TASK FLOW-10/11: SP Wallet
 
-Scope
-
-Redesign the post-signup onboarding and profile setup screens. This flow is the first experience after account creation. The Feature Highlights carousel is the primary place where Storyset illustrations are used — it introduces app features in a clean, visual format. Profile screens adopt the same filled-input design language as auth screens.
+scope 
+Redesign the SP Wallet and Transaction History screens. The SP Wallet is the rewards hub — it must feel premium. Use gold (`#F59E0B`) consistently for all SP-related elements. Balance is the hero number — large, centered, prominent.
 
 #### Scope — Files to Modify
 
 | # | Screen | File | Change Type |
 |---|--------|------|-------------|
-| 1 | Welcome Screen | `src/screens/onboarding/WelcomeScreen.tsx` | Restyle only |
-| 2 | Profile Completion | `src/screens/onboarding/ProfileCompletionScreen.tsx` | Restyle only |
-| 3 | Feature Highlights Carousel | `src/screens/onboarding/FeatureHighlightsScreen.tsx` | Restyle + add illustrations |
-| 4 | Onboarding Carousel (Trading Ed) | `src/screens/onboarding/OnboardingScreen.tsx` | Restyle only |
-| 5 | Profile Setup | `src/screens/profile/ProfileSetupScreen.tsx` | Restyle only |
+| 1 | SP Wallet Screen | `src/screens/sp/SpWalletScreen.tsx` | Restyle only |
+| 2 | SP Transaction History | `src/screens/sp/SpTransactionHistoryScreen.tsx` | Restyle only |
 
-#### Acceptance Criteria — FLOW-02 (Visual Only)
 
-- [ ] WelcomeScreen headline is 28px semibold, centered, on white background
-- [ ] Avatar upload area is circular (120px), `#F0F0F0` background, `Camera` icon centered
-- [ ] `User`, `Camera`, `CalendarBlank` icons (Phosphor) appear on profile input screens
-- [ ] FeatureHighlightsScreen has exactly 4 slides with illustrations (or labeled placeholders)
-- [ ] Carousel pagination dots: active `#5DBB8E`, inactive `#E0E0E0`, 8px circles
-- [ ] Slide 4 shows "Get Started" button; slides 1–3 show "Next" with `CaretRight` icon
-- [ ] Button on slide 4 navigates correctly (existing nav call preserved)
-- [ ] OnboardingScreen uses large Phosphor icons (80px) as slide hero visuals — no placeholder boxes
-- [ ] All input fields on profile screens use filled style (`#F0F0F0`, 12px radius, no border)
-- [ ] All primary buttons are green pill (52px, `borderRadius: 26`)
+#### ✅ Acceptance Criteria — FLOW-10/11 (Visual Only)
+
+- [ ] Hero balance card has `#5DBB8E` background, white text, `Coins` (40px, white) above balance
+- [ ] Balance amount is 36px bold white — largest text element on screen
+- [ ] Quick action buttons are white cards with 12px radius and subtle shadow
+- [ ] SP earn rows show gold chips (`#FEF3C7` bg, `#F59E0B` text, `#F59E0B` `Coins` icon)
+- [ ] 3 lifetime stat chips shown in a row, `#F7F7F7` background
+- [ ] Transaction history tabs use `#5DBB8E` underline (no filled background)
+- [ ] Earned SP amounts show in `#5DBB8E` green with "+" prefix
+- [ ] Spent SP amounts show in `#E85D75` red with "–" prefix
+- [ ] Transaction icon circles use `#E8F5F0` background, type-specific Phosphor icon
+- [ ] Empty state shows `Coins` (64px, `#E0E0E0`)
 
 i want you to 
 

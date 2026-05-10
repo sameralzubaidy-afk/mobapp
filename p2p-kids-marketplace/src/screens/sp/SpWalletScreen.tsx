@@ -1,6 +1,6 @@
 // File: p2p-kids-marketplace/src/screens/sp/SpWalletScreen.tsx
-// MODULE-09 SP-004: SP Wallet Screen with Expiration Warnings
-// Full SP wallet UI with balance, expiring batches, and ledger history
+// MODULE-15.1 FLOW-10: SP Wallet Screen — UI Redesign (Visual Only)
+// Premium SP wallet with gold accents, hero balance card, quick actions
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -14,6 +14,16 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import {
+  Wallet,
+  Coins,
+  ArrowUp,
+  Receipt,
+  Storefront,
+  ArrowsLeftRight,
+  UserPlus,
+  TrendUp,
+} from 'phosphor-react-native';
 import {
   getWallet,
   getLedgerHistory,
@@ -133,70 +143,101 @@ export default function SpWalletScreen() {
         >
           <WalletWarningBanner walletState={walletState} />
 
-          {/* Balance Card */}
-          <View style={styles.balanceCard}>
-            <Text style={styles.balanceLabel}>Available Balance</Text>
-            <Text style={styles.balanceAmount}>{wallet.available_balance} SP</Text>
+          {/* Hero Balance Card */}
+          <View style={styles.heroCard} testID="sp-wallet-balance-card">
+            <Coins size={40} color="rgba(255,255,255,0.9)" weight="regular" />
+            <Text style={styles.balanceAmount} testID="sp-wallet-balance-amount">
+              {wallet.available_balance}
+            </Text>
+            <Text style={styles.balanceLabel}>Swap Points</Text>
+          </View>
 
-            {/* Sub-balances */}
-            <View style={styles.subBalances}>
-              <View style={styles.subBalanceItem}>
-                <Text style={styles.subBalanceLabel}>Pending</Text>
-                <Text style={styles.subBalanceValue}>{wallet.pending_balance} SP</Text>
-              </View>
-              <View style={styles.subBalanceDivider} />
-              <View style={styles.subBalanceItem}>
-                <Text style={styles.subBalanceLabel}>Lifetime Earned</Text>
-                <Text style={styles.subBalanceValue}>{wallet.lifetime_earned} SP</Text>
-              </View>
-              <View style={styles.subBalanceDivider} />
-              <View style={styles.subBalanceItem}>
-                <Text style={styles.subBalanceLabel}>Lifetime Spent</Text>
-                <Text style={styles.subBalanceValue}>{wallet.lifetime_spent} SP</Text>
+          {/* Quick Actions */}
+          <View style={styles.quickActionsRow}>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              testID="sp-wallet-redeem-btn"
+              onPress={() => {/* TODO: Navigate to redeem screen */}}
+            >
+              <ArrowUp size={24} color="#5DBB8E" weight="regular" />
+              <Text style={styles.actionLabel}>Redeem</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              testID="sp-wallet-earn-more-btn"
+              onPress={() => {/* TODO: Navigate to earn tips */}}
+            >
+              <Coins size={24} color="#F59E0B" weight="regular" />
+              <Text style={styles.actionLabel}>Earn More</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionBtn}
+              testID="sp-wallet-history-btn"
+              onPress={() => navigation.navigate('SpTransactionHistory' as any)}
+            >
+              <Receipt size={24} color="#1A1A1A" weight="regular" />
+              <Text style={styles.actionLabel}>History</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* How to Earn Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>How to Earn SP</Text>
+            <View style={styles.earnRow}>
+              <Storefront size={20} color="#5DBB8E" weight="regular" />
+              <Text style={styles.earnLabel}>Sell an item</Text>
+              <View style={styles.spacer} />
+              <View style={styles.spChip}>
+                <Coins size={12} color="#F59E0B" weight="fill" />
+                <Text style={styles.spChipText}>50-500 SP</Text>
               </View>
             </View>
-
-            {/* Expiring Soon Info */}
-            {expiringSoonTotal > 0 && (
-              <View style={styles.expiringSoonContainer}>
-                <Text style={styles.expiringSoonText}>
-                  ⚠️ {expiringSoonTotal} SP will expire in the next 30 days
-                </Text>
+            <View style={styles.earnRow}>
+              <ArrowsLeftRight size={20} color="#5DBB8E" weight="regular" />
+              <Text style={styles.earnLabel}>Complete a trade</Text>
+              <View style={styles.spacer} />
+              <View style={styles.spChip}>
+                <Coins size={12} color="#F59E0B" weight="fill" />
+                <Text style={styles.spChipText}>25 SP</Text>
               </View>
-            )}
+            </View>
+            <View style={styles.earnRow}>
+              <UserPlus size={20} color="#5DBB8E" weight="regular" />
+              <Text style={styles.earnLabel}>Refer a friend</Text>
+              <View style={styles.spacer} />
+              <View style={styles.spChip}>
+                <Coins size={12} color="#F59E0B" weight="fill" />
+                <Text style={styles.spChipText}>100 SP</Text>
+              </View>
+            </View>
           </View>
 
-          {/* Ledger History Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            {ledgerHistory.length === 0 ? (
-              <Text style={styles.emptyText}>No transactions yet</Text>
-            ) : (
-              ledgerHistory.map((entry) => (
-                <View key={entry.id} style={styles.ledgerCard}>
-                  <View style={styles.ledgerHeader}>
-                    <Text style={styles.ledgerType}>
-                      {entry.transaction_type.replace(/_/g, ' ').toUpperCase()}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.ledgerAmount,
-                        { color: entry.amount >= 0 ? '#10B981' : '#EF4444' },
-                      ]}
-                    >
-                      {entry.amount >= 0 ? '+' : ''}
-                      {entry.amount} SP
-                    </Text>
-                  </View>
-                  <Text style={styles.ledgerDescription}>{entry.description}</Text>
-                  <Text style={styles.ledgerDate}>
-                    {new Date(entry.created_at).toLocaleDateString()} at{' '}
-                    {new Date(entry.created_at).toLocaleTimeString()}
-                  </Text>
-                </View>
-              ))
-            )}
+          {/* Lifetime Stats */}
+          <View style={styles.statsRow}>
+            <View style={styles.statChip}>
+              <Text style={styles.statAmount}>{wallet.lifetime_earned}</Text>
+              <Text style={styles.statLabel}>Total Earned</Text>
+            </View>
+            <View style={styles.statChip}>
+              <Text style={styles.statAmount}>{wallet.lifetime_spent}</Text>
+              <Text style={styles.statLabel}>Total Spent</Text>
+            </View>
+            <View style={styles.statChip}>
+              <Text style={styles.statAmount}>{wallet.pending_balance}</Text>
+              <Text style={styles.statLabel}>Pending</Text>
+            </View>
           </View>
+
+          {/* Expiring Soon Alert */}
+          {expiringSoonTotal > 0 && (
+            <View style={styles.expiringAlert}>
+              <Text style={styles.expiringText}>
+                ⚠️ {expiringSoonTotal} SP will expire in 30 days
+              </Text>
+            </View>
+          )}
+
+          {/* Ledger History Section - Removed, now in separate screen */}
 
           {/* Footer Info */}
           <View style={styles.footer}>
@@ -215,38 +256,38 @@ export default function SpWalletScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: '#FFFFFF',
   },
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F0F0F0',
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#5DBB8E',
     fontWeight: '600',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   headerSpacer: {
-    width: 60, // Same width as back button to center title
+    width: 60,
   },
   scrollView: {
     flex: 1,
@@ -255,18 +296,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     padding: 24,
   },
   errorEmoji: {
@@ -276,128 +317,149 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   errorText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
   },
-  warningBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-  },
-  warningEmoji: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-  warningContent: {
-    flex: 1,
-  },
-  warningTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  warningText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  warningCta: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#007AFF',
-  },
-  balanceCard: {
-    backgroundColor: '#FFF',
-    margin: 16,
-    padding: 24,
+  // Hero Balance Card
+  heroCard: {
+    backgroundColor: '#5DBB8E',
     borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 20,
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginTop: 8,
   },
   balanceLabel: {
     fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 8,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
   },
-  balanceAmount: {
-    fontSize: 48,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  balanceValue: {
-    fontSize: 18,
-    color: '#6B7280',
+  // Quick Actions
+  quickActionsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
     marginBottom: 24,
   },
-  subBalances: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-  },
-  subBalanceItem: {
+  actionBtn: {
     flex: 1,
     alignItems: 'center',
-  },
-  subBalanceDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#E5E7EB',
-  },
-  subBalanceLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  subBalanceValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  expiringSoonContainer: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    width: '100%',
-  },
-  expiringSoonText: {
-    fontSize: 14,
-    color: '#D97706',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  section: {
-    backgroundColor: '#FFF',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
+    padding: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  actionLabel: {
+    fontSize: 12,
+    color: '#1A1A1A',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  // How to Earn Section
+  section: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 16,
   },
-  ledgerCard: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingBottom: 12,
-    marginBottom: 12,
+  earnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
+  },
+  earnLabel: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    fontWeight: '500',
+  },
+  spacer: {
+    flex: 1,
+  },
+  spChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  spChipText: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '600',
+  },
+  // Lifetime Stats
+  statsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 24,
+  },
+  statChip: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: '#F7F7F7',
+    borderRadius: 12,
+    padding: 12,
+  },
+  statAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#6B6B6B',
+    marginTop: 2,
+  },
+  // Expiring Alert
+  expiringAlert: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+    padding: 12,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+  },
+  expiringText: {
+    fontSize: 14,
+    color: '#F59E0B',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  // Footer
+  footer: {
+    padding: 20,
+    marginBottom: 80,
+  },
+  footerText: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+});
   },
   ledgerHeader: {
     flexDirection: 'row',

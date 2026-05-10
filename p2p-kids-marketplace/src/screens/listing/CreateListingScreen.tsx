@@ -20,6 +20,7 @@ import {
   Switch,
   ScrollView,
   TouchableOpacity,
+  Modal,
   Alert,
   ActivityIndicator,
   StyleSheet,
@@ -45,6 +46,7 @@ export default function CreateListingScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Form state
   const [title, setTitle] = useState('');
@@ -183,12 +185,7 @@ export default function CreateListingScreen({ navigation }: any) {
         }
       }
 
-      Alert.alert('Success', 'Listing created successfully!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      setShowSuccessModal(true);
     } catch (error: any) {
       console.error('[CreateListing] handleCreateListing error:', error);
       Alert.alert('Error', error.message || 'Failed to create listing');
@@ -206,6 +203,11 @@ export default function CreateListingScreen({ navigation }: any) {
       </View>
     );
   }
+
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    navigation.goBack();
+  };
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -326,9 +328,7 @@ export default function CreateListingScreen({ navigation }: any) {
                   <View style={styles.spToggleRow}>
                     <View style={styles.spToggleLabel}>
                       <Text style={styles.label}>Accept Swap Points?</Text>
-                      <Text style={styles.hint}>
-                        Allow buyers to pay up to 50% with Swap Points
-                      </Text>
+                      <Text style={styles.hint}>Allow buyers to pay with Swap Points</Text>
                     </View>
                     <Switch
                       value={acceptsSwapPoints}
@@ -382,6 +382,31 @@ export default function CreateListingScreen({ navigation }: any) {
           </View>
         </ScrollView>
         <BottomNavBar />
+
+        <Modal
+          visible={showSuccessModal}
+          transparent
+          animationType="fade"
+          onRequestClose={handleSuccessModalClose}
+        >
+          <View style={styles.successModalBackdrop}>
+            <View style={styles.successModalCard}>
+              <View style={styles.successIconBadge}>
+                <Text style={styles.successIconText}>✓</Text>
+              </View>
+              <Text style={styles.successModalTitle}>Listing Created</Text>
+              <Text style={styles.successModalMessage}>Your listing is now live.</Text>
+
+              <TouchableOpacity
+                style={styles.successModalButton}
+                onPress={handleSuccessModalClose}
+                testID="create-listing-success-ok"
+              >
+                <Text style={styles.successModalButtonText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );
@@ -568,6 +593,66 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  successModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.28)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  successModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 20,
+    alignItems: 'center',
+  },
+  successIconBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#E8F5F0',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  successIconText: {
+    fontSize: 28,
+    color: '#14805E',
+    fontWeight: '700',
+  },
+  successModalTitle: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  successModalMessage: {
+    marginTop: 8,
+    marginBottom: 20,
+    fontSize: 18,
+    lineHeight: 24,
+    color: '#4B5563',
+    textAlign: 'center',
+  },
+  successModalButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: 26,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successModalButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   // Navigation handled by BottomNavBar
 });

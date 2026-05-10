@@ -215,10 +215,10 @@ const styles = StyleSheet.create({
   groupCard: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: '#fff',
-    padding: 10,
-    marginBottom: 10,
+    padding: 12,
+    marginBottom: 12,
   },
   groupHeader: {
     flexDirection: 'row',
@@ -227,30 +227,34 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   groupTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   groupActions: {
     flexDirection: 'row',
     gap: 6,
   },
   actionButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     backgroundColor: '#F3F4F6',
-    borderRadius: 6,
+    borderRadius: 20,
+    justifyContent: 'center',
   },
   actionButtonText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   actionDanger: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#E85D75',
   },
   actionDangerText: {
-    color: '#B91C1C',
+    color: '#E85D75',
   },
   photoStrip: {
     gap: 8,
@@ -265,7 +269,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
   },
   tileSelected: {
-    borderColor: '#2563EB',
+    borderColor: '#5DBB8E',
   },
   tileDuplicate: {
     borderColor: '#F59E0B',
@@ -304,7 +308,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#5DBB8E',
     alignItems: 'center',
     justifyContent: 'center',
   },

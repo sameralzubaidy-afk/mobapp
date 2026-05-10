@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+import { Package } from 'phosphor-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -51,6 +52,8 @@ import { BulkPublishBar } from '../components/bulk/BulkPublishBar';
 import { BulkPublishConfirmSheet } from '../components/bulk/BulkPublishConfirmSheet';
 import { BulkFlowState, bulkListingReducer } from './bulkListingStateMachine';
 import { BulkSPSummaryCard } from '../components/bulk/BulkSPSummaryCard';
+
+const BULK_AI_ANALYSIS_BLOCKING_TIMEOUT_MS = 7000;
 
 function getMissingRequired(item: BulkEditableItem): string[] {
   const missing: string[] = [];
@@ -178,12 +181,35 @@ export default function BulkListingCreateScreen() {
   const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false);
   const [canAcceptSP, setCanAcceptSP] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
+  const [allowManualWhileAnalyzing, setAllowManualWhileAnalyzing] = useState(false);
 
   const lastSavedPayload = useRef<string>('');
   const restoringDraftRef = useRef(false);
   const attemptedRestoreRef = useRef(false);
+  const aiBlockingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const aiReviewReleasedRef = useRef(false);
+  const aiRunIdRef = useRef(0);
+
+  const clearAIBlockingTimeout = useCallback(() => {
+    if (aiBlockingTimeoutRef.current) {
+      clearTimeout(aiBlockingTimeoutRef.current);
+      aiBlockingTimeoutRef.current = null;
+    }
+  }, []);
+
+  const releaseAIReview = useCallback(() => {
+    if (aiReviewReleasedRef.current) {
+      return;
+    }
+    aiReviewReleasedRef.current = true;
+    setAllowManualWhileAnalyzing(true);
+    dispatch({ type: 'AI_DONE' });
+  }, []);
 
   const resetBulkSessionState = useCallback(() => {
+    clearAIBlockingTimeout();
+    aiRunIdRef.current += 1;
+    aiReviewReleasedRef.current = false;
     setPhotos([]);
     setGroups([]);
     setItems([]);
@@ -199,10 +225,18 @@ export default function BulkListingCreateScreen() {
     setShowConfirmSheet(false);
     setPublishErrors([]);
     setShowSubmitReviewModal(false);
+    setAllowManualWhileAnalyzing(false);
     lastSavedPayload.current = '';
     attemptedRestoreRef.current = false;
     dispatch({ type: 'RESET' });
-  }, []);
+  }, [clearAIBlockingTimeout]);
+
+  useEffect(() => {
+    return () => {
+      clearAIBlockingTimeout();
+      aiRunIdRef.current += 1;
+    };
+  }, [clearAIBlockingTimeout]);
 
   const hydrateFromDraft = useCallback(async (draft: any) => {
     const draftData = (draft?.draft_data || {}) as any;
@@ -944,41 +978,70 @@ export default function BulkListingCreateScreen() {
       return;
     }
 
+    const runId = aiRunIdRef.current + 1;
+    aiRunIdRef.current = runId;
+    aiReviewReleasedRef.current = false;
+    setAllowManualWhileAnalyzing(false);
+    clearAIBlockingTimeout();
+
     setProcessingAI(true);
     dispatch({ type: 'AI_START' });
     setItems((prev) => prev.map((it) => ({ ...it, aiState: 'analyzing', aiError: null })));
 
-    await markBulkSessionProcessing(bulkUploadId, photos.length, groups.length);
+    aiBlockingTimeoutRef.current = setTimeout(() => {
+      if (runId !== aiRunIdRef.current) {
+        return;
+      }
+      releaseAIReview();
+    }, BULK_AI_ANALYSIS_BLOCKING_TIMEOUT_MS);
 
-    await Promise.all(
-      groups.map(async (group) => {
-        const primary = group.photos[group.primaryPhotoIndex]?.uri;
-        if (!primary) {
-          applyAIToItem(group.groupId, undefined);
+    const groupsSnapshot = [...groups];
+    void (async () => {
+      try {
+        await markBulkSessionProcessing(bulkUploadId, photos.length, groupsSnapshot.length);
+
+        await Promise.all(
+          groupsSnapshot.map(async (group) => {
+            const primary = group.photos[group.primaryPhotoIndex]?.uri;
+            if (!primary) {
+              applyAIToItem(group.groupId, undefined);
+              return;
+            }
+            try {
+              const response = await analyzePhotosBatch(
+                [
+                  {
+                    groupId: group.groupId,
+                    primaryPhotoUrl: primary,
+                    allPhotoUrls: group.photos.map((p) => p.uri),
+                  },
+                ],
+                sellerId
+              );
+              const result = response.results[0];
+              applyAIToItem(group.groupId, result?.analysis);
+            } catch (error) {
+              console.warn('[BulkListing] AI failure for group', group.groupId, error);
+              applyAIToItem(group.groupId, undefined);
+            }
+          })
+        );
+      } catch (error) {
+        console.warn('[BulkListing] AI batch flow failed', error);
+      } finally {
+        if (runId !== aiRunIdRef.current) {
           return;
         }
-        try {
-          const response = await analyzePhotosBatch(
-            [
-              {
-                groupId: group.groupId,
-                primaryPhotoUrl: primary,
-                allPhotoUrls: group.photos.map((p) => p.uri),
-              },
-            ],
-            sellerId
-          );
-          const result = response.results[0];
-          applyAIToItem(group.groupId, result?.analysis);
-        } catch (error) {
-          console.warn('[BulkListing] AI failure for group', group.groupId, error);
-          applyAIToItem(group.groupId, undefined);
-        }
-      })
-    );
+        clearAIBlockingTimeout();
+        setProcessingAI(false);
+        releaseAIReview();
+      }
+    })();
+  };
 
-    setProcessingAI(false);
-    dispatch({ type: 'AI_DONE' });
+  const handleContinueWithoutAI = () => {
+    clearAIBlockingTimeout();
+    releaseAIReview();
   };
 
   const handleRetryAIForItem = async (groupId: string) => {
@@ -1053,6 +1116,9 @@ export default function BulkListingCreateScreen() {
 
   const hasSubmissionBlockingIssues =
     hasIncludedItemsWithMissingDetails || hasIncludedItemsWithoutPhoto;
+
+  const isAIAnalyzing = flowState === 'AI_ANALYZING' && processingAI;
+  const isAIAnalyzingBlocking = isAIAnalyzing && !allowManualWhileAnalyzing;
 
   const handleOpenPublishConfirm = () => {
     if (!showReviewSection) return;
@@ -1149,7 +1215,11 @@ export default function BulkListingCreateScreen() {
   }, [currentStep, photos.length, groups.length, flowState]);
 
   const handleStepPress = (step: BulkStep) => {
-    if (step === 'group' && (flowState === 'REVIEWING_ITEMS' || flowState === 'AI_ANALYZING')) {
+    if (
+      step === 'group' &&
+      !processingAI &&
+      (flowState === 'REVIEWING_ITEMS' || flowState === 'AI_ANALYZING')
+    ) {
       handleEditGrouping();
     }
   };
@@ -1192,7 +1262,7 @@ export default function BulkListingCreateScreen() {
         <Text style={styles.headerTitle}>Bulk Listing</Text>
         <View style={styles.headerRight}>
           {(processingAI || flowState === 'PUBLISHING' || uploading) && (
-            <ActivityIndicator size="small" color="#007AFF" testID="bulk-header-spinner" />
+            <ActivityIndicator size="small" color="#5DBB8E" testID="bulk-header-spinner" />
           )}
         </View>
       </View>
@@ -1204,6 +1274,13 @@ export default function BulkListingCreateScreen() {
       />
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {photos.length === 0 && (
+          <View style={styles.emptyState}>
+            <Package size={64} color="#E0E0E0" weight="regular" />
+            <Text style={styles.emptyStateText}>Add photos to get started</Text>
+          </View>
+        )}
+
         <BulkPhotoUploader
           photos={photos}
           uploading={uploading}
@@ -1283,7 +1360,8 @@ export default function BulkListingCreateScreen() {
               </Text>
               <TouchableOpacity
                 onPress={handleEditGrouping}
-                style={styles.headerActionBtn}
+                style={[styles.headerActionBtn, processingAI && styles.headerActionBtnDisabled]}
+                disabled={processingAI}
                 accessibilityLabel="Go back to grouping step"
                 testID="bulk-edit-grouping"
               >
@@ -1342,6 +1420,15 @@ export default function BulkListingCreateScreen() {
         />
       )}
 
+      {showReviewSection && processingAI && (
+        <View style={styles.aiBackgroundBanner} testID="bulk-ai-background-banner">
+          <ActivityIndicator size="small" color="#5DBB8E" />
+          <Text style={styles.aiBackgroundBannerText}>
+            AI is still analyzing photos in the background. You can continue editing now.
+          </Text>
+        </View>
+      )}
+
       {showReviewSection && (
         <BulkPublishBar
           count={includedCount}
@@ -1371,11 +1458,35 @@ export default function BulkListingCreateScreen() {
       <Modal visible={flowState === 'PUBLISHING'} animationType="fade" transparent>
         <View style={styles.processingOverlay}>
           <View style={styles.processingCard}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color="#5DBB8E" />
             <Text style={styles.processingTitle}>Submitting Items For Review...</Text>
             <Text style={styles.processingMessage}>
               Please wait. We are uploading your items and preparing them for admin review.
             </Text>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={isAIAnalyzingBlocking} animationType="fade" transparent>
+        <View style={styles.aiLoadingOverlay}>
+          <View style={styles.aiLoadingCard}>
+            <ActivityIndicator size="large" color="#5DBB8E" />
+            <Text style={styles.aiLoadingTitle}>Analyzing Item Photos...</Text>
+            <Text style={styles.aiLoadingMessage}>
+              Our AI is reviewing your grouped photos to suggest item details.
+            </Text>
+            <Text style={styles.aiLoadingHint}>
+              If this takes too long, continue manually now and we will keep analyzing in the
+              background.
+            </Text>
+            <TouchableOpacity
+              style={styles.aiContinueButton}
+              onPress={handleContinueWithoutAI}
+              accessibilityRole="button"
+              testID="bulk-ai-continue-manual-button"
+            >
+              <Text style={styles.aiContinueButtonText}>Continue Without AI</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1440,7 +1551,7 @@ export default function BulkListingCreateScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -1468,8 +1579,19 @@ const styles = StyleSheet.create({
     marginBottom: 86,
   },
   content: {
-    padding: 12,
+    padding: 16,
     paddingBottom: 80,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+  },
+  emptyStateText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: '#6B6B6B',
   },
   groupingHeader: {
     marginTop: 12,
@@ -1484,34 +1606,41 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   headerActionBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    minHeight: 40,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     backgroundColor: '#F3F4F6',
-    borderRadius: 6,
+    borderRadius: 20,
+    justifyContent: 'center',
+  },
+  headerActionBtnDisabled: {
+    opacity: 0.5,
   },
   headerActionText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   confirmBtn: {
     marginTop: 14,
-    backgroundColor: '#111827',
-    borderRadius: 12,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
     paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   confirmBtnDisabled: {
     opacity: 0.6,
   },
   confirmBtnText: {
     color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
+    fontWeight: '600',
+    fontSize: 16,
   },
   partialBanner: {
     marginTop: 10,
@@ -1532,17 +1661,17 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   instructionBanner: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#E8F5F0',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#A7F3D0',
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 12,
   },
   instructionText: {
     fontSize: 13,
-    color: '#1E40AF',
+    color: '#065F46',
     lineHeight: 18,
   },
   instructionBold: {
@@ -1605,27 +1734,102 @@ const styles = StyleSheet.create({
   },
   submitModalPrimaryButton: {
     marginTop: 8,
-    backgroundColor: '#16A34A',
-    borderRadius: 10,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   submitModalPrimaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   submitModalSecondaryButton: {
     marginTop: 10,
-    borderRadius: 10,
+    borderRadius: 24,
+    minHeight: 48,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#6B6B6B',
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   submitModalSecondaryButtonText: {
-    color: '#111827',
+    color: '#6B6B6B',
     fontSize: 15,
+    fontWeight: '500',
+  },
+  aiLoadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  aiLoadingCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  aiLoadingTitle: {
+    marginTop: 12,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  aiLoadingMessage: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#4B5563',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  aiLoadingHint: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  aiContinueButton: {
+    marginTop: 16,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 24,
+    minHeight: 44,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aiContinueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '600',
+  },
+  aiBackgroundBanner: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  aiBackgroundBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#065F46',
+    lineHeight: 16,
   },
 });

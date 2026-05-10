@@ -282,7 +282,7 @@ export default function ManageKidsClubScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading subscription details...</Text>
         </View>
       </SafeAreaView>
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
     paddingVertical: 14,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#5DBB8E',
   },
   noSubText: {
     fontSize: 16,
@@ -758,7 +758,7 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(26, 26, 26, 0.45)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -780,7 +780,7 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontSize: 15,
-    color: '#666',
+    color: '#6B6B6B',
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 22,
@@ -798,8 +798,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
   },
   reasonItemSelected: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#007AFF',
+    backgroundColor: '#E8F5F0',
+    borderColor: '#5DBB8E',
     borderWidth: 1,
   },
   radioButton: {
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#5DBB8E',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -816,7 +816,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
   },
   reasonText: {
     fontSize: 15,
@@ -824,9 +824,11 @@ const styles = StyleSheet.create({
   },
   customReasonInput: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 10,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
     padding: 12,
+    backgroundColor: '#F0F0F0',
+    color: '#1A1A1A',
     marginTop: 12,
     minHeight: 80,
     textAlignVertical: 'top',
@@ -840,14 +842,17 @@ const styles = StyleSheet.create({
   modalCancelBtn: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: '#f0f0f0',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modalCancelBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#5DBB8E',
   },
   modalConfirmBtn: {
     flex: 1,
@@ -859,7 +864,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalConfirmBtnDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#CCCCCC',
   },
   modalConfirmBtnText: {
     fontSize: 13,

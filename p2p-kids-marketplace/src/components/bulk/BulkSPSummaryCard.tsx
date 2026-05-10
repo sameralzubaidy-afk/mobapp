@@ -14,6 +14,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { CaretDown, CaretRight, Info, ListBullets } from 'phosphor-react-native';
 import { useCategorySPCache } from '../../hooks/useCategorySPCache';
 import { calculateBulkTotalSP, formatSP, formatMultiplier } from '../../utils/spCalculations';
 import { SPInfoTooltip } from '../modals/SPInfoTooltip';
@@ -107,7 +108,7 @@ export function BulkSPSummaryCard({
     return (
       <View style={styles.container} testID={testID}>
         <View style={styles.header}>
-          <Text style={styles.headerIcon}>📊</Text>
+          <ListBullets size={30} color="#5DBB8E" weight="duotone" style={styles.headerIcon} />
           <Text style={styles.headerTitle}>Bulk Listing SP Summary</Text>
           <TouchableOpacity
             onPress={() => setShowTooltip(true)}
@@ -116,7 +117,7 @@ export function BulkSPSummaryCard({
             testID="sp-info-icon"
           >
             <View style={styles.infoIcon}>
-              <Text style={styles.infoIconText}>i</Text>
+              <Info size={12} color="#FFFFFF" weight="bold" />
             </View>
           </TouchableOpacity>
         </View>
@@ -180,7 +181,7 @@ export function BulkSPSummaryCard({
     <View style={styles.container} testID={testID}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerIcon}>📊</Text>
+        <ListBullets size={30} color="#5DBB8E" weight="duotone" style={styles.headerIcon} />
         <Text style={styles.headerTitle}>Bulk Listing SP Summary</Text>
         <TouchableOpacity
           onPress={() => setShowTooltip(true)}
@@ -189,7 +190,7 @@ export function BulkSPSummaryCard({
           testID="sp-info-icon"
         >
           <View style={styles.infoIcon}>
-            <Text style={styles.infoIconText}>i</Text>
+            <Info size={12} color="#FFFFFF" weight="bold" />
           </View>
         </TouchableOpacity>
       </View>
@@ -245,9 +246,14 @@ export function BulkSPSummaryCard({
           accessibilityRole="button"
           testID="breakdown-toggle"
         >
-          <Text style={styles.breakdownToggleText}>
-            {showBreakdown ? '▼' : '▶'} Per-category breakdown
-          </Text>
+          <View style={styles.breakdownToggleRow}>
+            {showBreakdown ? (
+              <CaretDown size={16} color="#047857" weight="bold" />
+            ) : (
+              <CaretRight size={16} color="#047857" weight="bold" />
+            )}
+            <Text style={styles.breakdownToggleText}>Per-category breakdown</Text>
+          </View>
         </TouchableOpacity>
       )}
 
@@ -314,12 +320,12 @@ export function BulkSPSummaryCard({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F0F7FF',
+    backgroundColor: '#F5FAF7',
     borderRadius: 12,
     padding: 16,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#A7F3D0',
   },
   loadingText: {
     fontSize: 14,
@@ -335,7 +341,7 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#6B6B6B',
     textAlign: 'center',
     paddingVertical: 12,
   },
@@ -345,31 +351,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   headerIcon: {
-    fontSize: 24,
-    marginRight: 8,
+    marginRight: 10,
   },
   headerTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#000000',
+    fontWeight: '700',
+    color: '#1A1A1A',
     flex: 1,
   },
   infoIcon: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  infoIconText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
   divider: {
     height: 1,
-    backgroundColor: '#D0D0D0',
+    backgroundColor: '#D1D5DB',
     marginBottom: 12,
   },
   row: {
@@ -387,22 +387,22 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#333333',
+    color: '#374151',
   },
   labelBold: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
   },
   value: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333333',
+    color: '#374151',
   },
   valueHighlight: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#5DBB8E',
   },
   textGrayed: {
     color: '#999999',
@@ -410,10 +410,15 @@ const styles = StyleSheet.create({
   breakdownToggle: {
     paddingVertical: 8,
   },
+  breakdownToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   breakdownToggleText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#007AFF',
+    color: '#047857',
   },
   breakdownContainer: {
     backgroundColor: '#FFFFFF',
@@ -422,8 +427,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   notAcceptingContainer: {
-    backgroundColor: '#FFF6E5',
-    borderColor: '#F6C26B',
+    backgroundColor: '#FFF7E6',
+    borderColor: '#F2C66D',
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: 10,
@@ -443,7 +448,7 @@ const styles = StyleSheet.create({
   },
   breakdownCategory: {
     fontSize: 13,
-    color: '#333333',
+    color: '#374151',
     flex: 1,
   },
   breakdownRight: {
@@ -453,7 +458,7 @@ const styles = StyleSheet.create({
   breakdownSP: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#047857',
     marginRight: 6,
   },
   breakdownMultiplier: {
@@ -478,11 +483,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   upgradeButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 12,
   },
   upgradeButtonText: {
@@ -493,7 +500,7 @@ const styles = StyleSheet.create({
   confirmationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#D4EDDA',
+    backgroundColor: '#E8F5F0',
     borderRadius: 8,
     padding: 12,
     marginTop: 12,
@@ -504,7 +511,7 @@ const styles = StyleSheet.create({
   },
   confirmationText: {
     fontSize: 13,
-    color: '#155724',
+    color: '#065F46',
     flex: 1,
   },
 });

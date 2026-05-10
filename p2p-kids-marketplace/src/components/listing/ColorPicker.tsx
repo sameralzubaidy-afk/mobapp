@@ -71,8 +71,8 @@ export function ColorPicker({
                   styles.swatchInner,
                   {
                     backgroundColor: isMulticolor ? '#FFFFFF' : color.hex,
-                    borderWidth: color.id === 'white' || isMulticolor ? 1 : 0,
-                    borderColor: '#E0E0E0',
+                    borderWidth: isSelected ? 2 : color.id === 'white' || isMulticolor ? 1 : 0,
+                    borderColor: isSelected ? '#5DBB8E' : '#E0E0E0',
                   },
                 ]}
               >
@@ -119,13 +119,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
   },
   count: {
     fontSize: 14,
-    color: '#666666',
+    color: '#6B6B6B',
   },
   grid: {
     flexDirection: 'row',
@@ -138,12 +138,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   swatchSelected: {
-    transform: [{ scale: 1.05 }],
+    transform: [{ scale: 1.03 }],
   },
   swatchInner: {
     width: '100%',
     height: '80%',
-    borderRadius: 8,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -161,30 +161,27 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   checkMark: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#4CAF50',
+    color: '#5DBB8E',
   },
   swatchLabel: {
-    fontSize: 12,
-    color: '#666666',
+    fontSize: 11,
+    color: '#6B6B6B',
     marginTop: 4,
     textAlign: 'center',
   },
   limitText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#666666',
+    color: '#6B6B6B',
     textAlign: 'center',
   },
 });

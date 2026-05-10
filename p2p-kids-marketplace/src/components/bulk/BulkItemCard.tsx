@@ -9,6 +9,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import { CaretDown, CaretUp } from 'phosphor-react-native';
 import { Condition } from '../../types/listing';
 import { ConditionSelector } from '../listing/ConditionSelector';
 import { ColorPicker } from '../listing/ColorPicker';
@@ -169,7 +170,13 @@ export function BulkItemCard({
             )}
           </View>
         </View>
-        <Text style={styles.expandIcon}>{expanded ? '▲' : '▼'}</Text>
+        <View style={styles.expandIconWrap}>
+          {expanded ? (
+            <CaretUp size={22} color="#6B7280" weight="bold" />
+          ) : (
+            <CaretDown size={22} color="#6B7280" weight="bold" />
+          )}
+        </View>
       </TouchableOpacity>
 
       <View style={styles.includeRow}>
@@ -272,12 +279,12 @@ export function BulkItemCard({
                 <View style={styles.paymentToggleRow}>
                   <View style={styles.paymentToggleTextWrap}>
                     <Text style={styles.paymentToggleLabel}>Accept Swap Points?</Text>
-                    <Text style={styles.paymentHint}>Buyers can pay up to 50% with SP</Text>
+                    <Text style={styles.paymentHint}>Buyers can pay with SP</Text>
                   </View>
                   <Switch
                     value={Boolean(item.accepts_swap_points)}
                     onValueChange={(accepts_swap_points) => onChange({ accepts_swap_points })}
-                    trackColor={{ false: '#ccc', true: '#34C759' }}
+                    trackColor={{ false: '#ccc', true: '#5DBB8E' }}
                     thumbColor="#fff"
                     testID={`bulk-item-sp-toggle-${index}`}
                   />
@@ -333,16 +340,16 @@ export function BulkItemCard({
 const styles = StyleSheet.create({
   card: {
     width: '100%',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#fff',
-    padding: 10,
-    marginBottom: 10,
+    padding: 14,
+    marginBottom: 12,
   },
   warningCard: {
-    borderColor: '#F59E0B',
-    backgroundColor: '#FFFBEB',
+    borderColor: '#F2C66D',
+    backgroundColor: '#FFFDF7',
   },
   excludedCard: {
     opacity: 0.6,
@@ -372,12 +379,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   meta: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#6B7280',
     marginTop: 2,
   },
@@ -387,9 +394,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  expandIcon: {
-    fontSize: 14,
-    color: '#4B5563',
+  expandIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
   },
   includeRow: {
     marginTop: 8,
@@ -399,56 +410,59 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   includeLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#374151',
+    fontWeight: '500',
   },
   form: {
     maxHeight: 480,
   },
   fieldLabel: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 6,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    borderWidth: 0,
+    borderRadius: 12,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 8,
-    backgroundColor: '#fff',
+    backgroundColor: '#F0F0F0',
+    color: '#1A1A1A',
+    fontSize: 16,
   },
   textArea: {
-    minHeight: 70,
+    minHeight: 110,
     textAlignVertical: 'top',
   },
   select: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    borderWidth: 0,
+    borderRadius: 12,
+    minHeight: 52,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 8,
-    backgroundColor: '#fff',
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
   },
   selectText: {
-    color: '#111827',
-    fontSize: 13,
+    color: '#1A1A1A',
+    fontSize: 16,
   },
   paymentSection: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    padding: 10,
+    borderWidth: 0,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    padding: 12,
     marginBottom: 10,
   },
   paymentTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   paymentToggleRow: {
@@ -461,13 +475,13 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   paymentToggleLabel: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 2,
   },
   paymentHint: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6B7280',
   },
   spEligibleBadge: {
@@ -487,16 +501,18 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   upgradeButton: {
-    backgroundColor: '#FF9800',
-    borderRadius: 6,
-    paddingVertical: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 24,
+    minHeight: 48,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     alignSelf: 'flex-start',
+    justifyContent: 'center',
   },
   upgradeButtonText: {
     color: '#fff',
-    fontWeight: '700',
-    fontSize: 12,
+    fontWeight: '600',
+    fontSize: 14,
   },
   warningText: {
     marginTop: 4,
@@ -552,9 +568,9 @@ const styles = StyleSheet.create({
     color: '#047857',
   },
   retryBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: '#111827',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#5DBB8E',
     borderRadius: 999,
   },
   retryBtnText: {

@@ -166,7 +166,7 @@ describe('DeepLink Service', () => {
         expect(result?.route).toBe('TradeList');
       });
 
-      it('should parse trade_request to TradeDetail with tradeId', () => {
+      it('should parse trade_request to TradeReview with tradeId', () => {
         const data: NotificationDeepLinkData = {
           type: 'trade_request',
           trade_id: 'trade-123',
@@ -175,8 +175,21 @@ describe('DeepLink Service', () => {
         const result = parseNotificationDeepLink(data);
 
         expect(result).not.toBeNull();
-        expect(result?.route).toBe('TradeDetail');
+        expect(result?.route).toBe('TradeReview');
         expect(result?.params).toEqual({ tradeId: 'trade-123' });
+      });
+
+      it('should prefer TradeReview for trade_request even with /trade/:id deep link', () => {
+        const data: NotificationDeepLinkData = {
+          type: 'trade_request',
+          deep_link: '/trade/trade-xyz-789',
+        };
+
+        const result = parseNotificationDeepLink(data);
+
+        expect(result).not.toBeNull();
+        expect(result?.route).toBe('TradeReview');
+        expect(result?.params).toEqual({ tradeId: 'trade-xyz-789' });
       });
 
       it('should parse trade_accepted with tradeId param', () => {

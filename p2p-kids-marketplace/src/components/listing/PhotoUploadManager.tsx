@@ -11,6 +11,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, FlatList, StyleSheet } from 'react-native';
+import { Camera } from 'phosphor-react-native';
 import { PhotoAsset } from '../../types/listing';
 
 export interface PhotoUploadManagerProps {
@@ -31,13 +32,62 @@ export function PhotoUploadManager({
   testID = 'photo-upload-manager',
 }: PhotoUploadManagerProps) {
   const canAddMore = photos.length < maxPhotos;
+  const visibleAddSlots = canAddMore ? Math.min(maxPhotos - photos.length, 3) : 0;
 
-  const renderPhotoItem = ({ item, index }: { item: PhotoAsset; index: number }) => {
-    const isCover = index === 0;
+  const gridItems: (
+    | { kind: 'photo'; key: string; photo: PhotoAsset; photoIndex: number }
+    | { kind: 'add'; key: string; slotIndex: number }
+  )[] = [
+    ...photos.map((photo, index) => ({
+      kind: 'photo' as const,
+      key: photo.id,
+      photo,
+      photoIndex: index,
+    })),
+    ...Array.from({ length: visibleAddSlots }, (_, index) => ({
+      kind: 'add' as const,
+      key: `add-slot-${index}`,
+      slotIndex: index,
+    })),
+  ];
+
+  const renderGridItem = ({
+    item,
+  }: {
+    item:
+      | { kind: 'photo'; key: string; photo: PhotoAsset; photoIndex: number }
+      | { kind: 'add'; key: string; slotIndex: number };
+  }) => {
+    if (item.kind === 'add') {
+      const isPrimaryAddSlot = item.slotIndex === 0;
+
+      return (
+        <TouchableOpacity
+          style={styles.emptySlot}
+          onPress={onAddPhotos}
+          accessibilityLabel={isPrimaryAddSlot ? 'Add photos' : undefined}
+          accessibilityHint={
+            isPrimaryAddSlot ? `You can add ${maxPhotos - photos.length} more photos` : undefined
+          }
+          accessibilityRole="button"
+          accessible={isPrimaryAddSlot}
+          testID={isPrimaryAddSlot ? 'add-photos-button' : `photo-slot-empty-${item.slotIndex}`}
+        >
+          <Camera
+            size={32}
+            color="#6B6B6B"
+            weight="regular"
+            testID={isPrimaryAddSlot ? 'camera-icon-photo-slot' : undefined}
+          />
+        </TouchableOpacity>
+      );
+    }
+
+    const isCover = item.photoIndex === 0;
 
     return (
-      <View style={styles.photoItem}>
-        <Image source={{ uri: item.uri }} style={styles.photo} />
+      <View style={styles.photoItem} testID={`photo-slot-filled-${item.photoIndex}`}>
+        <Image source={{ uri: item.photo.uri }} style={styles.photo} />
         {isCover && (
           <View style={styles.coverBadge}>
             <Text style={styles.coverText}>Cover</Text>
@@ -45,10 +95,10 @@ export function PhotoUploadManager({
         )}
         <TouchableOpacity
           style={styles.removeButton}
-          onPress={() => onRemovePhoto(item.id)}
-          accessibilityLabel={`Remove photo ${index + 1}`}
+          onPress={() => onRemovePhoto(item.photo.id)}
+          accessibilityLabel={`Remove photo ${item.photoIndex + 1}`}
           accessibilityRole="button"
-          testID={`remove-photo-${item.id}`}
+          testID={`remove-photo-${item.photo.id}`}
         >
           <Text style={styles.removeText}>✕</Text>
         </TouchableOpacity>
@@ -58,37 +108,24 @@ export function PhotoUploadManager({
 
   return (
     <View style={styles.container} testID={testID}>
-      <Text style={styles.title}>Photos *</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Photos *</Text>
+        <Text style={styles.photoCount}>({photos.length}/{maxPhotos} photos)</Text>
+      </View>
       <Text style={styles.subtitle}>
         Add up to {maxPhotos} photos. First photo will be your cover image.
       </Text>
 
       <View style={styles.gridContainer}>
         <FlatList
-          data={photos}
-          renderItem={renderPhotoItem}
-          keyExtractor={(item) => item.id}
+          data={gridItems}
+          renderItem={renderGridItem}
+          keyExtractor={(item) => item.key}
           numColumns={3}
           contentContainerStyle={styles.grid}
           scrollEnabled={false}
         />
       </View>
-
-      {canAddMore && (
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={onAddPhotos}
-          accessibilityLabel="Add photos"
-          accessibilityHint={`You can add ${maxPhotos - photos.length} more photos`}
-          accessibilityRole="button"
-          testID="add-photos-button"
-        >
-          <Text style={styles.addButtonText}>+ Add Photos</Text>
-          <Text style={styles.addButtonHint}>
-            ({photos.length}/{maxPhotos} photos)
-          </Text>
-        </TouchableOpacity>
-      )}
 
       {photos.length >= maxPhotos && (
         <Text style={styles.maxPhotosText}>Maximum {maxPhotos} photos reached</Text>
@@ -99,27 +136,38 @@ export function PhotoUploadManager({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
     marginBottom: 16,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
-    marginBottom: 4,
+    color: '#1A1A1A',
+  },
+  photoCount: {
+    fontSize: 14,
+    color: '#6B6B6B',
+    fontWeight: '500',
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666666',
+    fontSize: 16,
+    color: '#6B6B6B',
+    lineHeight: 24,
     marginBottom: 16,
   },
   gridContainer: {
     marginBottom: 16,
   },
   grid: {
-    gap: 8,
+    gap: 10,
   },
   photoItem: {
     width: '31%',
@@ -130,6 +178,19 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#F5F5F5',
     position: 'relative',
+  },
+  emptySlot: {
+    width: '31%',
+    aspectRatio: 1,
+    marginBottom: 8,
+    marginRight: '2.5%',
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   photo: {
     width: '100%',
@@ -165,23 +226,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFFFFF',
     fontWeight: '600',
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  addButtonHint: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    marginTop: 4,
-    opacity: 0.8,
   },
   maxPhotosText: {
     fontSize: 14,

@@ -11,6 +11,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Camera } from 'phosphor-react-native';
 import { Condition } from '../../types/listing';
 
 const CONDITIONS: { value: Condition; label: string; description: string }[] = [
@@ -51,7 +52,7 @@ export function ConditionSelector({
               accessibilityState={{ checked: isSelected }}
               testID={`condition-${condition.value}`}
             >
-              <View style={styles.radio}>
+              <View style={[styles.radio, isSelected && styles.radioActive]}>
                 {isSelected && <View style={styles.radioSelected} />}
               </View>
 
@@ -68,7 +69,12 @@ export function ConditionSelector({
               accessibilityRole="button"
               testID={`guide-${condition.value}`}
             >
-              <Text style={styles.guideButtonText}>📸</Text>
+              <Camera
+                size={20}
+                color="#6B6B6B"
+                weight="regular"
+                testID={`guide-icon-${condition.value}`}
+              />
             </TouchableOpacity>
           </View>
         );
@@ -79,16 +85,16 @@ export function ConditionSelector({
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    paddingHorizontal: 0,
+    paddingVertical: 8,
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
     marginBottom: 16,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
-    marginBottom: 16,
+    color: '#1A1A1A',
+    marginBottom: 12,
   },
   row: {
     flexDirection: 'row',
@@ -108,16 +114,19 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#007AFF',
+    borderColor: '#6B6B6B',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  radioActive: {
+    borderColor: '#5DBB8E',
   },
   radioSelected: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
   },
   labelContainer: {
     flex: 1,
@@ -125,20 +134,19 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   description: {
     fontSize: 14,
-    color: '#666666',
+    color: '#6B6B6B',
   },
   guideButton: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  guideButtonText: {
-    fontSize: 24,
   },
 });

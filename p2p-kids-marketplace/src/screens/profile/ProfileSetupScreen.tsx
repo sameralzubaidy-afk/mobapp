@@ -27,6 +27,8 @@ export default function ProfileSetupScreen({ navigation }: any) {
 
   const [displayName, setDisplayName] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
   const [bio, setBio] = useState('');
   const [localImageUri, setLocalImageUri] = useState<string | null>(null);
 
@@ -36,6 +38,32 @@ export default function ProfileSetupScreen({ navigation }: any) {
     // RootNavigator owns first-run onboarding gating. After profile setup,
     // refresh auth context and let RootNavigator route to EDU carousel/Home.
     await refreshSession(false);
+  };
+
+  const handleZipCodeChange = async (zip: string) => {
+    setZipCode(zip);
+
+    // Auto-lookup city and state when ZIP is 5 digits
+    if (zip.length === 5) {
+      try {
+        const response = await fetch(`https://api.zippopotam.us/us/${zip}`);
+        if (response.ok) {
+          const data = await response.json();
+          setCity(data.places[0]['place name']);
+          setState(data.places[0]['state abbreviation']);
+        } else {
+          setCity('');
+          setState('');
+        }
+      } catch (error) {
+        console.error('ZIP lookup error:', error);
+        setCity('');
+        setState('');
+      }
+    } else {
+      setCity('');
+      setState('');
+    }
   };
 
   const validateForm = (): boolean => {
@@ -291,7 +319,7 @@ export default function ProfileSetupScreen({ navigation }: any) {
             style={styles.input}
             placeholder="Enter your 5-digit zip code"
             value={zipCode}
-            onChangeText={setZipCode}
+            onChangeText={handleZipCodeChange}
             placeholderTextColor="#999999"
             keyboardType="number-pad"
             maxLength={5}
@@ -301,6 +329,11 @@ export default function ProfileSetupScreen({ navigation }: any) {
         {errors.zipCode && (
           <Text style={styles.errorText} testID="zip-code-error">
             {errors.zipCode}
+          </Text>
+        )}
+        {city && state && (
+          <Text style={styles.cityState} testID="city-state-display">
+            📍 {city}, {state}
           </Text>
         )}
         <Text style={styles.helpText}>We'll assign you to your nearest community node</Text>
@@ -428,6 +461,12 @@ const styles = StyleSheet.create({
     color: '#E85D75',
     fontSize: 14,
     marginTop: 4,
+  },
+  cityState: {
+    color: '#5DBB8E',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 8,
   },
   helpText: {
     color: '#999999',

@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
   },
   closeButton: {
     fontSize: 36,
@@ -263,9 +263,10 @@ const styles = StyleSheet.create({
   searchInput: {
     margin: 16,
     padding: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 12,
     fontSize: 16,
+    color: '#1A1A1A',
   },
   recentSection: {
     paddingHorizontal: 16,
@@ -274,7 +275,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#666666',
+    color: '#6B6B6B',
     marginBottom: 12,
   },
   recentList: {
@@ -285,12 +286,12 @@ const styles = StyleSheet.create({
   recentChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#E8F5F0',
     borderRadius: 16,
   },
   recentChipText: {
     fontSize: 14,
-    color: '#1976D2',
+    color: '#5DBB8E',
     fontWeight: '500',
   },
   listContent: {
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontSize: 16,
-    color: '#000000',
+    color: '#1A1A1A',
   },
   categoryTextRow: {
     flexDirection: 'row',
@@ -343,10 +344,12 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 16,
     right: 16,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
     padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   otherButtonText: {
     fontSize: 16,
@@ -359,19 +362,20 @@ const styles = StyleSheet.create({
   otherLabel: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 12,
   },
   otherInput: {
     padding: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 12,
     fontSize: 16,
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   otherHint: {
     fontSize: 14,
-    color: '#666666',
+    color: '#6B6B6B',
     marginBottom: 24,
   },
   otherActions: {
@@ -381,21 +385,25 @@ const styles = StyleSheet.create({
   otherCancelButton: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    borderRadius: 24,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   otherCancelText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#666666',
+    fontWeight: '500',
+    color: '#5DBB8E',
   },
   otherSubmitButton: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   otherSubmitButtonDisabled: {
     backgroundColor: '#E0E0E0',

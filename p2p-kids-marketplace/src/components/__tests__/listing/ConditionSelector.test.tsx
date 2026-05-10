@@ -118,13 +118,16 @@ describe('ConditionSelector', () => {
       expect(mockOnOpenGuide).toHaveBeenCalledTimes(3);
     });
 
-    it('displays camera emoji in guide buttons', () => {
-      const { getAllByText } = render(
+    it('displays camera guide icons for each condition', () => {
+      const { getByTestId } = render(
         <ConditionSelector value={null} onChange={mockOnChange} onOpenGuide={mockOnOpenGuide} />
       );
 
-      const cameraButtons = getAllByText('📸');
-      expect(cameraButtons.length).toBe(5);
+      expect(getByTestId('guide-icon-new')).toBeTruthy();
+      expect(getByTestId('guide-icon-like_new')).toBeTruthy();
+      expect(getByTestId('guide-icon-good')).toBeTruthy();
+      expect(getByTestId('guide-icon-fair')).toBeTruthy();
+      expect(getByTestId('guide-icon-worn')).toBeTruthy();
     });
   });
 

@@ -124,24 +124,24 @@ function Step({ n, title, body }: { n: string; title: string; body: string }) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,42,0.55)',
+    backgroundColor: 'rgba(26, 26, 26, 0.45)',
     justifyContent: 'center',
     padding: 16,
   },
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 18,
+    padding: 20,
   },
   title: {
     fontSize: 20,
     fontWeight: '800',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   subtitle: {
     marginTop: 4,
-    color: '#4B5563',
-    fontSize: 13,
+    color: '#6B6B6B',
+    fontSize: 14,
     marginBottom: 12,
   },
   stepRow: {
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#5DBB8E',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -170,23 +170,25 @@ const styles = StyleSheet.create({
   stepTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   stepBody: {
-    fontSize: 13,
-    color: '#4B5563',
+    fontSize: 14,
+    color: '#6B6B6B',
     marginTop: 1,
   },
   dismiss: {
     marginTop: 14,
-    backgroundColor: '#111827',
-    borderRadius: 12,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   dismissText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

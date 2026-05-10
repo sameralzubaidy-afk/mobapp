@@ -238,9 +238,15 @@ export function parseNotificationDeepLink(
     return null;
   }
 
+  const notificationType = type || event;
+
   // Enrich target with entity-specific params
   if (tradeId) {
-    if (target.route === 'TradeList') {
+    // Incoming offer notifications should open seller review flow directly.
+    if (notificationType === 'trade_request') {
+      target.route = 'TradeReview';
+      target.params = { tradeId };
+    } else if (target.route === 'TradeList') {
       // If we have a specific trade ID, navigate to detail instead
       target.route = 'TradeDetail';
       target.params = { tradeId };
@@ -274,6 +280,17 @@ export function parseNotificationDeepLink(
 
   if (userId && target.route === 'Profile') {
     target.params = { ...(target.params || {}), userId };
+  }
+
+  // Handle trade_request payloads where tradeId exists only in deep_link path.
+  if (notificationType === 'trade_request' && target.route === 'TradeDetail') {
+    const targetTradeId =
+      typeof target.params?.tradeId === 'string' ? (target.params.tradeId as string) : null;
+
+    if (targetTradeId) {
+      target.route = 'TradeReview';
+      target.params = { tradeId: targetTradeId };
+    }
   }
 
   return target;

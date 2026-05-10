@@ -1,0 +1,97 @@
+# FLOW: flow-06-bootstrap
+# Purpose: Bootstrap for FLOW-06 (Discovery).
+# Key difference from auth-bootstrap-expo.yaml: NO stopApp.
+# After FLOW-01 and FLOW-02 ran, Expo Go is already running and the Metro
+# bundle is loaded in memory. Killing and restarting Expo causes a cold
+# rebundle that takes 2-5 minutes and produces a blank white screen.
+# Instead we just bring the app to the foreground and reopen the deeplink.
+
+appId: host.exp.exponent
+---
+
+# Bring Expo Go to the foreground (starts it if not already running).
+- launchApp
+- waitForAnimationToEnd
+
+# Reload the project via deeplink.
+- openLink: exp://127.0.0.1:8081
+- waitForAnimationToEnd
+
+# If Expo shows the crash page, use coordinate taps + deeplink retry.
+# Screenshot analysis: Reload icon ~66%,62% | Home icon ~33%,62% on Medium_Phone_API_36
+- runFlow:
+    when:
+      visible:
+        text: Something went wrong.
+    commands:
+      # Attempt 1: Tap the Reload icon (right icon on error screen)
+      - tapOn:
+          point: "66%,62%"
+      - waitForAnimationToEnd
+
+      # Attempt 2: Still stuck → tap Home icon to go back to Expo Home
+      - runFlow:
+          when:
+            visible:
+              text: Something went wrong.
+          commands:
+            - tapOn:
+                point: "33%,62%"
+            - waitForAnimationToEnd
+
+      # Attempt 3: Force deeplink reopen
+      - runFlow:
+          when:
+            visible:
+              text: Something went wrong.
+          commands:
+            - openLink: exp://127.0.0.1:8081
+            - waitForAnimationToEnd
+
+      - runFlow:
+          when:
+            visible:
+              text: p2p-kids-marketplace
+          commands:
+            - tapOn:
+                text: p2p-kids-marketplace
+            - waitForAnimationToEnd
+
+      - waitForAnimationToEnd
+
+# Second pass: repeat recovery in case first pass left app mid-transition.
+- runFlow:
+    when:
+      visible:
+        text: Something went wrong.
+    commands:
+      - openLink: exp://127.0.0.1:8081
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              text: p2p-kids-marketplace
+          commands:
+            - tapOn:
+                text: p2p-kids-marketplace
+            - waitForAnimationToEnd
+
+# If Expo Go bounced back to its own project list, tap the project entry.
+- runFlow:
+    when:
+      visible:
+        text: p2p-kids-marketplace
+    commands:
+      - tapOn:
+          text: p2p-kids-marketplace
+      - waitForAnimationToEnd
+
+# iOS credential-save sheet (Android equivalent: "Save Password?")
+- runFlow:
+    when:
+      visible:
+        text: Save Password?
+    commands:
+      - tapOn:
+          text: Not Now
+      - waitForAnimationToEnd

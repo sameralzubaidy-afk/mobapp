@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { WarningCircle } from 'phosphor-react-native';
 import { PhotoAsset } from '../../types/listing';
 
 interface BulkPhotoUploaderProps {
@@ -60,17 +61,24 @@ export function BulkPhotoUploader({
 
       {uploading && (
         <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color="#007AFF" />
+          <ActivityIndicator size="small" color="#5DBB8E" />
           <Text style={styles.loadingText}>Uploading photos…</Text>
         </View>
       )}
 
       {duplicateCount > 0 && (
         <View style={styles.dupBanner} testID="bulk-duplicate-warning">
-          <Text style={styles.dupText}>
-            ⚠️ {duplicateCount} possible duplicate photo{duplicateCount === 1 ? '' : 's'} detected.
-            Tap to review.
-          </Text>
+          <View style={styles.dupRow}>
+            <View style={styles.dupIconWrap}>
+              <WarningCircle size={16} color="#B45309" weight="fill" />
+            </View>
+            <Text style={styles.dupText}>
+              <Text style={styles.dupTextStrong}>
+                {duplicateCount} possible duplicate photo{duplicateCount === 1 ? '' : 's'} detected.
+              </Text>{' '}
+              Review highlighted photos below.
+            </Text>
+          </View>
         </View>
       )}
     </View>
@@ -94,40 +102,42 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   counter: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#6B7280',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   pickButton: {
-    backgroundColor: '#111827',
-    borderRadius: 10,
-    paddingVertical: 12,
+    minHeight: 52,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   addMoreButton: {
-    borderRadius: 10,
-    paddingVertical: 10,
+    minHeight: 48,
+    borderRadius: 24,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#111827',
-    backgroundColor: '#fff',
+    borderColor: '#6B6B6B',
+    backgroundColor: 'transparent',
   },
   addMoreText: {
-    color: '#111827',
-    fontWeight: '700',
-    fontSize: 14,
+    color: '#6B6B6B',
+    fontWeight: '500',
+    fontSize: 15,
   },
   disabledButton: {
     opacity: 0.5,
   },
   pickButtonText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
   },
   loadingRow: {
     marginTop: 10,
@@ -141,16 +151,33 @@ const styles = StyleSheet.create({
   },
   dupBanner: {
     marginTop: 10,
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    backgroundColor: '#FFFAEB',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#FCD34D',
+    borderColor: '#FDE68A',
+  },
+  dupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dupIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF3C7',
   },
   dupText: {
-    fontSize: 12,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
     color: '#92400E',
-    fontWeight: '600',
+  },
+  dupTextStrong: {
+    fontWeight: '700',
   },
 });

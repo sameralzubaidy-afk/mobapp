@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
   },
   closeButton: {
     fontSize: 36,
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#666666',
+    color: '#6B6B6B',
     marginBottom: 24,
     lineHeight: 24,
   },
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: 8,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F0F0F0',
   },
   imageCaption: {
     fontSize: 14,
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   tipsTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 12,
   },
   tipRow: {
@@ -231,14 +231,14 @@ const styles = StyleSheet.create({
   },
   tipBullet: {
     fontSize: 16,
-    color: '#007AFF',
+    color: '#5DBB8E',
     marginRight: 8,
     marginTop: 2,
   },
   tipText: {
     flex: 1,
     fontSize: 16,
-    color: '#333333',
+    color: '#1A1A1A',
     lineHeight: 24,
   },
   noteSection: {
@@ -250,12 +250,12 @@ const styles = StyleSheet.create({
   noteTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   noteText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#6B6B6B',
     lineHeight: 20,
   },
   doneButton: {
@@ -263,10 +263,12 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 16,
     right: 16,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
     padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   doneButtonText: {
     fontSize: 16,

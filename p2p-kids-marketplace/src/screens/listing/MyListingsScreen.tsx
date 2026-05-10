@@ -27,6 +27,7 @@ import {
   Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { DotsThree, PencilSimple, Storefront, Trash } from 'phosphor-react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyListings, getListingSummary, deleteListing } from '../../services/listing';
 import { getActiveDrafts, deleteDraft } from '../../services/draftService';
@@ -47,6 +48,9 @@ export default function MyListingsScreen({ navigation }: any) {
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
   const [selectedTab, setSelectedTab] = useState<TabType>('listings');
   const [isFABSheetVisible, setIsFABSheetVisible] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalTitle, setSuccessModalTitle] = useState('Success');
+  const [successModalMessage, setSuccessModalMessage] = useState('Action completed successfully.');
 
   const loadListings = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -107,7 +111,9 @@ export default function MyListingsScreen({ navigation }: any) {
             try {
               if (!session?.user?.id) return;
               await deleteListing(listing.id, session.user.id);
-              Alert.alert('Success', 'Listing deleted successfully');
+              setSuccessModalTitle('Listing Deleted');
+              setSuccessModalMessage('Your listing was deleted successfully.');
+              setShowSuccessModal(true);
               loadListings(); // Reload listings
             } catch (error: any) {
               console.error('[MyListings] handleDeleteListing error:', error);
@@ -177,6 +183,10 @@ export default function MyListingsScreen({ navigation }: any) {
     navigation.navigate('BulkListingCreate');
   };
 
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+  };
+
   const getTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -188,17 +198,50 @@ export default function MyListingsScreen({ navigation }: any) {
     return `${Math.floor(seconds / 86400)}d ago`;
   };
 
+  const getStatusStyles = (status: Listing['status']) => {
+    if (status === 'available') {
+      return {
+        badge: styles.statusBadgeActive,
+        text: styles.statusTextActive,
+        label: 'ACTIVE',
+      };
+    }
+
+    if (status === 'sold') {
+      return {
+        badge: styles.statusBadgeSold,
+        text: styles.statusTextSold,
+        label: 'SOLD',
+      };
+    }
+
+    if (status === 'pending') {
+      return {
+        badge: styles.statusBadgePending,
+        text: styles.statusTextPending,
+        label: 'PENDING',
+      };
+    }
+
+    return {
+      badge: styles.statusBadgeDefault,
+      text: styles.statusTextDefault,
+      label: status.toUpperCase(),
+    };
+  };
+
   const renderListingItem = ({ item }: { item: Listing }) => {
     const isActive = item.status === 'available';
-    const isSold = item.status === 'sold';
     const firstImage = item.images && item.images.length > 0 ? item.images[0] : null;
     const firstImageUrl = firstImage ? firstImage.thumbnail_url || firstImage.url : null;
+    const statusStyles = getStatusStyles(item.status);
 
     return (
       <View style={styles.listingCard}>
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => handleOpenListing(item)}
+          style={styles.listingRow}
           accessibilityRole="button"
           accessibilityLabel={`Open details for ${item.title}`}
         >
@@ -210,60 +253,43 @@ export default function MyListingsScreen({ navigation }: any) {
             />
           </View>
 
-          <View style={styles.listingHeader}>
+          <View style={styles.listingMainContent}>
             <View style={styles.listingInfo}>
               <Text style={styles.listingTitle}>{item.title}</Text>
               <Text style={styles.listingPrice}>${item.price.toFixed(2)}</Text>
-              {item.accepts_swap_points && (
-                <View style={styles.spBadge}>
-                  <Text style={styles.spBadgeText}>✓ SP Eligible</Text>
-                </View>
-              )}
+              <Text style={styles.listingDateText}>{new Date(item.created_at).toLocaleDateString()}</Text>
             </View>
-            <View
-              style={[
-                styles.statusBadge,
-                isSold && styles.statusBadgeSold,
-                !isActive && !isSold && styles.statusBadgeOther,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.statusText,
-                  isSold && styles.statusTextSold,
-                  !isActive && !isSold && styles.statusTextOther,
-                ]}
-              >
-                {item.status.toUpperCase()}
-              </Text>
+
+            <View style={[styles.statusBadge, statusStyles.badge]}>
+              <Text style={[styles.statusText, statusStyles.text]}>{statusStyles.label}</Text>
             </View>
-          </View>
-
-          {item.description && (
-            <Text style={styles.listingDescription} numberOfLines={2}>
-              {item.description}
-            </Text>
-          )}
-
-          <View style={styles.listingMeta}>
-            <Text style={styles.metaText}>Condition: {item.condition || 'N/A'}</Text>
-            <Text style={styles.metaText}>{new Date(item.created_at).toLocaleDateString()}</Text>
           </View>
         </TouchableOpacity>
 
+        {item.description && (
+          <Text style={styles.listingDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
+
+        {item.accepts_swap_points && (
+          <View style={styles.spBadge}>
+            <Text style={styles.spBadgeText}>SP Eligible</Text>
+          </View>
+        )}
+
         {isActive && (
           <View style={styles.actions}>
-            <TouchableOpacity
-              style={styles.actionButtonEdit}
-              onPress={() => handleEditListing(item)}
-            >
-              <Text style={styles.actionButtonTextEdit}>Edit</Text>
+            <TouchableOpacity style={styles.iconActionButton} onPress={() => handleEditListing(item)}>
+              <PencilSimple size={20} color="#6B6B6B" weight="regular" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButtonDelete}
-              onPress={() => handleDeleteListing(item)}
-            >
-              <Text style={styles.actionButtonTextDelete}>Delete</Text>
+
+            <TouchableOpacity style={styles.iconActionButton} onPress={() => handleDeleteListing(item)}>
+              <Trash size={20} color="#6B6B6B" weight="regular" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.iconActionButton} onPress={() => handleOpenListing(item)}>
+              <DotsThree size={20} color="#6B6B6B" weight="regular" />
             </TouchableOpacity>
           </View>
         )}
@@ -333,6 +359,11 @@ export default function MyListingsScreen({ navigation }: any) {
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <View style={styles.container}>
+          <View style={styles.screenHeader}>
+            <Storefront size={24} color="#5DBB8E" weight="regular" />
+            <Text style={styles.screenHeaderTitle}>My Listings</Text>
+          </View>
+
           {/* Summary Header */}
           {summary && (
             <View style={styles.summaryCard}>
@@ -427,16 +458,17 @@ export default function MyListingsScreen({ navigation }: any) {
               {/* Listings List */}
               {filteredListings.length === 0 ? (
                 <View style={styles.emptyContainer}>
+                  <Storefront size={64} color="#E0E0E0" weight="regular" />
                   <Text style={styles.emptyText}>
                     {listings.length === 0 ? 'No listings yet' : 'No listings with this status'}
                   </Text>
                   {listings.length === 0 && (
                     <TouchableOpacity
                       style={styles.createButton}
-                      onPress={() => navigation.navigate('CreateListing')}
+                      onPress={() => navigation.navigate('ItemCreate')}
                       testID="create-first-listing-button"
                     >
-                      <Text style={styles.createButtonText}>Create Your First Listing</Text>
+                      <Text style={styles.createButtonText}>Create Listing</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -542,6 +574,31 @@ export default function MyListingsScreen({ navigation }: any) {
             </TouchableOpacity>
           </Modal>
 
+          <Modal
+            visible={showSuccessModal}
+            transparent
+            animationType="fade"
+            onRequestClose={handleSuccessModalClose}
+          >
+            <View style={styles.successModalBackdrop}>
+              <View style={styles.successModalCard}>
+                <View style={styles.successIconBadge}>
+                  <Text style={styles.successIconText}>✓</Text>
+                </View>
+                <Text style={styles.successModalTitle}>{successModalTitle}</Text>
+                <Text style={styles.successModalMessage}>{successModalMessage}</Text>
+
+                <TouchableOpacity
+                  style={styles.successModalButton}
+                  onPress={handleSuccessModalClose}
+                  testID="my-listings-success-ok"
+                >
+                  <Text style={styles.successModalButtonText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+
           {/* Unified Navigation Bar */}
           <BottomNavBar />
         </View>
@@ -553,7 +610,21 @@ export default function MyListingsScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
+  },
+  screenHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  screenHeaderTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   loadingContainer: {
     flex: 1,
@@ -580,7 +651,7 @@ const styles = StyleSheet.create({
   summaryValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#007AFF',
+    color: '#5DBB8E',
   },
   summaryLabel: {
     fontSize: 12,
@@ -597,7 +668,7 @@ const styles = StyleSheet.create({
   listingCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -605,13 +676,17 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  listingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
   listingImageContainer: {
-    width: '100%',
-    height: 160,
-    borderRadius: 10,
+    width: 72,
+    height: 72,
+    borderRadius: 8,
     overflow: 'hidden',
     backgroundColor: '#f0f0f0',
-    marginBottom: 12,
+    marginRight: 12,
   },
   listingImage: {
     width: '100%',
@@ -628,66 +703,89 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  listingHeader: {
+  listingMainContent: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 8,
   },
   listingInfo: {
     flex: 1,
+    paddingRight: 8,
   },
   listingTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000',
-    marginBottom: 4,
-  },
-  listingPrice: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#1A1A1A',
     marginBottom: 4,
+    lineHeight: 20,
+  },
+  listingPrice: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  listingDateText: {
+    fontSize: 12,
+    color: '#6B6B6B',
   },
   spBadge: {
     alignSelf: 'flex-start',
     paddingVertical: 4,
     paddingHorizontal: 8,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 6,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
     marginTop: 4,
   },
   spBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#2E7D32',
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#D97706',
   },
   statusBadge: {
     paddingVertical: 4,
     paddingHorizontal: 8,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 6,
+    borderRadius: 12,
+  },
+  statusBadgeActive: {
+    backgroundColor: '#E8F5F0',
   },
   statusBadgeSold: {
-    backgroundColor: '#FFF3E0',
+    backgroundColor: '#F5F5F5',
   },
-  statusBadgeOther: {
+  statusBadgeExpired: {
+    backgroundColor: '#FEF9C3',
+  },
+  statusBadgePending: {
+    backgroundColor: '#FEF3C7',
+  },
+  statusBadgeDefault: {
     backgroundColor: '#F5F5F5',
   },
   statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#2E7D32',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  statusTextActive: {
+    color: '#5DBB8E',
   },
   statusTextSold: {
-    color: '#E65100',
+    color: '#6B6B6B',
   },
-  statusTextOther: {
+  statusTextExpired: {
+    color: '#CA8A04',
+  },
+  statusTextPending: {
+    color: '#D97706',
+  },
+  statusTextDefault: {
     color: '#666',
   },
   listingDescription: {
     fontSize: 14,
     color: '#666',
+    marginTop: 8,
     marginBottom: 8,
   },
   listingMeta: {
@@ -702,32 +800,15 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 8,
   },
-  actionButtonEdit: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
+  iconActionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
-    backgroundColor: '#007AFF',
-  },
-  actionButtonTextEdit: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  actionButtonDelete: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FF3B30',
-    backgroundColor: '#fff',
-  },
-  actionButtonTextDelete: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FF3B30',
+    justifyContent: 'center',
+    backgroundColor: '#F5F5F5',
   },
   emptyContainer: {
     flex: 1,
@@ -736,19 +817,22 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   emptyText: {
-    fontSize: 18,
-    color: '#999',
-    marginBottom: 24,
+    fontSize: 16,
+    color: '#6B6B6B',
+    marginTop: 16,
+    marginBottom: 20,
   },
   createButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 12,
+    backgroundColor: '#5DBB8E',
+    paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: 26,
+    minHeight: 52,
+    justifyContent: 'center',
   },
   createButtonText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#fff',
   },
   fab: {
@@ -852,7 +936,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabActive: {
-    borderBottomColor: '#007AFF',
+    borderBottomColor: '#5DBB8E',
   },
   tabText: {
     fontSize: 16,
@@ -860,14 +944,14 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   tabTextActive: {
-    color: '#007AFF',
+    color: '#5DBB8E',
     fontWeight: '600',
   },
   // LISTING-V3-007: Draft Card Styles
   draftCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -887,44 +971,51 @@ const styles = StyleSheet.create({
   draftTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   draftMeta: {
     fontSize: 14,
-    color: '#666',
+    color: '#6B6B6B',
     marginBottom: 4,
   },
   draftTime: {
     fontSize: 12,
-    color: '#999',
+    color: '#9CA3AF',
   },
   draftActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   resumeButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 8,
+    minWidth: 104,
+    minHeight: 44,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 22,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   resumeButtonText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   discardButton: {
     borderWidth: 1,
-    borderColor: '#FF3B30',
-    paddingVertical: 8,
+    borderColor: '#6B6B6B',
+    minWidth: 104,
+    minHeight: 44,
     paddingHorizontal: 16,
-    borderRadius: 8,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   discardButtonText: {
-    color: '#FF3B30',
-    fontSize: 14,
-    fontWeight: '600',
+    color: '#6B6B6B',
+    fontSize: 15,
+    fontWeight: '500',
   },
   emptySubtext: {
     fontSize: 14,
@@ -995,5 +1086,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#666',
+  },
+  successModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.28)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  successModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 20,
+    alignItems: 'center',
+  },
+  successIconBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#E8F5F0',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  successIconText: {
+    fontSize: 28,
+    color: '#14805E',
+    fontWeight: '700',
+  },
+  successModalTitle: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  successModalMessage: {
+    marginTop: 8,
+    marginBottom: 20,
+    fontSize: 18,
+    lineHeight: 24,
+    color: '#4B5563',
+    textAlign: 'center',
+  },
+  successModalButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: 26,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successModalButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

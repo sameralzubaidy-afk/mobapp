@@ -1,17 +1,17 @@
 /**
  * File: p2p-kids-marketplace/src/screens/home/ItemDetailScreen.tsx
- * MODULE-04 LISTING-V2-005: Listing Detail View with SP Context
- * Enhanced with TASK-ITEM-DETAILS-001: Seller Masking & Contact Flow
+ * MODULE-15.1-UI-REDESIGN: Item Detail Screen
+ * Task: FLOW-06 Discovery & Search - Item Detail View
  *
+ * Redesigned with Whisk design system and Phosphor icons.
  * Features:
- * - Full item details (name, description, price, images, condition)
- * - SP payment eligibility display
- * - Buyer's subscription context: show fee disclosure ($2.99 vs $0.99)
- * - "Buy Now" button navigates to trade initiation (MODULE-06)
- * - Seller info masking: only show seller name if active trade exists
- * - Show seller rating regardless of trade status
- * - Contact seller button navigates to messaging (MODULE-07)
- * - Proper error handling and loading states
+ * - Full item details with Heart/Share overlay on images
+ * - SP earn badge with Coins icon (gold chip)
+ * - ShieldCheck verified badge on seller card
+ * - Sticky "Buy Now" button (green pill, 52px)
+ * - "Add to Cart" button (secondary outlined, above Buy Now)
+ * - Seller info masking + rating display
+ * - Contact seller button navigates to messaging
  */
 
 import React, { useEffect, useState } from 'react';
@@ -21,6 +21,7 @@ import {
   ScrollView,
   ActivityIndicator,
   TouchableOpacity,
+  Pressable,
   SafeAreaView,
   Alert,
   StyleSheet,
@@ -32,11 +33,22 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getListingById } from '@/services/listing';
 import { getSubscriptionSummary } from '@/services/subscription';
-import { hasActiveTradeBetween, getSellerRating } from '@/services/trade';
+import { hasActiveOfferForItem, hasActiveTradeBetween, getSellerRating } from '@/services/trade';
 import { Listing } from '@/types/listing';
 import { trackEvent } from '@/services/analytics';
 import { RootStackParamList } from '@/navigation/types';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Heart,
+  HeartStraight,
+  Share,
+  Coins,
+  ShieldCheck,
+  ShoppingCart,
+  Lock,
+  ChatCircle,
+  User,
+} from 'phosphor-react-native';
+import { Modal } from '@/components/ui';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import StarRating from '@/components/molecules/StarRating';
 import Avatar from '@/components/atoms/Avatar';
@@ -69,12 +81,15 @@ export default function ItemDetailScreen() {
   const [buyerCanSpendSP, setBuyerCanSpendSP] = useState(false);
   const [buyerIsSubscriber, setBuyerIsSubscriber] = useState(false);
   const [buyerSubLoading, setBuyerSubLoading] = useState(true);
+  const [checkingActiveTrade, setCheckingActiveTrade] = useState(false);
+  const [showDuplicateOfferModal, setShowDuplicateOfferModal] = useState(false);
 
   // Seller info masking (TASK-ITEM-DETAILS-001)
   const [hasActiveTrade, setHasActiveTrade] = useState(false);
   const [sellerRating, setSellerRating] = useState<SellerRatingInfo | null>(null);
   const [sellerVerificationStatus, setSellerVerificationStatus] = useState<string | null>(null);
   const [loadingSellerInfo, setLoadingSellerInfo] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
     loadListing();
@@ -207,7 +222,7 @@ export default function ItemDetailScreen() {
     }
   };
 
-  const handleBuyNow = () => {
+  const handleMakeOffer = async () => {
     if (!user?.id) {
       Alert.alert('Login Required', 'Please login to purchase items.');
       return;
@@ -219,11 +234,22 @@ export default function ItemDetailScreen() {
     }
 
     try {
-      // Navigate to trade initiation screen (MODULE-06)
+      setCheckingActiveTrade(true);
+      // Only block if buyer already has an active offer for this specific item.
+      const hasActive = await hasActiveOfferForItem(user.id, String(listing.id));
+      
+      if (hasActive) {
+        setShowDuplicateOfferModal(true);
+        return;
+      }
+
+      // Navigate to trade offer screen (FLOW-08) through TradeInitiation route.
       navigation.navigate('TradeInitiation', { itemId: String(listing.id) });
     } catch (err) {
       console.error('[ItemDetailScreen] Failed to navigate to TradeInitiation:', err);
       Alert.alert('Error', 'Unable to open checkout right now. Please try again.');
+    } finally {
+      setCheckingActiveTrade(false);
     }
   };
 
@@ -339,7 +365,7 @@ export default function ItemDetailScreen() {
   const shouldShowSellerName = hasActiveTrade;
   const sellerDisplayName = shouldShowSellerName
     ? listing.seller?.name || 'Seller'
-    : '🔒 Seller Info Hidden';
+    : 'Seller Info Hidden';
   const listingImages = [...(listing.images ?? [])].sort(
     (a, b) => a.display_order - b.display_order
   );
@@ -379,6 +405,32 @@ export default function ItemDetailScreen() {
                 imageStyle={styles.mainImage}
                 resizeMode="contain"
               />
+              
+              {/* Heart/Share overlay - top right */}
+              <View style={styles.imageOverlayIcons}>
+                <Pressable
+                  onPress={() => setIsFavorite(!isFavorite)}
+                  style={styles.overlayIconButton}
+                  hitSlop={8}
+                >
+                  {isFavorite ? (
+                    <HeartStraight size={24} color="#5DBB8E" weight="fill" />
+                  ) : (
+                    <Heart size={24} color="#1A1A1A" weight="regular" />
+                  )}
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    console.log('[ItemDetailScreen] Share item:', listing.id);
+                    trackEvent('share_item', { item_id: listing.id });
+                  }}
+                  style={styles.overlayIconButton}
+                  hitSlop={8}
+                >
+                  <Share size={24} color="#1A1A1A" weight="regular" />
+                </Pressable>
+              </View>
+
               <View style={styles.imageCountBadge}>
                 <Text
                   style={styles.imageCountBadgeText}
@@ -423,17 +475,18 @@ export default function ItemDetailScreen() {
             {/* Title */}
             <Text style={styles.itemTitle}>{listing.title}</Text>
 
-            {/* Price & Badges */}
+            {/* Price & SP Earn Badge */}
             <View style={styles.priceRow}>
               <Text style={styles.itemPrice}>${listing.price.toFixed(2)}</Text>
-
-              {/* MODULE-04 LISTING-V2-005: SP Eligibility Badge */}
-              {listing.accepts_swap_points && (
-                <View style={styles.spBadge}>
-                  <Text style={styles.spBadgeText}>⚡ Swap Points Accepted</Text>
-                </View>
-              )}
             </View>
+
+            {/* SP Accepted Badge (below price if not subscriber) */}
+            {listing.accepts_swap_points && !buyerIsSubscriber && (
+              <View style={styles.spAcceptedBadge}>
+                <Coins size={14} color="#5DBB8E" weight="regular" />
+                <Text style={styles.spAcceptedText}>Swap Points Accepted (Kids Club+ only)</Text>
+              </View>
+            )}
 
             {/* Item specifics */}
             <View style={styles.specsCard}>
@@ -570,33 +623,17 @@ export default function ItemDetailScreen() {
           {/* Seller Info Section (TASK-ITEM-DETAILS-001: Masking & Ratings) */}
           {listing.seller && (
             <View style={styles.section}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginBottom: 12,
-                  flexWrap: 'wrap',
-                  gap: 8,
-                }}
-              >
-                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>👤 Seller Info</Text>
+              <View style={styles.sellerHeaderRow}>
+                <Text style={[styles.sectionTitle, styles.sellerSectionTitle]}>Seller Info</Text>
                 {(sellerVerificationStatus === 'approved' ||
                   sellerVerificationStatus === 'verified') && (
                   <View style={styles.verifiedBadge}>
-                    <Ionicons name="checkmark-circle" size={14} color="#1d4ed8" />
-                    <Ionicons
-                      name="shield-checkmark"
-                      size={18}
-                      color="#2563EB"
-                      style={styles.verifiedIcon}
-                    />
-                    <View style={styles.verifiedTextBlock}>
-                      <Text style={styles.verifiedBadgeTitle}>Trusted Seller</Text>
-                      <Text style={styles.verifiedBadgeSubtitle}>ID verified</Text>
-                    </View>
+                    <ShieldCheck size={16} color="#5DBB8E" weight="fill" />
+                    <Text style={styles.verifiedBadgeText}>Verified Seller</Text>
                   </View>
                 )}
               </View>
+
               <View style={styles.sellerCard}>
                 <Avatar
                   imageUrl={listing.seller.avatar_url || undefined}
@@ -607,15 +644,20 @@ export default function ItemDetailScreen() {
 
                 <View style={styles.sellerInfo}>
                   {/* Seller Name (Masked if no active trade) */}
-                  <Text
-                    style={[styles.sellerName, !shouldShowSellerName && styles.sellerNameMasked]}
-                  >
-                    {sellerDisplayName}
-                  </Text>
+                  {shouldShowSellerName ? (
+                    <Text style={styles.sellerName}>{sellerDisplayName}</Text>
+                  ) : (
+                    <View style={styles.sellerNameMaskedRow}>
+                      <Lock size={18} color="#9CA3AF" weight="regular" />
+                      <Text style={[styles.sellerName, styles.sellerNameMasked]}>
+                        {sellerDisplayName}
+                      </Text>
+                    </View>
+                  )}
 
                   {/* Seller Rating (Always shown) */}
                   {loadingSellerInfo ? (
-                    <ActivityIndicator size="small" color="#007AFF" />
+                    <ActivityIndicator size="small" color="#5DBB8E" />
                   ) : sellerRating ? (
                     <StarRating
                       averageRating={sellerRating.averageRating}
@@ -630,14 +672,20 @@ export default function ItemDetailScreen() {
                   {/* Action Buttons */}
                   <View style={styles.sellerActionButtons}>
                     <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller}>
-                      <Text style={styles.contactButtonText}>💬 Contact Seller</Text>
+                      <View style={styles.sellerButtonContent}>
+                        <ChatCircle size={18} color="#FFFFFF" weight="fill" />
+                        <Text style={styles.contactButtonText}>Contact Seller</Text>
+                      </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
                       style={styles.profileButton}
                       onPress={handleViewSellerProfile}
                     >
-                      <Text style={styles.profileButtonText}>👤 View Profile</Text>
+                      <View style={styles.sellerButtonContent}>
+                        <User size={18} color="#1A1A1A" weight="regular" />
+                        <Text style={styles.profileButtonText}>View Profile</Text>
+                      </View>
                     </TouchableOpacity>
                   </View>
 
@@ -657,7 +705,7 @@ export default function ItemDetailScreen() {
           {/* Fallback Seller Section if seller data failed to load */}
           {!listing.seller && listing.seller_id && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>👤 Seller</Text>
+              <Text style={styles.sectionTitle}>Seller</Text>
               <View style={styles.sellerCard}>
                 <View style={styles.sellerAvatarPlaceholder}>
                   <Text style={styles.sellerAvatarText}>?</Text>
@@ -673,12 +721,50 @@ export default function ItemDetailScreen() {
           )}
         </ScrollView>
 
-        {/* MODULE-04 LISTING-V2-005: Buy Now Button (fixed at bottom) */}
-        <View style={styles.bottomActions}>
-          <TouchableOpacity style={styles.buyNowButton} onPress={handleBuyNow}>
-            <Text style={styles.buyNowButtonText}>🛍️ Buy Now</Text>
-          </TouchableOpacity>
+        {/* MODULE-15.1: Sticky Bottom Actions - Add to Cart + Make Offer */}
+        <View style={styles.stickyBottomActions}>
+          <Pressable
+            style={styles.addToCartButton}
+            onPress={() => {
+              console.log('[ItemDetailScreen] Add to cart:', listing.id);
+              trackEvent('add_to_cart', { item_id: listing.id });
+              Alert.alert('Added to Cart', 'Item added to your cart successfully!');
+            }}
+          >
+            <ShoppingCart size={20} color="#5DBB8E" weight="regular" />
+            <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+          </Pressable>
+          
+          <Pressable
+            style={[styles.buyNowButton, (loading || checkingActiveTrade) && { opacity: 0.7 }]}
+            onPress={handleMakeOffer}
+            disabled={loading || checkingActiveTrade}
+            testID="make-offer-button"
+          >
+            {checkingActiveTrade ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.buyNowButtonText}>Make Offer</Text>
+            )}
+          </Pressable>
         </View>
+
+        {/* Duplicate Trade Modal - Design System Modal */}
+        <Modal
+          visible={showDuplicateOfferModal}
+          type="alert"
+          title="Active Offer"
+          message="You already have an active offer on this item. Open Trade History to view your current trades."
+          primaryButtonText="Go to Trade History"
+          secondaryButtonText="Dismiss"
+          onPrimaryPress={() => {
+            setShowDuplicateOfferModal(false);
+            navigation.navigate('TradeList');
+          }}
+          onSecondaryPress={() => setShowDuplicateOfferModal(false)}
+          onClose={() => setShowDuplicateOfferModal(false)}
+        />
+
         <BottomNavBar />
       </View>
     </SafeAreaView>
@@ -739,11 +825,33 @@ const styles = StyleSheet.create({
   imageGallery: {
     width: '100%',
     backgroundColor: '#f2f2f2',
+    position: 'relative',
   },
   mainImage: {
     width: '100%',
     height: 300,
     backgroundColor: '#e0e0e0',
+  },
+  imageOverlayIcons: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    gap: 8,
+    zIndex: 10,
+  },
+  overlayIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   imageCountBadge: {
     position: 'absolute',
@@ -803,24 +911,29 @@ const styles = StyleSheet.create({
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 16,
   },
   itemPrice: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginRight: 12,
-  },
-  spBadge: {
-    backgroundColor: '#e8f5e9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  spBadgeText: {
-    fontSize: 12,
-    color: '#2e7d32',
     fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  spAcceptedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E8F5F0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  spAcceptedText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#5DBB8E',
   },
   conditionRow: {
     flexDirection: 'row',
@@ -1010,49 +1123,41 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1A1A1A',
     marginBottom: 12,
+  },
+  sellerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sellerSectionTitle: {
+    marginBottom: 0,
   },
   verifiedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    gap: 6,
+    backgroundColor: '#E8F5F0',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  verifiedIcon: {
-    marginLeft: 6,
-    marginRight: 4,
-  },
-  verifiedTextBlock: {
-    marginLeft: 2,
-  },
-  verifiedBadgeTitle: {
+  verifiedBadgeText: {
     fontSize: 12,
-    color: '#1d4ed8',
-    fontWeight: '700',
-    lineHeight: 14,
-  },
-  verifiedBadgeSubtitle: {
-    fontSize: 10,
-    color: '#1e40af',
+    color: '#5DBB8E',
     fontWeight: '600',
-    lineHeight: 12,
-    textTransform: 'uppercase',
-  },
-  verifiedText: {
-    fontSize: 11,
-    color: '#1d4ed8',
-    fontWeight: '700',
-    marginLeft: 4,
-    textTransform: 'uppercase',
   },
   sellerCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#FFFFFF',
   },
   sellerAvatar: {
     width: 50,
@@ -1082,12 +1187,19 @@ const styles = StyleSheet.create({
   sellerName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#1A1A1A',
+    marginBottom: 6,
+  },
+  sellerNameMaskedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 6,
   },
   sellerNameMasked: {
     color: '#9CA3AF',
     fontStyle: 'italic',
+    marginBottom: 0,
   },
   noRatingText: {
     fontSize: 14,
@@ -1100,62 +1212,86 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 10,
   },
+  sellerButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
   contactButton: {
     flex: 1,
-    backgroundColor: '#007AFF',
-    paddingVertical: 8,
+    backgroundColor: '#5DBB8E',
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 12,
     alignItems: 'center',
   },
   contactButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     color: '#fff',
     fontWeight: '600',
   },
   profileButton: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#D1D5DB',
   },
   profileButtonText: {
-    fontSize: 13,
-    color: '#333',
+    fontSize: 14,
+    color: '#1A1A1A',
     fontWeight: '600',
   },
   sellerInfoNote: {
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
+    fontSize: 13,
+    color: '#6B7280',
     marginTop: 10,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   contactSellerLink: {
     fontSize: 14,
     color: '#007AFF',
     fontWeight: '600',
   },
-  bottomActions: {
-    backgroundColor: '#fff',
+  stickyBottomActions: {
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 12,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: '#F0F0F0',
+    gap: 10,
+  },
+  addToCartButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#5DBB8E',
+    backgroundColor: '#FFFFFF',
+  },
+  addToCartButtonText: {
+    fontSize: 16,
+    color: '#5DBB8E',
+    fontWeight: '600',
   },
   buyNowButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: '#5DBB8E',
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   buyNowButtonText: {
     fontSize: 18,
-    color: '#fff',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

@@ -28,7 +28,7 @@ interface SetPasswordModalProps {
 /**
  * Set password modal for social-only users
  * Allows users to add password as backup login method
- * 
+ *
  * Features:
  * - Live password strength validation
  * - Strength meter visual indicator
@@ -62,10 +62,10 @@ export default function SetPasswordModal({
   }, [password]);
 
   const getStrengthColor = (): string => {
-    if (!password) return '#E5E7EB';
+    if (!password) return '#E0E0E0';
     if (strengthResult.valid) return '#10B981';
     if (password.length >= 6) return '#F59E0B';
-    return '#DC2626';
+    return '#E85D75';
   };
 
   const getStrengthLabel = (): string => {
@@ -135,7 +135,7 @@ export default function SetPasswordModal({
               accessibilityLabel="Close"
               testID={`${testID}-close`}
             >
-              <Ionicons name="close" size={24} color="#6B7280" />
+              <Ionicons name="close" size={24} color="#6B6B6B" />
             </TouchableOpacity>
           </View>
 
@@ -172,7 +172,7 @@ export default function SetPasswordModal({
                   <Ionicons
                     name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#6B7280"
+                    color="#6B6B6B"
                   />
                 </TouchableOpacity>
               </View>
@@ -226,7 +226,7 @@ export default function SetPasswordModal({
                   <Ionicons
                     name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
                     size={20}
-                    color="#6B7280"
+                    color="#6B6B6B"
                   />
                 </TouchableOpacity>
               </View>
@@ -281,12 +281,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E0E0E0',
   },
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   closeButton: {
     padding: 4,
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 24,
     lineHeight: 24,
   },
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: '#6B6B6B',
     marginBottom: 8,
   },
   passwordContainer: {
@@ -314,14 +314,13 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 56,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderWidth: 0,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingRight: 48,
     fontSize: 16,
-    color: '#1F2937',
-    backgroundColor: '#F9FAFB',
+    color: '#1A1A1A',
+    backgroundColor: '#F0F0F0',
   },
   eyeIcon: {
     position: 'absolute',
@@ -352,7 +351,7 @@ const styles = StyleSheet.create({
   },
   requirementText: {
     fontSize: 12,
-    color: '#DC2626',
+    color: '#E85D75',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -362,18 +361,18 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    color: '#DC2626',
+    color: '#E85D75',
     flex: 1,
   },
   actions: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E0E0E0',
   },
   primaryButton: {
     height: 56,
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },

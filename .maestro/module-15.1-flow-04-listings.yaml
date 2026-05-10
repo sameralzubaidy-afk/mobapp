@@ -1,0 +1,102 @@
+# FLOW: MODULE-15.1-FLOW-04 Listings (Android)
+# TASK: MODULE-15.1-UI-REDESIGN FLOW-04 Combined Listings Smoke
+
+appId: host.exp.exponent
+---
+
+- launchApp
+- openLink: exp://10.0.2.2:8081
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: p2p-kids-marketplace
+    commands:
+      - tapOn:
+          text: p2p-kids-marketplace
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Save Password?
+    commands:
+      - tapOn:
+          text: Not Now
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: isn't responding
+    commands:
+      - tapOn: Wait
+      - waitForAnimationToEnd
+
+- openLink: exp://10.0.2.2:8081/--/my-listings
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: nav-my-items
+    commands:
+      - tapOn:
+          id: nav-my-items
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: My Listings
+    commands:
+      - assertVisible:
+          id: tab-listings
+      - assertVisible:
+          id: fab-button
+
+- openLink: exp://10.0.2.2:8081/--/create-item
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: Create Listing
+    commands:
+      - assertVisible:
+          id: photo-upload-manager
+      - runFlow:
+          when:
+            visible:
+              id: back-button
+          commands:
+            - tapOn:
+                id: back-button
+            - waitForAnimationToEnd
+
+- openLink: exp://10.0.2.2:8081/--/bulk-create
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Draft Restored
+    commands:
+      - tapOn: OK
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: bulk-back-button
+    commands:
+      - tapOn:
+          id: bulk-back-button
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Discard bulk session?
+    commands:
+      - tapOn: Exit
+      - waitForAnimationToEnd

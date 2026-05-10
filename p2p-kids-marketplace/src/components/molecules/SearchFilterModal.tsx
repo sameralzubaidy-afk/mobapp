@@ -1,10 +1,14 @@
 /**
  * File: p2p-kids-marketplace/src/components/molecules/SearchFilterModal.tsx
- * MODULE-05-DISCOVERY-V3: Search Filter Modal
- * Task: DISCOVERY-V3-006
+ * MODULE-15.1-UI-REDESIGN: Search Filter Modal
+ * Task: FLOW-06 Discovery & Search - Filter Modal
  *
- * Bottom-sheet modal exposing all 8 filter sections in the exact order
- * defined in SEARCH-FILTER-REQUIREMENTS.md § Component Specifications.
+ * Redesigned with Whisk design system:
+ * - Drag handle at top
+ * - FunnelSimple icon in header
+ * - Selected chips: #5DBB8E bg, white text
+ * - Unselected chips: #F0F0F0 bg, #6B6B6B text
+ * - Apply button: sticky green pill (52px)
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -21,6 +25,7 @@ import {
   Platform,
   Pressable,
 } from 'react-native';
+import { FunnelSimple } from 'phosphor-react-native';
 import { DiscoveryFilters, COLOR_PALETTE, PRICE_PRESETS } from '@/types/discovery';
 import { getDefaultFilters, validatePriceRange, countActiveFilters } from '@/utils/filterHelpers';
 import { getBrandSuggestions } from '@/services/brandAutocomplete';
@@ -228,28 +233,24 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
+        {/* Drag handle */}
+        <View style={styles.dragHandleContainer}>
+          <View style={styles.dragHandle} />
+        </View>
+
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
+            <FunnelSimple size={20} color="#1A1A1A" weight="regular" />
             <Text style={styles.headerTitle}>Filters {activeCount > 0 && `(${activeCount})`}</Text>
           </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              onPress={handleClearAll}
-              accessibilityLabel="Clear all filters"
-              testID="filter-modal-clear-all"
-            >
-              <Text style={styles.clearButton}>Clear All</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onClose}
-              accessibilityLabel="Close filter modal"
-              testID="filter-modal-close"
-              style={styles.closeButton}
-            >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            onPress={handleClearAll}
+            accessibilityLabel="Clear all filters"
+            testID="filter-modal-clear-all"
+          >
+            <Text style={styles.clearButton}>Clear All</Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -494,15 +495,18 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
 };
 
 const COLORS = {
-  primary: '#007AFF',
+  primary: '#5DBB8E',
   background: '#FFFFFF',
-  border: '#E5E5EA',
-  text: '#000000',
-  textSecondary: '#8E8E93',
-  pillBackground: '#F2F2F7',
-  pillSelectedBackground: '#007AFF',
+  border: '#F0F0F0',
+  text: '#1A1A1A',
+  textSecondary: '#6B6B6B',
+  textTertiary: '#999999',
+  pillBackground: '#F0F0F0',
+  pillSelectedBackground: '#5DBB8E',
   pillSelectedText: '#FFFFFF',
-  error: '#FF3B30',
+  error: '#E85D75',
+  inputFill: '#F0F0F0',
+  dragHandle: '#E0E0E0',
 };
 
 const SPACING = {
@@ -519,6 +523,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  dragHandleContainer: {
+    paddingTop: 12,
+    paddingBottom: 8,
+    alignItems: 'center',
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.dragHandle,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -529,6 +544,9 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.border,
   },
   headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     flex: 1,
   },
   headerTitle: {
@@ -536,21 +554,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.text,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.md,
-  },
   clearButton: {
     fontSize: 16,
+    fontWeight: '500',
     color: COLORS.primary,
-  },
-  closeButton: {
-    padding: SPACING.xs,
-  },
-  closeButtonText: {
-    fontSize: 24,
-    color: COLORS.textSecondary,
   },
   content: {
     flex: 1,
@@ -574,22 +581,22 @@ const styles = StyleSheet.create({
     gap: SPACING.sm,
   },
   pill: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: COLORS.pillBackground,
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
   pillSelected: {
     backgroundColor: COLORS.pillSelectedBackground,
-    borderColor: COLORS.pillSelectedBackground,
   },
   pillText: {
     fontSize: 14,
-    color: COLORS.text,
+    fontWeight: '400',
+    color: COLORS.textSecondary,
   },
   pillTextSelected: {
+    fontSize: 14,
+    fontWeight: '500',
     color: COLORS.pillSelectedText,
   },
   colorGrid: {
@@ -674,13 +681,12 @@ const styles = StyleSheet.create({
   },
   priceInput: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.inputFill,
+    color: COLORS.text,
   },
   priceToText: {
     fontSize: 16,
@@ -697,23 +703,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footer: {
-    padding: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === 'ios' ? 32 : 12,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+    backgroundColor: COLORS.background,
   },
   applyButton: {
     backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: SPACING.md,
+    borderRadius: 26,
+    height: 52,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   applyButtonDisabled: {
     backgroundColor: COLORS.textSecondary,
     opacity: 0.5,
   },
   applyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
     color: COLORS.background,
   },
 });

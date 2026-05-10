@@ -9,6 +9,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
+  SafeAreaView,
   View,
   Text,
   ScrollView,
@@ -109,7 +110,7 @@ export default function DisclaimerModal({
       onRequestClose={onCancel}
       testID={testID}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Liability Disclaimer</Text>
@@ -125,7 +126,7 @@ export default function DisclaimerModal({
         {/* Content */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3B82F6" testID={`${testID}-loading`} />
+            <ActivityIndicator size="large" color="#5DBB8E" testID={`${testID}-loading`} />
             <Text style={styles.loadingText}>Loading disclaimer...</Text>
           </View>
         ) : error ? (
@@ -207,7 +208,7 @@ export default function DisclaimerModal({
             </View>
           </>
         )}
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -221,19 +222,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderBottomColor: '#E0E0E0',
+    backgroundColor: '#FAFAFA',
+    minHeight: 56,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   closeButton: {
     fontSize: 24,
-    color: '#6B7280',
+    color: '#6B6B6B',
     padding: 8,
   },
   loadingContainer: {
@@ -244,7 +247,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   errorContainer: {
     flex: 1,
@@ -258,15 +261,17 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 16,
-    color: '#EF4444',
+    color: '#E85D75',
     textAlign: 'center',
     marginBottom: 16,
   },
   retryButton: {
+    minHeight: 52,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    justifyContent: 'center',
   },
   retryButtonText: {
     color: '#fff',
@@ -279,13 +284,13 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 12,
     lineHeight: 20,
   },
   versionBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#E8F5F0',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -293,12 +298,12 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: '#3B82F6',
+    color: '#5DBB8E',
     fontWeight: '600',
   },
   effectiveDate: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 16,
   },
   contentContainer: {
@@ -306,14 +311,14 @@ const styles = StyleSheet.create({
   },
   plainContentText: {
     fontSize: 14,
-    color: '#111827',
+    color: '#1A1A1A',
     lineHeight: 22,
   },
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderTopColor: '#E0E0E0',
+    backgroundColor: '#FAFAFA',
   },
   checkbox: {
     flexDirection: 'row',
@@ -324,14 +329,14 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderWidth: 2,
-    borderColor: '#3B82F6',
+    borderColor: '#5DBB8E',
     borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   checkboxChecked: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#5DBB8E',
   },
   checkmark: {
     color: '#fff',
@@ -341,7 +346,7 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     flex: 1,
     fontSize: 14,
-    color: '#1F2937',
+    color: '#1A1A1A',
     fontWeight: '500',
   },
   buttonRow: {
@@ -355,17 +360,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#5DBB8E',
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '500',
+    color: '#5DBB8E',
   },
   acceptButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#5DBB8E',
   },
   acceptButtonText: {
     fontSize: 16,

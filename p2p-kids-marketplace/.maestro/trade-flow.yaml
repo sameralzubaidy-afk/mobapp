@@ -1,0 +1,298 @@
+# Maestro UI Flow: Trade Flow (FLOW-08)
+# Tests all 6 trade screens with testID-based interactions
+
+appId: com.p2pkidsmarketplace
+---
+
+# Test 1: Initiate Trade with SP (TradeOfferScreen)
+- launchApp
+- tapOn:
+    id: "login-email-input"
+- inputText: "buyer-test@example.com"
+- tapOn:
+    id: "login-password-input"
+- inputText: "testpassword123"
+- tapOn:
+    id: "login-button"
+
+# Navigate to browse
+- tapOn:
+    id: "browse-tab"
+
+# Select a listing
+- tapOn:
+    id: "listing-card-0"
+
+# Open TradeOfferScreen
+- tapOn:
+    id: "make-offer-button"
+
+# Verify TradeOfferScreen elements
+- assertVisible:
+    id: "trade-offer-screen"
+- assertVisible:
+    id: "sp-input"
+- assertVisible:
+    id: "sp-balance-text"
+- assertVisible:
+    id: "safety-disclaimer"
+- assertVisible:
+    id: "confirm-trade-button"
+
+# Enter SP amount (50 SP, exactly 50%)
+- tapOn:
+    id: "sp-input"
+- inputText: "50"
+
+# Verify no error
+- assertNotVisible:
+    id: "sp-error-message"
+
+# Tap confirm trade
+- tapOn:
+    id: "confirm-trade-button"
+
+# Accept disclaimer modal (if first trade)
+- tapOn:
+    id: "accept-disclaimer-button"
+    optional: true
+
+# Verify navigation to TradeTimelineScreen
+- assertVisible:
+    id: "trade-timeline-screen"
+
+---
+
+# Test 2: Accept Incoming Trade (TradeReviewScreen)
+# Login as seller
+- restartApp
+- tapOn:
+    id: "login-email-input"
+- inputText: "seller-test@example.com"
+- tapOn:
+    id: "login-password-input"
+- inputText: "testpassword123"
+- tapOn:
+    id: "login-button"
+
+# Navigate to notifications (assumes trade notification exists)
+- tapOn:
+    id: "notifications-tab"
+
+# Tap on pending trade notification
+- tapOn:
+    id: "trade-notification-0"
+
+# Verify TradeReviewScreen
+- assertVisible:
+    id: "trade-review-screen"
+- assertVisible:
+    id: "trade-summary-card"
+- assertVisible:
+    id: "sp-amount-text"
+- assertVisible:
+    id: "cash-amount-text"
+- assertVisible:
+    id: "accept-trade-button"
+- assertVisible:
+    id: "decline-trade-link"
+
+# Accept trade
+- tapOn:
+    id: "accept-trade-button"
+
+# Verify navigation to TradeTimelineScreen
+- assertVisible:
+    id: "trade-timeline-screen"
+
+---
+
+# Test 3: File Dispute (TradeDisputeScreen)
+# From TradeTimelineScreen (active trade)
+- tapOn:
+    id: "report-problem-button"
+
+# Verify TradeDisputeScreen
+- assertVisible:
+    id: "trade-dispute-screen"
+- assertVisible:
+    id: "dispute-warning-banner"
+- assertVisible:
+    id: "dispute-reason-chips"
+- assertVisible:
+    id: "dispute-description-input"
+- assertVisible:
+    id: "submit-dispute-button"
+
+# Select dispute reason
+- tapOn:
+    id: "reason-chip-item-not-as-described"
+
+# Verify chip selected (should have red background)
+- assertVisible:
+    id: "reason-chip-item-not-as-described-selected"
+
+# Enter description
+- tapOn:
+    id: "dispute-description-input"
+- inputText: "The item arrived damaged and does not match the photos."
+
+# Verify character counter updated
+- assertVisible:
+    text: "/1000"
+
+# Submit dispute
+- tapOn:
+    id: "submit-dispute-button"
+
+# Verify success alert (or navigation back)
+- assertVisible:
+    text: "Dispute filed"
+
+---
+
+# Test 4: Complete Trade (TradeTimelineScreen)
+# Seller marks as completed
+- tapOn:
+    id: "mark-completed-button"
+
+# Confirm in alert
+- tapOn:
+    text: "Confirm"
+
+# Verify button state changed
+- assertVisible:
+    text: "Waiting for buyer"
+
+# Logout and login as buyer
+- restartApp
+- tapOn:
+    id: "login-email-input"
+- inputText: "buyer-test@example.com"
+- tapOn:
+    id: "login-password-input"
+- inputText: "testpassword123"
+- tapOn:
+    id: "login-button"
+
+# Navigate to trade
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "my-trades-button"
+- tapOn:
+    id: "trade-card-0"
+
+# Verify orange notice
+- assertVisible:
+    id: "seller-completed-notice"
+
+# Buyer marks as completed
+- tapOn:
+    id: "mark-completed-button"
+- tapOn:
+    text: "Confirm"
+
+# Verify navigation to TradeSuccessScreen
+- assertVisible:
+    id: "trade-success-screen"
+- assertVisible:
+    id: "success-icon"
+- assertVisible:
+    text: "Trade Completed!"
+
+# Verify SP earned badge (if SP used)
+- assertVisible:
+    id: "sp-earned-badge"
+    optional: true
+
+---
+
+# Test 5: Browse Trade History (TradeListScreen)
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "my-trades-button"
+
+# Verify TradeListScreen
+- assertVisible:
+    id: "trade-list-screen"
+- assertVisible:
+    id: "tab-all"
+- assertVisible:
+    id: "tab-buying"
+- assertVisible:
+    id: "tab-selling"
+
+# Test tab filtering
+- tapOn:
+    id: "tab-buying"
+- assertVisible:
+    id: "trade-card-buying-0"
+
+- tapOn:
+    id: "tab-selling"
+- assertVisible:
+    id: "trade-card-selling-0"
+
+# Tap a trade to navigate to timeline
+- tapOn:
+    id: "trade-card-0"
+- assertVisible:
+    id: "trade-timeline-screen"
+
+---
+
+# Test 6: Cancel Trade (TradeTimelineScreen)
+# From active trade
+- tapOn:
+    id: "cancel-trade-button"
+
+# Verify cancellation reason modal
+- assertVisible:
+    id: "cancellation-modal"
+
+# Select reason
+- tapOn:
+    text: "Changed my mind"
+
+# Confirm cancellation
+- tapOn:
+    id: "confirm-cancel-button"
+
+# Verify success alert
+- assertVisible:
+    text: "Trade cancelled"
+
+# Verify SP refunded (check wallet)
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "sp-wallet-button"
+- assertVisible:
+    text: "125 SP"
+    # Assumes balance returned from 100 to 125 after refund
+
+---
+
+# Test 7: Failure State (TradeSuccessScreen)
+# Simulate failure by attempting trade with insufficient funds
+# (Requires special test setup)
+- launchApp
+# ... navigate to checkout with insufficient balance
+# ... attempt trade
+# Verify failure screen
+- assertVisible:
+    id: "trade-success-screen"
+- assertVisible:
+    id: "failure-icon"
+- assertVisible:
+    text: "Insufficient funds"
+
+# Tap Try Again
+- tapOn:
+    id: "try-again-button"
+
+# Verify navigation back
+- assertVisible:
+    id: "trade-offer-screen"

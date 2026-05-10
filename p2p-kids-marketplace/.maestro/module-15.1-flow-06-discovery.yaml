@@ -1,0 +1,611 @@
+# FLOW: Discovery & Search (FLOW-06)
+# TASK: MODULE-15.1-UI-REDESIGN-FLOW-06
+# States covered: Discover screen, Category browse, Item detail, Search filters
+# Platform: iOS & Android (Expo Go)
+
+appId: host.exp.exponent
+---
+# Reuse FLOW-06-specific bootstrap (no stopApp — keeps Metro bundle warm).
+- runFlow: helpers/flow-06-bootstrap.yaml
+
+# If on Landing, go to Login first (avoid creating a new account in this flow).
+- runFlow:
+    when:
+      visible:
+        id: landing-login-button
+    commands:
+      - tapOn:
+          id: landing-login-button
+      - waitForAnimationToEnd
+
+- runFlow:
+        when:
+            visible:
+                text: Log In
+        commands:
+            - tapOn:
+                    text: Log In
+            - waitForAnimationToEnd
+
+# If we're on Signup, go back then open Login.
+- runFlow:
+    when:
+      visible:
+        id: signup-back-button
+    commands:
+      - tapOn:
+          id: signup-back-button
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              id: landing-login-button
+          commands:
+            - tapOn:
+                id: landing-login-button
+            - waitForAnimationToEnd
+
+# Deterministic login path for Discovery tests.
+- runFlow:
+    when:
+      visible:
+        id: login-email-input
+    commands:
+      - tapOn:
+          id: login-email-input
+      - inputText: test-buyer@kidsmarketplace.test
+      - tapOn:
+          id: login-password-input
+      - inputText: TestBuyer123!
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: login-submit-button
+          direction: DOWN
+      - tapOn:
+          id: login-submit-button
+      - waitForAnimationToEnd
+
+# If primary credentials fail, retry once with alternate seeded credentials.
+- runFlow:
+    when:
+      visible:
+        text: Login Failed
+    commands:
+      - tapOn:
+          text: OK
+      - waitForAnimationToEnd
+      - tapOn:
+          id: login-email-input
+      - eraseText
+      - inputText: dev+user1@example.com
+      - tapOn:
+          id: login-password-input
+      - eraseText
+      - inputText: Password123!
+      - hideKeyboard
+      - tapOn:
+          id: login-submit-button
+      - waitForAnimationToEnd
+
+# Complete onboarding only on onboarding-specific screens.
+- runFlow:
+        when:
+            visible:
+                text: Skip
+        commands:
+            - tapOn:
+                    text: Skip
+            - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: welcome-get-started-button
+    commands:
+      - tapOn:
+          id: welcome-get-started-button
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: onboarding-get-started-button
+    commands:
+      - tapOn:
+          id: onboarding-get-started-button
+      - waitForAnimationToEnd
+
+# Route to Discover tab from authenticated screens.
+- runFlow:
+    when:
+      visible:
+        id: nav-discover
+    commands:
+      - tapOn:
+          id: nav-discover
+      - waitForAnimationToEnd
+
+- runFlow:
+        when:
+            visible:
+                text: Discover
+        commands:
+            - tapOn:
+                    text: Discover
+            - waitForAnimationToEnd
+
+# Expo Go can occasionally bounce back to project home; reopen app and rerun key auth/nav steps.
+- runFlow:
+        when:
+            visible:
+                text: p2p-kids-marketplace
+        commands:
+            - tapOn:
+                    text: p2p-kids-marketplace
+            - waitForAnimationToEnd
+            - openLink: exp://127.0.0.1:8081
+            - waitForAnimationToEnd
+
+- runFlow:
+        when:
+            visible:
+                id: landing-login-button
+        commands:
+            - tapOn:
+                    id: landing-login-button
+            - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Log In
+    commands:
+      - tapOn:
+          text: Log In
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: login-email-input
+    commands:
+      - tapOn:
+          id: login-email-input
+      - eraseText
+      - inputText: test-buyer@kidsmarketplace.test
+      - tapOn:
+          id: login-password-input
+      - eraseText
+      - inputText: TestBuyer123!
+      - hideKeyboard
+      - scrollUntilVisible:
+          element:
+            id: login-submit-button
+          direction: DOWN
+      - tapOn:
+          id: login-submit-button
+      - waitForAnimationToEnd
+
+- runFlow:
+        when:
+            visible:
+                id: nav-discover
+        commands:
+            - tapOn:
+                    id: nav-discover
+            - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Discover
+    commands:
+      - tapOn:
+          text: Discover
+      - waitForAnimationToEnd
+
+- runFlow:
+        when:
+            visible:
+                text: Dashboard
+        commands:
+            # Bottom-nav Discover tab fallback when id/text selectors are not exposed.
+            - tapOn:
+                    point: "19%,95%"
+            - waitForAnimationToEnd
+
+# Hard precondition for FLOW-06
+- runFlow:
+        when:
+            visible:
+                id: nav-discover
+        commands:
+            - tapOn:
+                    id: nav-discover
+            - waitForAnimationToEnd
+
+- runFlow:
+        when:
+            visible:
+                text: Discover
+        commands:
+            - tapOn:
+                    text: Discover
+            - waitForAnimationToEnd
+
+- runFlow:
+        when:
+            visible:
+                text: Dashboard
+        commands:
+            - tapOn:
+                    point: "19%,95%"
+            - waitForAnimationToEnd
+
+- extendedWaitUntil:
+        visible:
+            id: discover-search-input
+        timeout: 120000
+
+- assertVisible:
+    id: discover-search-input
+
+# ============================================
+# TC-MAESTRO-DISC-001: Discover Screen UI + 2-Column Grid
+# ============================================
+- assertVisible:
+    id: "discover-search-input"
+- assertVisible:
+    id: "discover-filter-button"
+
+# Verify 2-column grid layout is present
+- assertVisible:
+    id: "discover-results-list"
+
+# ============================================
+# TC-MAESTRO-DISC-002: Search Input Functionality
+# ============================================
+- tapOn:
+    id: "discover-search-input"
+- inputText: "a"
+- hideKeyboard
+- waitForAnimationToEnd
+- assertVisible:
+    id: "discover-search-input"
+
+# ============================================
+# TC-MAESTRO-DISC-003: Filter Button + Badge
+# ============================================
+- tapOn:
+    id: "discover-filter-button"
+- waitForAnimationToEnd
+
+# Filter modal should open
+- assertVisible:
+    id: "filter-modal-apply"
+
+# Close filter modal deterministically
+- tapOn:
+    id: "filter-modal-apply"
+- waitForAnimationToEnd
+
+# ============================================
+# TC-MAESTRO-DISC-004: ItemCard Interaction
+# ============================================
+# Preferred path: open from Discover results when cards are visible.
+- runFlow:
+        when:
+            visible:
+                id: "search-result-.*"
+        commands:
+            - tapOn:
+                    point: "25%,38%"
+            - waitForAnimationToEnd
+
+# Fallback path: if search returns empty, open via category browse.
+- runFlow:
+        when:
+            visible:
+                id: empty-state
+        commands:
+            - tapOn:
+                    id: "discover-category-chip-.*"
+            - waitForAnimationToEnd
+            - extendedWaitUntil:
+                    visible:
+                        id: "category-item-.*"
+                    timeout: 30000
+            - tapOn:
+                    id: "category-item-.*"
+            - waitForAnimationToEnd
+
+# Retry once if still on Discover.
+- runFlow:
+    when:
+      visible:
+        id: discover-search-input
+    commands:
+      - tapOn:
+                    point: "75%,38%"
+      - waitForAnimationToEnd
+
+# Item detail screen should open
+- extendedWaitUntil:
+        visible:
+            text: "Item Details"
+        timeout: 30000
+- assertVisible:
+    text: "Item Details"
+- assertVisible:
+    text: "Add to Cart"
+- assertVisible:
+    text: "Make Offer"
+
+# Go back to Discover
+- tapOn:
+    text: "← Back"
+- waitForAnimationToEnd
+
+# ============================================
+# TC-MAESTRO-DISC-005: Category Browse Navigation
+# ============================================
+# Tap on a category chip (e.g., "Clothing")
+- tapOn:
+    id: "discover-category-chip-.*"
+- waitForAnimationToEnd
+
+# Category browse screen should open
+- assertVisible:
+    id: "category-browse-header"
+- assertVisible:
+    id: "category-browse-list"
+
+# Verify category icon is present (TShirt for Clothing)
+- assertVisible:
+    id: "category-icon"
+
+# Verify back button
+- assertVisible:
+    id: "category-back-button"
+
+# Verify 2-column grid layout
+- assertVisible:
+    id: "category-browse-list"
+
+# Go back to Discover
+- tapOn:
+    id: "category-back-button"
+- waitForAnimationToEnd
+
+# ============================================
+# TC-MAESTRO-DISC-006: Filter Modal - UI Elements
+# ============================================
+- tapOn:
+    id: "discover-filter-button"
+- waitForAnimationToEnd
+
+# Verify header + sections
+- assertVisible:
+    text: "CATEGORY"
+
+# Verify Clear All button
+- assertVisible:
+    id: "filter-modal-clear-all"
+
+# ============================================
+# TC-MAESTRO-DISC-007: Filter Modal - Category Selection
+# ============================================
+# Select a category chip
+- tapOn:
+    id: "filter-category-.*"
+- waitForAnimationToEnd
+
+# ============================================
+# TC-MAESTRO-DISC-008: Filter Modal - Price Range
+# ============================================
+# Scroll to price section
+- scrollUntilVisible:
+    element:
+      id: "filter-price-min"
+    direction: DOWN
+
+- tapOn:
+    id: "filter-price-min"
+- inputText: "10"
+
+- tapOn:
+    id: "filter-price-max"
+- inputText: "50"
+- tapOn:
+    text: "PRICE RANGE"
+
+# ============================================
+# TC-MAESTRO-DISC-009: Filter Modal - Apply Filters
+# ============================================
+# Verify Apply button is green pill (sticky bottom)
+- assertVisible:
+    id: "filter-modal-apply"
+
+- tapOn:
+    id: "filter-modal-apply"
+- waitForAnimationToEnd
+
+# Modal should close, results should update
+- assertVisible:
+    id: "discover-results-list"
+
+# Filter button should show active filter count badge
+- assertVisible:
+    id: "filter-badge"
+
+# ============================================
+# TC-MAESTRO-DISC-010: ItemCard - Favorite Toggle
+# ============================================
+- tapOn:
+    id: "search-result-.*-favorite-button"
+- waitForAnimationToEnd
+
+# ============================================
+# TC-MAESTRO-DISC-011: ItemCard - Share Button
+# ============================================
+- tapOn:
+    id: "search-result-.*-share-button"
+- waitForAnimationToEnd
+
+# ============================================
+# TC-MAESTRO-DISC-012: Search Empty State
+# ============================================
+- tapOn:
+    id: "discover-search-input"
+- inputText: "zzzznonexistentitemzzzz"
+- waitForAnimationToEnd
+
+# Empty state should appear
+- assertVisible:
+    id: "empty-state"
+
+# ============================================
+# TC-MAESTRO-DISC-013: Pull to Refresh
+# ============================================
+- swipe:
+    duration: 500
+    start: 50%,30%
+    end: 50%,70%
+- waitForAnimationToEnd
+
+# Results should refresh (no error)
+- assertVisible:
+    id: "discover-results-list"
+
+# ============================================
+# TC-MAESTRO-DISC-014: Item Detail - Add to Cart
+# ============================================
+# Mid-flow crash recovery before navigating into item detail
+- runFlow:
+    when:
+      visible:
+        text: Something went wrong.
+    commands:
+      - tapOn:
+          point: "66%,62%"
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              text: Something went wrong.
+          commands:
+            - openLink: exp://127.0.0.1:8081
+            - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              text: p2p-kids-marketplace
+          commands:
+            - tapOn:
+                text: p2p-kids-marketplace
+            - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: nav-discover
+    commands:
+      - tapOn:
+          id: nav-discover
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Discover
+    commands:
+      - tapOn:
+          text: Discover
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Dashboard
+    commands:
+      - tapOn:
+          point: "19%,95%"
+      - waitForAnimationToEnd
+
+- extendedWaitUntil:
+    visible:
+      id: "discover-search-input"
+    timeout: 30000
+
+# Clear previous query via the search-input close icon, then search again.
+- tapOn:
+    point: "92%,5%"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "discover-search-input"
+- inputText: "a"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        id: "search-result-.*"
+    commands:
+      - tapOn:
+          point: "25%,38%"
+      - waitForAnimationToEnd
+
+# Retry once if still on Discover.
+- runFlow:
+    when:
+      visible:
+        id: discover-search-input
+    commands:
+      - tapOn:
+          point: "75%,38%"
+      - waitForAnimationToEnd
+
+# Ensure detail screen is open before action assertion
+- extendedWaitUntil:
+    visible:
+      text: "Item Details"
+    timeout: 30000
+- assertVisible:
+    text: "Item Details"
+- assertVisible:
+    text: "Add to Cart"
+
+- tapOn:
+    text: "Add to Cart"
+- waitForAnimationToEnd
+
+# Dismiss success modal if shown
+- runFlow:
+        when:
+            visible:
+                text: "Added to Cart"
+        commands:
+            - tapOn:
+                  text: "OK"
+            - waitForAnimationToEnd
+
+# Success alert should appear (platform alert)
+# Implicit success if no crash
+
+# ============================================
+# TC-MAESTRO-DISC-015: Item Detail - Make Offer
+# ============================================
+- assertVisible:
+    text: "Make Offer"
+
+- tapOn:
+    text: "Make Offer"
+- waitForAnimationToEnd
+
+# Should navigate to trade initiation screen
+# (Assertion depends on TradeInitiation screen being implemented)
+
+# End of FLOW-06 Discovery & Search Tests

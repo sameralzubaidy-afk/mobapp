@@ -41,6 +41,33 @@ describe('trade service', () => {
     price: 10.0, // $10.00
   };
 
+  const createTradesTableMock = ({
+    existingTrade = null,
+    insertedTrade = { id: 'trade-999' },
+    onInsert,
+  }: {
+    existingTrade?: any;
+    insertedTrade?: any;
+    onInsert?: (payload: any) => void;
+  } = {}) => {
+    const insertChain = {
+      select: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: insertedTrade, error: null }),
+    };
+
+    return {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({ data: existingTrade, error: null }),
+      insert: jest.fn().mockImplementation((payload: any) => {
+        onInsert?.(payload);
+        return insertChain;
+      }),
+    };
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     (supabase.auth.getUser as jest.Mock).mockResolvedValue({
@@ -79,11 +106,7 @@ describe('trade service', () => {
           };
         }
         if (table === 'trades') {
-          return {
-            insert: jest.fn().mockReturnThis(),
-            select: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: { id: 'trade-999' }, error: null }),
-          };
+          return createTradesTableMock();
         }
         return {};
       });
@@ -135,11 +158,7 @@ describe('trade service', () => {
           };
         }
         if (table === 'trades') {
-          return {
-            insert: jest.fn().mockReturnThis(),
-            select: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: { id: 'trade-999' }, error: null }),
-          };
+          return createTradesTableMock();
         }
         return {};
       });
@@ -188,11 +207,7 @@ describe('trade service', () => {
           };
         }
         if (table === 'trades') {
-          return {
-            insert: jest.fn().mockReturnThis(),
-            select: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: { id: 'trade-999' }, error: null }),
-          };
+          return createTradesTableMock();
         }
         return {};
       });
@@ -273,11 +288,7 @@ describe('trade service', () => {
           };
         }
         if (table === 'trades') {
-          return {
-            insert: jest.fn().mockReturnThis(),
-            select: jest.fn().mockReturnThis(),
-            single: jest.fn().mockResolvedValue({ data: { id: 'trade-999' }, error: null }),
-          };
+          return createTradesTableMock();
         }
         return {};
       });
@@ -330,17 +341,12 @@ describe('trade service', () => {
           };
         }
         if (table === 'trades') {
-          return {
-            insert: jest.fn().mockImplementation((payload) => {
+          return createTradesTableMock({
+            insertedTrade: { id: 'trade-legacy-ok' },
+            onInsert: (payload) => {
               expect(payload.seller_id).toBe(mockItem.seller_id);
-              return {
-                select: jest.fn().mockReturnThis(),
-                single: jest
-                  .fn()
-                  .mockResolvedValue({ data: { id: 'trade-legacy-ok' }, error: null }),
-              };
-            }),
-          };
+            },
+          });
         }
         return {};
       });
@@ -364,6 +370,33 @@ describe('trade service', () => {
 
       expect(result.success).toBe(true);
       expect(result.trade_id).toBe('trade-legacy-ok');
+    });
+
+    it('should block duplicate active offers for the same item', async () => {
+      (supabase.from as jest.Mock).mockImplementation((table) => {
+        if (table === 'items') {
+          return {
+            select: jest.fn().mockReturnThis(),
+            eq: jest.fn().mockReturnThis(),
+            single: jest.fn().mockResolvedValue({ data: mockItem, error: null }),
+          };
+        }
+        if (table === 'trades') {
+          return createTradesTableMock({
+            existingTrade: { id: 'trade-existing', status: 'pending' },
+          });
+        }
+        return {};
+      });
+
+      const result = await initiateTradeV2({
+        item_id: 'item-456',
+        sp_amount: 5,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('already have an active offer');
+      expect(subscriptionService.getSubscriptionSummary).not.toHaveBeenCalled();
     });
   });
 

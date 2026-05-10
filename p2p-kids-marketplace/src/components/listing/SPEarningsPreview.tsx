@@ -16,8 +16,9 @@
  * @see BRD US-SUB-002: SP earnings preview requirement
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { CheckCircle, Info, LockSimple, WarningCircle } from 'phosphor-react-native';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useCategorySPCache } from '../../hooks/useCategorySPCache';
 import { calculateEarnedSP, formatSP, formatMultiplier } from '../../utils/spCalculations';
@@ -83,7 +84,7 @@ export function SPEarningsPreview({
     return (
       <View style={styles.container} testID={testID}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#007AFF" />
+            <ActivityIndicator size="small" color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading SP rates...</Text>
         </View>
       </View>
@@ -106,7 +107,7 @@ export function SPEarningsPreview({
     return (
       <View style={styles.container} testID={testID}>
         <View style={styles.placeholderContainer}>
-          <Text style={styles.placeholderIcon}>💡</Text>
+            <Info size={20} color="#6B6B6B" weight="regular" style={styles.placeholderIcon} />
           <Text style={styles.placeholderText}>Select a category to see estimated SP earnings</Text>
         </View>
       </View>
@@ -118,7 +119,7 @@ export function SPEarningsPreview({
     return (
       <View style={styles.container} testID={testID}>
         <View style={styles.placeholderContainer}>
-          <Text style={styles.placeholderIcon}>💵</Text>
+            <Info size={20} color="#6B6B6B" weight="regular" style={styles.placeholderIcon} />
           <Text style={styles.placeholderText}>Enter a price above to see SP estimate</Text>
         </View>
       </View>
@@ -138,7 +139,7 @@ export function SPEarningsPreview({
           testID="sp-info-icon"
         >
           <View style={styles.infoIcon}>
-            <Text style={styles.infoIconText}>i</Text>
+            <Info size={14} color="#FFFFFF" weight="bold" />
           </View>
         </TouchableOpacity>
       </View>
@@ -147,14 +148,14 @@ export function SPEarningsPreview({
       <View style={[styles.estimateContainer, !isSubscriber && styles.estimateContainerLocked]}>
         {isSubscriber ? (
           <View style={styles.estimateRow} testID="sp-estimate-subscriber">
-            <Text style={styles.checkmark}>✅</Text>
+            <CheckCircle size={18} color="#5DBB8E" weight="fill" style={styles.statusIcon} />
             <Text style={styles.estimateLabel}>You'll earn:</Text>
             <Text style={styles.estimateValue}>{formatSP(estimate.sp)}</Text>
           </View>
         ) : (
           <View testID="sp-estimate-free-user">
             <View style={styles.estimateRow}>
-              <Text style={styles.lockIcon}>🔒</Text>
+              <LockSimple size={18} color="#9A9A9A" weight="fill" style={styles.statusIcon} />
               <Text style={[styles.estimateLabel, styles.textGrayed]}>You'll earn:</Text>
               <Text style={[styles.estimateValue, styles.textGrayed]}>{formatSP(estimate.sp)}</Text>
             </View>
@@ -170,7 +171,7 @@ export function SPEarningsPreview({
         {/* "Other" category disclaimer */}
         {estimate.isOtherCategory && (
           <View style={styles.disclaimerContainer} testID="other-category-disclaimer">
-            <Text style={styles.disclaimerIcon}>⚠️</Text>
+            <WarningCircle size={16} color="#CA8A04" weight="fill" style={styles.disclaimerIcon} />
             <Text style={styles.disclaimerText}>Base rate - may change after admin approval</Text>
           </View>
         )}
@@ -184,7 +185,7 @@ export function SPEarningsPreview({
           testID="disclaimer-info-icon"
         >
           <View style={styles.disclaimerInfoIcon}>
-            <Text style={styles.disclaimerInfoIconText}>i</Text>
+            <Info size={10} color="#FFFFFF" weight="bold" />
           </View>
         </TouchableOpacity>
         <Text style={styles.disclaimerSmall}>
@@ -217,7 +218,7 @@ export function SPEarningsPreview({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
     padding: 16,
     marginVertical: 12,
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#6B6B6B',
     marginLeft: 8,
   },
   errorContainer: {
@@ -247,12 +248,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   placeholderIcon: {
-    fontSize: 24,
     marginRight: 12,
   },
   placeholderText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#6B6B6B',
     flex: 1,
   },
   header: {
@@ -264,20 +264,15 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
   },
   infoIcon: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  infoIconText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
   },
   estimateContainer: {
     backgroundColor: '#FFFFFF',
@@ -295,12 +290,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
-  checkmark: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  lockIcon: {
-    fontSize: 18,
+  statusIcon: {
     marginRight: 8,
   },
   estimateLabel: {
@@ -311,20 +301,20 @@ const styles = StyleSheet.create({
   estimateValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#007AFF',
+    color: '#5DBB8E',
   },
   textGrayed: {
     color: '#999999',
   },
   lockSubtext: {
     fontSize: 13,
-    color: '#666666',
+    color: '#6B6B6B',
     marginLeft: 26,
     fontStyle: 'italic',
   },
   multiplierText: {
     fontSize: 13,
-    color: '#666666',
+    color: '#6B6B6B',
     marginTop: 4,
   },
   disclaimerContainer: {
@@ -336,12 +326,11 @@ const styles = StyleSheet.create({
     borderTopColor: '#E0E0E0',
   },
   disclaimerIcon: {
-    fontSize: 16,
     marginRight: 6,
   },
   disclaimerText: {
     fontSize: 12,
-    color: '#FF9500',
+    color: '#CA8A04',
     flex: 1,
   },
   disclaimerRow: {
@@ -353,28 +342,25 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#999999',
+    backgroundColor: '#6B6B6B',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
   },
-  disclaimerInfoIconText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
   disclaimerSmall: {
     fontSize: 11,
-    color: '#888888',
+    color: '#7A7A7A',
     fontStyle: 'italic',
     flex: 1,
   },
   upgradeButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 12,
   },
   upgradeButtonText: {

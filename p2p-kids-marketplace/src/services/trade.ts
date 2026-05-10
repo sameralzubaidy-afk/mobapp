@@ -12,6 +12,8 @@ import { getSubscriptionSummary } from './subscription';
 import { getAdminConfig } from './adminConfig';
 import { getUserReviews } from './review';
 
+const ACTIVE_OFFER_STATUSES = ['pending', 'payment_processing', 'payment_failed', 'in_progress'];
+
 /**
  * Check if there is an active trade between buyer and seller
  * Active trades include: pending, in_progress statuses
@@ -38,6 +40,32 @@ export async function hasActiveTradeBetween(buyerId: string, sellerId: string): 
     return (data?.length ?? 0) > 0;
   } catch (error) {
     console.error('[trade] Error in hasActiveTradeBetween:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if buyer already has an active offer for a specific listing.
+ * This is used by Item Details to prevent duplicate offers on the same item only.
+ */
+export async function hasActiveOfferForItem(buyerId: string, listingId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('trades')
+      .select('id')
+      .eq('buyer_id', buyerId)
+      .eq('listing_id', listingId)
+      .in('status', ACTIVE_OFFER_STATUSES)
+      .limit(1);
+
+    if (error) {
+      console.error('[trade] Error checking active offer for listing:', error);
+      return false;
+    }
+
+    return (data?.length ?? 0) > 0;
+  } catch (error) {
+    console.error('[trade] Error in hasActiveOfferForItem:', error);
     return false;
   }
 }
@@ -319,6 +347,31 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
 
     if (itemData.seller_id === buyerId) {
       return { success: false, error: 'Cannot buy your own item' };
+    }
+
+    // Prevent duplicate active offers for the same buyer + listing.
+    const { data: existingTrade, error: existingTradeError } = await supabase
+      .from('trades')
+      .select('id, status')
+      .eq('buyer_id', buyerId)
+      .eq('listing_id', item_id)
+      .in('status', ACTIVE_OFFER_STATUSES)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingTradeError) {
+      console.error('[trade] Error validating existing offers:', existingTradeError);
+      return {
+        success: false,
+        error: 'Unable to validate existing offers right now. Please try again.',
+      };
+    }
+
+    if (existingTrade) {
+      return {
+        success: false,
+        error: 'You already have an active offer on this item. Open Trade History to continue.',
+      };
     }
 
     const itemPriceCents = Math.round(itemData.price * 100);

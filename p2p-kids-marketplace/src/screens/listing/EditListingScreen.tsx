@@ -17,13 +17,14 @@ import {
   Switch,
   ScrollView,
   TouchableOpacity,
+  Modal,
   Alert,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { getSubscriptionSummary } from '../../services/subscription';
-import { updateListing, getListingById, syncListingImages } from '../../services/listing';
+import { deleteListing, updateListing, getListingById, syncListingImages } from '../../services/listing';
 import { getCategories } from '../../services/items';
 import { Listing, ListingCondition } from '../../types/listing';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
@@ -48,6 +49,12 @@ export default function EditListingScreen({ route, navigation }: any) {
   const [syncingImages, setSyncingImages] = useState(false);
   const [loadingListing, setLoadingListing] = useState(true);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successModalTitle, setSuccessModalTitle] = useState('Changes Saved');
+  const [successModalMessage, setSuccessModalMessage] = useState(
+    'Your listing was updated successfully.'
+  );
+  const [successModalTarget, setSuccessModalTarget] = useState<'goBack' | 'myListings'>('goBack');
 
   // Form state
   const [title, setTitle] = useState('');
@@ -202,12 +209,10 @@ export default function EditListingScreen({ route, navigation }: any) {
         images.map((image) => ({ id: image.id, uri: image.uri }))
       );
 
-      Alert.alert('Success', 'Listing updated successfully!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
+      setSuccessModalTitle('Changes Saved');
+      setSuccessModalMessage('Your listing was updated successfully.');
+      setSuccessModalTarget('goBack');
+      setShowSuccessModal(true);
     } catch (error: any) {
       console.error('[EditListing] handleSaveChanges error:', error);
       Alert.alert('Error', error.message || 'Failed to update listing');
@@ -215,6 +220,33 @@ export default function EditListingScreen({ route, navigation }: any) {
       setLoading(false);
       setSyncingImages(false);
     }
+  };
+
+  const handleDeleteListing = async () => {
+    if (!session?.user?.id || !originalListing) return;
+
+    Alert.alert('Delete Listing', 'Are you sure you want to delete this listing?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setLoading(true);
+            await deleteListing(listing_id, session.user.id);
+            setSuccessModalTitle('Listing Deleted');
+            setSuccessModalMessage('Your listing was deleted successfully.');
+            setSuccessModalTarget('myListings');
+            setShowSuccessModal(true);
+          } catch (error: any) {
+            console.error('[EditListing] handleDeleteListing error:', error);
+            Alert.alert('Error', error.message || 'Failed to delete listing');
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
   };
 
   if (loadingListing || checkingSubscription) {
@@ -229,9 +261,20 @@ export default function EditListingScreen({ route, navigation }: any) {
   const selectedCategory = categories.find((category) => category.id === categoryId);
   const isOtherCategory = selectedCategory?.name?.trim().toLowerCase() === 'other';
 
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    if (successModalTarget === 'myListings') {
+      navigation.navigate('MyListings');
+      return;
+    }
+
+    navigation.goBack();
+  };
+
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.form}>
+    <>
+      <ScrollView style={styles.container}>
+        <View style={styles.form}>
         <Text style={styles.sectionTitle}>Edit Item Details</Text>
 
         {/* Title */}
@@ -368,7 +411,7 @@ export default function EditListingScreen({ route, navigation }: any) {
               <View style={styles.spToggleRow}>
                 <View style={styles.spToggleLabel}>
                   <Text style={styles.label}>Accept Swap Points?</Text>
-                  <Text style={styles.hint}>Allow buyers to pay up to 50% with Swap Points</Text>
+                  <Text style={styles.hint}>Allow buyers to pay with Swap Points</Text>
                 </View>
                 <Switch
                   value={acceptsSwapPoints}
@@ -408,19 +451,53 @@ export default function EditListingScreen({ route, navigation }: any) {
           )}
         </TouchableOpacity>
 
-        {/* Cancel Button */}
-        <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+        <TouchableOpacity
+          style={[styles.deleteLinkButton, (loading || syncingImages) && styles.saveButtonDisabled]}
+          onPress={handleDeleteListing}
+          disabled={loading || syncingImages}
+        >
+          <Text style={styles.deleteLinkText}>Delete Listing</Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+
+        {/* Cancel Button */}
+          <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      <Modal
+        visible={showSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleSuccessModalClose}
+      >
+        <View style={styles.successModalBackdrop}>
+          <View style={styles.successModalCard}>
+            <View style={styles.successIconBadge}>
+              <Text style={styles.successIconText}>✓</Text>
+            </View>
+            <Text style={styles.successModalTitle}>{successModalTitle}</Text>
+            <Text style={styles.successModalMessage}>{successModalMessage}</Text>
+
+            <TouchableOpacity
+              style={styles.successModalButton}
+              onPress={handleSuccessModalClose}
+              testID="edit-listing-success-ok"
+            >
+              <Text style={styles.successModalButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
@@ -433,14 +510,14 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   form: {
-    padding: 16,
+    padding: 20,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '600',
     marginTop: 16,
     marginBottom: 12,
-    color: '#000',
+    color: '#1A1A1A',
   },
   label: {
     fontSize: 16,
@@ -450,15 +527,17 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#F0F0F0',
+    borderWidth: 0,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    minHeight: 52,
     fontSize: 16,
+    color: '#1A1A1A',
   },
   textArea: {
-    height: 100,
+    minHeight: 100,
+    paddingVertical: 12,
     textAlignVertical: 'top',
   },
   hint: {
@@ -478,16 +557,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   categoryButton: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    borderWidth: 0,
+    borderRadius: 12,
+    backgroundColor: '#F0F0F0',
   },
   categoryButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
   },
   categoryButtonText: {
     fontSize: 12,
@@ -504,16 +581,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   conditionButton: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    borderWidth: 0,
+    borderRadius: 12,
+    backgroundColor: '#F0F0F0',
   },
   conditionButtonActive: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
   },
   conditionButtonText: {
     fontSize: 12,
@@ -529,10 +604,9 @@ const styles = StyleSheet.create({
   spSection: {
     marginTop: 24,
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderWidth: 0,
   },
   spToggleRow: {
     flexDirection: 'row',
@@ -567,18 +641,30 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: 32,
-    backgroundColor: '#007AFF',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: '#5DBB8E',
+    minHeight: 52,
+    paddingVertical: 14,
+    borderRadius: 26,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonDisabled: {
     opacity: 0.6,
   },
   saveButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: '#fff',
+  },
+  deleteLinkButton: {
+    alignSelf: 'center',
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  deleteLinkText: {
+    color: '#E85D75',
+    fontSize: 14,
+    fontWeight: '500',
   },
   loadingRow: {
     flexDirection: 'row',
@@ -587,16 +673,78 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     marginTop: 12,
-    paddingVertical: 16,
-    borderRadius: 12,
+    minHeight: 48,
+    paddingVertical: 12,
+    borderRadius: 24,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
+    borderColor: '#6B6B6B',
+    backgroundColor: 'transparent',
+    justifyContent: 'center',
   },
   cancelButtonText: {
     fontSize: 16,
+    fontWeight: '500',
+    color: '#6B6B6B',
+  },
+  successModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.28)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  successModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 20,
+    alignItems: 'center',
+  },
+  successIconBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#E8F5F0',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  successIconText: {
+    fontSize: 28,
+    color: '#14805E',
+    fontWeight: '700',
+  },
+  successModalTitle: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  successModalMessage: {
+    marginTop: 8,
+    marginBottom: 20,
+    fontSize: 18,
+    lineHeight: 24,
+    color: '#4B5563',
+    textAlign: 'center',
+  },
+  successModalButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: 26,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successModalButtonText: {
+    fontSize: 20,
     fontWeight: '600',
-    color: '#666',
+    color: '#FFFFFF',
   },
 });

@@ -31,7 +31,7 @@ interface PhoneVerificationModalProps {
  * Phone verification modal for first-transaction gate
  * Step 1: Enter phone number with country code picker (defaults to +1)
  * Step 2: Enter 6-digit code with auto-advance and resend timer
- * 
+ *
  * Required mode: NO close/dismiss affordance (user MUST verify to proceed)
  * Optional mode: Shows close button (user can dismiss)
  */
@@ -78,7 +78,7 @@ export default function PhoneVerificationModal({
   const handlePhoneChange = (text: string) => {
     // Auto-format with E.164 (+1 for US)
     let formatted = text.replace(/[^0-9+]/g, '');
-    
+
     // Auto-add +1 if user starts typing digits
     if (formatted.length > 0 && !formatted.startsWith('+')) {
       formatted = '+1' + formatted;
@@ -88,17 +88,13 @@ export default function PhoneVerificationModal({
   };
 
   const handleSendCode = async () => {
-    const success = await sendCode();
-    if (!success && error) {
-      // Error is already set in state
-      console.log('[PhoneVerificationModal] Send code failed:', error);
-    }
+    await sendCode();
   };
 
   const handleCodeChange = (text: string, index: number) => {
     // Only allow digits
     const digit = text.replace(/[^0-9]/g, '').slice(-1);
-    
+
     // Update code
     const newCode = code.split('');
     newCode[index] = digit;
@@ -172,7 +168,7 @@ export default function PhoneVerificationModal({
                 accessibilityLabel="Close"
                 testID={`${testID}-close`}
               >
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color="#6B6B6B" />
               </TouchableOpacity>
             )}
           </View>
@@ -272,9 +268,7 @@ export default function PhoneVerificationModal({
                       <Text style={styles.resendText}>Resend Code</Text>
                     </TouchableOpacity>
                   ) : (
-                    <Text style={styles.timerText}>
-                      Resend code in {resendCountdown}s
-                    </Text>
+                    <Text style={styles.timerText}>Resend code in {resendCountdown}s</Text>
                   )}
                 </View>
 
@@ -334,12 +328,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E0E0E0',
   },
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   closeButton: {
     padding: 4,
@@ -352,30 +346,29 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 24,
   },
   phone: {
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: '#6B6B6B',
     marginBottom: 8,
   },
   phoneInput: {
     height: 56,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderWidth: 0,
     borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: '#1F2937',
-    backgroundColor: '#F9FAFB',
+    color: '#1A1A1A',
+    backgroundColor: '#F0F0F0',
   },
   codeContainer: {
     flexDirection: 'row',
@@ -387,13 +380,13 @@ const styles = StyleSheet.create({
     width: 48,
     height: 56,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: '#E0E0E0',
     borderRadius: 12,
     fontSize: 24,
     fontWeight: '600',
     textAlign: 'center',
-    color: '#1F2937',
-    backgroundColor: '#F9FAFB',
+    color: '#1A1A1A',
+    backgroundColor: '#F0F0F0',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -409,8 +402,8 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     height: 56,
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 24,
@@ -430,11 +423,11 @@ const styles = StyleSheet.create({
   resendText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#3B82F6',
+    color: '#5DBB8E',
   },
   timerText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   backButton: {
     alignItems: 'center',
@@ -443,6 +436,6 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
 });

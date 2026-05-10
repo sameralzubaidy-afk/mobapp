@@ -13,6 +13,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import AppNavigator from './src/navigation/AppNavigator';
+import GlobalAlertProvider from './src/providers/GlobalAlertProvider';
 import StartupDebugOverlay from './src/components/StartupDebugOverlay';
 import { NotificationAnalyticsService } from './src/services/notificationAnalytics';
 
@@ -52,10 +53,12 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#fff' }}>
       <SafeAreaProvider>
-        <AppNavigator />
-        <StatusBar style="auto" />
-        {/* Debug overlay to show last startup step (only used in development) */}
-        {__DEV__ ? <StartupDebugOverlay /> : null}
+        <GlobalAlertProvider>
+          <AppNavigator />
+          <StatusBar style="auto" />
+          {/* Debug overlay to show last startup step (only used in development) */}
+          {__DEV__ ? <StartupDebugOverlay /> : null}
+        </GlobalAlertProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

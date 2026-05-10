@@ -13,6 +13,7 @@ import {
   Text,
   SafeAreaView,
   FlatList,
+  ScrollView,
   TextInput,
   Pressable,
   ActivityIndicator,
@@ -36,10 +37,10 @@ import { suggestSpellingCorrection } from '@/services/discovery';
 import { countActiveFilters, getDefaultFilters } from '@/utils/filterHelpers';
 import { SearchResult, DiscoveryFilters, SortOption } from '@/types/discovery';
 import { getCategories } from '@/services/items';
-import { ListingImage, SortDropdown } from '@/components/atoms';
-import { SearchFilterModal } from '@/components/molecules';
+import { SortDropdown } from '@/components/atoms';
+import { SearchFilterModal, ItemCard } from '@/components/molecules';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
-import { Ionicons } from '@expo/vector-icons';
+import { MagnifyingGlass, FunnelSimple, X } from 'phosphor-react-native';
 
 // Search debounce constants: 200ms for active typing, 0ms for filter/sort changes
 const KEYSTROKE_DEBOUNCE_MS = 200;
@@ -48,6 +49,7 @@ const FILTER_DEBOUNCE_MS = 0;
 // Pagination batch size
 const RESULTS_PER_PAGE = 20;
 const AUTOCOMPLETE_MAX = 5;
+const FALLBACK_CATEGORY_CHIPS = ['Clothing', 'Shoes', 'Books', 'Toys', 'Sports'];
 
 // Props type
 type Props = NativeStackScreenProps<any, 'Discover'>;
@@ -108,6 +110,18 @@ export default function DiscoverScreen({ navigation }: Props) {
   // --- COMPUTED VALUES ---
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
+
+  const categoryChipLabels = useMemo(() => {
+    const labels = (categories || [])
+      .map((category: any) => String(category?.name || '').trim())
+      .filter((name: string) => name.length > 0);
+
+    if (labels.length > 0) {
+      return Array.from(new Set(labels)).slice(0, 8);
+    }
+
+    return FALLBACK_CATEGORY_CHIPS;
+  }, [categories]);
 
   // --- LIFECYCLE ---
 
@@ -411,6 +425,13 @@ export default function DiscoverScreen({ navigation }: Props) {
   };
 
   /**
+   * Handle category chip press
+   */
+  const handleCategoryChipPress = (categoryName: string) => {
+    navigation.navigate('CategoryBrowse', { category: categoryName });
+  };
+
+  /**
    * Handle tapping a result card
    */
   const handleResultPress = (itemId: string) => {
@@ -433,27 +454,24 @@ export default function DiscoverScreen({ navigation }: Props) {
     const mainImageUrl = item.images && item.images.length > 0 ? item.images[0].url : null;
 
     return (
-      <Pressable
-        testID={`search-result-${item.id}`}
-        accessibilityLabel={`${item.title}, $${item.price}`}
-        style={styles.resultCard}
+      <ItemCard
+        id={item.id}
+        title={item.title}
+        price={item.price}
+        imageUrl={mainImageUrl}
+        isFavorite={false} // TODO: wire favorite state from user context
+        acceptsSwapPoints={item.accepts_swap_points}
         onPress={() => handleResultPress(item.id)}
-      >
-        <ListingImage
-          url={mainImageUrl}
-          containerStyle={styles.resultImage}
-          imageStyle={styles.resultImage}
-        />
-        <View style={styles.resultContent}>
-          <Text style={styles.resultTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.resultPrice}>${item.price.toFixed(2)}</Text>
-            {item.accepts_swap_points && <Text style={styles.spBadge}>SP ✓</Text>}
-          </View>
-        </View>
-      </Pressable>
+        onFavoritePress={() => {
+          // TODO: wire favorite toggle handler
+          console.log('[DiscoverScreen] Favorite toggled:', item.id);
+        }}
+        onSharePress={() => {
+          // TODO: wire share handler
+          console.log('[DiscoverScreen] Share pressed:', item.id);
+        }}
+        testID={`search-result-${item.id}`}
+      />
     );
   }, []);
 
@@ -466,24 +484,33 @@ export default function DiscoverScreen({ navigation }: Props) {
         <View style={styles.headerTopRow}>
           {navigation.canGoBack() && (
             <Pressable onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={8}>
-              <Ionicons name="arrow-back" size={24} color="#374151" />
+              <MagnifyingGlass size={24} color="#374151" weight="regular" />
             </Pressable>
           )}
           {/* Search Input Container - Prevents re-mount of input */}
           <View style={[styles.searchContainer, navigation.canGoBack() && { marginLeft: 8 }]}>
-            <TextInput
-              testID="discover-search-input"
-              accessibilityLabel="Search for items"
-              style={styles.searchInput}
-              placeholder="Search for items..."
-              value={query}
-              onChangeText={handleQueryChange}
-              onFocus={handleSearchFocus}
-              onBlur={handleSearchBlur}
-              returnKeyType="search"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            <View style={styles.searchInputWrapper}>
+              <MagnifyingGlass size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 8 }} />
+              <TextInput
+                testID="discover-search-input"
+                accessibilityLabel="Search for items"
+                style={styles.searchInput}
+                placeholder="Search items..."
+                placeholderTextColor="#999999"
+                value={query}
+                onChangeText={handleQueryChange}
+                onFocus={handleSearchFocus}
+                onBlur={handleSearchBlur}
+                returnKeyType="search"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {query.length > 0 && (
+                <Pressable onPress={() => setQuery('')} hitSlop={8}>
+                  <X size={16} color="#6B6B6B" weight="regular" />
+                </Pressable>
+              )}
+            </View>
           </View>
         </View>
 
@@ -495,7 +522,7 @@ export default function DiscoverScreen({ navigation }: Props) {
             style={styles.filterButton}
             onPress={handleOpenFilters}
           >
-            <Text style={styles.filterButtonText}>Filters</Text>
+            <FunnelSimple size={20} color="#1A1A1A" weight="regular" />
             {activeFilterCount > 0 && (
               <View style={styles.filterBadge} testID="filter-badge">
                 <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
@@ -505,6 +532,25 @@ export default function DiscoverScreen({ navigation }: Props) {
 
           <SortDropdown value={sortBy} onChange={handleSortChange} />
         </View>
+
+        {/* Category Chips */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryChipsContainer}
+          testID="discover-category-chip-row"
+        >
+          {categoryChipLabels.map((categoryName) => (
+            <Pressable
+              key={categoryName}
+              style={styles.categoryChip}
+              onPress={() => handleCategoryChipPress(categoryName)}
+              testID={`discover-category-chip-${categoryName.toLowerCase().replace(/\s+/g, '-')}`}
+            >
+              <Text style={styles.categoryChipText}>{categoryName}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
 
         {/* Network Error Banner */}
         {error && (
@@ -641,9 +687,11 @@ export default function DiscoverScreen({ navigation }: Props) {
         data={results}
         renderItem={renderResult}
         keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmpty}
-        contentContainerStyle={results.length === 0 ? styles.emptyList : undefined}
+        contentContainerStyle={[styles.listContent, results.length === 0 && styles.emptyList]}
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -673,13 +721,13 @@ export default function DiscoverScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#F0F0F0',
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -688,67 +736,75 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 4,
   },
-  searchInput: {
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#d0d0d0',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
   searchContainer: {
     flex: 1,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 48,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1A1A1A',
+    padding: 0,
   },
   controlsRow: {
     flexDirection: 'row',
     marginTop: 12,
     gap: 12,
   },
+  categoryChipsContainer: {
+    marginTop: 12,
+    paddingRight: 8,
+  },
+  categoryChip: {
+    backgroundColor: '#F0F0F0',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginRight: 8,
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B6B6B',
+  },
   filterButton: {
-    flex: 1,
-    flexDirection: 'row',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F0F0F0',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 40,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    backgroundColor: '#fff',
-  },
-  filterButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
+    position: 'relative',
   },
   filterBadge: {
-    marginLeft: 8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#007AFF',
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#5DBB8E',
     alignItems: 'center',
     justifyContent: 'center',
   },
   filterBadgeText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#fff',
+    color: '#FFFFFF',
   },
-  sortButton: {
-    flex: 1,
-    height: 40,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#d0d0d0',
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+  listContent: {
+    padding: 16,
   },
-  sortButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+  columnWrapper: {
+    gap: 12,
+    marginBottom: 12,
   },
   errorBanner: {
     marginTop: 12,
@@ -765,25 +821,25 @@ const styles = StyleSheet.create({
   },
   autocompletePanel: {
     marginTop: 8,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#E0E0E0',
     overflow: 'hidden',
   },
   autocompleteSuggestion: {
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#F0F0F0',
   },
   autocompleteSuggestionText: {
     fontSize: 14,
-    color: '#333',
+    color: '#1A1A1A',
   },
   recentSearchesPanel: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#F7F7F7',
     borderRadius: 8,
   },
   recentSearchesHeader: {
@@ -795,11 +851,11 @@ const styles = StyleSheet.create({
   recentSearchesTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#1A1A1A',
   },
   clearAllText: {
     fontSize: 12,
-    color: '#007AFF',
+    color: '#5DBB8E',
     fontWeight: '500',
   },
   recentSearchRow: {
@@ -812,7 +868,7 @@ const styles = StyleSheet.create({
   },
   recentSearchText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6B6B6B',
   },
   removeRecentButton: {
     padding: 4,
@@ -820,58 +876,7 @@ const styles = StyleSheet.create({
   },
   removeRecentText: {
     fontSize: 16,
-    color: '#999',
-  },
-  resultCard: {
-    flexDirection: 'row',
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    backgroundColor: '#fff',
-  },
-  resultImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
-  },
-  placeholderImage: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderStyle: 'dashed',
-  },
-  placeholderText: {
-    fontSize: 10,
-    color: '#999',
-    textAlign: 'center',
-  },
-  resultContent: {
-    flex: 1,
-    marginLeft: 12,
-    justifyContent: 'center',
-  },
-  resultTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 4,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  resultPrice: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#007AFF',
-  },
-  spBadge: {
-    marginLeft: 8,
-    fontSize: 12,
-    color: '#10B981',
-    fontWeight: '600',
+    color: '#999999',
   },
   loadingMore: {
     padding: 16,
@@ -890,36 +895,36 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#333',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#6B6B6B',
     textAlign: 'center',
   },
   clearFiltersButton: {
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 20,
   },
   clearFiltersText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: '#FFFFFF',
   },
   spellSuggestionButton: {
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 20,
   },
   spellSuggestionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: '#FFFFFF',
   },
 });

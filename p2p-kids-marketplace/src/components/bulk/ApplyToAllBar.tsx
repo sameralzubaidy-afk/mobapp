@@ -67,9 +67,9 @@ export function ApplyToAllBar({ items, onApply }: ApplyToAllBarProps) {
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: '#ECFDF5',
     borderTopWidth: 1,
-    borderColor: '#FCD34D',
+    borderColor: '#A7F3D0',
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 8,
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#92400E',
+    color: '#065F46',
     marginBottom: 4,
   },
   row: {
@@ -94,11 +94,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: '#FCD34D',
+    borderColor: '#5DBB8E',
   },
   chipLabel: {
     fontSize: 11,
-    color: '#92400E',
+    color: '#047857',
     fontWeight: '700',
   },
   chipValue: {

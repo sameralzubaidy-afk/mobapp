@@ -30,6 +30,7 @@ import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { useAuth } from '@/hooks/useAuth';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
+import { Modal } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 
 type TradeDetailRouteProp = RouteProp<RootStackParamList, 'TradeDetail'>;
@@ -45,12 +46,12 @@ export default function TradeDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [trade, setTrade] = useState<Trade | null>(null);
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showCancellationModal, setShowCancellationModal] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [canReview, setCanReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [otherUserReviewed, setOtherUserReviewed] = useState(false);
-  const [revieweeId, setRevieweeId] = useState<string>('');
 
   const fetchTrade = useCallback(async () => {
     try {
@@ -66,11 +67,6 @@ export default function TradeDetailScreen() {
 
       // Check mutual review status (only for completed trades)
       if (user?.id && (data as any).status === 'completed') {
-        const revieweeUserId =
-          (data as any).buyer_id === user.id ? (data as any).seller_id : (data as any).buyer_id;
-
-        setRevieweeId(revieweeUserId);
-
         const reviewStatusResult = await getTradeReviewStatus(tradeId, user.id);
         if (reviewStatusResult.success) {
           setHasReviewed(reviewStatusResult.userReviewed);
@@ -123,58 +119,49 @@ export default function TradeDetailScreen() {
   );
 
   const handleComplete = async () => {
-    const isSeller = trade?.seller_id === user?.id;
-    const confirmMessage = isSeller
-      ? 'Are you sure you want to mark this trade as completed? The buyer will be notified to confirm.'
-      : 'Are you sure you want to mark this trade as completed? This will release Swap Points or cash to the seller.';
+    setShowCompleteConfirm(true);
+  };
 
-    Alert.alert('Complete Trade', confirmMessage, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Complete',
-        onPress: async () => {
-          try {
-            setSubmitting(true);
-            const result = await completeTradeV2(tradeId);
-            if (result.success) {
-              // Optimistically update local trade state so user sees updated status immediately
-              if (isSeller) {
-                setTrade((prev) =>
-                  prev
-                    ? ({ ...prev, seller_marked_completed_at: new Date().toISOString() } as Trade)
-                    : prev
-                );
-              } else {
-                setTrade((prev) =>
-                  prev
-                    ? ({
-                        ...prev,
-                        status: 'completed',
-                        completed_at: new Date().toISOString(),
-                      } as Trade)
-                    : prev
-                );
-              }
+  const confirmCompleteTrade = async () => {
+    try {
+      setShowCompleteConfirm(false);
+      setSubmitting(true);
+      const isSeller = trade?.seller_id === user?.id;
+      const result = await completeTradeV2(tradeId);
+      if (result.success) {
+        // Optimistically update local trade state so user sees updated status immediately
+        if (isSeller) {
+          setTrade((prev) =>
+            prev ? ({ ...prev, seller_marked_completed_at: new Date().toISOString() } as Trade) : prev
+          );
+        } else {
+          setTrade((prev) =>
+            prev
+              ? ({
+                  ...prev,
+                  status: 'completed',
+                  completed_at: new Date().toISOString(),
+                } as Trade)
+              : prev
+          );
+        }
 
-              // Refresh canonical trade record from server to ensure accurate fields
-              try {
-                await fetchTrade();
-              } catch (e) {
-                console.warn('[TradeDetail] fetchTrade after complete failed', e);
-              }
+        // Refresh canonical trade record from server to ensure accurate fields
+        try {
+          await fetchTrade();
+        } catch (e) {
+          console.warn('[TradeDetail] fetchTrade after complete failed', e);
+        }
 
-              Alert.alert('Success', result.message || 'Trade marked as completed!');
-            } else {
-              Alert.alert('Error', result.error || 'Failed to complete trade');
-            }
-          } catch (error: any) {
-            Alert.alert('Error', error.message);
-          } finally {
-            setSubmitting(false);
-          }
-        },
-      },
-    ]);
+        Alert.alert('Success', result.message || 'Trade marked as completed!');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to complete trade');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleCancel = async () => {
@@ -266,6 +253,9 @@ export default function TradeDetailScreen() {
 
   const isBuyer = trade.buyer_id === user?.id;
   const isSeller = trade.seller_id === user?.id;
+  const completeConfirmMessage = isSeller
+    ? 'Confirm this trade handoff is complete? The buyer will be prompted to confirm next.'
+    : 'Confirm you received the item as expected? This final step releases Swap Points or cash to the seller.';
   console.log(
     '[TradeDetail] isBuyer:',
     isBuyer,
@@ -454,6 +444,40 @@ export default function TradeDetailScreen() {
         )}
       </ScrollView>
       <BottomNavBar />
+
+      <Modal
+        visible={showCompleteConfirm}
+        type="alert"
+        showCloseButton={false}
+        onClose={() => setShowCompleteConfirm(false)}
+      >
+        <View>
+          <Text style={styles.confirmModalTitle}>Complete Trade</Text>
+          <Text style={styles.confirmModalMessage}>{completeConfirmMessage}</Text>
+
+          <View style={styles.confirmModalActions}>
+            <Pressable
+              style={styles.confirmModalCancelButton}
+              onPress={() => setShowCompleteConfirm(false)}
+              disabled={submitting}
+            >
+              <Text style={styles.confirmModalCancelText}>Cancel</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.confirmModalCompleteButton, submitting && styles.disabledButton]}
+              onPress={confirmCompleteTrade}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.confirmModalCompleteText}>Complete</Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* Cancellation Reason Modal */}
       <CancellationReasonModal
@@ -690,5 +714,49 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginTop: 4,
+  },
+  confirmModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 16,
+  },
+  confirmModalMessage: {
+    fontSize: 16,
+    color: '#6B6B6B',
+    lineHeight: 21,
+    marginBottom: 20,
+  },
+  confirmModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  confirmModalCancelButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: '#7A7A7A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  confirmModalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B6B6B',
+  },
+  confirmModalCompleteButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#5DBB8E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmModalCompleteText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

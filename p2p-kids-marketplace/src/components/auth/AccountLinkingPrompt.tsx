@@ -38,7 +38,7 @@ const PROVIDER_NAMES = {
 /**
  * Account linking prompt modal
  * Shown when user attempts social login with email that matches existing account
- * 
+ *
  * Flow:
  * - If account has password: prompt for password re-auth → link
  * - If social-only account: require sign-in via already-linked provider → link
@@ -71,7 +71,7 @@ export default function AccountLinkingPrompt({
 
     try {
       await linkSocialAccount(provider, providerProfile, hasPassword ? password : undefined);
-      
+
       setIsLinking(false);
       setPassword('');
       onLink();
@@ -80,9 +80,7 @@ export default function AccountLinkingPrompt({
       setIsLinking(false);
 
       if (err instanceof EmailMismatchError) {
-        setError(
-          `The email on your ${providerName} account doesn't match your account email.`
-        );
+        setError(`The email on your ${providerName} account doesn't match your account email.`);
       } else if ((err as any).message?.includes('Invalid login credentials')) {
         setError('Incorrect password. Please try again.');
       } else {
@@ -113,7 +111,7 @@ export default function AccountLinkingPrompt({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <Ionicons name="link" size={32} color="#3B82F6" />
+              <Ionicons name="link" size={32} color="#5DBB8E" />
             </View>
             <Text style={styles.title}>Link {providerName} Account</Text>
             <Text style={styles.subtitle}>
@@ -156,7 +154,7 @@ export default function AccountLinkingPrompt({
                     <Ionicons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                       size={20}
-                      color="#6B7280"
+                      color="#6B6B6B"
                     />
                   </TouchableOpacity>
                 </View>
@@ -164,7 +162,7 @@ export default function AccountLinkingPrompt({
             ) : (
               // Social-only account flow
               <View style={styles.socialInfo}>
-                <Ionicons name="information-circle-outline" size={24} color="#3B82F6" />
+                <Ionicons name="information-circle-outline" size={24} color="#5DBB8E" />
                 <Text style={styles.socialDescription}>
                   You're signing in with {providerName}, and you already have an account with this
                   email using another login method.{'\n\n'}
@@ -229,13 +227,13 @@ const styles = StyleSheet.create({
     paddingTop: 32,
     paddingBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E0E0E0',
   },
   iconContainer: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: '#E8F5F0',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -243,13 +241,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
   },
   content: {
@@ -258,14 +256,14 @@ const styles = StyleSheet.create({
   },
   description: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 24,
     lineHeight: 24,
   },
   label: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
+    color: '#6B6B6B',
     marginBottom: 8,
   },
   passwordContainer: {
@@ -273,14 +271,13 @@ const styles = StyleSheet.create({
   },
   input: {
     height: 56,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderWidth: 0,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingRight: 48,
     fontSize: 16,
-    color: '#1F2937',
-    backgroundColor: '#F9FAFB',
+    color: '#1A1A1A',
+    backgroundColor: '#F0F0F0',
   },
   eyeIcon: {
     position: 'absolute',
@@ -291,14 +288,14 @@ const styles = StyleSheet.create({
   socialInfo: {
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: '#E8F5F0',
     borderRadius: 12,
     gap: 12,
   },
   socialDescription: {
     flex: 1,
     fontSize: 14,
-    color: '#1F2937',
+    color: '#1A1A1A',
     lineHeight: 20,
   },
   errorContainer: {
@@ -316,12 +313,12 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#E0E0E0',
   },
   primaryButton: {
     height: 56,
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -343,6 +340,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
 });

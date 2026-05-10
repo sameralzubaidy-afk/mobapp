@@ -50,27 +50,21 @@ export function PublishButton({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 12,
-    padding: 18,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 16,
-    minHeight: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   buttonDisabled: {
-    backgroundColor: '#E0E0E0',
-    shadowOpacity: 0,
-    elevation: 0,
+    backgroundColor: '#C8C8C8',
   },
   buttonText: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: '#FFFFFF',
   },
 });

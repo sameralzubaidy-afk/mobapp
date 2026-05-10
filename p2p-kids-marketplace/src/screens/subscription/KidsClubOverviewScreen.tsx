@@ -562,10 +562,10 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     backgroundColor: 'transparent',
-    borderColor: '#E5E7EB',
+    borderColor: '#E0E0E0',
   },
   secondaryButtonText: {
-    color: '#111827',
+    color: '#1A1A1A',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -580,7 +580,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(26, 26, 26, 0.45)',
     justifyContent: 'flex-end',
   },
   modalContent: {
@@ -603,11 +603,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 12,
     textAlign: 'center',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   modalText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 22,
@@ -616,15 +616,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#111827',
+    color: '#1A1A1A',
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
     padding: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#F0F0F0',
+    color: '#1A1A1A',
     minHeight: 80,
     textAlignVertical: 'top',
     marginBottom: 20,
@@ -640,12 +641,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E0E0E0',
     marginBottom: 8,
+    backgroundColor: '#FAFAFA',
   },
   selectedReasonItem: {
-    borderColor: '#0066CC',
-    backgroundColor: '#F0F7FF',
+    borderColor: '#5DBB8E',
+    backgroundColor: '#E8F5F0',
   },
   reasonText: {
     fontSize: 16,
@@ -653,7 +655,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   selectedReasonText: {
-    color: '#0066CC',
+    color: '#5DBB8E',
     fontWeight: '600',
   },
   radioButton: {
@@ -666,13 +668,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   radioButtonSelected: {
-    borderColor: '#0066CC',
+    borderColor: '#5DBB8E',
   },
   radioButtonInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#0066CC',
+    backgroundColor: '#5DBB8E',
   },
   modalButtons: {
     flexDirection: 'column',

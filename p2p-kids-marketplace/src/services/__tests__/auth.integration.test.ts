@@ -462,7 +462,7 @@ describeSupabase('AUTH-V2: Complete Signup → Trial Flow', () => {
  * ✅ Test 6: Prevents duplicate enrollments
  *
  * NEXT STEPS:
- * - Add E2E tests for UI flow (SignupScreen → PhoneVerification → ProfileCompletion → SubscriptionChoiceScreen)
+ * - Add E2E tests for UI flow (SignupScreen → PhoneVerification → ProfileSetup → SubscriptionChoiceScreen)
  * - Test error scenarios: network failures, RLS violations, invalid states
  * - Performance: measure signup + trial enrollment latency
  */

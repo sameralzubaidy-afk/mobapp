@@ -24,7 +24,7 @@ const AVATAR_BUCKET = 'user-avatars';
  * - Signals if ZIP is not active (match_type='nearest') for waitlist popup
  *
  * IMPORTANT: This function DOES NOT show the popup.
- * The calling code (LocationPickerScreen) handles the popup logic.
+ * The calling code (ProfileSetupScreen) handles the popup logic.
  */
 export const findNearestNode = async (zipCode: string): Promise<NodeAssignment | null> => {
   try {

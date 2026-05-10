@@ -145,8 +145,8 @@ describe('ListingSafetyReviewScreen', () => {
     // Should have Edit Listing button
     expect(screen.getByText(/edit listing/i)).toBeTruthy();
 
-    // Should NOT have Appeal Decision button (only for rejected items)
-    expect(screen.queryByText(/appeal decision/i)).toBeNull();
+    // Should NOT have Appeal button (only for rejected items)
+    expect(screen.queryByText(/appeal this decision/i)).toBeNull();
   });
 
   // STATE: Rejected Listing (With Appeal UI)
@@ -167,8 +167,8 @@ describe('ListingSafetyReviewScreen', () => {
       screen.getByPlaceholderText(/explain why this listing should be reviewed again/i)
     ).toBeTruthy();
 
-    // Should have Appeal Decision button
-    expect(screen.getByText(/appeal decision/i)).toBeTruthy();
+    // Should have Appeal button
+    expect(screen.getByText(/appeal this decision/i)).toBeTruthy();
   });
 
   // STATE: Appeal Button Enabled (Valid Reason)
@@ -192,7 +192,7 @@ describe('ListingSafetyReviewScreen', () => {
     );
 
     await waitFor(() => {
-      const appealButton = screen.getByText(/appeal decision/i);
+      const appealButton = screen.getByText(/appeal this decision/i);
       // Note: actual button enable/disable state is tested in E2E; unit tests verify rendering
       expect(appealButton).toBeTruthy();
     });
@@ -217,7 +217,7 @@ describe('ListingSafetyReviewScreen', () => {
     );
     fireEvent.changeText(appealInput, 'I corrected the safety issue as requested.');
 
-    const appealButton = screen.getByText(/appeal decision/i);
+    const appealButton = screen.getByText(/appeal this decision/i);
     fireEvent.press(appealButton);
 
     // Confirm alert
@@ -300,7 +300,7 @@ describe('ListingSafetyReviewScreen', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Test Item')).toBeTruthy();
-      expect(screen.getByText(/needs edits/i)).toBeTruthy();
+      expect(screen.getAllByText(/needs edits/i).length).toBeGreaterThan(0);
       expect(screen.getByText('0')).toBeTruthy();
     });
 

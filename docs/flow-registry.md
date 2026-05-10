@@ -1386,6 +1386,82 @@ This file is the canonical registry of end-to-end flows and their required regre
       - Maestro: `npm run test:maestro:ios`, `npm run test:maestro:android`
     - Regression: Tier 1 (targeted smoke when listings/drafts/navigation changes)
     - Module: MODULE-04-ITEM-LISTING-V3 (TASK LISTING-V3-007)
+  - **MODULE-15.1-FLOW-04 (2026-05-07):** Listing Management UI Redesign — Whisk-inspired design system for 5 listing screens
+    - Purpose: Visual-only redesign of listing management screens to match MODULE-15.1-UI-REDESIGN design system (TASK FLOW-04)
+    - Scope: 5 screens, StyleSheet updates, Phosphor icon integration, NO business logic changes
+    - Files Modified:
+      - `p2p-kids-marketplace/src/screens/ItemCreateScreen.tsx` - Photo-first creation with Camera/Coins/Tag icons, filled inputs, green pill publish button
+      - `p2p-kids-marketplace/src/screens/BulkListingCreateScreen.tsx` - Package empty state icon, photo grid matches create, green pill publish all
+      - `p2p-kids-marketplace/src/screens/listing/EditListingScreen.tsx` - Mirrors create screen, green save button, red delete link
+      - `p2p-kids-marketplace/src/screens/listing/MyListingsScreen.tsx` - Storefront header icon, status badge colors (Active=#E8F5F0/#5DBB8E, Sold=#F5F5F5/#6B6B6B, Expired=#FEF9C3/#CA8A04, Pending=#FEF3C7/#D97706), 72×72px thumbnails, Phosphor action icons (PencilSimple/Trash/DotsThree)
+      - `p2p-kids-marketplace/src/screens/listing/ListingSafetyReviewScreen.tsx` - Alert banner (#FEE2E2 bg + ShieldWarning icon), RED danger button (#E85D75) for Remove Listing, outlined Appeal button
+    - Design System:
+      - Primary: #5DBB8E (Whisk green) for all CTAs
+      - Danger: #E85D75 (red) for destructive actions (Remove Listing)
+      - Filled inputs: backgroundColor #F0F0F0, borderRadius 12, height 52, NO borderWidth
+      - Pill buttons: borderRadius 26 (height ÷ 2), height 52 for primary actions
+      - SP badge: backgroundColor #FEF3C7, color #F59E0B (gold), Coins icon left
+      - Status badges: pill shape (borderRadius 12), fontWeight '500', 12px text
+      - Alert banner: backgroundColor #FEE2E2, ShieldWarning icon (20px, #E85D75)
+      - Icons: Phosphor React Native v3.0.6 (Camera 32px for empty slots, Coins 16px for SP badge, Tag 20px for category, Storefront 24px/64px for header/empty state, PencilSimple/Trash/DotsThree 20px for actions, ShieldWarning 20px for alert, Package 64px for bulk empty state)
+    - Features:
+      - Photo upload slots: Camera icon (32px, #6B6B6B) with dashed border (#E0E0E0) for empty slots
+      - SP Earn Badge: Gold badge with Coins icon (subscribers only, free users see grayed-out)
+      - Status badges: Color-coded by status (4 variants)
+      - Alert banner: Safety alerts with ShieldWarning icon (rejection/flagging)
+      - Action icons: Phosphor icons for edit/delete/more (replaces any old Ionicons)
+      - Empty states: Storefront icon (64px) for My Listings, Package icon (64px) for Bulk Create
+      - Button hierarchy: Green pill (primary), Red pill (danger), Outlined pill (secondary), No-fill link (tertiary)
+    - Tests:
+      - Unit: Existing tests updated for new StyleSheet values (MyListingsScreen.test.tsx, ListingSafetyReviewScreen.test.tsx)
+      - Integration: No new integration tests (visual-only changes)
+      - Maestro: `.maestro/module-15.1-flow-04-listings.yaml` (5 test flows: MyListings, ItemCreate, EditListing, ListingSafetyReview, BulkCreate) — validates UI element presence via testID, exact colors verified in manual testing
+      - Manual: `MODULE-15.1-FLOW-04-MANUAL-TESTING.md` (18 test cases: TC-001 to TC-018 covering all 5 screens on iOS + Android simulators)
+    - Prerequisites:
+      - phosphor-react-native@3.0.6 installed ✅ (already in package.json)
+      - No old icon libraries (Ionicons, MaterialIcons) ✅ (verified via grep)
+      - Theme system with Whisk colors ✅ (already in place from MODULE-15.1-FLOW-01)
+    - Validation:
+      - Tier 0 (MUST PASS before manual testing):
+        - `cd p2p-kids-marketplace && npm run typecheck` → PASS (no duplicate exports, no syntax errors)
+        - `cd p2p-kids-marketplace && npm run lint` → PASS
+        - `cd p2p-kids-marketplace && npm run test:unit` → All unit tests green
+      - Tier 1 (manual simulator testing):
+        - Manual testing guide (18 TCs) executed on iOS Simulator + Android Emulator
+        - All status badge colors verified visually (Maestro cannot validate exact colors)
+        - All icon sizes/weights verified visually (Phosphor regular = 2px stroke)
+        - All button shapes verified (pill = height ÷ 2 borderRadius)
+      - Maestro (automated UI states):
+        - `npm run test:maestro:ios -- .maestro/module-15.1-flow-04-listings.yaml`
+        - `npm run test:maestro:android -- .maestro/module-15.1-flow-04-listings.yaml`
+    - Acceptance Criteria (MODULE-15.1-VERIFICATION.md):
+      - [x] All 5 screens render with new design system (green buttons, filled inputs, Phosphor icons)
+      - [x] Status badges use exact color pairs per spec (TC-013)
+      - [x] SP badge is gold with Coins icon (TC-002)
+      - [x] Alert banner is red tint with ShieldWarning icon (TC-016)
+      - [x] Remove Listing button is RED (#E85D75), NOT green (TC-017)
+      - [x] Appeal button is outlined (border only), NOT filled (TC-018)
+      - [x] Empty photo slots show Camera icon with dashed border (TC-001)
+      - [x] Empty states show correct icons (Storefront 64px, Package 64px) (TC-015, TC-005)
+      - [x] Action icons are Phosphor (PencilSimple/Trash/DotsThree 20px) (TC-014)
+      - [x] No business logic broken (listing create/edit/delete still works)
+      - [x] No navigation broken (all screens accessible)
+    - Performance:
+      - No performance regressions (visual-only changes, no new API calls)
+      - StyleSheet changes are static (no runtime overhead)
+      - Phosphor icons render via SVG (lightweight, same perf as previous icons)
+    - Tier: Tier 0 always (typecheck + lint + unit tests), Tier 1 when listing screens change (manual testing guide + Maestro)
+    - Regression: Tier 1 targeted smoke (FLOW-04 listings only, no impact on FLOW-05 discovery or FLOW-08 checkout)
+    - Dependencies:
+      - phosphor-react-native v3.0.6 (MODULE-15.1 design system)
+      - Existing listing business logic (LISTING-V3-008, LISTING-V3-011) unchanged
+      - Theme system from MODULE-15.1-FLOW-01 (colors already correct)
+    - Deliverables:
+      - Implementation summary: `MODULE-15.1-FLOW-04-IMPLEMENTATION-SUMMARY.md`
+      - Manual testing guide: `MODULE-15.1-FLOW-04-MANUAL-TESTING.md` (18 test cases)
+      - Code changes guide: `MODULE-15.1-FLOW-04-CODE-CHANGES-GUIDE.md` (StyleSheet snippets per screen)
+      - Maestro flow: `.maestro/module-15.1-flow-04-listings.yaml`
+    - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-04: Listing Management)
 
 ### FLOW-05: Media Upload (Storage) – Listing Photos
 - Smoke: (manual)
@@ -1412,6 +1488,77 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-06: Discovery – Feed/Search/Filters/Favorites
 - Smoke: (manual)
   - Feed loads; search filters update results.
+  - **MODULE-15.1-UI-REDESIGN-FLOW-06 (2025-01-XX):** Discovery & Search screens redesigned to Whisk "Pass It Up" design system
+    - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-06)
+    - Scope:
+      - ItemCard component fully implemented (2-column grid card with overlay actions)
+      - 3 discovery screens redesigned: DiscoverScreen, CategoryBrowseScreen, ItemDetailScreen
+      - SearchFilterModal redesigned (8 filter sections, drag handle, green chips)
+      - Design system: Whisk green (#5DBB8E), filled inputs (#F0F0F0 background, borderRadius 12, NO border), pill-shaped buttons, Phosphor icons v3
+      - Phosphor icons integrated: MagnifyingGlass, FunnelSimple, X, CaretLeft, Heart/HeartStraight, Share, Coins, ShieldCheck, ShoppingCart, category icons (TShirt, Sneaker, BookOpen, GameController, Backpack)
+      - Color palette: Primary text #1A1A1A, secondary text #6B6B6B, tertiary/placeholder #999999, SP gold #F59E0B, error #E85D75
+      - Typography: Titles 20px semibold, body 14-16px, prices 16px bold, badges 11-12px semibold
+      - 2-column grid layout: numColumns={2}, gap: 12px, padding: 16px horizontal
+    - Files Changed (5):
+      - `p2p-kids-marketplace/src/components/molecules/ItemCard/index.tsx` (NEW full implementation, 165 lines)
+      - `p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx` (100% redesigned - JSX + styles)
+      - `p2p-kids-marketplace/src/screens/home/CategoryBrowseScreen.tsx` (100% redesigned - JSX + logic + styles)
+      - `p2p-kids-marketplace/src/screens/home/ItemDetailScreen.tsx` (95% redesigned - main redesign complete)
+      - `p2p-kids-marketplace/src/components/molecules/SearchFilterModal.tsx` (100% redesigned)
+    - ItemCard Features:
+      - Square image container (aspectRatio 1, backgroundColor #F0F0F0 placeholder)
+      - Overlay buttons (top-right, absolute position):
+        - Heart/HeartStraight toggle (18px icon, 32×32px white circle, shadow)
+        - Share button (18px icon, 32×32px white circle, shadow)
+        - Gap between buttons: 6px
+      - SP badge (bottom): fontSize 11px, fontWeight 600, color #5DBB8E, backgroundColor #E8F5F0
+      - Title truncation: numberOfLines={2}, ellipsizeMode="tail"
+      - Price formatting: 2 decimal places, bold
+    - DiscoverScreen Updates:
+      - Search bar: pill shape (borderRadius 24, height 48, backgroundColor #F0F0F0)
+      - MagnifyingGlass icon (left, 20px, #6B6B6B), X icon (right when query exists)
+      - Filter button: 44×44px circle with FunnelSimple icon, green badge overlay when filters active
+      - 2-column grid: FlatList with numColumns={2}, columnWrapperStyle={{ gap: 12 }}
+    - CategoryBrowseScreen Updates:
+      - Dynamic category icon mapping (TShirt for Clothing, Sneaker for Shoes, BookOpen for Books, etc.)
+      - Header: CaretLeft back + category icon (32px, #5DBB8E) + category name (20px semibold)
+      - Same 2-column grid layout as DiscoverScreen
+      - Minimal Whisk-styled StyleSheet (removed SP eligibility toggle)
+    - ItemDetailScreen Updates:
+      - Image overlay: Heart/HeartStraight + Share (24px icons, 40×40px white circles, shadow)
+      - SP earn badge: Coins icon (16px, #F59E0B) + "Earn X SP" text (#FEF3C7 background)
+      - Seller verified badge: ShieldCheck (16px, #5DBB8E) + "Verified Seller" text (#E8F5F0 background)
+      - Sticky bottom actions:
+        - Add to Cart: height 48px, borderRadius 24, white bg, green border, ShoppingCart icon
+        - Buy Now: height 52px, borderRadius 26, green bg, white text
+        - Gap: 10px between buttons, sticky at bottom with border-top separator
+    - SearchFilterModal Updates:
+      - Drag handle: 40×4px, #E0E0E0, borderRadius 2, centered, marginTop 12
+      - Header: FunnelSimple (20px) + "Filters" title + "Clear All" (#5DBB8E, right)
+      - Selected chips: backgroundColor #5DBB8E, color #FFFFFF, fontWeight 500
+      - Unselected chips: backgroundColor #F0F0F0, color #6B6B6B
+      - Price inputs: filled style (#F0F0F0, borderRadius 12, NO border)
+      - Apply button: sticky bottom, backgroundColor #5DBB8E, borderRadius 26, height 52px
+    - Tests Created:
+      - Unit: `p2p-kids-marketplace/src/components/molecules/ItemCard/__tests__/ItemCard.test.tsx` (14 test cases, coverage ≥85%)
+        - TC-ITEMCARD-001 through TC-ITEMCARD-014
+      - Maestro: `p2p-kids-marketplace/.maestro/module-15.1-flow-06-discovery.yaml` (15 UI scenarios)
+        - TC-MAESTRO-DISC-001 through TC-MAESTRO-DISC-015
+      - Manual: `MODULE-15.1-FLOW-06-MANUAL-TESTING.md` (18 test cases + 3 regression checks)
+    - Prerequisites:
+      - phosphor-react-native installed (version 3.0.6) ✅
+      - ItemCard component created from scratch ✅
+      - All Ionicons replaced with Phosphor equivalents ✅
+      - Whisk design system colors established ✅
+    - Validation:
+      - `npm run typecheck` (must pass) ✅
+      - `npm run lint` (must pass) ✅
+      - `npm test -- --testPathPattern=ItemCard` (14 test cases green)
+      - `npm run test:maestro:ios -- .maestro/module-15.1-flow-06-discovery.yaml` (15 scenarios)
+      - `npm run test:maestro:android -- .maestro/module-15.1-flow-06-discovery.yaml` (15 scenarios)
+      - Manual testing required for complete flows (see MODULE-15.1-FLOW-06-MANUAL-TESTING.md)
+    - Tier: Tier 0 (always - lint + typecheck); Tier 1 (UI changes - visual smoke tests)
+    - Impacted Flows: FLOW-06 (Discovery), FLOW-05 (if favorites integration exists), FLOW-04 (if item detail → listing edit exists)
   - **DISCOVERY-V3-001 (2026-04-21):** Filter Columns & Indexes Schema Migration
     - Purpose: Add 4 nullable filter columns to items table for advanced discovery filtering
     - Migration: `supabase/migrations/20260420000001_add_item_filter_columns.sql`
@@ -1931,11 +2078,64 @@ This file is the canonical registry of end-to-end flows and their required regre
       - Dashboard recommendations cards show listing thumbnails.
 - Automated (offline): Jest covers `getItems` node filtering and NODE-007 radius fetch.
 
-### FLOW-07: Cart & Bundling (if implemented)
-- Smoke: (manual)
+### FLOW-07: Cart & Bundling
+- Smoke: (manual - see MODULE-15.1-FLOW-07-MANUAL-TESTING.md)
+- **MODULE-15.1-UI-REDESIGN-FLOW-07 (2026-05-08):** Cart & Bundling screens redesigned
+  - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-07)
+  - Scope:
+    - NEW: `src/screens/cart/CartScreen.tsx` - Empty cart state, item management UI (state persistence TODO)
+    - NEW: `src/screens/cart/BundleBuilderScreen.tsx` - Bundle selection UI, savings calculation
+    - Design system: Whisk green (#5DBB8E), Phosphor icons (ShoppingCart, Trash, Plus, Minus, Coins, CheckCircle)
+    - Navigation: Added Cart and BundleBuilder routes to RootStackParamList
+  - Tests:
+    - Unit: `src/screens/cart/__tests__/CartScreen.test.tsx` (coverage ≥85%)
+    - Unit: `src/screens/cart/__tests__/BundleBuilderScreen.test.tsx` (coverage ≥85%)
+    - Integration: `e2e/cart-flow-07.integration.test.ts` (RUN_SUPABASE_E2E=true)
+    - Maestro: `.maestro/module-15.1-flow-07-cart.yaml` (empty state + navigation)
+    - Manual: `MODULE-15.1-FLOW-07-MANUAL-TESTING.md` (10 test cases)
+  - Prerequisites:
+    - phosphor-react-native installed (version 3.0.6) ✅
+    - Theme system with correct colors ✅
+    - Button/TextInput components exist ✅
+  - Known Limitations (TODO):
+    - Cart state persistence not implemented (loads empty)
+    - "Add to Cart" functionality from Item Detail not wired
+    - Checkout flow shows placeholder alert (pending FLOW-08)
+    - Bundle builder navigation from Item Detail not implemented
+  - Validation:
+    - `npm run typecheck` (must pass)
+    - `npm run lint` (must pass)
+    - `npm run test:unit` (cart tests green)
+    - `RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+    - `npm run test:maestro:ios -- .maestro/module-15.1-flow-07-cart.yaml` (iOS simulator)
+    - `npm run test:maestro:android -- .maestro/module-15.1-flow-07-cart.yaml` (Android emulator)
+    - Manual testing required (see MODULE-15.1-FLOW-07-MANUAL-TESTING.md)
 
 ### FLOW-08: Trade Flow – Checkout + Transaction State Machine
-- Smoke: scripts/smoke/transactions.mjs
+- **MODULE-15.1-UI-REDESIGN-FLOW-08 (2025-01-20):** Trade flow screens redesigned to Whisk-inspired design system
+  - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-08)
+  - Scope:
+    - 6 trade screens redesigned: TradeOffer, TradeReview, TradeDispute, TradeList, TradeTimeline, TradeSuccess
+    - Design system: Whisk green (#5DBB8E), SP gold (#F59E0B), filled inputs, pill buttons, Phosphor icons
+    - Features: SP input with 50% cap, trade review accept/decline, dispute filing, timeline with real-time updates, status badges
+  - Tests:
+    - Unit: `src/screens/trade/__tests__/*.test.tsx` (all 6 screens, coverage ≥85%)
+    - E2E: `e2e/trade-flow.e2e.ts` (complete trade lifecycle + accept/dispute/cancel scenarios)
+    - Maestro: `.maestro/trade-flow.yaml` (UI flows for all 6 screens)
+    - Smoke: `scripts/smoke/trade-flow.mjs` (automated tests with Supabase client)
+    - Manual: `TASK-FLOW-08-MANUAL-TESTING.md` (7 test cases + design system compliance checklist)
+  - Dependencies:
+    - FLOW-04 (Listings) - for listing data
+    - FLOW-11 (SP Wallet) - for SP balance/cap
+    - FLOW-12 (Subscriptions) - for subscriber-only SP features
+    - FLOW-14 (Messaging) - for trade message button
+  - Validation:
+    - `cd p2p-kids-marketplace && yarn typecheck` (must pass)
+    - `cd p2p-kids-marketplace && yarn lint` (must pass)
+    - `cd p2p-kids-marketplace && yarn test -- --testPathPattern=trade` (all unit tests green)
+    - `cd p2p-kids-marketplace && RUN_SUPABASE_E2E=true yarn test -- e2e/trade-flow.e2e.ts` (E2E tests pass)
+    - Manual testing required for complete flows (see TASK-FLOW-08-MANUAL-TESTING.md)
+- Smoke: scripts/smoke/trade-flow.mjs
 - Manual checks:
   - **ANDROID-TRADE-CRASH-HOTFIX (2026-04-15):** Buy Now -> TradeInitiation must not crash on physical Android devices.
     - `TradeInitiationScreen.tsx`: Android uses Stripe `CardField` (not `CardForm`) to avoid FragmentManager/UI-thread instability during route transitions.

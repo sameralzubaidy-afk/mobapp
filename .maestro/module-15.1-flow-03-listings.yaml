@@ -1,0 +1,70 @@
+# FLOW: MODULE-15.1-FLOW-03 Listings (Android)
+# TASK: MODULE-15.1-UI-REDESIGN FLOW-03 Bulk Listing Smoke
+
+appId: host.exp.exponent
+---
+
+- launchApp
+- openLink: exp://10.0.2.2:8081
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: p2p-kids-marketplace
+    commands:
+      - tapOn:
+          text: p2p-kids-marketplace
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Save Password?
+    commands:
+      - tapOn:
+          text: Not Now
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: isn't responding
+    commands:
+      - tapOn: Wait
+      - waitForAnimationToEnd
+
+- openLink: exp://10.0.2.2:8081/--/bulk-create
+- waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Draft Restored
+    commands:
+      - tapOn: OK
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible: Bulk Listing
+    commands:
+      - assertVisible:
+          id: bulk-back-button
+
+- runFlow:
+    when:
+      visible:
+        id: bulk-back-button
+    commands:
+      - tapOn:
+          id: bulk-back-button
+      - waitForAnimationToEnd
+
+- runFlow:
+    when:
+      visible:
+        text: Discard bulk session?
+    commands:
+      - tapOn: Exit
+      - waitForAnimationToEnd

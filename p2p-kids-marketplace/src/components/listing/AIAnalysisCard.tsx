@@ -88,7 +88,9 @@ export function AIAnalysisCard({
           accessibilityHint={isFilled ? 'Field already filled' : 'Apply this suggestion'}
           testID={`use-${field}`}
         >
-          <Text style={styles.useButtonText}>{isFilled ? 'Filled' : 'Use'}</Text>
+          <Text style={[styles.useButtonText, isFilled && styles.useButtonTextDisabled]}>
+            {isFilled ? 'Filled' : 'Use'}
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -215,26 +217,34 @@ const styles = StyleSheet.create({
     color: '#999999',
   },
   useButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#007AFF',
-    borderRadius: 6,
-    minWidth: 70,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    minHeight: 44,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 22,
+    minWidth: 86,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   useButtonDisabled: {
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#E5E7EB',
   },
   useButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  useButtonTextDisabled: {
+    color: '#6B7280',
+  },
   applyAllButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   applyAllButtonText: {
     fontSize: 16,

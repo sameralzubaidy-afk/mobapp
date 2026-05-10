@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -17,10 +18,12 @@ import { RootStackParamList } from '@/navigation/types';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getListingById,
+  deleteListing,
   submitListingAppeal,
   submitListingNeedsEditsReReview,
 } from '@/services/listing';
 import { Listing } from '@/types/listing';
+import { ShieldWarning } from 'phosphor-react-native';
 
 type ListingSafetyRoute = RouteProp<RootStackParamList, 'ListingSafetyReview'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -36,6 +39,8 @@ export default function ListingSafetyReviewScreen() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [appealReason, setAppealReason] = useState('');
+  const [showRemoveConfirmModal, setShowRemoveConfirmModal] = useState(false);
+  const [showRemoveSuccessModal, setShowRemoveSuccessModal] = useState(false);
 
   const loadListing = useCallback(async () => {
     try {
@@ -151,6 +156,39 @@ export default function ListingSafetyReviewScreen() {
     );
   };
 
+  const handleRemoveListing = async () => {
+    if (!listing || !session?.user?.id) {
+      Alert.alert('Error', 'Unable to remove listing right now.');
+      return;
+    }
+
+    setShowRemoveConfirmModal(true);
+  };
+
+  const handleConfirmRemoveListing = async () => {
+    if (!listing || !session?.user?.id) {
+      Alert.alert('Error', 'Unable to remove listing right now.');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setShowRemoveConfirmModal(false);
+      await deleteListing(listing.id, session.user.id);
+      setShowRemoveSuccessModal(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to remove listing';
+      Alert.alert('Error', message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRemoveSuccessClose = () => {
+    setShowRemoveSuccessModal(false);
+    navigation.navigate('MyListings');
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -185,11 +223,25 @@ export default function ListingSafetyReviewScreen() {
     listing.rejected_at ?? (needsEdits ? (listing.flagged_at ?? listing.updated_at) : null);
   const adminNeedsEditsNote =
     listing.moderation_note?.trim() || listing.rejection_reason?.trim() || null;
+  const alertMessage = isRejected
+    ? 'This listing was rejected by our safety team.'
+    : isFlagged
+      ? 'This listing is currently under safety review.'
+      : needsEdits
+        ? 'This listing needs edits before it can be approved.'
+        : null;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Listing Safety Review</Text>
+
+        {alertMessage && (
+          <View style={styles.alertBanner}>
+            <ShieldWarning size={20} color="#E85D75" weight="regular" />
+            <Text style={styles.alertText}>{alertMessage}</Text>
+          </View>
+        )}
 
         <View style={styles.card}>
           {firstImageUrl ? (
@@ -305,11 +357,11 @@ export default function ListingSafetyReviewScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.secondaryButton, submitting && styles.disabledButton]}
+          style={[styles.primaryButton, submitting && styles.disabledButton]}
           onPress={() => navigation.navigate('EditListing', { listing_id: listing.id })}
           disabled={submitting}
         >
-          <Text style={styles.secondaryButtonText}>
+          <Text style={styles.primaryButtonText}>
             {needsEdits ? 'Make Edits Now' : 'Edit Listing'}
           </Text>
         </TouchableOpacity>
@@ -327,18 +379,28 @@ export default function ListingSafetyReviewScreen() {
         )}
 
         {isRejected && (
-          <TouchableOpacity
-            style={[
-              styles.primaryButton,
-              (submitting || !appealReason.trim()) && styles.disabledButton,
-            ]}
-            onPress={handleAppeal}
-            disabled={submitting || !appealReason.trim()}
-          >
-            <Text style={styles.primaryButtonText}>
-              {submitting ? 'Submitting...' : 'Appeal Decision'}
-            </Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={[styles.dangerButton, submitting && styles.disabledButton]}
+              onPress={handleRemoveListing}
+              disabled={submitting}
+            >
+              <Text style={styles.dangerButtonText}>Remove Listing</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.secondaryButton,
+                (submitting || !appealReason.trim()) && styles.disabledButton,
+              ]}
+              onPress={handleAppeal}
+              disabled={submitting || !appealReason.trim()}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {submitting ? 'Submitting...' : 'Appeal This Decision'}
+              </Text>
+            </TouchableOpacity>
+          </>
         )}
 
         <TouchableOpacity
@@ -349,6 +411,64 @@ export default function ListingSafetyReviewScreen() {
           <Text style={styles.ghostButtonText}>Back to My Listings</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal
+        visible={showRemoveConfirmModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRemoveConfirmModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Remove Listing</Text>
+            <Text style={styles.modalMessage}>Are you sure you want to remove this listing?</Text>
+
+            <View style={styles.modalActionsRow}>
+              <TouchableOpacity
+                style={styles.modalSecondaryButton}
+                onPress={() => setShowRemoveConfirmModal(false)}
+                disabled={submitting}
+                testID="safety-remove-cancel"
+              >
+                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalDangerButton, submitting && styles.disabledButton]}
+                onPress={handleConfirmRemoveListing}
+                disabled={submitting}
+                testID="safety-remove-confirm"
+              >
+                <Text style={styles.modalDangerButtonText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showRemoveSuccessModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleRemoveSuccessClose}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.successIconBadge}>
+              <Text style={styles.successIconText}>✓</Text>
+            </View>
+            <Text style={styles.modalTitle}>Removed</Text>
+            <Text style={styles.modalMessage}>Listing removed successfully.</Text>
+
+            <TouchableOpacity
+              style={styles.modalPrimaryButton}
+              onPress={handleRemoveSuccessClose}
+              testID="safety-remove-success-ok"
+            >
+              <Text style={styles.modalPrimaryButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -356,10 +476,10 @@ export default function ListingSafetyReviewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F8FA',
+    backgroundColor: '#FFFFFF',
   },
   content: {
-    padding: 16,
+    padding: 20,
     gap: 12,
   },
   centered: {
@@ -371,13 +491,27 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: '600',
+    color: '#1A1A1A',
     marginBottom: 8,
+  },
+  alertBanner: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  alertText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#E85D75',
   },
   helperText: {
     marginTop: 12,
-    color: '#4B5563',
+    color: '#6B6B6B',
   },
   card: {
     backgroundColor: '#fff',
@@ -392,14 +526,14 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: 180,
-    borderRadius: 10,
+    borderRadius: 8,
     marginBottom: 12,
   },
   imagePlaceholder: {
     width: '100%',
     height: 180,
-    borderRadius: 10,
-    backgroundColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#F0F0F0',
     marginBottom: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -411,13 +545,13 @@ const styles = StyleSheet.create({
   itemTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   itemPrice: {
     marginTop: 4,
     fontSize: 18,
     fontWeight: '600',
-    color: '#2563EB',
+    color: '#1A1A1A',
   },
   statusBadge: {
     alignSelf: 'flex-start',
@@ -437,33 +571,33 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '500',
   },
   statusTextFlagged: {
-    color: '#92400E',
+    color: '#D97706',
   },
   statusTextRejected: {
-    color: '#991B1B',
+    color: '#E85D75',
   },
   statusTextNeedsEdits: {
-    color: '#9A3412',
+    color: '#D97706',
   },
   reasonBox: {
     marginTop: 12,
     borderRadius: 10,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#FEE2E2',
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#FEE2E2',
     padding: 10,
   },
   reasonTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#991B1B',
+    fontWeight: '500',
+    color: '#E85D75',
     marginBottom: 4,
   },
   reasonText: {
-    color: '#7F1D1D',
+    color: '#E85D75',
     lineHeight: 20,
   },
   needsEditsBox: {
@@ -476,26 +610,25 @@ const styles = StyleSheet.create({
   },
   needsEditsTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#9A3412',
+    fontWeight: '500',
+    color: '#CA8A04',
     marginBottom: 4,
   },
   needsEditsText: {
-    color: '#92400E',
+    color: '#CA8A04',
     lineHeight: 20,
   },
   appealBox: {
     marginTop: 12,
     borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
+    backgroundColor: '#F0F0F0',
+    borderWidth: 0,
     padding: 10,
   },
   appealTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#1E293B',
+    fontWeight: '500',
+    color: '#1A1A1A',
     marginBottom: 6,
   },
   appealInput: {
@@ -510,7 +643,7 @@ const styles = StyleSheet.create({
   },
   appealHelperText: {
     marginTop: 6,
-    color: '#475569',
+    color: '#6B6B6B',
     fontSize: 12,
     textAlign: 'right',
   },
@@ -523,7 +656,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   infoText: {
-    color: '#1E40AF',
+    color: '#5DBB8E',
     lineHeight: 20,
   },
   infoBoxNeedsEdits: {
@@ -535,7 +668,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   infoTextNeedsEdits: {
-    color: '#92400E',
+    color: '#D97706',
     lineHeight: 20,
   },
   metaRow: {
@@ -559,25 +692,46 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: 6,
-    backgroundColor: '#2563EB',
-    borderRadius: 12,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    minHeight: 52,
     paddingVertical: 14,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   primaryButtonText: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  dangerButton: {
+    marginTop: 6,
+    backgroundColor: '#E85D75',
+    borderRadius: 26,
+    minHeight: 52,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dangerButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
     fontSize: 16,
   },
   secondaryButton: {
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#6B6B6B',
+    borderRadius: 24,
+    minHeight: 48,
+    paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    marginTop: 8,
   },
   secondaryButtonText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: '#6B6B6B',
+    fontWeight: '500',
     fontSize: 16,
   },
   ghostButton: {
@@ -593,6 +747,99 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.28)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  modalMessage: {
+    marginTop: 8,
+    marginBottom: 20,
+    fontSize: 18,
+    lineHeight: 24,
+    color: '#4B5563',
+    textAlign: 'center',
+  },
+  modalActionsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalSecondaryButton: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: '#6B6B6B',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSecondaryButtonText: {
+    color: '#6B6B6B',
+    fontSize: 18,
+    fontWeight: '500',
+  },
+  modalDangerButton: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: 26,
+    backgroundColor: '#E85D75',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalDangerButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  successIconBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#E8F5F0',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  successIconText: {
+    fontSize: 28,
+    color: '#14805E',
+    fontWeight: '700',
+  },
+  modalPrimaryButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: 26,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalPrimaryButtonText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   errorTitle: {
     fontSize: 20,

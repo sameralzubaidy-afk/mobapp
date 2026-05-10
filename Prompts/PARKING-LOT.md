@@ -97,7 +97,50 @@ Notes / rationale:
 I need to do E2E test in stage , locally I could not. 
 
  ## MODULE-06-TRADE-FLOW-sellerpayouts.md
-## TASK PAY-009 - make the required intergration to complete payout method validations. 
+## TASK PAY-009 - make the required intergration to complete payout method validations.
+
+---
+
+## POST-MVP FEATURE: Bundle Listings (Seller-Created Multi-Item Bundles)
+
+**Status:** Deferred to Post-MVP  
+**Priority:** Medium  
+**Rationale:** Cart system (MODULE-15.2) implements basic cart functionality for unique items. Bundle listings (seller creates "3 onesies for $25" as a single listing) adds complexity and is not essential for MVP launch.
+
+**Requirements from BRD (SYSTEM_REQUIREMENTS_V2.md Section 8.3):**
+- **BR-BUNDLE-001: Bundle Creation**
+  - Users can create bundles (multiple items in one listing)
+  - Minimum bundle value: $20
+  - Maximum 10 items per bundle
+  - Each item in bundle must be photographed
+  - Bundle discount encouraged (e.g., 3 onesies for $25 instead of $10 each = $30)
+
+- **BR-BUNDLE-002: Bundle Purchasing**
+  - Buyer must purchase entire bundle (no splitting)
+  - SP usage applies to total bundle price
+  - If bundle = $60, max SP = 30 (50% rule applies to total)
+
+**Implementation Scope (when prioritized):**
+1. Extend `items` table with `is_bundle` flag and `bundle_items` JSONB field
+2. Create bundle listing UI (multi-item photo upload, bundle pricing)
+3. Update discovery feed to show bundle indicator
+4. Update cart validation to handle bundle listings
+5. Update checkout to prevent bundle splitting
+6. Add admin controls for bundle moderation
+
+**Why Deferred:**
+- MVP focus is core P2P marketplace functionality
+- Regular cart + single items covers 80% of use cases
+- Bundle UI/UX requires additional design validation
+- Can be added post-launch based on seller feedback
+
+**Acceptance Criteria (when implemented):**
+- [ ] Sellers can create bundle listings with 2-10 items
+- [ ] Each item in bundle has its own photo
+- [ ] Bundle price enforces $20 minimum
+- [ ] Buyers cannot split bundles at checkout
+- [ ] SP 50% rule applies to total bundle price
+- [ ] Analytics track bundle creation and purchase rates 
 
  ## BEFORE GO live i want to show id verfied info on item detials screen so buyeer can know this seller is trusted and verfied. 
 

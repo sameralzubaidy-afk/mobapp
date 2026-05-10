@@ -102,7 +102,7 @@ export function BulkPublishConfirmSheet({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(26, 26, 26, 0.4)',
     justifyContent: 'flex-end',
   },
   sheet: {
@@ -115,12 +115,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 13,
-    color: '#4B5563',
+    color: '#6B6B6B',
     marginBottom: 10,
   },
   thumb: {
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   thumbPlaceholder: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E0E0E0',
   },
   rowText: {
     flex: 1,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E0E0E0',
     borderRadius: 10,
     padding: 10,
     marginBottom: 8,
@@ -156,11 +156,11 @@ const styles = StyleSheet.create({
   rowTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   rowMeta: {
     fontSize: 12,
-    color: '#4B5563',
+    color: '#6B6B6B',
     marginTop: 2,
   },
   errorWrap: {
@@ -189,25 +189,29 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#5DBB8E',
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
   },
   cancelText: {
-    color: '#374151',
-    fontWeight: '600',
+    color: '#5DBB8E',
+    fontWeight: '500',
   },
   confirmButton: {
     flex: 1,
-    borderRadius: 10,
-    backgroundColor: '#16A34A',
+    borderRadius: 26,
+    backgroundColor: '#5DBB8E',
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
   },
   confirmButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: '#CCCCCC',
   },
   confirmText: {
     color: '#fff',

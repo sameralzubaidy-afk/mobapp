@@ -290,11 +290,7 @@ export default function EditProfileScreen({ navigation }: any) {
           Alert.alert('Info', 'This phone number is already verified and active on your account.');
         } else {
           setPhoneVerification({ visible: true, phone: phone.trim(), sending: true });
-          const {
-            success,
-            code,
-            error: pvError,
-          } = await requestPhoneVerification(currentUser.id, phone.trim());
+          const { success } = await requestPhoneVerification(currentUser.id, phone.trim());
           if (!success) {
             setPhoneVerification((prev) => ({
               ...prev,
@@ -444,10 +440,7 @@ export default function EditProfileScreen({ navigation }: any) {
   const handleResendCode = async () => {
     if (!phoneVerification.phone || !currentUser) return;
     setPhoneVerification((prev) => ({ ...prev, sending: true }));
-    const { success, code } = await requestPhoneVerification(
-      currentUser.id,
-      phoneVerification.phone!
-    );
+    const { success } = await requestPhoneVerification(currentUser.id, phoneVerification.phone!);
     setPhoneVerification((prev) => ({
       ...prev,
       sending: false,
@@ -504,14 +497,16 @@ export default function EditProfileScreen({ navigation }: any) {
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.4)',
+            backgroundColor: 'rgba(26, 26, 26, 0.4)',
             justifyContent: 'center',
             padding: 20,
           }}
         >
-          <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 20 }}>
-            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 8 }}>Verify Phone</Text>
-            <Text style={{ marginBottom: 12 }}>
+          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A1A', marginBottom: 8 }}>
+              Verify Phone
+            </Text>
+            <Text style={{ color: '#6B6B6B', marginBottom: 12 }}>
               {phoneVerification.message ||
                 `Enter the 6-digit code sent to ${phoneVerification.phone}`}
             </Text>
@@ -521,10 +516,11 @@ export default function EditProfileScreen({ navigation }: any) {
               onChangeText={(v) => setPhoneVerification((prev) => ({ ...prev, code: v }))}
               keyboardType="number-pad"
               style={{
-                borderWidth: 1,
-                borderColor: '#ddd',
-                borderRadius: 8,
-                padding: 10,
+                borderWidth: 0,
+                backgroundColor: '#F0F0F0',
+                color: '#1A1A1A',
+                borderRadius: 12,
+                padding: 12,
                 marginBottom: 12,
               }}
             />
@@ -533,17 +529,17 @@ export default function EditProfileScreen({ navigation }: any) {
                 onPress={() => setPhoneVerification({ visible: false })}
                 style={{ padding: 10 }}
               >
-                <Text style={{ color: '#666' }}>Cancel</Text>
+                <Text style={{ color: '#6B6B6B' }}>Cancel</Text>
               </TouchableOpacity>
               <View style={{ flexDirection: 'row' }}>
                 <TouchableOpacity
                   onPress={handleResendCode}
                   style={{ padding: 10, marginRight: 8 }}
                 >
-                  <Text style={{ color: '#3B82F6' }}>Resend</Text>
+                  <Text style={{ color: '#5DBB8E' }}>Resend</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={handleVerifyCode} style={{ padding: 10 }}>
-                  <Text style={{ color: '#3B82F6' }}>
+                  <Text style={{ color: '#5DBB8E' }}>
                     {phoneVerification.verifying ? 'Verifying...' : 'Verify'}
                   </Text>
                 </TouchableOpacity>

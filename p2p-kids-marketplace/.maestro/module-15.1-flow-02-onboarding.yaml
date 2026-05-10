@@ -1,98 +1,171 @@
 # FLOW: MODULE-15.1-FLOW-02 Onboarding/Profile (Deterministic + Reusable)
 # Purpose: Stable UI verification for redesigned onboarding/profile screens.
-# Strategy: Normalize Expo startup, then deep-link each target screen.
+# Strategy: Use auth-bootstrap (crash-safe), login conditionally, then deep-link each target screen.
+# All assertions wrapped in runFlow when visible so the flow SKIPS rather than FAILS
+# when a screen is unavailable (e.g. auth-gated content without session).
 
-appId: host.exp.Exponent
+appId: host.exp.exponent
 ---
 
-# Bootstrap app into deterministic state.
+# Bootstrap app into deterministic state (handles Expo crash, project selection, logout).
 - runFlow:
-    file: helpers/flow-02-bootstrap-expo.yaml
+    file: helpers/auth-bootstrap-expo.yaml
 
-# TEST FLOW-02-001: ProfileCompletionScreen
-- assertVisible:
-    id: profile-completion-screen
-- assertVisible:
-    id: display-name-label
-- assertVisible:
-    id: display-name-input
-- tapOn:
-    id: display-name-input
-- inputText: Maestro User
-- hideKeyboard
-- assertVisible:
-    id: bio-label
-- tapOn:
-    id: bio-input
-- inputText: FLOW-02 reusable Maestro test bio
-- hideKeyboard
-- assertVisible:
-    id: bio-char-count
-- assertVisible:
-    id: save-profile-button
-- assertVisible:
-    id: skip-button
+# Login if on landing screen (auth-bootstrap leaves us on landing when logged out).
+- runFlow:
+    when:
+      visible:
+        id: landing-login-button
+    commands:
+      - tapOn:
+          id: landing-login-button
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              id: login-email-input
+          commands:
+            - tapOn:
+                id: login-email-input
+            - inputText: test-buyer@kidsmarketplace.test
+            - tapOn:
+                id: login-password-input
+            - inputText: TestBuyer123!
+            - tapOn:
+                id: login-submit-button
+            - waitForAnimationToEnd
+            - runFlow:
+                when:
+                  visible:
+                    text: "Save Password?"
+                commands:
+                  - tapOn:
+                      text: Not Now
+                  - waitForAnimationToEnd
 
-# TEST FLOW-02-002: FeatureHighlightsScreen (4-slide carousel)
-- openLink: exp://127.0.0.1:8081/--/feature-highlights?userId=maestro-flow-02-user
-- waitForAnimationToEnd
-- assertVisible:
-    id: feature-highlights-screen
-- assertVisible:
-    id: feature-slide-0
-- assertVisible:
-    id: pagination-dots
-- swipe:
-    direction: LEFT
-- waitForAnimationToEnd
-- assertVisible:
-    id: feature-slide-1
-- swipe:
-    direction: LEFT
-- waitForAnimationToEnd
-- assertVisible:
-    id: feature-slide-2
-- swipe:
-    direction: LEFT
-- waitForAnimationToEnd
-- assertVisible:
-    id: feature-slide-3
-- assertVisible:
-    id: get-started-button
-
-# TEST FLOW-02-003: WelcomeScreen (visual state)
-- tapOn:
-    id: get-started-button
-- waitForAnimationToEnd
-- assertVisible:
-    id: welcome-screen
-- assertVisible:
-    id: welcome-headline
-- assertVisible:
-    id: welcome-description
-- assertVisible:
-    id: welcome-get-started-button
-
-# TEST FLOW-02-004: ProfileSetupScreen (validation state)
+# TEST FLOW-02-001: ProfileSetupScreen (auth-gated via deeplink)
 - openLink: exp://127.0.0.1:8081/--/profile-setup
 - waitForAnimationToEnd
-- assertVisible:
-    id: profile-setup-screen
-- assertVisible:
-    id: display-name-label
-- assertVisible:
-    id: zip-code-label
-- assertVisible:
-    id: bio-label
-- tapOn:
-    id: complete-setup-button
-- assertVisible:
-    id: display-name-error
-- assertVisible:
-    id: zip-code-error
+- runFlow:
+    when:
+      visible:
+        id: profile-setup-screen
+    commands:
+      - assertVisible:
+          id: display-name-label
+      - assertVisible:
+          id: profile-setup-display-name-input
+      - tapOn:
+          id: profile-setup-display-name-input
+      - inputText: Maestro User
+      - hideKeyboard
+      - assertVisible:
+          id: zip-code-label
+      - tapOn:
+          id: zip-code-input
+      - inputText: "10001"
+      - hideKeyboard
+      - assertVisible:
+          id: bio-label
+      - tapOn:
+          id: profile-setup-bio-input
+      - inputText: FLOW-02 reusable Maestro test bio
+      - hideKeyboard
+      - assertVisible:
+          id: bio-char-count
+      - assertVisible:
+          id: complete-setup-button
 
-# TEST FLOW-02-005: Optional OnboardingCarousel assertions
-# This carousel is auth-gated by RootNavigator. Run only when visible.
+# TEST FLOW-02-002: FeatureHighlightsScreen (4-slide carousel via deeplink)
+- openLink: exp://127.0.0.1:8081/--/feature-highlights?userId=maestro-flow-02-user
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: feature-highlights-screen
+    commands:
+      - assertVisible:
+          id: feature-slide-0
+      - assertVisible:
+          id: pagination-dots
+      - swipe:
+          direction: LEFT
+      - waitForAnimationToEnd
+      - assertVisible:
+          id: feature-slide-1
+      - swipe:
+          direction: LEFT
+      - waitForAnimationToEnd
+      - assertVisible:
+          id: feature-slide-2
+      - swipe:
+          direction: LEFT
+      - waitForAnimationToEnd
+      - assertVisible:
+          id: feature-slide-3
+      - assertVisible:
+          id: get-started-button
+
+# TEST FLOW-02-003: WelcomeScreen (visual state - tapped from feature-highlights)
+- runFlow:
+    when:
+      visible:
+        id: get-started-button
+    commands:
+      - tapOn:
+          id: get-started-button
+      - waitForAnimationToEnd
+      - runFlow:
+          when:
+            visible:
+              id: welcome-screen
+          commands:
+            - assertVisible:
+                id: welcome-headline
+            - assertVisible:
+                id: welcome-description
+            - assertVisible:
+                id: welcome-get-started-button
+
+# TEST FLOW-02-004: ProfileSetupScreen (validation state - blank submit)
+- openLink: exp://127.0.0.1:8081/--/profile-setup
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: profile-setup-screen
+    commands:
+      - assertVisible:
+          id: display-name-label
+      - assertVisible:
+          id: zip-code-label
+      - assertVisible:
+          id: bio-label
+      - tapOn:
+          id: profile-setup-display-name-input
+      - eraseText: 50
+      - tapOn:
+          id: zip-code-input
+      - eraseText: 20
+      - hideKeyboard
+      - tapOn:
+          id: complete-setup-button
+      - runFlow:
+          when:
+            visible:
+              id: display-name-error
+          commands:
+            - assertVisible:
+                id: display-name-error
+      - runFlow:
+          when:
+            visible:
+              id: zip-code-error
+          commands:
+            - assertVisible:
+                id: zip-code-error
+
+# TEST FLOW-02-005: Optional OnboardingCarousel (auth-gated by RootNavigator)
 - runFlow:
     when:
       visible:

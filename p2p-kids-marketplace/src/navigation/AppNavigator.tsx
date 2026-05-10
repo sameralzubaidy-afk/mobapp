@@ -9,6 +9,7 @@ import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
 import UserDashboardScreen from '@/screens/dashboard/UserDashboardScreen';
 import SpWalletScreen from '@/screens/sp/SpWalletScreen';
+import SpTransactionHistoryScreen from '@/screens/sp/SpTransactionHistoryScreen';
 import LoginScreen from '@/screens/auth/LoginScreen';
 import SignupScreen from '@/screens/auth/SignupScreen';
 import PhoneVerificationScreen from '@/screens/auth/PhoneVerificationScreen';
@@ -21,8 +22,6 @@ import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '@/screens/auth/ResetPasswordScreen';
 import WelcomeScreen from '@/screens/onboarding/WelcomeScreen';
 import SubscriptionChoiceScreen from '@/screens/onboarding/SubscriptionChoiceScreen';
-import LocationPickerScreen from '@/screens/onboarding/LocationPickerScreen';
-import NodeSelectionScreen from '@/screens/onboarding/NodeSelectionScreen';
 import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScreen';
 // MODULE-18 EDU-004: Trading education onboarding carousel
 import OnboardingScreen from '@/screens/onboarding/OnboardingScreen';
@@ -32,9 +31,13 @@ import BulkListingCreateScreen from '@/screens/BulkListingCreateScreen';
 import EditListingScreen from '@/screens/listing/EditListingScreen';
 import MyListingsScreen from '@/screens/listing/MyListingsScreen';
 import ListingSafetyReviewScreen from '@/screens/listing/ListingSafetyReviewScreen';
-import TradeInitiationScreen from '@/screens/trade/TradeInitiationScreen';
+import TradeOfferScreen from '@/screens/trade/TradeOfferScreen';
 import TradeSuccessScreen from '@/screens/trade/TradeSuccessScreen';
 import TradeTimelineScreen from '@/screens/trade/TradeTimelineScreen';
+import TradeReviewScreen from '@/screens/trade/TradeReviewScreen';
+import TradeDisputeScreen from '@/screens/trade/TradeDisputeScreen';
+import CartScreen from '@/screens/cart/CartScreen';
+import BundleBuilderScreen from '@/screens/cart/BundleBuilderScreen';
 import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
 import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
@@ -71,7 +74,6 @@ import {
 // Require them lazily to avoid startup crash when native module is unavailable.
 const ProfileSetupScreen = require('@/screens/profile/ProfileSetupScreen').default;
 const EditProfileScreen = require('@/screens/profile/EditProfileScreen').default;
-const ProfileCompletionScreen = require('@/screens/onboarding/ProfileCompletionScreen').default;
 const IDVerificationUploadScreen = require('@/screens/profile/IDVerificationUploadScreen').default;
 
 const Stack = createStackNavigator();
@@ -87,6 +89,7 @@ const linking = {
       Signup: 'signup',
       Home: 'home',
       Discover: 'discover',
+      Cart: 'cart',
       PhoneVerification: 'phone-verification',
       SuspendedAccount: 'suspended-account',
       ProfileSetup: 'profile-setup',
@@ -94,15 +97,13 @@ const linking = {
       EditProfile: 'edit-profile',
       ForgotPassword: 'forgot-password',
       Welcome: 'welcome',
-      ProfileCompletion: 'profile-completion',
       SubscriptionChoice: 'subscription-choice',
       ContinueKidsClub: 'continue-kids-club',
-      LocationPicker: 'location-picker',
-      NodeSelection: 'node-selection',
       FeatureHighlights: 'feature-highlights',
       MyListings: 'my-listings',
       CreateListing: 'create-listing',
       ItemCreate: 'create-item',
+      BundleBuilder: 'bundle-builder/:sellerId',
       BulkListingCreate: 'bulk-create',
       EditListing: 'edit-listing',
       ListingDetail: 'listing/:listing_id',
@@ -405,6 +406,16 @@ function RootNavigator() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
+              name="Cart"
+              component={CartScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="BundleBuilder"
+              component={BundleBuilderScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
               name="CategoryBrowse"
               component={CategoryBrowseScreen}
               options={{ headerShown: false }}
@@ -463,7 +474,12 @@ function RootNavigator() {
             />
             <Stack.Screen
               name="TradeInitiation"
-              component={TradeInitiationScreen}
+              component={TradeOfferScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="TradeReview"
+              component={TradeReviewScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -479,6 +495,11 @@ function RootNavigator() {
             <Stack.Screen
               name="TradeTimeline"
               component={TradeTimelineScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="TradeDispute"
+              component={TradeDisputeScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -568,6 +589,12 @@ function RootNavigator() {
             <Stack.Screen
               name="SpWallet"
               component={SpWalletScreen}
+              options={{ headerShown: false }}
+            />
+            {/* MODULE-15.1 FLOW-10/11: SP Transaction History */}
+            <Stack.Screen
+              name="SpTransactionHistory"
+              component={SpTransactionHistoryScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-08: Review screens */}
@@ -674,23 +701,8 @@ function RootNavigator() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
-              name="ProfileCompletion"
-              component={ProfileCompletionScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
               name="SubscriptionChoice"
               component={SubscriptionChoiceScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="LocationPicker"
-              component={LocationPickerScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="NodeSelection"
-              component={NodeSelectionScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

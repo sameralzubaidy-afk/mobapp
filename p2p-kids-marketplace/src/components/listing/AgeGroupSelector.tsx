@@ -70,9 +70,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 16,
   },
   pillsContainer: {
@@ -83,22 +83,22 @@ const styles = StyleSheet.create({
   pill: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F0F0F0',
     borderRadius: 20,
-    borderWidth: 2,
-    borderColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   pillSelected: {
-    backgroundColor: '#E3F2FD',
-    borderColor: '#007AFF',
+    backgroundColor: '#E8F5F0',
+    borderColor: '#5DBB8E',
   },
   pillText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#666666',
+    color: '#6B6B6B',
   },
   pillTextSelected: {
-    color: '#007AFF',
+    color: '#5DBB8E',
     fontWeight: '600',
   },
 });

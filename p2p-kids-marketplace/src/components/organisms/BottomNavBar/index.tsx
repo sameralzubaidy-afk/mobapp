@@ -74,7 +74,8 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
   return (
     <View style={styles.container}>
       <NavItem emoji="🏠" label="Home" routeName="Home" />
-      <NavItem emoji="�" label="Discover" routeName="Discover" />
+      <NavItem emoji="🔍" label="Discover" routeName="Discover" />
+      <NavItem emoji="🛒" label="Cart" routeName="Cart" />
       <NavItem emoji="💰" label="Sell" onPress={() => setSellSheetVisible(true)} />
       <NavItem emoji="📋" label="My Items" routeName="MyListings" />
       <NavItem emoji="🔔" label="Alerts" routeName="Notifications" badgeCount={unreadCount} />
@@ -199,7 +200,7 @@ const styles = StyleSheet.create({
   },
   sheetOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
+    backgroundColor: 'rgba(26, 26, 26, 0.25)',
     justifyContent: 'flex-end',
   },
   sheetContainer: {
@@ -212,12 +213,12 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   sheetButton: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E0E0E0',
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 10,
@@ -226,23 +227,23 @@ const styles = StyleSheet.create({
   sheetButtonTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   sheetButtonMeta: {
     marginTop: 2,
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   sheetCancelButton: {
     marginTop: 6,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F0F0F0',
   },
   sheetCancelText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#6B6B6B',
   },
 });
