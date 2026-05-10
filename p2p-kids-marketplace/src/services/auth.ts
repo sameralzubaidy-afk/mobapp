@@ -411,10 +411,15 @@ export async function loginWithContext(input: LoginInput): Promise<AuthSession> 
       wallet_state: 'inactive', // ADMIN-V2-003
     };
 
+    const normalizedUserId =
+      ((profile as UserProfile).user_id || (profile as UserProfile).id || userId) as string;
+
     // Step 5: Build enriched session
     const session: AuthSession = {
       user: {
         ...(profile as UserProfile),
+        id: normalizedUserId,
+        user_id: normalizedUserId,
         display_name:
           (profile as any).name ||
           (profile as any).display_name ||

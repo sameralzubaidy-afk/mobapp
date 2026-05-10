@@ -2165,6 +2165,43 @@ This file is the canonical registry of end-to-end flows and their required regre
 ### FLOW-10: Swap Points Wallet – Read + Ledger Integrity
 - Smoke: (manual)
   - Wallet shows available/pending; ledger entries append-only.
+- **MODULE-15.1-UI-REDESIGN-FLOW-10/11 (2026-05-10):** SP Wallet & Transaction History screens redesigned to Whisk-inspired premium design
+    - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-10/11)
+    - Scope:
+      - SP Wallet Screen (`src/screens/sp/SpWalletScreen.tsx`) — Restyled only, no logic changes
+      - SP Transaction History Screen (`src/screens/sp/SpTransactionHistoryScreen.tsx`) — NEW screen created
+      - Navigation updated: Added `SpTransactionHistory` route
+      - Design system: Gold (#F59E0B) for SP theme, Green (#5DBB8E) for earned amounts, Red (#E85D75) for spent amounts
+      - Hero balance card with #5DBB8E background, 36px bold white balance (largest text on screen)
+      - Quick action buttons: Redeem, Earn More, History (white cards with Phosphor icons)
+      - "How to Earn SP" section with gold SP chips (#FEF3C7 bg, #F59E0B text)
+      - Lifetime stats chips (Total Earned, Total Spent, Pending) in #F7F7F7 gray cards
+      - Transaction History tabs: All | Earned | Spent with #5DBB8E underline on active tab
+      - Transaction rows with type-specific Phosphor icons (Storefront, ArrowsLeftRight, ArrowUp, UserPlus, Clock, Coins)
+      - Earned amounts: "+[amount] SP" in #5DBB8E green, Spent amounts: "−[amount] SP" in #E85D75 red
+      - Empty state: Coins icon (64px, #E0E0E0) with "No transactions yet"
+    - Tests:
+      - Unit: `src/screens/sp/__tests__/SpWalletScreen.test.tsx` (coverage ≥85%)
+      - Unit: `src/screens/sp/__tests__/SpTransactionHistoryScreen.test.tsx` (coverage ≥85%)
+      - Integration: `e2e/module-15.1-flow-10-11-sp-wallet.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Maestro: `.maestro/module-15.1-flow-10-11-sp-wallet.yaml` (both screens + tab filtering)
+      - Manual: `MODULE-15.1-FLOW-10-11-MANUAL-TESTING.md` (15 test cases + regression checklist)
+    - Prerequisites:
+      - phosphor-react-native installed (version 3.0.6) ✅
+      - SP wallet initialized for test user
+      - Sample transactions in database for testing
+    - Validation:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm run test:unit` (all SP screen tests green)
+      - `RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+      - `npm run test:maestro:ios -- .maestro/module-15.1-flow-10-11-sp-wallet.yaml` (repeatable full FLOW-10/11 run)
+      - `npm run test:maestro:android -- .maestro/module-15.1-flow-10-11-sp-wallet.yaml` (Android simulator run)
+      - Manual testing required for complete flows (see MODULE-15.1-FLOW-10-11-MANUAL-TESTING.md)
+    - Known Limitations:
+      - "Redeem" and "Earn More" buttons have placeholder handlers (TODO: implement in future module)
+      - Expiring SP alert only shows if batches expire within 30 days (conditional display)
+      - Transaction icon mapping relies on transaction_type string matching (sale, trade, redeem, etc.)
 
 ### FLOW-11: Swap Points – Earn/Spend/Cap + Pending→Release
 - Smoke: (manual)

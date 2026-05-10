@@ -14,39 +14,38 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '@/navigation/types';
 import {
-  Wallet,
   Coins,
-  ArrowUp,
+  MagnifyingGlass,
+  Tag,
   Receipt,
   Storefront,
-  ArrowsLeftRight,
   UserPlus,
-  TrendUp,
+  Info,
+  CaretRight,
 } from 'phosphor-react-native';
 import {
   getWallet,
-  getLedgerHistory,
   getExpiringBatches,
-  getSPConfig,
   type SPWallet,
-  type SPLedgerEntry,
 } from '@/services/sp/wallet';
+import { getSPExpirationDays } from '@/services/adminConfig';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 export default function SpWalletScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { session } = useAuth();
 
   const [wallet, setWallet] = useState<SPWallet | null>(null);
   const [expiringSoonTotal, setExpiringSoonTotal] = useState(0);
-  const [ledgerHistory, setLedgerHistory] = useState<SPLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [expirationDays, setExpirationDays] = useState(90); // Will be updated from config
+  const [expirationDays, setExpirationDays] = useState<number | null>(null);
 
   useEffect(() => {
     loadWalletData();
@@ -62,15 +61,12 @@ export default function SpWalletScreen() {
         return;
       }
 
-      // Load SP expiration config (default 90 days if not set)
+      // Load admin-configurable SP settings
       try {
-        const configValue = await getSPConfig('expiration_period_days');
-        const days = configValue ? parseInt(configValue, 10) : 90;
-        setExpirationDays(days);
-        console.log('[SpWallet] SP expiration period:', days, 'days');
+        const expiryDays = await getSPExpirationDays();
+        setExpirationDays(expiryDays);
       } catch (error) {
         console.error('[SpWallet] Error fetching SP config:', error);
-        setExpirationDays(90); // Default fallback
       }
 
       // Load wallet
@@ -81,10 +77,6 @@ export default function SpWalletScreen() {
       const allBatches = await getExpiringBatches(user.id, 30);
       const expiringTotal = allBatches.reduce((sum, batch) => sum + batch.remaining_sp, 0);
       setExpiringSoonTotal(expiringTotal);
-
-      // Load ledger history
-      const history = await getLedgerHistory(user.id, 20);
-      setLedgerHistory(history);
     } catch (error) {
       console.error('[SpWallet] Load error:', error);
     } finally {
@@ -156,24 +148,24 @@ export default function SpWalletScreen() {
           <View style={styles.quickActionsRow}>
             <TouchableOpacity
               style={styles.actionBtn}
-              testID="sp-wallet-redeem-btn"
-              onPress={() => {/* TODO: Navigate to redeem screen */}}
+              testID="sp-wallet-shop-btn"
+              onPress={() => navigation.navigate('Discover')}
             >
-              <ArrowUp size={24} color="#5DBB8E" weight="regular" />
-              <Text style={styles.actionLabel}>Redeem</Text>
+              <MagnifyingGlass size={24} color="#5DBB8E" weight="regular" />
+              <Text style={styles.actionLabel}>Shop</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionBtn}
-              testID="sp-wallet-earn-more-btn"
-              onPress={() => {/* TODO: Navigate to earn tips */}}
+              testID="sp-wallet-sell-btn"
+              onPress={() => navigation.navigate('ItemCreate')}
             >
-              <Coins size={24} color="#F59E0B" weight="regular" />
-              <Text style={styles.actionLabel}>Earn More</Text>
+              <Tag size={24} color="#F59E0B" weight="regular" />
+              <Text style={styles.actionLabel}>Sell</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.actionBtn}
               testID="sp-wallet-history-btn"
-              onPress={() => navigation.navigate('SpTransactionHistory' as any)}
+              onPress={() => navigation.navigate('SpTransactionHistory')}
             >
               <Receipt size={24} color="#1A1A1A" weight="regular" />
               <Text style={styles.actionLabel}>History</Text>
@@ -183,34 +175,59 @@ export default function SpWalletScreen() {
           {/* How to Earn Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>How to Earn SP</Text>
-            <View style={styles.earnRow}>
+            <TouchableOpacity
+              style={styles.earnRow}
+              testID="sp-wallet-earn-sell-btn"
+              onPress={() => navigation.navigate('ItemCreate')}
+              activeOpacity={0.7}
+            >
               <Storefront size={20} color="#5DBB8E" weight="regular" />
               <Text style={styles.earnLabel}>Sell an item</Text>
               <View style={styles.spacer} />
-              <View style={styles.spChip}>
-                <Coins size={12} color="#F59E0B" weight="fill" />
-                <Text style={styles.spChipText}>50-500 SP</Text>
-              </View>
-            </View>
-            <View style={styles.earnRow}>
-              <ArrowsLeftRight size={20} color="#5DBB8E" weight="regular" />
-              <Text style={styles.earnLabel}>Complete a trade</Text>
-              <View style={styles.spacer} />
-              <View style={styles.spChip}>
-                <Coins size={12} color="#F59E0B" weight="fill" />
-                <Text style={styles.spChipText}>25 SP</Text>
-              </View>
-            </View>
-            <View style={styles.earnRow}>
+              <Text style={styles.earnHint}>Accept SP on listing</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.earnRow}
+              testID="sp-wallet-earn-refer-btn"
+              onPress={() => navigation.navigate('ReferralDashboard')}
+              activeOpacity={0.7}
+            >
               <UserPlus size={20} color="#5DBB8E" weight="regular" />
               <Text style={styles.earnLabel}>Refer a friend</Text>
               <View style={styles.spacer} />
-              <View style={styles.spChip}>
-                <Coins size={12} color="#F59E0B" weight="fill" />
-                <Text style={styles.spChipText}>100 SP</Text>
+              <Text style={styles.learnMoreText}>Learn More</Text>
+              <CaretRight size={16} color="#5DBB8E" weight="regular" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.learnRow}
+              testID="sp-wallet-how-trading-works-btn"
+              onPress={() => navigation.navigate('Help')}
+              activeOpacity={0.7}
+            >
+              <Info size={18} color="#5DBB8E" weight="regular" />
+              <View>
+                <Text style={styles.learnLabel}>How Trading Works</Text>
+                <Text style={styles.learnSublabel}>Tap here to learn more about how to use and earn points</Text>
+              </View>
+              <View style={styles.spacer} />
+              <CaretRight size={16} color="#5DBB8E" weight="regular" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Expiration Info Alert - PROMINENT */}
+          {expirationDays !== null && (
+            <View style={styles.expirationInfoBox}>
+              <View style={styles.expirationInfoIcon}>
+                <Text style={styles.expirationInfoIconText}>⏰</Text>
+              </View>
+              <View style={styles.expirationInfoContent}>
+                <Text style={styles.expirationInfoTitle}>Swap Points Expire</Text>
+                <Text style={styles.expirationInfoText}>
+                  Points expire after {expirationDays} days of inactivity. Use them or lose them!
+                </Text>
               </View>
             </View>
-          </View>
+          )}
 
           {/* Lifetime Stats */}
           <View style={styles.statsRow}>
@@ -241,9 +258,6 @@ export default function SpWalletScreen() {
 
           {/* Footer Info */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              💡 Swap Points expire after {expirationDays} days of inactivity
-            </Text>
             <Text style={styles.footerText}>🔒 SP can only be used for item purchases</Text>
           </View>
         </ScrollView>
@@ -393,6 +407,12 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
     fontWeight: '500',
   },
+  learnMoreText: {
+    fontSize: 13,
+    color: '#5DBB8E',
+    fontWeight: '500',
+    marginRight: 6,
+  },
   spacer: {
     flex: 1,
   },
@@ -409,6 +429,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#F59E0B',
     fontWeight: '600',
+  },
+  earnHint: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    fontStyle: 'italic',
+  },
+  learnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    marginTop: 4,
+  },
+  learnLabel: {
+    fontSize: 14,
+    color: '#5DBB8E',
+    fontWeight: '600',
+  },
+  learnSublabel: {
+    fontSize: 11,
+    color: '#6B6B6B',
+    marginTop: 2,
   },
   // Lifetime Stats
   statsRow: {
@@ -448,6 +492,47 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  // Expiration Info Box (Prominent)
+  expirationInfoBox: {
+    marginHorizontal: 20,
+    marginBottom: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#E0F7F3',
+    borderRadius: 14,
+    borderLeftWidth: 4,
+    borderLeftColor: '#5DBB8E',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  expirationInfoIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#5DBB8E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -2,
+  },
+  expirationInfoIconText: {
+    fontSize: 20,
+  },
+  expirationInfoContent: {
+    flex: 1,
+  },
+  expirationInfoTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F6B52',
+    marginBottom: 4,
+  },
+  expirationInfoText: {
+    fontSize: 13,
+    color: '#247659',
+    fontWeight: '500',
+    lineHeight: 18,
+  },
   // Footer
   footer: {
     padding: 20,
@@ -460,45 +545,4 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
-  },
-  ledgerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  ledgerType: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  ledgerAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  ledgerDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  ledgerDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    paddingVertical: 24,
-  },
-  footer: {
-    padding: 16,
-    marginBottom: 24,
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-});
+

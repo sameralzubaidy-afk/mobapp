@@ -56,37 +56,41 @@ Supabase: supabase/
 My Example 1
 
 
-
-
-### TASK FLOW-10/11: SP Wallet
+### TASK FLOW-12: Subscriptions
 
 I’m working on the MODULE-15.1-UI-redesign.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
-Tasks: ### TASK FLOW-10/11: SP Wallet
+Tasks: ### TASK FLOW-12: Subscriptions
 
 scope 
-Redesign the SP Wallet and Transaction History screens. The SP Wallet is the rewards hub — it must feel premium. Use gold (`#F59E0B`) consistently for all SP-related elements. Balance is the hero number — large, centered, prominent.
+Redesign the 8 subscription screens. Plan tier cards must clearly differentiate Free, Basic, and Pro. The Pro tier uses gold (`#F59E0B`) as its accent. Feature comparison uses `CheckCircle`/`X` icons. The cancel screen uses a retention-focused design (benefits reminder before confirmation).
 
 #### Scope — Files to Modify
 
 | # | Screen | File | Change Type |
 |---|--------|------|-------------|
-| 1 | SP Wallet Screen | `src/screens/sp/SpWalletScreen.tsx` | Restyle only |
-| 2 | SP Transaction History | `src/screens/sp/SpTransactionHistoryScreen.tsx` | Restyle only |
+| 1 | Subscription Plans | `src/screens/subscription/SubscriptionPlansScreen.tsx` | Restyle only |
+| 2 | Plan Comparison | `src/screens/subscription/PlanComparisonScreen.tsx` | Restyle only |
+| 3 | Checkout / Payment | `src/screens/subscription/SubscriptionCheckoutScreen.tsx` | Restyle only |
+| 4 | Subscription Success | `src/screens/subscription/SubscriptionSuccessScreen.tsx` | Restyle only |
+| 5 | My Subscription | `src/screens/subscription/MySubscriptionScreen.tsx` | Restyle only |
+| 6 | Upgrade Plan | `src/screens/subscription/UpgradePlanScreen.tsx` | Restyle only |
+| 7 | Cancel Subscription | `src/screens/subscription/CancelSubscriptionScreen.tsx` | Restyle only |
+| 8 | Subscription Expired | `src/screens/subscription/SubscriptionExpiredScreen.tsx` | Restyle only |
 
+#### ✅ Acceptance Criteria — FLOW-12 (Visual Only)
 
-#### ✅ Acceptance Criteria — FLOW-10/11 (Visual Only)
-
-- [ ] Hero balance card has `#5DBB8E` background, white text, `Coins` (40px, white) above balance
-- [ ] Balance amount is 36px bold white — largest text element on screen
-- [ ] Quick action buttons are white cards with 12px radius and subtle shadow
-- [ ] SP earn rows show gold chips (`#FEF3C7` bg, `#F59E0B` text, `#F59E0B` `Coins` icon)
-- [ ] 3 lifetime stat chips shown in a row, `#F7F7F7` background
-- [ ] Transaction history tabs use `#5DBB8E` underline (no filled background)
-- [ ] Earned SP amounts show in `#5DBB8E` green with "+" prefix
-- [ ] Spent SP amounts show in `#E85D75` red with "–" prefix
-- [ ] Transaction icon circles use `#E8F5F0` background, type-specific Phosphor icon
-- [ ] Empty state shows `Coins` (64px, `#E0E0E0`)
+- [ ] Free plan card: white bg, `#E0E0E0` border, `CrownSimple` gray (24px)
+- [ ] Basic plan card: white bg, `#5DBB8E` border (2px), `Crown` green (24px), "Most Popular" badge top-right
+- [ ] Pro plan card: `#1A1A1A` dark bg, white text, `Crown` gold (24px, `#F59E0B`)
+- [ ] "Subscribe Now" button is gold (`#F59E0B`) for Pro, green for Basic
+- [ ] Plan comparison: `CheckCircle` (included) and `X` (excluded) use correct tier colors
+- [ ] My Subscription: active badge is `#E8F5F0` bg, `#5DBB8E` text
+- [ ] "Cancel Subscription" is red text link (`#E85D75`) — NOT a button
+- [ ] "Keep My Subscription" is the primary green pill — cancel is secondary
+- [ ] Cancel screen warning banner has `#FEE2E2` bg, `WarningCircle` (20px, `#E85D75`)
+- [ ] Expired screen uses `WarningCircle` (64px, **amber** `#FFA726`) — not error red
+- [ ] Success screen: `CheckCircle` (72px, `#5DBB8E` fill) for Basic, `Crown` (64px, `#F59E0B` fill) for Pro
 
 i want you to 
 

@@ -68,8 +68,6 @@ export type RootStackParamList = {
   SpWalletScreen: undefined;
   // MODULE-15.1 FLOW-10/11: SP Transaction History
   SpTransactionHistory: undefined;
-  // MODULE-15.1 FLOW-10/11: SP Transaction History
-  SpTransactionHistory: undefined;
   // MODULE-11: Referral routes
   ReferralDashboard: undefined;
   Settings: undefined;

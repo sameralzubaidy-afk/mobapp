@@ -269,6 +269,93 @@ export async function getPlatformFeePercentage(): Promise<number> {
   return getConfigValue('platform_fee_buyer_percentage');
 }
 
+export async function getSPExpirationDays(forceRefresh = false): Promise<number> {
+  // Primary source: admin_config table as written by Admin UI.
+  // Canonical schema uses key/value columns.
+  try {
+    const { data, error } = await supabase
+      .from('admin_config')
+      .select('value')
+      .eq('key', 'sp_expiration_days')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!error && data?.value != null) {
+      const parsed = Number(data.value);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '⚠️ getSPExpirationDays table read (key/value) failed, trying legacy schema:',
+      (err as Error).message
+    );
+  }
+
+  // Legacy admin_config schema fallback (config_key/config_value).
+  try {
+    const { data, error } = await supabase
+      .from('admin_config')
+      .select('config_value')
+      .eq('config_key', 'sp_expiration_days')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!error && data?.config_value != null) {
+      const parsed = Number(data.config_value);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '⚠️ getSPExpirationDays table read (legacy schema) failed, trying RPC fallback:',
+      (err as Error).message
+    );
+  }
+
+  // Keep RPC path as compatibility fallback.
+  try {
+    const { data, error } = await supabase.rpc('get_config_value', {
+      p_key: 'sp_expiration_days',
+    });
+
+    if (!error && data != null) {
+      const parsed = Number(data);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '⚠️ getSPExpirationDays RPC(get_config_value) failed, trying legacy sp_config key:',
+      (err as Error).message
+    );
+  }
+
+  // Legacy fallback for environments still storing this in sp_config.
+  try {
+    const { data, error } = await supabase.rpc('get_sp_config', {
+      p_key: 'expiration_period_days',
+    });
+
+    if (!error && data != null) {
+      const parsed = Number(data);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '⚠️ getSPExpirationDays legacy RPC(get_sp_config) failed, falling back to table config fetch:',
+      (err as Error).message
+    );
+  }
+
+  return getConfigValue('sp_expiration_days', forceRefresh);
+}
+
 export async function getGracePeriodDays(forceRefresh = false): Promise<number> {
   try {
     const { data, error } = await supabase.rpc('get_config_value', {

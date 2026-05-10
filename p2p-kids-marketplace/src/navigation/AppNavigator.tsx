@@ -138,7 +138,10 @@ function RootNavigator() {
   const { session, isLoading } = React.useContext(AuthContext);
   const [shouldShowOnboardingCarousel, setShouldShowOnboardingCarousel] = React.useState(false);
   const [onboardingCheckComplete, setOnboardingCheckComplete] = React.useState(false);
-  const currentUserId = session?.user?.id ?? null;
+  const [onboardingCheckedUserId, setOnboardingCheckedUserId] = React.useState<string | null>(
+    null
+  );
+  const currentUserId = session?.user?.user_id ?? session?.user?.id ?? null;
 
   // Fail-open guard: if some startup network call hangs, do not block the entire UI forever.
   // We still prefer waiting for auth init, but after a short grace period, render the auth stack.
@@ -171,10 +174,12 @@ function RootNavigator() {
       // leaking across logout/login transitions.
       setShouldShowOnboardingCarousel(false);
       setOnboardingCheckComplete(false);
+      setOnboardingCheckedUserId(null);
 
       if (!currentUserId) {
         setShouldShowOnboardingCarousel(false);
         setOnboardingCheckComplete(true);
+        setOnboardingCheckedUserId(null);
         return;
       }
 
@@ -187,6 +192,7 @@ function RootNavigator() {
         }
 
         setShouldShowOnboardingCarousel(shouldShow);
+        setOnboardingCheckedUserId(currentUserId);
         setOnboardingCheckComplete(true);
       } catch (error) {
         console.error('[NAV] Onboarding check error:', error);
@@ -196,6 +202,7 @@ function RootNavigator() {
         }
 
         setShouldShowOnboardingCarousel(false);
+        setOnboardingCheckedUserId(currentUserId);
         setOnboardingCheckComplete(true);
       }
     }
@@ -348,7 +355,11 @@ function RootNavigator() {
     }
   }, [handleNotificationNavigation, logRouteChange]);
 
-  if ((isLoading && !forceRender) || (session && !onboardingCheckComplete)) {
+  const onboardingDecisionReady =
+    !currentUserId ||
+    (onboardingCheckComplete && onboardingCheckedUserId === currentUserId);
+
+  if ((isLoading && !forceRender) || !onboardingDecisionReady) {
     return (
       <View
         style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}

@@ -3,6 +3,7 @@
 // Handles expiration date calculation, warning queries, and grace period logic
 
 import { supabase } from '@/config/supabase';
+import { getSPExpirationDays } from '@/services/adminConfig';
 
 export interface ExpirationWarning {
   warning_id: string;
@@ -158,19 +159,12 @@ export function calculateExpirationDate(daysUntilExpiry: number, startDate?: Dat
 }
 
 /**
- * Calculate expiration date using the admin-configured period (from sp_config).
+ * Calculate expiration date using the admin-configured period.
+ * Canonical key: admin_config.sp_expiration_days (with legacy fallback to sp_config.expiration_period_days).
  */
 export async function calculateExpirationDateFromConfig(startDate?: Date): Promise<Date> {
   try {
-    const { data: periodData } = await supabase
-      .from('sp_config')
-      .select('config_value')
-      .eq('config_key', 'expiration_period_days')
-      .single();
-
-    const expirationDays = periodData?.config_value
-      ? parseInt(periodData.config_value, 10)
-      : DEFAULT_EXPIRATION_DAYS;
+    const expirationDays = await getSPExpirationDays();
 
     return calculateExpirationDate(expirationDays, startDate);
   } catch (error) {
