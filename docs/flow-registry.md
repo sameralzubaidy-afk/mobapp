@@ -2218,9 +2218,28 @@ This file is the canonical registry of end-to-end flows and their required regre
 - Must validate: user-entered signup referral code is persisted (e.g., `profiles.referred_by_code`) and the relationship is applied (`profiles.referred_by` + `referrals` row)
   - Fail-safe: If auth.users signup trigger was missing, a profiles AFTER INSERT trigger applies referral from auth metadata.
   - Back-compat: apply can resolve codes from `referral_codes.code` OR legacy `profiles.referral_code`.
+- **MODULE-15.1 UI Redesign (2026-05-14):**
+  - Screen: `src/screens/referrals/ReferralsScreen.tsx` redesigned per MODULE-15.1-UI-redesign.md specs
+  - Visual Design:
+    - Hero card: `#5DBB8E` bg, `Gift` icon (32px white), "Refer Friends, Earn SP" (18px bold white)
+    - Referral code box: white bg, **8px border** `#E0E0E0`, 20px monospace text with `letterSpacing: 4`, `Copy` icon (20px green)
+    - Share button: green pill 52px height, `ShareNetwork` icon (18px white)
+    - SP earned strip: `#FEF3C7` bg, `Coins` icon (20px gold `#F59E0B`), bold SP count
+    - Referral history: avatar (36px), name (15px semibold), date (13px gray), `CheckCircle` (16px green) for completed, "+N SP" (13px gold)
+    - Empty state: `Users` icon (64px `#E0E0E0`), "No referrals yet — share your code!"
+  - Icons: All from `phosphor-react-native` (no Ionicons/MaterialIcons)
+  - Tests:
+    - Unit: `src/__tests__/screens/ReferralsScreen.test.tsx` (16 test cases covering all states + interactions)
+    - Maestro: `.maestro/module-15.1-flow-13-referrals.yaml` (hero, code, share, empty state, history validation)
+    - Manual: `MODULE-15.1-FLOW-13-MANUAL-TESTING.md` (16 test cases for iOS/Android simulators)
+  - Verification: MODULE-15.1-VERIFICATION.md deliverable D-027
 
 ### FLOW-12: Subscriptions – Purchase/Cancel/Grace Period + Tier Configuration
 - Smoke: scripts/smoke/subscriptions.mjs (TODO: implement)
+- **FLOW-12 TC-03 UI Fix (2026-05-13):**
+  - `UpgradePlan` -> `SubscriptionPayment` trial CTA keeps existing Stripe logic but now renders the modern checkout presentation (Phosphor icons, checkout summary row, payment method row, due-today row).
+  - Legacy task-id header copy removed from the payment route title (`Subscription Payment` instead of `Subscription Payment - SUB-015`).
+  - Primary subscribe CTA now uses Kids Club+ visual treatment (green pill, 52px min-height) to match FLOW-12 manual QA expectations.
 - **SUB-020 Regression Fix (2026-03-12):**
   - Renewal path from `ContinueKidsClub` now routes grace/expired users through `create-subscription-from-payment-method` (paid renewal path) instead of legacy `create-subscription-payment`.
   - Billing writes now persist admin-configured amount and upsert billing history on successful payment in `supabase/functions/create-subscription-from-payment-method/index.ts`.
@@ -5115,3 +5134,4 @@ Satisfied Items:
   - Tier 0: typecheck + lint (always)
   - Tier 1: unit tests for analytics hook/cards (when analytics components change)
   - Tier 2: integration tests + manual TC-001 through TC-015 (when analytics service or table schema changes)
+### FLOW-13: Referrals UI

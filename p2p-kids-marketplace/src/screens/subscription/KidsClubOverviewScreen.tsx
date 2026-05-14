@@ -4,7 +4,7 @@
  * MODULE-11 TASK SUB-010
  */
 
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,11 @@ import { SubscriptionStatusCard } from '@/components/subscription/SubscriptionSt
 import { cancelSubscription } from '../../services/subscription';
 import { AuthContext } from '@/contexts/AuthContext';
 import { formatPrice } from '@/utils/formatPrice';
-import { useEffect } from 'react';
+import {
+  getSubscriptionPrice,
+  getTransactionFeeNonSubscriberCents,
+  getTransactionFeeSubscriberCents,
+} from '@/services/adminConfig';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 /**
@@ -59,17 +63,29 @@ export default function KidsClubOverviewScreen() {
 
   // NO HARDCODED PRICE - fetch from admin_config on mount
   const [monthlyPrice, setMonthlyPrice] = useState<number | null>(null);
+  const [subscriberFeeCents, setSubscriberFeeCents] = useState<number>(0);
+  const [nonSubscriberFeeCents, setNonSubscriberFeeCents] = useState<number>(0);
 
   useEffect(() => {
-    import('../../services/adminConfig').then((service) => {
-      service
-        .getSubscriptionPrice(true)
-        .then(setMonthlyPrice)
-        .catch((err) => {
-          console.error('[KidsClubOverview] Failed to load price:', err);
-          setMonthlyPrice(0); // Show 0 if config missing
-        });
-    });
+    const loadConfig = async () => {
+      try {
+        const [price, subscriberFee, nonSubscriberFee] = await Promise.all([
+          getSubscriptionPrice(true),
+          getTransactionFeeSubscriberCents(true),
+          getTransactionFeeNonSubscriberCents(true),
+        ]);
+        setMonthlyPrice(price);
+        setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
+        setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
+      } catch (err) {
+        console.error('[KidsClubOverview] Failed to load config:', err);
+        setMonthlyPrice(0); // Show 0 if config missing
+        setSubscriberFeeCents(0);
+        setNonSubscriberFeeCents(0);
+      }
+    };
+
+    void loadConfig();
   }, []);
 
   // Show loading state
@@ -204,7 +220,10 @@ export default function KidsClubOverviewScreen() {
               icon="🎯"
               text="Use points for discounts on future finds (up to 50% off)"
             />
-            <BenefitItem icon="💵" text="Pay only $0.99 per transaction (vs $2.99)" />
+            <BenefitItem
+              icon="💵"
+              text={`Pay only ${formatPrice(subscriberFeeCents)} per transaction (vs ${formatPrice(nonSubscriberFeeCents)})`}
+            />
             <BenefitItem icon="⚡" text="Get early access to new listings" />
             <BenefitItem icon="🌱" text="Help your child learn smart money habits" />
             <BenefitItem icon="♻️" text="Reduce waste and support sustainable shopping" />

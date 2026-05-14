@@ -30,7 +30,6 @@ import {
   Backpack,
   GameController,
   BookOpen,
-  CaretLeft,
 } from 'phosphor-react-native';
 
 type ParamList = {
@@ -103,7 +102,7 @@ export default function CategoryBrowseScreen() {
           hitSlop={8}
           testID="category-back-button"
         >
-          <CaretLeft size={24} color="#1A1A1A" weight="regular" />
+          <Text style={styles.backButtonText}>←</Text>
         </Pressable>
         <View style={styles.categoryHeader}>
           <View testID="category-icon">{getCategoryIcon()}</View>
@@ -193,6 +192,10 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 4,
     marginRight: 8,
+  },
+  backButtonText: {
+    fontSize: 28,
+    color: '#5DBB8E',
   },
   categoryHeader: {
     flexDirection: 'row',

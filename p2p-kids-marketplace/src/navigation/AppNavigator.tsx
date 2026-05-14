@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as ExpoLinking from 'expo-linking';
 import DiscoverScreen from '@/screens/home/DiscoverScreen';
@@ -48,10 +48,15 @@ import { SubscriptionPaymentScreen } from '@/screens/subscription/SubscriptionPa
 import SubscriptionStatusScreen from '@/screens/subscription/SubscriptionStatusScreen';
 import SubscriptionSuccessScreen from '@/screens/subscription/SubscriptionSuccessScreen';
 import ManageKidsClubScreen from '@/screens/subscription/ManageKidsClubScreen';
-import KidsClubOverviewScreen from '@/screens/subscription/KidsClubOverviewScreen';
+import SubscriptionPlansScreen from '@/screens/subscription/SubscriptionPlansScreen';
+import PlanComparisonScreen from '@/screens/subscription/PlanComparisonScreen';
+import UpgradePlanScreen from '@/screens/subscription/UpgradePlanScreen';
+import CancelSubscriptionScreen from '@/screens/subscription/CancelSubscriptionScreen';
+import SubscriptionExpiredScreen from '@/screens/subscription/SubscriptionExpiredScreen';
+import MySubscriptionScreen from '@/screens/subscription/MySubscriptionScreen';
 import TransactionHistoryScreen from '@/screens/profile/TransactionHistoryScreen';
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
-import ReferralDashboardScreen from '@/screens/ReferralDashboardScreen';
+import { ReferralsScreen } from "@/screens/referrals/ReferralsScreen";
 import SettingsScreen from '@/screens/profile/SettingsScreen';
 import LinkedAccountsScreen from '@/screens/profile/LinkedAccountsScreen';
 import NotificationPreferencesScreen from '@/screens/profile/NotificationPreferencesScreen';
@@ -90,6 +95,8 @@ const linking = {
       Home: 'home',
       Discover: 'discover',
       Cart: 'cart',
+      SpWallet: 'sp-wallet',
+      SpTransactionHistory: 'sp-history',
       PhoneVerification: 'phone-verification',
       SuspendedAccount: 'suspended-account',
       ProfileSetup: 'profile-setup',
@@ -99,6 +106,12 @@ const linking = {
       Welcome: 'welcome',
       SubscriptionChoice: 'subscription-choice',
       ContinueKidsClub: 'continue-kids-club',
+      SubscriptionPlans: 'subscription-plans',
+      PlanComparison: 'plan-comparison',
+      UpgradePlan: 'upgrade-plan',
+      CancelSubscription: 'cancel-subscription',
+      SubscriptionExpired: 'subscription-expired',
+      MySubscription: 'my-subscription',
       FeatureHighlights: 'feature-highlights',
       MyListings: 'my-listings',
       CreateListing: 'create-listing',
@@ -373,10 +386,26 @@ function RootNavigator() {
   // Authenticated users should land in the dashboard stack immediately after login.
   const isAuthenticated = session !== null;
   const isSuspended = session?.user?.account_status === 'suspended';
+  const isSubscriptionExpired = session?.subscription_status === 'expired';
 
   // MODULE-18 EDU-004: Show onboarding carousel if needed
   const showOnboardingCarousel = isAuthenticated && shouldShowOnboardingCarousel;
-  const navigatorKey = `${currentUserId ?? 'guest'}:${showOnboardingCarousel ? 'onboarding' : 'home'}`;
+  const navigatorKey = `${currentUserId ?? 'guest'}:${showOnboardingCarousel ? 'onboarding' : 'home'}:${isSubscriptionExpired ? 'expired' : 'active'}`;
+  const subscriptionHeaderOptions = {
+    headerShown: true,
+    headerTintColor: '#5DBB8E',
+    headerBackTitleVisible: false,
+    headerBackImage: () => <Text style={{ fontSize: 28, color: '#5DBB8E' }}>←</Text>,
+    headerTitleAlign: 'center' as const,
+    headerStyle: {
+      backgroundColor: '#FFFFFF',
+    },
+    headerTitleStyle: {
+      color: '#1A1A1A',
+      fontWeight: '700' as const,
+      fontSize: 18,
+    },
+  };
 
   return (
     <NavigationContainer
@@ -385,7 +414,11 @@ function RootNavigator() {
       onReady={onNavigationReady}
       onStateChange={onNavigationStateChange}
     >
-      <Stack.Navigator key={navigatorKey} screenOptions={{ headerShown: false }}>
+      <Stack.Navigator
+        key={navigatorKey}
+        screenOptions={{ headerShown: false }}
+        initialRouteName={isSubscriptionExpired ? 'SubscriptionExpired' : undefined}
+      >
         {isAuthenticated && isSuspended ? (
           // Authenticated + Suspended -> blocked account screen
           <Stack.Screen
@@ -553,42 +586,72 @@ function RootNavigator() {
             <Stack.Screen
               name="TrialConversionTest"
               component={TrialConversionTestScreen}
-              options={{ title: 'Trial Conversion Test - SUB-005' }}
+              options={{ title: 'Trial Conversion Test' }}
             />
             <Stack.Screen
               name="ContinueKidsClub"
               component={ContinueKidsClubScreen}
-              options={{ title: 'Continue Kids Club+ - SUB-006' }}
+              options={{ ...subscriptionHeaderOptions, title: 'Continue Kids Club+' }}
             />
             <Stack.Screen
               name="SubscriptionPayment"
               component={SubscriptionPaymentScreen}
-              options={{ title: 'Subscription Payment - SUB-015' }}
+              options={{ ...subscriptionHeaderOptions, title: 'Subscription Payment' }}
             />
             <Stack.Screen
               name="SubscriptionSuccess"
               component={SubscriptionSuccessScreen}
-              options={{ title: 'Subscription Success - SUB-016/017', headerShown: false }}
+              options={{ ...subscriptionHeaderOptions, title: 'Subscription Success' }}
             />
             <Stack.Screen
               name="SubscriptionStatus"
               component={SubscriptionStatusScreen}
-              options={{ title: 'Subscription Status - SUB-007' }}
+              options={{ ...subscriptionHeaderOptions, title: 'Subscription Status' }}
             />
             <Stack.Screen
               name="ManageKidsClub"
               component={ManageKidsClubScreen}
-              options={{ title: 'Manage Kids Club+ - SUB-008' }}
+              options={{ ...subscriptionHeaderOptions, title: 'Manage Kids Club+' }}
             />
             <Stack.Screen
               name="KidsClubOverview"
-              component={KidsClubOverviewScreen}
-              options={{ title: 'Kids Club+ - SUB-010' }}
+              component={SubscriptionPlansScreen}
+              options={{ ...subscriptionHeaderOptions, title: 'Kids Club+' }}
+            />
+            <Stack.Screen
+              name="SubscriptionPlans"
+              component={SubscriptionPlansScreen}
+              options={{ ...subscriptionHeaderOptions, title: 'Choose Your Plan' }}
+            />
+            <Stack.Screen
+              name="PlanComparison"
+              component={PlanComparisonScreen}
+              options={{ ...subscriptionHeaderOptions, title: 'Compare Plans' }}
+            />
+            <Stack.Screen
+              name="UpgradePlan"
+              component={UpgradePlanScreen}
+              options={{ ...subscriptionHeaderOptions, title: 'Upgrade Plan' }}
+            />
+            <Stack.Screen
+              name="CancelSubscription"
+              component={CancelSubscriptionScreen}
+              options={{ ...subscriptionHeaderOptions, title: 'Cancel Subscription' }}
+            />
+            <Stack.Screen
+              name="SubscriptionExpired"
+              component={SubscriptionExpiredScreen}
+              options={{ ...subscriptionHeaderOptions, title: 'Subscription Expired' }}
+            />
+            <Stack.Screen
+              name="MySubscription"
+              component={MySubscriptionScreen}
+              options={{ ...subscriptionHeaderOptions, title: 'My Subscription' }}
             />
             <Stack.Screen
               name="TransactionHistory"
               component={TransactionHistoryScreen}
-              options={{ title: 'Billing History - SUB-015' }}
+              options={{ ...subscriptionHeaderOptions, title: 'Billing History' }}
             />
             <Stack.Screen name="Badges" component={BadgesScreen} options={{ headerShown: false }} />
             <Stack.Screen
@@ -617,7 +680,7 @@ function RootNavigator() {
             {/* MODULE-11: Referral screens */}
             <Stack.Screen
               name="ReferralDashboard"
-              component={ReferralDashboardScreen}
+              component={ReferralsScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-10: ID Badge Verification */}

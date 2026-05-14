@@ -53,7 +53,7 @@ export function SubscriptionBanner() {
   // Handle navigation
   const handlePress = () => {
     if (status === 'free') {
-      navigation.navigate('KidsClubOverview' as never);
+      navigation.navigate('SubscriptionPlans' as never);
     } else if (isTrial) {
       navigation.navigate('ContinueKidsClub' as never);
     } else {

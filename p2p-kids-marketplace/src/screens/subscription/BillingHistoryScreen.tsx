@@ -23,6 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
 import { getBillingHistory } from '@/services/billingHistory';
 import type { BillingHistory } from '@/types/billingHistory.types';
+import { formatPrice } from '@/utils/formatPrice';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 //  ─── Helper: Format date ──────────────────────────────────────────────────────
@@ -41,7 +42,13 @@ function formatDate(dateString: string): string {
 
 // ─── Helper: Format amount ─────────────────────────────────────────────────────
 function formatAmount(cents: number, currency: string): string {
-  const symbol = currency === 'usd' ? '$' : currency.toUpperCase();
+  // For USD, use smart decimal formatting (no .00 for whole dollars)
+  if (currency === 'usd') {
+    return formatPrice(cents);
+  }
+  
+  // For other currencies, always show 2 decimals
+  const symbol = currency.toUpperCase();
   return `${symbol}${(cents / 100).toFixed(2)}`;
 }
 
@@ -123,6 +130,7 @@ export default function BillingHistoryScreen() {
       {
         text: 'Open',
         onPress: () => {
+          // eslint-disable-next-line no-console
           console.log('[BillingHistory] Requested invoice:', invoiceId);
           // TODO: Call Edge Function to get invoice URL
           // For now, show placeholder

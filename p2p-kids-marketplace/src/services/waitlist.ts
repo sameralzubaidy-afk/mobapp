@@ -42,6 +42,8 @@ export const upsertZipWaitlist = async (params: {
   try {
     const { userId, email, requestedZip, assignedNodeId } = params;
 
+    console.log('📝 upsertZipWaitlist called:', { userId, email, requestedZip, assignedNodeId });
+
     // Use upsert: insert new or update if (user_id, requested_zip) exists
     const { data, error } = await supabase
       .from('zip_waitlist')
@@ -62,9 +64,11 @@ export const upsertZipWaitlist = async (params: {
       .single();
 
     if (error) {
-      console.error('❌ Waitlist upsert error:', error.message);
+      console.error('❌ Waitlist upsert error:', error.message, error);
       throw error;
     }
+
+    console.log('✅ Waitlist entry created/updated:', data);
 
     // Determine if this was a new entry or update
     const wasNewEntry = !!data?.id;
@@ -85,7 +89,7 @@ export const upsertZipWaitlist = async (params: {
     };
   } catch (error) {
     const err = error as Error;
-    console.error('❌ upsertZipWaitlist error:', err.message);
+    console.error('❌ upsertZipWaitlist error:', err.message, err);
     throw err;
   }
 };

@@ -49,7 +49,7 @@ export default function TradeListScreen({ navigation }: any) {
     }
     setLoading(true);
     try {
-      let query = supabase
+      const query = supabase
         .from('trades')
         .select(
           'id, status, created_at, buyer_id, seller_id, listing:items(title, price, images:item_images(id, url, thumbnail_url, display_order))'

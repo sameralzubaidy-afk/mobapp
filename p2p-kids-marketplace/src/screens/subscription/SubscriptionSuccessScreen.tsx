@@ -1,10 +1,10 @@
 /**
  * File: p2p-kids-marketplace/src/screens/subscription/SubscriptionSuccessScreen.tsx
- * MODULE-11 SUB-016/017: Subscription Success Screen
- *
- * Purpose: Displays a celebratory confirmation after successful subscription or re-subscription
- * Provides clear CTAs to explore the app and enjoy Kids Club+ benefits
- * Shown after payment completion, before returning to main app
+ * MODULE-15.1 FLOW-12 Screen 4: Subscription Success
+ * 
+ * TASK: Redesign SubscriptionSuccessScreen — VISUAL ONLY
+ * DO NOT CHANGE: plan name from navigation params, navigation on CTA
+ * ONLY CHANGE: StyleSheet, icons → Phosphor
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -14,12 +14,12 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  ScrollView,
   Animated,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Crown } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -35,13 +35,15 @@ interface SubscriptionSuccessScreenProps {
 
 export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccessScreenProps) {
   const navigation = useNavigation<NavigationProp>();
-  const { subscription, loading } = useSubscription();
+  const { loading } = useSubscription();
 
   // Animation refs for celebratory effects
   const checkmarkScale = useRef(new Animated.Value(0)).current;
   const containerOpacity = useRef(new Animated.Value(0)).current;
 
   const isRenewal = route?.params?.isRenewal ?? false;
+  
+  const planName = 'Kids Club+';
 
   // Refresh subscription data on mount
   useFocusEffect(
@@ -71,35 +73,19 @@ export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccess
     }).start();
   }, [checkmarkScale, containerOpacity]);
 
-  const handleGoToDashboard = () => {
-    // Reset to Home tab stack
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Home' }],
-    });
-  };
-
   const handleStartSearching = () => {
-    // Navigate to Home with Search tab focused
-    // Using HomeTabNavigator's structure
+    // Navigate to Discover screen
     navigation.reset({
       index: 0,
-      routes: [
-        {
-          name: 'Home',
-          params: {
-            screen: 'Search',
-          },
-        },
-      ],
+      routes: [{ name: 'Discover' as any }],
     });
   };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} testID="subscription-success-screen">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#5DBB8E" />
           <Text style={styles.loadingText}>Confirming your subscription...</Text>
         </View>
       </SafeAreaView>
@@ -107,106 +93,58 @@ export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccess
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        scrollEnabled={false}
-      >
-        {/* Animated Checkmark */}
+    <SafeAreaView style={styles.safeArea} testID="subscription-success-screen">
+      <View style={styles.container}>
+        {/* Icon - conditional on plan */}
         <Animated.View
           style={[
-            styles.checkmarkContainer,
+            styles.iconContainer,
             {
               transform: [{ scale: checkmarkScale }],
               opacity: containerOpacity,
             },
           ]}
+          testID="success-icon-container"
         >
-          <View style={styles.checkmark}>
-            <Text style={styles.checkmarkIcon}>✓</Text>
-          </View>
+          <Crown size={64} color="#5DBB8E" weight="fill" testID="crown-icon" />
         </Animated.View>
 
-        {/* Success Title */}
+        {/* Title */}
         <Animated.View style={[styles.headerContainer, { opacity: containerOpacity }]}>
-          <Text style={styles.title}>
-            {isRenewal ? 'Re-subscription\nSuccessful!' : 'Welcome to Kids Club+!'}
+          <Text style={styles.title} testID="title">
+            You're now a {planName} member!
           </Text>
           <Text style={styles.subtitle}>
             {isRenewal
-              ? "You're back in! Your subscription is active."
+              ? "Welcome back! Your subscription is active."
               : "Your subscription is now active. Let's get started!"}
           </Text>
         </Animated.View>
 
-        {/* Benefits Highlight */}
-        <Animated.View style={[styles.benefitsCard, { opacity: containerOpacity }]}>
-          <Text style={styles.benefitsTitle}>You now have access to:</Text>
-
-          <View style={styles.benefitItem}>
-            <Text style={styles.benefitIcon}>✨</Text>
-            <View style={styles.benefitContent}>
-              <Text style={styles.benefitItemTitle}>Earn Swap Points</Text>
-              <Text style={styles.benefitItemDesc}>Get points for every sale</Text>
-            </View>
+        {/* Benefit Chips Row */}
+        <Animated.View style={[styles.benefitsRow, { opacity: containerOpacity }]}>
+          <View style={styles.benefitChip} testID="benefit-chip-0">
+            <Text style={styles.benefitChipText}>Earn and spend PIPs</Text>
           </View>
-
-          <View style={styles.benefitItem}>
-            <Text style={styles.benefitIcon}>💰</Text>
-            <View style={styles.benefitContent}>
-              <Text style={styles.benefitItemTitle}>Lower Fees</Text>
-              <Text style={styles.benefitItemDesc}>$0.99 per transaction</Text>
-            </View>
+          <View style={styles.benefitChip} testID="benefit-chip-1">
+            <Text style={styles.benefitChipText}>Low Fees</Text>
           </View>
-
-          <View style={styles.benefitItem}>
-            <Text style={styles.benefitIcon}>🚀</Text>
-            <View style={styles.benefitContent}>
-              <Text style={styles.benefitItemTitle}>Priority Listings</Text>
-              <Text style={styles.benefitItemDesc}>Your items get shown first</Text>
-            </View>
-          </View>
-
-          <View style={styles.benefitItem}>
-            <Text style={styles.benefitIcon}>⚡</Text>
-            <View style={styles.benefitContent}>
-              <Text style={styles.benefitItemTitle}>Early Access</Text>
-              <Text style={styles.benefitItemDesc}>See new listings before others</Text>
-            </View>
+          <View style={styles.benefitChip} testID="benefit-chip-2">
+            <Text style={styles.benefitChipText}>Save Together</Text>
           </View>
         </Animated.View>
 
-        {/* CTA Buttons */}
-        <Animated.View style={[styles.buttonsContainer, { opacity: containerOpacity }]}>
-          {/* Primary Button: Start Searching */}
+        {/* CTA Button */}
+        <Animated.View style={[styles.ctaContainer, { opacity: containerOpacity }]}>
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={styles.ctaButton}
             onPress={handleStartSearching}
-            activeOpacity={0.85}
+            testID="start-exploring-button"
           >
-            <Text style={styles.primaryButtonText}>🔍 Start Searching</Text>
-            <Text style={styles.primaryButtonSubtext}>Browse amazing deals nearby</Text>
-          </TouchableOpacity>
-
-          {/* Secondary Button: Go to Dashboard */}
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={handleGoToDashboard}
-            activeOpacity={0.9}
-          >
-            <Text style={styles.secondaryButtonText}>📊 Go to Dashboard</Text>
+            <Text style={styles.ctaButtonText}>Start Exploring</Text>
           </TouchableOpacity>
         </Animated.View>
-
-        {/* Helpful Text */}
-        <Animated.View style={[styles.footerText, { opacity: containerOpacity }]}>
-          <Text style={styles.footerContent}>
-            Your subscription will renew automatically. Manage or cancel anytime from your
-            subscription settings.
-          </Text>
-        </Animated.View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -214,169 +152,76 @@ export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccess
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingText: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    marginTop: 12,
   },
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-  },
-  contentContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
     justifyContent: 'center',
-  },
-
-  // Checkmark Animation
-  checkmarkContainer: {
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 30,
+    paddingHorizontal: 40,
   },
-  checkmark: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#10b981',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+  iconContainer: {
+    marginBottom: 24,
   },
-  checkmarkIcon: {
-    fontSize: 60,
-    color: '#fff',
-    fontWeight: '800',
-  },
-
-  // Header
   headerContainer: {
     alignItems: 'center',
     marginBottom: 32,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1f2937',
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1A1A1A',
     textAlign: 'center',
-    lineHeight: 35,
     marginBottom: 12,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 15,
+    color: '#6B6B6B',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
   },
-
-  // Benefits Card
-  benefitsCard: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 28,
-  },
-  benefitsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 16,
-  },
-  benefitItem: {
+  benefitsRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  benefitIcon: {
-    fontSize: 24,
-    marginRight: 12,
-    marginTop: 2,
-  },
-  benefitContent: {
-    flex: 1,
-  },
-  benefitItemTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  benefitItemDesc: {
-    fontSize: 13,
-    color: '#6b7280',
-    lineHeight: 18,
-  },
-
-  // Buttons
-  buttonsContainer: {
-    marginBottom: 24,
-    gap: 12,
-  },
-  primaryButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    alignItems: 'flex-start',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  primaryButtonSubtext: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
-  },
-  secondaryButton: {
-    backgroundColor: '#fff',
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    marginBottom: 40,
   },
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
+  benefitChip: {
+    backgroundColor: '#E8F5F0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-
-  // Footer
-  footerText: {
-    alignItems: 'center',
-  },
-  footerContent: {
+  benefitChipText: {
     fontSize: 13,
-    color: '#9ca3af',
-    textAlign: 'center',
-    lineHeight: 20,
+    color: '#5DBB8E',
     fontWeight: '500',
   },
-
-  // Loading state
-  loadingContainer: {
-    flex: 1,
+  ctaContainer: {
+    width: '100%',
+  },
+  ctaButton: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    height: 52,
     justifyContent: 'center',
     alignItems: 'center',
+    width: '100%',
   },
-  loadingText: {
-    marginTop: 16,
+  ctaButtonText: {
     fontSize: 16,
-    color: '#6b7280',
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

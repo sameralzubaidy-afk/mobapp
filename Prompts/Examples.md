@@ -56,41 +56,36 @@ Supabase: supabase/
 My Example 1
 
 
-### TASK FLOW-12: Subscriptions
+### TASK FLOW-14: Messaging
 
 I’m working on the MODULE-15.1-UI-redesign.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
-Tasks: ### TASK FLOW-12: Subscriptions
+Tasks: ### TASK FLOW-14: Messaging
 
 scope 
-Redesign the 8 subscription screens. Plan tier cards must clearly differentiate Free, Basic, and Pro. The Pro tier uses gold (`#F59E0B`) as its accent. Feature comparison uses `CheckCircle`/`X` icons. The cancel screen uses a retention-focused design (benefits reminder before confirmation).
+Redesign the 2 messaging screens. The Conversations list is the inbox — clean, scannable rows. The Chat screen follows standard mobile chat conventions: sent messages right-aligned green bubbles, received messages left-aligned gray bubbles.
 
 #### Scope — Files to Modify
 
 | # | Screen | File | Change Type |
 |---|--------|------|-------------|
-| 1 | Subscription Plans | `src/screens/subscription/SubscriptionPlansScreen.tsx` | Restyle only |
-| 2 | Plan Comparison | `src/screens/subscription/PlanComparisonScreen.tsx` | Restyle only |
-| 3 | Checkout / Payment | `src/screens/subscription/SubscriptionCheckoutScreen.tsx` | Restyle only |
-| 4 | Subscription Success | `src/screens/subscription/SubscriptionSuccessScreen.tsx` | Restyle only |
-| 5 | My Subscription | `src/screens/subscription/MySubscriptionScreen.tsx` | Restyle only |
-| 6 | Upgrade Plan | `src/screens/subscription/UpgradePlanScreen.tsx` | Restyle only |
-| 7 | Cancel Subscription | `src/screens/subscription/CancelSubscriptionScreen.tsx` | Restyle only |
-| 8 | Subscription Expired | `src/screens/subscription/SubscriptionExpiredScreen.tsx` | Restyle only |
+| 1 | Conversations List | `src/screens/messaging/ConversationsScreen.tsx` | Restyle only |
+| 2 | Chat / Message Thread | `src/screens/messaging/ChatScreen.tsx` | Restyle only |
 
-#### ✅ Acceptance Criteria — FLOW-12 (Visual Only)
 
-- [ ] Free plan card: white bg, `#E0E0E0` border, `CrownSimple` gray (24px)
-- [ ] Basic plan card: white bg, `#5DBB8E` border (2px), `Crown` green (24px), "Most Popular" badge top-right
-- [ ] Pro plan card: `#1A1A1A` dark bg, white text, `Crown` gold (24px, `#F59E0B`)
-- [ ] "Subscribe Now" button is gold (`#F59E0B`) for Pro, green for Basic
-- [ ] Plan comparison: `CheckCircle` (included) and `X` (excluded) use correct tier colors
-- [ ] My Subscription: active badge is `#E8F5F0` bg, `#5DBB8E` text
-- [ ] "Cancel Subscription" is red text link (`#E85D75`) — NOT a button
-- [ ] "Keep My Subscription" is the primary green pill — cancel is secondary
-- [ ] Cancel screen warning banner has `#FEE2E2` bg, `WarningCircle` (20px, `#E85D75`)
-- [ ] Expired screen uses `WarningCircle` (64px, **amber** `#FFA726`) — not error red
-- [ ] Success screen: `CheckCircle` (72px, `#5DBB8E` fill) for Basic, `Crown` (64px, `#F59E0B` fill) for Pro
+#### ✅ Acceptance Criteria — FLOW-14 (Visual Only)
+
+- [ ] Conversations search bar is pill-shaped (48px, `#F0F0F0`), `MagnifyingGlass` Phosphor icon left
+- [ ] Unread badge is 20px green circle (`#5DBB8E`), white count text (11px)
+- [ ] Trade context chip shows `ArrowsLeftRight` (12px, `#5DBB8E`) + small item thumbnail (24px)
+- [ ] Empty state: `ChatCircleSlash` (64px, `#E0E0E0`)
+- [ ] Sent message bubbles: `#5DBB8E` bg, white text, `borderTopRightRadius: 4`
+- [ ] Received message bubbles: `#F0F0F0` bg, `#1A1A1A` text, `borderTopLeftRadius: 4`
+- [ ] `ShieldCheck` (14px, `#5DBB8E`) in chat header for verified sellers
+- [ ] Trade context banner: `#F7F7F7` bg, `ArrowsLeftRight` green icon, "View Trade" green link
+- [ ] `PaperPlaneRight` send icon (24px, `#5DBB8E`) only visible when input has text
+- [ ] `PaperClip` and `Smiley` icons are 20px, `#6B6B6B` — NOT green
+- [ ] Read receipt uses `Check` Phosphor icon (12px, `#5DBB8E`)
 
 i want you to 
 

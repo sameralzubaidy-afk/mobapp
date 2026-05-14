@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Image,
   Alert,
   ActivityIndicator,
   SafeAreaView,
@@ -159,17 +158,6 @@ export default function ProfileScreen({ navigation }: any) {
 
           if (actions.length > 0) {
             const actionStr = actions.length === 2 ? `${actions[0]} or ${actions[1]}` : actions[0];
-
-            // Calculate correct bonus amount based on enabled actions
-            let bonusAmount = 0;
-            if (config.first_listing_enabled && config.first_trade_enabled) {
-              // If both are enabled, show total potential bonus
-              bonusAmount = config.referee_sp + config.referee_listing_sp;
-            } else if (config.first_listing_enabled) {
-              bonusAmount = config.referee_listing_sp;
-            } else if (config.first_trade_enabled) {
-              bonusAmount = config.referee_sp;
-            }
 
             setPendingReferralNotice(
               `🎁 Your bonus is waiting! ${actionStr.charAt(0).toUpperCase() + actionStr.slice(1)} to earn your sign-up bonus.`
@@ -511,7 +499,13 @@ export default function ProfileScreen({ navigation }: any) {
             {/* Consolidated Subscription/Club Button */}
             <TouchableOpacity
               style={styles.clubButton}
-              onPress={() => navigation.navigate('KidsClubOverview')}
+              onPress={() =>
+                navigation.navigate(
+                  trialStatus?.status === 'active' || trialStatus?.status === 'trial'
+                    ? 'MySubscription'
+                    : 'SubscriptionPlans'
+                )
+              }
             >
               <Text style={styles.clubButtonText}>
                 {trialStatus?.status === 'active' || trialStatus?.status === 'trial'

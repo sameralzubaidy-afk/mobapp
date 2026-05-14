@@ -227,13 +227,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               return 'free';
             case 'active':
               return 'active';
+            case 'paused':
+              return 'paused';
             case 'grace_period':
+              return 'grace_period';
             case 'grace':
               return 'grace';
             case 'cancelled':
+              return 'cancelled';
             case 'canceled':
-            case 'expired':
               return 'canceled';
+            case 'expired':
+              return 'expired';
             default:
               return 'free';
           }

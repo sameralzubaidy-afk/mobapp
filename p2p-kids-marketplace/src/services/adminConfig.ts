@@ -22,6 +22,8 @@ export interface AdminConfig {
   sp_subscriber_only: boolean;
 
   // Fees
+  transaction_fee_subscriber_cents: number;
+  transaction_fee_non_subscriber_cents: number;
   platform_fee_buyer_fixed_cents: number;
   platform_fee_buyer_percentage: number;
   platform_fee_seller_percentage: number;
@@ -197,6 +199,8 @@ function getDefaultConfig(): AdminConfig {
     sp_subscriber_only: true,
 
     // Fees
+    transaction_fee_subscriber_cents: 99,
+    transaction_fee_non_subscriber_cents: 299,
     platform_fee_buyer_fixed_cents: 25,
     platform_fee_buyer_percentage: 2.5,
     platform_fee_seller_percentage: 5.0,
@@ -267,6 +271,14 @@ export async function getSPMaxPercentage(): Promise<number> {
 
 export async function getPlatformFeePercentage(): Promise<number> {
   return getConfigValue('platform_fee_buyer_percentage');
+}
+
+export async function getTransactionFeeSubscriberCents(forceRefresh = false): Promise<number> {
+  return getConfigValue('transaction_fee_subscriber_cents', forceRefresh);
+}
+
+export async function getTransactionFeeNonSubscriberCents(forceRefresh = false): Promise<number> {
+  return getConfigValue('transaction_fee_non_subscriber_cents', forceRefresh);
 }
 
 export async function getSPExpirationDays(forceRefresh = false): Promise<number> {

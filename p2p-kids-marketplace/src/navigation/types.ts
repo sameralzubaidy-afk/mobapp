@@ -88,4 +88,11 @@ export type RootStackParamList = {
   // MODULE-15.1 FLOW-07: Cart & Bundling
   Cart: undefined;
   BundleBuilder: { sellerId: string; sellerName?: string };
+  // MODULE-15.1 FLOW-12: Subscription Screens
+  SubscriptionPlans: undefined;
+  PlanComparison: undefined;
+  UpgradePlan: undefined;
+  CancelSubscription: undefined;
+  SubscriptionExpired: { planName?: string; expiredDate?: string } | undefined;
+  MySubscription: undefined;
 };

@@ -22,6 +22,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getTrialStatus, TrialStatus } from '../../services/subscriptions/trialConversion';
 import { useTrialToPaidConversion } from '../../services/subscriptions/trialToPaidConversion';
 import { getSubscriptionPrice, getTrialDays } from '../../services/adminConfig';
+import { formatDollarAmount } from '@/utils/formatPrice';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -132,7 +133,7 @@ export default function ContinueKidsClubScreen() {
   const trialEnding = daysRemaining <= 7;
   const showDefaultTrialBadge = !isTrialSubscription;
 
-  const priceFormatted = `$${monthlyPrice.toFixed(2)}`;
+  const priceFormatted = formatDollarAmount(monthlyPrice);
 
   return (
     <ScrollView style={styles.container}>

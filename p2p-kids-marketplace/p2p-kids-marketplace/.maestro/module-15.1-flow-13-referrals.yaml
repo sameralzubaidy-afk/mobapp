@@ -1,0 +1,83 @@
+appId: com.kidsmarketplace.app
+---
+# FLOW: Referral UI Verification | TASK: FLOW-13 | States covered: Happy path, Code copy, Share, Empty state, Referral history
+# This flow validates the complete visual redesign of ReferralsScreen per MODULE-15.1 specs
+
+# SETUP: Navigate to Referrals screen
+- launchApp
+- tapOn: "Profile"
+- tapOn: "Refer & Earn"
+- waitForAnimationToEnd
+
+# HERO CARD VALIDATION
+- assertVisible: "Refer Friends, Earn SP"
+- assertVisible:
+    id: "hero-card"
+- assertVisible:
+    id: "hero-title"
+- assertVisible:
+    id: "hero-subtext"
+
+# SP EARNED STRIP VALIDATION
+- assertVisible: "You've earned"
+- assertVisible:
+    id: "sp-earned-strip"
+- assertVisible:
+    id: "sp-earned-text"
+
+# REFERRAL CODE BOX VALIDATION
+- assertVisible:
+    id: "code-container"
+- assertVisible:
+    id: "referral-code-text"
+- assertVisible:
+    id: "copy-btn"
+
+# TEST: Copy referral code
+- tapOn:
+    id: "copy-btn"
+- waitForAnimationToEnd
+# Note: Clipboard copy confirmation handled by Alert (tested in unit tests)
+
+# SHARE BUTTON VALIDATION & INTERACTION
+- assertVisible:
+    id: "share-btn"
+- tapOn:
+    id: "share-btn"
+- waitForAnimationToEnd
+# Note: Share sheet behavior is platform-specific
+
+# REFERRAL HISTORY SECTION
+- assertVisible:
+    id: "history-title"
+- assertVisible: "Referral History"
+
+# CONDITIONAL: Check for empty state OR referral list
+- runFlow:
+    when:
+      visible: "No referrals yet"
+    commands:
+      # EMPTY STATE VALIDATION
+      - assertVisible:
+          id: "empty-state"
+      - assertVisible:
+          id: "empty-text"
+      - assertVisible: "No referrals yet — share your code!"
+
+# If referral history exists, validate list items
+- runFlow:
+    when:
+      notVisible: "No referrals yet"
+    commands:
+      # Scroll to ensure all history items are visible
+      - scrollUntilVisible:
+          element:
+            id: "history-title"
+          direction: DOWN
+      # Note: Specific history items tested in unit tests with testIDs like history-item-{id}
+
+# FINAL ASSERTION: Ensure screen is fully loaded and stable
+- assertVisible: "Refer Friends, Earn SP"
+- assertVisible:
+    id: "share-btn"
+

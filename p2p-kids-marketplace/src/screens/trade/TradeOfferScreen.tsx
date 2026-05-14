@@ -57,7 +57,7 @@ export default function TradeOfferScreen() {
   const [spAmount, setSpAmount] = useState(0);
   const [maxSpAllowed, setMaxSpAllowed] = useState(0);
   const [maxSpPercentage, setMaxSpPercentage] = useState(50);
-  const [transactionFeeCents, setTransactionFeeCents] = useState(299);
+  const [transactionFeeCents, setTransactionFeeCents] = useState(0);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);
   const [errorModal, setErrorModal] = useState<{ visible: boolean; title: string; message: string; isDuplicate?: boolean }>({

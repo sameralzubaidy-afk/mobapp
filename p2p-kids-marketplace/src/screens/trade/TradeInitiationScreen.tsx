@@ -69,7 +69,7 @@ export default function TradeInitiationScreen() {
   const [spAmount, setSpAmount] = useState(0);
   const [maxSpAllowed, setMaxSpAllowed] = useState(0); // Category-specific SP cap (MODULE-12 V3)
   const [maxSpPercentage, setMaxSpPercentage] = useState(50); // Fallback global percentage
-  const [transactionFeeCents, setTransactionFeeCents] = useState(299);
+  const [transactionFeeCents, setTransactionFeeCents] = useState(0);
   const [cardComplete, setCardComplete] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);

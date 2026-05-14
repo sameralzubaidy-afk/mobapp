@@ -1,6 +1,6 @@
 # FLOW: SP Wallet & Transaction History | TASK: MODULE-15.1 FLOW-10/11 | States covered: Loaded, Empty/With Transactions, Tab Filtering
 
-appId: host.exp.Exponent
+appId: host.exp.exponent
 ---
 # Deterministic app bootstrap in Expo Go.
 - stopApp

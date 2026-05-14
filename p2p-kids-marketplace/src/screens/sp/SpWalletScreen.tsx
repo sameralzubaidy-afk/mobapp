@@ -123,7 +123,7 @@ export default function SpWalletScreen() {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Swap Points Wallet</Text>
           <View style={styles.headerSpacer} />
@@ -288,12 +288,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
   },
   backButton: {
-    padding: 8,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   backButtonText: {
-    fontSize: 16,
+    fontSize: 28,
     color: '#5DBB8E',
-    fontWeight: '600',
   },
   headerTitle: {
     fontSize: 18,

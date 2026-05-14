@@ -34,7 +34,7 @@
 | D-024 | FLOW-08 Trading (6 screens) redesigned | Pending | All 6 screen files updated |
 | D-025 | FLOW-10/11 SP Wallet (2 screens) redesigned | Pending | All 2 screen files updated |
 | D-026 | FLOW-12 Subscriptions (8 screens) redesigned | Pending | All 8 screen files updated |
-| D-027 | FLOW-13 Referrals (1 screen) redesigned | Pending | Screen file updated |
+| D-027 | FLOW-13 Referrals (1 screen) redesigned | ✅ Done | `src/screens/referrals/ReferralsScreen.tsx` + tests + Maestro |
 | D-028 | FLOW-14 Messaging (2 screens) redesigned | Pending | All 2 screen files updated |
 | D-029 | Profile screens (4 screens) redesigned | Pending | All 4 screen files updated |
 | D-030 | Dashboard screen redesigned | Pending | Screen file updated |
@@ -234,11 +234,21 @@
 ### FLOW-13: Referrals (1 screen)
 | Screen | File | Icons | Status |
 |--------|------|-------|--------|
-| ReferralDashboardScreen | `src/screens/ReferralDashboardScreen.tsx` | UserPlus, Share, Gift | Pending |
+| ReferralsScreen | `src/screens/referrals/ReferralsScreen.tsx` | Gift, Copy, ShareNetwork, Coins, Users, CheckCircle, UserCircle | ✅ Done |
 
 **Flow-13 Specific Checks:**
-- [ ] Referral code is displayed prominently and copyable (tap to copy)
-- [ ] Share button invokes native share sheet
+- [x] Referral code is displayed prominently and copyable (tap to copy)
+- [x] Share button invokes native share sheet
+- [x] Hero card: `#5DBB8E` bg, `Gift` (32px white), "Refer Friends, Earn SP" (18px bold white)
+- [x] Code box: white bg, **8px border** `#E0E0E0`, 20px monospace text `letterSpacing: 4`, `Copy` icon (20px green)
+- [x] Share button: green pill 52px, `ShareNetwork` icon (18px white)
+- [x] SP earned strip: `#FEF3C7` bg, `Coins` (20px `#F59E0B`), bold SP count
+- [x] Referral history: avatar (36px), name (15px semibold), date (13px gray), `CheckCircle` (16px green), "+N SP" (13px gold)
+- [x] Empty state: `Users` (64px `#E0E0E0`), "No referrals yet — share your code!"
+- [x] No Ionicons/MaterialIcons imports (all Phosphor)
+- [x] Unit tests created: `src/__tests__/screens/ReferralsScreen.test.tsx`
+- [x] Maestro test updated: `.maestro/module-15.1-flow-13-referrals.yaml`
+- [x] Manual test guide created: `MODULE-15.1-FLOW-13-MANUAL-TESTING.md`
 
 ---
 

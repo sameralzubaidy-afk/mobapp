@@ -16,7 +16,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   SafeAreaView,
   StyleSheet,
@@ -33,7 +32,6 @@ import {
   Plus,
   CheckCircle,
   Tag,
-  Coins,
   X,
 } from 'phosphor-react-native';
 
@@ -198,6 +196,13 @@ export default function BundleBuilderScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={handleClose}
+          style={styles.backButton}
+          testID="bundle-back-button"
+        >
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.heading}>Build a Bundle</Text>
           <Text style={styles.subtext}>
@@ -310,6 +315,19 @@ const styles = StyleSheet.create({
 
   headerContent: {
     flex: 1,
+  },
+
+  backButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.sm,
+  },
+
+  backButtonText: {
+    fontSize: 28,
+    color: '#5DBB8E',
   },
 
   heading: {

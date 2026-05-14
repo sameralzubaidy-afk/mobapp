@@ -14,7 +14,7 @@ export function BillingHistoryLink() {
   const navigation = useNavigation();
 
   const handlePress = () => {
-    navigation.navigate('BillingHistory' as never);
+    navigation.navigate('TransactionHistory' as never);
   };
 
   return (

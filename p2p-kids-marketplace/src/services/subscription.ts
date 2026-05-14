@@ -188,6 +188,7 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
 
     // Determine expiration date based on status
     const expiresAt = sub.trial_ends_at || sub.current_period_end || null;
+    const nextBillingDate = sub.next_billing_date || sub.current_period_end || sub.trial_ends_at;
 
     return {
       status,
@@ -200,7 +201,8 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
       subscription_expires_at: expiresAt,
       trial_ends_at: sub.trial_ends_at || null,
       grace_ends_at: sub.grace_ends_at || null,
-      next_billing_date: sub.next_billing_date || null,
+      // Legacy/fallback compatibility: some rows only have current_period_end populated.
+      next_billing_date: nextBillingDate || null,
       cancelled_at: sub.cancelled_at || null,
       paused_until: sub.paused_until || null,
       has_used_trial: Boolean(sub.has_used_trial),

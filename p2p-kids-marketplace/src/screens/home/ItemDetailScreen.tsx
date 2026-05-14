@@ -32,11 +32,16 @@ import { useUserStore } from '@/stores/userStore';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getListingById } from '@/services/listing';
-import { getSubscriptionSummary } from '@/services/subscription';
+import { getSubscriptionSummary, getTransactionFee } from '@/services/subscription';
+import {
+  getTransactionFeeNonSubscriberCents,
+  getTransactionFeeSubscriberCents,
+} from '@/services/adminConfig';
 import { hasActiveOfferForItem, hasActiveTradeBetween, getSellerRating } from '@/services/trade';
 import { Listing } from '@/types/listing';
 import { trackEvent } from '@/services/analytics';
 import { RootStackParamList } from '@/navigation/types';
+import { formatPrice } from '@/utils/formatPrice';
 import {
   Heart,
   HeartStraight,
@@ -80,6 +85,9 @@ export default function ItemDetailScreen() {
   // Buyer subscription context (MODULE-11 dependency)
   const [buyerCanSpendSP, setBuyerCanSpendSP] = useState(false);
   const [buyerIsSubscriber, setBuyerIsSubscriber] = useState(false);
+  const [transactionFeeCents, setTransactionFeeCents] = useState(0);
+  const [subscriberFeeCents, setSubscriberFeeCents] = useState(0);
+  const [nonSubscriberFeeCents, setNonSubscriberFeeCents] = useState(0);
   const [buyerSubLoading, setBuyerSubLoading] = useState(true);
   const [checkingActiveTrade, setCheckingActiveTrade] = useState(false);
   const [showDuplicateOfferModal, setShowDuplicateOfferModal] = useState(false);
@@ -175,29 +183,27 @@ export default function ItemDetailScreen() {
 
   const loadBuyerSubscription = async () => {
     try {
-      // If we have a session, use the subscription data from it directly
-      if (session) {
-        console.log('[ItemDetailScreen] 📊 Using session subscription data:', {
-          status: session.subscription_status,
-          can_spend_sp: session.can_spend_sp,
-        });
-        setBuyerIsSubscriber(
-          session.subscription_status === 'trial' || session.subscription_status === 'active'
-        );
-        setBuyerCanSpendSP(session.can_spend_sp);
-        setBuyerSubLoading(false);
-        return;
-      }
-
       if (!user?.id) {
         console.log('[ItemDetailScreen] 📊 No user, defaulting to free');
+        const [subscriberFee, nonSubscriberFee] = await Promise.all([
+          getTransactionFeeSubscriberCents(true),
+          getTransactionFeeNonSubscriberCents(true),
+        ]);
+        setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
+        setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
         setBuyerIsSubscriber(false);
         setBuyerCanSpendSP(false);
+        setTransactionFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
         return;
       }
 
       console.log('[ItemDetailScreen] 🔄 Loading buyer subscription for:', user.id);
-      const sub = await getSubscriptionSummary(user.id);
+      const [sub, userFeeCents, subscriberFee, nonSubscriberFee] = await Promise.all([
+        getSubscriptionSummary(user.id),
+        getTransactionFee(user.id),
+        getTransactionFeeSubscriberCents(true),
+        getTransactionFeeNonSubscriberCents(true),
+      ]);
       console.log('[ItemDetailScreen] ✅ Buyer subscription loaded:', {
         user_id: user.id,
         is_subscriber: sub.is_subscriber,
@@ -205,10 +211,13 @@ export default function ItemDetailScreen() {
         status: sub.status,
       });
 
-      const fee = sub.is_subscriber ? 0.99 : 2.99;
-      console.log('[ItemDetailScreen] 💰 Fee calculated:', {
+      setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
+      setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
+      setTransactionFeeCents(Number.isFinite(userFeeCents) ? userFeeCents : 0);
+
+      console.log('[ItemDetailScreen] 💰 Fee loaded:', {
         is_subscriber: sub.is_subscriber,
-        fee_dollars: fee,
+        fee_cents: userFeeCents,
       });
 
       setBuyerIsSubscriber(sub.is_subscriber);
@@ -341,7 +350,7 @@ export default function ItemDetailScreen() {
           <View style={styles.centerContent}>
             <Text style={styles.errorTitle}>❌ {error || 'Listing not found'}</Text>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.backButtonText}>← Go Back</Text>
+              <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>
           </View>
           <BottomNavBar />
@@ -350,9 +359,10 @@ export default function ItemDetailScreen() {
     );
   }
 
-  // V2: Fee disclosure based on buyer subscription status
-  const platformFee = buyerIsSubscriber ? 0.99 : 2.99;
+  // V2: Fee disclosure based on buyer subscription status (admin-config / RPC driven)
+  const platformFee = transactionFeeCents / 100;
   const totalPrice = listing.price + platformFee;
+  const savingsDollars = Math.max(0, (nonSubscriberFeeCents - subscriberFeeCents) / 100);
 
   console.log('[ItemDetailScreen] 💰 Fee calculation:', {
     buyerIsSubscriber,
@@ -391,7 +401,7 @@ export default function ItemDetailScreen() {
           {/* Header with back button */}
           <View style={styles.header}>
             <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.backButtonText}>← Back</Text>
+              <Text style={styles.backButtonText}>←</Text>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Item Details</Text>
             <View style={{ width: 60 }} />
@@ -612,8 +622,8 @@ export default function ItemDetailScreen() {
               {!buyerIsSubscriber && (
                 <View style={styles.savingsNote}>
                   <Text style={styles.savingsNoteText}>
-                    💡 Save $2.00 on fees! Subscribe to Kids Club+ and pay only $0.99 per
-                    transaction.
+                    💡 Save ${savingsDollars.toFixed(2)} on fees! Subscribe to Kids Club+ and pay
+                    only {formatPrice(subscriberFeeCents)} per transaction.
                   </Text>
                 </View>
               )}
@@ -803,12 +813,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    paddingVertical: 6,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   backButtonText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '600',
+    fontSize: 28,
+    color: '#5DBB8E',
   },
   headerTitle: {
     fontSize: 18,

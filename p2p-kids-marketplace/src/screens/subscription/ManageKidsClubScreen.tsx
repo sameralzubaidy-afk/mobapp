@@ -37,7 +37,12 @@ import {
   resubscribe,
   SubscriptionSummary,
 } from '@/services/subscription';
-import { getGracePeriodDays } from '@/services/adminConfig';
+import {
+  getGracePeriodDays,
+  getTransactionFeeNonSubscriberCents,
+  getTransactionFeeSubscriberCents,
+} from '@/services/adminConfig';
+import { formatPrice } from '@/utils/formatPrice';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { PaymentMethodSection } from '@/components/subscription/PaymentMethodSection';
 import { AutoRenewToggle } from '@/components/subscription/AutoRenewToggle';
@@ -95,6 +100,8 @@ export default function ManageKidsClubScreen() {
   const [selectedReason, setSelectedReason] = useState<string>('');
   const [customReason, setCustomReason] = useState('');
   const [gracePeriodDays, setGracePeriodDays] = useState<number>(90); // Default 90, fetched dynamically
+  const [subscriberFeeCents, setSubscriberFeeCents] = useState<number>(0);
+  const [nonSubscriberFeeCents, setNonSubscriberFeeCents] = useState<number>(0);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
   const [checkingPaymentMethod, setCheckingPaymentMethod] = useState(false);
   const [renewing, setRenewing] = useState(false);
@@ -133,12 +140,16 @@ export default function ManageKidsClubScreen() {
     }
 
     try {
-      const [summary, graceDays] = await Promise.all([
+      const [summary, graceDays, subscriberFee, nonSubscriberFee] = await Promise.all([
         getSubscriptionSummary(userId),
         getGracePeriodDays(true),
+        getTransactionFeeSubscriberCents(true),
+        getTransactionFeeNonSubscriberCents(true),
       ]);
       setSubscription(summary);
       setGracePeriodDays(graceDays);
+      setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
+      setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
       await fetchPaymentMethodStatus(summary);
     } catch (error) {
       console.error('[ManageKidsClub] Error fetching subscription:', error);
@@ -303,7 +314,7 @@ export default function ManageKidsClubScreen() {
             </Text>
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={() => navigation.navigate('ContinueKidsClub' as never)}
+              onPress={() => navigation.navigate('SubscriptionPlans' as never)}
             >
               <Text style={styles.primaryButtonText}>Subscribe to Kids Club+</Text>
             </TouchableOpacity>
@@ -421,7 +432,10 @@ export default function ManageKidsClubScreen() {
             <Text style={styles.cardTitle}>Kids Club+ Benefits</Text>
             <View style={styles.benefitsList}>
               <Text style={styles.benefitItem}>✓ Earn & spend Swap Points on purchases</Text>
-              <Text style={styles.benefitItem}>✓ Lower transaction fees ($0.99 vs $2.99)</Text>
+              <Text style={styles.benefitItem}>
+                ✓ Lower transaction fees ({formatPrice(subscriberFeeCents)} vs{' '}
+                {formatPrice(nonSubscriberFeeCents)})
+              </Text>
               <Text style={styles.benefitItem}>✓ Priority listing visibility</Text>
               <Text style={styles.benefitItem}>✓ Access to exclusive features</Text>
             </View>

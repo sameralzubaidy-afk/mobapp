@@ -17,6 +17,7 @@ interface CreateSubscriptionRequest {
 }
 
 interface CreateSubscriptionResponse {
+  success: boolean;
   subscription_id: string;
   status: string;
   current_period_end: string;
@@ -68,6 +69,23 @@ async function getAdminConfigNumber(
 
   const parsed = Number(data.value);
   return Number.isFinite(parsed) ? parsed : fallbackValue;
+}
+
+function mapStripeStatusToSubscriptionStatus(
+  stripeStatus: string,
+): 'trial' | 'active' | 'paused' | 'cancelled' | null {
+  switch (stripeStatus) {
+    case 'trialing':
+      return 'trial';
+    case 'active':
+      return 'active';
+    case 'paused':
+      return 'paused';
+    case 'canceled':
+      return 'cancelled';
+    default:
+      return null;
+  }
 }
 
 /**
@@ -363,9 +381,22 @@ serve(async (req) => {
         },
       };
 
-      // If user still in trial, preserve trial end date
-      if (subscription.status === 'trial' && subscription.trial_ends_at) {
-        const trialEndTimestamp = Math.floor(new Date(subscription.trial_ends_at).getTime() / 1000);
+      // Trial initialization for first-time upgrades (free -> trialing) using admin-config days.
+      if (!isRenewal) {
+        const trialDaysRaw = await getAdminConfigNumber(supabaseClient, 'trial_period_days', 30);
+        const trialDays = Math.max(Math.round(trialDaysRaw), 0);
+
+        if (trialDays > 0) {
+          subscriptionParams.trial_period_days = trialDays;
+        }
+      }
+
+      // Preserve existing trial window for users already in trial.
+      const existingTrialEndsAt = subscription.trial_ends_at || subscription.trial_end_date;
+      if (subscription.status === 'trial' && existingTrialEndsAt) {
+        const trialEndTimestamp = Math.floor(
+          new Date(existingTrialEndsAt).getTime() / 1000,
+        );
         subscriptionParams.trial_end = trialEndTimestamp;
       }
 
@@ -384,6 +415,30 @@ serve(async (req) => {
       stripeSubscription.status === 'trialing' ||
       latestInvoice?.status === 'paid' ||
       paymentIntent?.status === 'succeeded';
+    const normalizedStatus = mapStripeStatusToSubscriptionStatus(stripeSubscription.status);
+
+    if (!normalizedStatus) {
+      console.error('[create-subscription-from-payment-method] Subscription not activatable', {
+        subscriptionStatus: stripeSubscription.status,
+        invoiceStatus: latestInvoice?.status,
+        paymentIntentStatus: paymentIntent?.status,
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: 'Subscription setup is not complete yet. Please retry in a moment.',
+          code: 'SUBSCRIPTION_NOT_ACTIVATED',
+          stripe_status: stripeSubscription.status,
+        }),
+        {
+          status: 409,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        },
+      );
+    }
 
     if (isRenewal && (!isActivatableStatus || !hasSuccessfulPayment)) {
       console.error('[create-subscription-from-payment-method] Renewal payment incomplete', {
@@ -411,6 +466,7 @@ serve(async (req) => {
     const updateData: any = {
       stripe_subscription_id: stripeSubscription.id,
       stripe_payment_method_id: paymentMethodId,
+      status: normalizedStatus,
       current_period_start: new Date(stripeSubscription.current_period_start * 1000).toISOString(),
       current_period_end: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
       next_billing_date: new Date(stripeSubscription.current_period_end * 1000).toISOString(),
@@ -420,13 +476,29 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
+    if (stripeSubscription.status === 'trialing') {
+      updateData.has_used_trial = true;
+
+      if (stripeSubscription.trial_start) {
+        updateData.trial_start_date = new Date(
+          stripeSubscription.trial_start * 1000,
+        ).toISOString();
+      }
+
+      if (stripeSubscription.trial_end) {
+        updateData.trial_end_date = new Date(stripeSubscription.trial_end * 1000).toISOString();
+      }
+    }
+
     if (isUuid(tier.id)) {
       updateData.tier_id = tier.id;
     }
 
     // If creating from grace/expired, reactivate
-    if (isRenewal && (subscription.status === 'grace_period' || subscription.status === 'expired')) {
-      updateData.status = 'active';
+    if (
+      isRenewal &&
+      (subscription.status === 'grace_period' || subscription.status === 'grace' || subscription.status === 'expired')
+    ) {
       updateData.grace_started_at = null;
       updateData.grace_ends_at = null;
 
@@ -498,6 +570,7 @@ serve(async (req) => {
     }
 
     const response: CreateSubscriptionResponse = {
+      success: true,
       subscription_id: stripeSubscription.id,
       status: stripeSubscription.status,
       current_period_end: new Date(stripeSubscription.current_period_end * 1000).toISOString(),

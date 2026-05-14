@@ -37,12 +37,10 @@ import {
 import type {
   SellerPayoutMethod,
   PayoutMethodType,
-  PayoutMethodDisplay,
 } from '../../types/payout.types';
 import {
   getSellerBalance,
   formatBalanceForDisplay,
-  requestWithdrawal,
   requestFullWithdrawal,
   submitPayPalPayout,
   getRecentPayouts,
@@ -51,6 +49,8 @@ import {
   calculatePayoutFee,
 } from '../../services/sellerBalance';
 import type { SellerBalance, SellerPayout, BalanceDisplay } from '../../services/sellerBalance';
+import { getAdminPayoutConfig } from '../../services/payoutRouter';
+import type { AdminPayoutConfig } from '../../services/payoutRouter';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -74,6 +74,7 @@ export default function PayoutSettingsScreen() {
   const [withdrawing, setWithdrawing] = useState(false);
   const [payoutLimit, setPayoutLimit] = useState(5); // Start with 5, increase on "Load More"
   const [loadingMore, setLoadingMore] = useState(false);
+  const [adminPayoutConfig, setAdminPayoutConfig] = useState<AdminPayoutConfig | null>(null);
   const [eligibility, setEligibility] = useState({
     can_receive_payouts: false,
     message: '',
@@ -120,6 +121,9 @@ export default function PayoutSettingsScreen() {
       // Load recent payouts (use current limit)
       const payoutsData = await getRecentPayouts(payoutLimit);
       setRecentPayouts(payoutsData);
+
+      const payoutConfig = await getAdminPayoutConfig();
+      setAdminPayoutConfig(payoutConfig);
     } catch (error) {
       console.error('Failed to load payout data:', error);
       Alert.alert('Error', 'Failed to load payout data. Please try again.');
@@ -273,6 +277,12 @@ export default function PayoutSettingsScreen() {
     setShowWithdrawModal(false);
   };
 
+  const payoutFeeSummary = adminPayoutConfig
+    ? `${adminPayoutConfig.paypal_payout_fee_percentage}% fee, capped at ${formatCentsToDollars(
+        adminPayoutConfig.paypal_payout_fee_cap_cents
+      )}`
+    : 'Fee based on current admin settings';
+
   // =============================================================================
   // Render
   // =============================================================================
@@ -410,14 +420,16 @@ export default function PayoutSettingsScreen() {
           <Text style={styles.infoText}>
             • Payouts are processed when a trade is completed{'\n'}• You must have a verified
             primary payout method{'\n'}• Payout fees vary by method (displayed transparently){'\n'}•
-            Platform transaction fee: $0 (you only pay payout provider fees)
+            Platform and payout fees follow current admin settings
           </Text>
         </View>
       </ScrollView>
 
       {/* Modals rendered outside ScrollView for proper overlay behavior */}
       {/* Add Method Modal */}
-      {showAddMethodModal && <AddPayoutMethodModal onClose={handleCloseAddMethod} />}
+      {showAddMethodModal && (
+        <AddPayoutMethodModal onClose={handleCloseAddMethod} payoutFeeSummary={payoutFeeSummary} />
+      )}
 
       {/* Withdraw Modal */}
       {showWithdrawModal && (
@@ -607,9 +619,10 @@ function PayoutMethodCard({ method, isPrimary, onSetPrimary, onDelete }: PayoutM
 
 interface AddPayoutMethodModalProps {
   onClose: (shouldRefresh?: boolean) => void;
+  payoutFeeSummary: string;
 }
 
-function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
+function AddPayoutMethodModal({ onClose, payoutFeeSummary }: AddPayoutMethodModalProps) {
   const [selectedType, setSelectedType] = useState<PayoutMethodType | null>(null);
   const [paypalEmail, setPaypalEmail] = useState('');
   const [venmoHandle, setVenmoHandle] = useState('');
@@ -824,7 +837,7 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
             onPress={() => setSelectedType('paypal')}
           >
             <Text style={styles.methodTypeButtonText}>PayPal</Text>
-            <Text style={styles.methodTypeButtonSubtext}>2% fee, capped at $20</Text>
+            <Text style={styles.methodTypeButtonSubtext}>{payoutFeeSummary}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -835,7 +848,7 @@ function AddPayoutMethodModal({ onClose }: AddPayoutMethodModalProps) {
             onPress={() => setSelectedType('venmo')}
           >
             <Text style={styles.methodTypeButtonText}>Venmo</Text>
-            <Text style={styles.methodTypeButtonSubtext}>2% fee, capped at $20</Text>
+            <Text style={styles.methodTypeButtonSubtext}>{payoutFeeSummary}</Text>
           </TouchableOpacity>
         </View>
 

@@ -5,10 +5,19 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Sparkle, Coins, Gift, Lightning, CreditCard, CheckCircle } from 'phosphor-react-native';
 import { SubscribeButton } from '../../components/subscription/SubscribeButton';
 import { useSubscription } from '../../hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
-import { getSubscriptionPrice, getTrialDays, invalidateConfigCache } from '@/services/adminConfig';
+import {
+  getSubscriptionPrice,
+  getTrialDays,
+  getTransactionFeeNonSubscriberCents,
+  getTransactionFeeSubscriberCents,
+  invalidateConfigCache,
+} from '@/services/adminConfig';
+import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
+import { useAuth } from '@/hooks/useAuth';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -16,7 +25,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const DEFAULT_TRIAL_DAYS = 30;
 
 function formatMonthlyPrice(dollars: number): string {
-  return `$${dollars.toFixed(2)}/month`;
+  return `${formatDollarAmount(dollars)}/month`;
 }
 
 function toPriceCents(dollars: number): number {
@@ -26,16 +35,24 @@ function toPriceCents(dollars: number): number {
 export function SubscriptionPaymentScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { subscription, refetch } = useSubscription();
+  const { refreshSession } = useAuth();
   // NO HARDCODED PRICE - fetch from admin_config on mount
   const [monthlyPriceDollars, setMonthlyPriceDollars] = useState<number>(0);
   const [trialDays, setTrialDays] = useState<number>(DEFAULT_TRIAL_DAYS);
+  const [subscriberFeeCents, setSubscriberFeeCents] = useState<number>(0);
+  const [nonSubscriberFeeCents, setNonSubscriberFeeCents] = useState<number>(0);
   const [configLoading, setConfigLoading] = useState<boolean>(true);
 
   const loadPricingConfig = useCallback(async () => {
     setConfigLoading(true);
     try {
       invalidateConfigCache();
-      const [price, days] = await Promise.all([getSubscriptionPrice(true), getTrialDays(true)]);
+      const [price, days, subscriberFee, nonSubscriberFee] = await Promise.all([
+        getSubscriptionPrice(true),
+        getTrialDays(true),
+        getTransactionFeeSubscriberCents(true),
+        getTransactionFeeNonSubscriberCents(true),
+      ]);
 
       if (Number.isFinite(price) && price > 0) {
         setMonthlyPriceDollars(price);
@@ -53,11 +70,16 @@ export function SubscriptionPaymentScreen() {
       } else {
         setTrialDays(DEFAULT_TRIAL_DAYS);
       }
+
+      setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
+      setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
     } catch (error) {
       console.error('[SubscriptionPaymentScreen] Failed to load pricing config:', error);
       // Show 0 to indicate configuration error
       setMonthlyPriceDollars(0);
       setTrialDays(DEFAULT_TRIAL_DAYS);
+      setSubscriberFeeCents(0);
+      setNonSubscriberFeeCents(0);
     } finally {
       setConfigLoading(false);
     }
@@ -74,10 +96,11 @@ export function SubscriptionPaymentScreen() {
 
   const monthlyPriceLabel = formatMonthlyPrice(monthlyPriceDollars);
   const monthlyPriceCents = toPriceCents(monthlyPriceDollars);
+  const dueTodayLabel = isRenewal ? monthlyPriceLabel : '$0.00';
 
   const handleSuccess = async () => {
-    // Refresh subscription data
-    await refetch();
+    // Refresh both subscription hook data and auth session state used by gated UI screens.
+    await Promise.all([refetch(), refreshSession()]);
 
     // Navigate to success celebration screen
     navigation.navigate('SubscriptionSuccess', { isRenewal });
@@ -105,7 +128,9 @@ export function SubscriptionPaymentScreen() {
           <Text style={styles.benefitsTitle}>What you get:</Text>
 
           <View style={styles.benefit}>
-            <Text style={styles.benefitIcon}>✨</Text>
+            <View style={styles.benefitIconCircle}>
+              <Sparkle size={18} color="#5DBB8E" weight="fill" />
+            </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Earn & Spend Swap Points</Text>
               <Text style={styles.benefitDescription}>
@@ -115,17 +140,22 @@ export function SubscriptionPaymentScreen() {
           </View>
 
           <View style={styles.benefit}>
-            <Text style={styles.benefitIcon}>💰</Text>
+            <View style={styles.benefitIconCircle}>
+              <Coins size={18} color="#5DBB8E" weight="fill" />
+            </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Lower Transaction Fees</Text>
               <Text style={styles.benefitDescription}>
-                Pay only $0.99 per transaction (vs $2.99 for free users)
+                Pay only {formatPrice(subscriberFeeCents)} per transaction (vs{' '}
+                {formatPrice(nonSubscriberFeeCents)} for free users)
               </Text>
             </View>
           </View>
 
           <View style={styles.benefit}>
-            <Text style={styles.benefitIcon}>🎁</Text>
+            <View style={styles.benefitIconCircle}>
+              <Gift size={18} color="#5DBB8E" weight="fill" />
+            </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Priority Matching</Text>
               <Text style={styles.benefitDescription}>
@@ -135,7 +165,9 @@ export function SubscriptionPaymentScreen() {
           </View>
 
           <View style={styles.benefit}>
-            <Text style={styles.benefitIcon}>⚡</Text>
+            <View style={styles.benefitIconCircle}>
+              <Lightning size={18} color="#5DBB8E" weight="fill" />
+            </View>
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Early Access</Text>
               <Text style={styles.benefitDescription}>See new listings before free users</Text>
@@ -143,12 +175,17 @@ export function SubscriptionPaymentScreen() {
           </View>
         </View>
 
-        {/* Pricing */}
+        {/* Checkout Summary */}
         <View style={styles.pricingCard}>
           <View style={styles.pricingRow}>
-            <Text style={styles.pricingLabel}>Monthly subscription</Text>
+            <View>
+              <Text style={styles.pricingLabel}>Kids Club+ monthly membership</Text>
+              <Text style={styles.pricingSubLabel}>
+                {isRenewal ? 'Billed monthly until canceled' : 'First charge after trial ends'}
+              </Text>
+            </View>
             {configLoading ? (
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color="#5DBB8E" />
             ) : (
               <Text style={styles.pricingValue}>{monthlyPriceLabel}</Text>
             )}
@@ -159,6 +196,26 @@ export function SubscriptionPaymentScreen() {
               <Text style={styles.trialBadgeText}>{`${trialDays}-day free trial`}</Text>
             </View>
           )}
+
+          <View style={styles.divider} />
+
+          <View style={styles.paymentMethodRow}>
+            <CreditCard size={20} color="#6B6B6B" weight="regular" />
+            <View style={styles.paymentMethodTextWrap}>
+              <Text style={styles.paymentMethodTitle}>Payment method</Text>
+              <Text style={styles.paymentMethodDescription}>Secure checkout with Stripe</Text>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.totalRow}>
+            <View style={styles.totalLabelWrap}>
+              <CheckCircle size={16} color="#5DBB8E" weight="fill" />
+              <Text style={styles.totalLabel}>Due today</Text>
+            </View>
+            <Text style={styles.totalValue}>{dueTodayLabel}</Text>
+          </View>
         </View>
 
         {/* Subscribe Button */}
@@ -185,7 +242,7 @@ export function SubscriptionPaymentScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
+    backgroundColor: '#FFFFFF',
   },
   container: {
     flex: 1,
@@ -198,30 +255,27 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontSize: 28,
+    fontSize: 40,
     fontWeight: '700',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#8E8E93',
+    color: '#6B6B6B',
   },
   benefitsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   benefitsTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 16,
   },
   benefit: {
@@ -229,10 +283,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: 'flex-start',
   },
-  benefitIcon: {
-    fontSize: 24,
+  benefitIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#E8F5F0',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
-    marginTop: 2,
+    marginTop: 1,
   },
   benefitText: {
     flex: 1,
@@ -240,39 +299,47 @@ const styles = StyleSheet.create({
   benefitTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000000',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   benefitDescription: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#6B6B6B',
     lineHeight: 20,
   },
   pricingCard: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+    padding: 18,
     marginBottom: 24,
   },
   pricingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   pricingLabel: {
     fontSize: 16,
-    color: '#000000',
+    color: '#1A1A1A',
+    fontWeight: '600',
+  },
+  pricingSubLabel: {
+    fontSize: 13,
+    color: '#999999',
+    marginTop: 4,
   },
   pricingValue: {
-    fontSize: 20,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#007AFF',
+    color: '#1A73E8',
   },
   trialBadge: {
     backgroundColor: '#34C759',
-    borderRadius: 8,
+    borderRadius: 12,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     marginTop: 12,
     alignSelf: 'flex-start',
   },
@@ -281,13 +348,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  divider: {
+    height: 1,
+    backgroundColor: '#EFEFEF',
+    marginVertical: 14,
+  },
+  paymentMethodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  paymentMethodTextWrap: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  paymentMethodTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  paymentMethodDescription: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginTop: 2,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  totalLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  totalLabel: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    marginLeft: 8,
+    fontWeight: '600',
+  },
+  totalValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
   subscribeButtonContainer: {
     marginBottom: 16,
   },
   terms: {
-    fontSize: 12,
-    color: '#8E8E93',
+    fontSize: 13,
+    color: '#999999',
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });

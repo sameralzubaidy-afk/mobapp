@@ -149,10 +149,18 @@ export default function CartScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            testID="cart-back-button"
+          >
+            <Text style={styles.backButtonText}>←</Text>
+          </TouchableOpacity>
           <View style={styles.headerLeft}>
             <ShoppingCart size={24} color={theme.textColors.primary} weight="regular" testID="cart-icon" />
             <Text style={styles.headerTitle}>My Cart</Text>
           </View>
+          <View style={styles.headerSpacer} />
         </View>
 
         <View style={styles.emptyContainer}>
@@ -186,6 +194,13 @@ export default function CartScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          testID="cart-back-button"
+        >
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
         <View style={styles.headerLeft}>
           <ShoppingCart size={24} color={theme.textColors.primary} weight="regular" testID="cart-icon" />
           <Text style={styles.headerTitle}>My Cart</Text>
@@ -337,6 +352,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
+    flex: 1,
+  },
+
+  backButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: theme.spacing.sm,
+  },
+
+  backButtonText: {
+    fontSize: 28,
+    color: '#5DBB8E',
+  },
+
+  headerSpacer: {
+    width: 36,
   },
 
   headerTitle: {

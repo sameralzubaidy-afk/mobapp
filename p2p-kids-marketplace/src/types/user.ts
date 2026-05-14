@@ -71,7 +71,16 @@ export interface UserProfile {
   updated_at: string;
 }
 
-export type SubscriptionStatus = 'free' | 'trial' | 'active' | 'grace' | 'canceled';
+export type SubscriptionStatus =
+  | 'free'
+  | 'trial'
+  | 'active'
+  | 'paused'
+  | 'grace'
+  | 'grace_period'
+  | 'canceled'
+  | 'cancelled'
+  | 'expired';
 
 /**
  * V2 Authentication session with subscription context

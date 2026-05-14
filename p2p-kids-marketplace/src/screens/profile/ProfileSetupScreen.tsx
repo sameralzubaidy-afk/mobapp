@@ -12,6 +12,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { setupUserProfile, uploadProfileAvatar } from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
@@ -24,6 +25,16 @@ export default function ProfileSetupScreen({ navigation }: any) {
   const { refreshSession } = useAuth();
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isWaitlistPromptVisible, setIsWaitlistPromptVisible] = useState(false);
+  const [isWaitlistConfirmedVisible, setIsWaitlistConfirmedVisible] = useState(false);
+  const [isJoiningWaitlist, setIsJoiningWaitlist] = useState(false);
+  const [waitlistContext, setWaitlistContext] = useState<{
+    userId: string;
+    email: string;
+    requestedZip: string;
+    assignedNodeId: string | null;
+    assignedNodeName: string;
+  } | null>(null);
 
   const [displayName, setDisplayName] = useState('');
   const [zipCode, setZipCode] = useState('');
@@ -38,6 +49,39 @@ export default function ProfileSetupScreen({ navigation }: any) {
     // RootNavigator owns first-run onboarding gating. After profile setup,
     // refresh auth context and let RootNavigator route to EDU carousel/Home.
     await refreshSession(false);
+  };
+
+  const handleJoinWaitlist = async () => {
+    if (!waitlistContext || isJoiningWaitlist) {
+      return;
+    }
+
+    setIsJoiningWaitlist(true);
+
+    try {
+      await upsertZipWaitlist({
+        userId: waitlistContext.userId,
+        email: waitlistContext.email,
+        requestedZip: waitlistContext.requestedZip,
+        assignedNodeId: waitlistContext.assignedNodeId,
+      });
+
+      setIsWaitlistPromptVisible(false);
+      setIsWaitlistConfirmedVisible(true);
+    } catch (error) {
+      console.error('❌ [NODE-003] Waitlist error:', error);
+      setIsWaitlistPromptVisible(false);
+      Alert.alert('Info', 'Could not add to waitlist, but you can still use the app!', [
+        {
+          text: 'OK',
+          onPress: () => {
+            void continueToPostAuthFlow();
+          },
+        },
+      ]);
+    } finally {
+      setIsJoiningWaitlist(false);
+    }
   };
 
   const handleZipCodeChange = async (zip: string) => {
@@ -173,62 +217,14 @@ export default function ProfileSetupScreen({ navigation }: any) {
       if (needsWaitlist && userZip && matchType === 'nearest') {
         console.log('⚠️ [NODE-003] Showing waitlist popup for inactive ZIP:', userZip);
 
-        Alert.alert(
-          "We're Coming Soon! 🎉",
-          `We're not quite active in ${userZip} yet, but we're coming soon! In the meantime, we've connected you with traders in ${assignedNodeName || 'a nearby area'}.\n\nWant to be notified when we launch in your area?`,
-          [
-            {
-              text: 'Continue Trading',
-              style: 'cancel',
-              onPress: () => {
-                console.log('✅ [NODE-003] User skipped waitlist');
-                void continueToPostAuthFlow();
-              },
-            },
-            {
-              text: 'Join Waitlist',
-              onPress: async () => {
-                try {
-                  console.log('📋 [NODE-003] Adding user to waitlist:', {
-                    userZip,
-                    assignedNodeId,
-                  });
-
-                  // NODE-003: Add user to ZIP waitlist
-                  await upsertZipWaitlist({
-                    userId: currentUser.id,
-                    email: currentUser.email || '',
-                    requestedZip: userZip,
-                    assignedNodeId: assignedNodeId || null,
-                  });
-
-                  Alert.alert(
-                    'Waitlist Confirmed',
-                    `Thank you! We've added you to the waitlist for ${userZip}. We'll notify you as soon as we launch in your area.\n\nIn the meantime, you can trade items with users in ${assignedNodeName || 'your assigned area'}.`,
-                    [
-                      {
-                        text: 'Got it',
-                        onPress: () => {
-                          void continueToPostAuthFlow();
-                        },
-                      },
-                    ]
-                  );
-                } catch (error) {
-                  console.error('❌ [NODE-003] Waitlist error:', error);
-                  Alert.alert('Info', 'Could not add to waitlist, but you can still use the app!', [
-                    {
-                      text: 'OK',
-                      onPress: () => {
-                        void continueToPostAuthFlow();
-                      },
-                    },
-                  ]);
-                }
-              },
-            },
-          ]
-        );
+        setWaitlistContext({
+          userId: currentUser.id,
+          email: currentUser.email || '',
+          requestedZip: userZip,
+          assignedNodeId: assignedNodeId || null,
+          assignedNodeName: assignedNodeName || 'your assigned area',
+        });
+        setIsWaitlistPromptVisible(true);
       } else {
         // Profile created successfully - let RootNavigator choose next screen.
         Alert.alert('Success', 'Your profile has been created!', [
@@ -375,6 +371,93 @@ export default function ProfileSetupScreen({ navigation }: any) {
           <Text style={styles.submitButtonText}>Complete Setup</Text>
         )}
       </TouchableOpacity>
+
+      <Modal
+        visible={isWaitlistPromptVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isJoiningWaitlist) {
+            setIsWaitlistPromptVisible(false);
+          }
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.waitlistModalCard}>
+            <Text style={styles.waitlistModalTitle}>We're Coming Soon!</Text>
+            <Text style={styles.waitlistModalBody}>
+              We're not quite active in {waitlistContext?.requestedZip} yet, but we're coming soon! In the
+              meantime, we've connected you with traders in {waitlistContext?.assignedNodeName || 'a nearby area'}.
+            </Text>
+            <Text style={styles.waitlistModalPrompt}>
+              Want to be notified when we launch in your area?
+            </Text>
+
+            <View style={styles.waitlistButtonRow}>
+              <TouchableOpacity
+                style={[styles.waitlistSecondaryButton, isJoiningWaitlist && styles.waitlistButtonDisabled]}
+                onPress={() => {
+                  setIsWaitlistPromptVisible(false);
+                  void continueToPostAuthFlow();
+                }}
+                disabled={isJoiningWaitlist}
+                testID="waitlist-continue-trading"
+              >
+                <Text style={styles.waitlistSecondaryButtonText}>Continue Trading</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.waitlistPrimaryButton, isJoiningWaitlist && styles.waitlistButtonDisabled]}
+                onPress={() => {
+                  void handleJoinWaitlist();
+                }}
+                disabled={isJoiningWaitlist}
+                testID="waitlist-join-button"
+              >
+                {isJoiningWaitlist ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.waitlistPrimaryButtonText}>Join Waitlist</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={isWaitlistConfirmedVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setIsWaitlistConfirmedVisible(false);
+          void continueToPostAuthFlow();
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.waitlistModalCard}>
+            <Text style={styles.waitlistModalTitle}>Waitlist Confirmed</Text>
+            <Text style={styles.waitlistModalBody}>
+              Thank you! We've added you to the waitlist for {waitlistContext?.requestedZip}. We'll notify you as
+              soon as we launch in your area.
+            </Text>
+            <Text style={styles.waitlistModalBody}>
+              In the meantime, you can trade items with users in {waitlistContext?.assignedNodeName || 'your assigned area'}.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.waitlistSinglePrimaryButton}
+              onPress={() => {
+                setIsWaitlistConfirmedVisible(false);
+                void continueToPostAuthFlow();
+              }}
+              testID="waitlist-confirmed-got-it"
+            >
+              <Text style={styles.waitlistSinglePrimaryButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -488,5 +571,89 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  waitlistModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 26,
+    paddingBottom: 22,
+  },
+  waitlistModalTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 14,
+  },
+  waitlistModalBody: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  waitlistModalPrompt: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  waitlistButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  waitlistSecondaryButton: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: '#C9CDD3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  waitlistPrimaryButton: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    backgroundColor: '#5DBB8E', // Match app primary green
+  },
+  waitlistSinglePrimaryButton: {
+    minHeight: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    backgroundColor: '#5DBB8E',
+  },
+  waitlistSecondaryButtonText: {
+    color: '#4D5560',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  waitlistPrimaryButtonText: {
+    color: '#FFFFFF', // White text on solid green background
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  waitlistSinglePrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  waitlistButtonDisabled: {
+    opacity: 0.7,
   },
 });
