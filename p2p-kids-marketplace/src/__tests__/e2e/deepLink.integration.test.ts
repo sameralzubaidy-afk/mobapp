@@ -67,7 +67,7 @@ describe('Deep Link Integration Tests', () => {
       const target = parseNotificationDeepLink(dbNotification.data as NotificationDeepLinkData);
 
       expect(target).not.toBeNull();
-      expect(target?.route).toBe('TradeDetail');
+      expect(target?.route).toBe('TradeReview');
       expect(target?.params?.tradeId).toBe('trade-abc-123');
     });
 
@@ -222,7 +222,7 @@ describe('Deep Link Integration Tests', () => {
       const target = parseNotificationDeepLink(longIdData as NotificationDeepLinkData);
 
       expect(target).not.toBeNull();
-      expect(target?.route).toBe('TradeDetail');
+      expect(target?.route).toBe('TradeReview');
       expect(target?.params?.tradeId).toBe('a'.repeat(200));
     });
   });

@@ -7,11 +7,13 @@ import SpWalletScreen from '../SpWalletScreen';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '@/hooks/useAuth';
 import * as walletService from '@/services/sp/wallet';
+import * as adminConfigService from '@/services/adminConfig';
 
 // Mock dependencies
 jest.mock('@react-navigation/native');
 jest.mock('@/hooks/useAuth');
 jest.mock('@/services/sp/wallet');
+jest.mock('@/services/adminConfig');
 jest.mock('@/config/supabase', () => ({
   supabase: {
     auth: {
@@ -22,7 +24,7 @@ jest.mock('@/config/supabase', () => ({
   },
 }));
 jest.mock('@/components/molecules/WalletWarningBanner', () => 'WalletWarningBanner');
-jest.mock('../../components/organisms/BottomNavBar', () => 'BottomNavBar');
+jest.mock('@/components/organisms/BottomNavBar', () => 'BottomNavBar');
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -54,7 +56,7 @@ describe('SpWalletScreen', () => {
     (walletService.getWallet as jest.Mock).mockResolvedValue(mockWallet);
     (walletService.getLedgerHistory as jest.Mock).mockResolvedValue([]);
     (walletService.getExpiringBatches as jest.Mock).mockResolvedValue([]);
-    (walletService.getSPConfig as jest.Mock).mockResolvedValue('90');
+    (adminConfigService.getSPExpirationDays as jest.Mock).mockResolvedValue(90);
   });
 
   it('should render loading state initially', () => {
@@ -77,8 +79,8 @@ describe('SpWalletScreen', () => {
     const { getByTestId } = render(<SpWalletScreen />);
 
     await waitFor(() => {
-      expect(getByTestId('sp-wallet-redeem-btn')).toBeTruthy();
-      expect(getByTestId('sp-wallet-earn-more-btn')).toBeTruthy();
+      expect(getByTestId('sp-wallet-shop-btn')).toBeTruthy();
+      expect(getByTestId('sp-wallet-sell-btn')).toBeTruthy();
       expect(getByTestId('sp-wallet-history-btn')).toBeTruthy();
     });
   });
@@ -150,14 +152,10 @@ describe('SpWalletScreen', () => {
   });
 
   it('should handle refresh correctly', async () => {
-    const { getByTestId } = render(<SpWalletScreen />);
+    render(<SpWalletScreen />);
 
     await waitFor(() => {
-      expect(getByTestId('sp-wallet-balance-card')).toBeTruthy();
+      expect(walletService.getWallet).toHaveBeenCalledTimes(1);
     });
-
-    // Trigger refresh (note: RefreshControl doesn't have a testID by default)
-    // This is a simplified test - in real scenario you'd use ScrollView's testID
-    expect(walletService.getWallet).toHaveBeenCalledTimes(1);
   });
 });

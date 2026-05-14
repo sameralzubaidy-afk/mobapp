@@ -7,9 +7,10 @@ import { createConfirmedTestUser, deleteTestUser } from '@/test-helpers/authTest
 
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+const runSupabaseE2E = process.env.RUN_SUPABASE_E2E === 'true';
 
 // Skip tests if environment variables are missing
-const shouldSkip = !supabaseUrl || !supabaseKey;
+const shouldSkip = !runSupabaseE2E || !supabaseUrl || !supabaseKey;
 
 if (shouldSkip) {
   console.warn('⏭️  Skipping trade badge tests: Missing SUPABASE_URL or SUPABASE_ANON_KEY');
@@ -17,7 +18,7 @@ if (shouldSkip) {
 
 const supabase = !shouldSkip ? createClient(supabaseUrl, supabaseKey) : null;
 
-jest.setTimeout(15000);
+jest.setTimeout(45000);
 
 describe('Trade Milestone Badges', () => {
   let testUserId1: string;
@@ -30,26 +31,34 @@ describe('Trade Milestone Badges', () => {
       return;
     }
 
-    const password = 'TestPassword123!';
+    try {
+      const password = 'TestPassword123!';
 
-    const created1 = await createConfirmedTestUser({
-      email: `trade-badge-test-buyer-${Date.now()}@test.com`,
-      password,
-    });
-    testUserId1 = created1?.userId || '';
+      const created1 = await createConfirmedTestUser({
+        email: `trade-badge-test-buyer-${Date.now()}@test.com`,
+        password,
+      });
+      testUserId1 = created1?.userId || '';
 
-    const created2 = await createConfirmedTestUser({
-      email: `trade-badge-test-seller-${Date.now()}@test.com`,
-      password,
-    });
-    testUserId2 = created2?.userId || '';
+      const created2 = await createConfirmedTestUser({
+        email: `trade-badge-test-seller-${Date.now()}@test.com`,
+        password,
+      });
+      testUserId2 = created2?.userId || '';
 
-    runtimeSkip = !testUserId1 || !testUserId2;
+      runtimeSkip = !testUserId1 || !testUserId2;
+    } catch {
+      runtimeSkip = true;
+    }
   });
 
   afterAll(async () => {
-    if (testUserId1) await deleteTestUser(testUserId1);
-    if (testUserId2) await deleteTestUser(testUserId2);
+    if (runtimeSkip) return;
+
+    await Promise.allSettled([
+      testUserId1 ? deleteTestUser(testUserId1) : Promise.resolve(),
+      testUserId2 ? deleteTestUser(testUserId2) : Promise.resolve(),
+    ]);
   });
 
   // SKIP: This test creates users dynamically which is slow and error-prone

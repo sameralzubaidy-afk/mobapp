@@ -2,7 +2,7 @@
 // MODULE-18 EDU-006: BonusCategoryBadge component unit tests
 
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { BonusCategoryBadge } from '../../../components/education/BonusCategoryBadge';
 
 describe('BonusCategoryBadge EDU-006', () => {
@@ -11,62 +11,57 @@ describe('BonusCategoryBadge EDU-006', () => {
       <BonusCategoryBadge testID="test-badge" />
     );
 
-    expect(getByTestID('test-badge')).toBeTruthy();
-    expect(getByTestID('test-badge-emoji')).toBeTruthy();
+    expect(getByTestId('test-badge')).toBeTruthy();
+    expect(getByTestId('test-badge-emoji')).toBeTruthy();
     expect(getByText('⭐')).toBeTruthy();
   });
 
   it('renders with star emoji when iconUrl is null', () => {
-    const { getByTestID, getByText } = render(
+    const { getByTestId, getByText } = render(
       <BonusCategoryBadge iconUrl={null} testID="test-badge" />
     );
 
-    expect(getByTestID('test-badge-emoji')).toBeTruthy();
+    expect(getByTestId('test-badge-emoji')).toBeTruthy();
     expect(getByText('⭐')).toBeTruthy();
   });
 
   it('renders image when valid iconUrl provided', () => {
-    const { getByTestID, queryByTestID } = render(
+    const { getByTestId, queryByTestId } = render(
       <BonusCategoryBadge iconUrl="https://example.com/bonus.png" testID="test-badge" />
     );
 
-    expect(getByTestID('test-badge-image')).toBeTruthy();
-    expect(queryByTestID('test-badge-emoji')).toBeNull();
+    expect(getByTestId('test-badge-image')).toBeTruthy();
+    expect(queryByTestId('test-badge-emoji')).toBeNull();
   });
 
   it('falls back to emoji when image fails to load', async () => {
-    const { getByTestID, rerender } = render(
+    const { getByTestId } = render(
       <BonusCategoryBadge iconUrl="https://example.com/broken.png" testID="test-badge" />
     );
 
     // Simulate image error
-    const image = getByTestID('test-badge-image');
-    if (image.props.onError) {
-      image.props.onError();
-    }
-
-    // Rerender to apply state change
-    rerender(<BonusCategoryBadge iconUrl="https://example.com/broken.png" testID="test-badge" />);
+    const image = getByTestId('test-badge-image');
+    fireEvent(image, 'error');
 
     // After error, should show emoji
-    expect(getByTestID('test-badge-emoji')).toBeTruthy();
+    expect(getByTestId('test-badge-emoji')).toBeTruthy();
   });
 
   it('has correct accessibility properties', () => {
-    const { getByTestID } = render(<BonusCategoryBadge testID="test-badge" />);
+    const { getByTestId } = render(<BonusCategoryBadge testID="test-badge" />);
 
-    const badge = getByTestID('test-badge');
+    const badge = getByTestId('test-badge');
     expect(badge.props.accessible).toBeTruthy();
     expect(badge.props.accessibilityLabel).toBe('Bonus category badge');
     expect(badge.props.accessibilityRole).toBe('image');
   });
 
   it('image has accessibilityIgnoresInvertColors', () => {
-    const { getByTestID } = render(
+    const { getByTestId } = render(
       <BonusCategoryBadge iconUrl="https://example.com/bonus.png" testID="test-badge" />
     );
 
-    const image = getByTestID('test-badge-image');
+    const image = getByTestId('test-badge-image');
     expect(image.props.accessibilityIgnoresInvertColors).toBeTruthy();
   });
 });

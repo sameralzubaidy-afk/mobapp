@@ -45,6 +45,43 @@ export interface ReferralEligibility {
  * - sp_wallets, sp_ledger, sp_batches tables
  */
 export class ReferralRewardsService {
+  private static parseNumber(value: unknown, defaultValue: number): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+
+    return defaultValue;
+  }
+
+  private static parseBoolean(value: unknown, defaultValue: boolean): boolean {
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    if (typeof value === 'number') {
+      return value !== 0;
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'true' || normalized === '1' || normalized === 'yes') {
+        return true;
+      }
+      if (normalized === 'false' || normalized === '0' || normalized === 'no') {
+        return false;
+      }
+    }
+
+    return defaultValue;
+  }
+
   /**
    * Manually grant referral rewards (admin function)
    *
@@ -223,13 +260,13 @@ export class ReferralRewardsService {
       const config = Array.isArray(data) ? data[0] : data;
 
       return {
-        referrer_sp: config.referrer_sp ?? 50,
-        referee_sp: config.referee_sp ?? 25,
-        referrer_listing_sp: config.referrer_listing_sp ?? 25,
-        referee_listing_sp: config.referee_listing_sp ?? 10,
-        program_enabled: config.program_enabled ?? true,
-        first_trade_enabled: config.first_trade_enabled ?? true,
-        first_listing_enabled: config.first_listing_enabled ?? true,
+        referrer_sp: this.parseNumber(config.referrer_sp, 25),
+        referee_sp: this.parseNumber(config.referee_sp, 10),
+        referrer_listing_sp: this.parseNumber(config.referrer_listing_sp, 25),
+        referee_listing_sp: this.parseNumber(config.referee_listing_sp, 10),
+        program_enabled: this.parseBoolean(config.program_enabled, true),
+        first_trade_enabled: this.parseBoolean(config.first_trade_enabled, true),
+        first_listing_enabled: this.parseBoolean(config.first_listing_enabled, true),
       };
     } catch (err) {
       console.error('[ReferralRewards] Get config error:', err);

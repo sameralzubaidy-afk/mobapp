@@ -1,236 +1,181 @@
-/**
- * Unit Tests: TradeOfferScreen
- * Tests SP input validation, trade initiation, subscriber-only features
- */
-
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import TradeOfferScreen from '../TradeOfferScreen';
-import { useAuth } from '@/hooks/useAuth';
-import { useSPWallet } from '@/hooks/useSPWallet';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { initiateTradeV2 } from '@/services/trade';
 import { getItemById } from '@/services/items';
+import { getAdminConfig } from '@/services/adminConfig';
+import { getTransactionFee } from '@/services/subscription';
+import { calculateCategorySP } from '@/services/categoryService';
 
-// Mock dependencies
-jest.mock('@/hooks/useAuth');
-jest.mock('@/hooks/useSPWallet');
+jest.mock('@/hooks/useAuth', () => ({
+  useAuth: jest.fn(),
+  useSPWallet: jest.fn(),
+  useSubscriptionStatus: jest.fn(),
+}));
 jest.mock('@/services/trade');
 jest.mock('@/services/items');
+jest.mock('@/services/adminConfig');
+jest.mock('@/services/subscription');
+jest.mock('@/services/categoryService');
 jest.mock('@react-navigation/native', () => ({
-  useRoute: () => ({
-    params: { listingId: 'test-listing-123' },
-  }),
-  useNavigation: () => ({
-    navigate: jest.fn(),
-    goBack: jest.fn(),
-  }),
+  useRoute: jest.fn(),
+  useNavigation: jest.fn(),
 }));
 
-const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
-const mockUseSPWallet = useSPWallet as jest.MockedFunction<typeof useSPWallet>;
-const mockInitiateTrade = initiateTradeV2 as jest.MockedFunction<typeof initiateTradeV2>;
-const mockGetItemById = getItemById as jest.MockedFunction<typeof getItemById>;
+jest.mock('@/components/molecules/WalletWarningBanner', () => 'WalletWarningBanner');
+jest.mock('@/components/organisms/BottomNavBar', () => 'BottomNavBar');
+jest.mock('@/components/modals/SPInfoTooltip', () => ({ SPInfoTooltip: () => null }));
+jest.mock('@/components/ui', () => ({ Modal: () => null }));
+
+jest.mock('@/components/DisclaimerModal', () => {
+  const ReactImpl = require('react');
+  const { Pressable, Text } = require('react-native');
+
+  return function MockDisclaimerModal({ visible, onAccept }: any) {
+    if (!visible) return null;
+    return ReactImpl.createElement(
+      Pressable,
+      {
+        testID: 'mock-disclaimer-accept',
+        onPress: () => onAccept('policy-test-id'),
+      },
+      ReactImpl.createElement(Text, null, 'Accept disclaimer')
+    );
+  };
+});
+
+const mockUseAuth = useAuth as jest.Mock;
+const mockUseSPWallet = useSPWallet as jest.Mock;
+const mockUseSubscriptionStatus = useSubscriptionStatus as jest.Mock;
+const mockUseRoute = useRoute as jest.Mock;
+const mockUseNavigation = useNavigation as jest.Mock;
+const mockInitiateTrade = initiateTradeV2 as jest.Mock;
+const mockGetItemById = getItemById as jest.Mock;
+const mockGetAdminConfig = getAdminConfig as jest.Mock;
+const mockGetTransactionFee = getTransactionFee as jest.Mock;
+const mockCalculateCategorySP = calculateCategorySP as jest.Mock;
+
+const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
+const mockReplace = jest.fn();
 
 describe('TradeOfferScreen', () => {
   const mockItem = {
-    id: 'test-listing-123',
+    id: 'test-item-123',
     title: 'Test Item',
     price: 100,
     images: [{ url: 'https://example.com/image.jpg', thumbnail_url: null, display_order: 0 }],
     seller_id: 'seller-123',
-  };
-
-  const mockSubscriberSession = {
-    user: {
-      id: 'buyer-123',
-      email: 'buyer@test.com',
-    },
-    subscription_tier: 'kids_club_plus',
-  };
-
-  const mockFreeUserSession = {
-    user: {
-      id: 'buyer-456',
-      email: 'free@test.com',
-    },
-    subscription_tier: 'free',
+    category_id: 'cat-1',
+    accepts_swap_points: true,
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetItemById.mockResolvedValue({ success: true, data: mockItem });
+
+    mockUseRoute.mockReturnValue({
+      params: { itemId: 'test-item-123' },
+    });
+    mockUseNavigation.mockReturnValue({
+      navigate: mockNavigate,
+      goBack: mockGoBack,
+      replace: mockReplace,
+    });
+
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: 'buyer-123', email: 'buyer@test.com' }, wallet_state: 'active' },
+      refreshSession: jest.fn().mockResolvedValue(undefined),
+    });
+    mockUseSubscriptionStatus.mockReturnValue({
+      status: 'active',
+      canSpendSP: true,
+      isTrialExpired: false,
+    });
+    mockUseSPWallet.mockReturnValue({
+      available: 500,
+      pending: 0,
+      lifetime_earned: 0,
+      lifetime_spent: 0,
+    });
+
+    mockGetItemById.mockResolvedValue(mockItem);
+    mockGetAdminConfig.mockResolvedValue({ sp_max_percentage_per_purchase: 50 });
+    mockGetTransactionFee.mockResolvedValue(199);
+    mockCalculateCategorySP.mockResolvedValue({
+      max_spend_sp: 50,
+      spend_percent: 50,
+      earn_sp: 10,
+    });
+    mockInitiateTrade.mockResolvedValue({ success: true, trade_id: 'trade-123' });
   });
 
-  describe('Rendering', () => {
-    it('should render item details correctly', async () => {
-      mockUseAuth.mockReturnValue({ session: mockSubscriberSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 500, loading: false } as any);
+  it('renders item details after loading', async () => {
+    const { getByText } = render(<TradeOfferScreen />);
 
-      const { getByText, getByTestId } = render(<TradeOfferScreen />);
-
-      await waitFor(() => {
-        expect(getByText('Test Item')).toBeTruthy();
-        expect(getByText(/\$100/)).toBeTruthy();
-      });
-    });
-
-    it('should show SP input for subscribers', async () => {
-      mockUseAuth.mockReturnValue({ session: mockSubscriberSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 500, loading: false } as any);
-
-      const { getByTestId } = render(<TradeOfferScreen />);
-
-      await waitFor(() => {
-        const spInput = getByTestId('sp-input');
-        expect(spInput).toBeTruthy();
-      });
-    });
-
-    it('should hide SP input for free users', async () => {
-      mockUseAuth.mockReturnValue({ session: mockFreeUserSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 0, loading: false } as any);
-
-      const { queryByTestId } = render(<TradeOfferScreen />);
-
-      await waitFor(() => {
-        const spInput = queryByTestId('sp-input');
-        expect(spInput).toBeNull();
-      });
-    });
-  });
-
-  describe('SP Input Validation', () => {
-    it('should enforce 50% cap on SP usage', async () => {
-      mockUseAuth.mockReturnValue({ session: mockSubscriberSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 500, loading: false } as any);
-
-      const { getByTestId } = render(<TradeOfferScreen />);
-
-      await waitFor(() => {
-        const spInput = getByTestId('sp-input');
-        fireEvent.changeText(spInput, '60'); // Try to use 60 SP on $100 item (60% > 50%)
-
-        // Should be capped at 50
-        // Note: Actual implementation should validate and cap at 50
-      });
-    });
-
-    it('should not allow SP greater than wallet balance', async () => {
-      mockUseAuth.mockReturnValue({ session: mockSubscriberSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 30, loading: false } as any);
-
-      const { getByTestId, getByText } = render(<TradeOfferScreen />);
-
-      await waitFor(() => {
-        const spInput = getByTestId('sp-input');
-        fireEvent.changeText(spInput, '50');
-
-        // Should show insufficient balance error
-        // Note: Check for error message in implementation
-      });
-    });
-
-    it('should accept valid SP amount', async () => {
-      mockUseAuth.mockReturnValue({ session: mockSubscriberSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 500, loading: false } as any);
-
-      const { getByTestId } = render(<TradeOfferScreen />);
-
-      await waitFor(() => {
-        const spInput = getByTestId('sp-input');
-        fireEvent.changeText(spInput, '30'); // Valid: 30 SP on $100 item (30%)
-
-        expect(spInput.props.value).toBe('30');
-      });
+    await waitFor(() => {
+      expect(getByText('Test Item')).toBeTruthy();
+      expect(getByText('$100.00')).toBeTruthy();
     });
   });
 
-  describe('Trade Initiation', () => {
-    it('should call initiateTradeV2 with correct params', async () => {
-      mockUseAuth.mockReturnValue({ session: mockSubscriberSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 500, loading: false } as any);
-      mockInitiateTrade.mockResolvedValue({ success: true, data: { id: 'trade-123' } });
+  it('shows SP input for subscribers when listing accepts SP', async () => {
+    const { getByTestId } = render(<TradeOfferScreen />);
 
-      const { getByTestId } = render(<TradeOfferScreen />);
-
-      await waitFor(() => {
-        const spInput = getByTestId('sp-input');
-        fireEvent.changeText(spInput, '25');
-
-        const confirmButton = getByTestId('confirm-trade-button');
-        fireEvent.press(confirmButton);
-      });
-
-      await waitFor(() => {
-        expect(mockInitiateTrade).toHaveBeenCalledWith(
-          expect.objectContaining({
-            listingId: 'test-listing-123',
-            spAmount: 25,
-          })
-        );
-      });
-    });
-
-    it('should navigate to TradeTimeline on success', async () => {
-      const mockNavigate = jest.fn();
-      jest.spyOn(require('@react-navigation/native'), 'useNavigation').mockReturnValue({
-        navigate: mockNavigate,
-        goBack: jest.fn(),
-      });
-
-      mockUseAuth.mockReturnValue({ session: mockSubscriberSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 500, loading: false } as any);
-      mockInitiateTrade.mockResolvedValue({ success: true, data: { id: 'trade-123' } });
-
-      const { getByTestId } = render(<TradeOfferScreen />);
-
-      await waitFor(() => {
-        const confirmButton = getByTestId('confirm-trade-button');
-        fireEvent.press(confirmButton);
-      });
-
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('TradeTimeline', { tradeId: 'trade-123' });
-      });
-    });
-
-    it('should show error on trade initiation failure', async () => {
-      mockUseAuth.mockReturnValue({ session: mockSubscriberSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 500, loading: false } as any);
-      mockInitiateTrade.mockResolvedValue({
-        success: false,
-        error: 'Insufficient funds',
-      });
-
-      const { getByTestId, getByText } = render(<TradeOfferScreen />);
-
-      await waitFor(() => {
-        const confirmButton = getByTestId('confirm-trade-button');
-        fireEvent.press(confirmButton);
-      });
-
-      await waitFor(() => {
-        // Should show error alert or message
-        // Note: Check Alert.alert mock in actual implementation
-      });
+    await waitFor(() => {
+      expect(getByTestId('sp-amount-input')).toBeTruthy();
     });
   });
 
-  describe('Disclaimer Modal', () => {
-    it('should show disclaimer on first trade', async () => {
-      // Mock first-time user
-      mockUseAuth.mockReturnValue({ session: mockSubscriberSession } as any);
-      mockUseSPWallet.mockReturnValue({ balance: 500, loading: false } as any);
+  it('hides SP input for free users', async () => {
+    mockUseSubscriptionStatus.mockReturnValue({
+      status: 'free',
+      canSpendSP: false,
+      isTrialExpired: true,
+    });
 
-      const { getByTestId } = render(<TradeOfferScreen />);
+    const { queryByTestId } = render(<TradeOfferScreen />);
 
-      await waitFor(() => {
-        const confirmButton = getByTestId('confirm-trade-button');
-        fireEvent.press(confirmButton);
+    await waitFor(() => {
+      expect(queryByTestId('sp-amount-input')).toBeNull();
+    });
+  });
 
-        // Disclaimer modal should appear
-        // Note: Test modal visibility in actual implementation
+  it('caps SP input at max allowed value', async () => {
+    const { getByTestId } = render(<TradeOfferScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('sp-amount-input')).toBeTruthy();
+    });
+
+    const spInput = getByTestId('sp-amount-input');
+    fireEvent.changeText(spInput, '80');
+
+    expect(getByTestId('sp-amount-input').props.value).toBe('50');
+  });
+
+  it('submits trade after disclaimer accept', async () => {
+    const { getByTestId } = render(<TradeOfferScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('send-offer-button')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('send-offer-button'));
+
+    await waitFor(() => {
+      expect(getByTestId('mock-disclaimer-accept')).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId('mock-disclaimer-accept'));
+
+    await waitFor(() => {
+      expect(mockInitiateTrade).toHaveBeenCalledWith({
+        item_id: 'test-item-123',
+        sp_amount: 0,
       });
+      expect(mockReplace).toHaveBeenCalledWith('TradeSuccess', { tradeId: 'trade-123' });
     });
   });
 });

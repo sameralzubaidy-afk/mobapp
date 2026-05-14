@@ -1,28 +1,140 @@
-# MODULE-15.1 FLOW-13 REFERRALS - Manual Testing Guide
+# MODULE-15.1 FLOW-13 REFERRALS - Manual Testing Guide (Updated)
 
 ## Prerequisites
 - iOS Simulator or Android Emulator running
 - Test user logged in with referral code generated
 - Internet connection (for Supabase production)
+- Admin access to toggle referral programs on/off
 
 ## Test Environment
 - **Platform**: iOS Simulator & Android Emulator
 - **Database**: Supabase Production
 - **Module**: MODULE-15.1-UI-redesign.md
-- **Task**: FLOW-13 Referrals Screen Redesign
+- **Task**: FLOW-13 Referrals Screen Redesign + Active Programs Display
 
 ---
 
 ## Test Cases
 
-### TC-001: Hero Card Visual Design ✅
-**Objective**: Verify hero card matches design specs
+### TC-001: Back Button Navigation ✅ NEW
+**Objective**: Verify back button navigates to previous screen
 
 **Steps**:
 1. Open app in simulator
 2. Navigate to Profile tab
 3. Tap "Refer & Earn"
-4. Observe hero card at top of screen
+4. Observe back arrow in header
+5. Tap back arrow
+
+**Expected Results**:
+- [ ] Back arrow `ArrowLeft` icon is displayed in header (24px, dark)
+- [ ] Header shows "Refer & Earn" title (centered, 18px semibold)
+- [ ] Tapping back arrow navigates back to Profile screen
+- [ ] No crash or error
+
+---
+
+### TC-002: Active Programs - Both Enabled ✅ NEW
+**Objective**: Verify active programs card displays correctly when both bonuses are enabled
+
+**Precondition**: Admin has enabled:
+- "First Trade Bonus"
+- "First Listing Bonus"
+- "Entire Referral Program Active"
+
+**Steps**:
+1. Navigate to Referrals screen
+2. Scroll down below hero card
+3. Observe "Active Rewards" section
+
+**Expected Results**:
+- [ ] "Active Rewards" card is displayed (white bg, 12px radius, border)
+- [ ] Title "Active Rewards" (16px, semibold, dark)
+- [ ] Subtext "Your friends earn these bonuses when they join:" (13px, gray)
+- [ ] **First Trade Bonus row** is displayed:
+  - `Storefront` icon (20px, green, in circular bg)
+  - "First Trade Bonus" label (14px, semibold)
+  - "+10 SP when they complete their first trade" detail (12px, gray)
+  - SP badge (gold bg `#FEF3C7`, `Coins` icon 14px, "10 SP" text)
+- [ ] **First Listing Bonus row** is displayed:
+  - `Notebook` icon (20px, green, in circular bg)
+  - "First Listing Bonus" label (14px, semibold)
+  - "+10 SP when their first listing is approved" detail (12px, gray)
+  - SP badge (gold bg, "10 SP" text)
+- [ ] "You earn:" section at bottom shows:
+  - "25 SP per trade • 25 SP per listing" (14px, green `#5DBB8E`, semibold)
+
+---
+
+### TC-003: Active Programs - Only Trade Enabled ✅ NEW
+**Objective**: Verify only trade bonus shows when listing bonus is disabled
+
+**Precondition**: Admin has:
+- Enabled "First Trade Bonus"
+- **Disabled** "First Listing Bonus"
+
+**Steps**:
+1. Navigate to Referrals screen
+2. Observe "Active Rewards" section
+
+**Expected Results**:
+- [ ] "Active Rewards" card is displayed
+- [ ] **First Trade Bonus row** is shown
+- [ ] **First Listing Bonus row** is NOT shown
+- [ ] "You earn:" shows only "25 SP per trade" (no bullet point)
+
+---
+
+### TC-004: Active Programs - Only Listing Enabled ✅ NEW
+**Objective**: Verify only listing bonus shows when trade bonus is disabled
+
+**Precondition**: Admin has:
+- **Disabled** "First Trade Bonus"
+- Enabled "First Listing Bonus"
+
+**Steps**:
+1. Navigate to Referrals screen
+2. Observe "Active Rewards" section
+
+**Expected Results**:
+- [ ] "Active Rewards" card is displayed
+- [ ] **First Trade Bonus row** is NOT shown
+- [ ] **First Listing Bonus row** is shown
+- [ ] "You earn:" shows only "25 SP per listing"
+
+---
+
+### TC-005: Program Paused Globally ✅ NEW
+**Objective**: Verify configured bonus options remain visible when global program toggle is OFF
+
+**Precondition**: Admin has:
+- **Disabled** "Entire Referral Program Active" toggle
+- Enabled at least one of: "First Trade Bonus" or "First Listing Bonus"
+
+**Steps**:
+1. Navigate to Referrals screen
+2. Observe area below hero card (before SP earned strip)
+
+**Expected Results**:
+- [ ] "Active Rewards" card IS displayed
+- [ ] Enabled bonus row(s) are visible with correct SP amounts
+- [ ] Paused banner is displayed with message:
+  - "Referral program is paused globally right now. Rewards shown below are configured but currently not being awarded."
+- [ ] Share button is DISABLED (gray `#B0B0B0`, 60% opacity)
+- [ ] Tapping disabled share button does nothing
+
+**Additional Check**:
+- [ ] If BOTH "First Trade Bonus" and "First Listing Bonus" are disabled, the app should show:
+  - "No active referral programs at the moment. Check back later!"
+
+---
+
+### TC-006: Hero Card Visual Design ✅
+**Objective**: Verify hero card matches design specs
+
+**Steps**:
+1. Navigate to Referrals screen
+2. Observe hero card at top
 
 **Expected Results**:
 - [ ] Background color is `#5DBB8E` (green)
@@ -34,7 +146,7 @@
 
 ---
 
-### TC-002: Referral Code Box Visual Design ✅
+### TC-007: Referral Code Box Visual Design ✅
 **Objective**: Verify referral code box matches design specs
 
 **Steps**:
@@ -53,7 +165,7 @@
 
 ---
 
-### TC-003: Copy Referral Code Functionality ✅
+### TC-008: Copy Referral Code Functionality ✅
 **Objective**: Verify copy functionality works correctly
 
 **Steps**:
@@ -288,10 +400,14 @@
 
 ## Test Summary
 
-Total Test Cases: **16**
+Total Test Cases: **21** (updated from 16)
 
 ### Pass Criteria
 - All visual design elements match MODULE-15.1 specs
+- Back button navigation works
+- Active programs display correctly based on admin toggles
+- Warning message shows when no programs are active
+- Share button disables when no programs active
 - All interactions work correctly
 - No Ionicons/MaterialIcons imports
 - Responsive on iOS & Android simulators

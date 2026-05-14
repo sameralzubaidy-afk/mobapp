@@ -1,13 +1,17 @@
 appId: com.kidsmarketplace.app
 ---
-# FLOW: Referral UI Verification | TASK: FLOW-13 | States covered: Happy path, Code copy, Share, Empty state, Referral history
-# This flow validates the complete visual redesign of ReferralsScreen per MODULE-15.1 specs
+# FLOW: Referral UI Verification | TASK: FLOW-13 | States covered: Happy path, Code copy, Share, Empty state, Referral history, Active programs
+# This flow validates the complete visual redesign of ReferralsScreen per MODULE-15.1 specs + active programs display
 
 # SETUP: Navigate to Referrals screen
 - launchApp
 - tapOn: "Profile"
 - tapOn: "Refer & Earn"
 - waitForAnimationToEnd
+
+# BACK BUTTON VALIDATION
+- assertVisible:
+    id: "back-btn"
 
 # HERO CARD VALIDATION
 - assertVisible: "Refer Friends, Earn SP"
@@ -17,6 +21,36 @@ appId: com.kidsmarketplace.app
     id: "hero-title"
 - assertVisible:
     id: "hero-subtext"
+
+# ACTIVE PROGRAMS VALIDATION (conditional)
+- runFlow:
+    when:
+      visible:
+        id: "active-programs-card"
+    commands:
+      - assertVisible: "Active Rewards"
+      - assertVisible: "Your friends earn these bonuses when they join:"
+      # Check for at least one program being active
+      - runFlow:
+          when:
+            visible:
+              id: "trade-bonus-row"
+          commands:
+            - assertVisible: "First Trade Bonus"
+      - runFlow:
+          when:
+            visible:
+              id: "listing-bonus-row"
+          commands:
+            - assertVisible: "First Listing Bonus"
+
+# NO PROGRAMS VALIDATION (conditional)
+- runFlow:
+    when:
+      visible:
+        id: "no-programs-card"
+    commands:
+      - assertVisible: "No active referral programs at the moment. Check back later!"
 
 # SP EARNED STRIP VALIDATION
 - assertVisible: "You've earned"
@@ -76,7 +110,15 @@ appId: com.kidsmarketplace.app
           direction: DOWN
       # Note: Specific history items tested in unit tests with testIDs like history-item-{id}
 
-# FINAL ASSERTION: Ensure screen is fully loaded and stable
+# TEST: Back navigation
+- tapOn:
+    id: "back-btn"
+- waitForAnimationToEnd
+# Should navigate back to previous screen
+
+# FINAL ASSERTION: Navigate back to verify screen is accessible
+- tapOn: "Refer & Earn"
+- waitForAnimationToEnd
 - assertVisible: "Refer Friends, Earn SP"
 - assertVisible:
     id: "share-btn"

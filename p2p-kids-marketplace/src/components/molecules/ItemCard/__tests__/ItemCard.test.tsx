@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { ItemCard } from '../index';
+import ItemCard from '../index';
 
 // Mock Phosphor icons
 jest.mock('phosphor-react-native', () => {
@@ -123,7 +123,7 @@ describe('ItemCard Component', () => {
       <ItemCard {...defaultProps} isFavorite={false} onFavoritePress={mockOnFavoritePress} />
     );
 
-    const favoriteButton = getByTestId('item-card-favorite-test-item-123');
+    const favoriteButton = getByTestId('test-item-123-favorite-button');
     fireEvent.press(favoriteButton);
 
     expect(mockOnFavoritePress).toHaveBeenCalledTimes(1);
@@ -149,7 +149,7 @@ describe('ItemCard Component', () => {
       <ItemCard {...defaultProps} onSharePress={mockOnSharePress} />
     );
 
-    const shareButton = getByTestId('item-card-share-test-item-123');
+    const shareButton = getByTestId('test-item-123-share-button');
     fireEvent.press(shareButton);
 
     expect(mockOnSharePress).toHaveBeenCalledTimes(1);
@@ -163,7 +163,7 @@ describe('ItemCard Component', () => {
       <ItemCard {...defaultProps} acceptsSwapPoints={true} />
     );
 
-    expect(getByText('SP')).toBeTruthy();
+    expect(getByText('SP ✓')).toBeTruthy();
   });
 
   // ============================================
@@ -174,16 +174,18 @@ describe('ItemCard Component', () => {
       <ItemCard {...defaultProps} acceptsSwapPoints={false} />
     );
 
-    expect(queryByText('SP')).toBeNull();
+    expect(queryByText('SP ✓')).toBeNull();
   });
 
   // ============================================
   // TC-ITEMCARD-010: Null Image URL
   // ============================================
   it('should render placeholder when imageUrl is null', () => {
-    const { getByText } = render(<ItemCard {...defaultProps} imageUrl={null} />);
+    const { getByTestId } = render(<ItemCard {...defaultProps} imageUrl={null} />);
+    const image = getByTestId('listing-image');
 
-    expect(getByText('📷')).toBeTruthy();
+    expect(image).toBeTruthy();
+    expect(image.props.accessibilityLabel).toBe('No image');
   });
 
   // ============================================
@@ -225,12 +227,12 @@ describe('ItemCard Component', () => {
   it('should not render favorite button when onFavoritePress is not provided', () => {
     const { queryByTestId } = render(<ItemCard {...defaultProps} />);
 
-    expect(queryByTestId('item-card-favorite-test-item-123')).toBeNull();
+    expect(queryByTestId('test-item-123-favorite-button')).toBeNull();
   });
 
   it('should not render share button when onSharePress is not provided', () => {
     const { queryByTestId } = render(<ItemCard {...defaultProps} />);
 
-    expect(queryByTestId('item-card-share-test-item-123')).toBeNull();
+    expect(queryByTestId('test-item-123-share-button')).toBeNull();
   });
 });

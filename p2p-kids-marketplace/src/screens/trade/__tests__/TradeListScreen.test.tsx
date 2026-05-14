@@ -11,11 +11,15 @@ import { useAuth } from '@/hooks/useAuth';
 
 jest.mock('@/config/supabase');
 jest.mock('@/hooks/useAuth');
+jest.mock('@/components/organisms/BottomNavBar', () => () => null);
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({
-    navigate: jest.fn(),
-    goBack: jest.fn(),
-  }),
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const React = require('react');
+    React.useEffect(() => {
+      const cleanup = cb();
+      return typeof cleanup === 'function' ? cleanup : undefined;
+    }, [cb]);
+  },
 }));
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
@@ -25,6 +29,10 @@ describe('TradeListScreen', () => {
   const mockSession = {
     user: { id: 'user-123', email: 'test@test.com' },
   };
+  const mockNavigation = {
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+  };
 
   const mockTrades = [
     {
@@ -32,6 +40,7 @@ describe('TradeListScreen', () => {
       buyer_id: 'user-123',
       seller_id: 'seller-1',
       status: 'pending',
+      created_at: '2026-01-01T10:00:00.000Z',
       cash_amount_cents: 5000,
       sp_amount: 0,
       listing: {
@@ -46,6 +55,7 @@ describe('TradeListScreen', () => {
       buyer_id: 'buyer-2',
       seller_id: 'user-123',
       status: 'in_progress',
+      created_at: '2026-01-02T10:00:00.000Z',
       cash_amount_cents: 7500,
       sp_amount: 25,
       listing: {
@@ -60,6 +70,7 @@ describe('TradeListScreen', () => {
       buyer_id: 'user-123',
       seller_id: 'seller-3',
       status: 'completed',
+      created_at: '2026-01-03T10:00:00.000Z',
       cash_amount_cents: 3000,
       sp_amount: 10,
       listing: {
@@ -91,7 +102,7 @@ describe('TradeListScreen', () => {
 
       mockSupabase.from = mockFrom;
 
-      const { getByText } = render(<TradeListScreen />);
+      const { getByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
       await waitFor(() => {
         expect(getByText('Toy Car')).toBeTruthy();
@@ -101,7 +112,7 @@ describe('TradeListScreen', () => {
     });
 
     it('should render tab navigation', () => {
-      const { getByTestId } = render(<TradeListScreen />);
+      const { getByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
       expect(getByTestId('tab-all')).toBeTruthy();
       expect(getByTestId('tab-buying')).toBeTruthy();
@@ -122,7 +133,7 @@ describe('TradeListScreen', () => {
 
       mockSupabase.from = mockFrom;
 
-      const { getByTestId } = render(<TradeListScreen />);
+      const { getByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
       await waitFor(() => {
         expect(getByTestId('trade-history-empty-state')).toBeTruthy();
@@ -145,7 +156,7 @@ describe('TradeListScreen', () => {
 
       mockSupabase.from = mockFrom;
 
-      const { getByText } = render(<TradeListScreen />);
+      const { getByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
       await waitFor(() => {
         expect(getByText('Toy Car')).toBeTruthy(); // Buying
@@ -167,7 +178,9 @@ describe('TradeListScreen', () => {
 
       mockSupabase.from = mockFrom;
 
-      const { getByTestId, getByText, queryByText } = render(<TradeListScreen />);
+      const { getByTestId, getByText, queryByText } = render(
+        <TradeListScreen navigation={mockNavigation as any} />
+      );
 
       const buyingTab = getByTestId('tab-buying');
       fireEvent.press(buyingTab);
@@ -192,7 +205,9 @@ describe('TradeListScreen', () => {
 
       mockSupabase.from = mockFrom;
 
-      const { getByTestId, getByText, queryByText } = render(<TradeListScreen />);
+      const { getByTestId, getByText, queryByText } = render(
+        <TradeListScreen navigation={mockNavigation as any} />
+      );
 
       const sellingTab = getByTestId('tab-selling');
       fireEvent.press(sellingTab);
@@ -219,7 +234,7 @@ describe('TradeListScreen', () => {
 
       mockSupabase.from = mockFrom;
 
-      const { getAllByText } = render(<TradeListScreen />);
+      const { getAllByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
       await waitFor(() => {
         // Pending badge (amber)
@@ -236,12 +251,6 @@ describe('TradeListScreen', () => {
 
   describe('Navigation', () => {
     it('should navigate to TradeTimeline on trade tap', async () => {
-      const mockNavigate = jest.fn();
-      jest.spyOn(require('@react-navigation/native'), 'useNavigation').mockReturnValue({
-        navigate: mockNavigate,
-        goBack: jest.fn(),
-      });
-
       const mockFrom = jest.fn().mockReturnValue({
         select: jest.fn().mockReturnValue({
           or: jest.fn().mockReturnValue({
@@ -255,15 +264,15 @@ describe('TradeListScreen', () => {
 
       mockSupabase.from = mockFrom;
 
-      const { getByText } = render(<TradeListScreen />);
+      const { getByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
       await waitFor(() => {
-        const tradeCard = getByText('Toy Car');
-        fireEvent.press(tradeCard.parent!);
+        const tradeCard = getByTestId('trade-row-trade-1');
+        fireEvent.press(tradeCard);
       });
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('TradeTimeline', { tradeId: 'trade-1' });
+        expect(mockNavigation.navigate).toHaveBeenCalledWith('TradeDetail', { tradeId: 'trade-1' });
       });
     });
   });

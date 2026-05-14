@@ -19,7 +19,7 @@ jest.mock('@/config/supabase', () => ({
     },
   },
 }));
-jest.mock('../../components/organisms/BottomNavBar', () => 'BottomNavBar');
+jest.mock('@/components/organisms/BottomNavBar', () => 'BottomNavBar');
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -154,7 +154,10 @@ describe('SpTransactionHistoryScreen', () => {
     await waitFor(() => {
       const amount1 = getByTestId('sp-history-amount-tx-1');
       expect(amount1).toBeTruthy();
-      expect(amount1.props.children).toBe('+350 SP');
+      const amountText = Array.isArray(amount1.props.children)
+        ? amount1.props.children.join('')
+        : String(amount1.props.children);
+      expect(amountText).toBe('+350 SP');
       expect(amount1.props.style).toContainEqual({ color: '#5DBB8E' });
     });
   });
@@ -165,7 +168,10 @@ describe('SpTransactionHistoryScreen', () => {
     await waitFor(() => {
       const amount2 = getByTestId('sp-history-amount-tx-2');
       expect(amount2).toBeTruthy();
-      expect(amount2.props.children).toBe('-100 SP');
+      const amountText = Array.isArray(amount2.props.children)
+        ? amount2.props.children.join('')
+        : String(amount2.props.children);
+      expect(amountText).toBe('-100 SP');
       expect(amount2.props.style).toContainEqual({ color: '#E85D75' });
     });
   });

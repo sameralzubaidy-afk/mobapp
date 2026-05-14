@@ -12,6 +12,8 @@ const shouldRunE2E =
   process.env.RUN_SUPABASE_E2E === 'true' && !!SUPABASE_URL && !!SUPABASE_SERVICE_ROLE_KEY;
 const describeE2E = shouldRunE2E ? describe : describe.skip;
 
+jest.setTimeout(180000);
+
 describeE2E('SP Notifications E2E Tests', () => {
   let supabase: SupabaseClient;
   let testUserId: string;

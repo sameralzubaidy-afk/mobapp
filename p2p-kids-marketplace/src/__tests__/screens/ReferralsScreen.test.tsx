@@ -1,7 +1,8 @@
 // File: p2p-kids-marketplace/src/__tests__/screens/ReferralsScreen.test.tsx
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { Alert, Clipboard, Share } from 'react-native';
+import { Alert, Share } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { ReferralsScreen } from '@/screens/referrals/ReferralsScreen';
 import { ReferralCodeServiceV2, type ReferralStats, type Referral } from '@/services/referralCodeV2';
 import { ReferralRewardsService } from '@/services/referralRewards';
@@ -11,14 +12,13 @@ import { useAuth } from '@/hooks/useAuth';
 jest.mock('@/hooks/useAuth');
 jest.mock('@/services/referralCodeV2');
 jest.mock('@/services/referralRewards');
-jest.mock('react-native/Libraries/Alert/Alert', () => ({
-  alert: jest.fn(),
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(),
 }));
-jest.mock('react-native/Libraries/Share/Share', () => ({
-  share: jest.fn(),
-}));
-jest.mock('react-native/Libraries/Components/Clipboard/Clipboard', () => ({
-  setString: jest.fn(),
+jest.mock('@react-navigation/native', () => ({
+  ...jest.requireActual('@react-navigation/native'),
+  useNavigation: jest.fn(),
+  useFocusEffect: jest.fn(),
 }));
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
@@ -27,6 +27,13 @@ const mockGetReferralStats = ReferralCodeServiceV2.getReferralStats as jest.Mock
 const mockGetReferralHistory = ReferralCodeServiceV2.getReferralHistory as jest.Mock;
 const mockGetReferralLink = ReferralCodeServiceV2.getReferralLink as jest.Mock;
 const mockGetConfiguredRewardAmounts = ReferralRewardsService.getConfiguredRewardAmounts as jest.Mock;
+const mockUseNavigation = require('@react-navigation/native').useNavigation as jest.Mock;
+const mockUseFocusEffect = require('@react-navigation/native').useFocusEffect as jest.Mock;
+const mockAlert = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+const mockShare = jest.spyOn(Share, 'share');
+const mockClipboardSetString = Clipboard.setStringAsync as jest.Mock;
+const mockGoBack = jest.fn();
+let focusEffectInvoked = false;
 
 describe('ReferralsScreen', () => {
   const mockUser = { id: 'test-user-id', email: 'test@example.com' };
@@ -72,6 +79,14 @@ describe('ReferralsScreen', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    focusEffectInvoked = false;
+    mockUseNavigation.mockReturnValue({ goBack: mockGoBack });
+    mockUseFocusEffect.mockImplementation((effect: () => void | (() => void)) => {
+      if (!focusEffectInvoked) {
+        focusEffectInvoked = true;
+        effect();
+      }
+    });
     mockUseAuth.mockReturnValue({
       user: mockUser,
       isAuthenticated: true,
@@ -84,6 +99,7 @@ describe('ReferralsScreen', () => {
     mockGetReferralHistory.mockResolvedValue(mockHistory);
     mockGetConfiguredRewardAmounts.mockResolvedValue(mockRewardsConfig);
     mockGetReferralLink.mockReturnValue('https://app.kidsclub.com/signup?ref=TEST1234');
+    mockShare.mockResolvedValue({ action: 'sharedAction' } as any);
   });
 
   // STATE MATRIX RENDER TESTS
@@ -98,9 +114,16 @@ describe('ReferralsScreen', () => {
     const { getByTestId, getByText } = render(<ReferralsScreen />);
 
     await waitFor(() => {
+      expect(getByTestId('back-btn')).toBeTruthy();
+      expect(getByText('Refer & Earn')).toBeTruthy();
       expect(getByTestId('hero-card')).toBeTruthy();
       expect(getByTestId('hero-title')).toBeTruthy();
       expect(getByText('Refer Friends, Earn SP')).toBeTruthy();
+      expect(getByTestId('active-programs-card')).toBeTruthy();
+      expect(getByTestId('trade-bonus-row')).toBeTruthy();
+      expect(getByTestId('listing-bonus-row')).toBeTruthy();
+      expect(getByText('First Trade Bonus')).toBeTruthy();
+      expect(getByText('First Listing Bonus')).toBeTruthy();
       expect(getByTestId('sp-earned-strip')).toBeTruthy();
       expect(getByTestId('sp-earned-text')).toBeTruthy();
       expect(getByText(/You've earned/)).toBeTruthy();
@@ -209,8 +232,8 @@ describe('ReferralsScreen', () => {
       const copyBtn = getByTestId('copy-btn');
       fireEvent.press(copyBtn);
 
-      expect(Clipboard.setString).toHaveBeenCalledWith('TEST1234');
-      expect(Alert.alert).toHaveBeenCalledWith('Copied!', 'Referral code copied to clipboard');
+      expect(mockClipboardSetString).toHaveBeenCalledWith('TEST1234');
+      expect(mockAlert).toHaveBeenCalledWith('Copied!', 'Referral code copied to clipboard');
     });
   });
 
@@ -222,7 +245,7 @@ describe('ReferralsScreen', () => {
       fireEvent.press(shareBtn);
 
       expect(mockGetReferralLink).toHaveBeenCalledWith('TEST1234');
-      expect(Share.share).toHaveBeenCalledWith({
+      expect(mockShare).toHaveBeenCalledWith({
         message: expect.stringContaining('Join Kids Club+'),
         title: 'Join Kids Club+',
       });
@@ -236,7 +259,7 @@ describe('ReferralsScreen', () => {
       const shareBtn = getByTestId('share-btn');
       fireEvent.press(shareBtn);
 
-      expect(Share.share).toHaveBeenCalledWith({
+      expect(mockShare).toHaveBeenCalledWith({
         message: expect.stringContaining('10 SP for trade'),
         title: 'Join Kids Club+',
       });
@@ -245,7 +268,7 @@ describe('ReferralsScreen', () => {
 
   it('INTERACTION: Share button - should handle share error gracefully', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    (Share.share as jest.Mock).mockRejectedValue(new Error('Share failed'));
+    mockShare.mockRejectedValue(new Error('Share failed'));
 
     const { getByTestId } = render(<ReferralsScreen />);
 
@@ -269,7 +292,7 @@ describe('ReferralsScreen', () => {
     render(<ReferralsScreen />);
 
     await waitFor(() => {
-      expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to load referral data');
+      expect(mockAlert).toHaveBeenCalledWith('Error', 'Failed to load referral data');
     });
   });
 
@@ -295,6 +318,28 @@ describe('ReferralsScreen', () => {
     });
   });
 
+  it('DATA: History item - should format identifier-like name as User #', async () => {
+    const historyWithIdLikeName: Referral[] = [
+      {
+        id: 'ref-4',
+        referrer_id: 'test-user-id',
+        referred_user_id: '7717c60b-1234-1234-1234-123456789012',
+        referred_user_name: '7717c60b',
+        status: 'pending',
+        created_at: '2026-05-01T10:00:00Z',
+        completed_at: null,
+        code: 'TEST1234',
+      },
+    ];
+    mockGetReferralHistory.mockResolvedValue(historyWithIdLikeName);
+
+    const { getByText } = render(<ReferralsScreen />);
+
+    await waitFor(() => {
+      expect(getByText('User #7717c60b')).toBeTruthy();
+    });
+  });
+
   it('DATA: SP earned - should display correct total from stats', async () => {
     const customStats: ReferralStats = {
       ...mockStats,
@@ -306,6 +351,118 @@ describe('ReferralsScreen', () => {
 
     await waitFor(() => {
       expect(getByText('150')).toBeTruthy();
+    });
+  });
+
+  // ACTIVE PROGRAMS TESTS
+
+  it('PROGRAMS: Both programs active - should show both bonus rows', async () => {
+    const { getByTestId, getByText } = render(<ReferralsScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('active-programs-card')).toBeTruthy();
+      expect(getByTestId('trade-bonus-row')).toBeTruthy();
+      expect(getByTestId('listing-bonus-row')).toBeTruthy();
+      expect(getByText('First Trade Bonus')).toBeTruthy();
+      expect(getByText('First Listing Bonus')).toBeTruthy();
+      expect(getByText('+10 SP when they complete their first trade')).toBeTruthy();
+      expect(getByText('+10 SP when their first listing is approved')).toBeTruthy();
+    });
+  });
+
+  it('PROGRAMS: Only trade bonus active - should show only trade row', async () => {
+    const configWithOnlyTrade = {
+      ...mockRewardsConfig,
+      first_listing_enabled: false,
+    };
+    mockGetConfiguredRewardAmounts.mockResolvedValue(configWithOnlyTrade);
+
+    const { getByTestId, getByText, queryByTestId } = render(<ReferralsScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('active-programs-card')).toBeTruthy();
+      expect(getByTestId('trade-bonus-row')).toBeTruthy();
+      expect(queryByTestId('listing-bonus-row')).toBeNull();
+      expect(getByText('First Trade Bonus')).toBeTruthy();
+    });
+  });
+
+  it('PROGRAMS: Only listing bonus active - should show only listing row', async () => {
+    const configWithOnlyListing = {
+      ...mockRewardsConfig,
+      first_trade_enabled: false,
+    };
+    mockGetConfiguredRewardAmounts.mockResolvedValue(configWithOnlyListing);
+
+    const { getByTestId, getByText, queryByTestId } = render(<ReferralsScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('active-programs-card')).toBeTruthy();
+      expect(queryByTestId('trade-bonus-row')).toBeNull();
+      expect(getByTestId('listing-bonus-row')).toBeTruthy();
+      expect(getByText('First Listing Bonus')).toBeTruthy();
+    });
+  });
+
+  it('PROGRAMS: Global program paused - should show configured bonus rows with paused banner', async () => {
+    const configDisabled = {
+      ...mockRewardsConfig,
+      program_enabled: false,
+    };
+    mockGetConfiguredRewardAmounts.mockResolvedValue(configDisabled);
+
+    const { getByTestId, getByText, queryByTestId } = render(<ReferralsScreen />);
+
+    await waitFor(() => {
+      expect(queryByTestId('no-programs-card')).toBeNull();
+      expect(getByTestId('active-programs-card')).toBeTruthy();
+      expect(getByTestId('trade-bonus-row')).toBeTruthy();
+      expect(getByTestId('listing-bonus-row')).toBeTruthy();
+      expect(getByTestId('program-paused-banner')).toBeTruthy();
+      expect(getByText('Referral program is paused globally right now. Rewards shown below are configured but currently not being awarded.')).toBeTruthy();
+    });
+  });
+
+  it('PROGRAMS: All toggles off - should show warning message', async () => {
+    const configAllOff = {
+      ...mockRewardsConfig,
+      first_trade_enabled: false,
+      first_listing_enabled: false,
+    };
+    mockGetConfiguredRewardAmounts.mockResolvedValue(configAllOff);
+
+    const { getByTestId, queryByTestId } = render(<ReferralsScreen />);
+
+    await waitFor(() => {
+      expect(getByTestId('no-programs-card')).toBeTruthy();
+      expect(queryByTestId('active-programs-card')).toBeNull();
+    });
+  });
+
+  it('PROGRAMS: Share button disabled when global program is paused', async () => {
+    const configDisabled = {
+      ...mockRewardsConfig,
+      program_enabled: false,
+    };
+    mockGetConfiguredRewardAmounts.mockResolvedValue(configDisabled);
+
+    const { getByTestId } = render(<ReferralsScreen />);
+
+    await waitFor(() => {
+      const shareBtn = getByTestId('share-btn');
+      expect(shareBtn.props.accessibilityState?.disabled).toBe(true);
+    });
+  });
+
+  // NAVIGATION TESTS
+
+  it('NAVIGATION: Back button - should navigate back', async () => {
+    const { getByTestId } = render(<ReferralsScreen />);
+
+    await waitFor(() => {
+      const backBtn = getByTestId('back-btn');
+      fireEvent.press(backBtn);
+      expect(mockGoBack).toHaveBeenCalled();
     });
   });
 });

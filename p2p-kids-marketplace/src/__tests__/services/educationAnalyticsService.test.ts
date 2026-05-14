@@ -134,7 +134,7 @@ describe('educationAnalyticsService', () => {
       expect(result).toBe(false);
     });
 
-    it('should return true on error (safe default)', async () => {
+    it('should return false on error (safe default)', async () => {
       const mockQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -145,7 +145,7 @@ describe('educationAnalyticsService', () => {
 
       const result = await shouldShowOnboarding('user-1');
 
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
   });
 

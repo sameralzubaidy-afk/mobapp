@@ -33,6 +33,10 @@ export async function calculateSP(
   spToUse?: number
 ): Promise<SPCalculation | null> {
   try {
+    if (!Number.isFinite(itemPrice) || itemPrice <= 0) {
+      return null;
+    }
+
     // Get category details
     const category = await getCategoryById(categoryId);
     if (!category || !category.is_active) {

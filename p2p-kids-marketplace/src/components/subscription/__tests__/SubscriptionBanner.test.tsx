@@ -106,7 +106,7 @@ describe('SubscriptionBanner', () => {
     expect(getByText('Re-subscribe')).toBeTruthy();
   });
 
-  it('should navigate to KidsClubOverview when free user taps banner', () => {
+  it('should navigate to SubscriptionPlans when free user taps banner', () => {
     mockUseSubscription.mockReturnValue({
       subscription: { status: 'free' } as any,
       loading: false,
@@ -118,7 +118,7 @@ describe('SubscriptionBanner', () => {
 
     fireEvent.press(getByText('Start Free Trial'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('KidsClubOverview');
+    expect(mockNavigate).toHaveBeenCalledWith('SubscriptionPlans');
   });
 
   it('should navigate to ContinueKidsClub when trial user taps banner', () => {

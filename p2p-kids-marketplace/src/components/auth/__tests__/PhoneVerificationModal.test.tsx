@@ -40,7 +40,7 @@ describe('PhoneVerificationModal', () => {
     jest.clearAllMocks();
     jest.useRealTimers();
 
-    mockPhoneService.sendPhoneVerificationCode.mockResolvedValue(undefined as never);
+    mockPhoneService.sendPhoneVerificationCode.mockResolvedValue({ devBypass: false } as never);
     mockPhoneService.verifyPhoneCode.mockResolvedValue(undefined as never);
   });
 

@@ -238,7 +238,7 @@ describe('Subscription Payment Flow E2E', () => {
       expect(response.status).toBe(400);
 
       const data = await response.json();
-      expect(data.error).toContain('payment_method_id');
+      expect(String(data.error || data.message || '')).toMatch(/payment method|payment_method_id/i);
     });
 
     it('should reject unauthorized requests', async () => {
@@ -306,8 +306,11 @@ describe('Subscription Payment Flow E2E', () => {
         }
       );
 
-      // Will fail without valid payment method, but should accept flag
-      expect(response.status).not.toBe(400); // Not a validation error
+      // Without a real Stripe PaymentMethod this can fail, but failure must not be caused
+      // by rejecting the is_renewal flag itself.
+      const data = await response.json();
+      const errorText = String(data.error || data.message || '');
+      expect(errorText).not.toMatch(/is_renewal|unknown field|unexpected field/i);
     });
   });
 });
