@@ -11,11 +11,14 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import CartScreen from '../CartScreen';
 
+const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
+
 // Mock dependencies
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
-    navigate: jest.fn(),
-    goBack: jest.fn(),
+    navigate: mockNavigate,
+    goBack: mockGoBack,
   }),
   useRoute: () => ({
     params: {},
@@ -44,35 +47,29 @@ describe('CartScreen', () => {
 
   describe('Empty State', () => {
     it('should render empty cart state when no items', async () => {
-      const { getByTestID, getByText } = render(<CartScreen />);
+      const { getByTestId, getByText } = render(<CartScreen />);
 
       await waitFor(() => {
-        expect(getByTestID('cart-empty-icon')).toBeTruthy();
+        expect(getByTestId('cart-empty-icon')).toBeTruthy();
         expect(getByText('Your cart is empty')).toBeTruthy();
         expect(getByText('Start adding items you love to your cart')).toBeTruthy();
-        expect(getByTestID('browse-items-button')).toBeTruthy();
+        expect(getByTestId('browse-items-button')).toBeTruthy();
       });
     });
 
     it('should not show cart count badge when empty', async () => {
-      const { queryByTestID } = render(<CartScreen />);
+      const { queryByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
-        expect(queryByTestID('cart-count-badge')).toBeNull();
+        expect(queryByTestId('cart-count-badge')).toBeNull();
       });
     });
 
     it('should navigate to Discover when Browse Items pressed', async () => {
-      const mockNavigate = jest.fn();
-      jest.mocked(require('@react-navigation/native').useNavigation).mockReturnValue({
-        navigate: mockNavigate,
-        goBack: jest.fn(),
-      });
-
-      const { getByTestID } = render(<CartScreen />);
+      const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
-        const browseButton = getByTestID('browse-items-button');
+        const browseButton = getByTestId('browse-items-button');
         fireEvent.press(browseButton);
         expect(mockNavigate).toHaveBeenCalledWith('Discover');
       });
@@ -81,10 +78,10 @@ describe('CartScreen', () => {
 
   describe('Header', () => {
     it('should render cart icon in header', async () => {
-      const { getByTestID } = render(<CartScreen />);
+      const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
-        expect(getByTestID('cart-icon')).toBeTruthy();
+        expect(getByTestId('cart-icon')).toBeTruthy();
       });
     });
 
@@ -106,11 +103,11 @@ describe('CartScreen', () => {
 
   describe('Checkout Button', () => {
     it('should show alert when checkout pressed with empty cart', async () => {
-      const { getByTestID } = render(<CartScreen />);
+      const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
         // Wait for loading to finish and empty state to render
-        expect(getByTestID('cart-empty-icon')).toBeTruthy();
+        expect(getByTestId('cart-empty-icon')).toBeTruthy();
       });
 
       // Manually trigger checkout for empty cart scenario
@@ -121,19 +118,19 @@ describe('CartScreen', () => {
 
   describe('Accessibility', () => {
     it('should have accessible cart icon', async () => {
-      const { getByTestID } = render(<CartScreen />);
+      const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
-        const cartIcon = getByTestID('cart-icon');
+        const cartIcon = getByTestId('cart-icon');
         expect(cartIcon).toBeTruthy();
       });
     });
 
     it('should have accessible browse button', async () => {
-      const { getByTestID } = render(<CartScreen />);
+      const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
-        const browseButton = getByTestID('browse-items-button');
+        const browseButton = getByTestId('browse-items-button');
         expect(browseButton).toBeTruthy();
       });
     });
@@ -141,10 +138,10 @@ describe('CartScreen', () => {
 
   describe('Design System Compliance', () => {
     it('should use Phosphor ShoppingCart icon', async () => {
-      const { getByTestID } = render(<CartScreen />);
+      const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
-        const icon = getByTestID('cart-empty-icon');
+        const icon = getByTestId('cart-empty-icon');
         expect(icon).toBeTruthy();
       });
     });

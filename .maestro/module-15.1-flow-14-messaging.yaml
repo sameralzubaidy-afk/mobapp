@@ -1,0 +1,198 @@
+# FLOW: Messaging | TASK: FLOW-14 | States covered: conversations list, chat screen, send message, unread badges, verified badges, trade banner
+# MODULE-15.1 UI REDESIGN: Whisk-inspired design system with green theme, Phosphor icons, clean message bubbles
+# Prerequisites: Two users with an active trade and existing messages
+
+appId: host.exp.exponent
+---
+# Test Case: FLOW-14-001 - View Conversations List
+- tapOn: "Messages" # Bottom nav
+- assertVisible: "conversations-list"
+- waitForAnimationToEnd
+
+# Verify search bar renders
+- assertVisible:
+    id: "conversations-search-input"
+
+# Verify at least one conversation renders
+- assertVisible:
+    id: "conversation-.*" # Regex to match any conversation
+---
+# Test Case: FLOW-14-002 - Search Conversations by User Name
+- tapOn:
+    id: "conversations-search-input"
+- inputText: "Alice"
+- waitForAnimationToEnd
+
+# Verify filtered results (conversations with "Alice" should be visible)
+- assertVisible: "Alice"
+
+# Clear search
+- clearKeychain
+- tapOn:
+    id: "conversations-search-input"
+- repeat:
+    count: 10
+    commands:
+      - pressKey: "Backspace"
+- waitForAnimationToEnd
+---
+# Test Case: FLOW-14-003 - Verify Unread Badge Displays
+- assertVisible:
+    id: "unread-badge"
+---
+# Test Case: FLOW-14-004 - Verify Verified Badge Displays
+- assertVisible:
+    id: "verified-badge"
+---
+# Test Case: FLOW-14-005 - Open Chat from Conversation
+- tapOn:
+    id: "conversation-.*" # Tap first conversation
+- waitForAnimationToEnd
+
+# Verify chat screen opened
+- assertVisible:
+    id: "chat-header"
+- assertVisible:
+    id: "message-input-bar"
+---
+# Test Case: FLOW-14-006 - Verify Chat Header Elements
+# Verified badge should be visible for approved seller
+- assertVisible:
+    id: "verified-badge"
+
+# Back button should be visible
+- assertVisible:
+    id: "back-button"
+---
+# Test Case: FLOW-14-007 - Verify Trade Banner
+- assertVisible:
+    id: "trade-banner"
+- assertVisible:
+    id: "view-trade-link"
+---
+# Test Case: FLOW-14-008 - Send Text Message
+- tapOn:
+    id: "message-input"
+- inputText: "Maestro test message - hello!"
+- waitForAnimationToEnd
+
+# Send button should appear when text is entered
+- assertVisible:
+    id: "send-button"
+
+# Tap send button
+- tapOn:
+    id: "send-button"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# Input should be cleared after sending
+- assertVisible:
+    id: "message-input"
+- assertNotVisible:
+    id: "send-button" # Send button hidden when input is empty
+---
+# Test Case: FLOW-14-009 - Verify Message Appears After Send
+# Scroll to bottom to see latest message
+- scroll:
+    direction: "DOWN"
+- waitForAnimationToEnd
+
+# Verify message content is visible
+- assertVisible: "Maestro test message - hello!"
+---
+# Test Case: FLOW-14-010 - Verify Send Button Visibility Rules
+# Send button should NOT be visible when input is empty
+- assertNotVisible:
+    id: "send-button"
+
+# Type text
+- tapOn:
+    id: "message-input"
+- inputText: "Test"
+
+# Send button SHOULD be visible now
+- assertVisible:
+    id: "send-button"
+
+# Clear input
+- tapOn:
+    id: "message-input"
+- repeat:
+    count: 5
+    commands:
+      - pressKey: "Backspace"
+
+# Send button should be hidden again
+- assertNotVisible:
+    id: "send-button"
+---
+# Test Case: FLOW-14-011 - Verify Input Bar Elements
+- assertVisible:
+    id: "image-picker-button" # PaperclipHorizontal icon
+- assertVisible:
+    id: "message-input"
+- assertVisible:
+    id: "emoji-button" # Smiley icon
+---
+# Test Case: FLOW-14-012 - Navigate Back to Conversations List
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+
+# Verify back on conversations list
+- assertVisible:
+    id: "conversations-list"
+---
+# Test Case: FLOW-14-013 - Verify Unread Badge Clears After Opening Chat
+# Open a conversation with unread messages
+- tapOn:
+    id: "conversation-.*"
+- waitForAnimationToEnd
+
+# Go back to list
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+
+# Unread badge should be gone for that conversation (in real scenario with proper data)
+# This is a simplified check - full E2E would verify specific conversation's badge state
+- assertVisible:
+    id: "conversations-list"
+---
+# Test Case: FLOW-14-014 - Empty State (Browse Items Button)
+# This test requires a clean state with no conversations
+# Skipping in this flow - covered in manual testing
+---
+# Test Case: FLOW-14-015 - View Trade from Chat Banner
+- tapOn:
+    id: "conversation-.*"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "view-trade-link"
+- tapOn:
+    id: "view-trade-link"
+- waitForAnimationToEnd
+
+# Should navigate to listing detail screen
+# (Exact assertion depends on ListingDetail screen testID)
+- assertVisible: "Item Details" # Or similar ListingDetail screen identifier
+
+# Navigate back to messages
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+---
+# Test Case: FLOW-14-016 - Verify Phosphor Icons Render
+# Phosphor icons are rendered via phosphor-react-native
+# Visual verification: PaperclipHorizontal, Smiley, PaperPlaneRight, ShieldCheck, ArrowsLeftRight, Check icons
+# These render as SVG components and are covered by testID assertions above
+
+# Final cleanup: return to Messages tab
+- tapOn: "Messages"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "conversations-list"

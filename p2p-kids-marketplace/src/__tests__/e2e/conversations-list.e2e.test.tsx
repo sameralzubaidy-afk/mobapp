@@ -109,7 +109,7 @@ describe('ConversationsListScreen E2E', () => {
 
     const { getByText } = renderScreen();
 
-    expect(await waitFor(() => getByText('No Messages Yet'))).toBeTruthy();
+    expect(await waitFor(() => getByText('No messages yet'))).toBeTruthy();
     expect(getByText('Start a trade and chat with other users!')).toBeTruthy();
     expect(getByText('Browse Items')).toBeTruthy();
   });

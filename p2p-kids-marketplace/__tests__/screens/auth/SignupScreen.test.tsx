@@ -39,46 +39,46 @@ describe('SignupScreen', () => {
     });
 
     it('should render terms and conditions checkbox', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
       );
       
-      expect(getByTestID('terms-checkbox')).toBeTruthy();
+      expect(getByTestId('terms-checkbox')).toBeTruthy();
     });
 
     it('should render signup button', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
       );
       
-      expect(getByTestID('signup-submit-button')).toBeTruthy();
+      expect(getByTestId('signup-submit-button')).toBeTruthy();
     });
 
     it('should render social login buttons', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
       );
       
-      expect(getByTestID('social-login-buttons')).toBeTruthy();
+      expect(getByTestId('social-login-buttons')).toBeTruthy();
     });
   });
 
   describe('Password Visibility Toggle', () => {
     it('should toggle password visibility for password field', () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
       );
       
       const passwordInput = getByPlaceholderText(/^password$/i);
-      const toggleButton = getByTestID('password-toggle-button');
+      const toggleButton = getByTestId('password-toggle-button');
       
       expect(passwordInput.props.secureTextEntry).toBe(true);
       
@@ -88,14 +88,14 @@ describe('SignupScreen', () => {
     });
 
     it('should toggle password visibility for confirm password field', () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
       );
       
       const confirmPasswordInput = getByPlaceholderText(/confirm password/i);
-      const toggleButton = getByTestID('confirm-password-toggle-button');
+      const toggleButton = getByTestId('confirm-password-toggle-button');
       
       expect(confirmPasswordInput.props.secureTextEntry).toBe(true);
       
@@ -107,13 +107,13 @@ describe('SignupScreen', () => {
 
   describe('Form Validation', () => {
     it('should validate name is required', async () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
       );
       
-      const submitButton = getByTestID('signup-submit-button');
+      const submitButton = getByTestId('signup-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -125,7 +125,7 @@ describe('SignupScreen', () => {
     });
 
     it('should validate email format', async () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
@@ -134,7 +134,7 @@ describe('SignupScreen', () => {
       const emailInput = getByPlaceholderText(/email/i);
       fireEvent.changeText(emailInput, 'invalid-email');
       
-      const submitButton = getByTestID('signup-submit-button');
+      const submitButton = getByTestId('signup-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -146,7 +146,7 @@ describe('SignupScreen', () => {
     });
 
     it('should validate password strength requirements', async () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
@@ -155,7 +155,7 @@ describe('SignupScreen', () => {
       const passwordInput = getByPlaceholderText(/^password$/i);
       fireEvent.changeText(passwordInput, 'weak');
       
-      const submitButton = getByTestID('signup-submit-button');
+      const submitButton = getByTestId('signup-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -167,7 +167,7 @@ describe('SignupScreen', () => {
     });
 
     it('should validate password match', async () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
@@ -179,7 +179,7 @@ describe('SignupScreen', () => {
       fireEvent.changeText(passwordInput, 'Password123');
       fireEvent.changeText(confirmPasswordInput, 'Password456');
       
-      const submitButton = getByTestID('signup-submit-button');
+      const submitButton = getByTestId('signup-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -191,7 +191,7 @@ describe('SignupScreen', () => {
     });
 
     it('should validate phone number format', async () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
@@ -200,7 +200,7 @@ describe('SignupScreen', () => {
       const phoneInput = getByPlaceholderText(/phone/i);
       fireEvent.changeText(phoneInput, '123');
       
-      const submitButton = getByTestID('signup-submit-button');
+      const submitButton = getByTestId('signup-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -212,7 +212,7 @@ describe('SignupScreen', () => {
     });
 
     it('should validate age requirement (18+)', async () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
@@ -223,7 +223,7 @@ describe('SignupScreen', () => {
       const underageDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
       fireEvent.changeText(dobInput, underageDate.toISOString().split('T')[0]);
       
-      const submitButton = getByTestID('signup-submit-button');
+      const submitButton = getByTestId('signup-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -237,13 +237,13 @@ describe('SignupScreen', () => {
 
   describe('Design System Compliance (MODULE-15.1)', () => {
     it('should use filled input style for all inputs', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
       );
       
-      const emailWrapper = getByTestID('email-input-wrapper');
+      const emailWrapper = getByTestId('email-input-wrapper');
       expect(emailWrapper.props.style).toMatchObject({
         backgroundColor: '#F0F0F0',
         borderRadius: 12,
@@ -253,24 +253,24 @@ describe('SignupScreen', () => {
     });
 
     it('should use correct checkbox icons (CheckSquare for checked, Square for unchecked)', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
       );
       
-      const checkbox = getByTestID('terms-checkbox');
+      const checkbox = getByTestId('terms-checkbox');
       expect(checkbox).toBeTruthy();
     });
 
     it('should use correct green color for checked checkbox (#5DBB8E)', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <SignupScreen />
         </NavigationContainer>
       );
       
-      const checkbox = getByTestID('terms-checkbox');
+      const checkbox = getByTestId('terms-checkbox');
       fireEvent.press(checkbox);
       
       expect(checkbox.props.style.color).toBe('#5DBB8E');

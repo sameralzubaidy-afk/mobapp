@@ -12,6 +12,36 @@ const SUPABASE_CONFIGURED = Boolean(
   process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 );
 const TEST_SESSION_USER_ID = '00000000-0000-0000-0000-000000000001';
+const AUTH_INIT_SESSION_TIMEOUT_MS = 12000;
+const AUTH_INIT_QUERY_TIMEOUT_MS = 10000;
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error === 'string') {
+    return error;
+  }
+
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message || '');
+  }
+
+  return '';
+}
+
+function isTransientNetworkError(error: unknown): boolean {
+  const message = extractErrorMessage(error).toLowerCase();
+
+  return (
+    message.includes('network request failed') ||
+    message.includes('fetch failed') ||
+    message.includes('timeout') ||
+    message.includes('timed out') ||
+    message.includes('failed to fetch')
+  );
+}
 
 /**
  * Authentication context type
@@ -174,6 +204,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
 
         if (sessionError) {
+          if (isTransientNetworkError(sessionError)) {
+            console.warn('[AUTH] Session refresh skipped due network issue');
+            return;
+          }
+
           console.error('[AUTH] Failed to get session:', sessionError);
           throw sessionError;
         }
@@ -195,6 +230,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           .single();
 
         if (profileError || !profileData) {
+          if (profileError && isTransientNetworkError(profileError)) {
+            console.warn('[AUTH] Profile refresh skipped due network issue');
+            return;
+          }
+
           console.error('[AUTH] Failed to fetch profile:', profileError);
           setSession(null);
           return;
@@ -346,6 +386,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         setSession(updatedSession);
       } catch (err) {
+        if (isTransientNetworkError(err)) {
+          console.warn('[AUTH] Session refresh skipped due transient network failure');
+          return;
+        }
+
         console.error('[AUTH] Session refresh failed:', err);
         const authError =
           err instanceof AuthError
@@ -497,22 +542,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initializeAuth = async () => {
       console.log('[AUTH] 🏁 Initializing auth state...');
       const withTimeout = async <T,>(
-        promise: Promise<T>,
+        promiseFactory: () => Promise<T>,
         ms: number,
         label: string
       ): Promise<T> => {
+        const requestPromise = promiseFactory();
+        let didTimeout = false;
         let timeoutId: ReturnType<typeof setTimeout> | undefined;
         const timeoutPromise = new Promise<never>((_, reject) => {
           timeoutId = setTimeout(() => {
+            didTimeout = true;
             reject(new Error(`${label} timeout after ${ms}ms`));
           }, ms);
         });
 
         try {
-          return (await Promise.race([promise, timeoutPromise])) as T;
+          return (await Promise.race([requestPromise, timeoutPromise])) as T;
         } finally {
           if (timeoutId) {
             clearTimeout(timeoutId);
+          }
+
+          if (didTimeout) {
+            // Prevent late rejections from surfacing as unhandled runtime errors.
+            void requestPromise.catch(() => {});
           }
         }
       };
@@ -536,12 +589,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Get current session from Supabase with timeout protection
         console.log('[AUTH] 🔍 Fetching session...');
         const { data: sessionData, error: sessionError } = (await withTimeout(
-          supabase.auth.getSession(),
-          5000,
+          () => supabase.auth.getSession(),
+          AUTH_INIT_SESSION_TIMEOUT_MS,
           'Session fetch'
         )) as any;
 
         if (sessionError) {
+          if (isTransientNetworkError(sessionError)) {
+            console.warn('[AUTH] Session fetch network issue during init; continuing as signed out');
+            setSession(null);
+            return;
+          }
+
           console.error('[AUTH] ❌ Session fetch error:', sessionError);
           throw new AuthError('Failed to restore session', 'RESTORE_SESSION_ERROR', sessionError);
         }
@@ -555,12 +614,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // User is authenticated - restore session from profile
           console.log('[AUTH] 🔍 Fetching profile...');
           const { data: profileData, error: profileError } = (await withTimeout(
-            supabase
-              .from('profiles')
-              .select('*, node:nodes(*)')
-              .eq('user_id', sessionData.session.user.id)
-              .single(),
-            6000,
+            () =>
+              supabase
+                .from('profiles')
+                .select('*, node:nodes(*)')
+                .eq('user_id', sessionData.session.user.id)
+                .single(),
+            AUTH_INIT_QUERY_TIMEOUT_MS,
             'Profile fetch'
           )) as any;
 
@@ -580,14 +640,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Also fetch subscription status from subscriptions table (source of truth)
             console.log('[AUTH] 🔍 Fetching subscription status...');
             const { data: subscriptionData } = (await withTimeout(
-              supabase
-                .from('subscriptions')
-                .select('status,trial_end_date,current_period_end')
-                .eq('user_id', sessionData.session.user.id)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .single(),
-              6000,
+              () =>
+                supabase
+                  .from('subscriptions')
+                  .select('status,trial_end_date,current_period_end')
+                  .eq('user_id', sessionData.session.user.id)
+                  .order('created_at', { ascending: false })
+                  .limit(1)
+                  .single(),
+              AUTH_INIT_QUERY_TIMEOUT_MS,
               'Subscription fetch'
             )) as any;
 
@@ -596,10 +657,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Also fetch SP wallet summary (now includes wallet_state)
             console.log('[AUTH] 🔍 Fetching SP wallet summary...');
             const { data: walletData, error: walletFetchError } = (await withTimeout(
-              supabase.rpc('get_user_sp_wallet_summary', {
-                p_user_id: sessionData.session.user.id,
-              }),
-              6000,
+              () =>
+                supabase.rpc('get_user_sp_wallet_summary', {
+                  p_user_id: sessionData.session.user.id,
+                }),
+              AUTH_INIT_QUERY_TIMEOUT_MS,
               'Wallet summary fetch'
             )) as any;
 
@@ -709,6 +771,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         ) {
           console.log('[AUTH] ℹ️ No active session on startup (expected)');
           setSession(null);
+        } else if (isTransientNetworkError(err)) {
+          console.warn('[AUTH] Network unavailable during auth init; continuing as signed out');
+          setSession(null);
+          setError(null);
         } else {
           console.error('[AUTH] ❌ Failed to initialize auth:', err);
           const authError =

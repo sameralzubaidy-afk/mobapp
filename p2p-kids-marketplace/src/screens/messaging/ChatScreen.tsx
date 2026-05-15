@@ -1,6 +1,6 @@
 /**
  * File: p2p-kids-marketplace/src/screens/messaging/ChatScreen.tsx
- * MODULE-07 MSG-001-009: Real-time Chat Screen with Delivery Status & Typing Indicators
+ * MODULE-07 MSG-001-009 + MODULE-15.1 FLOW-14: Real-time Chat Screen
  *
  * Features:
  * - Display item header with listing details
@@ -13,6 +13,16 @@
  * - MSG-007: Email notification tracking (handled server-side)
  * - MSG-008: Display delivery status (sent ✓ → delivered ✓✓ → read ✓✓ blue)
  * - MSG-009: Show typing indicators when other user is typing
+ * 
+ * MODULE-15.1 FLOW-14 UI REDESIGN:
+ * - Whisk-inspired design system (#5DBB8E green)
+ * - Sent messages: #5DBB8E bg, white text, borderTopRightRadius: 4
+ * - Received messages: #F0F0F0 bg, #1A1A1A text, borderTopLeftRadius: 4
+ * - ShieldCheck (14px, #5DBB8E) for verified sellers in header
+ * - Trade context banner: #F7F7F7 bg, ArrowsLeftRight green icon
+ * - PaperPlaneRight send icon (24px, #5DBB8E) only visible when input has text
+ * - PaperClip and Smiley icons are 20px, #6B6B6B (NOT green)
+ * - Read receipt uses Check Phosphor icon (12px, #5DBB8E)
  */
 
 import React, { useState, useEffect, useRef, useContext } from 'react';
@@ -39,7 +49,16 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/config/supabase';
-import { Ionicons } from '@expo/vector-icons';
+import { 
+  PaperPlaneRight, 
+  PaperclipHorizontal, 
+  Smiley, 
+  Check, 
+  ShieldCheck, 
+  ArrowsLeftRight,
+  CaretLeft,
+  X
+} from 'phosphor-react-native';
 import { Avatar, ListingImage } from '@/components/atoms';
 import {
   getMessages,
@@ -524,14 +543,24 @@ export default function ChatScreen() {
     const statusIcon = (status: string | null) => {
       switch (status) {
         case 'read':
-          // Double checkmark in blue
-          return <Text style={styles.readCheckmark}>✓✓</Text>;
+          // Double Check icon in green (Phosphor)
+          return (
+            <View style={styles.deliveryStatusRow}>
+              <Check size={12} color="#5DBB8E" weight="bold" />
+              <Check size={12} color="#5DBB8E" weight="bold" style={{ marginLeft: -4 }} />
+            </View>
+          );
         case 'delivered':
-          // Double checkmark in gray
-          return <Text style={styles.deliveredCheckmark}>✓✓</Text>;
+          // Double Check icon in gray
+          return (
+            <View style={styles.deliveryStatusRow}>
+              <Check size={12} color="#9CA3AF" weight="bold" />
+              <Check size={12} color="#9CA3AF" weight="bold" style={{ marginLeft: -4 }} />
+            </View>
+          );
         case 'sent':
-          // Single checkmark
-          return <Text style={styles.sentCheckmark}>✓</Text>;
+          // Single Check icon
+          return <Check size={12} color="#9CA3AF" weight="bold" />;
         default:
           return <ActivityIndicator size="small" color="#9CA3AF" />;
       }
@@ -555,6 +584,7 @@ export default function ChatScreen() {
 
     return (
       <View
+        testID={`message-${item.id}`}
         style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}
       >
         <View
@@ -593,7 +623,7 @@ export default function ChatScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color="#5DBB8E" />
         <Text style={styles.loadingText}>Loading messages...</Text>
       </View>
     );
@@ -612,41 +642,63 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Item Info */}
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color="#007AFF" />
+      {/* Header with back button, seller avatar, name, and verified badge */}
+      <View style={styles.header} testID="chat-header">
+        <Pressable onPress={() => navigation.goBack()} style={styles.backButton} testID="back-button">
+          <CaretLeft size={24} color="#1A1A1A" weight="regular" />
         </Pressable>
 
         {loadingTrade ? (
-          <ActivityIndicator size="small" color="#3B82F6" />
-        ) : listing ? (
+          <ActivityIndicator size="small" color="#5DBB8E" />
+        ) : (
           <View style={styles.headerInfo}>
             {partnerProfile && (
-              <Avatar
-                imageUrl={partnerProfile.avatar_url || undefined}
-                name={partnerProfile.name}
-                size={40}
-                verificationStatus={partnerProfile.verification_status as any}
-              />
-            )}
-            <View style={styles.itemInfo}>
-              <ListingImage
-                url={listingImageUri}
-                containerStyle={styles.itemImage}
-                imageStyle={styles.itemImage}
-                resizeMode="cover"
-              />
-              <View style={styles.itemDetails}>
-                <Text style={styles.itemTitle} numberOfLines={1}>
-                  {listing.title}
-                </Text>
-                <Text style={styles.itemPrice}>${listing.price.toFixed(2)}</Text>
+              <View style={styles.avatarRow}>
+                <Avatar
+                  imageUrl={partnerProfile.avatar_url || undefined}
+                  name={partnerProfile.name}
+                  size={36}
+                  verificationStatus={partnerProfile.verification_status as any}
+                />
+                <View style={styles.nameColumn}>
+                  <View style={styles.nameVerifiedRow}>
+                    <Text style={styles.partnerName} numberOfLines={1}>
+                      {partnerProfile.name}
+                    </Text>
+                    {partnerProfile.verification_status === 'verified' && (
+                      <ShieldCheck size={14} color="#5DBB8E" weight="fill" testID="verified-badge" />
+                    )}
+                  </View>
+                  {listing && (
+                    <Text style={styles.headerListingTitle} numberOfLines={1}>
+                      {listing.title}
+                    </Text>
+                  )}
+                </View>
               </View>
-            </View>
+            )}
           </View>
-        ) : null}
+        )}
       </View>
+
+      {/* Trade context banner: #F7F7F7 bg, ArrowsLeftRight green icon, "View Trade" link */}
+      {listing && (
+        <View style={styles.tradeBanner} testID="trade-banner">
+          <ArrowsLeftRight size={16} color="#5DBB8E" weight="regular" />
+          {listingImageUri && (
+            <Image source={{ uri: listingImageUri }} style={styles.tradeThumbnail} />
+          )}
+          <Text style={styles.tradeItemName} numberOfLines={1}>
+            {listing.title} • ${listing.price.toFixed(2)}
+          </Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ListingDetail', { itemId: listing.id })}
+            testID="view-trade-link"
+          >
+            <Text style={styles.viewTradeLink}>View Trade</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Messages List */}
       <KeyboardAvoidingView
@@ -681,7 +733,7 @@ export default function ChatScreen() {
 
         {/* MSG-009: Typing Indicator */}
         {otherUserTyping && (
-          <View style={styles.typingIndicatorContainer}>
+          <View style={styles.typingIndicatorContainer} testID="typing-indicator">
             <View style={[styles.messageBubble, styles.otherBubble, { paddingVertical: 8 }]}>
               <View style={styles.typingDots}>
                 <Animated.View
@@ -722,56 +774,65 @@ export default function ChatScreen() {
           </View>
         )}
 
-        <View style={styles.inputContainer}>
+        {/* Input bar: #F7F7F7 bg strip */}
+        <View style={styles.inputContainer} testID="message-input-bar">
+          {/* PaperClip icon (20px, #6B6B6B) */}
+          <TouchableOpacity
+            testID="image-picker-button"
+            style={[styles.iconButton, (sending || sendingImage) && styles.buttonDisabled]}
+            onPress={handleImagePicker}
+            disabled={sending || sendingImage}
+          >
+            {sendingImage ? (
+              <ActivityIndicator size="small" color="#6B6B6B" />
+            ) : (
+              <PaperclipHorizontal size={20} color="#6B6B6B" weight="regular" />
+            )}
+          </TouchableOpacity>
+
+          {/* Message input (filled, 40px, #F0F0F0, 20px radius) */}
           <View style={styles.inputWrapper}>
             <TextInput
+              testID="message-input"
               style={styles.input}
               placeholder="Type a message..."
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#999999"
               value={inputText}
               onChangeText={handleInputChange}
               multiline
               maxLength={2000}
               editable={!sending && !sendingImage}
             />
-            <Text
-              style={[
-                styles.charCounter,
-                inputText.length > MESSAGE_CHAR_LIMIT && styles.charCounterWarning,
-              ]}
-            >
-              {inputText.length}/{MESSAGE_CHAR_LIMIT}
-            </Text>
           </View>
 
-          {/* Image Picker Button */}
+          {/* Smiley icon (20px, #6B6B6B) - placeholder for future emoji picker */}
           <TouchableOpacity
-            testID="image-picker-button"
-            style={[styles.imageButton, (sending || sendingImage) && styles.buttonDisabled]}
-            onPress={handleImagePicker}
+            testID="emoji-button"
+            style={styles.iconButton}
+            onPress={() => {/* Future: show emoji picker */}}
             disabled={sending || sendingImage}
           >
-            {sendingImage ? (
-              <ActivityIndicator size="small" color="#6B7280" />
-            ) : (
-              <Ionicons name="image" size={24} color="#6B7280" />
-            )}
+            <Smiley size={20} color="#6B6B6B" weight="regular" />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || sending || sendingImage) && styles.sendButtonDisabled,
-            ]}
-            onPress={handleSend}
-            disabled={!inputText.trim() || sending || sendingImage}
-          >
-            {sending ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.sendButtonText}>Send</Text>
-            )}
-          </TouchableOpacity>
+          {/* PaperPlaneRight send icon (24px, #5DBB8E) - only visible when input has text */}
+          {inputText.trim().length > 0 && (
+            <TouchableOpacity
+              testID="send-button"
+              style={[
+                styles.sendButton,
+                (sending || sendingImage) && styles.sendButtonDisabled,
+              ]}
+              onPress={handleSend}
+              disabled={sending || sendingImage}
+            >
+              {sending ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <PaperPlaneRight size={24} color="#FFFFFF" weight="fill" />
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
 
@@ -783,8 +844,8 @@ export default function ChatScreen() {
         onRequestClose={() => setImageViewerVisible(false)}
       >
         <View style={styles.imageViewerContainer}>
-          <Pressable style={styles.imageViewerHeader} onPress={() => setImageViewerVisible(false)}>
-            <Ionicons name="close" size={28} color="white" />
+          <Pressable style={styles.imageViewerHeader} onPress={() => setImageViewerVisible(false)} testID="close-image-viewer">
+            <X size={28} color="white" weight="bold" />
           </Pressable>
 
           {imageViewerImages.length > 0 && (
@@ -805,7 +866,7 @@ export default function ChatScreen() {
                   )
                 }
               >
-                <Ionicons name="chevron-back" size={32} color="white" />
+                <CaretLeft size={32} color="white" weight="bold" />
               </Pressable>
 
               <Pressable
@@ -816,7 +877,7 @@ export default function ChatScreen() {
                   )
                 }
               >
-                <Ionicons name="chevron-forward" size={32} color="white" />
+                <CaretLeft size={32} color="white" weight="bold" style={{ transform: [{ rotate: '180deg' }] }} />
               </Pressable>
 
               <Text style={styles.imageCounter}>
@@ -833,11 +894,12 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   containerBody: {
     flex: 1,
   },
+  // Header with back button, seller avatar, name, and ShieldCheck (14px, #5DBB8E)
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -845,62 +907,74 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F0F0F0',
     gap: 12,
   },
   headerInfo: {
     flex: 1,
+  },
+  avatarRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  nameColumn: {
+    flex: 1,
+  },
+  nameVerifiedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  partnerName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  headerListingTitle: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginTop: 2,
   },
   backButton: {
-    padding: 8,
-    marginLeft: -8,
+    padding: 4,
+    marginLeft: -4,
   },
-  itemInfo: {
-    flex: 1,
+  // Trade context banner: #F7F7F7 bg, ArrowsLeftRight green icon, "View Trade" green link
+  tradeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    backgroundColor: '#F7F7F7',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
   },
-  itemImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    backgroundColor: '#E5E7EB',
+  tradeThumbnail: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
   },
-  itemImagePlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  itemImagePlaceholderText: {
-    fontSize: 28,
-  },
-  itemDetails: {
+  tradeItemName: {
     flex: 1,
-  },
-  itemTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 2,
-  },
-  itemPrice: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#1A1A1A',
     fontWeight: '500',
+  },
+  viewTradeLink: {
+    fontSize: 13,
+    color: '#5DBB8E',
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   messagesList: {
     padding: 16,
@@ -911,19 +985,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 40,
-    // On some platforms/versions, ListEmptyComponent may already be flipped by FlatList inverted={true}
-    // If text appears upside down on Android, we remove this transform or use Platform.select
     ...(Platform.OS === 'ios' ? { transform: [{ scaleY: -1 }] } : {}),
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#999999',
   },
   messageContainer: {
     marginBottom: 16,
@@ -939,7 +1011,7 @@ const styles = StyleSheet.create({
   },
   senderName: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 4,
     marginLeft: 12,
   },
@@ -955,30 +1027,32 @@ const styles = StyleSheet.create({
   },
   chatImage: {
     width: screenWidth * 0.6,
-    height: screenWidth * 0.6 * 0.75, // 4:3 aspect ratio
+    height: screenWidth * 0.6 * 0.75,
     borderRadius: 8,
   },
+  // Sent message bubbles: #5DBB8E bg, white text, borderTopRightRadius: 4
   ownBubble: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#5DBB8E',
+    borderTopRightRadius: 4,
   },
+  // Received message bubbles: #F0F0F0 bg, #1A1A1A text, borderTopLeftRadius: 4
   otherBubble: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    backgroundColor: '#F0F0F0',
+    borderTopLeftRadius: 4,
   },
   messageText: {
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 22,
   },
   ownText: {
     color: '#FFFFFF',
   },
   otherText: {
-    color: '#111827',
+    color: '#1A1A1A',
   },
   messageTime: {
     fontSize: 11,
-    color: '#9CA3AF',
+    color: '#999999',
     fontWeight: '500',
   },
   messageMetaContainer: {
@@ -991,20 +1065,9 @@ const styles = StyleSheet.create({
   deliveryStatusContainer: {
     marginLeft: 4,
   },
-  sentCheckmark: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    fontWeight: '600',
-  },
-  deliveredCheckmark: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    fontWeight: '700',
-  },
-  readCheckmark: {
-    fontSize: 12,
-    color: '#3B82F6',
-    fontWeight: '700',
+  deliveryStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   typingIndicatorContainer: {
     marginBottom: 16,
@@ -1021,47 +1084,49 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#6B7280',
+    backgroundColor: '#6B6B6B',
   },
+  // Input bar: #F7F7F7 bg strip
   inputContainer: {
     flexDirection: 'row',
     padding: 12,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    alignItems: 'flex-end',
+    backgroundColor: '#F7F7F7',
+    alignItems: 'center',
     gap: 8,
   },
+  // PaperClip and Smiley icons (20px, #6B6B6B - NOT green)
+  iconButton: {
+    padding: 8,
+  },
+  // Message input (filled, 40px, #F0F0F0, 20px radius)
   inputWrapper: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 24,
-    paddingHorizontal: 4,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 20,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    minHeight: 40,
   },
   input: {
     backgroundColor: 'transparent',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    minHeight: 48,
-    maxHeight: 120,
-    color: '#111827',
+    fontSize: 15,
+    color: '#1A1A1A',
+    minHeight: 24,
   },
-  charCounter: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    marginTop: 6,
-    marginHorizontal: 12,
-    marginBottom: 4,
-    alignSelf: 'flex-end',
-    fontWeight: '500',
+  buttonDisabled: {
+    opacity: 0.5,
   },
-  charCounterWarning: {
-    color: '#DC2626',
-    fontWeight: '700',
+  // PaperPlaneRight send icon (24px, #5DBB8E) - circle button
+  sendButton: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 24,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#D1D5DB',
   },
   imageViewerContainer: {
     flex: 1,
@@ -1106,44 +1171,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-  },
-  imageButton: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 24,
-    padding: 12,
-    minWidth: 48,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  sendButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    minWidth: 60,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#D1D5DB',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

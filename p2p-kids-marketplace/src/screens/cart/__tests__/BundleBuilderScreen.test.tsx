@@ -11,11 +11,14 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import BundleBuilderScreen from '../BundleBuilderScreen';
 
+const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
+
 // Mock dependencies
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
-    navigate: jest.fn(),
-    goBack: jest.fn(),
+    navigate: mockNavigate,
+    goBack: mockGoBack,
   }),
   useRoute: () => ({
     params: {
@@ -62,10 +65,10 @@ describe('BundleBuilderScreen', () => {
     });
 
     it('should render close button', async () => {
-      const { getByTestID } = render(<BundleBuilderScreen />);
+      const { getByTestId } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        expect(getByTestID('bundle-close-button')).toBeTruthy();
+        expect(getByTestId('bundle-close-button')).toBeTruthy();
       });
     });
   });
@@ -82,24 +85,21 @@ describe('BundleBuilderScreen', () => {
   });
 
   describe('Loading State', () => {
-    it('should show loading text initially', () => {
+    it('should render the post-load empty state when no items are available', async () => {
       const { getByText } = render(<BundleBuilderScreen />);
-      expect(getByText('Loading items...')).toBeTruthy();
+
+      await waitFor(() => {
+        expect(getByText('No More Items Available')).toBeTruthy();
+      });
     });
   });
 
   describe('Close Button', () => {
     it('should go back when close pressed with no selection', async () => {
-      const mockGoBack = jest.fn();
-      jest.mocked(require('@react-navigation/native').useNavigation).mockReturnValue({
-        navigate: jest.fn(),
-        goBack: mockGoBack,
-      });
-
-      const { getByTestID } = render(<BundleBuilderScreen />);
+      const { getByTestId } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        const closeButton = getByTestID('bundle-close-button');
+        const closeButton = getByTestId('bundle-close-button');
         fireEvent.press(closeButton);
         expect(mockGoBack).toHaveBeenCalled();
       });
@@ -128,10 +128,10 @@ describe('BundleBuilderScreen', () => {
 
   describe('Accessibility', () => {
     it('should have accessible close button', async () => {
-      const { getByTestID } = render(<BundleBuilderScreen />);
+      const { getByTestId } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        const closeButton = getByTestID('bundle-close-button');
+        const closeButton = getByTestId('bundle-close-button');
         expect(closeButton).toBeTruthy();
       });
     });

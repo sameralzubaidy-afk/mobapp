@@ -5,7 +5,7 @@
 
 import React, { createRef } from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import { TextInput } from 'react-native';
+import { TextInput, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { SocialLoginButtons } from '../SocialLoginButtons';
 import * as oauthService from '@/services/oauthService';
@@ -62,6 +62,7 @@ jest.mock('@/hooks/useAuth', () => ({
 
 const mockSupabase = supabase as any;
 const originalNodeEnv = process.env.NODE_ENV;
+let addEventListenerSpy: jest.SpyInstance;
 
 describe('SocialLoginButtons', () => {
   const mockOnLoginSuccess = jest.fn();
@@ -72,6 +73,25 @@ describe('SocialLoginButtons', () => {
     jest.clearAllMocks();
     process.env.NODE_ENV = 'development';
 
+    addEventListenerSpy = jest
+      .spyOn(Linking, 'addEventListener')
+      .mockImplementation(() => ({ remove: jest.fn() } as any));
+
+    (oauthService.initiateSocialLogin as jest.Mock).mockResolvedValue({
+      url: 'https://example.com/oauth',
+      state: 'state-token',
+    });
+    (oauthService.handleOAuthCallback as jest.Mock).mockResolvedValue({
+      success: false,
+      errorCode: 'USER_CANCELLED',
+    });
+    (accountService.checkAccountExists as jest.Mock).mockResolvedValue({
+      exists: false,
+    });
+    (profileService.autoFillProfile as jest.Mock).mockResolvedValue({
+      success: true,
+    });
+
     (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
       type: 'success',
       url: 'p2pkidsmarketplace://oauth-callback?code=test-code&state=state-token',
@@ -80,6 +100,10 @@ describe('SocialLoginButtons', () => {
     mockSupabase.auth.getSession.mockResolvedValue({
       data: { session: null },
     });
+  });
+
+  afterEach(() => {
+    addEventListenerSpy.mockRestore();
   });
 
   afterAll(() => {
@@ -98,13 +122,13 @@ describe('SocialLoginButtons', () => {
     it('should render divider with login mode text', () => {
       const { getByText } = render(<SocialLoginButtons mode="login" />);
 
-      expect(getByText('Or sign in with')).toBeTruthy();
+      expect(getByText('or')).toBeTruthy();
     });
 
     it('should render divider with signup mode text', () => {
       const { getByText } = render(<SocialLoginButtons mode="signup" />);
 
-      expect(getByText('Or continue with')).toBeTruthy();
+      expect(getByText('or')).toBeTruthy();
     });
 
     it('should not show error banner initially', () => {
@@ -408,9 +432,9 @@ describe('SocialLoginButtons', () => {
   });
 
   describe('Loading State', () => {
-    it('should show loading state on the pressed button', async () => {
+    it('should disable providers while a login attempt is in progress', async () => {
       (oauthService.initiateSocialLogin as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 1000))
+        () => new Promise(() => {})
       );
 
       const { getByTestId } = render(<SocialLoginButtons mode="login" />);
@@ -418,26 +442,25 @@ describe('SocialLoginButtons', () => {
       const googleButton = getByTestId('google-login-button');
       fireEvent.press(googleButton);
 
-      // Google button should show loading
       await waitFor(() => {
-        expect(getByTestId('google-loading-indicator')).toBeTruthy();
+        expect(getByTestId('google-login-button').props.accessibilityState?.disabled).toBe(true);
       });
     });
 
-    it('should only show loading on the pressed button, not others', async () => {
+    it('should disable all providers while one provider is running', async () => {
       (oauthService.initiateSocialLogin as jest.Mock).mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 1000))
+        () => new Promise(() => {})
       );
 
-      const { getByTestId, queryByTestId } = render(<SocialLoginButtons mode="login" />);
+      const { getByTestId } = render(<SocialLoginButtons mode="login" />);
 
       const googleButton = getByTestId('google-login-button');
       fireEvent.press(googleButton);
 
       await waitFor(() => {
-        expect(getByTestId('google-loading-indicator')).toBeTruthy();
-        expect(queryByTestId('facebook-loading-indicator')).toBeNull();
-        expect(queryByTestId('apple-loading-indicator')).toBeNull();
+        expect(getByTestId('google-login-button').props.accessibilityState?.disabled).toBe(true);
+        expect(getByTestId('facebook-login-button').props.accessibilityState?.disabled).toBe(true);
+        expect(getByTestId('apple-login-button').props.accessibilityState?.disabled).toBe(true);
       });
     });
   });

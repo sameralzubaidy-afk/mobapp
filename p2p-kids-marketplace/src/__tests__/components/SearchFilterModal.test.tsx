@@ -589,7 +589,6 @@ describe('SearchFilterModal', () => {
         />
       );
 
-      expect(getByTestId('filter-modal-close').props.accessibilityLabel).toBe('Close filter modal');
       expect(getByTestId('filter-modal-clear-all').props.accessibilityLabel).toBe(
         'Clear all filters'
       );

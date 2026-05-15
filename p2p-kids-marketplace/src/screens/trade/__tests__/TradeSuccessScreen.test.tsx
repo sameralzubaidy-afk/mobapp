@@ -38,7 +38,7 @@ describe('TradeSuccessScreen', () => {
       });
 
       const { getByText } = render(<TradeSuccessScreen />);
-      expect(getByText(/Success/i)).toBeTruthy();
+      expect(getByText(/Trade Initiated/i)).toBeTruthy();
     });
 
     it('should render SP earned badge when SP > 0', () => {

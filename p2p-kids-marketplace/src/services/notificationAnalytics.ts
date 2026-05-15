@@ -19,6 +19,34 @@ export interface NotificationEvent {
 export class NotificationAnalyticsService {
   private static initialized = false;
 
+  private static isTransientNetworkError(error: unknown): boolean {
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'string'
+          ? error
+          : String((error as { message?: unknown } | null)?.message || '');
+
+    const normalized = message.toLowerCase();
+
+    return (
+      normalized.includes('network request failed') ||
+      normalized.includes('fetch failed') ||
+      normalized.includes('failed to fetch') ||
+      normalized.includes('timeout') ||
+      normalized.includes('timed out')
+    );
+  }
+
+  private static logServiceError(context: string, error: unknown): void {
+    if (this.isTransientNetworkError(error)) {
+      console.warn(`[NotificationAnalytics] ${context} skipped due transient network issue`);
+      return;
+    }
+
+    console.error(`[NotificationAnalytics] ${context}:`, error);
+  }
+
   private static getNotificationsModule(): (typeof import('expo-notifications')) | null {
     if (Constants?.appOwnership === 'expo') {
       return null;
@@ -71,10 +99,10 @@ export class NotificationAnalyticsService {
       });
 
       if (error) {
-        console.error('[NotificationAnalytics] trackDelivered error:', error);
+        this.logServiceError('trackDelivered error', error);
       }
     } catch (err) {
-      console.error('[NotificationAnalytics] trackDelivered exception:', err);
+      this.logServiceError('trackDelivered exception', err);
     }
   }
 
@@ -92,10 +120,10 @@ export class NotificationAnalyticsService {
       });
 
       if (error) {
-        console.error('[NotificationAnalytics] trackOpened error:', error);
+        this.logServiceError('trackOpened error', error);
       }
     } catch (err) {
-      console.error('[NotificationAnalytics] trackOpened exception:', err);
+      this.logServiceError('trackOpened exception', err);
     }
   }
 
@@ -114,10 +142,10 @@ export class NotificationAnalyticsService {
       });
 
       if (error) {
-        console.error('[NotificationAnalytics] trackClicked error:', error);
+        this.logServiceError('trackClicked error', error);
       }
     } catch (err) {
-      console.error('[NotificationAnalytics] trackClicked exception:', err);
+      this.logServiceError('trackClicked exception', err);
     }
   }
 
@@ -136,10 +164,10 @@ export class NotificationAnalyticsService {
       });
 
       if (error) {
-        console.error('[NotificationAnalytics] trackFailed error:', error);
+        this.logServiceError('trackFailed error', error);
       }
     } catch (err) {
-      console.error('[NotificationAnalytics] trackFailed exception:', err);
+      this.logServiceError('trackFailed exception', err);
     }
   }
 
@@ -219,13 +247,13 @@ export class NotificationAnalyticsService {
       });
 
       if (error) {
-        console.error('[NotificationAnalytics] getAnalytics error:', error);
+        this.logServiceError('getAnalytics error', error);
         return null;
       }
 
       return data;
     } catch (err) {
-      console.error('[NotificationAnalytics] getAnalytics exception:', err);
+      this.logServiceError('getAnalytics exception', err);
       return null;
     }
   }
@@ -246,13 +274,13 @@ export class NotificationAnalyticsService {
       });
 
       if (error) {
-        console.error('[NotificationAnalytics] getABTestPerformance error:', error);
+        this.logServiceError('getABTestPerformance error', error);
         return null;
       }
 
       return data;
     } catch (err) {
-      console.error('[NotificationAnalytics] getABTestPerformance exception:', err);
+      this.logServiceError('getABTestPerformance exception', err);
       return null;
     }
   }

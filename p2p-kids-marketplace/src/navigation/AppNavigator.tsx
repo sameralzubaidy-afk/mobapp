@@ -136,6 +136,25 @@ const linking = {
 
 const navigationRef = createNavigationContainerRef<any>();
 
+function isTransientNetworkError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : String((error as { message?: unknown } | null)?.message || '');
+
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('network request failed') ||
+    normalized.includes('fetch failed') ||
+    normalized.includes('failed to fetch') ||
+    normalized.includes('timeout') ||
+    normalized.includes('timed out')
+  );
+}
+
 /**
  * MODULE-03 AUTH-V2-003: RootNavigator
  * MODULE-18 EDU-004: Onboarding carousel first-run gating
@@ -208,7 +227,11 @@ function RootNavigator() {
         setOnboardingCheckedUserId(currentUserId);
         setOnboardingCheckComplete(true);
       } catch (error) {
-        console.error('[NAV] Onboarding check error:', error);
+        if (isTransientNetworkError(error)) {
+          console.warn('[NAV] Onboarding check skipped due transient network issue');
+        } else {
+          console.error('[NAV] Onboarding check error:', error);
+        }
 
         if (cancelled) {
           return;

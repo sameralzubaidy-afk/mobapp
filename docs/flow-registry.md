@@ -2818,7 +2818,65 @@ This file is the canonical registry of end-to-end flows and their required regre
 <!-- Removed duplicate FLOW-13 placeholder; FLOW-13 above is canonical. -->
 
 ### FLOW-14: Messaging (Realtime)
+- Purpose: Real-time messaging between buyers and sellers for active trades
+- Smoke: (manual)
   - Open Messages list -> unread badges reflect unread messages only.
+  - Tap a conversation -> Chat opens and that conversation's unread badge clears on returning to the list.
+  - New incoming message (other user) increments unread badge until the conversation is opened again.
+  - After a trade is completed, messages in that trade get an `expires_at` timestamp (trade completion + configured retention days) and are later soft-deleted by the MSG-004 expiration job.
+- Automated (offline): Jest covers MSG-008/MSG-009 chat service helpers (delivery status + typing indicators).
+- **MODULE-15.1-UI-REDESIGN-FLOW-14 (2026-05-14):** Messaging screens redesigned to Whisk-inspired design system
+    - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-14)
+    - Scope:
+      - 2 messaging screens redesigned: ConversationsListScreen, ChatScreen
+      - Design system: Whisk green (#5DBB8E), filled inputs, pill-shaped search, Phosphor icons
+      - **ConversationsListScreen:**
+        - Search bar: pill-shaped (48px, #F0F0F0), MagnifyingGlass Phosphor icon
+        - Unread badge: green circle (#5DBB8E, 20px, white text 11px) - was red
+        - Trade context chip: ArrowsLeftRight icon (12px, #5DBB8E) + listing title + price
+        - Verified badge: ShieldCheck icon (14px, #5DBB8E, fill weight) for approved verification
+        - Empty state: ChatCircleSlash icon (64px, #E0E0E0) + green pill "Browse Items" button
+        - Search filters by: user name, listing title, message content (debounced)
+      - **ChatScreen:**
+        - Header: CaretLeft back button, partner avatar (36px), name + ShieldCheck for verified
+        - Trade banner: #F7F7F7 bg, ArrowsLeftRight icon (16px, #5DBB8E), thumbnail (32px), "View Trade" link (#5DBB8E)
+        - Sent messages: #5DBB8E bg, white text, borderTopRightRadius: 4
+        - Received messages: #F0F0F0 bg, #1A1A1A text, borderTopLeftRadius: 4, NO border
+        - Delivery status (MSG-008): Phosphor Check icons
+          - Sent: Single Check (#9CA3AF, bold)
+          - Delivered: Double Check (#9CA3AF, bold)
+          - Read: Double Check (#5DBB8E, bold)
+        - Input bar: #F7F7F7 bg strip, PaperclipHorizontal (20px, #6B6B6B), Smiley (20px, #6B6B6B), filled input (#F0F0F0, 20px radius, 40px height)
+        - Send button: PaperPlaneRight (24px, white) on green circle (48px, #5DBB8E), ONLY visible when input has text
+        - Image viewer: X and CaretLeft Phosphor icons
+    - Tests:
+      - Unit: `src/screens/messaging/__tests__/ConversationsListScreen.test.tsx` (coverage ≥85%)
+      - Unit: `src/screens/messaging/__tests__/ChatScreen.test.tsx` (coverage ≥85%)
+      - Integration: `__tests__/integration/flow-14-messaging.integration.test.ts` (RUN_SUPABASE_E2E=true)
+      - Maestro: `.maestro/module-15.1-flow-14-messaging.yaml` (16 test cases: conversations list, search, chat UI, send message, delivery status)
+      - Manual: `MODULE-15.1-FLOW-14-MANUAL-TESTING.md` (22 test cases + regression checklist)
+    - Prerequisites:
+      - phosphor-react-native@3.0.6 installed ✅
+      - Two test users with active trade + messages (staging Supabase)
+      - At least one user with verification_status = 'approved'
+      - Conversation with unread_count > 0
+    - Validation:
+      - `npm run typecheck` (must pass)
+      - `npm run lint` (must pass)
+      - `npm run test:unit` (messaging screen tests green)
+      - `RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+      - `npm run test:maestro:ios -- .maestro/module-15.1-flow-14-messaging.yaml` (repeatable full FLOW-14 run)
+      - `npm run test:maestro:android -- .maestro/module-15.1-flow-14-messaging.yaml` (Android simulator run)
+      - Manual testing required for real-time features (typing indicators, live message receive)
+      - Visual QA for Phosphor icons, color accuracy, spacing consistency
+    - Design Rules:
+      - PaperClip and Smiley icons are #6B6B6B (NOT green) - gray, not accent color
+      - Send button ONLY visible when input has text (conditional rendering)
+      - Trade context chip does NOT show thumbnail (not in Conversation interface)
+      - Verification badge ONLY for 'approved' status (not 'verified' enum value)
+      - Delivery status ONLY for own messages (not received messages)
+      - Input bar bg is #F7F7F7 (distinct from screen bg #FFFFFF)
+      - Message bubbles have sharp corner on sender side (borderTopRightRadius: 4 for sent, borderTopLeftRadius: 4 for received)
 
 ### FLOW-18: ID Badge Verification (Admin Queue & Review)
 - Purpose: Admin reviews and approves/rejects manual ID verification requests from users.

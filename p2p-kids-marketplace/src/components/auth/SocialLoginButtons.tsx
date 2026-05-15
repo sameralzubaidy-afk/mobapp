@@ -4,7 +4,7 @@
 // MODULE: MODULE-03-AUTH-V3-SOCIAL-LOGIN.md
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { AppleLogo } from 'phosphor-react-native';
 import { OAuthProvider, ProviderProfile } from '@/types/auth-v3';
@@ -135,7 +135,11 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
         redirectUri: string
       ): Promise<{ callbackUrl: string | null; state: string }> => {
         // Step 1: Initiate OAuth flow (get provider URL + CSRF state)
-        const { state, url } = await initiateSocialLogin(provider, redirectUri);
+        const initResult = await initiateSocialLogin(provider, redirectUri);
+        if (!initResult?.state || !initResult?.url) {
+          throw new Error('OAUTH_INIT_FAILED');
+        }
+        const { state, url } = initResult;
 
         // Step 2: Open auth session and capture callback URL directly.
         // This works for both custom scheme callbacks and localhost callbacks.
@@ -359,7 +363,7 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
             {getProviderDisplayName(unavailableProvider)} is temporarily unavailable.{' '}
             {mode === 'signup' ? 'Sign up' : 'Sign in'} with email instead?
           </Text>
-          <TouchableOpacity
+          <Pressable
             onPress={handleFocusEmailInput}
             style={styles.errorCta}
             accessible={true}
@@ -368,41 +372,41 @@ export const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
             testID="provider-error-cta"
           >
             <Text style={styles.errorCtaText}>Use Email</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       )}
 
       {/* Circular icon buttons - Whisk style */}
       <View style={styles.buttonsContainer}>
         {/* Google */}
-        <TouchableOpacity
+        <Pressable
           style={styles.iconButton}
           onPress={() => handleSocialLogin('google')}
           disabled={loadingProvider !== null}
           testID="google-login-button"
         >
           <Text style={styles.iconText}>G</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Apple */}
-        <TouchableOpacity
+        <Pressable
           style={styles.iconButton}
           onPress={() => handleSocialLogin('apple')}
           disabled={loadingProvider !== null}
           testID="apple-login-button"
         >
           <AppleLogo size={20} weight="bold" color="#1A1A1A" />
-        </TouchableOpacity>
+        </Pressable>
 
         {/* Facebook */}
-        <TouchableOpacity
+        <Pressable
           style={styles.iconButton}
           onPress={() => handleSocialLogin('facebook')}
           disabled={loadingProvider !== null}
           testID="facebook-login-button"
         >
           <Text style={styles.iconText}>f</Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );

@@ -56,36 +56,41 @@ Supabase: supabase/
 My Example 1
 
 
-### TASK FLOW-14: Messaging
 
+### TASK FLOW-15: User Profile
 I’m working on the MODULE-15.1-UI-redesign.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
-Tasks: ### TASK FLOW-14: Messaging
+Tasks: ### TASK FLOW-15: User Profile
 
 scope 
-Redesign the 2 messaging screens. The Conversations list is the inbox — clean, scannable rows. The Chat screen follows standard mobile chat conventions: sent messages right-aligned green bubbles, received messages left-aligned gray bubbles.
+Redesign the 3 profile screens. The public seller profile is the trust anchor for buyers — ratings, verified badge, and listing grid must be immediately scannable. The edit profile screen reuses the same filled-input system as auth screens.
 
 #### Scope — Files to Modify
 
 | # | Screen | File | Change Type |
 |---|--------|------|-------------|
-| 1 | Conversations List | `src/screens/messaging/ConversationsScreen.tsx` | Restyle only |
-| 2 | Chat / Message Thread | `src/screens/messaging/ChatScreen.tsx` | Restyle only |
+| 1 | My Profile | `src/screens/profile/MyProfileScreen.tsx` | Restyle only |
+| 2 | Edit Profile | `src/screens/profile/EditProfileScreen.tsx` | Restyle only |
+| 3 | Public Seller Profile | `src/screens/profile/SellerProfileScreen.tsx` | Restyle only |
+| 4 | Badges | `src/screens/profile/BadgesScreen.tsx` | Restyle only |
 
 
-#### ✅ Acceptance Criteria — FLOW-14 (Visual Only)
+#### ✅ Acceptance Criteria — FLOW-15 (Visual Only)
 
-- [ ] Conversations search bar is pill-shaped (48px, `#F0F0F0`), `MagnifyingGlass` Phosphor icon left
-- [ ] Unread badge is 20px green circle (`#5DBB8E`), white count text (11px)
-- [ ] Trade context chip shows `ArrowsLeftRight` (12px, `#5DBB8E`) + small item thumbnail (24px)
-- [ ] Empty state: `ChatCircleSlash` (64px, `#E0E0E0`)
-- [ ] Sent message bubbles: `#5DBB8E` bg, white text, `borderTopRightRadius: 4`
-- [ ] Received message bubbles: `#F0F0F0` bg, `#1A1A1A` text, `borderTopLeftRadius: 4`
-- [ ] `ShieldCheck` (14px, `#5DBB8E`) in chat header for verified sellers
-- [ ] Trade context banner: `#F7F7F7` bg, `ArrowsLeftRight` green icon, "View Trade" green link
-- [ ] `PaperPlaneRight` send icon (24px, `#5DBB8E`) only visible when input has text
-- [ ] `PaperClip` and `Smiley` icons are 20px, `#6B6B6B` — NOT green
-- [ ] Read receipt uses `Check` Phosphor icon (12px, `#5DBB8E`)
+- [ ] Avatar is 96px circle, `#F0F0F0` background
+- [ ] Camera overlay is a 28px green circle (`#5DBB8E`) bottom-right of avatar, `Camera` icon white (14px)
+- [ ] `ShieldCheck` (16px, `#5DBB8E`) appears inline after name on verified profiles
+- [ ] Stats row shows 3 chips on `#F7F7F7` background, 12px radius
+- [ ] "Edit Profile" is secondary outlined (border `#5DBB8E`), NOT filled, `PencilSimple` icon
+- [ ] Edit profile inputs use filled style (`#F0F0F0`, 12px radius, no border)
+- [ ] Bio textarea is filled, min 100px height
+- [ ] "Save Changes" is green pill (52px), sticky bottom
+- [ ] Seller profile star ratings: `#F59E0B` fill for rated, `#E0E0E0` outline for unrated
+- [ ] "Follow" button: green filled pill, `UserPlus` (white) icon left
+- [ ] "Following" state: secondary outlined, `Check` (green) icon left — NOT filled
+- [ ] Badges grid: 3 columns, earned cells `#FFF9EC` bg + `#F59E0B` `Medal` icon, locked cells `#F7F7F7` + gray `Medal` + 60% opacity
+- [ ] Badge detail modal: bottom sheet style, 16px top radius, white background
+- [ ] Locked badge modal shows `Lock` (24px, `#CCCCCC`) — earned modal does NOT
 
 i want you to 
 

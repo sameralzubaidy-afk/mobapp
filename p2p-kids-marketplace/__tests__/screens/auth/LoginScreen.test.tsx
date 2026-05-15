@@ -45,7 +45,7 @@ describe('LoginScreen', () => {
 
   describe('Rendering', () => {
     it('should render login form with email and password inputs', () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
@@ -56,13 +56,13 @@ describe('LoginScreen', () => {
     });
 
     it('should render login button', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
       );
       
-      expect(getByTestID('login-submit-button')).toBeTruthy();
+      expect(getByTestId('login-submit-button')).toBeTruthy();
     });
 
     it('should render forgot password link with correct color (#5DBB8E)', () => {
@@ -80,13 +80,13 @@ describe('LoginScreen', () => {
     });
 
     it('should render social login buttons', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
       );
       
-      expect(getByTestID('social-login-buttons')).toBeTruthy();
+      expect(getByTestId('social-login-buttons')).toBeTruthy();
     });
 
     it('should render signup link', () => {
@@ -129,14 +129,14 @@ describe('LoginScreen', () => {
     });
 
     it('should toggle password visibility when eye icon is pressed', () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
       );
       
       const passwordInput = getByPlaceholderText(/password/i);
-      const toggleButton = getByTestID('password-toggle-button');
+      const toggleButton = getByTestId('password-toggle-button');
       
       expect(passwordInput.props.secureTextEntry).toBe(true);
       
@@ -148,13 +148,13 @@ describe('LoginScreen', () => {
 
   describe('Form Validation', () => {
     it('should show error when email is empty', async () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
       );
       
-      const submitButton = getByTestID('login-submit-button');
+      const submitButton = getByTestId('login-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -166,7 +166,7 @@ describe('LoginScreen', () => {
     });
 
     it('should show error when email is invalid', async () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
@@ -175,7 +175,7 @@ describe('LoginScreen', () => {
       const emailInput = getByPlaceholderText(/email/i);
       fireEvent.changeText(emailInput, 'invalid-email');
       
-      const submitButton = getByTestID('login-submit-button');
+      const submitButton = getByTestId('login-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -187,7 +187,7 @@ describe('LoginScreen', () => {
     });
 
     it('should show error when password is empty', async () => {
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
@@ -196,7 +196,7 @@ describe('LoginScreen', () => {
       const emailInput = getByPlaceholderText(/email/i);
       fireEvent.changeText(emailInput, 'test@example.com');
       
-      const submitButton = getByTestID('login-submit-button');
+      const submitButton = getByTestId('login-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -216,7 +216,7 @@ describe('LoginScreen', () => {
         available_points: 100,
       } as any);
       
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
@@ -228,7 +228,7 @@ describe('LoginScreen', () => {
       fireEvent.changeText(emailInput, 'test@example.com');
       fireEvent.changeText(passwordInput, 'password123');
       
-      const submitButton = getByTestID('login-submit-button');
+      const submitButton = getByTestId('login-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -248,7 +248,7 @@ describe('LoginScreen', () => {
       
       mockLoginWithContext.mockResolvedValue(mockSession as any);
       
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
@@ -260,7 +260,7 @@ describe('LoginScreen', () => {
       fireEvent.changeText(emailInput, 'test@example.com');
       fireEvent.changeText(passwordInput, 'password123');
       
-      const submitButton = getByTestID('login-submit-button');
+      const submitButton = getByTestId('login-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -271,7 +271,7 @@ describe('LoginScreen', () => {
     it('should show loading state while logging in', async () => {
       mockLoginWithContext.mockImplementation(() => new Promise(() => {})); // Never resolves
       
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
@@ -283,7 +283,7 @@ describe('LoginScreen', () => {
       fireEvent.changeText(emailInput, 'test@example.com');
       fireEvent.changeText(passwordInput, 'password123');
       
-      const submitButton = getByTestID('login-submit-button');
+      const submitButton = getByTestId('login-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -294,7 +294,7 @@ describe('LoginScreen', () => {
     it('should handle login error and show alert', async () => {
       mockLoginWithContext.mockRejectedValue(new Error('Invalid credentials'));
       
-      const { getByTestID, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
@@ -306,7 +306,7 @@ describe('LoginScreen', () => {
       fireEvent.changeText(emailInput, 'test@example.com');
       fireEvent.changeText(passwordInput, 'wrongpassword');
       
-      const submitButton = getByTestID('login-submit-button');
+      const submitButton = getByTestId('login-submit-button');
       fireEvent.press(submitButton);
       
       await waitFor(() => {
@@ -331,37 +331,37 @@ describe('LoginScreen', () => {
     });
 
     it('should use correct input background color (#F0F0F0)', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
       );
       
-      const inputWrapper = getByTestID('email-input-wrapper');
+      const inputWrapper = getByTestId('email-input-wrapper');
       expect(inputWrapper.props.style).toMatchObject({
         backgroundColor: '#F0F0F0',
       });
     });
 
     it('should use correct input height (52px)', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
       );
       
-      const inputWrapper = getByTestID('email-input-wrapper');
+      const inputWrapper = getByTestId('email-input-wrapper');
       expect(inputWrapper.props.style.height).toBe(52);
     });
 
     it('should use correct input border radius (12px)', () => {
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
       );
       
-      const inputWrapper = getByTestID('email-input-wrapper');
+      const inputWrapper = getByTestId('email-input-wrapper');
       expect(inputWrapper.props.style.borderRadius).toBe(12);
     });
 

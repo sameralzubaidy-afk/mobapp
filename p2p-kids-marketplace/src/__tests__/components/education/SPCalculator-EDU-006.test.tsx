@@ -222,7 +222,7 @@ describe('SPCalculator EDU-006', () => {
         expect(spCalculatorService.calculateSP).toHaveBeenCalledWith(25.0, 'cat-1', 'sell');
         expect(spCalculatorService.calculateSP).toHaveBeenCalledWith(25.0, 'cat-1', 'buy');
         expect(getByTestId('test-calc-sell-panel')).toBeTruthy();
-        expect(getByTestID('test-calc-buy-panel')).toBeTruthy();
+        expect(getByTestId('test-calc-buy-panel')).toBeTruthy();
       });
     });
   });
@@ -266,10 +266,10 @@ describe('SPCalculator EDU-006', () => {
 
       for (const testCase of testCases) {
         jest.clearAllMocks();
-        const { getByTestID, unmount } = render(<SPCalculator mode="free" testID="test-calc" />);
+        const { getByTestId, unmount } = render(<SPCalculator mode="free" testID="test-calc" />);
 
         await waitFor(() => {
-          const priceInput = getByTestID('test-calc-price-input');
+          const priceInput = getByTestId('test-calc-price-input');
           fireEvent.changeText(priceInput, testCase.price);
           fireEvent(priceInput, 'blur');
         });
@@ -294,7 +294,7 @@ describe('SPCalculator EDU-006', () => {
         .mockResolvedValueOnce({ ...mockSellResult, is_bonus: true })
         .mockResolvedValueOnce(mockBuyResult);
 
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <SPCalculator
           mode="locked"
           initialCategoryId="cat-1"
@@ -304,7 +304,7 @@ describe('SPCalculator EDU-006', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestID('test-calc-sell-bonus-badge')).toBeTruthy();
+        expect(getByTestId('test-calc-sell-bonus-badge')).toBeTruthy();
       });
     });
 
@@ -313,7 +313,7 @@ describe('SPCalculator EDU-006', () => {
         .mockResolvedValueOnce({ ...mockSellResult, is_bonus: false })
         .mockResolvedValueOnce(mockBuyResult);
 
-      const { queryByTestID } = render(
+      const { queryByTestId } = render(
         <SPCalculator
           mode="locked"
           initialCategoryId="cat-2"
@@ -323,21 +323,21 @@ describe('SPCalculator EDU-006', () => {
       );
 
       await waitFor(() => {
-        expect(queryByTestID('test-calc-sell-bonus-badge')).toBeNull();
+        expect(queryByTestId('test-calc-sell-bonus-badge')).toBeNull();
       });
     });
   });
 
   describe('Accessibility', () => {
     it('has correct accessibility labels', async () => {
-      const { getByTestID } = render(<SPCalculator mode="free" testID="test-calc" />);
+      const { getByTestId } = render(<SPCalculator mode="free" testID="test-calc" />);
 
       await waitFor(() => {
-        const categoryPicker = getByTestID('test-calc-category-picker');
+        const categoryPicker = getByTestId('test-calc-category-picker');
         expect(categoryPicker.props.accessibilityLabel).toBe('Category');
         expect(categoryPicker.props.accessibilityRole).toBe('button');
 
-        const priceInput = getByTestID('test-calc-price-input');
+        const priceInput = getByTestId('test-calc-price-input');
         expect(priceInput.props.accessibilityLabel).toBe('Item price, currency');
       });
     });
@@ -347,7 +347,7 @@ describe('SPCalculator EDU-006', () => {
         .mockResolvedValueOnce(mockSellResult)
         .mockResolvedValueOnce(mockBuyResult);
 
-      const { getByTestID } = render(
+      const { getByTestId } = render(
         <SPCalculator
           mode="locked"
           initialCategoryId="cat-1"
@@ -357,7 +357,7 @@ describe('SPCalculator EDU-006', () => {
       );
 
       await waitFor(() => {
-        const results = getByTestID('test-calc-results');
+        const results = getByTestId('test-calc-results');
         expect(results.props.accessibilityLiveRegion).toBe('polite');
       });
     });
