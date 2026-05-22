@@ -13,14 +13,14 @@ import {
   Text,
   FlatList,
   RefreshControl,
-  ActivityIndicator,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  ScrollView
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { getSellerPayouts, getPayoutMethodDisplayName } from '../../services/payoutService';
 import type { SellerPayout } from '../../types/payout.types';
+import { LoadingSpinner } from '@/components/ui';
 
 type PayoutDisplayItem = SellerPayout & {
   methodName: string;
@@ -233,7 +233,7 @@ export default function SellerEarningsScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4F46E5" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading earnings...</Text>
       </View>
     );

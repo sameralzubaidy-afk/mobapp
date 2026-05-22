@@ -30,7 +30,7 @@ import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { useAuth } from '@/hooks/useAuth';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
-import { Modal } from '@/components/ui';
+import { Modal, LoadingSpinner } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
 
 type TradeDetailRouteProp = RouteProp<RootStackParamList, 'TradeDetail'>;
@@ -246,7 +246,7 @@ export default function TradeDetailScreen() {
   if (loading || !trade) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <LoadingSpinner />
       </View>
     );
   }

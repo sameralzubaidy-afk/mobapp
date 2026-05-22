@@ -15,8 +15,7 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  ActivityIndicator,
-  Alert,
+  Alert
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -24,6 +23,7 @@ import { Crown, CrownSimple, CheckCircle, Question, Receipt, CreditCard } from '
 import { useSubscription } from '@/hooks/useSubscription';
 import { MY_SUBSCRIPTION_BENEFITS } from '@/constants/subscriptionPlans';
 import type { RootStackParamList } from '@/navigation/types';
+import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const SUPPORT_CONTACT_EMAIL = 'admin-support@kidsmarketplace.app';
@@ -52,7 +52,7 @@ export default function MySubscriptionScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#5DBB8E" />
+        <LoadingSpinner />
       </SafeAreaView>
     );
   }

@@ -8,10 +8,11 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  InteractionManager,
 } from 'react-native';
 import { Package } from 'phosphor-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../hooks/useAuth';
 import { PhotoAsset, PhotoGroup } from '../types/listing';
@@ -52,8 +53,10 @@ import { BulkPublishBar } from '../components/bulk/BulkPublishBar';
 import { BulkPublishConfirmSheet } from '../components/bulk/BulkPublishConfirmSheet';
 import { BulkFlowState, bulkListingReducer } from './bulkListingStateMachine';
 import { BulkSPSummaryCard } from '../components/bulk/BulkSPSummaryCard';
+import { LoadingSpinner } from '@/components/ui';
 
 const BULK_AI_ANALYSIS_BLOCKING_TIMEOUT_MS = 7000;
+type PhotoSourceOption = 'camera' | 'library';
 
 function getMissingRequired(item: BulkEditableItem): string[] {
   const missing: string[] = [];
@@ -154,8 +157,11 @@ function buildUploadFailureMessage(
 
 export default function BulkListingCreateScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const { session } = useAuth();
   const sellerId = session?.user?.id || '';
+  const initialPhotoSource = route.params?.initialPhotoSource as PhotoSourceOption | undefined;
+  const showPhotoSourcePrompt = Boolean(route.params?.showPhotoSourcePrompt);
 
   const [flowState, dispatch] = useReducer(bulkListingReducer, 'IDLE' as BulkFlowState);
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
@@ -179,6 +185,11 @@ export default function BulkListingCreateScreen() {
   const [showConfirmSheet, setShowConfirmSheet] = useState(false);
   const [publishErrors, setPublishErrors] = useState<string[]>([]);
   const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false);
+  const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
+  const [pendingPhotoSource, setPendingPhotoSource] = useState<PhotoSourceOption | null>(null);
+  const [pendingPhotoSourceTargetGroupId, setPendingPhotoSourceTargetGroupId] = useState<
+    string | null | undefined
+  >(undefined);
   const [canAcceptSP, setCanAcceptSP] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
   const [allowManualWhileAnalyzing, setAllowManualWhileAnalyzing] = useState(false);
@@ -189,6 +200,7 @@ export default function BulkListingCreateScreen() {
   const aiBlockingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aiReviewReleasedRef = useRef(false);
   const aiRunIdRef = useRef(0);
+  const hasHandledInitialPhotoSourceRef = useRef(false);
 
   const clearAIBlockingTimeout = useCallback(() => {
     if (aiBlockingTimeoutRef.current) {
@@ -551,13 +563,49 @@ export default function BulkListingCreateScreen() {
   // Photo picking
   // ───────────────────────────────────────────────────────────────────
 
-  const pickAssetsFromLibrary = async (selectionLimit: number) => {
+  const pickAssetsFromSource = async (source: PhotoSourceOption, selectionLimit: number) => {
+    console.log('[BulkCreate] pickAssetsFromSource called - source:', source, 'limit:', selectionLimit);
+    
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Camera access is needed to take photos.');
+        return null;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+      });
+      if (result.canceled || !result.assets || result.assets.length === 0) return null;
+      return result.assets.slice(0, 1).map((asset, index) => ({
+        id: `${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`,
+        uri: asset.uri,
+        width: asset.width,
+        height: asset.height,
+        fileSize: asset.fileSize,
+        mimeType: asset.mimeType,
+      })) as PhotoAsset[];
+    }
+
+    console.log('[BulkCreate] Requesting media library permissions...');
+    const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    console.log('[BulkCreate] Media permission status:', mediaPermission?.status);
+    
+    if (mediaPermission?.status && mediaPermission.status !== 'granted') {
+      Alert.alert('Permission Required', 'Photo library access is needed to select photos.');
+      return null;
+    }
+
+    console.log('[BulkCreate] Launching image library picker...');
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
       selectionLimit,
       quality: 1,
     });
+    console.log('[BulkCreate] Picker result - canceled:', result.canceled, 'assets:', result.assets?.length);
+    
     if (result.canceled || !result.assets || result.assets.length === 0) return null;
     return result.assets.slice(0, selectionLimit).map((asset, index) => ({
       id: `${Date.now()}-${index}-${Math.floor(Math.random() * 1000)}`,
@@ -569,147 +617,224 @@ export default function BulkListingCreateScreen() {
     })) as PhotoAsset[];
   };
 
-  const handlePickPhotos = async () => {
-    try {
-      dispatch({ type: 'PHOTOS_ADDED' });
-      const limit = PHOTO_LIMITS.MAX_PHOTOS_TOTAL;
-      const picked = await pickAssetsFromLibrary(limit);
-      if (!picked) return;
+  const handlePickPhotosFromSource = useCallback(
+    async (source: PhotoSourceOption) => {
+      try {
+        const limit = PHOTO_LIMITS.MAX_PHOTOS_TOTAL;
+        const picked = await pickAssetsFromSource(source, limit);
+        if (!picked) return;
 
-      const hashEntries = await Promise.all(
-        picked.map(async (photo) => [photo.id, await computePhotoHash(photo.uri)] as const)
-      );
-      setPhotoHashes((prev) => ({ ...prev, ...Object.fromEntries(hashEntries) }));
+        dispatch({ type: 'PHOTOS_ADDED' });
 
-      setUploading(true);
-      const uploadResult = await uploadPhotoBatch(picked, sellerId);
-      const failedIndexes = new Set(uploadResult.errors.map((entry) => entry.index));
-      const successfulAssets: PhotoAsset[] = [];
-      let uploadedUrlIndex = 0;
-      picked.forEach((asset, index) => {
-        if (failedIndexes.has(index)) return;
-        const uploadedUri = uploadResult.urls[uploadedUrlIndex];
-        uploadedUrlIndex += 1;
-        successfulAssets.push({
-          ...asset,
-          uri: uploadedUri || asset.uri,
-        });
-      });
-      if (successfulAssets.length === 0) {
-        Alert.alert('Uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
-        dispatch({ type: 'FAIL' });
-        return;
-      }
-
-      const capped = successfulAssets.slice(0, limit);
-      // Default 1 photo per item — Decision 1
-      const nextGroups = groupPhotosAuto(capped, 1);
-      const nextItems = mapGroupsToItems(nextGroups);
-      const groupedPhotos = nextGroups.flatMap((group) => group.photos);
-
-      setPhotos(groupedPhotos);
-      setGroups(nextGroups);
-      setItems(nextItems);
-      dispatch({ type: 'GROUPS_READY' });
-
-      const sessionRow = await startBulkSession(sellerId);
-      if (!sessionRow) {
-        Alert.alert('Error', 'Failed to start bulk session');
-        return;
-      }
-      setBulkUploadId(sessionRow.id);
-
-      const draft = await createItemDraft(
-        sellerId,
-        {
-          step: 'grouping',
-          items: persistPayload.items,
-          photo_urls: groupedPhotos.map((photo) => photo.uri),
-        } as any,
-        sessionRow.id
-      );
-      if (draft) setDraftId(draft.id);
-
-      if (uploadResult.errors.length > 0) {
-        Alert.alert('Some uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to add photos');
-      dispatch({ type: 'FAIL' });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleAddMorePhotos = async (targetGroupId?: string | null) => {
-    try {
-      const remainingTotal = PHOTO_LIMITS.MAX_PHOTOS_TOTAL - photos.length;
-      if (remainingTotal <= 0) {
-        Alert.alert('Limit reached', 'You have already added the maximum number of photos.');
-        return;
-      }
-
-      const remainingGroups = PHOTO_LIMITS.MAX_GROUPS - groups.length;
-      const limit = targetGroupId
-        ? remainingTotal
-        : Math.min(remainingTotal, Math.max(0, remainingGroups));
-      if (limit <= 0) {
-        Alert.alert(
-          'Item limit reached',
-          `You can create at most ${PHOTO_LIMITS.MAX_GROUPS} items. Use "+ Photos" on an existing item to add more photos.`
+        const hashEntries = await Promise.all(
+          picked.map(async (photo) => [photo.id, await computePhotoHash(photo.uri)] as const)
         );
-        return;
-      }
-      const picked = await pickAssetsFromLibrary(limit);
-      if (!picked) return;
+        setPhotoHashes((prev) => ({ ...prev, ...Object.fromEntries(hashEntries) }));
 
-      const hashEntries = await Promise.all(
-        picked.map(async (photo) => [photo.id, await computePhotoHash(photo.uri)] as const)
-      );
-      setPhotoHashes((prev) => ({ ...prev, ...Object.fromEntries(hashEntries) }));
-
-      setUploading(true);
-      const uploadResult = await uploadPhotoBatch(picked, sellerId);
-      const failedIndexes = new Set(uploadResult.errors.map((entry) => entry.index));
-      const successfulAssets: PhotoAsset[] = [];
-      let uploadedUrlIndex = 0;
-      picked.forEach((asset, index) => {
-        if (failedIndexes.has(index)) return;
-        const uploadedUri = uploadResult.urls[uploadedUrlIndex];
-        uploadedUrlIndex += 1;
-        successfulAssets.push({
-          ...asset,
-          uri: uploadedUri || asset.uri,
+        setUploading(true);
+        const uploadResult = await uploadPhotoBatch(picked, sellerId);
+        const failedIndexes = new Set(uploadResult.errors.map((entry) => entry.index));
+        const successfulAssets: PhotoAsset[] = [];
+        let uploadedUrlIndex = 0;
+        picked.forEach((asset, index) => {
+          if (failedIndexes.has(index)) return;
+          const uploadedUri = uploadResult.urls[uploadedUrlIndex];
+          uploadedUrlIndex += 1;
+          successfulAssets.push({
+            ...asset,
+            uri: uploadedUri || asset.uri,
+          });
         });
-      });
+        if (successfulAssets.length === 0) {
+          Alert.alert('Uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
+          dispatch({ type: 'FAIL' });
+          return;
+        }
 
-      if (successfulAssets.length === 0) {
-        Alert.alert('Uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
-        return;
+        const capped = successfulAssets.slice(0, limit);
+        // Default 1 photo per item — Decision 1
+        const nextGroups = groupPhotosAuto(capped, 1);
+        const nextItems = mapGroupsToItems(nextGroups);
+        const groupedPhotos = nextGroups.flatMap((group) => group.photos);
+
+        setPhotos(groupedPhotos);
+        setGroups(nextGroups);
+        setItems(nextItems);
+        dispatch({ type: 'GROUPS_READY' });
+
+        const sessionRow = await startBulkSession(sellerId);
+        if (!sessionRow) {
+          Alert.alert('Error', 'Failed to start bulk session');
+          return;
+        }
+        setBulkUploadId(sessionRow.id);
+
+        const draft = await createItemDraft(
+          sellerId,
+          {
+            step: 'grouping',
+            items: nextItems,
+            photo_urls: groupedPhotos.map((photo) => photo.uri),
+          } as any,
+          sessionRow.id
+        );
+        if (draft) setDraftId(draft.id);
+
+        if (uploadResult.errors.length > 0) {
+          Alert.alert('Some uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
+        }
+      } catch (error: any) {
+        Alert.alert('Error', error?.message || 'Failed to add photos');
+        dispatch({ type: 'FAIL' });
+      } finally {
+        setUploading(false);
       }
+    },
+    [sellerId]
+  );
 
-      let nextGroups = groups;
-      if (targetGroupId) {
-        nextGroups = addPhotosToGroup(groups, targetGroupId, successfulAssets);
-      } else {
-        nextGroups = appendPhotosAsGroups(groups, successfulAssets);
-      }
-      // Recompute photos (in case caps trimmed)
-      const nextPhotos = nextGroups.flatMap((g) => g.photos);
-
-      setPhotos(nextPhotos);
-      setGroups(nextGroups);
-      setItems((current) => mapGroupsToItems(nextGroups, current));
-
-      if (uploadResult.errors.length > 0) {
-        Alert.alert('Some uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
-      }
-    } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to add photos');
-    } finally {
-      setUploading(false);
+  const handlePickPhotos = () => {
+    if (!showPhotoSourcePrompt) {
+      void handlePickPhotosFromSource('library');
+      return;
     }
+
+    setPendingPhotoSourceTargetGroupId(undefined);
+    setShowPhotoSourceModal(true);
   };
+
+  const handleAddMorePhotosFromSource = useCallback(
+    async (source: PhotoSourceOption, targetGroupId?: string | null) => {
+      try {
+        const remainingTotal = PHOTO_LIMITS.MAX_PHOTOS_TOTAL - photos.length;
+        if (remainingTotal <= 0) {
+          Alert.alert('Limit reached', 'You have already added the maximum number of photos.');
+          return;
+        }
+
+        const remainingGroups = PHOTO_LIMITS.MAX_GROUPS - groups.length;
+        const limit = targetGroupId
+          ? remainingTotal
+          : Math.min(remainingTotal, Math.max(0, remainingGroups));
+        if (limit <= 0) {
+          Alert.alert(
+            'Item limit reached',
+            `You can create at most ${PHOTO_LIMITS.MAX_GROUPS} items. Use "+ Photos" on an existing item to add more photos.`
+          );
+          return;
+        }
+        const picked = await pickAssetsFromSource(source, limit);
+        if (!picked) return;
+
+        const hashEntries = await Promise.all(
+          picked.map(async (photo) => [photo.id, await computePhotoHash(photo.uri)] as const)
+        );
+        setPhotoHashes((prev) => ({ ...prev, ...Object.fromEntries(hashEntries) }));
+
+        setUploading(true);
+        const uploadResult = await uploadPhotoBatch(picked, sellerId);
+        const failedIndexes = new Set(uploadResult.errors.map((entry) => entry.index));
+        const successfulAssets: PhotoAsset[] = [];
+        let uploadedUrlIndex = 0;
+        picked.forEach((asset, index) => {
+          if (failedIndexes.has(index)) return;
+          const uploadedUri = uploadResult.urls[uploadedUrlIndex];
+          uploadedUrlIndex += 1;
+          successfulAssets.push({
+            ...asset,
+            uri: uploadedUri || asset.uri,
+          });
+        });
+
+        if (successfulAssets.length === 0) {
+          Alert.alert('Uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
+          return;
+        }
+
+        let nextGroups = groups;
+        if (targetGroupId) {
+          nextGroups = addPhotosToGroup(groups, targetGroupId, successfulAssets);
+        } else {
+          nextGroups = appendPhotosAsGroups(groups, successfulAssets);
+        }
+        // Recompute photos (in case caps trimmed)
+        const nextPhotos = nextGroups.flatMap((g) => g.photos);
+
+        setPhotos(nextPhotos);
+        setGroups(nextGroups);
+        setItems((current) => mapGroupsToItems(nextGroups, current));
+
+        if (uploadResult.errors.length > 0) {
+          Alert.alert('Some uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
+        }
+      } catch (error: any) {
+        Alert.alert('Error', error?.message || 'Failed to add photos');
+      } finally {
+        setUploading(false);
+      }
+    },
+    [photos, groups, sellerId]
+  );
+
+  const handleAddMorePhotos = (targetGroupId?: string | null) => {
+    if (!showPhotoSourcePrompt) {
+      void handleAddMorePhotosFromSource('library', targetGroupId);
+      return;
+    }
+
+    setPendingPhotoSourceTargetGroupId(targetGroupId ?? null);
+    setShowPhotoSourceModal(true);
+  };
+
+  useEffect(() => {
+    console.log('[BulkCreate] Photo source effect - modal:', showPhotoSourceModal, 'pending:', pendingPhotoSource, 'targetGroup:', pendingPhotoSourceTargetGroupId);
+    
+    if (showPhotoSourceModal || !pendingPhotoSource) {
+      return;
+    }
+
+    console.log('[BulkCreate] Queueing picker launch for:', pendingPhotoSource);
+    const sourceToLaunch = pendingPhotoSource;
+    const targetGroupId = pendingPhotoSourceTargetGroupId;
+
+    // Wait for modal close animation AND all pending interactions to complete
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      console.log('[BulkCreate] Interactions complete, waiting additional delay...');
+      setTimeout(() => {
+        console.log('[BulkCreate] Launching picker for:', sourceToLaunch, 'targetGroup:', targetGroupId);
+        if (targetGroupId === undefined) {
+          void handlePickPhotosFromSource(sourceToLaunch);
+        } else {
+          void handleAddMorePhotosFromSource(sourceToLaunch, targetGroupId);
+        }
+        setPendingPhotoSource(null);
+        setPendingPhotoSourceTargetGroupId(undefined);
+      }, 500);
+    });
+
+    return () => {
+      console.log('[BulkCreate] Clearing picker interaction handle');
+      interactionHandle.cancel();
+    };
+  }, [
+    showPhotoSourceModal,
+    pendingPhotoSource,
+    pendingPhotoSourceTargetGroupId,
+    handlePickPhotosFromSource,
+    handleAddMorePhotosFromSource,
+  ]);
+
+  useEffect(() => {
+    if (hasHandledInitialPhotoSourceRef.current) {
+      return;
+    }
+    if (!initialPhotoSource || photos.length > 0) {
+      return;
+    }
+
+    hasHandledInitialPhotoSourceRef.current = true;
+    void handlePickPhotosFromSource(initialPhotoSource);
+  }, [handlePickPhotosFromSource, initialPhotoSource, photos.length]);
 
   // ───────────────────────────────────────────────────────────────────
   // Multi-select grouping (Decision 4)
@@ -858,7 +983,7 @@ export default function BulkListingCreateScreen() {
   };
 
   const handleAddPhotosToGroup = (groupId: string) => {
-    void handleAddMorePhotos(groupId);
+    handleAddMorePhotos(groupId);
   };
 
   const handleAddEmptyGroup = () => {
@@ -1288,7 +1413,7 @@ export default function BulkListingCreateScreen() {
           onAddMore={
             photos.length > 0
               ? () => {
-                  void handleAddMorePhotos(null);
+                  handleAddMorePhotos(null);
                 }
               : undefined
           }
@@ -1455,10 +1580,61 @@ export default function BulkListingCreateScreen() {
         onConfirm={handlePublish}
       />
 
+      <Modal
+        visible={showPhotoSourceModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => {
+          setShowPhotoSourceModal(false);
+          setPendingPhotoSourceTargetGroupId(undefined);
+        }}
+      >
+        <View style={styles.photoSourceModalOverlay}>
+          <View style={styles.photoSourceModalCard}>
+            <Text style={styles.photoSourceModalTitle}>Add Photos</Text>
+            <Text style={styles.photoSourceModalMessage}>Choose how you want to add photos.</Text>
+
+            <TouchableOpacity
+              style={styles.photoSourceOptionButton}
+              onPress={() => {
+                setPendingPhotoSource('camera');
+                setShowPhotoSourceModal(false);
+              }}
+              testID="bulk-photo-source-camera"
+            >
+              <Text style={styles.photoSourceOptionText}>Take Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.photoSourceOptionButton}
+              onPress={() => {
+                setPendingPhotoSource('library');
+                setShowPhotoSourceModal(false);
+              }}
+              testID="bulk-photo-source-library"
+            >
+              <Text style={styles.photoSourceOptionText}>Photo Library</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.photoSourceCancelButton}
+              onPress={() => {
+                setPendingPhotoSource(null);
+                setShowPhotoSourceModal(false);
+                setPendingPhotoSourceTargetGroupId(undefined);
+              }}
+              testID="bulk-photo-source-cancel"
+            >
+              <Text style={styles.photoSourceCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={flowState === 'PUBLISHING'} animationType="fade" transparent>
         <View style={styles.processingOverlay}>
           <View style={styles.processingCard}>
-            <ActivityIndicator size="large" color="#5DBB8E" />
+            <LoadingSpinner />
             <Text style={styles.processingTitle}>Submitting Items For Review...</Text>
             <Text style={styles.processingMessage}>
               Please wait. We are uploading your items and preparing them for admin review.
@@ -1470,7 +1646,7 @@ export default function BulkListingCreateScreen() {
       <Modal visible={isAIAnalyzingBlocking} animationType="fade" transparent>
         <View style={styles.aiLoadingOverlay}>
           <View style={styles.aiLoadingCard}>
-            <ActivityIndicator size="large" color="#5DBB8E" />
+            <LoadingSpinner />
             <Text style={styles.aiLoadingTitle}>Analyzing Item Photos...</Text>
             <Text style={styles.aiLoadingMessage}>
               Our AI is reviewing your grouped photos to suggest item details.
@@ -1676,6 +1852,63 @@ const styles = StyleSheet.create({
   },
   instructionBold: {
     fontWeight: '700',
+  },
+  photoSourceModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  photoSourceModalCard: {
+    width: '100%',
+    maxWidth: 460,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 24,
+  },
+  photoSourceModalTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    lineHeight: 40,
+  },
+  photoSourceModalMessage: {
+    marginTop: 12,
+    marginBottom: 24,
+    fontSize: 18,
+    lineHeight: 26,
+    color: '#6B6B6B',
+  },
+  photoSourceOptionButton: {
+    minHeight: 72,
+    borderRadius: 36,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  photoSourceOptionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  photoSourceCancelButton: {
+    minHeight: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: '#6B6B6B',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  photoSourceCancelText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#6B6B6B',
   },
   processingOverlay: {
     flex: 1,

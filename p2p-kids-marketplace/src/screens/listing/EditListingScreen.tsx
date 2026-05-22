@@ -31,6 +31,7 @@ import ImagePickerGrid, { SelectedImage } from '../../components/molecules/Image
 import { ColorPicker } from '../../components/listing/ColorPicker';
 import { AgeGroupSelector } from '../../components/listing/AgeGroupSelector';
 import { GenderSelector } from '../../components/listing/GenderSelector';
+import { LoadingSpinner } from '@/components/ui';
 
 interface ListingCategory {
   id: string;
@@ -252,7 +253,7 @@ export default function EditListingScreen({ route, navigation }: any) {
   if (loadingListing || checkingSubscription) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading listing...</Text>
       </View>
     );

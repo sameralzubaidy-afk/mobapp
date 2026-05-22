@@ -14,10 +14,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   Alert,
-  SafeAreaView,
+  SafeAreaView
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -25,6 +24,7 @@ import { getBillingHistory } from '@/services/billingHistory';
 import type { BillingHistory } from '@/types/billingHistory.types';
 import { formatPrice } from '@/utils/formatPrice';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { LoadingSpinner } from '@/components/ui';
 
 //  ─── Helper: Format date ──────────────────────────────────────────────────────
 function formatDate(dateString: string): string {
@@ -144,7 +144,7 @@ export default function BillingHistoryScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading billing history...</Text>
       </View>
     );

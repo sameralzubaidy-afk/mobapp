@@ -13,10 +13,9 @@ import {
   Text,
   FlatList,
   Pressable,
-  ActivityIndicator,
   StyleSheet,
   SafeAreaView,
-  RefreshControl,
+  RefreshControl
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { fetchListingsByCategory } from '../../services/discovery';
@@ -24,6 +23,7 @@ import { CategoryResult } from '../../types/discovery';
 import { trackEvent } from '../../services/analytics';
 import { ItemCard } from '../../components/molecules';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { LoadingSpinner } from '@/components/ui';
 import {
   TShirt,
   Sneaker,
@@ -151,7 +151,7 @@ export default function CategoryBrowseScreen() {
 
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#5DBB8E" />
+          <LoadingSpinner />
         </View>
       ) : (
         <FlatList

@@ -17,11 +17,13 @@
 
 import { supabase } from '../../config/supabase';
 
+const describeE2E = process.env.RUN_SUPABASE_E2E === 'true' ? describe : describe.skip;
+
 function isAuthRateLimitError(message?: string): boolean {
   return Boolean(message && /request rate limit reached/i.test(message));
 }
 
-describe('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', () => {
+describeE2E('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management', () => {
   let testUserId: string;
   let testSubscriptionId: string;
   let tierIdKidsClubPlus: string;

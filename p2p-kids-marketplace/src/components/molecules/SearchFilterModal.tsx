@@ -29,6 +29,7 @@ import { FunnelSimple } from 'phosphor-react-native';
 import { DiscoveryFilters, COLOR_PALETTE, PRICE_PRESETS } from '@/types/discovery';
 import { getDefaultFilters, validatePriceRange, countActiveFilters } from '@/utils/filterHelpers';
 import { getBrandSuggestions } from '@/services/brandAutocomplete';
+import RadiusSlider from '@/components/RadiusSlider';
 
 interface Category {
   id: string;
@@ -42,6 +43,18 @@ interface SearchFilterModalProps {
   visible: boolean;
   filters: DiscoveryFilters;
   categories: Category[];
+  zipCodeInput: string;
+  appliedZipCode: string;
+  radiusMiles: number;
+  minRadiusMiles: number;
+  maxRadiusMiles: number;
+  locationLoading: boolean;
+  inactiveZipMessage: string | null;
+  waitlistMessage: string | null;
+  userProfileZip: string;
+  onZipCodeInputChange: (value: string) => void;
+  onRadiusChange: (nextRadius: number) => void;
+  onRadiusComplete: (nextRadius: number) => Promise<void>;
   onApply: (filters: DiscoveryFilters) => void;
   onClose: () => void;
 }
@@ -73,6 +86,18 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
   visible,
   filters,
   categories,
+  zipCodeInput,
+  appliedZipCode,
+  radiusMiles,
+  minRadiusMiles,
+  maxRadiusMiles,
+  locationLoading,
+  inactiveZipMessage,
+  waitlistMessage,
+  userProfileZip,
+  onZipCodeInputChange,
+  onRadiusChange,
+  onRadiusComplete,
   onApply,
   onClose,
 }) => {
@@ -126,7 +151,9 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
     setDraft(getDefaultFilters());
     setBrandQuery('');
     setPriceError(null);
-  }, []);
+    // Re-populate user's profile ZIP when resetting
+    onZipCodeInputChange(userProfileZip);
+  }, [userProfileZip, onZipCodeInputChange]);
 
   const handleApply = useCallback(() => {
     if (priceError) {
@@ -244,16 +271,65 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             <FunnelSimple size={20} color="#1A1A1A" weight="regular" />
             <Text style={styles.headerTitle}>Filters {activeCount > 0 && `(${activeCount})`}</Text>
           </View>
-          <TouchableOpacity
-            onPress={handleClearAll}
-            accessibilityLabel="Clear all filters"
-            testID="filter-modal-clear-all"
-          >
-            <Text style={styles.clearButton}>Clear All</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              onPress={onClose}
+              accessibilityLabel="Close filter modal"
+              testID="filter-modal-close"
+              style={styles.headerButton}
+            >
+              <Text style={styles.closeButton}>Close</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleClearAll}
+              accessibilityLabel="Reset all filters"
+              testID="filter-modal-reset"
+              style={styles.headerButton}
+            >
+              <Text style={styles.resetButton}>Reset</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Section 1: Location (ZIP + Radius) */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>LOCATION</Text>
+
+            <View style={styles.locationInputsRow}>
+              <TextInput
+                style={styles.locationZipInput}
+                placeholder="ZIP code"
+                placeholderTextColor={COLORS.textTertiary}
+                keyboardType="number-pad"
+                maxLength={5}
+                value={zipCodeInput}
+                onChangeText={onZipCodeInputChange}
+                accessibilityLabel="ZIP code"
+                testID="filter-location-zip-input"
+              />
+            </View>
+
+            <Text style={styles.locationSummaryText}>
+              {zipCodeInput !== appliedZipCode && /^\d{5}$/.test(zipCodeInput)
+                ? `ZIP ${zipCodeInput} will apply when you tap Apply Filters.`
+                : /^\d{5}$/.test(appliedZipCode)
+                ? `Showing items around ZIP ${appliedZipCode} within ${radiusMiles} miles`
+                : 'No location filter applied. Showing all items.'}
+            </Text>
+
+            <View style={styles.radiusSliderWrapper}>
+              <RadiusSlider
+                value={radiusMiles}
+                minRadius={minRadiusMiles}
+                maxRadius={maxRadiusMiles}
+                onValueChange={onRadiusChange}
+                onSlidingComplete={onRadiusComplete}
+                loading={locationLoading}
+              />
+            </View>
+          </View>
+
           {/* Section 1: Category */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>CATEGORY</Text>
@@ -282,7 +358,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </ScrollView>
           </View>
 
-          {/* Section 2: Condition */}
+          {/* Section 3: Condition */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>CONDITION</Text>
             <View style={styles.pillRow}>
@@ -306,7 +382,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </View>
           </View>
 
-          {/* Section 3: Age Group */}
+          {/* Section 4: Age Group */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>AGE GROUP</Text>
             <View style={styles.pillRow}>
@@ -330,7 +406,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </View>
           </View>
 
-          {/* Section 4: Gender */}
+          {/* Section 5: Gender */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>GENDER</Text>
             <View style={styles.pillRow}>
@@ -354,7 +430,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </View>
           </View>
 
-          {/* Section 5: Color */}
+          {/* Section 6: Color */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>COLOR</Text>
             <View style={styles.colorGrid}>
@@ -377,7 +453,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </View>
           </View>
 
-          {/* Section 6: Brand */}
+          {/* Section 7: Brand */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>BRAND</Text>
             <View style={styles.brandInputContainer}>
@@ -412,7 +488,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </View>
           </View>
 
-          {/* Section 7: Price Range */}
+          {/* Section 8: Price Range */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>PRICE RANGE</Text>
             <View style={styles.pillRow}>
@@ -463,7 +539,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             )}
           </View>
 
-          {/* Section 8: Swap Points Only */}
+          {/* Section 9: Swap Points Only */}
           <View style={styles.section}>
             <View style={styles.switchRow}>
               <Text style={styles.sectionTitle}>SWAP POINTS ONLY</Text>
@@ -549,12 +625,25 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: COLORS.text,
   },
-  clearButton: {
+  headerButton: {
+    paddingHorizontal: 4,
+  },
+  closeButton: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: COLORS.textSecondary,
+  },
+  resetButton: {
     fontSize: 16,
     fontWeight: '500',
     color: COLORS.primary,
@@ -567,6 +656,49 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
+  },
+  locationInputsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  locationZipInput: {
+    flex: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    backgroundColor: COLORS.inputFill,
+    color: COLORS.text,
+  },
+  locationSummaryText: {
+    marginTop: SPACING.sm,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  radiusSliderWrapper: {
+    marginTop: SPACING.sm,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  waitlistBanner: {
+    marginTop: SPACING.sm,
+    padding: SPACING.md,
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  waitlistBannerTitle: {
+    fontSize: 13,
+    color: '#1D4ED8',
+    fontWeight: '600',
+  },
+  waitlistBannerSubtitle: {
+    marginTop: SPACING.xs,
+    fontSize: 12,
+    color: '#2563EB',
   },
   sectionTitle: {
     fontSize: 12,

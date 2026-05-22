@@ -1,4 +1,5 @@
 // filepath: p2p-kids-marketplace/src/screens/profile/BadgesScreen.tsx
+// TASK FLOW-15: UI Redesign - Badges with Phosphor icons
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -7,13 +8,20 @@ import {
   StyleSheet,
   FlatList,
   Image,
-  ActivityIndicator,
   SafeAreaView,
   TouchableOpacity,
+  Modal
 } from 'react-native';
+import { Medal, Lock } from 'phosphor-react-native';
 import { getUserBadges, getAllBadges } from '../../services/badges';
 import { UserBadge, Badge } from '../../types/badge';
 import { useAuth } from '../../hooks/useAuth';
+import { LoadingSpinner } from '@/components/ui';
+
+interface BadgeModalData extends Badge {
+  earned?: boolean;
+  userBadgeInfo?: UserBadge;
+}
 
 const BadgesScreen = ({ navigation }: any) => {
   const { session } = useAuth();
@@ -22,6 +30,8 @@ const BadgesScreen = ({ navigation }: any) => {
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
   const [allBadges, setAllBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBadge, setSelectedBadge] = useState<BadgeModalData | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -51,31 +61,33 @@ const BadgesScreen = ({ navigation }: any) => {
     const userBadgeInfo = userBadges.find((ub) => ub.badge_id === item.id);
 
     return (
-      <View style={[styles.badgeCard, !earned && styles.lockedBadgeCard]}>
-        <View style={[styles.iconContainer, !earned && styles.lockedIconContainer]}>
-          {item.icon_url ? (
-            <Image source={{ uri: item.icon_url }} style={styles.badgeImage} resizeMode="contain" />
-          ) : (
-            <Text style={styles.badgeEmoji}>{earned ? '🏅' : '🔒'}</Text>
-          )}
-        </View>
-        <Text style={styles.badgeName}>{item.name}</Text>
-        <Text style={styles.badgeDescription} numberOfLines={2}>
-          {item.description}
-        </Text>
-        {earned && userBadgeInfo && (
-          <Text style={styles.awardedDate}>
-            Earned {new Date(userBadgeInfo.awarded_at).toLocaleDateString()}
-          </Text>
+      <TouchableOpacity
+        style={[styles.badgeCell, earned ? styles.earnedBadgeCell : styles.lockedBadgeCell]}
+        onPress={() => {
+          setSelectedBadge({ ...item, earned, userBadgeInfo });
+          setModalVisible(true);
+        }}
+      >
+        {item.icon_url ? (
+          <Image source={{ uri: item.icon_url }} style={styles.badgeImage} resizeMode="contain" />
+        ) : (
+          <Medal
+            size={28}
+            color={earned ? '#F59E0B' : '#CCCCCC'}
+            weight="regular"
+          />
         )}
-      </View>
+        <Text style={earned ? styles.earnedBadgeLabel : styles.lockedBadgeLabel}>
+          {item.name}
+        </Text>
+      </TouchableOpacity>
     );
   };
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <LoadingSpinner />
       </View>
     );
   }
@@ -86,30 +98,53 @@ const BadgesScreen = ({ navigation }: any) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Achievements</Text>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Leaderboard')}
-          style={styles.leaderboardButton}
-        >
-          <Text style={styles.leaderboardButtonText}>🏆 Top</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.statsContainer}>
-        <Text style={styles.statsText}>
-          You have earned <Text style={styles.statsHighlight}>{userBadges.length}</Text> out of{' '}
-          <Text style={styles.statsHighlight}>{allBadges.length}</Text> badges
-        </Text>
+        <Text style={styles.title}>Badges</Text>
+        <View style={{ width: 60 }} />
       </View>
 
       <FlatList
         data={allBadges}
         renderItem={renderBadgeItem}
         keyExtractor={(item) => item.id}
-        numColumns={2}
+        numColumns={3}
         contentContainerStyle={styles.listContent}
-        columnWrapperStyle={styles.row}
+        columnWrapperStyle={styles.badgeGrid}
       />
+
+      {/* Badge Detail Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            {selectedBadge && !selectedBadge.earned && (
+              <Lock size={24} color="#CCCCCC" weight="regular" style={{ marginBottom: 16 }} />
+            )}
+            <Text style={styles.modalTitle}>{selectedBadge?.name}</Text>
+            <Text style={styles.modalDescription}>
+              {selectedBadge?.earned ? selectedBadge.description : selectedBadge?.description || 'Keep going to unlock this badge!'}
+            </Text>
+            {selectedBadge?.earned && selectedBadge?.userBadgeInfo && (
+              <Text style={styles.modalUnlockDate}>
+                Unlocked: {new Date(selectedBadge.userBadgeInfo.awarded_at).toLocaleDateString()}
+              </Text>
+            )}
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -117,7 +152,7 @@ const BadgesScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
@@ -132,104 +167,101 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F0F0F0',
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
-    color: '#3B82F6',
+    color: '#5DBB8E',
     fontSize: 16,
     fontWeight: '600',
   },
-  leaderboardButton: {
-    padding: 8,
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-  },
-  leaderboardButtonText: {
-    color: '#92400E',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  statsContainer: {
-    padding: 16,
-    backgroundColor: '#EFF6FF',
-    margin: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  statsText: {
-    fontSize: 14,
-    color: '#1E40AF',
-  },
-  statsHighlight: {
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   listContent: {
-    padding: 12,
-  },
-  row: {
-    justifyContent: 'space-between',
-  },
-  badgeCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
-    width: '48%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  lockedBadgeCard: {
-    opacity: 0.7,
-    backgroundColor: '#F3F4F6',
-  },
-  iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FEF3C7',
-    justifyContent: 'center',
-    alignItems: 'center',
+  badgeGrid: {
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
-  lockedIconContainer: {
-    backgroundColor: '#E5E7EB',
+  badgeCell: {
+    width: '30%',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
   },
-  badgeEmoji: {
-    fontSize: 30,
+  earnedBadgeCell: {
+    backgroundColor: '#FFF9EC',
+  },
+  lockedBadgeCell: {
+    backgroundColor: '#F7F7F7',
+    opacity: 0.6,
   },
   badgeImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 28,
+    height: 28,
   },
-  badgeName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  earnedBadgeLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1A1A',
     textAlign: 'center',
-    marginBottom: 4,
   },
-  badgeDescription: {
-    fontSize: 12,
-    color: '#6B7280',
+  lockedBadgeLabel: {
+    fontSize: 13,
+    color: '#999999',
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 8,
   },
-  awardedDate: {
-    fontSize: 10,
-    color: '#10B981',
+  modalDescription: {
+    fontSize: 14,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  modalUnlockDate: {
+    fontSize: 12,
+    color: '#999999',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  closeButton: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    height: 52,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

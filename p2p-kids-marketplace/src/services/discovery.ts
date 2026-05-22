@@ -19,6 +19,78 @@ import {
 import { trackEvent } from './analytics';
 import { findClosestMatch } from '../utils/fuzzyMatch';
 
+function isTransientNetworkError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : String((error as { message?: unknown } | null)?.message || '');
+
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('network request failed') ||
+    normalized.includes('failed to fetch') ||
+    normalized.includes('fetch failed') ||
+    normalized.includes('timed out') ||
+    normalized.includes('timeout')
+  );
+}
+
+async function runSearchRpcOnce(
+  rpcPayload: Record<string, unknown>,
+  nodeIds: string[] | null
+): Promise<{ data: any[] | null; error: any }> {
+  const isNodeIdsSignatureMismatch = (rpcError: any): boolean => {
+    const code = String(rpcError?.code || '');
+    const message = String(rpcError?.message || '').toLowerCase();
+    const details = String(rpcError?.details || '').toLowerCase();
+    const hint = String(rpcError?.hint || '').toLowerCase();
+    const combined = `${message} ${details} ${hint}`;
+
+    return (
+      code === 'PGRST202' &&
+      (combined.includes('search_listings') || combined.includes('p_node_ids'))
+    );
+  };
+
+  let data: any[] | null = null;
+  let error: any = null;
+
+  if (nodeIds) {
+    const v4Response = await supabase.rpc('search_listings', {
+      ...rpcPayload,
+      p_node_ids: nodeIds,
+    });
+
+    data = v4Response.data;
+    error = v4Response.error;
+
+    if (error && isNodeIdsSignatureMismatch(error)) {
+      console.warn(
+        '[searchListings] search_listings V4 signature unavailable. Falling back to legacy signature.',
+        {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        }
+      );
+
+      const legacyResponse = await supabase.rpc('search_listings', rpcPayload);
+      data = legacyResponse.data;
+      error = legacyResponse.error;
+    }
+  } else {
+    const legacyOrDefaultResponse = await supabase.rpc('search_listings', rpcPayload);
+    data = legacyOrDefaultResponse.data;
+    error = legacyOrDefaultResponse.error;
+  }
+
+  return { data, error };
+}
+
 interface DiscoveryListingImage {
   id: string;
   item_id: string;
@@ -116,9 +188,9 @@ export async function searchListings(
     const brand = filters?.brand ?? null;
     const colors = filters?.colors && filters.colors.length > 0 ? filters.colors : null;
     const sortBy = filters?.sortBy ?? 'relevance';
+    const nodeIds = filters?.nodeIds && filters.nodeIds.length > 0 ? filters.nodeIds : null;
 
-    // Call RPC function for full-text search with all 13 params
-    const { data, error } = await supabase.rpc('search_listings', {
+    const rpcPayload = {
       p_query: trimmedQuery,
       p_sp_eligible_only: spEligibleOnly,
       p_limit: limit,
@@ -132,10 +204,25 @@ export async function searchListings(
       p_brand: brand,
       p_colors: colors,
       p_sort_by: sortBy,
-    });
+    };
+
+    let { data, error } = await runSearchRpcOnce(rpcPayload, nodeIds);
+
+    if (error && isTransientNetworkError(error)) {
+      // One retry for flaky mobile transport errors.
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      const retryResponse = await runSearchRpcOnce(rpcPayload, nodeIds);
+      data = retryResponse.data;
+      error = retryResponse.error;
+    }
 
     if (error) {
-      console.error('[searchListings] RPC error:', error);
+      console.error('[searchListings] RPC error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
       throw error;
     }
 
@@ -152,7 +239,8 @@ export async function searchListings(
         ageGroup ||
         gender ||
         brand ||
-        colors
+        colors ||
+        nodeIds
       ),
       sort_by: sortBy,
     });
@@ -170,6 +258,11 @@ export async function searchListings(
 
     return attachListingImages(normalizedResults);
   } catch (err) {
+    if (isTransientNetworkError(err)) {
+      console.warn('[searchListings] Transient network error; returning empty result set');
+      return [];
+    }
+
     console.error('[searchListings] Error:', err);
     throw new Error(err instanceof Error ? err.message : 'Failed to search listings');
   }

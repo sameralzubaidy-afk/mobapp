@@ -51,6 +51,7 @@ import {
 import type { SellerBalance, SellerPayout, BalanceDisplay } from '../../services/sellerBalance';
 import { getAdminPayoutConfig } from '../../services/payoutRouter';
 import type { AdminPayoutConfig } from '../../services/payoutRouter';
+import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -290,7 +291,7 @@ export default function PayoutSettingsScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading payout methods...</Text>
       </View>
     );

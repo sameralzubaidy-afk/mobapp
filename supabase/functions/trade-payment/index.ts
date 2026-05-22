@@ -55,6 +55,8 @@ serve(async (req) => {
     apiVersion: '2023-10-16',
   });
 
+  let currentTradeId: string | null = null;
+
   try {
     const body = await req.json();
     const { tradeId } = body;
@@ -105,6 +107,8 @@ serve(async (req) => {
       });
     }
 
+    currentTradeId = trade.id;
+
     console.log('[trade-payment] Trade found:', {
       id: trade.id,
       status: trade.status,
@@ -114,10 +118,57 @@ serve(async (req) => {
       buyer_id: trade.buyer_id,
     });
 
-    if (trade.status !== 'pending') {
-      return new Response(JSON.stringify({ error: `Trade is not in pending state (current: ${trade.status})` }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (trade.status === 'in_progress' || trade.status === 'completed') {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tradeId: trade.id,
+          payment_intent_id: trade.stripe_payment_intent_id ?? null,
+          status: trade.status,
+          idempotent: true,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    const allowedRetryStatuses = ['pending', 'payment_failed', 'payment_processing'];
+    if (!allowedRetryStatuses.includes(trade.status)) {
+      return new Response(
+        JSON.stringify({ error: `Trade is not in a payable state (current: ${trade.status})` }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    if (trade.status === 'payment_processing') {
+      const lastStatusChangeRaw = trade.last_status_change_at ?? trade.updated_at ?? null;
+      const parsedLastStatusChange = lastStatusChangeRaw ? Date.parse(lastStatusChangeRaw) : NaN;
+      const maxProcessingWindowMs = 90 * 1000;
+      const isStaleProcessing =
+        Number.isNaN(parsedLastStatusChange) || Date.now() - parsedLastStatusChange > maxProcessingWindowMs;
+
+      if (!isStaleProcessing) {
+        return new Response(
+          JSON.stringify({
+            error: 'Payment is already processing. Please wait a moment and retry.',
+            code: 'PAYMENT_ALREADY_PROCESSING',
+          }),
+          {
+            status: 409,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      console.warn('[trade-payment] Found stale payment_processing trade; allowing retry', {
+        tradeId: trade.id,
+        last_status_change_at: trade.last_status_change_at,
+        updated_at: trade.updated_at,
       });
     }
 
@@ -570,6 +621,23 @@ serve(async (req) => {
     );
   } catch (error: any) {
     console.error('[trade-payment] Fatal error:', error);
+
+    if (currentTradeId) {
+      try {
+        await supabaseClient
+          .from('trades')
+          .update({
+            status: 'payment_failed',
+            last_status_change_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', currentTradeId)
+          .in('status', ['pending', 'payment_processing']);
+      } catch (statusUpdateError) {
+        console.error('[trade-payment] Failed to mark trade as payment_failed in fatal catch:', statusUpdateError);
+      }
+    }
+
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

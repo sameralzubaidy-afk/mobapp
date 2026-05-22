@@ -2,7 +2,7 @@
 // MODULE-18 EDU-005: HelpScreen component unit tests
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import HelpScreen from '../../../screens/help/HelpScreen';
 import * as educationContentService from '../../../services/educationContentService';
 import * as educationAnalyticsService from '../../../services/educationAnalyticsService';
@@ -12,6 +12,29 @@ jest.mock('../../../services/educationContentService');
 jest.mock('../../../services/educationAnalyticsService');
 jest.mock('../../../services/categoryService');
 jest.mock('../../../services/spCalculatorService');
+jest.mock('../../../components/education/SPCalculator', () => ({
+  SPCalculator: ({ testID }: any) => {
+    const { View } = require('react-native');
+    return <View testID={testID} />;
+  },
+}));
+jest.mock('../../../components/education/BonusCategoriesList', () => ({
+  BonusCategoriesList: ({ testID }: any) => {
+    const { View } = require('react-native');
+    return <View testID={testID} />;
+  },
+}));
+jest.mock('../../../components/education/EducationSectionAccordion', () => ({
+  EducationSectionAccordion: ({ section, testID, defaultExpanded }: any) => {
+    const { View } = require('react-native');
+    return (
+      <View testID={testID || `section-accordion-${section.section_type}`}>
+        <View testID={`${testID || section.section_type}-header`} />
+        {defaultExpanded ? <View testID={`${testID || section.section_type}-content`} /> : null}
+      </View>
+    );
+  },
+}));
 
 const mockSections = [
   {
@@ -127,11 +150,13 @@ describe('HelpScreen', () => {
     const { getByTestId } = render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
-      expect(getByTestId('help-refresh-control')).toBeTruthy();
+      expect(getByTestId('help-scroll-view')).toBeTruthy();
     });
 
-    const refreshControl = getByTestId('help-refresh-control');
-    fireEvent(refreshControl, 'refresh');
+    const scrollView = getByTestId('help-scroll-view');
+    await act(async () => {
+      await scrollView.props.refreshControl.props.onRefresh();
+    });
 
     await waitFor(() => {
       expect(educationContentService.getPublishedSections).toHaveBeenCalledTimes(2);

@@ -11,20 +11,20 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -153,7 +153,7 @@ export default function SubscriptionStatusScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading subscription data…</Text>
       </SafeAreaView>
     );

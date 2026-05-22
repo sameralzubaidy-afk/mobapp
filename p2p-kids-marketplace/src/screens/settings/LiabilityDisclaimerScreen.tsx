@@ -11,15 +11,15 @@ import {
   View,
   Text,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
-  TouchableOpacity,
+  TouchableOpacity
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/config/supabase';
 import Markdown from 'react-native-markdown-display';
+import { LoadingSpinner } from '@/components/ui';
 
 interface DisclaimerPolicy {
   id: string;
@@ -74,7 +74,7 @@ export default function LiabilityDisclaimerScreen() {
           <Text style={styles.headerTitle}>Liability Disclaimer</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" testID="loading-indicator" />
+          <LoadingSpinner testID="loading-indicator" />
           <Text style={styles.loadingText}>Loading disclaimer...</Text>
         </View>
       </SafeAreaView>

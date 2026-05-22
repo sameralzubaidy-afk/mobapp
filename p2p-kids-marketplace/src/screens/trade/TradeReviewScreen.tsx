@@ -28,7 +28,7 @@ import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import { useAuth } from '@/hooks/useAuth';
-import { Modal } from '@/components/ui';
+import { Modal, LoadingSpinner } from '@/components/ui';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { sendTradeNotificationPush } from '@/services/tradeNotifications';
 
@@ -174,7 +174,7 @@ export default function TradeReviewScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#5DBB8E" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading offer...</Text>
         </View>
       </SafeAreaView>

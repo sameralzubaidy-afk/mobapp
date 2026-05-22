@@ -1,0 +1,181 @@
+# FLOW: Profile Screens | TASK: FLOW-15 | States covered: My Profile, Edit Profile, Seller Profile, Badges
+# Test Flow for MODULE-15.1 Profile UI Redesign
+
+appId: com.p2pkids.marketplace
+tags:
+  - flow-15
+  - profile
+  - ui-redesign
+
+---
+
+# === PRECONDITIONS ===
+# User must be logged in and have a complete profile
+# At least one badge should be earned for testing
+
+- runFlow: ./helpers/auth-bootstrap-expo.yaml
+
+# === SCREEN 1: MY PROFILE ===
+- tapOn:
+    id: nav-profile
+- assertVisible: "Profile"
+
+# Verify avatar is 96px (visual check, use testID if needed)
+- assertVisible:
+    id: profile-avatar
+- assertVisible:
+    id: camera-overlay  # 28px green circle with Camera icon
+
+# Verify name row with ShieldCheck for verified users
+- assertVisible:
+    id: profile-name
+- assertVisible:
+    id: verified-badge  # ShieldCheck icon (16px, #5DBB8E)
+
+# Verify location row with MapPin icon
+- assertVisible:
+    id: profile-location
+- assertVisible:
+    id: map-pin-icon  # MapPin (14px, #6B6B6B)
+
+# Verify stats row (3 chips: Listings, Trades, SP Balance)
+- assertVisible:
+    id: stat-listings
+- assertVisible:
+    id: stat-trades
+- assertVisible:
+    id: stat-sp-balance
+
+# Verify Edit Profile button is secondary outlined (NOT filled)
+- assertVisible:
+    id: edit-profile-button
+# Visual: borderColor #5DBB8E, backgroundColor transparent/white
+- assertVisible:
+    id: pencil-icon  # PencilSimple (16px, #5DBB8E)
+
+# === SCREEN 2: EDIT PROFILE ===
+- tapOn:
+    id: edit-profile-button
+- assertVisible: "Edit Profile"
+
+# Verify avatar with camera overlay
+- assertVisible:
+    id: edit-avatar-container
+- assertVisible:
+    id: edit-camera-overlay  # 28px green circle
+
+# Verify filled input for Display Name with User icon
+- assertVisible:
+    text: "DISPLAY NAME"  # Uppercase label (13px, #6B6B6B)
+- assertVisible:
+    id: display-name-input-wrapper  # backgroundColor #F0F0F0, 52px height
+- assertVisible:
+    id: user-icon  # User icon (20px, #6B6B6B)
+
+# Verify filled input for Phone with Phone icon
+- assertVisible:
+    text: "PHONE NUMBER"
+- assertVisible:
+    id: phone-input-wrapper
+- assertVisible:
+    id: phone-icon  # Phone icon (20px, #6B6B6B)
+
+# Verify filled input for Zip Code with MapPin icon (green)
+- assertVisible:
+    text: "ZIP CODE"
+- assertVisible:
+    id: zip-input-wrapper
+- assertVisible:
+    id: zip-map-pin-icon  # MapPin (20px, #5DBB8E - GREEN)
+
+# Verify bio textarea (filled, min 100px height)
+- assertVisible:
+    text: "BIO"
+- assertVisible:
+    id: bio-textarea  # backgroundColor #F0F0F0, minHeight 100
+
+# Verify Save Changes button (green pill, 52px)
+- assertVisible:
+    id: save-changes-button
+# Visual: backgroundColor #5DBB8E, borderRadius 26, height 52
+
+# Test input interaction
+- tapOn:
+    id: display-name-input-wrapper
+- inputText: "Updated Test Name"
+- waitForAnimationToEnd
+
+# Save changes
+- tapOn:
+    id: save-changes-button
+- waitForAnimationToEnd
+
+# Verify success and return to profile
+- assertVisible: "Profile"
+
+# === SCREEN 3: BADGES ===
+- tapOn:
+    id: badges-button
+- assertVisible: "Badges"
+
+# Verify badge grid (3 columns, 12px gap)
+- assertVisible:
+    id: badges-grid
+
+# Verify earned badge cell (gold medal, #FFF9EC bg)
+- assertVisible:
+    id: earned-badge-0
+# Visual: backgroundColor #FFF9EC, Medal icon (28px, #F59E0B)
+
+# Verify locked badge cell (gray medal, #F7F7F7 bg, 60% opacity)
+- assertVisible:
+    id: locked-badge-0
+# Visual: backgroundColor #F7F7F7, Medal icon (28px, #CCCCCC), opacity 0.6
+
+# Tap earned badge to open detail modal
+- tapOn:
+    id: earned-badge-0
+- assertVisible:
+    id: badge-detail-modal
+# Visual: bottom sheet, 16px top radius, white bg
+
+# Verify earned badge modal does NOT show Lock icon
+- assertNotVisible:
+    id: lock-icon-modal
+
+- tapOn:
+    text: "Close"
+- waitForAnimationToEnd
+
+# Tap locked badge to open detail modal
+- tapOn:
+    id: locked-badge-0
+- assertVisible:
+    id: badge-detail-modal
+
+# Verify locked badge modal shows Lock icon (24px, #CCCCCC)
+- assertVisible:
+    id: lock-icon-modal
+# Visual: Lock (24px, #CCCCCC)
+
+- tapOn:
+    text: "Close"
+- waitForAnimationToEnd
+
+- back
+
+# === SCREEN 4: PUBLIC SELLER PROFILE (if available) ===
+# Navigate to a listing and view seller profile
+# This requires navigation setup - add if item detail screen is available
+
+# Final assertion: back to My Profile
+- tapOn:
+    id: nav-profile
+- assertVisible: "Profile"
+
+# === FINAL CHECKS ===
+# All Phosphor icons present (no Ionicons)
+# White background (#FFFFFF) on all screens
+# Green theme (#5DBB8E) for primary actions
+# Filled input style (#F0F0F0) on Edit Profile
+# Star ratings gold (#F59E0B) on seller profile

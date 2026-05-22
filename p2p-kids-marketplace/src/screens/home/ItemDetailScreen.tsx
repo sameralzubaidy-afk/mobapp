@@ -53,7 +53,7 @@ import {
   ChatCircle,
   User,
 } from 'phosphor-react-native';
-import { Modal } from '@/components/ui';
+import { Modal, LoadingSpinner } from '@/components/ui';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import StarRating from '@/components/molecules/StarRating';
 import Avatar from '@/components/atoms/Avatar';
@@ -325,8 +325,11 @@ export default function ItemDetailScreen() {
       return;
     }
 
-    // Navigate to seller profile
-    navigation.navigate('Profile', { userId: listing.seller_id });
+    // Navigate to public seller profile
+    navigation.navigate('SellerProfile', {
+      userId: listing.seller_id,
+      sellerVerificationStatus: sellerVerificationStatus || undefined,
+    });
   };
 
   if (loading) {
@@ -334,7 +337,7 @@ export default function ItemDetailScreen() {
       <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
         <View style={{ flex: 1, flexDirection: 'column' }}>
           <View style={styles.centerContent}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <LoadingSpinner />
             <Text style={styles.loadingText}>Loading item...</Text>
           </View>
           <BottomNavBar />

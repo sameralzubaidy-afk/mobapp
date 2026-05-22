@@ -18,6 +18,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getPrivacyPolicyService } from '../../services/privacyPolicy';
 import Markdown from 'react-native-markdown-display';
+import { LoadingSpinner } from '@/components/ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PrivacyPolicy'>;
 
@@ -97,7 +98,7 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
           <Text style={styles.headerTitle}>Privacy Policy</Text>
         </View>
         <View style={styles.loadingContainer} testID="privacy-policy-loading">
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading Privacy Policy...</Text>
         </View>
       </SafeAreaView>

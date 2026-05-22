@@ -34,6 +34,7 @@ import { getCategories } from '../../services/items';
 import { ListingCondition } from '../../types/listing';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
+import { LoadingSpinner } from '@/components/ui';
 
 interface ListingCategory {
   id: string;
@@ -198,7 +199,7 @@ export default function CreateListingScreen({ navigation }: any) {
   if (checkingSubscription) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Checking subscription...</Text>
       </View>
     );

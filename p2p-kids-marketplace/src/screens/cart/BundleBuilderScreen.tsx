@@ -21,7 +21,7 @@ import {
   StyleSheet,
   Image,
   FlatList,
-  Alert,
+  Alert
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';

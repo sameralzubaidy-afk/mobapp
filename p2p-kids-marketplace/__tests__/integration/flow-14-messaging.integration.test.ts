@@ -40,7 +40,7 @@ describeE2E('FLOW-14 Messaging Integration (E2E)', () => {
         seller_id: USER_2_ID,
         listing_id: 'test-listing-1', // Must exist in staging
         status: 'active',
-        offer_amount: 25.00,
+        cash_amount_cents: 2500,
       })
       .select()
       .single();
@@ -223,7 +223,7 @@ describeE2E('FLOW-14 Messaging Integration (E2E)', () => {
           seller_id: USER_2_ID,
           listing_id: 'test-listing-1',
           status: 'active',
-          offer_amount: 10.00,
+          cash_amount_cents: 1000,
         })
         .select()
         .single();

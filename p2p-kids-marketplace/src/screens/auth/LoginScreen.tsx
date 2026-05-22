@@ -12,7 +12,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  TextInput as RNTextInput,
+  TextInput as RNTextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';

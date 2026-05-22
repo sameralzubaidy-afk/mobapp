@@ -12,6 +12,25 @@
 
 import { supabase } from '../config/supabase';
 
+function isTransientNetworkError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : String((error as { message?: unknown } | null)?.message || '');
+
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('network request failed') ||
+    normalized.includes('failed to fetch') ||
+    normalized.includes('fetch failed') ||
+    normalized.includes('timed out') ||
+    normalized.includes('timeout')
+  );
+}
+
 /**
  * Subscription status enum (V2.1)
  * Maps to complete subscription lifecycle states
@@ -143,6 +162,11 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     const { data, error } = await supabase.rpc('get_subscription_status', { p_user_id: userId });
 
     if (error) {
+      if (isTransientNetworkError(error)) {
+        console.warn('[subscription] get_subscription_status skipped due transient network issue');
+        return createFreeTierSummary();
+      }
+
       console.error('[subscription] ❌ Error calling get_subscription_status:', error.message);
       throw new Error(`Failed to fetch subscription: ${error.message}`);
     }
@@ -215,6 +239,11 @@ export async function getSubscriptionSummary(userId: string): Promise<Subscripti
     };
   } catch (error) {
     const err = error as Error;
+    if (isTransientNetworkError(err)) {
+      console.warn('[subscription] getSubscriptionSummary skipped due transient network issue');
+      return createFreeTierSummary();
+    }
+
     console.error('[subscription] ❌ getSubscriptionSummary failed:', err.message);
     // Return free tier on error to avoid blocking the flow
     return createFreeTierSummary();

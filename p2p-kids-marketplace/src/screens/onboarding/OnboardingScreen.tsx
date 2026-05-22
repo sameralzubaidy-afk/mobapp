@@ -2,7 +2,9 @@
 // MODULE-18 V1 EDU-004: Onboarding screen container + gating logic
 
 import React, { useContext, useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
+import {
+  StyleSheet
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import OnboardingCarousel from '../../components/onboarding/OnboardingCarousel';

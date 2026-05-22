@@ -11,10 +11,9 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   SafeAreaView,
-  TouchableOpacity,
+  TouchableOpacity
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,6 +21,7 @@ import { getBillingHistory } from '@/services/billingHistory';
 import type { BillingHistory } from '@/types/billingHistory.types';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { Ionicons } from '@expo/vector-icons';
+import { LoadingSpinner } from '@/components/ui';
 
 export default function TransactionHistoryScreen() {
   const navigation = useNavigation();
@@ -112,7 +112,7 @@ export default function TransactionHistoryScreen() {
 
       <View style={styles.content}>
         {loading ? (
-          <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+          <LoadingSpinner />
         ) : error ? (
           <View style={styles.center}>
             <Text style={styles.errorText}>{error}</Text>

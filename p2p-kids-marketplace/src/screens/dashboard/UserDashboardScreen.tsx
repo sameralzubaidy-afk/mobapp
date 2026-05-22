@@ -30,6 +30,7 @@ import { ItemDraft } from '@/types/listing';
 
 import CategorySelector from '../../components/molecules/CategorySelector';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -197,7 +198,7 @@ export default function UserDashboardScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <LoadingSpinner />
         </View>
       </SafeAreaView>
     );

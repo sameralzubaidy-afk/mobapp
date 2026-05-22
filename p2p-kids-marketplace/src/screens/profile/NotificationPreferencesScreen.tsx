@@ -10,11 +10,11 @@ import {
   ScrollView,
   SafeAreaView,
   Switch,
-  ActivityIndicator,
   Alert,
-  TextInput,
+  TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LoadingSpinner } from '@/components/ui';
 import {
   getNotificationPreferences,
   updateNotificationPreference,
@@ -192,7 +192,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading preferences...</Text>
       </View>
     );

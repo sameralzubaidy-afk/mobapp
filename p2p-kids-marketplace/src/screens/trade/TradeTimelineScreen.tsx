@@ -30,7 +30,7 @@ import { completeTradeV2, cancelTradeV2, processTradePayment } from '@/services/
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
 import { useAuth } from '@/hooks/useAuth';
-import { Modal } from '@/components/ui';
+import { Modal, LoadingSpinner } from '@/components/ui';
 import {
   Clock,
   CheckCircle,
@@ -308,7 +308,7 @@ export default function TradeTimelineScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#5DBB8E" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading trade...</Text>
         </View>
       </SafeAreaView>

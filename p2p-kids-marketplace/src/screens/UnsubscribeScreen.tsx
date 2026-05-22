@@ -12,13 +12,13 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   TouchableOpacity,
-  SafeAreaView,
+  SafeAreaView
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { supabase } from '../config/supabase';
+import { LoadingSpinner } from '@/components/ui';
 
 type RootStackParamList = {
   Unsubscribe: { token: string };
@@ -83,7 +83,7 @@ export default function UnsubscribeScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
-          <ActivityIndicator size="large" color="#4F46E5" testID="loading-indicator" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Processing your request...</Text>
         </View>
       </SafeAreaView>

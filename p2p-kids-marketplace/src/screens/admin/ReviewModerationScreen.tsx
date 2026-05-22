@@ -9,8 +9,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  ActivityIndicator,
-  RefreshControl,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -21,6 +20,7 @@ import {
 } from '@/services/admin/reviewModeration';
 import { ReviewCard } from '@/components/ReviewCard';
 import { Ionicons } from '@expo/vector-icons';
+import { LoadingSpinner } from '@/components/ui';
 
 export function ReviewModerationScreen() {
   const [reportedReviews, setReportedReviews] = useState<ReportedReview[]>([]);
@@ -157,7 +157,7 @@ export function ReviewModerationScreen() {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading reported reviews...</Text>
         </View>
       </SafeAreaView>

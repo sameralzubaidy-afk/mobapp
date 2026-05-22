@@ -57,40 +57,30 @@ My Example 1
 
 
 
-### TASK FLOW-15: User Profile
+### TASK FLOW-16: Home Dashboard
 I’m working on the MODULE-15.1-UI-redesign.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
-Tasks: ### TASK FLOW-15: User Profile
-
+Tasks: ### TASK FLOW-16: Home Dashboard
 scope 
-Redesign the 3 profile screens. The public seller profile is the trust anchor for buyers — ratings, verified badge, and listing grid must be immediately scannable. The edit profile screen reuses the same filled-input system as auth screens.
+Redesign the Home Dashboard — the central hub users land on after login. It must feel like a dashboard: fast to scan, shows key metrics at a glance (SP balance, active trades, recent listings), and surfaces relevant actions quickly.
 
 #### Scope — Files to Modify
 
 | # | Screen | File | Change Type |
 |---|--------|------|-------------|
-| 1 | My Profile | `src/screens/profile/MyProfileScreen.tsx` | Restyle only |
-| 2 | Edit Profile | `src/screens/profile/EditProfileScreen.tsx` | Restyle only |
-| 3 | Public Seller Profile | `src/screens/profile/SellerProfileScreen.tsx` | Restyle only |
-| 4 | Badges | `src/screens/profile/BadgesScreen.tsx` | Restyle only |
+| 1 | Home Dashboard | `src/screens/home/HomeScreen.tsx` | Restyle only |
 
 
-#### ✅ Acceptance Criteria — FLOW-15 (Visual Only)
+#### ✅ Acceptance Criteria — FLOW-16 (Visual Only)
 
-- [ ] Avatar is 96px circle, `#F0F0F0` background
-- [ ] Camera overlay is a 28px green circle (`#5DBB8E`) bottom-right of avatar, `Camera` icon white (14px)
-- [ ] `ShieldCheck` (16px, `#5DBB8E`) appears inline after name on verified profiles
-- [ ] Stats row shows 3 chips on `#F7F7F7` background, 12px radius
-- [ ] "Edit Profile" is secondary outlined (border `#5DBB8E`), NOT filled, `PencilSimple` icon
-- [ ] Edit profile inputs use filled style (`#F0F0F0`, 12px radius, no border)
-- [ ] Bio textarea is filled, min 100px height
-- [ ] "Save Changes" is green pill (52px), sticky bottom
-- [ ] Seller profile star ratings: `#F59E0B` fill for rated, `#E0E0E0` outline for unrated
-- [ ] "Follow" button: green filled pill, `UserPlus` (white) icon left
-- [ ] "Following" state: secondary outlined, `Check` (green) icon left — NOT filled
-- [ ] Badges grid: 3 columns, earned cells `#FFF9EC` bg + `#F59E0B` `Medal` icon, locked cells `#F7F7F7` + gray `Medal` + 60% opacity
-- [ ] Badge detail modal: bottom sheet style, 16px top radius, white background
-- [ ] Locked badge modal shows `Lock` (24px, `#CCCCCC`) — earned modal does NOT
+- [ ] Header avatar is 40px circle
+- [ ] `Bell` icon (24px, `#1A1A1A`) has a small red dot badge (`#E85D75`) when unread notifications exist
+- [ ] SP balance strip has `#5DBB8E` background, white text, `Coins` icon (20px, white)
+- [ ] 4 quick action tiles are white cards (12px radius, subtle shadow), icons 28px `#5DBB8E`
+- [ ] Section headers have "See All" in `#5DBB8E` green, right-aligned
+- [ ] Nearby items grid is 2-column, 12px gap, 16px padding — same as DiscoverScreen
+- [ ] Flash sale / featured banner has `Lightning` icon (16px, `#F59E0B`)
+- [ ] Zero Ionicons imports in HomeScreen.tsx
 
 i want you to 
 

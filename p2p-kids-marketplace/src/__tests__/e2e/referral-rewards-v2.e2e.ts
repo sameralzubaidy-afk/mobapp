@@ -14,6 +14,7 @@ dotenv.config({ path: path.join(__dirname, '../../..', '.env') });
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const describeE2E = process.env.RUN_SUPABASE_E2E === 'true' ? describe : describe.skip;
 
 // Admin client that bypasses RLS for test setup
 const adminSupabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY || '', {
@@ -40,7 +41,7 @@ const adminSupabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY || '', {
  * 5. Verify idempotency (second trade doesn't grant more rewards)
  */
 
-describe('REF-V2-002: Referral SP Rewards E2E', () => {
+describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
   // IMPORTANT: Use seeded IDs from scripts/seed-staging-data.ts
   const REFERRER_USER_ID =
     process.env.TEST_REFERRER_USER_ID || '14be337c-aad6-403f-bab2-ba1a7d80b666'; // test-seller

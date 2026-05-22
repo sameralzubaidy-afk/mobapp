@@ -14,8 +14,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
-  ActivityIndicator,
+  SafeAreaView
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,6 +28,7 @@ import {
 import { TIER_COMPARISON_ROWS } from '@/constants/subscriptionPlans';
 import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
 import type { RootStackParamList } from '@/navigation/types';
+import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -115,7 +115,7 @@ export default function PlanComparisonScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#5DBB8E" />
+        <LoadingSpinner />
       </SafeAreaView>
     );
   }

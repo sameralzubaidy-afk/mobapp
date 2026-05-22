@@ -23,6 +23,7 @@ import { initiateSocialLogin } from '@/services/oauthService';
 import PasswordReauthModal from '@/components/auth/PasswordReauthModal';
 import type { OAuthProvider, LinkedProvider } from '@/types/auth-v3';
 import { EmailMismatchError, LastLoginMethodError } from '@/types/auth-v3-errors';
+import { LoadingSpinner } from '@/components/ui';
 
 export default function LinkedAccountsScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -214,7 +215,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading linked accounts...</Text>
         </View>
       </SafeAreaView>

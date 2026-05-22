@@ -15,7 +15,6 @@ import {
   Text,
   FlatList,
   Pressable,
-  ActivityIndicator,
   Image,
   StyleSheet,
 } from 'react-native';
@@ -24,6 +23,7 @@ import { getRecommendations } from '../../../services/discovery';
 import { Recommendation } from '../../../types/discovery';
 import { useAuth } from '../../../hooks/useAuth';
 import { ListingImage } from '../../atoms';
+import { LoadingSpinner } from '@/components/ui';
 
 interface RecommendationsCarouselProps {
   /** Number of recommendations to fetch */
@@ -102,7 +102,7 @@ export default function RecommendationsCarousel({
       <View style={styles.container}>
         <Text style={styles.title}>{title}</Text>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3b82f6" />
+          <LoadingSpinner fullScreen={false} color="#3b82f6" size={36} />
         </View>
       </View>
     );

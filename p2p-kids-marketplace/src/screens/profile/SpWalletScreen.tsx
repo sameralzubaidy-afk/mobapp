@@ -9,14 +9,14 @@ import {
   ScrollView,
   StyleSheet,
   RefreshControl,
-  TouchableOpacity,
-  ActivityIndicator,
+  TouchableOpacity
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getWalletSummary } from '@/services/sp/wallet';
 import { getLedgerHistory, SPLedgerEntry } from '@/services/sp/wallet';
 import { getExpiringBatches, SPBatch } from '@/services/sp/wallet';
 import { useAuth } from '@/hooks/useAuth';
+import { LoadingSpinner } from '@/components/ui';
 
 export default function SpWalletScreen() {
   const navigation = useNavigation();
@@ -157,7 +157,7 @@ export default function SpWalletScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading wallet...</Text>
       </View>
     );

@@ -7,13 +7,12 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  View,
+  LoadingSpinner } from '@/components/ui'; import { View,
   Text,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   StyleSheet,
-  Alert,
+  Alert
 } from 'react-native';
 import {
   getTrialStatus,
@@ -98,7 +97,7 @@ export default function TrialConversionTestScreen() {
 
       {loading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <LoadingSpinner />
         </View>
       )}
 

@@ -11,6 +11,7 @@ export type RootStackParamList = {
   FeatureHighlights: { userId?: string } | undefined;
   Onboarding: undefined;
   Profile: { userId?: string } | undefined;
+  SellerProfile: { userId: string; sellerVerificationStatus?: string };
   EditProfile: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string } | undefined;
@@ -44,6 +45,7 @@ export type RootStackParamList = {
   // Trade routes
   TradeInitiation: { itemId: string };
   TradeReview: { tradeId: string };
+  ReviewOffer: { tradeId: string };
   TradeTimeline: { tradeId: string };
   TradeDetail: { tradeId: string };
   TradeList: undefined;

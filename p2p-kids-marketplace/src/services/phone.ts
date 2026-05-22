@@ -1,5 +1,23 @@
 import { supabase } from './supabase/client';
 
+const DEV_BYPASS_CODE = '123456';
+
+const updatePhoneOnProfileFallback = async (userId: string, phone: string) => {
+  const { error: profileErr } = await supabase
+    .from('profiles')
+    .update({ phone, phone_verified: true, phone_verified_at: new Date().toISOString() })
+    .eq('user_id', userId);
+
+  if (profileErr) {
+    return { success: false as const, error: profileErr };
+  }
+
+  return {
+    success: true as const,
+    message: 'Phone verified and saved to profile (auth phone not updated)',
+  };
+};
+
 /**
  * Request a phone verification code for a user and phone
  * Inserts a new row into phone_verification_codes and (in real env) sends an SMS
@@ -24,6 +42,13 @@ export const requestPhoneVerification = async (
     });
 
     if (error) {
+      if (__DEV__) {
+        console.warn('requestPhoneVerification insert error (dev bypass):', error);
+        console.warn(
+          `[DEV BYPASS] Proceeding without DB insert. Use code ${DEV_BYPASS_CODE} for ${phone}`
+        );
+        return { success: true, code: DEV_BYPASS_CODE };
+      }
       console.error('requestPhoneVerification insert error:', error);
       return { success: false, error };
     }
@@ -45,9 +70,76 @@ export const requestPhoneVerification = async (
  */
 export const verifyPhoneCode = async (
   userId: string,
-  code: string
+  code: string,
+  fallbackPhone?: string
 ): Promise<{ success: boolean; message?: string; error?: Error | object }> => {
   try {
+    if (__DEV__ && code === DEV_BYPASS_CODE) {
+      let phone = fallbackPhone;
+
+      if (!phone) {
+        const { data: latestCodeRow } = await supabase
+          .from('phone_verification_codes')
+          .select('phone')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        phone = latestCodeRow?.phone;
+      }
+
+      if (!phone) {
+        return { success: true, message: 'Phone verified in dev mode' };
+      }
+
+      try {
+        const invokeRes = await supabase.functions.invoke('auth-update-phone', {
+          body: { user_id: userId, phone },
+        });
+
+        const { data: fnData, error: fnError } = invokeRes;
+        if (fnError) {
+          console.warn(
+            'auth-update-phone invoke SDK error (dev bypass); using profile fallback:',
+            fnError
+          );
+          const fallback = await updatePhoneOnProfileFallback(userId, phone);
+          if (!fallback.success) {
+            console.error('Dev bypass fallback profile update failed after SDK error:', fallback.error);
+            return { success: false, error: fallback.error };
+          }
+          return { success: true, message: fallback.message };
+        }
+
+        if (fnData && (fnData.error || fnData?.status >= 400)) {
+          console.warn(
+            'auth-update-phone returned non-2xx in dev bypass; using profile fallback:',
+            fnData
+          );
+          const fallback = await updatePhoneOnProfileFallback(userId, phone);
+          if (!fallback.success) {
+            console.error(
+              'Dev bypass fallback profile update failed after non-2xx response:',
+              fallback.error
+            );
+            return { success: false, error: fallback.error };
+          }
+          return { success: true, message: fallback.message };
+        }
+
+        return { success: true, message: 'Phone verified in dev mode and updated' };
+      } catch (error) {
+        const err = error as Error;
+        console.warn('Dev bypass auth-update-phone exception; using profile fallback:', err);
+        const fallback = await updatePhoneOnProfileFallback(userId, phone);
+        if (!fallback.success) {
+          console.error('Dev bypass fallback profile update failed after exception:', fallback.error);
+          return { success: false, error: fallback.error };
+        }
+        return { success: true, message: fallback.message };
+      }
+    }
+
     const { data: rpcResult, error: rpcError } = await supabase.rpc('verify_phone_code', {
       p_user_id: userId,
       p_code: code,

@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { idBadgeService } from '@/services/idBadge';
 import { getCurrentUser } from '@/services/supabase/auth';
+import { LoadingSpinner } from '@/components/ui';
 
 interface UploadState {
   selectedImage: string | null;
@@ -202,7 +203,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.centeredContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <LoadingSpinner />
         </View>
       </SafeAreaView>
     );

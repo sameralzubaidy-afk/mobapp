@@ -30,12 +30,11 @@ import { getItemById, Item } from '@/services/items';
 import { initiateTradeV2 } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
-import { getTransactionFee } from '@/services/subscription';
 import { calculateCategorySP } from '@/services/categoryService';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
-import { Modal } from '@/components/ui';
+import { Modal, LoadingSpinner } from '@/components/ui';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { ArrowsLeftRight, CaretLeft, Coins, ShieldCheck } from 'phosphor-react-native';
 
@@ -57,7 +56,6 @@ export default function TradeOfferScreen() {
   const [spAmount, setSpAmount] = useState(0);
   const [maxSpAllowed, setMaxSpAllowed] = useState(0);
   const [maxSpPercentage, setMaxSpPercentage] = useState(50);
-  const [transactionFeeCents, setTransactionFeeCents] = useState(0);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);
   const [errorModal, setErrorModal] = useState<{ visible: boolean; title: string; message: string; isDuplicate?: boolean }>({
@@ -73,10 +71,9 @@ export default function TradeOfferScreen() {
 
     try {
       setLoading(true);
-      const [itemData, config, feeCents] = await Promise.all([
+      const [itemData, config] = await Promise.all([
         getItemById(itemId),
         getAdminConfig(),
-        getTransactionFee(user.id),
       ]);
 
       if (!itemData) {
@@ -88,9 +85,6 @@ export default function TradeOfferScreen() {
       await refreshSession();
 
       setItem(itemData);
-      if (Number.isFinite(feeCents) && feeCents >= 0) {
-        setTransactionFeeCents(Math.round(feeCents));
-      }
 
       if (itemData.category_id) {
         const spConfig = await calculateCategorySP(itemData.category_id, itemData.price);
@@ -174,7 +168,7 @@ export default function TradeOfferScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#5DBB8E" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading offer...</Text>
         </View>
       </SafeAreaView>
@@ -187,7 +181,8 @@ export default function TradeOfferScreen() {
   const maxSpToUse = Math.min(maxSpAllowed, availableSp);
   const spDiscountCents = spAmount * 100;
   const itemPriceCents = Math.round(item.price * 100);
-  const cashAmountCents = itemPriceCents - spDiscountCents + transactionFeeCents;
+  // Offer amount = item price minus SP (no fees shown on offer screen)
+  const offerAmountCents = itemPriceCents - spDiscountCents;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -233,7 +228,7 @@ export default function TradeOfferScreen() {
 
             <View style={styles.tradeSide}>
               <Text style={styles.tradeSideLabel}>You Offer</Text>
-              <Text style={styles.offerAmount}>${(cashAmountCents / 100).toFixed(2)}</Text>
+              <Text style={styles.offerAmount}>${(offerAmountCents / 100).toFixed(2)}</Text>
               {spAmount > 0 && (
                 <Text style={styles.spUsedBadge}>{spAmount} SP applied</Text>
               )}

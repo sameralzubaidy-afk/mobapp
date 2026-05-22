@@ -7,19 +7,19 @@
  * Features: debounced search, 9 filters, 4 sort options, infinite scroll, optimistic UI
  */
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
-  SafeAreaView,
   FlatList,
-  ScrollView,
   TextInput,
   Pressable,
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
+  Modal as RNModal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -40,6 +40,15 @@ import { getCategories } from '@/services/items';
 import { SortDropdown } from '@/components/atoms';
 import { SearchFilterModal, ItemCard } from '@/components/molecules';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
+import {
+  checkZipCodeHasActiveNode,
+  getZipCodeCoordinates,
+  getUserPreferredRadius,
+  saveUserPreferredRadius,
+} from '@/services/location';
+import { upsertZipWaitlist } from '@/services/waitlist';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/config/supabase';
 import { MagnifyingGlass, FunnelSimple, X } from 'phosphor-react-native';
 
 // Search debounce constants: 200ms for active typing, 0ms for filter/sort changes
@@ -49,7 +58,32 @@ const FILTER_DEBOUNCE_MS = 0;
 // Pagination batch size
 const RESULTS_PER_PAGE = 20;
 const AUTOCOMPLETE_MAX = 5;
-const FALLBACK_CATEGORY_CHIPS = ['Clothing', 'Shoes', 'Books', 'Toys', 'Sports'];
+const DEFAULT_RADIUS_MILES = 10;
+const MIN_RADIUS_MILES = 5;
+const MAX_RADIUS_MILES = 100;
+
+type NodesWithinRadiusRow = {
+  id: string;
+};
+
+const dedupeResultsById = (items: SearchResult[]): SearchResult[] => {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    if (seen.has(item.id)) {
+      return false;
+    }
+
+    seen.add(item.id);
+    return true;
+  });
+};
+
+const mergeUniqueResults = (existing: SearchResult[], incoming: SearchResult[]): SearchResult[] => {
+  const existingIds = new Set(existing.map((item) => item.id));
+  const uniqueIncoming = incoming.filter((item) => !existingIds.has(item.id));
+  return [...existing, ...uniqueIncoming];
+};
 
 // Props type
 type Props = NativeStackScreenProps<any, 'Discover'>;
@@ -67,6 +101,8 @@ type Props = NativeStackScreenProps<any, 'Discover'>;
  * - Network error handling (non-blocking)
  */
 export default function DiscoverScreen({ navigation }: Props) {
+  const { session } = useAuth();
+
   // --- STATE ---
 
   // Search query (controlled input)
@@ -100,6 +136,15 @@ export default function DiscoverScreen({ navigation }: Props) {
   const [autocompleteVisible, setAutocompleteVisible] = useState(false);
   const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<string[]>([]);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [inactiveZipDialog, setInactiveZipDialog] = useState<{
+    visible: boolean;
+    zip: string;
+    message: string;
+  }>({
+    visible: false,
+    zip: '',
+    message: '',
+  });
 
   // Categories for filter modal
   const [categories, setCategories] = useState<any[]>([]);
@@ -107,21 +152,27 @@ export default function DiscoverScreen({ navigation }: Props) {
   // Offset for pagination
   const [offset, setOffset] = useState(0);
 
+  // Location search state (ZIP + radius)
+  const [zipCodeInput, setZipCodeInput] = useState('');
+  const [appliedZipCode, setAppliedZipCode] = useState('');
+  const [radiusMiles, setRadiusMiles] = useState(DEFAULT_RADIUS_MILES);
+  const [nodeIdsInScope, setNodeIdsInScope] = useState<string[]>([]);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationFilterUnavailable, setLocationFilterUnavailable] = useState(false);
+  const [inactiveZipMessage, setInactiveZipMessage] = useState<string | null>(null);
+  const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
+
+  // Guards to prevent duplicate pagination requests and stale response races.
+  const paginationRequestInFlightRef = useRef(false);
+  const latestRequestIdRef = useRef(0);
+
   // --- COMPUTED VALUES ---
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
+  const userId = session?.user?.user_id ?? null;
+  const userEmail = session?.user?.email ?? null;
 
-  const categoryChipLabels = useMemo(() => {
-    const labels = (categories || [])
-      .map((category: any) => String(category?.name || '').trim())
-      .filter((name: string) => name.length > 0);
-
-    if (labels.length > 0) {
-      return Array.from(new Set(labels)).slice(0, 8);
-    }
-
-    return FALLBACK_CATEGORY_CHIPS;
-  }, [categories]);
+  const sanitizeZipCode = (value: string): string => value.replace(/\D/g, '').slice(0, 5);
 
   // --- LIFECYCLE ---
 
@@ -129,6 +180,151 @@ export default function DiscoverScreen({ navigation }: Props) {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  // Initialize ZIP/radius defaults from profile/user preferences.
+  useEffect(() => {
+    const initializeLocationDefaults = async () => {
+      const sessionZip = sanitizeZipCode(session?.user?.zip_code || '');
+      if (sessionZip.length === 5) {
+        // Keep ZIP prefilled for convenience, but do not auto-apply location filter.
+        // Requirement: load all discover items by default.
+        setZipCodeInput(sessionZip);
+      }
+
+      if (!userId) {
+        return;
+      }
+
+      const preferredRadius = await getUserPreferredRadius(userId);
+      const clampedRadius = Math.max(
+        MIN_RADIUS_MILES,
+        Math.min(MAX_RADIUS_MILES, Math.round(preferredRadius || DEFAULT_RADIUS_MILES))
+      );
+      setRadiusMiles(clampedRadius);
+    };
+
+    initializeLocationDefaults();
+  }, [session?.user?.zip_code, userId]);
+
+  const resolveNodeScopeByLocation = useCallback(async (zipCode: string, radius: number) => {
+    if (!/^\d{5}$/.test(zipCode)) {
+      setNodeIdsInScope([]);
+      setLocationFilterUnavailable(false);
+      setInactiveZipMessage(null);
+      return [];
+    }
+
+    setLocationLoading(true);
+
+    try {
+      const hasActiveNode = await checkZipCodeHasActiveNode(zipCode);
+      if (!hasActiveNode) {
+        setInactiveZipMessage(
+          `We are not live in ZIP ${zipCode} yet. We can add you to the waitlist.`
+        );
+      } else {
+        setInactiveZipMessage(null);
+      }
+
+      const coordinates = await getZipCodeCoordinates(zipCode);
+      if (!coordinates) {
+        setNodeIdsInScope([]);
+        setLocationFilterUnavailable(false);
+        setError('Could not find this ZIP code. Please verify and try again.');
+        return [];
+      }
+
+      const rpcPayloadLegacy = {
+        center_lat: coordinates.latitude,
+        center_lng: coordinates.longitude,
+        radius_miles: radius,
+      };
+      const rpcPayloadPrefixed = {
+        p_center_lat: coordinates.latitude,
+        p_center_lng: coordinates.longitude,
+        p_radius_miles: radius,
+      };
+
+      let nearbyNodes: NodesWithinRadiusRow[] | null = null;
+      let nearbyNodesError: { code?: string; message?: string; details?: string; hint?: string } | null = null;
+
+      const firstAttempt = await supabase.rpc('get_nodes_within_radius', rpcPayloadLegacy);
+      if (!firstAttempt.error) {
+        nearbyNodes = (firstAttempt.data || []) as NodesWithinRadiusRow[];
+      } else {
+        nearbyNodesError = firstAttempt.error;
+
+        const firstAttemptText = `${firstAttempt.error.message || ''} ${firstAttempt.error.details || ''}`.toLowerCase();
+        const mayBeSignatureMismatch =
+          firstAttempt.error.code === 'PGRST202' ||
+          firstAttemptText.includes('could not find the function') ||
+          firstAttemptText.includes('schema cache');
+
+        if (mayBeSignatureMismatch) {
+          const secondAttempt = await supabase.rpc('get_nodes_within_radius', rpcPayloadPrefixed);
+          if (!secondAttempt.error) {
+            nearbyNodes = (secondAttempt.data || []) as NodesWithinRadiusRow[];
+            nearbyNodesError = null;
+          } else {
+            nearbyNodesError = secondAttempt.error;
+          }
+        }
+      }
+
+      if (nearbyNodesError) {
+        console.error(
+          '[DiscoverScreen] get_nodes_within_radius failed:',
+          JSON.stringify({
+          code: nearbyNodesError.code,
+          message: nearbyNodesError.message,
+          details: nearbyNodesError.details,
+          hint: nearbyNodesError.hint,
+          })
+        );
+
+        const normalizedErrorText = `${nearbyNodesError.message || ''} ${nearbyNodesError.details || ''}`.toLowerCase();
+        const hasTextVarcharMismatch =
+          nearbyNodesError.code === '42804' ||
+          normalizedErrorText.includes('returned type character varying') ||
+          normalizedErrorText.includes('does not match expected type text');
+
+        const hasMissingPostgisFunction =
+          nearbyNodesError.code === '42883' ||
+          normalizedErrorText.includes('st_distancesphere') ||
+          normalizedErrorText.includes('st_makepoint') ||
+          normalizedErrorText.includes('function') && normalizedErrorText.includes('does not exist');
+
+        setNodeIdsInScope([]);
+        setLocationFilterUnavailable(true);
+        setError(
+          hasTextVarcharMismatch || hasMissingPostgisFunction
+            ? 'Location filter is temporarily unavailable due to a backend function mismatch. Showing broader results.'
+            : 'Failed to search listings by location. Showing broader results. Tap to retry.'
+        );
+        return [];
+      }
+
+      const nextNodeIds = (nearbyNodes || [])
+        .map((node) => node.id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0);
+
+      setNodeIdsInScope(nextNodeIds);
+      setLocationFilterUnavailable(false);
+      return nextNodeIds;
+    } finally {
+      setLocationLoading(false);
+    }
+  }, []);
+
+  // Recalculate nodes whenever applied ZIP or radius changes.
+  useEffect(() => {
+    if (!/^\d{5}$/.test(appliedZipCode)) {
+      setNodeIdsInScope([]);
+      return;
+    }
+
+    resolveNodeScopeByLocation(appliedZipCode, radiusMiles);
+  }, [appliedZipCode, radiusMiles, resolveNodeScopeByLocation]);
 
   // Pre-warm brand cache on mount
   useEffect(() => {
@@ -140,7 +336,7 @@ export default function DiscoverScreen({ navigation }: Props) {
   // Perform search when debouncedQuery, debouncedFilters or debouncedSortBy change
   useEffect(() => {
     performSearch({ resetOffset: true });
-  }, [debouncedQuery, debouncedFilters, debouncedSortBy]);
+  }, [debouncedQuery, debouncedFilters, debouncedSortBy, nodeIdsInScope, appliedZipCode]);
 
   // Load recent searches on mount and when screen gains focus
   useFocusEffect(
@@ -264,8 +460,17 @@ export default function DiscoverScreen({ navigation }: Props) {
       forcedOffset?: number;
     } = {}) => {
       try {
+        const requestId = latestRequestIdRef.current + 1;
+        latestRequestIdRef.current = requestId;
+
         const newOffset =
           typeof forcedOffset === 'number' ? forcedOffset : resetOffset ? 0 : offset;
+
+        const isPaginationRequest = !resetOffset && newOffset > 0;
+
+        if (isPaginationRequest) {
+          paginationRequestInFlightRef.current = true;
+        }
 
         // For first page or filter change, show main loading indicator
         // For infinite scroll, show loadingMore indicator
@@ -277,27 +482,42 @@ export default function DiscoverScreen({ navigation }: Props) {
         }
 
         // Build filters with current query
+        const hasLocationFilter = /^\d{5}$/.test(appliedZipCode) && !locationFilterUnavailable;
+        const useScopedNodeIds = hasLocationFilter && nodeIdsInScope.length > 0;
+
         const searchFilters: DiscoveryFilters = {
           ...filters,
           query: debouncedQuery.trim() || undefined,
           sortBy,
+          nodeIds: useScopedNodeIds ? nodeIdsInScope : undefined,
           limit: RESULTS_PER_PAGE,
           offset: newOffset,
         };
 
         const searchResults = await searchListings(debouncedQuery.trim(), searchFilters);
 
-        // Optimistic UI: append results for infinite scroll, replace for new search
-        if (resetOffset || newOffset === 0) {
-          setResults(searchResults);
-          setOffset(0);
-        } else {
-          setResults((prev) => [...prev, ...searchResults]);
-          setOffset(newOffset);
+        // Ignore stale responses from older requests to prevent UI flicker/races.
+        if (requestId !== latestRequestIdRef.current) {
+          return;
         }
 
-        // Update hasMore flag
-        setHasMore(searchResults.length === RESULTS_PER_PAGE);
+        const dedupedBatch = dedupeResultsById(searchResults);
+
+        // Optimistic UI: append results for infinite scroll, replace for new search
+        if (resetOffset || newOffset === 0) {
+          setResults(dedupedBatch);
+          setOffset(0);
+          setHasMore(dedupedBatch.length === RESULTS_PER_PAGE);
+        } else {
+          const existingIds = new Set(results.map((item) => item.id));
+          const uniqueCount = dedupedBatch.filter((item) => !existingIds.has(item.id)).length;
+
+          setResults((prev) => mergeUniqueResults(prev, dedupedBatch));
+          setOffset(newOffset);
+
+          // Stop paging when backend repeats the same page (e.g., offset ignored or stale cache).
+          setHasMore(dedupedBatch.length === RESULTS_PER_PAGE && uniqueCount > 0);
+        }
 
         // Add to search history if query is non-empty
         if (debouncedQuery.trim().length > 0) {
@@ -312,22 +532,148 @@ export default function DiscoverScreen({ navigation }: Props) {
       } finally {
         setLoading(false);
         setLoadingMore(false);
+        paginationRequestInFlightRef.current = false;
       }
     },
-    [debouncedQuery, filters, sortBy, offset]
+    [
+      debouncedQuery,
+      filters,
+      sortBy,
+      offset,
+      results,
+      nodeIdsInScope,
+      appliedZipCode,
+      locationFilterUnavailable,
+    ]
   );
 
   /**
    * Handle reaching end of list (infinite scroll)
    */
   const handleLoadMore = useCallback(() => {
-    if (loadingMore || !hasMore || loading) {
+    if (loadingMore || !hasMore || loading || paginationRequestInFlightRef.current) {
       return; // Guard against duplicate fetches
     }
+
+    paginationRequestInFlightRef.current = true;
 
     const newOffset = offset + RESULTS_PER_PAGE;
     performSearch({ resetOffset: false, forcedOffset: newOffset });
   }, [loadingMore, hasMore, loading, offset, performSearch]);
+
+  /**
+   * Toggle SP-only filtering directly from discover controls.
+   */
+  const handleQuickSPToggle = () => {
+    setFilters((prev) => ({ ...prev, spEligibleOnly: !prev.spEligibleOnly }));
+    setOffset(0);
+  };
+
+  /**
+   * Apply ZIP filter from user input and auto-enroll waitlist when zip is inactive.
+   */
+  const handleApplyZipCode = async (): Promise<{
+    ok: boolean;
+    zip: string;
+    isInactiveZip: boolean;
+    waitlistNote?: string;
+  }> => {
+    const normalizedZip = sanitizeZipCode(zipCodeInput);
+    setZipCodeInput(normalizedZip);
+    setWaitlistMessage(null);
+
+    if (!/^\d{5}$/.test(normalizedZip)) {
+      setInactiveZipMessage('Enter a valid 5-digit ZIP code.');
+      return { ok: false, zip: normalizedZip, isInactiveZip: false };
+    }
+
+    setAppliedZipCode(normalizedZip);
+    const hasActiveNode = await checkZipCodeHasActiveNode(normalizedZip);
+
+    if (hasActiveNode) {
+      setWaitlistMessage(null);
+      return { ok: true, zip: normalizedZip, isInactiveZip: false };
+    }
+
+    if (!hasActiveNode && userId && userEmail) {
+      let waitlistNote = `Added you to the waitlist for ZIP ${normalizedZip}.`;
+      try {
+        // Note: assignedNodeId not passed because get_nodes_within_radius returns
+        // geographic_nodes IDs, but zip_waitlist FK references public.nodes.
+        // This will be fixed when migration 008_unify_nodes_table.sql is run.
+        await upsertZipWaitlist({
+          userId,
+          email: userEmail,
+          requestedZip: normalizedZip,
+        });
+        setWaitlistMessage(waitlistNote);
+      } catch (waitlistError) {
+        console.error('[DiscoverScreen] Waitlist enrollment failed:', waitlistError);
+        waitlistNote = 'Could not add you to waitlist right now. Please try again.';
+        setWaitlistMessage(waitlistNote);
+      }
+      return { ok: true, zip: normalizedZip, isInactiveZip: true, waitlistNote };
+    }
+
+    const signInNote = 'Sign in to be added to the waitlist for this ZIP.';
+    setWaitlistMessage(signInNote);
+    return { ok: true, zip: normalizedZip, isInactiveZip: true, waitlistNote: signInNote };
+  };
+
+  /**
+   * Show alert when user tries to apply an inactive ZIP code
+   */
+  const showInactiveZipAlert = (zip: string, waitlistNote?: string) => {
+    const alertMessage = waitlistNote
+      ? `We're not live in ZIP code ${zip} yet. ${waitlistNote} In the meantime, you can browse all available items.`
+      : `We're not live in ZIP code ${zip} yet. In the meantime, you can browse all available items.`;
+
+    setInactiveZipDialog({
+      visible: true,
+      zip,
+      message: alertMessage,
+    });
+  };
+
+  const handleInactiveZipBackToFilters = () => {
+    setInactiveZipDialog({ visible: false, zip: '', message: '' });
+    setFilterModalVisible(true);
+  };
+
+  const handleInactiveZipSeeAllResults = () => {
+    setInactiveZipDialog({ visible: false, zip: '', message: '' });
+    // Clear location filter and show all items
+    setAppliedZipCode('');
+    setNodeIdsInScope([]);
+    setWaitlistMessage(null);
+    setInactiveZipMessage(null);
+    setOffset(0);
+  };
+
+  /**
+   * Keep ZIP input sanitized while user types in filter modal.
+   */
+  const handleZipCodeInputChange = useCallback((value: string) => {
+    setZipCodeInput(sanitizeZipCode(value));
+  }, []);
+
+  /**
+   * Update radius and persist preference.
+   */
+  const handleRadiusComplete = async (nextRadius: number) => {
+    const clampedRadius = Math.max(MIN_RADIUS_MILES, Math.min(MAX_RADIUS_MILES, Math.round(nextRadius)));
+    setRadiusMiles(clampedRadius);
+
+    if (!userId) {
+      return;
+    }
+
+    try {
+      await saveUserPreferredRadius(userId, clampedRadius);
+    } catch (radiusError) {
+      console.warn('[DiscoverScreen] Failed saving preferred radius:', radiusError);
+    }
+  };
 
   /**
    * Handle pull-to-refresh
@@ -403,10 +749,42 @@ export default function DiscoverScreen({ navigation }: Props) {
   /**
    * Handle applying filters from modal
    */
-  const handleApplyFilters = (newFilters: DiscoveryFilters) => {
+  const handleApplyFilters = async (newFilters: DiscoveryFilters) => {
+    const normalizedZip = sanitizeZipCode(zipCodeInput);
+
+    let inactiveZipAlertPayload: { zip: string; waitlistNote?: string } | null = null;
+
+    if (normalizedZip.length === 0) {
+      // Clearing ZIP reverts to global discovery scope.
+      setAppliedZipCode('');
+      setNodeIdsInScope([]);
+      setInactiveZipMessage(null);
+      setWaitlistMessage(null);
+    } else {
+      const zipApplyResult = await handleApplyZipCode();
+      if (!zipApplyResult.ok) {
+        return;
+      }
+      if (zipApplyResult.isInactiveZip) {
+        inactiveZipAlertPayload = {
+          zip: zipApplyResult.zip,
+          waitlistNote: zipApplyResult.waitlistNote,
+        };
+      }
+    }
+
     setFilters(newFilters);
     setFilterModalVisible(false);
     setOffset(0);
+
+    // Show inactive ZIP alert AFTER modal closes if ZIP was inactive
+    if (inactiveZipAlertPayload) {
+      const { zip, waitlistNote } = inactiveZipAlertPayload;
+      // Small delay to let modal close animation complete
+      setTimeout(() => {
+        showInactiveZipAlert(zip, waitlistNote);
+      }, 300);
+    }
   };
 
   /**
@@ -422,13 +800,6 @@ export default function DiscoverScreen({ navigation }: Props) {
   const handleSortChange = (nextSortBy: SortOption) => {
     setSortBy(nextSortBy);
     setOffset(0);
-  };
-
-  /**
-   * Handle category chip press
-   */
-  const handleCategoryChipPress = (categoryName: string) => {
-    navigation.navigate('CategoryBrowse', { category: categoryName });
   };
 
   /**
@@ -490,7 +861,12 @@ export default function DiscoverScreen({ navigation }: Props) {
           {/* Search Input Container - Prevents re-mount of input */}
           <View style={[styles.searchContainer, navigation.canGoBack() && { marginLeft: 8 }]}>
             <View style={styles.searchInputWrapper}>
-              <MagnifyingGlass size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 8 }} />
+              <MagnifyingGlass
+                size={20}
+                color="#6B6B6B"
+                weight="regular"
+                style={{ marginRight: 8 }}
+              />
               <TextInput
                 testID="discover-search-input"
                 accessibilityLabel="Search for items"
@@ -531,26 +907,23 @@ export default function DiscoverScreen({ navigation }: Props) {
           </Pressable>
 
           <SortDropdown value={sortBy} onChange={handleSortChange} />
-        </View>
 
-        {/* Category Chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryChipsContainer}
-          testID="discover-category-chip-row"
-        >
-          {categoryChipLabels.map((categoryName) => (
-            <Pressable
-              key={categoryName}
-              style={styles.categoryChip}
-              onPress={() => handleCategoryChipPress(categoryName)}
-              testID={`discover-category-chip-${categoryName.toLowerCase().replace(/\s+/g, '-')}`}
+          <Pressable
+            testID="discover-sp-toggle"
+            accessibilityLabel={`SP only filter ${filters.spEligibleOnly ? 'enabled' : 'disabled'}`}
+            style={[styles.spQuickToggle, filters.spEligibleOnly && styles.spQuickToggleActive]}
+            onPress={handleQuickSPToggle}
+          >
+            <Text
+              style={[
+                styles.spQuickToggleText,
+                filters.spEligibleOnly && styles.spQuickToggleTextActive,
+              ]}
             >
-              <Text style={styles.categoryChipText}>{categoryName}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+              SP Only
+            </Text>
+          </Pressable>
+        </View>
 
         {/* Network Error Banner */}
         {error && (
@@ -707,9 +1080,53 @@ export default function DiscoverScreen({ navigation }: Props) {
         visible={filterModalVisible}
         filters={filters}
         categories={categories}
+        zipCodeInput={zipCodeInput}
+        appliedZipCode={appliedZipCode}
+        radiusMiles={radiusMiles}
+        minRadiusMiles={MIN_RADIUS_MILES}
+        maxRadiusMiles={MAX_RADIUS_MILES}
+        locationLoading={locationLoading}
+        inactiveZipMessage={inactiveZipMessage}
+        waitlistMessage={waitlistMessage}
+        userProfileZip={sanitizeZipCode(session?.user?.zip_code || '')}
+        onZipCodeInputChange={handleZipCodeInputChange}
+        onRadiusChange={setRadiusMiles}
+        onRadiusComplete={handleRadiusComplete}
         onApply={handleApplyFilters}
         onClose={handleCloseFilters}
       />
+
+      <RNModal
+        visible={inactiveZipDialog.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleInactiveZipSeeAllResults}
+      >
+        <View style={styles.inactiveZipModalOverlay}>
+          <View style={styles.inactiveZipModalCard}>
+            <Text style={styles.inactiveZipModalTitle}>Not Available in Your Area</Text>
+            <Text style={styles.inactiveZipModalMessage}>{inactiveZipDialog.message}</Text>
+
+            <View style={styles.inactiveZipModalActions}>
+              <Pressable
+                style={styles.inactiveZipSecondaryButton}
+                onPress={handleInactiveZipBackToFilters}
+                testID="inactive-zip-back-to-filters"
+              >
+                <Text style={styles.inactiveZipSecondaryButtonText}>Back to Filters</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.inactiveZipPrimaryButton}
+                onPress={handleInactiveZipSeeAllResults}
+                testID="inactive-zip-see-all-results"
+              >
+                <Text style={styles.inactiveZipPrimaryButtonText}>See All Results</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </RNModal>
 
       <BottomNavBar />
     </SafeAreaView>
@@ -755,24 +1172,9 @@ const styles = StyleSheet.create({
   },
   controlsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 12,
     gap: 12,
-  },
-  categoryChipsContainer: {
-    marginTop: 12,
-    paddingRight: 8,
-  },
-  categoryChip: {
-    backgroundColor: '#F0F0F0',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    marginRight: 8,
-  },
-  categoryChipText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B6B6B',
   },
   filterButton: {
     width: 44,
@@ -797,6 +1199,27 @@ const styles = StyleSheet.create({
   filterBadgeText: {
     fontSize: 10,
     fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  spQuickToggle: {
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  spQuickToggleActive: {
+    backgroundColor: '#5DBB8E',
+  },
+  spQuickToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5DBB8E',
+  },
+  spQuickToggleTextActive: {
     color: '#FFFFFF',
   },
   listContent: {
@@ -925,6 +1348,63 @@ const styles = StyleSheet.create({
   spellSuggestionText: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  inactiveZipModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(26, 26, 26, 0.35)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  inactiveZipModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 22,
+  },
+  inactiveZipModalTitle: {
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 16,
+  },
+  inactiveZipModalMessage: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#6B6B6B',
+  },
+  inactiveZipModalActions: {
+    marginTop: 24,
+    flexDirection: 'row',
+    gap: 12,
+  },
+  inactiveZipSecondaryButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: '#C9C9C9',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inactiveZipSecondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B6B6B',
+  },
+  inactiveZipPrimaryButton: {
+    flex: 1,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inactiveZipPrimaryButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#FFFFFF',
   },
 });

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -10,7 +9,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -24,6 +23,7 @@ import {
 } from '@/services/listing';
 import { Listing } from '@/types/listing';
 import { ShieldWarning } from 'phosphor-react-native';
+import { LoadingSpinner } from '@/components/ui';
 
 type ListingSafetyRoute = RouteProp<RootStackParamList, 'ListingSafetyReview'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -192,7 +192,7 @@ export default function ListingSafetyReviewScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <LoadingSpinner />
         <Text style={styles.helperText}>Loading safety review...</Text>
       </SafeAreaView>
     );

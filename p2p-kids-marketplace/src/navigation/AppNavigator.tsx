@@ -1,9 +1,10 @@
 import React from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as ExpoLinking from 'expo-linking';
+import { LoadingSpinner } from '@/components/ui';
 import DiscoverScreen from '@/screens/home/DiscoverScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
@@ -16,6 +17,7 @@ import PhoneVerificationScreen from '@/screens/auth/PhoneVerificationScreen';
 import LandingScreen from '@/screens/auth/LandingScreen';
 import SuspendedAccountScreen from '@/screens/auth/SuspendedAccountScreen';
 import ProfileScreen from '@/screens/profile/ProfileScreen';
+import SellerProfileScreen from '@/screens/profile/SellerProfileScreen';
 import BadgesScreen from '@/screens/profile/BadgesScreen';
 import LeaderboardScreen from '@/screens/profile/LeaderboardScreen';
 import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen';
@@ -35,6 +37,7 @@ import TradeOfferScreen from '@/screens/trade/TradeOfferScreen';
 import TradeSuccessScreen from '@/screens/trade/TradeSuccessScreen';
 import TradeTimelineScreen from '@/screens/trade/TradeTimelineScreen';
 import TradeReviewScreen from '@/screens/trade/TradeReviewScreen';
+import ReviewOfferScreen from '@/screens/trade/ReviewOfferScreen';
 import TradeDisputeScreen from '@/screens/trade/TradeDisputeScreen';
 import CartScreen from '@/screens/cart/CartScreen';
 import BundleBuilderScreen from '@/screens/cart/BundleBuilderScreen';
@@ -101,6 +104,7 @@ const linking = {
       SuspendedAccount: 'suspended-account',
       ProfileSetup: 'profile-setup',
       Profile: 'profile',
+      SellerProfile: 'seller-profile/:userId',
       EditProfile: 'edit-profile',
       ForgotPassword: 'forgot-password',
       Welcome: 'welcome',
@@ -400,7 +404,7 @@ function RootNavigator() {
       <View
         style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}
       >
-        <ActivityIndicator size="large" color="#007AFF" />
+        <LoadingSpinner fullScreen={false} />
       </View>
     );
   }
@@ -493,6 +497,11 @@ function RootNavigator() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
+              name="SellerProfile"
+              component={SellerProfileScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
               name="EditProfile"
               component={EditProfileScreen}
               options={{ headerShown: false }}
@@ -547,6 +556,11 @@ function RootNavigator() {
             <Stack.Screen
               name="TradeReview"
               component={TradeReviewScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ReviewOffer"
+              component={ReviewOfferScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

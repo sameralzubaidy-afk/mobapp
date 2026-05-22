@@ -15,11 +15,11 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { supabase } from '@/config/supabase';
 import Markdown from 'react-native-markdown-display';
+import { LoadingSpinner } from '@/components/ui';
 
 interface DisclaimerModalProps {
   visible: boolean;
@@ -126,7 +126,12 @@ export default function DisclaimerModal({
         {/* Content */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#5DBB8E" testID={`${testID}-loading`} />
+            <LoadingSpinner
+              fullScreen={false}
+              size={40}
+              color="#5DBB8E"
+              testID={`${testID}-loading`}
+            />
             <Text style={styles.loadingText}>Loading disclaimer...</Text>
           </View>
         ) : error ? (

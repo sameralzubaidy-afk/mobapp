@@ -43,6 +43,7 @@ import WalletWarningBanner, { type WalletState } from '@/components/molecules/Wa
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { supabase } from '@/config/supabase';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
+import { LoadingSpinner } from '@/components/ui';
 
 type TradeInitiationRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -247,7 +248,7 @@ export default function TradeInitiationScreen() {
   if (loading || !item) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Preparing your trade...</Text>
       </View>
     );

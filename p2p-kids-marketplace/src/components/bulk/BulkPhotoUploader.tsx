@@ -39,10 +39,10 @@ export function BulkPhotoUploader({
           onPress={onPickPhotos}
           disabled={atCap || uploading}
           accessibilityLabel="Pick multiple listing photos"
-          accessibilityHint="Opens your photo library and allows selecting up to 30 photos"
+          accessibilityHint="Lets you take a photo or choose multiple photos from your library"
           testID="bulk-image-picker-button"
         >
-          <Text style={styles.pickButtonText}>Select up to {maxPhotos} photos</Text>
+          <Text style={styles.pickButtonText}>Add photos from camera or library</Text>
         </TouchableOpacity>
       )}
 
@@ -52,10 +52,10 @@ export function BulkPhotoUploader({
           onPress={onAddMore}
           disabled={atCap || uploading}
           accessibilityLabel="Add more photos"
-          accessibilityHint="Opens the photo library to add more photos to this bulk session"
+          accessibilityHint="Lets you take a photo or choose from your library"
           testID="bulk-image-picker-add-more"
         >
-          <Text style={styles.addMoreText}>+ Add more photos</Text>
+          <Text style={styles.addMoreText}>+ Add from camera or library</Text>
         </TouchableOpacity>
       )}
 

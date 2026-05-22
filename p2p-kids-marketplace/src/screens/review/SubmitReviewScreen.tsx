@@ -22,6 +22,7 @@ import { submitReview, canReviewUser, skipReview } from '@/services/review';
 import { StarRating } from '@/components/StarRating';
 // import { logEvent } from '@/services/analytics'; // TODO: uncomment when analytics service is available
 import { REVIEW_EVENTS } from '@/constants/analytics-events';
+import { LoadingSpinner } from '@/components/ui';
 
 type SubmitReviewRouteProp = RouteProp<RootStackParamList, 'SubmitReview'>;
 type SubmitReviewNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SubmitReview'>;
@@ -158,7 +159,7 @@ export function SubmitReviewScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Checking review eligibility...</Text>
       </View>
     );

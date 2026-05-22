@@ -30,6 +30,7 @@ import {
   getTransactionFeeSubscriberCents,
 } from '@/services/adminConfig';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { LoadingSpinner } from '@/components/ui';
 
 /**
  * Kids Club+ overview screen
@@ -92,7 +93,7 @@ export default function KidsClubOverviewScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0066CC" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading subscription...</Text>
       </SafeAreaView>
     );

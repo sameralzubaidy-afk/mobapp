@@ -27,7 +27,10 @@ jest.mock('@react-navigation/native', () => ({
 jest.mock('@/components/molecules/WalletWarningBanner', () => 'WalletWarningBanner');
 jest.mock('@/components/organisms/BottomNavBar', () => 'BottomNavBar');
 jest.mock('@/components/modals/SPInfoTooltip', () => ({ SPInfoTooltip: () => null }));
-jest.mock('@/components/ui', () => ({ Modal: () => null }));
+jest.mock('@/components/ui', () => ({
+  Modal: () => null,
+  LoadingSpinner: () => null,
+}));
 
 jest.mock('@/components/DisclaimerModal', () => {
   const ReactImpl = require('react');

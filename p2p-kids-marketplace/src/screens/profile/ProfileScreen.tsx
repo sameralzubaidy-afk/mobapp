@@ -1,8 +1,9 @@
 // File: p2p-kids-marketplace/src/screens/profile/ProfileScreen.tsx
 // Profile screen with Edit and Logout functionality (AUTH-006, AUTH-007)
 // TASK NOTIF-V2-004: Badge celebration modal integration
+// TASK FLOW-15: UI Redesign - Phosphor icons, green theme, updated layout
 
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -13,11 +14,32 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
-  Clipboard,
+  Image,
 } from 'react-native';
-import { getUserProfile, resolveAvatarUrl } from '@/services/profile';
+import {
+  Camera,
+  ShieldCheck,
+  MapPin,
+  PencilSimple,
+  Storefront,
+  Package,
+  Coins,
+  Crown,
+  UsersThree,
+  CaretRight,
+  IdentificationCard,
+  Gear,
+  Receipt,
+  SignOut,
+  Buildings,
+} from 'phosphor-react-native';
+import {
+  getProfileStats,
+  getUserProfile,
+  ProfileStats,
+  resolveAvatarUrl,
+} from '@/services/profile';
 import { getCurrentUser } from '@/services/supabase/auth';
-import { supabase } from '@/services/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
 import { BadgeShowcase } from '@/components/BadgeShowcase';
 import { idBadgeService } from '@/services/idBadge';
@@ -25,9 +47,8 @@ import { getTrialStatus, TrialStatus } from '@/services/subscriptions/trialConve
 import { getUserReviews, getReviewStats, Review, ReviewStats } from '@/services/review';
 import { ReviewCard } from '@/components/ReviewCard';
 import { StarRating } from '@/components/StarRating';
+import { LoadingSpinner } from '@/components/ui';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
-import { ReferralRewardsService } from '@/services/referralRewards';
-import Avatar from '@/components/atoms/Avatar';
 import BadgeCelebrationModal from '@/components/badges/BadgeCelebrationModal';
 import { useUserBadges } from '@/hooks/useUserBadges';
 // generated `Database` types may be missing locally; use a permissive fallback
@@ -36,7 +57,17 @@ import BottomNavBar from '@/components/organisms/BottomNavBar';
 
 type UserProfile = any;
 
-export default function ProfileScreen({ navigation }: any) {
+const getInitials = (name?: string | null) => {
+  if (!name) return 'U';
+  const parts = name
+    .trim()
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || 'U';
+};
+
+export default function ProfileScreen({ navigation, route }: any) {
   const { logout: contextLogout } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any | null>(null);
@@ -48,12 +79,15 @@ export default function ProfileScreen({ navigation }: any) {
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [referralCode, setReferralCode] = useState<string | null>(null);
-  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
-  const [pendingReferralNotice, setPendingReferralNotice] = useState<string | null>(null);
-  const [pendingBadgeText, setPendingBadgeText] = useState(
-    "We're reviewing your ID. Usually within 24h."
-  );
   const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
+  const [profileStats, setProfileStats] = useState<ProfileStats>({
+    listingsCount: 0,
+    tradesCount: 0,
+    completedTradesCount: 0,
+  });
+  const [showProfileSavedBanner, setShowProfileSavedBanner] = useState(false);
+  const hasFocusedOnceRef = useRef(false);
+  const skipNextFocusRefreshRef = useRef(false);
 
   // TASK NOTIF-V2-004: Badge celebration integration
   const { newBadgeAwarded, clearNewBadge, showCelebration, setShowCelebration } = useUserBadges(
@@ -65,131 +99,47 @@ export default function ProfileScreen({ navigation }: any) {
     if (newBadgeAwarded && !showCelebration) {
       setShowCelebration(true);
     }
-  }, [newBadgeAwarded]);
+  }, [newBadgeAwarded, showCelebration, setShowCelebration]);
 
   const handleCelebrationClose = () => {
     setShowCelebration(false);
     clearNewBadge();
   };
 
+  // Apply optimistic updates coming back from EditProfile for instant UX.
   useEffect(() => {
-    loadProfile();
-  }, []);
+    const profilePatch = route?.params?.optimisticProfilePatch;
+    const userPatch = route?.params?.optimisticUserPatch;
+    const updatedAt = route?.params?.profileUpdatedAt;
 
-  // Reload profile when screen gains focus (e.g., after editing)
-  useFocusEffect(
-    useCallback(() => {
-      loadProfile();
-    }, [])
-  );
-
-  const loadProfile = async () => {
-    setLoading(true);
-    try {
-      const { user: authUser, error: authError } = await getCurrentUser();
-      if (authError || !authUser) {
-        throw new Error('Unable to get current user');
-      }
-
-      const { user: profileData, error: profileError } = await getUserProfile(authUser.id);
-      if (profileError || !profileData) {
-        throw new Error('Unable to load profile');
-      }
-
-      // Resolve phone with fallbacks
-      let phoneFromAuth = (authUser as any).phone || (authUser as any).user_metadata?.phone || '';
-      if (!phoneFromAuth) {
-        try {
-          const { data: phoneData, error: phoneError } = await supabase
-            .from('phone_verification_codes')
-            .select('phone')
-            .eq('user_id', authUser.id)
-            .eq('verified', true)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (!phoneError && phoneData?.phone) phoneFromAuth = phoneData.phone;
-        } catch (e) {
-          console.warn('Error fetching verified phone:', e);
-        }
-      }
-
-      const resolvedAvatar = await resolveAvatarUrl(profileData.avatar_url);
-      const metadataAvatar = (authUser as any).user_metadata?.avatar_url;
-      const finalAvatar = resolvedAvatar || metadataAvatar || null;
-
-      setUser({ ...authUser, phone: phoneFromAuth });
-      setProfile({
-        ...(profileData as UserProfile),
-        avatar_url: finalAvatar,
-      });
-
-      // Load ID verification status
-      try {
-        const vStatus = await idBadgeService.getVerificationStatus(authUser.id);
-        setVerificationStatus(vStatus);
-
-        // Fetch dynamic pending text
-        const pendingText = await idBadgeService.getMessage('pending_status_text');
-        if (pendingText) {
-          setPendingBadgeText(pendingText);
-        }
-      } catch (error) {
-        console.warn('Error loading verification status:', error);
-      }
-
-      // Load referral code from ReferralCodeServiceV2 (same as dashboard)
-      try {
-        const code = await ReferralCodeServiceV2.getReferralCode(authUser.id);
-        setReferralCode(code || null);
-      } catch (error) {
-        console.warn('Error loading referral code:', error);
-        setReferralCode(null);
-      }
-
-      // Load pending referral notice (Refereee condition)
-      try {
-        const eligibility = await ReferralCodeServiceV2.checkEligibility(authUser.id);
-        if (eligibility.rewards_pending) {
-          const config = await ReferralRewardsService.getConfiguredRewardAmounts();
-          const actions: string[] = [];
-          if (config.first_listing_enabled) actions.push('list your first item');
-          if (config.first_trade_enabled) actions.push('complete one trade');
-
-          if (actions.length > 0) {
-            const actionStr = actions.length === 2 ? `${actions[0]} or ${actions[1]}` : actions[0];
-
-            setPendingReferralNotice(
-              `🎁 Your bonus is waiting! ${actionStr.charAt(0).toUpperCase() + actionStr.slice(1)} to earn your sign-up bonus.`
-            );
-          }
-        } else {
-          setPendingReferralNotice(null);
-        }
-      } catch (error) {
-        console.warn('Error loading pending referral info:', error);
-        setPendingReferralNotice(null);
-      }
-
-      // Load reviews and stats
-      await loadReviewsData(authUser.id);
-
-      // Load trial status (MODULE-11 SUB-006)
-      try {
-        const tStatus = await getTrialStatus();
-        setTrialStatus(tStatus);
-      } catch (error) {
-        console.warn('Error loading trial status:', error);
-      }
-    } catch (error: any) {
-      console.error('Load profile error:', error);
-      Alert.alert('Error', 'Failed to load profile. Please try again.');
-    } finally {
-      setLoading(false);
+    if (!updatedAt || (!profilePatch && !userPatch)) {
+      return;
     }
-  };
 
-  const loadReviewsData = async (userId: string) => {
+    if (profilePatch) {
+      setProfile((prev: UserProfile | null) => (prev ? { ...prev, ...profilePatch } : prev));
+    }
+
+    if (userPatch) {
+      setUser((prev: any | null) => (prev ? { ...prev, ...userPatch } : prev));
+    }
+
+    setShowProfileSavedBanner(true);
+    setTimeout(() => {
+      setShowProfileSavedBanner(false);
+    }, 1800);
+
+    // Avoid one immediate focus refresh overwriting optimistic data with stale backend response.
+    skipNextFocusRefreshRef.current = true;
+
+    navigation.setParams({
+      optimisticProfilePatch: undefined,
+      optimisticUserPatch: undefined,
+      profileUpdatedAt: undefined,
+    });
+  }, [route?.params?.profileUpdatedAt, route?.params?.optimisticProfilePatch, route?.params?.optimisticUserPatch, navigation]);
+
+  const loadReviewsData = useCallback(async (userId: string) => {
     try {
       setLoadingReviews(true);
       const [reviewsResult, statsResult] = await Promise.all([
@@ -209,10 +159,129 @@ export default function ProfileScreen({ navigation }: any) {
     } finally {
       setLoadingReviews(false);
     }
-  };
+  }, []);
+
+  const loadProfile = useCallback(
+    async ({ showFullScreenLoader = false }: { showFullScreenLoader?: boolean }) => {
+      if (showFullScreenLoader) {
+        setLoading(true);
+      }
+
+      try {
+        const { user: authUser, error: authError } = await getCurrentUser();
+        if (authError || !authUser) {
+          throw new Error('Unable to get current user');
+        }
+
+        const { user: profileData, error: profileError } = await getUserProfile(authUser.id);
+        if (profileError || !profileData) {
+          throw new Error('Unable to load profile');
+        }
+
+        const metadataAvatar = (authUser as any).user_metadata?.avatar_url;
+        const profileAvatar = (profileData as any)?.avatar_url;
+        const immediateAvatar =
+          typeof profileAvatar === 'string' && /^https?:\/\//i.test(profileAvatar)
+            ? profileAvatar
+            : metadataAvatar || null;
+
+        // Render critical profile content first for a fast perceived load.
+        setUser({
+          ...authUser,
+          swap_points_balance: (profileData as any).swap_points_balance ?? 0,
+        });
+        setProfile({
+          ...(profileData as UserProfile),
+          avatar_url: immediateAvatar,
+        });
+
+        if (showFullScreenLoader) {
+          setLoading(false);
+        }
+
+        // Load secondary sections in parallel without blocking first paint.
+        await Promise.allSettled([
+          (async () => {
+            if (!profileData.avatar_url) return;
+            const resolvedAvatar = await resolveAvatarUrl(profileData.avatar_url);
+            if (resolvedAvatar) {
+              setProfile((prev: UserProfile | null) =>
+                prev ? { ...prev, avatar_url: resolvedAvatar } : prev
+              );
+            }
+          })(),
+          (async () => {
+            try {
+              const vStatus = await idBadgeService.getVerificationStatus(authUser.id);
+              setVerificationStatus(vStatus);
+            } catch (error) {
+              console.warn('Error loading verification status:', error);
+            }
+          })(),
+          (async () => {
+            try {
+              const code = await ReferralCodeServiceV2.getReferralCode(authUser.id);
+              setReferralCode(code || null);
+            } catch (error) {
+              console.warn('Error loading referral code:', error);
+              setReferralCode(null);
+            }
+          })(),
+          loadReviewsData(authUser.id),
+          (async () => {
+            try {
+              const tStatus = await getTrialStatus();
+              setTrialStatus(tStatus);
+            } catch (error) {
+              console.warn('Error loading trial status:', error);
+            }
+          })(),
+          (async () => {
+            const { stats, error } = await getProfileStats(authUser.id);
+            if (stats) {
+              setProfileStats(stats);
+            }
+            if (error) {
+              console.warn('Error loading profile stats:', error);
+            }
+          })(),
+        ]);
+      } catch (error: any) {
+        console.error('Load profile error:', error);
+        if (showFullScreenLoader) {
+          Alert.alert('Error', 'Failed to load profile. Please try again.');
+        } else {
+          console.warn('Background profile refresh failed:', error?.message || error);
+        }
+      } finally {
+        if (showFullScreenLoader) {
+          setLoading(false);
+        }
+      }
+    },
+    [loadReviewsData]
+  );
+
+  // Reload profile when screen gains focus (e.g., after editing).
+  // Keep first load fast and avoid duplicate mount fetches.
+  useFocusEffect(
+    useCallback(() => {
+      if (skipNextFocusRefreshRef.current) {
+        skipNextFocusRefreshRef.current = false;
+        return;
+      }
+
+      const isFirstFocus = !hasFocusedOnceRef.current;
+      hasFocusedOnceRef.current = true;
+      void loadProfile({ showFullScreenLoader: isFirstFocus });
+    }, [loadProfile])
+  );
 
   const handleEditProfile = () => {
-    navigation.navigate('EditProfile');
+    navigation.navigate('EditProfile', {
+      preloadedUser: user,
+      preloadedProfile: profile,
+    });
   };
 
   const handleLogout = () => {
@@ -234,7 +303,6 @@ export default function ProfileScreen({ navigation }: any) {
     try {
       // Use AuthContext logout which properly clears session and updates context
       await contextLogout();
-      console.log('[LOGOUT] Context logout successful, session cleared');
     } catch (error: any) {
       console.error('Logout error:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
@@ -246,28 +314,10 @@ export default function ProfileScreen({ navigation }: any) {
     setShowAllReviews(!showAllReviews);
   };
 
-  const handleCopyReferralCode = async () => {
-    if (!referralCode) return;
-
-    try {
-      await Clipboard.setString(referralCode);
-      setCopiedToClipboard(true);
-
-      // Reset copied state after 2 seconds
-      setTimeout(() => {
-        setCopiedToClipboard(false);
-      }, 2000);
-    } catch (error) {
-      console.error('Failed to copy referral code:', error);
-      Alert.alert('Error', 'Failed to copy referral code');
-    }
-  };
-
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <LoadingSpinner fullScreen text="Loading profile..." />
       </View>
     );
   }
@@ -276,7 +326,10 @@ export default function ProfileScreen({ navigation }: any) {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Profile not found</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadProfile}>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => loadProfile({ showFullScreenLoader: true })}
+        >
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -287,137 +340,236 @@ export default function ProfileScreen({ navigation }: any) {
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-          {/* Avatar and Name */}
+          {showProfileSavedBanner && (
+            <View style={styles.savedBanner}>
+              <Text style={styles.savedBannerText}>Profile updated successfully</Text>
+            </View>
+          )}
+
+          {/* Avatar and Name - FLOW-15 */}
           <View style={styles.profileHeader}>
-            <Avatar
-              imageUrl={profile.avatar_url}
-              size={100}
-              verificationStatus={verificationStatus?.status}
-              name={profile.name}
-            />
-            <Text style={styles.displayName}>{profile.name || 'Anonymous User'}</Text>
-            {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
-          </View>
-
-          {/* Profile Info */}
-          <View style={styles.infoSection}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email:</Text>
-              <Text style={styles.infoValue}>{user.email || 'Not provided'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Phone:</Text>
-              <Text style={styles.infoValue}>{user.phone || 'Not provided'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Swap Points:</Text>
-              <Text style={styles.infoValue}>{user.swap_points_balance || 0} SP</Text>
-            </View>
-          </View>
-
-          {/* ID Verification Section */}
-          <View style={styles.verificationSection}>
-            <Text style={styles.sectionTitle}>Identity Verification</Text>
-            {verificationStatus?.status === 'approved' ? (
-              <View style={styles.verifiedContainer}>
-                <View style={styles.statusIconContainer}>
-                  <Text style={{ fontSize: 24 }}>✅</Text>
+            <View style={styles.avatarContainer}>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Text style={styles.avatarInitials}>{getInitials(profile.name)}</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.verifiedText}>Identity Verified</Text>
-                  <Text style={styles.verifiedSubtext}>
-                    Your account is shielded with ultimate trust
-                  </Text>
-                </View>
+              )}
+              {/* Camera overlay - FLOW-15 */}
+              <View style={styles.cameraOverlay}>
+                <Camera size={14} color="#FFFFFF" weight="regular" />
               </View>
-            ) : verificationStatus?.status === 'pending' ? (
-              <TouchableOpacity
-                style={styles.pendingContainer}
-                onPress={() => navigation.navigate('IDVerificationUpload')}
-              >
-                <View style={styles.statusIconContainer}>
-                  <Text style={{ fontSize: 24 }}>⏳</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pendingText}>Verification Pending</Text>
-                  <Text style={styles.pendingSubtext}>{pendingBadgeText}</Text>
-                </View>
-              </TouchableOpacity>
-            ) : verificationStatus?.status === 'rejected' ? (
-              <TouchableOpacity
-                style={styles.rejectedContainer}
-                onPress={() => navigation.navigate('IDVerificationUpload')}
-              >
-                <View style={styles.statusIconContainer}>
-                  <Text style={{ fontSize: 24 }}>❌</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.rejectedText}>Verification Rejected</Text>
-                  <Text style={styles.rejectedSubtext}>
-                    Reason: {verificationStatus.rejectionReason || 'Unknown'}. Tap to try again.
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={styles.upgradeButton}
-                onPress={() => navigation.navigate('IDVerificationUpload')}
-              >
-                <View style={styles.statusIconContainer}>
-                  <Text style={{ fontSize: 24 }}>🛡️</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.upgradeButtonText}>Upgrade to Verified</Text>
-                  <Text style={styles.upgradeButtonSubtext}>
-                    Build trust and unlock exclusive features
-                  </Text>
-                </View>
-              </TouchableOpacity>
+            </View>
+            <View style={styles.nameRow}>
+              <Text style={styles.displayName}>{profile.name || 'Anonymous User'}</Text>
+              {verificationStatus?.status === 'approved' && (
+                <ShieldCheck size={16} color="#5DBB8E" weight="fill" style={{ marginLeft: 6 }} />
+              )}
+            </View>
+            {profile.node_name && (
+              <View style={styles.locationRow}>
+                <MapPin size={14} color="#6B6B6B" weight="regular" />
+                <Text style={styles.locationText}>{profile.node_name}</Text>
+              </View>
             )}
+            {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
+
+            {/* Edit Profile Action Label (moved up for intuition) */}
+            <TouchableOpacity style={styles.editLink} onPress={handleEditProfile}>
+              <PencilSimple size={14} color="#5DBB8E" weight="bold" />
+              <Text style={styles.editLinkText}>Edit basic info</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Stats Row - FLOW-15 */}
+          <View style={styles.statsRow}>
+            <TouchableOpacity
+              style={styles.statChip}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('MyListings')}
+            >
+              <Storefront size={18} color="#5DBB8E" weight="regular" />
+              <Text style={styles.statValue}>{profileStats.listingsCount}</Text>
+              <Text style={styles.statLabel}>Listings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.statChip}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('TradeList')}
+            >
+              <Package size={18} color="#5DBB8E" weight="regular" />
+              <Text style={styles.statValue}>{profileStats.tradesCount}</Text>
+              <Text style={styles.statLabel}>Trades</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.statChip}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('SpWallet')}
+            >
+              <Coins size={18} color="#F59E0B" weight="regular" />
+              <Text style={styles.statValue}>{user.swap_points_balance || 0}</Text>
+              <Text style={styles.statLabel}>SP Balance</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* HI-VALUE PROMOTION SECTION (Dashboard Style) */}
+          <View style={styles.promoSection}>
+            {/* 1. Subscription Tier Promo */}
+            <TouchableOpacity
+              style={[
+                styles.promoCard,
+                trialStatus?.status === 'active' || trialStatus?.status === 'trial'
+                  ? styles.clubActiveCard
+                  : styles.clubPromoCard,
+              ]}
+              onPress={() =>
+                navigation.navigate(
+                  trialStatus?.status === 'active' || trialStatus?.status === 'trial'
+                    ? 'MySubscription'
+                    : 'SubscriptionPlans'
+                )
+              }
+            >
+              <View style={styles.promoIconContainer}>
+                <Crown
+                  size={24}
+                  color={
+                    trialStatus?.status === 'active' || trialStatus?.status === 'trial'
+                      ? '#F59E0B'
+                      : '#5DBB8E'
+                  }
+                  weight="fill"
+                />
+              </View>
+              <View style={styles.promoContent}>
+                <Text style={styles.promoTitle}>
+                  {trialStatus?.status === 'active' || trialStatus?.status === 'trial'
+                    ? "Kid's Club Member"
+                    : "Join Kid's Club"}
+                </Text>
+                <Text style={styles.promoSubtitle}>
+                  {trialStatus?.status === 'active' || trialStatus?.status === 'trial'
+                    ? 'Exclusive perks active'
+                    : 'Unlock Swap Points & free listings'}
+                </Text>
+              </View>
+              <CaretRight size={18} color="#9CA3AF" weight="bold" />
+            </TouchableOpacity>
+
+            {/* 2. Referral / Share & Earn Promo */}
+            <TouchableOpacity
+              style={styles.promoCard}
+              onPress={() => navigation.navigate('ReferralDashboard')}
+            >
+              <View style={[styles.promoIconContainer, { backgroundColor: '#F0F7FF' }]}>
+                <UsersThree size={24} color="#3B82F6" weight="bold" />
+              </View>
+              <View style={styles.promoContent}>
+                <Text style={styles.promoTitle}>Share & Earn</Text>
+                <Text style={styles.promoSubtitle}>
+                  Get bonus SP for inviting friends
+                  {referralCode ? ` (${referralCode})` : ''}
+                </Text>
+              </View>
+              <CaretRight size={18} color="#9CA3AF" weight="bold" />
+            </TouchableOpacity>
+
+            {/* 3. ID Verification Promo */}
+            <TouchableOpacity
+              style={[
+                styles.promoCard,
+                verificationStatus?.status === 'approved' && styles.verifiedCard,
+                verificationStatus?.status === 'pending' && styles.pendingCard,
+              ]}
+              onPress={() => navigation.navigate('IDVerificationUpload')}
+            >
+              <View
+                style={[
+                  styles.promoIconContainer,
+                  verificationStatus?.status === 'approved'
+                    ? { backgroundColor: '#ECFDF5' }
+                    : { backgroundColor: '#F3F4F6' },
+                ]}
+              >
+                <IdentificationCard
+                  size={24}
+                  color={verificationStatus?.status === 'approved' ? '#10B981' : '#6B6B6B'}
+                  weight="bold"
+                />
+              </View>
+              <View style={styles.promoContent}>
+                <Text
+                  style={[
+                    styles.promoTitle,
+                    verificationStatus?.status === 'approved' && { color: '#10B981' },
+                  ]}
+                >
+                  {verificationStatus?.status === 'approved'
+                    ? 'Identity Verified'
+                    : verificationStatus?.status === 'pending'
+                      ? 'Verification Pending'
+                      : 'Verify Identity'}
+                </Text>
+                <Text style={styles.promoSubtitle}>
+                  {verificationStatus?.status === 'approved'
+                    ? 'Trust level: Ultimate'
+                    : verificationStatus?.status === 'pending'
+                      ? 'We are reviewing your ID'
+                      : 'Increase trust & safety'}
+                </Text>
+              </View>
+              <CaretRight size={18} color="#9CA3AF" weight="bold" />
+            </TouchableOpacity>
           </View>
 
           {/* Badges Section */}
           <BadgeShowcase userId={user.id} />
 
-          {/* Referral Code Section */}
-          {referralCode && (
-            <View style={styles.referralSection}>
-              <View style={styles.sectionTitleRow}>
-                <Text style={styles.sectionTitle}>Share & Earn</Text>
-                <TouchableOpacity
-                  style={styles.viewDashboardButton}
-                  onPress={() => navigation.navigate('ReferralDashboard')}
-                >
-                  <Text style={styles.viewDashboardButtonText}>View Dashboard →</Text>
-                </TouchableOpacity>
-              </View>
+          {/* Secondary Utilities Section (List style) */}
+          <View style={styles.utilitySection}>
+            <TouchableOpacity
+              style={styles.utilityRow}
+              onPress={() => navigation.navigate('TransactionHistory')}
+            >
+              <Receipt size={20} color="#6B6B6B" weight="regular" />
+              <Text style={styles.utilityText}>Billing History</Text>
+              <CaretRight size={16} color="#CCCCCC" weight="bold" />
+            </TouchableOpacity>
 
-              {/* New Pending Action Notice */}
-              {pendingReferralNotice && (
-                <View style={styles.pendingReferralBadge}>
-                  <Text style={styles.pendingReferralText}>{pendingReferralNotice}</Text>
-                </View>
+            <TouchableOpacity
+              style={styles.utilityRow}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <Gear size={20} color="#6B6B6B" weight="regular" />
+              <Text style={styles.utilityText}>App Settings</Text>
+              <CaretRight size={16} color="#CCCCCC" weight="bold" />
+            </TouchableOpacity>
+
+            {/* Admin Dashboard - visible if user has role or in dev */}
+            <TouchableOpacity
+              style={styles.utilityRow}
+              onPress={() => navigation.navigate('AdminDashboard')}
+            >
+              <Buildings size={20} color="#92400E" weight="regular" />
+              <Text style={[styles.utilityText, { color: '#92400E' }]}>Admin Dashboard</Text>
+              <CaretRight size={16} color="#CCCCCC" weight="bold" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.utilityRow, { borderBottomWidth: 0 }]}
+              onPress={handleLogout}
+              disabled={loggingOut}
+            >
+              <SignOut size={20} color="#EF4444" weight="regular" />
+              <Text style={[styles.utilityText, { color: '#EF4444' }]}>Logout</Text>
+              {loggingOut ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <CaretRight size={16} color="#CCCCCC" weight="bold" />
               )}
-
-              <View style={styles.referralCodeContainer}>
-                <View style={styles.referralCodeWrapper}>
-                  <Text style={styles.referralCodeLabel}>Your Referral Code:</Text>
-                  <Text style={styles.referralCode}>{referralCode}</Text>
-                  <Text style={styles.referralCodeHint}>
-                    Share this code with friends to earn bonus Swap Points
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[styles.copyButton, copiedToClipboard && styles.copyButtonSuccess]}
-                  onPress={handleCopyReferralCode}
-                >
-                  <Text style={styles.copyButtonText}>
-                    {copiedToClipboard ? '✓ Copied' : 'Copy'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+            </TouchableOpacity>
+          </View>
 
           {/* Reviews Section */}
           {reviewStats && reviewStats.total_reviews > 0 && (
@@ -478,7 +630,7 @@ export default function ProfileScreen({ navigation }: any) {
                   )}
                 </View>
                 {loadingReviews ? (
-                  <ActivityIndicator size="small" color="#3B82F6" style={{ marginVertical: 20 }} />
+                  <ActivityIndicator size="small" color="#5DBB8E" style={{ marginVertical: 20 }} />
                 ) : reviews.length > 0 ? (
                   (showAllReviews ? reviews : reviews.slice(0, 5)).map((review) => (
                     <ReviewCard key={review.id} review={review} currentUserId={user.id} />
@@ -489,64 +641,6 @@ export default function ProfileScreen({ navigation }: any) {
               </View>
             </View>
           )}
-
-          {/* Action Buttons */}
-          <View style={styles.actionsSection}>
-            <TouchableOpacity style={styles.editButton} onPress={handleEditProfile}>
-              <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
-            </TouchableOpacity>
-
-            {/* Consolidated Subscription/Club Button */}
-            <TouchableOpacity
-              style={styles.clubButton}
-              onPress={() =>
-                navigation.navigate(
-                  trialStatus?.status === 'active' || trialStatus?.status === 'trial'
-                    ? 'MySubscription'
-                    : 'SubscriptionPlans'
-                )
-              }
-            >
-              <Text style={styles.clubButtonText}>
-                {trialStatus?.status === 'active' || trialStatus?.status === 'trial'
-                  ? "👑 Manage Kid's Club"
-                  : "👑 Join Kid's Club"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.billingButton}
-              onPress={() => navigation.navigate('TransactionHistory')}
-            >
-              <Text style={styles.billingButtonText}>📜 Billing History</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.settingsButton}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <Text style={styles.settingsButtonText}>⚙️ Settings</Text>
-            </TouchableOpacity>
-            {/* Admin Dashboard - MODULE-11 SUB-005 */}
-            <TouchableOpacity
-              style={styles.adminDashboardButton}
-              onPress={() => navigation.navigate('AdminDashboard')}
-            >
-              <Text style={styles.adminDashboardButtonText}>⏱️ Admin Dashboard</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              testID="profile-logout-button"
-              style={[styles.logoutButton, loggingOut && styles.logoutButtonDisabled]}
-              onPress={handleLogout}
-              disabled={loggingOut}
-            >
-              {loggingOut ? (
-                <ActivityIndicator size="small" color="#EF4444" />
-              ) : (
-                <Text style={styles.logoutButtonText}>🚪 Logout</Text>
-              )}
-            </TouchableOpacity>
-          </View>
         </ScrollView>
         <BottomNavBar />
 
@@ -564,10 +658,25 @@ export default function ProfileScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
     padding: 20,
+  },
+  savedBanner: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  savedBannerText: {
+    color: '#166534',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -584,7 +693,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   errorText: {
     fontSize: 18,
@@ -592,7 +701,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#5DBB8E',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -607,37 +716,164 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 32,
   },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+  avatarContainer: {
+    position: 'relative',
+    width: 96,
+    height: 96,
     marginBottom: 16,
+  },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
   },
   avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#E5E7EB',
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  avatarPlaceholderText: {
-    fontSize: 40,
-    color: '#6B7280',
-    fontWeight: 'bold',
+  avatarInitials: {
+    fontSize: 32,
+    fontWeight: '600',
+    color: '#6B6B6B',
   },
-  displayName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#5DBB8E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 4,
+  },
+  locationText: {
+    fontSize: 14,
+    color: '#6B6B6B',
+  },
+  displayName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
   bio: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: '#6B6B6B',
     textAlign: 'center',
     paddingHorizontal: 20,
+    marginTop: 4,
+  },
+  editLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 4,
+    backgroundColor: '#F0F7F3',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  editLinkText: {
+    fontSize: 12,
+    color: '#5DBB8E',
+    fontWeight: '700',
+  },
+  promoSection: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  promoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    // Elevation for Android
+    elevation: 2,
+  },
+  clubPromoCard: {
+    borderColor: '#5DBB8E',
+    backgroundColor: '#F0F7F3',
+  },
+  clubActiveCard: {
+    borderColor: '#F59E0B',
+    backgroundColor: '#FFFBE6',
+  },
+  verifiedCard: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  pendingCard: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FEF3C7',
+  },
+  promoIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  promoContent: {
+    flex: 1,
+  },
+  promoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 2,
+  },
+  promoSubtitle: {
+    fontSize: 12,
+    color: '#6B6B6B',
+  },
+  utilitySection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 8,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  utilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  utilityText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1A1A1A',
+    marginLeft: 12,
+    fontWeight: '500',
   },
   infoSection: {
     backgroundColor: '#FFFFFF',
@@ -665,16 +901,47 @@ const styles = StyleSheet.create({
   actionsSection: {
     gap: 12,
   },
-  editButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    padding: 16,
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  statChip: {
+    flex: 1,
     alignItems: 'center',
+    backgroundColor: '#F7F7F7',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginTop: 4,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#6B6B6B',
+    textTransform: 'uppercase',
+    fontWeight: '500',
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    borderRadius: 22,
+    height: 44,
+    paddingHorizontal: 16,
+    marginBottom: 24,
   },
   editButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    color: '#5DBB8E',
+    fontSize: 14,
+    fontWeight: '500',
   },
   settingsButton: {
     backgroundColor: '#F3F4F6',
@@ -760,10 +1027,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F0F7F3',
   },
   viewDashboardButtonText: {
-    color: '#3B82F6',
+    color: '#5DBB8E',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -844,7 +1111,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
   },
   viewAllButtonText: {
-    color: '#3B82F6',
+    color: '#5DBB8E',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -897,7 +1164,7 @@ const styles = StyleSheet.create({
   referralCode: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#3B82F6',
+    color: '#5DBB8E',
     marginBottom: 8,
     letterSpacing: 2,
   },
@@ -907,7 +1174,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   copyButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#5DBB8E',
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -933,21 +1200,21 @@ const styles = StyleSheet.create({
   },
   upgradeButton: {
     flexDirection: 'row',
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F0F7F3',
     borderWidth: 1,
-    borderColor: '#3B82F6',
+    borderColor: '#5DBB8E',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
   },
   upgradeButtonText: {
-    color: '#3B82F6',
+    color: '#5DBB8E',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 2,
   },
   upgradeButtonSubtext: {
-    color: '#60A5FA',
+    color: '#6B6B6B',
     fontSize: 12,
   },
   verifiedContainer: {

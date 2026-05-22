@@ -25,6 +25,16 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
   const { unreadCount } = useNotificationBadge(session?.user?.id);
   const [sellSheetVisible, setSellSheetVisible] = React.useState(false);
 
+  const handleStartSellFlow = React.useCallback(
+    (targetRoute: 'ItemCreate' | 'BulkListingCreate') => {
+      setSellSheetVisible(false);
+      (navigation as any).navigate(targetRoute, {
+        showPhotoSourcePrompt: true,
+      });
+    },
+    [navigation]
+  );
+
   // Determine if a nav item is active
   const isActive = (routeName: string) => {
     return route.name === routeName;
@@ -97,30 +107,27 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
       >
         <Pressable style={styles.sheetOverlay} onPress={() => setSellSheetVisible(false)}>
           <View style={styles.sheetContainer}>
+            <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Sell</Text>
 
             <TouchableOpacity
               style={styles.sheetButton}
-              onPress={() => {
-                setSellSheetVisible(false);
-                (navigation as any).navigate('ItemCreate');
-              }}
+              onPress={() => handleStartSellFlow('ItemCreate')}
               testID="sell-option-list-one-item"
             >
               <Text style={styles.sheetButtonTitle}>List One Item</Text>
-              <Text style={styles.sheetButtonMeta}>Single photo-first flow</Text>
+              <Text style={styles.sheetButtonMeta}>Snap a photo or choose from your library</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.sheetButton}
-              onPress={() => {
-                setSellSheetVisible(false);
-                (navigation as any).navigate('BulkListingCreate');
-              }}
+              onPress={() => handleStartSellFlow('BulkListingCreate')}
               testID="sell-option-bulk-upload"
             >
               <Text style={styles.sheetButtonTitle}>Bulk Upload</Text>
-              <Text style={styles.sheetButtonMeta}>Up to 30 photos grouped into items</Text>
+              <Text style={styles.sheetButtonMeta}>
+                Add from camera or library and group into items
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -205,44 +212,57 @@ const styles = StyleSheet.create({
   },
   sheetContainer: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 14,
-    gap: 8,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 20,
+    gap: 10,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E0E0E0',
+    alignSelf: 'center',
+    marginBottom: 8,
   },
   sheetTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '600',
     color: '#1A1A1A',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   sheetButton: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    minHeight: 76,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     backgroundColor: '#fff',
   },
   sheetButtonTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#1A1A1A',
   },
   sheetButtonMeta: {
-    marginTop: 2,
-    fontSize: 12,
+    marginTop: 4,
+    fontSize: 14,
     color: '#6B6B6B',
+    lineHeight: 20,
   },
   sheetCancelButton: {
-    marginTop: 6,
-    borderRadius: 10,
-    paddingVertical: 12,
+    marginTop: 4,
+    minHeight: 52,
+    borderRadius: 26,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#F0F0F0',
   },
   sheetCancelText: {
-    fontSize: 14,
+    fontSize: 20,
     fontWeight: '600',
     color: '#6B6B6B',
   },

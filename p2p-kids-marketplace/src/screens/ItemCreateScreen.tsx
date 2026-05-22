@@ -24,6 +24,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Switch,
+  InteractionManager,
 } from 'react-native';
 import { Coins, Tag } from 'phosphor-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -58,6 +59,7 @@ import { SPEarningsPreview } from '../components/listing/SPEarningsPreview';
 // AUTH-V3-008: Phone verification gate
 import PhoneVerificationModal from '../components/auth/PhoneVerificationModal';
 import { isPhoneRequired } from '../services/phoneService';
+import { LoadingSpinner } from '@/components/ui';
 
 // State machine states
 type CreateScreenState =
@@ -82,6 +84,8 @@ type CreateScreenAction =
   | { type: 'PUBLISH_START' }
   | { type: 'PUBLISH_SUCCESS' }
   | { type: 'PUBLISH_ERROR' };
+
+type PhotoSourceOption = 'camera' | 'library';
 
 const AI_ANALYSIS_BLOCKING_TIMEOUT_MS = 7000;
 
@@ -117,9 +121,12 @@ export default function ItemCreateScreen() {
   const { session } = useAuth();
 
   const draftId = route.params?.draftId;
+  const initialPhotoSource = route.params?.initialPhotoSource as PhotoSourceOption | undefined;
+  const showPhotoSourcePrompt = Boolean(route.params?.showPhotoSourcePrompt);
   const sellerId = session?.user?.id || '';
   const hasTriggeredInitialDraftCreateRef = useRef(false);
   const hasHydratedDraftRef = useRef(false);
+  const hasHandledInitialPhotoSourceRef = useRef(false);
   const pendingCategoryIdRef = useRef<string | null>(null);
 
   // State machine
@@ -153,6 +160,8 @@ export default function ItemCreateScreen() {
   const [selectedConditionGuide, setSelectedConditionGuide] = useState<Condition | null>(null);
   const [showAICard, setShowAICard] = useState(false);
   const [showSubmitReviewModal, setShowSubmitReviewModal] = useState(false);
+  const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
+  const [pendingPhotoSource, setPendingPhotoSource] = useState<PhotoSourceOption | null>(null);
   const [, setError] = useState<string | null>(null);
   const [isDraftHydrated, setIsDraftHydrated] = useState(!draftId);
   const [allowManualWhileAnalyzing, setAllowManualWhileAnalyzing] = useState(false);
@@ -422,52 +431,162 @@ export default function ItemCreateScreen() {
     }
   };
 
-  const handleAddPhotos = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
+  const pickAssetsFromSource = async (
+    source: PhotoSourceOption,
+    selectionLimit: number
+  ): Promise<PhotoAsset[] | null> => {
+    console.log('[ItemCreate] pickAssetsFromSource called - source:', source, 'limit:', selectionLimit);
+    
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Camera access is needed to take photos.');
+        return null;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        allowsMultipleSelection: true,
         quality: 1,
-        selectionLimit: 10 - photos.length,
       });
 
-      if (!result.canceled && result.assets) {
-        const newPhotos: PhotoAsset[] = result.assets.map((asset, index) => ({
-          id: `${Date.now()}-${index}`,
-          uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
-          fileSize: asset.fileSize,
-          mimeType: asset.mimeType,
-        }));
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return null;
+      }
 
-        setPhotos([...photos, ...newPhotos]);
+      return result.assets.slice(0, 1).map((asset, index) => ({
+        id: `${Date.now()}-${index}`,
+        uri: asset.uri,
+        width: asset.width,
+        height: asset.height,
+        fileSize: asset.fileSize,
+        mimeType: asset.mimeType,
+      }));
+    }
+
+    console.log('[ItemCreate] Requesting media library permissions...');
+    const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    console.log('[ItemCreate] Media permission status:', mediaPermission?.status);
+    
+    if (mediaPermission?.status && mediaPermission.status !== 'granted') {
+      Alert.alert('Permission Required', 'Photo library access is needed to select photos.');
+      return null;
+    }
+
+    console.log('[ItemCreate] Launching image library picker...');
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      quality: 1,
+      selectionLimit,
+    });
+
+    console.log('[ItemCreate] Picker result - canceled:', result.canceled, 'assets:', result.assets?.length);
+
+    if (result.canceled || !result.assets || result.assets.length === 0) {
+      return null;
+    }
+
+    return result.assets.slice(0, selectionLimit).map((asset, index) => ({
+      id: `${Date.now()}-${index}`,
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+      fileSize: asset.fileSize,
+      mimeType: asset.mimeType,
+    }));
+  };
+
+  const uploadPhotos = useCallback(
+    async (photosToUpload: PhotoAsset[]) => {
+      try {
+        const result = await uploadPhotoBatch(photosToUpload, sellerId);
+
+        if (result.urls.length > 0) {
+          setUploadedPhotoUrls((prev) => [...prev, ...result.urls]);
+        }
+
+        if (result.errors.length > 0) {
+          console.error('[ItemCreateScreen] Photo upload errors:', result.errors);
+        }
+      } catch (err: any) {
+        console.error('[ItemCreateScreen] Upload photos error:', err);
+      }
+    },
+    [sellerId]
+  );
+
+  const addPhotosFromSource = useCallback(
+    async (source: PhotoSourceOption) => {
+      try {
+        const selectionLimit = Math.max(0, 10 - photos.length);
+        if (selectionLimit <= 0) {
+          Alert.alert('Limit reached', 'You can add up to 10 photos.');
+          return;
+        }
+
+        const newPhotos = await pickAssetsFromSource(source, selectionLimit);
+        if (!newPhotos) {
+          return;
+        }
+
+        setPhotos((prev) => [...prev, ...newPhotos]);
         dispatch({ type: 'PHOTOS_ADDED' });
 
         // Upload photos in background
-        uploadPhotos(newPhotos);
+        void uploadPhotos(newPhotos);
+      } catch (err: any) {
+        console.error('[ItemCreateScreen] Add photos error:', err);
+        Alert.alert('Error', 'Failed to add photos');
       }
-    } catch (err: any) {
-      console.error('[ItemCreateScreen] Add photos error:', err);
-      Alert.alert('Error', 'Failed to add photos');
+    },
+    [photos.length, uploadPhotos]
+  );
+
+  useEffect(() => {
+    console.log('[ItemCreate] Photo source effect - modal:', showPhotoSourceModal, 'pending:', pendingPhotoSource);
+    
+    if (showPhotoSourceModal || !pendingPhotoSource) {
+      return;
     }
+
+    console.log('[ItemCreate] Queueing picker launch for:', pendingPhotoSource);
+    // Wait for modal close animation AND all pending interactions to complete
+    const sourceToLaunch = pendingPhotoSource;
+    
+    const interactionHandle = InteractionManager.runAfterInteractions(() => {
+      console.log('[ItemCreate] Interactions complete, waiting additional delay...');
+      setTimeout(() => {
+        console.log('[ItemCreate] Launching picker for:', sourceToLaunch);
+        void addPhotosFromSource(sourceToLaunch);
+        setPendingPhotoSource(null);
+      }, 500);
+    });
+
+    return () => {
+      console.log('[ItemCreate] Clearing picker interaction handle');
+      interactionHandle.cancel();
+    };
+  }, [showPhotoSourceModal, pendingPhotoSource, addPhotosFromSource]);
+
+  const handleAddPhotos = () => {
+    if (!showPhotoSourcePrompt) {
+      void addPhotosFromSource('library');
+      return;
+    }
+    setShowPhotoSourceModal(true);
   };
 
-  const uploadPhotos = async (photosToUpload: PhotoAsset[]) => {
-    try {
-      const result = await uploadPhotoBatch(photosToUpload, sellerId);
-
-      if (result.urls.length > 0) {
-        setUploadedPhotoUrls((prev) => [...prev, ...result.urls]);
-      }
-
-      if (result.errors.length > 0) {
-        console.error('[ItemCreateScreen] Photo upload errors:', result.errors);
-      }
-    } catch (err: any) {
-      console.error('[ItemCreateScreen] Upload photos error:', err);
+  useEffect(() => {
+    if (hasHandledInitialPhotoSourceRef.current) {
+      return;
     }
-  };
+    if (!initialPhotoSource || photos.length > 0) {
+      return;
+    }
+
+    hasHandledInitialPhotoSourceRef.current = true;
+    void addPhotosFromSource(initialPhotoSource);
+  }, [addPhotosFromSource, initialPhotoSource, photos.length]);
 
   const handleRemovePhoto = (photoId: string) => {
     setPhotos(photos.filter((p) => p.id !== photoId));
@@ -948,10 +1067,59 @@ export default function ItemCreateScreen() {
         onClose={() => setShowConditionGuide(false)}
       />
 
+      <Modal
+        visible={showPhotoSourceModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowPhotoSourceModal(false)}
+      >
+        <View style={styles.photoSourceModalOverlay}>
+          <View style={styles.photoSourceModalCard}>
+            <Text style={styles.photoSourceModalTitle}>Add Photos</Text>
+            <Text style={styles.photoSourceModalMessage}>Choose how you want to add photos.</Text>
+
+            <TouchableOpacity
+              style={styles.photoSourceOptionButton}
+              onPress={() => {
+                console.log('[ItemCreate] Camera button pressed');
+                setPendingPhotoSource('camera');
+                setShowPhotoSourceModal(false);
+              }}
+              testID="item-photo-source-camera"
+            >
+              <Text style={styles.photoSourceOptionText}>Take Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.photoSourceOptionButton}
+              onPress={() => {
+                console.log('[ItemCreate] Library button pressed');
+                setPendingPhotoSource('library');
+                setShowPhotoSourceModal(false);
+              }}
+              testID="item-photo-source-library"
+            >
+              <Text style={styles.photoSourceOptionText}>Photo Library</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.photoSourceCancelButton}
+              onPress={() => {
+                setPendingPhotoSource(null);
+                setShowPhotoSourceModal(false);
+              }}
+              testID="item-photo-source-cancel"
+            >
+              <Text style={styles.photoSourceCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={isPublishing} animationType="fade" transparent>
         <View style={styles.processingOverlay}>
           <View style={styles.processingCard}>
-            <ActivityIndicator size="large" color="#5DBB8E" />
+            <LoadingSpinner />
             <Text style={styles.processingTitle}>Submitting Item For Review...</Text>
             <Text style={styles.processingMessage}>
               Please wait. We are uploading your item and preparing it for admin review.
@@ -1024,7 +1192,7 @@ export default function ItemCreateScreen() {
       <Modal visible={isAnalyzingBlocking} animationType="fade" transparent>
         <View style={styles.aiLoadingOverlay}>
           <View style={styles.aiLoadingCard}>
-            <ActivityIndicator size="large" color="#5DBB8E" />
+            <LoadingSpinner />
             <Text style={styles.aiLoadingTitle}>Analyzing Your Photos...</Text>
             <Text style={styles.aiLoadingMessage}>
               Our AI is reviewing your photos to suggest item details.
@@ -1124,6 +1292,63 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 13,
     color: '#666666',
+  },
+  photoSourceModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  photoSourceModalCard: {
+    width: '100%',
+    maxWidth: 460,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 28,
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    paddingBottom: 24,
+  },
+  photoSourceModalTitle: {
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    lineHeight: 40,
+  },
+  photoSourceModalMessage: {
+    marginTop: 12,
+    marginBottom: 24,
+    fontSize: 18,
+    lineHeight: 26,
+    color: '#6B6B6B',
+  },
+  photoSourceOptionButton: {
+    minHeight: 72,
+    borderRadius: 36,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  photoSourceOptionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  photoSourceCancelButton: {
+    minHeight: 72,
+    borderRadius: 36,
+    borderWidth: 2,
+    borderColor: '#6B6B6B',
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  photoSourceCancelText: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#6B6B6B',
   },
   errorText: {
     color: '#F44336',

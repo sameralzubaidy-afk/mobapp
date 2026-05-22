@@ -94,7 +94,7 @@ export const setupUserProfile = async (
 
     // CRITICAL: Preserve referral fields set by auth trigger
     // The trigger sets referral_code + referred_by on signup, and we must not overwrite them
-    const { data: existingProfile } = await supabase
+    await supabase
       .from('profiles')
       .select('referral_code, referred_by')
       .eq('user_id', userId)
@@ -172,7 +172,8 @@ export const setupUserProfile = async (
  */
 export const updateUserProfile = async (
   userId: string,
-  updates: ProfileUpdateData
+  updates: ProfileUpdateData,
+  options?: { includeAuthUser?: boolean }
 ): Promise<{
   user: User | null;
   error: Error | object | null;
@@ -180,6 +181,7 @@ export const updateUserProfile = async (
   zipCode?: string;
 }> => {
   try {
+    const includeAuthUser = options?.includeAuthUser ?? true;
     const updatePayload: Record<string, string | null> = {
       updated_at: new Date().toISOString(),
     };
@@ -270,6 +272,20 @@ export const updateUserProfile = async (
       return { user: null, error: updateError };
     }
 
+    // Fast path for UI flows that do not need auth user payload immediately.
+    if (!includeAuthUser) {
+      if (phoneUpdateError) {
+        return {
+          user: null,
+          error: phoneUpdateError,
+          needsWaitlist,
+          zipCode: userZip,
+        };
+      }
+
+      return { user: null, error: null, needsWaitlist, zipCode: userZip };
+    }
+
     // Fetch current auth user to return updated info
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) {
@@ -349,6 +365,65 @@ export const getUserProfile = async (
   } catch (error) {
     console.error('Get user profile exception:', error);
     return { user: null, error: error as Error };
+  }
+};
+
+export interface ProfileStats {
+  listingsCount: number;
+  tradesCount: number;
+  completedTradesCount: number;
+}
+
+/**
+ * Get live profile counters for listings/trades cards.
+ */
+export const getProfileStats = async (
+  userId: string
+): Promise<{ stats: ProfileStats | null; error: Error | object | null }> => {
+  try {
+    const participantFilter = `buyer_id.eq.${userId},seller_id.eq.${userId}`;
+
+    const [listingsResponse, tradesResponse, completedTradesResponse] = await Promise.all([
+      supabase
+        .from('items')
+        .select('id', { count: 'exact', head: true })
+        .eq('seller_id', userId)
+        .neq('status', 'deleted'),
+      supabase
+        .from('trades')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['pending', 'payment_processing', 'payment_failed', 'in_progress', 'completed'])
+        .or(participantFilter),
+      supabase
+        .from('trades')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'completed')
+        .or(participantFilter),
+    ]);
+
+    const stats: ProfileStats = {
+      listingsCount: listingsResponse.count ?? 0,
+      tradesCount: tradesResponse.count ?? 0,
+      completedTradesCount: completedTradesResponse.count ?? 0,
+    };
+
+    if (listingsResponse.error || tradesResponse.error || completedTradesResponse.error) {
+      console.error('Get profile stats error:', {
+        listingsError: listingsResponse.error,
+        tradesError: tradesResponse.error,
+        completedTradesError: completedTradesResponse.error,
+      });
+
+      return {
+        stats,
+        error: listingsResponse.error || tradesResponse.error || completedTradesResponse.error,
+      };
+    }
+
+    return { stats, error: null };
+  } catch (error) {
+    console.error('Get profile stats exception:', error);
+    return { stats: null, error: error as Error };
   }
 };
 

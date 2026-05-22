@@ -16,7 +16,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   PanResponder,
-  Dimensions,
   Pressable,
 } from 'react-native';
 
@@ -42,7 +41,6 @@ export default function RadiusSlider({
   const [localValue, setLocalValue] = useState(value);
   const [trackWidth, setTrackWidth] = useState(0);
   const trackRef = useRef<View>(null);
-  const sliderWidth = Dimensions.get('window').width - 32 - 96; // 16px padding on each side, 40px buttons + 8px gaps
 
   useEffect(() => {
     setLocalValue(value);
@@ -167,10 +165,8 @@ export default function RadiusSlider({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
   },
   disabled: {
     opacity: 0.5,
@@ -182,9 +178,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#1A1A1A',
   },
   valueContainer: {
     minWidth: 60,
@@ -194,7 +190,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#3b82f6',
+    color: '#5DBB8E',
   },
   sliderRow: {
     flexDirection: 'row',
@@ -204,17 +200,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   arrowButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#e5e7eb',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#D9D9D9',
   },
   arrowButtonPressed: {
-    backgroundColor: '#d1d5db',
+    backgroundColor: '#E5E5E5',
   },
   arrowButtonDisabled: {
     opacity: 0.4,
@@ -222,34 +218,36 @@ const styles = StyleSheet.create({
   arrowButtonText: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#3b82f6',
+    color: '#5DBB8E',
   },
   slider: {
     width: '100%',
     height: 40,
   },
   sliderTrack: {
-    height: 6,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 3,
+    height: 8,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 4,
     justifyContent: 'center',
   },
   filledTrack: {
     height: '100%',
-    backgroundColor: '#3b82f6',
-    borderRadius: 3,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 4,
   },
   thumb: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#5DBB8E',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
     position: 'absolute',
-    top: -7,
+    top: -6,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.18,
     shadowRadius: 3,
   },
   rangeLabels: {
@@ -259,13 +257,13 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#6B7280',
     fontWeight: '500',
   },
   infoText: {
     fontSize: 12,
-    color: '#666',
+    color: '#6B7280',
     marginTop: 8,
-    fontStyle: 'italic',
+    fontStyle: 'normal',
   },
 });

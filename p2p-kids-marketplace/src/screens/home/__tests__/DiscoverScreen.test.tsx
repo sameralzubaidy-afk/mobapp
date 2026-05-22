@@ -134,6 +134,16 @@ describe('DiscoverScreen', () => {
       });
     });
 
+    it('renders SP-only quick toggle in discover controls', async () => {
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('discover-sp-toggle')).toBeTruthy();
+      });
+    });
+
     it('loads recent searches on mount', async () => {
       const { getByTestId } = render(
         <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
@@ -206,6 +216,29 @@ describe('DiscoverScreen', () => {
 
       const calls = (searchListings as jest.Mock).mock.calls;
       expect(calls.some((call) => call[1]?.sortBy === 'price_desc')).toBe(true);
+    });
+  });
+
+  describe('Quick SP Filter Toggle', () => {
+    it('applies SP-only filter from discover header control', async () => {
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(() => {
+        expect(searchListings).toHaveBeenCalled();
+      });
+
+      const initialCalls = (searchListings as jest.Mock).mock.calls.length;
+
+      fireEvent.press(getByTestId('discover-sp-toggle'));
+
+      await waitFor(() => {
+        expect((searchListings as jest.Mock).mock.calls.length).toBeGreaterThan(initialCalls);
+      });
+
+      const calls = (searchListings as jest.Mock).mock.calls;
+      expect(calls.some((call) => call[1]?.spEligibleOnly === true)).toBe(true);
     });
   });
 
@@ -422,6 +455,55 @@ describe('DiscoverScreen', () => {
 
       await act(async () => {
         resolveNextPage?.(mockSearchResults);
+      });
+    });
+
+    it('dedupes repeated page results when backend returns the same listings for next offset', async () => {
+      const firstPageResults: SearchResult[] = Array.from({ length: 20 }, (_, index) => ({
+        ...mockSearchResults[0],
+        id: `${index + 1}`,
+        title: `Test Item ${index + 1}`,
+      }));
+
+      (searchListings as jest.Mock).mockImplementation((_query: string, options: any) => {
+        if ((options?.offset ?? 0) === 0) {
+          return Promise.resolve(firstPageResults);
+        }
+
+        if (options?.offset === 20) {
+          // Simulate backend bug where offset is ignored and page 1 is returned again.
+          return Promise.resolve(firstPageResults);
+        }
+
+        return Promise.resolve([]);
+      });
+
+      const { getByTestId, queryAllByText } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(() => {
+        expect(searchListings).toHaveBeenCalledTimes(1);
+      });
+
+      const resultsList = getByTestId('discover-results-list');
+
+      act(() => {
+        resultsList.props.onEndReached();
+      });
+
+      await waitFor(() => {
+        expect(searchListings).toHaveBeenCalledTimes(2);
+      });
+
+      expect(queryAllByText('Test Item 1')).toHaveLength(1);
+
+      act(() => {
+        resultsList.props.onEndReached();
+      });
+
+      await waitFor(() => {
+        expect(searchListings).toHaveBeenCalledTimes(2);
       });
     });
 

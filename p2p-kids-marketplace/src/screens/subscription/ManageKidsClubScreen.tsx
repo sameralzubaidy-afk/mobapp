@@ -47,6 +47,7 @@ import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { PaymentMethodSection } from '@/components/subscription/PaymentMethodSection';
 import { AutoRenewToggle } from '@/components/subscription/AutoRenewToggle';
 import { BillingHistoryLink } from '@/components/subscription/BillingHistoryLink';
+import { LoadingSpinner } from '@/components/ui';
 
 // ─── Cancellation Reason Options ──────────────────────────────────────────────
 const CANCELLATION_REASONS = [
@@ -293,7 +294,7 @@ export default function ManageKidsClubScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#5DBB8E" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading subscription details...</Text>
         </View>
       </SafeAreaView>

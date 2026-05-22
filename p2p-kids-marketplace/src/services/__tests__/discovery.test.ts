@@ -202,6 +202,46 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       await expect(searchListings(query)).rejects.toThrow(error);
     });
 
+    test('should fall back to legacy RPC signature when p_node_ids is unsupported', async () => {
+      // Arrange
+      const query = 'toy';
+      mockSupabase.rpc
+        .mockResolvedValueOnce({
+          data: null,
+          error: {
+            code: 'PGRST202',
+            message: 'Could not find function public.search_listings with p_node_ids',
+            details: 'Searched for function with named args including p_node_ids',
+            hint: 'Use a matching function signature',
+          },
+        } as any)
+        .mockResolvedValueOnce({
+          data: [mockSearchResult],
+          error: null,
+        } as any);
+
+      // Act
+      const results = await searchListings(query, { nodeIds: ['node-1'] });
+
+      // Assert
+      expect(results).toHaveLength(1);
+      expect(mockSupabase.rpc).toHaveBeenNthCalledWith(
+        1,
+        'search_listings',
+        expect.objectContaining({
+          p_query: query,
+          p_node_ids: ['node-1'],
+        })
+      );
+      expect(mockSupabase.rpc).toHaveBeenNthCalledWith(
+        2,
+        'search_listings',
+        expect.not.objectContaining({
+          p_node_ids: expect.anything(),
+        })
+      );
+    });
+
     test('should rank results by relevance (highest first)', async () => {
       // Arrange
       const query = 'toy';

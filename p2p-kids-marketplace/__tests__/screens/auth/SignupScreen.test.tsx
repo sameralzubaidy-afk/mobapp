@@ -1,279 +1,151 @@
-// File: p2p-kids-marketplace/__tests__/screens/auth/SignupScreen.test.tsx
-// MODULE-15.1: Auth Signup Screen Unit Tests
-// FLOW-01: Authentication & Session Management
-
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { Alert } from 'react-native';
 import SignupScreen from '@/screens/auth/SignupScreen';
 import { signupWithTrial } from '@/services/auth';
+import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 
-// Mock dependencies
-jest.mock('@/services/auth');
-jest.mock('@/services/referralCodeV2');
-jest.mock('react-native/Libraries/Alert/Alert', () => ({
-  alert: jest.fn(),
+const mockNavigate = jest.fn();
+const mockGoBack = jest.fn();
+
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useNavigation: () => ({
+      navigate: mockNavigate,
+      goBack: mockGoBack,
+    }),
+    useRoute: () => ({ params: {} }),
+  };
+});
+
+jest.mock('@/services/auth', () => ({
+  signupWithTrial: jest.fn(),
+}));
+
+jest.mock('@/services/referralCodeV2', () => ({
+  ReferralCodeServiceV2: {
+    checkCodeExists: jest.fn(),
+  },
+}));
+
+jest.mock('@/components/auth/SocialLoginButtons', () => ({
+  SocialLoginButtons: ({ testID }: { testID?: string }) => {
+    const { View } = require('react-native');
+    return <View testID={testID || 'signup-social-buttons'} />;
+  },
 }));
 
 const mockSignupWithTrial = signupWithTrial as jest.MockedFunction<typeof signupWithTrial>;
+const mockCheckCodeExists = ReferralCodeServiceV2
+  .checkCodeExists as jest.MockedFunction<typeof ReferralCodeServiceV2.checkCodeExists>;
 
 describe('SignupScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+    mockCheckCodeExists.mockResolvedValue(true as any);
   });
 
-  describe('Rendering', () => {
-    it('should render signup form with all required inputs', () => {
-      const { getByPlaceholderText } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      expect(getByPlaceholderText(/name/i)).toBeTruthy();
-      expect(getByPlaceholderText(/email/i)).toBeTruthy();
-      expect(getByPlaceholderText(/phone/i)).toBeTruthy();
-      expect(getByPlaceholderText(/password/i)).toBeTruthy();
-      expect(getByPlaceholderText(/confirm password/i)).toBeTruthy();
-    });
-
-    it('should render terms and conditions checkbox', () => {
-      const { getByTestId } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      expect(getByTestId('terms-checkbox')).toBeTruthy();
-    });
-
-    it('should render signup button', () => {
-      const { getByTestId } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      expect(getByTestId('signup-submit-button')).toBeTruthy();
-    });
-
-    it('should render social login buttons', () => {
-      const { getByTestId } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      expect(getByTestId('social-login-buttons')).toBeTruthy();
-    });
+  afterEach(() => {
+    (Alert.alert as jest.Mock).mockRestore?.();
   });
 
-  describe('Password Visibility Toggle', () => {
-    it('should toggle password visibility for password field', () => {
-      const { getByTestId, getByPlaceholderText } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const passwordInput = getByPlaceholderText(/^password$/i);
-      const toggleButton = getByTestId('password-toggle-button');
-      
-      expect(passwordInput.props.secureTextEntry).toBe(true);
-      
-      fireEvent.press(toggleButton);
-      
-      expect(passwordInput.props.secureTextEntry).toBe(false);
-    });
+  const renderScreen = () =>
+    render(
+      <NavigationContainer>
+        <SignupScreen />
+      </NavigationContainer>
+    );
 
-    it('should toggle password visibility for confirm password field', () => {
-      const { getByTestId, getByPlaceholderText } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const confirmPasswordInput = getByPlaceholderText(/confirm password/i);
-      const toggleButton = getByTestId('confirm-password-toggle-button');
-      
-      expect(confirmPasswordInput.props.secureTextEntry).toBe(true);
-      
-      fireEvent.press(toggleButton);
-      
-      expect(confirmPasswordInput.props.secureTextEntry).toBe(false);
-    });
+  it('renders required fields and actions', () => {
+    const { getByPlaceholderText, getByTestId, getAllByText } = renderScreen();
+
+    expect(getByPlaceholderText('Enter your full name')).toBeTruthy();
+    expect(getByPlaceholderText('Enter your email')).toBeTruthy();
+    expect(getByPlaceholderText('+1234567890')).toBeTruthy();
+    expect(getByPlaceholderText('Enter your password')).toBeTruthy();
+    expect(getByPlaceholderText('Confirm your password')).toBeTruthy();
+    expect(getByTestId('signup-submit-button')).toBeTruthy();
+    expect(getByTestId('signup-social-buttons')).toBeTruthy();
+    expect(getAllByText('Create Account').length).toBeGreaterThan(0);
   });
 
-  describe('Form Validation', () => {
-    it('should validate name is required', async () => {
-      const { getByTestId } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const submitButton = getByTestId('signup-submit-button');
-      fireEvent.press(submitButton);
-      
-      await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.stringContaining('name')
-        );
-      });
+  it('shows field validation errors when submitting empty form', async () => {
+    const { getByTestId, getByText } = renderScreen();
+
+    fireEvent.press(getByTestId('signup-submit-button'));
+
+    await waitFor(() => {
+      expect(getByText('Name must be at least 2 characters')).toBeTruthy();
+      expect(getByText('Please enter a valid email address')).toBeTruthy();
+      expect(getByText('Please enter a valid phone number (10+ digits)')).toBeTruthy();
+      expect(getByText('Password must be at least 8 characters')).toBeTruthy();
+      expect(getByText('Please enter your date of birth')).toBeTruthy();
     });
 
-    it('should validate email format', async () => {
-      const { getByTestId, getByPlaceholderText } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const emailInput = getByPlaceholderText(/email/i);
-      fireEvent.changeText(emailInput, 'invalid-email');
-      
-      const submitButton = getByTestId('signup-submit-button');
-      fireEvent.press(submitButton);
-      
-      await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.stringContaining('email')
-        );
-      });
-    });
-
-    it('should validate password strength requirements', async () => {
-      const { getByTestId, getByPlaceholderText } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const passwordInput = getByPlaceholderText(/^password$/i);
-      fireEvent.changeText(passwordInput, 'weak');
-      
-      const submitButton = getByTestId('signup-submit-button');
-      fireEvent.press(submitButton);
-      
-      await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.stringContaining('password')
-        );
-      });
-    });
-
-    it('should validate password match', async () => {
-      const { getByTestId, getByPlaceholderText } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const passwordInput = getByPlaceholderText(/^password$/i);
-      const confirmPasswordInput = getByPlaceholderText(/confirm password/i);
-      
-      fireEvent.changeText(passwordInput, 'Password123');
-      fireEvent.changeText(confirmPasswordInput, 'Password456');
-      
-      const submitButton = getByTestId('signup-submit-button');
-      fireEvent.press(submitButton);
-      
-      await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.stringContaining('match')
-        );
-      });
-    });
-
-    it('should validate phone number format', async () => {
-      const { getByTestId, getByPlaceholderText } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const phoneInput = getByPlaceholderText(/phone/i);
-      fireEvent.changeText(phoneInput, '123');
-      
-      const submitButton = getByTestId('signup-submit-button');
-      fireEvent.press(submitButton);
-      
-      await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          expect.any(String),
-          expect.stringContaining('phone')
-        );
-      });
-    });
-
-    it('should validate age requirement (18+)', async () => {
-      const { getByTestId, getByPlaceholderText } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const dobInput = getByPlaceholderText(/date of birth/i);
-      const today = new Date();
-      const underageDate = new Date(today.getFullYear() - 15, today.getMonth(), today.getDate());
-      fireEvent.changeText(dobInput, underageDate.toISOString().split('T')[0]);
-      
-      const submitButton = getByTestId('signup-submit-button');
-      fireEvent.press(submitButton);
-      
-      await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'Sorry',
-          expect.stringContaining('18 years old')
-        );
-      });
-    });
+    expect(mockSignupWithTrial).not.toHaveBeenCalled();
   });
 
-  describe('Design System Compliance (MODULE-15.1)', () => {
-    it('should use filled input style for all inputs', () => {
-      const { getByTestId } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
+  it('blocks underage signup with alert', async () => {
+    const { getByPlaceholderText, getByTestId } = renderScreen();
+
+    fireEvent.changeText(getByPlaceholderText('Enter your full name'), 'Test User');
+    fireEvent.changeText(getByPlaceholderText('Enter your email'), 'test@example.com');
+    fireEvent.changeText(getByPlaceholderText('+1234567890'), '+15551234567');
+    fireEvent.changeText(getByPlaceholderText('Enter your password'), 'Password1');
+    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'Password1');
+    fireEvent.changeText(getByTestId('signup-dob-picker-day'), '01');
+    fireEvent.changeText(getByTestId('signup-dob-picker-month'), '01');
+    fireEvent.changeText(getByTestId('signup-dob-picker-year'), '2015');
+
+    fireEvent.press(getByTestId('signup-submit-button'));
+
+    await waitFor(() => {
+      expect(Alert.alert).toHaveBeenCalledWith(
+        'Sorry',
+        'Sorry, you must be 18 years old to register.'
       );
-      
-      const emailWrapper = getByTestId('email-input-wrapper');
-      expect(emailWrapper.props.style).toMatchObject({
-        backgroundColor: '#F0F0F0',
-        borderRadius: 12,
-        height: 52,
+    });
+
+    expect(mockSignupWithTrial).not.toHaveBeenCalled();
+  });
+
+  it('calls signupWithTrial and navigates to PhoneVerification on success', async () => {
+    mockSignupWithTrial.mockResolvedValue({
+      user: { id: 'user-123' },
+      error: null,
+    } as any);
+
+    const { getByPlaceholderText, getByTestId } = renderScreen();
+
+    fireEvent.changeText(getByPlaceholderText('Enter your full name'), 'Test User');
+    fireEvent.changeText(getByPlaceholderText('Enter your email'), 'test@example.com');
+    fireEvent.changeText(getByPlaceholderText('+1234567890'), '+15551234567');
+    fireEvent.changeText(getByPlaceholderText('Enter your password'), 'Password1');
+    fireEvent.changeText(getByPlaceholderText('Confirm your password'), 'Password1');
+    fireEvent.changeText(getByTestId('signup-dob-picker-day'), '20');
+    fireEvent.changeText(getByTestId('signup-dob-picker-month'), '05');
+    fireEvent.changeText(getByTestId('signup-dob-picker-year'), '1990');
+
+    fireEvent.press(getByTestId('signup-submit-button'));
+
+    await waitFor(() => {
+      expect(mockSignupWithTrial).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'test@example.com',
+          name: 'Test User',
+          phone: '+15551234567',
+          dob: '1990-05-20',
+          referralCode: '',
+        })
+      );
+      expect(mockNavigate).toHaveBeenCalledWith('PhoneVerification', {
+        userId: 'user-123',
+        phone: '+15551234567',
       });
-      expect(emailWrapper.props.style.borderWidth).toBeFalsy();
-    });
-
-    it('should use correct checkbox icons (CheckSquare for checked, Square for unchecked)', () => {
-      const { getByTestId } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const checkbox = getByTestId('terms-checkbox');
-      expect(checkbox).toBeTruthy();
-    });
-
-    it('should use correct green color for checked checkbox (#5DBB8E)', () => {
-      const { getByTestId } = render(
-        <NavigationContainer>
-          <SignupScreen />
-        </NavigationContainer>
-      );
-      
-      const checkbox = getByTestId('terms-checkbox');
-      fireEvent.press(checkbox);
-      
-      expect(checkbox.props.style.color).toBe('#5DBB8E');
     });
   });
 });

@@ -11,11 +11,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
+  StyleSheet
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { Linking } from 'react-native';
+import {
+  SafeAreaView } from 'react-native-safe-area-context'; import { useNavigation } from '@react-navigation/native'; import { Linking
+} from 'react-native';
 import { supabase } from '@/services/supabase/client';
 import { Button, TextInput } from '@/components/ui';
 import { theme } from '@/theme';

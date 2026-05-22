@@ -10,8 +10,9 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const adminSupabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+const describeE2E = process.env.RUN_SUPABASE_E2E === 'true' ? describe : describe.skip;
 
-describe('REF-V2-008: Referral Listing Bonus E2E', () => {
+describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
   let referrerId: string;
   let refereeId: string;
   let referralId: string;

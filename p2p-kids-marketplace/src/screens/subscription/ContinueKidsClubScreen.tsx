@@ -23,6 +23,7 @@ import { getTrialStatus, TrialStatus } from '../../services/subscriptions/trialC
 import { useTrialToPaidConversion } from '../../services/subscriptions/trialToPaidConversion';
 import { getSubscriptionPrice, getTrialDays } from '../../services/adminConfig';
 import { formatDollarAmount } from '@/utils/formatPrice';
+import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -107,7 +108,7 @@ export default function ContinueKidsClubScreen() {
   if (loadingStatus) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );

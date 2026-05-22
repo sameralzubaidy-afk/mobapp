@@ -7,9 +7,8 @@ import {
   Alert,
   Share,
   StyleSheet,
-  ActivityIndicator,
   SafeAreaView,
-  ScrollView,
+  ScrollView
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Gift, Copy, ShareNetwork, Coins, Users, CheckCircle, UserCircle, ArrowLeft, Storefront, Notebook, Info } from 'phosphor-react-native';
@@ -18,6 +17,7 @@ import { ReferralRewardsService } from '@/services/referralRewards';
 import { useAuth } from '@/hooks/useAuth';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -190,7 +190,7 @@ export const ReferralsScreen: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer} testID="loading-indicator">
-        <ActivityIndicator size="large" color="#5DBB8E" />
+        <LoadingSpinner />
       </View>
     );
   }

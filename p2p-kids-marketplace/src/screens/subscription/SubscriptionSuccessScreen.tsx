@@ -14,14 +14,14 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  Animated,
-  ActivityIndicator,
+  Animated
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Crown } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
+import { LoadingSpinner } from '@/components/ui';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -85,7 +85,7 @@ export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccess
     return (
       <SafeAreaView style={styles.safeArea} testID="subscription-success-screen">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#5DBB8E" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Confirming your subscription...</Text>
         </View>
       </SafeAreaView>

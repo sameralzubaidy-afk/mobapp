@@ -147,7 +147,7 @@ export async function getUserReviews(userId: string): Promise<{
       .from('reviews')
       .select('*')
       .eq('reviewee_id', userId)
-      .eq('is_hidden', false)
+      .not('is_hidden', 'is', true)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -238,7 +238,7 @@ export async function getReviewStats(userId: string): Promise<{
       .from('reviews')
       .select('rating')
       .eq('reviewee_id', userId)
-      .eq('is_hidden', false);
+      .not('is_hidden', 'is', true);
 
     if (error) {
       console.error('Get review stats error:', error);

@@ -3,14 +3,16 @@
 
 import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import Constants from 'expo-constants';
 import { supabase } from '../config/supabase';
 import { AuthSession, AuthError, SubscriptionStatus } from '../types/user';
-import { loginWithContext } from '../services/auth';
 import { useUserStore } from '../stores/userStore';
 
 const SUPABASE_CONFIGURED = Boolean(
   process.env.EXPO_PUBLIC_SUPABASE_URL && process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
 );
+const REALTIME_ENABLED =
+  process.env.EXPO_PUBLIC_ENABLE_REALTIME !== 'false' && Constants.appOwnership !== 'expo';
 const TEST_SESSION_USER_ID = '00000000-0000-0000-0000-000000000001';
 const AUTH_INIT_SESSION_TIMEOUT_MS = 12000;
 const AUTH_INIT_QUERY_TIMEOUT_MS = 10000;
@@ -410,6 +412,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const setupSubscriptionListener = useCallback(
     (userId: string) => {
       if (!userId) return;
+      if (!REALTIME_ENABLED) return;
 
       try {
         // Clean up old subscription before creating a fresh channel.
@@ -455,6 +458,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const setupWalletListener = useCallback(
     (userId: string) => {
       if (!userId) return;
+      if (!REALTIME_ENABLED) return;
 
       try {
         // Clean up old wallet subscription before creating a fresh channel.
@@ -584,7 +588,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // mark startup step
         try {
           require('@/utils/startupDebug').setStartupStep('fetching session');
-        } catch (_) {}
+        } catch {}
 
         // Get current session from Supabase with timeout protection
         console.log('[AUTH] 🔍 Fetching session...');
@@ -608,7 +612,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (sessionData.session?.user) {
           try {
             require('@/utils/startupDebug').setStartupStep('fetching profile');
-          } catch (_) {}
+          } catch {}
           console.log('[AUTH] 👤 User found in session:', sessionData.session.user.id);
 
           // User is authenticated - restore session from profile
@@ -634,7 +638,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             try {
               require('@/utils/startupDebug').setStartupStep('fetching subscription');
-            } catch (_) {}
+            } catch {}
             console.log('[AUTH] ✅ Profile found');
 
             // Also fetch subscription status from subscriptions table (source of truth)
@@ -750,7 +754,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setSession(authSession);
             try {
               require('@/utils/startupDebug').setStartupStep('session restored');
-            } catch (_) {}
+            } catch {}
             console.log('[AUTH] 🎉 Session restored successfully');
           } else {
             console.warn('[AUTH] ⚠️ Profile not found for authenticated user');
@@ -759,7 +763,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
           try {
             require('@/utils/startupDebug').setStartupStep('no active session');
-          } catch (_) {}
+          } catch {}
           console.log('[AUTH] ℹ️ No active session found');
           setSession(null);
         }
@@ -804,6 +808,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const userId = session?.user?.id;
     if (!userId) return;
+
+    if (!REALTIME_ENABLED) {
+      // Expo Go regularly reports Realtime CHANNEL_ERROR in this project setup.
+      // Keep app stable by relying on manual refresh and app foreground refresh.
+      return;
+    }
 
     // 1. Profile listener (onboarding completion, node changes)
     try {

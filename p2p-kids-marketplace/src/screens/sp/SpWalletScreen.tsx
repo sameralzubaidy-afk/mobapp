@@ -9,9 +9,8 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
+  SafeAreaView
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -36,6 +35,7 @@ import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { LoadingSpinner } from '@/components/ui';
 
 export default function SpWalletScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -93,7 +93,7 @@ export default function SpWalletScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading your wallet...</Text>
       </View>
     );

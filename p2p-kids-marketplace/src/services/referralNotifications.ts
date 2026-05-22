@@ -3,6 +3,26 @@
 // Service for managing referral-specific notifications
 
 import { supabase } from './supabase/client';
+import Constants from 'expo-constants';
+
+function isTransientNetworkError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : String((error as { message?: unknown } | null)?.message || '');
+
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes('network request failed') ||
+    normalized.includes('failed to fetch') ||
+    normalized.includes('fetch failed') ||
+    normalized.includes('timed out') ||
+    normalized.includes('timeout')
+  );
+}
 
 export interface UserNotification {
   id: string;
@@ -68,14 +88,22 @@ export const getUnreadNotificationCount = async (
     });
 
     if (error) {
-      console.error('[ReferralNotifications] Failed to get unread count:', error.message);
+      if (isTransientNetworkError(error)) {
+        console.warn('[ReferralNotifications] Unread count skipped due transient network issue');
+      } else {
+        console.error('[ReferralNotifications] Failed to get unread count:', error.message);
+      }
       return { success: false, error: error.message };
     }
 
     return { success: true, count: data as number };
   } catch (err) {
     const error = err as Error;
-    console.error('[ReferralNotifications] Error getting unread count:', error.message);
+    if (isTransientNetworkError(error)) {
+      console.warn('[ReferralNotifications] Unread count request failed due transient network issue');
+    } else {
+      console.error('[ReferralNotifications] Error getting unread count:', error.message);
+    }
     return { success: false, error: error.message };
   }
 };
@@ -225,6 +253,11 @@ export const subscribeToNotifications = (
   userId: string,
   onNotification: (notification: UserNotification) => void
 ): (() => void) => {
+  if (Constants.appOwnership === 'expo') {
+    // Realtime in Expo Go is noisy/unreliable in this project; polling still works.
+    return () => {};
+  }
+
   try {
     // Use a unique topic per subscriber instance so remounts cannot reuse an already
     // subscribed channel and trigger "cannot add postgres_changes callbacks after subscribe".

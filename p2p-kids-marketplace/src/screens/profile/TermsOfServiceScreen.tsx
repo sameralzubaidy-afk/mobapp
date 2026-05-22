@@ -14,6 +14,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getTOSService } from '../../services/tos';
 import Markdown from 'react-native-markdown-display';
+import { LoadingSpinner } from '@/components/ui';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TermsOfService'>;
 
@@ -94,7 +95,7 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
           <Text style={styles.headerTitle}>Terms of Service</Text>
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading Terms of Service...</Text>
         </View>
       </SafeAreaView>

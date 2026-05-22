@@ -6,12 +6,12 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
   SafeAreaView,
   TouchableOpacity,
-  RefreshControl,
+  RefreshControl
 } from 'react-native';
 import { getBadgeLeaderboard, LeaderboardEntry } from '../../services/badges';
+import { LoadingSpinner } from '@/components/ui';
 
 const LeaderboardScreen = ({ navigation }: any) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -92,7 +92,7 @@ const LeaderboardScreen = ({ navigation }: any) => {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading leaderboard...</Text>
         </View>
       </SafeAreaView>

@@ -19,21 +19,21 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   StyleSheet,
   RefreshControl,
   SafeAreaView,
   ScrollView,
-  Modal,
+  Modal
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { DotsThree, PencilSimple, Storefront, Trash } from 'phosphor-react-native';
+import { DotsThree, PencilSimple, Storefront, Trash, Receipt } from 'phosphor-react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyListings, getListingSummary, deleteListing } from '../../services/listing';
 import { getActiveDrafts, deleteDraft } from '../../services/draftService';
 import { Listing, ListingSummary, ItemDraft } from '../../types/listing';
 import { ListingImage } from '../../components/atoms';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { LoadingSpinner } from '@/components/ui';
 
 type StatusFilter = 'all' | 'pending' | 'needs_edits' | 'rejected' | 'available' | 'sold';
 type TabType = 'listings' | 'drafts';
@@ -348,7 +348,7 @@ export default function MyListingsScreen({ navigation }: any) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <LoadingSpinner />
           <Text style={styles.loadingText}>Loading your listings...</Text>
         </View>
       </SafeAreaView>
@@ -360,8 +360,18 @@ export default function MyListingsScreen({ navigation }: any) {
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <View style={styles.container}>
           <View style={styles.screenHeader}>
-            <Storefront size={24} color="#5DBB8E" weight="regular" />
-            <Text style={styles.screenHeaderTitle}>My Listings</Text>
+            <View style={styles.screenHeaderLeft}>
+              <Storefront size={24} color="#5DBB8E" weight="regular" />
+              <Text style={styles.screenHeaderTitle}>My Listings</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.myTradeButton}
+              onPress={() => navigation.navigate('TradeList')}
+              accessibilityLabel="View My Trade"
+            >
+              <Receipt size={22} color="#FFFFFF" weight="fill" />
+              <Text style={styles.myTradeButtonText}>My Trade</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Summary Header */}
@@ -615,16 +625,41 @@ const styles = StyleSheet.create({
   screenHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
     backgroundColor: '#FFFFFF',
   },
+  screenHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   screenHeaderTitle: {
     fontSize: 24,
     fontWeight: '600',
     color: '#1A1A1A',
+  },
+  myTradeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    backgroundColor: '#5DBB8E',
+    shadowColor: '#5DBB8E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  myTradeButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
   },
   loadingContainer: {
     flex: 1,

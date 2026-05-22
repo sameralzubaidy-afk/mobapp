@@ -1,7 +1,8 @@
 // File: p2p-kids-marketplace/src/screens/profile/EditProfileScreen.tsx
 // AUTH-006: User Profile Editing
+// TASK FLOW-15: UI Redesign - Phosphor icons, filled inputs, green theme
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +13,18 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
+import {
+  User,
+  Camera,
+  MapPin,
+  Phone,
+  CaretLeft,
+  CalendarBlank,
+  EnvelopeSimple,
+  Question,
+} from 'phosphor-react-native';
 import {
   updateUserProfile,
   getUserProfile,
@@ -24,11 +36,12 @@ import { addToWaitlist } from '@/services/waitlist';
 import { requestPhoneVerification, verifyPhoneCode } from '@/services/phone';
 import { supabase } from '@/services/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Modal } from 'react-native';
+import { LoadingSpinner, OTPInput } from '@/components/ui';
 import type { ProfileUpdateData } from '@/types/profile.types';
 // Temporary fallback: generated Database types may be missing in local dev.
 // Use `any` here to unblock type-checking until DB types are generated.
 type UserProfile = any;
+const SUPPORT_CONTACT_EMAIL = 'admin-support@kidsmarketplace.app';
 
 const formatErrorMessage = (error: unknown): string => {
   if (error && typeof error === 'object' && 'message' in error) {
@@ -43,17 +56,25 @@ const formatErrorMessage = (error: unknown): string => {
   return JSON.stringify(error) || 'Unknown error';
 };
 
-export default function EditProfileScreen({ navigation }: any) {
-  const [loading, setLoading] = useState(true);
+export default function EditProfileScreen({ navigation, route }: any) {
+  const preloadedUser = route?.params?.preloadedUser;
+  const preloadedProfile = route?.params?.preloadedProfile;
+
+  const [loading, setLoading] = useState(!(preloadedUser && preloadedProfile));
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [currentProfile, setCurrentProfile] = useState<UserProfile | null>(null);
   const [displayName, setDisplayName] = useState('');
+  const [dob, setDob] = useState('');
+  const [email, setEmail] = useState('');
+  const [originalEmail, setOriginalEmail] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [bio, setBio] = useState('');
   const [phone, setPhone] = useState('');
+  const [originalPhone, setOriginalPhone] = useState('');
+  const [originalZipCode, setOriginalZipCode] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [localImageUri, setLocalImageUri] = useState<string | null>(null);
 
@@ -66,75 +87,178 @@ export default function EditProfileScreen({ navigation }: any) {
     verifying?: boolean;
     message?: string;
   }>({ visible: false });
+  const [resendCountdown, setResendCountdown] = useState(0);
 
   const { refreshSession } = useAuth();
 
+  const normalizePhone = useCallback((value: string) => value.replace(/\D/g, ''), []);
+
   useEffect(() => {
-    loadUserProfile();
+    if (!phoneVerification.visible || resendCountdown <= 0) {
+      return;
+    }
+
+    const timer = setTimeout(() => setResendCountdown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [phoneVerification.visible, resendCountdown]);
+
+  const hydrateForm = useCallback((authUser: any, profile: any, overridePhone?: string) => {
+    setCurrentUser(authUser);
+    setCurrentProfile(profile);
+    setDisplayName((profile as any)?.name || '');
+    setDob(
+      (profile as any)?.dob ||
+        (profile as any)?.date_of_birth ||
+        (authUser as any)?.user_metadata?.dob ||
+        ''
+    );
+    const initialEmail = (authUser as any)?.email || (profile as any)?.email || '';
+    setEmail(initialEmail);
+    setOriginalEmail(initialEmail);
+    setBio((profile as any)?.bio || '');
+    const initialZip = (profile as any)?.zip_code || '';
+    setZipCode(initialZip);
+    setOriginalZipCode(initialZip);
+
+    const phoneFromAuth =
+      overridePhone || (authUser as any)?.phone || (authUser as any)?.user_metadata?.phone || '';
+    const initialPhone = phoneFromAuth || '';
+    setPhone(initialPhone);
+    setOriginalPhone(initialPhone);
+
+    const profileAvatar = (profile as any)?.avatar_url;
+    const metadataAvatar = (authUser as any)?.user_metadata?.avatar_url;
+    const immediateAvatar =
+      typeof profileAvatar === 'string' && profileAvatar.startsWith('http')
+        ? profileAvatar
+        : metadataAvatar || null;
+    setAvatarUrl(immediateAvatar);
   }, []);
 
-  const loadUserProfile = async () => {
-    try {
-      const { user: authUser, error: authError } = await getCurrentUser();
-      if (authError || !authUser) {
-        throw new Error('Unable to get current user');
+  const loadUserProfile = useCallback(
+    async ({ showLoader = true }: { showLoader?: boolean } = {}) => {
+      if (showLoader) {
+        setLoading(true);
       }
 
-      const { user: profile, error: profileError } = await getUserProfile(authUser.id);
-      if (profileError || !profile) {
-        throw new Error('Unable to load profile');
-      }
+      try {
+        const { user: authUser, error: authError } = await getCurrentUser();
+        if (authError || !authUser) {
+          throw new Error('Unable to get current user');
+        }
 
-      setCurrentUser(authUser);
-      setCurrentProfile(profile);
-      setDisplayName((profile as any)?.name || '');
-      setBio((profile as any)?.bio || '');
-      setZipCode((profile as any)?.zip_code || '');
+        const { user: profile, error: profileError } = await getUserProfile(authUser.id);
+        if (profileError || !profile) {
+          throw new Error('Unable to load profile');
+        }
 
-      // Phone may exist on auth user top-level or inside user_metadata
-      let phoneFromAuth = (authUser as any).phone || (authUser as any).user_metadata?.phone || '';
+        // Phone may exist on auth user top-level or inside user_metadata
+        let phoneFromAuth =
+          (authUser as any).phone ||
+          (authUser as any).user_metadata?.phone ||
+          (profile as any)?.phone ||
+          '';
 
-      // If phone not available on auth user, try to fetch the latest verified phone from phone_verification_codes
-      if (!phoneFromAuth) {
-        try {
-          const { data: phoneData, error: phoneError } = await (
-            supabase.from('phone_verification_codes') as any
-          )
-            .select('phone')
-            .eq('user_id', authUser.id)
-            .eq('verified', true)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+        // Render key fields immediately for faster UX.
+        hydrateForm(authUser, profile, phoneFromAuth);
 
-          if (!phoneError && phoneData?.phone) {
-            phoneFromAuth = phoneData.phone;
-          }
-        } catch (e) {
-          console.warn('Error fetching verified phone:', e);
+        if (showLoader) {
+          setLoading(false);
+        }
+
+        // Run slower enrichments in background without blocking first render.
+        void Promise.allSettled([
+          (async () => {
+            // Always reconcile with the latest verified phone row because auth metadata can be stale.
+
+            try {
+              const { data: phoneData, error: phoneError } = await (
+                supabase.from('phone_verification_codes') as any
+              )
+                .select('phone')
+                .eq('user_id', authUser.id)
+                .eq('verified', true)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (!phoneError && phoneData?.phone) {
+                const verifiedPhone = phoneData.phone;
+                if (normalizePhone(verifiedPhone) !== normalizePhone(phoneFromAuth)) {
+                  phoneFromAuth = verifiedPhone;
+                  setPhone(verifiedPhone);
+                  setOriginalPhone(verifiedPhone);
+                }
+              }
+            } catch (e) {
+              console.warn('Error fetching verified phone:', e);
+            }
+          })(),
+          (async () => {
+            // Resolve avatar URL: profile.avatar_url could be a full URL or a storage path.
+            try {
+              const resolvedAvatar = await resolveAvatarUrl((profile as any)?.avatar_url);
+              if (resolvedAvatar) {
+                setAvatarUrl(resolvedAvatar);
+              }
+            } catch (e) {
+              console.warn('Error resolving avatar URL:', e);
+            }
+          })(),
+        ]);
+      } catch (error: any) {
+        console.error('Load profile error:', error);
+        Alert.alert('Error', 'Failed to load profile. Please try again.');
+        navigation.goBack();
+      } finally {
+        if (showLoader) {
+          setLoading(false);
         }
       }
+    },
+    [hydrateForm, navigation, normalizePhone]
+  );
 
-      setPhone(phoneFromAuth || '');
-
-      // Resolve avatar URL: profile.avatar_url could be a full URL or a storage path
-      const resolvedAvatar = await resolveAvatarUrl(profile.avatar_url);
-      setAvatarUrl(resolvedAvatar);
-    } catch (error: any) {
-      console.error('Load profile error:', error);
-      Alert.alert('Error', 'Failed to load profile. Please try again.');
-      navigation.goBack();
-    } finally {
+  useEffect(() => {
+    // Instant hydration from Profile screen navigation params, then background refresh.
+    if (preloadedUser && preloadedProfile) {
+      hydrateForm(preloadedUser, preloadedProfile);
       setLoading(false);
+      void loadUserProfile({ showLoader: false });
+      return;
     }
-  };
+
+    void loadUserProfile({ showLoader: true });
+  }, [preloadedUser, preloadedProfile, hydrateForm, loadUserProfile]);
+
+  const navigateToProfile = useCallback(() => {
+    navigation.navigate('Profile');
+  }, [navigation]);
+
+  const showContactSupportAlert = useCallback(() => {
+    Alert.alert('Contact Support', `For profile help, contact ${SUPPORT_CONTACT_EMAIL}.`);
+  }, []);
+
+  const formatDobForDisplay = useCallback((value: string) => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) {
+      return 'Not provided';
+    }
+
+    const parsedDob = new Date(trimmedValue);
+    if (Number.isNaN(parsedDob.getTime())) {
+      return trimmedValue;
+    }
+
+    return parsedDob.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }, []);
 
   const validateForm = (): boolean => {
     const newErrors: { [key: string]: string } = {};
-
-    if (displayName.trim() && displayName.trim().length < 2) {
-      newErrors.displayName = 'Display name must be at least 2 characters';
-    }
 
     if (zipCode.trim() && !/^\d{5}$/.test(zipCode.trim())) {
       newErrors.zipCode = 'Zip code must be 5 digits';
@@ -142,6 +266,11 @@ export default function EditProfileScreen({ navigation }: any) {
 
     if (phone.trim() && !/^\d{10}$/.test(phone.replace(/\D/g, ''))) {
       newErrors.phone = 'Phone number must be 10 digits';
+    }
+
+    const trimmedEmail = email.trim();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      newErrors.email = 'Please enter a valid email address';
     }
 
     setErrors(newErrors);
@@ -190,10 +319,20 @@ export default function EditProfileScreen({ navigation }: any) {
     setSaving(true);
 
     try {
+      const trimmedDisplayName = displayName.trim();
+      const trimmedBio = bio.trim();
+      const trimmedZip = zipCode.trim();
+      const trimmedPhone = phone.trim();
+      const trimmedEmail = email.trim().toLowerCase();
+      const phoneChanged = normalizePhone(trimmedPhone) !== normalizePhone(originalPhone);
+      const emailChanged = trimmedEmail !== (originalEmail || '').trim().toLowerCase();
+      const shouldDeferAvatarUpload = Boolean(localImageUri) && !phoneChanged;
+
       let uploadedAvatarPath: string | null = null;
+      let uploadedAvatarUrl: string | null = null;
 
       // Upload new avatar if user selected one
-      if (localImageUri) {
+      if (localImageUri && !shouldDeferAvatarUpload) {
         setUploadingImage(true);
         const {
           url,
@@ -222,6 +361,7 @@ export default function EditProfileScreen({ navigation }: any) {
           // Don't block profile save if avatar fails
         } else {
           uploadedAvatarPath = path ?? null;
+          uploadedAvatarUrl = url ?? null;
           if (url) setAvatarUrl(url);
         }
       }
@@ -229,43 +369,67 @@ export default function EditProfileScreen({ navigation }: any) {
       // Prepare update data (only include changed fields)
       const updates: ProfileUpdateData = {};
 
-      if (displayName.trim() !== (currentProfile.name || '')) {
-        updates.display_name = displayName.trim();
+      if (trimmedBio !== (currentProfile.bio || '')) {
+        updates.bio = trimmedBio;
       }
-      if (bio.trim() !== (currentProfile.bio || '')) {
-        updates.bio = bio.trim();
-      }
-      let phoneChanged = false;
-      if (phone.trim() !== (currentUser.phone || '')) {
-        phoneChanged = true;
-        // Do not include phone in updates until verified
-      }
-      if (zipCode.trim()) {
-        // Only update zip code if user entered one
-        updates.zip_code = zipCode.trim();
+      if (trimmedZip !== originalZipCode) {
+        updates.zip_code = trimmedZip;
       }
       if (uploadedAvatarPath) {
         updates.avatar_url = uploadedAvatarPath;
       }
 
-      // Only call update if there are changes
-      if (Object.keys(updates).length === 0 && !localImageUri) {
-        Alert.alert('No Changes', 'No changes were made to your profile.');
+      // Treat phone change as a real change even when no profile fields changed.
+      if (Object.keys(updates).length === 0 && !localImageUri && !phoneChanged && !emailChanged) {
+        Alert.alert('No Changes', 'No changes were made to your profile.', [
+          {
+            text: 'OK',
+            onPress: navigateToProfile,
+          },
+        ]);
         return;
       }
 
-      const {
-        user,
-        error,
-        needsWaitlist,
-        zipCode: updatedZip,
-      } = await updateUserProfile(currentUser.id, updates);
+      let user: any = null;
+      let error: any = null;
+      let needsWaitlist = false;
+      let updatedZip: string | undefined;
+
+      if (Object.keys(updates).length > 0) {
+        const updateResult = await updateUserProfile(currentUser.id, updates, {
+          includeAuthUser: false,
+        });
+        user = updateResult.user;
+        error = updateResult.error;
+        needsWaitlist = Boolean(updateResult.needsWaitlist);
+        updatedZip = updateResult.zipCode;
+      }
+
+      if (emailChanged) {
+        const { error: emailUpdateError } = await supabase.auth.updateUser({
+          email: trimmedEmail,
+        } as any);
+
+        if (emailUpdateError) {
+          error = emailUpdateError;
+        } else {
+          setEmail(trimmedEmail);
+          setOriginalEmail(trimmedEmail);
+
+          const { error: profileEmailUpdateError } = await supabase
+            .from('profiles')
+            .update({ email: trimmedEmail })
+            .eq('user_id', currentUser.id);
+
+          if (profileEmailUpdateError) {
+            console.warn('Failed to sync profile email after auth email update:', profileEmailUpdateError);
+          }
+        }
+      }
 
       // If phone was changed, start verification flow (non-blocking)
       if (phoneChanged) {
-        // Re-fetch auth user to get the canonical current phone
-        const { user: latestAuthUser } = await getCurrentUser();
-        const currentAuthPhone = latestAuthUser?.phone || '';
+        const currentAuthPhone = normalizePhone(originalPhone);
 
         // Check verified phone records for this user
         let alreadyVerified = false;
@@ -278,32 +442,40 @@ export default function EditProfileScreen({ navigation }: any) {
             .limit(1)
             .maybeSingle();
           if (verifiedRow && (verifiedRow as any).phone) {
-            alreadyVerified = (verifiedRow as any).phone === phone.trim();
+              alreadyVerified =
+                normalizePhone((verifiedRow as any).phone || '') === normalizePhone(trimmedPhone);
           }
         } catch (e) {
           console.warn('Could not check verified phone records:', e);
         }
 
-        if (phone.trim() === currentAuthPhone || alreadyVerified) {
+        if (normalizePhone(trimmedPhone) === currentAuthPhone || alreadyVerified) {
           // Phone already present/verified — update local UI and don't trigger verification
-          setPhone(phone.trim());
+          setPhone(trimmedPhone);
+          setOriginalPhone(trimmedPhone);
           Alert.alert('Info', 'This phone number is already verified and active on your account.');
         } else {
-          setPhoneVerification({ visible: true, phone: phone.trim(), sending: true });
-          const { success } = await requestPhoneVerification(currentUser.id, phone.trim());
+          setPhoneVerification({
+            visible: true,
+            phone: trimmedPhone,
+            code: '',
+            sending: true,
+            message: undefined,
+          });
+          const { success } = await requestPhoneVerification(currentUser.id, trimmedPhone);
           if (!success) {
             setPhoneVerification((prev) => ({
               ...prev,
               sending: false,
-              message: 'Failed to send verification code.',
+              message: 'Failed to send verification code. Please try again.',
             }));
-            Alert.alert('Warning', 'Failed to send verification code. Please try again.');
             return; // stop here, do not show success
           } else {
+            setResendCountdown(60);
             setPhoneVerification((prev) => ({
               ...prev,
               sending: false,
-              message: 'Verification code sent. Enter it below.',
+              message: undefined,
             }));
             // Keep modal open and do not show overall success yet; wait for verification
             return;
@@ -331,7 +503,30 @@ export default function EditProfileScreen({ navigation }: any) {
       }
 
       // Update local phone from returned auth user to reflect change immediately
-      if (user && user.phone) setPhone(user.phone);
+      if (user && user.phone) {
+        setPhone(user.phone);
+        setOriginalPhone(user.phone);
+      }
+
+      // Keep original zip in sync after successful update.
+      setOriginalZipCode(trimmedZip);
+
+      const optimisticProfilePatch = {
+        name: trimmedDisplayName || (currentProfile as any)?.name || '',
+        bio: trimmedBio,
+        zip_code: trimmedZip || (currentProfile as any)?.zip_code || '',
+        avatar_url:
+          uploadedAvatarUrl ||
+          localImageUri ||
+          avatarUrl ||
+          (currentProfile as any)?.avatar_url ||
+          null,
+      };
+
+      const optimisticUserPatch = {
+        phone: trimmedPhone,
+        email: trimmedEmail || (currentUser as any)?.email || '',
+      };
 
       // If the updated zip code has no active node, prompt to join waitlist
       if (needsWaitlist && updatedZip) {
@@ -369,25 +564,62 @@ export default function EditProfileScreen({ navigation }: any) {
       }
 
       if (refreshSession) {
-        try {
-          await refreshSession();
-        } catch (refreshError) {
+        void refreshSession().catch((refreshError) => {
           console.warn(
             '[EditProfileScreen] Failed to refresh session after profile update',
             refreshError
           );
-        }
+        });
       }
 
-      Alert.alert('Success', 'Your profile has been updated!', [
-        {
-          text: 'OK',
-          onPress: () => {
-            navigation.goBack();
-            // If phone verification is active, we keep the modal open for user
-          },
-        },
-      ]);
+      // Return immediately for smooth UX and let Profile screen show optimistic changes.
+      navigation.navigate('Profile', {
+        optimisticProfilePatch,
+        optimisticUserPatch,
+        profileUpdatedAt: Date.now(),
+      });
+
+      if (shouldDeferAvatarUpload && localImageUri) {
+        const deferredAvatarUri = localImageUri;
+
+        void (async () => {
+          const { url, path, error: deferredUploadError } = await uploadProfileAvatar(
+            currentUser.id,
+            deferredAvatarUri
+          );
+
+          if (deferredUploadError) {
+            console.error('Deferred avatar upload error:', deferredUploadError);
+            Alert.alert(
+              'Avatar Upload Failed',
+              'Profile details were saved, but avatar upload failed. Please try uploading the avatar again.'
+            );
+            return;
+          }
+
+          if (path) {
+            const avatarUpdateResult = await updateUserProfile(
+              currentUser.id,
+              { avatar_url: path },
+              { includeAuthUser: false }
+            );
+
+            if (avatarUpdateResult.error) {
+              console.error('Deferred avatar DB update error:', avatarUpdateResult.error);
+              return;
+            }
+          }
+
+          navigation.navigate('Profile', {
+            optimisticProfilePatch: {
+              avatar_url: url || deferredAvatarUri,
+            },
+            profileUpdatedAt: Date.now(),
+          });
+        })();
+      }
+
+      return;
     } catch (error: any) {
       console.error('Profile update error:', error);
       const errMsg =
@@ -403,14 +635,15 @@ export default function EditProfileScreen({ navigation }: any) {
 
   // Phone verification handlers
   const handleVerifyCode = async () => {
-    if (!phoneVerification.phone || !phoneVerification.code) {
-      setPhoneVerification((prev) => ({ ...prev, message: 'Enter a valid code.' }));
+    if (!phoneVerification.phone || !phoneVerification.code || phoneVerification.code.length !== 6) {
+      setPhoneVerification((prev) => ({ ...prev, message: 'Please enter all 6 digits.' }));
       return;
     }
     setPhoneVerification((prev) => ({ ...prev, verifying: true }));
     const { success, message, error } = await verifyPhoneCode(
       currentUser!.id,
-      phoneVerification.code!
+      phoneVerification.code!,
+      phoneVerification.phone
     );
     setPhoneVerification((prev) => ({ ...prev, verifying: false }));
     if (!success) {
@@ -422,37 +655,49 @@ export default function EditProfileScreen({ navigation }: any) {
       return;
     }
 
-    // Refresh auth user to get updated phone
-    const { user: refreshedUser } = await getCurrentUser();
-    if (refreshedUser) setPhone(refreshedUser.phone || '');
+    const verifiedPhone = phoneVerification.phone || '';
+    if (verifiedPhone) {
+      setPhone(verifiedPhone);
+      setOriginalPhone(verifiedPhone);
+    }
 
-    Alert.alert('Phone Verified', 'Your phone number has been verified and updated.', [
-      {
-        text: 'OK',
-        onPress: () => {
-          setPhoneVerification({ visible: false });
-          navigation.goBack();
+    // Auto-redirect to Profile after successful verification (no extra confirmation tap)
+    setResendCountdown(0);
+    setPhoneVerification({ visible: false });
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: 'Profile',
+          params: {
+            optimisticUserPatch: {
+              phone: verifiedPhone,
+            },
+            profileUpdatedAt: Date.now(),
+          },
         },
-      },
-    ]);
+      ],
+    });
   };
 
   const handleResendCode = async () => {
-    if (!phoneVerification.phone || !currentUser) return;
+    if (!phoneVerification.phone || !currentUser || resendCountdown > 0) return;
     setPhoneVerification((prev) => ({ ...prev, sending: true }));
     const { success } = await requestPhoneVerification(currentUser.id, phoneVerification.phone!);
+    if (success) {
+      setResendCountdown(60);
+    }
     setPhoneVerification((prev) => ({
       ...prev,
       sending: false,
-      message: success ? 'Code resent' : 'Failed to send code',
+      message: success ? undefined : 'Failed to send verification code. Please try again.',
     }));
   };
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+        <LoadingSpinner fullScreen text="Loading profile..." />
       </View>
     );
   }
@@ -460,147 +705,233 @@ export default function EditProfileScreen({ navigation }: any) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
+        <TouchableOpacity onPress={navigateToProfile} style={styles.backButton}>
+          <CaretLeft size={20} color="#5DBB8E" weight="bold" style={{ marginRight: 4 }} />
+          <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.title}>Edit Profile</Text>
       </View>
 
       {/* Avatar Picker */}
       <View style={styles.avatarSection}>
-        <TouchableOpacity
-          style={styles.avatarButton}
-          onPress={handlePickImage}
-          disabled={uploadingImage}
-        >
-          {localImageUri || avatarUrl ? (
-            <Image
-              source={{ uri: localImageUri || avatarUrl || undefined }}
-              style={styles.avatarImage}
-            />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarPlaceholderText}>📷</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.avatarContainer}>
+          <TouchableOpacity
+            style={styles.avatarButton}
+            onPress={handlePickImage}
+            disabled={uploadingImage}
+          >
+            {localImageUri || avatarUrl ? (
+              <Image
+                source={{ uri: localImageUri || avatarUrl || undefined }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <User size={40} color="#6B6B6B" weight="regular" />
+              </View>
+            )}
+          </TouchableOpacity>
+          <View style={styles.cameraOverlay}>
+            <Camera size={14} color="#FFFFFF" weight="regular" />
+          </View>
+        </View>
         <TouchableOpacity onPress={handlePickImage} disabled={uploadingImage}>
-          <Text style={styles.changePhotoText}>Change Photo</Text>
+          <Text style={styles.changePhotoText}>Tap to change</Text>
         </TouchableOpacity>
         {uploadingImage && (
-          <ActivityIndicator size="small" color="#007AFF" style={{ marginTop: 8 }} />
+          <ActivityIndicator size="small" color="#5DBB8E" style={{ marginTop: 8 }} />
         )}
       </View>
 
       {/* Phone verification modal */}
-      <Modal visible={phoneVerification.visible} transparent animationType="fade">
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(26, 26, 26, 0.4)',
-            justifyContent: 'center',
-            padding: 20,
-          }}
-        >
-          <View style={{ backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20 }}>
-            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1A1A1A', marginBottom: 8 }}>
-              Verify Phone
-            </Text>
-            <Text style={{ color: '#6B6B6B', marginBottom: 12 }}>
-              {phoneVerification.message ||
-                `Enter the 6-digit code sent to ${phoneVerification.phone}`}
-            </Text>
-            <TextInput
-              placeholder="Enter verification code"
-              value={phoneVerification.code}
-              onChangeText={(v) => setPhoneVerification((prev) => ({ ...prev, code: v }))}
-              keyboardType="number-pad"
-              style={{
-                borderWidth: 0,
-                backgroundColor: '#F0F0F0',
-                color: '#1A1A1A',
-                borderRadius: 12,
-                padding: 12,
-                marginBottom: 12,
+      <Modal
+        visible={phoneVerification.visible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => {
+          setResendCountdown(0);
+          setPhoneVerification({ visible: false });
+        }}
+      >
+        <View style={styles.verificationContainer}>
+          <View style={styles.verificationHeader}>
+            <TouchableOpacity
+              onPress={() => {
+                setResendCountdown(0);
+                setPhoneVerification({ visible: false });
               }}
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <TouchableOpacity
-                onPress={() => setPhoneVerification({ visible: false })}
-                style={{ padding: 10 }}
-              >
-                <Text style={{ color: '#6B6B6B' }}>Cancel</Text>
-              </TouchableOpacity>
-              <View style={{ flexDirection: 'row' }}>
-                <TouchableOpacity
-                  onPress={handleResendCode}
-                  style={{ padding: 10, marginRight: 8 }}
-                >
-                  <Text style={{ color: '#5DBB8E' }}>Resend</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleVerifyCode} style={{ padding: 10 }}>
-                  <Text style={{ color: '#5DBB8E' }}>
-                    {phoneVerification.verifying ? 'Verifying...' : 'Verify'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+              style={styles.verificationBackButton}
+            >
+              <Text style={styles.verificationBackButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.verificationTitle}>Verify Your Phone</Text>
+            <View style={styles.verificationHeaderSpacer} />
+          </View>
+
+          <View style={styles.verificationContent}>
+            <Text style={styles.verificationSubtitle}>
+              We sent a 6-digit code to{`\n`}
+              <Text style={styles.verificationPhone}>{phoneVerification.phone}</Text>
+            </Text>
+
+            <View style={styles.verificationOtpContainer}>
+              <OTPInput
+                length={6}
+                value={phoneVerification.code || ''}
+                onChange={(newCode) =>
+                  setPhoneVerification((prev) => ({ ...prev, code: newCode, message: undefined }))
+                }
+                error={Boolean(phoneVerification.message)}
+              />
             </View>
+
+            {__DEV__ && (
+              <Text style={styles.verificationDevHint}>Dev mode: use 123456 to skip SMS.</Text>
+            )}
+
+            {phoneVerification.message && (
+              <Text style={styles.verificationErrorText}>{phoneVerification.message}</Text>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.verificationPrimaryButton,
+                (phoneVerification.verifying || (phoneVerification.code || '').length !== 6) &&
+                  styles.verificationPrimaryButtonDisabled,
+              ]}
+              onPress={handleVerifyCode}
+              disabled={phoneVerification.verifying || (phoneVerification.code || '').length !== 6}
+            >
+              {phoneVerification.verifying ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.verificationPrimaryButtonText}>Verify</Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.verificationResendContainer}>
+              {phoneVerification.sending ? (
+                <Text style={styles.verificationTimerText}>Sending...</Text>
+              ) : resendCountdown > 0 ? (
+                <Text style={styles.verificationTimerText}>Resend code in {resendCountdown}s</Text>
+              ) : (
+                <TouchableOpacity onPress={handleResendCode}>
+                  <Text style={styles.verificationResendText}>Resend Code</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.verificationChangePhoneButton}
+              onPress={() => {
+                setResendCountdown(0);
+                setPhoneVerification({ visible: false });
+              }}
+            >
+              <Text style={styles.verificationChangePhoneText}>Change Phone Number</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Display Name */}
+      {/* Full Name (locked) */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Display Name</Text>
-        <TextInput
-          style={[styles.input, errors.displayName && styles.inputError]}
-          placeholder="Enter your display name"
-          value={displayName}
-          onChangeText={setDisplayName}
-          autoCapitalize="words"
-          maxLength={50}
-        />
-        {errors.displayName && <Text style={styles.errorText}>{errors.displayName}</Text>}
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>FULL NAME (CANNOT BE CHANGED)</Text>
+          <TouchableOpacity
+            style={styles.supportIconButton}
+            onPress={showContactSupportAlert}
+            accessibilityLabel="Contact support to change full name"
+          >
+            <Question size={16} color="#5DBB8E" weight="fill" />
+          </TouchableOpacity>
+        </View>
+        <View style={[styles.inputWrapper, styles.inputDisabled]}>
+          <User size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
+          <TextInput style={[styles.input, styles.inputTextDisabled]} value={displayName} editable={false} />
+        </View>
+      </View>
+
+      {/* Date of Birth (locked) */}
+      <View style={styles.inputGroup}>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>DATE OF BIRTH (CANNOT BE CHANGED)</Text>
+          <TouchableOpacity
+            style={styles.supportIconButton}
+            onPress={showContactSupportAlert}
+            accessibilityLabel="Contact support to change date of birth"
+          >
+            <Question size={16} color="#5DBB8E" weight="fill" />
+          </TouchableOpacity>
+        </View>
+        <View style={[styles.inputWrapper, styles.inputDisabled]}>
+          <CalendarBlank size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
+          <TextInput
+            style={[styles.input, styles.inputTextDisabled]}
+            value={formatDobForDisplay(dob)}
+            editable={false}
+          />
+        </View>
+      </View>
+
+      {/* Email Address */}
+      <View style={styles.inputGroup}>
+        <Text style={styles.label}>EMAIL ADDRESS</Text>
+        <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
+          <EnvelopeSimple size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your email"
+            placeholderTextColor="#999999"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+        {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
       </View>
 
       {/* Phone Number */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Phone Number</Text>
-        <TextInput
-          style={[styles.input, errors.phone && styles.inputError]}
-          placeholder="Enter your phone number"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          maxLength={14}
-        />
+        <Text style={styles.label}>PHONE NUMBER</Text>
+        <View style={[styles.inputWrapper, errors.phone && styles.inputError]}>
+          <Phone size={20} color="#6B6B6B" weight="regular" style={{ marginRight: 12 }} />
+          <TextInput
+            style={styles.input}
+            placeholder="(XXX) XXX-XXXX"
+            placeholderTextColor="#999999"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            maxLength={14}
+          />
+        </View>
         {errors.phone && <Text style={styles.errorText}>{errors.phone}</Text>}
-        <Text style={styles.helpText}>Format: (XXX) XXX-XXXX</Text>
       </View>
 
       {/* Zip Code */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Zip Code</Text>
-        <TextInput
-          style={[styles.input, errors.zipCode && styles.inputError]}
-          placeholder="Enter your 5-digit zip code"
-          value={zipCode}
-          onChangeText={setZipCode}
-          keyboardType="number-pad"
-          maxLength={5}
-        />
-        {errors.zipCode && <Text style={styles.errorText}>{errors.zipCode}</Text>}
-        <Text style={styles.helpText}>
-          Changing zip code may reassign you to a different community node
-        </Text>
+        <Text style={styles.label}>ZIP CODE (CANNOT BE CHANGED)</Text>
+        <View style={[styles.inputWrapper, styles.inputDisabled]}>
+          <MapPin size={20} color="#999999" weight="regular" style={{ marginRight: 12 }} />
+          <TextInput
+            style={[styles.input, styles.inputTextDisabled]}
+            value={zipCode}
+            editable={false}
+          />
+        </View>
+        <Text style={styles.helperText}>Zip codes are locked to your node.</Text>
       </View>
 
       {/* Bio */}
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Bio</Text>
+        <Text style={styles.label}>BIO</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={styles.textArea}
           placeholder="Tell us a bit about yourself..."
+          placeholderTextColor="#999999"
           value={bio}
           onChangeText={setBio}
           multiline
@@ -608,7 +939,7 @@ export default function EditProfileScreen({ navigation }: any) {
           maxLength={200}
           textAlignVertical="top"
         />
-        <Text style={styles.helpText}>{bio.length}/200 characters</Text>
+        <Text style={styles.charCount}>{bio.length}/200 characters</Text>
       </View>
 
       {/* Save Button */}
@@ -630,7 +961,7 @@ export default function EditProfileScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
     padding: 20,
@@ -640,39 +971,46 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   header: {
     marginBottom: 24,
     marginTop: 20,
   },
   backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 12,
   },
   backButtonText: {
     fontSize: 16,
-    color: '#3B82F6',
+    color: '#5DBB8E',
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   avatarSection: {
     alignItems: 'center',
     marginBottom: 32,
   },
+  avatarContainer: {
+    position: 'relative',
+    width: 96,
+    height: 96,
+    marginBottom: 8,
+  },
   avatarButton: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     overflow: 'hidden',
-    marginBottom: 12,
   },
   avatarImage: {
     width: '100%',
@@ -681,57 +1019,103 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#F0F0F0',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarPlaceholderText: {
-    fontSize: 40,
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#5DBB8E',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   changePhotoText: {
-    fontSize: 16,
-    color: '#3B82F6',
-    fontWeight: '600',
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginTop: 8,
   },
   inputGroup: {
-    marginBottom: 24,
+    marginBottom: 20,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 13,
+    textTransform: 'uppercase',
+    color: '#6B6B6B',
+    fontWeight: '500',
+    letterSpacing: 0.5,
     marginBottom: 8,
   },
+  supportIconButton: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F0F0',
+    borderRadius: 12,
+    height: 52,
+    paddingHorizontal: 16,
+  },
   input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
+    flex: 1,
     fontSize: 16,
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   inputError: {
-    borderColor: '#EF4444',
+    borderWidth: 1,
+    borderColor: '#E85D75',
+  },
+  inputDisabled: {
+    backgroundColor: '#F5F5F5',
+    opacity: 0.8,
+  },
+  inputTextDisabled: {
+    color: '#999999',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#999999',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   textArea: {
+    backgroundColor: '#F0F0F0',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    color: '#1A1A1A',
     minHeight: 100,
-    paddingTop: 12,
   },
   errorText: {
-    color: '#EF4444',
+    color: '#E85D75',
     fontSize: 14,
     marginTop: 4,
   },
-  helpText: {
-    color: '#6B7280',
-    fontSize: 14,
+  charCount: {
+    color: '#999999',
+    fontSize: 12,
     marginTop: 4,
+    textAlign: 'right',
   },
   saveButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    padding: 16,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    height: 52,
+    justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
   },
@@ -740,7 +1124,106 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
+  },
+  verificationContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  verificationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+    marginTop: 20,
+  },
+  verificationBackButton: {
+    paddingVertical: 4,
+  },
+  verificationBackButtonText: {
+    fontSize: 16,
+    color: '#5DBB8E',
+  },
+  verificationTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  verificationHeaderSpacer: {
+    width: 52,
+  },
+  verificationContent: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+  },
+  verificationSubtitle: {
+    fontSize: 16,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  verificationPhone: {
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  verificationOtpContainer: {
+    marginBottom: 12,
+  },
+  verificationErrorText: {
+    fontSize: 14,
+    color: '#E85D75',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  verificationDevHint: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  verificationPrimaryButton: {
+    height: 56,
+    borderRadius: 26,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  verificationPrimaryButtonDisabled: {
+    opacity: 0.5,
+  },
+  verificationPrimaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  verificationResendContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  verificationResendText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5DBB8E',
+  },
+  verificationTimerText: {
+    fontSize: 14,
+    color: '#6B6B6B',
+  },
+  verificationChangePhoneButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  verificationChangePhoneText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B6B6B',
   },
 });

@@ -9,9 +9,8 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
+  SafeAreaView
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -25,6 +24,7 @@ import {
 import { getLedgerHistory, type SPLedgerEntry } from '@/services/sp/wallet';
 import { supabase } from '@/config/supabase';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { LoadingSpinner } from '@/components/ui';
 
 type TabFilter = 'all' | 'earned' | 'spent';
 
@@ -95,7 +95,7 @@ export default function SpTransactionHistoryScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#5DBB8E" />
+        <LoadingSpinner />
         <Text style={styles.loadingText}>Loading transactions...</Text>
       </View>
     );

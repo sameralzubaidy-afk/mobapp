@@ -86,6 +86,8 @@ export type SortOption = 'relevance' | 'newest' | 'price_asc' | 'price_desc';
  * MODULE-05-DISCOVERY-V3: Expanded from V2 with 9 filter dimensions
  */
 export interface DiscoveryFilters {
+  /** Node IDs to scope distance */
+  nodeIds?: string[];
   /** Full-text search query */
   query?: string;
   /** Category IDs (multi-select) */
