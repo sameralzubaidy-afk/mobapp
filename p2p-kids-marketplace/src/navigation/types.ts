@@ -52,6 +52,7 @@ export type RootStackParamList = {
   TradeDispute: { tradeId: string };
   TradeSuccess: { tradeId: string };
   // MODULE-07: Messaging routes
+  Conversations: undefined;
   Chat: { tradeId: string };
   // MODULE-06 (EXT): Seller Payout routes
   PayoutSettings: undefined;
@@ -97,4 +98,9 @@ export type RootStackParamList = {
   CancelSubscription: undefined;
   SubscriptionExpired: { planName?: string; expiredDate?: string } | undefined;
   MySubscription: undefined;
+  // MODULE-15.1 FLOW-19: Help & Support
+  HelpSupport: undefined;
+  Support: undefined;
+  ContactSupport: undefined;
+  FAQDetail: { faq: { id: string; category: string; question: string; answer: string } };
 };

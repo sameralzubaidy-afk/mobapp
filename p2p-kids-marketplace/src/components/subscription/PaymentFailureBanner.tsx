@@ -7,7 +7,8 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Warning } from 'phosphor-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { usePaymentFailure } from '@/hooks/usePaymentFailure';
 import { SubscriptionSummary } from '@/services/subscription';
@@ -60,55 +61,37 @@ export function PaymentFailureBanner({
     onDismiss?.();
   };
 
-  // Determine banner styling based on urgency
-  const containerStyle = [
-    styles.container,
-    failureInfo.urgencyLevel === 'high' && styles.containerHigh,
-    failureInfo.urgencyLevel === 'medium' && styles.containerMedium,
-  ];
-
-  return (
-    <View style={containerStyle} testID={testID}>
-      <View style={styles.content}>
-        {/* Icon */}
-        <View style={styles.iconContainer}>
-          <Text style={styles.icon}>⚠️</Text>
-        </View>
-
-        {/* Message */}
-        <View style={styles.messageContainer}>
-          <Text style={styles.title}>Payment Failed</Text>
-          <Text style={styles.message}>{failureInfo.message}</Text>
-
-          {/* Retry count indicator */}
-          {failureInfo.retryCount > 0 && !failureInfo.isMaxRetriesReached && (
-            <Text style={styles.retryInfo}>
-              Retry {failureInfo.retryCount} of 3 • Next retry in{' '}
-              {failureInfo.retryCount === 1 ? '3' : failureInfo.retryCount === 2 ? '7' : '14'} days
-            </Text>
-          )}
-        </View>
+return (
+    <View style={[styles.container, failureInfo.urgencyLevel === 'high' && styles.containerHigh]} testID={testID}>
+      <View style={styles.iconCircle}>
+        <Warning size={20} color="#E85D75" weight="fill" />
       </View>
-
-      {/* Actions */}
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={handleUpdatePayment}
-          activeOpacity={0.8}
-          testID={`${testID}-updatePayment`}
-        >
-          <Text style={styles.primaryButtonText}>Update Payment Method</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.dismissButton}
-          onPress={handleDismiss}
-          activeOpacity={0.8}
-          testID={`${testID}-dismiss`}
-        >
-          <Text style={styles.dismissButtonText}>Dismiss</Text>
-        </TouchableOpacity>
+      <View style={styles.textBlock}>
+        <Text style={styles.title}>Payment Failed</Text>
+        <Text style={styles.message}>{failureInfo.message}</Text>
+        {failureInfo.retryCount > 0 && !failureInfo.isMaxRetriesReached && (
+          <Text style={styles.retryInfo}>
+            Retry {failureInfo.retryCount} of 3 • Next retry in{' '}
+            {failureInfo.retryCount === 1 ? '3' : failureInfo.retryCount === 2 ? '7' : '14'} days
+          </Text>
+        )}
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={handleUpdatePayment}
+            activeOpacity={0.8}
+            testID={`${testID}-updatePayment`}
+          >
+            <Text style={styles.primaryButtonText}>Update Payment</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDismiss}
+            activeOpacity={0.8}
+            testID={`${testID}-dismiss`}
+          >
+            <Text style={styles.dismissText}>Dismiss</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -116,83 +99,73 @@ export function PaymentFailureBanner({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFF4E5',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF9800',
-    borderRadius: 8,
+    borderLeftColor: '#E85D75',
+    marginHorizontal: 20,
+    marginBottom: 14,
     padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  containerMedium: {
-    backgroundColor: '#FFF4E5',
-    borderLeftColor: '#FF9800',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   containerHigh: {
-    backgroundColor: '#FFEBEE',
-    borderLeftColor: '#F44336',
+    borderLeftColor: '#CC1F3A',
   },
-  content: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  iconContainer: {
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
+    flexShrink: 0,
   },
-  icon: {
-    fontSize: 24,
-  },
-  messageContainer: {
+  textBlock: {
     flex: 1,
   },
   title: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
+    color: '#1A1A1A',
+    marginBottom: 3,
   },
   message: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 20,
-    marginBottom: 6,
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 18,
   },
   retryInfo: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
     fontStyle: 'italic',
+    marginTop: 2,
   },
   actions: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 10,
   },
   primaryButton: {
-    flex: 1,
-    backgroundColor: '#1F2937',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
+    backgroundColor: '#E85D75',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
   },
   primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  dismissButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dismissButtonText: {
-    color: '#6B7280',
-    fontSize: 14,
-    fontWeight: '500',
+  dismissText: {
+    fontSize: 13,
+    color: '#6B6B6B',
   },
 });

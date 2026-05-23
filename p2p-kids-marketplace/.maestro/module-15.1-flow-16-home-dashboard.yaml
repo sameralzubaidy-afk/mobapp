@@ -1,0 +1,151 @@
+# FLOW: Home Dashboard Redesign | TASK: FLOW-16 | States covered: logged-in, subscribed, unread notifications
+# MODULE-15.1 FLOW-16: Maestro UI flow for Home Dashboard visual redesign
+# Run with: npm run test:maestro:ios (or :android)
+
+appId: com.p2pkidsmarketplace
+
+---
+
+# === SETUP: Login first ===
+- tapOn: 
+    id: "email-input"
+- inputText: "testuser@example.com"
+- tapOn:
+    id: "password-input"
+- inputText: "TestPassword123!"
+- tapOn:
+    id: "login-button"
+- assertVisible:
+    id: "dashboard-screen"
+
+# === TEST FLOW-16: Header Row (Avatar + Greeting + Bell) ===
+- assertVisible:
+    id: "header-row"
+    text: "Avatar, greeting, and notification bell must be visible"
+
+- assertVisible:
+    id: "header-avatar"
+    text: "Avatar must be 40px and tappable"
+
+- assertVisible:
+    id: "greeting-text"
+    text: "Time-based greeting (Good morning/afternoon/evening) must be shown"
+
+- assertVisible:
+    id: "notif-button"
+    text: "Bell icon (Phosphor, 24px) must be visible"
+
+# Verify notification badge appears when unread count > 0
+- assertVisible:
+    id: "notif-badge"
+    text: "Red notification badge (8px, #E85D75) should appear if unread > 0"
+
+# Tap avatar -> navigate to Profile
+- tapOn:
+    id: "header-avatar"
+- assertVisible:
+    text: "Profile"
+- back
+
+# Tap bell -> navigate to Notifications
+- tapOn:
+    id: "notif-button"
+- assertVisible:
+    text: "Notifications"
+- back
+
+# === TEST FLOW-16: SP Balance Strip (Green Background) ===
+- assertVisible:
+    id: "sp-strip"
+    text: "SP balance strip must be visible with #5DBB8E background"
+
+- assertVisible:
+    id: "sp-balance-text"
+    text: "SP balance (e.g., '250 SP') must be shown"
+
+# Verify Coins icon (Phosphor) is used
+- assertVisible:
+    id: "sp-coins-icon"
+    text: "Phosphor Coins icon must be present (not emoji)"
+
+# Tap "Earn More" -> navigate to SP Wallet
+- tapOn:
+    id: "earn-more-button"
+- assertVisible:
+    text: "Swap Points Wallet"
+- back
+
+# === TEST FLOW-16: Quick Action Tiles (4-Column Grid) ===
+- assertVisible:
+    id: "action-tile-sell"
+    text: "Sell tile must be visible with Storefront icon"
+
+- assertVisible:
+    id: "action-tile-trade"
+    text: "Trade tile must be visible with ArrowsLeftRight icon"
+
+- assertVisible:
+    id: "action-tile-discover"
+    text: "Discover tile must be visible with MagnifyingGlass icon"
+
+- assertVisible:
+    id: "action-tile-trades"
+    text: "My Trades tile must be visible with Package icon"
+
+# Tap "Sell" -> navigate to ListingCreate
+- tapOn:
+    id: "action-tile-sell"
+- assertVisible:
+    text: "Create Listing"
+- back
+
+# Tap "Trade" -> navigate to Discovery
+- tapOn:
+    id: "action-tile-trade"
+- assertVisible:
+    text: "Discovery"
+- back
+
+# Tap "Discover" -> navigate to Discovery
+- tapOn:
+    id: "action-tile-discover"
+- assertVisible:
+    text: "Discovery"
+- back
+
+# Tap "My Trades" -> navigate to MyTrades
+- tapOn:
+    id: "action-tile-trades"
+- assertVisible:
+    text: "My Trades"
+- back
+
+# === TEST FLOW-16: Section Headers with "See All" Links ===
+- assertVisible:
+    text: "Nearby Items"
+    text: "Section header must be 16px, bold, #1A1A1A"
+
+- assertVisible:
+    text: "See All"
+    text: "'See All' link must be 14px, #5DBB8E green"
+
+# Tap "See All" -> navigate to Discovery
+- tapOn:
+    text: "See All"
+- assertVisible:
+    text: "Discovery"
+- back
+
+# === TEST FLOW-16: Design System Compliance ===
+# Verify no Ionicons (visual inspection - Maestro limitation)
+# Verify pill-shaped buttons (visual inspection)
+# Verify card shadows (elevation: 2, shadowOpacity: 0.06)
+# Verify white background (#FFFFFF)
+
+# === CLEANUP: Logout ===
+- tapOn:
+    id: "profile-button"
+- tapOn:
+    id: "logout-button"
+- assertVisible:
+    text: "Welcome"

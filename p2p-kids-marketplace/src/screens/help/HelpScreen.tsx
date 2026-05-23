@@ -12,7 +12,7 @@ import {
   Alert
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { ArrowLeft, ChartLine, CurrencyCircleDollar } from 'phosphor-react-native';
 import { getPublishedSections } from '../../services/educationContentService';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
 import type { EducationSection } from '../../types/education';
@@ -114,7 +114,7 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
             accessibilityLabel="Go back"
             testID="help-back-button"
           >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <ArrowLeft size={24} color="#1A1A1A" weight="bold" />
           </TouchableOpacity>
           <Text style={styles.title}>How Trading Works</Text>
           <View style={styles.backButton} />
@@ -133,10 +133,18 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
           }
           testID="help-scroll-view"
         >
-          {/* Intro Text */}
-          <Text style={styles.introText}>
-            Learn how to trade safely and earn Swap Points in the Kids P2P Marketplace!
-          </Text>
+          {/* Hero Card */}
+          <View style={styles.hero}>
+            <View style={styles.heroIconBadge}>
+              <ChartLine size={28} color="#5DBB8E" weight="bold" />
+            </View>
+            <Text style={styles.heroText}>
+              Learn how to trade safely and earn Swap Points in the Kids P2P Marketplace!
+            </Text>
+          </View>
+
+          {/* Section label */}
+          <Text style={styles.sectionLabel}>Learn the basics</Text>
 
           {/* Sections Accordion */}
           {sections.map((section) => (
@@ -162,7 +170,12 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
 
           {/* SP Calculator */}
           <View style={styles.calculatorSection}>
-            <Text style={styles.sectionTitle}>Try the SP Calculator</Text>
+            <View style={styles.calculatorHeader}>
+              <View style={styles.sectionIconBadge}>
+                <CurrencyCircleDollar size={20} color="#5DBB8E" weight="bold" />
+              </View>
+              <Text style={styles.sectionTitle}>Try the SP Calculator</Text>
+            </View>
             <SPCalculator
               mode="free"
               testID="help-sp-calculator"
@@ -170,7 +183,9 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
           </View>
 
           {/* Bonus Categories List */}
-          <BonusCategoriesList testID="help-bonus-categories" />
+          <View style={styles.bonusSection}>
+            <BonusCategoriesList testID="help-bonus-categories" />
+          </View>
 
           {/* Footer */}
           <View style={styles.footer}>
@@ -187,7 +202,7 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
   },
   container: {
     flex: 1,
@@ -198,58 +213,98 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFF',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F0F0F0',
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   content: {
     padding: 16,
+    paddingBottom: 32,
   },
-  introText: {
-    fontSize: 16,
-    color: '#4B5563',
-    marginBottom: 20,
+  hero: {
+    backgroundColor: '#F0FAF5',
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginBottom: 28,
+    gap: 12,
+  },
+  heroIconBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#D6F0E3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroText: {
+    fontSize: 14,
+    color: '#444444',
     textAlign: 'center',
+    lineHeight: 21,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#AAAAAA',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 12,
   },
   loadingText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
     marginVertical: 24,
   },
   calculatorSection: {
-    marginTop: 24,
+    marginTop: 32,
     marginBottom: 8,
   },
+  calculatorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  sectionIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#D6F0E3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  bonusSection: {
+    marginTop: 8,
   },
   footer: {
     marginTop: 32,
-    padding: 16,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+    paddingVertical: 16,
+    alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
-    color: '#4B5563',
+    fontSize: 12,
+    color: '#BBBBBB',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
 });

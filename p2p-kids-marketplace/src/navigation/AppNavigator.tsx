@@ -737,6 +737,27 @@ function RootNavigator() {
               component={require('@/screens/help/HelpScreen').default}
               options={{ headerShown: false }}
             />
+            {/* MODULE-15.1 FLOW-19: Help & Support screens */}
+            <Stack.Screen
+              name="HelpSupport"
+              component={require('@/screens/support/HelpSupportMenuScreen').default}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Support"
+              component={require('@/screens/support/HelpScreen').default}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="ContactSupport"
+              component={require('@/screens/support/ContactSupportScreen').default}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="FAQDetail"
+              component={require('@/screens/support/FAQDetailScreen').default}
+              options={{ headerShown: false }}
+            />
             {/* MODULE-03 AUTH-V3-004: Linked Accounts Management */}
             <Stack.Screen
               name="LinkedAccounts"

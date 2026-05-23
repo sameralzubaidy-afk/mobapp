@@ -1,6 +1,7 @@
 // File: p2p-kids-marketplace/src/screens/notifications/NotificationCenterScreen.tsx
 // MODULE-14 TASK NOTIF-V2-006: In-App Notification Center
 // MODULE-14 TASK NOTIF-V2-008: Notification Deep Linking
+// MODULE-15.1 FLOW-17: Notifications redesign with Whisk design system
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -15,6 +16,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import {
+  ShoppingCart,
+  CurrencyCircleDollar,
+  Warning,
+  Bell,
+  Gift,
+  Trophy,
+  Notification,
+  ArrowLeft,
+} from 'phosphor-react-native';
 
 import { useAuth } from '@/hooks/useAuth';
 import { RootStackParamList } from '@/navigation/types';
@@ -37,14 +48,54 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const PAGE_SIZE = 20;
 
-const CATEGORY_ICONS: Record<string, string> = {
-  subscription: '💳',
-  sp_events: '✨',
-  badges: '🏆',
-  trades: '💬',
-  referrals: '🎁',
-  system: '🔔',
-  default: '🔔',
+// MODULE-15.1 FLOW-17: Type-specific icon colors
+interface NotificationIconConfig {
+  Icon: React.ComponentType<any>;
+  backgroundColor: string;
+  iconColor: string;
+}
+
+const CATEGORY_ICONS: Record<string, NotificationIconConfig> = {
+  trades: {
+    Icon: ShoppingCart,
+    backgroundColor: '#E8F5F0', // Whisk green tint
+    iconColor: '#5DBB8E', // Whisk primary green
+  },
+  sp_events: {
+    Icon: CurrencyCircleDollar,
+    backgroundColor: '#FEF3C7', // Whisk gold tint
+    iconColor: '#F59E0B', // Whisk gold
+  },
+  safety: {
+    Icon: Warning,
+    backgroundColor: '#FEE2E2', // Whisk red tint
+    iconColor: '#E85D75', // Whisk error red
+  },
+  subscription: {
+    Icon: CurrencyCircleDollar,
+    backgroundColor: '#FEF3C7', // SP-related
+    iconColor: '#F59E0B',
+  },
+  badges: {
+    Icon: Trophy,
+    backgroundColor: '#FEF3C7', // Reward-related
+    iconColor: '#F59E0B',
+  },
+  referrals: {
+    Icon: Gift,
+    backgroundColor: '#E8F5F0', // Trade-related
+    iconColor: '#5DBB8E',
+  },
+  system: {
+    Icon: Bell,
+    backgroundColor: '#F7F7F7', // Neutral
+    iconColor: '#6B6B6B', // Whisk gray
+  },
+  default: {
+    Icon: Notification,
+    backgroundColor: '#F7F7F7',
+    iconColor: '#6B6B6B',
+  },
 };
 
 function formatRelativeTime(dateStr: string): string {
@@ -91,7 +142,8 @@ const NotificationItem = React.memo(function NotificationItem({
   item,
   onPress,
 }: NotificationItemProps) {
-  const icon = CATEGORY_ICONS[item.category] ?? CATEGORY_ICONS.default;
+  const iconConfig = CATEGORY_ICONS[item.category] ?? CATEGORY_ICONS.default;
+  const { Icon, backgroundColor, iconColor } = iconConfig;
   const isUnread = !item.is_read;
 
   return (
@@ -99,18 +151,20 @@ const NotificationItem = React.memo(function NotificationItem({
       testID={`notification-item-${item.id}`}
       accessibilityRole="button"
       accessibilityLabel={item.title}
+      // MODULE-15.1 FLOW-17: Unread rows #F7F7F7, read rows white
       style={[styles.notificationItem, isUnread && styles.notificationItemUnread]}
       onPress={() => onPress(item)}
       activeOpacity={0.7}
     >
-      {isUnread ? <View testID={`unread-indicator-${item.id}`} style={styles.unreadDot} /> : null}
-      <View style={styles.iconContainer}>
-        <Text style={styles.categoryIcon}>{icon}</Text>
+      {/* MODULE-15.1 FLOW-17: No unread dot indicator - removed */}
+      <View style={[styles.iconContainer, { backgroundColor }]}>
+        <Icon size={20} color={iconColor} weight="regular" testID={`notification-icon-${item.id}`} />
       </View>
 
       <View style={styles.contentContainer}>
         <Text
           testID={`notification-title-${item.id}`}
+          // MODULE-15.1 FLOW-17: Bold title for unread, regular for read
           style={[styles.notificationTitle, isUnread && styles.notificationTitleUnread]}
           numberOfLines={2}
         >
@@ -318,21 +372,26 @@ export default function NotificationCenterScreen() {
         testID="back-button"
         onPress={() => navigation.goBack()}
         style={styles.backButton}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
       >
-        <Text style={styles.backButtonText}>‹ Back</Text>
+        <ArrowLeft size={24} color="#1A1A1A" weight="regular" />
       </TouchableOpacity>
 
       <Text testID="screen-title" style={styles.title}>
         Notifications
       </Text>
 
+      {/* MODULE-15.1 FLOW-17: "Mark All Read" as text link in #5DBB8E, NOT a button */}
       {unreadCount > 0 ? (
         <TouchableOpacity
-          testID="mark-all-read-button"
+          testID="mark-all-read-link"
           onPress={handleMarkAllRead}
-          style={styles.markAllButton}
+          style={styles.markAllLink}
+          accessibilityRole="link"
+          accessibilityLabel="Mark all notifications as read"
         >
-          <Text style={styles.markAllButtonText}>Mark all read</Text>
+          <Text style={styles.markAllLinkText}>Mark All Read</Text>
         </TouchableOpacity>
       ) : (
         <View style={styles.markAllPlaceholder} />
@@ -342,8 +401,9 @@ export default function NotificationCenterScreen() {
 
   const listEmpty = !isLoading ? (
     <View testID="empty-state" style={styles.emptyState}>
-      <Text style={styles.emptyIcon}>🔔</Text>
-      <Text style={styles.emptyTitle}>No notifications yet</Text>
+      {/* MODULE-15.1 FLOW-17: Bell icon (64px, #E0E0E0) + "You're all caught up!" */}
+      <Bell size={64} color="#E0E0E0" weight="regular" testID="empty-icon" />
+      <Text style={styles.emptyTitle}>You're all caught up!</Text>
       <Text style={styles.emptyBody}>
         You&apos;ll see trade updates, SP events, badge awards, and more here.
       </Text>
@@ -351,7 +411,7 @@ export default function NotificationCenterScreen() {
   ) : null;
 
   const listFooter = isLoadingMore ? (
-    <ActivityIndicator testID="load-more-indicator" style={styles.footer} color="#007AFF" />
+    <ActivityIndicator testID="load-more-indicator" style={styles.footer} color="#5DBB8E" />
   ) : null;
 
   if (isLoading) {
@@ -359,7 +419,7 @@ export default function NotificationCenterScreen() {
       <SafeAreaView style={styles.container}>
         {listHeader}
         <View testID="loading-state" style={styles.loadingContainer}>
-          <ActivityIndicator testID="loading-indicator" size="large" color="#007AFF" />
+          <ActivityIndicator testID="loading-indicator" size="large" color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading notifications…</Text>
         </View>
       </SafeAreaView>
@@ -371,7 +431,7 @@ export default function NotificationCenterScreen() {
       <SafeAreaView style={styles.container}>
         {listHeader}
         <View testID="error-state" style={styles.emptyState}>
-          <Text style={styles.emptyIcon}>⚠️</Text>
+          <Warning size={64} color="#E85D75" weight="regular" testID="error-icon" />
           <Text style={styles.emptyTitle}>Something went wrong</Text>
           <Text style={styles.emptyBody}>{error}</Text>
           <TouchableOpacity
@@ -410,7 +470,7 @@ export default function NotificationCenterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF', // Whisk white
   },
   emptyContainer: {
     flexGrow: 1,
@@ -421,29 +481,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF', // Whisk white
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#F0F0F0', // Whisk divider
   },
   backButton: {
-    minWidth: 60,
-  },
-  backButtonText: {
-    fontSize: 17,
-    color: '#007AFF',
+    minWidth: 48,
+    height: 48,
+    justifyContent: 'center',
   },
   title: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#000',
+    color: '#1A1A1A', // Whisk text
   },
-  markAllButton: {
+  // MODULE-15.1 FLOW-17: "Mark All Read" as text link (NOT button)
+  markAllLink: {
     minWidth: 60,
     alignItems: 'flex-end',
+    paddingVertical: 4,
   },
-  markAllButtonText: {
+  markAllLinkText: {
     fontSize: 13,
-    color: '#007AFF',
+    color: '#5DBB8E', // Whisk green
     fontWeight: '500',
   },
   markAllPlaceholder: {
@@ -452,39 +512,26 @@ const styles = StyleSheet.create({
   notificationItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF', // MODULE-15.1 FLOW-17: Read rows white
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F0F0F0', // Whisk divider
     position: 'relative',
   },
+  // MODULE-15.1 FLOW-17: Unread rows #F7F7F7 background
   notificationItemUnread: {
-    backgroundColor: '#F0F7FF',
-    borderLeftWidth: 3,
-    borderLeftColor: '#007AFF',
-  },
-  unreadDot: {
-    position: 'absolute',
-    top: 18,
-    right: 14,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#F7F7F7', // Whisk light gray
   },
   iconContainer: {
-    width: 40,
+    width: 40, // MODULE-15.1 FLOW-17: 40px icon circles
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
     flexShrink: 0,
-  },
-  categoryIcon: {
-    fontSize: 20,
+    // backgroundColor is set inline per category
   },
   contentContainer: {
     flex: 1,
@@ -492,23 +539,23 @@ const styles = StyleSheet.create({
   },
   notificationTitle: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
+    fontWeight: '400', // MODULE-15.1 FLOW-17: Regular weight for read
+    color: '#1A1A1A', // Whisk text
     marginBottom: 2,
   },
+  // MODULE-15.1 FLOW-17: Bold title for unread
   notificationTitleUnread: {
     fontWeight: '700',
-    color: '#000',
   },
   notificationBody: {
     fontSize: 13,
-    color: '#666',
+    color: '#6B6B6B', // Whisk gray
     lineHeight: 18,
     marginBottom: 4,
   },
   notificationTime: {
     fontSize: 11,
-    color: '#999',
+    color: '#9E9E9E', // Lighter gray for timestamps
   },
   loadingContainer: {
     flex: 1,
@@ -517,7 +564,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    color: '#666',
+    color: '#6B6B6B', // Whisk gray
     fontSize: 14,
   },
   emptyState: {
@@ -525,33 +572,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
-  },
-  emptyIcon: {
-    fontSize: 56,
-    marginBottom: 16,
+    gap: 12,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
+    color: '#1A1A1A', // Whisk text
+    marginTop: 12,
     textAlign: 'center',
   },
   emptyBody: {
     fontSize: 14,
-    color: '#666',
+    color: '#6B6B6B', // Whisk gray
     textAlign: 'center',
     lineHeight: 20,
   },
   retryButton: {
     marginTop: 20,
     paddingHorizontal: 24,
-    paddingVertical: 10,
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
+    paddingVertical: 12,
+    backgroundColor: '#5DBB8E', // Whisk green
+    borderRadius: 12, // Whisk standard radius
+    minHeight: 48, // Whisk button height (we use shorter for secondary)
   },
   retryButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
   },

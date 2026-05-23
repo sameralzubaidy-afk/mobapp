@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/screens/profile/NotificationPreferencesScreen.tsx
 // MODULE-14: User UI for managing notification preferences
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,20 @@ import {
   SafeAreaView,
   Switch,
   Alert,
-  TextInput
+  TextInput,
+  Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  ArrowLeft,
+  BellSimpleSlash,
+  CreditCard,
+  Gear,
+  Info,
+  Lightning,
+  Medal,
+  Moon,
+  ShoppingCart,
+} from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
 import {
   getNotificationPreferences,
@@ -30,12 +41,64 @@ const CATEGORY_LABELS: Record<NotificationCategory, string> = {
   system: 'System Updates',
 };
 
-const CATEGORY_ICONS: Record<NotificationCategory, string> = {
-  subscription: 'card-outline',
-  sp_events: 'flash-outline',
-  badges: 'ribbon-outline',
-  trades: 'swap-horizontal-outline',
-  system: 'settings-outline',
+const CATEGORY_ORDER: Record<NotificationCategory, number> = {
+  subscription: 1,
+  sp_events: 2,
+  badges: 3,
+  trades: 4,
+  system: 5,
+};
+
+const CATEGORY_ICON_META: Record<
+  NotificationCategory,
+  {
+    Icon: React.ComponentType<any>;
+    color: string;
+    bg: string;
+  }
+> = {
+  subscription: { Icon: CreditCard, color: '#4A7FBB', bg: '#E8F0FE' },
+  sp_events: { Icon: Lightning, color: '#F59E0B', bg: '#FEF3C7' },
+  badges: { Icon: Medal, color: '#F59E0B', bg: '#FEF3C7' },
+  trades: { Icon: ShoppingCart, color: '#5DBB8E', bg: '#E8F5F0' },
+  system: { Icon: Gear, color: '#6B6B6B', bg: '#EEEEEE' },
+};
+
+const CARD_SHADOW = Platform.select({
+  ios: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+  },
+  android: {
+    elevation: 2,
+  },
+  default: {},
+});
+
+const toHHMM = (timeValue: string) => {
+  if (!timeValue) {
+    return '00:00';
+  }
+
+  const parts = timeValue.split(':');
+  if (parts.length >= 2) {
+    return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
+  }
+
+  return timeValue;
+};
+
+const toHHMMSS = (timeValue: string) => {
+  const trimmed = timeValue.trim();
+  const validTimeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+  if (!validTimeRegex.test(trimmed)) {
+    return null;
+  }
+
+  return `${trimmed}:00`;
 };
 
 export default function NotificationPreferencesScreen({ navigation }: any) {
@@ -47,36 +110,11 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
   const [savingQuietHours, setSavingQuietHours] = useState(false);
 
   const subscriptionPreference = preferences.find((p) => p.category === 'subscription');
+  const sortedPreferences = [...preferences].sort(
+    (a, b) => CATEGORY_ORDER[a.category] - CATEGORY_ORDER[b.category]
+  );
 
-  const toHHMM = (timeValue: string) => {
-    if (!timeValue) {
-      return '00:00';
-    }
-
-    const parts = timeValue.split(':');
-    if (parts.length >= 2) {
-      return `${parts[0].padStart(2, '0')}:${parts[1].padStart(2, '0')}`;
-    }
-
-    return timeValue;
-  };
-
-  const toHHMMSS = (timeValue: string) => {
-    const trimmed = timeValue.trim();
-    const validTimeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
-    if (!validTimeRegex.test(trimmed)) {
-      return null;
-    }
-
-    return `${trimmed}:00`;
-  };
-
-  useEffect(() => {
-    loadPreferences();
-  }, []);
-
-  const loadPreferences = async () => {
+  const loadPreferences = useCallback(async () => {
     setLoading(true);
     const result = await getNotificationPreferences();
     if (result.success && result.preferences) {
@@ -91,7 +129,11 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
       Alert.alert('Error', result.error || 'Failed to load preferences');
     }
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadPreferences();
+  }, [loadPreferences]);
 
   const handleToggle = async (
     category: NotificationCategory,
@@ -207,9 +249,10 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <ArrowLeft size={24} color="#1A1A1A" weight="bold" />
           </TouchableOpacity>
           <Text style={styles.title}>Notification Settings</Text>
+          <View style={styles.headerSpacer} />
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
@@ -219,7 +262,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
 
           {preferences.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="notifications-off-outline" size={48} color="#D1D5DB" />
+              <BellSimpleSlash size={44} color="#C4C4C4" weight="regular" />
               <Text style={styles.emptyTitle}>No preferences found</Text>
               <Text style={styles.emptyText}>
                 We couldn't load your notification settings. Tap the button below to initialize
@@ -230,19 +273,21 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
           ) : (
-            preferences.map((pref) => (
+            sortedPreferences.map((pref) => {
+              const iconMeta = CATEGORY_ICON_META[pref.category];
+              const CategoryIcon = iconMeta.Icon;
+
+              return (
               <View
                 key={pref.category}
                 testID={`category-section-${pref.category}`}
-                style={styles.categoryCard}
+                style={[styles.categoryCard, CARD_SHADOW]}
               >
                 <View style={styles.categoryHeader}>
-                  <View style={styles.categoryIconContainer}>
-                    <Ionicons
-                      name={CATEGORY_ICONS[pref.category] as any}
-                      size={20}
-                      color="#3B82F6"
-                    />
+                  <View
+                    style={[styles.categoryIconContainer, { backgroundColor: iconMeta.bg }]}
+                  >
+                    <CategoryIcon size={20} color={iconMeta.color} weight="fill" />
                   </View>
                   <Text style={styles.categoryTitle}>{CATEGORY_LABELS[pref.category]}</Text>
                 </View>
@@ -258,8 +303,9 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                       value={pref.push_enabled}
                       onValueChange={(val) => handleToggle(pref.category, 'push_enabled', val)}
                       disabled={updating !== null}
-                      trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-                      thumbColor={pref.push_enabled ? '#3B82F6' : '#F9FAFB'}
+                      trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
+                      thumbColor="#FFFFFF"
+                      ios_backgroundColor="#E0E0E0"
                     />
                   </View>
 
@@ -273,8 +319,9 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                       value={pref.in_app_enabled}
                       onValueChange={(val) => handleToggle(pref.category, 'in_app_enabled', val)}
                       disabled={updating !== null}
-                      trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-                      thumbColor={pref.in_app_enabled ? '#3B82F6' : '#F9FAFB'}
+                      trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
+                      thumbColor="#FFFFFF"
+                      ios_backgroundColor="#E0E0E0"
                     />
                   </View>
 
@@ -288,20 +335,22 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                       value={pref.email_enabled}
                       onValueChange={(val) => handleToggle(pref.category, 'email_enabled', val)}
                       disabled={updating !== null}
-                      trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-                      thumbColor={pref.email_enabled ? '#3B82F6' : '#F9FAFB'}
+                      trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
+                      thumbColor="#FFFFFF"
+                      ios_backgroundColor="#E0E0E0"
                     />
                   </View>
                 </View>
               </View>
-            ))
+              );
+            })
           )}
 
           {subscriptionPreference && (
-            <View style={styles.quietHoursCard} testID="quiet-hours-section">
+            <View style={[styles.quietHoursCard, CARD_SHADOW]} testID="quiet-hours-section">
               <View style={styles.quietHoursHeader}>
-                <View style={styles.categoryIconContainer}>
-                  <Ionicons name="moon-outline" size={20} color="#3B82F6" />
+                <View style={[styles.categoryIconContainer, { backgroundColor: '#E8F5F0' }]}>
+                  <Moon size={20} color="#5DBB8E" weight="fill" />
                 </View>
                 <Text style={styles.categoryTitle}>Quiet Hours</Text>
               </View>
@@ -319,8 +368,9 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
                     value={subscriptionPreference.quiet_hours_enabled}
                     onValueChange={handleQuietHoursToggle}
                     disabled={updating !== null}
-                    trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-                    thumbColor={subscriptionPreference.quiet_hours_enabled ? '#3B82F6' : '#F9FAFB'}
+                    trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
+                    thumbColor="#FFFFFF"
+                    ios_backgroundColor="#E0E0E0"
                   />
                 </View>
 
@@ -377,12 +427,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
           )}
 
           <View style={styles.footer}>
-            <Ionicons
-              name="information-circle-outline"
-              size={16}
-              color="#6B7280"
-              style={{ marginRight: 6 }}
-            />
+            <Info size={16} color="#E85D75" weight="fill" />
             <Text style={styles.footerText}>
               Critical system alerts and safety notifications cannot be disabled.
             </Text>
@@ -396,7 +441,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8F8F8',
   },
   container: {
     flex: 1,
@@ -405,89 +450,95 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F8F8F8',
   },
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F0F0F0',
   },
   backButton: {
-    marginRight: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F4F4F4',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    letterSpacing: -0.3,
+  },
+  headerSpacer: {
+    width: 40,
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 32,
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 20,
     lineHeight: 20,
   },
   categoryCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 16,
     overflow: 'hidden',
   },
   quietHoursCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 16,
     overflow: 'hidden',
   },
   quietHoursHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F6F6F6',
     borderBottomWidth: 1,
-    borderBottomColor: '#DBEAFE',
+    borderBottomColor: '#F0F0F0',
   },
   categoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F6F6F6',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F0F0F0',
   },
   categoryIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   categoryTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1A1A1A',
   },
   settingsList: {
     paddingHorizontal: 16,
@@ -498,7 +549,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#F0F0F0',
   },
   settingTextContainer: {
     flex: 1,
@@ -506,13 +557,14 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 15,
-    fontWeight: '500',
-    color: '#1F2937',
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   settingSublabel: {
-    fontSize: 13,
-    color: '#6B7280',
+    fontSize: 12,
+    color: '#6B6B6B',
     marginTop: 2,
+    lineHeight: 16,
   },
   timeRow: {
     flexDirection: 'row',
@@ -525,28 +577,27 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginBottom: 6,
   },
   timeInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 10,
+    borderWidth: 0,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: '#111827',
-    backgroundColor: '#FFFFFF',
+    color: '#1A1A1A',
+    backgroundColor: '#F0F0F0',
   },
   saveButton: {
     marginTop: 10,
     marginBottom: 16,
-    borderRadius: 10,
+    borderRadius: 24,
     paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#2563EB',
+    backgroundColor: '#5DBB8E',
   },
   saveButtonDisabled: {
-    backgroundColor: '#93C5FD',
+    backgroundColor: '#A7D9C2',
   },
   saveButtonText: {
     color: '#FFFFFF',
@@ -555,21 +606,25 @@ const styles = StyleSheet.create({
   },
   quietHoursDisabledHint: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#6B6B6B',
     marginTop: 12,
     marginBottom: 16,
+    lineHeight: 18,
   },
   footer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 32,
+    alignItems: 'flex-start',
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 4,
   },
   footerText: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
+    flex: 1,
+    fontSize: 13,
+    color: '#1A1A1A',
+    marginLeft: 8,
     lineHeight: 18,
   },
   emptyContainer: {
@@ -585,19 +640,19 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
+    color: '#1A1A1A',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 20,
     lineHeight: 20,
   },
   retryButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#5DBB8E',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,

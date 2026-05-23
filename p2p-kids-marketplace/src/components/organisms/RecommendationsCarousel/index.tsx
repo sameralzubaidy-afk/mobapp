@@ -15,7 +15,6 @@ import {
   Text,
   FlatList,
   Pressable,
-  Image,
   StyleSheet,
 } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
@@ -30,11 +29,14 @@ interface RecommendationsCarouselProps {
   limit?: number;
   /** Custom title for the carousel */
   title?: string;
+  /** Whether to render the section title (set false when parent provides its own header) */
+  showTitle?: boolean;
 }
 
 export default function RecommendationsCarousel({
   limit = 10,
   title = 'Recommended for You',
+  showTitle = true,
 }: RecommendationsCarouselProps) {
   const { session } = useAuth();
   const navigation = useNavigation();
@@ -100,9 +102,9 @@ export default function RecommendationsCarousel({
   if (loading) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>{title}</Text>
+        {showTitle && <Text style={styles.title}>{title}</Text>}
         <View style={styles.loadingContainer}>
-          <LoadingSpinner fullScreen={false} color="#3b82f6" size={36} />
+          <LoadingSpinner fullScreen={false} color="#5DBB8E" size={36} />
         </View>
       </View>
     );
@@ -112,7 +114,7 @@ export default function RecommendationsCarousel({
   if (error) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>{title}</Text>
+        {showTitle && <Text style={styles.title}>{title}</Text>}
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
           <Pressable style={styles.retryButton} onPress={loadRecommendations}>
@@ -127,7 +129,7 @@ export default function RecommendationsCarousel({
   if (recommendations.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>{title}</Text>
+        {showTitle && <Text style={styles.title}>{title}</Text>}
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No recommendations available</Text>
         </View>
@@ -138,7 +140,7 @@ export default function RecommendationsCarousel({
   // Render carousel
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
+      {showTitle && <Text style={styles.title}>{title}</Text>}
       <FlatList
         horizontal
         data={recommendations}
@@ -190,36 +192,36 @@ export default function RecommendationsCarousel({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16,
+    marginVertical: 8,
   },
   title: {
     fontSize: 20,
     fontWeight: '700',
     marginBottom: 12,
     paddingHorizontal: 16,
-    color: '#1f2937',
+    color: '#1A1A1A',
   },
   listContent: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
   card: {
-    width: 200,
-    marginHorizontal: 6,
-    backgroundColor: 'white',
-    borderRadius: 12,
+    width: 190,
+    marginRight: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
   cardImageContainer: {
     width: '100%',
-    height: 110,
-    borderRadius: 10,
+    height: 120,
+    borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#F5F5F5',
     marginBottom: 10,
   },
   cardImage: {
@@ -239,39 +241,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 6,
+    color: '#1A1A1A',
+    marginBottom: 4,
   },
   itemPrice: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#3b82f6',
-    marginBottom: 8,
-  },
-  spBadge: {
-    backgroundColor: '#10b981',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
+    color: '#5DBB8E',
     marginBottom: 6,
   },
+  spBadge: {
+    backgroundColor: '#5DBB8E',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
   spBadgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
   itemCondition: {
     fontSize: 12,
-    color: '#6b7280',
-    marginTop: 4,
+    color: '#6B6B6B',
+    marginTop: 2,
   },
   debugScore: {
     fontSize: 10,
-    color: '#ef4444',
-    marginTop: 8,
+    color: '#E85D75',
+    marginTop: 6,
     fontStyle: 'italic',
   },
   loadingContainer: {
@@ -287,18 +289,18 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    color: '#ef4444',
+    color: '#E85D75',
     textAlign: 'center',
     marginBottom: 12,
   },
   retryButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#5DBB8E',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 20,
   },
   retryButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -310,7 +312,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6B6B6B',
     textAlign: 'center',
   },
 });

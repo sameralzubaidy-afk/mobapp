@@ -1,0 +1,192 @@
+# MODULE-15.1 FLOW-17: Notifications Redesign - Maestro UI Flow
+# Run: maestro test .maestro/module-15.1-flow-17-notifications.yaml
+
+appId: com.passitup.app # Replace with actual app bundle ID
+---
+
+# =============================================================================
+# FLOW-17: Notifications Screen UI Redesign Verification
+# =============================================================================
+
+# PREREQUISITE: User must be logged in and have notifications
+# Manual setup: Run app, login, generate some notifications (trade requests, SP events, etc.)
+
+- launchApp
+
+# -----------------------------------------------------------------------------
+# STATE 1: Navigate to Notifications from Dashboard
+# -----------------------------------------------------------------------------
+
+- tapOn: "bell-button" # Tap notification bell icon on dashboard
+- assertVisible: "notification-center-screen"
+
+# -----------------------------------------------------------------------------
+# STATE 2: Verify Header Elements (FLOW-17)
+# -----------------------------------------------------------------------------
+
+# Verify back button exists (Phosphor ArrowLeft icon, not text)
+- assertVisible: "back-button"
+
+# Verify screen title
+- assertVisible:
+    id: "screen-title"
+    text: "Notifications"
+
+# Verify "Mark All Read" link exists (if unread notifications present)
+# Note: This may or may not be visible depending on whether unread exist
+# - assertVisible: "mark-all-read-link"
+
+# -----------------------------------------------------------------------------
+# STATE 3: Verify Notification Item Rendering (FLOW-17)
+# -----------------------------------------------------------------------------
+
+# Verify notification list exists
+- assertVisible: "notification-list"
+
+# Scroll to see more notifications
+- scrollUntilVisible:
+    element:
+      id: "notification-list"
+    direction: DOWN
+    timeout: 2000
+
+# Verify Phosphor icons (not emoji) - check first notification
+# Note: We can't directly assert icon color, but we verify icon elements exist
+# - assertVisible: "notification-icon-*" # Pattern match first notification icon
+
+# -----------------------------------------------------------------------------
+# STATE 4: Tap a Notification (Mark as Read + Deep Link)
+# -----------------------------------------------------------------------------
+
+# Tap first notification item
+# - tapOn: "notification-item-*" # Tap first notification
+# - waitForAnimationToEnd
+
+# Verify navigation (deep link should work)
+# Note: Deep link destination varies by notification type
+# We'll just verify we navigated away from notification center
+# - assertNotVisible: "notification-center-screen"
+
+# Navigate back to notifications
+# - swipe:
+#     direction: RIGHT
+#     start: 5%, 50%
+# - assertVisible: "notification-center-screen"
+
+# -----------------------------------------------------------------------------
+# STATE 5: Mark All Read Functionality
+# -----------------------------------------------------------------------------
+
+# Navigate back to notifications if not already there
+- assertVisible: "notification-center-screen"
+
+# Tap "Mark All Read" link if visible
+- runFlow:
+    when:
+      visible: "mark-all-read-link"
+    commands:
+      - tapOn: "mark-all-read-link"
+      - waitForAnimationToEnd
+      # After marking all as read, the link should disappear
+      - assertNotVisible: "mark-all-read-link"
+
+# -----------------------------------------------------------------------------
+# STATE 6: Empty State Verification (FLOW-17)
+# -----------------------------------------------------------------------------
+
+# If all notifications are marked as read or deleted, empty state should appear
+# This requires manual setup (delete all notifications in DB or mark all as read)
+# - assertVisible: "empty-state"
+# - assertVisible: "empty-icon" # Phosphor Bell icon (64px, #E0E0E0)
+# - assertVisible: "You're all caught up!"
+
+# -----------------------------------------------------------------------------
+# STATE 7: Pull-to-Refresh
+# -----------------------------------------------------------------------------
+
+- swipe:
+    direction: DOWN
+    start: 50%, 30%
+- waitForAnimationToEnd
+
+# Verify list still visible after refresh
+- assertVisible: "notification-list"
+
+# -----------------------------------------------------------------------------
+# STATE 8: Navigate to Notification Settings
+# -----------------------------------------------------------------------------
+
+# Go back to dashboard first
+- tapOn: "back-button"
+- assertNotVisible: "notification-center-screen"
+
+# Navigate to Settings (assuming there's a settings button)
+# Note: Adjust based on actual app navigation structure
+# For now, we'll assume there's a profile tab → settings → notification settings path
+# This part would need to be updated based on actual navigation implementation
+
+# -----------------------------------------------------------------------------
+# STATE 9: Verify Notification Settings Screen (FLOW-17)
+# -----------------------------------------------------------------------------
+
+# TODO: Add navigation to NotificationSettingsScreen
+# Once navigation is implemented, add these assertions:
+
+# - assertVisible: "notification-settings-screen"
+# - assertVisible:
+#     id: "screen-title"
+#     text: "Notification Settings"
+
+# # Verify Content Preferences section
+# - assertVisible: "setting-row-trades"
+# - assertVisible: "setting-row-sp_events"
+# - assertVisible: "setting-row-badges"
+# - assertVisible: "setting-row-safety"
+
+# # Verify Delivery Methods section
+# - assertVisible: "setting-row-email"
+# - assertVisible: "setting-row-push"
+
+# # Verify switches exist
+# - assertVisible: "switch-trades"
+# - assertVisible: "switch-sp_events"
+# - assertVisible: "switch-badges"
+# - assertVisible: "switch-safety"
+# - assertVisible: "switch-email"
+# - assertVisible: "switch-push"
+
+# # Test toggle functionality
+# - tapOn: "switch-trades" # Toggle off
+# - tapOn: "switch-trades" # Toggle back on
+
+# # Verify footer note
+# - scrollUntilVisible:
+#     element:
+#       text: "Safety alerts are always enabled"
+#     direction: DOWN
+
+# -----------------------------------------------------------------------------
+# CLEANUP: Return to Dashboard
+# -----------------------------------------------------------------------------
+
+# - tapOn: "back-button"
+# - assertNotVisible: "notification-settings-screen"
+
+# =============================================================================
+# DESIGN COMPLIANCE CHECKS (FLOW-17)
+# =============================================================================
+
+# VISUAL VERIFICATION (Manual):
+# - [ ] Unread notification rows have #F7F7F7 background
+# - [ ] Read notification rows have white background
+# - [ ] Icon circles are 40px diameter
+# - [ ] Trade icons use #E8F5F0 background + #5DBB8E icon color
+# - [ ] SP icons use #FEF3C7 background + #F59E0B icon color
+# - [ ] Safety alert icons use #FEE2E2 background + #E85D75 icon color
+# - [ ] "Mark All Read" is a text link in #5DBB8E (NOT a button)
+# - [ ] Empty state uses Phosphor Bell icon (64px, #E0E0E0)
+# - [ ] Settings switches use trackColor={{ false: '#E0E0E0', true: '#5DBB8E' }}
+# - [ ] Settings rows have 1px #F0F0F0 bottom dividers (except last in group)
+# - [ ] NO emoji icons anywhere (only Phosphor icons)
+# - [ ] Unread notification titles are BOLD (fontWeight: 700)
+# - [ ] Read notification titles are REGULAR (fontWeight: 400)

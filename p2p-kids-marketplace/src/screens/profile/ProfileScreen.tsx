@@ -59,16 +59,12 @@ type UserProfile = any;
 
 const getInitials = (name?: string | null) => {
   if (!name) return 'U';
-  const parts = name
-    .trim()
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2);
+  const parts = name.trim().split(' ').filter(Boolean).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || 'U';
 };
 
 export default function ProfileScreen({ navigation, route }: any) {
-  const { logout: contextLogout } = useContext(AuthContext);
+  const { logout: contextLogout, session } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -137,7 +133,12 @@ export default function ProfileScreen({ navigation, route }: any) {
       optimisticUserPatch: undefined,
       profileUpdatedAt: undefined,
     });
-  }, [route?.params?.profileUpdatedAt, route?.params?.optimisticProfilePatch, route?.params?.optimisticUserPatch, navigation]);
+  }, [
+    route?.params?.profileUpdatedAt,
+    route?.params?.optimisticProfilePatch,
+    route?.params?.optimisticUserPatch,
+    navigation,
+  ]);
 
   const loadReviewsData = useCallback(async (userId: string) => {
     try {
@@ -314,6 +315,9 @@ export default function ProfileScreen({ navigation, route }: any) {
     setShowAllReviews(!showAllReviews);
   };
 
+  // Keep Profile SP in sync with canonical wallet session summary.
+  const profileSpBalance = session?.available_points ?? user?.swap_points_balance ?? 0;
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
@@ -408,7 +412,7 @@ export default function ProfileScreen({ navigation, route }: any) {
               onPress={() => navigation.navigate('SpWallet')}
             >
               <Coins size={18} color="#F59E0B" weight="regular" />
-              <Text style={styles.statValue}>{user.swap_points_balance || 0}</Text>
+              <Text style={styles.statValue}>{profileSpBalance}</Text>
               <Text style={styles.statLabel}>SP Balance</Text>
             </TouchableOpacity>
           </View>

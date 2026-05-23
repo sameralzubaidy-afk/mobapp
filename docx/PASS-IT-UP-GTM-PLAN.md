@@ -1472,7 +1472,160 @@ Detailed line-item Year-1 budget should live in a separate spreadsheet (`docx/PA
 
 ---
 
-## 15. Glossary
+## 15. GPT-5.5 Evaluation
+
+This section is a direct operator review of the GTM plan. It is intentionally blunt. The goal is not to make the plan sound good; the goal is to improve the odds that Pass it Up becomes a real, liquid Westport marketplace.
+
+### 15.1 Overall Success Evaluation
+
+The GTM plan is strong as an execution document, but the app's success still depends on three fragile assumptions:
+
+1. The app is stable enough by August to support listing, subscription, payment / payout, moderation, support, and reporting.
+2. The Founding Community Lead is genuinely embedded in Westport, not just available and friendly.
+3. Westport parents accept a subscription before the marketplace has fully proven liquidity.
+
+**Honest success estimate:**
+
+| Scenario | Estimated chance of credible Westport pilot | Why |
+|---|---:|---|
+| Stable app + excellent Founding Community Lead + 150+ real listings pre-launch | 55-65% | The plan has enough density, trust, and event motion to work |
+| Stable app but weak / average local lead | 25-35% | Founder is 100% cold in Westport; borrowed trust is the core acquisition channel |
+| App slips into late August with unstable listing/payment/moderation | 25-35% | GTM energy turns into waiting, and launch confidence drops |
+| No strong local lead and no strong supply before launch | <25% | The marketplace launches cold and empty, which is the failure mode |
+
+**Blunt takeaway:** the document does not win by being detailed. The plan wins only if it creates real trusted supply before public demand is invited in.
+
+### 15.2 Major Decision Review
+
+| Decision | Evaluation | Recommendation / pushback |
+|---|---|---|
+| Westport first | Strong decision. Westport has income, identity, parent density, and local trust networks. | Keep. Do not expand to Fairfield County early. Density beats reach. |
+| Kids-only launch | Correct wedge. Easier positioning, moderation, and safety scope. | Keep. Do not add home/family categories until kids liquidity is proven. |
+| September 1 launch target | Good seasonal timing, but risky for a solo dev. | Treat as target, not ego deadline. If core flows are not stable by Aug 25, delay or cut scope. |
+| Subscription-led model at $7.99 | Strategically attractive but commercially risky because alternatives are free. | Keep $7.99, but avoid making payment feel like an entry toll. Free browse/buy + limited free selling is safer. |
+| Annual plan at month 3 | Good timing. Too early on day one would be premature. | Keep. Only push annual after monthly retention and marketplace activity are proven. |
+| No fake supply | Essential. Fake supply would destroy trust if discovered. | Keep. Use Founder's Closet only if transparent. |
+| No equity for local lead | Correct for future town expansion. | Keep. The Year-2 loyalty bonus is important; without it, she may leave after building the network. |
+| Founding Community Lead title | Strong. Avoids co-founder confusion without equity. | Keep. Do not use co-founder language publicly or in contracts. |
+| $2,500-$3,000 monthly cap | Good discipline, but tight. | Keep, but treat legal/setup costs as one-time setup, not normal monthly burn. Do not starve bootcamps. |
+| Direct mail deprioritized | Correct. Direct mail before message validation is wasteful. | Keep as a test only after conversion signal exists. |
+| LinkedIn / Indeed / Nextdoor + FB fallback | Improved from earlier plan. | Keep, but do not wait too long to use Facebook groups professionally if the first 2 weeks are weak. |
+
+### 15.3 Tactic-by-Tactic Evaluation
+
+| Tactic | Strength | Risk | Recommendation |
+|---|---|---|---|
+| Seller Bootcamp | Highest-value tactic. Creates supply, trust, education, and community in one motion. | Requires app to be ready enough for live listing; bad execution could feel awkward. | Make this the flagship. Add one smaller July pilot bootcamp with 8-10 people to debug the flow before August. |
+| Founding Member Early Access | Good scarcity and status mechanic if earned. | If automatic, it becomes discount leakage and attracts passive users. | Keep earned model. Prioritize "list 5 approved items" as the primary unlock. |
+| Donation Drive | Strong trust and PR story; creates authentic supply. | Operationally messy; donated inventory can be low quality or legally sensitive. | Keep, but restrict categories aggressively and reject anything risky or low quality. |
+| Consignment Partnership | Strong backup supply tactic and more predictable than donations. | Consignment shops may see you as competition or may demand too much control. | Move from passive backlog to active July exploration. One shop with 25-50 listings can materially reduce empty-marketplace risk. |
+| Neighbor Spotlight | Underrated trust compounding tactic. | Needs real stories; fake polish will read as marketing. | Start as soon as there are 3 credible users, not necessarily month 2. |
+| School Supply Swap | Seasonally smart for August. | Can distract from core resale if treated as a full campaign. | Keep as opportunistic add-on, not a main pillar. |
+| Referral Jackpot | Can create bursts of signups. | Incentive gaming, low-quality referrals, and CAC distortion. | Do not run early. SP referral is enough. |
+| Lost & Found | Good engagement utility. | Product distraction before marketplace liquidity is proven. | Defer until core marketplace retention works. |
+| Mystery Box | Fun, low-cost transaction unlock. | Can cheapen brand or create disappointment if quality varies. | Use only for Founder's Closet overflow. Not a GTM pillar. |
+| Freecycle Friday | Good for traffic and habit. | Can train users toward free goods and weaken subscription value. | Defer to month 4+ after paid marketplace behavior exists. |
+
+### 15.4 Biggest Pushbacks
+
+#### Pushback 1: The Founding Community Lead base may be too low
+
+$500/month is disciplined, but the right person is not just a part-time helper. She is the trust bridge into a town where the founder is 100% cold.
+
+**Recommendation:** keep the default model, but allow an exception for an exceptional candidate:
+
+| Candidate quality | Recommended base |
+|---|---:|
+| Good but unproven | $500/month + performance upside |
+| Clearly exceptional, deeply connected, can name 20+ parents quickly | $750-$1,000/month for July-August, then performance-weighted after launch |
+
+Do not cheap out on the person carrying the cold-start risk.
+
+#### Pushback 2: Subscription cannot feel like a front-door tax
+
+Parents already have free alternatives: Facebook Marketplace, Buy Nothing, parent chats, donation, and consignment. Charging before liquidity is obvious creates friction.
+
+**Recommended model:**
+
+| User type | Access |
+|---|---|
+| Free buyer | Browse, buy, save items, message sellers |
+| Free seller | Up to 3 active listings |
+| Paid seller / Plus | Unlimited listings, higher SP earn, listing boosts, early access, seller tools |
+| Founding Member | Free 6 months after real contribution |
+
+This keeps subscription value while reducing the empty-marketplace chicken-and-egg problem.
+
+#### Pushback 3: Kids product safety must be stricter than a normal marketplace
+
+The biggest legal risk is not LLC setup. It is unsafe kids items.
+
+**Launch safety stance:**
+
+| Category | Launch recommendation |
+|---|---|
+| Helmets | Block |
+| Formula / medicine / food | Block |
+| Car seats | Block at launch or manual review with manufacture date, expiration date, accident-free attestation |
+| Cribs / sleep products | Manual review; block known unsafe categories |
+| Strollers / high chairs | Require model label photo and condition checklist |
+| Recalled-product keywords | Manual review |
+
+Do not optimize for listing count by accepting risky inventory.
+
+#### Pushback 4: The plan needs a sharper seller promise
+
+The plan explains why the marketplace should exist, but seller motivation needs to be sharper. Sellers will not list just because the idea is nice.
+
+**Stronger seller promise:**
+
+```text
+List once, sell to nearby parents, avoid flaky strangers, and get help pricing kids gear.
+```
+
+Every seller-facing page, bootcamp, and outreach message should reinforce: easier listing, safer local buyers, less noise than Facebook.
+
+### 15.5 Recommended Changes Before Execution
+
+These are the highest-leverage changes to improve success odds before launch work begins.
+
+| Priority | Change | Why it matters | Owner | Timing |
+|---|---|---|---|---|
+| 1 | Move Consignment Partnership to active July exploration | Reduces empty marketplace risk with reliable inventory | Founder + lead | July |
+| 2 | Add small July Bootcamp pilot | Debugs event/listing flow before public August events | Founder + lead | July |
+| 3 | Make subscription less restrictive at the front door | Reduces user friction while liquidity is still forming | Founder | Before beta |
+| 4 | Allow higher temporary base for exceptional lead | Improves chance of attracting the trust broker you actually need | Founder | During hiring |
+| 5 | Block or heavily restrict risky kids categories | Prevents legal/trust failure | Founder + lawyer | Before beta |
+| 6 | Add hard expansion rule | Prevents premature town #2 distraction | Founder | Before month 6 review |
+| 7 | Sharpen seller promise in all seller-facing copy | Improves supply creation | Founder + lead | Before bootcamp promotion |
+
+### 15.6 Expansion Readiness Rule
+
+Do not open town #2 just because there is interest. Expand only when Westport proves repeatable liquidity.
+
+| Level | Metric threshold | Meaning |
+|---|---|---|
+| Minimum viable pilot | 100 paid subscribers, 500 listings, 50 transactions/month by month 3 | Continue Westport, do not expand yet |
+| Strong pilot | 250 paid subscribers, 1,200 listings, 200 transactions/month by month 6 | Begin town #2 research, not launch |
+| Expansion-ready | 500 paid subscribers, 2,500 listings, NPS 50+, referral share 30%+ by month 12 | Start town #2 lead recruitment |
+
+If Westport misses these thresholds, the correct move is not a new town. The correct move is to diagnose supply, trust, pricing, or product friction.
+
+### 15.7 Final Operator Verdict
+
+The plan is good enough to execute, but success is not evenly distributed across the plan. The top 20% of work drives most of the outcome:
+
+1. Ship a stable listing/payment/moderation experience.
+2. Hire a real Westport trust broker.
+3. Create 150-300 real listings before public launch.
+4. Keep subscription friction low until marketplace value is obvious.
+5. Protect trust aggressively through safety rules and support.
+
+Everything else supports those five points. Ads, SP, direct mail, press, and copy cannot compensate for an empty marketplace or a weak local operator.
+
+---
+
+## 16. Glossary
 
 - **MRR:** Monthly Recurring Revenue
 - **SP:** Swap Points (in-app loyalty currency)
@@ -1484,12 +1637,13 @@ Detailed line-item Year-1 budget should live in a separate spreadsheet (`docx/PA
 
 ---
 
-## 16. Document Control
+## 17. Document Control
 
 | Version | Date | Author | Changes |
 |---|---|---|---|
 | 1.0 | May 16, 2026 | Founder + Assistant | Initial GTM bible based on locked decisions from WESTPORT-GTM-CONTEXT-AND-DECISIONS.md §1–§10 |
 | 1.1 | May 16, 2026 | Founder + Assistant | Expanded into actionable execution runbook: launch gates, legal order of operations, contractor package, hiring scripts, beta gates, SP controls, event runbooks, dashboard definitions, budget controls, and launch/partner copy packs |
+| 1.2 | May 23, 2026 | Founder + Assistant | Added GPT-5.5 Evaluation section with tactic-by-tactic critique, pushbacks, success odds, pricing/hiring/safety recommendations, and expansion readiness rule |
 
 **Next review:** July 1, 2026 (after Founding Community Lead hired).
 
@@ -1715,4 +1869,4 @@ Spend this week:
 
 ---
 
-*End of Pass it Up GTM Bible v1.1.*
+*End of Pass it Up GTM Bible v1.2.*

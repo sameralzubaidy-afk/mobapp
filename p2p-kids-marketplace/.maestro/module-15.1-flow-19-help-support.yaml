@@ -1,0 +1,431 @@
+# FLOW: Help & Support (FLOW-19) | TASK: MODULE-15.1 | States covered: FAQ list, search, category filter, FAQ detail, contact form submission
+# MODULE-15.1 FLOW-19: Maestro UI Flow Test for Help & Support
+# 
+# Run: npm run test:maestro:ios
+# Run: npm run test:maestro:android
+# 
+# Prerequisites:
+# - App installed on iOS/Android simulator
+# - User logged in (or adjust initial navigation)
+# - Help & Support screens accessible from Settings
+
+appId: com.p2pkids.marketplace  # Replace with actual app ID
+
+---
+
+# ========================================
+# STATE 1: Help Screen - FAQ List (Happy Path)
+# ========================================
+- launchApp:
+    clearState: true
+
+# Navigate to Help & Support (adjust based on actual navigation)
+# Assuming Help is accessible from Settings or a menu
+- tapOn:
+    id: "settings-tab"  # Replace with actual navigation to Help
+- waitForAnimationToEnd
+
+- tapOn:
+    text: "Help & Support"  # Or the actual button/option to open Help
+- waitForAnimationToEnd
+
+# Assert Help screen is visible
+- assertVisible:
+    id: "help-screen"
+- assertVisible:
+    text: "Help & Support"
+
+# Assert search bar is visible
+- assertVisible:
+    id: "search-input"
+
+# Assert category chips are visible
+- assertVisible:
+    id: "category-chips-scroll"
+- assertVisible:
+    text: "All"
+- assertVisible:
+    text: "Getting Started"
+- assertVisible:
+    text: "Swap Points"
+
+# Assert FAQ list is visible with questions
+- assertVisible:
+    id: "faq-list"
+- assertVisible:
+    text: "How do I create my first listing?"
+- assertVisible:
+    text: "What is the Kids P2P Marketplace?"
+
+# Assert Contact Us footer button is visible
+- assertVisible:
+    id: "contact-us-button"
+- assertVisible:
+    text: "Contact Us"
+
+# ========================================
+# STATE 2: Search Functionality
+# ========================================
+# Type search query to filter FAQs
+- tapOn:
+    id: "search-input"
+- inputText: "Swap Points"
+- waitForAnimationToEnd
+
+# Assert filtered results show only Swap Points FAQs
+- assertVisible:
+    text: "How do I earn Swap Points?"
+- assertVisible:
+    text: "Can I use Swap Points for any purchase?"
+
+# Assert unrelated FAQs are NOT visible
+- assertNotVisible:
+    text: "How do I create my first listing?"
+
+# Clear search (type empty or backspace)
+- tapOn:
+    id: "search-input"
+- inputText: ""
+- hideKeyboard
+- waitForAnimationToEnd
+
+# Assert all FAQs are visible again
+- assertVisible:
+    text: "How do I create my first listing?"
+
+# ========================================
+# STATE 3: Category Filtering
+# ========================================
+# Tap on "Swap Points" category chip
+- tapOn:
+    id: "category-chip-swap-points"
+- waitForAnimationToEnd
+
+# Assert only Swap Points FAQs are visible
+- assertVisible:
+    text: "How do I earn Swap Points?"
+- assertVisible:
+    text: "Can I use Swap Points for any purchase?"
+
+# Assert other category FAQs are NOT visible
+- assertNotVisible:
+    text: "How do I complete a trade?"
+
+# Tap on "All" category chip to reset
+- tapOn:
+    id: "category-chip-all"
+- waitForAnimationToEnd
+
+# Assert all FAQs are visible
+- assertVisible:
+    text: "How do I create my first listing?"
+- assertVisible:
+    text: "How do I earn Swap Points?"
+
+# ========================================
+# STATE 4: Empty Search State
+# ========================================
+# Type search query that matches nothing
+- tapOn:
+    id: "search-input"
+- inputText: "nonexistent query xyz"
+- hideKeyboard
+- waitForAnimationToEnd
+
+# Assert empty state is visible
+- assertVisible:
+    id: "empty-state"
+- assertVisible:
+    text: "No results found"
+- assertVisible:
+    text: "Try a different search or category"
+
+# Clear search
+- tapOn:
+    id: "search-input"
+- clearTextField
+- hideKeyboard
+- waitForAnimationToEnd
+
+# ========================================
+# STATE 5: FAQ Detail Screen (Happy Path)
+# ========================================
+# Tap on first FAQ
+- tapOn:
+    id: "faq-row-1"
+- waitForAnimationToEnd
+
+# Assert FAQ detail screen is visible
+- assertVisible:
+    id: "faq-detail-screen"
+- assertVisible:
+    text: "FAQ"
+
+# Assert category badge is visible
+- assertVisible:
+    text: "Getting Started"
+
+# Assert question is visible
+- assertVisible:
+    text: "How do I create my first listing?"
+
+# Assert answer is visible
+- assertVisible:
+    text: "Tap the \"Sell\" button at the bottom of the screen, take photos of your item, and fill in the details."
+
+# Assert helpful section is visible
+- assertVisible:
+    text: "Was this helpful?"
+- assertVisible:
+    id: "helpful-yes-button"
+- assertVisible:
+    id: "helpful-no-button"
+
+# Scroll to bottom to see Contact Support button
+- scroll:
+    id: "content-scroll"
+    direction: DOWN
+
+# Assert "Still need help?" section is visible
+- assertVisible:
+    text: "Still need help?"
+- assertVisible:
+    id: "contact-support-button"
+
+# ========================================
+# STATE 6: FAQ Helpful - Yes (Navigate Back)
+# ========================================
+# Scroll back to top
+- scroll:
+    id: "content-scroll"
+    direction: UP
+
+# Tap "Yes" (helpful) button
+- tapOn:
+    id: "helpful-yes-button"
+- waitForAnimationToEnd
+
+# Assert navigated back to Help screen
+- assertVisible:
+    id: "help-screen"
+- assertVisible:
+    text: "Help & Support"
+
+# ========================================
+# STATE 7: FAQ Helpful - No (Navigate to Contact Support)
+# ========================================
+# Navigate to FAQ detail again
+- tapOn:
+    id: "faq-row-2"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "faq-detail-screen"
+
+# Tap "No" (not helpful) button
+- tapOn:
+    id: "helpful-no-button"
+- waitForAnimationToEnd
+
+# Assert navigated to Contact Support screen
+- assertVisible:
+    id: "contact-support-screen"
+- assertVisible:
+    text: "Contact Support"
+
+# Navigate back to Help
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "help-screen"
+
+# ========================================
+# STATE 8: Contact Support Screen (Happy Path - Form Submission)
+# ========================================
+# Tap Contact Us button from Help screen
+- tapOn:
+    id: "contact-us-button"
+- waitForAnimationToEnd
+
+# Assert Contact Support screen is visible
+- assertVisible:
+    id: "contact-support-screen"
+- assertVisible:
+    text: "Contact Support"
+
+# Assert intro text is visible
+- assertVisible:
+    text: "Have a question or issue? Send us a message and we'll get back to you within 24 hours."
+
+# Assert form fields are visible
+- assertVisible:
+    id: "subject-input"
+- assertVisible:
+    id: "message-input"
+- assertVisible:
+    id: "send-message-button"
+- assertVisible:
+    text: "Send Message"
+
+# Assert email fallback is visible
+- assertVisible:
+    text: "Or email us at"
+- assertVisible:
+    text: "support@passitup.com"
+
+# Assert character count is visible (initial: 0 / 1000)
+- assertVisible:
+    text: "0 / 1000"
+
+# ========================================
+# STATE 9: Contact Form Validation - Empty Subject
+# ========================================
+# Try to submit without filling subject
+- tapOn:
+    id: "send-message-button"
+- waitForAnimationToEnd
+
+# Assert validation alert is shown
+- assertVisible:
+    text: "Missing Subject"
+- assertVisible:
+    text: "Please enter a subject for your message."
+
+# Dismiss alert (tap OK or outside)
+- tapOn:
+    text: "OK"  # Or appropriate alert button
+- waitForAnimationToEnd
+
+# ========================================
+# STATE 10: Contact Form Validation - Empty Message
+# ========================================
+# Fill subject only
+- tapOn:
+    id: "subject-input"
+- inputText: "Test Support Request"
+- hideKeyboard
+- waitForAnimationToEnd
+
+# Try to submit without filling message
+- tapOn:
+    id: "send-message-button"
+- waitForAnimationToEnd
+
+# Assert validation alert is shown
+- assertVisible:
+    text: "Missing Message"
+- assertVisible:
+    text: "Please enter your message."
+
+# Dismiss alert
+- tapOn:
+    text: "OK"
+- waitForAnimationToEnd
+
+# ========================================
+# STATE 11: Contact Form Submission - Success
+# ========================================
+# Fill message textarea
+- tapOn:
+    id: "message-input"
+- inputText: "This is a test message to verify the contact support form works correctly."
+- hideKeyboard
+- waitForAnimationToEnd
+
+# Assert character count updated
+- assertVisible:
+    text: "80 / 1000"  # Approximate length of test message
+
+# Submit form
+- tapOn:
+    id: "send-message-button"
+- waitForAnimationToEnd
+
+# Assert "Sending…" text is shown (briefly)
+# Note: May be too fast to catch, but form should show loading state
+# - assertVisible:
+#     text: "Sending…"
+
+# Wait for success alert
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Assert success alert is shown
+- assertVisible:
+    text: "Message Sent"
+- assertVisible:
+    text: "Thank you for contacting us. We'll respond within 24 hours."
+
+# Tap OK to dismiss and navigate back
+- tapOn:
+    text: "OK"
+- waitForAnimationToEnd
+
+# Assert navigated back (Contact Support screen should not be visible)
+- assertNotVisible:
+    id: "contact-support-screen"
+
+# ========================================
+# STATE 12: End-to-End User Flow
+# ========================================
+# Navigate to Help screen again
+- tapOn:
+    text: "Help & Support"  # Or navigate from Settings again
+- waitForAnimationToEnd
+- assertVisible:
+    id: "help-screen"
+
+# Search for FAQ
+- tapOn:
+    id: "search-input"
+- inputText: "Trading"
+- hideKeyboard
+- waitForAnimationToEnd
+
+# View FAQ detail
+- tapOn:
+    id: "faq-row-5"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "faq-detail-screen"
+
+# Indicate not helpful and navigate to Contact Support
+- scroll:
+    id: "content-scroll"
+    direction: UP
+- tapOn:
+    id: "helpful-no-button"
+- waitForAnimationToEnd
+- assertVisible:
+    id: "contact-support-screen"
+
+# Fill and submit support request
+- tapOn:
+    id: "subject-input"
+- inputText: "Question about Trading"
+- hideKeyboard
+- tapOn:
+    id: "message-input"
+- inputText: "I have a question about completing a trade. Can you help?"
+- hideKeyboard
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "send-message-button"
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Assert success
+- assertVisible:
+    text: "Message Sent"
+- tapOn:
+    text: "OK"
+- waitForAnimationToEnd
+
+# Final assertion: navigated away from Contact Support
+- assertNotVisible:
+    id: "contact-support-screen"
+
+# ========================================
+# Test Complete ✅
+# ========================================

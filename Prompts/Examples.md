@@ -57,30 +57,32 @@ My Example 1
 
 
 
-### TASK FLOW-16: Home Dashboard
+
+### TASK FLOW-21: ID Verification
+
 I’m working on the MODULE-15.1-UI-redesign.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
-Tasks: ### TASK FLOW-16: Home Dashboard
+Tasks: ### TASK FLOW-21: ID Verification
+
 scope 
-Redesign the Home Dashboard — the central hub users land on after login. It must feel like a dashboard: fast to scan, shows key metrics at a glance (SP balance, active trades, recent listings), and surfaces relevant actions quickly.
+Redesign the ID Verification screen. Users submit a government ID photo to unlock higher trust levels. The screen has three visual states — Unverified, Pending Review, and Verified — each with a distinct color treatment.
 
 #### Scope — Files to Modify
 
 | # | Screen | File | Change Type |
 |---|--------|------|-------------|
-| 1 | Home Dashboard | `src/screens/home/HomeScreen.tsx` | Restyle only |
+| 1 | ID Verification | `src/screens/verification/IDVerificationScreen.tsx` | Restyle only |
 
 
-#### ✅ Acceptance Criteria — FLOW-16 (Visual Only)
+#### ✅ Acceptance Criteria — FLOW-21 (Visual Only)
 
-- [ ] Header avatar is 40px circle
-- [ ] `Bell` icon (24px, `#1A1A1A`) has a small red dot badge (`#E85D75`) when unread notifications exist
-- [ ] SP balance strip has `#5DBB8E` background, white text, `Coins` icon (20px, white)
-- [ ] 4 quick action tiles are white cards (12px radius, subtle shadow), icons 28px `#5DBB8E`
-- [ ] Section headers have "See All" in `#5DBB8E` green, right-aligned
-- [ ] Nearby items grid is 2-column, 12px gap, 16px padding — same as DiscoverScreen
-- [ ] Flash sale / featured banner has `Lightning` icon (16px, `#F59E0B`)
-- [ ] Zero Ionicons imports in HomeScreen.tsx
+- [ ] Unverified state: `IdentificationCard` (64px, `#6B6B6B`), dashed upload area, submit button gray when no file
+- [ ] Upload area: dashed `#E0E0E0` border, 2px, 12px radius, 160px height, `Camera` (28px, `#5DBB8E`) centered
+- [ ] Submit button becomes `#5DBB8E` when a file is selected (preserve the existing disabled state logic)
+- [ ] Pending state: `Clock` (64px, `#F59E0B`), gold status pill (`#FEF3C7` bg, `#F59E0B` text)
+- [ ] Verified state: `CheckCircle` (64px, `#5DBB8E`), green heading, green status pill (`#E8F5F0` bg)
+- [ ] All 3 states are centered layout (`alignItems: 'center'`)
+- [ ] Zero Ionicons/MaterialIcons imports in IDVerificationScreen.tsx
 
 i want you to 
 

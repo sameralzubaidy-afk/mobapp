@@ -41,7 +41,7 @@ export function BonusCategoriesList({ testID = 'bonus-categories-list' }: BonusC
   if (loading) {
     return (
       <View style={styles.loadingContainer} testID={`${testID}-loading`}>
-        <ActivityIndicator size="small" color="#3B82F6" />
+        <ActivityIndicator size="small" color="#5DBB8E" />
       </View>
     );
   }
@@ -105,24 +105,24 @@ const styles = StyleSheet.create({
   emptyContainer: {
     paddingVertical: 24,
     paddingHorizontal: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F5F5F5',
     borderRadius: 12,
     marginVertical: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#6B6B6B',
     textAlign: 'center',
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   sectionSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#6B6B6B',
     marginBottom: 12,
   },
   listContent: {
@@ -131,11 +131,11 @@ const styles = StyleSheet.create({
   categoryRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F0F0F0',
   },
   categoryIcon: {
     fontSize: 24,
@@ -150,14 +150,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   categoryName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
     marginRight: 8,
   },
   earnRate: {
-    fontSize: 14,
-    color: '#3B82F6',
+    fontSize: 13,
+    color: '#5DBB8E',
     fontWeight: '500',
   },
 });

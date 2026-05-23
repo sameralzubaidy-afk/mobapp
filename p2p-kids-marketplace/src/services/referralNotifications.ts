@@ -87,24 +87,66 @@ export const getUnreadNotificationCount = async (
       p_user_id: userId,
     });
 
-    if (error) {
-      if (isTransientNetworkError(error)) {
-        console.warn('[ReferralNotifications] Unread count skipped due transient network issue');
-      } else {
-        console.error('[ReferralNotifications] Failed to get unread count:', error.message);
-      }
-      return { success: false, error: error.message };
+    if (!error && typeof data === 'number') {
+      return { success: true, count: data };
     }
 
-    return { success: true, count: data as number };
+    // Fallback: direct count from user_notifications when RPC is unavailable or returns invalid data.
+    if (error) {
+      if (isTransientNetworkError(error)) {
+        console.warn('[ReferralNotifications] RPC unread count failed due transient network issue; falling back to table count');
+      } else {
+        console.warn('[ReferralNotifications] RPC unread count failed; falling back to table count:', error.message);
+      }
+    }
+
+    const { count, error: fallbackError } = await supabase
+      .from('user_notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    if (fallbackError) {
+      console.error(
+        '[ReferralNotifications] Fallback unread count failed:',
+        fallbackError.message
+      );
+      return { success: false, error: fallbackError.message };
+    }
+
+    return { success: true, count: count ?? 0 };
   } catch (err) {
     const error = err as Error;
     if (isTransientNetworkError(error)) {
-      console.warn('[ReferralNotifications] Unread count request failed due transient network issue');
+      console.warn('[ReferralNotifications] Unread count request failed due transient network issue; trying fallback query');
     } else {
-      console.error('[ReferralNotifications] Error getting unread count:', error.message);
+      console.warn('[ReferralNotifications] Unread count request failed; trying fallback query:', error.message);
     }
-    return { success: false, error: error.message };
+
+    try {
+      const { count, error: fallbackError } = await supabase
+        .from('user_notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+
+      if (fallbackError) {
+        console.error(
+          '[ReferralNotifications] Fallback unread count failed after exception:',
+          fallbackError.message
+        );
+        return { success: false, error: fallbackError.message };
+      }
+
+      return { success: true, count: count ?? 0 };
+    } catch (fallbackErr) {
+      const finalError = fallbackErr as Error;
+      console.error(
+        '[ReferralNotifications] Error getting unread count via fallback:',
+        finalError.message
+      );
+      return { success: false, error: finalError.message };
+    }
   }
 };
 

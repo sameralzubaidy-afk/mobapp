@@ -1,13 +1,10 @@
-// filepath: p2p-kids-marketplace/src/components/GracePeriodBanner.tsx
-/**
- * MODULE-11 SUB-009: Grace Period Countdown Banner
- *
- * Displays a prominent countdown banner when user is in grace_period status
- * Shows days remaining and urgent CTA to re-subscribe
- */
+// File: p2p-kids-marketplace/src/components/GracePeriodBanner.tsx
+// MODULE-11 SUB-009: Grace Period Countdown Banner — Whisk Design System
+// VISUAL ONLY — logic, navigation, and prop contracts unchanged.
 
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { Warning } from 'phosphor-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -22,20 +19,13 @@ export default function GracePeriodBanner({
 }: GracePeriodBannerProps) {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
+  // ── Unchanged logic ─────────────────────────────────────────────────────────
   const handleResubscribe = () => {
-    // Navigate to subscription management screen
     navigation.navigate('ManageKidsClub');
   };
 
-  // Determine urgency level and colors
   const isUrgent = daysRemaining <= 7;
   const isCritical = daysRemaining <= 1;
-
-  const bannerStyle = isCritical
-    ? styles.bannerCritical
-    : isUrgent
-      ? styles.bannerUrgent
-      : styles.bannerWarning;
 
   const getMessage = () => {
     if (isCritical) {
@@ -47,88 +37,81 @@ export default function GracePeriodBanner({
     }
   };
 
+  const title = isCritical
+    ? 'Final Day!'
+    : isUrgent
+      ? 'Grace Period Ending Soon'
+      : 'Grace Period Active';
+  // ── End logic ───────────────────────────────────────────────────────────────
+
   return (
-    <View style={[styles.container, bannerStyle]}>
-      <View style={styles.content}>
-        <Text style={styles.icon}>{isCritical ? '⛔' : isUrgent ? '⚠️' : '⏰'}</Text>
-        <View style={styles.textContainer}>
-          <Text style={styles.title}>
-            {isCritical
-              ? 'Final Day!'
-              : isUrgent
-                ? 'Grace Period Ending Soon'
-                : 'Grace Period Active'}
-          </Text>
-          <Text style={styles.message}>{getMessage()}</Text>
-        </View>
+    <View style={styles.container}>
+      <View style={styles.iconCircle}>
+        <Warning size={20} color="#E85D75" weight="fill" />
       </View>
-      <Pressable style={styles.ctaButton} onPress={handleResubscribe}>
-        <Text style={styles.ctaText}>Re-Subscribe Now</Text>
-      </Pressable>
+      <View style={styles.textBlock}>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.message}>{getMessage()}</Text>
+        <Pressable style={styles.ctaBtn} onPress={handleResubscribe}>
+          <Text style={styles.ctaText}>Re-subscribe Now</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
-    marginVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderLeftWidth: 4,
+    borderLeftColor: '#E85D75',
+    marginHorizontal: 20,
+    marginBottom: 14,
     padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  bannerWarning: {
-    backgroundColor: '#FFF3CD',
-    borderLeftWidth: 4,
-    borderLeftColor: '#FFC107',
-  },
-  bannerUrgent: {
-    backgroundColor: '#FFE5E5',
-    borderLeftWidth: 4,
-    borderLeftColor: '#FF6B6B',
-  },
-  bannerCritical: {
-    backgroundColor: '#FFD6D6',
-    borderLeftWidth: 4,
-    borderLeftColor: '#DC3545',
-  },
-  content: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  icon: {
-    fontSize: 32,
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
+    flexShrink: 0,
   },
-  textContainer: {
+  textBlock: {
     flex: 1,
   },
   title: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#333',
-    marginBottom: 4,
+    color: '#1A1A1A',
+    marginBottom: 3,
   },
   message: {
-    fontSize: 14,
-    color: '#555',
-    lineHeight: 20,
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 18,
   },
-  ctaButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
+  ctaBtn: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    alignSelf: 'flex-start',
+    marginTop: 10,
   },
   ctaText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

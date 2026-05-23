@@ -153,7 +153,7 @@ export function SPCalculator({
   if (loadingCategories) {
     return (
       <View style={styles.container} testID={testID}>
-        <ActivityIndicator size="small" color="#3B82F6" testID={`${testID}-loading`} />
+        <ActivityIndicator size="small" color="#5DBB8E" testID={`${testID}-loading`} />
       </View>
     );
   }
@@ -282,7 +282,7 @@ export function SPCalculator({
 
       {loading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color="#3B82F6" />
+          <ActivityIndicator size="small" color="#5DBB8E" />
         </View>
       )}
 
@@ -306,76 +306,76 @@ export function SPCalculator({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginVertical: 8,
   },
   label: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
     marginBottom: 12,
   },
   inputGroup: {
     marginBottom: 12,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
-    color: '#4B5563',
+    color: '#6B6B6B',
     marginBottom: 6,
   },
   categoryButton: {
-    backgroundColor: '#FFF',
-    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    minHeight: 50,
+    borderColor: '#E0E0E0',
+    minHeight: 44,
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
   readonlyContainer: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E0E0E0',
   },
   categoryButtonText: {
-    fontSize: 16,
-    color: '#1F2937',
+    fontSize: 15,
+    color: '#1A1A1A',
   },
   categoryPlaceholder: {
-    color: '#9CA3AF',
+    color: '#999999',
   },
   input: {
-    backgroundColor: '#FFF',
-    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#E0E0E0',
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 16,
-    color: '#1F2937',
+    fontSize: 15,
+    color: '#1A1A1A',
   },
   readonlyInput: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#E5E7EB',
-    color: '#6B7280',
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E0E0E0',
+    color: '#999999',
   },
   resultsContainer: {
     marginTop: 16,
     gap: 12,
   },
   resultPanel: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#F0FAF5',
+    borderRadius: 12,
+    padding: 14,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#C5E8D5',
   },
   panelTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   resultRow: {
@@ -386,13 +386,13 @@ const styles = StyleSheet.create({
   },
   resultLabel: {
     fontSize: 14,
-    color: '#4B5563',
+    color: '#6B6B6B',
     flex: 1,
   },
   resultValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   resultValueContainer: {
     flexDirection: 'row',
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   bonusText: {
     fontSize: 12,
-    color: '#3B82F6',
+    color: '#5DBB8E',
     fontStyle: 'italic',
     marginTop: 4,
   },
@@ -409,21 +409,21 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#BFDBFE',
+    borderTopColor: '#C5E8D5',
   },
   totalLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#3B82F6',
+    color: '#5DBB8E',
   },
   placeholderText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#999999',
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 8,

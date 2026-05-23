@@ -19,12 +19,12 @@ const CATEGORIES = [
   { name: 'Art & Crafts', icon: '🎨' },
 ];
 
-export default function CategorySelector() {
+export default function CategorySelector({ showTitle = true }: { showTitle?: boolean }) {
   const navigation = useNavigation();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Browse Categories</Text>
+      {showTitle && <Text style={styles.sectionTitle}>Browse Categories</Text>}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

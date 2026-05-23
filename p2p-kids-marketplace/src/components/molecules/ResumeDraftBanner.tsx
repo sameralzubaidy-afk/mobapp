@@ -11,6 +11,7 @@
 
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { NotePencil } from 'phosphor-react-native';
 import { ItemDraft } from '../../types/listing';
 
 interface DraftDataWithItems {
@@ -77,16 +78,16 @@ export function ResumeDraftBanner({
 
   return (
     <View style={styles.container} testID={testID}>
-      <View style={styles.content}>
-        <View style={styles.textContainer}>
-          <Text style={styles.title} testID={`${testID}-title`}>
-            📝 You have {unfinishedItemCount} unfinished listing{unfinishedItemCount > 1 ? 's' : ''}
-          </Text>
-          <Text style={styles.subtitle} testID={`${testID}-subtitle`}>
-            Continue where you left off
-          </Text>
-        </View>
-
+      <View style={styles.iconCircle}>
+        <NotePencil size={20} color="#5DBB8E" weight="fill" />
+      </View>
+      <View style={styles.textBlock}>
+        <Text style={styles.title} testID={`${testID}-title`}>
+          You have {unfinishedItemCount} unfinished listing{unfinishedItemCount > 1 ? 's' : ''}
+        </Text>
+        <Text style={styles.subtitle} testID={`${testID}-subtitle`}>
+          Continue where you left off
+        </Text>
         <View style={styles.actions}>
           <TouchableOpacity
             style={styles.resumeButton}
@@ -97,15 +98,13 @@ export function ResumeDraftBanner({
           >
             <Text style={styles.resumeButtonText}>Continue</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
-            style={styles.dismissButton}
             onPress={onDismiss}
             accessibilityLabel="Dismiss banner"
             accessibilityHint="Hides the banner until next app launch"
             testID={`${testID}-dismiss-button`}
           >
-            <Text style={styles.dismissButtonText}>×</Text>
+            <Text style={styles.dismissText}>Maybe later</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -115,65 +114,63 @@ export function ResumeDraftBanner({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FFF9E6',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF9500',
-    marginHorizontal: 16,
-    marginVertical: 12,
-    borderRadius: 8,
+    borderLeftColor: '#5DBB8E',
+    marginHorizontal: 20,
+    marginBottom: 14,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  content: {
-    flexDirection: 'row',
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EDF8F2',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  textContainer: {
-    flex: 1,
     marginRight: 12,
+    flexShrink: 0,
+  },
+  textBlock: {
+    flex: 1,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 3,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 13,
+    color: '#6B6B6B',
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    marginTop: 10,
   },
   resumeButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
     paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
   },
   resumeButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  dismissButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dismissButtonText: {
-    fontSize: 24,
-    color: '#666',
-    fontWeight: '300',
+  dismissText: {
+    fontSize: 13,
+    color: '#6B6B6B',
   },
 });

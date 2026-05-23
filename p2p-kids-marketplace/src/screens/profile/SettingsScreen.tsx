@@ -74,11 +74,11 @@ export default function SettingsScreen({ navigation }: any) {
   const settingsOptions = [
     {
       id: 'help',
-      title: 'Help → How Trading Works',
-      subtitle: 'Learn about Swap Points, trading, and safety',
+      title: 'Help & Support',
+      subtitle: 'Browse FAQs and contact support',
       icon: 'help-circle',
-      onPress: () => navigation.navigate('Help'),
-      testID: 'settings-help-button',
+      onPress: () => navigation.navigate('HelpSupport'),
+      testID: 'settings-help-support-button',
     },
     {
       id: 'enable-notifications',

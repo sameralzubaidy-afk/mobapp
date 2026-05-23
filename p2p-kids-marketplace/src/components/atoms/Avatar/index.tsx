@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Image, StyleSheet, Text, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const loggedAvatarLoadFailures = new Set<string>();
 
 /**
  * Avatar component that displays user profile images
@@ -29,8 +28,10 @@ export default function Avatar({
   verificationStatus?: 'approved' | 'pending' | 'rejected' | 'none' | null;
   style?: ViewStyle;
 }) {
+  const [imgError, setImgError] = useState(false);
+
   const renderAvatar = () => {
-    if (!imageUrl) {
+    if (!imageUrl || imgError) {
       if (name) {
         const initials = name
           .split(' ')
@@ -62,12 +63,7 @@ export default function Avatar({
       <Image
         source={{ uri: imageUrl }}
         style={{ width: size, height: size, borderRadius: size / 2 }}
-        onError={() => {
-          if (!loggedAvatarLoadFailures.has(imageUrl)) {
-            loggedAvatarLoadFailures.add(imageUrl);
-            console.warn(`[Avatar] Failed to load image: ${imageUrl}`);
-          }
-        }}
+        onError={() => setImgError(true)}
       />
     );
   };
@@ -113,7 +109,7 @@ export default function Avatar({
 
 const styles = StyleSheet.create({
   placeholder: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#5DBB8E',
     justifyContent: 'center',
     alignItems: 'center',
   },

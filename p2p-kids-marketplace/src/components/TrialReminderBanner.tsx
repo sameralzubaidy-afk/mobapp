@@ -1,8 +1,10 @@
 // File: p2p-kids-marketplace/src/components/TrialReminderBanner.tsx
-// Banner component to display trial reminder notifications
+// Banner component to display trial reminder notifications — Whisk Design System
+// VISUAL ONLY — data fetch, state logic, and handlers unchanged.
 
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Clock } from 'phosphor-react-native';
 import { getTrialReminderMessage } from '../services/subscriptions/trialReminders';
 import { useNavigation } from '@react-navigation/native';
 
@@ -25,6 +27,7 @@ export function TrialReminderBanner({ onDismiss }: TrialReminderBannerProps) {
     loadReminderStatus();
   }, []);
 
+  // ── Unchanged logic ─────────────────────────────────────────────────────────
   const loadReminderStatus = async () => {
     try {
       const reminderMessage = await getTrialReminderMessage();
@@ -37,7 +40,6 @@ export function TrialReminderBanner({ onDismiss }: TrialReminderBannerProps) {
   };
 
   const handleAddPayment = () => {
-    // Navigate to subscription payment screen
     // @ts-ignore - type will be added when navigation types are updated
     navigation.navigate('SubscriptionPayment');
     handleDismiss();
@@ -47,11 +49,12 @@ export function TrialReminderBanner({ onDismiss }: TrialReminderBannerProps) {
     setIsDismissed(true);
     onDismiss?.();
   };
+  // ── End logic ───────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="small" color="#3B82F6" />
+        <ActivityIndicator size="small" color="#5DBB8E" />
       </View>
     );
   }
@@ -60,24 +63,20 @@ export function TrialReminderBanner({ onDismiss }: TrialReminderBannerProps) {
     return null;
   }
 
-  const getBannerColor = (daysRemaining?: number) => {
-    if (!daysRemaining) return '#3B82F6';
-    if (daysRemaining <= 1) return '#EF4444'; // Red for last day
-    if (daysRemaining <= 2) return '#F59E0B'; // Orange for 2 days
-    return '#3B82F6'; // Blue for 7 days
-  };
-
   return (
-    <View style={[styles.banner, { backgroundColor: getBannerColor(reminder.daysRemaining) }]}>
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <View style={styles.iconCircle}>
+        <Clock size={20} color="#FF9500" weight="fill" />
+      </View>
+      <View style={styles.textBlock}>
         <Text style={styles.title}>{reminder.title}</Text>
         <Text style={styles.message}>{reminder.message}</Text>
         <View style={styles.actions}>
           <TouchableOpacity style={styles.primaryButton} onPress={handleAddPayment}>
             <Text style={styles.primaryButtonText}>Add Payment Method</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.dismissButton} onPress={handleDismiss}>
-            <Text style={styles.dismissButtonText}>Dismiss</Text>
+          <TouchableOpacity onPress={handleDismiss}>
+            <Text style={styles.dismissText}>Maybe later</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -87,62 +86,69 @@ export function TrialReminderBanner({ onDismiss }: TrialReminderBannerProps) {
 
 const styles = StyleSheet.create({
   loadingContainer: {
-    padding: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
     alignItems: 'center',
   },
-  banner: {
+  container: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FF9500',
+    marginHorizontal: 20,
+    marginBottom: 14,
     padding: 16,
-    borderRadius: 8,
-    margin: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  content: {
-    gap: 12,
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF3E0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    flexShrink: 0,
+  },
+  textBlock: {
+    flex: 1,
   },
   title: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
+    color: '#1A1A1A',
+    marginBottom: 3,
   },
   message: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    lineHeight: 20,
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 18,
   },
   actions: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
-    marginTop: 8,
+    marginTop: 10,
   },
   primaryButton: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    alignItems: 'center',
+    backgroundColor: '#5DBB8E',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
   },
   primaryButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  dismissButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FFFFFF',
-  },
-  dismissButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#FFFFFF',
+  },
+  dismissText: {
+    fontSize: 13,
+    color: '#6B6B6B',
   },
 });

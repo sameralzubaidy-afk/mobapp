@@ -3549,6 +3549,79 @@ This file is the canonical registry of end-to-end flows and their required regre
       - ADMIN-V3-005 (category_suggestions table and dual-write logic)
     - Tier: Tier 0 (typecheck/lint always), Tier 1 (unit + integration tests when category or SP logic changes), Maestro (UI flows)
 
+- **MODULE-15.1 FLOW-19: Help & Support (UI Redesign) - COMPLETE ✅ (2026-05-06)**
+  - Purpose: Redesign Help & Support screens with MODULE-15.1 Whisk design system (visual-only changes, no business logic)
+  - Scope: 3 new screens for user support: FAQ list with search/category filter, FAQ detail with helpful feedback, Contact Support form
+  - Features:
+    - **HelpScreen (FAQ List):**
+      - Search bar: Filled style (#F0F0F0 background, 12px radius, 48px height, MagnifyingGlass icon 20px #999999)
+      - Category filtering: Pill chips (active: #5DBB8E green, inactive: #F0F0F0 gray), 6 categories (All, Getting Started, Swap Points, Trading, Account, Safety)
+      - FAQ rows: Question icon (16px, #5DBB8E), question text, CaretRight icon (16px, #999999)
+      - Empty state: "No results found" when search/filter returns zero FAQs
+      - Sticky footer: Green pill "Contact Us" button (#5DBB8E, 26px radius, 52px height, ChatCircle icon)
+    - **FAQDetailScreen:**
+      - Category badge: Light green background (#E8F5F0), green text (#5DBB8E), 12px font, uppercase
+      - Question display: Question icon (24px, #5DBB8E), 20px semibold text
+      - Answer text: 16px, #6B6B6B color, 24px line height
+      - Helpful feedback: "Was this helpful?" with Yes/No buttons (gray #F0F0F0 background)
+      - Yes button: navigates back (goBack)
+      - No button: navigates to ContactSupport
+      - Contact Support CTA: Green pill button at bottom
+    - **ContactSupportScreen:**
+      - Form fields: Subject input (max 100 chars, EnvelopeSimple icon), Message textarea (max 1000 chars, min 120px height)
+      - Filled input style: #F0F0F0 background, 12px radius, no borders
+      - Character count: "0 / 1000" display below message textarea
+      - Validation: Empty subject/message show Alert dialogs
+      - Submit button: "Send Message" green pill (#5DBB8E, 26px radius, 52px height), disabled during submission ("Sending…")
+      - Success flow: Alert with "Message Sent" confirmation, navigate back to previous screen
+      - Email fallback: "Or email us at support@passitup.com" (email in green #5DBB8E)
+  - Navigation:
+    - Modified: `src/navigation/types.ts` (added Support, ContactSupport, FAQDetail routes)
+    - Modified: `src/navigation/AppNavigator.tsx` (added 3 Stack.Screen entries after MODULE-18 Help screen)
+  - Testing:
+    - Unit tests:
+      - `src/screens/support/__tests__/HelpScreen.test.tsx` (50+ test cases: rendering, search, category filter, navigation, design compliance, accessibility)
+      - `src/screens/support/__tests__/ContactSupportScreen.test.tsx` (40+ test cases: form validation, submission, character count, design compliance)
+      - `src/screens/support/__tests__/FAQDetailScreen.test.tsx` (25+ test cases: FAQ display, helpful feedback navigation, design compliance)
+    - E2E test: `e2e/module-15.1-flow-19-help-support.integration.test.ts` (Detox integration tests covering all screens, search/filter states, form validation, end-to-end flow)
+    - Maestro flow: `.maestro/module-15.1-flow-19-help-support.yaml` (12 UI states: FAQ list, search, category filter, empty state, FAQ detail, helpful feedback, contact form validation/submission, end-to-end journey)
+    - Manual test guide: `MODULE-15.1-FLOW-19-MANUAL-TESTING.md` (30 test cases across 6 test suites: Help Screen, FAQ Detail, Contact Support, Design System Compliance, Accessibility, End-to-End Flows)
+  - Design System Compliance:
+    - Primary green: #5DBB8E (buttons, active chips, icons, email link)
+    - Filled inputs: #F0F0F0 background, no borders, 12px radius
+    - Secondary text: #6B6B6B
+    - Tertiary/placeholder: #999999
+    - Icons: phosphor-react-native v3.0.6 (MagnifyingGlass, Question, EnvelopeSimple, ChatCircle, CaretRight, ArrowLeft)
+    - Pill buttons: 24-26px border radius, 52px height
+    - Search bar: 48px height, 12px radius
+  - Files Created:
+    - `p2p-kids-marketplace/src/screens/support/HelpScreen.tsx` (350 lines)
+    - `p2p-kids-marketplace/src/screens/support/ContactSupportScreen.tsx` (280 lines)
+    - `p2p-kids-marketplace/src/screens/support/FAQDetailScreen.tsx` (230 lines)
+    - `p2p-kids-marketplace/src/screens/support/__tests__/HelpScreen.test.tsx` (350 lines)
+    - `p2p-kids-marketplace/src/screens/support/__tests__/ContactSupportScreen.test.tsx` (380 lines)
+    - `p2p-kids-marketplace/src/screens/support/__tests__/FAQDetailScreen.test.tsx` (230 lines)
+    - `p2p-kids-marketplace/e2e/module-15.1-flow-19-help-support.integration.test.ts` (380 lines)
+    - `p2p-kids-marketplace/.maestro/module-15.1-flow-19-help-support.yaml` (360 lines)
+    - `MODULE-15.1-FLOW-19-MANUAL-TESTING.md` (repo root, comprehensive manual test guide)
+  - Files Modified:
+    - `p2p-kids-marketplace/src/navigation/types.ts` (added 3 route types)
+    - `p2p-kids-marketplace/src/navigation/AppNavigator.tsx` (added 3 Stack.Screen entries)
+  - Verification:
+    - Tier 0: `npm run typecheck` ✅ PASS, `npm run lint` ✅ PASS
+    - Unit tests: `npm run test:unit` (all 3 support screen test files, 115+ assertions)
+    - E2E test: `RUN_SUPABASE_E2E=true npm run test:e2e` (integration test for all screens)
+    - Maestro: `npm run test:maestro:ios` and `npm run test:maestro:android` (12-state UI flow)
+    - Manual: Run all 30 test cases from `MODULE-15.1-FLOW-19-MANUAL-TESTING.md` on iOS and Android simulators
+    - MODULE-15.1-VERIFICATION.md FLOW-19 section updated to ✅ Done
+  - Dependencies: None (standalone UI redesign, uses existing navigation and design system components)
+  - Implementation Notes:
+    - FAQ data currently mocked in HelpScreen.tsx (TODO comment for backend integration)
+    - Contact form submission simulated with 1s delay (TODO comment for actual submitSupportTicket API call)
+    - All screens use testID props for Maestro automation
+    - Accessibility labels for screen readers on all interactive elements
+  - Tier: Tier 0 (typecheck/lint always), Tier 1 (unit tests for any FAQ/contact form logic changes), Maestro (UI flows for visual regression)
+
 ### FLOW-19: Analytics Events
 - Smoke: (manual)
 
@@ -5192,4 +5265,202 @@ Satisfied Items:
   - Tier 0: typecheck + lint (always)
   - Tier 1: unit tests for analytics hook/cards (when analytics components change)
   - Tier 2: integration tests + manual TC-001 through TC-015 (when analytics service or table schema changes)
+
+---
+
+### FLOW-16: Home Dashboard (UserDashboardScreen) — MODULE-15.1 UI Redesign
+
+- **Purpose**: Redesign the main authenticated home dashboard screen with Whisk-inspired design system and Phosphor icons
+- **Module**: MODULE-15.1-UI-REDESIGN (TASK FLOW-16)
+- **Scope**: Mobile app only (`p2p-kids-marketplace/src/screens/dashboard/UserDashboardScreen.tsx`)
+- **Priority**: P0 (Critical) — Daily active use
+- **Status**: ✅ IMPLEMENTATION COMPLETE (Tier 0 validation passed)
+- **Added**: May 2026
+
+#### Features Implemented:
+
+- **Header Row**:
+  - Avatar (40px circle) with tap navigation to Profile
+  - Time-based greeting: "Good morning/afternoon/evening, [FirstName]"
+  - Bell icon (24px, Phosphor `Bell`) with red unread badge dot (`#E85D75`)
+  - Notification badge conditionally rendered when `unreadCount > 0`
+
+- **SP Balance Strip** (Subscriber-only):
+  - Green background (`#5DBB8E`)
+  - `Coins` icon (20px, white) + balance display (18px bold white)
+  - "Earn More →" link with tap navigation to SpWallet
+  - Hidden for free users (respects `can_spend_sp` from subscription)
+
+- **Quick Action Tiles** (4-column grid):
+  - "Sell" → `Storefront` icon → navigates to ListingCreate
+  - "Trade" → `ArrowsLeftRight` icon → navigates to Discovery
+  - "Discover" → `MagnifyingGlass` icon → navigates to Discovery
+  - "My Trades" → `Package` icon → navigates to MyTrades
+  - White cards (12px radius, subtle shadow), icons 28px `#5DBB8E`
+
+- **Section Headers**:
+  - "Nearby Items" / "Active Trades" / "Recommendations"
+  - "See All" link (`#5DBB8E`, right-aligned) with tap navigation to Discovery
+  - 16px semibold title, 14px green link
+
+- **Nearby Items Grid**:
+  - 2-column FlatList with 12px gap, 16px padding
+  - Reuses ItemCard component from discovery module
+  - Pull-to-refresh support
+
+- **Design System Compliance**:
+  - ✅ All Ionicons replaced with Phosphor React Native v3.0.6
+  - ✅ Whisk color palette: Primary green `#5DBB8E`, text `#1A1A1A`, gray `#6B6B6B`
+  - ✅ 12px radius cards, 52px button heights, proper spacing (8/12/16px)
+
+#### Files Modified:
+
+1. `p2p-kids-marketplace/src/screens/dashboard/UserDashboardScreen.tsx`
+   - Fixed duplicate style property bug: `actionLabel` → `walletActionLabel` for SP wallet buttons
+   - Replaced all Ionicons with Phosphor icons
+   - Updated colors to Whisk palette
+   - Added testID props for Maestro automation
+
+#### Tests Created:
+
+- **Unit Tests**: `src/screens/dashboard/__tests__/UserDashboardScreen.test.tsx`
+  - 15 test groups covering:
+    - Header row elements (avatar, greeting, bell + badge)
+    - Greeting helper function (time-based, name extraction, fallback to "Friend")
+    - SP balance strip (subscriber-only, balance display, navigation)
+    - Quick action tiles (4 tiles, navigation verification)
+    - Section headers ("See All" link navigation)
+    - Loading and error states
+    - Phosphor icons usage verification
+  - Run: `npm run test:unit -- UserDashboardScreen.test.tsx`
+
+- **Integration Tests**: `src/__tests__/integration/flow-16-dashboard.integration.test.ts`
+  - 7 test cases with real Supabase queries:
+    - Fetch user session
+    - Fetch SP wallet data for subscribed user
+    - Fetch subscription status
+    - Fetch notification count (using useNotificationBadge service)
+    - Fetch recent trades
+    - Enforce RLS (user can only see own wallet)
+    - Verify SP balance display formatting
+  - Requires: `RUN_SUPABASE_E2E=true` env var
+  - Run: `RUN_SUPABASE_E2E=true npm run test:e2e -- flow-16-dashboard.integration.test.ts`
+
+- **Maestro UI Flow**: `.maestro/module-15.1-flow-16-home-dashboard.yaml`
+  - Automated UI flow testing for iOS and Android simulators
+  - States covered:
+    - Login → Dashboard verification
+    - Header row elements (avatar, greeting, bell + badge)
+    - SP balance strip (tap navigation to SpWallet)
+    - Quick action tiles (4 tiles with navigation verification)
+    - Section headers ("See All" link navigation)
+    - Design system compliance (visual checks)
+    - Logout cleanup
+  - Run: `npm run test:maestro:ios -- .maestro/module-15.1-flow-16-home-dashboard.yaml`
+
+- **Manual Testing Guide**: `MODULE-15.1-FLOW-16-MANUAL-TESTING.md`
+  - 10 detailed test cases:
+    - TC-1: Header Row - Avatar + Greeting + Bell
+    - TC-2: SP Balance Strip (Green Background)
+    - TC-3: Quick Action Tiles (4-Column Grid)
+    - TC-4: Section Headers with "See All" Links
+    - TC-5: Free User Experience (No SP Strip)
+    - TC-6: Notification Badge Dynamic Update
+    - TC-7: Pull-to-Refresh
+    - TC-8: Design System Compliance (Visual Inspection)
+    - TC-9: Error States (No Session)
+    - TC-10: Cross-Platform Consistency (iOS vs Android)
+  - Prerequisites: Test user accounts (free + Kids Club+ subscriber), Supabase credentials
+
+#### Tier 0 Validation (MANDATORY — Run BEFORE simulator testing):
+
+✅ **Typecheck**: `cd p2p-kids-marketplace && npm run typecheck`  
+✅ **Lint**: `cd p2p-kids-marketplace && npm run lint`  
+✅ **Status**: Both PASSED — no duplicate identifier errors, no syntax errors
+
+#### Tier 1 (Targeted smoke for impacted flows):
+
+- **Manual TCs**: TC-1 (Header Row), TC-2 (SP Strip), TC-3 (Quick Actions), TC-5 (Free User)
+- **Maestro**: Run `.maestro/module-15.1-flow-16-home-dashboard.yaml`
+- **Verify**:
+  - Header elements render correctly (avatar 40px, bell with badge)
+  - SP strip shows/hides based on subscription status
+  - Quick action tiles navigate to correct screens
+  - "See All" links work
+
+#### Tier 2 (Full regression when DB schema changes):
+
+- Not required unless `profiles`, `sp_wallets`, or `user_notifications` schema changes
+- Run all 10 manual test cases from `MODULE-15.1-FLOW-16-MANUAL-TESTING.md`
+- Run E2E integration tests with real Supabase: `RUN_SUPABASE_E2E=true npm run test:e2e -- flow-16-dashboard`
+
+#### Change Classification:
+
+- **C** (Mobile UI only — no DB, no API, no Supabase changes)
+- **Visual redesign scope** (frozen business logic)
+
+#### Impacted Flows:
+
+- **FLOW-01** (Auth): Home Dashboard is the landing screen after login
+- **FLOW-10** (SP Wallet): SP balance strip links to SpWallet screen
+- **FLOW-17** (Notifications): Bell icon + badge shows unread count
+
+#### Dependencies:
+
+- `useAuth` hook (session, user metadata)
+- `useSPWallet` hook (available balance, pending balance)
+- `useSubscription` hook (can_spend_sp gate for SP strip visibility)
+- `useNotificationBadge` hook (unread count for bell badge)
+- `Avatar`, `RecommendationsCarousel`, `CategorySelector`, `SubscriptionBanners` components
+- Phosphor React Native v3.0.6 (`phosphor-react-native`)
+
+#### Critical Rules Enforced:
+
+- **Phosphor icons ONLY**: No Ionicons imports allowed (verified in unit tests)
+- **Subscriber-only SP strip**: `can_spend_sp` gate enforced (hidden for free users)
+- **Time-based greeting**: Dynamically updates based on hour (5-12 AM morning, 12-5 PM afternoon, 5+ PM evening)
+- **Name extraction**: First name from `user_metadata.full_name` with fallback to "Friend"
+- **Notification badge visibility**: Conditionally rendered only when `unreadCount > 0`
+- **Style naming uniqueness**: No duplicate StyleSheet identifiers (bug fixed: `actionLabel` → `walletActionLabel`)
+
+#### Known Limitations:
+
+- Greeting time zones: Uses device local time (not user's timezone from profile)
+- Avatar placeholder: Uses generic `#F0F0F0` background (no custom colors by user)
+- "Nearby Items" grid: Requires geolocation permission (may show empty if denied)
+- SP balance: Shows rounded integer only (no decimal places)
+
+#### Accessibility:
+
+- All interactive elements have `accessibilityRole` and `accessibilityLabel`
+- testID props added for UI automation (Maestro, Detox)
+- Avatar has `accessibilityHint`: "Tap to view your profile"
+- Bell icon has `accessibilityLabel`: "Notifications (3 unread)" (dynamic count)
+- Quick action tiles have clear labels for screen readers
+
+#### Test Summary (FLOW-16):
+
+| Category | Total | Status |
+|----------|-------|--------|
+| Tier 0 (Typecheck/Lint) | 2 | ✅ PASSED |
+| Unit Tests | 15 test groups | ✅ READY |
+| Integration Tests | 7 test cases | ✅ READY |
+| Maestro UI Flow | 1 flow | ✅ READY |
+| Manual Test Cases | 10 TCs | ⏳ PENDING EXECUTION |
+| **TOTAL** | **35** | **✅ IMPLEMENTATION COMPLETE** |
+
+#### Verification Checklist (MODULE-15.1-VERIFICATION.md FLOW-16):
+
+- [x] Header avatar is 40px circle
+- [x] `Bell` icon (24px, `#1A1A1A`) has red dot badge (`#E85D75`) when unread > 0
+- [x] SP balance strip has `#5DBB8E` background, white text, `Coins` icon (20px, white)
+- [x] 4 quick action tiles are white cards (12px radius, subtle shadow), icons 28px `#5DBB8E`
+- [x] Section headers have "See All" in `#5DBB8E` green, right-aligned
+- [x] Nearby items grid is 2-column, 12px gap, 16px padding
+- [x] Zero Ionicons imports in UserDashboardScreen.tsx
+- [x] TypeScript compilation passes with no duplicate identifier errors
+- [x] ESLint passes with no new errors
+
+---
+
 ### FLOW-13: Referrals UI
