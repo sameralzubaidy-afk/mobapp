@@ -166,7 +166,13 @@ describe('ProfileScreen', () => {
     });
 
     fireEvent.press(getByText('Edit basic info'));
-    expect(navigation.navigate).toHaveBeenCalledWith('EditProfile');
+    expect(navigation.navigate).toHaveBeenCalledWith(
+      'EditProfile',
+      expect.objectContaining({
+        preloadedUser: expect.any(Object),
+        preloadedProfile: expect.any(Object),
+      })
+    );
   });
 
   it('calls AuthContext logout after confirming logout prompt', async () => {

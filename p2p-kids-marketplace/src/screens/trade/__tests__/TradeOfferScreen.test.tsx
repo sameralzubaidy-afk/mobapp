@@ -115,11 +115,11 @@ describe('TradeOfferScreen', () => {
   });
 
   it('renders item details after loading', async () => {
-    const { getByText } = render(<TradeOfferScreen />);
+    const { getByText, getAllByText } = render(<TradeOfferScreen />);
 
     await waitFor(() => {
       expect(getByText('Test Item')).toBeTruthy();
-      expect(getByText('$100.00')).toBeTruthy();
+      expect(getAllByText('$100.00').length).toBeGreaterThan(0);
     });
   });
 

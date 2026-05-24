@@ -1,0 +1,130 @@
+# FLOW: Legal & Settings (FLOW-25) | MODULE-15.1 | Whisk design system restyle
+# Covers: SettingsScreen sections, Sign Out, Delete Account navigation,
+#         PrivacyPolicyScreen, TermsOfServiceScreen, DeleteAccountScreen cancel
+
+appId: com.kidsp2p.marketplace
+---
+
+# ==============================================================================
+# PRE-TEST REQUIREMENTS
+# ==============================================================================
+# 1. Signed-in user exists (use seeded test user: test_buyer@example.com)
+# 2. Published privacy_policy, tos, and liability_disclaimer exist in platform_policies
+# ==============================================================================
+
+# ==============================================================================
+# Flow 1: Settings Screen — grouped sections visible
+# ==============================================================================
+- launchApp
+- tapOn:
+    id: "profile-tab"
+- waitForAnimationToEnd
+- tapOn:
+    id: "settings-button"
+- waitForAnimationToEnd
+
+- assertVisible: "Settings"
+
+# Verify section headers rendered (Whisk grouped design)
+- assertVisible: "NOTIFICATIONS"
+- assertVisible: "ACCOUNT"
+- assertVisible: "LEGAL"
+- assertVisible: "DANGER ZONE"
+
+# Verify key rows exist
+- assertVisible:
+    id: "settings-tos-button"
+- assertVisible:
+    id: "settings-privacy-policy-button"
+- assertVisible:
+    id: "settings-liability-disclaimer-button"
+- assertVisible:
+    id: "settings-sign-out-button"
+- assertVisible:
+    id: "settings-delete-account-button"
+
+# ==============================================================================
+# Flow 2: Privacy Policy — back navigation
+# ==============================================================================
+- tapOn:
+    id: "settings-privacy-policy-button"
+- assertVisible: "Privacy Policy"
+- waitForAnimationToEnd
+
+# Verify "Last updated" label (new FLOW-25 design)
+- assertVisible:
+    text: ".*Last updated.*"
+    regex: true
+
+# Back button (CaretLeft replacing Ionicons)
+- tapOn:
+    id: "back-button"
+- assertVisible: "Settings"
+
+# ==============================================================================
+# Flow 3: Terms of Service — back navigation
+# ==============================================================================
+- tapOn:
+    id: "settings-tos-button"
+- assertVisible: "Terms of Service"
+- waitForAnimationToEnd
+
+- assertVisible:
+    text: ".*Last updated.*"
+    regex: true
+
+- tapOn:
+    id: "back-button"
+- assertVisible: "Settings"
+
+# ==============================================================================
+# Flow 4: Delete Account screen — cancel flow
+# ==============================================================================
+- scrollUntilVisible:
+    element:
+      id: "settings-delete-account-button"
+    direction: DOWN
+
+- tapOn:
+    id: "settings-delete-account-button"
+- assertVisible:
+    id: "delete-account-screen"
+- waitForAnimationToEnd
+
+# Verify key elements rendered
+- assertVisible:
+    id: "delete-account-heading"
+- assertVisible:
+    id: "password-input"
+- assertVisible:
+    id: "delete-account-button"
+- assertVisible:
+    id: "cancel-delete-button"
+
+# Cancel should go back to Settings
+- tapOn:
+    id: "cancel-delete-button"
+- assertVisible: "Settings"
+
+# ==============================================================================
+# Flow 5: Delete Account — empty password validation
+# ==============================================================================
+- scrollUntilVisible:
+    element:
+      id: "settings-delete-account-button"
+    direction: DOWN
+
+- tapOn:
+    id: "settings-delete-account-button"
+- waitForAnimationToEnd
+
+# Tap delete without entering password → should show Alert
+- tapOn:
+    id: "delete-account-button"
+- assertVisible: "Password required"
+- tapOn: "OK"
+
+# Dismiss and return
+- tapOn:
+    id: "cancel-delete-button"
+- assertVisible: "Settings"

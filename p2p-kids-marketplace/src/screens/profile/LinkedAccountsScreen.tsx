@@ -11,7 +11,6 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -24,6 +23,7 @@ import PasswordReauthModal from '@/components/auth/PasswordReauthModal';
 import type { OAuthProvider, LinkedProvider } from '@/types/auth-v3';
 import { EmailMismatchError, LastLoginMethodError } from '@/types/auth-v3-errors';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 export default function LinkedAccountsScreen({ navigation }: any) {
   const { user } = useAuth();
@@ -213,33 +213,18 @@ export default function LinkedAccountsScreen({ navigation }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <ScreenLayout variant="detail" title="Linked Accounts">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading linked accounts...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <ScreenLayout variant="detail" title="Linked Accounts">
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            testID="linked-accounts-back-button"
-          >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Linked Accounts</Text>
-        </View>
-
         <ScrollView contentContainerStyle={styles.content}>
           {/* Email Card (Readonly) */}
           <View style={styles.section}>
@@ -350,7 +335,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
           testID="link-password-reauth"
         />
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

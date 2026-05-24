@@ -543,7 +543,7 @@ describe('SearchFilterModal', () => {
   });
 
   describe('Clear All', () => {
-    it('should reset all filters to defaults', () => {
+    it('should reset all filters to defaults', async () => {
       const filtersWithData = {
         ...getDefaultFilters(),
         condition: 'like_new' as const,
@@ -561,19 +561,33 @@ describe('SearchFilterModal', () => {
           visible={true}
           filters={filtersWithData}
           categories={mockCategories}
+          zipCodeInput="12345"
+          appliedZipCode="12345"
+          radiusMiles={15}
+          minRadiusMiles={5}
+          maxRadiusMiles={100}
+          locationLoading={false}
+          inactiveZipMessage={null}
+          waitlistMessage={null}
+          userProfileZip="12345"
+          onZipCodeInputChange={jest.fn()}
+          onRadiusChange={jest.fn()}
+          onRadiusComplete={jest.fn(async () => undefined)}
           onApply={mockOnApply}
           onClose={mockOnClose}
         />
       );
 
-      fireEvent.press(getByTestId('filter-modal-clear-all'));
+      fireEvent.press(getByTestId('filter-modal-reset'));
 
       // Check that selections are cleared
-      expect(getByTestId('filter-condition-like_new').props.accessibilityState.selected).toBe(
-        false
-      );
-      expect(getByTestId('filter-age-3-5').props.accessibilityState.selected).toBe(false);
-      expect(getByTestId('filter-gender-boy').props.accessibilityState.selected).toBe(false);
+      await waitFor(() => {
+        expect(getByTestId('filter-condition-like_new').props.accessibilityState.selected).toBe(
+          false
+        );
+        expect(getByTestId('filter-age-3-5').props.accessibilityState.selected).toBe(false);
+        expect(getByTestId('filter-gender-boy').props.accessibilityState.selected).toBe(false);
+      });
     });
   });
 
@@ -589,8 +603,8 @@ describe('SearchFilterModal', () => {
         />
       );
 
-      expect(getByTestId('filter-modal-clear-all').props.accessibilityLabel).toBe(
-        'Clear all filters'
+      expect(getByTestId('filter-modal-reset').props.accessibilityLabel).toBe(
+        'Reset all filters'
       );
       expect(getByTestId('filter-modal-apply').props.accessibilityLabel).toContain('Apply');
     });

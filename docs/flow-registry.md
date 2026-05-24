@@ -5464,3 +5464,90 @@ Satisfied Items:
 ---
 
 ### FLOW-13: Referrals UI
+
+---
+
+### FLOW-22: Payouts — Payout Dashboard + Request Payout (MODULE-15.1 UI Redesign)
+- **Purpose**: Redesigned payout dashboard and request payout screens with Whisk-inspired design system
+- **Module**: MODULE-15.1 UI REDESIGN (TASK FLOW-22)
+- **Scope**:
+  - `p2p-kids-marketplace/src/screens/payouts/PayoutDashboardScreen.tsx` — new screen
+  - `p2p-kids-marketplace/src/screens/payouts/RequestPayoutScreen.tsx` — new screen
+  - `p2p-kids-marketplace/src/navigation/types.ts` — `PayoutDashboard`, `RequestPayout` routes added
+  - `p2p-kids-marketplace/src/navigation/AppNavigator.tsx` — Stack.Screen registrations added
+- **Design**:
+  - Hero card: `#5DBB8E` bg, `Coins` (24px white), SP balance 32px bold white, AUD equivalent
+  - "Request Payout" white pill on hero card (NOT a separate full-width button)
+  - Bank row: `Bank` (20px `#5DBB8E`) + `CaretRight` (16px `#999999`)
+  - Payout history: `CheckCircle` (16px `#5DBB8E`) for completed, `Clock` (16px `#F59E0B`) for pending
+  - Amount input: `Coins` (20px `#F59E0B`), filled style (`#F0F0F0`, radius 12, height 52), 20px bold font
+  - Bank selector: filled row (`#F0F0F0`, radius 12, height 52), `Bank` + `CaretRight`
+  - Confirm: `#5DBB8E` pill, 52px height, full width
+  - Fee note: 13px, `#999999`, centered
+- **Services used**:
+  - `src/services/sellerBalance.ts`: `getSellerBalance()`, `getRecentPayouts()`, `requestWithdrawal()`, `calculatePayoutFee()`, `formatCentsToDollars()`
+  - `src/services/payoutMethods.ts`: `listPayoutMethods()`
+- **Tests**:
+  - Unit: `src/__tests__/screens/PayoutDashboardScreen.test.tsx` (16 tests)
+  - Unit: `src/__tests__/screens/RequestPayoutScreen.test.tsx` (17 tests)
+  - Integration: `src/__tests__/integration/flow-22-payouts.integration.test.ts` (`RUN_SUPABASE_E2E=true`)
+  - Maestro: `.maestro/module-15.1-flow-22-payouts.yaml` (15 test cases)
+  - Manual: `MODULE-15.1-FLOW-22-MANUAL-TESTING.md` (18 TCs)
+- **Change Classification**: C (UI/screens only)
+- **Regression Tiers Required**: Tier 0 (always) + Tier 1 for FLOW-22
+- **Impacted Flows**: FLOW-22 (self)
+
+| Category | Total | Status |
+|----------|-------|--------|
+| Tier 0 (Typecheck/Lint) | 2 | ⏳ PENDING |
+| Unit Tests | 33 (16 + 17) | ✅ READY |
+| Integration Tests | 7 test cases | ✅ READY |
+| Maestro UI Flow | 1 flow (15 TCs) | ✅ READY |
+| Manual Test Cases | 18 TCs | ⏳ PENDING EXECUTION |
+| **TOTAL** | **61** | **✅ IMPLEMENTATION COMPLETE** |
+
+#### Verification Checklist (MODULE-15.1 FLOW-22):
+
+- [x] Balance hero card has `#5DBB8E` background
+- [x] `Coins` icon 24px white on hero card
+- [x] SP balance is 32px bold white
+- [x] AUD equivalent shown below balance
+- [x] "Request Payout" is a white pill button on the hero card (not a separate button)
+- [x] Bank row: `Bank` (20px `#5DBB8E`) + `CaretRight` (16px `#999999`)
+- [x] "Add Bank Account" row shown when no payout method
+- [x] Payout history: `CheckCircle` (16px `#5DBB8E`) for completed
+- [x] Payout history: `Clock` (16px `#F59E0B`) for pending
+- [x] Amount input: `Coins` (20px `#F59E0B`), `#F0F0F0` bg, radius 12, height 52, 20px bold
+- [x] AUD equivalent updates live as user types
+- [x] Validation error shown when amount exceeds available balance
+- [x] Bank selector: filled row (`#F0F0F0`, radius 12, height 52), `Bank` + `CaretRight`
+- [x] Payout summary card appears when both amount and method are set
+- [x] Fee note: 13px `#999999` centered above confirm button
+- [x] Confirm button: `#5DBB8E` pill, 52px height, full width
+- [x] Zero Ionicons imports in both new screens
+- [x] TypeScript compilation passes with no duplicate identifier errors
+
+---
+
+### FLOW-21: ID Verification Upload Screen (MODULE-15.1 UI Redesign) — COMPLETE ✅ (2026-05-23)
+
+- **Module**: MODULE-15.1-UI-REDESIGN (TASK FLOW-21)
+- **Scope**: 1 screen restyled in-place — visual-only, zero business logic changes
+  - `p2p-kids-marketplace/src/screens/profile/IDVerificationUploadScreen.tsx`
+- **Design changes**:
+  - Phosphor icons: `IdentificationCard` (64px `#6B6B6B`), `Camera` (28px `#5DBB8E`), `CheckCircle` (64px `#5DBB8E`), `Clock` (64px `#F59E0B`), `ArrowLeft` (24px header)
+  - Three visual states: Unverified (dashed upload area), Pending (gold pill "Under Review"), Verified (green heading + "Verified ✓" pill)
+  - Added verified/approved state (was previously missing)
+  - Submit button: `#5DBB8E` active, `#E0E0E0` disabled
+  - `expo-image-picker` converted from dynamic `await import()` to static import (test reliability)
+  - `testID` props on all interactive elements
+- **Tests**:
+  - Unit: `src/screens/profile/__tests__/IDVerificationUploadScreen.test.tsx` — **21/21 pass**
+  - Integration: `e2e/IDVerification.integration.test.ts` (guarded by `RUN_SUPABASE_E2E=true`)
+  - Maestro: `.maestro/module-15.1-flow-21-id-verification.yaml`
+  - Manual: `MODULE-15.1-FLOW-21-MANUAL-TESTING.md`
+- **Tier 0 gate**:
+  - `npm run typecheck` — PASS
+  - `npx eslint src/screens/profile/IDVerificationUploadScreen.tsx` — PASS
+  - `npm run test:unit -- --testPathPattern=IDVerificationUploadScreen` — 21/21 PASS
+- **Verification**: MODULE-15.1-VERIFICATION.md D-033 satisfied

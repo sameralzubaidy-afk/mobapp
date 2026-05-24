@@ -7,7 +7,6 @@ import {
   Alert,
   Share,
   StyleSheet,
-  SafeAreaView,
   ScrollView
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
@@ -18,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -201,21 +201,7 @@ export const ReferralsScreen: React.FC = () => {
   const isShareDisabled = isProgramPaused || !hasAnyBonusConfigured;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header with Back Button */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={styles.backButton}
-          testID="back-btn"
-          accessibilityLabel="Go back"
-        >
-          <ArrowLeft size={24} color="#1A1A1A" weight="bold" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Refer & Earn</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
+    <ScreenLayout variant="detail" title="Referrals">
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
         {/* Hero Card */}
@@ -331,7 +317,7 @@ export const ReferralsScreen: React.FC = () => {
           contentContainerStyle={styles.historyList}
         />
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 };
 

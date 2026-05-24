@@ -1,9 +1,10 @@
 /**
  * File: p2p-kids-marketplace/src/screens/settings/LiabilityDisclaimerScreen.tsx
  * TASK SAFETY-012: Liability Disclaimer Viewer (from Settings)
+ * MODULE-15.1 FLOW-25: Restyled — Phosphor Icons, WarningCircle, Whisk typography
  *
  * Standalone screen for viewing the current published liability disclaimer.
- * Accessible from Settings menu for user reference.
+ * Read-only — no action buttons, scroll + back only.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -12,14 +13,14 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  TouchableOpacity
+  TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { CaretLeft, WarningCircle } from 'phosphor-react-native';
 import { supabase } from '@/config/supabase';
 import Markdown from 'react-native-markdown-display';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 interface DisclaimerPolicy {
   id: string;
@@ -66,105 +67,79 @@ export default function LiabilityDisclaimerScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Liability Disclaimer</Text>
-        </View>
+      <ScreenLayout variant="detail" title="Disclaimer">
         <View style={styles.loadingContainer}>
           <LoadingSpinner testID="loading-indicator" />
           <Text style={styles.loadingText}>Loading disclaimer...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (error || !policy) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Liability Disclaimer</Text>
-        </View>
+      <ScreenLayout variant="detail" title="Disclaimer">
         <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
+          <WarningCircle size={48} color="#F59E0B" weight="fill" />
           <Text style={styles.errorText}>{error || 'Disclaimer not available'}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchDisclaimer}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          testID="back-button"
-        >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Liability Disclaimer</Text>
-      </View>
+    <ScreenLayout variant="detail" title="Disclaimer">
 
       <ScrollView contentContainerStyle={styles.scrollContent} testID="disclaimer-content">
+        {/* Centered WarningCircle icon */}
+        <View style={styles.iconContainer}>
+          <WarningCircle size={48} color="#F59E0B" weight="fill" />
+        </View>
+
         <Text style={styles.title}>{policy.title}</Text>
 
-        <View style={styles.metaContainer}>
-          <View style={styles.versionBadge}>
-            <Text style={styles.versionText}>Version {policy.version}</Text>
-          </View>
-          {policy.effective_date && (
-            <Text style={styles.effectiveDate}>
-              Effective: {new Date(policy.effective_date).toLocaleDateString()}
-            </Text>
-          )}
-        </View>
+        {policy.effective_date && (
+          <Text style={styles.lastUpdated}>
+            Last updated: {new Date(policy.effective_date).toLocaleDateString()}
+          </Text>
+        )}
 
         <View style={styles.contentContainer}>
-          <Markdown>{policy.content}</Markdown>
-        </View>
-
-        <View style={styles.noticeContainer}>
-          <Ionicons name="information-circle" size={20} color="#3B82F6" />
-          <Text style={styles.noticeText}>
-            This disclaimer is shown before every purchase to ensure all users understand the terms
-            of trading on our platform.
-          </Text>
+          <Markdown style={markdownStyles}>{policy.content}</Markdown>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderBottomColor: '#F0F0F0',
   },
   backButton: {
-    marginRight: 16,
-    padding: 4,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   loadingContainer: {
     flex: 1,
@@ -173,84 +148,92 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 15,
+    color: '#6B6B6B',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    gap: 16,
   },
   errorText: {
-    fontSize: 16,
-    color: '#EF4444',
+    fontSize: 15,
+    color: '#E85D75',
     textAlign: 'center',
-    marginBottom: 16,
   },
   retryButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
   },
   retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '600',
   },
+  iconContainer: {
+    alignItems: 'center',
+    paddingTop: 24,
+    paddingBottom: 12,
+  },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 8,
     paddingBottom: 40,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  metaContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    flexWrap: 'wrap',
-  },
-  versionBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-  versionText: {
-    fontSize: 12,
-    color: '#3B82F6',
+    fontSize: 22,
     fontWeight: '600',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    marginBottom: 4,
   },
-  effectiveDate: {
-    fontSize: 12,
-    color: '#6B7280',
+  lastUpdated: {
+    fontSize: 13,
+    color: '#999999',
+    textAlign: 'center',
+    marginBottom: 16,
   },
   contentContainer: {
     marginTop: 8,
     marginBottom: 24,
   },
-  noticeContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#EFF6FF',
-    padding: 16,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  noticeText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 14,
-    color: '#1F2937',
-    lineHeight: 20,
-  },
 });
+
+const markdownStyles = {
+  heading1: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  heading2: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  heading3: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    marginTop: 16,
+    marginBottom: 6,
+  },
+  body: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    lineHeight: 24,
+  },
+  paragraph: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    lineHeight: 24,
+    marginBottom: 12,
+  },
+};

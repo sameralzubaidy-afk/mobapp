@@ -14,13 +14,13 @@ import {
   View,
   Text,
   StyleSheet,
-  Pressable,
-  SafeAreaView
+  Pressable
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { CheckCircle, XCircle, Coins } from 'phosphor-react-native';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeSuccessRouteProp = RouteProp<RootStackParamList, 'TradeSuccess'>;
 
@@ -44,7 +44,7 @@ export default function TradeSuccessScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Trade Complete">
       <View style={styles.content}>
         {/* Icon */}
         {isSuccess ? (
@@ -101,7 +101,7 @@ export default function TradeSuccessScreen() {
         </Pressable>
       </View>
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

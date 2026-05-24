@@ -20,7 +20,6 @@ import {
   Alert,
   Pressable,
   Image,
-  SafeAreaView,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
@@ -38,12 +37,12 @@ import {
   ChatCircle,
   WarningCircle,
   ArrowsLeftRight,
-  CaretLeft,
   Star,
 } from 'phosphor-react-native';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import Avatar from '@/components/atoms/Avatar';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeTimelineRouteProp = RouteProp<RootStackParamList, 'TradeTimeline'>;
 
@@ -306,12 +305,12 @@ export default function TradeTimelineScreen() {
 
   if (loading || !trade) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Trade Timeline">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading trade...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -340,15 +339,7 @@ export default function TradeTimelineScreen() {
     typeof listing?.price === 'number' ? listing.price : Number(listing?.price ?? 0);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.navHeader}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton} testID="back-button">
-          <CaretLeft size={24} color="#1A1A1A" weight="regular" />
-        </Pressable>
-        <Text style={styles.navTitle}>Trade Progress</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
+    <ScreenLayout variant="detail" title="Trade Timeline">
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <View style={[styles.statusBanner, getStatusBannerStyle(trade.status)]} testID="status-banner">
           {getStatusIcon(trade.status)}
@@ -645,7 +636,7 @@ export default function TradeTimelineScreen() {
         onCancel={() => setShowCancellationModal(false)}
         isLoading={isCancelling}
       />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 
@@ -761,25 +752,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#6B6B6B',
-  },
-  navHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  backButton: {
-    padding: 8,
-    marginLeft: -8,
-  },
-  navTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
   },
   scrollView: {
     flex: 1,

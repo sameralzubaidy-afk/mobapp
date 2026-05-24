@@ -2,6 +2,7 @@
 // MODULE-13 SAFETY-011: Privacy Policy Screen
 // Reuses platform_policies infrastructure from SAFETY-010
 
+// MODULE-15.1 FLOW-25: Restyled — Phosphor Icons, updated typography
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -12,13 +13,13 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { CaretLeft } from 'phosphor-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getPrivacyPolicyService } from '../../services/privacyPolicy';
 import Markdown from 'react-native-markdown-display';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PrivacyPolicy'>;
 
@@ -90,68 +91,37 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Privacy Policy</Text>
-        </View>
+      <ScreenLayout variant="detail" title="Privacy Policy">
         <View style={styles.loadingContainer} testID="privacy-policy-loading">
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading Privacy Policy...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (!policy) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Privacy Policy</Text>
-        </View>
-        <View style={styles.container} testID="privacy-policy-error">
+      <ScreenLayout variant="detail" title="Privacy Policy">
+        <View style={styles.errorWrap} testID="privacy-policy-error">
           <Text style={styles.errorText}>Privacy Policy not available</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']} testID="privacy-policy-screen">
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          testID="back-button"
-        >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Policy</Text>
-      </View>
+    <ScreenLayout variant="detail" title="Privacy Policy">
 
       <ScrollView contentContainerStyle={styles.scrollContent} testID="privacy-policy-content">
-        <Text style={styles.title}>{policy.title}</Text>
-
-        <View style={styles.metaContainer}>
-          <View style={styles.versionBadge}>
-            <Text style={styles.versionText} testID="privacy-policy-version">
-              Version {policy.version}
-            </Text>
-          </View>
-          {policy.effective_date && (
-            <Text style={styles.effectiveDate} testID="privacy-policy-effective-date">
-              Effective: {new Date(policy.effective_date).toLocaleDateString()}
-            </Text>
-          )}
-        </View>
+        {policy.effective_date && (
+          <Text style={styles.lastUpdated} testID="privacy-policy-effective-date">
+            Last updated: {new Date(policy.effective_date).toLocaleDateString()}
+          </Text>
+        )}
 
         <View style={styles.contentContainer}>
-          <Markdown>{policy.content}</Markdown>
+          <Markdown style={markdownStyles}>{policy.content}</Markdown>
         </View>
 
         {requireAcceptance && (
@@ -169,94 +139,81 @@ export default function PrivacyPolicyScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderBottomColor: '#F0F0F0',
   },
   backButton: {
-    marginRight: 16,
-    padding: 4,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 15,
+    color: '#6B6B6B',
   },
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 16,
-  },
-  metaContainer: {
-    flexDirection: 'row',
+  errorWrap: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    flexWrap: 'wrap',
-  },
-  versionBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-  versionText: {
-    fontSize: 12,
-    color: '#3B82F6',
-    fontWeight: '600',
-  },
-  effectiveDate: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  contentContainer: {
-    marginTop: 8,
-    marginBottom: 24,
+    padding: 24,
   },
   errorText: {
-    fontSize: 16,
-    color: '#EF4444',
+    fontSize: 15,
+    color: '#E85D75',
     textAlign: 'center',
-    marginTop: 32,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  lastUpdated: {
+    fontSize: 13,
+    color: '#999999',
+    marginBottom: 16,
+  },
+  contentContainer: {
+    marginBottom: 24,
   },
   acceptButton: {
-    backgroundColor: '#3B82F6',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 32,
   },
   acceptButtonDisabled: {
-    backgroundColor: '#93C5FD',
+    opacity: 0.5,
   },
   acceptButtonText: {
     color: '#FFFFFF',
@@ -264,3 +221,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+const markdownStyles = {
+  heading1: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  heading2: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  heading3: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    marginTop: 16,
+    marginBottom: 6,
+  },
+  body: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    lineHeight: 24,
+  },
+  paragraph: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    lineHeight: 24,
+    marginBottom: 12,
+  },
+};

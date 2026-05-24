@@ -11,8 +11,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  SafeAreaView
+  TouchableOpacity
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -27,6 +26,7 @@ import {
 } from '@/constants/subscriptionPlans';
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -116,14 +116,14 @@ export default function UpgradePlanScreen() {
 
   if (loading || configLoading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <ScreenLayout variant="detail" title="Upgrade Plan">
         <LoadingSpinner />
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="upgrade-plan-screen">
+    <ScreenLayout variant="detail" title="Upgrade Plan">
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Manage Your Plan</Text>
@@ -212,7 +212,7 @@ export default function UpgradePlanScreen() {
           );
         })}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

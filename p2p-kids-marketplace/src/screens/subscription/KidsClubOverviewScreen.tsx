@@ -12,7 +12,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
   Modal,
   TextInput,
   Alert,
@@ -31,6 +30,7 @@ import {
 } from '@/services/adminConfig';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 /**
  * Kids Club+ overview screen
@@ -92,10 +92,10 @@ export default function KidsClubOverviewScreen() {
   // Show loading state
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <ScreenLayout variant="detail" title="Kids Club+">
         <LoadingSpinner />
         <Text style={styles.loadingText}>Loading subscription...</Text>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -196,7 +196,7 @@ export default function KidsClubOverviewScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Kids Club+">
       <ScrollView contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -375,7 +375,7 @@ export default function KidsClubOverviewScreen() {
       </Modal>
 
       <BottomNavBar showHelp={true} />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

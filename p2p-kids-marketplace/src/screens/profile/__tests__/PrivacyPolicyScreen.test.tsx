@@ -76,7 +76,7 @@ describe('PrivacyPolicyScreen', () => {
       });
 
       expect(getAllByText('Privacy Policy').length).toBeGreaterThan(0);
-      expect(getByText('Version 1.0')).toBeTruthy();
+      expect(getByText(/Last updated:/i)).toBeTruthy();
     });
 
     it('should display effective date', async () => {
@@ -124,7 +124,7 @@ describe('PrivacyPolicyScreen', () => {
     it('should show error when policy not available', async () => {
       mockService.getCurrentPrivacyPolicy.mockResolvedValue(null);
 
-      const { getByText } = render(
+      render(
         <PrivacyPolicyScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 
@@ -136,7 +136,7 @@ describe('PrivacyPolicyScreen', () => {
     it('should show error on load failure', async () => {
       mockService.getCurrentPrivacyPolicy.mockRejectedValue(new Error('Network error'));
 
-      const { getByText } = render(
+      render(
         <PrivacyPolicyScreen navigation={mockNavigation as any} route={mockRoute as any} />
       );
 

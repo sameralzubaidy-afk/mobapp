@@ -48,7 +48,7 @@ describe('EditProfileScreen - FLOW-15 UI Redesign', () => {
   });
 
   it('renders avatar with 96px circle and camera overlay (FLOW-15)', async () => {
-    const { UNSAFE_getAllByType } = render(<EditProfileScreen navigation={{ goBack: jest.fn() }} />);
+    render(<EditProfileScreen navigation={{ goBack: jest.fn() }} />);
 
     await waitFor(() => {
       // Avatar should be 96x96px
@@ -56,17 +56,16 @@ describe('EditProfileScreen - FLOW-15 UI Redesign', () => {
     });
   });
 
-  it('renders filled input for display name with User icon (FLOW-15)', async () => {
-    const { getByPlaceholderText, getByText } = render(
+  it('renders locked full name field with User icon (FLOW-15)', async () => {
+    const { getByDisplayValue, getByText } = render(
       <EditProfileScreen navigation={{ goBack: jest.fn() }} />
     );
 
     await waitFor(() => {
-      expect(getByText('DISPLAY NAME')).toBeTruthy(); // Uppercase label
-      const input = getByPlaceholderText('Enter your display name');
+      expect(getByText('FULL NAME (CANNOT BE CHANGED)')).toBeTruthy();
+      const input = getByDisplayValue('Test User');
       expect(input).toBeTruthy();
       expect(input.props.value).toBe('Test User');
-      // Input wrapper should have backgroundColor #F0F0F0, no border, 52px height
     });
   });
 
@@ -83,16 +82,15 @@ describe('EditProfileScreen - FLOW-15 UI Redesign', () => {
   });
 
   it('renders filled input for zip code with MapPin icon (FLOW-15)', async () => {
-    const { getByPlaceholderText, getByText } = render(
+    const { getByDisplayValue, getByText } = render(
       <EditProfileScreen navigation={{ goBack: jest.fn() }} />
     );
 
     await waitFor(() => {
-      expect(getByText('ZIP CODE')).toBeTruthy();
-      const input = getByPlaceholderText('Enter 5-digit zip code');
+      expect(getByText('ZIP CODE (CANNOT BE CHANGED)')).toBeTruthy();
+      const input = getByDisplayValue('12345');
       expect(input).toBeTruthy();
       expect(input.props.value).toBe('12345');
-      // MapPin icon should be green (#5DBB8E)
     });
   });
 
@@ -122,7 +120,7 @@ describe('EditProfileScreen - FLOW-15 UI Redesign', () => {
 
   it('calls updateUserProfile on save with changed fields', async () => {
     mockUpdateUserProfile.mockResolvedValue({
-      user: { ...mockProfile, name: 'Updated Name' },
+      user: { ...mockProfile, bio: 'Updated bio' },
       error: null,
       needsWaitlist: false,
     });
@@ -132,8 +130,8 @@ describe('EditProfileScreen - FLOW-15 UI Redesign', () => {
     );
 
     await waitFor(() => {
-      const input = getByPlaceholderText('Enter your display name');
-      fireEvent.changeText(input, 'Updated Name');
+      const bioInput = getByPlaceholderText('Tell us a bit about yourself...');
+      fireEvent.changeText(bioInput, 'Updated bio');
     });
 
     const saveButton = getByText('Save Changes');
@@ -143,21 +141,27 @@ describe('EditProfileScreen - FLOW-15 UI Redesign', () => {
       expect(mockUpdateUserProfile).toHaveBeenCalledWith(
         'test-user-id',
         expect.objectContaining({
-          display_name: 'Updated Name',
-          zip_code: '12345',
-        })
+          bio: 'Updated bio',
+        }),
+        expect.objectContaining({ includeAuthUser: false })
       );
     });
   });
 
   it('displays error message with red color (#E85D75) for validation errors', async () => {
-    const { getByPlaceholderText } = render(<EditProfileScreen navigation={{ goBack: jest.fn() }} />);
+    const { getByPlaceholderText, getByText } = render(
+      <EditProfileScreen navigation={{ goBack: jest.fn() }} />
+    );
 
     await waitFor(() => {
-      const input = getByPlaceholderText('Enter your display name');
-      fireEvent.changeText(input, ''); // Empty name triggers error
+      const input = getByPlaceholderText('(XXX) XXX-XXXX');
+      fireEvent.changeText(input, '123');
     });
 
-    // Error text should be color #E85D75 (FLOW-15 spec)
+    fireEvent.press(getByText('Save Changes'));
+
+    await waitFor(() => {
+      expect(getByText('Phone number must be 10 digits')).toBeTruthy();
+    });
   });
 });

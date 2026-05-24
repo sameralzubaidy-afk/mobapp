@@ -20,7 +20,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   StyleSheet,
   Image,
   Alert
@@ -38,6 +37,7 @@ import {
   Coins,
 } from 'phosphor-react-native';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -136,32 +136,18 @@ export default function CartScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="My Cart" showBell={false}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading cart...</Text>
         </View>
         <BottomNavBar />
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (cartItems.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            testID="cart-back-button"
-          >
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-          <View style={styles.headerLeft}>
-            <ShoppingCart size={24} color={theme.textColors.primary} weight="regular" testID="cart-icon" />
-            <Text style={styles.headerTitle}>My Cart</Text>
-          </View>
-          <View style={styles.headerSpacer} />
-        </View>
+      <ScreenLayout variant="detail" title="My Cart">
 
         <View style={styles.emptyContainer}>
           <ShoppingCart
@@ -186,30 +172,12 @@ export default function CartScreen() {
         </View>
 
         <BottomNavBar />
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          testID="cart-back-button"
-        >
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerLeft}>
-          <ShoppingCart size={24} color={theme.textColors.primary} weight="regular" testID="cart-icon" />
-          <Text style={styles.headerTitle}>My Cart</Text>
-        </View>
-        <View style={styles.itemCountBadge} testID="cart-count-badge">
-          <Text style={styles.itemCountText}>{cartItems.length}</Text>
-        </View>
-      </View>
-
+    <ScreenLayout variant="detail" title="My Cart">
       {/* Cart Items */}
       <ScrollView
         style={styles.scrollView}
@@ -317,7 +285,7 @@ export default function CartScreen() {
       </View>
 
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

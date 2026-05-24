@@ -9,8 +9,7 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView
+  StyleSheet
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -36,6 +35,7 @@ import { useAuth } from '@/hooks/useAuth';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 export default function SpWalletScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -114,21 +114,8 @@ export default function SpWalletScreen() {
     'inactive') as WalletState;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <ScreenLayout variant="detail" title="Swap Points">
       <View style={styles.container}>
-        {/* Header with Back Button */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            testID="sp-wallet-back-button"
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Swap Points Wallet</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
         <ScrollView
           style={styles.scrollView}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
@@ -263,7 +250,7 @@ export default function SpWalletScreen() {
         </ScrollView>
         <BottomNavBar />
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

@@ -11,7 +11,6 @@ import {
   InteractionManager,
 } from 'react-native';
 import { Package } from 'phosphor-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../hooks/useAuth';
@@ -54,6 +53,7 @@ import { BulkPublishConfirmSheet } from '../components/bulk/BulkPublishConfirmSh
 import { BulkFlowState, bulkListingReducer } from './bulkListingStateMachine';
 import { BulkSPSummaryCard } from '../components/bulk/BulkSPSummaryCard';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 const BULK_AI_ANALYSIS_BLOCKING_TIMEOUT_MS = 7000;
 type PhotoSourceOption = 'camera' | 'library';
@@ -1350,47 +1350,9 @@ export default function BulkListingCreateScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Bulk Upload">
       <BulkIntroSheet />
 
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={async () => {
-            // Context-aware back: confirm before exiting if user has added photos
-            if (photos.length > 0 && flowState !== 'SUCCESS') {
-              Alert.alert(
-                'Discard bulk session?',
-                "Your draft will be saved, but you'll exit the bulk listing flow.",
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Exit',
-                    style: 'destructive',
-                    onPress: async () => {
-                      await saveNow();
-                      navigation.goBack();
-                    },
-                  },
-                ]
-              );
-            } else {
-              await saveNow();
-              navigation.goBack();
-            }
-          }}
-          accessibilityLabel="Back"
-          accessibilityHint="Saves your current bulk draft and goes back"
-          testID="bulk-back-button"
-        >
-          <Text style={styles.backButton}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Bulk Listing</Text>
-        <View style={styles.headerRight}>
-          {(processingAI || flowState === 'PUBLISHING' || uploading) && (
-            <ActivityIndicator size="small" color="#5DBB8E" testID="bulk-header-spinner" />
-          )}
-        </View>
-      </View>
 
       <BulkStepIndicator
         currentStep={currentStep}
@@ -1720,7 +1682,7 @@ export default function BulkListingCreateScreen() {
         onSelectOther={handleSelectOtherCategory}
         onClose={() => setCategoryPickerGroupId(null)}
       />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

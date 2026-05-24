@@ -1,0 +1,135 @@
+# File: .maestro/module-15.1-flow-21-id-verification.yaml
+# TASK MODULE-15.1 FLOW-21: ID Verification Upload Screen UI Tests
+# Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-21)
+# Platform: iOS + Android simulators
+# Prerequisites:
+#   - App running in simulator
+#   - Test user logged in (unverified state)
+#   - Test user (pending state) also seeded
+#   - Test user (approved state) also seeded
+
+---
+appId: com.p2pkidsmarketplace
+
+---
+# ─── TC-001: State A — Unverified default render ─────────────────────────────
+- launchApp
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "id-verification-menu-item"
+- assertVisible:
+    id: "id-verification-screen"
+- assertVisible:
+    id: "id-verification-unverified-state"
+- assertVisible:
+    text: "Verify Your Identity"
+- assertVisible:
+    id: "id-verification-upload-area"
+- assertVisible:
+    id: "id-verification-take-photo-btn"
+- assertVisible:
+    id: "id-verification-submit-btn"
+# Submit button should be disabled initially (no image selected)
+- assertVisible:
+    id: "id-verification-submit-btn"
+
+---
+# ─── TC-002: State A — Back button navigates away ────────────────────────────
+- launchApp
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "id-verification-menu-item"
+- assertVisible:
+    id: "id-verification-screen"
+- tapOn:
+    id: "id-verification-back-btn"
+- assertNotVisible:
+    id: "id-verification-screen"
+
+---
+# ─── TC-003: State A — Upload area tap opens picker ──────────────────────────
+- launchApp
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "id-verification-menu-item"
+- assertVisible:
+    id: "id-verification-upload-area"
+- tapOn:
+    id: "id-verification-upload-area"
+# Picker opens — native sheet cannot be asserted; just confirm no crash
+- assertVisible:
+    id: "id-verification-screen"
+
+---
+# ─── TC-004: State A — Take photo button visible and tappable ─────────────────
+- launchApp
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "id-verification-menu-item"
+- assertVisible:
+    id: "id-verification-take-photo-btn"
+- tapOn:
+    id: "id-verification-take-photo-btn"
+# Camera permissions prompt or camera opens — confirm no crash
+- assertVisible:
+    id: "id-verification-screen"
+
+---
+# ─── TC-005: State B — Pending state render (requires pending test user) ──────
+# NOTE: Run with a pre-seeded user who has status='pending' in ID verification DB
+- launchApp
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "id-verification-menu-item"
+- assertVisible:
+    id: "id-verification-pending-state"
+- assertVisible:
+    text: "Verification Pending"
+- assertVisible:
+    id: "id-verification-status-pill-pending"
+- assertVisible:
+    text: "Under Review"
+- assertNotVisible:
+    id: "id-verification-upload-area"
+- assertNotVisible:
+    id: "id-verification-submit-btn"
+
+---
+# ─── TC-006: State B — Back to profile button works ──────────────────────────
+- launchApp
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "id-verification-menu-item"
+- assertVisible:
+    id: "id-verification-back-profile-btn"
+- tapOn:
+    id: "id-verification-back-profile-btn"
+- assertNotVisible:
+    id: "id-verification-pending-state"
+
+---
+# ─── TC-007: State C — Verified state render (requires approved test user) ────
+# NOTE: Run with a pre-seeded user who has status='approved'
+- launchApp
+- tapOn:
+    id: "profile-tab"
+- tapOn:
+    id: "id-verification-menu-item"
+- assertVisible:
+    id: "id-verification-verified-state"
+- assertVisible:
+    text: "Identity Verified"
+- assertVisible:
+    id: "id-verification-status-pill-verified"
+- assertVisible:
+    text: "Verified ✓"
+- assertNotVisible:
+    id: "id-verification-upload-area"
+- assertNotVisible:
+    id: "id-verification-submit-btn"

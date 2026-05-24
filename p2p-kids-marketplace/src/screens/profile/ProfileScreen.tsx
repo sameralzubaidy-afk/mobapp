@@ -13,7 +13,6 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  SafeAreaView,
   Image,
 } from 'react-native';
 import {
@@ -54,6 +53,7 @@ import { useUserBadges } from '@/hooks/useUserBadges';
 // generated `Database` types may be missing locally; use a permissive fallback
 // to avoid type errors until DB types are generated.
 import BottomNavBar from '@/components/organisms/BottomNavBar';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type UserProfile = any;
 
@@ -341,7 +341,7 @@ export default function ProfileScreen({ navigation, route }: any) {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <ScreenLayout variant="detail" title="My Profile">
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
           {showProfileSavedBanner && (
@@ -655,7 +655,7 @@ export default function ProfileScreen({ navigation, route }: any) {
           onClose={handleCelebrationClose}
         />
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

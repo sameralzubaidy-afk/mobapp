@@ -21,7 +21,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  SafeAreaView,
   TextInput,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -29,6 +28,7 @@ import { RootStackParamList } from '@/navigation/types';
 import { WarningCircle, Flag } from 'phosphor-react-native';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { cancelTradeV2 } from '@/services/trade';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeDisputeRouteProp = RouteProp<RootStackParamList, 'TradeDispute'>;
 
@@ -149,7 +149,7 @@ export default function TradeDisputeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Trade Dispute">
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.heading}>File a Dispute</Text>
 
@@ -236,7 +236,7 @@ export default function TradeDisputeScreen() {
         </Pressable>
       </ScrollView>
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

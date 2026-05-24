@@ -27,7 +27,6 @@ import {
   InteractionManager,
 } from 'react-native';
 import { Coins, Tag } from 'phosphor-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../hooks/useAuth';
@@ -60,6 +59,7 @@ import { SPEarningsPreview } from '../components/listing/SPEarningsPreview';
 import PhoneVerificationModal from '../components/auth/PhoneVerificationModal';
 import { isPhoneRequired } from '../services/phoneService';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 // State machine states
 type CreateScreenState =
@@ -817,22 +817,7 @@ export default function ItemCreateScreen() {
   const isAnalyzingBlocking = isAnalyzing && !allowManualWhileAnalyzing;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => {
-            saveNow();
-            navigation.goBack();
-          }}
-          testID="back-button"
-        >
-          <Text style={styles.backButton}>←</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Listing</Text>
-        <View style={styles.headerRight}>
-          {aiStatus === 'analyzing' && <ActivityIndicator size="small" color="#5DBB8E" />}
-        </View>
-      </View>
+    <ScreenLayout variant="detail" title="New Item">
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Photo Upload */}
@@ -1211,7 +1196,7 @@ export default function ItemCreateScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

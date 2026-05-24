@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import Constants from 'expo-constants';
 import * as ExpoLinking from 'expo-linking';
 import { LoadingSpinner } from '@/components/ui';
@@ -43,6 +43,8 @@ import CartScreen from '@/screens/cart/CartScreen';
 import BundleBuilderScreen from '@/screens/cart/BundleBuilderScreen';
 import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
 import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
+import PayoutDashboardScreen from '@/screens/payouts/PayoutDashboardScreen';
+import RequestPayoutScreen from '@/screens/payouts/RequestPayoutScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
 import TrialConversionTestScreen from '@/screens/admin/TrialConversionTestScreen';
@@ -69,6 +71,7 @@ import UnsubscribeScreen from '@/screens/UnsubscribeScreen';
 import TermsOfServiceScreen from '@/screens/profile/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '@/screens/profile/PrivacyPolicyScreen';
 import LiabilityDisclaimerScreen from '@/screens/settings/LiabilityDisclaimerScreen';
+import DeleteAccountScreen from '@/screens/settings/DeleteAccountScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 import {
@@ -418,22 +421,6 @@ function RootNavigator() {
   // MODULE-18 EDU-004: Show onboarding carousel if needed
   const showOnboardingCarousel = isAuthenticated && shouldShowOnboardingCarousel;
   const navigatorKey = `${currentUserId ?? 'guest'}:${showOnboardingCarousel ? 'onboarding' : 'home'}:${isSubscriptionExpired ? 'expired' : 'active'}`;
-  const subscriptionHeaderOptions = {
-    headerShown: true,
-    headerTintColor: '#5DBB8E',
-    headerBackTitleVisible: false,
-    headerBackImage: () => <Text style={{ fontSize: 28, color: '#5DBB8E' }}>←</Text>,
-    headerTitleAlign: 'center' as const,
-    headerStyle: {
-      backgroundColor: '#FFFFFF',
-    },
-    headerTitleStyle: {
-      color: '#1A1A1A',
-      fontWeight: '700' as const,
-      fontSize: 18,
-    },
-  };
-
   return (
     <NavigationContainer
       ref={navigationRef}
@@ -610,6 +597,17 @@ function RootNavigator() {
               component={SellerEarningsScreen}
               options={{ headerShown: false }}
             />
+            {/* MODULE-15.1 FLOW-22: Payout Dashboard + Request Payout (redesigned) */}
+            <Stack.Screen
+              name="PayoutDashboard"
+              component={PayoutDashboardScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="RequestPayout"
+              component={RequestPayoutScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="AdminDashboard"
               component={AdminDashboardScreen}
@@ -628,67 +626,67 @@ function RootNavigator() {
             <Stack.Screen
               name="ContinueKidsClub"
               component={ContinueKidsClubScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Continue Kids Club+' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="SubscriptionPayment"
               component={SubscriptionPaymentScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Subscription Payment' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="SubscriptionSuccess"
               component={SubscriptionSuccessScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Subscription Success' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="SubscriptionStatus"
               component={SubscriptionStatusScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Subscription Status' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="ManageKidsClub"
               component={ManageKidsClubScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Manage Kids Club+' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="KidsClubOverview"
               component={SubscriptionPlansScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Kids Club+' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="SubscriptionPlans"
               component={SubscriptionPlansScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Choose Your Plan' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="PlanComparison"
               component={PlanComparisonScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Compare Plans' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="UpgradePlan"
               component={UpgradePlanScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Upgrade Plan' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="CancelSubscription"
               component={CancelSubscriptionScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Cancel Subscription' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="SubscriptionExpired"
               component={SubscriptionExpiredScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Subscription Expired' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="MySubscription"
               component={MySubscriptionScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'My Subscription' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="TransactionHistory"
               component={TransactionHistoryScreen}
-              options={{ ...subscriptionHeaderOptions, title: 'Billing History' }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen name="Badges" component={BadgesScreen} options={{ headerShown: false }} />
             <Stack.Screen
@@ -804,6 +802,12 @@ function RootNavigator() {
               name="LiabilityDisclaimer"
               component={LiabilityDisclaimerScreen}
               options={{ title: 'Liability Disclaimer' }}
+            />
+            {/* MODULE-15.1 FLOW-25: Delete Account Screen */}
+            <Stack.Screen
+              name="DeleteAccount"
+              component={DeleteAccountScreen}
+              options={{ title: 'Delete Account', headerShown: false }}
             />
             {/* Add more authenticated screens as needed */}
           </>

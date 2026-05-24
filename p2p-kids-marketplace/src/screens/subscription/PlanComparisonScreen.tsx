@@ -13,8 +13,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  SafeAreaView
+  TouchableOpacity
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,6 +28,7 @@ import { TIER_COMPARISON_ROWS } from '@/constants/subscriptionPlans';
 import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -114,14 +114,14 @@ export default function PlanComparisonScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <ScreenLayout variant="detail" title="Compare Plans">
         <LoadingSpinner />
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="plan-comparison-screen">
+    <ScreenLayout variant="detail" title="Compare Plans">
       <ScrollView style={styles.container}>
         {/* Header with Gradient Background */}
         <View style={styles.headerGradient}>
@@ -242,7 +242,7 @@ export default function PlanComparisonScreen() {
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

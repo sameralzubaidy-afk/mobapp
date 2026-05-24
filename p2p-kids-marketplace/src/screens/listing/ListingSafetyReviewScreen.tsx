@@ -3,7 +3,6 @@ import {
   Alert,
   Image,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +23,7 @@ import {
 import { Listing } from '@/types/listing';
 import { ShieldWarning } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type ListingSafetyRoute = RouteProp<RootStackParamList, 'ListingSafetyReview'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -191,22 +191,22 @@ export default function ListingSafetyReviewScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <ScreenLayout variant="detail" title="Safety Review">
         <LoadingSpinner />
         <Text style={styles.helperText}>Loading safety review...</Text>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (error || !listing) {
     return (
-      <SafeAreaView style={styles.centered}>
+      <ScreenLayout variant="detail" title="Safety Review">
         <Text style={styles.errorTitle}>Unable to open safety review</Text>
         <Text style={styles.errorText}>{error || 'Listing not found'}</Text>
         <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.goBack()}>
           <Text style={styles.primaryButtonText}>Back</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -232,7 +232,7 @@ export default function ListingSafetyReviewScreen() {
         : null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Safety Review">
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Listing Safety Review</Text>
 
@@ -469,7 +469,7 @@ export default function ListingSafetyReviewScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

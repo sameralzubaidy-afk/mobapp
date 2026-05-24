@@ -9,8 +9,7 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
-  StyleSheet,
-  SafeAreaView
+  StyleSheet
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
@@ -25,6 +24,7 @@ import { getLedgerHistory, type SPLedgerEntry } from '@/services/sp/wallet';
 import { supabase } from '@/config/supabase';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type TabFilter = 'all' | 'earned' | 'spent';
 
@@ -102,21 +102,8 @@ export default function SpTransactionHistoryScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <ScreenLayout variant="detail" title="SP History">
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            testID="sp-history-back-button"
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>←</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Transaction History</Text>
-          <View style={styles.headerSpacer} />
-        </View>
-
         {/* Tabs */}
         <View style={styles.tabsContainer}>
           <TouchableOpacity
@@ -194,7 +181,7 @@ export default function SpTransactionHistoryScreen() {
         </ScrollView>
         <BottomNavBar />
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

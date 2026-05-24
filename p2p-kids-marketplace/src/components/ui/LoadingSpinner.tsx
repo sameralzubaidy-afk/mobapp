@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, Easing, Text, StyleSheet } from 'react-native';
+import { View, Animated, Easing, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { CircleNotch } from 'phosphor-react-native';
 
 interface LoadingSpinnerProps {
@@ -35,10 +35,20 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     outputRange: ['0deg', '360deg'],
   });
 
+  const SpinnerIcon = CircleNotch as unknown as React.ComponentType<{
+    size?: number;
+    color?: string;
+    weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone';
+  }>;
+
   return (
     <View testID={testID} style={[styles.container, fullScreen && styles.fullScreen]}>
       <Animated.View style={{ transform: [{ rotate: spin }] }}>
-        <CircleNotch size={size} color={color} weight="bold" />
+        {SpinnerIcon ? (
+          <SpinnerIcon size={size} color={color} weight="bold" />
+        ) : (
+          <ActivityIndicator size="large" color={color} />
+        )}
       </Animated.View>
       {text ? <Text style={styles.text}>{text}</Text> : null}
     </View>

@@ -1,0 +1,113 @@
+# FLOW-22: Payout Settings Redesign | MODULE-15.1
+# Covers: Hero balance card, all-methods list, NoMethodModal, USD-only history, design-token status colors
+# Platform: iOS & Android
+# Prerequisite: seller account with ≥1 balance record; run helpers/auth-bootstrap-expo.yaml first
+
+appId: com.p2pkidsmarketplace.app
+---
+
+# === PRECONDITIONS ===
+# 1. User signed in as a seller account
+# 2. At least 1 row in seller_balances for this user
+# 3. At least 1 row in seller_payouts (for history assertions)
+# 4. DB test fixture: one payout with status='processing', one with status='completed'
+
+# ── Bootstrap: ensure app is on Home screen ──────────────────────────────────
+- runFlow: helpers/auth-bootstrap-expo.yaml
+
+# ── Navigate to Payout Settings ──────────────────────────────────────────────
+- tapOn:
+    testID: "tab-profile"
+- waitForAnimationToEnd
+
+- tapOn:
+    testID: "payout-settings-row"
+- waitForAnimationToEnd
+
+# ── TC-22-01: Header ──────────────────────────────────────────────────────────
+- assertVisible:
+    testID: "back-button"
+
+- assertVisible: "Payouts"
+
+- assertNotVisible: "← Back"
+- assertNotVisible: "Payout Settings"
+
+# ── TC-22-02: Hero balance card ───────────────────────────────────────────────
+- assertVisible:
+    testID: "balance-hero-card"
+
+- assertVisible:
+    testID: "coins-icon"
+
+- assertVisible: "Available Balance"
+
+- assertVisible:
+    testID: "balance-amount"
+
+- assertVisible:
+    testID: "balance-pending"
+
+- assertVisible:
+    testID: "balance-lifetime"
+
+# Verify no "AUD" currency suffix in hero card
+- assertNotVisible: "AUD"
+
+# ── TC-22-03: Withdraw Now CTA ────────────────────────────────────────────────
+- assertVisible:
+    testID: "request-payout-btn"
+
+- assertVisible: "Withdraw Now"
+
+# Legacy emoji-based button must be gone
+- assertNotVisible: "💳 Withdraw Now"
+
+# ── TC-22-05 / TC-22-06: PAYOUT METHOD section ───────────────────────────────
+- assertVisible: "PAYOUT METHOD"
+
+# Primary method shows "Primary" pill badge
+- assertVisible: "Primary"
+
+# "Add Another Method" row is visible at bottom of methods list
+- assertVisible: "Add Another Method"
+
+# ── TC-22-11: Payout history — no AUD suffix ─────────────────────────────────
+- scrollUntilVisible:
+    element:
+      text: "Payout History"
+    direction: DOWN
+    timeout: 5000
+
+# Status labels use design tokens — verify text labels
+- assertVisible: "Completed"
+- assertVisible: "Processing"
+
+# Confirm no AUD anywhere on screen
+- assertNotVisible: "AUD"
+- assertNotVisible: "A$"
+
+# ── TC-22-16: Back navigation ─────────────────────────────────────────────────
+- tapOn:
+    testID: "back-button"
+- waitForAnimationToEnd
+
+# Should return to Profile screen (or wherever we came from)
+- assertNotVisible: "Payouts"
+
+# ── TC-22-08: NoMethodModal — triggered when no method and Withdraw tapped ────
+# This sub-flow requires a user with NO connected payout methods.
+# Skip on accounts that already have methods; verify manually per TC-22-08.
+#
+# If testing on a zero-method account:
+#   tapOn: { testID: "request-payout-btn" }
+#   assertVisible: "Payment Method Required"
+#   assertVisible: "Add Payout Method"
+#   assertVisible: "Cancel"
+#   assertNotVisible: "Alert"          <- confirms it's not a native alert sheet
+#
+#   tapOn: "Cancel"
+#   assertNotVisible: "Payment Method Required"
+
+# ── END ───────────────────────────────────────────────────────────────────────
+- stopApp

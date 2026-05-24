@@ -12,7 +12,6 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
-  SafeAreaView,
   TouchableOpacity
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -22,6 +21,7 @@ import type { BillingHistory } from '@/types/billingHistory.types';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { Ionicons } from '@expo/vector-icons';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 export default function TransactionHistoryScreen() {
   const navigation = useNavigation();
@@ -101,14 +101,7 @@ export default function TransactionHistoryScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Billing History</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <ScreenLayout variant="detail" title="Transaction History">
 
       <View style={styles.content}>
         {loading ? (
@@ -137,7 +130,7 @@ export default function TransactionHistoryScreen() {
       </View>
 
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

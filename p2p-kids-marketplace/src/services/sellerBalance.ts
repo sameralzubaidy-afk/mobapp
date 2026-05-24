@@ -322,17 +322,17 @@ export async function getPayoutById(payoutId: string): Promise<SellerPayout | nu
 export function formatPayoutStatus(status: string): { label: string; color: string } {
   switch (status) {
     case 'requires_action':
-      return { label: 'Action Required', color: '#FFA500' };
+      return { label: 'Action Required', color: '#E85D75' };
     case 'pending':
-      return { label: 'Pending', color: '#999' };
+      return { label: 'Pending', color: '#F59E0B' };
     case 'processing':
-      return { label: 'Processing', color: '#007AFF' };
+      return { label: 'Processing', color: '#5DBB8E' };
     case 'completed':
-      return { label: 'Completed', color: '#28a745' };
+      return { label: 'Completed', color: '#5DBB8E' };
     case 'failed':
-      return { label: 'Failed', color: '#dc3545' };
+      return { label: 'Failed', color: '#E85D75' };
     default:
-      return { label: 'Unknown', color: '#666' };
+      return { label: 'Unknown', color: '#999999' };
   }
 }
 

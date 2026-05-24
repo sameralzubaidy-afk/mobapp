@@ -21,7 +21,6 @@ import {
   Alert,
   TextInput,
   Pressable,
-  SafeAreaView,
   NativeModules,
   KeyboardAvoidingView,
   Platform,
@@ -44,6 +43,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { supabase } from '@/config/supabase';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeInitiationRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -462,7 +462,7 @@ export default function TradeInitiationScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Start Trade">
       <KeyboardAvoidingView
         style={styles.keyboardAvoidingContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -772,7 +772,7 @@ export default function TradeInitiationScreen() {
         onClose={() => setShowSpInfoTooltip(false)}
         testID="trade-sp-info-tooltip"
       />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

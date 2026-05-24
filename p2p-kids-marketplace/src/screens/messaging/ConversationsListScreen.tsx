@@ -28,7 +28,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
   Image,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -39,6 +38,7 @@ import { supabase } from '@/config/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import Avatar from '@/components/atoms/Avatar';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
+import ScreenLayout from '@/components/ScreenLayout';
 
 export default function ConversationsListScreen() {
   const navigation = useNavigation<any>();
@@ -225,24 +225,18 @@ export default function ConversationsListScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Messages</Text>
-        </View>
+      <ScreenLayout variant="detail" title="Messages">
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading conversations...</Text>
         </View>
         <BottomNavBar />
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
-      </View>
+    <ScreenLayout variant="detail" title="Messages">
 
       {/* Pill-shaped search bar */}
       <View style={styles.searchContainer}>
@@ -295,7 +289,7 @@ export default function ConversationsListScreen() {
         />
       )}
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

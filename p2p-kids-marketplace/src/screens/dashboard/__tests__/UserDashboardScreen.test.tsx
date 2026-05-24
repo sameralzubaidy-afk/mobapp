@@ -163,7 +163,7 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
   });
 
   it('opens sell sheet when Sell tile is pressed', () => {
-    const { getByTestId, queryByTestId } = render(<UserDashboardScreen />);
+    const { getByTestId } = render(<UserDashboardScreen />);
     fireEvent.press(getByTestId('action-tile-sell'));
     // Sell opens a modal, NOT a navigate call
     expect(mockNavigate).not.toHaveBeenCalledWith('ItemCreate');
@@ -201,13 +201,10 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
   });
 
   // ── SP Wallet Card ───────────────────────────────────────────────────────────
-  it('shows Swap Points Wallet card for subscribers', () => {
+  it('shows subscriber SP unlock badge on subscription card', () => {
     const { getByText } = render(<UserDashboardScreen />);
-    expect(getByText('Swap Points Wallet')).toBeTruthy();
-    expect(getByText('Available')).toBeTruthy();
-    expect(getByText('Pending')).toBeTruthy();
-    expect(getByText('Lifetime Earned')).toBeTruthy();
-    expect(getByText('Lifetime Spent')).toBeTruthy();
+    expect(getByText('Subscription')).toBeTruthy();
+    expect(getByText('SP Wallet Unlocked')).toBeTruthy();
   });
 
   it('does NOT show Swap Points Wallet card for free users', () => {
@@ -216,10 +213,9 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
     expect(queryByText('Swap Points Wallet')).toBeNull();
   });
 
-  it('shows correct lifetime stats', () => {
+  it('shows current SP strip value for subscribers', () => {
     const { getByText } = render(<UserDashboardScreen />);
-    expect(getByText('2351')).toBeTruthy(); // lifetime_earned
-    expect(getByText('160')).toBeTruthy();  // lifetime_spent
+    expect(getByText('2191 SP')).toBeTruthy();
   });
 
   // ── Subscription Card ────────────────────────────────────────────────────────
@@ -244,12 +240,12 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
   // ── View All Trades CTA ──────────────────────────────────────────────────────
   it('renders View All Trades button', () => {
     const { getByText } = render(<UserDashboardScreen />);
-    expect(getByText('View All Trades')).toBeTruthy();
+    expect(getByText('View All →')).toBeTruthy();
   });
 
   it('navigates to TradeList when View All Trades is pressed', () => {
     const { getByText } = render(<UserDashboardScreen />);
-    fireEvent.press(getByText('View All Trades'));
+    fireEvent.press(getByText('View All →'));
     expect(mockNavigate).toHaveBeenCalledWith('TradeList');
   });
 
@@ -265,7 +261,7 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
       loading: false,
       refetch: jest.fn(),
     });
-    const { UNSAFE_getByType } = render(<UserDashboardScreen />);
+    render(<UserDashboardScreen />);
     // LoadingSpinner is mocked as null, so just verify no crash
     expect(true).toBe(true);
   });

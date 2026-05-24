@@ -2,7 +2,7 @@
 // MODULE-11 SUB-015: Full subscription payment flow screen
 
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Sparkle, Coins, Gift, Lightning, CreditCard, CheckCircle } from 'phosphor-react-native';
@@ -18,6 +18,7 @@ import {
 } from '@/services/adminConfig';
 import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
 import { useAuth } from '@/hooks/useAuth';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -107,7 +108,7 @@ export function SubscriptionPaymentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <ScreenLayout variant="detail" title="Payment" showBell={false}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
@@ -235,7 +236,7 @@ export function SubscriptionPaymentScreen() {
           subscription settings. No refunds for partial months.
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

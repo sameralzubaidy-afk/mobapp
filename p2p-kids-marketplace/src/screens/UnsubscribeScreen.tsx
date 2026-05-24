@@ -12,13 +12,13 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  SafeAreaView
+  TouchableOpacity
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { supabase } from '../config/supabase';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type RootStackParamList = {
   Unsubscribe: { token: string };
@@ -81,18 +81,18 @@ export default function UnsubscribeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Unsubscribe">
         <View style={styles.content}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Processing your request...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (success) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Unsubscribe">
         <View style={styles.content}>
           <View style={styles.successIcon}>
             <Text style={styles.successIconText}>✓</Text>
@@ -110,12 +110,12 @@ export default function UnsubscribeScreen() {
             <Text style={styles.buttonText}>Go to Home</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Unsubscribe">
       <View style={styles.content}>
         <View style={styles.errorIcon}>
           <Text style={styles.errorIconText}>✕</Text>
@@ -128,7 +128,7 @@ export default function UnsubscribeScreen() {
           <Text style={styles.buttonText}>Go to Home</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

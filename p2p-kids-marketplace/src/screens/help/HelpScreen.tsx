@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   Alert
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, ChartLine, CurrencyCircleDollar } from 'phosphor-react-native';
 import { getPublishedSections } from '../../services/educationContentService';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
@@ -19,6 +18,7 @@ import type { EducationSection } from '../../types/education';
 import { EducationSectionAccordion } from '../../components/education/EducationSectionAccordion';
 import { SPCalculator } from '../../components/education/SPCalculator';
 import { BonusCategoriesList } from '../../components/education/BonusCategoriesList';
+import ScreenLayout from '@/components/ScreenLayout';
 
 interface HelpScreenProps {
   navigation: any;
@@ -102,24 +102,8 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']} testID="help-screen">
+    <ScreenLayout variant="detail" title="Help">
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            testID="help-back-button"
-          >
-            <ArrowLeft size={24} color="#1A1A1A" weight="bold" />
-          </TouchableOpacity>
-          <Text style={styles.title}>How Trading Works</Text>
-          <View style={styles.backButton} />
-        </View>
-
         {/* Content */}
         <ScrollView
           ref={scrollViewRef}
@@ -195,7 +179,7 @@ export default function HelpScreen({ navigation, route }: HelpScreenProps) {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

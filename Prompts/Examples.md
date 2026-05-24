@@ -57,32 +57,36 @@ My Example 1
 
 
 
-
-### TASK FLOW-21: ID Verification
+### TASK FLOW-26: Misc / Edge-Case Screens
 
 I’m working on the MODULE-15.1-UI-redesign.md tasks
 Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
-Tasks: ### TASK FLOW-21: ID Verification
+Tasks: ### TASK FLOW-26: Misc / Edge-Case Screens
 
 scope 
-Redesign the ID Verification screen. Users submit a government ID photo to unlock higher trust levels. The screen has three visual states — Unverified, Pending Review, and Verified — each with a distinct color treatment.
+Redesign 6 utility/edge-case screens: offline error, empty states (search, generic), loading screen, action success/failure confirmations. These screens must feel consistent with the design system even though they are secondary flows.
 
 #### Scope — Files to Modify
 
 | # | Screen | File | Change Type |
 |---|--------|------|-------------|
-| 1 | ID Verification | `src/screens/verification/IDVerificationScreen.tsx` | Restyle only |
+| 1 | Offline / No Connection | `src/screens/error/OfflineScreen.tsx` | Restyle only |
+| 2 | Empty Search Results | `src/components/EmptySearchState.tsx` | Restyle only |
+| 3 | Generic Empty State | `src/components/EmptyState.tsx` | Restyle only |
+| 4 | Loading Screen | `src/screens/LoadingScreen.tsx` | Restyle only |
+| 5 | Action Success Screen | `src/screens/feedback/SuccessScreen.tsx` | Restyle only |
+| 6 | Action Failure Screen | `src/screens/feedback/ErrorScreen.tsx` | Restyle only |
 
+#### ✅ Acceptance Criteria — FLOW-26 (Visual Only)
 
-#### ✅ Acceptance Criteria — FLOW-21 (Visual Only)
+- [ ] Offline screen: `WifiX` (64px, `#E0E0E0`), green "Try Again" pill with `ArrowCounterClockwise` icon
+- [ ] Empty search: `MagnifyingGlassSlash` (56px, `#E0E0E0`), 17px semibold title
+- [ ] Generic EmptyState: accepts icon/title/subtitle/action as props, no hardcoded icons
+- [ ] Loading screen: `ActivityIndicator` color `#5DBB8E`, white background
+- [ ] Success screen: `CheckCircle` (72px, `#5DBB8E`, fill), green CTA pill
+- [ ] Error screen: `XCircle` (72px, `#E85D75`, fill), green "Try Again" pill, gray "Go Back" text link
+- [ ] All screens: white `#FFFFFF` background, centered layout, 24px horizontal padding
 
-- [ ] Unverified state: `IdentificationCard` (64px, `#6B6B6B`), dashed upload area, submit button gray when no file
-- [ ] Upload area: dashed `#E0E0E0` border, 2px, 12px radius, 160px height, `Camera` (28px, `#5DBB8E`) centered
-- [ ] Submit button becomes `#5DBB8E` when a file is selected (preserve the existing disabled state logic)
-- [ ] Pending state: `Clock` (64px, `#F59E0B`), gold status pill (`#FEF3C7` bg, `#F59E0B` text)
-- [ ] Verified state: `CheckCircle` (64px, `#5DBB8E`), green heading, green status pill (`#E8F5F0` bg)
-- [ ] All 3 states are centered layout (`alignItems: 'center'`)
-- [ ] Zero Ionicons/MaterialIcons imports in IDVerificationScreen.tsx
 
 i want you to 
 
@@ -113,6 +117,8 @@ MODULE-15.1-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi
 15. update flow-registry.md if needed so that i keep this file up to date.
 16.  I am using ISO and Andriod simlators I do not use phsyical devices please consider this for manaul verfication.
 17. Testing Requirements (All Mandatory)
+18. do not break any working function 
+19. do not hardcode any value, fetch form db where is applicable. 
 
 > ⚠️ RULE 1: Tests required regardless of change size. No exceptions.
 

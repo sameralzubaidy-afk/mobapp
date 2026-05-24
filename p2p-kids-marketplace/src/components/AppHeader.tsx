@@ -1,0 +1,260 @@
+/**
+ * File: p2p-kids-marketplace/src/components/AppHeader.tsx
+ * MODULE-15.1-UI-REDESIGN: App-wide header component
+ *
+ * Two variants:
+ *  - 'main'   : Full greeting header (Home/Dashboard). Avatar + "Good [time], [Name]" on left,
+ *               Bell + Profile + optional Logout on right.
+ *  - 'detail' : Slim back-button header (all other authenticated screens).
+ *               ← Back on left, title in centre, optional Bell on right.
+ *
+ * Usage:
+ *   // In ScreenLayout (preferred) — do not use AppHeader directly
+ *   <ScreenLayout variant="main" showLogout>…</ScreenLayout>
+ *   <ScreenLayout variant="detail" title="Settings">…</ScreenLayout>
+ */
+
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Bell, User, SignOut, CaretLeft } from 'phosphor-react-native';
+
+import { useAuth } from '@/hooks/useAuth';
+import { useNotificationBadge } from '@/hooks/useNotificationBadge';
+import Avatar from '@/components/atoms/Avatar';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface AppHeaderProps {
+  /** 'main': greeting header (Home). 'detail': back + title + bell (all other screens). */
+  variant: 'main' | 'detail';
+  /** Screen title shown in the detail variant centre */
+  title?: string;
+  /**
+   * Whether to show the notification bell.
+   * Default: true. Pass false on checkout / payment screens (CartScreen,
+   * SubscriptionPaymentScreen, RequestPayoutScreen).
+   */
+  showBell?: boolean;
+  /**
+   * Whether to show the logout button.
+   * Default: false. Pass true ONLY on the Home (UserDashboard) screen.
+   */
+  showLogout?: boolean;
+  /** Override the back-button press handler. Default: navigation.goBack(). */
+  onBack?: () => void;
+}
+
+// ─── Greeting helper ─────────────────────────────────────────────────────────
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+export default function AppHeader({
+  variant,
+  title,
+  showBell = true,
+  showLogout = false,
+  onBack,
+}: AppHeaderProps) {
+  const navigation = useNavigation<any>();
+  const { session, logout } = useAuth();
+
+  const userId = session?.user?.id;
+  const { unreadCount } = useNotificationBadge(userId);
+
+  const displayName =
+    (session?.user as any)?.display_name ||
+    session?.user?.email?.split('@')[0] ||
+    'User';
+
+  const handleBack = onBack ?? (() => navigation.goBack());
+
+  // ── Shared bell button ────────────────────────────────────────────────────
+  const renderBell = () => (
+    <TouchableOpacity
+      style={styles.headerActionBtn}
+      onPress={() => navigation.navigate('Notifications')}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityLabel="Notifications"
+      testID="header-notifications-btn"
+    >
+      <Bell size={22} color="#1A1A1A" weight="bold" />
+      {unreadCount > 0 && (
+        <View style={styles.unreadBadge}>
+          <Text style={styles.unreadBadgeText}>
+            {unreadCount > 99 ? '99+' : String(unreadCount)}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  // ── Main variant (Home / UserDashboard) ──────────────────────────────────
+  if (variant === 'main') {
+    return (
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.headerLeft}
+          onPress={() => navigation.navigate('Profile')}
+          activeOpacity={0.8}
+          accessibilityLabel="View profile"
+        >
+          <Avatar
+            imageUrl={(session?.user as any)?.avatar_url}
+            size={42}
+            name={displayName}
+          />
+          <View style={styles.headerGreeting}>
+            <Text style={styles.greetingLine}>{getGreeting()},</Text>
+            <Text style={styles.displayNameLine} numberOfLines={1}>
+              {displayName}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.headerActions}>
+          {showBell && renderBell()}
+
+          <TouchableOpacity
+            style={styles.headerActionBtn}
+            onPress={() => navigation.navigate('Profile')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Profile"
+          >
+            <User size={22} color="#1A1A1A" weight="regular" />
+          </TouchableOpacity>
+
+          {showLogout && (
+            <TouchableOpacity
+              style={styles.headerActionBtn}
+              onPress={logout}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Sign out"
+            >
+              <SignOut size={22} color="#E85D75" weight="regular" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // ── Detail variant (all other authenticated screens) ─────────────────────
+  return (
+    <View style={styles.header}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={handleBack}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityLabel="Go back"
+        accessibilityRole="button"
+      >
+        <CaretLeft size={24} color="#1A1A1A" weight="regular" />
+      </TouchableOpacity>
+
+      <Text style={styles.detailTitle} numberOfLines={1}>
+        {title ?? ''}
+      </Text>
+
+      {/* Right placeholder keeps title centred whether bell is shown or not */}
+      {showBell ? renderBell() : <View style={styles.headerActionBtn} />}
+    </View>
+  );
+}
+
+// ─── Styles (pixel-matched to UserDashboardScreen header) ────────────────────
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F4F4F4',
+  },
+
+  // ── main variant ──────────────────────────────────────────────────────────
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerGreeting: {
+    marginLeft: 10,
+    flex: 1,
+  },
+  greetingLine: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 17,
+  },
+  displayNameLine: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    lineHeight: 22,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  // ── shared icon button ────────────────────────────────────────────────────
+  headerActionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F4F4F4',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unreadBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#E85D75',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  unreadBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 12,
+  },
+
+  // ── detail variant ────────────────────────────────────────────────────────
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F4F4F4',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    marginHorizontal: 8,
+  },
+});

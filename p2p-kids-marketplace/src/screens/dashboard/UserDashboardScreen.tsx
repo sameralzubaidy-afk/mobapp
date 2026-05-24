@@ -13,7 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -21,7 +20,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useSPWallet } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useNotificationBadge } from '@/hooks/useNotificationBadge';
-import { idBadgeService } from '@/services/idBadge';
 import { getActiveDrafts } from '@/services/draftService';
 import { supabase } from '@/config/supabase';
 
@@ -29,8 +27,8 @@ import { supabase } from '@/config/supabase';
 import { ItemDraft } from '@/types/listing';
 
 // Shared components (unchanged — DO NOT MODIFY)
-import Avatar from '../../components/atoms/Avatar';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
+import ScreenLayout from '@/components/ScreenLayout';
 import CategorySelector from '../../components/molecules/CategorySelector';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
 import { ResumeDraftBanner } from '../../components/molecules/ResumeDraftBanner';
@@ -113,8 +111,6 @@ export default function UserDashboardScreen() {
     refetch: refetchSubscription,
   } = useSubscription();
   const wallet = useSPWallet();
-  const { unreadCount, refresh: refreshNotificationBadge } = useNotificationBadge(session?.user?.id);
-
   const subscription = {
     status: subscriptionSummary?.status ?? 'free',
     canSpendSP: subscriptionSummary?.can_spend_sp ?? false,
@@ -123,7 +119,6 @@ export default function UserDashboardScreen() {
   // ── Local state ────────────────────────────────────────────────────────────
   const [refreshing, setRefreshing] = useState(false);
   const [graceEndDate, setGraceEndDate] = useState<string | null>(null);
-  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<ItemDraft[]>([]);
   const [isDraftBannerDismissed, setIsDraftBannerDismissed] = useState(false);
   const [sellSheetVisible, setSellSheetVisible] = useState(false);
@@ -153,16 +148,6 @@ export default function UserDashboardScreen() {
       }
     } catch {
       setGraceEndDate(null);
-    }
-  }, [session?.user?.id]);
-
-  const loadVerificationStatus = useCallback(async () => {
-    if (!session?.user?.id) return;
-    try {
-      const s = await idBadgeService.getVerificationStatus(session.user.id);
-      setVerificationStatus(s?.status || null);
-    } catch {
-      /* no-op */
     }
   }, [session?.user?.id]);
 
@@ -204,7 +189,6 @@ export default function UserDashboardScreen() {
       hasRefreshedRef.current = false;
       return;
     }
-    loadVerificationStatus();
     loadSubscriptionTimeline();
     loadDrafts();
     loadRecentTrade();
@@ -213,11 +197,9 @@ export default function UserDashboardScreen() {
 
   useEffect(() => {
     if (isFocused) {
-      loadVerificationStatus();
       loadSubscriptionTimeline();
-      refreshNotificationBadge().catch(() => {});
     }
-  }, [isFocused, session?.user?.id, refreshNotificationBadge]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isFocused, session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isFocused) return;
@@ -233,33 +215,34 @@ export default function UserDashboardScreen() {
       await Promise.all([
         refreshSession(),
         refetchSubscription(),
-        loadVerificationStatus(),
         loadSubscriptionTimeline(),
         loadRecentTrade(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshSession, refetchSubscription, loadVerificationStatus, loadSubscriptionTimeline, loadRecentTrade]);
+  }, [refreshSession, refetchSubscription, loadSubscriptionTimeline, loadRecentTrade]);
 
-  // ── Render guards (NO logic changes) ──────────────────────────────────────
-  if (isLoading || subscriptionLoading) {
+  // ── Render guards ──────────────────────────────────────────────────────────
+  // Guard skipped during pull-to-refresh (refreshing=true) to prevent blank screen flash.
+  // Old content stays visible behind the RefreshControl spinner.
+  if ((isLoading || subscriptionLoading) && !refreshing) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="main" showLogout style={styles.container}>
         <View style={styles.centerContent}>
           <LoadingSpinner />
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (!session) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="main" showLogout style={styles.container}>
         <View style={styles.centerContent}>
           <Text style={styles.errorText}>No session found. Please log in.</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -295,61 +278,7 @@ export default function UserDashboardScreen() {
 
   // ── JSX ────────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      {/* ── Fixed Header ──────────────────────────────────────────────────── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerLeft}
-          onPress={() => navigation.navigate('Profile')}
-          activeOpacity={0.8}
-        >
-          <Avatar
-            imageUrl={session.user.avatar_url}
-            size={42}
-            verificationStatus={verificationStatus as any}
-            name={displayName}
-          />
-          <View style={styles.headerGreeting}>
-            <Text style={styles.greetingLine}>{getGreeting()},</Text>
-            <Text style={styles.displayNameLine} numberOfLines={1}>
-              {displayName}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.headerActionBtn}
-            onPress={() => navigation.navigate('Notifications' as any)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            testID="header-notifications-btn"
-          >
-            <Bell size={22} color="#1A1A1A" weight="bold" />
-            {unreadCount > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadBadgeText}>
-                  {unreadCount > 99 ? '99+' : String(unreadCount)}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionBtn}
-            onPress={() => navigation.navigate('Profile')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <User size={22} color="#1A1A1A" weight="regular" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerActionBtn}
-            onPress={logout}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <SignOut size={22} color="#E85D75" weight="regular" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
+    <ScreenLayout variant="main" showLogout style={styles.container}>
       {/* ── Scrollable Content ─────────────────────────────────────────────── */}
       <ScrollView
         style={styles.scroll}
@@ -577,7 +506,7 @@ export default function UserDashboardScreen() {
       </Modal>
 
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 
@@ -605,71 +534,6 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: '#E85D75',
-  },
-
-  // ─── Header ────────────────────────────────────────────────────────────────
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F4F4F4',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  headerGreeting: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  greetingLine: {
-    fontSize: 13,
-    color: '#6B6B6B',
-    lineHeight: 17,
-  },
-  displayNameLine: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    lineHeight: 22,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerActionBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F4F4F4',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  unreadBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#E85D75',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  unreadBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    lineHeight: 12,
   },
 
   // ─── Scroll ─────────────────────────────────────────────────────────────────

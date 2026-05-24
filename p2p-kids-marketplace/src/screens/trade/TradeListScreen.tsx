@@ -16,7 +16,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   Pressable,
   Image,
   ScrollView,
@@ -24,8 +23,9 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
-import { Receipt, CaretLeft, ArrowRight } from 'phosphor-react-native';
+import { Receipt, ArrowRight } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type TabType = 'all' | 'buying' | 'selling' | 'offers';
 
@@ -308,15 +308,7 @@ export default function TradeListScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.navHeader}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton} testID="back-button">
-          <CaretLeft size={24} color="#1A1A1A" weight="regular" />
-        </Pressable>
-        <Text style={styles.navTitle}>My Trades</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
+    <ScreenLayout variant="detail" title="My Trades">
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <Pressable
@@ -540,31 +532,12 @@ export default function TradeListScreen({ navigation }: any) {
         )}
       </View>
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFFFF' },
-  navHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  backButton: {
-    padding: 8,
-    marginLeft: -8,
-  },
-  navTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',

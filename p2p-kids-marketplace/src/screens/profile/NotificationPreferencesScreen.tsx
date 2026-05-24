@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   Switch,
   Alert,
   TextInput,
@@ -32,6 +31,7 @@ import {
   NotificationPreference,
   NotificationCategory,
 } from '@/services/notificationPreferences';
+import ScreenLayout from '@/components/ScreenLayout';
 
 const CATEGORY_LABELS: Record<NotificationCategory, string> = {
   subscription: 'Subscription & Membership',
@@ -241,19 +241,8 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <ScreenLayout variant="detail" title="Notification Preferences">
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            testID="back-button"
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
-            <ArrowLeft size={24} color="#1A1A1A" weight="bold" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Notification Settings</Text>
-          <View style={styles.headerSpacer} />
-        </View>
 
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.sectionDescription}>
@@ -434,7 +423,7 @@ export default function NotificationPreferencesScreen({ navigation }: any) {
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

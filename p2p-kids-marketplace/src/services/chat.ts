@@ -173,7 +173,8 @@ export async function getMessages(tradeId: string): Promise<Message[]> {
  */
 export function subscribeToMessages(
   tradeId: string,
-  onMessage: (message: Message) => void
+  onMessage: (message: Message) => void,
+  onMessageUpdate?: (message: Message) => void
 ): RealtimeChannel {
   const channel = supabase
     .channel(`trade:${tradeId}`)
@@ -198,6 +199,34 @@ export function subscribeToMessages(
         } else {
           // Fallback to payload if fetch fails
           onMessage(payload.new as Message);
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `trade_id=eq.${tradeId}`,
+      },
+      async (payload) => {
+        if (!onMessageUpdate) {
+          return;
+        }
+
+        // Fetch full message with sender details for consistent shape.
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*, sender:profiles(first_name:name, profile_image_url:avatar_url)')
+          .eq('id', payload.new.id)
+          .single();
+
+        if (!error && data) {
+          onMessageUpdate(data as Message);
+        } else {
+          // Fallback to payload if relational fetch fails.
+          onMessageUpdate(payload.new as Message);
         }
       }
     )

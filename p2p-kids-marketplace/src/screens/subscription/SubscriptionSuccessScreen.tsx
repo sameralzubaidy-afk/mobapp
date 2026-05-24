@@ -12,7 +12,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   Animated
 } from 'react-native';
@@ -22,6 +21,7 @@ import { Crown } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -83,17 +83,17 @@ export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccess
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea} testID="subscription-success-screen">
+      <ScreenLayout variant="detail" title="Success">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Confirming your subscription...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="subscription-success-screen">
+    <ScreenLayout variant="detail" title="Success">
       <View style={styles.container}>
         {/* Icon - conditional on plan */}
         <Animated.View
@@ -145,7 +145,7 @@ export default function SubscriptionSuccessScreen({ route }: SubscriptionSuccess
           </TouchableOpacity>
         </Animated.View>
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

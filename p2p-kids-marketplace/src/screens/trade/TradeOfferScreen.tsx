@@ -19,7 +19,6 @@ import {
   Alert,
   TextInput,
   Pressable,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Image,
@@ -37,6 +36,7 @@ import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { Modal, LoadingSpinner } from '@/components/ui';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { ArrowsLeftRight, CaretLeft, Coins, ShieldCheck } from 'phosphor-react-native';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeOfferRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -166,12 +166,12 @@ export default function TradeOfferScreen() {
 
   if (loading || !item) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Make Offer">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading offer...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -185,7 +185,7 @@ export default function TradeOfferScreen() {
   const offerAmountCents = itemPriceCents - spDiscountCents;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Make Offer">
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -195,15 +195,6 @@ export default function TradeOfferScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          <Pressable
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            testID="trade-offer-back-button"
-          >
-            <CaretLeft size={20} color="#1A1A1A" weight="bold" />
-            <Text style={styles.backButtonText}>Back</Text>
-          </Pressable>
-
           <Text style={styles.heading}>Make an Offer</Text>
 
           <WalletWarningBanner walletState={(session?.wallet_state ?? 'inactive') as WalletState} />
@@ -314,7 +305,7 @@ export default function TradeOfferScreen() {
         onSecondaryPress={() => setErrorModal({ ...errorModal, visible: false })}
         onClose={() => setErrorModal({ ...errorModal, visible: false })}
       />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

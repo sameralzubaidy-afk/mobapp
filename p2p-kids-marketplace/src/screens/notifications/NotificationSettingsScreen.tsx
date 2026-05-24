@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import {
   ArrowLeft,
@@ -22,6 +21,7 @@ import {
   CreditCard,
   Bell,
 } from 'phosphor-react-native';
+import ScreenLayout from '@/components/ScreenLayout';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ChannelPrefs {
@@ -121,29 +121,7 @@ export default function NotificationSettingsScreen() {
   };
 
   return (
-    <SafeAreaView testID="notification-settings-screen" style={styles.container}>
-
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          testID="back-button"
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <ArrowLeft size={24} color="#1A1A1A" weight="bold" />
-        </TouchableOpacity>
-
-        <Text testID="screen-title" style={styles.headerTitle}>
-          Notification Settings
-        </Text>
-
-        {/* spacer keeps title centred */}
-        <View style={styles.headerSpacer} />
-      </View>
-
+    <ScreenLayout variant="detail" title="Notification Settings">
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -209,7 +187,7 @@ export default function NotificationSettingsScreen() {
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

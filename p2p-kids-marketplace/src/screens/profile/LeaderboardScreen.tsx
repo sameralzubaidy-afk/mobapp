@@ -6,12 +6,12 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  SafeAreaView,
   TouchableOpacity,
   RefreshControl
 } from 'react-native';
 import { getBadgeLeaderboard, LeaderboardEntry } from '../../services/badges';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 const LeaderboardScreen = ({ navigation }: any) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -88,26 +88,20 @@ const LeaderboardScreen = ({ navigation }: any) => {
     );
   };
 
-  if (loading) {
+  // Guard skipped during pull-to-refresh to prevent blank screen flash.
+  if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <ScreenLayout variant="detail" title="Leaderboard">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading leaderboard...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Badge Leaderboard</Text>
-        <View style={{ width: 60 }} />
-      </View>
+    <ScreenLayout variant="detail" title="Leaderboard">
 
       <View style={styles.descriptionContainer}>
         <Text style={styles.description}>Top traders ranked by total badges earned 🏆</Text>
@@ -143,7 +137,7 @@ const LeaderboardScreen = ({ navigation }: any) => {
           }
         />
       )}
-    </SafeAreaView>
+    </ScreenLayout>
   );
 };
 

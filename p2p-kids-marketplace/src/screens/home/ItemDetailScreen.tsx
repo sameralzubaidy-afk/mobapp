@@ -22,7 +22,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Pressable,
-  SafeAreaView,
   Alert,
   StyleSheet,
 } from 'react-native';
@@ -59,6 +58,7 @@ import StarRating from '@/components/molecules/StarRating';
 import Avatar from '@/components/atoms/Avatar';
 import { ListingImage } from '@/components/atoms';
 import { idBadgeService } from '@/services/idBadge';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type ItemDetailScreenRouteProp = RouteProp<RootStackParamList, 'ListingDetail'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -72,7 +72,9 @@ interface SellerRatingInfo {
 export default function ItemDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ItemDetailScreenRouteProp>();
-  const { listing_id } = route.params;
+  const listing_id =
+    (route.params as RootStackParamList['ListingDetail'] & { itemId?: string })?.listing_id ||
+    (route.params as RootStackParamList['ListingDetail'] & { itemId?: string })?.itemId;
   const { user: storeUser } = useUserStore();
   const { session } = useAuth();
   const user = session?.user || storeUser;
@@ -144,7 +146,13 @@ export default function ItemDetailScreen() {
       setLoading(true);
       setError(null);
 
-      console.log('[ItemDetailScreen] 🔄 Loading listing:', listing_id);
+      if (!listing_id || listing_id === 'undefined') {
+        console.error('[ItemDetailScreen] ❌ Missing listing_id route param', route.params);
+        setError('Listing not found');
+        setListing(null);
+        return;
+      }
+
       const data = await getListingById(listing_id);
 
       if (!data) {
@@ -153,16 +161,6 @@ export default function ItemDetailScreen() {
         setListing(null);
         return;
       }
-
-      console.log('[ItemDetailScreen] ✅ Listing loaded:', {
-        id: data.id,
-        title: data.title,
-        hasSeller: !!data.seller,
-        sellerName: data.seller?.name,
-        hasCategory: !!data.category,
-        categoryName: data.category?.name,
-        price: data.price,
-      });
 
       setListing(data);
 
@@ -184,7 +182,6 @@ export default function ItemDetailScreen() {
   const loadBuyerSubscription = async () => {
     try {
       if (!user?.id) {
-        console.log('[ItemDetailScreen] 📊 No user, defaulting to free');
         const [subscriberFee, nonSubscriberFee] = await Promise.all([
           getTransactionFeeSubscriberCents(true),
           getTransactionFeeNonSubscriberCents(true),
@@ -197,28 +194,16 @@ export default function ItemDetailScreen() {
         return;
       }
 
-      console.log('[ItemDetailScreen] 🔄 Loading buyer subscription for:', user.id);
       const [sub, userFeeCents, subscriberFee, nonSubscriberFee] = await Promise.all([
         getSubscriptionSummary(user.id),
         getTransactionFee(user.id),
         getTransactionFeeSubscriberCents(true),
         getTransactionFeeNonSubscriberCents(true),
       ]);
-      console.log('[ItemDetailScreen] ✅ Buyer subscription loaded:', {
-        user_id: user.id,
-        is_subscriber: sub.is_subscriber,
-        can_spend_sp: sub.can_spend_sp,
-        status: sub.status,
-      });
 
       setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
       setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
       setTransactionFeeCents(Number.isFinite(userFeeCents) ? userFeeCents : 0);
-
-      console.log('[ItemDetailScreen] 💰 Fee loaded:', {
-        is_subscriber: sub.is_subscriber,
-        fee_cents: userFeeCents,
-      });
 
       setBuyerIsSubscriber(sub.is_subscriber);
       setBuyerCanSpendSP(sub.can_spend_sp);
@@ -246,7 +231,7 @@ export default function ItemDetailScreen() {
       setCheckingActiveTrade(true);
       // Only block if buyer already has an active offer for this specific item.
       const hasActive = await hasActiveOfferForItem(user.id, String(listing.id));
-      
+
       if (hasActive) {
         setShowDuplicateOfferModal(true);
         return;
@@ -334,7 +319,7 @@ export default function ItemDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <ScreenLayout variant="detail" title="Item Detail">
         <View style={{ flex: 1, flexDirection: 'column' }}>
           <View style={styles.centerContent}>
             <LoadingSpinner />
@@ -342,23 +327,20 @@ export default function ItemDetailScreen() {
           </View>
           <BottomNavBar />
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (error || !listing) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+      <ScreenLayout variant="detail" title="Item Detail">
         <View style={{ flex: 1, flexDirection: 'column' }}>
           <View style={styles.centerContent}>
             <Text style={styles.errorTitle}>❌ {error || 'Listing not found'}</Text>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.backButtonText}>←</Text>
-            </TouchableOpacity>
           </View>
           <BottomNavBar />
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -366,13 +348,6 @@ export default function ItemDetailScreen() {
   const platformFee = transactionFeeCents / 100;
   const totalPrice = listing.price + platformFee;
   const savingsDollars = Math.max(0, (nonSubscriberFeeCents - subscriberFeeCents) / 100);
-
-  console.log('[ItemDetailScreen] 💰 Fee calculation:', {
-    buyerIsSubscriber,
-    platformFee,
-    itemPrice: listing.price,
-    totalPrice,
-  });
 
   // Determine seller name display (TASK-ITEM-DETAILS-001)
   const shouldShowSellerName = hasActiveTrade;
@@ -398,18 +373,9 @@ export default function ItemDetailScreen() {
   const categoryLabel = listing.category?.name || null;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <ScreenLayout variant="detail" title="Item Detail">
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <ScrollView>
-          {/* Header with back button */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.backButtonText}>←</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Item Details</Text>
-            <View style={{ width: 60 }} />
-          </View>
-
           {activeImage ? (
             <View style={styles.imageGallery}>
               <ListingImage
@@ -418,7 +384,7 @@ export default function ItemDetailScreen() {
                 imageStyle={styles.mainImage}
                 resizeMode="contain"
               />
-              
+
               {/* Heart/Share overlay - top right */}
               <View style={styles.imageOverlayIcons}>
                 <Pressable
@@ -434,7 +400,6 @@ export default function ItemDetailScreen() {
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    console.log('[ItemDetailScreen] Share item:', listing.id);
                     trackEvent('share_item', { item_id: listing.id });
                   }}
                   style={styles.overlayIconButton}
@@ -739,7 +704,6 @@ export default function ItemDetailScreen() {
           <Pressable
             style={styles.addToCartButton}
             onPress={() => {
-              console.log('[ItemDetailScreen] Add to cart:', listing.id);
               trackEvent('add_to_cart', { item_id: listing.id });
               Alert.alert('Added to Cart', 'Item added to your cart successfully!');
             }}
@@ -747,7 +711,7 @@ export default function ItemDetailScreen() {
             <ShoppingCart size={20} color="#5DBB8E" weight="regular" />
             <Text style={styles.addToCartButtonText}>Add to Cart</Text>
           </Pressable>
-          
+
           <Pressable
             style={[styles.buyNowButton, (loading || checkingActiveTrade) && { opacity: 0.7 }]}
             onPress={handleMakeOffer}
@@ -780,7 +744,7 @@ export default function ItemDetailScreen() {
 
         <BottomNavBar />
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

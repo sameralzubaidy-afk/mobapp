@@ -19,7 +19,6 @@ import {
   RefreshControl,
   Modal as RNModal,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -50,6 +49,7 @@ import { upsertZipWaitlist } from '@/services/waitlist';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { MagnifyingGlass, FunnelSimple, X } from 'phosphor-react-native';
+import ScreenLayout from '@/components/ScreenLayout';
 
 // Search debounce constants: 200ms for active typing, 0ms for filter/sort changes
 const KEYSTROKE_DEBOUNCE_MS = 200;
@@ -1051,7 +1051,7 @@ export default function DiscoverScreen({ navigation }: Props) {
   // --- MAIN RENDER ---
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Discover">
       {/* Search Input - Static at the top to prevent losing focus on re-renders */}
       {renderHeader()}
 
@@ -1129,7 +1129,7 @@ export default function DiscoverScreen({ navigation }: Props) {
       </RNModal>
 
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

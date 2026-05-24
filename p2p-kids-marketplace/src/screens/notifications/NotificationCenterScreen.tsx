@@ -13,7 +13,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -23,8 +22,22 @@ import {
   Bell,
   Gift,
   Trophy,
+  IdentificationCard,
   Notification,
   ArrowLeft,
+  Handshake,
+  ChatCircle,
+  Tag,
+  LockOpen,
+  Lock,
+  Crown,
+  StarFour,
+  TrendUp,
+  Confetti,
+  CheckCircle,
+  XCircle,
+  Hourglass,
+  Package,
 } from 'phosphor-react-native';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -43,6 +56,7 @@ import {
   type DeepLinkTarget,
   type NotificationDeepLinkData,
 } from '@/services/deepLink';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -55,48 +69,200 @@ interface NotificationIconConfig {
   iconColor: string;
 }
 
+// ── Color palette ──────────────────────────────────────────────────────────
+const COLORS = {
+  green:  { backgroundColor: '#E8F5F0', iconColor: '#5DBB8E' },  // positive / active / new
+  red:    { backgroundColor: '#FEE2E2', iconColor: '#E85D75' },  // negative / rejected / failed
+  amber:  { backgroundColor: '#FEF3C7', iconColor: '#F59E0B' },  // warning / pending
+  gold:   { backgroundColor: '#FEF3C7', iconColor: '#D97706' },  // rewards / achievements
+  purple: { backgroundColor: '#EDE9FE', iconColor: '#7C3AED' },  // subscription / premium
+  grey:   { backgroundColor: '#F7F7F7', iconColor: '#6B6B6B' },  // neutral / system
+};
+
+// ── Type-level icon map (checked FIRST, highest specificity) ──────────────
+const TYPE_ICONS: Record<string, NotificationIconConfig> = {
+  // ── Trade ──
+  trade_request: {
+    Icon: ShoppingCart,
+    ...COLORS.green,
+  },
+  trade_accepted: {
+    Icon: Handshake,
+    ...COLORS.green,
+  },
+  trade_rejected: {
+    Icon: XCircle,
+    ...COLORS.red,
+  },
+  trade_declined: {
+    Icon: XCircle,
+    ...COLORS.red,
+  },
+  trade_cancelled: {
+    Icon: XCircle,
+    ...COLORS.red,
+  },
+  trade_completed: {
+    Icon: Confetti,
+    ...COLORS.green,
+  },
+  trade_completion_requested: {
+    Icon: Hourglass,
+    ...COLORS.amber,
+  },
+  trade_message: {
+    Icon: ChatCircle,
+    ...COLORS.green,
+  },
+
+  // ── Listings ──
+  listing_approved: {
+    Icon: Tag,
+    ...COLORS.green,
+  },
+  listing_rejected: {
+    Icon: Tag,
+    ...COLORS.red,
+  },
+  listing_expired: {
+    Icon: Tag,
+    ...COLORS.amber,
+  },
+
+  // ── ID Verification (use app green palette, not corporate blue) ──
+  id_badge_submission: {
+    Icon: IdentificationCard,
+    ...COLORS.amber,
+  },
+  id_verification_submission: {
+    Icon: IdentificationCard,
+    ...COLORS.amber,
+  },
+  id_badge_approved: {
+    Icon: IdentificationCard,
+    ...COLORS.green,
+  },
+  id_verification_approved: {
+    Icon: IdentificationCard,
+    ...COLORS.green,
+  },
+  id_badge_rejected: {
+    Icon: IdentificationCard,
+    ...COLORS.red,
+  },
+  id_verification_rejected: {
+    Icon: IdentificationCard,
+    ...COLORS.red,
+  },
+
+  // ── Swap Points ──
+  sp_earned: {
+    Icon: CurrencyCircleDollar,
+    ...COLORS.green,
+  },
+  sp_spent: {
+    Icon: CurrencyCircleDollar,
+    ...COLORS.amber,
+  },
+  sp_balance_low: {
+    Icon: Warning,
+    ...COLORS.amber,
+  },
+  sp_wallet_frozen: {
+    Icon: Lock,
+    ...COLORS.grey,
+  },
+  sp_released: {
+    Icon: LockOpen,
+    ...COLORS.green,
+  },
+
+  // ── Subscription ──
+  subscription_renewed: {
+    Icon: Crown,
+    ...COLORS.green,
+  },
+  subscription_cancelled: {
+    Icon: Crown,
+    ...COLORS.red,
+  },
+  subscription_reactivated: {
+    Icon: Crown,
+    ...COLORS.purple,
+  },
+  payment_failed: {
+    Icon: Warning,
+    ...COLORS.red,
+  },
+  grace_period_ending: {
+    Icon: Hourglass,
+    ...COLORS.amber,
+  },
+
+  // ── Badges & Leaderboard ──
+  badge_awarded: {
+    Icon: Trophy,
+    ...COLORS.gold,
+  },
+  badge_milestone: {
+    Icon: StarFour,
+    ...COLORS.gold,
+  },
+  leaderboard_rank_up: {
+    Icon: TrendUp,
+    ...COLORS.green,
+  },
+};
+
+// ── Category-level fallbacks ────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, NotificationIconConfig> = {
   trades: {
     Icon: ShoppingCart,
-    backgroundColor: '#E8F5F0', // Whisk green tint
-    iconColor: '#5DBB8E', // Whisk primary green
+    ...COLORS.green,
   },
   sp_events: {
     Icon: CurrencyCircleDollar,
-    backgroundColor: '#FEF3C7', // Whisk gold tint
-    iconColor: '#F59E0B', // Whisk gold
+    ...COLORS.amber,
   },
   safety: {
     Icon: Warning,
-    backgroundColor: '#FEE2E2', // Whisk red tint
-    iconColor: '#E85D75', // Whisk error red
+    ...COLORS.red,
   },
   subscription: {
-    Icon: CurrencyCircleDollar,
-    backgroundColor: '#FEF3C7', // SP-related
-    iconColor: '#F59E0B',
+    Icon: Crown,
+    ...COLORS.purple,
   },
   badges: {
     Icon: Trophy,
-    backgroundColor: '#FEF3C7', // Reward-related
-    iconColor: '#F59E0B',
+    ...COLORS.gold,
   },
   referrals: {
     Icon: Gift,
-    backgroundColor: '#E8F5F0', // Trade-related
-    iconColor: '#5DBB8E',
+    ...COLORS.green,
+  },
+  listings: {
+    Icon: Package,
+    ...COLORS.green,
   },
   system: {
     Icon: Bell,
-    backgroundColor: '#F7F7F7', // Neutral
-    iconColor: '#6B6B6B', // Whisk gray
-  },
-  default: {
-    Icon: Notification,
-    backgroundColor: '#F7F7F7',
-    iconColor: '#6B6B6B',
+    ...COLORS.grey,
   },
 };
+
+const DEFAULT_ICON: NotificationIconConfig = {
+  Icon: Notification,
+  ...COLORS.grey,
+};
+
+export function getNotificationIconConfig(item: UserNotification): NotificationIconConfig {
+  // Type-specific icon takes priority for granular UX
+  if (item.type && TYPE_ICONS[item.type]) {
+    return TYPE_ICONS[item.type];
+  }
+  // Fall back to category icon
+  return CATEGORY_ICONS[item.category] ?? DEFAULT_ICON;
+}
 
 function formatRelativeTime(dateStr: string): string {
   const now = Date.now();
@@ -142,7 +308,7 @@ const NotificationItem = React.memo(function NotificationItem({
   item,
   onPress,
 }: NotificationItemProps) {
-  const iconConfig = CATEGORY_ICONS[item.category] ?? CATEGORY_ICONS.default;
+  const iconConfig = getNotificationIconConfig(item);
   const { Icon, backgroundColor, iconColor } = iconConfig;
   const isUnread = !item.is_read;
 
@@ -174,7 +340,6 @@ const NotificationItem = React.memo(function NotificationItem({
         <Text
           testID={`notification-body-${item.id}`}
           style={styles.notificationBody}
-          numberOfLines={2}
         >
           {item.body}
         </Text>
@@ -366,38 +531,7 @@ export default function NotificationCenterScreen() {
 
   const keyExtractor = useCallback((item: UserNotification) => item.id, []);
 
-  const listHeader = (
-    <View style={styles.header}>
-      <TouchableOpacity
-        testID="back-button"
-        onPress={() => navigation.goBack()}
-        style={styles.backButton}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-      >
-        <ArrowLeft size={24} color="#1A1A1A" weight="regular" />
-      </TouchableOpacity>
-
-      <Text testID="screen-title" style={styles.title}>
-        Notifications
-      </Text>
-
-      {/* MODULE-15.1 FLOW-17: "Mark All Read" as text link in #5DBB8E, NOT a button */}
-      {unreadCount > 0 ? (
-        <TouchableOpacity
-          testID="mark-all-read-link"
-          onPress={handleMarkAllRead}
-          style={styles.markAllLink}
-          accessibilityRole="link"
-          accessibilityLabel="Mark all notifications as read"
-        >
-          <Text style={styles.markAllLinkText}>Mark All Read</Text>
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.markAllPlaceholder} />
-      )}
-    </View>
-  );
+  const listHeader = null;
 
   const listEmpty = !isLoading ? (
     <View testID="empty-state" style={styles.emptyState}>
@@ -416,19 +550,19 @@ export default function NotificationCenterScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Notifications">
         {listHeader}
         <View testID="loading-state" style={styles.loadingContainer}>
           <ActivityIndicator testID="loading-indicator" size="large" color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading notifications…</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Notifications">
         {listHeader}
         <View testID="error-state" style={styles.emptyState}>
           <Warning size={64} color="#E85D75" weight="regular" testID="error-icon" />
@@ -442,12 +576,12 @@ export default function NotificationCenterScreen() {
             <Text style={styles.retryButtonText}>Try again</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView testID="notification-center-screen" style={styles.container}>
+    <ScreenLayout variant="detail" title="Notifications">
       <FlatList
         data={notifications}
         renderItem={renderItem}
@@ -463,7 +597,7 @@ export default function NotificationCenterScreen() {
         showsVerticalScrollIndicator={false}
         testID="notification-list"
       />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

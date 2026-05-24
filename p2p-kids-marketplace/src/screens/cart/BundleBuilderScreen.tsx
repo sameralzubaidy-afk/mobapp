@@ -17,7 +17,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   StyleSheet,
   Image,
   FlatList,
@@ -34,6 +33,7 @@ import {
   Tag,
   X,
 } from 'phosphor-react-native';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type BundleBuilderRouteProp = RouteProp<RootStackParamList, 'BundleBuilder'>;
@@ -184,40 +184,16 @@ export default function BundleBuilderScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Bundle" showBell={false}>
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading items...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={handleClose}
-          style={styles.backButton}
-          testID="bundle-back-button"
-        >
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.heading}>Build a Bundle</Text>
-          <Text style={styles.subtext}>
-            Add more items from {sellerName || 'this seller'} to save
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={handleClose}
-          style={styles.closeButton}
-          testID="bundle-close-button"
-        >
-          <X size={24} color={theme.textColors.primary} weight="bold" />
-        </TouchableOpacity>
-      </View>
-
+    <ScreenLayout variant="detail" title="Bundle">
       {/* Items Grid */}
       {availableItems.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -282,7 +258,7 @@ export default function BundleBuilderScreen() {
           </View>
         </View>
       )}
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

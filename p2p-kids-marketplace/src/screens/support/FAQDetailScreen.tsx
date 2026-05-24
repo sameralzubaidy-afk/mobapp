@@ -3,9 +3,9 @@
 
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Question } from 'phosphor-react-native';
 import { recordFaqVote } from '../../services/faqService';
+import ScreenLayout from '@/components/ScreenLayout';
 
 interface FAQ {
   id: string;
@@ -27,24 +27,8 @@ export default function FAQDetailScreen({ navigation, route }: FAQDetailScreenPr
   const { faq } = route.params;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']} testID="faq-detail-screen">
+    <ScreenLayout variant="detail" title="FAQ">
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            testID="back-button"
-          >
-            <ArrowLeft size={24} color="#1A1A1A" />
-          </TouchableOpacity>
-          <Text style={styles.title}>FAQ</Text>
-          <View style={styles.backButton} />
-        </View>
-
         {/* Content */}
         <ScrollView contentContainerStyle={styles.content} testID="content-scroll">
           {/* Category Badge */}
@@ -107,7 +91,7 @@ export default function FAQDetailScreen({ navigation, route }: FAQDetailScreenPr
           </View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

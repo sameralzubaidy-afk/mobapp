@@ -97,6 +97,12 @@ const createBuilder = (table: string) => {
       filters.push({ type: 'eq', column, value });
       return builder;
     },
+    not(column: string, _operator: string, value: any) {
+      if (_operator === 'is') {
+        filters.push({ type: 'eq', column, value: !value });
+      }
+      return builder;
+    },
     in(column: string, value: any[]) {
       filters.push({ type: 'in', column, value });
       return builder;
@@ -120,12 +126,6 @@ const createBuilder = (table: string) => {
   };
 
   return builder;
-};
-
-const resetMockDb = () => {
-  mockDb.reviews = [];
-  mockDb.profiles = [...initialProfiles];
-  reviewCounter = 0;
 };
 
 jest.mock('@/services/supabase', () => ({

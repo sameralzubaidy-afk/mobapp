@@ -98,7 +98,7 @@ describe('NotificationCenterScreen', () => {
 
   // ── Unread indicator ──────────────────────────────────────────────────────
 
-  it('shows unread dot only for unread notifications', async () => {
+  it('renders unread and read notifications without unread dot badges', async () => {
     const notifications = [
       makeNotification('n1', { is_read: false }), // unread
       makeNotification('n2', { is_read: true }), // read
@@ -107,7 +107,9 @@ describe('NotificationCenterScreen', () => {
 
     const { getByTestId, queryByTestId } = render(<NotificationCenterScreen />);
     await waitFor(() => {
-      expect(getByTestId('unread-indicator-n1')).toBeTruthy();
+      expect(getByTestId('notification-item-n1')).toBeTruthy();
+      expect(getByTestId('notification-item-n2')).toBeTruthy();
+      expect(queryByTestId('unread-indicator-n1')).toBeNull();
       expect(queryByTestId('unread-indicator-n2')).toBeNull();
     });
   });
@@ -137,7 +139,7 @@ describe('NotificationCenterScreen', () => {
     mockGetUserNotifications.mockResolvedValue({ success: true, data: notifications });
 
     const { getByTestId } = render(<NotificationCenterScreen />);
-    await waitFor(() => expect(getByTestId('mark-all-read-button')).toBeTruthy());
+    await waitFor(() => expect(getByTestId('mark-all-read-link')).toBeTruthy());
   });
 
   it('hides "Mark all read" button when all are read', async () => {
@@ -145,7 +147,7 @@ describe('NotificationCenterScreen', () => {
     mockGetUserNotifications.mockResolvedValue({ success: true, data: notifications });
 
     const { queryByTestId } = render(<NotificationCenterScreen />);
-    await waitFor(() => expect(queryByTestId('mark-all-read-button')).toBeNull());
+    await waitFor(() => expect(queryByTestId('mark-all-read-link')).toBeNull());
   });
 
   it('marks all notifications as read when button pressed', async () => {
@@ -157,16 +159,15 @@ describe('NotificationCenterScreen', () => {
     mockMarkAllNotificationsAsRead.mockResolvedValue({ success: true, updated_count: 2 });
 
     const { getByTestId, queryByTestId } = render(<NotificationCenterScreen />);
-    await waitFor(() => expect(getByTestId('mark-all-read-button')).toBeTruthy());
+    await waitFor(() => expect(getByTestId('mark-all-read-link')).toBeTruthy());
 
     await act(async () => {
-      fireEvent.press(getByTestId('mark-all-read-button'));
+      fireEvent.press(getByTestId('mark-all-read-link'));
     });
 
     expect(mockMarkAllNotificationsAsRead).toHaveBeenCalledWith('user-123');
     await waitFor(() => {
-      expect(queryByTestId('unread-indicator-n1')).toBeNull();
-      expect(queryByTestId('unread-indicator-n2')).toBeNull();
+      expect(queryByTestId('mark-all-read-link')).toBeNull();
     });
   });
 
@@ -294,6 +295,27 @@ describe('NotificationCenterScreen', () => {
     expect(mockNavigation.navigate).toHaveBeenCalledWith('ListingDetail', {
       listing_id: 'listing-789',
     });
+  });
+
+  it('navigates to IDVerificationUpload for id_badge_approved notifications', async () => {
+    const notifications = [
+      makeNotification('n1', {
+        type: 'id_badge_approved',
+        data: { requestId: 'req-123', status: 'approved' },
+        is_read: false,
+      }),
+    ];
+    mockGetUserNotifications.mockResolvedValue({ success: true, data: notifications });
+    mockMarkNotificationAsRead.mockResolvedValue({ success: true });
+
+    const { getByTestId } = render(<NotificationCenterScreen />);
+    await waitFor(() => expect(getByTestId('notification-item-n1')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(getByTestId('notification-item-n1'));
+    });
+
+    expect(mockNavigation.navigate).toHaveBeenCalledWith('IDVerificationUpload', {});
   });
 
   // ── Screen title ──────────────────────────────────────────────────────────

@@ -13,10 +13,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { EnvelopeSimple, ArrowLeft } from 'phosphor-react-native';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
+import ScreenLayout from '@/components/ScreenLayout';
 
 interface ContactSupportScreenProps {
   navigation: any;
@@ -31,20 +31,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
   // Auth gate: user must be logged in to submit a support message
   if (!session) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <ArrowLeft size={24} color="#1A1A1A" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Contact Support</Text>
-          <View style={styles.backButton} />
-        </View>
+      <ScreenLayout variant="detail" title="Contact Support">
         <View style={styles.authGate}>
           <Text style={styles.authGateText}>
             Please log in to contact support.
@@ -54,7 +41,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
             <Text style={styles.emailHighlight}>support@passitup.com</Text>
           </Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -102,28 +89,12 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']} testID="contact-support-screen">
+    <ScreenLayout variant="detail" title="Contact Support">
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            testID="back-button"
-          >
-            <ArrowLeft size={24} color="#1A1A1A" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Contact Support</Text>
-          <View style={styles.backButton} />
-        </View>
-
         {/* Form Content */}
         <ScrollView
           contentContainerStyle={styles.content}
@@ -200,7 +171,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

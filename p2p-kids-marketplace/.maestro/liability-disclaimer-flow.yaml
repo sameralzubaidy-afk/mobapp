@@ -1,4 +1,5 @@
-# FLOW: Liability Disclaimer | TASK: SAFETY-012 | States covered: View disclaimer screen, Accept disclaimer during trade, Disclaimer in Settings
+# FLOW: Liability Disclaimer | TASK: SAFETY-012 | MODULE-15.1 FLOW-25 (Restyle)
+# Covers: View disclaimer screen (restyled), accept disclaimer during trade, disclaimer in settings
 
 appId: com.kidsp2p.marketplace
 ---
@@ -28,17 +29,17 @@ appId: com.kidsp2p.marketplace
 - assertVisible: "Liability Disclaimer"
 - waitForAnimationToEnd
 
-# Should display disclaimer content
-- assertVisible: "Version"
-- assertVisible: "Effective"
+# FLOW-25 RESTYLE: WarningCircle icon and updated typography (no version badge, no notice box)
+# Verify header title present and back button
+- assertVisible: "Liability Disclaimer"
 
-# Scroll to bottom of disclaimer
+# Scroll to see content
 - scrollUntilVisible:
     element:
       text: ".*disclaimer.*"
     direction: DOWN
 
-# Back button should work
+# Back button should work (CaretLeft replacing Ionicons arrow-back)
 - tapOn:
     id: "back-button"
 - assertVisible: "Settings"

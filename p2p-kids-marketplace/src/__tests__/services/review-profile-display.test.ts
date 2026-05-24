@@ -68,6 +68,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
       const mockReviewsQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
       };
 
@@ -107,6 +108,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
       const mockQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
       };
 
@@ -126,7 +128,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
 
       const result = await getUserReviews('user-1');
 
-      expect(mockQuery.eq).toHaveBeenCalledWith('is_hidden', false);
+      expect(mockQuery.not).toHaveBeenCalledWith('is_hidden', 'is', true);
       expect(result.success).toBe(true);
     });
 
@@ -134,6 +136,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
       const mockQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
 
@@ -175,6 +178,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
       const mockReviewsQuery = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
       };
 
@@ -208,7 +212,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
       supabase.from.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
+            not: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
           }),
         }),
       });
@@ -233,7 +237,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
       supabase.from.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
+            not: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
           }),
         }),
       });
@@ -254,7 +258,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
       supabase.from.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+            not: jest.fn().mockResolvedValue({ data: [], error: null }),
           }),
         }),
       });
@@ -279,7 +283,7 @@ describe('REVIEW-005: Profile Rating Display', () => {
       supabase.from.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
+            not: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
           }),
         }),
       });
@@ -292,8 +296,9 @@ describe('REVIEW-005: Profile Rating Display', () => {
     });
 
     it('should exclude hidden reviews from stats', async () => {
+      const mockNot = jest.fn().mockResolvedValue({ data: [], error: null });
       const mockEq1 = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+        not: mockNot,
       });
       const mockSelect = jest.fn().mockReturnValue({
         eq: mockEq1,
@@ -307,13 +312,14 @@ describe('REVIEW-005: Profile Rating Display', () => {
 
       expect(mockSelect).toHaveBeenCalledWith('rating');
       expect(mockEq1).toHaveBeenCalledWith('reviewee_id', 'user-1');
+      expect(mockNot).toHaveBeenCalledWith('is_hidden', 'is', true);
     });
 
     it('should handle database errors gracefully', async () => {
       supabase.from.mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({
+            not: jest.fn().mockResolvedValue({
               data: null,
               error: { message: 'Database error' },
             }),

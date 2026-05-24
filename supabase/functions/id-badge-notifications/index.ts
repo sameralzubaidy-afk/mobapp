@@ -78,11 +78,28 @@ serve(async (req: Request) => {
 
     const isApproved = type === 'id_badge_approved' || type === 'approved';
     const firstName = idRequest?.first_name || 'there';
-    
-    // Convert snake_case reason to a more readable format
-    const readableReason = rejectionReason 
-      ? rejectionReason.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
-      : 'Unclear photo';
+
+    const rawRejectionReason =
+      !isApproved && typeof rejectionReason === 'string' && rejectionReason.trim().length > 0
+        ? rejectionReason.trim()
+        : !isApproved && typeof idRequest?.rejection_reason === 'string' && idRequest.rejection_reason.trim().length > 0
+          ? idRequest.rejection_reason.trim()
+          : null;
+
+    const resolvedAdminNotes =
+      !isApproved && typeof adminNotes === 'string' && adminNotes.trim().length > 0
+        ? adminNotes.trim()
+        : !isApproved && typeof idRequest?.rejection_notes === 'string' && idRequest.rejection_notes.trim().length > 0
+          ? idRequest.rejection_notes.trim()
+          : null;
+
+    // Convert snake_case reason to a human-readable string for user-facing notifications.
+    const readableReason = rawRejectionReason
+      ? rawRejectionReason
+          .split('_')
+          .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ')
+      : 'No reason provided';
 
     // 2. Format Notification Content
     // For Title, we prefer the email subject or a default
@@ -90,12 +107,30 @@ serve(async (req: Request) => {
                   (isApproved ? 'ID Verification Approved! 🎉' : 'ID Verification Request');
     
     // For In-App, use the short versions
-    let inAppBody = getMsg(isApproved ? 'in_app_approved_notification' : 'in_app_rejected_notification') || 
-                      (isApproved ? 'Great! Your ID has been verified.' : 'Your ID verification was not approved.');
+    let inAppBody = getMsg(isApproved ? 'in_app_approved_notification' : 'in_app_rejected_notification') ||
+      (isApproved ? 'Great! Your ID has been verified.' : 'Your ID verification was not approved.');
 
-    // Variable replacement for inAppBody if needed (though usually simple)
     if (!isApproved) {
-      inAppBody = inAppBody.replace('{rejection_reason}', readableReason);
+      const hasReasonToken = inAppBody.includes('{rejection_reason}');
+      const hasAdminNotesToken = inAppBody.includes('{admin_notes}');
+
+      inAppBody = inAppBody
+        .replace('{rejection_reason}', readableReason)
+        .replace('{admin_notes}', resolvedAdminNotes || '');
+
+      // Guarantee the reason is visible even if DB template is generic.
+      if (!hasReasonToken && !/reason\s*:/i.test(inAppBody)) {
+        inAppBody = `${inAppBody} Reason: ${readableReason}.`;
+      }
+
+      // Guarantee admin notes are visible when provided.
+      if (
+        resolvedAdminNotes &&
+        !hasAdminNotesToken &&
+        !/(additional\s+)?notes?\s*:/i.test(inAppBody)
+      ) {
+        inAppBody = `${inAppBody} Note: ${resolvedAdminNotes}.`;
+      }
     }
 
     // 3. Insert User Notification record
@@ -111,6 +146,8 @@ serve(async (req: Request) => {
         data: {
           requestId: requestId,
           status: isApproved ? 'approved' : 'rejected',
+          rejectionReason: !isApproved ? readableReason : undefined,
+          adminNotes: !isApproved ? resolvedAdminNotes : undefined,
           screen: isApproved ? 'Profile' : 'IDVerificationUpload'
         }
       });
@@ -134,7 +171,7 @@ serve(async (req: Request) => {
       emailBody = emailBody.replace('{first_name}', firstName);
       if (!isApproved) {
         emailBody = emailBody.replace('{rejection_reason}', readableReason);
-        emailBody = emailBody.replace('{admin_notes}', adminNotes || 'None provided');
+        emailBody = emailBody.replace('{admin_notes}', resolvedAdminNotes || 'None provided');
       }
 
       try {
@@ -153,8 +190,8 @@ serve(async (req: Request) => {
               data: {
                 subject: emailSubject,
                 body: emailBody,
-                rejectionReason: !isApproved ? rejectionReason : undefined,
-                adminNotes: !isApproved ? adminNotes : undefined
+                rejectionReason: !isApproved ? readableReason : undefined,
+                adminNotes: !isApproved ? resolvedAdminNotes : undefined
               }
             })
           }
@@ -188,6 +225,8 @@ serve(async (req: Request) => {
               data: {
                 type: type,
                 requestId: requestId,
+                rejectionReason: !isApproved ? readableReason : undefined,
+                adminNotes: !isApproved ? resolvedAdminNotes : undefined,
                 screen: isApproved ? 'Profile' : 'IDVerificationUpload'
               }
             })

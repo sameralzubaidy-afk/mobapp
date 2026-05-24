@@ -21,7 +21,6 @@ import {
   Alert,
   StyleSheet,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   Modal
 } from 'react-native';
@@ -34,6 +33,7 @@ import { Listing, ListingSummary, ItemDraft } from '../../types/listing';
 import { ListingImage } from '../../components/atoms';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type StatusFilter = 'all' | 'pending' | 'needs_edits' | 'rejected' | 'available' | 'sold';
 type TabType = 'listings' | 'drafts';
@@ -344,19 +344,20 @@ export default function MyListingsScreen({ navigation }: any) {
     );
   };
 
-  if (loading) {
+  // Guard skipped during pull-to-refresh to prevent blank screen flash.
+  if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <ScreenLayout variant="detail" title="My Listings">
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading your listings...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <ScreenLayout variant="detail" title="My Listings">
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <View style={styles.container}>
           <View style={styles.screenHeader}>
@@ -613,7 +614,7 @@ export default function MyListingsScreen({ navigation }: any) {
           <BottomNavBar />
         </View>
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

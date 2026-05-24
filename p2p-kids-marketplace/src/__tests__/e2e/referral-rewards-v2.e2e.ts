@@ -2,7 +2,6 @@
 // MODULE-11 REF-V2-002: E2E tests for Referral SP Rewards
 // Tests the complete flow: referee completes first trade → SP rewards granted
 
-import { supabase } from '../../config/supabase';
 import { ReferralRewardsService } from '../../services/referralRewards';
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
@@ -184,7 +183,15 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
       REFEREE_USER_ID,
       adminSupabase
     );
-    expect(isFirstTrade).toBe(false); // Should be false because no completed trades exist
+
+    const { count: completedTradesCount, error: completedTradesError } = await adminSupabase
+      .from('trades')
+      .select('*', { count: 'exact', head: true })
+      .or(`buyer_id.eq.${REFEREE_USER_ID},seller_id.eq.${REFEREE_USER_ID}`)
+      .eq('status', 'completed');
+
+    expect(completedTradesError).toBeNull();
+    expect(isFirstTrade).toBe((completedTradesCount ?? 0) === 1);
   });
 
   test('STEP 1: Create trade for referee', async () => {

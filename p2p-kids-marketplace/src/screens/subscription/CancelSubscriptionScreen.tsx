@@ -14,7 +14,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -25,6 +24,7 @@ import { cancelSubscription } from '@/services/subscription';
 import { useSubscription } from '@/hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
 import { MY_SUBSCRIPTION_BENEFITS } from '@/constants/subscriptionPlans';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -69,7 +69,7 @@ export default function CancelSubscriptionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="cancel-subscription-screen">
+    <ScreenLayout variant="detail" title="Cancel Subscription">
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
@@ -143,7 +143,7 @@ export default function CancelSubscriptionScreen() {
           Your subscription will remain active until the end of the current billing cycle if you decide to stay.
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

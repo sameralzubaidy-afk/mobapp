@@ -13,7 +13,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -28,6 +27,7 @@ import {
   SealCheck,
   TrendUp
 } from 'phosphor-react-native';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'SubscriptionExpired'>;
@@ -75,7 +75,7 @@ export default function SubscriptionExpiredScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="subscription-expired-screen">
+    <ScreenLayout variant="detail" title="Subscription Expired">
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -141,7 +141,7 @@ export default function SubscriptionExpiredScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

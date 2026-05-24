@@ -264,6 +264,7 @@ describe('Review Service', () => {
       const reviewsChain: any = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue({ data: mockReviews, error: null }),
       };
 
@@ -335,7 +336,7 @@ describe('Review Service', () => {
 
       await getUserReviews('user-1');
 
-      expect(reviewsChain.eq).toHaveBeenCalledWith('is_hidden', false);
+      expect(reviewsChain.not).toHaveBeenCalledWith('is_hidden', 'is', true);
     });
 
     // REVIEW-003: Anonymous Review Display Tests
@@ -423,7 +424,7 @@ describe('Review Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({
+            not: jest.fn().mockResolvedValue({
               data: mockReviews,
               error: null,
             }),
@@ -447,7 +448,7 @@ describe('Review Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({
+            not: jest.fn().mockResolvedValue({
               data: [],
               error: null,
             }),
@@ -468,7 +469,7 @@ describe('Review Service', () => {
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnValue({
           eq: jest.fn().mockReturnValue({
-            eq: jest.fn().mockResolvedValue({
+            not: jest.fn().mockResolvedValue({
               data: mockReviews,
               error: null,
             }),

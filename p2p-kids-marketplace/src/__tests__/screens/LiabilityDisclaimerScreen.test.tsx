@@ -1,6 +1,7 @@
 /**
  * Unit Tests: LiabilityDisclaimerScreen
  * TASK SAFETY-012: Liability Disclaimer Screen Tests
+ * MODULE-15.1 FLOW-25: Updated for Phosphor Icons restyle
  */
 
 import React from 'react';
@@ -36,8 +37,9 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: any) => children,
 }));
 
-jest.mock('@expo/vector-icons', () => ({
-  Ionicons: 'Ionicons',
+jest.mock('phosphor-react-native', () => ({
+  CaretLeft: 'CaretLeft',
+  WarningCircle: 'WarningCircle',
 }));
 
 describe('LiabilityDisclaimerScreen', () => {
@@ -78,28 +80,28 @@ describe('LiabilityDisclaimerScreen', () => {
       });
     });
 
-    it('renders disclaimer content after successful fetch', async () => {
+    it('renders disclaimer title and last-updated after successful fetch', async () => {
       const { getByText } = render(<LiabilityDisclaimerScreen />);
 
       await waitFor(() => {
         expect(getByText('Platform Liability Disclaimer')).toBeTruthy();
-        expect(getByText('Version 1.0')).toBeTruthy();
       });
     });
 
-    it('displays effective date', async () => {
+    it('displays last updated date', async () => {
       const { getByText } = render(<LiabilityDisclaimerScreen />);
 
       await waitFor(() => {
-        expect(getByText(/Effective:/i)).toBeTruthy();
+        expect(getByText(/Last updated:/i)).toBeTruthy();
       });
     });
 
-    it('displays informational notice at bottom', async () => {
-      const { getByText } = render(<LiabilityDisclaimerScreen />);
+    it('renders WarningCircle icon and no action buttons', async () => {
+      const { UNSAFE_getByType, queryByText } = render(<LiabilityDisclaimerScreen />);
 
       await waitFor(() => {
-        expect(getByText(/This disclaimer is shown before every purchase/i)).toBeTruthy();
+        // No accept/decline buttons — read-only screen
+        expect(queryByText(/accept/i)).toBeNull();
       });
     });
 

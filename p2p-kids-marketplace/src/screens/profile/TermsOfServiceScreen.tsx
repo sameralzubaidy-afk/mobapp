@@ -1,3 +1,6 @@
+// File: p2p-kids-marketplace/src/screens/profile/TermsOfServiceScreen.tsx
+// MODULE-15.1 FLOW-25: Restyled — Phosphor Icons, updated typography
+
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -8,13 +11,13 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { CaretLeft } from 'phosphor-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { getTOSService } from '../../services/tos';
 import Markdown from 'react-native-markdown-display';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TermsOfService'>;
 
@@ -87,74 +90,41 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Terms of Service</Text>
-        </View>
+      <ScreenLayout variant="detail" title="Terms of Service">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading Terms of Service...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (!policy) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Terms of Service</Text>
-        </View>
-        <View style={styles.container}>
+      <ScreenLayout variant="detail" title="Terms of Service">
+        <View style={styles.errorWrap}>
           <Text style={styles.errorText}>Terms of Service not available</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']} testID="tos-screen">
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          testID="back-button"
-        >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Terms of Service</Text>
-      </View>
+    <ScreenLayout variant="detail" title="Terms of Service">
 
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         testID="tos-content-scroll"
       >
-        <Text style={styles.title} testID="tos-title">
-          {policy.title}
-        </Text>
-
-        <View style={styles.metaContainer}>
-          <View style={styles.versionBadge}>
-            <Text style={styles.versionText} testID="tos-version">
-              Version {policy.version}
-            </Text>
-          </View>
-          {policy.effective_date && (
-            <Text style={styles.effectiveDate}>
-              Effective: {new Date(policy.effective_date).toLocaleDateString()}
-            </Text>
-          )}
-        </View>
+        {policy.effective_date && (
+          <Text style={styles.lastUpdated}>
+            Last updated: {new Date(policy.effective_date).toLocaleDateString()}
+          </Text>
+        )}
 
         <View style={styles.contentContainer} testID="tos-content">
-          <Markdown>{policy.content}</Markdown>
+          <Markdown style={markdownStyles}>{policy.content}</Markdown>
         </View>
       </ScrollView>
 
@@ -183,123 +153,143 @@ export default function TermsOfServiceScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
       )}
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderBottomColor: '#F0F0F0',
   },
   backButton: {
-    marginRight: 16,
-    padding: 4,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
+    marginTop: 16,
+    fontSize: 15,
+    color: '#6B6B6B',
+  },
+  errorWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorText: {
+    fontSize: 15,
+    color: '#E85D75',
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 120,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  lastUpdated: {
+    fontSize: 13,
+    color: '#999999',
     marginBottom: 16,
   },
-  metaContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    flexWrap: 'wrap',
-  },
-  versionBadge: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-  versionText: {
-    fontSize: 12,
-    color: '#3B82F6',
-    fontWeight: '600',
-  },
-  effectiveDate: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
   contentContainer: {
-    marginTop: 8,
     marginBottom: 24,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#EF4444',
-    textAlign: 'center',
-    marginTop: 32,
   },
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    padding: 16,
+    borderTopColor: '#F0F0F0',
+    paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 32,
   },
   acceptButton: {
-    backgroundColor: '#3B82F6',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: '#5DBB8E',
+    height: 52,
+    borderRadius: 26,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
   },
   acceptButtonDisabled: {
-    backgroundColor: '#93C5FD',
+    opacity: 0.5,
   },
   acceptButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
   declineButton: {
-    padding: 16,
-    borderRadius: 8,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    paddingVertical: 8,
   },
   declineButtonText: {
-    color: '#4B5563',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    color: '#6B6B6B',
   },
 });
+
+const markdownStyles = {
+  heading1: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  heading2: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  heading3: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#1A1A1A',
+    marginTop: 16,
+    marginBottom: 6,
+  },
+  body: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    lineHeight: 24,
+  },
+  paragraph: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    lineHeight: 24,
+    marginBottom: 12,
+  },
+};

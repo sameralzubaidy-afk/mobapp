@@ -154,7 +154,8 @@ export default function SpWalletScreen() {
     );
   };
 
-  if (loading) {
+  // Guard skipped during pull-to-refresh to prevent blank screen flash.
+  if (loading && !refreshing) {
     return (
       <View style={styles.loadingContainer}>
         <LoadingSpinner />

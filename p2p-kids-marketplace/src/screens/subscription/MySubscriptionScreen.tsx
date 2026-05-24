@@ -14,7 +14,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Alert
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -24,6 +23,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { MY_SUBSCRIPTION_BENEFITS } from '@/constants/subscriptionPlans';
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const SUPPORT_CONTACT_EMAIL = 'admin-support@kidsmarketplace.app';
@@ -51,9 +51,9 @@ export default function MySubscriptionScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <ScreenLayout variant="detail" title="My Subscription">
         <LoadingSpinner />
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -89,18 +89,12 @@ export default function MySubscriptionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="my-subscription-screen">
+    <ScreenLayout variant="detail" title="My Subscription">
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Section */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Membership</Text>
-          <Text style={styles.headerSubtitle}>Manage your Kids Club+ experience</Text>
-        </View>
-
         {/* Active Plan Card with Gradient-like feel */}
         <View
           style={[
@@ -230,7 +224,7 @@ export default function MySubscriptionScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

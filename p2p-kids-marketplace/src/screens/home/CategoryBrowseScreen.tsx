@@ -14,7 +14,6 @@ import {
   FlatList,
   Pressable,
   StyleSheet,
-  SafeAreaView,
   RefreshControl
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -31,6 +30,7 @@ import {
   GameController,
   BookOpen,
 } from 'phosphor-react-native';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type ParamList = {
   CategoryBrowse: {
@@ -93,24 +93,7 @@ export default function CategoryBrowseScreen() {
     loadListings(true);
   };
 
-  const renderHeader = () => (
-    <View style={styles.header} testID="category-browse-header">
-      <View style={styles.headerRow}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          hitSlop={8}
-          testID="category-back-button"
-        >
-          <Text style={styles.backButtonText}>←</Text>
-        </Pressable>
-        <View style={styles.categoryHeader}>
-          <View testID="category-icon">{getCategoryIcon()}</View>
-          <Text style={styles.title}>{category}</Text>
-        </View>
-      </View>
-    </View>
-  );
+  const renderHeader = () => null;
 
   const renderItem = ({ item }: { item: CategoryResult }) => {
     const mainImageUrl = item.images && item.images.length > 0 ? item.images[0].url : null;
@@ -146,7 +129,7 @@ export default function CategoryBrowseScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Browse">
       {renderHeader()}
 
       {loading && !refreshing ? (
@@ -169,7 +152,7 @@ export default function CategoryBrowseScreen() {
         />
       )}
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

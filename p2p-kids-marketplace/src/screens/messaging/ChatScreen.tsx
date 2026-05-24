@@ -13,7 +13,7 @@
  * - MSG-007: Email notification tracking (handled server-side)
  * - MSG-008: Display delivery status (sent ✓ → delivered ✓✓ → read ✓✓ blue)
  * - MSG-009: Show typing indicators when other user is typing
- * 
+ *
  * MODULE-15.1 FLOW-14 UI REDESIGN:
  * - Whisk-inspired design system (#5DBB8E green)
  * - Sent messages: #5DBB8E bg, white text, borderTopRightRadius: 4
@@ -38,7 +38,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  SafeAreaView,
   Pressable,
   Modal,
   Dimensions,
@@ -49,29 +48,29 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import { AuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/config/supabase';
-import { 
-  PaperPlaneRight, 
-  PaperclipHorizontal, 
-  Smiley, 
-  Check, 
-  ShieldCheck, 
+import {
+  PaperPlaneRight,
+  PaperclipHorizontal,
+  Smiley,
+  Check,
+  ShieldCheck,
   ArrowsLeftRight,
   CaretLeft,
-  X
+  X,
 } from 'phosphor-react-native';
-import { Avatar, ListingImage } from '@/components/atoms';
+import { Avatar } from '@/components/atoms';
 import {
   getMessages,
   sendMessage,
   sendImageMessage,
   subscribeToMessages,
   unsubscribeFromMessages,
-  markAsRead,
   Message,
   markTradeMessagesAsDelivered,
   markTradeMessagesAsRead,
 } from '@/services/chat';
 import { idBadgeService } from '@/services/idBadge';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type ChatScreenRouteProp = RouteProp<{ Chat: { tradeId: string } }, 'Chat'>;
 
@@ -129,7 +128,6 @@ export default function ChatScreen() {
   // MSG-009: Typing state refs
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const markAsReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const typingSubscriptionRef = useRef<any>(null);
   const lastTypingBroadcastRef = useRef<number>(0);
   // MSG-009: Animated typing dots
   const typingAnimRef = useRef(new Animated.Value(0)).current;
@@ -237,11 +235,22 @@ export default function ChatScreen() {
       }, 3000);
     }
 
-    // Subscribe to new messages
-    channelRef.current = subscribeToMessages(tradeId, (newMessage) => {
-      console.log('[ChatScreen] Realtime message received:', newMessage.id);
-      addMessageToState(newMessage);
-    });
+    // Subscribe to new messages and status updates
+    channelRef.current = subscribeToMessages(
+      tradeId,
+      (newMessage) => {
+        console.log('[ChatScreen] Realtime message received:', newMessage.id);
+        upsertMessageInState(newMessage);
+      },
+      (updatedMessage) => {
+        console.log(
+          '[ChatScreen] Realtime message updated:',
+          updatedMessage.id,
+          updatedMessage.delivery_status
+        );
+        upsertMessageInState(updatedMessage);
+      }
+    );
 
     // MSG-009: Manage typing presence channel
     const typingChannelName = `presence-trade-${tradeId}`;
@@ -319,23 +328,38 @@ export default function ChatScreen() {
 
   const loadMessages = async () => {
     setLoading(true);
-    const msgs = await getMessages(tradeId);
-    seenMessageIdsRef.current = new Set(msgs.map((msg) => msg.id));
-    setMessages(msgs);
-    setLoading(false);
-    // On iOS, force scroll to offset 0 (bottom of the inverted list) after data load
-    if (Platform.OS === 'ios') {
-      setTimeout(() => {
-        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
-      }, 50);
+    try {
+      const msgs = await getMessages(tradeId);
+      seenMessageIdsRef.current = new Set(msgs.map((msg) => msg.id));
+      setMessages(msgs);
+
+      // On iOS, force scroll to offset 0 (bottom of the inverted list) after data load
+      if (Platform.OS === 'ios') {
+        setTimeout(() => {
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        }, 50);
+      }
+    } catch (error) {
+      console.error('[ChatScreen.loadMessages] Error:', error);
+      setMessages([]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const addMessageToState = (message: Message) => {
+  const upsertMessageInState = (message: Message) => {
     setMessages((prev) => {
-      if (seenMessageIdsRef.current.has(message.id)) {
-        return prev;
+      const existingIndex = prev.findIndex((msg) => msg.id === message.id);
+
+      if (existingIndex >= 0) {
+        const next = [...prev];
+        next[existingIndex] = {
+          ...next[existingIndex],
+          ...message,
+        };
+        return next;
       }
+
       seenMessageIdsRef.current.add(message.id);
       return [...prev, message];
     });
@@ -450,7 +474,7 @@ export default function ChatScreen() {
         // Optimistically add message to UI immediately
         console.log('[ChatScreen] Message sent successfully, adding to UI:', result.message?.id);
         if (result.message) {
-          addMessageToState(result.message);
+          upsertMessageInState(result.message);
         }
       }
     } catch (error: any) {
@@ -513,7 +537,7 @@ export default function ChatScreen() {
       } else {
         console.log('[ChatScreen.handleSendImage] Image sent successfully:', result.message?.id);
         if (result.message) {
-          addMessageToState(result.message);
+          upsertMessageInState(result.message);
         }
       }
     } catch (error: any) {
@@ -568,7 +592,9 @@ export default function ChatScreen() {
 
     return (
       <View style={styles.deliveryStatusContainer}>
-        {statusIcon(message.delivery_status || 'sent')}
+        {statusIcon(
+          message.delivery_status || (message.read_at ? 'read' : message.delivered_at ? 'delivered' : 'sent')
+        )}
       </View>
     );
   };
@@ -641,13 +667,9 @@ export default function ChatScreen() {
     : null;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Chat">
       {/* Header with back button, seller avatar, name, and verified badge */}
       <View style={styles.header} testID="chat-header">
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton} testID="back-button">
-          <CaretLeft size={24} color="#1A1A1A" weight="regular" />
-        </Pressable>
-
         {loadingTrade ? (
           <ActivityIndicator size="small" color="#5DBB8E" />
         ) : (
@@ -665,8 +687,15 @@ export default function ChatScreen() {
                     <Text style={styles.partnerName} numberOfLines={1}>
                       {partnerProfile.name}
                     </Text>
-                    {partnerProfile.verification_status === 'verified' && (
-                      <ShieldCheck size={14} color="#5DBB8E" weight="fill" testID="verified-badge" />
+                    {['verified', 'approved', 'completed', 'complete'].includes(
+                      String(partnerProfile.verification_status || '').toLowerCase()
+                    ) && (
+                      <ShieldCheck
+                        size={14}
+                        color="#5DBB8E"
+                        weight="fill"
+                        testID="verified-badge"
+                      />
                     )}
                   </View>
                   {listing && (
@@ -692,7 +721,7 @@ export default function ChatScreen() {
             {listing.title} • ${listing.price.toFixed(2)}
           </Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate('ListingDetail', { itemId: listing.id })}
+            onPress={() => navigation.navigate('ListingDetail', { listing_id: listing.id })}
             testID="view-trade-link"
           >
             <Text style={styles.viewTradeLink}>View Trade</Text>
@@ -809,7 +838,9 @@ export default function ChatScreen() {
           <TouchableOpacity
             testID="emoji-button"
             style={styles.iconButton}
-            onPress={() => {/* Future: show emoji picker */}}
+            onPress={() => {
+              /* Future: show emoji picker */
+            }}
             disabled={sending || sendingImage}
           >
             <Smiley size={20} color="#6B6B6B" weight="regular" />
@@ -819,10 +850,7 @@ export default function ChatScreen() {
           {inputText.trim().length > 0 && (
             <TouchableOpacity
               testID="send-button"
-              style={[
-                styles.sendButton,
-                (sending || sendingImage) && styles.sendButtonDisabled,
-              ]}
+              style={[styles.sendButton, (sending || sendingImage) && styles.sendButtonDisabled]}
               onPress={handleSend}
               disabled={sending || sendingImage}
             >
@@ -844,7 +872,11 @@ export default function ChatScreen() {
         onRequestClose={() => setImageViewerVisible(false)}
       >
         <View style={styles.imageViewerContainer}>
-          <Pressable style={styles.imageViewerHeader} onPress={() => setImageViewerVisible(false)} testID="close-image-viewer">
+          <Pressable
+            style={styles.imageViewerHeader}
+            onPress={() => setImageViewerVisible(false)}
+            testID="close-image-viewer"
+          >
             <X size={28} color="white" weight="bold" />
           </Pressable>
 
@@ -877,7 +909,12 @@ export default function ChatScreen() {
                   )
                 }
               >
-                <CaretLeft size={32} color="white" weight="bold" style={{ transform: [{ rotate: '180deg' }] }} />
+                <CaretLeft
+                  size={32}
+                  color="white"
+                  weight="bold"
+                  style={{ transform: [{ rotate: '180deg' }] }}
+                />
               </Pressable>
 
               <Text style={styles.imageCounter}>
@@ -887,7 +924,7 @@ export default function ChatScreen() {
           )}
         </View>
       </Modal>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

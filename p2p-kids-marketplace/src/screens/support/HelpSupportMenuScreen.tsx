@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   ArrowLeft,
   Question,
@@ -16,6 +15,7 @@ import {
   ChatCircle,
   CaretRight,
 } from 'phosphor-react-native';
+import ScreenLayout from '@/components/ScreenLayout';
 
 interface Props {
   navigation: any;
@@ -50,23 +50,8 @@ const MENU_ITEMS = [
 
 export default function HelpSupportMenuScreen({ navigation }: Props) {
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <ScreenLayout variant="detail" title="Help & Support">
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            testID="help-menu-back-button"
-          >
-            <ArrowLeft size={24} color="#1A1A1A" weight="bold" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Help & Support</Text>
-        </View>
-
         {/* Menu items */}
         <View style={styles.content}>
           {MENU_ITEMS.map((item) => {
@@ -94,7 +79,7 @@ export default function HelpSupportMenuScreen({ navigation }: Props) {
           })}
         </View>
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

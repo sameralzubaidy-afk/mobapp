@@ -18,16 +18,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  SafeAreaView,
   Image,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { CaretLeft, ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
+import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type ReviewOfferRouteProp = RouteProp<RootStackParamList, 'ReviewOffer'>;
 
@@ -39,7 +39,7 @@ interface OfferData {
   status: string;
   sp_amount: number;
   cash_amount_cents: number;
-  platform_fee_cents: number;
+  buyer_transaction_fee_cents: number;
   created_at: string;
   listing: {
     title: string;
@@ -47,7 +47,7 @@ interface OfferData {
     images: { url: string; thumbnail_url?: string }[];
   };
   buyer_profile: {
-    display_name: string;
+    name: string;
   };
 }
 
@@ -76,14 +76,13 @@ export default function ReviewOfferScreen() {
           status,
           sp_amount,
           cash_amount_cents,
-          platform_fee_cents,
+          buyer_transaction_fee_cents,
           created_at,
           listing:items(
             title,
             price,
             images:item_images(url, thumbnail_url)
-          ),
-          buyer_profile:profiles!trades_buyer_id_fkey(display_name)
+          )
         `)
         .eq('id', tradeId)
         .eq('seller_id', session.user.id)
@@ -97,7 +96,18 @@ export default function ReviewOfferScreen() {
         return;
       }
 
-      setOffer(data as any);
+      const { data: buyerProfile } = await supabase
+        .from('profiles')
+        .select('name')
+        .eq('user_id', data.buyer_id)
+        .maybeSingle();
+
+      setOffer({
+        ...(data as any),
+        buyer_profile: {
+          name: buyerProfile?.name || 'Buyer',
+        },
+      });
     } catch (error: any) {
       console.error('[ReviewOffer] fetchOffer error:', error);
       Alert.alert('Error', 'Failed to load offer details');
@@ -208,12 +218,12 @@ export default function ReviewOfferScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Review Offer">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading offer...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -226,18 +236,7 @@ export default function ReviewOfferScreen() {
   const firstImage = offer.listing.images?.[0];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          accessibilityLabel="Go back"
-        >
-          <CaretLeft size={24} color="#1A1A1A" weight="bold" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Review Offer</Text>
-        <View style={styles.headerSpacer} />
-      </View>
+    <ScreenLayout variant="detail" title="Review Offer">
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Trade Card */}
@@ -325,7 +324,7 @@ export default function ReviewOfferScreen() {
       </ScrollView>
 
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

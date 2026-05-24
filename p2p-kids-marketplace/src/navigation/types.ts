@@ -13,6 +13,7 @@ export type RootStackParamList = {
   Profile: { userId?: string } | undefined;
   SellerProfile: { userId: string; sellerVerificationStatus?: string };
   EditProfile: undefined;
+  IDVerificationUpload: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string } | undefined;
   // MODULE-04: Listing routes
@@ -57,6 +58,9 @@ export type RootStackParamList = {
   // MODULE-06 (EXT): Seller Payout routes
   PayoutSettings: undefined;
   SellerEarnings: undefined;
+  // MODULE-15.1 FLOW-22: Payout screens (redesigned)
+  PayoutDashboard: undefined;
+  RequestPayout: undefined;
   // Admin routes
   AdminDashboard: undefined;
   ReviewModeration: undefined;
@@ -88,6 +92,8 @@ export type RootStackParamList = {
   PrivacyPolicy: { requireAcceptance?: boolean; onAccept?: () => void } | undefined;
   // MODULE-13 SAFETY-012: Liability Disclaimer
   LiabilityDisclaimer: undefined;
+  // MODULE-15.1 FLOW-25: Delete Account
+  DeleteAccount: undefined;
   // MODULE-15.1 FLOW-07: Cart & Bundling
   Cart: undefined;
   BundleBuilder: { sellerId: string; sellerName?: string };

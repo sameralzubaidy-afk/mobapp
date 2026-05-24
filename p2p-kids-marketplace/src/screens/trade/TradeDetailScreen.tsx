@@ -18,7 +18,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  SafeAreaView,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,6 +31,7 @@ import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
 import { Modal, LoadingSpinner } from '@/components/ui';
 import { Ionicons } from '@expo/vector-icons';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeDetailRouteProp = RouteProp<RootStackParamList, 'TradeDetail'>;
 type TradeDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'TradeDetail'>;
@@ -274,14 +274,7 @@ export default function TradeDetailScreen() {
   const isReviewButtonDisabled = submitting || !canReview;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.navHeader}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#374151" />
-        </Pressable>
-        <Text style={styles.navTitle}>Trade Details</Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <ScreenLayout variant="detail" title="Trade Details">
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
@@ -487,7 +480,7 @@ export default function TradeDetailScreen() {
         onCancel={() => setShowCancellationModal(false)}
         isLoading={isCancelling}
       />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

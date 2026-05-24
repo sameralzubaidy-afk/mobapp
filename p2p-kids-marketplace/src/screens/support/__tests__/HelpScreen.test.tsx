@@ -5,6 +5,12 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import HelpScreen from '../HelpScreen';
 
+const mockFetchPublishedFaqs = jest.fn();
+
+jest.mock('@/services/faqService', () => ({
+  fetchPublishedFaqs: () => mockFetchPublishedFaqs(),
+}));
+
 // Mock navigation
 const mockGoBack = jest.fn();
 const mockNavigate = jest.fn();
@@ -14,9 +20,48 @@ const mockNavigation = {
 };
 
 describe('HelpScreen', () => {
+  const mockFaqs = [
+    {
+      id: '1',
+      question: 'How do I create my first listing?',
+      answer: 'Create a listing from the sell tab.',
+      category: 'Getting Started',
+    },
+    {
+      id: '2',
+      question: 'How do I earn Swap Points?',
+      answer: 'Complete eligible swaps to earn points.',
+      category: 'Swap Points',
+    },
+    {
+      id: '3',
+      question: 'Can I use Swap Points for any purchase?',
+      answer: 'You can apply points based on listing rules.',
+      category: 'Swap Points',
+    },
+    {
+      id: '4',
+      question: 'How do I complete a trade?',
+      answer: 'Accept, handoff, and confirm completion.',
+      category: 'Trading',
+    },
+  ];
+
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFetchPublishedFaqs.mockResolvedValue({
+      faqs: mockFaqs,
+      categories: ['All', 'Getting Started', 'Swap Points', 'Trading'],
+    });
   });
+
+  const renderLoadedScreen = async () => {
+    const utils = render(<HelpScreen navigation={mockNavigation} />);
+    await waitFor(() => {
+      expect(utils.queryByTestId('loading-indicator')).toBeNull();
+    });
+    return utils;
+  };
 
   describe('Rendering', () => {
     it('should render the screen successfully', () => {
@@ -44,25 +89,22 @@ describe('HelpScreen', () => {
 
     it('should render all category chips', () => {
       const { getByText } = render(<HelpScreen navigation={mockNavigation} />);
-      expect(getByText('All')).toBeTruthy();
-      expect(getByText('Getting Started')).toBeTruthy();
-      expect(getByText('Swap Points')).toBeTruthy();
-      expect(getByText('Trading')).toBeTruthy();
-      expect(getByText('Account')).toBeTruthy();
-      expect(getByText('Safety')).toBeTruthy();
-    });
 
-    it('should render Contact Us footer button', () => {
-      const { getByTestId, getByText } = render(<HelpScreen navigation={mockNavigation} />);
-      expect(getByTestId('contact-us-button')).toBeTruthy();
-      expect(getByText('Contact Us')).toBeTruthy();
+      return waitFor(() => {
+        expect(getByText('All')).toBeTruthy();
+        expect(getByText('Getting Started')).toBeTruthy();
+        expect(getByText('Swap Points')).toBeTruthy();
+        expect(getByText('Trading')).toBeTruthy();
+      });
     });
 
     it('should render FAQ list with questions', () => {
       const { getByText } = render(<HelpScreen navigation={mockNavigation} />);
-      expect(getByText('How do I create my first listing?')).toBeTruthy();
-      expect(getByText('What is the Kids P2P Marketplace?')).toBeTruthy();
-      expect(getByText('How do I earn Swap Points?')).toBeTruthy();
+
+      return waitFor(() => {
+        expect(getByText('How do I create my first listing?')).toBeTruthy();
+        expect(getByText('How do I earn Swap Points?')).toBeTruthy();
+      });
     });
   });
 
@@ -76,12 +118,14 @@ describe('HelpScreen', () => {
       // Type search query
       fireEvent.changeText(searchInput, 'Swap Points');
 
-      // Should show Swap Points FAQs
-      expect(getByText('How do I earn Swap Points?')).toBeTruthy();
-      expect(getByText('Can I use Swap Points for any purchase?')).toBeTruthy();
+      return waitFor(() => {
+        // Should show Swap Points FAQs
+        expect(getByText('How do I earn Swap Points?')).toBeTruthy();
+        expect(getByText('Can I use Swap Points for any purchase?')).toBeTruthy();
 
-      // Should NOT show unrelated FAQs
-      expect(queryByText('How do I create my first listing?')).toBeFalsy();
+        // Should NOT show unrelated FAQs
+        expect(queryByText('How do I create my first listing?')).toBeFalsy();
+      });
     });
 
     it('should show empty state when no results found', () => {
@@ -91,10 +135,12 @@ describe('HelpScreen', () => {
       // Type search query that matches nothing
       fireEvent.changeText(searchInput, 'nonexistent query xyz');
 
-      // Should show empty state
-      expect(getByTestId('empty-state')).toBeTruthy();
-      expect(getByText('No results found')).toBeTruthy();
-      expect(getByText('Try a different search or category')).toBeTruthy();
+      return waitFor(() => {
+        // Should show empty state
+        expect(getByTestId('empty-state')).toBeTruthy();
+        expect(getByText('No results found')).toBeTruthy();
+        expect(getByText('Try a different search or category')).toBeTruthy();
+      });
     });
 
     it('should clear search when empty string is entered', () => {
@@ -105,10 +151,12 @@ describe('HelpScreen', () => {
       fireEvent.changeText(searchInput, 'Swap Points');
       fireEvent.changeText(searchInput, '');
 
-      // Should show all FAQs again
-      expect(getByText('How do I create my first listing?')).toBeTruthy();
-      expect(getByText('How do I earn Swap Points?')).toBeTruthy();
-      expect(getByText('How do I complete a trade?')).toBeTruthy();
+      return waitFor(() => {
+        // Should show all FAQs again
+        expect(getByText('How do I create my first listing?')).toBeTruthy();
+        expect(getByText('How do I earn Swap Points?')).toBeTruthy();
+        expect(getByText('How do I complete a trade?')).toBeTruthy();
+      });
     });
   });
 
@@ -119,26 +167,26 @@ describe('HelpScreen', () => {
       expect(allChip).toBeTruthy();
     });
 
-    it('should filter FAQs by category when chip is pressed', () => {
-      const { getByTestId, getByText, queryByText } = render(
-        <HelpScreen navigation={mockNavigation} />
-      );
+    it('should filter FAQs by category when chip is pressed', async () => {
+      const { getByTestId, getByText, queryByText } = await renderLoadedScreen();
 
       // Press "Swap Points" category
       const swapPointsChip = getByTestId('category-chip-swap-points');
       fireEvent.press(swapPointsChip);
 
-      // Should show only Swap Points FAQs
-      expect(getByText('How do I earn Swap Points?')).toBeTruthy();
-      expect(getByText('Can I use Swap Points for any purchase?')).toBeTruthy();
+      return waitFor(() => {
+        // Should show only Swap Points FAQs
+        expect(getByText('How do I earn Swap Points?')).toBeTruthy();
+        expect(getByText('Can I use Swap Points for any purchase?')).toBeTruthy();
 
-      // Should NOT show other categories
-      expect(queryByText('How do I create my first listing?')).toBeFalsy();
-      expect(queryByText('How do I complete a trade?')).toBeFalsy();
+        // Should NOT show other categories
+        expect(queryByText('How do I create my first listing?')).toBeFalsy();
+        expect(queryByText('How do I complete a trade?')).toBeFalsy();
+      });
     });
 
-    it('should show all FAQs when "All" category is selected after filtering', () => {
-      const { getByTestId, getByText } = render(<HelpScreen navigation={mockNavigation} />);
+    it('should show all FAQs when "All" category is selected after filtering', async () => {
+      const { getByTestId, getByText } = await renderLoadedScreen();
 
       // Filter by category
       fireEvent.press(getByTestId('category-chip-trading'));
@@ -146,16 +194,16 @@ describe('HelpScreen', () => {
       // Then select "All"
       fireEvent.press(getByTestId('category-chip-all'));
 
-      // Should show FAQs from all categories
-      expect(getByText('How do I create my first listing?')).toBeTruthy();
-      expect(getByText('How do I earn Swap Points?')).toBeTruthy();
-      expect(getByText('How do I complete a trade?')).toBeTruthy();
+      return waitFor(() => {
+        // Should show FAQs from all categories
+        expect(getByText('How do I create my first listing?')).toBeTruthy();
+        expect(getByText('How do I earn Swap Points?')).toBeTruthy();
+        expect(getByText('How do I complete a trade?')).toBeTruthy();
+      });
     });
 
-    it('should combine search and category filters', () => {
-      const { getByTestId, getByText, queryByText } = render(
-        <HelpScreen navigation={mockNavigation} />
-      );
+    it('should combine search and category filters', async () => {
+      const { getByTestId, getByText, queryByText } = await renderLoadedScreen();
 
       // Select "Trading" category
       fireEvent.press(getByTestId('category-chip-trading'));
@@ -164,11 +212,13 @@ describe('HelpScreen', () => {
       const searchInput = getByTestId('search-input');
       fireEvent.changeText(searchInput, 'complete');
 
-      // Should show only Trading FAQs matching "complete"
-      expect(getByText('How do I complete a trade?')).toBeTruthy();
+      return waitFor(() => {
+        // Should show only Trading FAQs matching "complete"
+        expect(getByText('How do I complete a trade?')).toBeTruthy();
 
-      // Should NOT show other results
-      expect(queryByText('How do I earn Swap Points?')).toBeFalsy();
+        // Should NOT show other results
+        expect(queryByText('How do I earn Swap Points?')).toBeFalsy();
+      });
     });
   });
 
@@ -182,17 +232,8 @@ describe('HelpScreen', () => {
       expect(mockGoBack).toHaveBeenCalledTimes(1);
     });
 
-    it('should navigate to ContactSupport when Contact Us button is pressed', () => {
-      const { getByTestId } = render(<HelpScreen navigation={mockNavigation} />);
-      const contactButton = getByTestId('contact-us-button');
-
-      fireEvent.press(contactButton);
-
-      expect(mockNavigate).toHaveBeenCalledWith('ContactSupport');
-    });
-
-    it('should navigate to FAQDetail when FAQ row is pressed', () => {
-      const { getByTestId } = render(<HelpScreen navigation={mockNavigation} />);
+    it('should navigate to FAQDetail when FAQ row is pressed', async () => {
+      const { getByTestId } = await renderLoadedScreen();
       const faqRow = getByTestId('faq-row-1');
 
       fireEvent.press(faqRow);
@@ -223,21 +264,15 @@ describe('HelpScreen', () => {
       // Phosphor icons are rendered, verifying their presence requires snapshot or component inspection
     });
 
-    it('should use Question icon (16px, #5DBB8E) for FAQ rows', () => {
-      const { getByTestId } = render(<HelpScreen navigation={mockNavigation} />);
+    it('should use Question icon (16px, #5DBB8E) for FAQ rows', async () => {
+      const { getByTestId } = await renderLoadedScreen();
       expect(getByTestId('faq-row-1')).toBeTruthy();
       // Icon color/size verification requires accessing rendered component props
     });
 
-    it('should use CaretRight icon (16px, #999999) for FAQ row chevrons', () => {
-      const { getByTestId } = render(<HelpScreen navigation={mockNavigation} />);
+    it('should use CaretRight icon (16px, #999999) for FAQ row chevrons', async () => {
+      const { getByTestId } = await renderLoadedScreen();
       expect(getByTestId('faq-row-1')).toBeTruthy();
-      // Icon color/size verification requires accessing rendered component props
-    });
-
-    it('should use ChatCircle icon (18px, white) in Contact Us button', () => {
-      const { getByTestId } = render(<HelpScreen navigation={mockNavigation} />);
-      expect(getByTestId('contact-us-button')).toBeTruthy();
       // Icon color/size verification requires accessing rendered component props
     });
 
@@ -248,8 +283,8 @@ describe('HelpScreen', () => {
       expect(allChip).toBeTruthy();
     });
 
-    it('should apply inactive category chip style (#F0F0F0 bg, #6B6B6B text)', () => {
-      const { getByTestId } = render(<HelpScreen navigation={mockNavigation} />);
+    it('should apply inactive category chip style (#F0F0F0 bg, #6B6B6B text)', async () => {
+      const { getByTestId } = await renderLoadedScreen();
       const tradingChip = getByTestId('category-chip-trading');
       // Style verification requires accessing StyleSheet.flatten
       expect(tradingChip).toBeTruthy();
@@ -262,11 +297,10 @@ describe('HelpScreen', () => {
       
       expect(getByLabelText('Go back')).toBeTruthy();
       expect(getByLabelText('Search help articles')).toBeTruthy();
-      expect(getByLabelText('Contact us')).toBeTruthy();
     });
 
-    it('should have accessible category filter chips', () => {
-      const { getByLabelText } = render(<HelpScreen navigation={mockNavigation} />);
+    it('should have accessible category filter chips', async () => {
+      const { getByLabelText } = await renderLoadedScreen();
       
       expect(getByLabelText('Filter by All')).toBeTruthy();
       expect(getByLabelText('Filter by Swap Points')).toBeTruthy();

@@ -14,7 +14,13 @@
 
 import { test, expect, device } from 'detox';
 
-describe('MODULE-15.1 FLOW-19: Help & Support', () => {
+const hasDetoxGlobals =
+  typeof (global as any).element === 'function' &&
+  typeof (global as any).by === 'object';
+
+const describeDetox = hasDetoxGlobals ? describe : describe.skip;
+
+describeDetox('MODULE-15.1 FLOW-19: Help & Support', () => {
   beforeAll(async () => {
     await device.launchApp({ newInstance: true });
   });

@@ -20,7 +20,6 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  SafeAreaView,
   Image,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
@@ -31,6 +30,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Modal, LoadingSpinner } from '@/components/ui';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
 import { sendTradeNotificationPush } from '@/services/tradeNotifications';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeReviewRouteProp = RouteProp<RootStackParamList, 'TradeReview'>;
 
@@ -172,12 +172,12 @@ export default function TradeReviewScreen() {
 
   if (loading || !trade) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Leave Review">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading offer...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -193,7 +193,7 @@ export default function TradeReviewScreen() {
   const cashAmount = Number.isFinite(Number(rawCashCents)) ? Number(rawCashCents) / 100 : 0;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Leave Review">
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text style={styles.heading}>Review Offer</Text>
 
@@ -293,7 +293,7 @@ export default function TradeReviewScreen() {
       />
 
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

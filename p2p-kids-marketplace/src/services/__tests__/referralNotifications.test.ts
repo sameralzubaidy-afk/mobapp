@@ -114,6 +114,22 @@ describe('ReferralNotifications Service', () => {
         error: { message: 'RPC error' },
       });
 
+      const fallbackSelectChain: any = {
+        eq: jest.fn(),
+      };
+      fallbackSelectChain.eq
+        .mockReturnValueOnce(fallbackSelectChain)
+        .mockReturnValueOnce(
+          Promise.resolve({
+            count: null,
+            error: { message: 'RPC error' },
+          })
+        );
+
+      (supabase.from as jest.Mock).mockReturnValue({
+        select: jest.fn().mockReturnValue(fallbackSelectChain),
+      });
+
       (supabase.rpc as jest.Mock).mockImplementation(mockRpc);
 
       const result = await getUnreadNotificationCount(mockUserId);

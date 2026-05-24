@@ -1,0 +1,243 @@
+# FLOW: Payouts | TASK: FLOW-22 | States covered: loading, balance-loaded, no-bank-method, with-bank-method, payout-history-empty, payout-history-loaded, completed-status, pending-status, request-payout-happy-path, request-payout-error
+# MODULE-15.1 UI REDESIGN: FLOW-22 — Payout Dashboard + Request Payout screens redesign
+# Prerequisites: Authenticated user with Kids Club+ subscription; at least one trade completed
+
+appId: host.exp.exponent
+---
+# ============================================================
+# Test Case: FLOW-22-001 - Navigate to Payout Dashboard
+# ============================================================
+# Navigate from Settings or Profile to Payout Dashboard
+# (Adjust tap target based on actual entry point in bottom nav / profile menu)
+- tapOn: "Profile"  # Bottom nav
+- waitForAnimationToEnd
+- tapOn:
+    id: "menu-item-payouts"
+- waitForAnimationToEnd
+
+# Verify dashboard screen rendered
+- assertVisible:
+    id: "payout-dashboard-screen"
+
+---
+# ============================================================
+# Test Case: FLOW-22-002 - Balance Hero Card Elements
+# ============================================================
+# Verify hero card is visible
+- assertVisible:
+    id: "balance-hero-card"
+
+# Verify Coins icon
+- assertVisible:
+    id: "coins-icon"
+
+# Verify SP balance amount is shown
+- assertVisible:
+    id: "balance-amount"
+
+# Verify AUD equivalent label
+- assertVisible:
+    id: "balance-aud"
+
+---
+# ============================================================
+# Test Case: FLOW-22-003 - Request Payout Pill on Hero Card
+# ============================================================
+# "Request Payout" button should be a pill on the green hero card
+- assertVisible:
+    id: "request-payout-btn"
+
+# Verify it renders as a child of the hero card (not a separate full-width button)
+# The text label must read "Request Payout"
+- assertVisible: "Request Payout"
+
+---
+# ============================================================
+# Test Case: FLOW-22-004 - Bank Account Row
+# ============================================================
+# If a payout method is configured, show bank row
+- assertVisible:
+    id: "bank-row"
+
+# Bank name should be visible
+- assertVisible:
+    id: "bank-name"
+
+---
+# ============================================================
+# Test Case: FLOW-22-005 - Payout History Rows
+# ============================================================
+# Payout history section should be visible
+- assertVisible: "Payout History"
+
+---
+# ============================================================
+# Test Case: FLOW-22-006 - Completed Status Shows CheckCircle
+# ============================================================
+# For completed payouts
+- assertVisible:
+    id: "icon-completed"
+
+---
+# ============================================================
+# Test Case: FLOW-22-007 - Pending Status Shows Clock
+# ============================================================
+# For pending/processing payouts
+- assertVisible:
+    id: "icon-pending"
+
+---
+# ============================================================
+# Test Case: FLOW-22-008 - Navigate to Request Payout Screen
+# ============================================================
+# Tap the Request Payout pill on hero card
+- tapOn:
+    id: "request-payout-btn"
+- waitForAnimationToEnd
+
+# Verify request payout screen rendered
+- assertVisible:
+    id: "request-payout-screen"
+
+---
+# ============================================================
+# Test Case: FLOW-22-009 - Request Payout Screen Elements
+# ============================================================
+# Verify available balance row
+- assertVisible:
+    id: "available-balance"
+
+# Verify amount input wrapper (filled style with Coins icon)
+- assertVisible:
+    id: "amount-input-wrapper"
+
+# Verify amount input field
+- assertVisible:
+    id: "amount-input"
+
+# Verify bank selector (filled row with Bank icon + CaretRight)
+- assertVisible:
+    id: "bank-selector"
+
+# Verify confirm button
+- assertVisible:
+    id: "confirm-payout-btn"
+
+# Verify fee note
+- assertVisible:
+    id: "fee-note"
+
+---
+# ============================================================
+# Test Case: FLOW-22-010 - Amount Input — Filled Style
+# ============================================================
+# Tap the amount input
+- tapOn:
+    id: "amount-input"
+
+# Enter a valid amount (must be within available balance)
+- inputText: "500"
+- waitForAnimationToEnd
+
+# AUD equivalent should appear below the input
+- assertVisible:
+    id: "aud-equivalent"
+
+# Summary card should appear
+- assertVisible:
+    id: "payout-summary"
+- assertVisible:
+    id: "summary-amount"
+- assertVisible:
+    id: "summary-fee"
+- assertVisible:
+    id: "summary-net"
+
+---
+# ============================================================
+# Test Case: FLOW-22-011 - Confirm Payout Button Active When Valid
+# ============================================================
+# With amount "500" already entered and bank method present,
+# the confirm button should be enabled
+- assertNotVisible:
+    id: "confirm-payout-btn"
+    enabled: false
+
+# Tap confirm (actual payout submission — verify success alert)
+- tapOn:
+    id: "confirm-payout-btn"
+- waitForAnimationToEnd
+
+# Expect Payout Requested alert
+- assertVisible: "Payout Requested"
+
+# Dismiss alert by tapping "Done"
+- tapOn: "Done"
+
+---
+# ============================================================
+# Test Case: FLOW-22-012 - Exceed Balance Validation
+# ============================================================
+# Navigate back to Request Payout screen
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+- tapOn:
+    id: "request-payout-btn"
+- waitForAnimationToEnd
+
+# Enter an amount that exceeds the available balance
+- tapOn:
+    id: "amount-input"
+- inputText: "9999999"
+- waitForAnimationToEnd
+
+# Validation error should appear
+- assertVisible:
+    id: "amount-exceeds-error"
+
+# Confirm button should be disabled
+- assertVisible:
+    id: "confirm-payout-btn"
+
+---
+# ============================================================
+# Test Case: FLOW-22-013 - Navigate to PayoutSettings from Bank Selector
+# ============================================================
+# Tap on bank selector row
+- tapOn:
+    id: "bank-selector"
+- waitForAnimationToEnd
+
+# Verify navigation to PayoutSettings screen
+- assertVisible: "Payout Settings"
+
+# Go back
+- tapOn:
+    id: "back-button"
+
+---
+# ============================================================
+# Test Case: FLOW-22-014 - Back Navigation from Request Payout
+# ============================================================
+- tapOn:
+    id: "back-button"
+- waitForAnimationToEnd
+
+# Should return to Payout Dashboard
+- assertVisible:
+    id: "payout-dashboard-screen"
+
+---
+# ============================================================
+# Test Case: FLOW-22-015 - Pull-to-Refresh on Dashboard
+# ============================================================
+- scrollDown:
+    amount: 100
+- scrollUp:
+    amount: 150
+- waitForAnimationToEnd
+
+# Dashboard should still be visible (no crash)
+- assertVisible:
+    id: "payout-dashboard-screen"

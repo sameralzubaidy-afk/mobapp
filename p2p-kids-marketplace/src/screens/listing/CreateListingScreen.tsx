@@ -24,7 +24,6 @@ import {
   Alert,
   ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
@@ -35,6 +34,7 @@ import { ListingCondition } from '../../types/listing';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 interface ListingCategory {
   id: string;
@@ -211,7 +211,7 @@ export default function CreateListingScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <ScreenLayout variant="detail" title="Create Listing">
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <ScrollView style={styles.container}>
           <View style={styles.form}>
@@ -409,7 +409,7 @@ export default function CreateListingScreen({ navigation }: any) {
           </View>
         </Modal>
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

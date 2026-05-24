@@ -15,8 +15,7 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
-  SafeAreaView
+  Alert
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -25,6 +24,7 @@ import type { BillingHistory } from '@/types/billingHistory.types';
 import { formatPrice } from '@/utils/formatPrice';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 //  ─── Helper: Format date ──────────────────────────────────────────────────────
 function formatDate(dateString: string): string {
@@ -153,13 +153,7 @@ export default function BillingHistoryScreen() {
   // Empty state
   if (billingRecords.length === 0) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Billing History</Text>
-        </View>
+      <ScreenLayout variant="detail" title="Billing History">
 
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateTitle}>No Billing History</Text>
@@ -170,19 +164,13 @@ export default function BillingHistoryScreen() {
         </View>
 
         <BottomNavBar />
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   // Main render
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Billing History</Text>
-      </View>
+    <ScreenLayout variant="detail" title="Billing History">
 
       <ScrollView
         style={styles.scrollView}
@@ -241,7 +229,7 @@ export default function BillingHistoryScreen() {
       </ScrollView>
 
       <BottomNavBar />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

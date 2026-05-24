@@ -26,7 +26,6 @@ import {
   Alert,
   Modal,
   TextInput,
-  SafeAreaView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -48,6 +47,7 @@ import { PaymentMethodSection } from '@/components/subscription/PaymentMethodSec
 import { AutoRenewToggle } from '@/components/subscription/AutoRenewToggle';
 import { BillingHistoryLink } from '@/components/subscription/BillingHistoryLink';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 // ─── Cancellation Reason Options ──────────────────────────────────────────────
 const CANCELLATION_REASONS = [
@@ -292,19 +292,19 @@ export default function ManageKidsClubScreen() {
   // ─── Render Loading ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Manage Kids Club+">
         <View style={styles.loadingContainer}>
           <LoadingSpinner />
           <Text style={styles.loadingText}>Loading subscription details...</Text>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   // ─── Render No Subscription ─────────────────────────────────────────────────
   if (!subscription || subscription.status === 'free') {
     return (
-      <SafeAreaView style={styles.container}>
+      <ScreenLayout variant="detail" title="Manage Kids Club+">
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.headerSection}>
             <Text style={styles.title}>Manage Kids Club+</Text>
@@ -321,7 +321,7 @@ export default function ManageKidsClubScreen() {
             </TouchableOpacity>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -337,7 +337,7 @@ export default function ManageKidsClubScreen() {
   const daysLeft = daysRemaining(periodEndDate);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Manage Kids Club+">
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.headerSection}>
@@ -562,7 +562,7 @@ export default function ManageKidsClubScreen() {
       </Modal>
 
       <BottomNavBar showHelp={true} />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

@@ -52,6 +52,17 @@ import type { SellerBalance, SellerPayout, BalanceDisplay } from '../../services
 import { getAdminPayoutConfig } from '../../services/payoutRouter';
 import type { AdminPayoutConfig } from '../../services/payoutRouter';
 import { LoadingSpinner } from '@/components/ui';
+import {
+  Coins,
+  Bank,
+  ArrowLeft,
+  ArrowDown,
+  Plus,
+  CaretRight,
+  CheckCircle,
+  Clock,
+} from 'phosphor-react-native';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -69,6 +80,7 @@ export default function PayoutSettingsScreen() {
   const [primaryMethodId, setPrimaryMethodId] = useState<string | null>(null);
   const [showAddMethodModal, setShowAddMethodModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showNoMethodModal, setShowNoMethodModal] = useState(false);
   const [balance, setBalance] = useState<SellerBalance | null>(null);
   const [balanceDisplay, setBalanceDisplay] = useState<BalanceDisplay | null>(null);
   const [recentPayouts, setRecentPayouts] = useState<SellerPayout[]>([]);
@@ -217,20 +229,7 @@ export default function PayoutSettingsScreen() {
       return;
     }
     if (!primaryMethodId) {
-      Alert.alert(
-        'Payment Method Required',
-        'To withdraw your earnings, you need to add and verify a payment method. Please add a payment method first.',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Add Payment Method',
-            onPress: () => setShowAddMethodModal(true),
-          },
-        ]
-      );
+      setShowNoMethodModal(true);
       return;
     }
     setShowWithdrawModal(true);
@@ -288,26 +287,22 @@ export default function PayoutSettingsScreen() {
   // Render
   // =============================================================================
 
-  if (loading) {
+  // Guard skipped during pull-to-refresh to prevent blank screen flash.
+  if (loading && !refreshing) {
     return (
-      <View style={styles.centerContainer}>
-        <LoadingSpinner />
-        <Text style={styles.loadingText}>Loading payout methods...</Text>
-      </View>
+      <ScreenLayout variant="detail" title="Payout Settings">
+        <View style={styles.centerContainer}>
+          <LoadingSpinner />
+        </View>
+      </ScreenLayout>
     );
   }
 
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payout Settings</Text>
-        <View style={styles.backButton} />
-      </View>
+  const primaryMethod = methods.find((m) => m.id === primaryMethodId);
+  const primaryDisplay = primaryMethod ? formatPayoutMethodDisplay(primaryMethod) : null;
 
+  return (
+    <ScreenLayout variant="detail" title="Payout Settings">
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -315,49 +310,109 @@ export default function PayoutSettingsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#007AFF']} // Android
-            tintColor="#007AFF" // iOS
+            colors={['#5DBB8E']}
+            tintColor="#5DBB8E"
           />
         }
       >
-        {/* Balance Card */}
-        {balanceDisplay && (
-          <View style={styles.balanceCard}>
-            <Text style={styles.balanceTitle}>💰 Your Earnings</Text>
-
-            <View style={styles.balanceRow}>
-              <Text style={styles.balanceLabel}>Available to Withdraw:</Text>
-              <Text style={styles.balanceAmount}>{balanceDisplay.available}</Text>
-            </View>
-
-            <View style={styles.balanceRow}>
-              <Text style={styles.balanceLabel}>Pending (In Progress):</Text>
-              <Text style={styles.balanceAmountSecondary}>{balanceDisplay.pending}</Text>
-            </View>
-
-            <View style={styles.balanceRow}>
-              <Text style={styles.balanceLabel}>Lifetime Earnings:</Text>
-              <Text style={styles.balanceAmountSecondary}>{balanceDisplay.lifetime}</Text>
-            </View>
-
-            {balance && balance.available_balance_cents > 0 && (
-              <TouchableOpacity style={styles.withdrawButton} onPress={handleWithdrawClick}>
-                <Text style={styles.withdrawButtonText}>💳 Withdraw Now</Text>
-              </TouchableOpacity>
-            )}
-
-            {balance && balance.available_balance_cents === 0 && (
-              <View style={styles.noBalanceNotice}>
-                <Text style={styles.noBalanceText}>Complete trades to build your balance</Text>
-              </View>
-            )}
+        {/* ── Hero Balance Card ── */}
+        <View style={styles.heroCard} testID="balance-hero-card">
+          <View style={styles.heroTopRow}>
+            <Coins size={24} color="white" weight="fill" testID="coins-icon" />
+            <Text style={styles.heroLabel}>Available Balance</Text>
           </View>
+          <Text style={styles.heroBalance} testID="balance-amount">
+            {balanceDisplay?.available ?? '$0.00'}
+          </Text>
+          <View style={styles.heroStatsRow}>
+            <View style={styles.heroStatItem}>
+              <Text style={styles.heroStatLabel}>Pending</Text>
+              <Text style={styles.heroStatValue} testID="balance-pending">
+                {balanceDisplay?.pending ?? '$0.00'}
+              </Text>
+            </View>
+            <View style={styles.heroStatDivider} />
+            <View style={styles.heroStatItem}>
+              <Text style={styles.heroStatLabel}>Lifetime Earned</Text>
+              <Text style={styles.heroStatValue} testID="balance-lifetime">
+                {balanceDisplay?.lifetime ?? '$0.00'}
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.requestPayoutBtn}
+            onPress={handleWithdrawClick}
+            testID="request-payout-btn"
+          >
+            <ArrowDown size={16} color="#5DBB8E" />
+            <Text style={styles.requestPayoutBtnText}>Withdraw Now</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Payout Method ── */}
+        <Text style={styles.sectionLabel}>PAYOUT METHOD</Text>
+        {methods.length > 0 ? (
+          <>
+            {methods.map((method) => {
+              const display = formatPayoutMethodDisplay(method);
+              return (
+                <TouchableOpacity
+                  key={method.id}
+                  style={styles.methodRow}
+                  onPress={() => handleSetPrimary(method.id)}
+                  testID={`method-row-${method.id}`}
+                >
+                  <Bank size={20} color="#5DBB8E" />
+                  <View style={styles.methodRowTextWrap}>
+                    <View style={styles.methodRowTitleRow}>
+                      <Text style={styles.methodRowName} testID="bank-name">
+                        {display.label}
+                      </Text>
+                      {method.is_primary && (
+                        <View style={styles.primaryPill}>
+                          <Text style={styles.primaryPillText}>Primary</Text>
+                        </View>
+                      )}
+                    </View>
+                    {display.status_message ? (
+                      <Text style={styles.methodRowMasked} testID="bank-masked">
+                        {display.status_message}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <CaretRight size={16} color="#999999" />
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={styles.addAnotherRow}
+              onPress={handleAddMethod}
+              testID="add-another-method-row"
+            >
+              <Plus size={18} color="#5DBB8E" />
+              <Text style={styles.addAnotherText}>Add Another Method</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity
+            style={styles.methodRow}
+            onPress={handleAddMethod}
+            testID="add-bank-row"
+          >
+            <Plus size={20} color="#5DBB8E" />
+            <Text style={styles.addBankText}>Add Bank Account</Text>
+            <CaretRight size={16} color="#999999" />
+          </TouchableOpacity>
         )}
 
-        {/* Recent Payouts */}
-        {recentPayouts.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Withdrawals</Text>
+        {/* ── Payout History ── */}
+        <Text style={styles.sectionLabel}>PAYOUT HISTORY</Text>
+        {recentPayouts.length === 0 ? (
+          <View style={styles.emptyHistory} testID="empty-history">
+            <Text style={styles.emptyHistoryText}>No payouts yet</Text>
+          </View>
+        ) : (
+          <>
             {recentPayouts.map((payout) => (
               <PayoutHistoryCard key={payout.id} payout={payout} />
             ))}
@@ -367,72 +422,28 @@ export default function PayoutSettingsScreen() {
               disabled={loadingMore}
             >
               {loadingMore ? (
-                <ActivityIndicator size="small" color="#007AFF" />
+                <ActivityIndicator size="small" color="#5DBB8E" />
               ) : (
-                <Text style={styles.loadMoreButtonText}>Load More Payouts</Text>
+                <Text style={styles.loadMoreButtonText}>Load More</Text>
               )}
             </TouchableOpacity>
-          </View>
+          </>
         )}
-
-        {/* Eligibility Status */}
-        <View
-          style={[
-            styles.statusCard,
-            eligibility.can_receive_payouts ? styles.statusOk : styles.statusWarning,
-          ]}
-        >
-          <Text style={styles.statusTitle}>
-            {eligibility.can_receive_payouts ? '✓ Ready for Payouts' : '⚠ Action Required'}
-          </Text>
-          <Text style={styles.statusMessage}>{eligibility.message}</Text>
-        </View>
-
-        {/* Existing Methods */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Payout Methods</Text>
-
-          {methods.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No payout methods configured yet</Text>
-              <Text style={styles.emptyStateSubtext}>Add a method to start receiving payments</Text>
-            </View>
-          ) : (
-            methods.map((method) => (
-              <PayoutMethodCard
-                key={method.id}
-                method={method}
-                isPrimary={method.id === primaryMethodId}
-                onSetPrimary={() => handleSetPrimary(method.id)}
-                onDelete={() => handleDeleteMethod(method.id)}
-              />
-            ))
-          )}
-        </View>
-
-        {/* Add Method Button */}
-        <TouchableOpacity style={styles.addButton} onPress={handleAddMethod}>
-          <Text style={styles.addButtonText}>+ Add Payout Method</Text>
-        </TouchableOpacity>
-
-        {/* Info Section */}
-        <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>About Payouts</Text>
-          <Text style={styles.infoText}>
-            • Payouts are processed when a trade is completed{'\n'}• You must have a verified
-            primary payout method{'\n'}• Payout fees vary by method (displayed transparently){'\n'}•
-            Platform and payout fees follow current admin settings
-          </Text>
-        </View>
       </ScrollView>
 
-      {/* Modals rendered outside ScrollView for proper overlay behavior */}
-      {/* Add Method Modal */}
+      {/* ── Modals (logic unchanged) ── */}
+      {showNoMethodModal && (
+        <NoMethodModal
+          onClose={() => setShowNoMethodModal(false)}
+          onAddMethod={() => {
+            setShowNoMethodModal(false);
+            setShowAddMethodModal(true);
+          }}
+        />
+      )}
       {showAddMethodModal && (
         <AddPayoutMethodModal onClose={handleCloseAddMethod} payoutFeeSummary={payoutFeeSummary} />
       )}
-
-      {/* Withdraw Modal */}
       {showWithdrawModal && (
         <WithdrawModal
           balance={balance}
@@ -443,7 +454,7 @@ export default function PayoutSettingsScreen() {
           withdrawing={withdrawing}
         />
       )}
-    </View>
+    </ScreenLayout>
   );
 }
 
@@ -457,29 +468,86 @@ interface PayoutHistoryCardProps {
 
 function PayoutHistoryCard({ payout }: PayoutHistoryCardProps) {
   const statusInfo = formatPayoutStatus(payout.status);
-  const date = new Date(payout.created_at).toLocaleDateString();
+  const date = new Date(payout.created_at).toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  const isCompleted = payout.status === 'completed';
+  const isPending =
+    payout.status === 'pending' ||
+    payout.status === 'processing' ||
+    payout.status === 'requires_action';
 
   return (
-    <View style={styles.payoutCard}>
-      <View style={styles.payoutHeader}>
-        <View style={styles.payoutInfo}>
-          <Text style={styles.payoutAmount}>{formatCentsToDollars(payout.net_amount_cents)}</Text>
-          <Text style={styles.payoutDate}>{date}</Text>
+    <View testID={`history-row-${payout.id}`}>
+      <View style={styles.historyRow}>
+        {isCompleted ? (
+          <CheckCircle size={16} color="#5DBB8E" weight="fill" testID="icon-completed" />
+        ) : isPending ? (
+          <Clock size={16} color="#F59E0B" weight="fill" testID="icon-pending" />
+        ) : (
+          <Clock size={16} color="#999999" weight="fill" />
+        )}
+        <View style={styles.historyInfo}>
+          <Text style={styles.historyAmount} testID={`history-amount-${payout.id}`}>
+            {formatCentsToDollars(payout.net_amount_cents)}
+          </Text>
+          <Text style={styles.historyDate}>{date}</Text>
         </View>
-        <View style={[styles.payoutStatusBadge, { backgroundColor: statusInfo.color + '20' }]}>
-          <Text style={[styles.payoutStatusText, { color: statusInfo.color }]}>
+        <View style={styles.historyStatus}>
+          <Text
+            style={[styles.historyStatusText, { color: statusInfo.color }]}
+            testID={`history-status-${payout.id}`}
+          >
             {statusInfo.label}
           </Text>
+          {payout.payout_fee_cents > 0 && (
+            <Text style={styles.historyFee}>
+              Fee: {formatCentsToDollars(payout.payout_fee_cents)}
+            </Text>
+          )}
         </View>
       </View>
-      {payout.payout_fee_cents > 0 && (
-        <Text style={styles.payoutFee}>Fee: {formatCentsToDollars(payout.payout_fee_cents)}</Text>
-      )}
       {payout.failure_reason && (
         <View style={styles.failureReasonBox}>
           <Text style={styles.failureReasonText}>⚠️ {payout.failure_reason}</Text>
         </View>
       )}
+    </View>
+  );
+}
+
+// =============================================================================
+// No Method Modal Component
+// =============================================================================
+
+interface NoMethodModalProps {
+  onClose: () => void;
+  onAddMethod: () => void;
+}
+
+function NoMethodModal({ onClose, onAddMethod }: NoMethodModalProps) {
+  return (
+    <View style={styles.modalOverlay}>
+      <View style={styles.noMethodModalContent}>
+        <Bank size={40} color="#5DBB8E" weight="fill" style={styles.noMethodIcon} />
+        <Text style={styles.noMethodTitle}>Payment Method Required</Text>
+        <Text style={styles.noMethodMessage}>
+          To withdraw your earnings, you need to add and verify a payout method first.
+        </Text>
+        <TouchableOpacity
+          style={styles.noMethodAddBtn}
+          onPress={onAddMethod}
+          testID="no-method-add-btn"
+        >
+          <Plus size={18} color="#FFFFFF" />
+          <Text style={styles.noMethodAddBtnText}>Add Payout Method</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.noMethodCancelBtn} onPress={onClose}>
+          <Text style={styles.noMethodCancelText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -912,101 +980,277 @@ function AddPayoutMethodModal({ onClose, payoutFeeSummary }: AddPayoutMethodModa
 // =============================================================================
 
 const styles = StyleSheet.create({
+  // ── Screen ──────────────────────────────────────────────────────────────────
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
-  },
+  // ── Header ──────────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    paddingBottom: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
   },
-  backButton: {
-    width: 60,
-  },
-  backButtonText: {
-    color: '#007AFF',
-    fontSize: 16,
+  backBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#000',
+    color: '#1A1A1A',
   },
+  headerRight: {
+    width: 40,
+  },
+  // ── Scroll ──────────────────────────────────────────────────────────────────
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
-  statusCard: {
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 24,
+  // ── Hero Card ───────────────────────────────────────────────────────────────
+  heroCard: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 28,
   },
-  statusOk: {
-    backgroundColor: '#d4edda',
-    borderWidth: 1,
-    borderColor: '#c3e6cb',
-  },
-  statusWarning: {
-    backgroundColor: '#fff3cd',
-    borderWidth: 1,
-    borderColor: '#ffeaa7',
-  },
-  statusTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-    color: '#000',
-  },
-  statusMessage: {
-    fontSize: 14,
-    color: '#666',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
-    color: '#000',
-  },
-  emptyState: {
-    padding: 32,
+  heroTopRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  emptyStateText: {
-    fontSize: 16,
-    color: '#666',
+    gap: 8,
     marginBottom: 8,
   },
-  emptyStateSubtext: {
+  heroLabel: {
     fontSize: 14,
-    color: '#999',
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
   },
+  heroBalance: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  heroStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 8,
+  },
+  heroStatItem: {
+    flex: 1,
+  },
+  heroStatDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    marginHorizontal: 12,
+  },
+  heroStatLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    marginBottom: 2,
+  },
+  heroStatValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  requestPayoutBtn: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 26,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    gap: 6,
+  },
+  requestPayoutBtnText: {
+    color: '#5DBB8E',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  // ── Section label ───────────────────────────────────────────────────────────
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#999999',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+    marginTop: 4,
+  },
+  // ── Payout method row ───────────────────────────────────────────────────────
+  methodRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5E5',
+    marginBottom: 24,
+  },
+  methodRowTextWrap: {
+    flex: 1,
+  },
+  methodRowTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  methodRowName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#1A1A1A',
+  },
+  primaryPill: {
+    backgroundColor: '#E8F5F0',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  primaryPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#5DBB8E',
+  },
+  methodRowMasked: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginTop: 2,
+  },
+  addBankText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#5DBB8E',
+  },
+  addAnotherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 10,
+  },
+  addAnotherText: {
+    fontSize: 14,
+    color: '#5DBB8E',
+    fontWeight: '500',
+  },
+  // ── No Method Modal ───────────────────────────────────────────────────────────────────────────────────────────
+  noMethodModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 28,
+    marginHorizontal: 24,
+    alignItems: 'center',
+  },
+  noMethodIcon: {
+    marginBottom: 16,
+  },
+  noMethodTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  noMethodMessage: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  noMethodAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    height: 52,
+    width: '100%',
+    gap: 8,
+    marginBottom: 12,
+  },
+  noMethodAddBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  noMethodCancelBtn: {
+    paddingVertical: 12,
+  },
+  noMethodCancelText: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    textAlign: 'center',
+  },
+  // ── Payout history rows ─────────────────────────────────────────────────────
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5E5',
+    gap: 12,
+  },
+  historyInfo: {
+    flex: 1,
+  },
+  historyAmount: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 2,
+  },
+  historyDate: {
+    fontSize: 13,
+    color: '#6B6B6B',
+  },
+  historyStatus: {
+    alignItems: 'flex-end',
+  },
+  historyStatusText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  historyFee: {
+    fontSize: 11,
+    color: '#999999',
+    marginTop: 2,
+  },
+  emptyHistory: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyHistoryText: {
+    fontSize: 14,
+    color: '#999999',
+  },
+  loadMoreButton: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  loadMoreButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#5DBB8E',
+  },
+  // ── PayoutMethodCard (management via Add Method modal) ──────────────────────
   methodCard: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -1035,7 +1279,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   primaryBadge: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -1054,7 +1298,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
     alignItems: 'center',
   },
   actionButtonText: {
@@ -1065,10 +1309,10 @@ const styles = StyleSheet.create({
   deleteButton: {
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#dc3545',
+    borderColor: '#E85D75',
   },
   deleteButtonText: {
-    color: '#dc3545',
+    color: '#E85D75',
   },
   verificationWarning: {
     marginTop: 12,
@@ -1080,36 +1324,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#856404',
   },
-  addButton: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  infoSection: {
-    padding: 16,
-    backgroundColor: '#e3f2fd',
-    borderRadius: 8,
-    marginBottom: 24,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  // ── Failure reason inline ───────────────────────────────────────────────────
+  failureReasonBox: {
     marginBottom: 8,
-    color: '#000',
+    padding: 10,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#E85D75',
   },
-  infoText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
+  failureReasonText: {
+    fontSize: 12,
+    color: '#991B1B',
   },
-  // Modal styles
+  // ── Modal styles (kept for AddPayoutMethodModal + WithdrawModal) ─────────────
   modalOverlay: {
     position: 'absolute',
     top: 0,
@@ -1144,8 +1372,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   methodTypeButtonActive: {
-    borderColor: '#007AFF',
-    backgroundColor: '#e3f2fd',
+    borderColor: '#5DBB8E',
+    backgroundColor: '#F0FAF5',
   },
   methodTypeButtonText: {
     fontSize: 16,
@@ -1194,7 +1422,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#5DBB8E',
     alignItems: 'center',
   },
   modalSubmitButtonDisabled: {
@@ -1206,123 +1434,6 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   // Balance Card styles
-  balanceCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  balanceTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 16,
-    color: '#000',
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  balanceLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  balanceAmount: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#28a745',
-  },
-  balanceAmountSecondary: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-  },
-  withdrawButton: {
-    backgroundColor: '#28a745',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  withdrawButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  noBalanceNotice: {
-    marginTop: 16,
-    padding: 12,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  noBalanceText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
-  // Payout History Card styles
-  payoutCard: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  payoutHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  payoutInfo: {
-    flex: 1,
-  },
-  payoutAmount: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  payoutDate: {
-    fontSize: 13,
-    color: '#666',
-  },
-  payoutStatusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  payoutStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  payoutFee: {
-    fontSize: 13,
-    color: '#999',
-  },
-  failureReasonBox: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#dc3545',
-  },
-  failureReasonText: {
-    fontSize: 13,
-    color: '#991B1B',
-    fontWeight: '500',
-  },
   // Withdraw Modal styles
   withdrawModalContent: {
     width: '90%',
@@ -1365,12 +1476,12 @@ const styles = StyleSheet.create({
   withdrawValueTotal: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#28a745',
+    color: '#5DBB8E',
   },
   withdrawMethodInfo: {
     marginBottom: 20,
     padding: 12,
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#F0FAF5',
     borderRadius: 8,
   },
   withdrawMethodLabel: {
@@ -1381,20 +1492,6 @@ const styles = StyleSheet.create({
   withdrawMethodValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#007AFF',
-  },
-  loadMoreButton: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  loadMoreButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
+    color: '#5DBB8E',
   },
 });

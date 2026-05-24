@@ -5,9 +5,22 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
 import ContactSupportScreen from '../ContactSupportScreen';
+import { useAuth } from '@/hooks/useAuth';
 
 // Mock Alert
 jest.spyOn(Alert, 'alert');
+
+jest.mock('@/hooks/useAuth', () => ({
+  useAuth: jest.fn(),
+}));
+
+jest.mock('@/config/supabase', () => ({
+  supabase: {
+    from: jest.fn(() => ({
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    })),
+  },
+}));
 
 // Mock navigation
 const mockGoBack = jest.fn();
@@ -21,6 +34,13 @@ describe('ContactSupportScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (Alert.alert as jest.Mock).mockClear();
+    (useAuth as jest.Mock).mockReturnValue({
+      session: {
+        user: {
+          id: 'test-user-id',
+        },
+      },
+    });
   });
 
   describe('Rendering', () => {
@@ -316,14 +336,13 @@ describe('ContactSupportScreen', () => {
       const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
       const subjectInput = getByTestId('subject-input');
       const messageInput = getByTestId('message-input');
-      const sendButton = getByTestId('send-message-button');
 
       fireEvent.changeText(subjectInput, 'Test');
       fireEvent.changeText(messageInput, 'Test message');
-      fireEvent.press(sendButton);
+      fireEvent.press(getByTestId('send-message-button'));
 
       // Button should be disabled during submission
-      expect(sendButton.props.disabled).toBe(true);
+      expect(getByTestId('send-message-button').props.accessibilityState?.disabled).toBe(true);
     });
   });
 });

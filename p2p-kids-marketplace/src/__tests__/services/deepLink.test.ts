@@ -153,6 +153,54 @@ describe('DeepLink Service', () => {
       });
     });
 
+    // ── ID Verification Events ───────────────────────────────────────────────
+    describe('ID Verification Events', () => {
+      it('should parse id_badge_submission to IDVerificationUpload', () => {
+        const data: NotificationDeepLinkData = {
+          type: 'id_badge_submission',
+        };
+
+        const result = parseNotificationDeepLink(data);
+
+        expect(result).not.toBeNull();
+        expect(result?.route).toBe('IDVerificationUpload');
+        expect(result?.action).toBe('navigate');
+      });
+
+      it('should parse id_badge_approved to IDVerificationUpload', () => {
+        const data: NotificationDeepLinkData = {
+          type: 'id_badge_approved',
+        };
+
+        const result = parseNotificationDeepLink(data);
+
+        expect(result).not.toBeNull();
+        expect(result?.route).toBe('IDVerificationUpload');
+      });
+
+      it('should parse id_badge_rejected to IDVerificationUpload', () => {
+        const data: NotificationDeepLinkData = {
+          type: 'id_badge_rejected',
+        };
+
+        const result = parseNotificationDeepLink(data);
+
+        expect(result).not.toBeNull();
+        expect(result?.route).toBe('IDVerificationUpload');
+      });
+
+      it('should parse /id-verification-upload deep link to IDVerificationUpload', () => {
+        const data: NotificationDeepLinkData = {
+          deep_link: '/id-verification-upload',
+        };
+
+        const result = parseNotificationDeepLink(data);
+
+        expect(result).not.toBeNull();
+        expect(result?.route).toBe('IDVerificationUpload');
+      });
+    });
+
     // ── Trade Events ──────────────────────────────────────────────────────────
     describe('Trade Events', () => {
       it('should parse trade_request to TradeList without tradeId', () => {

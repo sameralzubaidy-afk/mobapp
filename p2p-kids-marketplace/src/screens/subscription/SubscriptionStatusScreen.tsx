@@ -12,7 +12,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,6 +24,7 @@ import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -152,32 +152,32 @@ export default function SubscriptionStatusScreen() {
   // ── Render states ────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
+      <ScreenLayout variant="detail" title="Subscription Status">
         <LoadingSpinner />
         <Text style={styles.loadingText}>Loading subscription data…</Text>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (error) {
     return (
-      <SafeAreaView style={styles.center}>
+      <ScreenLayout variant="detail" title="Subscription Status">
         <Text style={styles.errorText}>⚠ {error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadData}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (!info) {
     return (
-      <SafeAreaView style={styles.center}>
+      <ScreenLayout variant="detail" title="Subscription Status">
         <Text style={styles.emptyText}>No subscription record found for this user.</Text>
         <Text style={styles.subText}>
           User must complete signup flow to create a subscription row.
         </Text>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
@@ -188,7 +188,7 @@ export default function SubscriptionStatusScreen() {
     info.status === 'free' || info.status === 'cancelled' || info.status === 'canceled';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <ScreenLayout variant="detail" title="Subscription Status">
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -285,7 +285,7 @@ export default function SubscriptionStatusScreen() {
 
       {/* MODULE-09: Universal Bottom Navigation */}
       <BottomNavBar showHelp={true} />
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

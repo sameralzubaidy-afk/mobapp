@@ -8,7 +8,6 @@ import {
   StyleSheet,
   FlatList,
   Image,
-  SafeAreaView,
   TouchableOpacity,
   Modal
 } from 'react-native';
@@ -17,6 +16,7 @@ import { getUserBadges, getAllBadges } from '../../services/badges';
 import { UserBadge, Badge } from '../../types/badge';
 import { useAuth } from '../../hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 interface BadgeModalData extends Badge {
   earned?: boolean;
@@ -93,14 +93,7 @@ const BadgesScreen = ({ navigation }: any) => {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Badges</Text>
-        <View style={{ width: 60 }} />
-      </View>
+    <ScreenLayout variant="detail" title="My Badges">
 
       <FlatList
         data={allBadges}
@@ -145,7 +138,7 @@ const BadgesScreen = ({ navigation }: any) => {
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 };
 

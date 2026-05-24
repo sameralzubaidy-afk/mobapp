@@ -10,15 +10,15 @@ import {
   Animated,
   LayoutAnimation,
   Platform,
-  UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { EducationSection } from '../../types/education';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// NOTE: setLayoutAnimationEnabledExperimental is a no-op in the New
+// Architecture (Bridgeless/Fabric) and generates a LogBox warning that triggers
+// heavy stack symbolication → Android ANR. LayoutAnimation works natively in
+// New Architecture without this call.
 
 interface EducationSectionAccordionProps {
   section: EducationSection;

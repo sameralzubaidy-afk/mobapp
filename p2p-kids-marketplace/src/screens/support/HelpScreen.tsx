@@ -13,7 +13,6 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   MagnifyingGlass,
   Question,
@@ -21,6 +20,7 @@ import {
   ArrowLeft,
 } from 'phosphor-react-native';
 import { fetchPublishedFaqs, type FAQ } from '../../services/faqService';
+import ScreenLayout from '@/components/ScreenLayout';
 
 interface HelpScreenProps {
   navigation: any;
@@ -65,24 +65,8 @@ export default function HelpScreen({ navigation }: HelpScreenProps) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']} testID="help-screen">
+    <ScreenLayout variant="detail" title="Help & Support">
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            testID="back-button"
-          >
-            <ArrowLeft size={24} color="#1A1A1A" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Help & Support</Text>
-          <View style={styles.backButton} />
-        </View>
-
         {/* Search Bar */}
         <View style={styles.searchWrapper}>
           <MagnifyingGlass size={20} color="#999999" />
@@ -170,7 +154,7 @@ export default function HelpScreen({ navigation }: HelpScreenProps) {
           )}
         </View>
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

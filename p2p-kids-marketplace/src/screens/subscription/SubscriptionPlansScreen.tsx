@@ -13,8 +13,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
-  SafeAreaView
+  TouchableOpacity
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,6 +28,7 @@ import {
 } from '@/constants/subscriptionPlans';
 import type { RootStackParamList } from '@/navigation/types';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -118,14 +118,14 @@ export default function SubscriptionPlansScreen() {
 
   if (loading || configLoading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <ScreenLayout variant="detail" title="Plans">
         <LoadingSpinner />
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} testID="subscription-plans-screen">
+    <ScreenLayout variant="detail" title="Plans">
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -249,7 +249,7 @@ export default function SubscriptionPlansScreen() {
           <Text style={styles.compareLinkText}>Compare Plans →</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 

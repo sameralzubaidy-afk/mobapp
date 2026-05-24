@@ -1,6 +1,7 @@
 // File: p2p-kids-marketplace/src/screens/profile/SellerProfileScreen.tsx
 // TASK FLOW-15: Public Seller Profile View
-// Displays another user's public profile with ratings, follow button, and active listings
+// Displays another user's public profile with ratings, badges (collapsible), and active listings
+// NOTE: Follow button has been intentionally removed. Do NOT re-add it.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -9,9 +10,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
-import { Star, ShieldCheck, MapPin, IdentificationCard } from 'phosphor-react-native';
+import { Star, ShieldCheck, MapPin, IdentificationCard, CaretDown, CaretUp } from 'phosphor-react-native';
 import Avatar from '@/components/atoms/Avatar';
 import { LoadingSpinner } from '@/components/ui';
 import { getUserProfile } from '@/services/profile';
@@ -21,6 +21,10 @@ import { supabase } from '@/services/supabase/client';
 import { UserBadge } from '@/types/badge';
 import { getReviewStats, ReviewStats } from '@/services/review';
 import BottomNavBar from '@/components/organisms/BottomNavBar';
+import ScreenLayout from '@/components/ScreenLayout';
+
+const isUuid = (value: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 export default function SellerProfileScreen({ navigation, route }: any) {
   const userId = route?.params?.userId;
@@ -32,6 +36,7 @@ export default function SellerProfileScreen({ navigation, route }: any) {
   const [completedTradesCount, setCompletedTradesCount] = useState(0);
   const [badges, setBadges] = useState<UserBadge[]>([]);
   const [idVerificationStatus, setIdVerificationStatus] = useState<IDVerificationStatus['status']>('none');
+  const [badgesExpanded, setBadgesExpanded] = useState(false);
 
   const profileVerificationStatus = String(
     profile?.verification_status ?? profile?.id_verification_status ?? ''
@@ -66,7 +71,7 @@ export default function SellerProfileScreen({ navigation, route }: any) {
       const { user: profileByUserId } = await getUserProfile(userId);
       if (profileByUserId) {
         resolvedProfile = profileByUserId;
-      } else {
+      } else if (isUuid(String(userId || ''))) {
         // Fallback: some navigation contexts may pass a profile row id instead of auth user_id.
         const { data: profileByRowId } = await supabase
           .from('profiles')
@@ -81,6 +86,7 @@ export default function SellerProfileScreen({ navigation, route }: any) {
       }
 
       setProfile(resolvedProfile);
+      setLoading(false);
 
       const candidateIds = Array.from(
         new Set([
@@ -90,56 +96,24 @@ export default function SellerProfileScreen({ navigation, route }: any) {
         ].filter(Boolean))
       );
 
-      const [statsBundles, badgeResult, verificationStatuses, completedTradeCounts, approvedVerificationMatches] = await Promise.all([
-        Promise.all(
-          candidateIds.map(async (candidateId) => {
+      const reviewBundles = await Promise.all(
+        candidateIds.map(async (candidateId) => {
+          try {
             const statsResult = await getReviewStats(candidateId);
             return {
               candidateId,
               statsResult,
             };
-          })
-        ),
-        getUserBadges(String(resolvedProfile.user_id || userId)).catch(() => []),
-        Promise.all(
-          candidateIds.map(async (candidateId) => ({
-            candidateId,
-            status: await idBadgeService.getVerificationStatus(candidateId),
-          }))
-        ),
-        Promise.all(
-          candidateIds.map(async (candidateId) => {
-            const { count, error } = await supabase
-              .from('trades')
-              .select('id', { count: 'exact', head: true })
-              .eq('seller_id', candidateId)
-              .eq('status', 'completed');
-
+          } catch {
             return {
               candidateId,
-              count: count ?? 0,
-              error,
+              statsResult: { success: false, stats: null },
             };
-          })
-        ),
-        Promise.all(
-          candidateIds.map(async (candidateId) => {
-            const { data, error } = await supabase
-              .from('id_badge_verification_requests')
-              .select('id')
-              .eq('user_id', candidateId)
-              .eq('status', 'approved')
-              .limit(1);
+          }
+        })
+      );
 
-            return {
-              candidateId,
-              hasApproved: !error && Boolean(data && data.length > 0),
-            };
-          })
-        ),
-      ]);
-
-      const bestBundle = statsBundles
+      const bestReviewBundle = reviewBundles
         .filter((bundle) => bundle.statsResult.success && bundle.statsResult.stats)
         .sort((a, b) => {
           const aCount = a.statsResult.stats?.total_reviews ?? 0;
@@ -147,28 +121,88 @@ export default function SellerProfileScreen({ navigation, route }: any) {
           return bCount - aCount;
         })[0];
 
-      if (bestBundle?.statsResult.success && bestBundle.statsResult.stats) {
-        setReviewStats(bestBundle.statsResult.stats);
+      if (bestReviewBundle?.statsResult.success && bestReviewBundle.statsResult.stats) {
+        setReviewStats(bestReviewBundle.statsResult.stats);
       }
 
-      const completedTradesMax = completedTradeCounts.reduce((maxValue, entry) => {
-        return entry.count > maxValue ? entry.count : maxValue;
-      }, 0);
-      setCompletedTradesCount(completedTradesMax);
+      const candidateUuids = candidateIds.filter((candidateId) => isUuid(String(candidateId)));
+      if (candidateUuids.length === 0) {
+        return;
+      }
 
-      const hasApprovedFromPolicyRead = approvedVerificationMatches.some((entry) => entry.hasApproved);
+      void (async () => {
+        try {
+          const [
+            badgeResult,
+            verificationStatuses,
+            completedTradeCounts,
+            approvedVerificationMatches,
+          ] = await Promise.all([
+            getUserBadges(String(resolvedProfile.user_id || userId)).catch(() => []),
+            Promise.all(
+              candidateUuids.map(async (candidateId) => ({
+                candidateId,
+                status: await idBadgeService.getVerificationStatus(candidateId).catch(() => ({
+                  status: 'none' as IDVerificationStatus['status'],
+                })),
+              }))
+            ),
+            Promise.all(
+              candidateUuids.map(async (candidateId) => {
+                const { count, error } = await supabase
+                  .from('trades')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('seller_id', candidateId)
+                  .eq('status', 'completed');
 
-      const approvedStatus = verificationStatuses.find(
-        (entry) => entry.status?.status === 'approved'
-      );
-      const preferredStatus =
-        (hasApprovedFromPolicyRead ? 'approved' : null) ||
-        approvedStatus?.status?.status ||
-        verificationStatuses.find((entry) => entry.status?.status !== 'none')?.status?.status ||
-        'none';
-      setIdVerificationStatus(preferredStatus);
+                return {
+                  candidateId,
+                  count: count ?? 0,
+                  error,
+                };
+              })
+            ),
+            Promise.all(
+              candidateUuids.map(async (candidateId) => {
+                const { data, error } = await supabase
+                  .from('id_badge_verification_requests')
+                  .select('id')
+                  .eq('user_id', candidateId)
+                  .eq('status', 'approved')
+                  .limit(1);
 
-      setBadges(badgeResult);
+                return {
+                  candidateId,
+                  hasApproved: !error && Boolean(data && data.length > 0),
+                };
+              })
+            ),
+          ]);
+
+          const completedTradesMax = completedTradeCounts.reduce((maxValue, entry) => {
+            return entry.count > maxValue ? entry.count : maxValue;
+          }, 0);
+          setCompletedTradesCount(completedTradesMax);
+
+          const hasApprovedFromPolicyRead = approvedVerificationMatches.some(
+            (entry) => entry.hasApproved
+          );
+
+          const approvedStatus = verificationStatuses.find(
+            (entry) => entry.status?.status === 'approved'
+          );
+          const preferredStatus =
+            (hasApprovedFromPolicyRead ? 'approved' : null) ||
+            approvedStatus?.status?.status ||
+            verificationStatuses.find((entry) => entry.status?.status !== 'none')?.status?.status ||
+            'none';
+          setIdVerificationStatus(preferredStatus);
+
+          setBadges(badgeResult);
+        } catch (secondaryLoadError) {
+          console.error('Load seller profile secondary data error:', secondaryLoadError);
+        }
+      })();
     } catch (error) {
       console.error('Load seller profile error:', error);
     } finally {
@@ -182,27 +216,27 @@ export default function SellerProfileScreen({ navigation, route }: any) {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <ScreenLayout variant="detail" title="Seller Profile">
         <LoadingSpinner fullScreen text="Loading profile..." />
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   if (!profile) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+      <ScreenLayout variant="detail" title="Seller Profile">
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Profile not found</Text>
           <TouchableOpacity style={styles.retryButton} onPress={loadSellerProfile}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </ScreenLayout>
     );
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+    <ScreenLayout variant="detail" title="Seller Profile">
       <View style={{ flex: 1, flexDirection: 'column' }}>
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
           {/* Header */}
@@ -283,15 +317,29 @@ export default function SellerProfileScreen({ navigation, route }: any) {
 
             {(badges.length > 0) && (
               <View style={styles.badgesWrapper}>
-                <Text style={styles.badgesTitle}>Badges ({badges.length})</Text>
-                <View style={styles.badgesList}>
-                  {badges.map((userBadge) => (
-                    <View key={userBadge.id} style={styles.trustBadgeRow}>
-                      <ShieldCheck size={20} color="#5DBB8E" weight="fill" />
-                      <Text style={styles.trustBadgeText}>{userBadge.badge?.name || 'Earned Badge'}</Text>
-                    </View>
-                  ))}
-                </View>
+                <TouchableOpacity
+                  style={styles.badgesToggleRow}
+                  onPress={() => setBadgesExpanded((prev) => !prev)}
+                  accessibilityRole="button"
+                  accessibilityLabel={badgesExpanded ? 'Collapse badges' : 'Expand badges'}
+                >
+                  <Text style={styles.badgesTitle}>Badges ({badges.length})</Text>
+                  {badgesExpanded ? (
+                    <CaretUp size={18} color="#1A1A1A" weight="bold" />
+                  ) : (
+                    <CaretDown size={18} color="#1A1A1A" weight="bold" />
+                  )}
+                </TouchableOpacity>
+                {badgesExpanded && (
+                  <View style={styles.badgesList}>
+                    {badges.map((userBadge) => (
+                      <View key={userBadge.id} style={styles.trustBadgeRow}>
+                        <ShieldCheck size={20} color="#5DBB8E" weight="fill" />
+                        <Text style={styles.trustBadgeText}>{userBadge.badge?.name || 'Earned Badge'}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             )}
             
@@ -311,7 +359,7 @@ export default function SellerProfileScreen({ navigation, route }: any) {
         </ScrollView>
         <BottomNavBar />
       </View>
-    </SafeAreaView>
+    </ScreenLayout>
   );
 }
 
@@ -390,6 +438,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
+  // Follow button styles removed intentionally — do NOT re-add.
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -470,11 +519,18 @@ const styles = StyleSheet.create({
   badgesWrapper: {
     width: '100%',
   },
+  badgesToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
   badgesTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1A1A1A',
-    marginBottom: 12,
   },
   badgesList: {
     width: '100%',

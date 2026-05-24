@@ -3,7 +3,8 @@
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import NotificationCenterScreen from '../NotificationCenterScreen';
+import { IdentificationCard, Trophy } from 'phosphor-react-native';
+import NotificationCenterScreen, { getNotificationIconConfig } from '../NotificationCenterScreen';
 import { useAuth } from '@/hooks/useAuth';
 import * as referralNotifications from '@/services/referralNotifications';
 import * as deepLink from '@/services/deepLink';
@@ -164,6 +165,31 @@ describe('NotificationCenterScreen - MODULE-15.1 FLOW-17', () => {
   });
 
   describe('Notification Items (FLOW-17)', () => {
+    it('should use IdentificationCard icon for ID verification notifications', () => {
+      const iconConfig = getNotificationIconConfig({
+        ...mockNotifications[0],
+        category: 'badges',
+        type: 'id_badge_rejected',
+      });
+
+      expect(iconConfig.Icon).toBe(IdentificationCard);
+      // Rejected ID verification uses red palette (matches app green style, not corporate blue)
+      expect(iconConfig.backgroundColor).toBe('#FEE2E2');
+      expect(iconConfig.iconColor).toBe('#E85D75');
+    });
+
+    it('should keep Trophy icon for badge_awarded notifications', () => {
+      const iconConfig = getNotificationIconConfig({
+        ...mockNotifications[0],
+        category: 'badges',
+        type: 'badge_awarded',
+      });
+
+      expect(iconConfig.Icon).toBe(Trophy);
+      expect(iconConfig.backgroundColor).toBe('#FEF3C7');
+      expect(iconConfig.iconColor).toBe('#D97706');
+    });
+
     it('should render notification items with Phosphor icons (not emoji)', async () => {
       const { getByTestId } = render(<NotificationCenterScreen />);
 
@@ -199,6 +225,16 @@ describe('NotificationCenterScreen - MODULE-15.1 FLOW-17', () => {
         expect(readItem).toBeTruthy();
         expect(readTitle).toBeTruthy();
         // Read items use default styles without Unread overrides
+      });
+    });
+
+    it('should render full notification body without truncating lines', async () => {
+      const { getByTestId } = render(<NotificationCenterScreen />);
+
+      await waitFor(() => {
+        const body = getByTestId('notification-body-notif-1');
+        expect(body).toBeTruthy();
+        expect(body.props.numberOfLines).toBeUndefined();
       });
     });
 

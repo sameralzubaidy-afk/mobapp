@@ -16,6 +16,35 @@ const REALTIME_ENABLED =
 const TEST_SESSION_USER_ID = '00000000-0000-0000-0000-000000000001';
 const AUTH_INIT_SESSION_TIMEOUT_MS = 12000;
 const AUTH_INIT_QUERY_TIMEOUT_MS = 10000;
+const AUTH_REFRESH_MIN_INTERVAL_MS = 1500;
+const AUTH_VERBOSE_LOGS = false;
+
+function authLog(...args: unknown[]) {
+  if (__DEV__ && AUTH_VERBOSE_LOGS) {
+    // eslint-disable-next-line no-console
+    console.log(...args);
+  }
+}
+
+function buildSessionSignature(session: AuthSession | null): string {
+  if (!session) {
+    return 'null';
+  }
+
+  return [
+    session.user?.user_id ?? session.user?.id ?? '',
+    session.user?.node_id ?? '',
+    session.user?.onboarding_completed ? '1' : '0',
+    session.user?.phone_verified ? '1' : '0',
+    session.subscription_status ?? '',
+    session.can_spend_sp ? '1' : '0',
+    session.wallet_state ?? '',
+    String(session.available_points ?? 0),
+    String(session.pending_points ?? 0),
+    String(session.lifetime_earned ?? 0),
+    String(session.lifetime_spent ?? 0),
+  ].join('|');
+}
 
 function extractErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -117,6 +146,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const subscriptionRef = useRef<any>(null);
   const walletRef = useRef<any>(null);
   const profileRef = useRef<any>(null);
+  const refreshInFlightRef = useRef(false);
+  const lastRefreshAtRef = useRef(0);
+  const sessionSignatureRef = useRef('__unset__');
 
   const removeRealtimeChannel = useCallback((channelRef: React.MutableRefObject<any>) => {
     const channel = channelRef.current;
@@ -159,6 +191,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    */
   const setSession = useCallback(
     (newSession: AuthSession | null) => {
+      const nextSignature = buildSessionSignature(newSession);
+      if (sessionSignatureRef.current === nextSignature) {
+        return;
+      }
+
+      sessionSignatureRef.current = nextSignature;
       setSessionState(newSession);
       notifySessionChanges(newSession);
 
@@ -190,6 +228,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    */
   const refreshSession = useCallback(
     async (silent: boolean = true) => {
+      const now = Date.now();
+      if (refreshInFlightRef.current) {
+        authLog('[AUTH] refreshSession skipped: request already in flight');
+        return;
+      }
+
+      if (silent && now - lastRefreshAtRef.current < AUTH_REFRESH_MIN_INTERVAL_MS) {
+        authLog('[AUTH] refreshSession skipped: throttled');
+        return;
+      }
+
+      refreshInFlightRef.current = true;
+      lastRefreshAtRef.current = now;
+
       try {
         if (!SUPABASE_CONFIGURED) {
           if (session?.user?.user_id === TEST_SESSION_USER_ID) {
@@ -400,6 +452,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             : new AuthError('Session refresh failed', 'REFRESH_FAILED', err);
         setError(authError);
       } finally {
+        refreshInFlightRef.current = false;
         setIsLoading(false);
       }
     },
@@ -428,7 +481,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             filter: `user_id=eq.${userId}`,
           },
           (payload) => {
-            console.log('[AUTH] Subscription changed:', payload);
+            authLog('[AUTH] Subscription changed:', payload);
             // Refresh session when subscription changes
             refreshSession();
           }
@@ -474,7 +527,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             filter: `user_id=eq.${userId}`,
           },
           (payload) => {
-            console.log('[AUTH] SP Wallet changed:', payload);
+            authLog('[AUTH] SP Wallet changed:', payload);
             // Refresh session when wallet changes
             refreshSession();
           }
@@ -519,7 +572,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Clear session
       setSession(null);
       setError(null);
-      console.log('[AUTH] Logout successful');
+      authLog('[AUTH] Logout successful');
     } catch (err) {
       console.error('[AUTH] Logout error:', err);
       const authError =
@@ -544,7 +597,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     const initializeAuth = async () => {
-      console.log('[AUTH] 🏁 Initializing auth state...');
+      authLog('[AUTH] Initializing auth state...');
       const withTimeout = async <T,>(
         promiseFactory: () => Promise<T>,
         ms: number,
@@ -591,7 +644,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } catch {}
 
         // Get current session from Supabase with timeout protection
-        console.log('[AUTH] 🔍 Fetching session...');
+        authLog('[AUTH] Fetching session...');
         const { data: sessionData, error: sessionError } = (await withTimeout(
           () => supabase.auth.getSession(),
           AUTH_INIT_SESSION_TIMEOUT_MS,
@@ -613,10 +666,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           try {
             require('@/utils/startupDebug').setStartupStep('fetching profile');
           } catch {}
-          console.log('[AUTH] 👤 User found in session:', sessionData.session.user.id);
+          authLog('[AUTH] User found in session:', sessionData.session.user.id);
 
           // User is authenticated - restore session from profile
-          console.log('[AUTH] 🔍 Fetching profile...');
+          authLog('[AUTH] Fetching profile...');
           const { data: profileData, error: profileError } = (await withTimeout(
             () =>
               supabase
@@ -639,10 +692,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             try {
               require('@/utils/startupDebug').setStartupStep('fetching subscription');
             } catch {}
-            console.log('[AUTH] ✅ Profile found');
+            authLog('[AUTH] Profile found');
 
             // Also fetch subscription status from subscriptions table (source of truth)
-            console.log('[AUTH] 🔍 Fetching subscription status...');
+            authLog('[AUTH] Fetching subscription status...');
             const { data: subscriptionData } = (await withTimeout(
               () =>
                 supabase
@@ -659,7 +712,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             const subscriptionStatus = subscriptionData?.status || 'free';
 
             // Also fetch SP wallet summary (now includes wallet_state)
-            console.log('[AUTH] 🔍 Fetching SP wallet summary...');
+            authLog('[AUTH] Fetching SP wallet summary...');
             const { data: walletData, error: walletFetchError } = (await withTimeout(
               () =>
                 supabase.rpc('get_user_sp_wallet_summary', {
@@ -672,7 +725,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (walletFetchError) {
               console.warn('[AUTH] ⚠️ Wallet fetch error:', walletFetchError);
             } else {
-              console.log('[AUTH] ✅ Wallet data received:', walletData);
+              authLog('[AUTH] Wallet data received:', walletData);
             }
 
             let walletSummary = {
@@ -690,10 +743,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
             if (Array.isArray(walletData) && walletData.length > 0) {
               walletSummary = walletData[0];
-              console.log('[AUTH] 📊 Wallet summary from array:', walletSummary);
+              authLog('[AUTH] Wallet summary from array:', walletSummary);
             } else if (walletData && !Array.isArray(walletData)) {
               walletSummary = walletData;
-              console.log('[AUTH] 📊 Wallet summary from object:', walletSummary);
+              authLog('[AUTH] Wallet summary from object:', walletSummary);
             } else {
               console.warn('[AUTH] ⚠️ No wallet data received, using defaults');
             }
@@ -703,7 +756,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               (subscriptionStatus === 'trial' || subscriptionStatus === 'active') &&
               walletSummary.wallet_state === 'active';
 
-            console.log('[AUTH] 💰 SP spending eligibility:', {
+            authLog('[AUTH] SP spending eligibility:', {
               subscriptionStatus,
               wallet_state: walletSummary.wallet_state,
               canSpendSP,
@@ -755,7 +808,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             try {
               require('@/utils/startupDebug').setStartupStep('session restored');
             } catch {}
-            console.log('[AUTH] 🎉 Session restored successfully');
+            authLog('[AUTH] Session restored successfully');
           } else {
             console.warn('[AUTH] ⚠️ Profile not found for authenticated user');
             setSession(null);
@@ -764,7 +817,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           try {
             require('@/utils/startupDebug').setStartupStep('no active session');
           } catch {}
-          console.log('[AUTH] ℹ️ No active session found');
+          authLog('[AUTH] No active session found');
           setSession(null);
         }
       } catch (err: any) {
@@ -773,7 +826,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           err?.code === 'INVALID_CREDENTIALS' ||
           err?.message?.includes('Invalid login credentials')
         ) {
-          console.log('[AUTH] ℹ️ No active session on startup (expected)');
+          authLog('[AUTH] No active session on startup (expected)');
           setSession(null);
         } else if (isTransientNetworkError(err)) {
           console.warn('[AUTH] Network unavailable during auth init; continuing as signed out');
@@ -789,7 +842,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setSession(null);
         }
       } finally {
-        console.log('[AUTH] ✅ Initialization complete');
+        authLog('[AUTH] Initialization complete');
         clearTimeout(initTimeout);
         isLoadingRef.current = false;
         setIsLoading(false);
@@ -828,7 +881,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('[AUTH] Profile changed:', payload);
+          authLog('[AUTH] Profile changed:', payload);
           refreshSession();
         }
       );
@@ -878,7 +931,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     function handleAppStateChange(state: string) {
       if (state === 'active' && session) {
-        console.log('[AUTH] App resumed - refreshing session');
+        authLog('[AUTH] App resumed - refreshing session');
         refreshSession();
       }
     }

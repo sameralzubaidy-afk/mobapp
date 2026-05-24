@@ -69,6 +69,11 @@ const DEEP_LINK_ROUTES: Record<string, keyof RootStackParamList> = {
   Badges: 'Badges',
   Leaderboard: 'Leaderboard',
 
+  // ID Verification
+  '/id-verification': 'IDVerificationUpload',
+  '/id-verification-upload': 'IDVerificationUpload',
+  idverificationupload: 'IDVerificationUpload',
+
   // Trades
   '/trades': 'TradeList',
   '/trade': 'TradeList',
@@ -142,6 +147,14 @@ const TYPE_TO_ROUTE_MAP: Record<
   badge_awarded: { route: 'Badges', action: 'navigate' },
   badge_milestone: { route: 'Badges', action: 'navigate' },
   leaderboard_rank_up: { route: 'Leaderboard', action: 'navigate' },
+
+  // ID Badge Verification Events
+  id_badge_submission: { route: 'IDVerificationUpload', action: 'navigate' },
+  id_badge_approved: { route: 'IDVerificationUpload', action: 'navigate' },
+  id_badge_rejected: { route: 'IDVerificationUpload', action: 'navigate' },
+  id_verification_submission: { route: 'IDVerificationUpload', action: 'navigate' },
+  id_verification_approved: { route: 'IDVerificationUpload', action: 'navigate' },
+  id_verification_rejected: { route: 'IDVerificationUpload', action: 'navigate' },
 
   // Trade Events
   trade_request: { route: 'TradeList', action: 'navigate' },
@@ -406,6 +419,7 @@ export function buildDeepLinkUrl(
     NotificationDetail: 'notification',
     ReferralDashboard: 'referral',
     Profile: 'profile',
+    IDVerificationUpload: 'id-verification-upload',
     Notifications: 'notifications',
     Home: 'home',
   };
