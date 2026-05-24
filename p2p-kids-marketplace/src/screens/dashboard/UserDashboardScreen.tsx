@@ -21,6 +21,7 @@ import { useAuth, useSPWallet } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useNotificationBadge } from '@/hooks/useNotificationBadge';
 import { getActiveDrafts } from '@/services/draftService';
+import { idBadgeService } from '@/services/idBadge';
 import { supabase } from '@/config/supabase';
 
 // Types
@@ -32,6 +33,7 @@ import ScreenLayout from '@/components/ScreenLayout';
 import CategorySelector from '../../components/molecules/CategorySelector';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
 import { ResumeDraftBanner } from '../../components/molecules/ResumeDraftBanner';
+import { IDVerificationCTABanner } from '../../components/molecules/IDVerificationCTABanner';
 import GracePeriodBanner from '../../components/GracePeriodBanner';
 import { PaymentFailureBanner } from '../../components/subscription/PaymentFailureBanner';
 import { TrialReminderBanner } from '../../components/TrialReminderBanner';
@@ -121,6 +123,11 @@ export default function UserDashboardScreen() {
   const [graceEndDate, setGraceEndDate] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<ItemDraft[]>([]);
   const [isDraftBannerDismissed, setIsDraftBannerDismissed] = useState(false);
+  // ID verification CTA
+  const [idVerifStatus, setIdVerifStatus] = useState<'none' | 'pending' | 'approved' | 'rejected'>('approved');
+  const [isIdCtaDismissed, setIsIdCtaDismissed] = useState(false);
+  // Action Items section: show all toggle
+  const [showAllCtas, setShowAllCtas] = useState(false);
   const [sellSheetVisible, setSellSheetVisible] = useState(false);
   const [recentTrade, setRecentTrade] = useState<{
     id: string;
@@ -148,6 +155,17 @@ export default function UserDashboardScreen() {
       }
     } catch {
       setGraceEndDate(null);
+    }
+  }, [session?.user?.id]);
+
+  const loadIdVerificationStatus = useCallback(async () => {
+    if (!session?.user?.id) return;
+    try {
+      const result = await idBadgeService.getVerificationStatus(session.user.id);
+      setIdVerifStatus(result.status);
+    } catch {
+      // Fail safe: don't nag user if check fails
+      setIdVerifStatus('approved');
     }
   }, [session?.user?.id]);
 
@@ -192,7 +210,10 @@ export default function UserDashboardScreen() {
     loadSubscriptionTimeline();
     loadDrafts();
     loadRecentTrade();
+    loadIdVerificationStatus();
     setIsDraftBannerDismissed(false);
+    setIsIdCtaDismissed(false);
+    setShowAllCtas(false);
   }, [isFocused]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -217,11 +238,12 @@ export default function UserDashboardScreen() {
         refetchSubscription(),
         loadSubscriptionTimeline(),
         loadRecentTrade(),
+        loadIdVerificationStatus(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refreshSession, refetchSubscription, loadSubscriptionTimeline, loadRecentTrade]);
+  }, [refreshSession, refetchSubscription, loadSubscriptionTimeline, loadRecentTrade, loadIdVerificationStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Render guards ──────────────────────────────────────────────────────────
   // Guard skipped during pull-to-refresh (refreshing=true) to prevent blank screen flash.
@@ -341,34 +363,102 @@ export default function UserDashboardScreen() {
           ))}
         </ScrollView>
 
-        {/* ── Draft Resume Banner ───────────────────────────────────────── */}
-        {!isDraftBannerDismissed && drafts.length > 0 && (
-          <View style={styles.sectionGap}>
-            <ResumeDraftBanner
-              drafts={drafts}
-              onResume={(draftId, isBulk) =>
-                navigation.navigate(isBulk ? 'BulkListingCreate' : 'ItemCreate', { draftId })
-              }
-              onDismiss={() => setIsDraftBannerDismissed(true)}
-            />
-          </View>
-        )}
-
-        {/* ── Contextual Banners ────────────────────────────────────────── */}
+        {/* ── Subscription Alerts (always shown when relevant) ──────────── */}
         <TrialReminderBanner />
         <PaymentFailureBanner subscription={subscriptionSummary} loading={subscriptionLoading} />
-        {(subscription.status === 'grace' || subscription.status === 'grace_period') &&
-          graceEndDate &&
-          (() => {
-            const daysRemaining = Math.ceil(
-              (new Date(graceEndDate).getTime() - Date.now()) / 86_400_000
-            );
-            return daysRemaining > 0 ? (
-              <View style={styles.sectionGap}>
-                <GracePeriodBanner gracePeriodEndsAt={graceEndDate} daysRemaining={daysRemaining} />
-              </View>
-            ) : null;
-          })()}
+
+        {/* ── Action Items Section ──────────────────────────────────────── */}
+        {(() => {
+          const graceDaysRemaining =
+            (subscription.status === 'grace' || subscription.status === 'grace_period') &&
+            graceEndDate
+              ? Math.ceil((new Date(graceEndDate).getTime() - Date.now()) / 86_400_000)
+              : 0;
+
+          // Build ordered list of active CTA items (priority: ID verif > SP > drafts)
+          type CtaItem = { key: string; node: React.ReactNode };
+          const allCtas: CtaItem[] = [];
+
+          if (
+            !isIdCtaDismissed &&
+            (idVerifStatus === 'none' || idVerifStatus === 'rejected')
+          ) {
+            allCtas.push({
+              key: 'id_verification',
+              node: (
+                <IDVerificationCTABanner
+                  status={idVerifStatus as 'none' | 'rejected'}
+                  onVerify={() => navigation.navigate('IDVerificationUpload')}
+                  onDismiss={() => setIsIdCtaDismissed(true)}
+                />
+              ),
+            });
+          }
+
+          if (graceDaysRemaining > 0) {
+            allCtas.push({
+              key: 'grace_period',
+              node: (
+                <GracePeriodBanner
+                  gracePeriodEndsAt={graceEndDate!}
+                  daysRemaining={graceDaysRemaining}
+                />
+              ),
+            });
+          }
+
+          if (!isDraftBannerDismissed && drafts.length > 0) {
+            allCtas.push({
+              key: 'drafts',
+              node: (
+                <ResumeDraftBanner
+                  drafts={drafts}
+                  onResume={(draftId, isBulk) =>
+                    navigation.navigate(isBulk ? 'BulkListingCreate' : 'ItemCreate', { draftId })
+                  }
+                  onDismiss={() => setIsDraftBannerDismissed(true)}
+                />
+              ),
+            });
+          }
+
+          if (allCtas.length === 0) return null;
+
+          const MAX_VISIBLE = 3;
+          const visibleCtas = showAllCtas ? allCtas : allCtas.slice(0, MAX_VISIBLE);
+          const hiddenCount = allCtas.length - MAX_VISIBLE;
+
+          return (
+            <View style={styles.actionItemsSection}>
+              <Text style={styles.actionItemsTitle}>Action Items</Text>
+              {visibleCtas.map((cta) => (
+                <View key={cta.key} style={styles.ctaItemWrap}>
+                  {cta.node}
+                </View>
+              ))}
+              {!showAllCtas && hiddenCount > 0 && (
+                <TouchableOpacity
+                  style={styles.showAllBtn}
+                  onPress={() => setShowAllCtas(true)}
+                  testID="action-items-show-all"
+                >
+                  <Text style={styles.showAllText}>
+                    Show {hiddenCount} more action{hiddenCount > 1 ? 's' : ''}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {showAllCtas && allCtas.length > MAX_VISIBLE && (
+                <TouchableOpacity
+                  style={styles.showAllBtn}
+                  onPress={() => setShowAllCtas(false)}
+                  testID="action-items-show-less"
+                >
+                  <Text style={styles.showAllText}>Show less</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })()}
 
         {/* ── Browse Categories ─────────────────────────────────────────── */}
         <View style={styles.sectionBlock}>
@@ -627,6 +717,30 @@ const styles = StyleSheet.create({
   sectionGap: {
     marginBottom: 20,
   },
+
+  // ─── Action Items Section ────────────────────────────────────────────────────
+  actionItemsSection: {
+    marginBottom: 24,
+  },
+  actionItemsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 12,
+  },
+  ctaItemWrap: {
+    marginBottom: 12,
+  },
+  showAllBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  showAllText: {
+    fontSize: 14,
+    color: '#5DBB8E',
+    fontWeight: '600',
+  },
+
   sectionBlock: {
     marginBottom: 24,
   },

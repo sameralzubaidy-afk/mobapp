@@ -26,7 +26,7 @@ jest.mock('@/config/supabase', () => ({
 }));
 
 jest.mock('@/services/idBadge', () => ({
-  idBadgeService: { getVerificationStatus: jest.fn().mockResolvedValue(null) },
+  idBadgeService: { getVerificationStatus: jest.fn().mockResolvedValue({ status: 'approved' }) },
 }));
 
 jest.mock('@/services/draftService', () => ({
@@ -57,6 +57,9 @@ jest.mock('@/components/subscription/PaymentFailureBanner', () => ({
 }));
 jest.mock('@/components/molecules/ResumeDraftBanner', () => ({
   ResumeDraftBanner: () => null,
+}));
+jest.mock('@/components/molecules/IDVerificationCTABanner', () => ({
+  IDVerificationCTABanner: () => null,
 }));
 jest.mock('@/components/ui', () => ({ LoadingSpinner: () => null }));
 
