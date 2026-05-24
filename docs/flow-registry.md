@@ -5551,3 +5551,69 @@ Satisfied Items:
   - `npx eslint src/screens/profile/IDVerificationUploadScreen.tsx` — PASS
   - `npm run test:unit -- --testPathPattern=IDVerificationUploadScreen` — 21/21 PASS
 - **Verification**: MODULE-15.1-VERIFICATION.md D-033 satisfied
+
+---
+
+### FLOW-26: Misc / Edge-Case Screens (MODULE-15.1 UI Redesign) — COMPLETE ✅ (2026-05-24)
+
+- **Module**: MODULE-15.1-UI-REDESIGN (TASK FLOW-26)
+- **Purpose**: Redesign 6 utility/edge-case screens to match Whisk-inspired design system
+- **Scope**: 6 screens/components created — visual-only, no business logic changes
+  - `p2p-kids-marketplace/src/screens/error/OfflineScreen.tsx` — Network error state
+  - `p2p-kids-marketplace/src/components/EmptySearchState.tsx` — No search results
+  - `p2p-kids-marketplace/src/components/EmptyState.tsx` — Generic empty state (reusable)
+  - `p2p-kids-marketplace/src/screens/LoadingScreen.tsx` — Loading state
+  - `p2p-kids-marketplace/src/screens/feedback/SuccessScreen.tsx` — Action success
+  - `p2p-kids-marketplace/src/screens/feedback/ErrorScreen.tsx` — Action failure
+- **Design changes**:
+  - Phosphor icons: `WifiX` (64px), `MagnifyingGlassSlash` (56px), `CheckCircle` (72px), `XCircle` (72px), `ArrowCounterClockwise` (18px)
+  - All screens: white background (#FFFFFF), centered layout, 24px horizontal padding
+  - Primary buttons: `#5DBB8E` pill (52px height, borderRadius 26px)
+  - Icons: gray (#E0E0E0) for empty states, green (#5DBB8E) for success, red (#E85D75) for error
+  - Typography: 22-24px headings, 15-17px body, 14px subtexts
+  - `ActivityIndicator` color: `#5DBB8E`
+  - All screens have `testID` props for Maestro automation
+- **Navigation**:
+  - Added all 6 screens to `AppNavigator.tsx` (authenticated stack)
+  - Screens navigable via route params or direct navigation
+- **Tests**:
+  - Unit: 6 test files created:
+    - `src/screens/error/__tests__/OfflineScreen.test.tsx` — 7 test cases
+    - `src/components/__tests__/EmptySearchState.test.tsx` — 6 test cases
+    - `src/components/__tests__/EmptyState.test.tsx` — 12 test cases
+    - `src/screens/__tests__/LoadingScreen.test.tsx` — 5 test cases
+    - `src/screens/feedback/__tests__/SuccessScreen.test.tsx` — 9 test cases
+    - `src/screens/feedback/__tests__/ErrorScreen.test.tsx` — 11 test cases
+  - Maestro: `.maestro/module-15.1-flow-26-misc-screens.yaml`
+  - Manual: `FLOW-26-MANUAL-TESTING-GUIDE.md` (6 test cases, design validation checklist)
+- **Tier 0 gate**:
+  - `npm run typecheck` — REQUIRED BEFORE SIMULATOR
+  - `npm run lint` — REQUIRED BEFORE SIMULATOR
+  - `npm run test:unit` — All 50 test cases must pass
+- **Commands**:
+  ```bash
+  # Unit tests
+  cd p2p-kids-marketplace
+  npm run test:unit -- --testPathPattern="OfflineScreen|EmptySearchState|EmptyState|LoadingScreen|SuccessScreen|ErrorScreen"
+  
+  # Maestro (iOS)
+  npm run test:maestro:ios -- .maestro/module-15.1-flow-26-misc-screens.yaml
+  
+  # Maestro (Android)
+  npm run test:maestro:android -- .maestro/module-15.1-flow-26-misc-screens.yaml
+  
+  # Typecheck + Lint
+  npm run typecheck && npm run lint
+  ```
+- **Verification**: MODULE-15.1-VERIFICATION.md D-036 (Misc screens redesigned) satisfied
+- **Acceptance Criteria**:
+  - [x] OfflineScreen: `WifiX` (64px, `#E0E0E0`), green "Try Again" pill with `ArrowCounterClockwise` icon
+  - [x] EmptySearchState: `MagnifyingGlassSlash` (56px, `#E0E0E0`), 17px semibold title
+  - [x] EmptyState: accepts icon/title/subtitle/action as props, no hardcoded icons
+  - [x] LoadingScreen: `ActivityIndicator` color `#5DBB8E`, white background
+  - [x] SuccessScreen: `CheckCircle` (72px, `#5DBB8E`, fill), green CTA pill
+  - [x] ErrorScreen: `XCircle` (72px, `#E85D75`, fill), green "Try Again" pill, gray "Go Back" text link
+  - [x] All screens: white `#FFFFFF` background, centered layout, 24px horizontal padding
+  - [x] Zero Ionicons imports in all 6 files
+  - [x] TypeScript compilation passes with no duplicate identifier errors
+  - [x] All `testID` props present for Maestro automation

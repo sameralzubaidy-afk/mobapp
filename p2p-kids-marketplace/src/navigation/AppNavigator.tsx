@@ -72,6 +72,11 @@ import TermsOfServiceScreen from '@/screens/profile/TermsOfServiceScreen';
 import PrivacyPolicyScreen from '@/screens/profile/PrivacyPolicyScreen';
 import LiabilityDisclaimerScreen from '@/screens/settings/LiabilityDisclaimerScreen';
 import DeleteAccountScreen from '@/screens/settings/DeleteAccountScreen';
+// MODULE-15.1 FLOW-26: Misc / Edge-Case Screens
+import OfflineScreen from '@/screens/error/OfflineScreen';
+import LoadingScreen from '@/screens/LoadingScreen';
+import SuccessScreen from '@/screens/feedback/SuccessScreen';
+import ErrorScreen from '@/screens/feedback/ErrorScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 import {
@@ -808,6 +813,27 @@ function RootNavigator() {
               name="DeleteAccount"
               component={DeleteAccountScreen}
               options={{ title: 'Delete Account', headerShown: false }}
+            />
+            {/* MODULE-15.1 FLOW-26: Misc / Edge-Case Screens */}
+            <Stack.Screen
+              name="Offline"
+              component={OfflineScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Loading"
+              component={LoadingScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Success"
+              component={SuccessScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="Error"
+              component={ErrorScreen}
+              options={{ headerShown: false }}
             />
             {/* Add more authenticated screens as needed */}
           </>
