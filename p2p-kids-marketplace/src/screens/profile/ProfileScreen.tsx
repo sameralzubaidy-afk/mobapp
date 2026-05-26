@@ -52,7 +52,6 @@ import BadgeCelebrationModal from '@/components/badges/BadgeCelebrationModal';
 import { useUserBadges } from '@/hooks/useUserBadges';
 // generated `Database` types may be missing locally; use a permissive fallback
 // to avoid type errors until DB types are generated.
-import BottomNavBar from '@/components/organisms/BottomNavBar';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type UserProfile = any;
@@ -646,7 +645,6 @@ export default function ProfileScreen({ navigation, route }: any) {
             </View>
           )}
         </ScrollView>
-        <BottomNavBar />
 
         {/* TASK NOTIF-V2-004: Badge Celebration Modal */}
         <BadgeCelebrationModal

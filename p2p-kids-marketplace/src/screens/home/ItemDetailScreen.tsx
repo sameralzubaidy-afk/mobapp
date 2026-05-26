@@ -53,7 +53,7 @@ import {
   User,
 } from 'phosphor-react-native';
 import { Modal, LoadingSpinner } from '@/components/ui';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import StarRating from '@/components/molecules/StarRating';
 import Avatar from '@/components/atoms/Avatar';
 import { ListingImage } from '@/components/atoms';
@@ -325,7 +325,7 @@ export default function ItemDetailScreen() {
             <LoadingSpinner />
             <Text style={styles.loadingText}>Loading item...</Text>
           </View>
-          <BottomNavBar />
+          <PersistentTabBar />
         </View>
       </ScreenLayout>
     );
@@ -338,7 +338,7 @@ export default function ItemDetailScreen() {
           <View style={styles.centerContent}>
             <Text style={styles.errorTitle}>❌ {error || 'Listing not found'}</Text>
           </View>
-          <BottomNavBar />
+          <PersistentTabBar />
         </View>
       </ScreenLayout>
     );
@@ -742,7 +742,7 @@ export default function ItemDetailScreen() {
           onClose={() => setShowDuplicateOfferModal(false)}
         />
 
-        <BottomNavBar />
+        <PersistentTabBar />
       </View>
     </ScreenLayout>
   );

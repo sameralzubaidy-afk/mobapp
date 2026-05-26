@@ -27,10 +27,10 @@ import { Trade } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { useAuth } from '@/hooks/useAuth';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
 import { Modal, LoadingSpinner } from '@/components/ui';
-import { Ionicons } from '@expo/vector-icons';
+import { Info, CheckCircle, Circle, Star } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeDetailRouteProp = RouteProp<RootStackParamList, 'TradeDetail'>;
@@ -356,10 +356,10 @@ export default function TradeDetailScreen() {
 
         {isBuyer && trade.status === 'in_progress' && trade.seller_marked_completed_at && (
           <View style={[styles.infoBox, styles.sellerCompletedBox]}>
-            <Ionicons
-              name="information-circle"
+            <Info
               size={20}
               color="#065f46"
+              weight="regular"
               style={{ marginRight: 8 }}
             />
             <Text style={styles.sellerCompletedText}>
@@ -374,10 +374,11 @@ export default function TradeDetailScreen() {
             {/* Show review status info */}
             <View style={styles.reviewStatusInfo}>
               <View style={styles.reviewStatusRow}>
-                <Ionicons
-                  name={hasReviewed ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={20}
-                  color={hasReviewed ? '#10B981' : '#9CA3AF'}
+                {hasReviewed
+                  ? <CheckCircle size={20} color="#10B981" weight="regular" />
+                  : <Circle size={20} color="#9CA3AF" weight="regular" />
+                }
+                {/* phosphor-review-status-placeholder
                 />
                 <Text
                   style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}
@@ -386,10 +387,11 @@ export default function TradeDetailScreen() {
                 </Text>
               </View>
               <View style={styles.reviewStatusRow}>
-                <Ionicons
-                  name={otherUserReviewed ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={20}
-                  color={otherUserReviewed ? '#10B981' : '#9CA3AF'}
+                {otherUserReviewed
+                  ? <CheckCircle size={20} color="#10B981" weight="regular" />
+                  : <Circle size={20} color="#9CA3AF" weight="regular" />
+                }
+                {/* phosphor-other-review-status-placeholder
                 />
                 <Text
                   style={[
@@ -413,7 +415,7 @@ export default function TradeDetailScreen() {
               disabled={isReviewButtonDisabled}
               testID="review-trade-button"
             >
-              <Ionicons name="star" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Star size={20} color="#fff" weight="fill" style={{ marginRight: 8 }} />
               <Text style={styles.buttonText}>{reviewButtonLabel}</Text>
             </Pressable>
           </View>
@@ -436,7 +438,7 @@ export default function TradeDetailScreen() {
           </View>
         )}
       </ScrollView>
-      <BottomNavBar />
+      <PersistentTabBar />
 
       <Modal
         visible={showCompleteConfirm}

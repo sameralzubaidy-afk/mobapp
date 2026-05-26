@@ -31,7 +31,7 @@ import { getSubscriptionSummary } from '../../services/subscription';
 import { createListing, uploadListingImages } from '../../services/listing';
 import { getCategories } from '../../services/items';
 import { ListingCondition } from '../../types/listing';
-import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -382,7 +382,7 @@ export default function CreateListingScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         </ScrollView>
-        <BottomNavBar />
+        <PersistentTabBar />
 
         <Modal
           visible={showSuccessModal}

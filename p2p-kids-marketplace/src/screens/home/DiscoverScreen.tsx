@@ -38,7 +38,6 @@ import { SearchResult, DiscoveryFilters, SortOption } from '@/types/discovery';
 import { getCategories } from '@/services/items';
 import { SortDropdown } from '@/components/atoms';
 import { SearchFilterModal, ItemCard } from '@/components/molecules';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
 import {
   checkZipCodeHasActiveNode,
   getZipCodeCoordinates,
@@ -48,7 +47,7 @@ import {
 import { upsertZipWaitlist } from '@/services/waitlist';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
-import { MagnifyingGlass, FunnelSimple, X } from 'phosphor-react-native';
+import { MagnifyingGlass, FunnelSimple, X, ShoppingCart } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
 // Search debounce constants: 200ms for active typing, 0ms for filter/sort changes
@@ -888,6 +887,14 @@ export default function DiscoverScreen({ navigation }: Props) {
               )}
             </View>
           </View>
+          {/* Cart shortcut */}
+          <Pressable
+            onPress={() => (navigation as any).navigate('Cart')}
+            style={styles.cartIconButton}
+            hitSlop={8}
+          >
+            <ShoppingCart size={24} color="#374151" weight="regular" />
+          </Pressable>
         </View>
 
         {/* Filter and Sort Row */}
@@ -1128,7 +1135,6 @@ export default function DiscoverScreen({ navigation }: Props) {
         </View>
       </RNModal>
 
-      <BottomNavBar />
     </ScreenLayout>
   );
 }
@@ -1152,6 +1158,12 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 4,
+  },
+  cartIconButton: {
+    padding: 4,
+    marginLeft: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchContainer: {
     flex: 1,

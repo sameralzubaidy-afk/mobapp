@@ -22,7 +22,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { getBillingHistory } from '@/services/billingHistory';
 import type { BillingHistory } from '@/types/billingHistory.types';
 import { formatPrice } from '@/utils/formatPrice';
-import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -163,7 +163,7 @@ export default function BillingHistoryScreen() {
           </Text>
         </View>
 
-        <BottomNavBar />
+        <PersistentTabBar />
       </ScreenLayout>
     );
   }
@@ -228,7 +228,7 @@ export default function BillingHistoryScreen() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      <BottomNavBar />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

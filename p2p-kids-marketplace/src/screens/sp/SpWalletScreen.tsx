@@ -33,7 +33,7 @@ import { getSPExpirationDays } from '@/services/adminConfig';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
-import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -248,7 +248,7 @@ export default function SpWalletScreen() {
             <Text style={styles.footerText}>🔒 SP can only be used for item purchases</Text>
           </View>
         </ScrollView>
-        <BottomNavBar />
+        <PersistentTabBar />
       </View>
     </ScreenLayout>
   );

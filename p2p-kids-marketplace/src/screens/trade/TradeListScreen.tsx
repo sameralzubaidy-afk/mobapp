@@ -22,7 +22,7 @@ import {
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { Receipt, ArrowRight } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -531,7 +531,7 @@ export default function TradeListScreen({ navigation }: any) {
           />
         )}
       </View>
-      <BottomNavBar />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

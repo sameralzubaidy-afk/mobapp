@@ -20,7 +20,7 @@ import { idBadgeService, IDVerificationStatus } from '@/services/idBadge';
 import { supabase } from '@/services/supabase/client';
 import { UserBadge } from '@/types/badge';
 import { getReviewStats, ReviewStats } from '@/services/review';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import ScreenLayout from '@/components/ScreenLayout';
 
 const isUuid = (value: string): boolean =>
@@ -357,7 +357,7 @@ export default function SellerProfileScreen({ navigation, route }: any) {
             </View>
           </View>
         </ScrollView>
-        <BottomNavBar />
+        <PersistentTabBar />
       </View>
     </ScreenLayout>
   );

@@ -34,7 +34,7 @@ import WalletWarningBanner, { type WalletState } from '@/components/molecules/Wa
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { Modal, LoadingSpinner } from '@/components/ui';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { ArrowsLeftRight, CaretLeft, Coins, ShieldCheck } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -276,7 +276,7 @@ export default function TradeOfferScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <BottomNavBar />
+      <PersistentTabBar />
 
       <DisclaimerModal
         visible={showDisclaimer}

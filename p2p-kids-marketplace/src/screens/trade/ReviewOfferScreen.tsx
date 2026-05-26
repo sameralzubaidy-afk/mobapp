@@ -25,7 +25,7 @@ import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -323,7 +323,7 @@ export default function ReviewOfferScreen() {
         </View>
       </ScrollView>
 
-      <BottomNavBar />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

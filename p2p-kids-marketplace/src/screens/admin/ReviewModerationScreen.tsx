@@ -19,7 +19,7 @@ import {
   ReportedReview,
 } from '@/services/admin/reviewModeration';
 import { ReviewCard } from '@/components/ReviewCard';
-import { Ionicons } from '@expo/vector-icons';
+import { Flag, CheckCircle, Trash } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
 
 export function ReviewModerationScreen() {
@@ -113,7 +113,7 @@ export function ReviewModerationScreen() {
 
         <View style={styles.reportInfo}>
           <View style={styles.reportHeader}>
-            <Ionicons name="flag" size={16} color="#EF4444" />
+            <Flag size={16} color="#EF4444" weight="regular" />
             <Text style={styles.reportCount}>
               {item.report_count} {item.report_count === 1 ? 'report' : 'reports'}
             </Text>
@@ -137,7 +137,7 @@ export function ReviewModerationScreen() {
             style={[styles.actionButton, styles.approveButton]}
             onPress={() => handleApprove(item.review.id)}
           >
-            <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+            <CheckCircle size={20} color="#FFFFFF" weight="regular" />
             <Text style={styles.approveButtonText}>Approve</Text>
           </TouchableOpacity>
 
@@ -145,7 +145,7 @@ export function ReviewModerationScreen() {
             style={[styles.actionButton, styles.deleteButton]}
             onPress={() => handleDelete(item.review.id)}
           >
-            <Ionicons name="trash" size={20} color="#FFFFFF" />
+            <Trash size={20} color="#FFFFFF" weight="regular" />
             <Text style={styles.deleteButtonText}>Delete</Text>
           </TouchableOpacity>
         </View>
@@ -181,7 +181,7 @@ export function ReviewModerationScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="checkmark-circle-outline" size={64} color="#10B981" />
+            <CheckCircle size={64} color="#10B981" weight="thin" />
             <Text style={styles.emptyText}>No reported reviews</Text>
             <Text style={styles.emptySubtext}>All reviews are in good standing</Text>
           </View>

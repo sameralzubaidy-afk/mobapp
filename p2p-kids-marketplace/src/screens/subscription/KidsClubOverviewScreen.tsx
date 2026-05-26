@@ -28,7 +28,7 @@ import {
   getTransactionFeeNonSubscriberCents,
   getTransactionFeeSubscriberCents,
 } from '@/services/adminConfig';
-import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -374,7 +374,7 @@ export default function KidsClubOverviewScreen() {
         </View>
       </Modal>
 
-      <BottomNavBar showHelp={true} />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

@@ -42,7 +42,7 @@ import {
   getTransactionFeeSubscriberCents,
 } from '@/services/adminConfig';
 import { formatPrice } from '@/utils/formatPrice';
-import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { PaymentMethodSection } from '@/components/subscription/PaymentMethodSection';
 import { AutoRenewToggle } from '@/components/subscription/AutoRenewToggle';
 import { BillingHistoryLink } from '@/components/subscription/BillingHistoryLink';
@@ -561,7 +561,7 @@ export default function ManageKidsClubScreen() {
         </View>
       </Modal>
 
-      <BottomNavBar showHelp={true} />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

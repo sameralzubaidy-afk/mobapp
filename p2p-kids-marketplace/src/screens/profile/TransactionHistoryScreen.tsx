@@ -18,8 +18,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '@/hooks/useAuth';
 import { getBillingHistory } from '@/services/billingHistory';
 import type { BillingHistory } from '@/types/billingHistory.types';
-import BottomNavBar from '../../components/organisms/BottomNavBar';
-import { Ionicons } from '@expo/vector-icons';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
+import { Receipt } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -115,7 +115,7 @@ export default function TransactionHistoryScreen() {
           </View>
         ) : history.length === 0 ? (
           <View style={styles.center}>
-            <Ionicons name="receipt-outline" size={64} color="#ccc" />
+            <Receipt size={64} color="#ccc" weight="regular" />
             <Text style={styles.emptyText}>No billing history yet.</Text>
           </View>
         ) : (
@@ -129,7 +129,7 @@ export default function TransactionHistoryScreen() {
         )}
       </View>
 
-      <BottomNavBar />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

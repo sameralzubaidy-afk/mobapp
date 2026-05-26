@@ -19,7 +19,7 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { CheckCircle, XCircle, Coins } from 'phosphor-react-native';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeSuccessRouteProp = RouteProp<RootStackParamList, 'TradeSuccess'>;
@@ -100,7 +100,7 @@ export default function TradeSuccessScreen() {
           <Text style={styles.linkText}>Back to Home</Text>
         </Pressable>
       </View>
-      <BottomNavBar />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

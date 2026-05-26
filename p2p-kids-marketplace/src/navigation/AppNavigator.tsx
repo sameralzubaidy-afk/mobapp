@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import Constants from 'expo-constants';
 import * as ExpoLinking from 'expo-linking';
 import { LoadingSpinner } from '@/components/ui';
+import { HomeTabNavigator } from '@/navigation/HomeTabNavigator';
 import DiscoverScreen from '@/screens/home/DiscoverScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
@@ -459,7 +460,7 @@ function RootNavigator() {
 
             <Stack.Screen
               name="Home"
-              component={UserDashboardScreen}
+              component={HomeTabNavigator}
               options={{ headerShown: false }}
             />
 

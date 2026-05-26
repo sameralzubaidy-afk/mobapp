@@ -11,7 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { EnvelopeSimple, Info, Key, GoogleLogo, FacebookLogo, AppleLogo, Link as LinkIcon } from 'phosphor-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getLinkedProviders,
@@ -177,16 +177,12 @@ export default function LinkedAccountsScreen({ navigation }: any) {
     }
   };
 
-  const getProviderIcon = (provider: OAuthProvider): any => {
+  const getProviderIcon = (provider: OAuthProvider) => {
     switch (provider) {
-      case 'google':
-        return 'logo-google';
-      case 'facebook':
-        return 'logo-facebook';
-      case 'apple':
-        return 'logo-apple';
-      default:
-        return 'link-outline';
+      case 'google':   return GoogleLogo;
+      case 'facebook': return FacebookLogo;
+      case 'apple':    return AppleLogo;
+      default:         return LinkIcon;
     }
   };
 
@@ -231,7 +227,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
             <Text style={styles.sectionTitle}>Email Address</Text>
             <View style={styles.providerCard}>
               <View style={styles.providerIconContainer}>
-                <Ionicons name="mail-outline" size={24} color="#3B82F6" />
+                <EnvelopeSimple size={24} color="#3B82F6" weight="regular" />
               </View>
               <View style={styles.providerInfo}>
                 <Text style={styles.providerName}>Account Email</Text>
@@ -245,7 +241,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
 
           {/* Info card */}
           <View style={styles.infoCard}>
-            <Ionicons name="information-circle-outline" size={20} color="#3B82F6" />
+            <Info size={20} color="#3B82F6" weight="regular" />
             <Text style={styles.infoText}>
               Link multiple accounts to sign in using any of them. You must keep at least one login
               method.
@@ -257,7 +253,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
             <Text style={styles.sectionTitle}>Password</Text>
             <View style={styles.providerCard}>
               <View style={styles.providerIconContainer}>
-                <Ionicons name="key-outline" size={24} color="#3B82F6" />
+                <Key size={24} color="#3B82F6" weight="regular" />
               </View>
               <View style={styles.providerInfo}>
                 <Text style={styles.providerName}>Password</Text>
@@ -291,9 +287,10 @@ export default function LinkedAccountsScreen({ navigation }: any) {
                   <View style={styles.providerIconContainer}>
                     {isLinking || isUnlinking ? (
                       <ActivityIndicator size="small" color="#3B82F6" />
-                    ) : (
-                      <Ionicons name={getProviderIcon(provider)} size={24} color="#3B82F6" />
-                    )}
+                    ) : (() => {
+                      const ProviderIcon = getProviderIcon(provider);
+                      return <ProviderIcon size={24} color="#3B82F6" weight="regular" />;
+                    })()}
                   </View>
                   <View style={styles.providerInfo}>
                     <Text style={styles.providerName}>{getProviderName(provider)}</Text>

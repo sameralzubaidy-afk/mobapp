@@ -36,7 +36,7 @@ import {
   Minus,
   Coins,
 } from 'phosphor-react-native';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -140,7 +140,7 @@ export default function CartScreen() {
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading cart...</Text>
         </View>
-        <BottomNavBar />
+        <PersistentTabBar />
       </ScreenLayout>
     );
   }
@@ -171,7 +171,7 @@ export default function CartScreen() {
           </Button>
         </View>
 
-        <BottomNavBar />
+        <PersistentTabBar />
       </ScreenLayout>
     );
   }
@@ -284,7 +284,7 @@ export default function CartScreen() {
         </Button>
       </View>
 
-      <BottomNavBar />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

@@ -21,7 +21,7 @@ import { fetchListingsByCategory } from '../../services/discovery';
 import { CategoryResult } from '../../types/discovery';
 import { trackEvent } from '../../services/analytics';
 import { ItemCard } from '../../components/molecules';
-import BottomNavBar from '../../components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import {
   TShirt,
@@ -151,7 +151,7 @@ export default function CategoryBrowseScreen() {
           }
         />
       )}
-      <BottomNavBar />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

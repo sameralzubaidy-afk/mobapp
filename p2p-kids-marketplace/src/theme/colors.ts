@@ -30,11 +30,12 @@ export const colors = {
   // Neutral Colors (Text & UI Elements)
   neutral: {
     900: '#1A1A1A', // Primary text
-    700: '#4D4D4D', // Secondary text
-    500: '#808080', // Tertiary text, placeholders
+    700: '#6B6B6B', // Secondary text — MODULE-15.1 spec
+    500: '#999999', // Tertiary text, placeholders — MODULE-15.1 spec
     300: '#CCCCCC', // Borders, dividers
-    100: '#F5F5F5', // Light backgrounds, cards
-    50: '#FAFAFA', // Page backgrounds
+    200: '#E0E0E0', // Subtle borders
+    100: '#F0F0F0', // Input fill — MODULE-15.1 spec
+    50:  '#F7F7F7', // Stats / section backgrounds
     white: '#FFFFFF', // Card backgrounds, modals
   },
 
@@ -50,8 +51,8 @@ export const colors = {
   },
 
   error: {
-    500: '#E53935', // Error messages, CPSC recalls
-    100: '#FFEBEE', // Error banner backgrounds
+    500: '#E85D75', // Error messages, CPSC recalls — MODULE-15.1 spec
+    100: '#FFF0F2', // Error banner backgrounds
   },
 
   info: {
@@ -80,11 +81,12 @@ export const textColors = {
 
 // Background color roles
 export const backgroundColors = {
-  page: colors.neutral[50],
-  card: colors.neutral.white,
-  input: colors.neutral.white,
-  inputDisabled: colors.neutral[100],
-  overlay: 'rgba(0, 0, 0, 0.4)',
+  page:          '#F7F7F7',
+  card:          colors.neutral.white,
+  input:         colors.neutral[100], // #F0F0F0 filled input bg
+  inputFocused:  '#E8F5F0',
+  inputDisabled: '#F5F5F5',
+  overlay:       'rgba(0, 0, 0, 0.4)',
 } as const;
 
 // Border color roles

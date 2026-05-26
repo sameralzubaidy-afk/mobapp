@@ -37,7 +37,6 @@ import { MagnifyingGlass, ChatCircleSlash, ArrowsLeftRight, ShieldCheck } from '
 import { supabase } from '@/config/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import Avatar from '@/components/atoms/Avatar';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
 import ScreenLayout from '@/components/ScreenLayout';
 
 export default function ConversationsListScreen() {
@@ -230,7 +229,6 @@ export default function ConversationsListScreen() {
           <ActivityIndicator size="large" color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading conversations...</Text>
         </View>
-        <BottomNavBar />
       </ScreenLayout>
     );
   }
@@ -288,7 +286,6 @@ export default function ConversationsListScreen() {
           }
         />
       )}
-      <BottomNavBar />
     </ScreenLayout>
   );
 }

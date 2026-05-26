@@ -28,7 +28,6 @@ import { supabase } from '@/config/supabase';
 import { ItemDraft } from '@/types/listing';
 
 // Shared components (unchanged — DO NOT MODIFY)
-import BottomNavBar from '../../components/organisms/BottomNavBar';
 import ScreenLayout from '@/components/ScreenLayout';
 import CategorySelector from '../../components/molecules/CategorySelector';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
@@ -80,6 +79,9 @@ function txStatusLabel(status: string): string {
   const map: Record<string, string> = {
     pending: 'PENDING',
     active: 'ACTIVE',
+    in_progress: 'IN PROGRESS',
+    payment_processing: 'PAYMENT PROCESSING',
+    payment_failed: 'PAYMENT FAILED',
     completed: 'COMPLETED',
     cancelled: 'CANCELLED',
     canceled: 'CANCELLED',
@@ -92,6 +94,9 @@ function txStatusColor(status: string): string {
   const map: Record<string, string> = {
     pending: '#FF9500',
     active: '#5DBB8E',
+    in_progress: '#5DBB8E',
+    payment_processing: '#FF9500',
+    payment_failed: '#E85D75',
     completed: '#34C759',
     cancelled: '#8E8E93',
     canceled: '#8E8E93',
@@ -182,16 +187,15 @@ export default function UserDashboardScreen() {
     if (!session?.user?.id) return;
     try {
       const { data } = await supabase
-        .from('transactions')
-        .select('id, status, listing_id, listings(title)')
+        .from('trades')
+        .select('id, status, listing_id, listing:items(title)')
         .or(`buyer_id.eq.${session.user.id},seller_id.eq.${session.user.id}`)
-        .not('status', 'in', '("completed","cancelled","canceled")')
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       if (data) {
         const listingTitle =
-          (data.listings as unknown as { title?: string } | null)?.title ?? 'Trade';
+          (data.listing as unknown as { title?: string } | null)?.title ?? 'Trade';
         setRecentTrade({ id: data.id, title: listingTitle, status: data.status });
       } else {
         setRecentTrade(null);
@@ -539,7 +543,7 @@ export default function UserDashboardScreen() {
               <TouchableOpacity
                 style={styles.viewTimelineBtn}
                 onPress={() =>
-                  navigation.navigate('TradeTimeline', { transactionId: recentTrade.id })
+                  navigation.navigate('TradeTimeline', { tradeId: recentTrade.id })
                 }
               >
                 <Text style={styles.viewTimelineBtnText}>View Timeline</Text>
@@ -595,7 +599,6 @@ export default function UserDashboardScreen() {
         </Pressable>
       </Modal>
 
-      <BottomNavBar />
     </ScreenLayout>
   );
 }

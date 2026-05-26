@@ -40,7 +40,7 @@ import {
   Star,
 } from 'phosphor-react-native';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import Avatar from '@/components/atoms/Avatar';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -593,7 +593,7 @@ export default function TradeTimelineScreen() {
           </View>
         )}
       </ScrollView>
-      <BottomNavBar />
+      <PersistentTabBar />
 
       <Modal
         visible={showCompleteConfirm}

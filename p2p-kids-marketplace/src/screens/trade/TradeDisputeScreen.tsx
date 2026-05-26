@@ -26,7 +26,7 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { WarningCircle, Flag } from 'phosphor-react-native';
-import BottomNavBar from '@/components/organisms/BottomNavBar';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { cancelTradeV2 } from '@/services/trade';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -235,7 +235,7 @@ export default function TradeDisputeScreen() {
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </ScrollView>
-      <BottomNavBar />
+      <PersistentTabBar />
     </ScreenLayout>
   );
 }

@@ -12,7 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
 import { monitorMidTradeSubscriptionChanges } from '../../services/trade';
-import { Ionicons } from '@expo/vector-icons';
+import { Flag, CaretRight, Clock } from 'phosphor-react-native';
 import BottomNavBar from '../../components/organisms/BottomNavBar';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -57,13 +57,13 @@ export default function AdminDashboardScreen() {
           onPress={() => navigation.navigate('ReviewModeration')}
         >
           <View style={styles.cardIconContainer}>
-            <Ionicons name="flag" size={28} color="#FF6B6B" />
+            <Flag size={28} color="#FF6B6B" weight="regular" />
           </View>
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>Review Moderation</Text>
             <Text style={styles.cardDescription}>Review and moderate reported reviews</Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color="#ccc" />
+          <CaretRight size={24} color="#ccc" weight="regular" />
         </TouchableOpacity>
 
         {/* Trial Conversion Test Card - MODULE-11 SUB-005 */}
@@ -72,7 +72,7 @@ export default function AdminDashboardScreen() {
           onPress={() => navigation.navigate('TrialConversionTest')}
         >
           <View style={[styles.cardIconContainer, { backgroundColor: '#E3F2FD' }]}>
-            <Ionicons name="time" size={28} color="#007AFF" />
+            <Clock size={28} color="#007AFF" weight="regular" />
           </View>
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>Trial Conversion Test</Text>
@@ -80,7 +80,7 @@ export default function AdminDashboardScreen() {
               Test trial expiration & conversion logic (SUB-005)
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={24} color="#ccc" />
+          <CaretRight size={24} color="#ccc" weight="regular" />
         </TouchableOpacity>
 
         <View style={styles.section}>
