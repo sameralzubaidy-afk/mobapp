@@ -6,7 +6,7 @@ import { supabase } from '@/config/supabase';
 import { AuthContext } from '@/contexts/AuthContext';
 
 export default function WelcomeScreen() {
-  const navigation = useNavigation();
+  const _navigation = useNavigation();
   const route = useRoute();
   const { session, refreshSession } = React.useContext(AuthContext);
   const { userId: routeUserId } = (route.params as any) || {};

@@ -18,7 +18,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Crown, CrownSimple, CheckCircle } from 'phosphor-react-native';
 import { useSubscription } from '@/hooks/useSubscription';
 import { getSubscriptionPrice, getTrialDays } from '@/services/adminConfig';
-import { formatDollarAmount } from '@/utils/formatPrice';
 import {
   TIER_COMPARISON_ROWS,
   TIER_ID_FREE,

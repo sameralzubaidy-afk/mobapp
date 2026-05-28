@@ -15,7 +15,7 @@ describe('Badge Triggers Functional Tests', () => {
     return;
   }
 
-  const isLiveTest = !!process.env.SUPABASE_URL;
+  const _isLiveTest = !!process.env.SUPABASE_URL;
   const testUserId = '49243010-f458-4744-add1-a6c84ab95f1f'; // test-buyer from seed
 
   it('should award "SP Earner - Bronze" when user crosses 10 SP threshold', async () => {

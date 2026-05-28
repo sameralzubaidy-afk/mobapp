@@ -100,7 +100,7 @@ describe('chat.ts - getConversations', () => {
   });
 
   it('should handle empty trades list', async () => {
-    (supabase.from as jest.Mock).mockImplementation((table) => {
+    (supabase.from as jest.Mock).mockImplementation((_table) => {
       const chain: any = {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),

@@ -155,10 +155,12 @@ describe('PayoutDashboardScreen', () => {
   });
 
   // ---------------------------------------------------------------------------
-  it('renders the screen root testID', async () => {
-    const { getByTestId } = render(<PayoutDashboardScreen />);
+  it('renders the screen header and main dashboard shell', async () => {
+    const { getByTestId, getByText } = render(<PayoutDashboardScreen />);
     await waitFor(() => {
-      expect(getByTestId('payout-dashboard-screen')).toBeTruthy();
+      expect(getByTestId('screen-title')).toBeTruthy();
+      expect(getByText('Payouts')).toBeTruthy();
+      expect(getByTestId('balance-hero-card')).toBeTruthy();
     });
   });
 

@@ -120,7 +120,7 @@ describe('usePhotoGroups', () => {
     const { result } = renderHook(() => usePhotoGroups());
 
     // Add 150 photos (would require 15 groups of 10 each)
-    const photos = Array.from({ length: 150 }, (_, i) =>
+    const _photos = Array.from({ length: 150 }, (_, i) =>
       createMockPhoto(`photo-${i}`, `file://photo${i}.jpg`)
     );
 

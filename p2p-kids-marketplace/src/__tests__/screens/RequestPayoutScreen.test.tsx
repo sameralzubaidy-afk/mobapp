@@ -119,10 +119,12 @@ describe('RequestPayoutScreen', () => {
   });
 
   // ---------------------------------------------------------------------------
-  it('renders the screen root testID', async () => {
-    const { getByTestId } = render(<RequestPayoutScreen />);
+  it('renders the screen header and content shell', async () => {
+    const { getByTestId, getByText } = render(<RequestPayoutScreen />);
     await waitFor(() => {
-      expect(getByTestId('request-payout-screen')).toBeTruthy();
+      expect(getByTestId('screen-title')).toBeTruthy();
+      expect(getByText('Request Payout')).toBeTruthy();
+      expect(getByTestId('available-balance')).toBeTruthy();
     });
   });
 

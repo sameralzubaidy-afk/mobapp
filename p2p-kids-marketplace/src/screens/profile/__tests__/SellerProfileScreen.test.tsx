@@ -2,14 +2,16 @@
 // TASK FLOW-15: Unit tests for Public Seller Profile screen
 
 import React from 'react';
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import SellerProfileScreen from '../SellerProfileScreen';
 import { getUserProfile } from '@/services/profile';
 import { getUserReviews, getReviewStats } from '@/services/review';
 
 jest.mock('@/services/profile');
 jest.mock('@/services/review');
-jest.mock('@/components/organisms/BottomNavBar', () => 'BottomNavBar');
+jest.mock('@/components/organisms/PersistentTabBar', () => ({
+  PersistentTabBar: () => null,
+}));
 
 const mockGetUserProfile = getUserProfile as jest.MockedFunction<typeof getUserProfile>;
 const mockGetUserReviews = getUserReviews as jest.MockedFunction<typeof getUserReviews>;
@@ -68,31 +70,23 @@ describe('SellerProfileScreen - FLOW-15 UI Redesign', () => {
     });
   });
 
-  it('renders Follow button as green pill with UserPlus icon (FLOW-15)', async () => {
+  it('renders identity verification trust card (FLOW-15)', async () => {
     const { getByText } = render(
       <SellerProfileScreen navigation={{}} route={mockRoute} />
     );
 
     await waitFor(() => {
-      const followButton = getByText('Follow');
-      expect(followButton).toBeTruthy();
-      // Button should have backgroundColor #5DBB8E, borderRadius 22, height 44
-      // UserPlus icon (16px, white) should be present
+      expect(getByText('Identity Verified')).toBeTruthy();
+      expect(getByText('Trust level: Ultimate')).toBeTruthy();
     });
   });
 
-  it('toggles to Following state with Check icon (FLOW-15)', async () => {
+  it('renders completed trades section (FLOW-15)', async () => {
     const { getByText } = render(<SellerProfileScreen navigation={{}} route={mockRoute} />);
 
     await waitFor(() => {
-      const followButton = getByText('Follow');
-      fireEvent.press(followButton);
-    });
-
-    await waitFor(() => {
-      expect(getByText('Following')).toBeTruthy();
-      // Button should be secondary outlined (border #5DBB8E, white bg)
-      // Check icon (16px, #5DBB8E) should be present
+      expect(getByText('Completed Trades')).toBeTruthy();
+      expect(getByText('Total completed trades')).toBeTruthy();
     });
   });
 

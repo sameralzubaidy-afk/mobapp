@@ -199,7 +199,8 @@ describe('NotificationSettingsScreen - MODULE-15.1 FLOW-17', () => {
   describe('Whisk Design System Compliance (FLOW-17)', () => {
     it('screen renders with Whisk structure', () => {
       const { getByTestId, getByText } = render(<NotificationSettingsScreen />);
-      expect(getByTestId('notification-settings-screen')).toBeTruthy();
+      expect(getByTestId('screen-title')).toBeTruthy();
+      expect(getByTestId('category-section-subscription')).toBeTruthy();
       expect(getByText('Notification Settings')).toBeTruthy();
     });
   });

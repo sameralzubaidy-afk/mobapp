@@ -23,7 +23,7 @@ interface BadgeModalData extends Badge {
   userBadgeInfo?: UserBadge;
 }
 
-const BadgesScreen = ({ navigation }: any) => {
+const BadgesScreen = ({ navigation: _navigation }: any) => {
   const { session } = useAuth();
   const userId = session?.user?.id;
 

@@ -1,7 +1,6 @@
 // File: p2p-kids-marketplace/src/__tests__/e2e/deepLink.integration.test.ts
 // MODULE-14 TASK NOTIF-V2-008: Deep Link Integration Tests
 
-import * as Notifications from 'expo-notifications';
 import { parseNotificationDeepLink, type NotificationDeepLinkData } from '@/services/deepLink';
 
 /**

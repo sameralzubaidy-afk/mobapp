@@ -7,6 +7,25 @@ export interface CancellationReason {
   description?: string;
 }
 
+// TFV2-023 Addendum A: seller-specific reasons for in_progress cancellation.
+export const SELLER_INPROGRESS_REASONS: CancellationReason[] = [
+  {
+    id: 'cant_do_pickup',
+    label: "Can't do pickup",
+    description: 'Unable to arrange a meetup for this trade',
+  },
+  {
+    id: 'item_no_longer_available',
+    label: 'Item no longer available',
+    description: 'Item is damaged, lost, or no longer for sale',
+  },
+  {
+    id: 'other',
+    label: 'Other',
+    description: 'Please specify in the text box below',
+  },
+];
+
 export const PREDEFINED_REASONS: CancellationReason[] = [
   {
     id: 'found_elsewhere',
@@ -41,6 +60,8 @@ interface CancellationReasonModalProps {
   onConfirm: (reason: string) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  /** Pass a custom reason list (e.g. SELLER_INPROGRESS_REASONS) to override the defaults. */
+  reasons?: CancellationReason[];
 }
 
 export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = ({
@@ -49,7 +70,9 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
   onConfirm,
   onCancel,
   isLoading = false,
+  reasons,
 }) => {
+  const activeReasons = reasons ?? PREDEFINED_REASONS;
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
   const [customReason, setCustomReason] = useState('');
 
@@ -58,7 +81,7 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
 
     // Get the label for the selected predefined reason
     if (selectedReason) {
-      const reasonObj = PREDEFINED_REASONS.find((r) => r.id === selectedReason);
+      const reasonObj = activeReasons.find((r) => r.id === selectedReason);
       finalReason = reasonObj?.label || selectedReason;
     }
 
@@ -97,7 +120,7 @@ export const CancellationReasonModal: React.FC<CancellationReasonModalProps> = (
             showsVerticalScrollIndicator={true}
           >
             <View style={styles.reasonsList}>
-              {PREDEFINED_REASONS.map((reason) => (
+              {activeReasons.map((reason) => (
                 <Pressable
                   key={reason.id}
                   style={[

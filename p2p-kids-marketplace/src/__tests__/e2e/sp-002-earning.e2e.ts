@@ -2,7 +2,6 @@
 // MODULE-09 SP-002: E2E Tests for SP Earning Flows
 
 import { describe, it, expect, beforeAll } from '@jest/globals';
-import { supabase } from '@/config/supabase';
 import {
   issueStarterPack,
   awardReferralReward,

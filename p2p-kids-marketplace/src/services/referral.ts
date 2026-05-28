@@ -18,7 +18,7 @@ export interface ReferralStats {
  */
 export const processReferralBonus = async (
   userId: string,
-  tradeId: string
+  _tradeId: string
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     // Check if this user has a pending referral

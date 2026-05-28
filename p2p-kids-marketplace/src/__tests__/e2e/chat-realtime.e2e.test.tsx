@@ -41,7 +41,7 @@ describe('Real-time Chat E2E', () => {
       const tradeId = 'trade-123';
       const onMessage = jest.fn();
 
-      const channel = subscribeToMessages(tradeId, onMessage);
+      const _channel = subscribeToMessages(tradeId, onMessage);
 
       expect(supabase.channel).toHaveBeenCalledWith(`trade:${tradeId}`);
       expect(mockChannel.on).toHaveBeenCalledWith(
@@ -60,10 +60,10 @@ describe('Real-time Chat E2E', () => {
     it('should handle new message events', async () => {
       const tradeId = 'trade-123';
       const onMessage = jest.fn();
-      let messageHandler: Function;
+      let messageHandler: (...args: unknown[]) => unknown;
 
-      mockChannel.on.mockImplementation((event: string, config: any, handler: Function) => {
-        if (event === 'postgres_changes') {
+      mockChannel.on.mockImplementation((event: string, config: any, handler: (...args: unknown[]) => unknown) => {
+        if (event === 'postgres_changes' && config?.event === 'INSERT') {
           messageHandler = handler;
         }
         return mockChannel;
@@ -97,6 +97,7 @@ describe('Real-time Chat E2E', () => {
       subscribeToMessages(tradeId, onMessage);
 
       // Simulate new message event
+      expect(messageHandler!).toBeDefined();
       await messageHandler({
         new: { id: 'msg-123', trade_id: tradeId },
       });
@@ -179,9 +180,9 @@ describe('Real-time Chat E2E', () => {
     it('should handle presence sync events', () => {
       const tradeId = 'trade-123';
       const onTypingChange = jest.fn();
-      let syncHandler: Function;
+      let syncHandler: (...args: unknown[]) => unknown;
 
-      mockChannel.on.mockImplementation((event: string, options: any, handler?: Function) => {
+      mockChannel.on.mockImplementation((event: string, options: any, handler?: (...args: unknown[]) => unknown) => {
         const actualHandler = handler || options;
         if (event === 'presence' && options.event === 'sync') {
           syncHandler = actualHandler;
@@ -210,9 +211,9 @@ describe('Real-time Chat E2E', () => {
     it('should handle presence join events', () => {
       const tradeId = 'trade-123';
       const onTypingChange = jest.fn();
-      let joinHandler: Function;
+      let joinHandler: (...args: unknown[]) => unknown;
 
-      mockChannel.on.mockImplementation((event: string, options: any, handler?: Function) => {
+      mockChannel.on.mockImplementation((event: string, options: any, handler?: (...args: unknown[]) => unknown) => {
         const actualHandler = handler || options;
         if (event === 'presence' && options.event === 'join') {
           joinHandler = actualHandler;
@@ -239,9 +240,9 @@ describe('Real-time Chat E2E', () => {
     it('should handle presence leave events', () => {
       const tradeId = 'trade-123';
       const onTypingChange = jest.fn();
-      let leaveHandler: Function;
+      let leaveHandler: (...args: unknown[]) => unknown;
 
-      mockChannel.on.mockImplementation((event: string, options: any, handler?: Function) => {
+      mockChannel.on.mockImplementation((event: string, options: any, handler?: (...args: unknown[]) => unknown) => {
         const actualHandler = handler || options;
         if (event === 'presence' && options.event === 'leave') {
           leaveHandler = actualHandler;

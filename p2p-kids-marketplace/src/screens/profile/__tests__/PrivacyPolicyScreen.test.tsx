@@ -72,7 +72,7 @@ describe('PrivacyPolicyScreen', () => {
       );
 
       await waitFor(() => {
-        expect(getByTestId('privacy-policy-screen')).toBeTruthy();
+        expect(getByTestId('privacy-policy-content')).toBeTruthy();
       });
 
       expect(getAllByText('Privacy Policy').length).toBeGreaterThan(0);

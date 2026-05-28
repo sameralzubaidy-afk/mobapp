@@ -21,7 +21,7 @@ import type { ProfileSetupData } from '@/types/profile.types';
 import { useAuth } from '@/hooks/useAuth';
 import { User, Camera, MapPin } from 'phosphor-react-native';
 
-export default function ProfileSetupScreen({ navigation }: any) {
+export default function ProfileSetupScreen({ navigation: _navigation }: any) {
   const { refreshSession } = useAuth();
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);

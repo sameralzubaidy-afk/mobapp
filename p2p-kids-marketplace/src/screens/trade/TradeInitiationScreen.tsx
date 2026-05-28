@@ -28,7 +28,8 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
-import { initiateTradeV2, processTradePayment } from '@/services/trade';
+// TFV2-012A: replaced initiateTradeV2 + processTradePayment with createTradeOfferWithHold (D-30)
+import { createTradeOfferWithHold, mapStripeErrorToMessage } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
 import {
@@ -44,6 +45,10 @@ import { supabase } from '@/config/supabase';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+// MODULE-15.3-PART3 TAX-011: tax preview row
+import { useTaxCalculation } from '@/hooks/useTaxCalculation';
+import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
+import { formatCents } from '@/services/tax';
 
 type TradeInitiationRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -244,6 +249,16 @@ export default function TradeInitiationScreen() {
     }
   };
 
+  // MODULE-15.3-PART3 TAX-011: call hook unconditionally before any early return
+  // to satisfy react-hooks/rules-of-hooks. Pass safe defaults when item is null.
+  const itemPriceCentsForTax = item ? Math.round(item.price * 100) : 0;
+  const spDiscountCentsForTax = spAmount * 100;
+  const taxableSubtotalCents = Math.max(0, itemPriceCentsForTax - spDiscountCentsForTax);
+  const tax = useTaxCalculation({
+    nodeId: (item as any)?.seller_node_id ?? null,
+    taxableAmountCents: taxableSubtotalCents,
+  });
+
   // MODULE-12 V3: Use category-specific max SP cap (already calculated in fetchData)
   if (loading || !item) {
     return (
@@ -271,6 +286,9 @@ export default function TradeInitiationScreen() {
   // Stripe charge: item price (after SP discount) + platform fee - BOTH must be paid
   const cashAmountCents = itemPriceCents - spDiscountCents + platformFeeCents;
   const cashAmount = cashAmountCents / 100;
+
+  // MODULE-15.3-PART3 TAX-011: tax already calculated above (before early return)
+  const grandTotalCents = cashAmountCents + (tax.taxAmountCents || 0);
 
   const handleConfirmPurchase = () => {
     // Show disclaimer modal before trade initiation
@@ -305,117 +323,115 @@ export default function TradeInitiationScreen() {
     try {
       setSubmitting(true);
 
-      // 1. Initiate Trade (creates 'pending' trade)
-      const result = await initiateTradeV2({
-        item_id: item.id,
-        sp_amount: spAmount,
-      });
+      // ── 1. Collect payment method ID (new card or saved) ──────────────────
+      let selectedPaymentMethodId: string | undefined = savedPaymentMethod?.id ?? undefined;
 
-      if (!result.success || !result.trade_id) {
-        Alert.alert('Trade Failed', result.error || 'Could not initiate trade');
+      if (cashAmountCents > 0 && paymentInputMode === 'new') {
+        if (!createPaymentMethod) {
+          Alert.alert(
+            'Payment System Error',
+            'Stripe payment context is unavailable. Please reinstall the latest build and try again.'
+          );
+          return;
+        }
+
+        const { paymentMethod, error: pmError } = await createPaymentMethod({
+          paymentMethodType: 'Card',
+          paymentMethodData: {
+            billingDetails: { email: user?.email },
+          },
+        });
+
+        if (pmError) {
+          if (pmError.message?.includes('API key') || pmError.code === 'Failed') {
+            Alert.alert(
+              'Payment Setup Error',
+              'Payment system is not properly configured. Please contact support or try again later.'
+            );
+          } else {
+            Alert.alert('Payment Error', pmError.message || 'Card validation failed');
+          }
+          return;
+        }
+
+        if (!paymentMethod?.id) {
+          Alert.alert('Payment Error', 'Failed to create payment method');
+          return;
+        }
+
+        selectedPaymentMethodId = paymentMethod.id;
+      }
+
+      if (cashAmountCents > 0 && !selectedPaymentMethodId) {
+        Alert.alert('Payment Error', 'No valid payment method selected');
         return;
       }
 
-      const tradeId = result.trade_id;
+      // ── 2. TFV2-012A (D-30): Atomic offer creation with Stripe pre-auth ──
+      const subscriptionStatus =
+        subStatus.status === 'active' ||
+        subStatus.status === 'trial' ||
+        subStatus.status === 'grace'
+          ? subStatus.status
+          : 'free';
 
-      // 2. Record disclaimer acknowledgment (best effort)
+      const offerResult = await createTradeOfferWithHold({
+        item_id: item.id,
+        sp_amount: spAmount,
+        payment_method_id: selectedPaymentMethodId,
+        cash_amount_cents: cashAmountCents, // total Stripe charge (item - sp + fee)
+        transaction_fee_cents: platformFeeCents,
+        buyer_subscription_status: subscriptionStatus,
+      });
+
+      if (!offerResult.success || !offerResult.trade_id) {
+        // D-30: max pending offers error → actionable message
+        if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
+          Alert.alert(
+            'Too Many Open Offers',
+            'You have 3 pending offers. Cancel one to make a new offer.',
+            [
+              { text: 'View My Offers', onPress: () => navigation.navigate('TradeList') },
+              { text: 'OK', style: 'cancel' },
+            ]
+          );
+          return;
+        }
+
+        // Card decline / Stripe errors → user-friendly message
+        if (
+          offerResult.error_code === 'STRIPE_HOLD_FAILED' ||
+          offerResult.error_code === 'STRIPE_ERROR'
+        ) {
+          Alert.alert('Payment Hold Failed', mapStripeErrorToMessage(offerResult.error));
+          return;
+        }
+
+        Alert.alert('Offer Failed', offerResult.error || 'Could not submit your offer. Please try again.');
+        return;
+      }
+
+      const tradeId = offerResult.trade_id;
+
+      // ── 3. Record disclaimer acknowledgment (best effort) ─────────────────
       if (policyId) {
         try {
           const { error: disclaimerError } = await supabase.rpc('acknowledge_trade_disclaimer', {
             p_trade_id: tradeId,
             p_disclaimer_policy_id: policyId,
           });
-
           if (disclaimerError) {
             console.warn('⚠️ Failed to record disclaimer acknowledgment:', disclaimerError);
-            // Don't block the trade, but log the warning
           }
         } catch (disclaimerErr) {
           console.warn('⚠️ Disclaimer acknowledgment error:', disclaimerErr);
         }
       }
 
-      // 3. Handle Payment if cash is due
-      if (cashAmountCents > 0) {
-        try {
-          let selectedPaymentMethodId = savedPaymentMethod?.id || null;
-
-          if (paymentInputMode === 'new') {
-            if (!createPaymentMethod) {
-              Alert.alert(
-                'Payment System Error',
-                'Stripe payment context is unavailable. Please reinstall the latest build and try again.'
-              );
-              return;
-            }
-
-            const { paymentMethod, error: pmError } = await createPaymentMethod({
-              paymentMethodType: 'Card',
-              paymentMethodData: {
-                billingDetails: {
-                  email: user?.email,
-                },
-              },
-            });
-
-            if (pmError) {
-              console.error('❌ Stripe PaymentMethod error:', pmError);
-
-              // Check for common issues
-              if (pmError.message?.includes('API key') || pmError.code === 'Failed') {
-                Alert.alert(
-                  'Payment Setup Error',
-                  'Payment system is not properly configured. Please contact support or try again later.',
-                  [
-                    { text: 'OK' },
-                    {
-                      text: 'Try Development Build',
-                      onPress: () =>
-                        Alert.alert(
-                          'Development Build Required',
-                          'For full payment testing, run:\n\nexpo run:android\n\ninstead of Expo Go.'
-                        ),
-                    },
-                  ]
-                );
-              } else {
-                Alert.alert('Payment Error', pmError.message || 'Card validation failed');
-              }
-              return;
-            }
-
-            if (!paymentMethod?.id) {
-              Alert.alert('Payment Error', 'Failed to create payment method');
-              return;
-            }
-
-            selectedPaymentMethodId = paymentMethod.id;
-          }
-
-          if (!selectedPaymentMethodId) {
-            Alert.alert('Payment Error', 'No valid payment method selected');
-            return;
-          }
-
-          const paymentResult = await processTradePayment(tradeId, selectedPaymentMethodId);
-
-          if (!paymentResult.success) {
-            Alert.alert('Payment Failed', paymentResult.error || 'Could not process payment');
-            return;
-          }
-        } catch (stripeError: any) {
-          console.error('❌ Stripe initialization error:', stripeError);
-          Alert.alert(
-            'Payment System Error',
-            'Stripe payment system is not available. This might be due to running in Expo Go. For full payment testing, use a development build.'
-          );
-          return;
-        }
-      }
-
-      // 4. Success
+      // ── 4. Success ─────────────────────────────────────────────────────────
       navigation.replace('TradeSuccess', { tradeId });
     } catch (error: any) {
+      console.error('[TradeInitiationScreen] handleInitiateTrade error:', error);
       Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
       setSubmitting(false);
@@ -604,9 +620,20 @@ export default function TradeInitiationScreen() {
               <Text style={styles.breakdownValue}>${(platformFeeCents / 100).toFixed(2)}</Text>
             </View>
 
+            {/* MODULE-15.3-PART3 TAX-011: sales tax row (hidden when 0) */}
+            <TaxBreakdownRow
+              taxAmountCents={tax.taxAmountCents}
+              taxRate={tax.taxRate}
+              jurisdiction={tax.jurisdiction}
+              loading={tax.loading}
+              testID="checkout-tax-row"
+            />
+
             <View style={[styles.breakdownRow, styles.totalRow]}>
               <Text style={styles.totalLabel}>Total Cash Due (Item + Fee)</Text>
-              <Text style={styles.totalValue}>${cashAmount.toFixed(2)}</Text>
+              <Text style={styles.totalValue} testID="checkout-total">
+                {formatCents(grandTotalCents)}
+              </Text>
             </View>
           </View>
 

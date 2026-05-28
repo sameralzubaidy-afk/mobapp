@@ -4,6 +4,7 @@
 import type { SPCalculation, BonusCategory } from '../types/education';
 import { calculateCategorySP, getCategoryById, getBonusCategories as getV3BonusCategories } from './categoryService';
 import { getAdminConfig } from './adminConfig';
+import { supabase } from '../config/supabase';
 
 function roundToCents(amount: number): number {
   return Math.round(amount * 100) / 100;
@@ -123,4 +124,55 @@ export async function getBonusCategories(): Promise<BonusCategory[]> {
     console.error('[spCalculatorService] Get bonus categories error:', error);
     return [];
   }
+}
+
+/**
+ * TFV2-D11: Calculate the platform SP that the buyer earns for this purchase.
+ * Formula: ROUND(price * 0.25 * category_multiplier)
+ * Used to show combined SP total to seller (D-11 — no breakdown shown to seller).
+ */
+export async function calculatePlatformSP(listingId: string): Promise<number> {
+  try {
+    const { data: listing, error } = await supabase
+      .from('listings')
+      .select('price, category_id')
+      .eq('id', listingId)
+      .single();
+
+    if (error || !listing) {
+      console.error('[spCalculatorService] calculatePlatformSP — listing not found:', error?.message);
+      return 0;
+    }
+
+    const adminConfig = await getAdminConfig();
+    // category_multiplier stored in admin_config or category table; fall back to 1.0
+    let categoryMultiplier = 1.0;
+    const category = await getCategoryById(listing.category_id ?? '');
+    if (category?.sp_earning_multiplier) {
+      categoryMultiplier = category.sp_earning_multiplier;
+    }
+
+    const platformSpRate = Number((adminConfig as any).platform_sp_rate ?? 0.25);
+    return Math.round(listing.price * platformSpRate * categoryMultiplier);
+  } catch (err: any) {
+    console.error('[spCalculatorService] calculatePlatformSP error:', err);
+    return 0;
+  }
+}
+
+/**
+ * TFV2-D11: Preview the total SP the seller will see credited.
+ * Combines buyer-contributed SP + platform SP.
+ * D-11 rule: seller sees ONLY the combined total, never a breakdown.
+ */
+export async function previewTotalSPToSeller(
+  listingId: string,
+  buyerSpAmount: number
+): Promise<{ buyerSp: number; platformSp: number; totalSp: number }> {
+  const platformSp = await calculatePlatformSP(listingId);
+  return {
+    buyerSp:    buyerSpAmount,
+    platformSp,
+    totalSp:    buyerSpAmount + platformSp,
+  };
 }

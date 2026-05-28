@@ -11,7 +11,7 @@ module.exports = {
     sourceType: 'module',
     project: './tsconfig.eslint.json',
   },
-  plugins: ['@typescript-eslint', 'react', 'react-hooks'],
+  plugins: ['@typescript-eslint', 'react', 'react-hooks', 'unused-imports'],
   rules: {
     // Relax rules for initial scaffolding (placeholders will be converted to strict rules later)
     '@typescript-eslint/no-empty-object-type': 'off',
@@ -29,5 +29,22 @@ module.exports = {
     '@typescript-eslint/no-var-requires': 'off',
     // allow either function declarations or arrow functions for scaffolding
     'react/function-component-definition': 'off',
+    // PROD-007: auto-remove unused imports via plugin (fixable), and allow
+    // intentional unused vars/args when prefixed with `_`.
+    '@typescript-eslint/no-unused-vars': 'off',
+    'unused-imports/no-unused-imports': 'error',
+    'unused-imports/no-unused-vars': [
+      'error',
+      {
+        vars: 'all',
+        varsIgnorePattern: '^_',
+        args: 'after-used',
+        argsIgnorePattern: '^_',
+        caughtErrors: 'all',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      },
+    ],
   },
 };

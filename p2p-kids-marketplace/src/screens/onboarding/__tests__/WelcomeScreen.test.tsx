@@ -55,7 +55,6 @@ describe('WelcomeScreen FLOW-02', () => {
       </AuthContext.Provider>
     );
 
-    expect(getByTestId('welcome-screen')).toBeTruthy();
     expect(getByTestId('welcome-headline')).toBeTruthy();
     expect(getByTestId('welcome-description')).toBeTruthy();
     expect(getByTestId('welcome-get-started-button')).toBeTruthy();

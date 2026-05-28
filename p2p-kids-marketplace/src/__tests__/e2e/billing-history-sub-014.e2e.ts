@@ -10,7 +10,6 @@ import {
   updateBillingRecordStatus,
   getBillingHistorySummary,
 } from '../../services/billingHistory';
-import type { BillingHistory } from '../../types/billingHistory.types';
 
 describe('SUB-014 E2E: Billing History', () => {
   const TEST_USER_ID = process.env.TEST_USER_ID || '11111111-1111-4111-8111-111111111111';
@@ -19,7 +18,7 @@ describe('SUB-014 E2E: Billing History', () => {
   let canWriteBillingHistory = true;
 
   let testChargeId: string;
-  let testBillingRecordId: string;
+  let _testBillingRecordId: string;
 
   const ensureWriteAccess = () => {
     if (!canWriteBillingHistory) {
@@ -33,7 +32,7 @@ describe('SUB-014 E2E: Billing History', () => {
 
   beforeAll(async () => {
     // Verify billing_history table exists
-    const { data: tables, error } = await supabase.from('billing_history').select('id').limit(0);
+    const { data: _tables, error } = await supabase.from('billing_history').select('id').limit(0);
 
     if (error) {
       throw new Error(
@@ -66,7 +65,7 @@ describe('SUB-014 E2E: Billing History', () => {
 
   describe('Table Structure', () => {
     it('should have all required columns', async () => {
-      const { data, error } = await supabase.rpc('get_table_columns', {
+      const { data: _data, error } = await supabase.rpc('get_table_columns', {
         p_table_name: 'billing_history',
       });
 

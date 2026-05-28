@@ -14,7 +14,7 @@ export interface SendSMSResult {
  * @param phone - Phone number in E.164 format (+1234567890)
  * @param message - SMS message content
  */
-export const sendSMS = async (phone: string, message: string): Promise<SendSMSResult> => {
+export const sendSMS = async (phone: string, _message: string): Promise<SendSMSResult> => {
   try {
     // TODO: Replace with actual AWS SNS implementation when AWS credentials are configured
     // For now, just log the SMS for testing

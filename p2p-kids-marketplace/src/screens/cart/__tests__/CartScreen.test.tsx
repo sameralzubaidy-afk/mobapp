@@ -26,6 +26,12 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 jest.mock('@/components/organisms/BottomNavBar', () => 'BottomNavBar');
+jest.mock('@/hooks/useNotificationBadge', () => ({
+  useNotificationBadge: () => ({
+    unreadCount: 0,
+    refreshUnreadCount: jest.fn(),
+  }),
+}));
 jest.mock('@/components/ui', () => ({
   Button: ({ children, onPress, testID }: any) => {
     const { TouchableOpacity, Text } = require('react-native');
@@ -77,11 +83,11 @@ describe('CartScreen', () => {
   });
 
   describe('Header', () => {
-    it('should render cart icon in header', async () => {
+    it('should render shared back button in header', async () => {
       const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
-        expect(getByTestId('cart-icon')).toBeTruthy();
+        expect(getByTestId('back-button')).toBeTruthy();
       });
     });
 
@@ -123,11 +129,11 @@ describe('CartScreen', () => {
   });
 
   describe('Accessibility', () => {
-    it('should have accessible cart icon', async () => {
+    it('should have accessible empty-state icon', async () => {
       const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
-        const cartIcon = getByTestId('cart-icon');
+        const cartIcon = getByTestId('cart-empty-icon');
         expect(cartIcon).toBeTruthy();
       });
     });

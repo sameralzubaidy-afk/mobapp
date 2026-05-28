@@ -124,7 +124,7 @@ describeWalletSuite('SP-001 E2E: SP Wallet', () => {
   });
 
   it('should verify sp_batches table exists', async () => {
-    const { data, error } = await supabase
+    const { data: _data, error } = await supabase
       .from('sp_batches')
       .select('id')
       .eq('user_id', testUserId)
@@ -135,7 +135,7 @@ describeWalletSuite('SP-001 E2E: SP Wallet', () => {
   });
 
   it('should verify sp_ledger table exists', async () => {
-    const { data, error } = await supabase
+    const { data: _data, error } = await supabase
       .from('sp_ledger')
       .select('id')
       .eq('user_id', testUserId)

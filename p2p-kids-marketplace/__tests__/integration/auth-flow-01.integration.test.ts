@@ -246,13 +246,13 @@ describe('FLOW-01: Authentication & Session Management (Integration)', () => {
     });
 
     it('should use correct error color in theme', async () => {
-      expect(theme.textColors.error).toBe('#E53935');
+      expect(theme.textColors.error).toBe('#E85D75');
     });
 
     it('should use correct text colors in theme', async () => {
       expect(theme.textColors.primary).toBe('#1A1A1A');
-      expect(theme.textColors.secondary).toBe('#4D4D4D');
-      expect(theme.textColors.tertiary).toBe('#808080');
+      expect(theme.textColors.secondary).toBe('#6B6B6B');
+      expect(theme.textColors.tertiary).toBe('#999999');
     });
 
     it('should use correct input styles in TextInput component', async () => {

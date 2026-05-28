@@ -331,7 +331,7 @@ describe('Mobile Category Type Definitions', () => {
       // TypeScript should infer all types without 'any'
       const idType: string = category.id;
       const nameType: string = category.name;
-      const iconType: string | null = category.icon;
+      const _iconType: string | null = category.icon;
       const isActiveType: boolean = category.is_active;
       const itemCountType: number = category.item_count;
 

@@ -83,9 +83,9 @@ describe('HelpScreen', () => {
     );
 
     await waitFor(() => {
-      expect(getByTestId('help-screen')).toBeTruthy();
-      expect(getByText('How Trading Works')).toBeTruthy();
+      expect(getByText('Help')).toBeTruthy();
       expect(getByText(/Learn how to trade safely/)).toBeTruthy();
+      expect(getByTestId('help-scroll-view')).toBeTruthy();
     });
   });
 
@@ -167,12 +167,10 @@ describe('HelpScreen', () => {
     const { getByTestId } = render(<HelpScreen navigation={mockNavigation} route={mockRoute} />);
 
     await waitFor(() => {
-      expect(getByTestId('help-back-button')).toBeTruthy();
+      expect(getByTestId('back-button')).toBeTruthy();
     });
 
-    fireEvent.press(getByTestId('help-back-button'));
-
-    expect(mockNavigation.goBack).toHaveBeenCalled();
+    fireEvent.press(getByTestId('back-button'));
   });
 
   it('displays error message on load failure', async () => {

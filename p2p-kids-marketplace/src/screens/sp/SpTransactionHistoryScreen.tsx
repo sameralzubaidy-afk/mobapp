@@ -29,7 +29,7 @@ import ScreenLayout from '@/components/ScreenLayout';
 type TabFilter = 'all' | 'earned' | 'spent';
 
 export default function SpTransactionHistoryScreen() {
-  const navigation = useNavigation();
+  const _navigation = useNavigation();
   const [activeTab, setActiveTab] = useState<TabFilter>('all');
   const [transactions, setTransactions] = useState<SPLedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);

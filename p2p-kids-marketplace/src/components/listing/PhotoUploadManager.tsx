@@ -27,7 +27,7 @@ export function PhotoUploadManager({
   photos,
   onAddPhotos,
   onRemovePhoto,
-  onReorder,
+  onReorder: _onReorder,
   maxPhotos = 10,
   testID = 'photo-upload-manager',
 }: PhotoUploadManagerProps) {

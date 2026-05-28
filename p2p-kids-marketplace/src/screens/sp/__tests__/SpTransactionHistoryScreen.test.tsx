@@ -180,10 +180,10 @@ describe('SpTransactionHistoryScreen', () => {
     const { getByTestId } = render(<SpTransactionHistoryScreen />);
 
     await waitFor(() => {
-      expect(getByTestId('sp-history-back-button')).toBeTruthy();
+      expect(getByTestId('back-button')).toBeTruthy();
     });
 
-    fireEvent.press(getByTestId('sp-history-back-button'));
+    fireEvent.press(getByTestId('back-button'));
     expect(mockGoBack).toHaveBeenCalled();
   });
 

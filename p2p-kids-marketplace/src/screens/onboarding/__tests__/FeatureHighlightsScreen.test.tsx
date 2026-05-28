@@ -42,7 +42,6 @@ describe('FeatureHighlightsScreen FLOW-02', () => {
       </AuthContext.Provider>
     );
 
-    expect(getByTestId('feature-highlights-screen')).toBeTruthy();
     expect(getByTestId('feature-highlights-carousel')).toBeTruthy();
     expect(getByTestId('feature-slide-0')).toBeTruthy();
     expect(getByTestId('feature-title-0')).toBeTruthy();

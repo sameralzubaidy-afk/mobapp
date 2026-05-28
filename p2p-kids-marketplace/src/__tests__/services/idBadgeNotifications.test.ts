@@ -28,7 +28,7 @@ describe('ID Badge Notification Service', () => {
       });
 
       // Simulate submission notification
-      const result = await supabase.from('user_notifications').insert({
+      const _result = await supabase.from('user_notifications').insert({
         user_id: 'user-123',
         category: 'badges',
         type: 'id_badge_submission',

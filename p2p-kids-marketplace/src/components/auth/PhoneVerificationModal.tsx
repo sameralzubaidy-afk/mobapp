@@ -119,7 +119,7 @@ export default function PhoneVerificationModal({
     }
   };
 
-  const handleVerifyCode = async (codeToVerify?: string) => {
+  const handleVerifyCode = async (_codeToVerify?: string) => {
     const success = await verifyCode();
     if (success) {
       onSuccess();

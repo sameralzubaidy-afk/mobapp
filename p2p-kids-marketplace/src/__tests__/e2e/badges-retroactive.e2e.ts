@@ -17,7 +17,7 @@ import { supabase } from '../../config/supabase';
 // See TODO-DATABASE-ADMIN-FIXES.md
 describe.skip('E2E: BADGES-V2-008 Retroactive Awarding', () => {
   let testUser1Id: string;
-  let testUser2Id: string;
+  let _testUser2Id: string;
   let testBadgeId: string;
 
   beforeAll(async () => {

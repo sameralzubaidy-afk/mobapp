@@ -370,7 +370,7 @@ describe('LoginScreen', () => {
       expect(label.props.style).toMatchObject({
         fontSize: 12,
         textTransform: 'uppercase',
-        color: '#4D4D4D',
+        color: '#6B6B6B',
       });
     });
   });

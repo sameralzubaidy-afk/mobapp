@@ -140,7 +140,7 @@ export function HomeTabNavigator({ navigation }: { navigation: any }) {
 
         {/* 2 — Discover */}
         <Tab.Screen
-          name="BrowseTab"
+          name="Discover"
           component={DiscoverScreen}
           options={{
             title: 'Discover',

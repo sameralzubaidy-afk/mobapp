@@ -65,8 +65,9 @@ describe('HelpScreen', () => {
 
   describe('Rendering', () => {
     it('should render the screen successfully', () => {
-      const { getByTestId } = render(<HelpScreen navigation={mockNavigation} />);
-      expect(getByTestId('help-screen')).toBeTruthy();
+      const { getByTestId, getByText } = render(<HelpScreen navigation={mockNavigation} />);
+      expect(getByText('Help & Support')).toBeTruthy();
+      expect(getByTestId('search-input')).toBeTruthy();
     });
 
     it('should display header with title "Help & Support"', () => {

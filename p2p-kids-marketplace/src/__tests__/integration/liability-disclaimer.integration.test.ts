@@ -132,7 +132,7 @@ describe('SAFETY-012: Liability Disclaimer Integration', () => {
 
       const invalidPolicyId = '00000000-0000-0000-0000-000000000000';
 
-      const { data, error } = await supabase.rpc('acknowledge_trade_disclaimer', {
+      const { data: _data, error } = await supabase.rpc('acknowledge_trade_disclaimer', {
         p_trade_id: testTradeId,
         p_disclaimer_policy_id: invalidPolicyId,
       });

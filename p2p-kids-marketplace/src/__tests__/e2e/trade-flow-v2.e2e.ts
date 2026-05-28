@@ -53,7 +53,7 @@ const TEST_DATA = {
 describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
   beforeAll(async () => {
     // Verify Supabase connection
-    const { data, error } = await supabase.from('items').select('count').limit(1);
+    const { data: _data, error } = await supabase.from('items').select('count').limit(1);
     if (error) {
       console.warn('⚠️ Supabase connection issue:', error);
       throw new Error('Cannot run E2E tests: Supabase not accessible');
@@ -153,7 +153,7 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
         : afterWallet?.available_points;
 
       // Seller should earn SP equal to item sale price
-      const expectedEarning = Math.floor(TEST_DATA.testItem.price); // Simplified: 1 SP per dollar
+      const _expectedEarning = Math.floor(TEST_DATA.testItem.price); // Simplified: 1 SP per dollar
       expect(spAfter).toBeGreaterThanOrEqual(spBefore);
       console.log(
         `✅ Trade completed. Seller SP: ${spBefore} → ${spAfter} (earned: ${spAfter - spBefore})`
@@ -162,7 +162,7 @@ describeSupabaseE2E('Trade Flow V2 - E2E Tests', () => {
   });
 
   describe('E2E-02: Non-Subscriber Trade Flow', () => {
-    let tradeId: string;
+    let _tradeId: string;
 
     it('should initiate trade for non-subscriber with $2.99 fee', async () => {
       const { error: authError } = await supabase.auth.signInWithPassword({

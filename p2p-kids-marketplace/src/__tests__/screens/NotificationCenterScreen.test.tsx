@@ -16,7 +16,8 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,
 }));
 
-const mockSession = { user: { id: 'user-123' } };
+const TEST_USER_ID = '11111111-1111-4111-8111-111111111111';
+const mockSession = { user: { id: TEST_USER_ID } };
 jest.mock('@/hooks/useAuth', () => ({
   useAuth: () => ({ session: mockSession }),
 }));
@@ -25,12 +26,14 @@ const mockGetUserNotifications = jest.fn();
 const mockMarkNotificationAsRead = jest.fn();
 const mockMarkAllNotificationsAsRead = jest.fn();
 const mockSubscribeToNotifications = jest.fn(() => jest.fn());
+const mockGetUnreadNotificationCount = jest.fn();
 
 jest.mock('@/services/referralNotifications', () => ({
   getUserNotifications: (...args: any[]) => mockGetUserNotifications(...args),
   markNotificationAsRead: (...args: any[]) => mockMarkNotificationAsRead(...args),
   markAllNotificationsAsRead: (...args: any[]) => mockMarkAllNotificationsAsRead(...args),
   subscribeToNotifications: (...args: any[]) => mockSubscribeToNotifications(...args),
+  getUnreadNotificationCount: (...args: any[]) => mockGetUnreadNotificationCount(...args),
 }));
 
 // react-native-safe-area-context
@@ -43,7 +46,7 @@ jest.mock('react-native-safe-area-context', () => {
 
 const makeNotification = (id: string, overrides: Partial<Record<string, any>> = {}) => ({
   id,
-  user_id: 'user-123',
+  user_id: TEST_USER_ID,
   category: 'system',
   type: 'test',
   title: `Notification ${id}`,
@@ -62,6 +65,7 @@ describe('NotificationCenterScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSubscribeToNotifications.mockReturnValue(jest.fn());
+    mockGetUnreadNotificationCount.mockResolvedValue({ success: true, count: 0 });
   });
 
   // ── Loading state ──────────────────────────────────────────────────────────
@@ -128,7 +132,7 @@ describe('NotificationCenterScreen', () => {
       fireEvent.press(getByTestId('notification-item-n1'));
     });
 
-    expect(mockMarkNotificationAsRead).toHaveBeenCalledWith('n1', 'user-123');
+    expect(mockMarkNotificationAsRead).toHaveBeenCalledWith('n1', TEST_USER_ID);
     await waitFor(() => expect(queryByTestId('unread-indicator-n1')).toBeNull());
   });
 
@@ -165,7 +169,7 @@ describe('NotificationCenterScreen', () => {
       fireEvent.press(getByTestId('mark-all-read-link'));
     });
 
-    expect(mockMarkAllNotificationsAsRead).toHaveBeenCalledWith('user-123');
+    expect(mockMarkAllNotificationsAsRead).toHaveBeenCalledWith(TEST_USER_ID);
     await waitFor(() => {
       expect(queryByTestId('mark-all-read-link')).toBeNull();
     });
@@ -335,7 +339,7 @@ describe('NotificationCenterScreen', () => {
 
     render(<NotificationCenterScreen />);
     await waitFor(() =>
-      expect(mockSubscribeToNotifications).toHaveBeenCalledWith('user-123', expect.any(Function))
+      expect(mockSubscribeToNotifications).toHaveBeenCalledWith(TEST_USER_ID, expect.any(Function))
     );
   });
 
@@ -412,15 +416,6 @@ describe('mergeNotificationsById', () => {
 
 // ── useNotificationBadge hook tests ──────────────────────────────────────────
 
-const mockGetUnreadNotificationCount = jest.fn();
-jest.mock('@/services/referralNotifications', () => ({
-  getUserNotifications: (...args: any[]) => mockGetUserNotifications(...args),
-  markNotificationAsRead: (...args: any[]) => mockMarkNotificationAsRead(...args),
-  markAllNotificationsAsRead: (...args: any[]) => mockMarkAllNotificationsAsRead(...args),
-  subscribeToNotifications: (...args: any[]) => mockSubscribeToNotifications(...args),
-  getUnreadNotificationCount: (...args: any[]) => mockGetUnreadNotificationCount(...args),
-}));
-
 describe('useNotificationBadge', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -436,7 +431,7 @@ describe('useNotificationBadge', () => {
   it('fetches unread count on mount', async () => {
     mockGetUnreadNotificationCount.mockResolvedValue({ success: true, count: 5 });
 
-    const { result } = renderHook(() => useNotificationBadge('user-123'));
+    const { result } = renderHook(() => useNotificationBadge(TEST_USER_ID));
     await waitFor(() => expect(result.current.unreadCount).toBe(5));
   });
 
@@ -448,7 +443,7 @@ describe('useNotificationBadge', () => {
       return jest.fn();
     });
 
-    const { result } = renderHook(() => useNotificationBadge('user-123'));
+    const { result } = renderHook(() => useNotificationBadge(TEST_USER_ID));
     await waitFor(() => expect(result.current.unreadCount).toBe(2));
 
     hookAct(() => {
@@ -463,7 +458,7 @@ describe('useNotificationBadge', () => {
       .mockResolvedValueOnce({ success: true, count: 1 })
       .mockResolvedValueOnce({ success: true, count: 3 });
 
-    const { result } = renderHook(() => useNotificationBadge('user-123'));
+    const { result } = renderHook(() => useNotificationBadge(TEST_USER_ID));
     await waitFor(() => expect(result.current.unreadCount).toBe(1));
 
     await hookAct(async () => {

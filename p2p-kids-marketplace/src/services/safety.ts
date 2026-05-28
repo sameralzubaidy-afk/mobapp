@@ -222,7 +222,7 @@ export async function getCpscMatchThreshold(): Promise<number> {
 
     const threshold = parseFloat(data.value);
     return isNaN(threshold) ? 0.5 : threshold;
-  } catch (error) {
+  } catch (_error) {
     console.warn('[safety] Exception getting CPSC threshold, using default 0.5');
     return 0.5;
   }

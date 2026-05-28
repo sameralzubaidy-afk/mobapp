@@ -29,9 +29,10 @@ export const getNotificationPreferences = async (): Promise<{
     } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    let { data, error } = await supabase.rpc('get_notification_preferences', {
+    const { data: initialData, error } = await supabase.rpc('get_notification_preferences', {
       p_user_id: user.id,
     });
+    let data = initialData;
 
     if (error) throw error;
 
@@ -79,7 +80,7 @@ export const updateNotificationPreference = async (
     } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase.rpc('update_notification_preference', {
+    const { data: _data, error } = await supabase.rpc('update_notification_preference', {
       p_user_id: user.id,
       p_category: category,
       p_push_enabled: updates.push_enabled,

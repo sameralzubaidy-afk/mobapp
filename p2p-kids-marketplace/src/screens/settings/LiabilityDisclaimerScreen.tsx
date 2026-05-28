@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { CaretLeft, WarningCircle } from 'phosphor-react-native';
+import { WarningCircle } from 'phosphor-react-native';
 import { supabase } from '@/config/supabase';
 import Markdown from 'react-native-markdown-display';
 import { LoadingSpinner } from '@/components/ui';
@@ -32,7 +32,7 @@ interface DisclaimerPolicy {
 }
 
 export default function LiabilityDisclaimerScreen() {
-  const navigation = useNavigation();
+  const _navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [policy, setPolicy] = useState<DisclaimerPolicy | null>(null);
   const [error, setError] = useState<string | null>(null);

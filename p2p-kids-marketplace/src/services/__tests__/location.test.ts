@@ -1,7 +1,6 @@
 // File: p2p-kids-marketplace/src/services/__tests__/location.test.ts
 // Tests for location service (AUTH-009)
 
-import { assignNodeByZipCode } from '../location';
 
 describe('Location Service', () => {
   describe('assignNodeByZipCode', () => {

@@ -7,7 +7,6 @@
  */
 
 import { getUserBadges, getAllBadges } from '../../services/badges';
-import { supabase } from '../../config/supabase';
 
 describe('Badges Integration Tests', () => {
   // We use a real-ish test if SUPABASE_URL is set, else we skip or mock

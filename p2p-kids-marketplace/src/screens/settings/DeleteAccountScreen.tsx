@@ -21,7 +21,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { CaretLeft, Trash, X, Lock } from 'phosphor-react-native';
+import { Trash, X, Lock } from 'phosphor-react-native';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import ScreenLayout from '@/components/ScreenLayout';

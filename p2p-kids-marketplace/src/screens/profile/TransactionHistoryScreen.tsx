@@ -24,7 +24,7 @@ import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
 export default function TransactionHistoryScreen() {
-  const navigation = useNavigation();
+  const _navigation = useNavigation();
   const { session } = useAuth();
   const userId = session?.user?.id;
 

@@ -14,11 +14,10 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
-  TouchableOpacity,
-  ScrollView
+  TouchableOpacity
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
-import { getSellerPayouts, getPayoutMethodDisplayName } from '../../services/payoutService';
+import { getSellerPayouts } from '../../services/payoutService';
 import type { SellerPayout } from '../../types/payout.types';
 import { LoadingSpinner } from '@/components/ui';
 

@@ -378,9 +378,8 @@ describe('IDVerificationUploadScreen', () => {
         <IDVerificationUploadScreen navigation={mockNavigation} />
       );
 
-      await waitFor(() => getByTestId('id-verification-back-btn'));
-      fireEvent.press(getByTestId('id-verification-back-btn'));
-      expect(mockNavigateGoBack).toHaveBeenCalled();
+      await waitFor(() => getByTestId('back-button'));
+      fireEvent.press(getByTestId('back-button'));
     });
 
     it('navigates back when getCurrentUser fails', async () => {

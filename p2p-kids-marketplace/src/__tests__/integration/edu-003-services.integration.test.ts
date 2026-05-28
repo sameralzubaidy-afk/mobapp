@@ -7,8 +7,6 @@ import { getPublishedExamples, calculateExampleSP } from '../../services/educati
 import { calculateSP, getBonusCategories } from '../../services/spCalculatorService';
 import {
   shouldShowOnboarding,
-  markOnboardingComplete,
-  markOnboardingSkipped,
   trackEducationEvent,
 } from '../../services/educationAnalyticsService';
 

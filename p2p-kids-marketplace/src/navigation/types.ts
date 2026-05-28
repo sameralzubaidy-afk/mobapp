@@ -52,6 +52,7 @@ export type RootStackParamList = {
   TradeList: undefined;
   TradeDispute: { tradeId: string };
   TradeSuccess: { tradeId: string };
+  TradeV2ComponentsPreview: undefined;
   // MODULE-07: Messaging routes
   Conversations: undefined;
   Chat: { tradeId: string };
@@ -96,7 +97,10 @@ export type RootStackParamList = {
   DeleteAccount: undefined;
   // MODULE-15.1 FLOW-07: Cart & Bundling
   Cart: undefined;
+  CartCheckout: { bundleId: string };
   BundleBuilder: { sellerId: string; sellerName?: string };
+  // MODULE-15.2 CART-018: Favorites
+  Favorites: undefined;
   // MODULE-15.1 FLOW-12: Subscription Screens
   SubscriptionPlans: undefined;
   PlanComparison: undefined;

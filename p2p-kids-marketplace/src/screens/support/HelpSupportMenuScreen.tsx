@@ -9,7 +9,6 @@ import {
   StyleSheet,
 } from 'react-native';
 import {
-  ArrowLeft,
   Question,
   ChartLine,
   ChatCircle,

@@ -3,7 +3,7 @@
 // Component for displaying a single review with report functionality
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Review, reportReview } from '@/services/review';
 import { StarRating } from '@/components/StarRating';
@@ -78,7 +78,7 @@ export function ReviewCard({ review, currentUserId, showReportMenu = true }: Rev
       } else {
         Alert.alert('Error', result.error || 'Failed to report review');
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setIsReporting(false);

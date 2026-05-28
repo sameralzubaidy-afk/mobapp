@@ -495,14 +495,143 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TFV2-012A: D-30 Pre-Authorization Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Count the number of 'pending' offers the buyer currently has open.
+ * D-30: max 3 pending offers per buyer at any given time.
+ */
+export async function countPendingOffersByBuyer(buyerId: string): Promise<number> {
+  try {
+    const { count, error } = await supabase
+      .from('trades')
+      .select('id', { count: 'exact', head: true })
+      .eq('buyer_id', buyerId)
+      .eq('status', 'pending');
+
+    if (error) {
+      console.error('[trade] countPendingOffersByBuyer error:', error);
+      return 0;
+    }
+    return count ?? 0;
+  } catch (err) {
+    console.error('[trade] countPendingOffersByBuyer unexpected error:', err);
+    return 0;
+  }
+}
+
+export interface CreateTradeOfferInput {
+  /** ID of the listing item */
+  item_id: string;
+  /** SP units to apply (1 SP = $1). 0 if none. */
+  sp_amount: number;
+  /** Stripe saved payment method ID. Required when cash_amount_cents > 0. */
+  payment_method_id?: string;
+  /**
+   * Total Stripe charge amount in cents = (item_price - sp_discount) + transaction_fee.
+   * 0 for SP-only or free trades.
+   */
+  cash_amount_cents: number;
+  /** Platform/transaction fee in cents (already included in cash_amount_cents). */
+  transaction_fee_cents: number;
+  /** 'active' | 'free' | etc. from subscription summary */
+  buyer_subscription_status: string;
+}
+
+export interface CreateTradeOfferResult {
+  success: boolean;
+  trade_id?: string;
+  authorization_id?: string | null;
+  authorization_expires_at?: string | null;
+  error?: string;
+  error_code?: string;
+}
+
+/**
+ * TFV2-012A (D-30 CRITICAL): Atomic offer creation with Stripe pre-authorization.
+ *
+ * Replaces the two-step initiateTradeV2 + processTradePayment pattern.
+ * - Creates a Stripe PaymentIntent with capture_method='manual' (hold on card, not a charge).
+ * - Inserts the trade record; DB trigger fn_reserve_sp_on_offer handles SP reservation.
+ * - If Stripe hold fails → offer is NOT created (no charge, no SP reserve).
+ * - If trade insert fails → Stripe PI is cancelled atomically.
+ *
+ * The hold is captured later by trade-payment edge function when the SELLER accepts.
+ */
+export async function createTradeOfferWithHold(
+  input: CreateTradeOfferInput
+): Promise<CreateTradeOfferResult> {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session?.access_token) {
+      return { success: false, error: 'User not authenticated', error_code: 'UNAUTHORIZED' };
+    }
+
+    const { data, error } = await supabase.functions.invoke('create-trade-offer', {
+      body: {
+        item_id: input.item_id,
+        sp_amount: input.sp_amount,
+        payment_method_id: input.payment_method_id,
+        cash_amount_cents: input.cash_amount_cents,
+        transaction_fee_cents: input.transaction_fee_cents,
+        buyer_subscription_status: input.buyer_subscription_status,
+      },
+    });
+
+    if (error) {
+      const message = await extractEdgeInvokeErrorMessage(
+        error,
+        data,
+        'Failed to submit your offer. Please try again.'
+      );
+      const code = (data as Record<string, unknown> | null)?.error
+        ? ((data as Record<string, unknown>).error as Record<string, unknown>)?.code as string
+        : undefined;
+      console.error('[trade] createTradeOfferWithHold invoke error:', message);
+      return { success: false, error: message, error_code: code };
+    }
+
+    const result = data as {
+      success?: boolean;
+      trade_id?: string;
+      authorization_id?: string | null;
+      authorization_expires_at?: string | null;
+      error?: { code?: string; message?: string };
+    };
+
+    if (!result?.success) {
+      const msg = result?.error?.message ?? 'Offer could not be created. Please try again.';
+      const code = result?.error?.code;
+      return { success: false, error: msg, error_code: code };
+    }
+
+    return {
+      success: true,
+      trade_id: result.trade_id,
+      authorization_id: result.authorization_id ?? null,
+      authorization_expires_at: result.authorization_expires_at ?? null,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unexpected error submitting offer';
+    console.error('[trade] createTradeOfferWithHold unexpected error:', err);
+    return { success: false, error: message, error_code: 'UNEXPECTED_ERROR' };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * TASK TRADE-V2-004: Complete a trade (mark as completed/delivered)
  *
  * Rules:
- * 1. Buyer or seller can mark as completed
- * 2. If seller initiates: records seller_marked_completed_at, awaits buyer confirmation
- * 3. If buyer initiates OR seller already marked: completes trade, updates item to 'sold', awards SP to seller
- * 4. Calls complete_trade_v2 RPC for atomic transaction handling
+ * 1. Buyer-only completion is enforced server-side.
+ * 2. Trade must be in_progress and not have an unresolved dispute.
+ * 3. Calls complete-trade Edge Function (which invokes DB completion logic).
  *
  * @param tradeId - Trade UUID
  * @returns { success: boolean, error?: string, message?: string }
@@ -526,44 +655,28 @@ export async function completeTradeV2(
 
     // Call the complete-trade Edge Function
     const { data, error } = await supabase.functions.invoke('complete-trade', {
-      body: { tradeId },
+      body: { tradeId, trade_id: tradeId },
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
     });
 
     if (error) {
-      console.error('[trade] Complete trade error:', error);
-      console.error('[trade] Error details:', {
-        message: error.message,
-        code: error.code,
-        details: error,
+      const errorMessage = await extractEdgeInvokeErrorMessage(
+        error,
+        data,
+        'Failed to complete trade'
+      );
+
+      console.error('[trade] Complete trade error:', {
+        tradeId,
+        error,
+        errorMessage,
       });
-
-      // Best-effort: FunctionsHttpError sometimes contains a Response in error.context
-      // which includes the real JSON error body from the Edge Function.
-      try {
-        const anyError = error as any;
-        const context = anyError?.context;
-
-        if (context?.body) {
-          console.error('[trade] Edge Function response body (context.body):', context.body);
-        }
-
-        const response: Response | undefined = context?.response;
-        if (response) {
-          const resForRead =
-            typeof (response as any).clone === 'function' ? (response as any).clone() : response;
-          const text = await resForRead.text();
-          console.error('[trade] Edge Function response body (response.text):', text);
-        }
-      } catch (parseErr) {
-        console.error('[trade] Failed to read Edge Function error body:', parseErr);
-      }
 
       return {
         success: false,
-        error: error.message || 'Failed to complete trade',
+        error: errorMessage,
       };
     }
 
@@ -576,6 +689,26 @@ export async function completeTradeV2(
         error: data.error || 'Failed to complete trade',
         message: data.message,
       };
+    }
+
+    // MODULE-15.3-PART3 TAX-013: apply sales tax to the now-completed trade.
+    // Idempotent; non-blocking — tax failures should not undo a successful trade.
+    try {
+      const { applyTaxToTrade } = await import('./tax');
+      const taxRes = await applyTaxToTrade(tradeId);
+      if (!taxRes.success) {
+        console.warn('[trade] tax application failed (non-blocking):', taxRes.error);
+      } else {
+        console.log(
+          '[trade] tax applied:',
+          taxRes.data.tax_amount_cents,
+          'cents (idempotent_hit=',
+          taxRes.data.idempotent_hit,
+          ')'
+        );
+      }
+    } catch (taxErr) {
+      console.warn('[trade] tax application threw (non-blocking):', taxErr);
     }
 
     return {
@@ -603,12 +736,12 @@ export async function completeTradeV2(
  *
  * @param tradeId - Trade UUID
  * @param reason - Cancellation reason
- * @returns { success: boolean, error?: string, message?: string }
+ * @returns { success, error?, message?, sp_refunded?, consequenceLevel? }
  */
 export async function cancelTradeV2(
   tradeId: string,
   reason?: string
-): Promise<{ success: boolean; error?: string; message?: string; sp_refunded?: boolean }> {
+): Promise<{ success: boolean; error?: string; message?: string; sp_refunded?: boolean; consequenceLevel?: number | null }> {
   try {
     const {
       data: { session },
@@ -642,6 +775,8 @@ export async function cancelTradeV2(
       error: data.error,
       message: data.message,
       sp_refunded: data.sp_refunded,
+      // TFV2-023: consequence level returned by cancel-trade Edge Function
+      consequenceLevel: data.consequence_level ?? null,
     };
   } catch (error) {
     console.error('[trade] Error cancelling trade:', error);

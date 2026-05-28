@@ -65,14 +65,14 @@ describe('SpWalletScreen', () => {
   });
 
   it('should render hero balance card after loading', async () => {
-    const { getByTestId, getByText } = render(<SpWalletScreen />);
+    const { getByTestId, getByText, getAllByText } = render(<SpWalletScreen />);
 
     await waitFor(() => {
       expect(getByTestId('sp-wallet-balance-card')).toBeTruthy();
     });
 
     expect(getByText('350')).toBeTruthy(); // Balance amount
-    expect(getByText('Swap Points')).toBeTruthy();
+    expect(getAllByText('Swap Points').length).toBeGreaterThan(0);
   });
 
   it('should render quick action buttons', async () => {
@@ -133,10 +133,10 @@ describe('SpWalletScreen', () => {
     const { getByTestId } = render(<SpWalletScreen />);
 
     await waitFor(() => {
-      expect(getByTestId('sp-wallet-back-button')).toBeTruthy();
+      expect(getByTestId('back-button')).toBeTruthy();
     });
 
-    fireEvent.press(getByTestId('sp-wallet-back-button'));
+    fireEvent.press(getByTestId('back-button'));
     expect(mockGoBack).toHaveBeenCalled();
   });
 

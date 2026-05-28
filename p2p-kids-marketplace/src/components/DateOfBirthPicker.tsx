@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, TextInput, StyleSheet, Text, Platform, TouchableOpacity } from 'react-native';
+import { View, TextInput, StyleSheet, Text } from 'react-native';
 
 interface DateOfBirthPickerProps {
   value: string; // Expected format: YYYY-MM-DD

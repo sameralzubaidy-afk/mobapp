@@ -51,7 +51,7 @@ export default function LoginScreen() {
         onPress={async () => {
           setLoading(true);
           try {
-            const { user, error } = await signIn({ email, password });
+            const { user: _user, error } = await signIn({ email, password });
             if (error) {
               Alert.alert('Login failed', error.message || 'Invalid credentials');
             } else {

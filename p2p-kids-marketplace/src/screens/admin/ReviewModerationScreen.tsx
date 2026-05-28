@@ -40,7 +40,7 @@ export function ReviewModerationScreen() {
       } else {
         Alert.alert('Error', result.error || 'Failed to load reported reviews');
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
       setLoading(false);

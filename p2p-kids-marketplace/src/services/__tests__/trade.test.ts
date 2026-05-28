@@ -416,7 +416,7 @@ describe('trade service', () => {
       const result = await completeTradeV2('trade-123');
 
       expect(supabase.functions.invoke).toHaveBeenCalledWith('complete-trade', {
-        body: { tradeId: 'trade-123' },
+        body: { tradeId: 'trade-123', trade_id: 'trade-123' },
         headers: { Authorization: 'Bearer undefined' },
       });
       expect(result.success).toBe(true);

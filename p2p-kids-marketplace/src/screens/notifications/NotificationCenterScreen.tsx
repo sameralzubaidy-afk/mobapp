@@ -24,7 +24,6 @@ import {
   Trophy,
   IdentificationCard,
   Notification,
-  ArrowLeft,
   Handshake,
   ChatCircle,
   Tag,
@@ -34,7 +33,6 @@ import {
   StarFour,
   TrendUp,
   Confetti,
-  CheckCircle,
   XCircle,
   Hourglass,
   Package,
@@ -531,7 +529,17 @@ export default function NotificationCenterScreen() {
 
   const keyExtractor = useCallback((item: UserNotification) => item.id, []);
 
-  const listHeader = null;
+  const listHeader = unreadCount > 0 ? (
+    <View style={styles.listHeaderContainer}>
+      <TouchableOpacity
+        testID="mark-all-read-link"
+        style={styles.markAllLink}
+        onPress={handleMarkAllRead}
+      >
+        <Text style={styles.markAllLinkText}>Mark all read</Text>
+      </TouchableOpacity>
+    </View>
+  ) : null;
 
   const listEmpty = !isLoading ? (
     <View testID="empty-state" style={styles.emptyState}>
@@ -736,5 +744,11 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingVertical: 16,
+  },
+  listHeaderContainer: {
+    alignItems: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
 });

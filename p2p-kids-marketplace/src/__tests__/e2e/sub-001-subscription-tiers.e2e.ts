@@ -246,7 +246,7 @@ describe('E2E: SUB-001 Subscription Tiers', () => {
   describe('Database Constraints', () => {
     it('should enforce unique tier names', async () => {
       // Attempt to select by unique name should return exactly one record
-      const { data, count } = await supabase
+      const { data: _data, count } = await supabase
         .from('subscription_tiers')
         .select('*', { count: 'exact' })
         .eq('name', SubscriptionTierName.KIDS_CLUB_PLUS);

@@ -11,7 +11,16 @@ import { useAuth } from '@/hooks/useAuth';
 
 jest.mock('@/config/supabase');
 jest.mock('@/hooks/useAuth');
+jest.mock('@/hooks/useNotificationBadge', () => ({
+  useNotificationBadge: () => ({
+    unreadCount: 0,
+    refreshUnreadCount: jest.fn(),
+  }),
+}));
 jest.mock('@/components/organisms/BottomNavBar', () => () => null);
+jest.mock('@/components/organisms/PersistentTabBar', () => ({
+  PersistentTabBar: () => null,
+}));
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (cb: () => void | (() => void)) => {
     const React = require('react');
@@ -20,6 +29,10 @@ jest.mock('@react-navigation/native', () => ({
       return typeof cleanup === 'function' ? cleanup : undefined;
     }, [cb]);
   },
+  useNavigation: () => ({
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+  }),
 }));
 
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
@@ -273,6 +286,67 @@ describe('TradeListScreen', () => {
 
       await waitFor(() => {
         expect(mockNavigation.navigate).toHaveBeenCalledWith('TradeDetail', { tradeId: 'trade-1' });
+      });
+    });
+  });
+
+  // D-09: Trades sorted by total_value (cash_amount_cents/100 + sp_amount) DESC
+  describe('Sorting', () => {
+    it('D-09: should sort trades by total_value DESC', async () => {
+      const unsortedTrades = [
+        {
+          id: 'trade-low',
+          buyer_id: 'user-123',
+          seller_id: 'seller-1',
+          status: 'completed',
+          created_at: '2026-01-01T10:00:00.000Z',
+          cash_amount_cents: 1000,  // $10 + 0sp = $10 total
+          sp_amount: 0,
+          listing: { title: 'Cheap Item', price: 10, images: [] },
+        },
+        {
+          id: 'trade-high',
+          buyer_id: 'user-123',
+          seller_id: 'seller-1',
+          status: 'completed',
+          created_at: '2026-01-02T10:00:00.000Z',
+          cash_amount_cents: 5000,  // $50 + 20sp = $70 total
+          sp_amount: 20,
+          listing: { title: 'Expensive Item', price: 70, images: [] },
+        },
+        {
+          id: 'trade-mid',
+          buyer_id: 'user-123',
+          seller_id: 'seller-1',
+          status: 'completed',
+          created_at: '2026-01-03T10:00:00.000Z',
+          cash_amount_cents: 3000,  // $30 + 5sp = $35 total
+          sp_amount: 5,
+          listing: { title: 'Mid Item', price: 35, images: [] },
+        },
+      ];
+
+      const mockFrom = jest.fn().mockReturnValue({
+        select: jest.fn().mockReturnValue({
+          or: jest.fn().mockReturnValue({
+            order: jest.fn().mockResolvedValue({
+              data: unsortedTrades,
+              error: null,
+            }),
+          }),
+        }),
+      });
+
+      mockSupabase.from = mockFrom;
+
+      const { getAllByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
+
+      await waitFor(() => {
+        const rows = getAllByTestId(/^trade-row-/);
+        // Expected order: high ($70) > mid ($35) > low ($10)
+        expect(rows[0].props.testID).toBe('trade-row-trade-high');
+        expect(rows[1].props.testID).toBe('trade-row-trade-mid');
+        expect(rows[2].props.testID).toBe('trade-row-trade-low');
       });
     });
   });

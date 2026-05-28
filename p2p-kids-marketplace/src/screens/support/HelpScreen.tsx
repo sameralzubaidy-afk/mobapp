@@ -17,7 +17,6 @@ import {
   MagnifyingGlass,
   Question,
   CaretRight,
-  ArrowLeft,
 } from 'phosphor-react-native';
 import { fetchPublishedFaqs, type FAQ } from '../../services/faqService';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -65,7 +64,11 @@ export default function HelpScreen({ navigation }: HelpScreenProps) {
   };
 
   return (
-    <ScreenLayout variant="detail" title="Help & Support">
+    <ScreenLayout
+      variant="detail"
+      title="Help & Support"
+      onBack={() => navigation.goBack()}
+    >
       <View style={styles.container}>
         {/* Search Bar */}
         <View style={styles.searchWrapper}>

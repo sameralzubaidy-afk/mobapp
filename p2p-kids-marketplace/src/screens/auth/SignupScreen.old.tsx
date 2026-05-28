@@ -15,8 +15,6 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { signupWithTrial } from '@/services/auth';
-import { SignupInput, AuthError } from '@/types/user';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
 // import { AUTH_EVENTS } from '@/constants/analytics-events'; // unused while analytics is TODO

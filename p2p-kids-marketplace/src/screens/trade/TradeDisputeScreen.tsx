@@ -27,7 +27,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { WarningCircle, Flag } from 'phosphor-react-native';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
-import { cancelTradeV2 } from '@/services/trade';
+import { supabase } from '@/config/supabase';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeDisputeRouteProp = RouteProp<RootStackParamList, 'TradeDispute'>;
@@ -84,7 +84,7 @@ export default function TradeDisputeScreen() {
     });
   };
 
-  const buildCancellationReason = () => {
+  const _buildCancellationReason = () => {
     const selected = DISPUTE_REASONS.find((r) => r.id === selectedReason);
     const baseReason = selected ? selected.label : 'Dispute reported';
 
@@ -120,16 +120,26 @@ export default function TradeDisputeScreen() {
           onPress: async () => {
             try {
               setSubmitting(true);
-              const result = await cancelTradeV2(tradeId, buildCancellationReason());
 
-              if (!result.success) {
-                throw new Error(result.error || 'Failed to submit dispute');
+              // D-26: Call open-dispute EF — does NOT cancel the trade
+              const { data, error } = await supabase.functions.invoke('open-dispute', {
+                body: {
+                  trade_id:    tradeId,
+                  reason:      selectedReason,
+                  description: description.trim(),
+                },
+              });
+
+              if (error) {
+                throw new Error(error.message ?? 'Failed to report dispute');
+              }
+              if (data && !data.success) {
+                throw new Error(data.error?.message ?? 'Failed to report dispute');
               }
 
               Alert.alert(
-                'Dispute filed',
-                result.message ||
-                  'Your dispute has been submitted and the trade was moved to cancelled status.',
+                'Dispute Reported',
+                'Your dispute has been reported. The seller will be notified and you can continue discussing via messages.',
                 [
                   {
                     text: 'OK',

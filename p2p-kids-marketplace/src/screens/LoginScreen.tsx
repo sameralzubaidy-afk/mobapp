@@ -41,7 +41,7 @@ export const LoginScreen: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Account linking state (when social login detects existing account)
-  const [accountLinkPrompt, setAccountLinkPrompt] = useState<{
+  const [_accountLinkPrompt, setAccountLinkPrompt] = useState<{
     email: string;
     provider: OAuthProvider;
   } | null>(null);

@@ -48,27 +48,27 @@ describe('BundleBuilderScreen', () => {
   });
 
   describe('Header', () => {
-    it('should render "Build a Bundle" heading', async () => {
+    it('should render "Bundle" heading', async () => {
       const { getByText } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        expect(getByText('Build a Bundle')).toBeTruthy();
+        expect(getByText('Bundle')).toBeTruthy();
       });
     });
 
-    it('should render subtext with seller name', async () => {
+    it('should render empty-state helper subtext', async () => {
       const { getByText } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        expect(getByText(/Add more items from Test Seller to save/)).toBeTruthy();
+        expect(getByText(/This seller doesn't have any other items/)).toBeTruthy();
       });
     });
 
-    it('should render close button', async () => {
+    it('should render back button', async () => {
       const { getByTestId } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        expect(getByTestId('bundle-close-button')).toBeTruthy();
+        expect(getByTestId('back-button')).toBeTruthy();
       });
     });
   });
@@ -95,11 +95,11 @@ describe('BundleBuilderScreen', () => {
   });
 
   describe('Close Button', () => {
-    it('should go back when close pressed with no selection', async () => {
+    it('should go back when back button is pressed', async () => {
       const { getByTestId } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        const closeButton = getByTestId('bundle-close-button');
+        const closeButton = getByTestId('back-button');
         fireEvent.press(closeButton);
         expect(mockGoBack).toHaveBeenCalled();
       });
@@ -107,31 +107,31 @@ describe('BundleBuilderScreen', () => {
   });
 
   describe('Design System Compliance', () => {
-    it('should use correct heading font size (24px)', async () => {
+    it('should show the screen title', async () => {
       const { getByText } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        const heading = getByText('Build a Bundle');
+        const heading = getByText('Bundle');
         expect(heading).toBeTruthy();
       });
     });
 
-    it('should use correct subtext font size (15px)', async () => {
+    it('should show empty-state supporting text', async () => {
       const { getByText } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        const subtext = getByText(/Add more items from/);
+        const subtext = getByText(/This seller doesn't have any other items/);
         expect(subtext).toBeTruthy();
       });
     });
   });
 
   describe('Accessibility', () => {
-    it('should have accessible close button', async () => {
+    it('should have accessible back button', async () => {
       const { getByTestId } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        const closeButton = getByTestId('bundle-close-button');
+        const closeButton = getByTestId('back-button');
         expect(closeButton).toBeTruthy();
       });
     });

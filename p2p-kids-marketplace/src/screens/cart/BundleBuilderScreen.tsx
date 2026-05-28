@@ -31,7 +31,6 @@ import {
   Plus,
   CheckCircle,
   Tag,
-  X,
 } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -49,7 +48,7 @@ interface BundleItem {
 export default function BundleBuilderScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<BundleBuilderRouteProp>();
-  const { sellerId, sellerName } = route.params;
+  const { sellerId, sellerName: _sellerName } = route.params;
 
   const [availableItems, setAvailableItems] = useState<BundleItem[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -123,7 +122,7 @@ export default function BundleBuilderScreen() {
     );
   };
 
-  const handleClose = () => {
+  const _handleClose = () => {
     if (selectedItems.size > 0) {
       Alert.alert(
         'Discard Bundle?',

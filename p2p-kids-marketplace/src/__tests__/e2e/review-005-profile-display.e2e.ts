@@ -263,7 +263,7 @@ describe('REVIEW-005 E2E: Profile Rating Display', () => {
           const breakdown = statsResult.stats.rating_breakdown;
           const total = statsResult.stats.total_reviews;
 
-          Object.entries(breakdown).forEach(([stars, count]) => {
+          Object.entries(breakdown).forEach(([_stars, count]) => {
             const percentage = (count / total) * 100;
             expect(percentage).toBeGreaterThanOrEqual(0);
             expect(percentage).toBeLessThanOrEqual(100);

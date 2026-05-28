@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/__tests__/services/sp-expiration.test.ts
 // MODULE-09 SP-004: Unit tests for SP expiration service
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import {
   calculateExpirationDate,
   formatDaysUntilExpiry,

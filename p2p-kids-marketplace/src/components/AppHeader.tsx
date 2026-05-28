@@ -63,7 +63,13 @@ export default function AppHeader({
   showLogout = false,
   onBack,
 }: AppHeaderProps) {
-  const navigation = useNavigation<any>();
+  let navigation: any;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- defensive: AppHeader may render outside NavigationContainer in tests/storybook
+    navigation = useNavigation<any>();
+  } catch {
+    navigation = undefined;
+  }
   const { session, logout } = useAuth();
 
   const userId = session?.user?.id;
@@ -74,18 +80,41 @@ export default function AppHeader({
     session?.user?.email?.split('@')[0] ||
     'User';
 
-  const handleBack = onBack ?? (() => navigation.goBack());
+  const navigateTo = (routeName: string) => {
+    if (navigation && typeof navigation.navigate === 'function') {
+      navigation.navigate(routeName);
+    }
+  };
+
+  const handleBack =
+    onBack ??
+    (() => {
+      if (navigation && typeof navigation.goBack === 'function') {
+        navigation.goBack();
+      }
+    });
+
+  const renderIcon = (
+    IconComponent: any,
+    props: { size: number; color: string; weight?: string }
+  ) => {
+    if (!IconComponent) {
+      return <View style={{ width: props.size, height: props.size }} />;
+    }
+
+    return React.createElement(IconComponent, props as any);
+  };
 
   // ── Shared bell button ────────────────────────────────────────────────────
   const renderBell = () => (
     <TouchableOpacity
       style={styles.headerActionBtn}
-      onPress={() => navigation.navigate('Notifications')}
+      onPress={() => navigateTo('Notifications')}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       accessibilityLabel="Notifications"
       testID="header-notifications-btn"
     >
-      <Bell size={22} color="#1A1A1A" weight="bold" />
+      {renderIcon(Bell, { size: 22, color: '#1A1A1A', weight: 'bold' })}
       {unreadCount > 0 && (
         <View style={styles.unreadBadge}>
           <Text style={styles.unreadBadgeText}>
@@ -102,7 +131,7 @@ export default function AppHeader({
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerLeft}
-          onPress={() => navigation.navigate('Profile')}
+          onPress={() => navigateTo('Profile')}
           activeOpacity={0.8}
           accessibilityLabel="View profile"
         >
@@ -124,11 +153,11 @@ export default function AppHeader({
 
           <TouchableOpacity
             style={styles.headerActionBtn}
-            onPress={() => navigation.navigate('Profile')}
+            onPress={() => navigateTo('Profile')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Profile"
           >
-            <User size={22} color="#1A1A1A" weight="regular" />
+            {renderIcon(User, { size: 22, color: '#1A1A1A', weight: 'regular' })}
           </TouchableOpacity>
 
           {showLogout && (
@@ -138,7 +167,7 @@ export default function AppHeader({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Sign out"
             >
-              <SignOut size={22} color="#E85D75" weight="regular" />
+              {renderIcon(SignOut, { size: 22, color: '#E85D75', weight: 'regular' })}
             </TouchableOpacity>
           )}
         </View>
@@ -155,11 +184,12 @@ export default function AppHeader({
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         accessibilityLabel="Go back"
         accessibilityRole="button"
+        testID="back-button"
       >
-        <CaretLeft size={24} color="#1A1A1A" weight="regular" />
+        {renderIcon(CaretLeft, { size: 24, color: '#1A1A1A', weight: 'regular' })}
       </TouchableOpacity>
 
-      <Text style={styles.detailTitle} numberOfLines={1}>
+      <Text testID="screen-title" style={styles.detailTitle} numberOfLines={1}>
         {title ?? ''}
       </Text>
 

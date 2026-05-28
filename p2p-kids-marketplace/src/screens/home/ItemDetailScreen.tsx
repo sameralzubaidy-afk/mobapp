@@ -8,8 +8,8 @@
  * - Full item details with Heart/Share overlay on images
  * - SP earn badge with Coins icon (gold chip)
  * - ShieldCheck verified badge on seller card
- * - Sticky "Buy Now" button (green pill, 52px)
- * - "Add to Cart" button (secondary outlined, above Buy Now)
+ * - Sticky "Request to Buy" button (D-07, green pill, 52px)
+ * - "Add to Cart" button (secondary outlined, above Request to Buy)
  * - Seller info masking + rating display
  * - Contact seller button navigates to messaging
  */
@@ -39,6 +39,8 @@ import {
 import { hasActiveOfferForItem, hasActiveTradeBetween, getSellerRating } from '@/services/trade';
 import { Listing } from '@/types/listing';
 import { trackEvent } from '@/services/analytics';
+import { addToCart, saveCurrentCart, clearCart, getCartItems } from '@/services/cartService';
+import { addFavorite, removeFavorite, isFavorited } from '@/services/favoritesService';
 import { RootStackParamList } from '@/navigation/types';
 import { formatPrice } from '@/utils/formatPrice';
 import {
@@ -100,10 +102,32 @@ export default function ItemDetailScreen() {
   const [sellerVerificationStatus, setSellerVerificationStatus] = useState<string | null>(null);
   const [loadingSellerInfo, setLoadingSellerInfo] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  // CART-014: Track whether current listing is already in the buyer's cart
+  const [inCart, setInCart] = useState(false);
 
   useEffect(() => {
     loadListing();
     loadBuyerSubscription();
+  }, [listing_id]);
+
+  // CART-016: Sync favorite state when listing loads
+  useEffect(() => {
+    (async () => {
+      if (!listing_id) return;
+      const fav = await isFavorited(listing_id);
+      setIsFavorite(fav);
+    })();
+  }, [listing_id]);
+
+  // CART-014: Check if listing is already in the buyer's active cart
+  useEffect(() => {
+    (async () => {
+      if (!listing_id) return;
+      const r = await getCartItems();
+      if (r.success) {
+        setInCart(r.data.items.some((i) => i.listingId === listing_id));
+      }
+    })();
   }, [listing_id]);
 
   // Load trade status and seller rating when listing/user changes
@@ -259,7 +283,7 @@ export default function ItemDetailScreen() {
     if (!hasActiveTrade) {
       Alert.alert(
         'Start a Trade First',
-        'You must have an active trade with this seller to contact them via messaging. Click "Buy Now" to start a trade.'
+        'You must have an active trade with this seller to contact them via messaging. Click "Request to Buy" to start a trade.'
       );
       return;
     }
@@ -388,7 +412,23 @@ export default function ItemDetailScreen() {
               {/* Heart/Share overlay - top right */}
               <View style={styles.imageOverlayIcons}>
                 <Pressable
-                  onPress={() => setIsFavorite(!isFavorite)}
+                  onPress={async () => {
+                    const willFavorite = !isFavorite;
+                    setIsFavorite(willFavorite);
+                    if (!listing?.id) return;
+                    const r = willFavorite
+                      ? await addFavorite(listing.id)
+                      : await removeFavorite(listing.id);
+                    if (!r.success) {
+                      // revert UI on failure
+                      setIsFavorite(!willFavorite);
+                      Alert.alert('Could not update favorites', r.error.message);
+                      return;
+                    }
+                    trackEvent(willFavorite ? 'favorite_added' : 'favorite_removed', {
+                      item_id: listing.id,
+                    });
+                  }}
                   style={styles.overlayIconButton}
                   hitSlop={8}
                 >
@@ -699,31 +739,120 @@ export default function ItemDetailScreen() {
           )}
         </ScrollView>
 
-        {/* MODULE-15.1: Sticky Bottom Actions - Add to Cart + Make Offer */}
+        {/* MODULE-15.1: Sticky Bottom Actions - Add to Cart + Request to Buy */}
+        {/* D-07: Button label is "Request to Buy" (not "Pay Cash" or "Make Offer") */}
+        {/* D-08: "Use SP 🔒" chip visible but locked for free users when listing accepts SP */}
         <View style={styles.stickyBottomActions}>
-          <Pressable
-            style={styles.addToCartButton}
-            onPress={() => {
-              trackEvent('add_to_cart', { item_id: listing.id });
-              Alert.alert('Added to Cart', 'Item added to your cart successfully!');
-            }}
-          >
-            <ShoppingCart size={20} color="#5DBB8E" weight="regular" />
-            <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-          </Pressable>
+          {listing?.accepts_swap_points && !buyerIsSubscriber && (
+            <Pressable
+              style={styles.useSpLockedChip}
+              onPress={() => navigation.navigate('SubscriptionChoice')}
+            >
+              <Lock size={14} color="#6B7280" weight="bold" />
+              <Text style={styles.useSpLockedText}>Use SP 🔒</Text>
+            </Pressable>
+          )}
 
-          <Pressable
-            style={[styles.buyNowButton, (loading || checkingActiveTrade) && { opacity: 0.7 }]}
-            onPress={handleMakeOffer}
-            disabled={loading || checkingActiveTrade}
-            testID="make-offer-button"
-          >
-            {checkingActiveTrade ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.buyNowButtonText}>Make Offer</Text>
+          <View style={styles.bottomActionRow}>
+            {/* CART-014: Hide button for own listings; show "View Cart" when already in cart */}
+            {user?.id !== listing?.seller_id && (
+              inCart ? (
+                <Pressable
+                  style={styles.addToCartButton}
+                  testID="view-cart-button"
+                  onPress={() => navigation.navigate('Cart')}
+                >
+                  <ShoppingCart size={20} color="#5DBB8E" weight="fill" />
+                  <Text style={styles.addToCartButtonText}>View Cart</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  style={styles.addToCartButton}
+                  testID="add-to-cart-button"
+                  onPress={async () => {
+                    if (!listing?.id) return;
+                    trackEvent('cart_item_added_attempt', { item_id: listing.id });
+                    const r = await addToCart({ listingId: listing.id });
+                    if (r.success) {
+                      trackEvent('cart_item_added', { item_id: listing.id });
+                      setInCart(true);
+                      // Cross-node soft nudge: item is from a different neighborhood
+                      if ((r.data as any)?.cross_node_warning) {
+                        Alert.alert(
+                          'Added to Cart',
+                          "This item is from a different ZIP code area. You and the seller will need to coordinate a meetup location.",
+                        );
+                      } else {
+                        Alert.alert('Added to Cart', 'Item added to your cart.');
+                      }
+                      return;
+                    }
+                    // CART-004: DIFFERENT_SELLER handling
+                    if (r.error.code === 'DIFFERENT_SELLER') {
+                      const details = (r.error.details ?? {}) as { current_seller_name?: string };
+                      const sellerName = details.current_seller_name ?? 'another seller';
+                      Alert.alert(
+                        'Different Seller',
+                        `Your active cart has items from ${sellerName}. What would you like to do?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Save & Start New Cart',
+                            onPress: async () => {
+                              const save = await saveCurrentCart();
+                              if (!save.success) {
+                                Alert.alert('Could not save cart', save.error.message);
+                                return;
+                              }
+                              const retry = await addToCart({ listingId: listing.id });
+                              if (!retry.success) {
+                                Alert.alert('Could not add to cart', retry.error.message);
+                                return;
+                              }
+                              setInCart(true);
+                              Alert.alert('Added to Cart', 'Item added to a new cart.');
+                            },
+                          },
+                          {
+                            text: 'Replace Cart',
+                            style: 'destructive',
+                            onPress: async () => {
+                              await clearCart();
+                              const retry = await addToCart({ listingId: listing.id });
+                              if (!retry.success) {
+                                Alert.alert('Could not add to cart', retry.error.message);
+                                return;
+                              }
+                              setInCart(true);
+                              Alert.alert('Added to Cart', 'Item added to your cart.');
+                            },
+                          },
+                        ],
+                      );
+                      return;
+                    }
+                    Alert.alert('Could not add to cart', r.error.message);
+                  }}
+                >
+                  <ShoppingCart size={20} color="#5DBB8E" weight="regular" />
+                  <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+                </Pressable>
+              )
             )}
-          </Pressable>
+
+            <Pressable
+              style={[styles.buyNowButton, (loading || checkingActiveTrade) && { opacity: 0.7 }]}
+              onPress={handleMakeOffer}
+              disabled={loading || checkingActiveTrade}
+              testID="request-to-buy-button"
+            >
+              {checkingActiveTrade ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.buyNowButtonText}>Request to Buy</Text>
+              )}
+            </Pressable>
+          </View>
         </View>
 
         {/* Duplicate Trade Modal - Design System Modal */}
@@ -1239,29 +1368,54 @@ const styles = StyleSheet.create({
   stickyBottomActions: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 8,
     paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
+    gap: 8,
+  },
+  useSpLockedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  useSpLockedText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  bottomActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
   addToCartButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    height: 48,
-    borderRadius: 24,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 2,
     borderColor: '#5DBB8E',
     backgroundColor: '#FFFFFF',
   },
   addToCartButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#5DBB8E',
     fontWeight: '600',
   },
   buyNowButton: {
+    flex: 2,
     backgroundColor: '#5DBB8E',
     height: 52,
     borderRadius: 26,
@@ -1269,7 +1423,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buyNowButtonText: {
-    fontSize: 18,
+    fontSize: 17,
     color: '#FFFFFF',
     fontWeight: '700',
   },

@@ -27,7 +27,7 @@ export default function RecentTradeCard({ navigation }: any) {
             table: 'trades',
             filter: `buyer_id=eq.${userId}`,
           },
-          (payload: any) => {
+          (_payload: any) => {
             fetchRecentTrade();
           }
         )
@@ -39,7 +39,7 @@ export default function RecentTradeCard({ navigation }: any) {
             table: 'trades',
             filter: `seller_id=eq.${userId}`,
           },
-          (payload: any) => {
+          (_payload: any) => {
             fetchRecentTrade();
           }
         )

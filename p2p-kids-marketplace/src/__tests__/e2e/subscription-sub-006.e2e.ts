@@ -163,7 +163,7 @@ describe('SUB-006 E2E: Trial-to-Paid Conversion', () => {
     }
 
     // Check if subscription exists for test user
-    const { data, error } = await supabase
+    const { data: _data, error } = await supabase
       .from('subscriptions')
       .select(
         'id, stripe_customer_id, stripe_subscription_id, stripe_payment_method_id, current_period_start, current_period_end'

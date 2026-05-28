@@ -281,7 +281,7 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
     it('should be idempotent - duplicate completion calls should not create duplicate payouts', async () => {
       if (!completeTradeRpcSupported) return;
       // Complete trade again (should reuse existing payout)
-      const { data, error } = await supabase.rpc('complete_trade_v2', {
+      const { data, error: _error } = await supabase.rpc('complete_trade_v2', {
         p_trade_id: testTrade.id,
         p_user_id: testBuyer.id,
       });

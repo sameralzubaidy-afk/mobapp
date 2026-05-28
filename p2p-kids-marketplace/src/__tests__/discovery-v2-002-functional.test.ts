@@ -19,7 +19,7 @@ describe('DISCOVERY-V2-002: Recommendations Scoring Logic (Functional)', () => {
     itemPrice: number;
     userSpBalance: number;
   }): number => {
-    const { isSpEligible, canSpendSp, itemPrice, userSpBalance } = params;
+    const { isSpEligible, canSpendSp, itemPrice: _itemPrice, userSpBalance: _userSpBalance } = params;
 
     return (
       // SP-eligible bonus (subscribers only)

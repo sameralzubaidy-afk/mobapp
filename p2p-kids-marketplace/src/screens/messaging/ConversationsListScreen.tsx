@@ -28,7 +28,6 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
-  Image,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
@@ -86,7 +85,7 @@ export default function ConversationsListScreen() {
           schema: 'public',
           table: 'messages',
         },
-        (payload: unknown) => {
+        (_payload: unknown) => {
           console.log('[ConversationsListScreen] New message received, refreshing list');
           // When a new message arrives, refresh the conversations list
           loadConversations();

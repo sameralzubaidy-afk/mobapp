@@ -61,7 +61,7 @@ export const processReferralCode = async (
 
       // Fallback: If RPC is missing or fails (legacy environment), try the profiles-table workaround
       // but use lowercase and search correctly
-      const { data: referrer, error: findError } = await supabase
+      const { data: referrer, error: _findError } = await supabase
         .from('referral_codes') // Try primary source first
         .select('user_id')
         .eq('code', cleanCode)

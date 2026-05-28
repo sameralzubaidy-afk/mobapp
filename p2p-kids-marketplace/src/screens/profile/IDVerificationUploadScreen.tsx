@@ -19,7 +19,6 @@ import {
   Camera,
   CheckCircle,
   Clock,
-  ArrowLeft,
 } from 'phosphor-react-native';
 import { idBadgeService, IDVerificationStatus } from '@/services/idBadge';
 import { getCurrentUser } from '@/services/supabase/auth';
@@ -181,7 +180,7 @@ export default function IDVerificationUploadScreen({ navigation }: any) {
   if (loading) {
     return (
       <ScreenLayout variant="detail" title="ID Verification">
-        <View style={styles.centeredContainer}>
+        <View style={styles.centeredContainer} testID="id-verification-loading">
           <LoadingSpinner />
         </View>
       </ScreenLayout>

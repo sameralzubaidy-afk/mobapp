@@ -18,9 +18,9 @@ import { previewRetroactiveAwards, triggerRetroactiveAwards } from '../../servic
  */
 
 describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
-  let testUserId: string;
+  let _testUserId: string;
   let testBadgeId: string;
-  let adminToken: string;
+  let _adminToken: string;
 
   beforeAll(async () => {
     // Setup: Create test user and badge
@@ -445,7 +445,7 @@ describe.skip('BADGES-V2-008: Retroactive Awarding', () => {
       }
 
       // Run first time
-      const result1 = await triggerRetroactiveAwards(badge.id, 'First run');
+      const _result1 = await triggerRetroactiveAwards(badge.id, 'First run');
 
       // Run second time immediately
       const result2 = await triggerRetroactiveAwards(badge.id, 'Second run');

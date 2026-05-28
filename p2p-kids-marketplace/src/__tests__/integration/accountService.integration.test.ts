@@ -14,7 +14,6 @@ import {
   countLoginMethods,
 } from '../../services/accountService';
 import { supabase } from '../../config/supabase';
-import { EmailMismatchError, LastLoginMethodError } from '../../types/auth-v3-errors';
 
 // Skip unless explicitly enabled
 const describeIf = process.env.RUN_SUPABASE_E2E === 'true' ? describe : describe.skip;

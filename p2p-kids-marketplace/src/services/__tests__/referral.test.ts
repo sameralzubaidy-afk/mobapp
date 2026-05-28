@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/services/__tests__/referral.test.ts
 // Tests for referral system (AUTH-010, AUTH-011)
 
-import { generateReferralCode, processReferralBonus } from '../referral';
+import { generateReferralCode } from '../referral';
 
 jest.setTimeout(10000);
 

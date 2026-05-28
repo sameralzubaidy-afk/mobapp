@@ -168,7 +168,7 @@ export async function sendPaymentFailureNotification(
   retryCount: number
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data, error } = await supabase.functions.invoke('send-push-notification', {
+    const { data: _data, error } = await supabase.functions.invoke('send-push-notification', {
       body: {
         user_id: userId,
         title: 'Payment Failed',

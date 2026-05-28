@@ -21,8 +21,6 @@ import {
   checkTrialEligibility,
   getTransactionFee,
   getSubscriptionDetails,
-  type SubscriptionStatus,
-  type SubscriptionSummary,
 } from '../subscription';
 
 // Mock Supabase

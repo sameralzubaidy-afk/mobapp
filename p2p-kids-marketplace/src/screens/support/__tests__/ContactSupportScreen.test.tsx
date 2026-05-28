@@ -46,7 +46,8 @@ describe('ContactSupportScreen', () => {
   describe('Rendering', () => {
     it('should render the screen successfully', () => {
       const { getByTestId } = render(<ContactSupportScreen navigation={mockNavigation} />);
-      expect(getByTestId('contact-support-screen')).toBeTruthy();
+      expect(getByTestId('screen-title')).toBeTruthy();
+      expect(getByTestId('form-scroll')).toBeTruthy();
     });
 
     it('should display header with title "Contact Support"', () => {

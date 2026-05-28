@@ -7,7 +7,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { useItemDraft } from '../../hooks/useItemDraft';
 import * as draftService from '../../services/draftService';
-import { AppState } from 'react-native';
 
 // Mock draftService
 jest.mock('../../services/draftService', () => ({

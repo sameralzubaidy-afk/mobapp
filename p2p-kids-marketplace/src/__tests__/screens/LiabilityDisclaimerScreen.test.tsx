@@ -97,7 +97,7 @@ describe('LiabilityDisclaimerScreen', () => {
     });
 
     it('renders WarningCircle icon and no action buttons', async () => {
-      const { UNSAFE_getByType, queryByText } = render(<LiabilityDisclaimerScreen />);
+      const { UNSAFE_getByType: _UNSAFE_getByType, queryByText } = render(<LiabilityDisclaimerScreen />);
 
       await waitFor(() => {
         // No accept/decline buttons — read-only screen
@@ -194,7 +194,7 @@ describe('LiabilityDisclaimerScreen', () => {
       await waitFor(() => {
         // Header elements
         expect(getByTestId('back-button')).toBeTruthy();
-        expect(getByText('Liability Disclaimer')).toBeTruthy();
+        expect(getByText('Disclaimer')).toBeTruthy();
 
         // Content elements
         expect(getByTestId('disclaimer-content')).toBeTruthy();

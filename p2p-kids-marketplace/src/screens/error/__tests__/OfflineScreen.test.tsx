@@ -4,7 +4,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import OfflineScreen from '../OfflineScreen';
-import { NavigationContainer } from '@react-navigation/native';
 
 // Mock navigation
 const mockGoBack = jest.fn();

@@ -2,7 +2,7 @@
 // Purpose: MODULE-11 SUB-003 Unit Tests - Trial eligibility and reminder flag initialization
 
 import { supabase } from '@/config/supabase';
-import { createConfirmedTestUser, deleteTestUser } from '@/test-helpers/authTestUtils';
+import { createConfirmedTestUser, deleteTestUser, getServiceClient } from '@/test-helpers/authTestUtils';
 
 jest.setTimeout(15000);
 
@@ -179,8 +179,13 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
 
       expect(error).toBeNull();
 
-      // Directly query subscriptions table to verify flags
-      const { data: subscription, error: queryError } = await supabase
+      // Directly query subscriptions table to verify flags.
+      // Use service-role client: PROD-004b removed anon read access to
+      // subscriptions and this verification is a DB-level invariant check,
+      // not a user-facing access path.
+      const serviceClient = getServiceClient();
+      expect(serviceClient).not.toBeNull();
+      const { data: subscription, error: queryError } = await serviceClient!
         .from('subscriptions')
         .select(
           'trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent'
@@ -203,8 +208,11 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
       // Create trial
       await supabase.rpc('create_trial_subscription', { p_user_id: testUserId });
 
-      // Manually update one flag (simulate reminder sent)
-      await supabase
+      // Manually update one flag (simulate reminder sent).
+      // Use service-role client: PROD-004b removed anon write access.
+      const serviceClient = getServiceClient();
+      expect(serviceClient).not.toBeNull();
+      await serviceClient!
         .from('subscriptions')
         .update({ trial_reminder_day_23_sent: true })
         .eq('user_id', testUserId);
@@ -216,8 +224,8 @@ describe('MODULE-11 SUB-003: Free Trial Eligibility & Reminder Flags', () => {
         expect(hasExpectedTrialLimitError(error.message)).toBe(true);
       }
 
-      // Re-query to verify flag was preserved
-      const { data: subscription } = await supabase
+      // Re-query to verify flag was preserved (service-role per above)
+      const { data: subscription } = await serviceClient!
         .from('subscriptions')
         .select(
           'trial_reminder_day_23_sent, trial_reminder_day_28_sent, trial_reminder_day_29_sent'

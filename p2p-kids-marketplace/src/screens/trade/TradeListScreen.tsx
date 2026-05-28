@@ -9,9 +9,12 @@
  * - Compact trade rows with 56×56px thumbnails
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
-  useFocusEffect } from '@react-navigation/native'; import { View,
+  useFocusEffect,
+} from '@react-navigation/native';
+import {
+  View,
   Text,
   StyleSheet,
   FlatList,
@@ -19,12 +22,16 @@ import {
   Pressable,
   Image,
   ScrollView,
+  Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { Receipt, ArrowRight } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
+import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type TabType = 'all' | 'buying' | 'selling' | 'offers';
@@ -37,11 +44,13 @@ interface PendingOffer {
   created_at: string;
   status: string;
   type: 'received' | 'submitted';
+  bundle_id?: string | null;
   listing: {
     title: string;
     price: number;
     images: { url: string; thumbnail_url?: string }[];
   };
+  offer_expires_at?: string | null;
 }
 
 export default function TradeListScreen({ navigation }: any) {
@@ -52,18 +61,68 @@ export default function TradeListScreen({ navigation }: any) {
   const [pendingOffers, setPendingOffers] = useState<PendingOffer[]>([]);
   const [allOffers, setAllOffers] = useState<PendingOffer[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  // TFV2-015: seller ignoring offers prompt (D-13)
+  const [ignoredOfferItems, setIgnoredOfferItems] = useState<{ listing_id: string; title: string; count: number }[]>([]);
+  const [showIgnoringModal, setShowIgnoringModal] = useState(false);
+  const [ignoringModalItem, setIgnoringModalItem] = useState<{ listing_id: string; title: string } | null>(null);
+  const [pausingListing, setPausingListing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       if (activeTab === 'offers') {
         fetchAllOffers();
+        void fetchSellerIgnoringStats();
       } else {
         fetchTrades();
         fetchPendingOffers();
+        void fetchSellerIgnoringStats();
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId, activeTab])
   );
+
+  /** TFV2-015 (D-13): Load listings where seller has ≥2 unanswered offers */
+  const fetchSellerIgnoringStats = async () => {
+    if (!userId) {
+      setIgnoredOfferItems([]);
+      return;
+    }
+    try {
+      const { data } = await supabase
+        .from('listing_offer_stats')
+        .select('listing_id, unanswered_offer_count, items!inner(title, seller_id)')
+        .gte('unanswered_offer_count', 2)
+        .eq('items.seller_id', userId)
+        .order('unanswered_offer_count', { ascending: false })
+        .limit(5);
+
+      if (data) {
+        setIgnoredOfferItems(
+          data.map((row: any) => ({
+            listing_id: row.listing_id,
+            title: row.items?.title ?? 'Your listing',
+            count: row.unanswered_offer_count,
+          }))
+        );
+      }
+    } catch {
+      // Non-blocking: banner is a nice-to-have
+    }
+  };
+
+  /** TFV2-015: Pause a listing (status → 'paused') */
+  const handlePauseListing = async (listingId: string) => {
+    try {
+      setPausingListing(true);
+      await supabase.from('listings').update({ status: 'paused' }).eq('id', listingId);
+      setIgnoredOfferItems(prev => prev.filter(i => i.listing_id !== listingId));
+      setShowIgnoringModal(false);
+    } catch {
+      Alert.alert('Error', 'Could not pause listing. Please try again.');
+    } finally {
+      setPausingListing(false);
+    }
+  };
 
   const fetchPendingOffers = async () => {
     if (!userId) {
@@ -81,6 +140,7 @@ export default function TradeListScreen({ navigation }: any) {
           sp_amount,
           cash_amount_cents,
           created_at,
+          offer_expires_at,
           status,
           listing:items(
             title,
@@ -123,7 +183,9 @@ export default function TradeListScreen({ navigation }: any) {
           sp_amount,
           cash_amount_cents,
           created_at,
+          offer_expires_at,
           status,
+          bundle_id,
           listing:items(
             title,
             price,
@@ -131,12 +193,12 @@ export default function TradeListScreen({ navigation }: any) {
           )
         `)
         .eq('seller_id', userId)
-        .in('status', ['pending', 'payment_processing', 'cancelled'])
+        .in('status', ['pending', 'payment_processing', 'payment_failed', 'in_progress', 'cancelled'])
         .order('created_at', { ascending: false });
 
       if (receivedError) throw receivedError;
 
-      // Get offers submitted (as buyer)
+      // Get offers submitted (as buyer) — must match ACTIVE_OFFER_STATUSES in trade.ts
       const { data: submittedData, error: submittedError } = await supabase
         .from('trades')
         .select(`
@@ -145,6 +207,7 @@ export default function TradeListScreen({ navigation }: any) {
           sp_amount,
           cash_amount_cents,
           created_at,
+          offer_expires_at,
           status,
           listing:items(
             title,
@@ -153,7 +216,7 @@ export default function TradeListScreen({ navigation }: any) {
           )
         `)
         .eq('buyer_id', userId)
-        .in('status', ['pending', 'payment_processing', 'cancelled'])
+        .in('status', ['pending', 'payment_processing', 'payment_failed', 'in_progress', 'cancelled'])
         .order('created_at', { ascending: false });
 
       if (submittedError) throw submittedError;
@@ -190,7 +253,7 @@ export default function TradeListScreen({ navigation }: any) {
       const query = supabase
         .from('trades')
         .select(
-          'id, status, created_at, buyer_id, seller_id, listing:items(title, price, images:item_images(id, url, thumbnail_url, display_order))'
+          'id, status, created_at, buyer_id, seller_id, bundle_id, cash_amount_cents, sp_amount, tax_amount_cents, listing:items(title, price, images:item_images(id, url, thumbnail_url, display_order))'
         )
         .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
         .order('created_at', { ascending: false });
@@ -207,11 +270,95 @@ export default function TradeListScreen({ navigation }: any) {
         filteredData = filteredData.filter((t: any) => t.seller_id === userId);
       }
 
+      // D-09: Sort by total_value (cash + SP) DESC so highest-value trades appear first
+      filteredData = [...filteredData].sort((a: any, b: any) => {
+        const aVal = (a.cash_amount_cents ?? 0) / 100 + (a.sp_amount ?? 0);
+        const bVal = (b.cash_amount_cents ?? 0) / 100 + (b.sp_amount ?? 0);
+        return bVal - aVal;
+      });
+
       setTrades(filteredData);
     } catch (err) {
       console.warn('[TradeList] fetch error', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Addendum D: group received pending offers by bundle_id for the Offers tab.
+  const groupedReceivedOffers = useMemo(() => {
+    type GroupRow =
+      | { type: 'single'; offer: PendingOffer }
+      | { type: 'bundle'; bundleId: string; offers: PendingOffer[] };
+    const result: GroupRow[] = [];
+    const bundleMap: Record<string, PendingOffer[]> = {};
+    const seen = new Set<string>();
+
+    const received = allOffers.filter((o) => o.type === 'received' && o.status === 'pending');
+    for (const offer of received) {
+      if (offer.bundle_id) {
+        if (!bundleMap[offer.bundle_id]) {
+          bundleMap[offer.bundle_id] = [];
+        }
+        bundleMap[offer.bundle_id].push(offer);
+        seen.add(offer.id);
+      }
+    }
+
+    for (const offer of received) {
+      if (offer.bundle_id && bundleMap[offer.bundle_id] && !seen.has(`__bundle__${offer.bundle_id}`)) {
+        seen.add(`__bundle__${offer.bundle_id}`);
+        result.push({ type: 'bundle', bundleId: offer.bundle_id, offers: bundleMap[offer.bundle_id] });
+      } else if (!offer.bundle_id) {
+        result.push({ type: 'single', offer });
+      }
+    }
+
+    return result;
+  }, [allOffers]);
+
+  // Addendum D: group buyer in_progress trades by bundle_id for the Buying tab.
+  const inProgressBundles = useMemo(() => {
+    if (activeTab !== 'buying') return [];
+    const inProgress = trades.filter(
+      (t: any) => t.status === 'in_progress' && t.buyer_id === userId && t.bundle_id
+    );
+    const bundleMap: Record<string, any[]> = {};
+    for (const t of inProgress) {
+      const bid = (t as any).bundle_id;
+      if (!bundleMap[bid]) bundleMap[bid] = [];
+      bundleMap[bid].push(t);
+    }
+    return Object.entries(bundleMap)
+      .filter(([, items]) => items.length > 1)
+      .map(([bundleId, items]) => ({ bundleId, trades: items }));
+  }, [trades, activeTab, userId]);
+
+  const handleAcceptBundle = async (offerIds: string[]) => {
+    try {
+      for (const id of offerIds) {
+        await supabase
+          .from('trades')
+          .update({ status: 'payment_processing', updated_at: new Date().toISOString() })
+          .eq('id', id);
+      }
+      fetchAllOffers();
+    } catch (err) {
+      console.warn('[TradeList] handleAcceptBundle error', err);
+    }
+  };
+
+  const handleDeclineBundle = async (offerIds: string[]) => {
+    try {
+      for (const id of offerIds) {
+        await supabase
+          .from('trades')
+          .update({ status: 'cancelled', cancellation_reason: 'Seller declined offer', updated_at: new Date().toISOString() })
+          .eq('id', id);
+      }
+      fetchAllOffers();
+    } catch (err) {
+      console.warn('[TradeList] handleDeclineBundle error', err);
     }
   };
 
@@ -282,6 +429,12 @@ export default function TradeListScreen({ navigation }: any) {
           {item.listing?.title || 'Untitled'}
         </Text>
         <Text style={styles.tradeDate}>{formatDate(item.created_at)}</Text>
+        {/* MODULE-15.3-PART3 TAX-012: show tax line on completed trades with tax > 0 */}
+        {item.status === 'completed' && item.tax_amount_cents > 0 && (
+          <Text style={styles.tradeTaxLine} testID={`trade-row-tax-${item.id}`}>
+            Tax ${(item.tax_amount_cents / 100).toFixed(2)}
+          </Text>
+        )}
       </View>
       <View style={styles.tradeStatusContainer}>
         <View style={[styles.statusBadge, getStatusBadgeStyle(item.status)]}>
@@ -403,6 +556,13 @@ export default function TradeListScreen({ navigation }: any) {
                           </View>
                         )}
                       </View>
+                      {offer.status === 'pending' && offer.offer_expires_at ? (
+                        <OfferCountdownPill
+                          offerExpiresAt={offer.offer_expires_at}
+                          createdAt={offer.created_at}
+                          style={styles.offerCountdownPill}
+                        />
+                      ) : null}
                     </View>
                     <View style={styles.offerCardAction}>
                       <Text style={styles.offerCardActionText}>Review Offer</Text>
@@ -424,6 +584,80 @@ export default function TradeListScreen({ navigation }: any) {
           </View>
         )}
 
+        {/* TFV2-015 (D-13): Seller ignoring offers prompt */}
+        {ignoredOfferItems.length > 0 && (
+          <TouchableOpacity
+            style={styles.ignoredOffersAlert}
+            onPress={() => {
+              setIgnoringModalItem(ignoredOfferItems[0]);
+              setShowIgnoringModal(true);
+            }}
+            activeOpacity={0.8}
+            testID="ignoring-offers-banner"
+          >
+            <Text style={styles.ignoredOffersAlertText}>
+              You have {ignoredOfferItems.reduce((sum, r) => sum + r.count, 0)} unanswered{' '}
+              {ignoredOfferItems.reduce((sum, r) => sum + r.count, 0) === 1 ? 'offer' : 'offers'}{' '}
+              across {ignoredOfferItems.length}{' '}
+              {ignoredOfferItems.length === 1 ? 'listing' : 'listings'}. Reply to keep buyers engaged.
+            </Text>
+            <View style={styles.ignoredOffersActions}>
+              <Pressable
+                style={styles.ignoredOffersBtn}
+                onPress={() => setActiveTab('offers')}
+              >
+                <Text style={styles.ignoredOffersBtnText}>Review Offers</Text>
+              </Pressable>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* TFV2-015: Ignoring Offers Modal */}
+        <Modal
+          visible={showIgnoringModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowIgnoringModal(false)}
+        >
+          <View style={styles.ignModalOverlay}>
+            <View style={styles.ignModalSheet}>
+              <Text style={styles.ignModalTitle}>Unanswered Offers</Text>
+              <Text style={styles.ignModalBody}>
+                {ignoringModalItem?.title
+                  ? `"${ignoringModalItem.title}" has multiple unanswered offers.`
+                  : 'You have multiple unanswered offers.'}{' '}
+                Buyers may lose interest. Would you like to pause the listing or respond now?
+              </Text>
+              <TouchableOpacity
+                style={styles.ignModalBtnPrimary}
+                onPress={() => ignoringModalItem && handlePauseListing(ignoringModalItem.listing_id)}
+                disabled={pausingListing}
+                testID="pause-listing-btn"
+              >
+                {pausingListing ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.ignModalBtnPrimaryText}>Pause Listing</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.ignModalBtnSecondary}
+                onPress={() => { setShowIgnoringModal(false); setActiveTab('offers'); }}
+                testID="ill-respond-btn"
+              >
+                <Text style={styles.ignModalBtnSecondaryText}>I'll Respond</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.ignModalBtnDismiss}
+                onPress={() => setShowIgnoringModal(false)}
+                testID="dismiss-ignoring-modal-btn"
+              >
+                <Text style={styles.ignModalBtnDismissText}>Dismiss</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
         {activeTab === 'offers' ? (
           // Offers Tab View
           loading ? (
@@ -440,79 +674,133 @@ export default function TradeListScreen({ navigation }: any) {
             </View>
           ) : (
             <FlatList
-              data={allOffers}
-              keyExtractor={(offer) => offer.id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.offerRow}
-                  onPress={() => {
-                    if (item.type === 'received' && item.status === 'pending') {
-                      navigation.navigate('ReviewOffer', { tradeId: item.id });
-                    } else {
-                      navigation.navigate('TradeDetail', { tradeId: item.id });
-                    }
-                  }}
-                >
-                  <View style={styles.offerRowImageContainer}>
-                    {Array.isArray(item.listing?.images) && item.listing.images.length > 0 ? (
-                      <Image
-                        source={{
-                          uri: item.listing.images[0].thumbnail_url || item.listing.images[0].url,
-                        }}
-                        style={styles.offerRowImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={styles.offerRowImagePlaceholder}>
-                        <Text style={styles.offerRowImagePlaceholderText}>📦</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.offerDetails}>
-                    <View style={styles.offerDetailsTop}>
-                      <Text style={styles.offerTitle} numberOfLines={2}>
-                        {item.listing?.title || 'Untitled'}
+              data={groupedReceivedOffers.length > 0
+                ? groupedReceivedOffers as any[]
+                : allOffers.filter((o) => o.type !== 'received' || o.status !== 'pending') as any[]}
+              keyExtractor={(row: any) =>
+                row.type === 'bundle' ? `bundle-${row.bundleId}` : row.type === 'single' ? row.offer.id : row.id
+              }
+              renderItem={({ item }: { item: any }) => {
+                // Addendum D: bundle row
+                if (item.type === 'bundle') {
+                  const bundleOffers: PendingOffer[] = item.offers;
+                  const totalCash = bundleOffers.reduce((s: number, o: PendingOffer) => s + o.cash_amount_cents, 0);
+                  const offerIds = bundleOffers.map((o: PendingOffer) => o.id);
+                  return (
+                    <View style={styles.bundleOfferRow} testID={`bundle-row-${item.bundleId}`}>
+                      <Text style={styles.bundleOfferTitle}>
+                        Bundle · {bundleOffers.length} items · ${(totalCash / 100).toFixed(2)}
                       </Text>
+                      <View style={styles.bundleOfferActions}>
+                        <TouchableOpacity
+                          style={styles.bundleAcceptButton}
+                          onPress={() => handleAcceptBundle(offerIds)}
+                          testID="bundle-accept-all"
+                        >
+                          <Text style={styles.bundleAcceptButtonText}>Accept All</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.bundleReviewButton}
+                          onPress={() =>
+                            navigation.navigate('ReviewOffer', { tradeId: bundleOffers[0].id })
+                          }
+                          testID="bundle-review-each"
+                        >
+                          <Text style={styles.bundleReviewButtonText}>Review Each</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.bundleDeclineButton}
+                          onPress={() => handleDeclineBundle(offerIds)}
+                          testID="bundle-decline-all"
+                        >
+                          <Text style={styles.bundleDeclineButtonText}>Decline All</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={styles.offerDetailsBottom}>
-                      <View
-                        style={[
-                          styles.offerTypeBadge,
-                          item.type === 'received'
-                            ? styles.offerTypeBadgeReceived
-                            : styles.offerTypeBadgeSubmitted,
-                        ]}
-                      >
-                        <Text
+                  );
+                }
+
+                // Single offer row (original render logic)
+                const offer: PendingOffer = item.type === 'single' ? item.offer : item;
+                return (
+                  <TouchableOpacity
+                    style={styles.offerRow}
+                    onPress={() => {
+                      if (offer.type === 'received' && offer.status === 'pending') {
+                        navigation.navigate('ReviewOffer', { tradeId: offer.id });
+                      } else {
+                        navigation.navigate('TradeDetail', { tradeId: offer.id });
+                      }
+                    }}
+                  >
+                    <View style={styles.offerRowImageContainer}>
+                      {Array.isArray(offer.listing?.images) && offer.listing.images.length > 0 ? (
+                        <Image
+                          source={{
+                            uri: offer.listing.images[0].thumbnail_url || offer.listing.images[0].url,
+                          }}
+                          style={styles.offerRowImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.offerRowImagePlaceholder}>
+                          <Text style={styles.offerRowImagePlaceholderText}>📦</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.offerDetails}>
+                      <View style={styles.offerDetailsTop}>
+                        <Text style={styles.offerTitle} numberOfLines={2}>
+                          {offer.listing?.title || 'Untitled'}
+                        </Text>
+                      </View>
+                      <View style={styles.offerDetailsBottom}>
+                        <View
                           style={[
-                            styles.offerTypeBadgeText,
-                            item.type === 'received'
-                              ? styles.offerTypeBadgeTextReceived
-                              : styles.offerTypeBadgeTextSubmitted,
+                            styles.offerTypeBadge,
+                            offer.type === 'received'
+                              ? styles.offerTypeBadgeReceived
+                              : styles.offerTypeBadgeSubmitted,
                           ]}
                         >
-                          {item.type === 'received' ? 'Received' : 'Submitted'}
+                          <Text
+                            style={[
+                              styles.offerTypeBadgeText,
+                              offer.type === 'received'
+                                ? styles.offerTypeBadgeTextReceived
+                                : styles.offerTypeBadgeTextSubmitted,
+                            ]}
+                          >
+                            {offer.type === 'received' ? 'Received' : 'Submitted'}
+                          </Text>
+                        </View>
+                        <View style={styles.offerPriceContainer}>
+                          <Text style={styles.offerPrice}>
+                            ${(offer.cash_amount_cents / 100).toFixed(2)}
+                          </Text>
+                          {offer.sp_amount > 0 && (
+                            <Text style={styles.offerSP}> + {offer.sp_amount} SP</Text>
+                          )}
+                        </View>
+                      </View>
+                      {offer.status === 'pending' && offer.offer_expires_at ? (
+                        <OfferCountdownPill
+                          offerExpiresAt={offer.offer_expires_at}
+                          createdAt={offer.created_at}
+                          style={styles.offerRowCountdownPill}
+                        />
+                      ) : null}
+                    </View>
+                    <View style={styles.offerStatusContainer}>
+                      <View style={[styles.statusBadge, getStatusBadgeStyle(offer.status)]}>
+                        <Text style={[styles.statusBadgeText, getStatusBadgeTextStyle(offer.status)]}>
+                          {formatStatus(offer.status)}
                         </Text>
                       </View>
-                      <View style={styles.offerPriceContainer}>
-                        <Text style={styles.offerPrice}>
-                          ${(item.cash_amount_cents / 100).toFixed(2)}
-                        </Text>
-                        {item.sp_amount > 0 && (
-                          <Text style={styles.offerSP}> + {item.sp_amount} SP</Text>
-                        )}
-                      </View>
                     </View>
-                  </View>
-                  <View style={styles.offerStatusContainer}>
-                    <View style={[styles.statusBadge, getStatusBadgeStyle(item.status)]}>
-                      <Text style={[styles.statusBadgeText, getStatusBadgeTextStyle(item.status)]}>
-                        {formatStatus(item.status)}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              )}
+                  </TouchableOpacity>
+                );
+              }}
               contentContainerStyle={styles.listContent}
             />
           )
@@ -523,12 +811,34 @@ export default function TradeListScreen({ navigation }: any) {
         ) : trades.length === 0 ? (
           renderEmptyState()
         ) : (
-          <FlatList
-            data={trades}
-            keyExtractor={(t) => t.id}
-            renderItem={renderItem}
-            contentContainerStyle={styles.listContent}
-          />
+          <>
+            {/* Addendum D: in_progress bundle section in buying tab */}
+            {inProgressBundles.length > 0 && (
+              <View style={styles.bundleSection} testID="inprogress-bundles">
+                <Text style={styles.bundleSectionTitle}>Active Bundles</Text>
+                {inProgressBundles.map(({ bundleId, trades: bundleTrades }) => (
+                  <View key={bundleId} style={styles.inProgressBundleRow}>
+                    <Text style={styles.bundleOfferTitle}>
+                      Bundle · {bundleTrades.length} items
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() =>
+                        navigation.navigate('TradeTimeline', { tradeId: bundleTrades[0].id })
+                      }
+                    >
+                      <Text style={styles.bundleBannerToggle}>View →</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+            <FlatList
+              data={trades}
+              keyExtractor={(t) => t.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContent}
+            />
+          </>
         )}
       </View>
       <PersistentTabBar />
@@ -633,6 +943,10 @@ const styles = StyleSheet.create({
   offerCardAmount: {
     marginBottom: 12,
   },
+  offerCountdownPill: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
   offerPriceRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -704,6 +1018,38 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  // TFV2-015 seller ignoring offers banner
+  ignoredOffersAlert: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    backgroundColor: '#FFF7ED',
+    borderRadius: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF8C42',
+    padding: 12,
+  },
+  ignoredOffersAlertText: {
+    fontSize: 13,
+    color: '#78350F',
+    lineHeight: 18,
+  },
+  ignoredOffersActions: {
+    flexDirection: 'row',
+    marginTop: 8,
+    gap: 8,
+  },
+  ignoredOffersBtn: {
+    backgroundColor: '#FF8C42',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  ignoredOffersBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -749,6 +1095,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   tradeDate: { color: '#6B6B6B', fontSize: 13 },
+  tradeTaxLine: { color: '#6B7280', fontSize: 11, marginTop: 2 },
   tradeStatusContainer: {
     alignItems: 'flex-end',
   },
@@ -789,6 +1136,92 @@ const styles = StyleSheet.create({
     color: '#6B6B6B',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  // Addendum D: bundle styles
+  bundleOfferRow: {
+    backgroundColor: '#EEF9F4',
+    borderRadius: 10,
+    marginHorizontal: 16,
+    marginVertical: 6,
+    padding: 12,
+  },
+  bundleOfferTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 8,
+  },
+  bundleOfferActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  bundleAcceptButton: {
+    flex: 1,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  bundleAcceptButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  bundleReviewButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+  },
+  bundleReviewButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5DBB8E',
+  },
+  bundleDeclineButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E85D75',
+  },
+  bundleDeclineButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#E85D75',
+  },
+  bundleSection: {
+    backgroundColor: '#F9FAFB',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+  },
+  bundleSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#5DBB8E',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  inProgressBundleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#EEF9F4',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 6,
+  },
+  bundleBannerToggle: {
+    fontSize: 13,
+    color: '#5DBB8E',
+    fontWeight: '600',
   },
   offerRow: {
     flexDirection: 'row',
@@ -881,5 +1314,69 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
     paddingTop: 2,
+  },
+  offerRowCountdownPill: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  // TFV2-015: Ignoring Offers Modal styles
+  ignModalOverlay: {
+    flex:            1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent:  'flex-end',
+  },
+  ignModalSheet: {
+    backgroundColor:      '#fff',
+    borderTopLeftRadius:  20,
+    borderTopRightRadius: 20,
+    padding:              24,
+    paddingBottom:        36,
+  },
+  ignModalTitle: {
+    fontSize:     18,
+    fontFamily:   'Inter-SemiBold',
+    color:        '#111827',
+    marginBottom: 8,
+  },
+  ignModalBody: {
+    fontSize:     14,
+    fontFamily:   'Inter-Regular',
+    color:        '#6B7280',
+    lineHeight:   22,
+    marginBottom: 20,
+  },
+  ignModalBtnPrimary: {
+    backgroundColor: '#5DBB8E',
+    borderRadius:    12,
+    paddingVertical: 14,
+    alignItems:      'center',
+    marginBottom:    10,
+  },
+  ignModalBtnPrimaryText: {
+    fontSize:   16,
+    fontFamily: 'Inter-SemiBold',
+    color:      '#fff',
+  },
+  ignModalBtnSecondary: {
+    borderWidth:     1.5,
+    borderColor:     '#5DBB8E',
+    borderRadius:    12,
+    paddingVertical: 14,
+    alignItems:      'center',
+    marginBottom:    10,
+  },
+  ignModalBtnSecondaryText: {
+    fontSize:   16,
+    fontFamily: 'Inter-SemiBold',
+    color:      '#5DBB8E',
+  },
+  ignModalBtnDismiss: {
+    paddingVertical: 12,
+    alignItems:      'center',
+  },
+  ignModalBtnDismissText: {
+    fontSize:   15,
+    fontFamily: 'Inter-Regular',
+    color:      '#9CA3AF',
   },
 });

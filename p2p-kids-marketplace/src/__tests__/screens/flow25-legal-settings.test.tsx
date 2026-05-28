@@ -12,6 +12,14 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
+import SettingsScreen from '@/screens/profile/SettingsScreen';
+
+import PrivacyPolicyScreen from '@/screens/profile/PrivacyPolicyScreen';
+
+import TermsOfServiceScreen from '@/screens/profile/TermsOfServiceScreen';
+
+import DeleteAccountScreen from '@/screens/settings/DeleteAccountScreen';
+
 // ─── Shared mocks ─────────────────────────────────────────────────────────────
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -26,6 +34,7 @@ jest.mock('react-native-markdown-display', () => {
 });
 
 jest.mock('phosphor-react-native', () => ({
+  Bell: 'Bell',
   Gear: 'Gear',
   Lock: 'Lock',
   FileText: 'FileText',
@@ -33,6 +42,7 @@ jest.mock('phosphor-react-native', () => ({
   Sun: 'Sun',
   Translate: 'Translate',
   SignOut: 'SignOut',
+  User: 'User',
   Trash: 'Trash',
   CaretRight: 'CaretRight',
   CaretLeft: 'CaretLeft',
@@ -71,6 +81,10 @@ const mockNavigation = {
   goBack: jest.fn(),
 };
 
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => mockNavigation,
+}));
+
 // ─── SettingsScreen ───────────────────────────────────────────────────────────
 
 jest.mock('@/hooks/useAuth', () => ({
@@ -83,8 +97,6 @@ jest.mock('@/hooks/useAuth', () => ({
 jest.mock('../../services/pushDelivery', () => ({
   sendTestPushNotification: jest.fn().mockResolvedValue({ success: true, sent: true }),
 }));
-
-import SettingsScreen from '@/screens/profile/SettingsScreen';
 
 describe('SettingsScreen (FLOW-25)', () => {
   const nav = { ...mockNavigation };
@@ -151,8 +163,6 @@ jest.mock('../../services/privacyPolicy', () => ({
   }),
 }));
 
-import PrivacyPolicyScreen from '@/screens/profile/PrivacyPolicyScreen';
-
 describe('PrivacyPolicyScreen (FLOW-25)', () => {
   const nav = { ...mockNavigation };
   const route = { params: {} };
@@ -217,8 +227,6 @@ jest.mock('../../services/tos', () => ({
     acceptTOS: mockAcceptTOS,
   }),
 }));
-
-import TermsOfServiceScreen from '@/screens/profile/TermsOfServiceScreen';
 
 describe('TermsOfServiceScreen (FLOW-25)', () => {
   const nav = { ...mockNavigation };
@@ -287,8 +295,6 @@ jest.mock('../../hooks/useAuth', () => ({
     logout: jest.fn(),
   }),
 }));
-
-import DeleteAccountScreen from '@/screens/settings/DeleteAccountScreen';
 
 describe('DeleteAccountScreen (FLOW-25)', () => {
   const nav = { ...mockNavigation };

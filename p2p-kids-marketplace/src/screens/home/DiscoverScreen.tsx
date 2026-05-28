@@ -47,6 +47,7 @@ import {
 import { upsertZipWaitlist } from '@/services/waitlist';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
+import { getFavorites, toggleFavorite } from '@/services/favoritesService';
 import { MagnifyingGlass, FunnelSimple, X, ShoppingCart } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -150,6 +151,9 @@ export default function DiscoverScreen({ navigation }: Props) {
 
   // Offset for pagination
   const [offset, setOffset] = useState(0);
+
+  // Favorited item IDs for this user (Set for O(1) lookup)
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
 
   // Location search state (ZIP + radius)
   const [zipCodeInput, setZipCodeInput] = useState('');
@@ -341,7 +345,15 @@ export default function DiscoverScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       loadRecentSearches();
-    }, [])
+      // Reload favorites whenever screen comes into focus
+      if (session?.user) {
+        getFavorites().then((r) => {
+          if (r.success) {
+            setFavoritedIds(new Set(r.data.map((f) => f.listingId)));
+          }
+        });
+      }
+    }, [session?.user])
   );
 
   // Update autocomplete suggestions when query changes
@@ -809,6 +821,38 @@ export default function DiscoverScreen({ navigation }: Props) {
   };
 
   /**
+   * Toggle favorite state for an item — optimistic update, then syncs with DB
+   */
+  const handleToggleFavorite = useCallback(async (itemId: string) => {
+    if (!session?.user) return;
+    const isCurrentlyFavorited = favoritedIds.has(itemId);
+    // Optimistic update
+    setFavoritedIds((prev) => {
+      const next = new Set(prev);
+      if (isCurrentlyFavorited) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+    const r = await toggleFavorite(itemId, isCurrentlyFavorited);
+    if (!r.success) {
+      // Revert on failure
+      setFavoritedIds((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyFavorited) {
+          next.add(itemId);
+        } else {
+          next.delete(itemId);
+        }
+        return next;
+      });
+      console.warn('[DiscoverScreen] toggleFavorite failed:', r.error.message);
+    }
+  }, [session?.user, favoritedIds]);
+
+  /**
    * Handle retry after network error
    */
   const handleRetry = () => {
@@ -829,13 +873,10 @@ export default function DiscoverScreen({ navigation }: Props) {
         title={item.title}
         price={item.price}
         imageUrl={mainImageUrl}
-        isFavorite={false} // TODO: wire favorite state from user context
+        isFavorite={favoritedIds.has(item.id)}
         acceptsSwapPoints={item.accepts_swap_points}
         onPress={() => handleResultPress(item.id)}
-        onFavoritePress={() => {
-          // TODO: wire favorite toggle handler
-          console.log('[DiscoverScreen] Favorite toggled:', item.id);
-        }}
+        onFavoritePress={() => handleToggleFavorite(item.id)}
         onSharePress={() => {
           // TODO: wire share handler
           console.log('[DiscoverScreen] Share pressed:', item.id);
@@ -843,7 +884,7 @@ export default function DiscoverScreen({ navigation }: Props) {
         testID={`search-result-${item.id}`}
       />
     );
-  }, []);
+  }, [favoritedIds, handleToggleFavorite]);
 
   /**
    * Render list header (search input, filters, sort)
@@ -1067,6 +1108,7 @@ export default function DiscoverScreen({ navigation }: Props) {
         data={results}
         renderItem={renderResult}
         keyExtractor={(item) => item.id}
+        extraData={favoritedIds}
         numColumns={2}
         columnWrapperStyle={styles.columnWrapper}
         ListFooterComponent={renderFooter}

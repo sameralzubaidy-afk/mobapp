@@ -10,7 +10,7 @@ import {
   ScrollView
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Gift, Copy, ShareNetwork, Coins, Users, CheckCircle, UserCircle, ArrowLeft, Storefront, Notebook, Info } from 'phosphor-react-native';
+import { Gift, Copy, ShareNetwork, Coins, Users, CheckCircle, UserCircle, Storefront, Notebook, Info } from 'phosphor-react-native';
 import { ReferralCodeServiceV2, type Referral, type ReferralStats } from '@/services/referralCodeV2';
 import { ReferralRewardsService } from '@/services/referralRewards';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,7 +23,7 @@ type NavigationProp = NativeStackNavigationProp<any>;
 
 export const ReferralsScreen: React.FC = () => {
   const { user } = useAuth();
-  const navigation = useNavigation<NavigationProp>();
+  const _navigation = useNavigation<NavigationProp>();
   const lastLoadAtRef = useRef(0);
   const [referralCode, setReferralCode] = useState('');
   const [stats, setStats] = useState<ReferralStats>({

@@ -14,7 +14,6 @@ import {
   Platform,
 } from 'react-native';
 import {
-  ArrowLeft,
   BellSimpleSlash,
   CreditCard,
   Gear,
@@ -101,7 +100,7 @@ const toHHMMSS = (timeValue: string) => {
   return `${trimmed}:00`;
 };
 
-export default function NotificationPreferencesScreen({ navigation }: any) {
+export default function NotificationPreferencesScreen({ navigation: _navigation }: any) {
   const [loading, setLoading] = useState(true);
   const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
   const [updating, setUpdating] = useState<string | null>(null);

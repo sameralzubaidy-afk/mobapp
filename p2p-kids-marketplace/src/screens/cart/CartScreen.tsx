@@ -19,7 +19,6 @@ import {
   StyleSheet,
   Image,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { getCartItems, removeFromCart, CartItem as ServiceCartItem, saveCurrentCart, switchToSavedCart, clearCart, validateCartForCheckout, subscribeToCartChanges, SavedCartSummary } from '@/services/cartService';
 import { supabase } from '@/config/supabase';
@@ -57,7 +56,7 @@ export default function CartScreen() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [savedCarts, setSavedCarts] = useState<SavedCartSummary[]>([]);
   const [minCartValueCents, setMinCartValueCents] = useState<number>(0);
-  const [spDiscount, setSpDiscount] = useState(0);
+  const [spDiscount, _setSpDiscount] = useState(0);
   const [loading, setLoading] = useState(true);
   // TFV2-022: D-27 bundle_id shared by all items in this cart session
   const [bundleId] = useState<string>(() => Crypto.randomUUID());
@@ -260,7 +259,7 @@ export default function CartScreen() {
 
   // TFV2-022 D-28: Enforce single-seller rule when adding items
   // Called externally (e.g. from ItemDetailScreen) via navigation params or a cart context
-  const handleAddItem = (item: CartItem) => {
+  const _handleAddItem = (item: CartItem) => {
     // D-28: Single seller enforcement
     if (cartItems.length > 0 && cartItems[0].sellerId !== item.sellerId) {
       Alert.alert(

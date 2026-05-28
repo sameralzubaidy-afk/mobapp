@@ -1,11 +1,13 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeSuccessScreen.tsx
  * TASK FLOW-08-06: Trade Result Screen - Whisk Design System
+ * TFV2-014: Buyer/Seller targeted CTAs on completion
  *
  * Redesigned with:
  * - Success state: CheckCircle 72px green (#5DBB8E), SP earned badge (#FEF3C7 bg)
  * - Failure state: XCircle 72px red (#E85D75), error message display
- * - Green pill button "View Trade" (success) OR "Try Again" (failure)
+ * - D-14: Buyer CTAs: "Leave a Review", "View SP Earned"
+ * - D-14: Seller CTAs: "List Another Item", "View Earnings", "Leave a Review"
  * - "Back to Home" text link
  */
 
@@ -18,11 +20,91 @@ import {
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
-import { CheckCircle, XCircle, Coins } from 'phosphor-react-native';
+import { CheckCircle, XCircle, Coins, Star } from 'phosphor-react-native';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeSuccessRouteProp = RouteProp<RootStackParamList, 'TradeSuccess'>;
+
+// TFV2-014: Completion CTA interface — drives all 7 buyer/seller × tier permutations
+interface CompletionCTA {
+  message: string;
+  ctaLabel: string;
+  onPress: () => void;
+}
+
+/** buildCompletionCTA — pure function, exactly per MODULE-15.1.2 spec */
+function buildCompletionCTA(
+  isBuyer: boolean,
+  isSeller: boolean,
+  isSubscriber: boolean,
+  spUsedByBuyer: number,
+  listingType: 'cash_only' | 'accept_sp' | 'donate',
+  totalSpToSeller: number,
+  releaseDays: number,
+  remainingSP: number,
+  spAmountDollars: number,
+  navigation: any
+): CompletionCTA {
+  if (isBuyer) {
+    if (!isSubscriber) {
+      // Permutation 1: Free buyer — upsell Kids Club+
+      return {
+        message: `Kids Club+ would've saved you $2 on this trade — try it free for 30 days.`,
+        ctaLabel: 'Try Kids Club+ Free — 30 Days',
+        onPress: () => navigation.navigate('SubscriptionChoice'),
+      };
+    } else if (spUsedByBuyer > 0) {
+      // Permutation 2: Subscriber buyer, used SP
+      return {
+        message: `You saved $${spAmountDollars.toFixed(2)} using SP! You have ${remainingSP} SP left.`,
+        ctaLabel: 'Keep Shopping',
+        onPress: () => navigation.navigate('Discover'),
+      };
+    } else {
+      // Permutation 3: Subscriber buyer, no SP used
+      return {
+        message: 'Trade complete! Consider using SP on your next purchase to save more.',
+        ctaLabel: 'Browse Items',
+        onPress: () => navigation.navigate('Discover'),
+      };
+    }
+  }
+
+  if (isSeller) {
+    if (!isSubscriber) {
+      // Permutation 4: Free seller — upsell Kids Club+
+      return {
+        message: 'Subscribe to earn Swap Points on your next sale — set "Accept SP" when listing.',
+        ctaLabel: 'Try Kids Club+ Free — 30 Days',
+        onPress: () => navigation.navigate('SubscriptionChoice'),
+      };
+    } else if (listingType === 'cash_only') {
+      // Permutation 5: Subscriber seller, cash_only listing
+      return {
+        message: 'Sold for cash! Try "Accept SP" on your next listing to also earn SP.',
+        ctaLabel: 'Create New Listing',
+        onPress: () => navigation.navigate('ItemCreate'),
+      };
+    } else if (spUsedByBuyer > 0) {
+      // Permutation 6: Subscriber seller, accept_sp, SP used by buyer
+      return {
+        message: `${totalSpToSeller} SP releasing in ${releaseDays} days — added to your pending wallet.`,
+        ctaLabel: 'View Wallet',
+        onPress: () => navigation.navigate('SpWallet'),
+      };
+    } else {
+      // Permutation 7: Subscriber seller, accept_sp, no SP used
+      return {
+        message: `${totalSpToSeller} SP releasing in ${releaseDays} days (platform reward).`,
+        ctaLabel: 'View Wallet',
+        onPress: () => navigation.navigate('SpWallet'),
+      };
+    }
+  }
+
+  return { message: 'Trade complete!', ctaLabel: 'Done', onPress: () => navigation.goBack() };
+}
 
 export default function TradeSuccessScreen() {
   const route = useRoute<TradeSuccessRouteProp>();
@@ -33,12 +115,22 @@ export default function TradeSuccessScreen() {
   const isSuccess = (route.params as any)?.success !== false;
   const spEarned = (route.params as any)?.spEarned || 0;
   const errorMessage = (route.params as any)?.errorMessage;
+  // TFV2-014: role, subscription tier, and SP data for 7-permutation CTAs
+  const role: 'buyer' | 'seller' = (route.params as any)?.role ?? 'buyer';
+  const sellerId: string | undefined = (route.params as any)?.sellerId;
+  const buyerId: string | undefined = (route.params as any)?.buyerId;
+  const subscriptionStatus: 'free' | 'subscriber' = (route.params as any)?.subscriptionStatus ?? 'free';
+  const spUsed: number = (route.params as any)?.spUsed ?? 0;
+  const listingType: 'cash_only' | 'accept_sp' | 'donate' = (route.params as any)?.listingType ?? 'cash_only';
+  const totalSpToSeller: number = (route.params as any)?.totalSpToSeller ?? 0;
+  const spPendingReleaseDays: number = (route.params as any)?.spPendingReleaseDays ?? 3;
+  const remainingSP: number = (route.params as any)?.remainingSP ?? 0;
+  const spAmountDollars: number = (route.params as any)?.spAmountDollars ?? 0;
 
   const handlePrimaryAction = () => {
     if (isSuccess) {
       navigation.navigate('TradeTimeline', { tradeId });
     } else {
-      // Navigate back to retry
       navigation.goBack();
     }
   };
@@ -55,13 +147,15 @@ export default function TradeSuccessScreen() {
 
         {/* Title */}
         <Text style={[styles.title, !isSuccess && styles.titleError]}>
-          {isSuccess ? 'Trade Initiated!' : 'Trade Failed'}
+          {isSuccess ? (role === 'seller' ? 'Sale Complete!' : 'Trade Initiated!') : 'Trade Failed'}
         </Text>
 
         {/* Message */}
         <Text style={styles.message}>
           {isSuccess
-            ? 'Your trade request has been sent. You can track the status in your trades list.'
+            ? role === 'seller'
+              ? 'Great news! Your item has been sold. Earnings will be processed shortly.'
+              : 'Your trade request has been sent. You can track the status in your trades list.'
             : errorMessage || 'There was a problem initiating the trade. Please try again.'}
         </Text>
 
@@ -80,20 +174,80 @@ export default function TradeSuccessScreen() {
           </Text>
         )}
 
-        {/* Primary Action Button */}
-        <Pressable
-          style={[styles.primaryButton, !isSuccess && styles.primaryButtonError]}
-          onPress={handlePrimaryAction}
-          testID="primary-action-button"
-        >
-          <Text style={styles.primaryButtonText}>
-            {isSuccess ? 'View Trade' : 'Try Again'}
-          </Text>
-        </Pressable>
+        {/* TFV2-014: 7-permutation CTAs based on role + subscription tier */}
+        {isSuccess ? (
+          (() => {
+            const isBuyer = role === 'buyer';
+            const isSeller = role === 'seller';
+            const isSubscriber = subscriptionStatus === 'subscriber';
+            const cta = buildCompletionCTA(
+              isBuyer,
+              isSeller,
+              isSubscriber,
+              spUsed,
+              listingType,
+              totalSpToSeller,
+              spPendingReleaseDays,
+              remainingSP,
+              spAmountDollars,
+              navigation
+            );
+            return (
+              <View style={styles.ctaGroup}>
+                {/* CTA contextual message */}
+                <Text style={styles.ctaMessage} testID="cta-message">{cta.message}</Text>
+
+                {/* Primary CTA button */}
+                <Pressable
+                  style={styles.primaryButton}
+                  onPress={cta.onPress}
+                  testID="cta-primary-button"
+                >
+                  <Text style={styles.primaryButtonText}>{cta.ctaLabel}</Text>
+                </Pressable>
+
+                {/* Rate & Review — non-blocking text link */}
+                <Pressable
+                  style={styles.linkButton}
+                  onPress={() => {
+                    const revieweeId = role === 'buyer' ? sellerId : buyerId;
+                    if (revieweeId) {
+                      navigation.navigate('ReviewCreate', { tradeId, revieweeId });
+                    }
+                  }}
+                  testID="cta-rate-review-link"
+                >
+                  <Star size={14} color="#F59E0B" weight="bold" />
+                  <Text style={styles.linkText}>Rate &amp; Review</Text>
+                </Pressable>
+
+                {/* Done text link */}
+                <Pressable
+                  style={styles.linkButton}
+                  onPress={() => navigation.navigate('Home')}
+                  testID="cta-done-link"
+                >
+                  <Text style={styles.linkText}>Done</Text>
+                </Pressable>
+              </View>
+            );
+          })()
+        ) : (
+          /* Failure state */
+          <View style={styles.ctaGroup}>
+            <Pressable
+              style={[styles.primaryButton, styles.primaryButtonError]}
+              onPress={handlePrimaryAction}
+              testID="primary-action-button"
+            >
+              <Text style={styles.primaryButtonText}>Try Again</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Back to Home Link */}
         <Pressable
-          style={styles.linkButton}
+          style={styles.backHomeButton}
           onPress={() => navigation.navigate('Home')}
           testID="back-home-button"
         >
@@ -152,26 +306,63 @@ const styles = StyleSheet.create({
   tradeId: {
     fontSize: 12,
     color: '#999999',
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+  ctaMessage: {
+    fontSize: 14,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  ctaGroup: {
+    width: '100%',
+    gap: 12,
+    alignItems: 'center',
   },
   primaryButton: {
     width: '100%',
     height: 52,
     backgroundColor: '#5DBB8E',
     borderRadius: 26,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    gap: 8,
   },
   primaryButtonError: {
     backgroundColor: '#E85D75',
   },
   primaryButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#FFFFFF',
   },
+  secondaryButton: {
+    width: '100%',
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#5DBB8E',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#5DBB8E',
+  },
   linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+  },
+  backHomeButton: {
+    marginTop: 16,
     paddingVertical: 12,
   },
   linkText: {

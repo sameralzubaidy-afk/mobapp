@@ -11,7 +11,6 @@
 
 import { supabase } from '../../config/supabase';
 import {
-  uploadBadgeIcon,
   getSignedBadgeIconUrl,
   deleteBadgeIcon,
   getPublicBadgeIconUrl,

@@ -8,10 +8,9 @@ import {
   ScrollView,
   RefreshControl,
   StyleSheet,
-  TouchableOpacity,
   Alert
 } from 'react-native';
-import { ArrowLeft, ChartLine, CurrencyCircleDollar } from 'phosphor-react-native';
+import { ChartLine, CurrencyCircleDollar } from 'phosphor-react-native';
 import { getPublishedSections } from '../../services/educationContentService';
 import { trackEducationEvent } from '../../services/educationAnalyticsService';
 import type { EducationSection } from '../../types/education';
@@ -25,7 +24,7 @@ interface HelpScreenProps {
   route: any;
 }
 
-export default function HelpScreen({ navigation, route }: HelpScreenProps) {
+export default function HelpScreen({ navigation: _navigation, route }: HelpScreenProps) {
   const [sections, setSections] = useState<EducationSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

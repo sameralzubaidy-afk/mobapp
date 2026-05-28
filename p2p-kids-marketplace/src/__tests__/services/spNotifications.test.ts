@@ -137,8 +137,8 @@ describe('SP Notifications Service', () => {
       };
 
       // Mock the trigger behavior (would be tested in E2E)
-      const expectedTitle = '🎉 +50 SP Earned!';
-      const expectedBody = 'You earned 50 SP as a welcome bonus!';
+      const _expectedTitle = '🎉 +50 SP Earned!';
+      const _expectedBody = 'You earned 50 SP as a welcome bonus!';
 
       expect(mockLedgerEntry.transaction_type).toBe('earn_starter_pack');
       expect(mockLedgerEntry.amount).toBeGreaterThan(0);
@@ -156,8 +156,8 @@ describe('SP Notifications Service', () => {
         description: 'Used SP on purchase',
       };
 
-      const expectedTitle = '✨ 20 SP Spent';
-      const expectedBody = 'You spent 20 SP on a purchase!';
+      const _expectedTitle = '✨ 20 SP Spent';
+      const _expectedBody = 'You spent 20 SP on a purchase!';
 
       expect(mockLedgerEntry.transaction_type).toBe('spend_purchase');
       expect(mockLedgerEntry.amount).toBeLessThan(0);

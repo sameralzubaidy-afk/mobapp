@@ -345,7 +345,7 @@ describe('NODE-007: Distance Radius Filter', () => {
     it('should calculate distances in miles', () => {
       // Norwalk, CT to Little Falls, NJ ≈ 73 miles
       const expectedDistance = 73;
-      const tolerance = 5; // +/- 5 miles
+      const _tolerance = 5; // +/- 5 miles
 
       expect(expectedDistance).toBeGreaterThan(0);
       expect(expectedDistance).toBeLessThan(1000); // Sanity check

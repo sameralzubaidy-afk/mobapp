@@ -312,7 +312,7 @@ describe('MSG-009: Typing Indicators', () => {
       const tradeId = 'trade-123';
       const callback = jest.fn();
 
-      mockChannel.on.mockImplementation((event: string, options: any, handler?: Function) => {
+      mockChannel.on.mockImplementation((event: string, options: any, handler?: (...args: unknown[]) => unknown) => {
         const actualHandler = handler || options;
         if (event === 'presence' && options.event === 'sync') {
           // Mock presence state to have a typing user

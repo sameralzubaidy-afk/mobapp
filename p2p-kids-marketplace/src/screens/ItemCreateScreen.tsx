@@ -815,9 +815,13 @@ export default function ItemCreateScreen() {
   const isPublishing = flowState === 'PUBLISHING';
   const isAnalyzing = aiStatus === 'analyzing';
   const isAnalyzingBlocking = isAnalyzing && !allowManualWhileAnalyzing;
+  const handleBackPress = useCallback(() => {
+    void saveNow();
+    navigation.goBack();
+  }, [navigation, saveNow]);
 
   return (
-    <ScreenLayout variant="detail" title="New Item">
+    <ScreenLayout variant="detail" title="New Item" onBack={handleBackPress}>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Photo Upload */}

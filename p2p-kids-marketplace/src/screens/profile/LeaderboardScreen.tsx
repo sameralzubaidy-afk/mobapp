@@ -13,7 +13,7 @@ import { getBadgeLeaderboard, LeaderboardEntry } from '../../services/badges';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
-const LeaderboardScreen = ({ navigation }: any) => {
+const LeaderboardScreen = ({ navigation: _navigation }: any) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

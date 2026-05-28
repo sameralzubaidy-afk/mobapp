@@ -18,7 +18,7 @@ jest.mock('expo-file-system/legacy', () => ({
   },
 }));
 jest.mock('base64-arraybuffer', () => ({
-  decode: jest.fn((base64) => new ArrayBuffer(8)),
+  decode: jest.fn((_base64) => new ArrayBuffer(8)),
 }));
 
 describe('badgeUtils', () => {

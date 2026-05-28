@@ -19,11 +19,9 @@ jest.mock('@react-navigation/native', () => ({
   },
 }));
 
-jest.mock('../../components/organisms/BottomNavBar', () => {
-  return function MockBottomNavBar() {
-    return null;
-  };
-});
+jest.mock('@/components/organisms/PersistentTabBar', () => ({
+  PersistentTabBar: () => null,
+}));
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockGetMyListings = getMyListings as jest.MockedFunction<typeof getMyListings>;

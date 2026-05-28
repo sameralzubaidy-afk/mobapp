@@ -11,7 +11,7 @@ import {
   validatePriceRange,
   getDefaultFilters,
 } from '../../utils/filterHelpers';
-import { levenshteinDistance, findClosestMatch } from '../../utils/fuzzyMatch';
+import { findClosestMatch } from '../../utils/fuzzyMatch';
 import {
   DiscoveryFilters,
   COLOR_PALETTE,

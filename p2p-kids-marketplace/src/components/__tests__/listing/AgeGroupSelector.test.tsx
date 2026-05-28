@@ -97,7 +97,7 @@ describe('AgeGroupSelector', () => {
       fireEvent.press(getByTestId('age-group-13+'));
 
       const calls = mockOnChange.mock.calls;
-      calls.forEach((call, index) => {
+      calls.forEach((call, _index) => {
         expect(validValues).toContain(call[0]);
       });
     });

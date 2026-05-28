@@ -281,6 +281,19 @@ export async function getTransactionFeeNonSubscriberCents(forceRefresh = false):
   return getConfigValue('transaction_fee_non_subscriber_cents', forceRefresh);
 }
 
+/**
+ * Returns the platform fee in cents for the given user tier.
+ * Source of truth: admin_config rows
+ *   key=transaction_fee_subscriber_cents     (default: 99  = $0.99)
+ *   key=transaction_fee_non_subscriber_cents (default: 299 = $2.99)
+ * Falls back to the defaults above if Supabase is unreachable.
+ */
+export async function getPlatformFeeCents(isSubscriber: boolean): Promise<number> {
+  return isSubscriber
+    ? getTransactionFeeSubscriberCents()
+    : getTransactionFeeNonSubscriberCents();
+}
+
 export async function getSPExpirationDays(forceRefresh = false): Promise<number> {
   // Primary source: admin_config table as written by Admin UI.
   // Canonical schema uses key/value columns.

@@ -27,7 +27,7 @@ type PhosphorIcon = typeof House;
 const NavItem = ({
   Icon,
   label,
-  routeName,
+  routeName: _routeName,
   onPress,
   badgeCount,
   active,

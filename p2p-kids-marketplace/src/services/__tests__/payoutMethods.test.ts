@@ -11,11 +11,10 @@ import {
   createPayoutMethod,
   updatePayoutMethod,
   deletePayoutMethod,
-  setPrimaryPayoutMethod,
   checkPayoutEligibility,
   formatPayoutMethodDisplay,
 } from '../payoutMethods';
-import type { SellerPayoutMethod, PayoutMethodType } from '../../types/payout.types';
+import type { SellerPayoutMethod } from '../../types/payout.types';
 
 // Mock Supabase
 jest.mock('../../config/supabase', () => ({

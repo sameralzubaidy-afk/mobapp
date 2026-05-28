@@ -114,8 +114,8 @@ describe('ReferralsScreen', () => {
     const { getByTestId, getByText } = render(<ReferralsScreen />);
 
     await waitFor(() => {
-      expect(getByTestId('back-btn')).toBeTruthy();
-      expect(getByText('Refer & Earn')).toBeTruthy();
+      expect(getByTestId('back-button')).toBeTruthy();
+      expect(getByText('Referrals')).toBeTruthy();
       expect(getByTestId('hero-card')).toBeTruthy();
       expect(getByTestId('hero-title')).toBeTruthy();
       expect(getByText('Refer Friends, Earn SP')).toBeTruthy();
@@ -460,7 +460,7 @@ describe('ReferralsScreen', () => {
     const { getByTestId } = render(<ReferralsScreen />);
 
     await waitFor(() => {
-      const backBtn = getByTestId('back-btn');
+      const backBtn = getByTestId('back-button');
       fireEvent.press(backBtn);
       expect(mockGoBack).toHaveBeenCalled();
     });

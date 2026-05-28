@@ -24,7 +24,7 @@ export const ListingImage: React.FC<ListingImageProps> = ({
   containerStyle,
   imageStyle,
   placeholderText = 'No Image',
-  size = 'cover',
+  size: _size = 'cover',
   ...props
 }) => {
   const cdnUrl = url ? transformToCdnUrl(url) : null;

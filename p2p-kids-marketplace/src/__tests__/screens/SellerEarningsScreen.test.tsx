@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { render, waitFor, fireEvent } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import SellerEarningsScreen from '../../screens/seller/SellerEarningsScreen';
 import { getSellerPayouts } from '../../services/payoutService';
 import { useAuth } from '../../hooks/useAuth';
@@ -175,7 +175,7 @@ describe('SellerEarningsScreen', () => {
   it('handles refresh correctly', async () => {
     mockGetSellerPayouts.mockResolvedValue(mockPayouts);
 
-    const { getByTestId, getByText } = render(<SellerEarningsScreen />);
+    const { getByTestId: _getByTestId, getByText: _getByText } = render(<SellerEarningsScreen />);
 
     await waitFor(() => {
       expect(mockGetSellerPayouts).toHaveBeenCalledTimes(1);
@@ -238,7 +238,7 @@ describe('SellerEarningsScreen', () => {
       signOut: jest.fn(),
     });
 
-    const { getByText } = render(<SellerEarningsScreen />);
+    const { getByText: _getByText } = render(<SellerEarningsScreen />);
 
     // Should not crash, might show empty or error state
     // Depends on implementation

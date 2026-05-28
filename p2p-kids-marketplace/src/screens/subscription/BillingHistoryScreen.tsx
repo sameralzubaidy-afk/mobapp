@@ -70,7 +70,7 @@ function getStatusColor(status: string): string {
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function BillingHistoryScreen() {
-  const navigation = useNavigation();
+  const _navigation = useNavigation();
   const { session } = useContext(AuthContext);
   const userId = session?.user?.id;
 

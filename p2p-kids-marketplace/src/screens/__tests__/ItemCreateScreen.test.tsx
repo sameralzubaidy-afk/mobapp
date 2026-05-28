@@ -34,6 +34,12 @@ jest.mock('../../services/photoService');
 jest.mock('../../services/categoryService');
 jest.mock('../../services/pricingService');
 jest.mock('../../services/subscription');
+jest.mock('../../hooks/useNotificationBadge', () => ({
+  useNotificationBadge: () => ({
+    unreadCount: 0,
+    refreshUnreadCount: jest.fn(),
+  }),
+}));
 jest.mock('expo-image-picker');
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => mockNavigation,

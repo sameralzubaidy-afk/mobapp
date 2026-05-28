@@ -9,7 +9,6 @@ import {
   StyleSheet,
   Animated,
   LayoutAnimation,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { EducationSection } from '../../types/education';

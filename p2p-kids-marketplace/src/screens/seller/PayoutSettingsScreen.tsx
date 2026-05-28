@@ -17,7 +17,6 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  Platform,
   Linking,
 } from 'react-native';
 import * as ExpoLinking from 'expo-linking';
@@ -55,7 +54,6 @@ import { LoadingSpinner } from '@/components/ui';
 import {
   Coins,
   Bank,
-  ArrowLeft,
   ArrowDown,
   Plus,
   CaretRight,
@@ -88,7 +86,7 @@ export default function PayoutSettingsScreen() {
   const [payoutLimit, setPayoutLimit] = useState(5); // Start with 5, increase on "Load More"
   const [loadingMore, setLoadingMore] = useState(false);
   const [adminPayoutConfig, setAdminPayoutConfig] = useState<AdminPayoutConfig | null>(null);
-  const [eligibility, setEligibility] = useState({
+  const [_eligibility, setEligibility] = useState({
     can_receive_payouts: false,
     message: '',
   });
@@ -152,7 +150,7 @@ export default function PayoutSettingsScreen() {
     loadPayoutMethods();
   };
 
-  const handleBackPress = () => {
+  const _handleBackPress = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
@@ -190,7 +188,7 @@ export default function PayoutSettingsScreen() {
     }
   };
 
-  const handleDeleteMethod = async (methodId: string) => {
+  const _handleDeleteMethod = async (methodId: string) => {
     Alert.alert('Delete Payout Method', 'Are you sure you want to delete this payout method?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -299,7 +297,7 @@ export default function PayoutSettingsScreen() {
   }
 
   const primaryMethod = methods.find((m) => m.id === primaryMethodId);
-  const primaryDisplay = primaryMethod ? formatPayoutMethodDisplay(primaryMethod) : null;
+  const _primaryDisplay = primaryMethod ? formatPayoutMethodDisplay(primaryMethod) : null;
 
   return (
     <ScreenLayout variant="detail" title="Payout Settings">
@@ -641,7 +639,7 @@ interface PayoutMethodCardProps {
   onDelete: () => void;
 }
 
-function PayoutMethodCard({ method, isPrimary, onSetPrimary, onDelete }: PayoutMethodCardProps) {
+function _PayoutMethodCard({ method, isPrimary, onSetPrimary, onDelete }: PayoutMethodCardProps) {
   const display = formatPayoutMethodDisplay(method);
 
   return (

@@ -243,7 +243,7 @@ describe('DisclaimerModal', () => {
         error: { message: 'Network error' },
       });
 
-      const { getByText, rerender } = render(
+      const { getByText, rerender: _rerender } = render(
         <DisclaimerModal visible={true} onAccept={mockOnAccept} onCancel={mockOnCancel} />
       );
 

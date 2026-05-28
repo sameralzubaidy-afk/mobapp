@@ -1,7 +1,7 @@
 // File: p2p-kids-marketplace/src/__tests__/hooks/usePhoneVerification.test.ts
 // MODULE-03 AUTH-V3-008: Unit tests for usePhoneVerification hook
 
-import { renderHook, act, waitFor } from '@testing-library/react-native';
+import { renderHook, act } from '@testing-library/react-native';
 import { usePhoneVerification } from '../../hooks/usePhoneVerification';
 import * as phoneService from '../../services/phoneService';
 import { OTPRateLimitError, OTPExpiredError } from '../../types/auth-v3-errors';

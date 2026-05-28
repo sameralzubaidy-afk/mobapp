@@ -12,7 +12,6 @@ import {
   View,
   Text,
   FlatList,
-  Pressable,
   StyleSheet,
   RefreshControl
 } from 'react-native';
@@ -48,7 +47,7 @@ export default function CategoryBrowseScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Map category name to Phosphor icon
-  const getCategoryIcon = () => {
+  const _getCategoryIcon = () => {
     const categoryLower = category.toLowerCase();
     if (categoryLower.includes('cloth') || categoryLower.includes('apparel')) {
       return <TShirt size={32} color="#5DBB8E" weight="regular" />;

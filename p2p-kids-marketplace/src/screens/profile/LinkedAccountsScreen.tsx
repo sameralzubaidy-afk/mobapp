@@ -25,7 +25,7 @@ import { EmailMismatchError, LastLoginMethodError } from '@/types/auth-v3-errors
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
-export default function LinkedAccountsScreen({ navigation }: any) {
+export default function LinkedAccountsScreen({ navigation: _navigation }: any) {
   const { user } = useAuth();
   const [linkedProviders, setLinkedProviders] = useState<LinkedProvider[]>([]);
   const [loginMethodCount, setLoginMethodCount] = useState<number>(0);
@@ -98,7 +98,7 @@ export default function LinkedAccountsScreen({ navigation }: any) {
     setLinkingProvider(null);
   };
 
-  const performLinking = async (provider: OAuthProvider, password?: string) => {
+  const performLinking = async (provider: OAuthProvider, _password?: string) => {
     try {
       // Initiate OAuth flow
       const { url } = await initiateSocialLogin(provider);

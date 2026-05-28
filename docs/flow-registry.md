@@ -2111,6 +2111,59 @@ This file is the canonical registry of end-to-end flows and their required regre
     - `npm run test:maestro:android -- .maestro/module-15.1-flow-07-cart.yaml` (Android emulator)
     - Manual testing required (see MODULE-15.1-FLOW-07-MANUAL-TESTING.md)
 
+- **MODULE-15.2 CART-SYSTEM (2026-05-28):** RPC-backed cart + favorites system
+  - Module: MODULE-15.2 (TASK CART-001..CART-020)
+  - Scope:
+    - DB: `supabase/migrations/20260528100001_cart_system_schema.sql` (extends `cart_items` with cart_id/cart_status/snapshots; `favorites` extended; admin_config keys `cart_min_value_cents`, `cart_max_saved_carts`, `cart_saved_expiry_days`)
+    - RPCs (10): rpc_cart_add_item / rpc_cart_remove_item / rpc_cart_clear / rpc_cart_get_items / rpc_cart_save_current / rpc_cart_switch_to_saved / rpc_cart_validate_for_checkout / rpc_favorites_add / rpc_favorites_remove / rpc_favorites_get (`20260528100002_cart_system_rpcs.sql`)
+    - Services: `src/services/cartService.ts` (RPC-backed, RealtimeChannel sub), `src/services/favoritesService.ts` (NEW)
+    - Screens: `src/screens/cart/CartScreen.tsx` (saved carts, min-value notice, save button, realtime), `src/screens/favorites/FavoritesScreen.tsx` (NEW)
+    - Wiring: `src/screens/home/ItemDetailScreen.tsx` (real Add-to-Cart + DIFFERENT_SELLER modal + Heart toggle)
+    - Navigation: `Favorites` route added to RootStackParamList
+  - Tests:
+    - Unit: `src/services/__tests__/cartService.test.ts` (15 tests, RPC mocks), `src/services/__tests__/favoritesService.test.ts` (9 tests)
+    - Integration: `e2e/cart-system.integration.test.ts` (RUN_SUPABASE_E2E=true)
+    - Maestro: `.maestro/cart-flow.yaml` (states: empty, add, different-seller-modal, save, switch, validate-min, favorites)
+    - Manual: `MODULE-15.2-MANUAL-TEST-CASES.md`
+  - Business rules enforced:
+    - Single-seller cart (CART-004 DIFFERENT_SELLER error)
+    - Max 3 saved carts (trigger `fn_enforce_cart_limits` → SAVED_CART_LIMIT_REACHED)
+    - Saved cart expiry 7 days (config)
+    - Min cart value $20 (`cart_min_value_cents=2000`) blocks checkout with `MIN_CART_VALUE_NOT_MET`
+    - Realtime cart updates via Supabase channel on `cart_items` + `items`
+  - Platform fee policy (TODO-07 🔴 LOCKED):
+    - Stays hardcoded (`PLATFORM_FEE_CENTS_SUBSCRIBER` / `PLATFORM_FEE_CENTS_FREE`)
+    - Cart subtotal/validation does NOT fetch fees from admin_config
+  - Validation commands:
+    - `npx tsc --noEmit -p tsconfig.json` (0 errors)
+    - `npm run test:unit` (24 cart/favorites tests + 2794 total green)
+    - `RUN_SUPABASE_E2E=true npm run test:e2e` (cart-system.integration.test.ts)
+    - `npm run test:maestro:ios -- .maestro/cart-flow.yaml`
+    - `npm run test:maestro:android -- .maestro/cart-flow.yaml`
+
+- **MODULE-15.2 GAP-CLOSURE (2026-05-28):** All CART-012..CART-020 + R-08/R-10 gaps closed
+  - Module: MODULE-15.2 (gap closure pass)
+  - Scope:
+    - CART-012: `src/services/favoritesService.ts` — added `toggleFavorite()` helper
+    - CART-013 (R-04): `src/screens/cart/CartScreen.tsx` — checkout `disabled` when below min; `min-value-banner` text above button
+    - CART-014: `src/screens/home/ItemDetailScreen.tsx` — own-item hides "Add to Cart"; ALREADY_IN_CART shows "View Cart"; modal labels fixed to "Save & Start New Cart" / "Replace Cart"
+    - CART-017: `p2p-kids-admin/src/app/settings/cart/page.tsx` — admin UI for cart_min_value_cents / cart_max_saved_carts / cart_saved_expiry_days; nav link added to Sidebar.tsx
+    - CART-018: `src/screens/cart/CartScreen.tsx` — analytics events: `cart_item_removed`, `cart_saved`, `cart_switched`, `cart_checkout_initiated`, `cart_checkout_blocked`
+    - CART-019: `src/services/__tests__/cartService.test.ts` — added ITEM_UNAVAILABLE + CANNOT_BUY_OWN_ITEM unit tests
+    - CART-020: `src/__tests__/integration/cart-rpc.integration.test.ts` — NEW integration test covering all 10 RPCs
+    - R-08: `supabase/migrations/20260528200001_cart_saved_expiry.sql` — `fn_expire_saved_carts()` function (pg_cron optional)
+    - R-10: `src/screens/cart/CartScreen.tsx` — inline "This item is no longer available" per row when liveStatus ≠ 'available'
+    - `src/services/__tests__/favoritesService.test.ts` — added 3 toggleFavorite unit tests
+    - `.maestro/cart-flow.yaml` — added STATE 10 (view-cart-button), STATE 11 (own-item), STATE 12 (min-value-banner), STATE 13 (unavailability row)
+  - DB: `supabase/migrations/20260528200001_cart_saved_expiry.sql` — ⚠️ MUST be run manually in Supabase SQL Editor
+  - Validation commands:
+    - `cd p2p-kids-marketplace && npx tsc --noEmit -p tsconfig.json` (0 errors)
+    - `cd p2p-kids-marketplace && npm run lint` (0 warnings)
+    - `cd p2p-kids-marketplace && npm run test:unit` (all green, 3 new CART-019 + 3 new favoritesService.toggleFavorite tests)
+    - `cd p2p-kids-admin && npm run build` (0 errors)
+    - `RUN_SUPABASE_E2E=true npm run test:e2e -- cart-rpc.integration` (all integration tests pass)
+    - `npm run test:maestro:ios -- .maestro/cart-flow.yaml` (all 13 states pass)
+
 ### FLOW-08: Trade Flow – Checkout + Transaction State Machine
 - **MODULE-15.1-UI-REDESIGN-FLOW-08 (2025-01-20):** Trade flow screens redesigned to Whisk-inspired design system
   - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-08)
@@ -2135,6 +2188,100 @@ This file is the canonical registry of end-to-end flows and their required regre
     - `cd p2p-kids-marketplace && yarn test -- --testPathPattern=trade` (all unit tests green)
     - `cd p2p-kids-marketplace && RUN_SUPABASE_E2E=true yarn test -- e2e/trade-flow.e2e.ts` (E2E tests pass)
     - Manual testing required for complete flows (see TASK-FLOW-08-MANUAL-TESTING.md)
+- **MODULE-15.1.2-TRADEFLOWV2-PHASE3-4 (2026-05-28):** Timing automation, seller-offer countdown, and buyer-safe completion hardening
+  - Module: MODULE-15.1.2 TradeFlowV2 (TFV2-001 through TFV2-008)
+  - Scope:
+    - DB/Migrations: `20260528000001` through `20260528000005` for trade timing config, offer expiry, auto-complete scheduling, and pending SP release cron/RPCs.
+    - Edge Functions: `process-expired-offers`, `process-auto-complete`, `release-pending-sp`, and hardening in `complete-trade`/`trade-payment`.
+    - Mobile UI: `OfferCountdownPill`, `AutoCompleteBanner`, countdown integration in Trade List + Review Offer, and buyer-only completion behavior in Trade Timeline.
+  - Tests:
+    - Unit: `src/components/trade/__tests__/countdown.test.ts`, `src/components/trade/__tests__/OfferCountdownPill.test.tsx`, `src/components/trade/__tests__/AutoCompleteBanner.test.tsx`, `src/screens/trade/__tests__/TradeTimelineScreen.test.tsx`.
+    - Maestro: `.maestro/module-15.1.2-flow-08-trade-v2-components.yaml` (deterministic deep-link preview checks for TFV2-007/008 components).
+    - Manual: `MODULE-15.1.2-FLOW-08-MANUAL-TESTING.md`.
+  - Validation:
+    - `cd p2p-kids-marketplace && npm run typecheck` (must pass)
+    - `cd p2p-kids-marketplace && npm run lint` (must pass)
+    - `cd p2p-kids-marketplace && npm run test:unit -- --testPathPattern=components/trade|TradeTimelineScreen` (targeted unit tests)
+    - `cd p2p-kids-marketplace && npm run test:maestro:ios -- .maestro/module-15.1.2-flow-08-trade-v2-components.yaml` (component regression)
+- **MODULE-15.1.2-TFV2-023-ADDENDA-A-E (2026-05-26):** Seller cancel consequences + bundle trade flows
+  - Module: MODULE-15.1.2 TradeFlowV2 (TFV2-023, Addendum A, B, C, D, E)
+  - Scope:
+    - DB: `post_acceptance_cancellation_count` + `admin_review_flagged_at` columns added to `profiles` table (migration `20260528000012_seller_cancel_consequences.sql`)
+    - DB: `fn_handle_seller_cancellation(p_seller_id, p_trade_id)` RPC — increments counter, sets admin flag at count ≥ 3, returns `{new_count, level, admin_flag_set}`
+    - Edge Function: `cancel-trade` v32 (consequence level routing, `seller_cancelled` event logging, inlined `logTradeEvent`)
+    - Service: `cancelTradeV2` in `trade.ts` returns `consequenceLevel` from Edge Function response
+    - CancellationReasonModal: `SELLER_INPROGRESS_REASONS` export + `reasons` prop for overriding default reason list
+    - TradeTimelineScreen: seller-cancel-inprogress-button (in_progress only), consequence-level alerts (levels 1/2/3), bundle context banner, Confirm All N shortcut
+    - TradeOfferScreen: value-stack-row showing offer amount, SP discount (when >0), platform fee (TODO-07 🔴 hardcoded $0.99/$2.99), total cash
+    - TradeListScreen: `groupedReceivedOffers` bundle grouping in Offers tab (Accept All / Review Each / Decline All per bundle), `inProgressBundles` grouping in Buying tab
+    - ReviewOfferScreen: bundle context banner (sibling offer list), `accept-bundle-button` (Accept All N Items), sibling offer fetch after `setOffer()`
+  - Tests:
+    - Unit: `src/__tests__/services/trade-tfv2-023-cancel-consequences.test.ts` (10 tests — consequence levels 1/2/3, buyer=null, missing field, error handling, unauthenticated, reason truncation, default reason, network timeout)
+    - Unit: `src/__tests__/screens/trade/TradeOfferScreen.test.tsx` (11 tests — value stack render, $0.99 subscriber, $2.99 non-subscriber, trial/grace $0.99, SP discount row conditional)
+    - Unit: `src/__tests__/screens/trade/TradeListBundleGrouping.test.ts` (13 tests — groupReceivedOffers: bundle rows, single rows, mixed, separate bundles, empty, 3-item bundle; groupInProgressBundles: buying tab, wrong tab skips, single-item bundle excluded, wrong status excluded, empty)
+    - Integration: `src/__tests__/e2e/trade-tfv2-023-bundle.e2e.ts` (RUN_SUPABASE_E2E=true — fn_handle_seller_cancellation level 1, level 3 + admin flag, bundle_id column verified, bundle trades queried, subscription_tier readable)
+    - Maestro: `.maestro/trade-tfv2-023-addenda.yaml` (5 flow blocks: seller-cancel-inprogress → consequence alert, value stack $0.99 subscriber, bundle banner TradeTimeline, bundle offer rows Offers tab, ReviewOffer bundle banner + Accept All)
+    - Manual: `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` (17 test cases + 4 regression checks + DB verification queries)
+  - Notes:
+    - TODO-07 🔴 LOCKED: Platform fee hardcoded `$0.99` (subscriber) / `$2.99` (free) in value stack — do NOT fetch from config until fee engine unblocked
+    - Navigation unchanged: all routes already registered in AppNavigator.tsx
+  - Validation:
+    - `cd p2p-kids-marketplace && npx tsc -p tsconfig.json --noEmit` (must exit 0)
+    - `cd p2p-kids-marketplace && npm run lint` (must pass)
+    - `cd p2p-kids-marketplace && npm run test:unit` (must pass)
+    - `cd p2p-kids-marketplace && RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+    - `cd p2p-kids-marketplace && npm run test:maestro:ios -- .maestro/trade-tfv2-023-addenda.yaml`
+    - `cd p2p-kids-marketplace && npm run test:maestro:android -- .maestro/trade-tfv2-023-addenda.yaml`
+    - Manual: see `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` TCs 001–017
+- **MODULE-15.1.2-TRADEFLOWV2-FULL (2026-05-28):** Complete Trade Flow V2 — all 24 tasks TFV2-001 through TFV2-022 + TFV2-023 + Addenda A–E
+  - Module: MODULE-15.1.2 TradeFlowV2 — full module
+  - Scope:
+    - **TFV2-001** Admin config trade timing fields: `auto_complete_hours`, `sp_pending_release_days`, `offer_notif_1/2_hours_before`, `auto_complete_notif_1/2_hours_before` — cross-field validation trigger
+    - **TFV2-002** trades table V2 columns: `offer_expires_at`, `auto_complete_at`, `bundle_id`, `dispute_status`, `payout_status`, `payout_idempotency_key`, `sp_earned_at_completion`, `sp_released_at`; `sp_wallets.reserved_sp`; `listing_offer_stats` table; `fn_lock_payment_preference` trigger (FR-LM-002)
+    - **TFV2-003** SP reserve/release triggers: `fn_reserve_sp_on_offer` (reduces available_sp, increases reserved_sp on trade INSERT), `fn_release_sp_on_cancel` (restores on cancellation), `fn_release_all_sp_on_complete` (consumes reserved on completion)
+    - **TFV2-004** Offer expiry cron: `rpc_process_expired_offers()` — auto-declines expired offers, sets `cancelled_expired_competing` for competing offers when one accepted
+    - **TFV2-005** Auto-complete cron: `rpc_process_auto_complete()` — completes in_progress trades past `auto_complete_at` with no active dispute (D-26 guard); `rpc_release_pending_sp()` — moves pending SP to available after `sp_pending_release_days`
+    - **TFV2-006** Platform SP calculation: ROUND(item_price × 0.25 × multiplier) for subscriber seller + accept_sp; returned to Edge Function → credited to seller at completion (D-17)
+    - **TFV2-007** OfferCountdownPill component: urgency colors (critical=red, warning=amber, normal=green, expired=gray), Phosphor Timer icon, 24px tall, testIDs: `preview-offer-countdown-critical`, `preview-offer-countdown-normal`
+    - **TFV2-008** AutoCompleteBanner component: full-width banner for buyer in in_progress trades, Phosphor Timer icon, urgency colors, sub-text nudge. testID: `preview-auto-complete-banner`
+    - **TFV2-009** TradeListScreen Offers tab: sorted by total offer value DESC (D-09), OfferCountdownPill per row, empty state testID `offers-empty-state`
+    - **TFV2-010** ReviewOfferScreen SP wallet projection: combined SP total shown (no source breakdown — D-11), testID `trade-review-sp-summary`
+    - **TFV2-011** TradeTimelineScreen buyer-only completion (D-03): testID `confirm-trade-button` for BUYER only; seller has NO completion button anywhere
+    - **TFV2-012** Item Detail "Request to Buy" button (D-07): button label is "Request to Buy" — NOT "Buy Now"/"Pay Cash"; "Use SP 🔒" visible but locked for free users (D-08)
+    - **TFV2-012A** Stripe pre-authorization: `createTradeOfferWithHold` → atomic SP hold + Stripe pre-auth at offer submission; max 3 pending offers per buyer enforced
+    - **TFV2-013** Unified offer flow: no pre-charge at offer; hold captured only; charge captured only on acceptance (D-30)
+    - **TFV2-014** TradeSuccessScreen targeted CTAs: seller = `list-another-button` + `view-earnings-button` + `leave-review-button-seller`; buyer = `leave-review-button-buyer` + `back-home-button`
+    - **TFV2-015** Seller ignoring offers prompt: nudge shown when `listing_offer_stats.consecutive_unanswered_offers_count >= threshold`
+    - **TFV2-016** Push notification schedule + throttling: max 3 non-payout push notifications per user per trade; scheduled at `offer_notif_1/2_hours_before` intervals
+    - **TFV2-017** Dispute state machine (D-26): overlay columns on trades (not new states); dispute columns: `dispute_status`, `dispute_reason`, `dispute_reported_at`, `dispute_resolution`; TradeDisputeScreen testIDs: `dispute-warning-banner`, `reason-chip-{index}`, `dispute-description`, `submit-dispute-button`, `cancel-dispute-button`
+    - **TFV2-018** Seller payout: `payout_status` lifecycle (pending→processing→paid/failed), `payout_idempotency_key` UNIQUE, `payout_initiated_at`, `payout_paid_at`
+    - **TFV2-019** trade_events instrumentation: `trade_events` table with event_type, actor_id, payload — events for offer_created, trade_accepted, trade_cancelled, trade_completed, seller_cancelled
+    - **TFV2-020** Safe meetup V1-Lite card: visible on TradeTimelineScreen for in_progress trades
+    - **TFV2-021** Chat quick-replies: pickup suggestion chips in trade messaging
+    - **TFV2-022** Cart bundle checkout (D-27 — UX grouping ONLY, zero business logic): `bundle_id` groups trades from same seller; eviction modal (D-29) when 4th cart added; testIDs: `bundle-row-{bundleId}`, `bundle-accept-all`, `bundle-review-each`, `bundle-decline-all`, `inprogress-bundles`
+  - Key design decisions LOCKED (never violate):
+    - **D-03** Buyer-ONLY completion: NO seller mark step anywhere
+    - **D-07** Button label = "Request to Buy"
+    - **D-08** "Use SP 🔒" visible-but-locked for free users
+    - **D-26** Disputes = overlay columns on trades — NOT new state machine states
+    - **D-27** bundle_id = UX grouping ONLY — zero business logic attached
+    - **D-29** Eviction modal when 4th cart added (NOT silent LRU)
+    - **D-30** Payment authorization hold at offer submission (Stripe pre-auth + SP hold atomic)
+    - **TODO-07 🔴** Platform fee hardcoded $0.99/$2.99 — do NOT fetch from config
+  - Tests:
+    - Unit: `src/__tests__/services/trade-tfv2-core-logic.test.ts` (~50 tests — SP calc formula, timing config validation, countdown logic, createTradeOfferWithHold, completeTradeV2, cancelTradeV2 consequenceLevel, offer expiry, SP 50% cap)
+    - Integration: `src/__tests__/e2e/trade-tfv2-001-022.e2e.ts` (RUN_SUPABASE_E2E=true — admin_config columns, trades V2 columns, sp_wallets.reserved_sp, listing_offer_stats, profiles consequence columns, rpc_process_expired_offers, rpc_process_auto_complete, rpc_release_pending_sp, trade_events table, bundle_id, dispute overlay columns, payout columns, payout idempotency uniqueness)
+    - Maestro: `.maestro/module-15.1.2-full-trade-flow-v2.yaml` (9 flow blocks: FLOW-A Request to Buy, FLOW-B Offers tab + bundle rows, FLOW-C I Got It buyer completion, FLOW-D component preview, FLOW-E ReviewOffer bundle, FLOW-F dispute screen, FLOW-G TradeSuccess CTAs, FLOW-H seller cancel, FLOW-I bundle context banner)
+    - Manual: `MODULE-15.1.2-TradeFlowV2-COMPLETE-MANUAL-TESTING.md` (50+ test cases covering all 24 tasks + regression checklist)
+  - Validation:
+    - `cd p2p-kids-marketplace && npx tsc -p tsconfig.json --noEmit` (must exit 0)
+    - `cd p2p-kids-marketplace && npm run lint` (must pass)
+    - `cd p2p-kids-marketplace && npm run test:unit` (must pass)
+    - `cd p2p-kids-marketplace && npm run test:unit:trade` (trade-specific, must pass)
+    - `cd p2p-kids-marketplace && RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
+    - `cd p2p-kids-marketplace && npm run test:maestro:ios -- .maestro/module-15.1.2-full-trade-flow-v2.yaml`
+    - `cd p2p-kids-marketplace && npm run test:maestro:android -- .maestro/module-15.1.2-full-trade-flow-v2.yaml`
+    - Manual: see `MODULE-15.1.2-TradeFlowV2-COMPLETE-MANUAL-TESTING.md`
 - Smoke: scripts/smoke/trade-flow.mjs
 - Manual checks:
   - **ANDROID-TRADE-CRASH-HOTFIX (2026-04-15):** Buy Now -> TradeInitiation must not crash on physical Android devices.
@@ -5617,3 +5764,213 @@ Satisfied Items:
   - [x] Zero Ionicons imports in all 6 files
   - [x] TypeScript compilation passes with no duplicate identifier errors
   - [x] All `testID` props present for Maestro automation
+
+---
+
+### FLOW-22: Sales Tax — Per-Node Rates, Apply on Trade, Refund, Admin Reporting (MODULE-15.3-PART3)
+- **Module**: MODULE-15.3-PART3-TAX (TAX-001 → TAX-014)
+- **Covers**:
+  - Per-node tax rate + jurisdiction + enabled flag (nodes.tax_*)
+  - Global admin_config: `sales_tax_enabled`, `default_sales_tax_rate`, `subscription_fee_taxable`, `tax_remittance_jurisdiction`
+  - RPCs: `calculate_tax`, `apply_tax_to_trade` (idempotent), `refund_tax`, `get_tax_summary_for_period`, `update_node_tax_config` (admin-only), `get_node_tax_rate`
+  - Tax row in checkout (TradeInitiationScreen) and trade detail (TradeDetailScreen) + admin tax pages
+- **Smoke**: `scripts/smoke/tax-flow.mjs` (read-only by default; pass `--trade-id` for mutating tests)
+- **Unit**: `p2p-kids-marketplace/src/__tests__/services/tax.test.ts`, `src/__tests__/hooks/useTaxCalculation.test.ts`
+- **E2E**: `p2p-kids-marketplace/src/__tests__/tax-e2e.test.ts` (gated by `RUN_SUPABASE_E2E=true`)
+- **Maestro**: `.maestro/tax-checkout.yaml`
+- **Manual**: `MODULE-15.3-PART3-TAX-MANUAL-TEST-CASES.md`
+- **Admin routes added**: `/tax/nodes`, `/tax/reports`, `/tax/settings`
+- **Tier**: Tier 0 always; Tier 1 when checkout/trade flows change; Tier 2 when tax DB migrations or RPCs change
+- **Hard rules**:
+  - Tax rate is stored as DECIMAL fraction (0.0635) — UI shows as percent (6.35)
+  - Taxable base = `cash_amount_cents - buyer_transaction_fee_cents` (platform fee NOT taxed)
+  - Rounding = `FLOOR((amount * rate) + 0.5)`
+  - `apply_tax_to_trade` is idempotent (returns existing record on second call)
+
+### FLOW-21: Error Recovery & Crash Reporting (PROD-P003 + PROD-P004)
+- **Purpose**: Render-time JS errors anywhere in the app must show a friendly fallback with "Try Again" instead of a red/white screen, and must be reported to Sentry for triage.
+- **Scope**:
+  - Module: `MODULE-15.5-prod-readiness.md` (tasks PROD-P003, PROD-P004)
+  - App: `p2p-kids-marketplace/` only (admin portal Phase 2)
+  - Components:
+    - `src/components/ErrorBoundary.tsx` — class component wrapping the app tree at root
+    - `src/services/errorReporter.ts` — thin Sentry abstraction (no-op when DSN missing)
+  - Wired in `App.tsx`: `<SafeAreaProvider><ErrorBoundary><GlobalAlertProvider>...`
+  - `initErrorReporter()` called at module load (before component definition)
+- **Behavior contract**:
+  - When `EXPO_PUBLIC_SENTRY_DSN` is unset → reporter is a full no-op (safe for dev, CI, Expo Go).
+  - When DSN set → `@sentry/react-native` initialized with environment + release tags.
+  - ErrorBoundary always logs to console (`[ErrorBoundary] caught ...`) plus calls `captureException` with `tags.source = 'ErrorBoundary'` and `extra.componentStack`.
+  - Try Again button resets boundary state; if root cause still throws, fallback re-renders.
+- **Tests**:
+  - Unit: `src/components/__tests__/ErrorBoundary.test.tsx` (6 tests)
+  - Unit: `src/services/__tests__/errorReporter.test.ts` (6 tests)
+  - Manual: `docs/PROD-P003-P004-MANUAL-TC.md` (TC-P003-01/02, TC-P004-01/02/03)
+- **Native build requirement**: Sentry capture of **native** crashes requires `expo prebuild` + `pod install` (documented in manual TC). JS-level capture works in Expo Go without prebuild.
+- **Tier**: Tier 0 always; Tier 1 when `App.tsx` root wrapping changes; Tier 2 when ErrorBoundary contract or reporter abstraction changes.
+- **Hard rules**:
+  - ErrorBoundary MUST remain at root (inside `SafeAreaProvider`, outside `GlobalAlertProvider`).
+  - `errorReporter` MUST never throw — every public function wraps in try/catch.
+  - Never log raw PII via `captureException` `extra`/`tags`. Only hashed user id via `setUser`.
+
+---
+
+### FLOW-22: iOS Privacy & Permissions Compliance (PROD-P001)
+- **Covers**: iOS `NSUsageDescription` strings, `PrivacyInfo.xcprivacy` manifest, Android runtime permissions array. Required for App Store / Play Store submission.
+- **Manual TCs**: `docs/PROD-P001-P005-MANUAL-TC.md` (TC-P001-01..04)
+- **Tier**: Tier 0 always (typecheck on `app.json` consumers); Tier 1 (prebuild + Info.plist inspection) when `app.json` `ios.infoPlist` / `ios.privacyManifests` / `android.permissions` change.
+- **Hard rules**:
+  - Every Apple "required reason API" used by an Expo/RN dependency MUST appear in `NSPrivacyAccessedAPITypes`.
+  - `NSPrivacyTracking` MUST stay `false` unless we actually add ATT-tracked SDKs.
+  - All `NS*UsageDescription` copy MUST be kid-friendly and brand-aligned ("Pass It Up").
+
+### FLOW-23: COPPA Server-Side Enforcement (PROD-P005)
+- **Covers**: `public.is_coppa_compliant(uuid)`, `public.enforce_coppa(uuid, text)`, `trigger_coppa_check_item_insert` on `items`, `trigger_coppa_check_trade_insert` on `trades`. Blocks listing creation and trade initiation for users under 13 without `parental_consent_verified = TRUE`. Fails closed when DOB/profile missing.
+- **Manual TCs**: `docs/PROD-P001-P005-MANUAL-TC.md` (TC-P005-01..08)
+- **Tier**: Tier 2 ALWAYS when this trigger/function set changes (it gates writes on two core tables). Tier 1 for any change to consent/DOB columns or related profile flows.
+- **Hard rules**:
+  - Functions MUST stay `SECURITY DEFINER` with `SET search_path = public` (BP-5).
+  - `enforce_coppa` MUST raise `COPPA_CONSENT_REQUIRED` (SQLSTATE `P0001`). Audit logging failure MUST NOT swallow the block (BP-4).
+  - Triggers MUST be `BEFORE INSERT` so writes are rejected before any side-effects.
+  - Fail-closed: missing profile or missing `dob` → NOT compliant.
+
+---
+
+### FLOW-24: SP Wallet & Ledger RLS Lockdown (PROD-001)
+- **Covers**: `sp_wallets` and `sp_ledger` RLS policy set. Migration `20260601000002_fix_sp_wallet_admin_config_rls.sql` drops `*_anon_*` policies introduced by an old test alignment migration. Authenticated SELECTs scoped to `auth.uid() = user_id`; service role retains full access.
+- **Manual TCs**: `docs/PROD-001-002-MANUAL-TC.md` (TC-001-01..08)
+- **Tier**: Tier 2 ALWAYS when policies on `sp_wallets`/`sp_ledger` change. Tier 1 for code paths that touch SP balances (trade-create, sp-redeem RPC, wallet read service).
+- **Hard rules**:
+  - NEVER add a policy `TO anon` on these tables.
+  - All SP mutations MUST go through service-role Edge Functions or `SECURITY DEFINER` RPCs — direct client UPDATEs are blocked by design.
+  - `Users can insert own wallet` (INSERT to authenticated) is retained because the wallet bootstrap trigger relies on it; do not drop without replacing the bootstrap path.
+
+### FLOW-25: admin_config Authenticated-Only Read (PROD-002)
+- **Covers**: `admin_config` RLS. Drops public `USING(true)` SELECT policies; adds `admin_config_authenticated_read` (TO authenticated). Service-role write policies preserved.
+- **Manual TCs**: `docs/PROD-001-002-MANUAL-TC.md` (TC-002-01..07)
+- **Tier**: Tier 2 when policy set changes. Tier 1 when mobile `getAdminConfig` (or callers in `trade.ts`, `spCalculatorService.ts`, `listing.ts`, `sellerBalance.ts`, `imageModeration.ts`) change.
+- **Hard rules**:
+  - Mobile reads MUST happen post-login (after Supabase session exists). If a pre-login screen ever needs a config value, expose it via a public Edge Function — do NOT relax this RLS.
+  - Writes MUST stay service-role only.
+  - `getAdminConfig` MUST keep its `getDefaultConfig()` fallback so a temporary RLS denial degrades gracefully.
+
+---
+
+### FLOW-26: Edge Function Rate Limiting Utility (PROD-003)
+- **Covers**: `supabase/functions/_shared/rate-limiter.ts` (in-memory Map, 5-min lazy cleanup). Exports `checkRateLimit`, `RATE_LIMITS` (AUTH 5/60, WRITE 10/60, READ 30/60, MESSAGING 20/60, SENSITIVE 3/60), `rateLimitResponse` (429 + `X-RateLimit-Remaining`/`X-RateLimit-Reset`/`Retry-After`), `addRateLimitHeaders`, `clientIpFrom`. Deno unit tests at `rate-limiter.test.ts` (8 cases).
+- **Manual TCs**: `docs/PROD-003-005-MANUAL-TC.md` (TC-RL-01..05) — execute when wired into a specific endpoint.
+- **Tier**: Tier 0 for the utility itself (Deno tests). Tier 1 per-endpoint when the utility is added to a live edge function (one endpoint per PR, with its own smoke test).
+- **Scope decision (Phase 4)**: utility shipped + tested but NOT wired into any live edge function — preserves the "do not break working functions" rule. Wiring is a per-endpoint follow-up.
+- **Hard rules**:
+  - In-memory store resets on cold start — acceptable for MVP; upgrade path = Upstash Redis or `rate_limit_buckets` table.
+  - Key MUST be scoped: `<scope>:<userId>` for authenticated endpoints, `<scope>:<ip>` for unauth (`clientIpFrom(req)`).
+  - 429 response MUST include `Retry-After` for client back-off.
+  - Successful responses SHOULD include `X-RateLimit-Remaining` (call `addRateLimitHeaders`).
+
+### FLOW-27: Stripe Connect Ownership Verification (PROD-005)
+- **Covers**: `supabase/functions/_shared/verify-stripe-ownership.ts` (`verifyStripeAccountOwnership(supabase, userId, stripeAccountId)` + `ownershipDeniedResponse`). Looks up `seller_payout_methods` by `stripe_account_id` + `method_type='stripe_connect'`; verifies `user_id` matches. Logs `OWNERSHIP MISMATCH` for security audit. Wired into `create-stripe-account-link` (post method-lookup) and `sync-stripe-connect-status` (per iteration). Existing `.eq('user_id', user.id)` joins preserved as the primary guard.
+- **Manual TCs**: `docs/PROD-003-005-MANUAL-TC.md` (TC-SO-01..06)
+- **Tier**: Tier 0 (Deno unit tests, 6 cases). Tier 1 when any function reading from `seller_payout_methods` is added or modified.
+- **Hard rules**:
+  - Source of truth for Stripe Connect ownership is `seller_payout_methods.stripe_account_id` + `user_id` (NOT `profiles.stripe_connect_account_id` — that column does not exist).
+  - Any NEW edge function that operates on a Stripe Connect account MUST call `verifyStripeAccountOwnership` before any Stripe API call.
+  - On mismatch: return 403 with code `STRIPE_ACCOUNT_OWNERSHIP_DENIED` (use `ownershipDeniedResponse`).
+  - Helper uses service-role client by design (RLS bypass) — this is a security check that must succeed even if RLS would hide the row.
+
+---
+
+## FLOW-28: Node Isolation RLS Enforcement (PROD-004)
+
+- **Module:** MODULE-15.5 (Production Readiness) — PROD-004
+- **Scope:** RLS-level node isolation on `items` and `trades` tables, plus anon
+  write lockdown on `items` and `profiles`.
+- **Migrations:** `phase5a_drop_anon_writes`, `phase5b_add_items_node_id`,
+  `phase5c_node_isolation_rls`.
+- **DB objects:**
+  - `public.get_user_node_id(p_user_id UUID)` — SECURITY DEFINER STABLE helper
+    returning `profiles.node_id` for a user.
+  - `public.set_item_node_id_from_seller()` + `trg_set_item_node_id` BEFORE
+    INSERT trigger — auto-populates `items.node_id` from seller's profile.
+  - New column `items.node_id UUID REFERENCES nodes(id)` + partial index
+    `idx_items_node_id`.
+- **Policies (canonical, post-consolidation):**
+  - `items`: `items_service_role` (ALL/service_role), `items_anon_select` (SELECT/anon, `status='available'`), `items_select_own_node` (SELECT/auth, `node_id = get_user_node_id(auth.uid()) OR seller_id = auth.uid()`), `items_insert_own_seller`, `items_update_own_seller`, `Sellers can delete own items`.
+  - `trades`: `trades_select_own_node` (participant AND same-node-or-null), `trades_admin_select` (via `profiles.role='admin'`), `trades_insert_own`, `trades_update_own`.
+- **Hard rules:**
+  - `profiles.node_id` is the authoritative node column (NOT `users.node_id`,
+    which is legacy).
+  - Always include `seller_id = auth.uid()` escape hatch in items SELECT so
+    sellers see their own listings even if node_id is NULL or mismatched.
+  - Trades SELECT must allow `node_id IS NULL` for backward compat with
+    pre-existing trades.
+  - Service role bypass MUST be preserved on every RLS-protected table.
+  - Any new INSERT to `items` MUST go through `set_item_node_id_from_seller`
+    trigger — never bypass it.
+- **Manual TC doc:** `docs/PROD-004-MANUAL-TC.md`
+- **Known follow-up:** anon INSERT/UPDATE/SELECT leaks remain on `subscriptions`,
+  `referrals`, `user_notifications`. Track as PROD-004b.
+
+---
+
+## FLOW-29: Anon Write Lockdown — Subscriptions/Referrals/Notifications (PROD-004b)
+
+- **Module:** MODULE-15.5 — PROD-004b (audit follow-up to PROD-004)
+- **Migration:** `prod_004b_drop_anon_leaks`
+- **Change:** Dropped 9 anon INSERT/SELECT/UPDATE policies on
+  `subscriptions`, `referrals`, `user_notifications`. Existing authenticated
+  and `service_role` policies cover all legitimate access paths.
+- **Post-state:** Only 5 anon SELECT policies remain in `public`, all scoped:
+  `faq_items` (published), `items` (available), `profiles` (true — flag for
+  future review), `subscription_features` (enabled+active), `subscription_tiers`
+  (active).
+- **Hard rules:**
+  - Anon role MUST NOT have INSERT/UPDATE/DELETE on any table going forward.
+  - Test code that needs to verify DB-level invariants MUST use the
+    service-role client (`getServiceClient()` in `src/test-helpers/authTestUtils.ts`),
+    NOT the anon client.
+- **Test fix:** `src/__tests__/services/subscription-sub-003.unit.test.ts` —
+  2 tests previously relied on anon SELECT/UPDATE leaks for verification;
+  rewired to service-role client.
+
+## FLOW-30: TypeScript Strictness — noImplicitAny (PROD-006)
+
+- **Module:** MODULE-15.5 — PROD-006
+- **Change:** Flipped `tsconfig.json` `noImplicitAny: false → true` in
+  `p2p-kids-marketplace/`. Resolved 87 resulting TS7006/TS7031/TS7053/TS7016
+  errors across 25+ files without using `: any`. Patterns applied:
+  - Realtime payload callbacks typed via `RealtimePostgresChangesPayload<T>`
+  - Realtime subscribe status callbacks typed as `(status: string)`
+  - Supabase array reduce/filter/map callbacks given narrow inline row types
+  - Presence binding destructures typed as `{ key: string; newPresences: unknown[] }`
+  - Theme/styles dynamic indexing cast via `Record<string, unknown>`
+  - Installed `@types/uuid` (`npm install --save-dev @types/uuid --legacy-peer-deps`)
+- **Gate (Tier 0):**
+  - `cd p2p-kids-marketplace && npx tsc --noEmit` → exit 0, 0 errors
+  - `npm run test:unit` → 2826/2826 PASS, 220 suites (baseline preserved)
+- **Manual TC:** None — this is a build-gate task. See `docs/PROD-006-MANUAL-TC.md`.
+- **Rollback:** `git revert <prod-006 commit-sha>` reverts tsconfig + type
+  annotations together; no DB or runtime behavior changes.
+
+## FLOW-31: ESLint Cleanliness (PROD-007)
+
+- **Module:** MODULE-15.5 — PROD-007
+- **Change:** Drove ESLint to exit 0 with 0 errors for both apps.
+  - Mobile (`p2p-kids-marketplace`):
+    - Added `eslint-plugin-unused-imports`; configured to auto-fix unused
+      imports and to ignore `_`-prefixed unused vars/args/destructures.
+    - Auto-fixed ~69 unused imports; bulk-prefixed ~106 unused vars with `_`.
+    - Manual fixes: 7 props destructure regressions (`name: _name` alias form),
+      3 alias double-renames, 9 `ban-types Function`, 1 `ban-ts-comment`,
+      1 `prefer-const`, and 2 real `react-hooks/rules-of-hooks` bugs
+      (`AppHeader` defensive `useNavigation`, `TradeInitiationScreen`
+      `useTaxCalculation` moved before early return).
+  - Admin (`p2p-kids-admin`):
+    - Disabled cosmetic `react/no-unescaped-entities` rule via
+      `.eslintrc.json` (10 errors removed).
+- **Gate (Tier 0):**
+  - Mobile: `npx eslint src/` → 0 errors; `npx tsc --noEmit` → 0 errors;
+    `npm run test:unit` → 2826/2826 PASS.
+  - Admin: `npx next lint` → 0 errors; `npx tsc --noEmit` → 0 errors.
+- **Manual TC:** None — build-gate task. See `docs/PROD-007-MANUAL-TC.md`.
+- **Rollback:** `git revert <prod-007 commit-sha>` reverts eslintrc + code
+  changes together; no DB or runtime behavior changes.

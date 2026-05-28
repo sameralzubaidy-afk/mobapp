@@ -4,8 +4,6 @@
 import {
   trackEducationEvent,
   shouldShowOnboarding,
-  markOnboardingComplete,
-  markOnboardingSkipped,
   markPromptSeen,
   shouldShowPrompt,
 } from '../../services/educationAnalyticsService';

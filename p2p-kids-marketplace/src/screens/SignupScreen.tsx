@@ -44,7 +44,7 @@ export const SignupScreen: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Account linking state (when social login detects existing account)
-  const [accountLinkPrompt, setAccountLinkPrompt] = useState<{
+  const [_accountLinkPrompt, setAccountLinkPrompt] = useState<{
     email: string;
     provider: OAuthProvider;
   } | null>(null);
@@ -172,7 +172,7 @@ export const SignupScreen: React.FC = () => {
         parentalEmail: requiresParentalConsent ? parentalEmail.trim() : undefined,
       };
 
-      const session = await signupWithTrial(signupData);
+      const _session = await signupWithTrial(signupData);
 
       // Show success message
       Alert.alert(

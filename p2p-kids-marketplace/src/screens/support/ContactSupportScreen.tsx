@@ -13,7 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { EnvelopeSimple, ArrowLeft } from 'phosphor-react-native';
+import { EnvelopeSimple } from 'phosphor-react-native';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -31,7 +31,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
   // Auth gate: user must be logged in to submit a support message
   if (!session) {
     return (
-      <ScreenLayout variant="detail" title="Contact Support">
+      <ScreenLayout variant="detail" title="Contact Support" onBack={() => navigation.goBack()}>
         <View style={styles.authGate}>
           <Text style={styles.authGateText}>
             Please log in to contact support.
@@ -89,7 +89,7 @@ export default function ContactSupportScreen({ navigation }: ContactSupportScree
   };
 
   return (
-    <ScreenLayout variant="detail" title="Contact Support">
+    <ScreenLayout variant="detail" title="Contact Support" onBack={() => navigation.goBack()}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

@@ -261,7 +261,7 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
       // This test verifies the database schema is correct
       // Query information_schema to check for search_vector column
 
-      const { data, error } = await supabase
+      const { data: _data, error: _error } = await supabase
         .from('information_schema.columns')
         .select('column_name')
         .eq('table_name', 'items')
@@ -275,7 +275,7 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
       // Verify that RPC functions exist by calling them with empty data
       try {
         // Call with empty query - should return empty results
-        const { data: searchData, error: searchError } = await supabase.rpc('search_listings', {
+        const { data: searchData, error: _searchError } = await supabase.rpc('search_listings', {
           p_query: 'zzz_test_nonexistent_zzz',
           p_sp_eligible_only: false,
           p_limit: 1,
@@ -283,7 +283,7 @@ describe('E2E: DISCOVERY-V2-001 - Full-Text Search Index', () => {
 
         // Should succeed with empty results
         expect(Array.isArray(searchData) || searchData === null).toBe(true);
-      } catch (err) {
+      } catch (_err) {
         // RPC function may not be deployed in test environment
         console.warn('search_listings RPC not available - migration may not be applied');
       }

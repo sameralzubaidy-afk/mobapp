@@ -19,7 +19,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 // Internal hooks / services (unchanged — DO NOT MODIFY logic)
 import { useAuth, useSPWallet } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useNotificationBadge } from '@/hooks/useNotificationBadge';
 import { getActiveDrafts } from '@/services/draftService';
 import { idBadgeService } from '@/services/idBadge';
 import { supabase } from '@/config/supabase';
@@ -40,24 +39,21 @@ import { LoadingSpinner } from '@/components/ui';
 
 // Phosphor Icons — Whisk Design System
 import {
-  Bell,
   ChatText,
   Coins,
   CreditCard,
   Handshake,
   List,
   MagnifyingGlass,
-  SignOut,
   Sparkle,
   Storefront,
   TrendUp,
-  User,
 } from 'phosphor-react-native';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
 // ─── Helper: time-based greeting ──────────────────────────────────────────────
-function getGreeting(): string {
+function _getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
@@ -111,7 +107,7 @@ export default function UserDashboardScreen() {
   const isFocused = useIsFocused();
 
   // ── Auth & subscription (NO logic changes) ─────────────────────────────────
-  const { session, refreshSession, isLoading, logout } = useAuth();
+  const { session, refreshSession, isLoading, logout: _logout } = useAuth();
   const {
     subscription: subscriptionSummary,
     loading: subscriptionLoading,
@@ -273,7 +269,7 @@ export default function UserDashboardScreen() {
   }
 
   // ── Derived display values ─────────────────────────────────────────────────
-  const displayName = session.user.display_name || session.user.email?.split('@')[0] || 'User';
+  const _displayName = session.user.display_name || session.user.email?.split('@')[0] || 'User';
 
   const subBadgeColor = (() => {
     switch (subscription.status) {

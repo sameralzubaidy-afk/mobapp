@@ -176,7 +176,7 @@ export async function calculateExpirationDateFromConfig(startDate?: Date): Promi
 /**
  * Check if expiration warnings exist (for UI conditional rendering)
  */
-export async function hasExpirationWarnings(userId: string): Promise<boolean> {
+export async function hasExpirationWarnings(_userId: string): Promise<boolean> {
   try {
     const warnings = await getExpirationWarnings();
     return warnings.length > 0;

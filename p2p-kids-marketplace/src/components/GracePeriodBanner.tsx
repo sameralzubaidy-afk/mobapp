@@ -14,7 +14,7 @@ interface GracePeriodBannerProps {
 }
 
 export default function GracePeriodBanner({
-  gracePeriodEndsAt,
+  gracePeriodEndsAt: _gracePeriodEndsAt,
   daysRemaining,
 }: GracePeriodBannerProps) {
   const navigation = useNavigation<NativeStackNavigationProp<any>>();

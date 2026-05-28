@@ -25,7 +25,7 @@ jest.mock('../../config/supabase', () => ({
 }));
 
 const BRAND_CACHE_KEY = '@kids_marketplace:brand_cache';
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const _CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 describe('brandAutocomplete service', () => {
   beforeEach(() => {

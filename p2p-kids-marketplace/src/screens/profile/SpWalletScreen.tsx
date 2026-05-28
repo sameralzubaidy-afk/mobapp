@@ -19,7 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui';
 
 export default function SpWalletScreen() {
-  const navigation = useNavigation();
+  const _navigation = useNavigation();
   const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);

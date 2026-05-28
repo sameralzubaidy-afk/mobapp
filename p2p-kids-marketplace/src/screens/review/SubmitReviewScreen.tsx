@@ -21,7 +21,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { submitReview, canReviewUser, skipReview } from '@/services/review';
 import { StarRating } from '@/components/StarRating';
 // import { logEvent } from '@/services/analytics'; // TODO: uncomment when analytics service is available
-import { REVIEW_EVENTS } from '@/constants/analytics-events';
 import { LoadingSpinner } from '@/components/ui';
 
 type SubmitReviewRouteProp = RouteProp<RootStackParamList, 'SubmitReview'>;

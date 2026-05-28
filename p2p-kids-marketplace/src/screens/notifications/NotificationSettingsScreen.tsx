@@ -8,12 +8,10 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import {
-  ArrowLeft,
   ShoppingCart,
   Lightning,
   Medal,
@@ -109,7 +107,7 @@ const DEFAULT_PREFS: Record<CategoryId, ChannelPrefs> = {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function NotificationSettingsScreen() {
-  const navigation = useNavigation();
+  const _navigation = useNavigation();
   const [prefs, setPrefs] = useState<Record<CategoryId, ChannelPrefs>>(DEFAULT_PREFS);
 
   const handleToggle = (categoryId: CategoryId, channel: keyof ChannelPrefs, value: boolean) => {

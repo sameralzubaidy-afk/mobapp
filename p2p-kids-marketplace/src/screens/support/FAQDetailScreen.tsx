@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { ArrowLeft, Question } from 'phosphor-react-native';
+import { Question } from 'phosphor-react-native';
 import { recordFaqVote } from '../../services/faqService';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -27,8 +27,8 @@ export default function FAQDetailScreen({ navigation, route }: FAQDetailScreenPr
   const { faq } = route.params;
 
   return (
-    <ScreenLayout variant="detail" title="FAQ">
-      <View style={styles.container}>
+    <ScreenLayout variant="detail" title="FAQ" onBack={() => navigation.goBack()}>
+      <View style={styles.container} testID="faq-detail-screen">
         {/* Content */}
         <ScrollView contentContainerStyle={styles.content} testID="content-scroll">
           {/* Category Badge */}

@@ -13,7 +13,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { ConditionGuideOverlay } from '../../listing/ConditionGuideOverlay';
-import { Condition } from '../../../types/listing';
 
 describe('ConditionGuideOverlay', () => {
   const mockOnClose = jest.fn();

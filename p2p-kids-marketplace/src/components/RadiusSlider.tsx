@@ -33,7 +33,7 @@ export default function RadiusSlider({
   value,
   minRadius,
   maxRadius,
-  onValueChange,
+  onValueChange: _onValueChange,
   onSlidingComplete,
   disabled = false,
   loading = false,

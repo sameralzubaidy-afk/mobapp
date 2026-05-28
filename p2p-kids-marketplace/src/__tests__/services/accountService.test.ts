@@ -162,7 +162,7 @@ describe('AccountService', () => {
       });
 
       // can_set_password RPC returns false (has password)
-      (supabase.rpc as jest.Mock).mockImplementation((name, params) => {
+      (supabase.rpc as jest.Mock).mockImplementation((name, _params) => {
         if (name === 'can_set_password') {
           return Promise.resolve({ data: false, error: null });
         }
@@ -368,7 +368,7 @@ describe('AccountService', () => {
       };
       (supabase.from as jest.Mock).mockReturnValue(mockFrom);
 
-      const result = await unlinkSocialAccount('google');
+      const _result = await unlinkSocialAccount('google');
 
       expect(supabase.auth.unlinkIdentity).toHaveBeenCalled();
       expect(mockInsert).toHaveBeenCalled();

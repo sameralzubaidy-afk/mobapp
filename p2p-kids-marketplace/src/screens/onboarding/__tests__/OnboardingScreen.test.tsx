@@ -2,7 +2,7 @@
 // MODULE-18 V1 EDU-004: OnboardingScreen unit tests
 
 import React from 'react';
-import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import OnboardingScreen from '../OnboardingScreen';
 import * as educationAnalyticsService from '../../../services/educationAnalyticsService';
 import { AuthContext } from '../../../contexts/AuthContext';
@@ -101,7 +101,7 @@ describe('OnboardingScreen', () => {
 
   describe('Completion Flow', () => {
     it('should mark onboarding as complete and navigate to Home on completion', async () => {
-      const { getByTestID } = renderWithContext();
+      const { getByTestID: _getByTestID } = renderWithContext();
 
       // Simulate "Get Started" button press (would come from OnboardingCarousel)
       // Since we mocked the carousel, we'll test the handler directly

@@ -35,7 +35,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { Modal, LoadingSpinner } from '@/components/ui';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
-import { ArrowsLeftRight, CaretLeft, Coins, ShieldCheck } from 'phosphor-react-native';
+import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeOfferRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
@@ -260,7 +260,36 @@ export default function TradeOfferScreen() {
             </Text>
           </View>
 
-          {/* Send Offer Button */}
+          {/* Addendum B (D-20): Value stack — fee + SP breakdown.
+              TODO-07 🔴: Platform fee hardcoded per Section 4.1 until fee engine is unblocked. */}
+          <View style={styles.valueStackCard} testID="value-stack-row">
+            <Text style={styles.valueStackTitle}>What you pay</Text>
+            <View style={styles.valueStackRow}>
+              <Text style={styles.valueStackLabel}>Offer amount</Text>
+              <Text style={styles.valueStackValue}>${(offerAmountCents / 100).toFixed(2)}</Text>
+            </View>
+            {spAmount > 0 && (
+              <View style={styles.valueStackRow}>
+                <Text style={styles.valueStackLabel}>SP discount</Text>
+                <Text style={[styles.valueStackValue, styles.valueStackSP]}>
+                  -{spAmount} SP
+                </Text>
+              </View>
+            )}
+            <View style={styles.valueStackRow}>
+              <Text style={styles.valueStackLabel}>Platform fee</Text>
+              <Text style={styles.valueStackValue}>
+                {isSubscriber ? '$0.99' : '$2.99'}
+              </Text>
+            </View>
+            <View style={[styles.valueStackRow, styles.valueStackTotalRow]}>
+              <Text style={styles.valueStackTotalLabel}>Total cash</Text>
+              <Text style={styles.valueStackTotalValue}>
+                ${((offerAmountCents / 100) + (isSubscriber ? 0.99 : 2.99)).toFixed(2)}
+              </Text>
+            </View>
+          </View>
+
           <Pressable
             style={[styles.primaryButton, submitting && styles.primaryButtonDisabled]}
             onPress={handleSendOffer}
@@ -459,5 +488,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  // Addendum B: value stack styles
+  valueStackCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 24,
+  },
+  valueStackTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B6B6B',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  valueStackRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  valueStackLabel: {
+    fontSize: 14,
+    color: '#6B6B6B',
+  },
+  valueStackValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1A1A1A',
+  },
+  valueStackSP: {
+    color: '#F59E0B',
+  },
+  valueStackTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    marginTop: 6,
+    paddingTop: 8,
+  },
+  valueStackTotalLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  valueStackTotalValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#5DBB8E',
   },
 });

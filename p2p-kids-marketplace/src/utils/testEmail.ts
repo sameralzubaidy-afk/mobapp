@@ -126,6 +126,6 @@ export const runAllEmailTests = async (testEmail: string = 'test@example.com') =
     results.push({ name: test.name, result });
   }
 
-  const passedCount = results.filter((r) => r.result.success).length;
+  const _passedCount = results.filter((r) => r.result.success).length;
   return results;
 };

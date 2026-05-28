@@ -134,7 +134,7 @@ describe('NotificationCenterScreen - MODULE-15.1 FLOW-17', () => {
       await waitFor(() => {
         const markAllLink = getByTestId('mark-all-read-link');
         expect(markAllLink).toBeTruthy();
-        expect(getByText('Mark All Read')).toBeTruthy();
+        expect(getByText('Mark all read')).toBeTruthy();
       });
     });
 

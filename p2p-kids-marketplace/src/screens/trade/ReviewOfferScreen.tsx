@@ -27,7 +27,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
+import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
+import { previewTotalSPToSeller } from '@/services/spCalculatorService';
 
 type ReviewOfferRouteProp = RouteProp<RootStackParamList, 'ReviewOffer'>;
 
@@ -41,6 +43,8 @@ interface OfferData {
   cash_amount_cents: number;
   buyer_transaction_fee_cents: number;
   created_at: string;
+  offer_expires_at?: string | null;
+  bundle_id?: string | null;
   listing: {
     title: string;
     price: number;
@@ -60,6 +64,12 @@ export default function ReviewOfferScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [offer, setOffer] = useState<OfferData | null>(null);
+  // Addendum E: bundle context
+  const [bundleSiblings, setBundleSiblings] = useState<OfferData[]>([]);
+  const [showBundleList, setShowBundleList] = useState(false);
+  const [acceptingBundle, setAcceptingBundle] = useState(false);
+  // TFV2-D11: combined SP preview for seller
+  const [spPreview, setSpPreview] = useState<{ totalSp: number } | null>(null);
 
   const fetchOffer = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -78,6 +88,8 @@ export default function ReviewOfferScreen() {
           cash_amount_cents,
           buyer_transaction_fee_cents,
           created_at,
+          offer_expires_at,
+          bundle_id,
           listing:items(
             title,
             price,
@@ -108,6 +120,39 @@ export default function ReviewOfferScreen() {
           name: buyerProfile?.name || 'Buyer',
         },
       });
+
+      // Addendum E: fetch bundle siblings if this offer is part of a bundle.
+      const bundleId = (data as any)?.bundle_id;
+      if (bundleId) {
+        try {
+          const { data: siblings } = await supabase
+            .from('trades')
+            .select(`
+              id,
+              listing_id,
+              buyer_id,
+              seller_id,
+              status,
+              sp_amount,
+              cash_amount_cents,
+              buyer_transaction_fee_cents,
+              created_at,
+              offer_expires_at,
+              bundle_id,
+              listing:items(title, price, images:item_images(url, thumbnail_url))
+            `)
+            .eq('bundle_id', bundleId)
+            .neq('id', tradeId)
+            .eq('seller_id', session.user.id);
+          if (siblings) {
+            setBundleSiblings(
+              siblings.map((s: any) => ({ ...s, buyer_profile: { name: '' } }))
+            );
+          }
+        } catch {
+          // Non-blocking: bundle list is informational.
+        }
+      }
     } catch (error: any) {
       console.error('[ReviewOffer] fetchOffer error:', error);
       Alert.alert('Error', 'Failed to load offer details');
@@ -120,6 +165,53 @@ export default function ReviewOfferScreen() {
   useEffect(() => {
     fetchOffer();
   }, [fetchOffer]);
+
+  // TFV2-D11: load combined SP preview after offer is available
+  useEffect(() => {
+    if (!offer) return;
+    previewTotalSPToSeller(offer.listing_id, offer.sp_amount)
+      .then(preview => setSpPreview({ totalSp: preview.totalSp }))
+      .catch(() => setSpPreview(null));
+  }, [offer?.listing_id, offer?.sp_amount]);
+
+  // Addendum E: accept all bundle offers in sequence.
+  const handleAcceptBundle = async () => {
+    if (!offer) return;
+    const allOffers = [offer, ...bundleSiblings];
+    Alert.alert(
+      `Accept all ${allOffers.length} items?`,
+      'The buyer will be notified to complete payment for all items.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Accept All ${allOffers.length}`,
+          onPress: async () => {
+            try {
+              setAcceptingBundle(true);
+              for (const o of allOffers) {
+                if (o.status !== 'pending') continue;
+                const { error } = await supabase
+                  .from('trades')
+                  .update({ status: 'payment_processing', updated_at: new Date().toISOString() })
+                  .eq('id', o.id);
+                if (error) throw error;
+              }
+              Alert.alert(
+                'Bundle Accepted!',
+                'The buyer has been notified to complete payment.',
+                [{ text: 'OK', onPress: () => navigation.navigate('MyListings') }]
+              );
+            } catch (err: any) {
+              console.error('[ReviewOffer] handleAcceptBundle error:', err);
+              Alert.alert('Error', 'Failed to accept all items. Please try again.');
+            } finally {
+              setAcceptingBundle(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleAccept = async () => {
     if (!offer) return;
@@ -239,6 +331,45 @@ export default function ReviewOfferScreen() {
     <ScreenLayout variant="detail" title="Review Offer">
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {offer.status === 'pending' && offer.offer_expires_at ? (
+          <OfferCountdownPill
+            offerExpiresAt={offer.offer_expires_at}
+            createdAt={offer.created_at}
+            style={styles.countdownPill}
+          />
+        ) : null}
+
+        {/* Addendum E: bundle context banner */}
+        {bundleSiblings.length > 0 && (
+          <View style={styles.bundleBanner} testID="bundle-context-banner">
+            <Text style={styles.bundleBannerTitle}>
+              Bundle offer · {bundleSiblings.length + 1} items
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowBundleList((v) => !v)}
+              accessibilityLabel="Toggle bundle item list"
+            >
+              <Text style={styles.bundleBannerToggle}>
+                {showBundleList ? 'Hide items' : 'View all items'}
+              </Text>
+            </TouchableOpacity>
+            {showBundleList && (
+              <View style={styles.bundleItemsList}>
+                {[offer, ...bundleSiblings].map((o) => (
+                  <View key={o.id} style={styles.bundleItemRow}>
+                    <Text style={styles.bundleItemTitle} numberOfLines={1}>
+                      {o.listing?.title || 'Item'}
+                    </Text>
+                    <Text style={styles.bundleItemPrice}>
+                      ${(o.cash_amount_cents / 100).toFixed(2)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Trade Card */}
         <View style={styles.tradeCard}>
           <View style={styles.tradeCardHeader}>
@@ -279,12 +410,12 @@ export default function ReviewOfferScreen() {
           </View>
         </View>
 
-        {/* SP Earnings Info */}
-        {offer.sp_amount > 0 && (
+        {/* SP Earnings Info — D-11: combined total only, no breakdown */}
+        {spPreview && spPreview.totalSp > 0 && (
           <View style={styles.spInfoCard}>
             <Coins size={20} color="#F59E0B" weight="fill" />
             <Text style={styles.spInfoText}>
-              You'll receive {offer.sp_amount} swap points when trade completes
+              {spPreview.totalSp} SP releasing in 3 days after completion
             </Text>
           </View>
         )}
@@ -299,10 +430,29 @@ export default function ReviewOfferScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
+          {/* Addendum E: Accept All button shown only for bundle offers */}
+          {bundleSiblings.length > 0 && offer.status === 'pending' && (
+            <TouchableOpacity
+              style={[styles.acceptAllButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
+              onPress={handleAcceptBundle}
+              disabled={submitting || acceptingBundle}
+              accessibilityLabel={`Accept all ${bundleSiblings.length + 1} items`}
+              testID="accept-bundle-button"
+            >
+              {acceptingBundle ? (
+                <LoadingSpinner color="#FFFFFF" size={20} />
+              ) : (
+                <Text style={styles.acceptButtonText}>
+                  Accept All {bundleSiblings.length + 1} Items
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
-            style={[styles.acceptButton, submitting && styles.buttonDisabled]}
+            style={[styles.acceptButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
             onPress={handleAccept}
-            disabled={submitting}
+            disabled={submitting || acceptingBundle}
             accessibilityLabel="Accept trade offer"
           >
             {submitting ? (
@@ -313,9 +463,9 @@ export default function ReviewOfferScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.declineButton, submitting && styles.buttonDisabled]}
+            style={[styles.declineButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
             onPress={handleDecline}
-            disabled={submitting}
+            disabled={submitting || acceptingBundle}
             accessibilityLabel="Decline trade offer"
           >
             <Text style={styles.declineButtonText}>Decline</Text>
@@ -373,6 +523,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 100,
+  },
+  countdownPill: {
+    alignSelf: 'flex-start',
+    marginBottom: 12,
   },
   tradeCard: {
     backgroundColor: '#F9FAFB',
@@ -443,6 +597,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#F59E0B',
+  },
+  // Addendum E: bundle styles
+  bundleBanner: {
+    backgroundColor: '#EEF9F4',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  bundleBannerTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#5DBB8E',
+    marginBottom: 4,
+  },
+  bundleBannerToggle: {
+    fontSize: 13,
+    color: '#5DBB8E',
+    textDecorationLine: 'underline',
+    marginBottom: 4,
+  },
+  bundleItemsList: {
+    marginTop: 8,
+    gap: 6,
+  },
+  bundleItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  bundleItemTitle: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1A1A1A',
+    marginRight: 8,
+  },
+  bundleItemPrice: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#1A1A1A',
+  },
+  acceptAllButton: {
+    backgroundColor: '#34A56F',
+    borderRadius: 26,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   spInfoCard: {
     flexDirection: 'row',
