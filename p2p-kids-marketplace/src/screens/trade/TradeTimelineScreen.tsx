@@ -30,6 +30,9 @@ import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
 import { useAuth } from '@/hooks/useAuth';
 import { Modal, LoadingSpinner } from '@/components/ui';
+import { AutoCompleteBanner } from '@/components/trade';
+import { SafeMeetupCard } from '@/components/trade/SafeMeetupCard';
+import { IssueReportModal } from './IssueReportModal';
 import {
   Clock,
   CheckCircle,
@@ -39,7 +42,7 @@ import {
   ArrowsLeftRight,
   Star,
 } from 'phosphor-react-native';
-import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
+import { CancellationReasonModal, SELLER_INPROGRESS_REASONS } from '@/components/molecules/CancellationReasonModal';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import Avatar from '@/components/atoms/Avatar';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -66,6 +69,10 @@ export default function TradeTimelineScreen() {
   const [hasReviewed, setHasReviewed] = useState(false);
   const [otherUserReviewed, setOtherUserReviewed] = useState(false);
   const [counterpartyProfile, setCounterpartyProfile] = useState<any>(null);
+  // Addendum C: bundle size for bundle-aware complete confirmation
+  const [bundleSize, setBundleSize] = useState<number>(0);
+  // TFV2-011: Issue report modal
+  const [showIssueModal, setShowIssueModal] = useState(false);
 
   const fetchTrade = useCallback(async () => {
     try {
@@ -149,6 +156,24 @@ export default function TradeTimelineScreen() {
     }, [fetchTrade])
   );
 
+  // Addendum C: fetch bundle sibling count when trade has a bundle_id.
+  useEffect(() => {
+    const bundleId = (trade as any)?.bundle_id;
+    if (!bundleId) {
+      setBundleSize(0);
+      return;
+    }
+    let active = true;
+    supabase
+      .from('trades')
+      .select('id', { count: 'exact', head: true })
+      .eq('bundle_id', bundleId)
+      .then(({ count }: { count: number | null }) => {
+        if (active) setBundleSize(count ?? 0);
+      });
+    return () => { active = false; };
+  }, [(trade as any)?.bundle_id]);
+
   useEffect(() => {
     if (!trade || !user?.id) {
       return;
@@ -184,6 +209,66 @@ export default function TradeTimelineScreen() {
   }, [trade, user?.id]);
 
   const handleComplete = async () => {
+    if (hasUnresolvedDispute) {
+      Alert.alert(
+        'Dispute Open',
+        'This trade has an unresolved dispute and cannot be completed yet.'
+      );
+      return;
+    }
+
+    // Addendum C: if all bundle siblings are also in_progress, offer "Confirm All" shortcut.
+    const bundleId = (trade as any)?.bundle_id;
+    if (bundleId) {
+      try {
+        const { data: siblings } = await supabase
+          .from('trades')
+          .select('id, status')
+          .eq('bundle_id', bundleId)
+          .neq('id', tradeId);
+        const allInProgress =
+          siblings && siblings.length > 0 &&
+          siblings.every((s: any) => s.status === 'in_progress');
+        if (allInProgress) {
+          const total = (siblings?.length ?? 0) + 1;
+          Alert.alert(
+            `Confirm all ${total} items received?`,
+            'All items from this seller are ready to confirm.',
+            [
+              {
+                text: `Confirm All ${total}`,
+                onPress: async () => {
+                  setSubmitting(true);
+                  try {
+                    const allIds = [tradeId, ...(siblings?.map((s: any) => s.id) ?? [])];
+                    for (const tid of allIds) {
+                      await completeTradeV2(tid);
+                    }
+                    if (refreshSession) await refreshSession();
+                    Alert.alert('Done!', `All ${total} items marked as completed.`, [
+                      { text: 'OK', onPress: () => navigation.goBack() },
+                    ]);
+                  } catch {
+                    Alert.alert('Error', 'Could not confirm all items. Try confirming each one.');
+                  } finally {
+                    setSubmitting(false);
+                  }
+                },
+              },
+              {
+                text: 'Just This One',
+                style: 'cancel',
+                onPress: () => setShowCompleteConfirm(true),
+              },
+            ]
+          );
+          return;
+        }
+      } catch {
+        // Non-blocking: fall through to standard confirm modal on error.
+      }
+    }
+
     setShowCompleteConfirm(true);
   };
 
@@ -209,10 +294,13 @@ export default function TradeTimelineScreen() {
   };
 
   const handleReportProblem = () => {
-    navigation.navigate('TradeDispute', { tradeId });
+    setShowIssueModal(true);
   };
 
   const handleCancellationConfirm = async (reason: string) => {
+    // Capture trade state BEFORE cancellation for consequence logic.
+    const wasInProgress = trade?.status === 'in_progress';
+    const wasSeller = user?.id === trade?.seller_id;
     try {
       setIsCancelling(true);
       setShowCancellationModal(false);
@@ -221,11 +309,36 @@ export default function TradeTimelineScreen() {
       if (result.success) {
         if (refreshSession) await refreshSession();
 
-        Alert.alert(
-          'Trade Cancelled',
-          'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
+        // TFV2-023: tiered consequence toasts for seller post-acceptance cancellations.
+        if (wasSeller && wasInProgress && result.consequenceLevel !== null && result.consequenceLevel !== undefined) {
+          const level = result.consequenceLevel;
+          if (level === 1) {
+            Alert.alert(
+              'Trade Cancelled',
+              'Cancelling after payment is disappointing for buyers. This has been noted on your account.',
+              [{ text: 'OK', onPress: () => navigation.goBack() }]
+            );
+          } else if (level === 2) {
+            Alert.alert(
+              'Trade Cancelled — Warning',
+              "You've now cancelled 2 trades after payment. A third cancellation may affect your selling privileges.",
+              [{ text: 'OK', onPress: () => navigation.goBack() }]
+            );
+          } else {
+            // Level 3+
+            Alert.alert(
+              'Trade Cancelled — Account Under Review',
+              'Your account is under review due to repeated post-payment cancellations. Our support team will be in touch.',
+              [{ text: 'OK', onPress: () => navigation.goBack() }]
+            );
+          }
+        } else {
+          Alert.alert(
+            'Trade Cancelled',
+            'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        }
       } else {
         Alert.alert(
           'Cancellation Failed',
@@ -320,11 +433,11 @@ export default function TradeTimelineScreen() {
     isBuyer &&
     (trade.status === 'payment_processing' || trade.status === 'payment_failed') &&
     ((trade.cash_amount_cents ?? 0) + (trade.buyer_transaction_fee_cents ?? 0) > 0);
+  const hasUnresolvedDispute = !!(trade as any).dispute_status && !['none', 'resolved'].includes((trade as any).dispute_status);
   const totalCashCharge =
     ((trade.cash_amount_cents ?? 0) + (trade.buyer_transaction_fee_cents ?? 0)) / 100;
-  const completeConfirmMessage = isSeller
-    ? 'Confirm this trade handoff is complete? The buyer will be prompted to confirm next.'
-    : 'Confirm you received the item as expected? This final step releases Swap Points or cash to the seller.';
+  const completeConfirmMessage =
+    'Confirm you received the item as expected? This final step releases Swap Points or cash to the seller.';
   const listing = (trade as any).listing;
   const listingImages = Array.isArray(listing?.images) ? listing.images : [];
   const firstListingImage = listingImages.length
@@ -341,6 +454,17 @@ export default function TradeTimelineScreen() {
   return (
     <ScreenLayout variant="detail" title="Trade Timeline">
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+        <AutoCompleteBanner autoCompleteAt={trade.auto_complete_at} status={trade.status} />
+
+        {/* Addendum C: bundle context banner */}
+        {bundleSize > 1 && (
+          <View style={styles.bundleBanner} testID="bundle-context-banner">
+            <Text style={styles.bundleBannerText}>
+              Part of a bundle · {bundleSize} items
+            </Text>
+          </View>
+        )}
+
         <View style={[styles.statusBanner, getStatusBannerStyle(trade.status)]} testID="status-banner">
           {getStatusIcon(trade.status)}
           <View style={styles.statusBannerTextContainer}>
@@ -476,16 +600,38 @@ export default function TradeTimelineScreen() {
           </View>
         )}
 
+        {/* TFV2-011 / D-26: Dispute status overlay banner */}
+        {(trade as any).dispute_status === 'reported' && (
+          <View style={styles.disputeBannerAmber} testID="dispute-banner-reported">
+            <WarningCircle size={16} color="#92400E" weight="fill" />
+            <Text style={styles.disputeBannerText}>
+              Dispute reported — our team has been notified and will review shortly.
+            </Text>
+          </View>
+        )}
+        {(trade as any).dispute_status === 'under_review' && (
+          <View style={styles.disputeBannerOrange} testID="dispute-banner-under-review">
+            <WarningCircle size={16} color="#7C2D12" weight="fill" />
+            <Text style={styles.disputeBannerTextOrange}>
+              Dispute under review — our team is actively investigating.
+            </Text>
+          </View>
+        )}
+
+        {/* TFV2-020: Safe meetup tips (shown during in-progress trades) */}
         {trade.status === 'in_progress' && (
+          <SafeMeetupCard tradeId={tradeId} />
+        )}
+
+        {isBuyer && trade.status === 'in_progress' && (
           <View style={styles.actions}>
             <Pressable
               style={[
                 styles.confirmButton,
-                (submitting || (isSeller && !!trade.seller_marked_completed_at)) &&
-                  styles.disabledButton,
+                (submitting || hasUnresolvedDispute) && styles.disabledButton,
               ]}
               onPress={handleComplete}
-              disabled={submitting || (isSeller && !!trade.seller_marked_completed_at)}
+              disabled={submitting || hasUnresolvedDispute}
               testID="confirm-trade-button"
             >
               {submitting ? (
@@ -493,11 +639,7 @@ export default function TradeTimelineScreen() {
               ) : (
                 <>
                   <CheckCircle size={20} color="#FFFFFF" weight="regular" />
-                  <Text style={styles.confirmButtonText}>
-                    {isSeller && trade.seller_marked_completed_at
-                      ? 'Waiting for buyer'
-                      : 'Mark as Completed'}
-                  </Text>
+                  <Text style={styles.confirmButtonText}>I Got It</Text>
                 </>
               )}
             </Pressable>
@@ -514,6 +656,7 @@ export default function TradeTimelineScreen() {
           </View>
         )}
 
+        {/* Pending trade cancel (non-seller or zero-cash seller offer) */}
         {trade.status === 'pending' && (!isSeller || trade.cash_amount_cents === 0) && (
           <View style={styles.actions}>
             <Pressable
@@ -523,6 +666,25 @@ export default function TradeTimelineScreen() {
               testID="cancel-trade-button"
             >
               <XCircle size={20} color="#E85D75" weight="regular" />
+              <Text style={styles.cancelButtonOutlineText}>Cancel Trade</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Addendum A (TFV2-023): seller can cancel an in_progress trade */}
+        {isSeller && trade.status === 'in_progress' && !hasUnresolvedDispute && (
+          <View style={styles.actions}>
+            <Pressable
+              style={[styles.cancelButtonOutline, (submitting || isCancelling) && styles.disabledButton]}
+              onPress={handleCancel}
+              disabled={submitting || isCancelling}
+              testID="seller-cancel-inprogress-button"
+            >
+              {isCancelling ? (
+                <ActivityIndicator size="small" color="#E85D75" />
+              ) : (
+                <XCircle size={20} color="#E85D75" weight="regular" />
+              )}
               <Text style={styles.cancelButtonOutlineText}>Cancel Trade</Text>
             </Pressable>
           </View>
@@ -583,15 +745,6 @@ export default function TradeTimelineScreen() {
           </View>
         )}
 
-        {isBuyer && trade.status === 'in_progress' && trade.seller_marked_completed_at && (
-          <View style={styles.sellerCompletedBox} testID="seller-completed-notice">
-            <WarningCircle size={20} color="#5DBB8E" weight="regular" style={{ marginRight: 8 }} />
-            <Text style={styles.sellerCompletedText}>
-              The seller has marked this trade as completed. Please confirm if you have received the
-              item.
-            </Text>
-          </View>
-        )}
       </ScrollView>
       <PersistentTabBar />
 
@@ -635,6 +788,22 @@ export default function TradeTimelineScreen() {
         onConfirm={handleCancellationConfirm}
         onCancel={() => setShowCancellationModal(false)}
         isLoading={isCancelling}
+        reasons={isSeller && trade.status === 'in_progress' ? SELLER_INPROGRESS_REASONS : undefined}
+      />
+
+      {/* TFV2-011: Issue report modal (D-26 — does NOT cancel trade) */}
+      <IssueReportModal
+        visible={showIssueModal}
+        onClose={() => setShowIssueModal(false)}
+        onSubmit={async (reason, description) => {
+          const { data, error } = await supabase.functions.invoke('open-dispute', {
+            body: { trade_id: tradeId, reason, description },
+          });
+          if (error) throw new Error(error.message ?? 'Failed to report dispute');
+          if (data && !data.success) throw new Error(data.error?.message ?? 'Failed to report dispute');
+          setShowIssueModal(false);
+          fetchTrade();
+        }}
       />
     </ScreenLayout>
   );
@@ -759,6 +928,57 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 32,
+  },
+  // Addendum C: bundle context banner style
+  bundleBanner: {
+    backgroundColor: '#EEF9F4',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  bundleBannerText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#5DBB8E',
+  },
+  // D-26: dispute status banners
+  disputeBannerAmber: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    backgroundColor:  '#FFF9EC',
+    borderWidth:      1,
+    borderColor:      '#FDE68A',
+    borderRadius:     8,
+    padding:          12,
+    marginBottom:     8,
+    gap:              8,
+  },
+  disputeBannerOrange: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    backgroundColor:  '#FFF7ED',
+    borderWidth:      1,
+    borderColor:      '#FDBA74',
+    borderRadius:     8,
+    padding:          12,
+    marginBottom:     8,
+    gap:              8,
+  },
+  disputeBannerText: {
+    flex:       1,
+    fontSize:   13,
+    fontFamily: 'Inter-Regular',
+    color:      '#92400E',
+    lineHeight: 18,
+  },
+  disputeBannerTextOrange: {
+    flex:       1,
+    fontSize:   13,
+    fontFamily: 'Inter-Regular',
+    color:      '#7C2D12',
+    lineHeight: 18,
   },
   statusBanner: {
     flexDirection: 'row',

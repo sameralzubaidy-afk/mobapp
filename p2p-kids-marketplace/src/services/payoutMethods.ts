@@ -92,8 +92,8 @@ export async function listPayoutMethods(): Promise<ListPayoutMethodsResponse> {
     throw new Error(`Failed to fetch payout methods: ${error.message}`);
   }
 
-  const primaryMethod = methods?.find((m) => m.is_primary) || null;
-  const hasVerifiedMethod = methods?.some((m) => m.is_verified) || false;
+  const primaryMethod = methods?.find((m: { is_primary: boolean | null }) => m.is_primary) || null;
+  const hasVerifiedMethod = methods?.some((m: { is_verified: boolean | null }) => m.is_verified) || false;
 
   return {
     methods: methods || [],

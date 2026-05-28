@@ -191,7 +191,7 @@ export class NotificationAnalyticsService {
     console.log('[NotificationAnalytics] Initializing analytics tracking...');
 
     // Track notification opens and clicks
-    Notifications.addNotificationResponseReceivedListener((response) => {
+    Notifications.addNotificationResponseReceivedListener((response: { notification: { request: { content: { data: Record<string, unknown> | undefined } } }; actionIdentifier: string }) => {
       const notificationData = response.notification.request.content.data as
         | Record<string, unknown>
         | undefined;
@@ -219,7 +219,7 @@ export class NotificationAnalyticsService {
     });
 
     // Track notification received while app is foregrounded
-    Notifications.addNotificationReceivedListener((notification) => {
+    Notifications.addNotificationReceivedListener((notification: { request: { content: { data: Record<string, unknown> | undefined } } }) => {
       const notificationData = notification.request.content.data as
         | Record<string, unknown>
         | undefined;

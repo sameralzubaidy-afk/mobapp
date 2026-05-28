@@ -53,7 +53,7 @@ export async function getReportedReviews(): Promise<{
     }
 
     // Get reports for all these reviews
-    const reviewIds = reviews.map((r) => r.id);
+    const reviewIds = reviews.map((r: { id: string }) => r.id);
     const { data: reports, error: reportsError } = await supabase
       .from('review_reports')
       .select('*')
@@ -66,7 +66,7 @@ export async function getReportedReviews(): Promise<{
     }
 
     // Get reviewer profiles
-    const reviewerIds = Array.from(new Set(reviews.map((r) => r.reviewer_id)));
+    const reviewerIds = Array.from(new Set(reviews.map((r: { reviewer_id: string }) => r.reviewer_id)));
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('user_id, name, avatar_url')
@@ -78,7 +78,7 @@ export async function getReportedReviews(): Promise<{
 
     // Map reports to reviews
     const reportsMap: Record<string, ReviewReport[]> = {};
-    (reports || []).forEach((report) => {
+    (reports || []).forEach((report: ReviewReport) => {
       if (!reportsMap[report.review_id]) {
         reportsMap[report.review_id] = [];
       }
@@ -87,12 +87,12 @@ export async function getReportedReviews(): Promise<{
 
     // Map profiles to reviews
     const profilesMap: Record<string, any> = {};
-    (profiles || []).forEach((profile) => {
+    (profiles || []).forEach((profile: { user_id: string; name: string | null; avatar_url: string | null }) => {
       profilesMap[profile.user_id] = profile;
     });
 
     // Combine data
-    const reportedReviews: ReportedReview[] = reviews.map((review) => {
+    const reportedReviews: ReportedReview[] = reviews.map((review: Record<string, unknown> & { id: string; reviewer_id: string }) => {
       const profile = profilesMap[review.reviewer_id];
       const fullName = (profile?.name || 'User').trim();
       const [firstName, ...rest] = fullName.split(/\s+/).filter(Boolean);

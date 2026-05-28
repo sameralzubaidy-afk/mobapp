@@ -154,7 +154,7 @@ export const getUserWaitlistEntries = async (
       return [];
     }
 
-    return (data || []).map((row) => ({
+    return (data || []).map((row: { id: string; requested_zip: string; assigned_node_id: string | null; status: string; created_at: string }) => ({
       id: row.id,
       requestedZip: row.requested_zip,
       assignedNodeId: row.assigned_node_id,

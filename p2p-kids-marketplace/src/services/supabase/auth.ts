@@ -296,7 +296,7 @@ export const updateUserMetadata = async (
 };
 
 export const onAuthStateChange = (callback: (event: string, session: Session | null) => void) => {
-  const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+  const { data: sub } = supabase.auth.onAuthStateChange((event: string, session: Session | null) => {
     // pass session (Session | null) directly
     callback(event, session);
   });

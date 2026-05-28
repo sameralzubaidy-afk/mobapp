@@ -40,9 +40,11 @@ import {
   Image,
   Pressable,
   Modal,
+  ScrollView,
   Dimensions,
   Animated,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
@@ -57,6 +59,8 @@ import {
   ArrowsLeftRight,
   CaretLeft,
   X,
+  Warning,
+  MapPin,
 } from 'phosphor-react-native';
 import { Avatar } from '@/components/atoms';
 import {
@@ -121,6 +125,11 @@ export default function ChatScreen() {
     ([uid, isTyping]) => uid !== session?.user?.id && isTyping
   );
 
+  // TFV2-020: Safe meetup modal (shown once per listing)
+  const [safetyModalVisible, setSafetyModalVisible] = useState(false);
+  // TFV2-021: Quick-reply chips visible state
+  const [quickRepliesVisible, setQuickRepliesVisible] = useState(false);
+
   const flatListRef = useRef<FlatList>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const typingChannelRef = useRef<RealtimeChannel | null>(null);
@@ -135,6 +144,18 @@ export default function ChatScreen() {
   // Fetch trade details (item info)
   useEffect(() => {
     fetchTrade();
+  }, [tradeId]);
+
+  // TFV2-020: Show safety modal once per listing (D-19)
+  useEffect(() => {
+    if (!tradeId) return;
+    const key = `safety_shown_${tradeId}`;
+    AsyncStorage.getItem(key).then((val) => {
+      if (!val) {
+        setSafetyModalVisible(true);
+        AsyncStorage.setItem(key, '1').catch(() => {});
+      }
+    }).catch(() => {});
   }, [tradeId]);
 
   // MSG-009: Animate typing dots when indicator shows
@@ -284,7 +305,7 @@ export default function ChatScreen() {
         console.log('[ChatScreen] Calculated typingMap:', typingMap);
         setTypingUsers(typingMap);
       })
-      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+      .on('presence', { event: 'join' }, ({ key, newPresences }: { key: string; newPresences: unknown[] }) => {
         console.log('[ChatScreen] Typing presence join:', key, newPresences);
         setTypingUsers((prev) => {
           const next = { ...prev };
@@ -294,7 +315,7 @@ export default function ChatScreen() {
           return next;
         });
       })
-      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }: { key: string; leftPresences: unknown[] }) => {
         console.log('[ChatScreen] Typing presence leave:', key, leftPresences);
         setTypingUsers((prev) => {
           const next = { ...prev };
@@ -305,7 +326,7 @@ export default function ChatScreen() {
         });
       });
 
-    typingChannel.subscribe((status) => {
+    typingChannel.subscribe((status: string) => {
       console.log('[ChatScreen] Typing channel status:', status);
     });
 
@@ -729,6 +750,18 @@ export default function ChatScreen() {
         </View>
       )}
 
+      {/* TFV2-020: Persistent safety reminder banner (D-19) */}
+      <TouchableOpacity
+        style={styles.safetyBanner}
+        onPress={() => setSafetyModalVisible(true)}
+        testID="safety-banner"
+        activeOpacity={0.85}
+      >
+        <MapPin size={14} color="#FF8C42" weight="fill" />
+        <Text style={styles.safetyBannerText}>Meet in a safe, public place</Text>
+        <Text style={styles.safetyBannerLearn}>Learn more</Text>
+      </TouchableOpacity>
+
       {/* Messages List */}
       <KeyboardAvoidingView
         style={styles.containerBody}
@@ -805,6 +838,38 @@ export default function ChatScreen() {
 
         {/* Input bar: #F7F7F7 bg strip */}
         <View style={styles.inputContainer} testID="message-input-bar">
+          {/* TFV2-021: Quick-reply chips row */}
+          {quickRepliesVisible && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.quickRepliesRow}
+              contentContainerStyle={styles.quickRepliesContent}
+              keyboardShouldPersistTaps="handled"
+              testID="quick-replies-row"
+            >
+              {[
+                'Meet at library? 📚',
+                'Park works! 🌳',
+                'Tomorrow 3pm?',
+                'Weekend works?',
+                'Community center nearby?',
+                'School parking lot?',
+              ].map((chip) => (
+                <TouchableOpacity
+                  key={chip}
+                  style={styles.quickReplyChip}
+                  onPress={() => {
+                    setInputText((prev) => (prev ? `${prev} ${chip}` : chip));
+                    setQuickRepliesVisible(false);
+                  }}
+                  testID={`quick-reply-${chip}`}
+                >
+                  <Text style={styles.quickReplyChipText}>{chip}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
           {/* PaperClip icon (20px, #6B6B6B) */}
           <TouchableOpacity
             testID="image-picker-button"
@@ -844,6 +909,16 @@ export default function ChatScreen() {
             disabled={sending || sendingImage}
           >
             <Smiley size={20} color="#6B6B6B" weight="regular" />
+          </TouchableOpacity>
+
+          {/* TFV2-021: Quick replies toggle (MapPin icon) */}
+          <TouchableOpacity
+            testID="quick-replies-toggle"
+            style={styles.iconButton}
+            onPress={() => setQuickRepliesVisible((v) => !v)}
+            disabled={sending || sendingImage}
+          >
+            <MapPin size={20} color={quickRepliesVisible ? '#5DBB8E' : '#6B6B6B'} weight={quickRepliesVisible ? 'fill' : 'regular'} />
           </TouchableOpacity>
 
           {/* PaperPlaneRight send icon (24px, #5DBB8E) - only visible when input has text */}
@@ -922,6 +997,45 @@ export default function ChatScreen() {
               </Text>
             </>
           )}
+        </View>
+      </Modal>
+
+      {/* TFV2-020: Safe Meetup Modal (D-19, D-21) */}
+      <Modal
+        visible={safetyModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSafetyModalVisible(false)}
+        testID="safety-modal"
+      >
+        <View style={styles.safetyModalOverlay}>
+          <View style={styles.safetyModalCard}>
+            <View style={styles.safetyModalHeader}>
+              <Warning size={28} color="#FF8C42" weight="fill" />
+              <Text style={styles.safetyModalTitle}>Stay Safe During Meetups</Text>
+            </View>
+            <Text style={styles.safetyModalBody}>
+              Always meet in a safe, public place like a library, community center, or school parking lot.
+            </Text>
+            <View style={styles.safetyTipsList}>
+              {[
+                '📍 Choose busy public spaces',
+                '👥 Bring a parent or trusted adult',
+                '📱 Share your location with a family member',
+                '🚫 Never meet at a private home',
+                '🌞 Prefer daytime meetups',
+              ].map((tip) => (
+                <Text key={tip} style={styles.safetyTipItem}>{tip}</Text>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.safetyModalBtn}
+              onPress={() => setSafetyModalVisible(false)}
+              testID="safety-modal-confirm"
+            >
+              <Text style={styles.safetyModalBtnText}>Got it, stay safe!</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
     </ScreenLayout>
@@ -1208,5 +1322,104 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
+  },
+  // TFV2-020: Safety banner styles
+  safetyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8F4',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE4CC',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  safetyBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#664422',
+    fontWeight: '500',
+  },
+  safetyBannerLearn: {
+    fontSize: 12,
+    color: '#FF8C42',
+    fontWeight: '600',
+  },
+  // TFV2-020: Safety modal styles
+  safetyModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  safetyModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  safetyModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  safetyModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  safetyModalBody: {
+    fontSize: 14,
+    color: '#444444',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  safetyTipsList: {
+    gap: 8,
+    marginBottom: 24,
+  },
+  safetyTipItem: {
+    fontSize: 14,
+    color: '#333333',
+    lineHeight: 20,
+  },
+  safetyModalBtn: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  safetyModalBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  // TFV2-021: Quick replies row
+  quickRepliesRow: {
+    maxHeight: 44,
+    borderTopWidth: 1,
+    borderTopColor: '#EEEEEE',
+    backgroundColor: '#FAFAFA',
+  },
+  quickRepliesContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quickReplyChip: {
+    backgroundColor: '#EEF9F4',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#C8EAD9',
+  },
+  quickReplyChipText: {
+    fontSize: 13,
+    color: '#2E7D5B',
+    fontWeight: '500',
   },
 });

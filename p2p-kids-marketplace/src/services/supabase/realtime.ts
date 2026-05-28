@@ -9,7 +9,7 @@ export const subscribeToMessages = (
   channel.on(
     'postgres_changes',
     { event: 'INSERT', schema: 'public', table: 'messages', filter: `trade_id=eq.${tradeId}` },
-    (payload) => {
+    (payload: unknown) => {
       callback(payload);
     }
   );
@@ -25,7 +25,7 @@ export const subscribeToItem = (
   channel.on(
     'postgres_changes',
     { event: '*', schema: 'public', table: 'items', filter: `id=eq.${itemId}` },
-    (payload) => {
+    (payload: unknown) => {
       callback(payload);
     }
   );

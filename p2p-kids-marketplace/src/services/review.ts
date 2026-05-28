@@ -180,9 +180,9 @@ export async function getUserReviews(userId: string): Promise<{
           .in('user_id', reviewerIds)
           .order('created_at', { ascending: false });
 
-        reviewerProfiles = profileData.map((p) => {
+        reviewerProfiles = profileData.map((p: { user_id: string; name: string | null; avatar_url: string | null }) => {
           // Find latest verification request for this user
-          const userRequests = verificationData?.filter((v) => v.user_id === p.user_id) || [];
+          const userRequests = verificationData?.filter((v: { user_id: string; status: string }) => v.user_id === p.user_id) || [];
           const vStatus = userRequests.length > 0 ? userRequests[0].status : 'none';
           return { ...p, verification_status: vStatus };
         });
@@ -262,15 +262,17 @@ export async function getReviewStats(userId: string): Promise<{
       };
     }
 
-    const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+    type RatingRow = { rating: number };
+    type Breakdown = { 1: number; 2: number; 3: number; 4: number; 5: number };
+    const sum = reviews.reduce((acc: number, r: RatingRow) => acc + r.rating, 0);
     const averageRating = sum / totalReviews;
 
     const breakdown = reviews.reduce(
-      (acc, r) => {
-        acc[r.rating as keyof typeof acc]++;
+      (acc: Breakdown, r: RatingRow) => {
+        acc[r.rating as keyof Breakdown]++;
         return acc;
       },
-      { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+      { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } as Breakdown
     );
 
     return {
@@ -405,8 +407,9 @@ export async function getTradeReviewStatus(
       };
     }
 
-    const userReview = reviews?.find((r) => r.reviewer_id === userId);
-    const otherUserReview = reviews?.find((r) => r.reviewee_id === userId);
+    type ReviewLite = { reviewer_id: string; reviewee_id: string };
+    const userReview = reviews?.find((r: ReviewLite) => r.reviewer_id === userId);
+    const otherUserReview = reviews?.find((r: ReviewLite) => r.reviewee_id === userId);
 
     return {
       success: true,

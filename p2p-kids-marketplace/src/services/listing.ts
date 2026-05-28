@@ -1334,11 +1334,13 @@ export async function getListingSummary(seller_id: string): Promise<ListingSumma
     throw new Error(`Failed to fetch listing summary: ${err.message}`);
   }
 
-  const active = data.filter((l) => l.status === 'available').length;
-  const sold = data.filter((l) => l.status === 'sold').length;
-  const earnings = data
-    .filter((l) => l.status === 'sold' && l.sold_at)
-    .reduce((sum, l) => sum + l.price, 0);
+  type ItemSummaryRow = { status: string | null; price: number; sold_at: string | null };
+  const rows: ItemSummaryRow[] = data || [];
+  const active = rows.filter((l: ItemSummaryRow) => l.status === 'available').length;
+  const sold = rows.filter((l: ItemSummaryRow) => l.status === 'sold').length;
+  const earnings = rows
+    .filter((l: ItemSummaryRow) => l.status === 'sold' && l.sold_at)
+    .reduce((sum: number, l: ItemSummaryRow) => sum + l.price, 0);
 
   return {
     total_active: active,

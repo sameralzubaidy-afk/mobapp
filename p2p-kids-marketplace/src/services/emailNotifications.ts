@@ -232,8 +232,10 @@ export async function getUserEmailStats(userId: string): Promise<{
       return { total: 0, sent: 0, delivered: 0, opened: 0, clicked: 0, bounced: 0 };
     }
 
+    type EmailLogRow = { status: string | null };
+    type EmailStats = { total: number; sent: number; delivered: number; opened: number; clicked: number; bounced: number };
     const stats = data.reduce(
-      (acc, log) => {
+      (acc: EmailStats, log: EmailLogRow) => {
         acc.total++;
         if (log.status === 'sent') acc.sent++;
         if (log.status === 'delivered') acc.delivered++;

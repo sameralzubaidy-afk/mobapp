@@ -260,12 +260,12 @@ export const createNotificationObserver = () => {
   }
 
   // Listen for notifications received while app is open
-  const notificationListener = Notifications.addNotificationReceivedListener((_notification) => {
+  const notificationListener = Notifications.addNotificationReceivedListener((_notification: unknown) => {
     // Notification received logic
   });
 
   // Listen for user tapping on a notification
-  const responseListener = Notifications.addNotificationResponseReceivedListener((_response) => {
+  const responseListener = Notifications.addNotificationResponseReceivedListener((_response: unknown) => {
     // User tapped logic
     // TODO: Implement navigation based on notification type
     // Example: if (data.type === 'item_update') navigation.navigate('Item', { itemId: data.itemId });

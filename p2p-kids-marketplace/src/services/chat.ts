@@ -10,7 +10,7 @@
  */
 
 import { supabase } from '../config/supabase';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { decode } from 'base64-arraybuffer';
@@ -186,12 +186,12 @@ export function subscribeToMessages(
         table: 'messages',
         filter: `trade_id=eq.${tradeId}`,
       },
-      async (payload) => {
+      async (payload: RealtimePostgresChangesPayload<Message>) => {
         // Fetch full message with sender details
         const { data, error } = await supabase
           .from('messages')
           .select('*, sender:profiles(first_name:name, profile_image_url:avatar_url)')
-          .eq('id', payload.new.id)
+          .eq('id', (payload.new as Message).id)
           .single();
 
         if (!error && data) {
@@ -210,7 +210,7 @@ export function subscribeToMessages(
         table: 'messages',
         filter: `trade_id=eq.${tradeId}`,
       },
-      async (payload) => {
+      async (payload: RealtimePostgresChangesPayload<Message>) => {
         if (!onMessageUpdate) {
           return;
         }
@@ -219,7 +219,7 @@ export function subscribeToMessages(
         const { data, error } = await supabase
           .from('messages')
           .select('*, sender:profiles(first_name:name, profile_image_url:avatar_url)')
-          .eq('id', payload.new.id)
+          .eq('id', (payload.new as Message).id)
           .single();
 
         if (!error && data) {
@@ -302,7 +302,7 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
 
     // For each trade, get last message and unread count
     const conversations = await Promise.all(
-      trades.map(async (trade) => {
+      trades.map(async (trade: { id: string; buyer_id: string; seller_id: string; listing: { id: string; title: string | null; price: number | null } | null }) => {
         // Get last message for this trade
         const { data: lastMessage } = await supabase
           .from('messages')
@@ -377,7 +377,7 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
             .gte('created_at', new Date(lastViewedMs).toISOString());
 
           unreadCount =
-            unreadMessages?.filter((msg) => {
+            unreadMessages?.filter((msg: { id: string; created_at: string }) => {
               const msgTime = new Date(msg.created_at).getTime();
               return Number.isFinite(msgTime) && msgTime > lastViewedMs;
             }).length ?? 0;
@@ -461,7 +461,7 @@ export async function getUnreadCount(tradeId: string, userId: string): Promise<n
 
     // Filter messages that are actually after the last viewed time
     const actualUnread =
-      unreadMessages?.filter((msg) => {
+      unreadMessages?.filter((msg: { id: string; created_at: string }) => {
         const msgTime = new Date(msg.created_at).getTime();
         return Number.isFinite(msgTime) && msgTime > lastViewed;
       }) || [];
@@ -819,14 +819,14 @@ export function subscribeToTypingStatus(
     .on('presence', { event: 'sync' }, () => {
       syncTypingStatus();
     })
-    .on('presence', { event: 'join' }, ({ newPresences }) => {
+    .on('presence', { event: 'join' }, ({ newPresences }: { newPresences: unknown[] }) => {
       (newPresences as unknown as PresenceItem[])?.forEach((p) => {
         if (p.user_id) {
           onTypingChange(p.user_id, !!p.is_typing);
         }
       });
     })
-    .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+    .on('presence', { event: 'leave' }, ({ leftPresences }: { leftPresences: unknown[] }) => {
       (leftPresences as unknown as PresenceItem[])?.forEach((p) => {
         if (p.user_id) {
           // When someone leaves, they are definitely not typing anymore

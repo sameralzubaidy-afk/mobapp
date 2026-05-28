@@ -167,12 +167,13 @@ export class ReferralCodeServiceV2 {
       }
 
       const data = referralsResult.data;
+      type ReferralRow = { status: string; trial_extension_applied: boolean | null };
       const total_referrals = data?.length || 0;
-      const pending_referrals = data?.filter((r) => r.status === 'pending').length || 0;
-      const completed_referrals = data?.filter((r) => r.status === 'completed').length || 0;
+      const pending_referrals = data?.filter((r: ReferralRow) => r.status === 'pending').length || 0;
+      const completed_referrals = data?.filter((r: ReferralRow) => r.status === 'completed').length || 0;
 
       const total_sp_earned = completed_referrals * config.referrer_sp;
-      const trial_extensions_used = data?.filter((r) => r.trial_extension_applied).length || 0;
+      const trial_extensions_used = data?.filter((r: ReferralRow) => r.trial_extension_applied).length || 0;
 
       return {
         total_referrals,

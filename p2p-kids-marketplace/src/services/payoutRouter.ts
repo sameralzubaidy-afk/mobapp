@@ -207,7 +207,7 @@ export async function getPendingPayoutsBalance(userId: string): Promise<number> 
     return 0;
   }
 
-  return data.reduce((sum, payout) => sum + (payout.net_amount_cents || 0), 0);
+  return data.reduce((sum: number, payout: { net_amount_cents: number | null }) => sum + (payout.net_amount_cents || 0), 0);
 }
 
 /**

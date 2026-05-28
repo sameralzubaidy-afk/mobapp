@@ -318,13 +318,13 @@ export const subscribeToNotifications = (
         table: 'user_notifications',
         filter: `user_id=eq.${userId}`,
       },
-      (payload) => {
+      (payload: { new: UserNotification }) => {
         const notification = payload.new as UserNotification;
         onNotification(notification);
       }
     );
 
-    channel.subscribe((status) => {
+    channel.subscribe((status: string) => {
       // Ignore status events from a channel that has already been cleaned up.
       if (isDisposed) return;
 

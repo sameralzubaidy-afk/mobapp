@@ -349,7 +349,7 @@ export default function ManageKidsClubScreen() {
         <View style={styles.card}>
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Status</Text>
-            <View style={[styles.statusBadge, styles[`badge_${subscription.status}`]]}>
+            <View style={[styles.statusBadge, (styles as Record<string, unknown>)[`badge_${subscription.status}`] as object]}>
               <Text style={styles.statusBadgeText}>
                 {subscription.status === 'trial'
                   ? 'Free Trial'

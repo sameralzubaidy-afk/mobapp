@@ -260,7 +260,7 @@ export async function unlinkSocialAccount(provider: OAuthProvider): Promise<Link
       throw new Error(`Failed to fetch identities: ${identitiesError.message}`);
     }
 
-    const identity = identities?.identities?.find((id) => id.provider === provider);
+    const identity = identities?.identities?.find((id: { provider: string; id: string }) => id.provider === provider);
 
     if (!identity) {
       throw new Error(`No ${provider} identity found to unlink`);
@@ -326,7 +326,7 @@ export async function getLinkedProviders(): Promise<LinkedProvider[]> {
       return [];
     }
 
-    return data.map((row) => ({
+    return data.map((row: { provider: string; provider_email: string | null; created_at: string | null }) => ({
       provider: row.provider as OAuthProvider,
       providerEmail: row.provider_email || '',
       linkedAt: row.created_at || '',
@@ -409,7 +409,7 @@ async function checkIfUserHasPassword(userId: string): Promise<boolean> {
     // Check if user has password via identities
     // If user has an 'email' identity, they have a password
     const { data: identities } = await supabase.auth.getUserIdentities();
-    const hasEmailIdentity = identities?.identities?.some((id) => id.provider === 'email');
+    const hasEmailIdentity = identities?.identities?.some((id: { provider: string }) => id.provider === 'email');
 
     return hasEmailIdentity || false;
   } catch (error) {

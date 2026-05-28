@@ -5,6 +5,7 @@ import React, { createContext, useCallback, useEffect, useRef, useState } from '
 import { AppState } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase } from '../config/supabase';
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { AuthSession, AuthError, SubscriptionStatus } from '../types/user';
 import { useUserStore } from '../stores/userStore';
 
@@ -480,7 +481,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             table: 'subscriptions',
             filter: `user_id=eq.${userId}`,
           },
-          (payload) => {
+          (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
             authLog('[AUTH] Subscription changed:', payload);
             // Refresh session when subscription changes
             refreshSession();
@@ -489,7 +490,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         subscriptionRef.current = channel;
 
-        channel.subscribe((status) => {
+        channel.subscribe((status: string) => {
           // Ignore status updates from stale channels already replaced/removed.
           if (subscriptionRef.current !== channel) return;
 
@@ -526,7 +527,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             table: 'sp_wallets',
             filter: `user_id=eq.${userId}`,
           },
-          (payload) => {
+          (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
             authLog('[AUTH] SP Wallet changed:', payload);
             // Refresh session when wallet changes
             refreshSession();
@@ -535,7 +536,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         walletRef.current = channel;
 
-        channel.subscribe((status) => {
+        channel.subscribe((status: string) => {
           // Ignore status updates from stale channels already replaced/removed.
           if (walletRef.current !== channel) return;
 
@@ -880,7 +881,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           table: 'profiles',
           filter: `user_id=eq.${userId}`,
         },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
           authLog('[AUTH] Profile changed:', payload);
           refreshSession();
         }
@@ -888,7 +889,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       profileRef.current = channel;
 
-      channel.subscribe((status) => {
+      channel.subscribe((status: string) => {
         if (profileRef.current !== channel) return;
 
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {

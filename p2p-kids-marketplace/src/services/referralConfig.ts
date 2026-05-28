@@ -46,7 +46,7 @@ export class ReferralConfigService {
 
       // Parse config values
       const configMap: Record<string, string> = {};
-      data?.forEach((item) => {
+      data?.forEach((item: { config_key: string; config_value: string }) => {
         configMap[item.config_key] = item.config_value;
       });
 

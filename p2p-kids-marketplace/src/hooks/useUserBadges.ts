@@ -271,7 +271,7 @@ export const useUserBadges = (userId: string | undefined): UseUserBadgesResult =
           table: 'user_badges',
           filter: `user_id=eq.${userId}`,
         },
-        async (payload) => {
+        async (payload: { new: { id: string } }) => {
           console.log('🎉 New badge awarded via real-time:', payload);
 
           // Fetch the newly awarded badge with full details

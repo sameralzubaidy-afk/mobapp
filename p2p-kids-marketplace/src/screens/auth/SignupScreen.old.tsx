@@ -47,7 +47,7 @@ export default function SignupScreen() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const params: any = (route as any).params;
     if (__DEV__ && params?.prefillTestUserId) {
-      const u = getAllTestUsers().find((x) => x.id === params.prefillTestUserId);
+      const u = getAllTestUsers().find((x: { id: string }) => x.id === params.prefillTestUserId);
       if (u) applyTestUser(u);
     }
   }, [route]);
@@ -454,7 +454,7 @@ export default function SignupScreen() {
                 </TouchableOpacity>
                 {getAllTestUsers()
                   .slice(0, 3)
-                  .map((u) => (
+                  .map((u: { id: string; firstName: string }) => (
                     <TouchableOpacity
                       key={u.id}
                       testID={`dev-fill-${u.id}`}

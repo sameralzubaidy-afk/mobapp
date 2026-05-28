@@ -86,13 +86,13 @@ export default function ConversationsListScreen() {
           schema: 'public',
           table: 'messages',
         },
-        (payload) => {
+        (payload: unknown) => {
           console.log('[ConversationsListScreen] New message received, refreshing list');
           // When a new message arrives, refresh the conversations list
           loadConversations();
         }
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         console.log('[ConversationsListScreen] Subscription status:', status);
       });
 

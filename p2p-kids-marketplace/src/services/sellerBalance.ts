@@ -108,31 +108,38 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
     throw payoutsError;
   }
 
-  const completedTrades = trades || [];
-  const allPayouts = payouts || [];
+  type TradeRow = { cash_amount_cents: number | null };
+  type PayoutRow = {
+    status: string | null;
+    gross_amount_cents: number | null;
+    net_amount_cents: number | null;
+    created_at: string | null;
+  };
+  const completedTrades: TradeRow[] = trades || [];
+  const allPayouts: PayoutRow[] = payouts || [];
 
   const lifetime_earnings_cents = completedTrades.reduce(
-    (sum, t) => sum + (t.cash_amount_cents ?? 0),
+    (sum: number, t: TradeRow) => sum + (t.cash_amount_cents ?? 0),
     0
   );
 
   const pendingPayouts = allPayouts.filter(
-    (p) => p.status === 'pending' || p.status === 'processing'
+    (p: PayoutRow) => p.status === 'pending' || p.status === 'processing'
   );
   const pending_reserved_gross_cents = pendingPayouts.reduce(
-    (sum, p) => sum + (p.gross_amount_cents ?? 0),
+    (sum: number, p: PayoutRow) => sum + (p.gross_amount_cents ?? 0),
     0
   );
 
   // UI convention: show the net amount the seller will receive; show fee separately in the list.
   const pending_balance_cents = pendingPayouts.reduce(
-    (sum, p) => sum + (p.net_amount_cents ?? 0),
+    (sum: number, p: PayoutRow) => sum + (p.net_amount_cents ?? 0),
     0
   );
 
   const withdrawn_gross_cents = allPayouts
-    .filter((p) => p.status === 'completed')
-    .reduce((sum, p) => sum + (p.gross_amount_cents ?? 0), 0);
+    .filter((p: PayoutRow) => p.status === 'completed')
+    .reduce((sum: number, p: PayoutRow) => sum + (p.gross_amount_cents ?? 0), 0);
 
   const available_balance_cents = Math.max(
     lifetime_earnings_cents - pending_reserved_gross_cents - withdrawn_gross_cents,
@@ -141,7 +148,7 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
 
   const last_payout_at =
     allPayouts
-      .map((p) => p.created_at)
+      .map((p: PayoutRow) => p.created_at)
       .filter(Boolean)
       .sort()
       .at(-1) ?? null;
@@ -153,7 +160,7 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
     lifetime_earnings_cents,
     total_trades_completed: completedTrades.length,
     total_trades_pending: allPayouts.filter(
-      (p) => p.status === 'pending' || p.status === 'processing'
+      (p: PayoutRow) => p.status === 'pending' || p.status === 'processing'
     ).length,
     last_payout_at,
     created_at: new Date().toISOString(),

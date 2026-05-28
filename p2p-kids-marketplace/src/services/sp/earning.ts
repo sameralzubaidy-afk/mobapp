@@ -295,7 +295,7 @@ export async function getFraudLimits(): Promise<{
       maxChallengeSpPerDay: 500,
     };
 
-    data?.forEach((row) => {
+    data?.forEach((row: { config_key: string; config_value: string }) => {
       if (row.config_key === 'max_referral_rewards_per_day') {
         limits.maxReferralsPerDay = parseInt(row.config_value, 10);
       } else if (row.config_key === 'challenge_max_sp_per_day') {

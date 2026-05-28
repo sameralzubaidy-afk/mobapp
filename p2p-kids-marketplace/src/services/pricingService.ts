@@ -77,7 +77,7 @@ export async function getSuggestedPrice(
     }
 
     // Calculate average price
-    const total = data.reduce((sum, item) => sum + (item.price || 0), 0);
+    const total = data.reduce((sum: number, item: { price: number | null }) => sum + (item.price || 0), 0);
     const avgPrice = total / data.length;
 
     // Generate 4 tiers

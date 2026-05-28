@@ -9,7 +9,6 @@ import { HomeTabNavigator } from '@/navigation/HomeTabNavigator';
 import DiscoverScreen from '@/screens/home/DiscoverScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
-import UserDashboardScreen from '@/screens/dashboard/UserDashboardScreen';
 import SpWalletScreen from '@/screens/sp/SpWalletScreen';
 import SpTransactionHistoryScreen from '@/screens/sp/SpTransactionHistoryScreen';
 import LoginScreen from '@/screens/auth/LoginScreen';
@@ -40,8 +39,11 @@ import TradeTimelineScreen from '@/screens/trade/TradeTimelineScreen';
 import TradeReviewScreen from '@/screens/trade/TradeReviewScreen';
 import ReviewOfferScreen from '@/screens/trade/ReviewOfferScreen';
 import TradeDisputeScreen from '@/screens/trade/TradeDisputeScreen';
+import TradeV2ComponentsPreviewScreen from '@/screens/trade/TradeV2ComponentsPreviewScreen';
 import CartScreen from '@/screens/cart/CartScreen';
+import CartCheckoutScreen from '@/screens/cart/CartCheckoutScreen';
 import BundleBuilderScreen from '@/screens/cart/BundleBuilderScreen';
+import FavoritesScreen from '@/screens/favorites/FavoritesScreen';
 import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
 import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
 import PayoutDashboardScreen from '@/screens/payouts/PayoutDashboardScreen';
@@ -107,6 +109,8 @@ const linking = {
       Home: 'home',
       Discover: 'discover',
       Cart: 'cart',
+      CartCheckout: 'cart/checkout',
+      Favorites: 'favorites',
       SpWallet: 'sp-wallet',
       SpTransactionHistory: 'sp-history',
       PhoneVerification: 'phone-verification',
@@ -134,6 +138,7 @@ const linking = {
       EditListing: 'edit-listing',
       ListingDetail: 'listing/:listing_id',
       ListingSafetyReview: 'listing-safety/:listing_id',
+      TradeV2ComponentsPreview: 'trade-v2-preview',
       AdminDashboard: 'admin',
       IDVerificationUpload: 'id-verification-upload',
       ManageKidsClub: 'manage-kids-club',
@@ -338,8 +343,11 @@ function RootNavigator() {
 
     const Notifications = require('expo-notifications') as typeof import('expo-notifications');
 
+    type ExpoNotificationResponse = {
+      notification: { request: { content: { data: NotificationDeepLinkData } } };
+    };
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
+      (response: ExpoNotificationResponse) => {
         const data = response.notification.request.content.data as NotificationDeepLinkData;
         handleNotificationNavigation(data, 'push');
       }
@@ -347,7 +355,7 @@ function RootNavigator() {
 
     // Handle cold-start notification taps (app was killed, opened via notification)
     void Notifications.getLastNotificationResponseAsync()
-      .then((response) => {
+      .then((response: ExpoNotificationResponse | null) => {
         if (!response) {
           return;
         }
@@ -355,7 +363,7 @@ function RootNavigator() {
         const data = response.notification.request.content.data as NotificationDeepLinkData;
         handleNotificationNavigation(data, 'cold_start');
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.warn('[NAV] getLastNotificationResponseAsync failed', error);
       });
 
@@ -475,8 +483,19 @@ function RootNavigator() {
               options={{ headerShown: false }}
             />
             <Stack.Screen
+              name="CartCheckout"
+              component={CartCheckoutScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
               name="BundleBuilder"
               component={BundleBuilderScreen}
+              options={{ headerShown: false }}
+            />
+            {/* MODULE-15.2 CART-018: Favorites screen */}
+            <Stack.Screen
+              name="Favorites"
+              component={FavoritesScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -579,6 +598,11 @@ function RootNavigator() {
             <Stack.Screen
               name="TradeSuccess"
               component={TradeSuccessScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="TradeV2ComponentsPreview"
+              component={TradeV2ComponentsPreviewScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-07: Messaging screens */}
@@ -881,6 +905,11 @@ function RootNavigator() {
             <Stack.Screen
               name="ResetPassword"
               component={ResetPasswordScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="TradeV2ComponentsPreview"
+              component={TradeV2ComponentsPreviewScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-13 SAFETY-010: TOS screen (Unauthenticated access) */}
