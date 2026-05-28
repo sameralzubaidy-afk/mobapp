@@ -5974,3 +5974,24 @@ Satisfied Items:
 - **Manual TC:** None — build-gate task. See `docs/PROD-007-MANUAL-TC.md`.
 - **Rollback:** `git revert <prod-007 commit-sha>` reverts eslintrc + code
   changes together; no DB or runtime behavior changes.
+
+## FLOW-32: Test Suite Green (PROD-008)
+
+- **Module:** MODULE-15.5 — PROD-008
+- **Change:** Verified full Jest suite (mobile) and Vitest suite (admin) are
+  green after PROD-006 + PROD-007 changes. No code changes required — all
+  failure categories predicted in the spec (mock setup, type errors, stale
+  snapshots, async timeouts) were resolved as a side-effect of fixing
+  `noImplicitAny` (PROD-006) and ESLint cleanup (PROD-007).
+- **Gate (Tier 0):**
+  - Mobile: `npx jest --no-coverage` → exit 0;
+    286 passed / 0 failed / 54 skipped suites;
+    3283 passed / 0 failed / 478 skipped tests;
+    0 obsolete snapshots.
+  - Admin: `npm test` (vitest) → exit 0;
+    42 passed / 0 failed / 2 skipped files;
+    553 passed / 0 failed / 13 skipped tests.
+- **Skipped tests:** All pre-existing, gated by `RUN_SUPABASE_E2E=true` for
+  live infrastructure. Re-enabling in CI is out of PROD-008 scope.
+- **Manual TC:** None — build-gate task. See `docs/PROD-008-MANUAL-TC.md`.
+- **Rollback:** No code changes; nothing to roll back.
