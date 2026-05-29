@@ -6024,3 +6024,18 @@ Satisfied Items:
 - **Tier 0 (admin):** lint 0 errors; build PASS; tests 560 passed / 13 skipped (was 553 + 7 new).
 - **Manual TC:** `docs/PROD-010-MANUAL-TC.md`.
 - **Rollback:** revert admin submodule commit + re-stage previous submodule pointer.
+
+---
+
+### FLOW-35: Android Data Safety & Google Play Families Policy (PROD-011)
+- **Module:** MODULE-15.5 PROD-011
+- **Scope:** Google Play submission compliance — target SDK 35, COPPA-compliant analytics init, Families Policy + Data Safety documentation.
+- **Deliverables:**
+  - `p2p-kids-marketplace/app.json` (android: compileSdkVersion 35 / targetSdkVersion 35 / minSdkVersion 24)
+  - `p2p-kids-marketplace/src/services/analytics.ts` (new `initAnalytics()` — COPPA defaults; SDK stub today)
+  - `p2p-kids-marketplace/App.tsx` (calls `initAnalytics()` at mount)
+  - `docs/GOOGLE-PLAY-DATA-SAFETY.md` (complete Data Safety form + Families Policy checklist + Firebase Console steps)
+- **Tier 0 (mobile):** tsc 0 errors; eslint 0 errors on changed files; no ad SDKs in package.json.
+- **Manual TC:** `docs/PROD-011-MANUAL-TC.md`.
+- **Release-time follow-up:** run `npx expo prebuild --platform android --clean` and complete the Firebase Console steps in the data-safety doc.
+- **Rollback:** `git revert` of PROD-011 commit.
