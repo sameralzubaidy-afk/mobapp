@@ -6058,3 +6058,20 @@ Satisfied Items:
 - **Tier 0 (mobile):** tsc 0 errors; eslint 0 errors on changed files; `jest email.test.ts` 12/12 pass.
 - **Rotation note:** rotate the SendGrid API key in the SendGrid console if any historical build shipped with a real `EXPO_PUBLIC_SENDGRID_API_KEY` value.
 - **Rollback:** `git revert` of PROD-012 commit.
+
+---
+
+### FLOW-37: Full-Stack Production Readiness & Security Scan (PROD-013)
+- **Module:** MODULE-15.5 PROD-013
+- **Scope:** Read-only audit across mobile, admin, supabase functions, and migrations. 10 categories: secrets, auth, RLS, input validation, dependencies, error handling, store compliance, COPPA/PII, performance, configuration.
+- **Deliverable:** [docs/PROD-SCAN-FINDINGS.md](PROD-SCAN-FINDINGS.md) (438 lines, 28 findings).
+- **Severity breakdown:** P0 = 5, P1 = 8, P2 = 9, P3 = 6.
+- **Top P0 blockers:**
+  1. `p2p-kids-marketplace/.env.staging` git-tracked with live `SUPABASE_SERVICE_ROLE_KEY` (rotate immediately).
+  2. `react-native-fbsdk-next` declared in mobile `package.json` (Kids category rejection risk).
+  3. Next.js `14.0.4` critical CVE in admin.
+  4. `supabase/migrations/20260205000003_ultimate_test_alignment_fix.sql` grants `anon` write to `profiles`, `subscriptions`, `sp_wallets`, `sp_ledger`, `referrals`, `user_notifications`.
+  5. 18 admin API routes have no auth check at all.
+- **Tier 0:** N/A (read-only documentation only; no code changes).
+- **Drives prioritization of:** PROD-P001…PROD-P005 and the remaining PROD-010 migration backlog.
+- **Rollback:** N/A (documentation only).
