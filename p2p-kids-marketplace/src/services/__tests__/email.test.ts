@@ -23,7 +23,7 @@ const mockSendGrid = sgMail as jest.Mocked<typeof sgMail>;
 
 // Mock environment variables
 beforeAll(() => {
-  process.env.EXPO_PUBLIC_SENDGRID_API_KEY = 'test-api-key';
+  process.env.SENDGRID_API_KEY = 'test-api-key';
   process.env.EXPO_PUBLIC_FROM_EMAIL = 'noreply@p2pkidsmarketplace.com';
   process.env.EXPO_PUBLIC_REPLY_TO_EMAIL = 'support@p2pkidsmarketplace.com';
 });

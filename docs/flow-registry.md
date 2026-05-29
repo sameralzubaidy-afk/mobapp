@@ -6039,3 +6039,22 @@ Satisfied Items:
 - **Manual TC:** `docs/PROD-011-MANUAL-TC.md`.
 - **Release-time follow-up:** run `npx expo prebuild --platform android --clean` and complete the Firebase Console steps in the data-safety doc.
 - **Rollback:** `git revert` of PROD-011 commit.
+
+---
+
+### FLOW-36: Production Env Configuration & Secret Audit (PROD-012)
+- **Module:** MODULE-15.5 PROD-012
+- **Scope:** Audit every `EXPO_PUBLIC_*` and `NEXT_PUBLIC_*` reference; remove client-bundled secrets; publish canonical env var reference.
+- **Findings:**
+  - **P0 (FIXED):** `EXPO_PUBLIC_SENDGRID_API_KEY` was bundled into the mobile app via `src/services/email.ts`. Removed; mobile now reads only server-only `SENDGRID_API_KEY` (graceful no-op on devices). Production email sends go through `supabase/functions/send-email/`.
+  - **Allowed exception (documented):** `NEXT_PUBLIC_ADMIN_UI_SECRET` — UI auth token, rotated regularly; server-side check uses `verifyAdminAuth()` (PROD-010) reading server-only `ADMIN_UI_SECRET`.
+- **Deliverables:**
+  - `p2p-kids-marketplace/src/services/email.ts` (remove EXPO_PUBLIC variant + security comment)
+  - `p2p-kids-marketplace/src/services/__tests__/email.test.ts` (updated test env)
+  - `p2p-kids-marketplace/.env.local.example` (server-only SENDGRID_API_KEY)
+  - `p2p-kids-admin/.env.example` (expanded with forbidden list)
+  - `docs/ENVIRONMENT-VARIABLES.md` (canonical inventory)
+  - `docs/PROD-012-MANUAL-TC.md`
+- **Tier 0 (mobile):** tsc 0 errors; eslint 0 errors on changed files; `jest email.test.ts` 12/12 pass.
+- **Rotation note:** rotate the SendGrid API key in the SendGrid console if any historical build shipped with a real `EXPO_PUBLIC_SENDGRID_API_KEY` value.
+- **Rollback:** `git revert` of PROD-012 commit.

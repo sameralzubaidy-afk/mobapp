@@ -16,13 +16,23 @@ import {
 import { EMAIL_CONFIG, SENDGRID_TEMPLATES, EMAIL_RETRY_CONFIG } from '@/constants/email';
 
 // Initialize SendGrid with API key
+//
+// PROD-012: SendGrid API key is server-only. We deliberately do NOT read
+// EXPO_PUBLIC_SENDGRID_API_KEY — prefixing it with EXPO_PUBLIC_ would bundle
+// the secret into the mobile app and leak it to every device. Direct mobile
+// SendGrid calls are a fallback path only used when this function runs in a
+// server context (Edge Function / Node test). On the device, no key will be
+// present and the senders below will gracefully return
+// { success: false, error: 'SendGrid API key not configured' }. The production
+// email flow MUST go through supabase/functions/send-email/index.ts which
+// reads the secret SENDGRID_API_KEY from Edge Function secrets.
 const initializeSendGrid = () => {
-  const apiKey = process.env.EXPO_PUBLIC_SENDGRID_API_KEY || process.env.SENDGRID_API_KEY;
+  const apiKey = process.env.SENDGRID_API_KEY;
 
   if (!apiKey) {
     console.warn(
-      '⚠️ SendGrid API key not configured. Email sending will not work. ' +
-        'Set EXPO_PUBLIC_SENDGRID_API_KEY in .env.local'
+      '⚠️ SendGrid API key not configured. Email sending will not work on the client. ' +
+        'Route email sends through supabase/functions/send-email (server-only SENDGRID_API_KEY).'
     );
     return false;
   }
@@ -42,7 +52,7 @@ export const sendEmail = async ({
   subject,
   html,
 }: SendEmailParams): Promise<SendEmailResult> => {
-  if (!process.env.EXPO_PUBLIC_SENDGRID_API_KEY && !process.env.SENDGRID_API_KEY) {
+  if (!process.env.SENDGRID_API_KEY) {
     console.warn('SendGrid API key not configured. Email sending skipped.');
     return { success: false, error: 'SendGrid API key not configured' };
   }
@@ -69,7 +79,7 @@ export const sendEmail = async ({
  * Send welcome email to new users
  */
 export const sendWelcomeEmail = async (data: WelcomeEmailData): Promise<SendEmailResult> => {
-  if (!process.env.EXPO_PUBLIC_SENDGRID_API_KEY && !process.env.SENDGRID_API_KEY) {
+  if (!process.env.SENDGRID_API_KEY) {
     console.warn('SendGrid API key not configured. Email sending skipped.');
     return { success: false, error: 'SendGrid API key not configured' };
   }
@@ -101,7 +111,7 @@ export const sendWelcomeEmail = async (data: WelcomeEmailData): Promise<SendEmai
 export const sendPasswordResetEmail = async (
   data: PasswordResetEmailData
 ): Promise<SendEmailResult> => {
-  if (!process.env.EXPO_PUBLIC_SENDGRID_API_KEY && !process.env.SENDGRID_API_KEY) {
+  if (!process.env.SENDGRID_API_KEY) {
     console.warn('SendGrid API key not configured. Email sending skipped.');
     return { success: false, error: 'SendGrid API key not configured' };
   }
@@ -136,7 +146,7 @@ export const sendPasswordResetEmail = async (
 export const sendTradeNotificationEmail = async (
   data: TradeNotificationEmailData
 ): Promise<SendEmailResult> => {
-  if (!process.env.EXPO_PUBLIC_SENDGRID_API_KEY && !process.env.SENDGRID_API_KEY) {
+  if (!process.env.SENDGRID_API_KEY) {
     console.warn('SendGrid API key not configured. Email sending skipped.');
     return { success: false, error: 'SendGrid API key not configured' };
   }
@@ -173,7 +183,7 @@ export const sendTradeNotificationEmail = async (
 export const sendTransactionConfirmationEmail = async (
   data: TransactionConfirmationEmailData
 ): Promise<SendEmailResult> => {
-  if (!process.env.EXPO_PUBLIC_SENDGRID_API_KEY && !process.env.SENDGRID_API_KEY) {
+  if (!process.env.SENDGRID_API_KEY) {
     console.warn('SendGrid API key not configured. Email sending skipped.');
     return { success: false, error: 'SendGrid API key not configured' };
   }
@@ -211,7 +221,7 @@ export const sendTransactionConfirmationEmail = async (
 export const sendSubscriptionStatusEmail = async (
   data: SubscriptionStatusEmailData
 ): Promise<SendEmailResult> => {
-  if (!process.env.EXPO_PUBLIC_SENDGRID_API_KEY && !process.env.SENDGRID_API_KEY) {
+  if (!process.env.SENDGRID_API_KEY) {
     console.warn('SendGrid API key not configured. Email sending skipped.');
     return { success: false, error: 'SendGrid API key not configured' };
   }
