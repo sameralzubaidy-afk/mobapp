@@ -6010,3 +6010,17 @@ Satisfied Items:
 - **Tier 0:** `npx tsc --noEmit` 0 errors; `npx eslint src/constants/legal.ts` 0 errors.
 - **Manual TC:** `docs/PROD-009-MANUAL-TC.md`.
 - **Rollback:** `git revert` of PROD-009 commit removes docs + constants.
+
+---
+
+### FLOW-34: Centralized Admin Authentication Middleware (PROD-010)
+- **Module:** MODULE-15.5 PROD-010
+- **Scope:** Introduce canonical `verifyAdminAuth()` middleware for admin API routes; remove `NEXT_PUBLIC_*` secret fallbacks; migrate pilot cluster of 5 routes.
+- **Deliverables:**
+  - `p2p-kids-admin/src/lib/adminAuth.ts` (canonical middleware)
+  - `p2p-kids-admin/src/lib/__tests__/adminAuth.test.ts` (7 unit tests)
+  - Migrated routes: `sp-config`, `policies`, `policies/[id]`, `trades/force-cancel`, `items/[id]/details`
+  - `docs/PROD-010-ADMIN-AUTH-MIGRATION.md` (phased plan for remaining 37 routes)
+- **Tier 0 (admin):** lint 0 errors; build PASS; tests 560 passed / 13 skipped (was 553 + 7 new).
+- **Manual TC:** `docs/PROD-010-MANUAL-TC.md`.
+- **Rollback:** revert admin submodule commit + re-stage previous submodule pointer.
