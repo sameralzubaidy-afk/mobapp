@@ -5995,3 +5995,18 @@ Satisfied Items:
   live infrastructure. Re-enabling in CI is out of PROD-008 scope.
 - **Manual TC:** None — build-gate task. See `docs/PROD-008-MANUAL-TC.md`.
 - **Rollback:** No code changes; nothing to roll back.
+
+---
+
+### FLOW-33: Store Submission Metadata & Privacy Policy (PROD-009)
+- **Module:** MODULE-15.5 PROD-009
+- **Scope:** App Store + Google Play submission docs, draft Privacy Policy + Terms of Service, in-app legal URL constants.
+- **Deliverables:**
+  - `docs/STORE-SUBMISSION-CHECKLIST.md`
+  - `docs/PRIVACY-POLICY-DRAFT.md` (DRAFT — legal review required)
+  - `docs/TERMS-OF-SERVICE-DRAFT.md` (DRAFT — legal review required)
+  - `p2p-kids-marketplace/src/constants/legal.ts` (`LEGAL_URLS`)
+- **In-app surfaces (pre-existing):** `PrivacyPolicyScreen` (DB-backed), Signup terms acceptance.
+- **Tier 0:** `npx tsc --noEmit` 0 errors; `npx eslint src/constants/legal.ts` 0 errors.
+- **Manual TC:** `docs/PROD-009-MANUAL-TC.md`.
+- **Rollback:** `git revert` of PROD-009 commit removes docs + constants.
