@@ -126,6 +126,26 @@ serve(async (req) => {
       throw new Error('GOOGLE_VISION_API_KEY not configured');
     }
 
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+    const token = authHeader.replace(/Bearer\s+/i, '').trim();
+    if (!token) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Missing bearer token',
+          },
+        }),
+        {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
     // Parse request (support both camelCase and snake_case keys)
     let requestBody: ModerationRequest;
     try {
@@ -187,6 +207,67 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    const { data: authData, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError || !authData?.user) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Invalid or expired bearer token',
+          },
+        }),
+        {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    const { data: itemOwner, error: itemOwnerError } = await supabaseClient
+      .from('items')
+      .select('seller_id')
+      .eq('id', itemId)
+      .maybeSingle();
+
+    if (itemOwnerError || !itemOwner) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'ITEM_NOT_FOUND',
+            message: 'Item not found for moderation',
+          },
+        }),
+        {
+          status: 404,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
+
+    if (itemOwner.seller_id !== authData.user.id) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'MODERATION_OWNERSHIP_DENIED',
+            message: 'You can only moderate images for your own items.',
+          },
+        }),
+        {
+          status: 403,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        }
+      );
+    }
 
     // Call Google Vision API Safe Search.
     // First try imageUri; if provider cannot fetch the URL, fallback to loading bytes from Supabase storage.

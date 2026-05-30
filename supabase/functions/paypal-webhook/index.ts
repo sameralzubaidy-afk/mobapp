@@ -78,7 +78,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const { data: sellerPayout } = await supabase
       .from('seller_payouts')
-      .select('id, status')
+      .select('id, status, trade_id')
       .eq('provider_reference_id', providerReferenceId)
       .maybeSingle();
 
@@ -95,6 +95,23 @@ serve(async (req: Request): Promise<Response> => {
       .from('seller_payouts')
       .update(update)
       .eq('id', sellerPayout.id);
+
+    // TFV2-018: sync trades.payout_status from seller_payouts status
+    if (sellerPayout.trade_id) {
+      // Map seller_payouts status → trades.payout_status
+      // seller_payouts uses 'completed'; trades uses 'paid'
+      const tradePayoutStatus: string =
+        update.status === 'completed' ? 'paid' : update.status;
+      const { error: tradeUpdateErr } = await supabase
+        .from('trades')
+        .update({ payout_status: tradePayoutStatus, updated_at: new Date().toISOString() })
+        .eq('id', sellerPayout.trade_id);
+      if (tradeUpdateErr) {
+        console.warn('[paypal-webhook] Failed to sync trades.payout_status:', tradeUpdateErr.message);
+      } else {
+        console.log(`[paypal-webhook] Synced trades.payout_status=${tradePayoutStatus} for trade ${sellerPayout.trade_id}`);
+      }
+    }
 
     return new Response(JSON.stringify({ received: true }), {
       status: 200,

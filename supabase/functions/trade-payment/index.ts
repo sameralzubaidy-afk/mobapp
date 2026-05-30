@@ -6,6 +6,7 @@ import {
   redactPaymentMethodForLogs,
   validateStripePaymentMethodId,
 } from '../_shared/stripe-payment-method-guard.ts';
+import { logTradeEvent } from '../_shared/trade-events.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,6 +35,24 @@ serve(async (req) => {
   }
 
   const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+  const token = authHeader.replace(/Bearer\s+/i, '').trim();
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Missing authorization token' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const { data: authData, error: authError } = await supabaseClient.auth.getUser(token);
+  if (authError || !authData?.user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  const requestUser = authData.user;
 
   const stripeKeyRaw = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
   const stripeKey = stripeKeyRaw.trim();
@@ -107,6 +126,32 @@ serve(async (req) => {
       });
     }
 
+    if (trade.buyer_id !== requestUser.id) {
+      return new Response(
+        JSON.stringify({
+          error: 'Only the trade buyer can initiate payment for this trade.',
+          code: 'BUYER_ONLY_PAYMENT',
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    if (trade.seller_id === requestUser.id) {
+      return new Response(
+        JSON.stringify({
+          error: 'Sellers cannot pay for their own listing.',
+          code: 'SELF_PURCHASE_NOT_ALLOWED',
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     currentTradeId = trade.id;
 
     console.log('[trade-payment] Trade found:', {
@@ -116,6 +161,8 @@ serve(async (req) => {
       buyer_transaction_fee_cents: trade.buyer_transaction_fee_cents,
       platform_fee_cents: trade.platform_fee_cents,
       buyer_id: trade.buyer_id,
+      sp_amount: trade.sp_amount,
+      sp_reserved_at: trade.sp_reserved_at,
     });
 
     if (trade.status === 'in_progress' || trade.status === 'completed') {
@@ -171,6 +218,80 @@ serve(async (req) => {
         updated_at: trade.updated_at,
       });
     }
+
+    // ─── D-30 PRE-AUTH CAPTURE PATH ──────────────────────────────────────────────
+    // If the trade already has a stripe_payment_intent_id (set by create-trade-offer),
+    // it is a pre-auth hold. We only need to capture it — no need to create a new PI,
+    // attach a PM, or create a Stripe customer.
+    if (trade.stripe_payment_intent_id) {
+      console.log('[trade-payment] D-30: pre-auth capture path, PI=', trade.stripe_payment_intent_id);
+
+      // Mark as payment_processing
+      await supabaseClient
+        .from('trades')
+        .update({ status: 'payment_processing', last_status_change_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', trade.id);
+
+      // SP: already reserved at offer time via fn_reserve_sp_on_offer trigger.
+      // fn_transfer_sp_on_accept trigger fires when status becomes 'in_progress',
+      // so we don't need to manually debit SP here.
+
+      // Capture the pre-auth hold
+      try {
+        const captured = await stripe.paymentIntents.capture(trade.stripe_payment_intent_id);
+        if (captured.status !== 'succeeded') {
+          throw new Error(`Pre-auth capture returned status: ${captured.status}`);
+        }
+        console.log('[trade-payment] D-30: pre-auth captured, status=', captured.status);
+      } catch (captureErr: any) {
+        console.error('[trade-payment] D-30: pre-auth capture failed:', captureErr?.message);
+        await supabaseClient
+          .from('trades')
+          .update({ status: 'payment_failed', last_status_change_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq('id', trade.id);
+        const msg = captureErr?.raw?.message ?? captureErr?.message ?? 'Payment capture failed';
+        return new Response(JSON.stringify({ error: msg, code: 'CAPTURE_FAILED' }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Update trade to in_progress
+      await supabaseClient
+        .from('trades')
+        .update({
+          status: 'in_progress',
+          last_status_change_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', trade.id);
+
+      // Lock item as pending
+      await supabaseClient
+        .from('items')
+        .update({ status: 'pending', updated_at: new Date().toISOString() })
+        .eq('id', trade.listing_id);
+
+      // TFV2-019: log offer_accepted in D-30 capture path
+      // We need the seller's auth user. Load it from the auth header.
+      const tradeForEvent = trade as { id: string; seller_id?: string };
+      const sellerIdForEvent: string = (tradeForEvent as any).seller_id ?? 'unknown';
+      await logTradeEvent(supabaseClient, trade.id, 'offer_accepted', sellerIdForEvent, {
+        stripe_payment_intent_id: trade.stripe_payment_intent_id,
+        capture_path: 'd30_pre_auth',
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tradeId: trade.id,
+          payment_intent_id: trade.stripe_payment_intent_id,
+          status: 'in_progress',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    // ─── END D-30 PRE-AUTH CAPTURE PATH ─────────────────────────────────────────
 
     // 2) Load buyer info (email) from auth.admin
     console.log('[trade-payment] Fetching buyer info for:', trade.buyer_id);
@@ -419,7 +540,11 @@ serve(async (req) => {
     let spDebitLedgerId: string | null = null;
     const pointsToDebit = trade.sp_amount;
 
-    if (pointsToDebit && pointsToDebit > 0) {
+    // TFV2 reserve model: when sp_reserved_at is already set, points were moved
+    // from available -> reserved at offer time, so payment should not debit again.
+    const hasReservedSp = !!trade.sp_reserved_at;
+
+    if (pointsToDebit && pointsToDebit > 0 && !hasReservedSp) {
       console.log('[trade-payment] Debiting SP points:', pointsToDebit);
       const { data: debitResult, error: debitError } = await supabaseClient
         .rpc('debit_sp_for_trade', {
@@ -543,6 +668,11 @@ serve(async (req) => {
           );
         }
       }
+    } else if (pointsToDebit && pointsToDebit > 0 && hasReservedSp) {
+      console.log('[trade-payment] Skipping SP debit because points are already reserved:', {
+        tradeId: trade.id,
+        pointsToDebit,
+      });
     }
 
     // 7) Capture Stripe Payment
@@ -557,7 +687,7 @@ serve(async (req) => {
       console.error('[trade-payment] Stripe capture failed. Refunding SP if needed.', captureError);
       
       // ATOMIC FAILURE: Refund SP because Stripe capture failed
-      if (pointsToDebit && pointsToDebit > 0) {
+      if (pointsToDebit && pointsToDebit > 0 && !hasReservedSp) {
         const { data: refundResult, error: refundError } = await supabaseClient.rpc('credit_sp_for_cancelled_trade', {
           p_user_id: trade.buyer_id,
           p_trade_id: trade.id,

@@ -30,11 +30,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
 import { Modal, LoadingSpinner } from '@/components/ui';
-import { Info, CheckCircle, CircleIcon, Star } from 'phosphor-react-native';
+import { Info, CheckCircle, Circle, Star } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
-// MODULE-15.3-PART3 TAX-012: show collected tax + detail modal
-import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
-import { formatCents, formatTaxRate } from '@/services/tax';
 
 type TradeDetailRouteProp = RouteProp<RootStackParamList, 'TradeDetail'>;
 type TradeDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'TradeDetail'>;
@@ -55,8 +52,6 @@ export default function TradeDetailScreen() {
   const [canReview, setCanReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [otherUserReviewed, setOtherUserReviewed] = useState(false);
-  // MODULE-15.3-PART3 TAX-012
-  const [showTaxDetail, setShowTaxDetail] = useState(false);
 
   const fetchTrade = useCallback(async () => {
     try {
@@ -316,26 +311,10 @@ export default function TradeDetailScreen() {
               ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
             </Text>
           </View>
-          {/* MODULE-15.3-PART3 TAX-012: sales tax row (hidden when 0) */}
-          <Pressable
-            onPress={() => setShowTaxDetail(true)}
-            disabled={!(trade.tax_amount_cents && trade.tax_amount_cents > 0)}
-            testID="trade-detail-tax-row"
-          >
-            <TaxBreakdownRow
-              taxAmountCents={trade.tax_amount_cents ?? 0}
-              taxRate={trade.tax_rate_applied ?? 0}
-              jurisdiction={trade.tax_jurisdiction ?? null}
-            />
-          </Pressable>
           <View style={[styles.row, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue} testID="trade-detail-total">
-              {formatCents(
-                trade.cash_amount_cents +
-                  trade.buyer_transaction_fee_cents +
-                  (trade.tax_amount_cents ?? 0)
-              )}
+            <Text style={styles.totalValue}>
+              ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents) / 100).toFixed(2)}
             </Text>
           </View>
         </View>
@@ -397,9 +376,10 @@ export default function TradeDetailScreen() {
               <View style={styles.reviewStatusRow}>
                 {hasReviewed
                   ? <CheckCircle size={20} color="#10B981" weight="regular" />
-                  : <CircleIcon size={20} color="#9CA3AF" weight="regular" />
+                  : <Circle size={20} color="#9CA3AF" weight="regular" />
                 }
-                {/* phosphor-review-status-placeholder */}
+                {/* phosphor-review-status-placeholder
+                />
                 <Text
                   style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}
                 >
@@ -409,9 +389,10 @@ export default function TradeDetailScreen() {
               <View style={styles.reviewStatusRow}>
                 {otherUserReviewed
                   ? <CheckCircle size={20} color="#10B981" weight="regular" />
-                  : <CircleIcon size={20} color="#9CA3AF" weight="regular" />
+                  : <Circle size={20} color="#9CA3AF" weight="regular" />
                 }
-                {/* phosphor-other-review-status-placeholder */}
+                {/* phosphor-other-review-status-placeholder
+                />
                 <Text
                   style={[
                     styles.reviewStatusText,
@@ -501,32 +482,6 @@ export default function TradeDetailScreen() {
         onCancel={() => setShowCancellationModal(false)}
         isLoading={isCancelling}
       />
-
-      {/* MODULE-15.3-PART3 TAX-012: tax detail modal */}
-      <Modal
-        visible={showTaxDetail}
-        onClose={() => setShowTaxDetail(false)}
-        title="Sales Tax Details"
-      >
-        <View style={{ padding: 16 }} testID="tax-detail-modal">
-          <View style={styles.row}>
-            <Text style={styles.label}>Taxable Amount</Text>
-            <Text style={styles.value}>{formatCents(trade?.taxable_amount_cents ?? 0)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Tax Rate</Text>
-            <Text style={styles.value}>{formatTaxRate(trade?.tax_rate_applied ?? 0)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Jurisdiction</Text>
-            <Text style={styles.value}>{trade?.tax_jurisdiction ?? '—'}</Text>
-          </View>
-          <View style={[styles.row, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Tax Collected</Text>
-            <Text style={styles.totalValue}>{formatCents(trade?.tax_amount_cents ?? 0)}</Text>
-          </View>
-        </View>
-      </Modal>
     </ScreenLayout>
   );
 }

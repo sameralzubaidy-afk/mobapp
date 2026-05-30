@@ -24,7 +24,7 @@ import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
 export default function TransactionHistoryScreen() {
-  const _navigation = useNavigation();
+  const navigation = useNavigation();
   const { session } = useAuth();
   const userId = session?.user?.id;
 
@@ -84,13 +84,13 @@ export default function TransactionHistoryScreen() {
         <View
           style={[
             styles.statusBadge,
-            { backgroundColor: item.status === 'succeeded' ? '#dcfce7' : '#fee2e2' },
+            { backgroundColor: item.status === 'succeeded' ? '#4CAF50' : '#E53935' },
           ]}
         >
           <Text
             style={[
               styles.statusText,
-              { color: item.status === 'succeeded' ? '#166534' : '#991b1b' },
+              { color: item.status === 'succeeded' ? '#FFFFFF' : '#FFFFFF' },
             ]}
           >
             {item.status.toUpperCase()}
@@ -137,7 +137,7 @@ export default function TransactionHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FAFAFA',
   },
   header: {
     flexDirection: 'row',
@@ -145,9 +145,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F5F5F5',
   },
   backButton: {
     padding: 4,
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   content: {
     flex: 1,
@@ -173,16 +173,14 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   historyItem: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 2,
   },
   itemHeader: {
@@ -191,15 +189,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   description: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
-    color: '#111827',
+    color: '#1A1A1A',
     flex: 1,
   },
   amount: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   itemFooter: {
     flexDirection: 'row',
@@ -207,37 +205,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   date: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 12,
+    color: '#808080',
   },
   statusBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 99,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   statusText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
   },
   errorText: {
-    fontSize: 16,
-    color: '#ef4444',
+    fontSize: 14,
+    color: '#E53935',
     textAlign: 'center',
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#4A7C59',
     paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   retryText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontWeight: '600',
   },
   emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: '#808080',
     marginTop: 12,
   },
 });

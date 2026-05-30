@@ -16,6 +16,8 @@ ios/
 .env
 .env.local
 .env.*.local
+.env.staging
+*.xcode.env.local
 
 # VSCode
 .vscode/

@@ -83,6 +83,40 @@ function mapReceiptStatus(errorCode?: string): PushDeliveryLogRow['receipt_statu
   return 'error';
 }
 
+// TFV2-016: Push notification throttle — max 3 trade notifications per user per trade
+// Payout events are never throttled.
+const PAYOUT_EVENT_TYPES = new Set(['payout_sent', 'payout_failed', 'payout_processing']);
+const MAX_TRADE_PUSH_PER_USER = 3;
+
+async function shouldThrottlePush(
+  supabase: ReturnType<typeof createClient>,
+  tradeId: string,
+  userId: string,
+  eventType: string
+): Promise<boolean> {
+  if (PAYOUT_EVENT_TYPES.has(eventType)) return false;
+  const { count } = await supabase
+    .from('trade_push_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('trade_id', tradeId)
+    .eq('user_id', userId)
+    .not('event_type', 'in', `(${Array.from(PAYOUT_EVENT_TYPES).join(',')})`);
+  return (count ?? 0) >= MAX_TRADE_PUSH_PER_USER;
+}
+
+async function logTradePush(
+  supabase: ReturnType<typeof createClient>,
+  tradeId: string,
+  userId: string,
+  eventType: string
+): Promise<void> {
+  try {
+    await supabase.from('trade_push_log').insert({ trade_id: tradeId, user_id: userId, event_type: eventType });
+  } catch {
+    // Non-blocking
+  }
+}
+
 serve(async (req: Request) => {
   // Only accept POST requests
   if (req.method !== 'POST') {
@@ -126,6 +160,20 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // TFV2-016: Trade push throttle — check before doing anything expensive
+    const tradeIdStr = typeof data?.trade_id === 'string' ? data.trade_id : null;
+    const eventTypeStr = typeof data?.event_type === 'string' ? data.event_type : null;
+    if (tradeIdStr && eventTypeStr && targetUserId) {
+      const throttled = await shouldThrottlePush(supabase, tradeIdStr, targetUserId, eventTypeStr);
+      if (throttled) {
+        console.log(`[send-push-notification] throttled trade=${tradeIdStr} user=${targetUserId} event=${eventTypeStr}`);
+        return new Response(
+          JSON.stringify({ success: false, throttled: true, message: 'Push throttled for this trade' }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     let tokenRows: Array<{ id: string | null; token: string }> = [];
     let resolvedNotificationId: string | null =
@@ -366,6 +414,11 @@ serve(async (req: Request) => {
       okTickets,
       errorTickets: ticketErrors.length,
     });
+
+    // TFV2-016: Log to trade_push_log after successful send
+    if (tradeIdStr && eventTypeStr && targetUserId && okTickets > 0) {
+      await logTradePush(supabase, tradeIdStr, targetUserId, eventTypeStr);
+    }
 
     return new Response(
       JSON.stringify({

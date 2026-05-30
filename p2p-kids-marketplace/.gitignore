@@ -33,6 +33,10 @@ yarn-error.*
 # local env files
 .env
 .env*.local
+.env.staging
+
+# local iOS env files
+*.xcode.env.local
 
 # Supabase
 supabase/.branches

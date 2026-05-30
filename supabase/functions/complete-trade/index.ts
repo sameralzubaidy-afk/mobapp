@@ -1,6 +1,7 @@
 // File: supabase/functions/complete-trade/index.ts
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { logTradeEvent } from '../_shared/trade-events.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,7 +17,7 @@ serve(async (req) => {
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), {
-      status: 200,
+      status: 405,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -33,7 +34,7 @@ serve(async (req) => {
       success: false,
       error: 'Server configuration error: missing SUPABASE_URL or SUPABASE_ANON_KEY',
     }), {
-      status: 200,
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -47,7 +48,7 @@ serve(async (req) => {
       success: false,
       error: 'Server configuration error: failed to initialize Supabase client',
     }), {
-      status: 200,
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -61,7 +62,7 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -70,9 +71,71 @@ serve(async (req) => {
 
     if (!tradeId) {
       return new Response(JSON.stringify({ success: false, error: 'Missing tradeId (expected tradeId or trade_id)' }), {
-        status: 200,
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+
+    const { data: trade, error: tradeError } = await supabaseClient
+      .from('trades')
+      .select('id, buyer_id, status, disputed_at, dispute_resolution')
+      .eq('id', tradeId)
+      .maybeSingle();
+
+    if (tradeError || !trade) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Trade not found',
+          code: 'TRADE_NOT_FOUND',
+        }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (trade.buyer_id !== user.id) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Only the buyer can complete this trade',
+          code: 'BUYER_ONLY_COMPLETION',
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (trade.status === 'completed') {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tradeId: trade.id,
+          status: 'completed',
+          message: 'Trade already completed',
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (trade.status !== 'in_progress') {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: `Trade is not in_progress (current status: ${trade.status})`,
+          code: 'INVALID_TRADE_STATE',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (trade.disputed_at && !trade.dispute_resolution) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Trade has an unresolved dispute and cannot be completed',
+          code: 'UNRESOLVED_DISPUTE',
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // 2. Call the RPC to complete the trade
@@ -95,7 +158,7 @@ serve(async (req) => {
         error: rpcError.message,
         details: rpcError.details 
       }), {
-        status: 200,
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -107,10 +170,15 @@ serve(async (req) => {
         error: data?.error || 'Unknown error completing trade',
         details: data?.details
       }), {
-        status: 200,
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // TFV2-019: log trade_completed event
+    await logTradeEvent(supabaseClient, tradeId, 'trade_completed', user.id, {
+      final_status: data.status,
+    });
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -124,7 +192,7 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('[complete-trade] error:', error);
     return new Response(JSON.stringify({ success: false, error: error?.message || 'Unknown error' }), {
-      status: 200,
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

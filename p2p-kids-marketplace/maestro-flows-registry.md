@@ -31,6 +31,8 @@
 - `.maestro/notif-v2-008-deep-linking.yaml` - Notification deep linking: all notification types (SP, subscription, badges, trades, referrals, system) navigate to correct screens with params from foreground, background, and killed app states. Tests invalid deep link fallback to Home, navigation stack management (navigate vs reset), and multi-notification navigation sequences (NOTIF-V2-008).
 - `.maestro/notif-v2-009-email-notifications.yaml` - Email notification preference toggles per category (subscription, sp_events, badges, trades, system): email_enabled on/off, persist after navigation, default off state. Email delivery itself not testable in simulator – covers UI settings layer only (NOTIF-V2-009).
 - `.maestro/notif-v2-010-analytics.yaml` - Notification analytics tracking: delivered, opened, clicked, failed events. Verifies mobile app tracks events when notifications are sent, tapped, and deep links followed. Admin dashboard verification is manual (NOTIF-V2-010).
+- `.maestro/module-15.1.2-flow-08-trade-v2-components.yaml` - **[MODULE-15.1.2 FLOW-08]** TradeFlowV2 Phase 4 component regression using deep-link preview route (`/trade-v2-preview`) for deterministic countdown and auto-complete banner validation (TFV2-007, TFV2-008).
+- `.maestro/trade-tfv2-023-addenda.yaml` - **[MODULE-15.1.2 TFV2-023 + Addenda A-E]** Seller cancel consequences: in_progress cancel triggers tiered alert (level 1/2/3+), seller-specific cancellation reasons. Value stack in TradeOfferScreen: offer amount + SP discount + platform fee ($0.99 subscriber / $2.99 free) + total cash. Bundle trade flows: bundle offer grouping in TradeListScreen Offers tab (Accept All / Review Each / Decline All), in-progress bundle section in Buying tab, bundle context banner + Accept All N Items in ReviewOfferScreen, bundle banner + Confirm All shortcut in TradeTimelineScreen. 5 flow blocks.
 - `.maestro/discovery-v3-006-filter-modal.yaml` - Discovery V3 filter modal: all 8 filter sections, price validation, clear all, apply filters (DISCOVERY-V3-006).
 - `.maestro/search-filters.yaml` - Discovery V3 multi-filter application: apply multiple filters, filter chips display, remove individual chips, clear all filters, results update after filter changes (DISCOVERY-V3-008).
 - `.maestro/search-autocomplete.yaml` - Discovery V3 search autocomplete: recent searches (max 8, LRU), case-insensitive deduplication, autocomplete dropdown, tap suggestion, brand autocomplete (DISCOVERY-V3-008).
@@ -50,3 +52,6 @@
 ## Shared Helper Flows
 
 - `.maestro/helpers/auth-bootstrap-expo.yaml` - Reusable startup normalization for Expo Go auth flows (open Metro app, recover from suspended/authenticated state, normalize to Landing).
+
+## MODULE-15.3-PART3 Sales Tax
+- `.maestro/tax-checkout.yaml` - Sales tax row + total verification in checkout (Order Summary). TASK: TAX-011, TAX-014. FLOW-22.

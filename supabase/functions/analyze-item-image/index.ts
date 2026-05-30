@@ -557,6 +557,36 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+    const token = authHeader.replace(/Bearer\s+/i, '').trim();
+    if (!token) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Missing bearer token',
+          },
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const authClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
+    const { data: authData, error: authError } = await authClient.auth.getUser(token);
+    if (authError || !authData?.user) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Invalid or expired bearer token',
+          },
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const requestBody = await req.json();
     const hasBatchPayload = Array.isArray(requestBody?.items);
 
@@ -597,6 +627,18 @@ serve(async (req) => {
           }
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (authData.user.id !== sellerId) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            code: 'ANALYZE_OWNERSHIP_DENIED',
+            message: 'You can only analyze images for your own seller profile.',
+          },
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 

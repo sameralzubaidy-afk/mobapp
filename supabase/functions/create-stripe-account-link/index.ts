@@ -7,6 +7,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
+import {
+  ownershipDeniedResponse,
+  verifyStripeAccountOwnership,
+} from '../_shared/verify-stripe-ownership.ts';
 
 // Inline request/response types
 interface CreateStripeAccountLinkRequest {
@@ -122,6 +126,26 @@ serve(async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ success: false, error: 'Stripe account not created' }),
         { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      );
+    }
+
+    // PROD-005: Defense-in-depth ownership verification (redundant with the
+    // user_id-scoped lookup above, but adds explicit audit logging and a
+    // standard 403 response code if anything ever changes upstream).
+    const ownership = await verifyStripeAccountOwnership(
+      supabase,
+      user.id,
+      method.stripe_account_id
+    );
+    if (!ownership.owned) {
+      console.warn('[create-stripe-account-link] Ownership denied:', {
+        userId: user.id,
+        methodId,
+        reason: ownership.error,
+      });
+      return ownershipDeniedResponse(
+        ownership.error || 'Stripe account ownership check failed',
+        { 'Access-Control-Allow-Origin': '*' }
       );
     }
 

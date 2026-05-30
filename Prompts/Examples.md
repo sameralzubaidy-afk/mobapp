@@ -56,38 +56,36 @@ Supabase: supabase/
 My Example 1
 
 
+### TASKs in MODULE-15.5-prod-readiness.md
 
-### TASK FLOW-26: Misc / Edge-Case Screens
-
-I’m working on the MODULE-15.1-UI-redesign.md tasks
-Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.1-UI-redesign.md
-Tasks: ### TASK FLOW-26: Misc / Edge-Case Screens
-
+I’m working on the implmentiing all the  tasks in MODULE-15.5-prod-readiness.md
+Module:/Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/V3/MODULE-15.5-prod-readiness.md
+Tasks: from  PROD-001 to PROD-013
 scope 
-Redesign 6 utility/edge-case screens: offline error, empty states (search, generic), loading screen, action success/failure confirmations. These screens must feel consistent with the design system even though they are secondary flows.
 
-#### Scope — Files to Modify
+PROD-P001	iOS Privacy Descriptions + PrivacyInfo.xcprivacy
+PROD-P002	Remove Service Role Key from Admin Portal Browser ✅ DONE
+PROD-P003	Global Error Boundary
+PROD-P004	Crash Reporting (Sentry)
+PROD-P005	COPPA Enforcement (DB-level gate for minors)
+Main Tasks
 
-| # | Screen | File | Change Type |
-|---|--------|------|-------------|
-| 1 | Offline / No Connection | `src/screens/error/OfflineScreen.tsx` | Restyle only |
-| 2 | Empty Search Results | `src/components/EmptySearchState.tsx` | Restyle only |
-| 3 | Generic Empty State | `src/components/EmptyState.tsx` | Restyle only |
-| 4 | Loading Screen | `src/screens/LoadingScreen.tsx` | Restyle only |
-| 5 | Action Success Screen | `src/screens/feedback/SuccessScreen.tsx` | Restyle only |
-| 6 | Action Failure Screen | `src/screens/feedback/ErrorScreen.tsx` | Restyle only |
+PROD-001	Remove Anon RLS Policies from sp_wallets / sp_ledger
+PROD-002	Restrict admin_config RLS
+PROD-003	Edge Function Rate Limiting
+PROD-004	Node Isolation at RLS Level
+PROD-005	Edge Function Stripe Connect Ownership Verification
+PROD-006	TypeScript Strictness — Enable noImplicitAny
+PROD-007	Fix ESLint Failures
+PROD-008	Fix Test Failures
+PROD-009	App Store Metadata & Privacy Policy
+PROD-010	Consolidate Admin Authentication
+PROD-011	Android Data Safety & Google Play Families Policy
+PROD-012	Production Environment Configuration & Secret Audit
+Scan Task
 
-#### ✅ Acceptance Criteria — FLOW-26 (Visual Only)
-
-- [ ] Offline screen: `WifiX` (64px, `#E0E0E0`), green "Try Again" pill with `ArrowCounterClockwise` icon
-- [ ] Empty search: `MagnifyingGlassSlash` (56px, `#E0E0E0`), 17px semibold title
-- [ ] Generic EmptyState: accepts icon/title/subtitle/action as props, no hardcoded icons
-- [ ] Loading screen: `ActivityIndicator` color `#5DBB8E`, white background
-- [ ] Success screen: `CheckCircle` (72px, `#5DBB8E`, fill), green CTA pill
-- [ ] Error screen: `XCircle` (72px, `#E85D75`, fill), green "Try Again" pill, gray "Go Back" text link
-- [ ] All screens: white `#FFFFFF` background, centered layout, 24px horizontal padding
-
-
+PROD-013	Full-Stack Production Readiness & Security Scan (Client + Admin)
+ 
 i want you to 
 
 1- Search the codebase for existing implementations using:
@@ -104,9 +102,9 @@ i want you to
    - You MUST extend or refactor the existing code
    - You MUST NOT create a parallel implementation
 4. Forbidden: Re-implementing logic that already exists under a different name
-5. Follow the module and task exactly, and cross-check with the verification file in MODULE-15.1-VERIFICATION.md
+5. Follow the module and task exactly, and cross-check with the verification file in MODULE-15.2-Cart-VERIFICATION.md 
 6. Show me the files you create or edit with their full paths
-MODULE-15.1-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/MODULE-15.1-VERIFICATION.md
+MODULE-15.2-Cart-VERIFICATION.mdare now satisfied (location in /Users/sameralzubaidi/Desktop/kids_marketplace_app/MODULE-15.2-Cart-VERIFICATION.md
 8. always include short answers first
 9. Note I do not use supabase locally, always must be supabase prod.
 10. if there is a need to run a sql in supabase before testing clearly ask me to do. 
@@ -119,6 +117,8 @@ MODULE-15.1-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi
 17. Testing Requirements (All Mandatory)
 18. do not break any working function 
 19. do not hardcode any value, fetch form db where is applicable. 
+20. for any DB changes , you have my perimisoon to use supbase CLI to run them. 
+21. once you done give me a tabke shows status for each task completion. 
 
 > ⚠️ RULE 1: Tests required regardless of change size. No exceptions.
 
@@ -168,15 +168,17 @@ MODULE-15.1-VERIFICATION.md are now satisfied (location in /Users/sameralzubaidi
 - Run: `npm run test:maestro:ios` AND `npm run test:maestro:android` → both PASS
 
 
-MODULE-12-VERIFICATION-V2.md
+MODULE-15.5-prod-readiness.md
 
 my example 2 - to verify
-I want to verify what’s already implemented for MODULE-08-REVIEWS-RATINGS by exeucting the steps in  MODULE-11-VERIFICATION-V2.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/
- My requirements listed in   /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-08-REVIEWS-RATINGS.md
+I want to verify what’s already implemented for MODULE-15.5-prod-readiness.md by exeucting the steps in  
+MODULE-15.5-prod-readiness-VERIFICATION.md
+2-MODULE-15.5-prod-readiness-VERIFICATION.md in /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/
+ My requirements listed in   /Users/sameralzubaidi/Desktop/kids_marketplace_app/Prompts/MODULE-15.5-prod-readiness-VERIFICATION.md
 
 Please:
 
-Read the verification checklist in MODULE-08-REVIEWS & RATINGS-VERIFICATION.md
+Read the verification checklist in MODULE-15.5-prod-readiness-VERIFICATION.md3-sales-tax-VERIFICATION.md 
 Inspect the current code under:
 /Users/sameralzubaidi/Desktop/kids_marketplace_app
 make sure you create all needed unit tests and E2E tests. 

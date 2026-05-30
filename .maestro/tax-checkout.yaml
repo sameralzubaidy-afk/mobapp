@@ -1,0 +1,36 @@
+# FLOW: tax-checkout | TASK: TAX-011,TAX-014
+# MODULE-15.3-PART3 TAX-014
+# Maestro flow: verify sales-tax row + total in checkout & trade detail.
+# Run: maestro test .maestro/tax-checkout.yaml
+appId: com.kidsmarketplace.app
+---
+- launchApp
+- runFlow:
+    when:
+      visible: "Sign In"
+    commands:
+      - tapOn: "Sign In"
+      - inputText: "${MAESTRO_BUYER_EMAIL}"
+      - tapOn: "Password"
+      - inputText: "${MAESTRO_BUYER_PASSWORD}"
+      - tapOn: "Continue"
+# Navigate buyer to an item & start a trade
+- tapOn: "Browse"
+- tapOn:
+    index: 0
+    text: ".*"
+- tapOn: "Buy Now"
+# Order summary should be visible
+- assertVisible: "Order Summary"
+- assertVisible: "Platform Fee"
+# Tax row may or may not appear depending on admin config — assert it's correct shape WHEN present
+- runFlow:
+    when:
+      visible: "Sales Tax"
+    commands:
+      - assertVisible:
+          id: "checkout-tax-row"
+      - assertVisible:
+          id: "tax-amount"
+- assertVisible:
+    id: "checkout-total"

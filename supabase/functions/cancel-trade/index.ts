@@ -2,6 +2,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@12.0.0';
+import { logTradeEvent } from '../_shared/trade-events.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -111,7 +112,41 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, tradeId: data.trade_id, sp_refunded: data.sp_refunded }), {
+    // TFV2-019: Log cancellation event
+    // TFV2-023: If seller cancels an in_progress trade, apply progressive consequence.
+    let consequenceLevel: number | null = null;
+
+    if (user.id === trade.seller_id && trade.status === 'in_progress') {
+      try {
+        const { data: consequence, error: conseqError } = await supabaseClient.rpc(
+          'fn_handle_seller_cancellation',
+          { p_seller_id: trade.seller_id, p_trade_id: tradeId }
+        );
+        if (!conseqError && consequence) {
+          consequenceLevel = (consequence as any).level ?? null;
+        } else if (conseqError) {
+          console.error('[cancel-trade] fn_handle_seller_cancellation error:', conseqError);
+        }
+      } catch (e) {
+        console.error('[cancel-trade] fn_handle_seller_cancellation unexpected error:', e);
+        // Non-blocking: cancellation already succeeded — don't fail over consequence logic.
+      }
+
+      // Log seller-specific event with consequence metadata.
+      await logTradeEvent(supabaseClient, tradeId, 'seller_cancelled', user.id, {
+        reason: reason || 'Seller requested cancellation',
+        sp_refunded: data.sp_refunded,
+        level: consequenceLevel,
+        seller_cancellation_count: consequenceLevel,
+      });
+    } else {
+      await logTradeEvent(supabaseClient, tradeId, 'offer_cancelled', user.id, {
+        reason: reason || 'User requested cancellation',
+        sp_refunded: data.sp_refunded,
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, tradeId: data.trade_id, sp_refunded: data.sp_refunded, consequence_level: consequenceLevel }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

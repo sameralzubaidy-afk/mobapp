@@ -68,6 +68,141 @@ REASONING GUIDELINES:
 
 ---
 
+## MODULE SCOPE & ACCEPTANCE CRITERIA
+
+### 1. Module Scope
+
+This module transforms the app from **feature-complete (6.5/10)** to **production-ready (9+/10)** across two applications and three infrastructure layers. No new features are added — this module exclusively hardens, secures, and prepares the existing code for public release.
+
+**In Scope:**
+
+| Area | What This Module Covers |
+|------|------------------------|
+| Mobile App (iOS) | Privacy manifest, error boundary, crash reporting, COPPA gate, TypeScript strictness, ESLint, tests |
+| Mobile App (Android) | SDK versions, Families Policy compliance, Firebase COPPA config |
+| Admin Portal | Service role key security, admin auth consolidation |
+| Supabase DB | RLS fixes (SP wallet, admin_config, node isolation), COPPA enforcement triggers |
+| Edge Functions | Rate limiting middleware, Stripe ownership verification |
+| Store Submission | App Store + Play Store metadata, privacy policy, terms of service |
+| Environment | Secret audit, env var documentation |
+| Full-Stack Scan | Comprehensive security + compliance findings report |
+
+**Out of Scope (not in this module):**
+- Feature development (no new user-facing features)
+- UI redesign or visual polish
+- Performance optimization beyond memory leak fixes in the scan
+- New third-party integrations
+- Database schema changes beyond security RLS fixes
+- Admin portal feature additions
+
+---
+
+### 2. Production Readiness Score Methodology
+
+The score rises from 6.5 to 9+ as tasks complete. Use this table to communicate progress to stakeholders.
+
+| Score | Milestone | Tasks Required |
+|-------|-----------|---------------|
+| 7.0 / 10 | Security floor | PROD-P001 (iOS Privacy) + PROD-P002 ✓ DONE |
+| 7.5 / 10 | Crash-safe | + PROD-P003 (Error Boundary) + PROD-P004 (Sentry) |
+| 8.0 / 10 | Legally compliant | + PROD-P005 (COPPA) + PROD-001 (SP Wallet RLS) + PROD-002 (admin_config RLS) |
+| 8.5 / 10 | Infrastructure secured | + PROD-003 (Rate Limiting) + PROD-004 (Node Isolation) + PROD-005 (Stripe Ownership) |
+| 9.0 / 10 | Store-submission ready | + PROD-009 (Store Metadata) + PROD-010 (Admin Auth) + PROD-011 (Google Play) + PROD-012 (Secrets) |
+| 9.5 / 10 | Code quality complete | + PROD-006 (noImplicitAny) + PROD-007 (Lint) + PROD-008 (Tests) |
+
+**Automatic disqualifiers (score = 0 for that dimension regardless of other work):**
+- Service role key in any browser-bundled JS → Security score = 0
+- Missing `PrivacyInfo.xcprivacy` → App Store submission impossible (hard reject)
+- Any P0 unresolved finding in the PROD-013 scan → Score cannot exceed 8.5
+
+---
+
+### 3. Module Acceptance Criteria (Full Module Complete)
+
+The module is **complete** when ALL of the following are true:
+
+#### 3.1 App Store Blockers — ZERO unresolved P0s
+- [ ] `PROD-P001` — iOS `Info.plist` has all `NS*UsageDescription` keys + `PrivacyInfo.xcprivacy` exists
+- [ ] `PROD-P002` ✓ DONE — Zero occurrences of `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` in codebase
+- [ ] `PROD-P003` — `ErrorBoundary.tsx` wraps app root; "Try Again" screen appears instead of blank screen on crash
+- [ ] `PROD-P004` — Sentry initialized in app; a test crash appears in the Sentry dashboard on staging
+- [ ] `PROD-P005` — `is_coppa_compliant()` function exists; unconsented minor cannot INSERT into `items` or `trades` at DB level
+
+#### 3.2 Security Hardening — ZERO P0/P1 gaps
+- [ ] `PROD-001` — `SELECT policyname FROM pg_policies WHERE tablename='sp_wallets' AND roles::text LIKE '%anon%'` → 0 rows
+- [ ] `PROD-002` — Anonymous Supabase client cannot read `admin_config` table
+- [ ] `PROD-003` — Auth, listing-create, and trade-create Edge Functions return `429` after burst; `_shared/rate-limiter.ts` exists
+- [ ] `PROD-004` — Users querying `items` only see results where `node_id` matches their assigned node
+- [ ] `PROD-005` — Calling `create-stripe-account-link` with a foreign Stripe account ID returns `403 STRIPE_ACCOUNT_OWNERSHIP_DENIED`
+
+#### 3.3 Code Quality Gates — ALL exit code 0
+- [ ] `cd p2p-kids-marketplace && npx tsc -p tsconfig.json --noEmit` → 0
+- [ ] `cd p2p-kids-marketplace && npx eslint src/` → 0
+- [ ] `cd p2p-kids-admin && npx next lint` → 0
+- [ ] `cd p2p-kids-marketplace && npx jest --no-coverage` → 0
+- [ ] `cd p2p-kids-admin && yarn build` → 0
+
+#### 3.4 Store Submission Requirements — ALL satisfied
+- [ ] `PROD-009` — `docs/STORE-SUBMISSION-CHECKLIST.md` exists with zero unchecked P0 items
+- [ ] `PROD-009` — Privacy Policy URL accessible from within the app (Settings/About screen)
+- [ ] `PROD-009` — Terms of Service URL accessible from within the app
+- [ ] `PROD-010` — `grep -r "verifyAdminAuth" p2p-kids-admin/src/app/api/` shows every route uses it
+- [ ] `PROD-011` — `app.json android.targetSdkVersion >= 34` + `docs/GOOGLE-PLAY-DATA-SAFETY.md` exists
+- [ ] `PROD-012` — `grep -rn "NEXT_PUBLIC_.*SECRET\|EXPO_PUBLIC_.*SECRET" p2p-kids-admin/src p2p-kids-marketplace/src` → 0 results
+
+#### 3.5 Full-Stack Scan — All P0s resolved
+- [ ] `PROD-013` — `docs/PROD-SCAN-FINDINGS.md` exists, 200+ lines, covers all 10 categories
+- [ ] `PROD-013` — Zero unresolved P0 findings in the scan report
+- [ ] `PROD-013` — Zero unresolved P1 security findings in the scan report
+
+#### 3.6 Final Build Verification
+- [ ] `cd p2p-kids-marketplace && npx expo prebuild --platform ios --clean` → exits 0
+- [ ] `cd p2p-kids-marketplace && npx expo prebuild --platform android --clean` → exits 0
+- [ ] iOS Simulator: app launches, error boundary does not show on normal navigation, no blank screens
+- [ ] `cd p2p-kids-admin && yarn build` → exits 0
+
+---
+
+### 4. Non-Goals (explicitly excluded from this module)
+
+| Not In Scope | Reason |
+|-------------|--------|
+| Full EAS cloud build (30+ min) | Done as a separate final pre-submission step |
+| Submitting to App Store / Play Store | Submission is its own milestone after this module |
+| Legal review of privacy policy | Flagged as TODO — requires legal team sign-off |
+| Sentry alert rules / PagerDuty wiring | Just event capture is sufficient for MVP |
+| Redis-based rate limiting | In-memory is sufficient; Redis is a future scaling task |
+| Full GDPR-K compliance | COPPA is the priority; GDPR-K is a future module |
+| New screens or navigation flows | No feature work in this module |
+
+---
+
+### 5. Entry Criteria (module can start when all are true)
+
+- [ ] MODULE-09 (SP Wallet) complete — `sp_wallets` and `sp_ledger` tables exist in DB
+- [ ] MODULE-02/03 (Auth) complete — `profiles` table has `date_of_birth` and `parental_consent_verified` columns
+- [ ] MODULE-01 (Infrastructure) complete — Supabase project configured, Edge Functions deploying successfully
+- [ ] `cd p2p-kids-marketplace && npx expo start` launches the app without fatal error
+- [ ] `cd p2p-kids-admin && yarn dev` starts the admin portal without fatal error
+
+---
+
+### 6. Rollback Plan
+
+If any security fix causes a production regression, use these targeted rollbacks:
+
+| Task | Rollback SQL / Command | Risk |
+|------|------------------------|------|
+| PROD-001 (SP Wallet RLS) | `CREATE POLICY "sp_wallets_anon_select" ON sp_wallets FOR SELECT TO anon USING (true);` — then immediately fix root cause | HIGH — only do this in a true outage |
+| PROD-002 (admin_config RLS) | `CREATE POLICY "admin_config_public_read" ON admin_config FOR SELECT TO anon USING (true);` | MEDIUM |
+| PROD-004 (Node Isolation) | `DROP POLICY "items_select_own_node" ON items; CREATE POLICY "items_select_all_active" ON items FOR SELECT TO authenticated USING (items.status = 'active');` | MEDIUM |
+| PROD-P005 (COPPA triggers) | `DROP TRIGGER IF EXISTS trigger_coppa_check_item_insert ON items; DROP TRIGGER IF EXISTS trigger_coppa_check_trade_insert ON trades;` | LOW — no data loss |
+| PROD-010 (Admin Auth) | `git revert <commit-hash>` + `cd p2p-kids-admin && yarn build && deploy` | LOW |
+
+> ⚠️ All rollback SQL must be tested on staging BEFORE executing on production. Never run untested SQL on production data.
+
+---
+
 ## PREREQUISITE TASKS (must be completed before any PROD-0xx task)
 
 These tasks close **App Store rejection blockers** and **critical security gaps**.
@@ -310,7 +445,7 @@ PROD-P002: Remove service role key from admin portal browser
 
 ---
 
-## TASK PROD-P002: Remove Service Role Key from Admin Portal Browser (Critical Security Fix)
+## TASK PROD-P002: Remove Service Role Key from Admin Portal Browser (Critical Security Fix) DONE
 
 **Duration:** 4 hours  
 **Priority:** Critical (P0 — Full DB compromise vulnerability)  
@@ -2480,11 +2615,15 @@ ACCEPTANCE CRITERIA
 
 **Duration:** 3 hours  
 **Priority:** Medium (P2 — Code quality gate)  
-**Dependencies:** PROD-006 (do TypeScript strictness first — some lint errors overlap)
+**Dependencies:** PROD-006 (do TypeScript strictness first — many lint errors are exposed by enabling `noImplicitAny`)
 
 ### Description
 
-`yarn lint` (ESLint) currently exits with code 1. All lint errors must be resolved before store submission to ensure code quality.
+`yarn lint` exits with code 1 in both `p2p-kids-marketplace/` and `p2p-kids-admin/`. All lint errors must be resolved before store submission. Known error categories:
+- Unused variables and imports (est. 30–50 occurrences across both apps)
+- React hooks dependency array violations (`react-hooks/exhaustive-deps`)
+- `@typescript-eslint/no-explicit-any` violations introduced by enabling strict TypeScript
+- `react/display-name` violations in forwardRef components
 
 ---
 
@@ -2492,55 +2631,219 @@ ACCEPTANCE CRITERIA
 
 ```typescript
 /*
-TASK: Fix all ESLint errors in the mobile app
+TASK: Fix all ESLint errors in the mobile app and admin portal
 
 CONTEXT:
-- Config: p2p-kids-marketplace/.eslintrc.js
-- Run: cd p2p-kids-marketplace && npx eslint src/ --format compact 2>&1 | tail -20
-- Common error categories:
-  a. Unused variables/imports
-  b. React hooks dependency arrays
-  c. Missing return types
-  d. Duplicate exports (if any remain)
-
-APPROACH:
-1. Run eslint with --format compact to see error summary
-2. Fix auto-fixable errors: npx eslint src/ --fix
-3. Manually fix remaining errors
-4. Do NOT suppress errors with // eslint-disable unless truly necessary
-5. If a rule is consistently wrong for the project, disable it in .eslintrc.js with a comment explaining why
+- Mobile ESLint config:  p2p-kids-marketplace/.eslintrc.js
+- Admin ESLint config:   p2p-kids-admin/.eslintrc.js  (or next.config.js ESLint settings)
+- Current state: `yarn lint` exits with code 1 in both apps
+- PROD-006 must be complete first (TypeScript strictness runs before lint)
 
 ==================================================
-Step 1: Measure
+STEP 1: Measure before touching any code
 ==================================================
 */
 
-// cd p2p-kids-marketplace && npx eslint src/ 2>&1 | grep -c "error"
-// cd p2p-kids-marketplace && npx eslint src/ --fix
+// Run these FIRST — do not change any file until you have the full picture:
+// cd p2p-kids-marketplace && npx eslint src/ 2>&1 | grep -c " error "
+// cd p2p-kids-marketplace && npx eslint src/ --format compact 2>&1 | grep " error " | sort | uniq -c | sort -rn | head -20
+// cd p2p-kids-admin && npx next lint 2>&1 | tail -30
 
 /*
 ==================================================
-Step 2: Fix remaining errors manually
+STEP 2: Auto-fix safe issues
 ==================================================
 */
 
-// Priority fix order:
-// 1. Unused imports (delete them)
-// 2. Missing React hook dependencies (add to dep array or use useCallback)
-// 3. Any duplicate identifiers
-// 4. Type-related lint errors
+// Auto-fix handles: unused-vars, quotes, semi, comma-spacing, eol-last:
+// cd p2p-kids-marketplace && npx eslint src/ --fix
+// cd p2p-kids-admin && npx next lint --fix
+
+/*
+==================================================
+STEP 3: Fix React hooks violations manually
+==================================================
+*/
+
+// Pattern: useEffect with missing dependencies
+// filepath: any screen or hook file
+
+// WRONG — triggers react-hooks/exhaustive-deps:
+// useEffect(() => {
+//   fetchItems(userId);
+// }, []); // Missing userId
+
+// CORRECT option A — add the dependency:
+// useEffect(() => {
+//   fetchItems(userId);
+// }, [userId]);
+
+// CORRECT option B — stable callback with useCallback:
+// const fetchItemsStable = useCallback(() => {
+//   fetchItems(userId);
+// }, [userId]);
+// useEffect(() => { fetchItemsStable(); }, [fetchItemsStable]);
+
+// Pattern: setInterval / clearInterval:
+// WRONG:
+// useEffect(() => {
+//   const id = setInterval(() => poll(activeTab), 5000);
+//   return () => clearInterval(id);
+// }, []); // Missing activeTab
+
+// CORRECT:
+// useEffect(() => {
+//   const id = setInterval(() => poll(activeTab), 5000);
+//   return () => clearInterval(id);
+// }, [activeTab]);
+
+/*
+==================================================
+STEP 4: Fix @typescript-eslint/no-explicit-any
+==================================================
+*/
+
+// WRONG — `any` in event handlers:
+// const handlePress = (event: any) => { event.stopPropagation(); };
+
+// CORRECT — use React Native event types:
+// import { GestureResponderEvent } from 'react-native';
+// const handlePress = (event: GestureResponderEvent) => { event.stopPropagation(); };
+
+// WRONG — `any` in catch blocks:
+// } catch (e: any) { console.error(e.message); }
+
+// CORRECT — use `unknown` and narrow:
+// } catch (e: unknown) {
+//   const message = e instanceof Error ? e.message : 'Unknown error';
+//   console.error(message);
+// }
+
+// WRONG — `any` in Supabase response:
+// const { data }: { data: any } = await supabase.from('items').select('*');
+
+// CORRECT — use typed query or cast:
+// const { data } = await supabase.from('items').select('*').returns<Item[]>();
+
+/*
+==================================================
+STEP 5: Fix unused imports and variables
+==================================================
+*/
+
+// filepath: any .ts / .tsx file
+
+// WRONG — importing something not used:
+// import { useState, useEffect, useCallback } from 'react'; // useCallback unused
+
+// CORRECT — remove unused:
+// import { useState, useEffect } from 'react';
+
+// WRONG — state variable declared but never read:
+// const [error, setError] = useState<string | null>(null); // error never read in JSX
+
+// CORRECT option A — remove if truly unused:
+// (delete the line)
+// CORRECT option B — prefix with underscore if intentionally suppressed:
+// const [_error, setError] = useState<string | null>(null);
+
+/*
+==================================================
+STEP 6: Fix react/display-name violations
+==================================================
+*/
+
+// WRONG — anonymous forwardRef without displayName:
+// const MyComponent = React.forwardRef((props, ref) => <View ref={ref} {...props} />);
+
+// CORRECT — name the function:
+// const MyComponent = React.forwardRef<View, MyProps>(
+//   function MyComponent(props, ref) { return <View ref={ref} {...props} />; }
+// );
+
+/*
+==================================================
+STEP 7: If a rule is consistently wrong for the project
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/.eslintrc.js (ONLY change if a rule is wrong project-wide)
+// Add to rules with a COMMENT explaining why:
+//
+// rules: {
+//   // SP calculation uses intermediate variables for readability, not all are read in JSX
+//   '@typescript-eslint/no-unused-vars': ['error', {
+//     varsIgnorePattern: '^_',
+//     argsIgnorePattern: '^_',
+//   }],
+// }
 
 /*
 ==================================================
 ACCEPTANCE CRITERIA
 ==================================================
 
-✓ npx eslint src/ exits with code 0
-✓ No // eslint-disable-next-line without explanation comment
-✓ No unused imports remaining
-✓ React hooks rules satisfied (deps arrays correct)
+✓ cd p2p-kids-marketplace && npx eslint src/          → exits with code 0
+✓ cd p2p-kids-admin && npx next lint                  → exits with code 0
+✓ Zero lines matching " error " in eslint output (warnings acceptable)
+✓ No // eslint-disable-next-line without a comment explaining why
+✓ No unused imports anywhere in src/
+✓ All useEffect dependency arrays are correct (no missing deps)
+✓ All catch blocks use `unknown` type, not `any`
+✓ TypeScript compile still passes: npx tsc -p tsconfig.json --noEmit → exit 0
 */
 ```
+
+---
+
+### Output Files
+
+1. **Various `p2p-kids-marketplace/src/**/*.tsx` / `*.ts`** — Unused imports removed, hook dep arrays corrected, `any` replaced with proper types
+2. **`p2p-kids-marketplace/.eslintrc.js`** — Rule overrides added only if needed, with comments
+3. **Various `p2p-kids-admin/src/**/*.tsx` / `*.ts`** — Admin portal lint errors fixed
+
+---
+
+### Testing Steps
+
+1. **Baseline error count (record before starting):**
+   ```bash
+   cd p2p-kids-marketplace && npx eslint src/ 2>&1 | grep -c " error "
+   ```
+
+2. **Run auto-fix:**
+   ```bash
+   cd p2p-kids-marketplace && npx eslint src/ --fix
+   ```
+
+3. **Re-count errors (should be lower):**
+   ```bash
+   cd p2p-kids-marketplace && npx eslint src/ 2>&1 | grep -c " error "
+   ```
+
+4. **Fix remaining manually, then verify green:**
+   ```bash
+   cd p2p-kids-marketplace && npx eslint src/
+   # Expected: exit code 0, zero " error " lines
+   ```
+
+5. **Admin portal lint green:**
+   ```bash
+   cd p2p-kids-admin && npx next lint
+   # Expected: ✓ No ESLint warnings or errors
+   ```
+
+6. **TypeScript still compiles (regression check):**
+   ```bash
+   cd p2p-kids-marketplace && npx tsc -p tsconfig.json --noEmit
+   # Expected: exit code 0
+   ```
+
+7. **Admin portal build (final gate):**
+   ```bash
+   cd p2p-kids-admin && yarn build
+   # Expected: exit code 0
+   ```
 
 ---
 
@@ -2548,12 +2851,13 @@ ACCEPTANCE CRITERIA
 
 | Activity | Time |
 |----------|------|
-| Run initial lint + measure | 10 min |
-| Auto-fix | 10 min |
-| Fix unused imports/variables | 30 min |
+| Measure initial error count in both apps | 10 min |
+| Auto-fix both apps | 10 min |
+| Fix unused imports / variables | 30 min |
 | Fix hooks dependency arrays | 45 min |
-| Fix remaining errors | 60 min |
-| Final verification | 15 min |
+| Fix `any` → typed replacements | 40 min |
+| Fix `react/display-name` and other rule violations | 20 min |
+| Final verification (lint + typecheck + build) | 15 min |
 | **Total** | **~3 hours** |
 
 ---
@@ -2561,12 +2865,17 @@ ACCEPTANCE CRITERIA
 ## TASK PROD-008: Fix Test Failures
 
 **Duration:** 4 hours  
-**Priority:** Medium (P2 — Test suite must pass for CI/CD)  
-**Dependencies:** PROD-006, PROD-007 (fix types and lint first)
+**Priority:** Medium (P2 — Test suite must pass for CI/CD gate)  
+**Dependencies:** PROD-006, PROD-007 (fix types and lint first — many test failures are type errors)
 
 ### Description
 
-`npm run test:all` exits with code 1. All tests must pass for production CI/CD gate.
+`npm run test:all` exits with code 1. All tests must pass for the CI/CD gate before production deployment. Known failure categories from the pre-scan:
+- Mock setup failures (Supabase, Stripe, Twilio not properly mocked in test environment)
+- Async/await timeout issues (default Jest timeout too short for some integration-style tests)
+- Stale snapshots from UI changes in earlier modules
+- Type errors in test files (introduced by enabling `noImplicitAny` in PROD-006)
+- E2E tests that hit live infrastructure (must be marked `.skip` until CI test infrastructure is configured)
 
 ---
 
@@ -2574,37 +2883,259 @@ ACCEPTANCE CRITERIA
 
 ```typescript
 /*
-TASK: Fix all failing tests
+TASK: Fix all failing unit tests in the mobile app
 
-APPROACH:
-1. Run full test suite with verbose output:
-   cd p2p-kids-marketplace && npx jest --verbose 2>&1 | tail -50
-2. Categorize failures:
-   a. Type errors (fixed by PROD-006)
-   b. Mock setup issues
-   c. Stale snapshots  
-   d. Async timeout issues
-   e. Missing test data
-3. Fix in order of severity
-4. For tests that test external services (Stripe, Twilio), ensure mocks are in place
-5. Skip E2E tests that require live infrastructure (mark with .skip + TODO comment)
+CONTEXT:
+- Jest config: p2p-kids-marketplace/jest.config.js
+- Jest setup: p2p-kids-marketplace/jest.setup.ts
+- Test files: p2p-kids-marketplace/src/__tests__/**
+- Admin portal tests: p2p-kids-admin/ (if any exist)
 
-RULES:
-- Do NOT delete failing tests to make the suite pass
-- Do NOT change test assertions to match broken behavior
-- Fix the actual issue or mark with .skip + detailed TODO explaining what needs to change
+==================================================
+STEP 1: Run full suite and categorize failures
+==================================================
+*/
 
+// Run these FIRST to understand what's failing before touching test files:
+// cd p2p-kids-marketplace && npx jest --no-coverage 2>&1 | grep -E "FAIL|PASS" | head -30
+// cd p2p-kids-marketplace && npx jest --no-coverage 2>&1 | grep "Tests:" | tail -3
+// cd p2p-kids-marketplace && npx jest --no-coverage 2>&1 > /tmp/test-out.txt && grep -A 15 "● " /tmp/test-out.txt | head -80
+
+/*
+==================================================
+STEP 2: Fix Supabase mock setup (most common failure)
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/__tests__/__mocks__/supabase.ts
+// Create this file if it does not exist:
+
+export const mockSupabaseChain = {
+  select: jest.fn().mockReturnThis(),
+  insert: jest.fn().mockReturnThis(),
+  update: jest.fn().mockReturnThis(),
+  delete: jest.fn().mockReturnThis(),
+  upsert: jest.fn().mockReturnThis(),
+  eq: jest.fn().mockReturnThis(),
+  neq: jest.fn().mockReturnThis(),
+  gt: jest.fn().mockReturnThis(),
+  gte: jest.fn().mockReturnThis(),
+  lt: jest.fn().mockReturnThis(),
+  lte: jest.fn().mockReturnThis(),
+  in: jest.fn().mockReturnThis(),
+  is: jest.fn().mockReturnThis(),
+  order: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
+  range: jest.fn().mockReturnThis(),
+  single: jest.fn().mockResolvedValue({ data: null, error: null }),
+  maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+  then: jest.fn().mockResolvedValue({ data: [], error: null }),
+};
+
+export const mockSupabase = {
+  from: jest.fn().mockReturnValue(mockSupabaseChain),
+  rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
+  auth: {
+    getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+    getSession: jest.fn().mockResolvedValue({ data: { session: null }, error: null }),
+    signInWithPassword: jest.fn().mockResolvedValue({
+      data: { user: { id: 'test-user-id', email: 'test@example.com' }, session: {} },
+      error: null,
+    }),
+    signUp: jest.fn().mockResolvedValue({
+      data: { user: { id: 'new-user-id' }, session: null },
+      error: null,
+    }),
+    signOut: jest.fn().mockResolvedValue({ error: null }),
+    onAuthStateChange: jest.fn().mockReturnValue({
+      data: { subscription: { unsubscribe: jest.fn() } },
+    }),
+    updateUser: jest.fn().mockResolvedValue({ data: {}, error: null }),
+  },
+  storage: {
+    from: jest.fn().mockReturnValue({
+      upload: jest.fn().mockResolvedValue({ data: { path: 'test/img.jpg' }, error: null }),
+      getPublicUrl: jest.fn().mockReturnValue({ data: { publicUrl: 'https://cdn.example.com/test/img.jpg' } }),
+      remove: jest.fn().mockResolvedValue({ data: [], error: null }),
+      list: jest.fn().mockResolvedValue({ data: [], error: null }),
+    }),
+  },
+  channel: jest.fn().mockReturnValue({
+    on: jest.fn().mockReturnThis(),
+    subscribe: jest.fn().mockResolvedValue('SUBSCRIBED'),
+  }),
+  removeChannel: jest.fn().mockResolvedValue({ error: null }),
+};
+
+// filepath: p2p-kids-marketplace/jest.setup.ts (ADD these lines)
+// import { mockSupabase } from './src/__tests__/__mocks__/supabase';
+// jest.mock('./src/config/supabase', () => ({ supabase: mockSupabase }));
+
+/*
+==================================================
+STEP 3: Fix React Navigation mock (common in screen tests)
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/src/__tests__/__mocks__/navigation.ts
+import { NavigationProp, RouteProp } from '@react-navigation/native';
+import type { RootStackParamList } from '../../navigation/types';
+
+export const mockNavigation = {
+  navigate: jest.fn(),
+  goBack: jest.fn(),
+  reset: jest.fn(),
+  replace: jest.fn(),
+  push: jest.fn(),
+  pop: jest.fn(),
+  popToTop: jest.fn(),
+  setOptions: jest.fn(),
+  setParams: jest.fn(),
+  dispatch: jest.fn(),
+  canGoBack: jest.fn().mockReturnValue(true),
+  isFocused: jest.fn().mockReturnValue(true),
+  addListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
+} as unknown as NavigationProp<RootStackParamList>;
+
+export const createMockRoute = <T extends keyof RootStackParamList>(
+  routeName: T,
+  params?: RootStackParamList[T],
+): RouteProp<RootStackParamList, T> =>
+  ({ name: routeName, key: `${String(routeName)}-key`, params }) as RouteProp<RootStackParamList, T>;
+
+/*
+==================================================
+STEP 4: Increase Jest timeout for async-heavy tests
+==================================================
+*/
+
+// filepath: p2p-kids-marketplace/jest.config.js (UPDATE)
+module.exports = {
+  // ... existing config ...
+  testTimeout: 15000, // Increase from default 5000ms to handle async Supabase mock chains
+  // Keep existing preset, transform, etc.
+};
+
+// For individual tests that are inherently slow, add inline timeout:
+// it('completes SP wallet read', async () => { ... }, 15000);
+
+/*
+==================================================
+STEP 5: Update stale snapshots
+==================================================
+*/
+
+// First — update all stale snapshots:
+// cd p2p-kids-marketplace && npx jest --updateSnapshot
+
+// THEN — review what changed:
+// cd p2p-kids-marketplace && git diff src/__tests__/__snapshots__/
+
+// If a snapshot changed to something wrong (e.g., a blank screen or error state),
+// the underlying component is broken — fix the component, then update snapshot.
+
+/*
+==================================================
+STEP 6: Mark E2E tests requiring live infrastructure
+==================================================
+*/
+
+// filepath: any test file that hits real Supabase/Stripe/Twilio
+
+// BEFORE:
+// it('creates trade in database', async () => {
+//   const result = await supabase.from('trades').insert({ ... });
+//   expect(result.error).toBeNull();
+// });
+
+// AFTER — mark with .skip + detailed TODO:
+// it.skip('creates trade in database', async () => {
+//   // TODO(PROD-008): Re-enable when E2E test infrastructure is configured.
+//   // Requires: Supabase test project URL + JWT for test user in CI secrets.
+//   // See docs/E2E-TEST-SETUP.md (to be created in MODULE-15).
+// });
+
+/*
+==================================================
+STEP 7: Fix type errors in test files
+==================================================
+*/
+
+// WRONG — implicit any in jest.fn():
+// const mockFn = jest.fn((data) => data.id);
+
+// CORRECT — typed mock:
+type ItemData = { id: string; title: string; price: number };
+const mockFn = jest.fn((data: ItemData): string => data.id);
+
+// WRONG — untyped mock object passed where typed prop expected:
+// render(<ProfileScreen navigation={mockNavigation as any} route={mockRoute as any} />);
+
+// CORRECT — use the mock helpers from STEP 3:
+// render(<ProfileScreen navigation={mockNavigation} route={createMockRoute('Profile', { userId: 'u1' })} />);
+
+/*
 ==================================================
 ACCEPTANCE CRITERIA
 ==================================================
 
-✓ npx jest exits with code 0
-✓ All unit tests pass
-✓ Skipped tests have TODO comments explaining why
+✓ cd p2p-kids-marketplace && npx jest --no-coverage                       → exit code 0
+✓ npx jest --no-coverage 2>&1 | grep "Test Suites:"  shows 0 failed suites
+✓ All unit/component tests pass (no FAIL lines)
+✓ Skipped tests have // TODO(PROD-008): comment explaining reason + re-enable criteria
 ✓ No test files deleted
-✓ Test coverage does not decrease
+✓ npx jest --no-coverage 2>&1 | grep "obsolete snapshots"                → 0 results
+✓ Test coverage baseline maintained (not decreased)
 */
 ```
+
+---
+
+### Output Files
+
+1. **`p2p-kids-marketplace/src/__tests__/__mocks__/supabase.ts`** — Full Supabase mock (create or update)
+2. **`p2p-kids-marketplace/src/__tests__/__mocks__/navigation.ts`** — Navigation mock helpers
+3. **`p2p-kids-marketplace/jest.config.js`** — `testTimeout: 15000` added
+4. **`p2p-kids-marketplace/jest.setup.ts`** — Mock registrations added
+5. **Various `src/__tests__/**/*.ts`** — Type annotations added; E2E tests marked `.skip` with TODOs
+
+---
+
+### Testing Steps
+
+1. **Baseline failure count:**
+   ```bash
+   cd p2p-kids-marketplace && npx jest --no-coverage 2>&1 | grep "Test Suites:"
+   # Record: X failed, Y passed
+   ```
+
+2. **Test mock setup in isolation:**
+   ```bash
+   cd p2p-kids-marketplace && npx jest --testPathPattern="services" --no-coverage --verbose
+   ```
+
+3. **Test screen components in isolation:**
+   ```bash
+   cd p2p-kids-marketplace && npx jest --testPathPattern="screens|components" --no-coverage --verbose
+   ```
+
+4. **Update stale snapshots:**
+   ```bash
+   cd p2p-kids-marketplace && npx jest --updateSnapshot
+   cd p2p-kids-marketplace && git diff src/__tests__/__snapshots__/  # Review changes
+   ```
+
+5. **Full suite green:**
+   ```bash
+   cd p2p-kids-marketplace && npx jest --no-coverage
+   # Expected: Tests: X skipped, Y passed, Z total  |  exit code 0
+   ```
+
+6. **CI command (exact command CI uses):**
+   ```bash
+   cd p2p-kids-marketplace && npm run test:unit -- --no-coverage
+   # Expected: exit code 0
+   ```
 
 ---
 
@@ -2613,11 +3144,12 @@ ACCEPTANCE CRITERIA
 | Activity | Time |
 |----------|------|
 | Run test suite + categorize failures | 30 min |
-| Fix type-related test failures | 45 min |
-| Fix mock setup issues | 60 min |
-| Fix async/timeout issues | 45 min |
-| Mark E2E tests that need infra | 20 min |
-| Final verification | 20 min |
+| Create / fix Supabase mock + navigation mock | 45 min |
+| Fix type errors in test files | 30 min |
+| Fix mock setup issues in individual tests | 30 min |
+| Update stale snapshots + review | 20 min |
+| Mark E2E tests with `.skip` + TODO | 15 min |
+| Final verification (full suite + CI command) | 20 min |
 | **Total** | **~4 hours** |
 
 ---
@@ -2923,15 +3455,15 @@ ACCEPTANCE CRITERIA
 ## TASK PROD-011: Android Data Safety & Google Play Families Policy
 
 **Duration:** 2 hours  
-**Priority:** High (P1 — Required for Google Play)  
-**Dependencies:** PROD-P001 (Android permissions), PROD-009 (Privacy policy)
+**Priority:** High (P1 — Required for Google Play submission)  
+**Dependencies:** PROD-P001 (Android permissions), PROD-009 (Privacy policy draft)
 
 ### Description
 
 Google Play requires:
 1. **Data Safety form** in Play Console — must match what the app actually collects
-2. **Families Policy compliance** if targeting children under 13
-3. **Proper target API level** (currently must target API 34+)
+2. **Families Policy compliance** for apps targeting children under 13
+3. **Proper target API level** (must target API 34+ as of August 2024)
 4. Firebase Analytics configured for **COPPA compliance** (disable advertising ID collection)
 
 ---
@@ -2943,57 +3475,178 @@ Google Play requires:
 TASK: Configure Android app for Google Play Families Policy compliance
 
 CONTEXT:
-- app.json at: p2p-kids-marketplace/app.json
-- Firebase Analytics is used
-- App targets kids → must comply with Google Play Families Policy
-- Must disable AAID (Android Advertising ID) collection for COPPA
-
-REQUIREMENTS:
-1. Configure Firebase Analytics for COPPA mode
-2. Set proper targetSdkVersion in app.json
-3. Disable ad ID collection
-4. Document Data Safety form responses
+- app.json:              p2p-kids-marketplace/app.json
+- Analytics service:     p2p-kids-marketplace/src/services/analytics.ts
+- App.tsx:               p2p-kids-marketplace/App.tsx
+- App targets kids under 18 (parental consent required for under-13)
+- Must comply with Google Play Families Policy
+- Current targetSdkVersion: UNKNOWN — verify with:
+  node -e "const a = require('./app.json'); console.log(JSON.stringify(a.expo.android, null, 2));"
 
 ==================================================
-FILE 1: Firebase Analytics COPPA Configuration
+FILE 1: Update app.json Android SDK versions
 ==================================================
 */
 
-// filepath: p2p-kids-marketplace/src/services/analytics.ts (UPDATE)
-
-// ADD at initialization:
-// import analytics from '@react-native-firebase/analytics';
+// filepath: p2p-kids-marketplace/app.json
+// UPDATE the "android" object to include these fields:
 //
-// At app startup (before any analytics calls):
-// await analytics().setAnalyticsCollectionEnabled(true);
-// // COPPA compliance: disable advertising ID and personalization
-// await analytics().setUserProperty('allow_personalized_ads', 'false');
-// // Note: For full COPPA compliance, also configure in Firebase Console:
-// // Project Settings → Integrations → Disable Google Ads linking
+// "android": {
+//   "package": "com.p2pkids.marketplace",
+//   "compileSdkVersion": 35,
+//   "targetSdkVersion": 35,
+//   "minSdkVersion": 24,
+//   "adaptiveIcon": {
+//     "foregroundImage": "./assets/adaptive-icon.png",
+//     "backgroundColor": "#ffffff"
+//   },
+//   "edgeToEdgeEnabled": true,
+//   "predictiveBackGestureEnabled": false
+// }
 
 /*
 ==================================================
-FILE 2: Update app.json for Android target SDK
+FILE 2: COPPA-compliant Firebase Analytics initialization
 ==================================================
 */
+```
 
-// filepath: p2p-kids-marketplace/app.json (UPDATE android section)
+```typescript
+// filepath: p2p-kids-marketplace/src/services/analytics.ts
 
-// ADD to android section:
-// "compileSdkVersion": 35,
-// "targetSdkVersion": 35,
-// "minSdkVersion": 24
+import analytics from '@react-native-firebase/analytics';
 
+/**
+ * Initialize Firebase Analytics with COPPA compliance settings.
+ * Call this at app startup (in App.tsx), before any other analytics calls.
+ *
+ * COPPA requirements enforced here:
+ * - Disable ad personalization (no interest-based ad profiling)
+ * - Analytics collection enabled but no AAID (advertising ID) association
+ *
+ * Additional steps required in Firebase Console (cannot be done in code):
+ * - Project Settings → Google Analytics → Disable "Google signals data collection"
+ * - Project Settings → Google Analytics → Disable "Enable advertising ID collection"
+ * TODO(PROD-011): Document these console steps in docs/FIREBASE-COPPA-SETUP.md
+ */
+export async function initAnalytics(): Promise<void> {
+  try {
+    await analytics().setAnalyticsCollectionEnabled(true);
+    // COPPA compliance: disable ad personalization for all users
+    await analytics().setUserProperty('allow_personalized_ads', 'false');
+    console.log('[Analytics] Initialized with COPPA compliance settings');
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Unknown error';
+    console.error('[Analytics] Initialization failed (non-fatal):', message);
+    // Non-fatal: analytics failure must not block app startup
+  }
+}
+
+// Existing event tracking functions remain here — no changes needed to them.
+// Only initAnalytics() is new.
+```
+
+```typescript
+// filepath: p2p-kids-marketplace/App.tsx (ADD initAnalytics call)
+
+// ADD this import near the top:
+import { initAnalytics } from './src/services/analytics';
+
+// ADD inside your root component or useEffect at app startup:
+useEffect(() => {
+  initAnalytics();
+  // other startup tasks...
+}, []);
+```
+
+```markdown
+<!-- filepath: docs/GOOGLE-PLAY-DATA-SAFETY.md -->
+<!-- CREATE this file — use it when filling out the Data Safety form in Google Play Console -->
+
+# Google Play Data Safety Form — Kids P2P Marketplace
+
+> Last updated: [DATE]
+> Update this document whenever data collection practices change.
+
+## Does your app collect or share any required user data types?
+**YES**
+
+## Data Types Collected
+
+| Data Type | Collected? | Shared? | Purpose | Optional? |
+|-----------|-----------|---------|---------|-----------|
+| Email address | ✅ | No | Account creation and login | No — required |
+| Phone number | ✅ | No | Account verification (trust gate) | Yes — optional step |
+| Approximate location | ✅ | No | Show nearby listings in user's ZIP area | Yes — prompted at onboarding |
+| Photos / videos | ✅ | No | Listing item images uploaded by user | Yes — needed to list items |
+| Purchase history | ✅ | No | Transaction records for buyer/seller | No — created on purchase |
+| App interactions | ✅ | Firebase | Analytics and crash reporting | No |
+| User IDs | ✅ | Stripe | Payment processing and payout | No — required for payments |
+
+## Third-Party Data Sharing
+
+| Third Party | Data Shared | Purpose | Link to Their Policy |
+|-------------|-------------|---------|---------------------|
+| Stripe | User ID, transaction amounts, connected account ID | Payment processing | https://stripe.com/privacy |
+| Firebase Analytics | App interactions (anonymized, no AAID) | Analytics | https://firebase.google.com/support/privacy |
+| Sentry | Crash reports (no PII, device info only) | Error monitoring | https://sentry.io/privacy/ |
+
+## Data NOT Collected
+- Precise GPS coordinates (only ZIP code / coarse location)
+- Device contacts
+- Messages outside the in-app chat
+- Health or fitness data
+- Web browsing history or activity outside the app
+- Voice, audio, or microphone data
+- Financial info other than transaction history
+
+## Security Practices
+- Is all transmitted data encrypted? **YES** — HTTPS/TLS 1.2+ enforced for all API calls
+- Can users request data deletion? **YES** — Profile Settings → Delete Account removes all user data
+  - TODO: Verify data deletion flow is implemented and tested before store submission
+
+## Target Audience Declaration
+- Primary users: Kids ages 6–17
+- Secondary users: Parents managing accounts for children under 13
+- **Play Console setting**: Mixed audience (kids + parents)
+- **Families Policy compliance**: Yes — see checklist below
+
+## Google Play Families Policy Compliance Checklist
+- [x] No advertising SDKs (AdMob, Facebook Ads, MoPub, IronSource, etc.)
+- [x] Firebase Analytics configured for COPPA (no AAID collection — see `src/services/analytics.ts`)
+- [x] Parental consent gate for users under 13 (PROD-P005)
+- [x] No external links leaving the app without a parental gate dialog
+- [x] No social media login — email/password only
+- [x] Privacy policy accessible from within the app (Settings/About screen)
+- [x] Privacy policy text explicitly covers data practices for children under 13
+
+## Data Safety Form Answers (Play Console — exact selections)
+
+**Does your app collect or share any of the required user data types?** → Yes
+
+**Is all of the user data collected by your app encrypted in transit?** → Yes
+
+**Do you provide a way for users to request that their data is deleted?** → Yes
+
+**Does your app share any of the collected user data with third parties?** → Yes
+  - Stripe (payments), Firebase Analytics (analytics)
+```
+
+```typescript
 /*
 ==================================================
 ACCEPTANCE CRITERIA
 ==================================================
 
-✓ Firebase Analytics configured for COPPA (no ad ID collection)
-✓ Android targetSdkVersion >= 34
-✓ Data Safety form responses documented
-✓ Families Policy compliance documented
-✓ No advertising SDKs included
+✓ app.json android.targetSdkVersion is 35 (>= 34 required)
+✓ app.json android.compileSdkVersion is 35
+✓ app.json android.minSdkVersion is 24
+✓ initAnalytics() called in App.tsx before first render
+✓ analytics().setUserProperty('allow_personalized_ads', 'false') present in analytics.ts
+✓ docs/GOOGLE-PLAY-DATA-SAFETY.md created with all sections complete
+✓ No advertising SDKs in package.json
+✓ Android prebuild succeeds: npx expo prebuild --platform android --clean
+✓ AndroidManifest.xml permissions match what's declared in Data Safety form
 */
 ```
 
@@ -3001,9 +3654,63 @@ ACCEPTANCE CRITERIA
 
 ### Output Files
 
-1. **p2p-kids-marketplace/src/services/analytics.ts** — Updated with COPPA config
-2. **p2p-kids-marketplace/app.json** — Updated Android SDK versions
-3. **docs/GOOGLE-PLAY-DATA-SAFETY.md** — Data Safety form answers
+1. **`p2p-kids-marketplace/app.json`** — Updated `android` section with `compileSdkVersion: 35`, `targetSdkVersion: 35`, `minSdkVersion: 24`
+2. **`p2p-kids-marketplace/src/services/analytics.ts`** — `initAnalytics()` function added with COPPA configuration
+3. **`p2p-kids-marketplace/App.tsx`** — `initAnalytics()` called in app startup `useEffect`
+4. **`docs/GOOGLE-PLAY-DATA-SAFETY.md`** — Complete Data Safety form reference document
+
+---
+
+### Testing Steps
+
+1. **Verify app.json Android SDK versions:**
+   ```bash
+   cd p2p-kids-marketplace && node -e "const a = require('./app.json'); const android = a.expo.android; console.log('targetSdk:', android.targetSdkVersion, '| compileSdk:', android.compileSdkVersion, '| minSdk:', android.minSdkVersion);"
+   # Expected: targetSdk: 35 | compileSdk: 35 | minSdk: 24
+   ```
+
+2. **Verify no advertising SDKs in dependencies:**
+   ```bash
+   cd p2p-kids-marketplace && cat package.json | grep -i "admob\|facebook.*ads\|mopub\|ironsource\|applovin\|unity.*ads"
+   # Expected: zero results
+   ```
+
+3. **Verify Firebase COPPA config in source:**
+   ```bash
+   cd p2p-kids-marketplace && grep -n "allow_personalized_ads\|setAnalyticsCollectionEnabled\|initAnalytics" src/services/analytics.ts
+   # Expected: all three strings present
+   ```
+
+4. **Verify initAnalytics called at startup:**
+   ```bash
+   cd p2p-kids-marketplace && grep -n "initAnalytics" App.tsx
+   # Expected: 1 result (the call site)
+   ```
+
+5. **Android prebuild succeeds:**
+   ```bash
+   cd p2p-kids-marketplace && npx expo prebuild --platform android --clean
+   # Expected: exit code 0, no errors
+   ```
+
+6. **Verify AndroidManifest permissions after prebuild:**
+   ```bash
+   grep -E "CAMERA|ACCESS_FINE_LOCATION|ACCESS_COARSE_LOCATION|READ_EXTERNAL_STORAGE" \
+     p2p-kids-marketplace/android/app/src/main/AndroidManifest.xml
+   # Expected: permissions present for camera and location
+   ```
+
+7. **Verify docs created:**
+   ```bash
+   ls -la docs/GOOGLE-PLAY-DATA-SAFETY.md && wc -l docs/GOOGLE-PLAY-DATA-SAFETY.md
+   # Expected: file exists, 60+ lines
+   ```
+
+8. **TypeScript compile after changes:**
+   ```bash
+   cd p2p-kids-marketplace && npx tsc -p tsconfig.json --noEmit
+   # Expected: exit code 0
+   ```
 
 ---
 
@@ -3011,10 +3718,12 @@ ACCEPTANCE CRITERIA
 
 | Activity | Time |
 |----------|------|
-| Configure Firebase COPPA mode | 30 min |
-| Update Android SDK version | 15 min |
-| Document Data Safety responses | 45 min |
-| Test Android build | 30 min |
+| Verify current app.json Android config | 10 min |
+| Update app.json SDK versions | 10 min |
+| Write `initAnalytics()` in analytics.ts | 20 min |
+| Call `initAnalytics()` from App.tsx | 10 min |
+| Create `docs/GOOGLE-PLAY-DATA-SAFETY.md` | 30 min |
+| Run Android prebuild + verify | 20 min |
 | **Total** | **~2 hours** |
 
 ---

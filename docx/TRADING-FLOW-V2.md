@@ -130,6 +130,7 @@ These principles anchor every module in this document. They must be the first fi
 | D-27 | Cart checkout creates **one trade per item** (not a single bundled trade). All trades created from the same cart checkout are stamped with a shared `bundle_id UUID`. `bundle_id` is a pure UX grouping device — no business logic, state machine, dispute, SP, or payout rules reference it. This preserves all existing V2 guarantees per item (each trade is independently disputable, completable, and payable). | A single "bundle trade" record would require a new `trade_items` junction table, new dispute rules ("does one item's dispute pause the whole bundle?"), new payout rules, and SP recalculation logic — unacceptable scope for V1. One trade per item reuses the entire existing state machine unchanged. | Product + Eng |
 | D-28 | Cart is **single-seller per active cart**. Buying from multiple sellers requires switching between saved carts (up to 3). Multi-seller single checkout is explicitly not supported. | Each seller = separate physical pickup trip. Combining sellers into one checkout creates multiple Stripe charges + multiple SP reservations + multiple payout recipients with zero reduction in real-world effort for the parent. Saved carts address the actual friction (losing your place while shopping), not checkout volume. | Product |
 | D-29 | Saved cart eviction (when a 4th cart is attempted) is **explicit** — user is shown a warning modal naming the cart about to be deleted before proceeding. Silent LRU eviction is not acceptable. | Silently deleting a cart a parent spent time building destroys trust. The explicit warning gives them a chance to complete that cart first. | Product |
+| D-30 | **Payment authorization hold required at offer submission** — Stripe pre-authorization (cash + platform fee) AND SP hold must both succeed before offer is created. Buyer must have a valid payment method on file. | Ensures buyer commitment, reduces spam/non-serious offers, protects market credibility. Authorization is captured only when seller accepts (D-02). If either hold fails, the entire offer submission is rejected with a clear error. Max 3 active pending offers per buyer to prevent fund lockup. | Product + Eng |
 
 ---
 
@@ -156,7 +157,37 @@ These principles anchor every module in this document. They must be the first fi
 
 **Rule**: Payment preference is **locked** once a buyer has made contact (first offer submitted). Cannot be changed after that point (per BRD FR-LM-002).
 
-### 4.3 SP Rules in Trade Flow
+### 4.3 Payment Authorization Hold Rules (D-30)
+
+**Required at Offer Submission:**
+- Buyer must have a valid payment method on file (card added to Stripe Customer)
+- Stripe pre-authorization hold is placed for `cash_amount + platform_fee` when offer is created
+- Authorization hold is separate from the charge — funds are reserved on buyer's card but not captured
+- Authorization typically expires after 7 days (Stripe constraint)
+- If buyer's card is declined, offer submission fails immediately with clear error
+
+**Max Pending Offers Limit:**
+- Buyer can have max 3 active `pending` offers at any time
+- This prevents excessive fund lockup across multiple authorization holds
+- 4th offer attempt is rejected with error: *"You have 3 pending offers. Cancel one to make a new offer."*
+
+**Hold Lifecycle:**
+- **Offer created (pending)**: Authorization placed, funds reserved on card
+- **Seller accepts**: Authorization captured (converted to actual charge)
+- **Seller declines OR offer expires**: Authorization released, card hold removed within 5-7 business days (Stripe processing time)
+- **Authorization expires (rare)**: If seller doesn't respond within Stripe's 7-day window, offer auto-cancels
+
+**Rollback on Failure:**
+- If Stripe authorization succeeds but SP hold fails → release Stripe authorization immediately
+- If SP hold succeeds but Stripe authorization fails → restore SP to buyer's `available_sp` immediately
+- Both holds must succeed atomically or the entire offer submission is rejected
+
+**Edge Cases:**
+- **Card expires during pending window**: Offer auto-cancels, buyer notified to update payment method
+- **Insufficient funds at offer time**: Immediate rejection with error
+- **Insufficient funds when seller accepts** (authorization capture fails): Trade → `cancelled`, buyer + seller notified, SP restored
+
+### 4.4 SP Rules in Trade Flow
 
 **SP Earning (FR-SP-001):**
 - Subscriber seller with "Accept SP" listing earns SP when their item sells
@@ -203,8 +234,11 @@ ITEM DETAIL SCREEN
       └─ [Use SP] ─────→ Opens SP slider (0–50% of price)
            (hidden/locked for free buyers)
          ↓
-OFFER SUBMITTED (no Stripe charge yet)
+OFFER SUBMITTED (payment authorization hold placed — D-30)
+  → Stripe pre-authorization hold placed (cash + platform fee)
   → Buyer's SP soft-reserved in wallet
+  → Buyer must have valid payment method (card on file)
+  → Max 3 active pending offers enforced
   → Seller notified (push + badge on Offers tab)
   → 24h offer expiry clock starts
          ↓
@@ -243,9 +277,10 @@ COMPLETION SCREEN
                     ┌──────────────────────────────────────────┐
                     │                                          │
   Buyer submits     │  PENDING                                 │  Offer expires (24h)
-  offer             │  - offer_expires_at set                  ├──────────────────────┐
+  offer (D-30)      │  - Stripe pre-auth hold placed           ├──────────────────────┐
   ─────────────────►│  - SP soft-reserved in buyer wallet      │                      │
-                    │                                          │  Seller declines      │
+                    │  - offer_expires_at set                  │  Seller declines      │
+                    │  - authorization_expires_at set          │                      │
                     └──────────┬───────────────────────────────┘  ────────────────────┤
                                │ Seller accepts                                        │
                                ▼                                                       │
@@ -275,13 +310,13 @@ COMPLETION SCREEN
 
 **State definitions:**
 
-| State | Meaning | SP Status |
-|---|---|---|
-| `pending` | Offer submitted, awaiting seller response | Buyer SP soft-reserved |
-| `payment_processing` | Seller accepted, Stripe charging | Buyer SP remains in `reserved_sp` — not transferred yet |
-| `in_progress` | Payment confirmed, awaiting pickup confirmation | Buyer SP still reserved; seller wallet unchanged pending completion |
-| `completed` | Buyer confirmed receipt (or auto-complete fired) | Single SP release event: buyer reserved SP + platform SP (FR-SP-001) → all added to seller `pending_sp`; N-day release clock starts |
-| `cancelled` | Declined / expired / Stripe failed / cancellation | Buyer SP unreserved and restored |
+| State | Meaning | SP Status | Stripe Authorization Status (D-30) |
+|---|---|---|---|
+| `pending` | Offer submitted, awaiting seller response | Buyer SP soft-reserved | Pre-authorization hold placed (cash + fee); not captured yet |
+| `payment_processing` | Seller accepted, Stripe charging | Buyer SP remains in `reserved_sp` — not transferred yet | Authorization captured (converted to charge) |
+| `in_progress` | Payment confirmed, awaiting pickup confirmation | Buyer SP still reserved; seller wallet unchanged pending completion | Charge completed; funds in platform account |
+| `completed` | Buyer confirmed receipt (or auto-complete fired) | Single SP release event: buyer reserved SP + platform SP (FR-SP-001) → all added to seller `pending_sp`; N-day release clock starts | Payout to seller initiated |
+| `cancelled` | Declined / expired / Stripe failed / cancellation | Buyer SP unreserved and restored | Authorization released; no charge; card hold removed |
 
 ---
 

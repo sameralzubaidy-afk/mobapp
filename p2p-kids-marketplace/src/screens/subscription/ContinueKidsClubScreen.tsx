@@ -1,5 +1,6 @@
 /**
  * File: p2p-kids-marketplace/src/screens/subscription/ContinueKidsClubScreen.tsx
+ * MODULE-15.1 FLOW-12: ContinueKidsClubScreen — Pass It Up design system
  * MODULE-11 TASK SUB-006: Continue Kids Club+ (Trial-to-Paid Conversion)
  *
  * Screen where users can add payment for Kids Club+.
@@ -230,18 +231,18 @@ function BenefitItem({ icon, text }: BenefitItemProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FAFAFA',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FAFAFA',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
     marginTop: 12,
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: '#808080',
   },
   content: {
     padding: 20,
@@ -255,14 +256,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#111827',
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A1A',
     textAlign: 'center',
     marginBottom: 8,
   },
   urgencyBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#FFF3E0',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
   urgencyText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#92400E',
+    color: '#FFA726',
   },
   section: {
     marginBottom: 24,
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#374151',
+    color: '#1A1A1A',
     marginBottom: 16,
   },
   benefitsList: {
@@ -288,13 +289,13 @@ const styles = StyleSheet.create({
   benefitItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 1,
   },
   benefitIcon: {
@@ -302,39 +303,44 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   benefitText: {
-    fontSize: 16,
-    color: '#374151',
+    fontSize: 14,
+    color: '#4D4D4D',
     flex: 1,
   },
   pricingCard: {
-    backgroundColor: '#6366F1',
+    backgroundColor: '#4A7C59',
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
     marginBottom: 24,
+    shadowColor: '#4A7C59',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   pricingAmount: {
     fontSize: 48,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   pricingPeriod: {
-    fontSize: 18,
-    color: '#E0E7FF',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.85)',
     marginTop: 4,
   },
   pricingNote: {
-    fontSize: 14,
-    color: '#E0E7FF',
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
     marginTop: 8,
   },
   primaryButton: {
-    backgroundColor: '#6366F1',
+    backgroundColor: '#4A7C59',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#6366F1',
+    shadowColor: '#4A7C59',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -344,43 +350,43 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#FFFFFF',
   },
   secondaryButton: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderWidth: 2,
+    borderColor: '#4A7C59',
   },
   secondaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
+    color: '#4A7C59',
   },
   textButton: {
     alignItems: 'center',
     paddingVertical: 12,
   },
   textButtonText: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: '#808080',
   },
   finePrint: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#808080',
     textAlign: 'center',
     marginTop: 24,
     lineHeight: 18,
   },
   description: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: '#4D4D4D',
     textAlign: 'center',
     marginBottom: 24,
-    lineHeight: 24,
+    lineHeight: 22,
   },
 });

@@ -1,4 +1,5 @@
 // filepath: p2p-kids-marketplace/src/screens/profile/LeaderboardScreen.tsx
+// MODULE-15.1 FLOW-19: LeaderboardScreen — Pass It Up design system
 
 import React, { useEffect, useState } from 'react';
 import {
@@ -133,7 +134,7 @@ const LeaderboardScreen = ({ navigation: _navigation }: any) => {
           keyExtractor={(item, index) => `${item.user_id}-${index}`}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3B82F6" />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4A7C59" />
           }
         />
       )}
@@ -144,7 +145,7 @@ const LeaderboardScreen = ({ navigation: _navigation }: any) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FAFAFA',
   },
   loadingContainer: {
     flex: 1,
@@ -154,7 +155,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#6B7280',
+    color: '#808080',
   },
   header: {
     flexDirection: 'row',
@@ -164,51 +165,53 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F5F5F5',
   },
   backButton: {
     padding: 8,
   },
   backButtonText: {
-    color: '#3B82F6',
+    color: '#4A7C59',
     fontSize: 16,
     fontWeight: '600',
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: '#1A1A1A',
   },
   descriptionContainer: {
     padding: 16,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#E8F3EC',
     margin: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
   description: {
     fontSize: 14,
-    color: '#1E40AF',
+    color: '#4A7C59',
     textAlign: 'center',
+    fontWeight: '500',
   },
   errorContainer: {
     margin: 16,
-    padding: 12,
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
+    padding: 16,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
+    borderLeftColor: '#E53935',
   },
   errorText: {
     fontSize: 13,
-    color: '#991B1B',
+    color: '#E53935',
     marginBottom: 8,
   },
   retryButton: {
     padding: 8,
-    backgroundColor: '#DC2626',
-    borderRadius: 6,
+    backgroundColor: '#4A7C59',
+    borderRadius: 8,
     alignSelf: 'flex-start',
+    paddingHorizontal: 16,
   },
   retryButtonText: {
     color: '#FFFFFF',
@@ -223,22 +226,22 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#808080',
     textAlign: 'center',
     marginBottom: 16,
   },
   refreshButton: {
     marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#3B82F6',
-    borderRadius: 6,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#4A7C59',
+    borderRadius: 12,
   },
   refreshButtonText: {
     color: '#FFFFFF',
@@ -252,17 +255,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 2,
   },
   topThreeItem: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#FFFBF0',
     borderWidth: 2,
     borderColor: '#F59E0B',
   },
@@ -279,12 +282,12 @@ const styles = StyleSheet.create({
   rankText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#808080',
   },
   topThreeRank: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#B45309',
+    fontWeight: '700',
+    color: '#92400E',
   },
   userInfo: {
     flex: 1,
@@ -292,17 +295,17 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   topThreeUserName: {
     fontSize: 17,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#92400E',
   },
   badgeCount: {
     fontSize: 14,
-    color: '#10B981',
+    color: '#4A7C59',
     fontWeight: '500',
   },
 });

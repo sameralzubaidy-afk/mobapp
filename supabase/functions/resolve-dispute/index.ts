@@ -1,0 +1,162 @@
+// File: supabase/functions/resolve-dispute/index.ts
+// TFV2-017: Admin resolves a reported dispute.
+// Input:  { trade_id, action: 'mark_under_review' | 'resolve_complete' | 'resolve_refund', notes? }
+// Output: { success: true, dispute_status } | { error }
+//
+// mark_under_review: reported → under_review
+// resolve_complete:  under_review → resolved (release seller payment, SP released normally)
+// resolve_refund:    under_review → resolved (cancel Stripe PI, refund buyer, return SP)
+//
+// SECURITY: Requires admin role — validated via profiles.role = 'admin'
+
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+function errResp(status: number, code: string, message: string) {
+  return new Response(
+    JSON.stringify({ success: false, error: { code, message } }),
+    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method !== 'POST') return errResp(405, 'METHOD_NOT_ALLOWED', 'POST required');
+
+  const supabaseUrl    = Deno.env.get('SUPABASE_URL');
+  const supabaseSvcKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+
+  if (!supabaseUrl || !supabaseSvcKey) {
+    return errResp(500, 'CONFIG_ERROR', 'Server configuration error');
+  }
+
+  // Auth: validate user is admin
+  const authHeader = req.headers.get('Authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '');
+
+  const anonClient = createClient(supabaseUrl, supabaseAnonKey || supabaseSvcKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const { data: { user }, error: authErr } = await anonClient.auth.getUser(token);
+  if (authErr || !user) return errResp(401, 'UNAUTHORIZED', 'Invalid or missing auth token');
+
+  // Service role client for DB writes
+  const svcClient = createClient(supabaseUrl, supabaseSvcKey);
+
+  // Verify admin role
+  const { data: profile } = await svcClient
+    .from('profiles')
+    .select('role')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!profile || profile.role !== 'admin') {
+    return errResp(403, 'FORBIDDEN', 'Admin access required');
+  }
+
+  let body: { trade_id?: string; action?: string; notes?: string };
+  try { body = await req.json(); } catch { return errResp(400, 'INVALID_JSON', 'Request body must be valid JSON'); }
+
+  const { trade_id, action, notes } = body;
+  if (!trade_id) return errResp(400, 'MISSING_TRADE_ID', 'trade_id is required');
+
+  const validActions = ['mark_under_review', 'resolve_complete', 'resolve_refund'];
+  if (!action || !validActions.includes(action)) {
+    return errResp(400, 'INVALID_ACTION', `action must be one of: ${validActions.join(', ')}`);
+  }
+
+  // Load trade
+  const { data: trade, error: tradeErr } = await svcClient
+    .from('trades')
+    .select('id, status, dispute_status, buyer_id, seller_id, stripe_payment_intent_id, sp_amount')
+    .eq('id', trade_id)
+    .single();
+
+  if (tradeErr || !trade) return errResp(404, 'TRADE_NOT_FOUND', 'Trade not found');
+  if (!trade.dispute_status || trade.dispute_status === 'none') {
+    return errResp(400, 'NO_DISPUTE', 'Trade has no active dispute');
+  }
+
+  const now = new Date().toISOString();
+
+  if (action === 'mark_under_review') {
+    if (trade.dispute_status !== 'reported') {
+      return errResp(400, 'INVALID_STATE', `Expected dispute_status 'reported', got '${trade.dispute_status}'`);
+    }
+    await svcClient.from('trades').update({ dispute_status: 'under_review', updated_at: now }).eq('id', trade_id);
+
+    await svcClient.from('trade_events').insert({
+      trade_id, event_type: 'trade_disputed', actor_id: user.id,
+      metadata: { action: 'marked_under_review', admin_id: user.id },
+    });
+
+    return new Response(
+      JSON.stringify({ success: true, dispute_status: 'under_review' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // resolve_complete or resolve_refund — must be under_review (or reported)
+  if (!['reported', 'under_review'].includes(trade.dispute_status)) {
+    return errResp(400, 'ALREADY_RESOLVED', 'Dispute is already resolved');
+  }
+
+  const resolution = action === 'resolve_complete' ? 'completed_favor_seller' : 'refund_issued_favor_buyer';
+
+  const { error: resolveErr } = await svcClient
+    .from('trades')
+    .update({
+      dispute_status:     'resolved',
+      dispute_resolution: resolution,
+      dispute_resolved_at: now,
+      updated_at:         now,
+      // resolve_complete: mark trade completed; resolve_refund: cancelled
+      ...(action === 'resolve_complete'
+        ? { status: 'completed', completed_at: now }
+        : { status: 'cancelled', cancellation_reason: 'dispute_resolved_refund' }),
+    })
+    .eq('id', trade_id);
+
+  if (resolveErr) {
+    console.error('[resolve-dispute] Resolve error:', resolveErr);
+    return errResp(500, 'UPDATE_FAILED', 'Failed to resolve dispute');
+  }
+
+  // Handle SP on refund
+  if (action === 'resolve_refund' && trade.sp_amount && trade.sp_amount > 0) {
+    await svcClient.rpc('fn_release_sp_on_cancel', { p_trade_id: trade_id }).then(({ error }) => {
+      if (error) console.error('[resolve-dispute] SP release error:', error.message);
+    });
+  }
+
+  // Log event
+  await svcClient.from('trade_events').insert({
+    trade_id, event_type: action === 'resolve_complete' ? 'trade_completed' : 'offer_cancelled',
+    actor_id: user.id,
+    metadata: { resolution, notes: notes?.substring(0, 500), admin_id: user.id },
+  });
+
+  // Notify buyer + seller (non-blocking)
+  const notifPayload = { trade_id, resolution, action };
+  await svcClient.from('notification_log').insert([
+    { user_id: trade.buyer_id,  notification_type: 'dispute_resolved', payload: notifPayload, sent_at: now },
+    { user_id: trade.seller_id, notification_type: 'dispute_resolved', payload: notifPayload, sent_at: now },
+  ]).then(({ error }) => {
+    if (error) console.error('[resolve-dispute] Notif log error:', error.message);
+  });
+
+  console.log(`[resolve-dispute] Trade ${trade_id} dispute resolved: ${resolution} by admin ${user.id}`);
+
+  return new Response(
+    JSON.stringify({ success: true, dispute_status: 'resolved', resolution }),
+    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+});

@@ -85,20 +85,19 @@ function getNextChange(info: SubscriptionInfo): { label: string; value: string }
 function statusColor(status: string): string {
   switch (status) {
     case 'active':
-      return '#22c55e'; // green
+      return '#4CAF50'; // Success 500
     case 'trial':
-      return '#3b82f6'; // blue
+      return '#29B6F6'; // Info 500
     case 'cancelled':
     case 'canceled':
-      return '#f59e0b'; // amber
+      return '#FFA726'; // Warning 500
     case 'grace_period':
-      return '#ef4444'; // red
     case 'grace':
-      return '#ef4444'; // red
+      return '#E53935'; // Error 500
     case 'expired':
-      return '#6b7280'; // gray
+      return '#808080'; // Neutral 500
     default:
-      return '#6b7280';
+      return '#808080';
   }
 }
 
@@ -309,59 +308,62 @@ function Row({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
+  container: { flex: 1, backgroundColor: '#FAFAFA' },
   scroll: { padding: 16, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  loadingText: { marginTop: 12, color: '#6b7280', fontSize: 14 },
-  errorText: { color: '#dc2626', fontSize: 16, marginBottom: 12, textAlign: 'center' },
-  emptyText: { color: '#374151', fontSize: 16, textAlign: 'center' },
-  subText: { color: '#6b7280', fontSize: 12, marginTop: 4 },
+  loadingText: { marginTop: 12, color: '#808080', fontSize: 14 },
+  errorText: { color: '#E53935', fontSize: 16, marginBottom: 12, textAlign: 'center' },
+  emptyText: { color: '#1A1A1A', fontSize: 16, textAlign: 'center' },
+  subText: { color: '#808080', fontSize: 12, marginTop: 4 },
   statusCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 12,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 2,
   },
   sectionHeader: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 12,
+    color: '#808080',
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 1,
+    fontWeight: '500',
   },
   statusBadge: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, marginBottom: 6 },
-  statusBadgeText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  statusBadgeText: { color: '#FFFFFF', fontWeight: '700', fontSize: 14 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 2,
   },
-  warningCard: { borderLeftWidth: 4, borderLeftColor: '#ef4444' },
-  graceCard: { borderLeftWidth: 4, borderLeftColor: '#b91c1c' },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 10 },
+  warningCard: { borderLeftWidth: 4, borderLeftColor: '#E53935' },
+  graceCard: { borderLeftWidth: 4, borderLeftColor: '#E53935' },
+  cardTitle: { fontSize: 14, fontWeight: '700', color: '#1A1A1A', marginBottom: 10 },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  rowLabel: { color: '#6b7280', fontSize: 13, flex: 1 },
-  rowValue: { color: '#374151', fontSize: 13, flex: 2, textAlign: 'right' },
-  rowValueHighlight: { color: '#1d4ed8', fontWeight: '600' },
-  warningText: { color: '#dc2626', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
+  rowLabel: { color: '#808080', fontSize: 13, flex: 1 },
+  rowValue: { color: '#4D4D4D', fontSize: 13, flex: 2, textAlign: 'right' },
+  rowValueHighlight: { color: '#4A7C59', fontWeight: '600' },
+  warningText: { color: '#E53935', fontSize: 12, marginTop: 8, fontStyle: 'italic' },
   retryButton: {
-    backgroundColor: '#3b82f6',
-    borderRadius: 10,
+    backgroundColor: '#4A7C59',
+    borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 8,
     marginBottom: 8,
   },
-  retryButtonText: { color: '#fff', fontWeight: '600', fontSize: 15 },
-  note: { color: '#9ca3af', fontSize: 11, textAlign: 'center', marginTop: 8 },
+  retryButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 15 },
+  note: { color: '#808080', fontSize: 11, textAlign: 'center', marginTop: 8 },
 });

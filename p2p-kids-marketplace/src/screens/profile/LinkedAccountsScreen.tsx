@@ -1,4 +1,5 @@
 // File: p2p-kids-marketplace/src/screens/profile/LinkedAccountsScreen.tsx
+// MODULE-15.1 FLOW-01: LinkedAccountsScreen — Pass It Up design system
 // MODULE-03 AUTH-V3-004: Linked Accounts Management Screen
 
 import React, { useState, useEffect } from 'react';
@@ -25,7 +26,7 @@ import { EmailMismatchError, LastLoginMethodError } from '@/types/auth-v3-errors
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
-export default function LinkedAccountsScreen({ navigation: _navigation }: any) {
+export default function LinkedAccountsScreen({ navigation }: any) {
   const { user } = useAuth();
   const [linkedProviders, setLinkedProviders] = useState<LinkedProvider[]>([]);
   const [loginMethodCount, setLoginMethodCount] = useState<number>(0);
@@ -98,7 +99,7 @@ export default function LinkedAccountsScreen({ navigation: _navigation }: any) {
     setLinkingProvider(null);
   };
 
-  const performLinking = async (provider: OAuthProvider, _password?: string) => {
+  const performLinking = async (provider: OAuthProvider, password?: string) => {
     try {
       // Initiate OAuth flow
       const { url } = await initiateSocialLogin(provider);
@@ -227,7 +228,7 @@ export default function LinkedAccountsScreen({ navigation: _navigation }: any) {
             <Text style={styles.sectionTitle}>Email Address</Text>
             <View style={styles.providerCard}>
               <View style={styles.providerIconContainer}>
-                <EnvelopeSimple size={24} color="#3B82F6" weight="regular" />
+                <EnvelopeSimple size={24} color="#4A7C59" weight="regular" />
               </View>
               <View style={styles.providerInfo}>
                 <Text style={styles.providerName}>Account Email</Text>
@@ -241,7 +242,7 @@ export default function LinkedAccountsScreen({ navigation: _navigation }: any) {
 
           {/* Info card */}
           <View style={styles.infoCard}>
-            <Info size={20} color="#3B82F6" weight="regular" />
+            <Info size={20} color="#4A7C59" weight="regular" />
             <Text style={styles.infoText}>
               Link multiple accounts to sign in using any of them. You must keep at least one login
               method.
@@ -253,7 +254,7 @@ export default function LinkedAccountsScreen({ navigation: _navigation }: any) {
             <Text style={styles.sectionTitle}>Password</Text>
             <View style={styles.providerCard}>
               <View style={styles.providerIconContainer}>
-                <Key size={24} color="#3B82F6" weight="regular" />
+                <Key size={24} color="#4A7C59" weight="regular" />
               </View>
               <View style={styles.providerInfo}>
                 <Text style={styles.providerName}>Password</Text>
@@ -286,10 +287,10 @@ export default function LinkedAccountsScreen({ navigation: _navigation }: any) {
                 <View key={provider} style={styles.providerCard} testID={`provider-${provider}`}>
                   <View style={styles.providerIconContainer}>
                     {isLinking || isUnlinking ? (
-                      <ActivityIndicator size="small" color="#3B82F6" />
+                      <ActivityIndicator size="small" color="#4A7C59" />
                     ) : (() => {
                       const ProviderIcon = getProviderIcon(provider);
-                      return <ProviderIcon size={24} color="#3B82F6" weight="regular" />;
+                      return <ProviderIcon size={24} color="#4A7C59" weight="regular" />;
                     })()}
                   </View>
                   <View style={styles.providerInfo}>
@@ -339,7 +340,7 @@ export default function LinkedAccountsScreen({ navigation: _navigation }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FAFAFA',
   },
   container: {
     flex: 1,
@@ -352,7 +353,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: '#6B7280',
+    color: '#808080',
   },
   header: {
     flexDirection: 'row',
@@ -361,7 +362,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#F5F5F5',
   },
   backButton: {
     width: 44,
@@ -374,7 +375,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
   },
   content: {
     paddingHorizontal: 16,
@@ -383,16 +384,18 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     flexDirection: 'row',
-    backgroundColor: '#EFF6FF',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#EBF4F9',
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 24,
+    borderLeftWidth: 3,
+    borderLeftColor: '#5B8FB9',
   },
   infoText: {
     flex: 1,
     marginLeft: 8,
     fontSize: 14,
-    color: '#1F2937',
+    color: '#4D4D4D',
     lineHeight: 20,
   },
   section: {
@@ -401,35 +404,40 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1A1A1A',
     marginBottom: 12,
   },
   readonlyBadge: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F5F5F5',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 8,
   },
   readonlyBadgeText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#808080',
     fontWeight: '500',
   },
   providerCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#F5F5F5',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 1,
   },
   providerIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#EFF6FF',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#E8F3EC',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -440,21 +448,21 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#1F2937',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   providerStatus: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#808080',
   },
   actionButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 6,
-    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    backgroundColor: '#4A7C59',
   },
   actionButtonDanger: {
-    backgroundColor: '#EF4444',
+    backgroundColor: '#E53935',
   },
   actionButtonText: {
     fontSize: 14,
@@ -468,11 +476,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#F5F5F5',
     alignItems: 'center',
   },
   footerText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#808080',
   },
 });

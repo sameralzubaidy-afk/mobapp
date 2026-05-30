@@ -1,6 +1,7 @@
 import '@testing-library/jest-native/extend-expect';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { cleanup } from '@testing-library/react-native';
 
 // Load environment variables for testing.
 // Prefer staging env when running Supabase E2E.
@@ -15,10 +16,41 @@ declare const jest: any;
 // Many @testing-library/react-native helpers (e.g. waitFor) rely on real timers.
 // Individual tests can opt-in with `jest.useFakeTimers()` when needed.
 
+// Keep unit/E2E logs readable by default. Set JEST_VERBOSE_LOGS=true to opt in.
+const shouldSilenceConsole = process.env.JEST_VERBOSE_LOGS !== 'true';
+if (shouldSilenceConsole) {
+  const noOp = () => {};
+  (console as any).log = jest.fn(noOp);
+  (console as any).info = jest.fn(noOp);
+  (console as any).warn = jest.fn(noOp);
+  (console as any).error = jest.fn(noOp);
+  (console as any).debug = jest.fn(noOp);
+}
+
+afterEach(() => {
+  // Ensure mounted trees/subscriptions are disposed between tests.
+  cleanup();
+});
+
 // Mock native AsyncStorage for tests
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
+
+// TFV2-014: Mock react-native-safe-area-context so PersistentTabBar renders in tests
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+  return {
+    useSafeAreaInsets:    () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+    SafeAreaProvider:     ({ children }: any) => children,
+    SafeAreaView:         ({ children, style }: any) =>
+      React.createElement('View', { style }, children),
+    initialWindowMetrics: {
+      frame:  { x: 0, y: 0, width: 390, height: 844 },
+      insets: { top: 0, left: 0, right: 0, bottom: 0 },
+    },
+  };
+});
 
 // Mock native expo modules that expect a device environment
 (globalThis as any).jest?.mock && jest.mock('expo-status-bar', () => ({ StatusBar: 'StatusBar' }));

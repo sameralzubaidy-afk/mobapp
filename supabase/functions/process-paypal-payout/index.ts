@@ -323,6 +323,17 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
+    // TFV2-018: sync trades.payout_status so the app can show live payout state
+    if (payout.trade_id) {
+      const { error: tradePayoutErr } = await supabase
+        .from('trades')
+        .update({ payout_status: 'processing', updated_at: new Date().toISOString() })
+        .eq('id', payout.trade_id);
+      if (tradePayoutErr) {
+        console.warn('[process-paypal-payout] Failed to sync trades.payout_status:', tradePayoutErr.message);
+      }
+    }
+
     const response: ProcessPayPalPayoutResponse = {
       success: true,
       payoutId,

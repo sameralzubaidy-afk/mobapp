@@ -1,0 +1,17 @@
+# FLOW: MODULE-15.1.2 FLOW-08 TradeFlowV2 Components
+# Scope: TFV2-007/008 countdown + auto-complete UI regression
+# Platform: iOS/Android (Expo)
+
+appId: host.exp.Exponent
+---
+- runFlow:
+    file: helpers/auth-bootstrap-expo.yaml
+
+- openLink: exp://127.0.0.1:8081/--/trade-v2-preview
+
+- assertVisible:
+    id: preview-offer-countdown-critical
+- assertVisible:
+    id: preview-offer-countdown-normal
+- assertVisible:
+    id: preview-auto-complete-banner

@@ -1,6 +1,7 @@
 /**
  * Seller Earnings Screen
  * File: p2p-kids-marketplace/src/screens/seller/SellerEarningsScreen.tsx
+ * MODULE-15.1 FLOW-08: SellerEarningsScreen — Pass It Up design system
  * Module: MODULE-06-TRADE-FLOW-sellerpayouts.md
  * Task: PAY-008 (Minimal Admin + Seller Earnings Views)
  *
@@ -20,6 +21,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getSellerPayouts } from '../../services/payoutService';
 import type { SellerPayout } from '../../types/payout.types';
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type PayoutDisplayItem = SellerPayout & {
   methodName: string;
@@ -116,17 +118,17 @@ export default function SellerEarningsScreen() {
   const getPayoutStatusColor = (status: string): string => {
     switch (status) {
       case 'requires_action':
-        return '#F59E0B'; // Amber
+        return '#FFA726'; // Warning 500
       case 'pending':
-        return '#6B7280'; // Gray
+        return '#808080'; // Neutral
       case 'processing':
-        return '#3B82F6'; // Blue
+        return '#29B6F6'; // Info 500
       case 'completed':
-        return '#10B981'; // Green
+        return '#4CAF50'; // Success 500
       case 'failed':
-        return '#EF4444'; // Red
+        return '#E53935'; // Error 500
       default:
-        return '#6B7280';
+        return '#808080';
     }
   };
 
@@ -231,27 +233,31 @@ export default function SellerEarningsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <LoadingSpinner />
-        <Text style={styles.loadingText}>Loading earnings...</Text>
-      </View>
+      <ScreenLayout variant="detail" title="My Earnings">
+        <View style={styles.loadingContainer}>
+          <LoadingSpinner />
+          <Text style={styles.loadingText}>Loading earnings...</Text>
+        </View>
+      </ScreenLayout>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Failed to Load Earnings</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadPayouts}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenLayout variant="detail" title="My Earnings">
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Failed to Load Earnings</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadPayouts}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenLayout>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenLayout variant="detail" title="My Earnings">
       <FlatList
         data={payouts}
         renderItem={renderPayoutItem}
@@ -259,54 +265,49 @@ export default function SellerEarningsScreen() {
         ListHeaderComponent={renderSummary}
         ListEmptyComponent={renderEmpty}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#4F46E5']} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#4A7C59']} />
         }
         contentContainerStyle={styles.listContent}
       />
-    </View>
+    </ScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    padding: 20,
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: 14,
+    color: '#808080',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#F9FAFB',
   },
   errorTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#EF4444',
+    color: '#E53935',
     marginBottom: 8,
   },
   errorText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#4D4D4D',
     textAlign: 'center',
     marginBottom: 16,
   },
   retryButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#4F46E5',
-    borderRadius: 8,
+    backgroundColor: '#4A7C59',
+    borderRadius: 12,
   },
   retryButtonText: {
     color: '#FFFFFF',
@@ -328,7 +329,7 @@ const styles = StyleSheet.create({
   summaryHeaderTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   summaryContainer: {
     flexDirection: 'row',
@@ -338,36 +339,36 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 2,
   },
   summaryLabel: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 12,
+    color: '#808080',
     marginBottom: 8,
   },
   summaryAmount: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
+    color: '#1A1A1A',
   },
   pendingAmount: {
-    color: '#F59E0B',
+    color: '#FFA726',
   },
   payoutCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
     elevation: 2,
   },
   payoutHeader: {
@@ -381,12 +382,12 @@ const styles = StyleSheet.create({
   payoutDate: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
   payoutMethod: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#808080',
   },
   payoutAmounts: {
     alignItems: 'flex-end',
@@ -394,13 +395,13 @@ const styles = StyleSheet.create({
   payoutNet: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#10B981',
+    color: '#4A7C59',
     marginBottom: 4,
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 12,
   },
   statusText: {
     fontSize: 11,
@@ -409,7 +410,7 @@ const styles = StyleSheet.create({
   },
   payoutDetails: {
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: '#F5F5F5',
     paddingTop: 12,
   },
   detailRow: {
@@ -419,28 +420,28 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 13,
-    color: '#6B7280',
+    color: '#808080',
   },
   detailValue: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#374151',
+    color: '#4D4D4D',
   },
   failureReason: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 8,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 12,
   },
   failureText: {
     fontSize: 12,
-    color: '#991B1B',
+    color: '#E53935',
   },
   actionButton: {
     marginTop: 12,
     paddingVertical: 12,
-    backgroundColor: '#4F46E5',
-    borderRadius: 8,
+    backgroundColor: '#4A7C59',
+    borderRadius: 12,
     alignItems: 'center',
   },
   actionButtonText: {
@@ -453,14 +454,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#111827',
+    color: '#1A1A1A',
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#808080',
     textAlign: 'center',
   },
 });

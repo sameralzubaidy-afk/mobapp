@@ -1485,7 +1485,11 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Unauthorized uploads/deletes rejected by RLS
   - Integration: Storage service (`src/services/supabase/storage.ts`) uses bucket type safety
 
-### FLOW-06: Discovery – Feed/Search/Filters/Favorites
+### now i want you to extend the scope of testing for this file to cover the reqs for cart system and tax engine from end user side and admin site. following the same format for test cases 
+you can find the reqs for these 2 addtions in 
+MODULE-15.2-cart-system.md
+MODULE-15.3-PART3-TAX-TASKS-RESTRUCTURED.md
+add one section on the top give summary on what this file covers from testing and also inlcude perrequsit list. : Discovery – Feed/Search/Filters/Favorites
 - Smoke: (manual)
   - Feed loads; search filters update results.
   - **MODULE-15.1-UI-REDESIGN-FLOW-06 (2025-01-XX):** Discovery & Search screens redesigned to Whisk "Pass It Up" design system
@@ -6075,3 +6079,28 @@ Satisfied Items:
 - **Tier 0:** N/A (read-only documentation only; no code changes).
 - **Drives prioritization of:** PROD-P001…PROD-P005 and the remaining PROD-010 migration backlog.
 - **Rollback:** N/A (documentation only).
+
+---
+
+### FLOW-38: P1 Security Hardening Rollup (PROD-001)
+- **Module:** MODULE-15.5 PROD-001 (P1 This Week)
+- **Scope:** Lock down stage-critical RLS fallout, enforce node isolation policies, harden SECURITY DEFINER search_path, and add JWT/ownership checks on sensitive Edge Functions.
+- **Deliverables:**
+  - `supabase/migrations/312_prod_p1_stage_security_lockdown.sql`
+  - `supabase/migrations/313_prod_p1_node_isolation_hardening.sql`
+  - `supabase/migrations/314_prod_p1_security_definer_search_path_hardening.sql`
+  - `supabase/functions/analyze-item-image/index.ts`
+  - `supabase/functions/moderate-image/index.ts`
+  - `supabase/functions/trade-payment/index.ts`
+  - `supabase/functions/initiate-payout/index.ts`
+  - `supabase/functions/sms-send/index.ts`
+  - `supabase/functions/auth-update-phone/index.ts`
+- **Security outcomes:**
+  1. Removes dangerous `anon` policies and direct table exposure on wallet/ledger/admin config surfaces.
+  2. Enforces authenticated user isolation for wallet/ledger rows.
+  3. Replaces broad discovery access with seller-node scoped item/trade visibility.
+  4. Adds JWT checks and ownership guards for high-risk image, SMS, payout, and trade payment functions.
+  5. Adds explicit `search_path` hardening for SECURITY DEFINER functions missing it.
+- **Tier requirements:** Tier 0 mandatory; Tier 2 required because DB/RLS/function hardening changed.
+- **Smoke/verification:** run SQL verification queries embedded in each migration + edge function auth/ownership test cases.
+- **Rollback:** revert these migrations/functions as a single unit and re-run policy/function verification queries.

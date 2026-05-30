@@ -4,6 +4,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
+import {
+  ownershipDeniedResponse,
+  verifyStripeAccountOwnership,
+} from '../_shared/verify-stripe-ownership.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,6 +137,26 @@ serve(async (req: Request): Promise<Response> => {
 
     for (const method of methods) {
       const stripeAccountId = method.stripe_account_id as string;
+
+      // PROD-005: Defense-in-depth ownership check (redundant with the
+      // user_id-scoped query above, but produces an explicit audit log
+      // and 403 on any future query regression).
+      const ownership = await verifyStripeAccountOwnership(
+        supabase,
+        user.id,
+        stripeAccountId
+      );
+      if (!ownership.owned) {
+        console.warn('[sync-stripe-connect-status] Ownership denied:', {
+          userId: user.id,
+          methodId: method.id,
+          reason: ownership.error,
+        });
+        return ownershipDeniedResponse(
+          ownership.error || 'Stripe account ownership check failed',
+          corsHeaders
+        );
+      }
 
       const account = await stripe.accounts.retrieve(stripeAccountId);
       const detailsSubmitted = !!account.details_submitted;

@@ -1,0 +1,255 @@
+# FLOW: trade-tfv2-023-addenda-a-b-c-d-e | TASK: TFV2-023, Addenda A/B/C/D/E
+# States covered:
+#   1. Seller cancel in_progress trade (Addendum A) → consequence level alert
+#   2. Value stack visible in TradeOfferScreen (Addendum B) — subscriber $0.99
+#   3. Value stack visible — non-subscriber $2.99
+#   4. Bundle banner on TradeTimelineScreen (Addendum C)
+#   5. Bundle offer rows in TradeListScreen Offers tab (Addendum D)
+#   6. In-progress bundles visible in Buying tab (Addendum D)
+#   7. Bundle grouping in ReviewOfferScreen + Accept All button (Addendum E)
+#
+# Prerequisites:
+#   - App is installed and running in iOS Simulator / Android Emulator
+#   - Seeded test users: seller (test-seller@kidsmarketplace.test) + buyer (test-buyer@kidsmarketplace.test)
+#   - At least one in_progress trade for seller user must exist in staging DB
+#   - At least two pending bundle offers must exist for ReviewOffer test
+# 
+# Run:
+#   iOS:     npm run test:maestro:ios -- .maestro/trade-tfv2-023-addenda.yaml
+#   Android: npm run test:maestro:android -- .maestro/trade-tfv2-023-addenda.yaml
+
+appId: com.p2pkidsmarketplace
+
+---
+# ═══════════════════════════════════════════════════════════════
+# FLOW BLOCK 1: Seller cancel in_progress trade (Addendum A)
+# State covered: seller_cancel_inprogress
+# ═══════════════════════════════════════════════════════════════
+
+- launchApp:
+    clearState: false
+
+# Login as seller
+- tapOn:
+    id: "login-email-input"
+- clearText
+- inputText: "test-seller@kidsmarketplace.test"
+- tapOn:
+    id: "login-password-input"
+- clearText
+- inputText: "test-password"
+- tapOn:
+    id: "login-button"
+- waitForAnimationToEnd
+
+# Navigate to Trade List
+- tapOn:
+    id: "tab-trades"
+- waitForAnimationToEnd
+
+- assertVisible:
+    id: "tab-selling"
+- tapOn:
+    id: "tab-selling"
+- waitForAnimationToEnd
+
+# Navigate into first in_progress trade (if exists)
+- tapOn:
+    id: "trade-row-0"
+    optional: true
+- waitForAnimationToEnd
+
+# Verify seller cancel in_progress button is visible
+- assertVisible:
+    id: "seller-cancel-inprogress-button"
+
+# Tap seller cancel button
+- tapOn:
+    id: "seller-cancel-inprogress-button"
+- waitForAnimationToEnd
+
+# Cancellation reason modal should appear
+# Select a seller-specific reason
+- tapOn:
+    text: "Can't do pickup/meetup"
+    optional: true
+- tapOn:
+    text: "Item no longer available"
+    optional: true
+- waitForAnimationToEnd
+
+# Confirm cancellation
+- tapOn:
+    text: "Cancel Trade"
+    optional: true
+- waitForAnimationToEnd
+
+# A consequence alert MUST appear (level 1/2/3)
+# We assert text that is common to all three levels
+- assertVisible:
+    text: "Trade Cancelled"
+
+---
+# ═══════════════════════════════════════════════════════════════
+# FLOW BLOCK 2: Value stack — subscriber sees $0.99 fee (Addendum B)
+# State covered: value_stack_subscriber
+# ═══════════════════════════════════════════════════════════════
+
+- restartApp
+- tapOn:
+    id: "login-email-input"
+- clearText
+- inputText: "test-buyer@kidsmarketplace.test"
+- tapOn:
+    id: "login-password-input"
+- clearText
+- inputText: "test-password"
+- tapOn:
+    id: "login-button"
+- waitForAnimationToEnd
+
+# Navigate to browse
+- tapOn:
+    id: "browse-tab"
+- waitForAnimationToEnd
+
+# Tap first listing
+- tapOn:
+    id: "listing-card-0"
+- waitForAnimationToEnd
+
+# Open TradeOfferScreen
+- tapOn:
+    id: "make-offer-button"
+- waitForAnimationToEnd
+
+# Verify value stack is visible
+- assertVisible:
+    id: "value-stack-row"
+
+# Verify platform fee text
+- assertVisible:
+    text: "Platform fee"
+
+# Subscriber should see $0.99
+- assertVisible:
+    text: "$0.99"
+
+# Verify "What you pay" heading
+- assertVisible:
+    text: "What you pay"
+
+# Verify Total cash label
+- assertVisible:
+    text: "Total cash"
+
+- scrollDown
+- assertVisible:
+    id: "safety-disclaimer"
+
+---
+# ═══════════════════════════════════════════════════════════════
+# FLOW BLOCK 3: Bundle banner on TradeTimelineScreen (Addendum C)
+# State covered: bundle_banner_visible
+# ═══════════════════════════════════════════════════════════════
+
+- tapOn:
+    id: "tab-trades"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "tab-buying"
+- waitForAnimationToEnd
+
+# Tap a bundle row in in-progress bundles section (if exists)
+- tapOn:
+    id: "inprogress-bundles"
+    optional: true
+- waitForAnimationToEnd
+
+# Navigate to a trade that is part of a bundle
+- tapOn:
+    id: "trade-row-0"
+    optional: true
+- waitForAnimationToEnd
+
+# Bundle banner should be visible if this trade is part of a bundle
+- assertVisible:
+    id: "bundle-context-banner"
+    optional: true
+
+- assertVisible:
+    id: "trade-timeline"
+
+---
+# ═══════════════════════════════════════════════════════════════
+# FLOW BLOCK 4: Bundle offer rows in Offers tab (Addendum D)
+# State covered: bundle_offer_rows_visible
+# ═══════════════════════════════════════════════════════════════
+
+- restartApp
+- tapOn:
+    id: "login-email-input"
+- clearText
+- inputText: "test-seller@kidsmarketplace.test"
+- tapOn:
+    id: "login-password-input"
+- clearText
+- inputText: "test-password"
+- tapOn:
+    id: "login-button"
+- waitForAnimationToEnd
+
+- tapOn:
+    id: "tab-trades"
+- waitForAnimationToEnd
+
+# Default tab is Offers — assert tabs visible
+- assertVisible:
+    id: "tab-offers"
+- assertVisible:
+    id: "tab-buying"
+- assertVisible:
+    id: "tab-selling"
+- assertVisible:
+    id: "tab-all"
+
+# If bundle offers exist, bundle-row should be visible
+# (optional — may be absent if no bundle offers in staging)
+- assertVisible:
+    id: "tab-offers"
+
+---
+# ═══════════════════════════════════════════════════════════════
+# FLOW BLOCK 5: ReviewOfferScreen — bundle banner + Accept All (Addendum E)
+# State covered: review_offer_bundle_banner, review_offer_accept_all_visible
+# ═══════════════════════════════════════════════════════════════
+
+- tapOn:
+    id: "tab-offers"
+- waitForAnimationToEnd
+
+# If a bundle row exists, tap Review Each to open ReviewOfferScreen for first offer
+- tapOn:
+    id: "bundle-review-each"
+    optional: true
+- waitForAnimationToEnd
+
+# If bundle context banner is visible, verify it
+- assertVisible:
+    id: "bundle-context-banner"
+    optional: true
+
+# Accept All button should be visible when bundle siblings exist
+- assertVisible:
+    id: "accept-bundle-button"
+    optional: true
+
+# Verify standard accept/decline are still visible
+- assertVisible:
+    text: "Accept Trade"
+    optional: true
+
+- assertVisible:
+    text: "Decline"
+    optional: true

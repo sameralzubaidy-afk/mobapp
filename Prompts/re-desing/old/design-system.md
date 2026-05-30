@@ -169,7 +169,7 @@ All spacing uses multiples of 8px for consistency and alignment.
 
 **Mobile Screen Width**: 375px (iPhone SE baseline), 390px (iPhone 14), 360px (Android standard)
 
-**Margins**:
+**Margins**:r
 - **Page Margins**: 16px (md) on left/right
 - **Safe Area**: Respect iOS notch, Android gesture navigation
 
