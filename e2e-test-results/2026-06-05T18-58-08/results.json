@@ -1,0 +1,66 @@
+{
+  "module": "MODULE-15.1.2 TradeFlowV2",
+  "generatedAt": "2026-06-05T19:02:50.327Z",
+  "options": {
+    "list": false,
+    "dryRun": false,
+    "help": false,
+    "noPreflight": false,
+    "bail": false,
+    "json": false,
+    "includePending": false,
+    "includeManual": false,
+    "platform": "both",
+    "runner": null,
+    "groups": null,
+    "cases": [
+      "TC-A01"
+    ],
+    "statuses": null,
+    "retries": 1,
+    "timeoutMs": 600000,
+    "outDir": "/Users/sameralzubaidi/Desktop/kids_marketplace_app/e2e-test-results/2026-06-05T18-58-08"
+  },
+  "totals": {
+    "casesSelected": 1,
+    "casesPassed": 0,
+    "casesFailed": 1,
+    "casesSkipped": 0,
+    "unitsExecuted": 2,
+    "unitsPassed": 0,
+    "unitsFailed": 2
+  },
+  "units": [
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-full-trade-flow-v2.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TC-A01"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 122227,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-full-trade-flow-v2.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-full-trade-flow-v2.yaml",
+      "platform": "android",
+      "grep": null,
+      "cases": [
+        "TC-A01"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 10793,
+      "timedOut": false,
+      "command": "maestro test --platform android --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-full-trade-flow-v2.yaml",
+      "stderrTail": ""
+    }
+  ],
+  "skipped": []
+}
