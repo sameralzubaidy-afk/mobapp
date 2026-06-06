@@ -43,6 +43,7 @@ serve(async (req) => {
   if (req.method !== 'POST') return jsonError('Method not allowed', 'METHOD_NOT_ALLOWED', 405);
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
 
@@ -55,19 +56,21 @@ serve(async (req) => {
     return jsonError('Payment system not configured', 'STRIPE_CONFIG_ERROR', 500);
   }
 
-  const authHeader = req.headers.get('Authorization');
+  const authHeader = req.headers.get('Authorization') ?? req.headers.get('authorization');
   if (!authHeader) return jsonError('Missing authorization', 'UNAUTHORIZED', 401);
 
-  // Use service-role client for all DB writes; user JWT only for identity verification
+  // Use service-role client for all DB writes; anon key + user JWT for identity verification
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  const userClient = createClient(supabaseUrl, supabaseServiceKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  const supabaseKey = supabaseAnonKey || supabaseServiceKey;
+  const userClient = createClient(supabaseUrl, supabaseKey);
 
+  const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  const token = tokenMatch?.[1]?.trim();
+  if (!token) return jsonError('Malformed authorization header', 'UNAUTHORIZED', 401);
   const {
     data: { user },
     error: userError,
-  } = await userClient.auth.getUser();
+  } = await userClient.auth.getUser(token);
   if (userError || !user) return jsonError('Invalid or expired token', 'UNAUTHORIZED', 401);
 
   const buyerId = user.id;
@@ -158,11 +161,13 @@ serve(async (req) => {
   }
 
   // ── 4. Max pending offers check (D-30) ───────────────────────────────
+  // D-30: Count in_progress offers (without auto_complete_at = awaiting seller response)
   const { count: pendingCount } = await supabase
     .from('trades')
     .select('id', { count: 'exact', head: true })
     .eq('buyer_id', buyerId)
-    .eq('status', 'pending');
+    .eq('status', 'in_progress')
+    .is('auto_complete_at', null);
 
   if ((pendingCount ?? 0) >= MAX_PENDING_OFFERS) {
     return jsonError(
@@ -191,11 +196,17 @@ serve(async (req) => {
       );
     }
 
-    // Verify payment method is attached to this customer
+    // Verify payment method is attached to this customer.
+    // If it's a newly created PaymentMethod (not yet attached), attach it now.
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
     try {
       const pm = await stripe.paymentMethods.retrieve(payment_method_id!);
-      if (pm.customer !== stripeCustomerId) {
+      if (pm.customer === null) {
+        // New card entered via CardField — attach to customer
+        await stripe.paymentMethods.attach(payment_method_id!, {
+          customer: stripeCustomerId,
+        });
+      } else if (pm.customer !== stripeCustomerId) {
         return jsonError('Payment method not found on your account', 'INVALID_PAYMENT_METHOD', 400);
       }
     } catch (err: unknown) {
@@ -216,9 +227,15 @@ serve(async (req) => {
         currency: 'usd',
         customer: stripeCustomerId!,
         payment_method: payment_method_id!,
+        // Keep this flow in-app only; no redirect-based methods for offer holds.
+        // Note: automatic_payment_methods and confirmation_method are mutually exclusive.
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: 'never',
+        },
         capture_method: 'manual', // D-30: pre-auth only, capture at seller acceptance
+        off_session: true,
         confirm: true, // places the hold immediately
-        confirmation_method: 'automatic',
         metadata: {
           type: 'trade_offer_hold',
           buyer_id: buyerId,
@@ -248,8 +265,8 @@ serve(async (req) => {
   }
 
   // ── 7. Insert trade record ────────────────────────────────────────────
-  // DB trigger fn_reserve_sp_on_offer fires automatically on INSERT with status='pending'
-  // DB trigger fn_set_offer_expires_at fires automatically on INSERT
+  // D-30: DB trigger fn_reserve_sp_on_offer fires automatically on INSERT with status='in_progress'
+  // D-30: DB trigger fn_set_offer_expires_at fires automatically on INSERT
   const { data: trade, error: tradeError } = await supabase
     .from('trades')
     .insert({
@@ -261,7 +278,8 @@ serve(async (req) => {
       buyer_subscription_status,
       buyer_transaction_fee_cents: transaction_fee_cents,
       cash_currency: 'usd',
-      status: 'pending',
+      // D-30: Trade is immediately in_progress since Stripe pre-auth is already held
+      status: 'in_progress',
       stripe_payment_intent_id: paymentIntentId,
       authorization_expires_at: authExpiresAt,
       total_fee_cents: transaction_fee_cents,

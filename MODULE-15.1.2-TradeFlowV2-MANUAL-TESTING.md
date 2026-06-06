@@ -168,34 +168,37 @@
 
 ### TC-A01 · Cash Only: full happy path (buyer confirms receipt)
 
-**Ref:** TRADING-FLOW-V2 §7 Scenario S1
-**Actors:** test-buyer (subscriber) + test-seller
+**Ref:** TRADING-FLOW-V2 §7 Scenario S1, D-30, TFV2-012A, TFV2-014
+**Actors:** test-buyer (subscriber) + test-seller (subscriber)
 
-**Objective:** Verify a cash-only trade flows from offer submission through seller acceptance to buyer confirmation and completion.
+**Objective:** Verify a cash-only trade flows from offer submission through seller acceptance to buyer confirmation and completion — including D-30 Stripe pre-auth hold and capture.
 
 **Steps:**
 1. Log in as **Buyer** and open a Cash Only item from **Seller**.
 2. Tap **[Request to Buy]**, review the offer preview, then tap **[Submit Offer]**.
-3. Log in as **Seller**, open the **Offers** tab, and tap the new offer row.
-4. On the Review Offer screen, tap **[Accept]**.
-5. Log in as **Buyer**, open the trade from **Trades → Buying**.
-6. Tap **[I Got It]**, then tap **[Confirm]** on the confirmation prompt.
+3. Verify the Stripe pre-auth hold was placed (check Stripe dashboard for a `requires_capture` PaymentIntent for this trade).
+4. Log in as **Seller**, open the **Offers** tab, and tap the new offer row.
+5. On the Review Offer screen, tap **[Accept]**.
+6. Verify the Stripe PaymentIntent was captured (`succeeded` status in Stripe dashboard).
+7. Log in as **Buyer**, open the trade from **Trades → Buying**.
+8. Tap **[I Got It]**, then tap **[Confirm]** on the confirmation prompt.
 
 **Expected Result:**
 - On the item: a "Cash Only" badge and a single **[Request to Buy]** button (no "Use SP" button).
 - After submitting: a confirmation toast and the trade appears as **Pending**; the seller receives a push notification.
+- A Stripe PaymentIntent with `capture_method: 'manual'` exists for the trade in `requires_capture` status (D-30 pre-auth hold). The buyer's card is NOT charged yet.
 - The seller's offer row shows the item, cash amount, and a green countdown pill.
-- After the seller accepts: both parties see the trade move to **In Progress**; buyer sees "Payment confirmed. Coordinate pickup." with an auto-complete banner ("Auto-completing in ~47h"); the seller does **not** see an [I Got It] button or the auto-complete banner.
-- After the buyer confirms: the trade shows as **Completed**, a "Trade Complete!" screen appears with a [Rate Seller] button; the seller sees a "Sold!" completion screen with [Rate Buyer].
+- After the seller accepts: the Stripe PaymentIntent transitions from `requires_capture` → `succeeded` (captured). The trade moves to **In Progress** with `auto_complete_at` set from admin config. Buyer sees an auto-complete banner ("Auto-completing in ~47h") and **[I Got It]** + **[Report a Problem]** buttons. The seller does **not** see an [I Got It] button or the auto-complete banner; instead sees safe-meetup card.
+- After the buyer confirms: the trade shows as **Completed**, the buyer sees a "Trade Complete!" screen with a subscriber-appropriate CTA (e.g., "Trade complete! Consider using SP on your next purchase to save more." with **[Browse Items]**) and a **[Rate Seller]** text link. The seller sees their completion screen with appropriate CTA (e.g., "Sold for cash! Try 'Accept SP' on your next listing to also earn SP." with **[Create New Listing]**) and a **[Rate Buyer]** text link.
 
 ---
 
 ### TC-A02 · Accept SP: Use SP slider → seller accepts → buyer confirms
 
-**Ref:** TRADING-FLOW-V2 §7 Scenario S5, §4.4, §10
+**Ref:** TRADING-FLOW-V2 §7 Scenario S5, §4.4, §10, D-30
 **Actors:** test-buyer (subscriber, SP ≥ 15) + test-seller (subscriber)
 
-**Objective:** Verify a subscriber buyer can apply Swap Points to an Accept SP listing and complete the full SP happy path.
+**Objective:** Verify a subscriber buyer can apply Swap Points to an Accept SP listing and complete the full SP happy path with D-30 Stripe pre-auth.
 
 **Steps:**
 1. Log in as **Buyer** and open an **Accept SP** item priced at $30.
@@ -203,17 +206,19 @@
 3. Move the slider to **$8 SP** and review the breakdown.
 4. Try to push the slider beyond 50% of the price ($15).
 5. Tap **[Submit Offer]**.
-6. Log in as **Seller**, open the **Offers** tab, tap the offer, and tap **[Accept]**.
-7. Log in as **Buyer**, open the trade, tap **[I Got It]**, then **[Confirm]**.
+6. Verify a Stripe PaymentIntent with `capture_method: 'manual'` exists in `requires_capture` status (D-30 pre-auth hold).
+7. Log in as **Seller**, open the **Offers** tab, tap the offer, and tap **[Accept]**.
+8. Verify the Stripe PaymentIntent was captured (`succeeded` status).
+9. Log in as **Buyer**, open the trade, tap **[I Got It]**, then **[Confirm]**.
 
 **Expected Result:**
 - The item shows an "Accept SP" badge with two buttons: **[Request to Buy]** and **[Use SP]**.
 - The slider ranges from 0 to $15 (50% of $30); at $8 it shows "$22 cash + 8 SP = $30 total", platform fee $0.99 (subscriber), and total cash $22.99.
 - The slider clamps at $15 and refuses any higher value.
-- After submitting: the buyer's wallet shows 8 SP moved from available to reserved.
+- After submitting: the buyer's wallet shows 8 SP moved from available to reserved. A Stripe PaymentIntent exists in `requires_capture` status — card is NOT charged yet (D-30).
 - The seller's offer row shows "$22 cash + 8 SP — Total: $30"; the Review screen shows the combined SP releasing at completion.
-- While In Progress, the buyer's SP stays reserved (not yet transferred to the seller).
-- After the buyer confirms: the trade completes; the buyer sees "Got it! You saved $8 using SP."; the seller's completion screen shows the SP (buyer 8 SP + platform reward) added to their pending wallet with a [View Wallet] button; the buyer's reserved SP returns to 0.
+- After the seller accepts: the Stripe PaymentIntent transitions from `requires_capture` → `succeeded` (captured). The trade moves to **In Progress** with `auto_complete_at` set. The buyer's SP stays reserved (not yet transferred to the seller).
+- After the buyer confirms: the trade completes; the buyer sees "Got it! You saved $8 using SP." with remaining SP balance and **[Keep Shopping]** button; the seller's completion screen shows the SP (buyer 8 SP + platform reward) added to their pending wallet with a [View Wallet] button; the buyer's reserved SP returns to 0.
 
 ---
 
@@ -260,18 +265,21 @@
 
 ### TC-B01 · Seller declines offer
 
-**Ref:** TRADING-FLOW-V2 §7 Scenario S2
+**Ref:** TRADING-FLOW-V2 §7 Scenario S2, D-30
 **Actors:** test-buyer + test-seller
 
-**Objective:** Verify a seller can decline an offer and the item stays listed, restoring any reserved SP to the buyer.
+**Objective:** Verify a seller can decline an offer and the item stays listed, restoring any reserved SP to the buyer and releasing the Stripe pre-auth hold.
 
 **Steps:**
 1. Log in as **Buyer** and submit an offer (any type) on a listing.
-2. Log in as **Seller**, open the offer in the Review screen, and tap **[Decline]**.
-3. Log in as **Buyer** and open the **Offers** tab.
+2. Note the Stripe PaymentIntent ID (from Stripe dashboard — should be in `requires_capture` status).
+3. Log in as **Seller**, open the offer in the Review screen, and tap **[Decline]**.
+4. Verify the Stripe PaymentIntent was cancelled (status `canceled` in Stripe dashboard).
+5. Log in as **Buyer** and open the **Offers** tab.
 
 **Expected Result:**
 - The seller sees a confirmation "Offer declined. Item stays listed." and the offer row is removed/marked declined; the listing stays available.
+- The Stripe PaymentIntent transitions from `requires_capture` → `canceled` — the pre-auth hold is released and the buyer's card is NOT charged (D-30).
 - The buyer's Offers tab shows "Declined — [Item] still available" with a [View Item Again] button.
 - If the buyer used SP, that SP is restored from reserved back to available.
 
@@ -279,21 +287,24 @@
 
 ### TC-B02 · Offer expires (seller never responds) + seller ignore prompt
 
-**Ref:** TRADING-FLOW-V2 §7 Scenario S3, §9.2, §11.8
+**Ref:** TRADING-FLOW-V2 §7 Scenario S3, §9.2, §11.8, D-30
 **Actors:** test-buyer + test-seller
 **Precondition:** QA fast-forwards the 24h offer clock past expiry for this trade.
 
-**Objective:** Verify an unanswered offer auto-cancels at expiry, restores buyer SP, and prompts a repeatedly-ignoring seller to pause the listing.
+**Objective:** Verify an unanswered offer auto-cancels at expiry, releases Stripe auth, restores buyer SP, and prompts a repeatedly-ignoring seller to pause the listing.
 
 **Steps:**
 1. Log in as **Buyer** and submit an offer; note the 24h countdown starts.
-2. Allow the offer to reach its expiry without the seller responding.
-3. Log in as **Buyer** and open the **Offers** tab.
-4. Repeat with a second consecutive unanswered offer on the same listing.
-5. Log in as **Seller** and check push notifications.
+2. Note the Stripe PaymentIntent ID (in `requires_capture` status).
+3. Allow the offer to reach its expiry without the seller responding.
+4. Verify the Stripe PaymentIntent was cancelled (`canceled` status).
+5. Log in as **Buyer** and open the **Offers** tab.
+6. Repeat with a second consecutive unanswered offer on the same listing.
+7. Log in as **Seller** and check push notifications.
 
 **Expected Result:**
-- At expiry the trade auto-cancels; the buyer's reserved SP (if any) is restored.
+- At expiry the trade auto-cancels; the Stripe PaymentIntent transitions from `requires_capture` → `canceled` (auth hold released, card NOT charged).
+- The buyer's reserved SP (if any) is restored.
 - The buyer's Offers tab shows "Expired — [Item] still available" with a [View Item Again] button.
 - Before expiry, the seller receives reminder pushes at roughly 6 hours and 1 hour before the offer expires.
 - After a second consecutive unanswered offer, the seller receives: "You're receiving offers but not responding on [Item]. Want to pause this listing?" with [Pause Listing] and [Dismiss].
@@ -323,20 +334,23 @@
 
 ### TC-B04 · Buyer cancels pending trade — no consequence level
 
-**Ref:** TRADING-FLOW-V2 §11.7
+**Ref:** TRADING-FLOW-V2 §11.7, D-30
 **Actors:** test-buyer
 
-**Objective:** Verify a buyer can cancel a pending trade without triggering any seller-style consequence warning.
+**Objective:** Verify a buyer can cancel a pending trade, releasing the Stripe auth hold, without triggering any seller-style consequence warning.
 
 **Steps:**
 1. Log in as **Buyer** and open a **pending** trade from **Trades → Buying**.
-2. Tap **[Cancel Trade]**.
-3. Select a reason and confirm.
+2. Note the Stripe PaymentIntent ID for the trade (in `requires_capture` status).
+3. Tap **[Cancel Trade]**.
+4. Select a reason and confirm.
+5. Verify the Stripe PaymentIntent was cancelled (`canceled` status).
 
 **Expected Result:**
 - A cancellation reason modal with standard buyer reasons appears.
 - After confirming, a generic "Trade Cancelled" message appears with **no** Level 1/2/3 consequence text.
 - Any SP reserved by the buyer is restored.
+- The Stripe PaymentIntent transitions from `requires_capture` → `canceled` — the pre-auth hold is released, card NOT charged (D-30).
 
 ---
 
@@ -361,19 +375,21 @@
 
 ### TC-B06 · Card declined at offer submission
 
-**Ref:** TRADING-FLOW-V2 §4.3
+**Ref:** TRADING-FLOW-V2 §4.3, D-30
 **Actors:** test-buyer
 **Precondition:** Buyer's saved card is a declining test card.
 
-**Objective:** Verify offer submission fails cleanly when the payment authorization is declined.
+**Objective:** Verify offer submission fails cleanly when the Stripe pre-authorization is declined — no trade, no SP hold, no charge.
 
 **Steps:**
 1. Log in as **Buyer** with a declining card and attempt to submit an offer.
-2. Update to a valid card and retry.
+2. Verify no Stripe PaymentIntent was created (check Stripe dashboard).
+3. Update to a valid card and retry.
+4. Verify a Stripe PaymentIntent with `capture_method: 'manual'` is created in `requires_capture` status.
 
 **Expected Result:**
-- Submission fails immediately with: "Payment method declined. Please update your card."; no pending offer is created and no SP is reserved.
-- After switching to a valid card, the offer submits successfully.
+- Submission fails immediately with: "Payment method declined. Please update your card."; no pending offer is created, no SP is reserved, and no Stripe PaymentIntent exists (D-30 atomicity: if Stripe auth fails, nothing is created).
+- After switching to a valid card, the offer submits successfully. A Stripe PaymentIntent with `capture_method: 'manual'` is created in `requires_capture` status — card is NOT charged yet (D-30 pre-auth hold).
 
 ---
 
@@ -2196,33 +2212,38 @@
 
 ### TC-R01 · Buyer cancels pending trade → cancelled, auth voided, SP restored
 
-**Ref:** FLOW-27 · TC-B04/TC-C02
+**Ref:** FLOW-27 · TC-B04/TC-C02, D-30
 **Actors:** test-buyer (subscriber) + test-seller
 
-**Objective:** Verify cancelling before seller acceptance voids the payment authorization and restores reserved SP with no consequence.
+**Objective:** Verify cancelling before seller acceptance voids the Stripe payment authorization and restores reserved SP with no consequence.
 
 **Steps:**
 1. As **test-buyer**, submit an offer (using some SP) on an Accept SP listing so the trade is **Pending**.
-2. Before the seller responds, open the trade and cancel it.
+2. Note the Stripe PaymentIntent ID (in `requires_capture` status).
+3. Before the seller responds, open the trade and cancel it.
+4. Verify the Stripe PaymentIntent was cancelled (`canceled` status).
 
 **Expected Result:**
 - The trade moves Pending → **Cancelled** (reason buyer_cancelled).
-- The payment authorization is voided (no capture/charge to the buyer).
+- The Stripe PaymentIntent transitions from `requires_capture` → `canceled` — the pre-auth hold is released, no charge to the buyer (D-30).
 - The buyer's reserved SP returns to available (reserved → 0).
 - No seller consequence level is applied; the listing returns to available.
 
-### TC-R02 · Seller declines pending offer → cancelled, SP restored
+### TC-R02 · Seller declines pending offer → cancelled, SP restored, auth released
 
-**Ref:** FLOW-27 · TC-B01/TC-C02
+**Ref:** FLOW-27 · TC-B01/TC-C02, D-30
 **Actors:** test-buyer + test-seller
 
-**Objective:** Verify a seller decline cancels the trade and releases the buyer's hold.
+**Objective:** Verify a seller decline cancels the trade, releases the Stripe auth hold, and restores buyer's SP.
 
 **Steps:**
-1. With a Pending SP offer, log in as **test-seller** and decline it.
+1. With a Pending SP offer, note the Stripe PaymentIntent ID.
+2. Log in as **test-seller** and decline it.
+3. Verify the Stripe PaymentIntent was cancelled (`canceled` status).
 
 **Expected Result:**
-- The trade becomes **Cancelled** (seller decline); the buyer's payment authorization is released and reserved SP is restored to available.
+- The trade becomes **Cancelled** (seller decline); the Stripe PaymentIntent transitions from `requires_capture` → `canceled` (auth released, card NOT charged).
+- The buyer's reserved SP is restored to available.
 - The buyer is notified the offer was declined.
 
 ### TC-R03 · Offer expiry → auto-cancel + competing offers cancelled
@@ -2459,7 +2480,12 @@
 | Multiple competing offers — sort + auto-decline (S6) | TC-B03 |
 | Buyer cancel pending — no consequence | TC-B04 |
 | Max 3 pending offers | TC-B05 |
-| Card declined at submission | TC-B06 |
+| Card declined at submission (no trade, no SP, no Stripe PI — D-30 atomicity) | TC-B06 |
+| Stripe pre-auth hold placed at offer submission (D-30) | TC-A01, TC-A02, TC-B06 |
+| Stripe pre-auth captured on seller accept (D-30) | TC-A01, TC-A02 |
+| Stripe pre-auth released on seller decline (D-30) | TC-B01, TC-R02 |
+| Stripe pre-auth released on buyer cancel pending (D-30) | TC-B04, TC-R01 |
+| Stripe pre-auth released on offer expiry (D-30) | TC-B02, TC-R03 |
 | SP reserved on offer submit | TC-C01 |
 | SP restored on seller decline | TC-C02 |
 | SP restored on offer expiry | TC-C03 |

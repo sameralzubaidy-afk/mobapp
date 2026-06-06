@@ -7,6 +7,10 @@
  * - Two-column trade card layout
  * - Gold SP input (#FEF3C7 bg, #F59E0B accent)
  * - Green pill button (#5DBB8E)
+ * 
+ * Bugfix: Added missing payment method section (saved card + new card CardField)
+ * Bugfix: Added getTransactionFee to fetchData for dynamic fee resolution
+ * Bugfix: useStripe() called unconditionally at top level (React Hooks rule)
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -22,14 +26,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  NativeModules,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
-import { initiateTradeV2 } from '@/services/trade';
+import { createTradeOfferWithHold, mapStripeErrorToMessage } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig } from '@/services/adminConfig';
 import { calculateCategorySP } from '@/services/categoryService';
+import { getTransactionFee, getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
+import { useStripe } from '@stripe/stripe-react-native';
+import { usePaymentSheet } from '@/hooks/usePaymentSheet';
+import { supabase } from '@/config/supabase';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
@@ -50,6 +59,16 @@ export default function TradeOfferScreen() {
   const user = session?.user;
   const { itemId } = route.params;
 
+  // ── Stripe hooks (unconditional, top-level) ─────────────────────────────
+  const stripe = useStripe();
+  const createPaymentMethod = stripe.createPaymentMethod;
+  const {
+    setupPaymentSheet,
+    presentSheet,
+    loading: paymentSheetLoading,
+    error: paymentSheetError,
+  } = usePaymentSheet();
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [item, setItem] = useState<Item | null>(null);
@@ -58,6 +77,11 @@ export default function TradeOfferScreen() {
   const [maxSpPercentage, setMaxSpPercentage] = useState(50);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);
+  const [transactionFeeCents, setTransactionFeeCents] = useState(0);
+  const [savedPaymentMethod, setSavedPaymentMethod] = useState<PaymentMethodInfo | null>(null);
+  const [loadingSavedPaymentMethod, setLoadingSavedPaymentMethod] = useState(false);
+  const [paymentInputMode, setPaymentInputMode] = useState<'saved' | 'new'>('saved');
+  const [addingNewCard, setAddingNewCard] = useState(false);
   const [errorModal, setErrorModal] = useState<{ visible: boolean; title: string; message: string; isDuplicate?: boolean }>({
     visible: false,
     title: '',
@@ -71,9 +95,10 @@ export default function TradeOfferScreen() {
 
     try {
       setLoading(true);
-      const [itemData, config] = await Promise.all([
+      const [itemData, config, feeCents] = await Promise.all([
         getItemById(itemId),
         getAdminConfig(),
+        getTransactionFee(user.id),
       ]);
 
       if (!itemData) {
@@ -85,6 +110,9 @@ export default function TradeOfferScreen() {
       await refreshSession();
 
       setItem(itemData);
+      if (Number.isFinite(feeCents) && feeCents >= 0) {
+        setTransactionFeeCents(Math.round(feeCents));
+      }
 
       if (itemData.category_id) {
         const spConfig = await calculateCategorySP(itemData.category_id, itemData.price);
@@ -114,9 +142,115 @@ export default function TradeOfferScreen() {
     }
   }, [itemId, navigation, refreshSession, user?.id]);
 
+  const hasStripeNativeModule = Boolean(
+    (NativeModules as any)?.StripeSdk ||
+    (NativeModules as any)?.Stripe ||
+    (NativeModules as any)?.RNStripe ||
+    (NativeModules as any)?.StripeReactNative
+  );
+
+  const stripePublishableKey = (process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').trim();
+  const stripePublishableKeyLooksValid =
+    stripePublishableKey.startsWith('pk_') &&
+    !stripePublishableKey.includes('YOUR_KEY_HERE') &&
+    !stripePublishableKey.includes('your-key');
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Load saved payment method on mount
+  useEffect(() => {
+    if (!user?.id || !item || loading) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadSavedPaymentMethod = async () => {
+      setLoadingSavedPaymentMethod(true);
+      const method = await getPaymentMethod();
+
+      if (isCancelled) {
+        return;
+      }
+
+      setSavedPaymentMethod(method);
+      if (method?.id) {
+        setPaymentInputMode('saved');
+      } else {
+        setPaymentInputMode('new');
+      }
+      setLoadingSavedPaymentMethod(false);
+    };
+    void loadSavedPaymentMethod();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [user?.id, item, loading]);
+
+  /** handleAddNewCard — Uses Stripe Payment Sheet (same as PaymentMethodsScreen)
+   *  to securely collect card details via Stripe's native UI (PCI-compliant).
+   *  On success, attaches the PaymentMethod to the customer and refreshes state. */
+  const handleAddNewCard = async () => {
+    setAddingNewCard(true);
+    try {
+      await setupPaymentSheet({ amount: 0, isRenewal: true });
+
+      const result = await presentSheet();
+
+      if (result.success && result.paymentMethodId) {
+        // Attach payment method to Stripe customer and persist to DB
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+
+        if (!currentSession?.user?.id) {
+          Alert.alert('Error', 'Not authenticated');
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke('create-subscription-from-payment-method', {
+          body: {
+            user_id: currentSession.user.id,
+            payment_method_id: result.paymentMethodId,
+            is_renewal: true,
+          },
+          headers: {
+            Authorization: `Bearer ${currentSession.access_token}`,
+          },
+        });
+
+        if (error) {
+          Alert.alert('Error', error.message || 'Failed to save payment method');
+          return;
+        }
+
+        if (!data?.success) {
+          const errMsg = (data as any)?.error || 'Failed to save payment method';
+          Alert.alert('Error', errMsg);
+          return;
+        }
+
+        // Refresh payment method from DB
+        const updatedMethod = await getPaymentMethod();
+        setSavedPaymentMethod(updatedMethod);
+        setPaymentInputMode('saved');
+        Alert.alert('Card Added', 'Your new card has been saved successfully.');
+      } else if (result.error) {
+        const errorLower = result.error.toLowerCase();
+        if (!errorLower.includes('cancel')) {
+          Alert.alert('Error', result.error || 'Failed to add card.');
+        }
+      }
+    } catch (err: any) {
+      console.error('[TradeOfferScreen] handleAddNewCard error:', err);
+      Alert.alert('Error', err.message || 'An unexpected error occurred');
+    } finally {
+      setAddingNewCard(false);
+    }
+  };
 
   const handleSendOffer = async () => {
     setShowDisclaimer(true);
@@ -127,32 +261,117 @@ export default function TradeOfferScreen() {
     await handleInitiateTrade(policyId);
   };
 
-  const handleInitiateTrade = async (_policyId?: string) => {
+  const handleInitiateTrade = async (policyId?: string) => {
     if (!item) return;
-    
+
+    const isSubscriber =
+      subStatus.status === 'active' ||
+      subStatus.status === 'trial' ||
+      subStatus.status === 'grace';
+
+    // Calculate cash amount (item price - SP discount + fee)
+    const itemPriceCents = Math.round(item.price * 100);
+    const spDiscountCents = spAmount * 100;
+    const platformFeeCents = transactionFeeCents > 0 ? transactionFeeCents : (isSubscriber ? 99 : 299);
+    const cashAmountCents = itemPriceCents - spDiscountCents + platformFeeCents;
+
+    // ── Payment method validation ──────────────────────────────────────────
+    if (cashAmountCents > 0 && paymentInputMode === 'new' && !savedPaymentMethod?.id) {
+      Alert.alert(
+        'Payment Method Required',
+        'Please add a new card first by tapping "Add New Card" below.',
+      );
+      return;
+    }
+
+    if (cashAmountCents > 0 && paymentInputMode === 'saved' && !savedPaymentMethod?.id) {
+      Alert.alert(
+        'Payment Method Required',
+        'No saved card is available. Please add a new card.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Add Payment Method', onPress: () => navigation.navigate('PaymentMethods') },
+        ]
+      );
+      return;
+    }
+
     try {
       setSubmitting(true);
 
-      const result = await initiateTradeV2({
-        item_id: item.id,
-        sp_amount: spAmount,
-      });
+      // ── 1. Collect payment method ID (saved card) ─────────────────────────
+      let selectedPaymentMethodId: string | undefined = savedPaymentMethod?.id ?? undefined;
 
-      if (!result.success || !result.trade_id) {
-        const failureMessage = result.error || 'Could not initiate trade';
-        const isDuplicateOfferError = /active offer/i.test(failureMessage);
-
-        setErrorModal({
-          visible: true,
-          title: isDuplicateOfferError ? 'Active Offer' : 'Trade Failed',
-          message: failureMessage,
-          isDuplicate: isDuplicateOfferError,
-        });
+      if (cashAmountCents > 0 && !selectedPaymentMethodId) {
+        Alert.alert('Payment Error', 'No valid payment method selected');
         return;
       }
 
-      navigation.replace('TradeSuccess', { tradeId: result.trade_id });
+      // ── 2. TFV2-012A (D-30): Atomic offer creation with Stripe pre-auth ──
+      const subscriptionStatus =
+        subStatus.status === 'active' ||
+        subStatus.status === 'trial' ||
+        subStatus.status === 'grace'
+          ? subStatus.status
+          : 'free';
+
+      const offerResult = await createTradeOfferWithHold({
+        item_id: item.id,
+        sp_amount: spAmount,
+        payment_method_id: selectedPaymentMethodId,
+        cash_amount_cents: cashAmountCents,
+        transaction_fee_cents: platformFeeCents,
+        buyer_subscription_status: subscriptionStatus,
+      });
+
+      if (!offerResult.success || !offerResult.trade_id) {
+        // D-30: max pending offers error → actionable message
+        if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
+          Alert.alert(
+            'Too Many Open Offers',
+            'You have 3 pending offers. Cancel one to make a new offer.',
+            [
+              { text: 'View My Offers', onPress: () => navigation.navigate('TradeList') },
+              { text: 'OK', style: 'cancel' },
+            ]
+          );
+          return;
+        }
+
+        // Card decline / Stripe errors → user-friendly message
+        if (
+          offerResult.error_code === 'STRIPE_HOLD_FAILED' ||
+          offerResult.error_code === 'STRIPE_ERROR'
+        ) {
+          Alert.alert('Payment Hold Failed', mapStripeErrorToMessage(offerResult.error));
+          return;
+        }
+
+        Alert.alert('Offer Failed', offerResult.error || 'Could not submit your offer. Please try again.');
+        return;
+      }
+
+      const tradeId = offerResult.trade_id;
+
+      // ── 3. Record disclaimer acknowledgment (best effort) ─────────────────
+      if (policyId) {
+        try {
+          const { error: disclaimerError } = await supabase.rpc('acknowledge_trade_disclaimer', {
+            p_trade_id: tradeId,
+            p_disclaimer_policy_id: policyId,
+          });
+          if (disclaimerError) {
+            console.warn('⚠️ Failed to record disclaimer acknowledgment:', disclaimerError);
+          }
+        } catch (disclaimerErr) {
+          console.warn('⚠️ Disclaimer acknowledgment error:', disclaimerErr);
+        }
+      }
+
+      // ── 4. Success ─────────────────────────────────────────────────────────
+      navigation.replace('TradeSuccess', { tradeId });
     } catch (error: any) {
+      console.error('[TradeOfferScreen] handleInitiateTrade error:', error);
       setErrorModal({
         visible: true,
         title: 'Error',
@@ -183,6 +402,8 @@ export default function TradeOfferScreen() {
   const itemPriceCents = Math.round(item.price * 100);
   // Offer amount = item price minus SP (no fees shown on offer screen)
   const offerAmountCents = itemPriceCents - spDiscountCents;
+  const platformFeeCents = transactionFeeCents > 0 ? transactionFeeCents : (isSubscriber ? 99 : 299);
+  const cashAmountCents = itemPriceCents - spDiscountCents + platformFeeCents;
 
   return (
     <ScreenLayout variant="detail" title="Make Offer">
@@ -226,7 +447,7 @@ export default function TradeOfferScreen() {
             </View>
           </View>
 
-          {/* SP Offer Input */}
+          {/* SP Offer Input — only for subscribers */}
           {isSubscriber && item.accepts_swap_points && maxSpToUse > 0 && (
             <View style={styles.section}>
               <Text style={styles.spLabel}>ADD SP OFFER</Text>
@@ -249,6 +470,133 @@ export default function TradeOfferScreen() {
               <Text style={styles.spHint}>
                 Max: {maxSpToUse} SP ({maxSpPercentage}% of price)
               </Text>
+            </View>
+          )}
+
+          {/* Subscribe upsell for non-subscribers */}
+          {!isSubscriber && item.accepts_swap_points && (
+            <View style={styles.subscribeUpsellCard} testID="subscribe-upsell-card">
+              <View style={styles.subscribeUpsellRow}>
+                <Coins size={24} color="#F59E0B" weight="regular" />
+                <View style={styles.subscribeUpsellTextContainer}>
+                  <Text style={styles.subscribeUpsellTitle}>
+                    Save up to {maxSpPercentage}% with Swap Points
+                  </Text>
+                  <Text style={styles.subscribeUpsellBody}>
+                    Kids Club+ members can use Swap Points to save on every trade. Try it free for 30 days.
+                  </Text>
+                </View>
+              </View>
+              <Pressable
+                style={styles.subscribeUpsellButton}
+                onPress={() => navigation.navigate('SubscriptionChoice')}
+                testID="subscribe-upsell-button"
+              >
+                <Text style={styles.subscribeUpsellButtonText}>Try Kids Club+ Free</Text>
+              </Pressable>
+            </View>
+          )}
+
+
+          {/* ── Payment Method Section ─────────────────────────────────────── */}
+          {cashAmountCents > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Payment Method</Text>
+              {loadingSavedPaymentMethod && (
+                <View style={styles.paymentModeLoadingContainer}>
+                  <ActivityIndicator size="small" color="#5DBB8E" />
+                  <Text style={styles.paymentModeLoadingText}>Checking saved cards...</Text>
+                </View>
+              )}
+
+              {!!savedPaymentMethod && (
+                <View style={styles.paymentModeSelector}>
+                  <Pressable
+                    onPress={() => {
+                      setPaymentInputMode('saved');
+                    }}
+                    style={[
+                      styles.paymentModeOption,
+                      paymentInputMode === 'saved' && styles.paymentModeOptionSelected,
+                    ]}
+                  >
+                    <Text style={styles.paymentModeTitle}>Use Saved Card</Text>
+                    <Text style={styles.paymentModeSubtitle}>
+                      {savedPaymentMethod.brand?.toUpperCase()} •••• {savedPaymentMethod.last4}
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => {
+                      setPaymentInputMode('new');
+                    }}
+                    style={[
+                      styles.paymentModeOption,
+                      paymentInputMode === 'new' && styles.paymentModeOptionSelected,
+                    ]}
+                  >
+                    <Text style={styles.paymentModeTitle}>Add New Card</Text>
+                    <Text style={styles.paymentModeSubtitle}>Use Stripe secure checkout</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {paymentInputMode === 'saved' && savedPaymentMethod ? (
+                <View style={styles.savedCardInfoContainer}>
+                  <Text style={styles.savedCardInfoText}>
+                    Paying with {savedPaymentMethod.brand?.toUpperCase()} ••••{' '}
+                    {savedPaymentMethod.last4}
+                  </Text>
+                  <Text style={styles.savedCardInfoSubtext}>
+                    Expires {String(savedPaymentMethod.exp_month).padStart(2, '0')}/
+                    {savedPaymentMethod.exp_year}
+                  </Text>
+                </View>
+              ) : paymentInputMode === 'new' && !savedPaymentMethod ? (
+                /* No saved card — show "Add New Card" button using Stripe Payment Sheet */
+                <View>
+                  <Pressable
+                    style={[styles.addCardButton, addingNewCard && styles.addCardButtonDisabled]}
+                    onPress={handleAddNewCard}
+                    disabled={addingNewCard}
+                    testID="add-new-card-button"
+                  >
+                    {addingNewCard || paymentSheetLoading ? (
+                      <View style={styles.addCardButtonLoadingRow}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.addCardButtonText}>Adding Card...</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.addCardButtonText}>Add New Card</Text>
+                    )}
+                  </Pressable>
+                  {paymentSheetError && (
+                    <Text style={styles.addCardErrorText}>{paymentSheetError}</Text>
+                  )}
+                </View>
+              ) : paymentInputMode === 'new' && savedPaymentMethod ? (
+                /* User has a saved card but selected "Add New Card" — show button to replace it */
+                <View>
+                  <Pressable
+                    style={[styles.addCardButton, addingNewCard && styles.addCardButtonDisabled]}
+                    onPress={handleAddNewCard}
+                    disabled={addingNewCard}
+                    testID="replace-card-button"
+                  >
+                    {addingNewCard || paymentSheetLoading ? (
+                      <View style={styles.addCardButtonLoadingRow}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <Text style={styles.addCardButtonText}>Replacing Card...</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.addCardButtonText}>Replace Card</Text>
+                    )}
+                  </Pressable>
+                  {paymentSheetError && (
+                    <Text style={styles.addCardErrorText}>{paymentSheetError}</Text>
+                  )}
+                </View>
+              ) : null}
             </View>
           )}
 
@@ -429,6 +777,12 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
   spLabel: {
     fontSize: 13,
     fontWeight: '500',
@@ -538,4 +892,130 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#5DBB8E',
   },
+  // Payment method styles
+  paymentModeLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  paymentModeLoadingText: {
+    fontSize: 14,
+    color: '#6B6B6B',
+  },
+  paymentModeSelector: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  paymentModeOption: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  paymentModeOptionSelected: {
+    borderColor: '#5DBB8E',
+    backgroundColor: '#F0FDF4',
+  },
+  paymentModeTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  paymentModeSubtitle: {
+    fontSize: 11,
+    color: '#6B6B6B',
+  },
+  savedCardInfoContainer: {
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  savedCardInfoText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1A1A1A',
+  },
+  savedCardInfoSubtext: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    marginTop: 4,
+  },
+  addCardButton: {
+    width: '100%',
+    height: 52,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addCardButtonDisabled: {
+    opacity: 0.5,
+  },
+  addCardButtonLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addCardButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  addCardErrorText: {
+    fontSize: 13,
+    color: '#DC2626',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  // Subscribe upsell card for non-subscribers
+  subscribeUpsellCard: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  subscribeUpsellRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  subscribeUpsellTextContainer: {
+    flex: 1,
+  },
+  subscribeUpsellTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  subscribeUpsellBody: {
+    fontSize: 13,
+    color: '#A16207',
+    lineHeight: 20,
+  },
+  subscribeUpsellButton: {
+    backgroundColor: '#F59E0B',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  subscribeUpsellButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
 });
+

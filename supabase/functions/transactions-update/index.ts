@@ -8,6 +8,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'https://esm.sh/stripe@14.11.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +31,7 @@ serve(async (req) => {
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const supabaseSvcKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseAnonKey || !supabaseSvcKey) {
     return errResp(500, 'CONFIG_ERROR', 'Server configuration error');
   }
 
@@ -56,13 +57,17 @@ serve(async (req) => {
   // Load trade — RLS allows seller to view
   const { data: trade, error: tradeErr } = await supabase
     .from('trades')
-    .select('id, status, seller_id, buyer_id, listing_id')
+    .select('id, status, seller_id, buyer_id, listing_id, stripe_payment_intent_id, cash_amount_cents, auto_complete_at')
     .eq('id', trade_id)
     .single();
 
   if (tradeErr || !trade) return errResp(404, 'TRADE_NOT_FOUND', 'Trade not found or access denied');
   if (trade.seller_id !== user.id) return errResp(403, 'FORBIDDEN', 'Only the seller can accept/decline offers');
-  if (trade.status !== 'pending') return errResp(400, 'INVALID_STATE', `Trade status is '${trade.status}', expected 'pending'`);
+  // D-30: Trade starts as in_progress (Stripe pre-auth held at submission)
+  // Seller may only accept/decline before auto_complete_at is set
+  if (trade.status !== 'in_progress' || trade.auto_complete_at !== null) {
+    return errResp(400, 'INVALID_STATE', `Trade status is '${trade.status}', expected 'in_progress' (not yet accepted)`);
+  }
 
   const svcClient = createClient(supabaseUrl, supabaseSvcKey!);
 
@@ -84,6 +89,20 @@ serve(async (req) => {
       metadata: { action: 'declined_by_seller' },
     });
 
+    // Notify buyer of decline
+    try {
+      await svcClient.rpc('create_trade_notification', {
+        p_user_id:           trade.buyer_id,
+        p_notification_type: 'offer_cancelled',
+        p_title:             'Offer Declined',
+        p_body:              'Your offer was declined by the seller.',
+        p_data:              JSON.stringify({ trade_id, listing_id: trade.listing_id }),
+      });
+    } catch (notifErr: unknown) {
+      const msg = notifErr instanceof Error ? notifErr.message : 'Unknown error';
+      console.error(`[transactions-update] Decline notification error:`, msg);
+    }
+
     return new Response(
       JSON.stringify({ success: true, status: 'cancelled' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -91,11 +110,42 @@ serve(async (req) => {
   }
 
   // --- ACCEPT ---
+  // D-30: Capture the Stripe pre-authorization (convert hold → charge)
+  const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
+  if (trade.stripe_payment_intent_id && (trade.cash_amount_cents ?? 0) > 0) {
+    if (!stripeKey || !stripeKey.startsWith('sk_')) {
+      return errResp(500, 'STRIPE_CONFIG_ERROR', 'Payment system not configured');
+    }
+    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+    try {
+      const captured = await stripe.paymentIntents.capture(trade.stripe_payment_intent_id);
+      if (captured.status !== 'succeeded') {
+        // Capture failed — cancel the trade
+        await svcClient.from('trades').update({
+          status: 'cancelled',
+          cancellation_reason: 'payment_failed',
+          updated_at: new Date().toISOString(),
+        }).eq('id', trade_id);
+        console.error(`[transactions-update] Stripe capture failed: status=${captured.status}`);
+        return errResp(402, 'PAYMENT_FAILED', 'Payment capture failed. Trade cancelled.');
+      }
+      console.log(`[transactions-update] PI ${trade.stripe_payment_intent_id} captured`);
+    } catch (captureErr: unknown) {
+      const msg = captureErr instanceof Error ? captureErr.message : 'Stripe capture error';
+      console.error(`[transactions-update] Stripe capture error:`, msg);
+      return errResp(402, 'PAYMENT_FAILED', 'Payment capture failed. Please try again.');
+    }
+  }
+
   // Load auto_complete_hours from admin_config
-  const { data: config } = await svcClient
+  const { data: config, error: configErr } = await svcClient
     .from('admin_config')
     .select('auto_complete_hours')
     .single();
+
+  if (configErr) {
+    console.error('[transactions-update] Config fetch error:', configErr.message);
+  }
 
   const autoCompleteHours = config?.auto_complete_hours ?? 72; // default 3 days
   const now = new Date();
@@ -106,7 +156,6 @@ serve(async (req) => {
     .update({
       status:          'in_progress',
       auto_complete_at: autoCompleteAt.toISOString(),
-      accepted_at:     now.toISOString(),
       updated_at:      now.toISOString(),
     })
     .eq('id', trade_id);
@@ -114,6 +163,7 @@ serve(async (req) => {
   if (acceptErr) return errResp(500, 'UPDATE_FAILED', 'Failed to accept offer');
 
   // TFV2-004: Auto-decline competing offers on the same listing
+  // D-30: competing offers are also in_progress (without auto_complete_at)
   const { error: competingErr } = await svcClient
     .from('trades')
     .update({
@@ -122,7 +172,8 @@ serve(async (req) => {
       updated_at:          now.toISOString(),
     })
     .eq('listing_id', trade.listing_id)
-    .eq('status', 'pending')
+    .eq('status', 'in_progress')
+    .is('auto_complete_at', null)
     .neq('id', trade_id);
 
   if (competingErr) {
@@ -134,6 +185,41 @@ serve(async (req) => {
     trade_id, event_type: 'offer_accepted', actor_id: user.id,
     metadata: { auto_complete_at: autoCompleteAt.toISOString() },
   });
+
+  // TFV2-016: Notify the buyer that their offer was accepted
+  // 1. In-app notification
+  try {
+    await svcClient.rpc('create_trade_notification', {
+      p_user_id:           trade.buyer_id,
+      p_notification_type: 'offer_accepted',
+      p_title:             'Offer Accepted!',
+      p_body:              'Your offer has been accepted. Arrange the meetup.',
+      p_data:              JSON.stringify({ trade_id, listing_id: trade.listing_id, type: 'offer_accepted' }),
+    });
+  } catch (notifErr: unknown) {
+    const msg = notifErr instanceof Error ? notifErr.message : 'Unknown error';
+    console.error(`[transactions-update] In-app notification error:`, msg);
+  }
+
+  // 2. Push notification
+  const efBaseUrl = `${supabaseUrl}/functions/v1`;
+  try {
+    await fetch(`${efBaseUrl}/send-trade-notifications`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseSvcKey}`,
+      },
+      body: JSON.stringify({
+        trade_id,
+        event_type: 'offer_accepted',
+        recipient_user_id: trade.buyer_id,
+      }),
+    });
+  } catch (notifErr: unknown) {
+    const msg = notifErr instanceof Error ? notifErr.message : 'Unknown error';
+    console.error(`[transactions-update] Push notification error:`, msg);
+  }
 
   console.log(`[transactions-update] Trade ${trade_id} accepted by seller ${user.id}`);
 

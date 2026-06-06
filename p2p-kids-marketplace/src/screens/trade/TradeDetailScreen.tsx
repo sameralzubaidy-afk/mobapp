@@ -16,7 +16,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Pressable,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -29,8 +28,9 @@ import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { useAuth } from '@/hooks/useAuth';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
-import { Modal, LoadingSpinner } from '@/components/ui';
-import { Info, CheckCircle, Circle, Star } from 'phosphor-react-native';
+import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
+import { LoadingSpinner } from '@/components/ui';
+import { Info, CheckCircle, CircleDashed, Star } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type TradeDetailRouteProp = RouteProp<RootStackParamList, 'TradeDetail'>;
@@ -43,6 +43,12 @@ export default function TradeDetailScreen() {
   const user = session?.user;
   const { tradeId } = route.params;
 
+  // 🛡️ Guard: if tradeId is missing or not a valid UUID, redirect to trade list
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!tradeId || !UUID_RE.test(tradeId)) {
+    setTimeout(() => navigation.replace('TradeList'), 0);
+  }
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [trade, setTrade] = useState<Trade | null>(null);
@@ -52,6 +58,14 @@ export default function TradeDetailScreen() {
   const [canReview, setCanReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [otherUserReviewed, setOtherUserReviewed] = useState(false);
+  const [notifModal, setNotifModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    variant?: 'accept' | 'decline' | 'default';
+    confirmLabel?: string;
+    onConfirm?: () => void;
+  } | null>(null);
 
   const fetchTrade = useCallback(async () => {
     try {
@@ -80,7 +94,7 @@ export default function TradeDetailScreen() {
       }
     } catch (error) {
       console.error('❌ Error fetching trade:', error);
-      Alert.alert('Error', 'Failed to load trade details');
+      showNotif('Error', 'Failed to load trade details', 'decline');
     } finally {
       setLoading(false);
     }
@@ -118,6 +132,10 @@ export default function TradeDetailScreen() {
     }, [fetchTrade])
   );
 
+  const showNotif = (title: string, message: string, variant?: 'accept' | 'decline' | 'default', onConfirm?: () => void) => {
+    setNotifModal({ visible: true, title, message, variant: variant || 'default', confirmLabel: 'OK', onConfirm });
+  };
+
   const handleComplete = async () => {
     setShowCompleteConfirm(true);
   };
@@ -153,12 +171,15 @@ export default function TradeDetailScreen() {
           console.warn('[TradeDetail] fetchTrade after complete failed', e);
         }
 
-        Alert.alert('Success', result.message || 'Trade marked as completed!');
+        showNotif('Success', result.message || 'Trade marked as completed!', 'accept', () => {
+          setNotifModal(null);
+          fetchTrade();
+        });
       } else {
-        Alert.alert('Error', result.error || 'Failed to complete trade');
+        showNotif('Error', result.error || 'Failed to complete trade', 'decline');
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showNotif('Error', error.message, 'decline');
     } finally {
       setSubmitting(false);
     }
@@ -183,22 +204,21 @@ export default function TradeDetailScreen() {
           console.warn('[TradeDetail] refreshSession after cancel failed', e);
         }
 
-        Alert.alert(
-          'Trade Cancelled',
-          'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
+        showNotif('Trade Cancelled', 'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.', 'default', () => {
+          setNotifModal(null);
+          navigation.goBack();
+        });
       } else {
-        Alert.alert(
-          'Cancellation Failed',
-          result.error || 'Failed to cancel trade. Please try again.',
-          [{ text: 'Try Again', onPress: () => setShowCancellationModal(true) }]
-        );
+        showNotif('Cancellation Failed', result.error || 'Failed to cancel trade. Please try again.', 'decline', () => {
+          setNotifModal(null);
+          setShowCancellationModal(true);
+        });
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'An unexpected error occurred', [
-        { text: 'Try Again', onPress: () => setShowCancellationModal(true) },
-      ]);
+      showNotif('Error', error.message || 'An unexpected error occurred', 'decline', () => {
+        setNotifModal(null);
+        setShowCancellationModal(true);
+      });
     } finally {
       setIsCancelling(false);
     }
@@ -206,12 +226,12 @@ export default function TradeDetailScreen() {
 
   const handleReviewPress = () => {
     if (!user?.id) {
-      Alert.alert('Error', 'You must be logged in to submit a review');
+      showNotif('Error', 'You must be logged in to submit a review', 'decline');
       return;
     }
 
     if (!trade) {
-      Alert.alert('Error', 'Trade information not available');
+      showNotif('Error', 'Trade information not available', 'decline');
       return;
     }
 
@@ -235,7 +255,7 @@ export default function TradeDetailScreen() {
 
   const handleItemDetailsPress = () => {
     if (!trade || !(trade as any).listing) {
-      Alert.alert('Error', 'Item information not available');
+      showNotif('Error', 'Item information not available', 'decline');
       return;
     }
 
@@ -279,7 +299,7 @@ export default function TradeDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <Text style={styles.statusLabel}>Status</Text>
-          <View style={[styles.statusBadge, (styles as any)[`status_${trade.status}`]]}>
+          <View style={[styles.statusBadge, (styles as any)[`status_${trade.status}`]]} testID="trade-status-badge">
             <Text style={styles.statusText}>{trade.status.replace('_', ' ').toUpperCase()}</Text>
           </View>
         </View>
@@ -376,10 +396,8 @@ export default function TradeDetailScreen() {
               <View style={styles.reviewStatusRow}>
                 {hasReviewed
                   ? <CheckCircle size={20} color="#10B981" weight="regular" />
-                  : <Circle size={20} color="#9CA3AF" weight="regular" />
+                  : <CircleDashed size={20} color="#9CA3AF" weight="regular" />
                 }
-                {/* phosphor-review-status-placeholder
-                />
                 <Text
                   style={[styles.reviewStatusText, hasReviewed && styles.reviewStatusTextComplete]}
                 >
@@ -389,10 +407,8 @@ export default function TradeDetailScreen() {
               <View style={styles.reviewStatusRow}>
                 {otherUserReviewed
                   ? <CheckCircle size={20} color="#10B981" weight="regular" />
-                  : <Circle size={20} color="#9CA3AF" weight="regular" />
+                  : <CircleDashed size={20} color="#9CA3AF" weight="regular" />
                 }
-                {/* phosphor-other-review-status-placeholder
-                />
                 <Text
                   style={[
                     styles.reviewStatusText,
@@ -440,39 +456,29 @@ export default function TradeDetailScreen() {
       </ScrollView>
       <PersistentTabBar />
 
-      <Modal
+      <TradeConfirmationModal
         visible={showCompleteConfirm}
-        type="alert"
-        showCloseButton={false}
-        onClose={() => setShowCompleteConfirm(false)}
-      >
-        <View>
-          <Text style={styles.confirmModalTitle}>Complete Trade</Text>
-          <Text style={styles.confirmModalMessage}>{completeConfirmMessage}</Text>
+        title="Complete Trade"
+        message={completeConfirmMessage}
+        confirmLabel="Complete"
+        variant="default"
+        onConfirm={confirmCompleteTrade}
+        onCancel={() => setShowCompleteConfirm(false)}
+        loading={submitting}
+      />
 
-          <View style={styles.confirmModalActions}>
-            <Pressable
-              style={styles.confirmModalCancelButton}
-              onPress={() => setShowCompleteConfirm(false)}
-              disabled={submitting}
-            >
-              <Text style={styles.confirmModalCancelText}>Cancel</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.confirmModalCompleteButton, submitting && styles.disabledButton]}
-              onPress={confirmCompleteTrade}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.confirmModalCompleteText}>Complete</Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {notifModal && (
+        <TradeConfirmationModal
+          visible={notifModal.visible}
+          title={notifModal.title}
+          message={notifModal.message}
+          confirmLabel={notifModal.confirmLabel || 'OK'}
+          variant={notifModal.variant || 'default'}
+          onConfirm={() => notifModal.onConfirm ? notifModal.onConfirm() : setNotifModal(null)}
+          onCancel={() => setNotifModal(null)}
+          hideCancel
+        />
+      )}
 
       {/* Cancellation Reason Modal */}
       <CancellationReasonModal
@@ -709,49 +715,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginTop: 4,
-  },
-  confirmModalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 16,
-  },
-  confirmModalMessage: {
-    fontSize: 16,
-    color: '#6B6B6B',
-    lineHeight: 21,
-    marginBottom: 20,
-  },
-  confirmModalActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  confirmModalCancelButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: '#7A7A7A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  confirmModalCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B6B6B',
-  },
-  confirmModalCompleteButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#5DBB8E',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  confirmModalCompleteText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
 });

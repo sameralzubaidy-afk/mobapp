@@ -155,26 +155,31 @@ export default function SubscriptionChoiceScreen() {
 
       console.log('🎯 SUBSCRIPTION FLOW: User chose FREE tier');
 
-      // Mark profile as complete
-      // Note: User already has free subscription from signup (create_free_subscription RPC)
-      // No need to modify subscription - it's already 'free' status
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          profile_completed: true,
-          onboarding_completed_at: new Date().toISOString(),
-        })
-        .eq('user_id', userId);
+      if (isOnboardingFlow) {
+        // Mark profile as complete
+        // Note: User already has free subscription from signup (create_free_subscription RPC)
+        // No need to modify subscription - it's already 'free' status
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            profile_completed: true,
+            onboarding_completed_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+
+        console.log('✅ SUBSCRIPTION FLOW: Profile marked complete with FREE tier');
+
+        // Navigate to FeatureHighlights to complete onboarding
+        // The session will be automatically established after profile_completed is true
+        (navigation as any).navigate('FeatureHighlights', { userId });
+      } else {
+        // Already authenticated user (e.g. from TradeSuccessScreen) — go to Home
+        (navigation as any).navigate('Home');
       }
-
-      console.log('✅ SUBSCRIPTION FLOW: Profile marked complete with FREE tier');
-
-      // Navigate to FeatureHighlights to complete onboarding
-      // The session will be automatically established after profile_completed is true
-      (navigation as any).navigate('FeatureHighlights', { userId });
     } finally {
       setLoading(false);
     }
@@ -255,14 +260,14 @@ export default function SubscriptionChoiceScreen() {
               text: 'Get Started',
               onPress: () => {
                 // If coming from onboarding, navigate to FeatureHighlights screen (tutorials)
-                // If coming from authenticated app (CreateListingScreen), go back to listing
+                // If coming from authenticated app (CreateListingScreen or TradeSuccessScreen), go to Home
                 if (isOnboardingFlow) {
                   setTimeout(() => {
                     (navigation as any).navigate('FeatureHighlights', { userId });
                   }, 100);
                 } else {
-                  // User upgraded mid-listing creation, go back to continue
-                  navigation.goBack();
+                  // User upgraded from app context — go to Home
+                  (navigation as any).navigate('Home');
                 }
               },
             },
@@ -299,7 +304,7 @@ export default function SubscriptionChoiceScreen() {
                     (navigation as any).navigate('FeatureHighlights', { userId });
                   }, 100);
                 } else {
-                  navigation.goBack();
+                  (navigation as any).navigate('Home');
                 }
               },
             },
@@ -341,18 +346,18 @@ export default function SubscriptionChoiceScreen() {
             text: 'Get Started',
             onPress: () => {
               // If coming from onboarding, navigate to FeatureHighlights screen (tutorials)
-              // If coming from authenticated app (CreateListingScreen), go back to listing
+              // If coming from authenticated app (CreateListingScreen or TradeSuccessScreen), go to Home
               if (isOnboardingFlow) {
                 console.log('[SubscriptionChoice] ✅ Navigating to tutorials (FeatureHighlights)');
                 setTimeout(() => {
                   (navigation as any).navigate('FeatureHighlights', { userId });
                 }, 100);
               } else {
-                // User upgraded mid-listing creation, go back to continue
+                // User upgraded from app context — go to Home
                 console.log(
-                  '[SubscriptionChoice] ✅ Returning to listing creation, subscription should refresh on focus'
+                  '[SubscriptionChoice] ✅ Navigating to Home after trial activation'
                 );
-                navigation.goBack();
+                (navigation as any).navigate('Home');
               }
             },
           },
@@ -453,6 +458,17 @@ export default function SubscriptionChoiceScreen() {
               until trial ends.
             </Text>
           </View>
+        )}
+
+        {/* Keep Free Tier — for non-onboarding users who want to stay on current plan */}
+        {!isOnboardingFlow && (
+          <TouchableOpacity
+            style={styles.keepFreeButton}
+            onPress={() => navigation.goBack()}
+            testID="subscription-choice-keep-free"
+          >
+            <Text style={styles.keepFreeButtonText}>Keep Free Tier — No Thanks</Text>
+          </TouchableOpacity>
         )}
 
         {/* Error state if trial disabled */}
@@ -640,6 +656,21 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginTop: 8,
+  },
+  keepFreeButton: {
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  keepFreeButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#6b7280',
   },
   trialDisabledCard: {
     backgroundColor: '#fef3cd',

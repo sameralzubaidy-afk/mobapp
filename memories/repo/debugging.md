@@ -8,3 +8,5 @@
 - For listing forms, selecting category `Other` must always show a dedicated custom category input and require non-empty `requested_category_name`; never set placeholder text like `Other` as the request value because it bypasses validation.
 - React Native tests can throw "Element type is invalid" when icon libraries are switched (e.g., Expo icons -> Phosphor) but Jest mocks still target the old module; keep test mocks aligned with the actual icon import source.
 - Supabase integration tests should avoid stale profile schema fields (`full_name`) and legacy wallet table/columns (`sp_wallet`, `available`, `pending`); use V2 names (`profiles.name`, `sp_wallets.available_balance`, `sp_wallets.pending_balance`).
+- TradeFlow setup in this repo currently builds iOS with `com.sameralzubaidi.p2pmarketplace`; do not assume runbook example `com.p2pkidsmarketplace` when validating `APP_ID`.
+- `test-automation/trade-flow-v2/.env` may appear complete while still containing placeholder secrets (`<ask your team lead>`); treat this as not credential-ready until replaced.

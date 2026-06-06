@@ -30,6 +30,8 @@ import { LoadingSpinner } from '@/components/ui';
 import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
 import { previewTotalSPToSeller } from '@/services/spCalculatorService';
+import { respondToOffer } from '@/services/tradeServiceV2';
+import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 
 type ReviewOfferRouteProp = RouteProp<RootStackParamList, 'ReviewOffer'>;
 
@@ -70,6 +72,10 @@ export default function ReviewOfferScreen() {
   const [acceptingBundle, setAcceptingBundle] = useState(false);
   // TFV2-D11: combined SP preview for seller
   const [spPreview, setSpPreview] = useState<{ totalSp: number } | null>(null);
+  // Whisk styled confirmation modals (replacing native Alert.alert)
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [showAcceptBundleModal, setShowAcceptBundleModal] = useState(false);
 
   const fetchOffer = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -174,138 +180,92 @@ export default function ReviewOfferScreen() {
       .catch(() => setSpPreview(null));
   }, [offer?.listing_id, offer?.sp_amount]);
 
-  // Addendum E: accept all bundle offers in sequence.
+  // TFV2-012A (D-30): Accept all bundle offers via Edge Function (Stripe capture + in_progress)
   const handleAcceptBundle = async () => {
     if (!offer) return;
-    const allOffers = [offer, ...bundleSiblings];
-    Alert.alert(
-      `Accept all ${allOffers.length} items?`,
-      'The buyer will be notified to complete payment for all items.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: `Accept All ${allOffers.length}`,
-          onPress: async () => {
-            try {
-              setAcceptingBundle(true);
-              for (const o of allOffers) {
-                if (o.status !== 'pending') continue;
-                const { error } = await supabase
-                  .from('trades')
-                  .update({ status: 'payment_processing', updated_at: new Date().toISOString() })
-                  .eq('id', o.id);
-                if (error) throw error;
-              }
-              Alert.alert(
-                'Bundle Accepted!',
-                'The buyer has been notified to complete payment.',
-                [{ text: 'OK', onPress: () => navigation.navigate('MyListings') }]
-              );
-            } catch (err: any) {
-              console.error('[ReviewOffer] handleAcceptBundle error:', err);
-              Alert.alert('Error', 'Failed to accept all items. Please try again.');
-            } finally {
-              setAcceptingBundle(false);
-            }
-          },
-        },
-      ]
-    );
+    setShowAcceptBundleModal(true);
   };
 
+  const executeAcceptBundle = async () => {
+    if (!offer) return;
+    const allOffers = [offer, ...bundleSiblings];
+    try {
+      setAcceptingBundle(true);
+      for (const o of allOffers) {
+        if (o.status !== 'pending') continue;
+        await respondToOffer(o.id, 'accept');
+      }
+      setShowAcceptBundleModal(false);
+      Alert.alert(
+        'Bundle Accepted!',
+        'Payment captured. Trades are now in progress.',
+        [{ text: 'OK', onPress: () => navigation.navigate('MyListings') }]
+      );
+    } catch (err: any) {
+      console.error('[ReviewOffer] handleAcceptBundle error:', err);
+      Alert.alert('Error', 'Failed to accept all items. Please try again.');
+    } finally {
+      setAcceptingBundle(false);
+    }
+  };
+
+  // TFV2-012A (D-30): Accept via Edge Function — captures Stripe pre-auth, sets in_progress, sets auto_complete_at
   const handleAccept = async () => {
     if (!offer) return;
+    setShowAcceptModal(true);
+  };
 
-    Alert.alert(
-      'Accept Trade',
-      'Are you sure you want to accept this offer? The buyer will be notified to complete payment.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Accept',
-          onPress: async () => {
-            try {
-              setSubmitting(true);
-              
-              // Update trade status to payment_processing (buyer needs to pay)
-              const { error } = await supabase
-                .from('trades')
-                .update({ 
-                  status: 'payment_processing',
-                  updated_at: new Date().toISOString(),
-                })
-                .eq('id', offer.id);
-
-              if (error) throw error;
-
-              Alert.alert(
-                'Offer Accepted!',
-                'The buyer has been notified and will complete payment. You will be notified when payment is received.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => navigation.navigate('MyListings'),
-                  },
-                ]
-              );
-            } catch (error: any) {
-              console.error('[ReviewOffer] handleAccept error:', error);
-              Alert.alert('Error', 'Failed to accept offer. Please try again.');
-            } finally {
-              setSubmitting(false);
-            }
+  const executeAccept = async () => {
+    if (!offer) return;
+    try {
+      setSubmitting(true);
+      setShowAcceptModal(false);
+      await respondToOffer(offer.id, 'accept');
+      Alert.alert(
+        'Offer Accepted!',
+        'Payment captured. Trade is now in progress. The buyer can confirm receipt.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('MyListings'),
           },
-        },
-      ]
-    );
+        ]
+      );
+    } catch (error: any) {
+      console.error('[ReviewOffer] handleAccept error:', error);
+      Alert.alert('Error', 'Failed to accept offer. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDecline = async () => {
     if (!offer) return;
+    setShowDeclineModal(true);
+  };
 
-    Alert.alert(
-      'Decline Trade',
-      'Are you sure you want to decline this offer? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Decline',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setSubmitting(true);
-
-              const { error } = await supabase
-                .from('trades')
-                .update({ 
-                  status: 'cancelled',
-                  cancelled_at: new Date().toISOString(),
-                  cancellation_reason: 'Seller declined offer',
-                })
-                .eq('id', offer.id);
-
-              if (error) throw error;
-
-              Alert.alert(
-                'Offer Declined',
-                'The buyer has been notified.',
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => navigation.navigate('MyListings'),
-                  },
-                ]
-              );
-            } catch (error: any) {
-              console.error('[ReviewOffer] handleDecline error:', error);
-              Alert.alert('Error', 'Failed to decline offer. Please try again.');
-            } finally {
-              setSubmitting(false);
-            }
+  const executeDecline = async () => {
+    if (!offer) return;
+    try {
+      setSubmitting(true);
+      setShowDeclineModal(false);
+      await respondToOffer(offer.id, 'decline');
+      Alert.alert(
+        'Offer Declined',
+        'The buyer has been notified.',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate('MyListings'),
           },
-        },
-      ]
-    );
+        ]
+      );
+    } catch (error: any) {
+      console.error('[ReviewOffer] handleDecline error:', error);
+      Alert.alert('Error', 'Failed to decline offer. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -472,6 +432,40 @@ export default function ReviewOfferScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Whisk styled confirmation modals */}
+      <TradeConfirmationModal
+        visible={showAcceptModal}
+        title="Accept Trade"
+        message="Are you sure you want to accept this offer? The buyer will be charged and the trade moves to in progress."
+        confirmLabel="Accept"
+        variant="accept"
+        onConfirm={executeAccept}
+        onCancel={() => setShowAcceptModal(false)}
+        loading={submitting}
+      />
+
+      <TradeConfirmationModal
+        visible={showDeclineModal}
+        title="Decline Trade"
+        message="Are you sure you want to decline this offer? This action cannot be undone."
+        confirmLabel="Decline"
+        variant="decline"
+        onConfirm={executeDecline}
+        onCancel={() => setShowDeclineModal(false)}
+        loading={submitting}
+      />
+
+      <TradeConfirmationModal
+        visible={showAcceptBundleModal}
+        title={`Accept all ${offer ? [offer, ...bundleSiblings].length : 0} items?`}
+        message="Accepting will capture payment and move all trades in progress."
+        confirmLabel={`Accept All ${offer ? [offer, ...bundleSiblings].length : 0}`}
+        variant="accept"
+        onConfirm={executeAcceptBundle}
+        onCancel={() => setShowAcceptBundleModal(false)}
+        loading={acceptingBundle}
+      />
 
       <PersistentTabBar />
     </ScreenLayout>

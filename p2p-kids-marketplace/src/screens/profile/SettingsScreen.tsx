@@ -25,6 +25,7 @@ import {
   PaperPlaneTilt,
   Link,
   Question,
+  CreditCard,
 } from 'phosphor-react-native';
 import { sendTestPushNotification } from '../../services/pushDelivery';
 import { useAuth } from '../../hooks/useAuth';
@@ -134,6 +135,13 @@ export default function SettingsScreen({ navigation }: any) {
     {
       title: 'Account',
       data: [
+        {
+          id: 'payment-methods',
+          title: 'Manage Payment Methods',
+          icon: <CreditCard size={20} color="#5DBB8E" weight="regular" />,
+          onPress: () => navigation.navigate('PaymentMethods'),
+          testID: 'settings-payment-methods-button',
+        },
         {
           id: 'linked-accounts',
           title: 'Linked Accounts',

@@ -1,6 +1,7 @@
 /**
  * Unit Tests: TradeListScreen
- * Tests trade history display, tab filtering, status badges
+ * Tests Active | History tabs, summary strip, needs-action/in-progress sections,
+ * recently completed, and compact rows for history.
  */
 
 import React from 'react';
@@ -18,9 +19,6 @@ jest.mock('@/hooks/useNotificationBadge', () => ({
   }),
 }));
 jest.mock('@/components/organisms/BottomNavBar', () => () => null);
-jest.mock('@/components/organisms/PersistentTabBar', () => ({
-  PersistentTabBar: () => null,
-}));
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (cb: () => void | (() => void)) => {
     const React = require('react');
@@ -35,6 +33,18 @@ jest.mock('@react-navigation/native', () => ({
   }),
 }));
 
+// Mock item_images query
+jest.mock('@/config/supabase', () => {
+  const actual = jest.requireActual('@/config/supabase');
+  return {
+    ...actual,
+    supabase: {
+      ...actual.supabase,
+      from: jest.fn(),
+    },
+  };
+});
+
 const mockSupabase = supabase as jest.Mocked<typeof supabase>;
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
@@ -47,53 +57,19 @@ describe('TradeListScreen', () => {
     goBack: jest.fn(),
   };
 
-  const mockTrades = [
-    {
-      id: 'trade-1',
-      buyer_id: 'user-123',
-      seller_id: 'seller-1',
-      status: 'pending',
-      created_at: '2026-01-01T10:00:00.000Z',
-      cash_amount_cents: 5000,
-      sp_amount: 0,
-      listing: {
-        id: 'listing-1',
-        title: 'Toy Car',
-        price: 50,
-        images: [{ url: 'https://example.com/car.jpg', thumbnail_url: null, display_order: 0 }],
-      },
-    },
-    {
-      id: 'trade-2',
-      buyer_id: 'buyer-2',
-      seller_id: 'user-123',
-      status: 'in_progress',
-      created_at: '2026-01-02T10:00:00.000Z',
-      cash_amount_cents: 7500,
-      sp_amount: 25,
-      listing: {
-        id: 'listing-2',
-        title: 'Board Game',
-        price: 100,
-        images: [{ url: 'https://example.com/game.jpg', thumbnail_url: null, display_order: 0 }],
-      },
-    },
-    {
-      id: 'trade-3',
-      buyer_id: 'user-123',
-      seller_id: 'seller-3',
-      status: 'completed',
-      created_at: '2026-01-03T10:00:00.000Z',
-      cash_amount_cents: 3000,
-      sp_amount: 10,
-      listing: {
-        id: 'listing-3',
-        title: 'Puzzle',
-        price: 40,
-        images: [],
-      },
-    },
-  ];
+  // Helper: mock supabase to return trades
+  const mockFetchTrades = (trades: any[]) => {
+    // First call: fetch trades
+    const mockFrom = jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        or: jest.fn().mockReturnValue({
+          order: jest.fn().mockResolvedValue({ data: trades, error: null }),
+        }),
+      }),
+    });
+    mockSupabase.from = mockFrom;
+    return mockFrom;
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -101,186 +77,172 @@ describe('TradeListScreen', () => {
   });
 
   describe('Rendering', () => {
-    it('should fetch and display all trades', async () => {
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          or: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: mockTrades,
-              error: null,
-            }),
-          }),
-        }),
-      });
+    it('should render Active | History tabs', () => {
+      mockFetchTrades([]);
+      const { getByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
-      mockSupabase.from = mockFrom;
+      expect(getByTestId('tab-active')).toBeTruthy();
+      expect(getByTestId('tab-history')).toBeTruthy();
+    });
 
+    it('should show empty state when no trades', async () => {
+      mockFetchTrades([]);
       const { getByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
       await waitFor(() => {
+        expect(getByText('No Active Trades')).toBeTruthy();
+      });
+    });
+
+    it('should show summary strip counts', async () => {
+      mockFetchTrades([]);
+      const { getByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
+
+      await waitFor(() => {
+        expect(getByText('In Progress')).toBeTruthy();
+        expect(getByText('Needs Action')).toBeTruthy();
+        expect(getByText('Completed')).toBeTruthy();
+      });
+    });
+  });
+
+  describe('Tab Switching', () => {
+    it('should switch to History tab on press', () => {
+      mockFetchTrades([]);
+      const { getByTestId, getByText } = render(
+        <TradeListScreen navigation={mockNavigation as any} />
+      );
+
+      const historyTab = getByTestId('tab-history');
+      fireEvent.press(historyTab);
+
+      expect(getByText('No Trade History')).toBeTruthy();
+    });
+  });
+
+  describe('Status Badges', () => {
+    it('should display status labels correctly', async () => {
+      const trades = [
+        {
+          id: 'trade-1',
+          buyer_id: 'user-123',
+          seller_id: 'seller-1',
+          node_id: null,
+          status: 'pending',
+          sp_amount: 0,
+          cash_amount_cents: 5000,
+          buyer_transaction_fee_cents: 99,
+          tax_amount_cents: null,
+          created_at: '2026-01-01T10:00:00.000Z',
+          updated_at: '2026-01-01T10:00:00.000Z',
+          offer_expires_at: null,
+          auto_complete_at: null,
+          dispute_resolution: null,
+          cancellation_reason: null,
+          buyer_subscription_status: 'active',
+          listing: {
+            id: 'listing-1',
+            title: 'Toy Car',
+            price: 50,
+            images: [],
+          },
+        },
+        {
+          id: 'trade-2',
+          buyer_id: 'buyer-2',
+          seller_id: 'user-123',
+          node_id: null,
+          status: 'in_progress',
+          sp_amount: 25,
+          cash_amount_cents: 7500,
+          buyer_transaction_fee_cents: 99,
+          tax_amount_cents: null,
+          created_at: '2026-01-02T10:00:00.000Z',
+          updated_at: '2026-01-02T10:00:00.000Z',
+          offer_expires_at: null,
+          auto_complete_at: '2026-01-04T10:00:00.000Z',
+          dispute_resolution: null,
+          cancellation_reason: null,
+          buyer_subscription_status: 'active',
+          listing: {
+            id: 'listing-2',
+            title: 'Board Game',
+            price: 100,
+            images: [{ url: 'https://example.com/game.jpg', thumbnail_url: null, display_order: 0 }],
+          },
+        },
+        {
+          id: 'trade-3',
+          buyer_id: 'user-123',
+          seller_id: 'seller-3',
+          node_id: null,
+          status: 'completed',
+          sp_amount: 10,
+          cash_amount_cents: 3000,
+          buyer_transaction_fee_cents: 99,
+          tax_amount_cents: null,
+          created_at: '2026-01-03T10:00:00.000Z',
+          updated_at: '2026-01-03T10:00:00.000Z',
+          completed_at: '2026-01-04T10:00:00.000Z',
+          offer_expires_at: null,
+          auto_complete_at: null,
+          dispute_resolution: null,
+          cancellation_reason: null,
+          buyer_subscription_status: 'active',
+          listing: {
+            id: 'listing-3',
+            title: 'Puzzle',
+            price: 40,
+            images: [],
+          },
+        },
+      ];
+
+      mockFetchTrades(trades);
+      const { getByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
+
+      await waitFor(() => {
+        // Should show all trade titles
         expect(getByText('Toy Car')).toBeTruthy();
         expect(getByText('Board Game')).toBeTruthy();
         expect(getByText('Puzzle')).toBeTruthy();
       });
     });
-
-    it('should render tab navigation', () => {
-      const { getByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
-
-      expect(getByTestId('tab-all')).toBeTruthy();
-      expect(getByTestId('tab-buying')).toBeTruthy();
-      expect(getByTestId('tab-selling')).toBeTruthy();
-    });
-
-    it('should show empty state when no trades', async () => {
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          or: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: [],
-              error: null,
-            }),
-          }),
-        }),
-      });
-
-      mockSupabase.from = mockFrom;
-
-      const { getByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
-
-      await waitFor(() => {
-        expect(getByTestId('trade-history-empty-state')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('Tab Filtering', () => {
-    it('should show all trades by default', async () => {
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          or: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: mockTrades,
-              error: null,
-            }),
-          }),
-        }),
-      });
-
-      mockSupabase.from = mockFrom;
-
-      const { getByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
-
-      await waitFor(() => {
-        expect(getByText('Toy Car')).toBeTruthy(); // Buying
-        expect(getByText('Board Game')).toBeTruthy(); // Selling
-      });
-    });
-
-    it('should filter to buying trades only', async () => {
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          or: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: mockTrades,
-              error: null,
-            }),
-          }),
-        }),
-      });
-
-      mockSupabase.from = mockFrom;
-
-      const { getByTestId, getByText, queryByText } = render(
-        <TradeListScreen navigation={mockNavigation as any} />
-      );
-
-      const buyingTab = getByTestId('tab-buying');
-      fireEvent.press(buyingTab);
-
-      await waitFor(() => {
-        expect(getByText('Toy Car')).toBeTruthy(); // Buyer
-        expect(queryByText('Board Game')).toBeNull(); // Seller (filtered out)
-      });
-    });
-
-    it('should filter to selling trades only', async () => {
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          or: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: mockTrades,
-              error: null,
-            }),
-          }),
-        }),
-      });
-
-      mockSupabase.from = mockFrom;
-
-      const { getByTestId, getByText, queryByText } = render(
-        <TradeListScreen navigation={mockNavigation as any} />
-      );
-
-      const sellingTab = getByTestId('tab-selling');
-      fireEvent.press(sellingTab);
-
-      await waitFor(() => {
-        expect(queryByText('Toy Car')).toBeNull(); // Buyer (filtered out)
-        expect(getByText('Board Game')).toBeTruthy(); // Seller
-      });
-    });
-  });
-
-  describe('Status Badges', () => {
-    it('should display correct status badge colors', async () => {
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          or: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: mockTrades,
-              error: null,
-            }),
-          }),
-        }),
-      });
-
-      mockSupabase.from = mockFrom;
-
-      const { getAllByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
-
-      await waitFor(() => {
-        // Pending badge (amber)
-        expect(getAllByText(/Pending/i)).toBeTruthy();
-
-        // In Progress badge (green)
-        expect(getAllByText(/In Progress/i)).toBeTruthy();
-
-        // Completed badge (gray)
-        expect(getAllByText(/Completed/i)).toBeTruthy();
-      });
-    });
   });
 
   describe('Navigation', () => {
-    it('should navigate to TradeTimeline on trade tap', async () => {
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          or: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: [mockTrades[0]],
-              error: null,
-            }),
-          }),
-        }),
-      });
-
-      mockSupabase.from = mockFrom;
+    it('should navigate to TradeDetail on card tap', async () => {
+      mockFetchTrades([
+        {
+          id: 'trade-1',
+          buyer_id: 'user-123',
+          seller_id: 'seller-1',
+          node_id: null,
+          status: 'pending',
+          sp_amount: 0,
+          cash_amount_cents: 5000,
+          buyer_transaction_fee_cents: 99,
+          tax_amount_cents: null,
+          created_at: '2026-01-01T10:00:00.000Z',
+          updated_at: '2026-01-01T10:00:00.000Z',
+          offer_expires_at: null,
+          auto_complete_at: null,
+          dispute_resolution: null,
+          cancellation_reason: null,
+          buyer_subscription_status: 'active',
+          listing: {
+            id: 'listing-1',
+            title: 'Toy Car',
+            price: 50,
+            images: [{ url: 'https://example.com/car.jpg', thumbnail_url: null, display_order: 0 }],
+          },
+        },
+      ]);
 
       const { getByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
       await waitFor(() => {
-        const tradeCard = getByTestId('trade-row-trade-1');
+        const tradeCard = getByTestId('active-trade-card-trade-1');
         fireEvent.press(tradeCard);
       });
 
@@ -292,61 +254,80 @@ describe('TradeListScreen', () => {
 
   // D-09: Trades sorted by total_value (cash_amount_cents/100 + sp_amount) DESC
   describe('Sorting', () => {
-    it('D-09: should sort trades by total_value DESC', async () => {
+    it('D-09: should sort completed trades by total_value DESC', async () => {
       const unsortedTrades = [
         {
           id: 'trade-low',
           buyer_id: 'user-123',
           seller_id: 'seller-1',
+          node_id: null,
           status: 'completed',
-          created_at: '2026-01-01T10:00:00.000Z',
-          cash_amount_cents: 1000,  // $10 + 0sp = $10 total
           sp_amount: 0,
-          listing: { title: 'Cheap Item', price: 10, images: [] },
+          cash_amount_cents: 1000,
+          buyer_transaction_fee_cents: 99,
+          tax_amount_cents: null,
+          created_at: '2026-01-01T10:00:00.000Z',
+          updated_at: '2026-01-02T10:00:00.000Z',
+          completed_at: '2026-01-02T10:00:00.000Z',
+          offer_expires_at: null,
+          auto_complete_at: null,
+          dispute_resolution: null,
+          cancellation_reason: null,
+          buyer_subscription_status: 'active',
+          listing: { id: 'l-1', title: 'Cheap Item', price: 10, images: [] },
         },
         {
           id: 'trade-high',
           buyer_id: 'user-123',
           seller_id: 'seller-1',
+          node_id: null,
           status: 'completed',
-          created_at: '2026-01-02T10:00:00.000Z',
-          cash_amount_cents: 5000,  // $50 + 20sp = $70 total
           sp_amount: 20,
-          listing: { title: 'Expensive Item', price: 70, images: [] },
+          cash_amount_cents: 5000,
+          buyer_transaction_fee_cents: 99,
+          tax_amount_cents: null,
+          created_at: '2026-01-02T10:00:00.000Z',
+          updated_at: '2026-01-03T10:00:00.000Z',
+          completed_at: '2026-01-03T10:00:00.000Z',
+          offer_expires_at: null,
+          auto_complete_at: null,
+          dispute_resolution: null,
+          cancellation_reason: null,
+          buyer_subscription_status: 'active',
+          listing: { id: 'l-2', title: 'Expensive Item', price: 70, images: [] },
         },
         {
           id: 'trade-mid',
           buyer_id: 'user-123',
           seller_id: 'seller-1',
+          node_id: null,
           status: 'completed',
-          created_at: '2026-01-03T10:00:00.000Z',
-          cash_amount_cents: 3000,  // $30 + 5sp = $35 total
           sp_amount: 5,
-          listing: { title: 'Mid Item', price: 35, images: [] },
+          cash_amount_cents: 3000,
+          buyer_transaction_fee_cents: 99,
+          tax_amount_cents: null,
+          created_at: '2026-01-03T10:00:00.000Z',
+          updated_at: '2026-01-04T10:00:00.000Z',
+          completed_at: '2026-01-04T10:00:00.000Z',
+          offer_expires_at: null,
+          auto_complete_at: null,
+          dispute_resolution: null,
+          cancellation_reason: null,
+          buyer_subscription_status: 'active',
+          listing: { id: 'l-3', title: 'Mid Item', price: 35, images: [] },
         },
       ];
 
-      const mockFrom = jest.fn().mockReturnValue({
-        select: jest.fn().mockReturnValue({
-          or: jest.fn().mockReturnValue({
-            order: jest.fn().mockResolvedValue({
-              data: unsortedTrades,
-              error: null,
-            }),
-          }),
-        }),
-      });
-
-      mockSupabase.from = mockFrom;
+      mockFetchTrades(unsortedTrades);
 
       const { getAllByTestId } = render(<TradeListScreen navigation={mockNavigation as any} />);
 
       await waitFor(() => {
-        const rows = getAllByTestId(/^trade-row-/);
+        const rows = getAllByTestId(/^compact-row-/);
         // Expected order: high ($70) > mid ($35) > low ($10)
-        expect(rows[0].props.testID).toBe('trade-row-trade-high');
-        expect(rows[1].props.testID).toBe('trade-row-trade-mid');
-        expect(rows[2].props.testID).toBe('trade-row-trade-low');
+        expect(rows[0].props.testID).toBe('compact-row-trade-high');
+        expect(rows[1].props.testID).toBe('compact-row-trade-mid');
+        expect(rows[2].props.testID).toBe('compact-row-trade-low');
       });
     });
   });

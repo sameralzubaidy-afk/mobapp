@@ -755,11 +755,11 @@ export default function ChatScreen() {
         style={styles.safetyBanner}
         onPress={() => setSafetyModalVisible(true)}
         testID="safety-banner"
-        activeOpacity={0.85}
+        activeOpacity={0.7}
       >
-        <MapPin size={14} color="#FF8C42" weight="fill" />
-        <Text style={styles.safetyBannerText}>Meet in a safe, public place</Text>
-        <Text style={styles.safetyBannerLearn}>Learn more</Text>
+        <ShieldCheck size={18} color="#5DBB8E" weight="fill" />
+        <Text style={styles.safetyBannerText}>Trade Smart, Trade Safe</Text>
+        <Text style={styles.safetyBannerChevron}>{'\u203A'}</Text>
       </TouchableOpacity>
 
       {/* Messages List */}
@@ -1004,36 +1004,50 @@ export default function ChatScreen() {
       <Modal
         visible={safetyModalVisible}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setSafetyModalVisible(false)}
         testID="safety-modal"
       >
         <View style={styles.safetyModalOverlay}>
           <View style={styles.safetyModalCard}>
+            {/* Header */}
             <View style={styles.safetyModalHeader}>
-              <Warning size={28} color="#FF8C42" weight="fill" />
-              <Text style={styles.safetyModalTitle}>Stay Safe During Meetups</Text>
+              <View style={styles.safetyModalIconWrap}>
+                <ShieldCheck size={24} color="#FFFFFF" weight="fill" />
+              </View>
+              <Text style={styles.safetyModalTitle}>Trade Smart, Trade Safe</Text>
             </View>
-            <Text style={styles.safetyModalBody}>
-              Always meet in a safe, public place like a library, community center, or school parking lot.
+            <Text style={styles.safetyModalSubtitle}>
+              Smart traders meet where people are around
             </Text>
+
+            {/* Tips */}
             <View style={styles.safetyTipsList}>
               {[
-                '📍 Choose busy public spaces',
-                '👥 Bring a parent or trusted adult',
-                '📱 Share your location with a family member',
-                '🚫 Never meet at a private home',
-                '🌞 Prefer daytime meetups',
-              ].map((tip) => (
-                <Text key={tip} style={styles.safetyTipItem}>{tip}</Text>
+                { icon: '📍', title: 'Meet where others can see you', desc: 'Police station lots, storefronts, or busy malls' },
+                { icon: '📱', title: 'Drop a pin before you leave', desc: 'Share your live location with someone you trust' },
+                { icon: '🚫', title: 'Cancel anytime — no explanation needed', desc: 'If something feels off, trust that instinct' },
+                { icon: '☀️', title: 'Daytime only', desc: 'Avoid evenings and low-traffic hours' },
+              ].map((tip, i) => (
+                <View key={i} style={styles.safetyTipRow}>
+                  <Text style={styles.safetyTipEmoji}>{tip.icon}</Text>
+                  <View style={styles.safetyTipContent}>
+                    <Text style={styles.safetyTipTitle}>{tip.title}</Text>
+                    <Text style={styles.safetyTipDesc}>{tip.desc}</Text>
+                  </View>
+                </View>
               ))}
             </View>
+
+            {/* CTA Button */}
             <TouchableOpacity
               style={styles.safetyModalBtn}
               onPress={() => setSafetyModalVisible(false)}
               testID="safety-modal-confirm"
+              activeOpacity={0.8}
             >
-              <Text style={styles.safetyModalBtnText}>Got it, stay safe!</Text>
+              <ShieldCheck size={18} color="#FFFFFF" weight="fill" style={{ marginRight: 8 }} />
+              <Text style={styles.safetyModalBtnText}>Got it — Let's Trade Safely</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1323,77 +1337,117 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
   },
-  // TFV2-020: Safety banner styles
+  // TFV2-020: Safety banner styles (redesigned to match SafeMeetupCard)
   safetyBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF8F4',
+    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
-    borderBottomColor: '#FFE4CC',
+    borderBottomColor: '#E5E7EB',
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    gap: 6,
+    paddingVertical: 10,
+    gap: 10,
   },
   safetyBannerText: {
     flex: 1,
-    fontSize: 12,
-    color: '#664422',
-    fontWeight: '500',
-  },
-  safetyBannerLearn: {
-    fontSize: 12,
-    color: '#FF8C42',
+    fontSize: 14,
+    color: '#1A1A1A',
     fontWeight: '600',
   },
-  // TFV2-020: Safety modal styles
+  safetyBannerChevron: {
+    fontSize: 20,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  // TFV2-020: Safety modal styles (redesigned to match SafeMeetupCard)
   safetyModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
   },
   safetyModalCard: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 20,
     padding: 24,
-    paddingBottom: 40,
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   safetyModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 8,
+  },
+  safetyModalIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   safetyModalTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#1A1A1A',
+    flex: 1,
   },
-  safetyModalBody: {
+  safetyModalSubtitle: {
     fontSize: 14,
-    color: '#444444',
+    color: '#6B6B6B',
     lineHeight: 20,
-    marginBottom: 16,
+    marginBottom: 20,
+    paddingLeft: 56,
   },
   safetyTipsList: {
-    gap: 8,
+    gap: 16,
     marginBottom: 24,
   },
-  safetyTipItem: {
+  safetyTipRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  safetyTipEmoji: {
+    fontSize: 18,
+    width: 28,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  safetyTipContent: {
+    flex: 1,
+  },
+  safetyTipTitle: {
     fontSize: 14,
-    color: '#333333',
+    fontWeight: '600',
+    color: '#1A1A1A',
     lineHeight: 20,
+  },
+  safetyTipDesc: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 18,
+    marginTop: 2,
   },
   safetyModalBtn: {
     backgroundColor: '#5DBB8E',
     borderRadius: 12,
     paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   safetyModalBtnText: {
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
   },
   // TFV2-021: Quick replies row
   quickRepliesRow: {

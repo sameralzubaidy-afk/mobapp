@@ -1,3 +1,15 @@
+/**
+ * File: p2p-kids-marketplace/src/components/trade/SafeMeetupCard.tsx
+ * TFV2-020: Trade Smart, Trade Safe — safety tips card
+ *
+ * Redesigned to match the Whisk Design System with a clean, readable layout:
+ * - ShieldCheck header icon
+ * - 4 bullet-style tips with bold title + description
+ * - Green CTA button to dismiss
+ *
+ * Icons: ShieldCheck, MapPin, NavigationArrow, Prohibit, SunDim
+ */
+
 import React from 'react';
 import {
   View,
@@ -9,7 +21,13 @@ import {
   UIManager,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ShieldCheck, CheckCircle } from 'phosphor-react-native';
+import {
+  ShieldCheck,
+  MapPin,
+  NavigationArrow,
+  Prohibit,
+  SunDim,
+} from 'phosphor-react-native';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -18,18 +36,34 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 const STORAGE_PREFIX = 'safe_meetup_collapsed_';
 
 const TIPS = [
-  'Meet in a busy public place (library, mall, coffee shop)',
-  'Bring a friend or family member if possible',
-  'Inspect the item before tapping "I Got It"',
-  'Never share your home address or personal contact info',
-  'If something feels off, trust your instincts and leave',
+  {
+    icon: MapPin,
+    title: 'Meet where others can see you',
+    description: 'Police station lots, storefronts, or busy malls',
+  },
+  {
+    icon: NavigationArrow,
+    title: 'Drop a pin before you leave',
+    description: 'Share your live location with someone you trust',
+  },
+  {
+    icon: Prohibit,
+    title: 'Cancel anytime — no explanation needed',
+    description: 'If something feels off, trust that instinct',
+  },
+  {
+    icon: SunDim,
+    title: 'Daytime only',
+    description: 'Avoid evenings and low-traffic hours',
+  },
 ];
 
 interface Props {
   tradeId: string;
+  onDismiss?: () => void;
 }
 
-export function SafeMeetupCard({ tradeId }: Props) {
+export function SafeMeetupCard({ tradeId, onDismiss }: Props) {
   const [collapsed, setCollapsed] = React.useState(false);
   const storageKey = `${STORAGE_PREFIX}${tradeId}`;
 
@@ -40,92 +74,196 @@ export function SafeMeetupCard({ tradeId }: Props) {
     });
   }, [storageKey]);
 
-  const toggle = () => {
+  const dismiss = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    const next = !collapsed;
-    setCollapsed(next);
-    AsyncStorage.setItem(storageKey, String(next));
+    setCollapsed(true);
+    AsyncStorage.setItem(storageKey, 'true');
+    onDismiss?.();
   };
 
-  return (
-    <View style={styles.card}>
-      {/* Header row */}
+  const expand = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCollapsed(false);
+  };
+
+  if (collapsed) {
+    return (
       <TouchableOpacity
-        style={styles.header}
-        onPress={toggle}
+        style={styles.collapsedCard}
+        onPress={expand}
         activeOpacity={0.7}
         testID="safe-meetup-toggle"
       >
-        <View style={styles.headerLeft}>
-          <ShieldCheck size={18} color="#16A34A" weight="fill" />
-          <Text style={styles.headerText}>Safe meetup tips</Text>
-        </View>
-        <Text style={styles.chevron}>{collapsed ? '›' : '⌄'}</Text>
+        <ShieldCheck size={20} color="#5DBB8E" weight="fill" />
+        <Text style={styles.collapsedText}>Trade Smart, Trade Safe</Text>
+        <Text style={styles.chevron}>{'\u203A'}</Text>
       </TouchableOpacity>
+    );
+  }
+
+  return (
+    <View style={styles.card} testID="safe-meetup-card">
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerIconWrap}>
+          <ShieldCheck size={28} color="#FFFFFF" weight="fill" />
+        </View>
+        <View style={styles.headerTextWrap}>
+          <Text style={styles.headerTitle}>Trade Smart, Trade Safe</Text>
+          <Text style={styles.headerSub}>
+            Smart traders meet where people are around
+          </Text>
+        </View>
+      </View>
 
       {/* Tips */}
-      {!collapsed && (
-        <View style={styles.tipsContainer} testID="safe-meetup-tips">
-          {TIPS.map((tip, i) => (
+      <View style={styles.tipsContainer} testID="safe-meetup-tips">
+        {TIPS.map((tip, i) => {
+          const IconComponent = tip.icon;
+          return (
             <View key={i} style={styles.tipRow}>
-              <CheckCircle size={14} color="#5DBB8E" weight="fill" style={styles.tipIcon} />
-              <Text style={styles.tipText}>{tip}</Text>
+              <View style={styles.tipIconWrap}>
+                <IconComponent size={18} color="#5DBB8E" weight="fill" />
+              </View>
+              <View style={styles.tipContent}>
+                <Text style={styles.tipTitle}>{tip.title}</Text>
+                <Text style={styles.tipDesc}>{tip.description}</Text>
+              </View>
             </View>
-          ))}
-        </View>
-      )}
+          );
+        })}
+      </View>
+
+      {/* CTA Button */}
+      <TouchableOpacity
+        style={styles.ctaButton}
+        onPress={dismiss}
+        testID="safe-meetup-cta"
+        activeOpacity={0.8}
+      >
+        <ShieldCheck size={18} color="#FFFFFF" weight="fill" style={{ marginRight: 8 }} />
+        <Text style={styles.ctaButtonText}>Got it — Let's Trade Safely</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#F0FDF4',
-    borderWidth:     1.5,
-    borderColor:     '#BBF7D0',
-    borderRadius:    12,
-    overflow:        'hidden',
-    marginBottom:    12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 20,
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  header: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    justifyContent:   'space-between',
-    paddingVertical:  12,
-    paddingHorizontal: 14,
-  },
-  headerLeft: {
+  collapsedCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginBottom: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     flexDirection: 'row',
-    alignItems:    'center',
-    gap:           8,
+    alignItems: 'center',
+    gap: 10,
+    // Shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  headerText: {
-    fontSize:   14,
-    fontFamily: 'Inter-SemiBold',
-    color:      '#15803D',
+  collapsedText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
   chevron: {
-    fontSize: 18,
-    color:    '#6B7280',
+    fontSize: 20,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 18,
+  },
+  headerIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTextWrap: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 2,
+  },
+  headerSub: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 18,
   },
   tipsContainer: {
-    paddingHorizontal: 14,
-    paddingBottom:     14,
-    gap:               8,
+    gap: 16,
+    marginBottom: 20,
   },
   tipRow: {
     flexDirection: 'row',
-    alignItems:    'flex-start',
-    gap:           8,
+    alignItems: 'flex-start',
+    gap: 12,
   },
-  tipIcon: {
+  tipIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  tipContent: {
+    flex: 1,
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    lineHeight: 20,
+  },
+  tipDesc: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 18,
     marginTop: 2,
   },
-  tipText: {
-    flex:       1,
-    fontSize:   13,
-    fontFamily: 'Inter-Regular',
-    color:      '#166534',
-    lineHeight: 20,
+  ctaButton: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

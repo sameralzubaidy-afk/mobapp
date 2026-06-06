@@ -100,6 +100,7 @@
 | | TC-O02 | Location ZIP + radius filter |
 | | TC-O03 | Inactive ZIP in filter → waitlist prompt |
 | | TC-O04 | Subscriber vs free SP visibility |
+| | TC-O05 | Admin radius defaults and bounds reflect in Discover |
 
 ---
 
@@ -1347,6 +1348,22 @@
 - Subscribers see SP-eligible items prioritized with the SP filter enabled and SP earnings context.
 - Free users still see SP-eligible items but with upgrade CTAs for SP features.
 
+### TC-O05 · Admin radius defaults and bounds reflect in Discover
+
+**Actors:** test-admin, test-buyer
+
+**Objective:** Verify `default_radius_miles`, `min_user_radius_miles`, and `max_user_radius_miles` from Node Settings control the Discover filter.
+
+**Steps:**
+1. As **test-admin**, open **/settings/nodes** and save distinct values for default radius, min user radius, and max user radius (for example 15, 10, and 25 miles).
+2. As **test-buyer**, force-close/reopen Discover, open the Filters modal, and inspect the radius control.
+3. Set a ZIP and try moving the radius below and above the configured bounds.
+
+**Expected Result:**
+- Discover opens with the configured default radius.
+- The radius control does not go below the configured minimum or above the configured maximum.
+- Search results and the remembered radius preference honor the new bounds on next load.
+
 ---
 
 ## Regression checks (run after any change to these flows)
@@ -1468,3 +1485,4 @@
 | Infinite scroll pagination | TC-N03 |
 | Location ZIP + radius | TC-O02 |
 | Inactive ZIP in discovery filter | TC-O03 |
+| Admin radius defaults/bounds | TC-O05 |

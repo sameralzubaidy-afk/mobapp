@@ -223,11 +223,11 @@ describe('DeepLink Service', () => {
         const result = parseNotificationDeepLink(data);
 
         expect(result).not.toBeNull();
-        expect(result?.route).toBe('TradeReview');
+        expect(result?.route).toBe('ReviewOffer');
         expect(result?.params).toEqual({ tradeId: 'trade-123' });
       });
 
-      it('should prefer TradeReview for trade_request even with /trade/:id deep link', () => {
+      it('should prefer ReviewOffer for trade_request even with /trade/:id deep link', () => {
         const data: NotificationDeepLinkData = {
           type: 'trade_request',
           deep_link: '/trade/trade-xyz-789',
@@ -236,7 +236,7 @@ describe('DeepLink Service', () => {
         const result = parseNotificationDeepLink(data);
 
         expect(result).not.toBeNull();
-        expect(result?.route).toBe('TradeReview');
+        expect(result?.route).toBe('ReviewOffer');
         expect(result?.params).toEqual({ tradeId: 'trade-xyz-789' });
       });
 

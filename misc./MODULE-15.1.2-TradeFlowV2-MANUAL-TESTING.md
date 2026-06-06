@@ -1562,6 +1562,8 @@
 - An inline validation error prevents saving values below $5.00.
 - A valid value (≥ $5.00) saves successfully.
 
+> Current limitation: `cart_max_saved_carts` and `cart_saved_expiry_days` can be edited in admin, but the runtime cart flow still hardcodes the 3-cart cap and has no verified configurable expiry consumption. Do not mark those two config-to-mobile paths covered until the implementation is wired end to end.
+
 ---
 
 ## Group O — Tax (End User)

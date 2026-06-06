@@ -1190,16 +1190,24 @@ export async function getListingById(listing_id: string): Promise<Listing | null
       .from('items')
       .select('*')
       .eq('id', listing_id)
-      .single();
+      .maybeSingle();
 
     if (itemError) {
       console.error('[listing] getListingById item error:', itemError.message);
+      console.error('[listing] getListingById item error details:', itemError); // Log full error for debugging
       return null;
     }
 
     if (!item) {
-      return null;
+      console.warn('[listing] getListingById - no item found for id:', listing_id);
+      // MODULE-15.5 PROD-004: Fallback to SECURITY DEFINER RPC to bypass node-scoped RLS.
+      // The items_select_same_node_or_own policy blocks viewing items from other nodes,
+      // but get_recommendations() (SECURITY DEFINER) can return items from any node.
+      // This fallback ensures users can view item details from recommendations.
+      return getListingByIdFallback(listing_id);
     }
+
+    console.log('[listing] getListingById fetched item:', item); // Log the fetched item
 
     // Fetch category separately with better error handling
     let category = null;
@@ -1286,6 +1294,73 @@ export async function getListingById(listing_id: string): Promise<Listing | null
   } catch (err) {
     const error = err as Error;
     console.error('[listing] ❌ getListingById fatal error:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Fallback for getListingById when direct query returns null due to RLS.
+ * Uses SECURITY DEFINER RPC to bypass node-scoped RLS (items_select_same_node_or_own policy).
+ * This is needed because get_recommendations() bypasses RLS and can return items from any node.
+ * MODULE-15.5 PROD-004
+ */
+async function getListingByIdFallback(listing_id: string): Promise<Listing | null> {
+  try {
+    console.log('[listing] getListingByIdFallback - trying RPC bypass for id:', listing_id);
+    const { data, error } = await supabase.rpc('get_listing_by_id', {
+      p_listing_id: listing_id,
+    });
+
+    if (error) {
+      console.error('[listing] getListingByIdFallback RPC error:', error.message);
+      return null;
+    }
+
+    if (!data) {
+      console.warn('[listing] getListingByIdFallback - no data returned for id:', listing_id);
+      return null;
+    }
+
+    // Parse the JSONB response into a Listing object
+    const listing: Listing = {
+      id: data.id,
+      seller_id: data.seller_id,
+      title: data.title,
+      description: data.description,
+      price: typeof data.price === 'string' ? parseFloat(data.price) : data.price,
+      category_id: data.category_id,
+      condition: data.condition,
+      status: data.status,
+      accepts_swap_points: data.accepts_swap_points ?? false,
+      seller_subscription_status_at_creation: data.seller_subscription_status_at_creation,
+      brand: data.brand,
+      color: data.color,
+      age_group: data.age_group,
+      gender: data.gender,
+      requested_category_name: data.requested_category_name,
+      flagged_at: data.flagged_at,
+      flagged_reason: data.flagged_reason,
+      rejected_at: data.rejected_at,
+      rejection_reason: data.rejection_reason,
+      moderation_note: data.moderation_note,
+      appeal_count: data.appeal_count ?? 0,
+      appeal_reason: data.appeal_reason,
+      appealed_at: data.appealed_at,
+      edited_since_rejection: data.edited_since_rejection,
+      edited_since_rejection_at: data.edited_since_rejection_at,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      sold_at: data.sold_at,
+      category: data.category,
+      seller: data.seller,
+      images: data.images ?? [],
+    };
+
+    console.log('[listing] getListingByIdFallback - successfully fetched listing:', listing.id);
+    return listing;
+  } catch (err) {
+    const error = err as Error;
+    console.error('[listing] ❌ getListingByIdFallback fatal error:', error.message);
     return null;
   }
 }

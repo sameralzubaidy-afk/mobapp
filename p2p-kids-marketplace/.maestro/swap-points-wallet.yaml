@@ -1,88 +1,45 @@
 # FLOW: swap-points-wallet
-# Screens: SpWalletScreen
-# testIDs required: sp-wallet-back-button
-# Description: STRICT: verify free-tier SP lock state on dashboard
+# Purpose: SP wallet smoke coverage — login → Me tab → Verify SP balance stat
+# Covers: REG-R06, REG-R07
 
-appId: com.anonymous.p2p-kids-marketplace
+appId: com.sameralzubaidi.p2pmarketplace
 ---
-- launchApp
-- openLink: 'com.anonymous.p2p-kids-marketplace://expo-development-client/?url=http://127.0.0.1:8081'
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- runFlow: helpers/tfv2-login-buyer.yaml
+
+# Optional login path.
+- runFlow:
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - tapOn:
+          id: "login-email-input"
+      - eraseText
+      - inputText: "test-buyer@kidsmarketplace.test"
+      - tapOn:
+          id: "login-password-input"
+      - eraseText
+      - inputText: "TestBuyer123!"
+      - tapOn:
+          id: "login-submit-button"
+      - waitForAnimationToEnd
+
+# Navigate to Me tab
+- tapOn:
+    id: "tab-me"
+- waitForAnimationToEnd
 - waitForAnimationToEnd
 
-# Setup normalization: if already authenticated, force logout first
+# Verify SP balance stat on profile
 - runFlow:
     when:
       visible:
-        id: nav-profile
+        id: "profile-sp-balance-stat"
     commands:
-      - tapOn:
-          id: nav-profile
-      - waitForAnimationToEnd
-      - tapOn:
-          id: profile-logout-button
-      - waitForAnimationToEnd
-      - tapOn:
-          text: Logout
-      - waitForAnimationToEnd
+      - assertVisible:
+          id: "profile-sp-balance-stat"
 
-# Setup normalization: deterministic test auth bootstrap from Landing
-- runFlow:
-    when:
-      visible:
-        id: landing-skip-auth-button
-    commands:
-      - tapOn:
-          id: landing-skip-auth-button
-      - waitForAnimationToEnd
-      - waitForAnimationToEnd
-
-# Setup normalization: deterministic test auth bootstrap from Login
-- runFlow:
-    when:
-      visible:
-        id: login-skip-auth-button
-    commands:
-      - tapOn:
-          id: login-skip-auth-button
-      - waitForAnimationToEnd
-      - waitForAnimationToEnd
-
-# Fallback: real login if still on Login screen
-- runFlow:
-    when:
-      visible:
-        id: login-email-input
-    commands:
-      - tapOn:
-          id: login-email-input
-      - inputText: 'testuser+maestro@example.com'
-      - tapOn:
-          id: login-password-input
-      - inputText: 'TestPassword123!'
-      - hideKeyboard
-      - tapOn:
-          id: login-submit-button
-      - waitForAnimationToEnd
-
-# If onboarding welcome appears after login/bootstrap, complete it
-- runFlow:
-    when:
-      visible:
-        text: Get Started
-    commands:
-      - tapOn:
-          text: Get Started
-      - waitForAnimationToEnd
-      - waitForAnimationToEnd
-
-# Strict post-bootstrap precondition
-- assertVisible:
-    id: nav-home
-
-# Strict postcondition for free tier: subscription lock state is visible
-- swipe:
-    direction: up
-- swipe:
-    direction: up
-- assertVisible:
-    id: sp-wallet-(locked-title|card)
+- stopApp

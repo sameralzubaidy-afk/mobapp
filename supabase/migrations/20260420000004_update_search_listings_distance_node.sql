@@ -1,7 +1,8 @@
 -- ================================================================
 -- Migration: DISCOVERY-V3-004-DISTANCE-SEARCH.sql
 -- Module: MODULE-05-DISCOVERY-V3-FILTERS
--- Description: Add node_ids filter to search_listings RPC for distance searches
+-- Description: Add node_ids compatibility param to search_listings RPC.
+-- NOTE: Node gating in discovery was removed to avoid false-empty searches.
 -- ================================================================
 
 -- DROP existing
@@ -101,8 +102,8 @@ BEGIN
     AND (p_brand IS NULL OR LOWER(i.brand) = LOWER(p_brand))
     AND (p_colors IS NULL OR i.color && p_colors)
     
-    -- Filter by nodes if specified (V4 addition)
-    AND (p_node_ids IS NULL OR p.node_id = ANY(p_node_ids))
+    -- Node scope intentionally not applied at discovery-search time.
+    -- Cross-node purchase restrictions are enforced during trade/cart flows.
     
   ORDER BY 
     CASE p_sort_by
@@ -126,4 +127,4 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION search_listings IS 'V4 search: Adds node_ids filter for distance scoping.';
+COMMENT ON FUNCTION search_listings IS 'V4 search: keeps p_node_ids for compatibility; discovery results are not node-gated.';

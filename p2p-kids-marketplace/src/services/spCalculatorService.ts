@@ -134,13 +134,18 @@ export async function getBonusCategories(): Promise<BonusCategory[]> {
 export async function calculatePlatformSP(listingId: string): Promise<number> {
   try {
     const { data: listing, error } = await supabase
-      .from('listings')
-      .select('price, category_id')
+      .from('items')
+      .select('price, category_id, accepts_swap_points')
       .eq('id', listingId)
       .single();
 
     if (error || !listing) {
       console.error('[spCalculatorService] calculatePlatformSP — listing not found:', error?.message);
+      return 0;
+    }
+
+    // Platform SP is only awarded for Accept SP listings (Cash Only = no SP)
+    if (!listing.accepts_swap_points) {
       return 0;
     }
 

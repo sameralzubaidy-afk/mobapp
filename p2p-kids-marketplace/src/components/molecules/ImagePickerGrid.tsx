@@ -10,7 +10,7 @@
  * - Validate file size (5 MB max per image)
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Image,
@@ -20,6 +20,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -50,6 +51,12 @@ export default function ImagePickerGrid({
   maxImages = MAX_IMAGES,
   testID = 'image-picker-grid',
 }: ImagePickerGridProps) {
+  const [showPhotoSourceModal, setShowPhotoSourceModal] = useState(false);
+
+  const handleAddPhotoPress = () => {
+    setShowPhotoSourceModal(true);
+  };
+
   const pickFromGallery = async () => {
     if (images.length >= maxImages) {
       Alert.alert('Limit Reached', `Maximum ${maxImages} images allowed`);
@@ -223,25 +230,15 @@ export default function ImagePickerGrid({
         </ScrollView>
       )}
 
-      {/* Add Photo Buttons */}
+      {/* Add Photo Button */}
       {images.length < maxImages && !uploading && (
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            testID={`${testID}-add-from-gallery`}
-            style={[styles.addButton, styles.addButtonPrimary]}
-            onPress={pickFromGallery}
-          >
-            <Text style={styles.addButtonText}>📷 Add from Gallery</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            testID={`${testID}-add-from-camera`}
-            style={[styles.addButton, styles.addButtonSecondary]}
-            onPress={pickFromCamera}
-          >
-            <Text style={styles.addButtonText}>📸 Take Photo</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          testID={`${testID}-add-photo`}
+          style={styles.addPhotoButton}
+          onPress={handleAddPhotoPress}
+        >
+          <Text style={styles.addPhotoButtonText}>+ Add Photo</Text>
+        </TouchableOpacity>
       )}
 
       {/* Uploading indicator */}
@@ -251,6 +248,51 @@ export default function ImagePickerGrid({
           <Text style={styles.uploadingText}>Uploading images...</Text>
         </View>
       )}
+
+      {/* Photo Source Modal — Camera or Library */}
+      <Modal
+        visible={showPhotoSourceModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowPhotoSourceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add Photo</Text>
+            <Text style={styles.modalMessage}>Choose how you want to add a photo.</Text>
+
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setShowPhotoSourceModal(false);
+                pickFromCamera();
+              }}
+              testID={`${testID}-source-camera`}
+            >
+              <Text style={styles.modalOptionText}>📸 Take Photo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                setShowPhotoSourceModal(false);
+                pickFromGallery();
+              }}
+              testID={`${testID}-source-library`}
+            >
+              <Text style={styles.modalOptionText}>🖼️ Photo Library</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowPhotoSourceModal(false)}
+              testID={`${testID}-source-cancel`}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -342,25 +384,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  addButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+  addPhotoButton: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 8,
     alignItems: 'center',
-  },
-  addButtonPrimary: {
     backgroundColor: '#007AFF',
   },
-  addButtonSecondary: {
-    backgroundColor: '#34C759',
-  },
-  addButtonText: {
-    fontSize: 14,
+  addPhotoButtonText: {
+    fontSize: 15,
     fontWeight: '600',
     color: '#fff',
   },
@@ -374,5 +406,57 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 14,
     color: '#666',
+  },
+
+  // Photo Source Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    width: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalOption: {
+    width: '100%',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  modalCancelButton: {
+    width: '100%',
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  modalCancelText: {
+    fontSize: 15,
+    color: '#6B7280',
+    fontWeight: '500',
   },
 });

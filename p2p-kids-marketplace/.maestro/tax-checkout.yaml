@@ -1,0 +1,71 @@
+# FLOW: tax-checkout
+# Purpose: Sales tax E2E tests — Discover → Item Detail → Verify price/tax display
+# Covers: TC-O01 through TC-O07
+
+appId: com.sameralzubaidi.p2pmarketplace
+---
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+
+# ── Step 1: Seed a test listing (login as seller, create item) ──
+- runFlow: helpers/tfv2-login-seller.yaml
+- runFlow: helpers/tfv2-seed-listing.yaml
+
+# ── Step 2: Stop app and restart as buyer ──
+- stopApp
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- runFlow: helpers/tfv2-login-buyer.yaml
+
+# ── Login as buyer ──
+- runFlow:
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - tapOn:
+          id: "login-email-input"
+      - eraseText
+      - inputText: "test-buyer@kidsmarketplace.test"
+      - tapOn:
+          id: "login-password-input"
+      - eraseText
+      - inputText: "TestBuyer123!"
+      - tapOn:
+          id: "login-submit-button"
+      - waitForAnimationToEnd
+
+# ── Navigate to Discover tab ──
+- tapOn:
+    id: "tab-discover"
+- waitForAnimationToEnd
+
+# ── Verify discover screen loaded ──
+- assertVisible:
+    id: "discover-results-list"
+- waitForAnimationToEnd
+
+# ── Tap first listing card (should exist after seeding) ──
+- tapOn:
+    id: "search-result-"
+    index: 0
+- waitForAnimationToEnd
+
+# ── Verify item detail screen loaded ──
+- assertVisible:
+    id: "item-detail-title"
+- assertVisible:
+    id: "item-detail-price"
+- assertVisible:
+    id: "request-to-buy-button"
+- waitForAnimationToEnd
+
+# ── Navigate to Me tab ──
+- tapOn:
+    id: "tab-me"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+- stopApp

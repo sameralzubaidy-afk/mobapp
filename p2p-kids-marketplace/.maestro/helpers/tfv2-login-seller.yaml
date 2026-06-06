@@ -1,0 +1,77 @@
+# FLOW: tfv2-login-seller
+# Purpose: Deterministic seller login prerequisite for Maestro flows.
+# Logs in as test-seller@kidsmarketplace.test
+
+appId: com.sameralzubaidi.p2pmarketplace
+---
+- waitForAnimationToEnd
+
+# Handle Welcome screen if shown.
+- runFlow:
+    when:
+      visible:
+        id: "welcome-get-started-button"
+    commands:
+      - tapOn:
+          id: "welcome-get-started-button"
+      - waitForAnimationToEnd
+
+# Handle Landing screen if shown.
+- runFlow:
+    when:
+      visible:
+        id: "landing-login-button"
+    commands:
+      - tapOn:
+          id: "landing-login-button"
+      - waitForAnimationToEnd
+
+# Attempt login when login form is visible.
+- runFlow:
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - tapOn:
+          id: "login-email-input"
+      - eraseText
+      - inputText: "test-seller@kidsmarketplace.test"
+      - tapOn:
+          id: "login-password-input"
+      - eraseText
+      - inputText: "TestSeller123!"
+      - tapOn:
+          id: "login-submit-button"
+      - tapOn:
+          text: "Log In"
+          optional: true
+      - waitForAnimationToEnd
+
+# Retry submit once if still on login screen.
+- runFlow:
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - tapOn:
+          id: "login-submit-button"
+      - tapOn:
+          text: "Log In"
+          optional: true
+      - waitForAnimationToEnd
+
+# iOS save-password sheet may appear.
+- runFlow:
+    when:
+      visible:
+        text: "Save Password?"
+    commands:
+      - tapOn:
+          text: "Not Now"
+      - waitForAnimationToEnd
+
+# Ensure login precondition is satisfied.
+- extendedWaitUntil:
+    notVisible:
+      id: "login-email-input"
+    timeout: 15000

@@ -18,3 +18,10 @@ verify_jwt = false
 
 [functions.stripe-webhook-subscriptions]
 verify_jwt = false
+
+[functions.cancel-trade]
+verify_jwt = false
+
+[functions.detach-payment-method]
+verify_jwt = false
+

@@ -1,4 +1,17 @@
 {
+  "scripts": {
+    "test:e2e": "bash test-automation/trade-flow-v2/scripts/run-suite.sh",
+    "test:e2e:ios": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --runner maestro --platform ios",
+    "test:e2e:android": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --runner maestro --platform android",
+    "test:e2e:admin": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --runner playwright",
+    "test:e2e:dry": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --dry-run",
+    "tfv2": "bash test-automation/trade-flow-v2/scripts/run-suite.sh",
+    "tfv2:list": "node test-automation/trade-flow-v2/run-tradeflow-suite.mjs --list",
+    "tfv2:dry": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --dry-run",
+    "tfv2:ios": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --runner maestro --platform ios",
+    "tfv2:android": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --runner maestro --platform android",
+    "tfv2:admin": "bash test-automation/trade-flow-v2/scripts/run-suite.sh --runner playwright"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",
     "dotenv": "^17.2.3",

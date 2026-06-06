@@ -471,6 +471,7 @@
 
 **Expected Result:**
 - Valid values save (1–100 radius, max assignment ≥ default, warning threshold 1–200); invalid combinations are blocked with validation messages.
+- Current mobile propagation is verified on Discover for `default_radius_miles`, `min_user_radius_miles`, and `max_user_radius_miles` (see Discovery TC-O05).
 
 ---
 
@@ -503,6 +504,7 @@
 
 **Expected Result:**
 - Items show value + edit/save/reset; saving shows success and persists; if `can_write` is false the items are read-only.
+- For user-visible keys, rerun the linked mobile checks in `misc./ADMIN-CONFIG-IMPACT-REGISTRY.md` after saving.
 
 ---
 
@@ -517,7 +519,9 @@
 1. Open **/settings/cart**; set minimum cart value (dollars), max saved carts (1–10), saved cart expiry (1–365); Save Changes; try invalid values.
 
 **Expected Result:**
-- Valid values save (min ≥ 0, carts 1–10, expiry 1–365) and reflect in the app's cart behavior; invalid values are blocked. (See also TradeFlow TC-N01/TC-N02.)
+- Valid values save and invalid values are blocked.
+- `cart_min_value_cents` is currently verified in the app via TradeFlow TC-M11 / TC-N01.
+- `cart_max_saved_carts` and `cart_saved_expiry_days` still save in admin, but the runtime cart flow remains hardcoded and should not be marked end-to-end covered yet.
 
 ---
 
@@ -534,6 +538,7 @@
 
 **Expected Result:**
 - Valid values save; nested rules enforced (notif1 < timeout, notif2 < notif1 and ≥ 1, auto-complete notif < auto-complete hours, all ≥ 1, fees ≥ 0); invalid values are blocked.
+- After saving distinct non-default values, rerun TradeFlow TC-B02 / TC-D01 / TC-D03 / TC-G01 / TC-G02 and Subscription TC-F06 / TC-R05 to confirm the new timing and fee values propagate.
 
 ---
 

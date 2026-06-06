@@ -160,6 +160,7 @@ const TYPE_TO_ROUTE_MAP: Record<
   trade_request: { route: 'TradeList', action: 'navigate' },
   trade_completion_requested: { route: 'TradeList', action: 'navigate' },
   trade_accepted: { route: 'TradeList', action: 'navigate' },
+  offer_accepted: { route: 'TradeTimeline', action: 'navigate' },
   trade_declined: { route: 'TradeList', action: 'navigate' },
   trade_completed: { route: 'TradeList', action: 'navigate' },
   trade_cancelled: { route: 'TradeList', action: 'navigate' },
@@ -212,9 +213,12 @@ export function parseNotificationDeepLink(
   const event = typeof data.event === 'string' ? data.event : null;
 
   // Extract entity IDs for parameterized routes
-  const tradeId =
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const rawTradeId =
     (typeof data.trade_id === 'string' ? data.trade_id : null) ||
     (typeof data.tradeId === 'string' ? data.tradeId : null);
+  // Only accept valid UUID trade IDs — prevents "invalid input syntax for type uuid" errors
+  const tradeId = rawTradeId && UUID_RE.test(rawTradeId) ? rawTradeId : null;
   const listingId =
     (typeof data.listing_id === 'string' ? data.listing_id : null) ||
     (typeof data.listingId === 'string' ? data.listingId : null) ||
@@ -257,7 +261,7 @@ export function parseNotificationDeepLink(
   if (tradeId) {
     // Incoming offer notifications should open seller review flow directly.
     if (notificationType === 'trade_request') {
-      target.route = 'TradeReview';
+      target.route = 'ReviewOffer';
       target.params = { tradeId };
     } else if (target.route === 'TradeList') {
       // If we have a specific trade ID, navigate to detail instead
@@ -295,13 +299,19 @@ export function parseNotificationDeepLink(
     target.params = { ...(target.params || {}), userId };
   }
 
+  // Fallback: if target needs a tradeId but none was found, downgrade to TradeList
+  if (!tradeId && (target.route === 'TradeDetail' || target.route === 'TradeTimeline')) {
+    target.route = 'TradeList';
+    target.params = {};
+  }
+
   // Handle trade_request payloads where tradeId exists only in deep_link path.
   if (notificationType === 'trade_request' && target.route === 'TradeDetail') {
     const targetTradeId =
       typeof target.params?.tradeId === 'string' ? (target.params.tradeId as string) : null;
 
     if (targetTradeId) {
-      target.route = 'TradeReview';
+      target.route = 'ReviewOffer';
       target.params = { tradeId: targetTradeId };
     }
   }

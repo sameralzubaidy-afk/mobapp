@@ -391,6 +391,7 @@ export default function ProfileScreen({ navigation, route }: any) {
               style={styles.statChip}
               activeOpacity={0.8}
               onPress={() => navigation.navigate('MyListings')}
+              testID="profile-listings-stat"
             >
               <Storefront size={18} color="#5DBB8E" weight="regular" />
               <Text style={styles.statValue}>{profileStats.listingsCount}</Text>
@@ -400,6 +401,7 @@ export default function ProfileScreen({ navigation, route }: any) {
               style={styles.statChip}
               activeOpacity={0.8}
               onPress={() => navigation.navigate('TradeList')}
+              testID="profile-trades-stat"
             >
               <Package size={18} color="#5DBB8E" weight="regular" />
               <Text style={styles.statValue}>{profileStats.tradesCount}</Text>
@@ -409,6 +411,7 @@ export default function ProfileScreen({ navigation, route }: any) {
               style={styles.statChip}
               activeOpacity={0.8}
               onPress={() => navigation.navigate('SpWallet')}
+              testID="profile-sp-balance-stat"
             >
               <Coins size={18} color="#F59E0B" weight="regular" />
               <Text style={styles.statValue}>{profileSpBalance}</Text>
@@ -534,6 +537,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             <TouchableOpacity
               style={styles.utilityRow}
               onPress={() => navigation.navigate('TransactionHistory')}
+              testID="profile-billing-history"
             >
               <Receipt size={20} color="#6B6B6B" weight="regular" />
               <Text style={styles.utilityText}>Billing History</Text>
@@ -543,6 +547,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             <TouchableOpacity
               style={styles.utilityRow}
               onPress={() => navigation.navigate('Settings')}
+              testID="profile-settings"
             >
               <Gear size={20} color="#6B6B6B" weight="regular" />
               <Text style={styles.utilityText}>App Settings</Text>
@@ -553,6 +558,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             <TouchableOpacity
               style={styles.utilityRow}
               onPress={() => navigation.navigate('AdminDashboard')}
+              testID="profile-admin-dashboard"
             >
               <Buildings size={20} color="#92400E" weight="regular" />
               <Text style={[styles.utilityText, { color: '#92400E' }]}>Admin Dashboard</Text>
@@ -563,6 +569,7 @@ export default function ProfileScreen({ navigation, route }: any) {
               style={[styles.utilityRow, { borderBottomWidth: 0 }]}
               onPress={handleLogout}
               disabled={loggingOut}
+              testID="profile-logout"
             >
               <SignOut size={20} color="#EF4444" weight="regular" />
               <Text style={[styles.utilityText, { color: '#EF4444' }]}>Logout</Text>

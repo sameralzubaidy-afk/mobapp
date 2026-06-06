@@ -138,35 +138,50 @@ serve(async (req) => {
       let stripeRefundId = null;
       if (issue_refund && dbResult.stripe_payment_intent_id) {
         try {
-          const refund = await stripe.refunds.create({
-            payment_intent: dbResult.stripe_payment_intent_id,
-            reason: 'requested_by_customer',
-            metadata: { 
-              supabase_trade_id: tradeId,
-              admin_action: 'force-cancel',
-              admin_user_id: user.id
-            },
-          });
-          stripeRefundId = refund.id;
+          // Check if the PaymentIntent is captured or uncaptured
+          const paymentIntent = await stripe.paymentIntents.retrieve(
+            dbResult.stripe_payment_intent_id
+          );
           
-          // Update trade with refund ID
+          if (paymentIntent.status === 'requires_capture' || paymentIntent.status === 'processing') {
+            // Uncaptured — cancel the PaymentIntent instead of refunding
+            const cancelled = await stripe.paymentIntents.cancel(
+              dbResult.stripe_payment_intent_id,
+              { cancellation_reason: 'requested_by_customer' }
+            );
+            stripeRefundId = `cancelled_${cancelled.id}`;
+          } else {
+            // Captured — issue a refund
+            const refund = await stripe.refunds.create({
+              payment_intent: dbResult.stripe_payment_intent_id,
+              reason: 'requested_by_customer',
+              metadata: { 
+                supabase_trade_id: tradeId,
+                admin_action: 'force-cancel',
+                admin_user_id: user.id
+              },
+            });
+            stripeRefundId = refund.id;
+          }
+          
+          // Update trade with refund/cancellation ID
           await adminClient.from('trades').update({ stripe_refund_id: stripeRefundId }).eq('id', tradeId);
           
-          // Log refund action
+          // Log refund/cancellation action
           await adminClient.from('admin_audit_logs').insert({
             actor_id: effectiveAdminId,
             action_type: 'manual_refund',
             entity_type: 'trade',
             entity_id: tradeId,
-            reason: 'Refund issued during force-cancel',
+            reason: 'Stripe ' + (stripeRefundId?.startsWith('cancelled_') ? 'cancellation' : 'refund') + ' issued during force-cancel',
             payload: { stripe_refund_id: stripeRefundId }
           });
         } catch (stripeError: any) {
-          console.error('[admin-trade-action] Stripe refund failed:', stripeError);
+          console.error('[admin-trade-action] Stripe refund/cancel failed:', stripeError);
           return new Response(JSON.stringify({ 
             success: true, 
             tradeId, 
-            warning: 'Trade cancelled in DB but Stripe refund failed: ' + stripeError.message 
+            warning: 'Trade cancelled in DB but Stripe refund/cancel failed: ' + stripeError.message 
           }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

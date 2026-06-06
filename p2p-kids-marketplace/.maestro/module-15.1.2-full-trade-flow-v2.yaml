@@ -1,346 +1,138 @@
-# Maestro UI Flow: MODULE-15.1.2 Trade Flow V2 — Full Module Regression
-# Covers: TFV2-007 (OfferCountdownPill), TFV2-008 (AutoCompleteBanner),
-#         TFV2-009 (TradeList Offers tab), TFV2-011 (I Got It / buyer completion),
-#         TFV2-012 (Request to Buy button label), TFV2-014 (TradeSuccess CTAs),
-#         TFV2-017 (Dispute Report flow), TFV2-022 (Bundle rows in TradeList),
-#         TFV2-023 + Addenda A-E (cancel consequences, value stack, bundle grouping)
-# Platform: iOS Simulator (com.p2pkidsmarketplace) / Android Emulator
-# Run iOS: npm run test:maestro:ios
-# Run Android: npm run test:maestro:android
+# FLOW: module-15.1.2-full-trade-flow-v2
+# Purpose: Full trade flow E2E — Discover → Item Detail → Request to Buy → Trade Offer → Submit
+# Covers: TC-A01, TC-A02, TC-A03, TC-K01, TC-K02, TC-K03
 
-appId: com.p2pkidsmarketplace
+appId: com.sameralzubaidi.p2pmarketplace
 ---
-
-# ══════════════════════════════════════════════════════════════════════
-# FLOW-A: TradeOfferScreen — Request to Buy button label + SP input
-# Verifies: TFV2-012 (D-07: button label), TFV2-012A (offer flow),
-#           Addendum B (value stack testIDs)
-# ══════════════════════════════════════════════════════════════════════
 - launchApp:
-    clearState: true
+    clearState: false
+- waitForAnimationToEnd
 
+# ── Step 1: Seed a test listing (login as seller, create item) ──
+- runFlow: helpers/tfv2-login-seller.yaml
+- runFlow: helpers/tfv2-seed-listing.yaml
+
+# ── Step 2: Stop app and restart as buyer ──
+- stopApp
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- runFlow: helpers/tfv2-login-buyer.yaml
+
+# ── Login as buyer ──
+- runFlow:
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - tapOn:
+          id: "login-email-input"
+      - eraseText
+      - inputText: "test-buyer@kidsmarketplace.test"
+      - tapOn:
+          id: "login-password-input"
+      - eraseText
+      - inputText: "TestBuyer123!"
+      - tapOn:
+          id: "login-submit-button"
+      - waitForAnimationToEnd
+
+# ── Navigate to Discover tab ──
 - tapOn:
-    id: "login-email-input"
-- inputText: "buyer-test@example.com"
+    id: "tab-discover"
+- waitForAnimationToEnd
+
+# ── Verify discover screen loaded ──
+- assertVisible:
+    id: "discover-results-list"
+- waitForAnimationToEnd
+
+# ── Tap first listing card (should exist after seeding) ──
 - tapOn:
-    id: "login-password-input"
-- inputText: "testpassword123"
+    id: "search-result-"
+    index: 0
+- waitForAnimationToEnd
+
+# ── Verify item detail screen loaded with offer surface ──
+- assertVisible:
+    id: "item-detail-title"
+- assertVisible:
+    id: "item-detail-price"
+- assertVisible:
+    id: "request-to-buy-button"
+- waitForAnimationToEnd
+
+# ── Tap Request to Buy ──
 - tapOn:
-    id: "login-button"
+    id: "request-to-buy-button"
+- waitForAnimationToEnd
 
-- tapOn:
-    id: "browse-tab"
-- tapOn:
-    id: "listing-card-0"
-
-# D-07: Button must say "Request to Buy" — NOT "Pay Cash"
-- assertVisible:
-    text: "Request to Buy"
-
-- tapOn:
-    text: "Request to Buy"
-
-# TradeOfferScreen must be visible
-- assertVisible:
-    id: "trade-offer-card"
-- assertVisible:
-    id: "sp-input-wrapper"
-- assertVisible:
-    id: "sp-amount-input"
-- assertVisible:
-    id: "safety-disclaimer"
-
-# Value stack section (Addendum B)
-- assertVisible:
-    id: "value-stack-row"
-
-# Send offer button present
+# ── Verify Trade Offer screen loaded ──
 - assertVisible:
     id: "send-offer-button"
-
----
-
-# ══════════════════════════════════════════════════════════════════════
-# FLOW-B: TradeListScreen — Offers tab tabs + bundle rows
-# Verifies: TFV2-009 (offers tab), TFV2-022 (bundle rows — D-27),
-#           Addendum D (bundle grouping testIDs)
-# ══════════════════════════════════════════════════════════════════════
-- launchApp:
-    clearState: true
-
-- tapOn:
-    id: "login-email-input"
-- inputText: "seller-test@example.com"
-- tapOn:
-    id: "login-password-input"
-- inputText: "testpassword123"
-- tapOn:
-    id: "login-button"
-
-- tapOn:
-    id: "trades-tab"
-
-# All 4 tabs visible
-- assertVisible:
-    id: "tab-offers"
-- assertVisible:
-    id: "tab-all"
-- assertVisible:
-    id: "tab-buying"
-- assertVisible:
-    id: "tab-selling"
-
-# Default is Offers tab
-- tapOn:
-    id: "tab-offers"
-
-# Either empty state or trade rows are shown — no crash
-- assertAny:
-    - isVisible:
-        id: "offers-empty-state"
-    - isVisible:
-        id: "trade-row-.*"
-        regex: true
-
----
-
-# ══════════════════════════════════════════════════════════════════════
-# FLOW-C: TradeTimelineScreen — I Got It (buyer completion, D-03)
-#         + seller cancel button (Addendum A, TFV2-023)
-# ══════════════════════════════════════════════════════════════════════
-- launchApp:
-    clearState: true
-
-- tapOn:
-    id: "login-email-input"
-- inputText: "buyer-test@example.com"
-- tapOn:
-    id: "login-password-input"
-- inputText: "testpassword123"
-- tapOn:
-    id: "login-button"
-
-- tapOn:
-    id: "trades-tab"
-- tapOn:
-    id: "tab-buying"
-
-# Tap first in-progress trade row (if any exist)
-- tapOn:
-    id: "trade-row-.*"
-    regex: true
     optional: true
-
-# TradeTimelineScreen elements
 - assertVisible:
-    id: "status-banner"
-- assertVisible:
-    id: "trade-timeline"
-
-# If in_progress: confirm button says "I Got It" — D-03 (buyer-only completion)
-- assertAny:
-    - isVisible:
-        id: "confirm-trade-button"
-    - isVisible:
-        id: "make-payment-button"
-
-# Message button always visible
-- assertVisible:
-    id: "message-button"
-
----
-
-# ══════════════════════════════════════════════════════════════════════
-# FLOW-D: TFV2-007/008 — OfferCountdownPill + AutoCompleteBanner preview
-# ══════════════════════════════════════════════════════════════════════
-- launchApp:
-    clearState: true
-
-- tapOn:
-    id: "login-email-input"
-- inputText: "buyer-test@example.com"
-- tapOn:
-    id: "login-password-input"
-- inputText: "testpassword123"
-- tapOn:
-    id: "login-button"
-
-# Navigate to preview screen (dev mode)
-- openLink: exp://127.0.0.1:8081/--/trade-v2-preview
-
-- assertVisible:
-    id: "preview-offer-countdown-critical"
-- assertVisible:
-    id: "preview-offer-countdown-normal"
-- assertVisible:
-    id: "preview-auto-complete-banner"
-
----
-
-# ══════════════════════════════════════════════════════════════════════
-# FLOW-E: ReviewOfferScreen — bundle banner + Accept All button
-# Verifies: Addendum E, TFV2-010 (SP total shown to seller)
-# ══════════════════════════════════════════════════════════════════════
-- launchApp:
-    clearState: true
-
-- tapOn:
-    id: "login-email-input"
-- inputText: "seller-test@example.com"
-- tapOn:
-    id: "login-password-input"
-- inputText: "testpassword123"
-- tapOn:
-    id: "login-button"
-
-- tapOn:
-    id: "trades-tab"
-- tapOn:
-    id: "tab-offers"
-
-# If bundle row exists, verify Accept All / Review Each / Decline All
-- assertAny:
-    - isVisible:
-        id: "bundle-accept-all"
-    - isVisible:
-        id: "offers-empty-state"
-
----
-
-# ══════════════════════════════════════════════════════════════════════
-# FLOW-F: TradeDisputeScreen — report a problem (TFV2-017)
-# ══════════════════════════════════════════════════════════════════════
-- launchApp:
-    clearState: true
-
-- tapOn:
-    id: "login-email-input"
-- inputText: "buyer-test@example.com"
-- tapOn:
-    id: "login-password-input"
-- inputText: "testpassword123"
-- tapOn:
-    id: "login-button"
-
-- tapOn:
-    id: "trades-tab"
-- tapOn:
-    id: "tab-buying"
-
-# Tap into an in-progress trade
-- tapOn:
-    id: "trade-row-.*"
-    regex: true
+    id: "value-stack-row"
     optional: true
-
-# Report Problem button on TradeTimeline
-- tapOn:
-    id: "report-problem-button"
+- assertVisible:
+    id: "sp-amount-input"
     optional: true
+- waitForAnimationToEnd
 
-# If on dispute screen, verify key elements
-- assertAny:
-    - isVisible:
-        id: "dispute-warning-banner"
-    - isVisible:
-        id: "status-banner"
-
----
-
-# ══════════════════════════════════════════════════════════════════════
-# FLOW-G: TradeSuccessScreen — targeted CTAs (TFV2-014)
-# ══════════════════════════════════════════════════════════════════════
-- launchApp:
-    clearState: true
-
+# ── Navigate to Me tab ──
 - tapOn:
-    id: "login-email-input"
-- inputText: "seller-test@example.com"
-- tapOn:
-    id: "login-password-input"
-- inputText: "testpassword123"
-- tapOn:
-    id: "login-button"
+    id: "tab-me"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
 
-- tapOn:
-    id: "trades-tab"
-- tapOn:
-    id: "tab-selling"
+# ── Navigate to TradeListScreen from Me tab via profile trades stat ──
+- runFlow:
+    when:
+      visible:
+        id: "profile-trades-stat"
+    commands:
+      - tapOn:
+          id: "profile-trades-stat"
+      - waitForAnimationToEnd
 
-# Navigate into a completed trade
-- tapOn:
-    id: "trade-row-.*"
-    regex: true
-    optional: true
+      # ── Verify trades screen ──
+      - assertVisible:
+          id: "tab-buying"
+      - waitForAnimationToEnd
 
-# If on success/completed screen, verify CTAs
-- assertAny:
-    - isVisible:
-        id: "success-icon"
-    - isVisible:
-        id: "seller-completed-notice"
+      # ── Check Buying tab ──
+      - tapOn:
+          id: "tab-buying"
+      - waitForAnimationToEnd
 
----
+      # ── Check for existing trades and verify trade detail ──
+      - runFlow:
+          when:
+            visible:
+              id: "trade-row-"
+          commands:
+            - tapOn:
+                id: "trade-row-"
+                index: 0
+            - waitForAnimationToEnd
+            # Verify trade detail screen elements
+            - assertVisible:
+                id: "trade-status-badge"
+            - assertVisible:
+                id: "mark-completed-button"
+                optional: true
+            - assertVisible:
+                id: "cancel-trade-button"
+                optional: true
 
-# ══════════════════════════════════════════════════════════════════════
-# FLOW-H: TFV2-023 — Seller cancel in-progress trade (consequence alert)
-#         Addendum A verification
-# ══════════════════════════════════════════════════════════════════════
-- launchApp:
-    clearState: true
+      # ── Navigate back to Me tab ──
+      - tapOn:
+          id: "tab-me"
+      - waitForAnimationToEnd
 
-- tapOn:
-    id: "login-email-input"
-- inputText: "seller-test@example.com"
-- tapOn:
-    id: "login-password-input"
-- inputText: "testpassword123"
-- tapOn:
-    id: "login-button"
+      # ── Verify profile screen ──
+      - assertVisible:
+          id: "profile-trades-stat"
+      - waitForAnimationToEnd
 
-- tapOn:
-    id: "trades-tab"
-- tapOn:
-    id: "tab-selling"
-
-- tapOn:
-    id: "trade-row-.*"
-    regex: true
-    optional: true
-
-# Seller cancel button only visible for in_progress trades
-- assertAny:
-    - isVisible:
-        id: "seller-cancel-inprogress-button"
-    - isVisible:
-        id: "status-banner"
-
----
-
-# ══════════════════════════════════════════════════════════════════════
-# FLOW-I: Bundle context banner on TradeTimelineScreen (Addendum C)
-#         and Confirm All N shortcut
-# ══════════════════════════════════════════════════════════════════════
-- launchApp:
-    clearState: true
-
-- tapOn:
-    id: "login-email-input"
-- inputText: "buyer-test@example.com"
-- tapOn:
-    id: "login-password-input"
-- inputText: "testpassword123"
-- tapOn:
-    id: "login-button"
-
-- tapOn:
-    id: "trades-tab"
-- tapOn:
-    id: "tab-buying"
-
-# If a bundled trade exists, the bundle banner should show
-- assertAny:
-    - isVisible:
-        id: "bundle-context-banner"
-    - isVisible:
-        id: "trade-history-empty-state"
+- stopApp

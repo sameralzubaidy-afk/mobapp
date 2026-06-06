@@ -99,7 +99,7 @@ serve(async (req) => {
           token,
           title,
           body: body_text,
-          data: { trade_id, event_type, ...(extra_data ?? {}) },
+          data: { trade_id, event_type, type: event_type, ...(extra_data ?? {}) },
         }),
       });
       if (resp.ok) sent++;

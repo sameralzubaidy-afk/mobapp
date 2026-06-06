@@ -549,6 +549,44 @@ export interface CreateTradeOfferResult {
   error_code?: string;
 }
 
+function extractErrorCodeFromPayload(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== 'object') {
+    return undefined;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const error = record.error;
+  if (!error || typeof error !== 'object') {
+    return undefined;
+  }
+
+  const code = (error as Record<string, unknown>).code;
+  return typeof code === 'string' && code.trim() ? code : undefined;
+}
+
+async function getFreshAccessToken(): Promise<string | null> {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError || !session?.access_token) {
+    return null;
+  }
+
+  let accessToken = session.access_token;
+  const nowEpoch = Math.floor(Date.now() / 1000);
+
+  if (session.expires_at && session.expires_at <= nowEpoch + 60) {
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (!refreshError && refreshData?.session?.access_token) {
+      accessToken = refreshData.session.access_token;
+    }
+  }
+
+  return accessToken;
+}
+
 /**
  * TFV2-012A (D-30 CRITICAL): Atomic offer creation with Stripe pre-authorization.
  *
@@ -564,36 +602,71 @@ export async function createTradeOfferWithHold(
   input: CreateTradeOfferInput
 ): Promise<CreateTradeOfferResult> {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+    let accessToken = await getFreshAccessToken();
 
-    if (!session?.access_token) {
+    if (!accessToken) {
       return { success: false, error: 'User not authenticated', error_code: 'UNAUTHORIZED' };
     }
 
-    const { data, error } = await supabase.functions.invoke('create-trade-offer', {
-      body: {
-        item_id: input.item_id,
-        sp_amount: input.sp_amount,
-        payment_method_id: input.payment_method_id,
-        cash_amount_cents: input.cash_amount_cents,
-        transaction_fee_cents: input.transaction_fee_cents,
-        buyer_subscription_status: input.buyer_subscription_status,
-      },
-    });
+    const invokeCreateTradeOffer = async (token: string) =>
+      supabase.functions.invoke('create-trade-offer', {
+        body: {
+          item_id: input.item_id,
+          sp_amount: input.sp_amount,
+          payment_method_id: input.payment_method_id,
+          cash_amount_cents: input.cash_amount_cents,
+          transaction_fee_cents: input.transaction_fee_cents,
+          buyer_subscription_status: input.buyer_subscription_status,
+        },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(anonKey ? { apikey: anonKey } : {}),
+        },
+      });
+
+    let { data, error } = await invokeCreateTradeOffer(accessToken);
 
     if (error) {
-      const message = await extractEdgeInvokeErrorMessage(
+      let message = await extractEdgeInvokeErrorMessage(
         error,
         data,
         'Failed to submit your offer. Please try again.'
       );
-      const code = (data as Record<string, unknown> | null)?.error
-        ? ((data as Record<string, unknown>).error as Record<string, unknown>)?.code as string
-        : undefined;
-      console.error('[trade] createTradeOfferWithHold invoke error:', message);
-      return { success: false, error: message, error_code: code };
+      let code = extractErrorCodeFromPayload(data);
+
+      const normalizedMessage = message.toLowerCase();
+      const shouldRetryAuth =
+        code === 'UNAUTHORIZED' ||
+        normalizedMessage.includes('invalid or expired token') ||
+        normalizedMessage.includes('jwt');
+
+      if (shouldRetryAuth) {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (!refreshError && refreshData?.session?.access_token) {
+          accessToken = refreshData.session.access_token;
+
+          const retryResult = await invokeCreateTradeOffer(accessToken);
+          data = retryResult.data;
+          error = retryResult.error;
+
+          if (!error) {
+            code = extractErrorCodeFromPayload(data);
+          } else {
+            message = await extractEdgeInvokeErrorMessage(
+              error,
+              data,
+              'Failed to submit your offer. Please try again.'
+            );
+            code = extractErrorCodeFromPayload(data);
+          }
+        }
+      }
+
+      if (error) {
+        console.error('[trade] createTradeOfferWithHold invoke error:', message);
+        return { success: false, error: message, error_code: code };
+      }
     }
 
     const result = data as {

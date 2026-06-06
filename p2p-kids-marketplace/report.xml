@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name="Test Suite" device="Medium_Phone_API_36.1" tests="1" failures="1" time="1.0">
+    <testcase id="module-15.1.2-full-trade-flow-v2" name="module-15.1.2-full-trade-flow-v2" classname="module-15.1.2-full-trade-flow-v2" time="1.0" status="ERROR">
+      <failure>Unable to launch app com.sameralzubaidi.p2pmarketplace</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

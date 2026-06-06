@@ -24,6 +24,7 @@
 | | TC-B05 | Trial disabled globally — Free tier only |
 | | TC-B06 | Continue Kids Club+ (mid-trial) urgency + benefits |
 | | TC-B07 | Referred user warned about bonus loss before choosing Free |
+| | TC-B08 | Admin changes trial-limit config → trial CTA updates |
 | **C — Manage & Cancel** | TC-C01 | My Subscription screen — paid member view |
 | | TC-C02 | My Subscription quick menu (Billing / Payment / Help) |
 | | TC-C03 | Manage Kids Club+ — status, next billing, days remaining |
@@ -37,6 +38,7 @@
 | | TC-D04 | Renew (isRenewal) — payment screen "Due today" = full price |
 | | TC-D05 | Reactivate from cancelled state |
 | | TC-D06 | Subscription event notifications (trial reminders, renewal, failure) |
+| | TC-D07 | Grace reminder notifications follow configured thresholds |
 | **E — Billing History & Status** | TC-E01 | Billing History list — records, status badges, amounts |
 | | TC-E02 | Billing History empty state |
 | | TC-E03 | Failed charge shows error message |
@@ -46,6 +48,7 @@
 | | TC-F03 | Payout history list (completed / pending) |
 | | TC-F04 | Seller Earnings screen — totals, pending, payout breakdown |
 | | TC-F05 | Seller Earnings empty state |
+| | TC-F06 | Pending earnings release follows admin-configured delay |
 | **G — Payout Methods & Verification** | TC-G01 | Add Stripe Connect payout method (onboarding) |
 | | TC-G02 | Add PayPal / Venmo payout method |
 | | TC-G03 | Add Bank ACH payout method |
@@ -57,6 +60,8 @@
 | | TC-H03 | Confirm Payout success |
 | | TC-H04 | Request blocked when no method / unverified |
 | | TC-H05 | Withdraw Now from Payout Settings hero |
+| | TC-H06 | Admin minimum withdrawal blocks smaller payouts |
+| | TC-H07 | Minimum withdrawal disabled when config = 0 |
 | **I — SP Wallet Balance & Earn** | TC-I01 | SP Wallet hero balance + lifetime stats |
 | | TC-I02 | Quick actions (Shop / Sell / History) |
 | | TC-I03 | How to Earn SP section + Learn More |
@@ -318,6 +323,22 @@
 - A "Wait! Potential Bonus Loss" alert warns about losing the sign-up bonus before the Free choice is confirmed.
 - Confirming proceeds to Free (profile_completed = true); cancelling keeps the trial choice available.
 
+### TC-B08 · Admin changes trial-limit config and the trial CTA updates
+
+**Ref:** FLOW-12 · `max_trial_uses`
+**Actors:** test-admin + test-free-2
+
+**Objective:** Verify changing the trial-limit config updates eligibility without an app rebuild.
+
+**Steps:**
+1. As **test-admin**, open **/config**, set `max_trial_uses` to `0`, and save.
+2. As **test-free-2** (the exhausted-trial user from TC-B04), reopen **Subscription Choice** / **Plans**.
+3. Set `max_trial_uses` back to `1` and reload the same screens.
+
+**Expected Result:**
+- With `max_trial_uses = 0`, the previously blocked user sees the trial CTA enabled again because the limit is now unlimited.
+- Restoring the limit removes the CTA again for the exhausted user on next load.
+
 ---
 
 ## Group C — Manage & Cancel
@@ -542,6 +563,22 @@
 - A payment-failure notification is delivered (and is treated as critical — bypasses quiet hours) prompting payment-method update.
 - A cancellation produces a cancellation-confirmation notification.
 
+### TC-D07 · Grace reminder notifications follow configured thresholds
+
+**Ref:** FLOW-17 × admin `grace_reminder_thresholds`
+**Actors:** test-admin + test-grace
+
+**Objective:** Verify grace reminder timing uses the admin-configured threshold array.
+
+**Steps:**
+1. As **test-admin**, set `grace_reminder_thresholds` to a distinct set such as `[30, 7, 1]` and save.
+2. Fast-forward a grace-period user to just above, then exactly at, each configured threshold.
+3. Check both push delivery and the in-app notification center after each threshold.
+
+**Expected Result:**
+- Reminder notifications are delivered at 30, 7, and 1 days remaining, with the correct days-left copy.
+- Thresholds removed from the config no longer fire after the change.
+
 ---
 
 ## Group E — Billing History & Status
@@ -688,6 +725,23 @@
 
 **Expected Result:**
 - "No Earnings Yet" + "Complete trades to start earning and receiving payouts".
+
+### TC-F06 · Pending earnings release follows admin-configured delay
+
+**Ref:** FLOW-22 × admin `pending_sp_release_days`
+**Actors:** test-admin + test-seller
+
+**Objective:** Verify the pending-release delay controls when completed trade earnings move from Pending to Available.
+
+**Steps:**
+1. As **test-admin**, open **/settings/trade-timing**, set `pending_sp_release_days` to a distinct value (for example `1`), and save.
+2. As **test-seller**, complete a trade that creates pending seller earnings / pending SP.
+3. Open **My Earnings** immediately after completion, then again after QA fast-forwards past the configured release window.
+
+**Expected Result:**
+- Immediately after completion, the amount appears in **Pending**, not **Available**.
+- After the configured release delay passes, the same amount moves into the available balance.
+- New trades follow the updated delay without requiring an app rebuild.
 
 ---
 
@@ -865,6 +919,37 @@
 **Expected Result:**
 - With a balance and a verified method, the withdrawal flow proceeds and shows a "Withdrawal Requested" confirmation (amount + net + status).
 - With no balance: "No Balance" alert. With no method: "Please add a verified payout method first."
+
+### TC-H06 · Admin minimum withdrawal amount blocks smaller payouts
+
+**Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents`
+**Actors:** test-admin + test-seller
+
+**Objective:** Verify the configured minimum withdrawal amount is enforced in the payout flow.
+
+**Steps:**
+1. As **test-admin**, set `minimum_withdrawal_amount_cents` to `1000` and save.
+2. As **test-seller** with an available balance above $10, open **Request Payout** and enter an amount below the configured minimum (for example $7.00).
+3. Enter an amount at or above the configured minimum.
+
+**Expected Result:**
+- Amounts below the configured minimum show a clear minimum-withdrawal validation and disable **Confirm**.
+- Amounts at or above the configured minimum proceed normally.
+
+### TC-H07 · Minimum withdrawal disabled when config = 0
+
+**Ref:** FLOW-22 × admin `minimum_withdrawal_amount_cents`
+**Actors:** test-admin + test-seller
+
+**Objective:** Verify a zero minimum disables the payout floor entirely.
+
+**Steps:**
+1. As **test-admin**, set `minimum_withdrawal_amount_cents` to `0` and save.
+2. As **test-seller** with a small available balance, open **Request Payout** and enter a small amount that is otherwise valid.
+
+**Expected Result:**
+- No minimum-withdrawal warning appears.
+- Only balance availability, payout-method, and provider-fee validations remain.
 
 ---
 
@@ -1170,9 +1255,9 @@
 **Expected Result:** SP remains usable through the period; reactivation returns Active.
 
 ### TC-R05 · Config change reflects without app rebuild
-**Objective:** Confirm changing price/fee/expiration/grace in admin reflects in the app on next load.
-**Steps:** 1. Change config; reload the relevant screens.
-**Expected Result:** New values render.
+**Objective:** Confirm changing `subscription_price`, `trial_days`, `transaction_fee_subscriber_cents`, `transaction_fee_non_subscriber_cents`, `grace_period_days`, and `sp_expiration_days` in admin reflects in the app on next load.
+**Steps:** 1. Change one or more of those config values to distinct numbers. 2. Reload Plans, Compare Plans, Manage Kids Club+, Subscription Payment, and SP Wallet.
+**Expected Result:** The new monthly price, trial length, fee comparison, grace countdown, and SP expiration messaging all render without requiring reinstall or rebuild.
 
 ---
 
@@ -1190,6 +1275,7 @@
 | Stripe payment → Success screen (FLOW-12A) | TC-B03 |
 | Trial already used blocked | TC-B04 |
 | Trial disabled globally | TC-B05 |
+| Trial limit config updates eligibility | TC-B04, TC-B08 |
 | Continue Kids Club+ urgency + benefits | TC-B06 |
 | Referred user bonus-loss warning | TC-B07 |
 | My Subscription paid view | TC-C01 |
@@ -1205,6 +1291,7 @@
 | Renewal payment full charge | TC-D04 |
 | Reactivate from cancelled | TC-D05 |
 | Subscription event notifications (FLOW-17) | TC-D06 |
+| Grace reminder thresholds from admin config | TC-D07 |
 | Billing history list + badges | TC-E01 |
 | Billing history empty | TC-E02 |
 | Failed charge error message | TC-E03 |
@@ -1214,6 +1301,7 @@
 | Payout history list | TC-F03 |
 | Seller Earnings totals + breakdown | TC-F04, TC-R03 |
 | Seller Earnings empty | TC-F05 |
+| Pending earnings release delay from admin config | TC-F06 |
 | Add Stripe Connect method (FLOW-23) | TC-G01 |
 | Add PayPal / Venmo method | TC-G02 |
 | Add Bank ACH method | TC-G03 |
@@ -1225,6 +1313,7 @@
 | Confirm payout success | TC-H03 |
 | Request blocked no/unverified method | TC-H04 |
 | Withdraw Now hero path | TC-H05 |
+| Minimum withdrawal config | TC-H06, TC-H07 |
 | SP wallet hero + lifetime stats (FLOW-10) | TC-I01, TC-R02 |
 | SP wallet quick actions | TC-I02 |
 | How to Earn SP + Learn More (FLOW-11) | TC-I03 |

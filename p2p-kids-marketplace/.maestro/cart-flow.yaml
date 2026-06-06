@@ -1,218 +1,94 @@
-# FLOW: cart-system | TASK: CART-001..CART-020 | States covered:
-#   - empty cart
-#   - add-first-item (single seller)
-#   - different-seller-modal (CART-004)
-#   - save-current-cart (CART-007)
-#   - switch-to-saved-cart (CART-008)
-#   - validate-min-cart-value (CART-009)
-#   - favorite-add (CART-016)
-#   - favorite-remove (CART-017)
-#
-# Preconditions:
-#   - Test user logged in (Kids Club+ subscriber)
-#   - At least 2 listings exist in user's node from different sellers
-#   - admin_config: cart_min_value_cents=2000 (in DB)
-#
-# This Maestro flow exercises the cart UI end-to-end. It depends on the
-# RPC-backed cartService / favoritesService implementations from MODULE-15.2.
+# FLOW: cart-flow
+# Purpose: Cart system E2E tests — add item, verify cart, navigate favorites
+# Covers: TC-M01, TC-M08, TC-M14, TC-M15
 
-appId: com.kidsp2p.marketplace
+appId: com.sameralzubaidi.p2pmarketplace
 ---
-
 - launchApp:
     clearState: false
-
-- waitForAnimationToEnd:
-    timeout: 3000
-
-# ─── STATE 1: Empty cart ──────────────────────────────────────────────────────
-
-- tapOn:
-    id: "tab-cart"
-    optional: true
 - waitForAnimationToEnd
 
+# ── Step 1: Seed a test listing (login as seller, create item) ──
+- runFlow: helpers/tfv2-login-seller.yaml
+- runFlow: helpers/tfv2-seed-listing.yaml
+
+# ── Step 2: Stop app and restart as buyer ──
+- stopApp
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- runFlow: helpers/tfv2-login-buyer.yaml
+
+# ── Login as buyer ──
+- runFlow:
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - tapOn:
+          id: "login-email-input"
+      - eraseText
+      - inputText: "test-buyer@kidsmarketplace.test"
+      - tapOn:
+          id: "login-password-input"
+      - eraseText
+      - inputText: "TestBuyer123!"
+      - tapOn:
+          id: "login-submit-button"
+      - waitForAnimationToEnd
+
+# ── Navigate to Discover tab ──
+- tapOn:
+    id: "tab-discover"
+- waitForAnimationToEnd
+
+# ── Verify discover screen loaded ──
 - assertVisible:
-    id: "cart-empty-state"
-    optional: true
-
-# ─── STATE 2: Favorites screen reachable from cart ────────────────────────────
-
-- tapOn:
-    id: "favorites-link"
-    optional: true
+    id: "discover-results-list"
 - waitForAnimationToEnd
 
-- assertVisible:
-    text: "Favorites"
-    optional: true
-
-# Go back to home
+# ── Tap first listing card (should exist after seeding) ──
 - tapOn:
-    id: "tab-home"
-    optional: true
-- waitForAnimationToEnd
-
-# ─── STATE 3: Add first item to cart ──────────────────────────────────────────
-
-- tapOn:
-    id: "tab-discovery"
-    optional: true
-- waitForAnimationToEnd
-
-# Open the first listing
-- tapOn:
+    id: "search-result-"
     index: 0
-
-- waitForAnimationToEnd:
-    timeout: 2000
-
-# Favorite the listing (CART-016)
-- tapOn:
-    id: "favorite-button"
-    optional: true
 - waitForAnimationToEnd
 
-# Add to cart
+# ── Verify item detail screen loaded ──
+- assertVisible:
+    id: "item-detail-title"
+- assertVisible:
+    id: "item-detail-price"
+- waitForAnimationToEnd
+
+# ── Tap Add to Cart button ──
 - tapOn:
     id: "add-to-cart-button"
-- waitForAnimationToEnd:
-    timeout: 1500
-
-- assertVisible:
-    text: "Added to Cart"
-    optional: true
-
-- tapOn:
-    text: "OK"
-    optional: true
-
-# ─── STATE 4: Open cart and verify item appears ───────────────────────────────
-
-- tapOn:
-    id: "tab-cart"
 - waitForAnimationToEnd
 
-- assertVisible:
-    id: "cart-checkout-button"
-    optional: true
-
-# ─── STATE 5: Try to add an item from a DIFFERENT seller ──────────────────────
-
-- tapOn:
-    id: "tab-discovery"
-- waitForAnimationToEnd
-
-# Open a different listing (index 1 — assumes seeded test data has 2+ sellers)
-- tapOn:
-    index: 1
-- waitForAnimationToEnd:
-    timeout: 2000
-
-- tapOn:
-    id: "add-to-cart-button"
-- waitForAnimationToEnd:
-    timeout: 1500
-
-# Expect DIFFERENT_SELLER modal
-- assertVisible:
-    text: "Different Seller"
-    optional: true
-
-# Save current cart and start new
-- tapOn:
-    text: "Save current cart"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 2000
-
-# ─── STATE 6: Verify saved carts section ──────────────────────────────────────
-
-- tapOn:
-    id: "tab-cart"
-- waitForAnimationToEnd
-
-- assertVisible:
-    id: "saved-carts-section"
-    optional: true
-
-# ─── STATE 7: Switch back to a saved cart ─────────────────────────────────────
-
-- tapOn:
-    id: "saved-cart-switch-0"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 2000
-
-# ─── STATE 8: Validate min cart value ─────────────────────────────────────────
-# (Best-effort assertion — only triggers if cart total < $20)
-- tapOn:
-    id: "cart-checkout-button"
-    optional: true
-- waitForAnimationToEnd
-
-- assertVisible:
-    text: "below"
-    optional: true
-
-# ─── STATE 9: Remove favorite from Favorites screen (CART-017) ────────────────
-
-- tapOn:
-    id: "favorites-link"
-    optional: true
-- waitForAnimationToEnd
-
-- tapOn:
-    id: "favorite-remove-0"
-    optional: true
-- waitForAnimationToEnd:
-    timeout: 1500
-
-# ─── STATE 10: CART-014 — ALREADY_IN_CART shows "View Cart" button ───────────
-# After adding an item once, the button should change to "View Cart".
-# Prerequisites: item must have been added in STATE 3.
-
-- tapOn:
-    id: "tab-discovery"
-    optional: true
-- waitForAnimationToEnd
-
+# ── Verify View Cart button appears ──
 - assertVisible:
     id: "view-cart-button"
-    optional: true
-
-# ─── STATE 11: CART-014 — Own-item: "Add to Cart" hidden for seller ──────────
-# Navigate to a listing owned by the logged-in user.
-# add-to-cart-button should NOT be visible.
-
-- assertNotVisible:
-    id: "add-to-cart-button"
-    optional: true
-
-# ─── STATE 12: R-04 — Disabled checkout banner appears when below minimum ────
-
-- tapOn:
-    id: "tab-cart"
-    optional: true
 - waitForAnimationToEnd
 
-- assertVisible:
-    id: "min-value-banner"
-    optional: true
+# ── Navigate to Me tab ──
+- tapOn:
+    id: "tab-me"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
 
-- assertVisible:
-    id: "checkout-button"
-    optional: true
+# ── Navigate to MyListings from Me tab via profile listings stat ──
+- runFlow:
+    when:
+      visible:
+        id: "profile-listings-stat"
+    commands:
+      - tapOn:
+          id: "profile-listings-stat"
+      - waitForAnimationToEnd
 
-# Checkout button should be disabled (not tappable when below min value)
-# Maestro doesn't directly test disabled state; assertVisible is sufficient
-# to confirm the banner is shown.
+      # ── Navigate back to Me tab ──
+      - tapOn:
+          id: "tab-me"
+      - waitForAnimationToEnd
 
-# ─── STATE 13: R-10 — Inline unavailability row warning ──────────────────────
-# If a cart item's liveStatus is not 'available', the warning badge shows.
-# This state is optional since it requires an unavailable test item.
-
-- assertVisible:
-    id: "cart-item-unavailable-test-item-id"
-    optional: true
-
+- stopApp

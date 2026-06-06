@@ -22,44 +22,84 @@ async function parseRetryError(err: unknown): Promise<ParsedRetryError> {
     return fallback;
   }
 
-  const candidate = err as {
-    message?: unknown;
-    code?: unknown;
-    context?: {
-      clone?: () => { text: () => Promise<string> };
-      text?: () => Promise<string>;
-    };
-  };
+  const candidate = err as Record<string, unknown>;
 
   const directCode = typeof candidate.code === 'string' ? candidate.code : null;
   const directMessage = typeof candidate.message === 'string' ? candidate.message : null;
 
+  // Try to extract error from supabase.functions.invoke response
+  // The error object may have different shapes depending on environment:
+  // 1. FunctionsHttpError with context (Response object) - production / dev
+  // 2. { context: { data } } - Expo Go / dev with relay
+  // 3. { message, code } - direct error
   try {
-    const responseLike = candidate.context;
-    if (responseLike) {
-      let payloadText: string | null = null;
+    const context = candidate.context;
 
-      if (typeof responseLike.clone === 'function') {
-        payloadText = await responseLike.clone().text();
-      } else if (typeof responseLike.text === 'function') {
-        payloadText = await responseLike.text();
+    // Case 1: context is a Response object (FunctionsHttpError)
+    if (context && typeof context === 'object' && 'json' in (context as any)) {
+      try {
+        const response = context as Response;
+        const body = await response.json() as Record<string, unknown>;
+        // Edge functions return { success: false, error: { code, message } }
+        const errorObj = body.error as Record<string, unknown> | undefined;
+        if (errorObj && typeof errorObj === 'object') {
+          const code = typeof errorObj.code === 'string' ? errorObj.code : null;
+          const message = typeof errorObj.message === 'string' ? errorObj.message : null;
+          if (code || message) {
+            return { code: code || fallback.code, message: message || fallback.message };
+          }
+        }
+        // Fallback: check top-level code/message
+        const topCode = typeof body.code === 'string' ? body.code : null;
+        const topMessage = typeof body.message === 'string' ? body.message : null;
+        if (topCode || topMessage) {
+          return { code: topCode || fallback.code, message: topMessage || fallback.message };
+        }
+      } catch {
+        // Response.json() failed, try text()
+        try {
+          const response = context as Response;
+          const text = await response.text();
+          if (text) {
+            const parsed = JSON.parse(text) as Record<string, unknown>;
+            const errorObj = parsed.error as Record<string, unknown> | undefined;
+            if (errorObj && typeof errorObj === 'object') {
+              const code = typeof errorObj.code === 'string' ? errorObj.code : null;
+              const message = typeof errorObj.message === 'string' ? errorObj.message : null;
+              if (code || message) {
+                return { code: code || fallback.code, message: message || fallback.message };
+              }
+            }
+            const topCode = typeof parsed.code === 'string' ? parsed.code : null;
+            const topMessage = typeof parsed.message === 'string' ? parsed.message : null;
+            if (topCode || topMessage) {
+              return { code: topCode || fallback.code, message: topMessage || fallback.message };
+            }
+          }
+        } catch {
+          // ignore
+        }
       }
+    }
 
-      if (payloadText) {
-        const parsed = JSON.parse(payloadText) as {
-          error?: { code?: string; message?: string };
-          code?: string;
-          message?: string;
-        };
-
-        const payloadCode = parsed.error?.code || parsed.code;
-        const payloadMessage = parsed.error?.message || parsed.message;
-
+    // Case 2: context.data (Expo Go relay shape)
+    if (context && typeof context === 'object') {
+      const ctx = context as Record<string, unknown>;
+      const contextData = ctx.data;
+      if (contextData && typeof contextData === 'object') {
+        const dataObj = contextData as Record<string, unknown>;
+        const payloadError = dataObj.error as Record<string, unknown> | undefined;
+        if (payloadError && typeof payloadError === 'object') {
+          const code = typeof payloadError.code === 'string' ? payloadError.code : null;
+          const message = typeof payloadError.message === 'string' ? payloadError.message : null;
+          if (code || message) {
+            return { code: code || fallback.code, message: message || fallback.message };
+          }
+        }
+        const payloadCode = typeof dataObj.code === 'string' ? dataObj.code : null;
+        const payloadMessage = typeof dataObj.message === 'string' ? dataObj.message : null;
         if (payloadCode || payloadMessage) {
-          return {
-            code: payloadCode || directCode || fallback.code,
-            message: payloadMessage || directMessage || fallback.message,
-          };
+          return { code: payloadCode || fallback.code, message: payloadMessage || fallback.message };
         }
       }
     }
@@ -72,6 +112,8 @@ async function parseRetryError(err: unknown): Promise<ParsedRetryError> {
     message: directMessage || fallback.message,
   };
 }
+
+
 
 export interface RetryPaymentResult {
   success: boolean;
@@ -119,9 +161,12 @@ export async function retryFailedPayment(
         console.log(
           '[paymentRetry] retry-failed-payment function is not deployed in this environment'
         );
+      } else if (parsedError.code === 'NO_FAILED_PAYMENT') {
+        console.log('[paymentRetry] No failed payment to retry (normal when adding new payment method)');
       } else {
         console.error('[paymentRetry] Edge Function error:', parsedError);
       }
+
 
       return {
         success: false,

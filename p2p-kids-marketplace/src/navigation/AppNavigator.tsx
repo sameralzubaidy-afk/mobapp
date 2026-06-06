@@ -66,6 +66,7 @@ import TransactionHistoryScreen from '@/screens/profile/TransactionHistoryScreen
 import { SubmitReviewScreen } from '@/screens/review/SubmitReviewScreen';
 import { ReferralsScreen } from "@/screens/referrals/ReferralsScreen";
 import SettingsScreen from '@/screens/profile/SettingsScreen';
+import PaymentMethodsScreen from '@/screens/profile/PaymentMethodsScreen';
 import LinkedAccountsScreen from '@/screens/profile/LinkedAccountsScreen';
 import NotificationPreferencesScreen from '@/screens/profile/NotificationPreferencesScreen';
 import { NotificationSetup } from '@/components/NotificationSetup';
@@ -565,6 +566,9 @@ function RootNavigator() {
               component={TradeOfferScreen}
               options={{ headerShown: false }}
             />
+            {/* @deprecated Use ReviewOffer instead. TradeReview is the old broken screen
+                that sets payment_processing (wrong) instead of calling the EF.
+                Kept only for backward compat with stale notification payloads. */}
             <Stack.Screen
               name="TradeReview"
               component={TradeReviewScreen}
@@ -757,6 +761,11 @@ function RootNavigator() {
             <Stack.Screen
               name="Settings"
               component={SettingsScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PaymentMethods"
+              component={PaymentMethodsScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-18 EDU-005: Help screen */}

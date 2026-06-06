@@ -122,7 +122,7 @@ export default function ItemCreateScreen() {
 
   const draftId = route.params?.draftId;
   const initialPhotoSource = route.params?.initialPhotoSource as PhotoSourceOption | undefined;
-  const showPhotoSourcePrompt = Boolean(route.params?.showPhotoSourcePrompt);
+  const showPhotoSourcePrompt = route.params?.showPhotoSourcePrompt !== false;
   const sellerId = session?.user?.id || '';
   const hasTriggeredInitialDraftCreateRef = useRef(false);
   const hasHydratedDraftRef = useRef(false);

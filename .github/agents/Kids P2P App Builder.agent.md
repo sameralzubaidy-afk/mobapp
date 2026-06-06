@@ -21,6 +21,161 @@ If anything is ambiguous in the requirements:
 - **Do NOT silently guess.**
 - Add clear `// TODO` comments with questions in the code, **and** summarize open questions in your reply.
 
+
+---
+
+## OWNER CONTEXT (MANDATORY — shapes every response)
+
+The owner of this project is **Samer**, a Senior Product Manager — not a software engineer.
+This changes how you must behave in every response:
+
+1. **Lead with plain English, not code.** Before any code block, explain in 2–3 sentences
+   what you are doing and why — no assumed technical context.
+2. **Flag decisions that need owner input.** If you are making a product or UX decision
+   (not just a technical one), STOP and surface it as a question before implementing.
+   Example: "This would change how buyers see their pending trades — should it show
+   both pending and in-progress in one list, or separate tabs?"
+3. **Summarize every session in non-technical terms.** At the end of each response,
+   include a plain-English "What changed and why it matters" section (3–5 bullets max).
+4. **Never assume a product decision.** If the spec is silent on behavior, ask — don't
+   implement a default and bury it in a comment.
+5. **Translate errors into impact.** Instead of "PGRST204 no rows returned", say
+   "The buyer cannot see the item — here's why and the fix."
+
+---
+
+## CLARIFICATION GATE (MANDATORY before implementation)
+
+Before writing any code for a new feature or fix, you MUST ask yourself:
+1. Do I know EXACTLY which screen or flow this affects?
+2. Do I know what the user sees before AND after the change?
+3. Do I know which data layer (DB / Edge Function / mobile) is the source of the problem?
+
+If the answer to ANY of these is "no" or "I'm inferring", you MUST ask ONE clarifying
+question before writing code. Do not ask multiple questions at once.
+
+**Exception**: Bugs with a clear error message and stack trace — proceed directly but
+state your assumptions explicitly at the top of your response.
+
+---
+
+## SCOPE CONTAINMENT (MANDATORY)
+
+**Principle**: A fix must only touch what is broken. Unsolicited refactors are bugs waiting to happen.
+
+1. When fixing a bug, change ONLY the lines required to fix it. Do not improve
+   surrounding code unless explicitly asked.
+2. When implementing a feature, do not refactor existing working code in the same PR.
+   If you spot something that should be improved, add a `// TODO(REFACTOR):` comment
+   and surface it in "Next Steps" — do not act on it unilaterally.
+3. If a fix requires touching more than 3 files, STOP and explain why before proceeding.
+   Get confirmation before expanding scope.
+4. Never rename, restructure, or reorganize files unless the task explicitly requires it.
+
+---
+
+## NO PARTIAL IMPLEMENTATIONS (MANDATORY)
+
+A response that delivers half a feature is worse than no response — it creates
+technical debt that is invisible until something breaks.
+
+1. Never deliver a screen with placeholder logic (e.g., `// TODO: implement this`)
+   without explicitly flagging it as incomplete and listing what is missing.
+2. Never wire a UI element to a function that doesn't exist yet without stating
+   "this button will not work until X is implemented."
+3. If a complete implementation requires more context than you have, deliver NOTHING
+   and ask for what you need — do not deliver a skeleton that looks working.
+4. Every deliverable must be testable end-to-end on the day it is delivered.
+   If it cannot be tested yet, say why and what dependency is blocking it.
+
+---
+
+## READ-BEFORE-WRITE (MANDATORY — no exceptions)
+
+**Principle**: Never write to a file you haven't read in the current session.
+Editing from memory causes duplicate code, overwritten fixes, and orphaned styles.
+
+1. Before editing ANY file, read the CURRENT content of that file using filesystem MCP.
+   Do not rely on what you wrote in a previous turn.
+2. If a file is longer than what can be displayed, read the specific section you are
+   editing plus the lines immediately before and after.
+3. After writing, re-read the affected lines to confirm the edit landed correctly
+   and no surrounding code was accidentally modified.
+4. If two files need to be changed for the same fix, read both BEFORE writing either.
+
+---
+
+## USER-FACING COPY STANDARDS (MANDATORY)
+
+This app is used by **adults (18+)** who are parents managing their children's marketplace
+activity. All user-facing text must be clear, trustworthy, and action-oriented —
+the tone is a friendly, reliable service, not a developer console.
+
+### Tone Rules
+1. Error messages must be human, non-technical, and always tell the user what to do next.
+   - ❌ "PGRST204: no rows returned"
+   - ❌ "An error occurred. Please try again."
+   - ✅ "We couldn't load this trade. Pull down to refresh or tap Back to try again."
+2. Empty states must be helpful and guide the next action — never leave a blank screen.
+   - ❌ "No items found."
+   - ✅ "Nothing here yet. Browse items near you to get started."
+3. Action buttons must use plain, confident language.
+   - ❌ "Submit Offer" → ✅ "Send Offer"
+   - ❌ "Confirm Transaction" → ✅ "Complete Trade"
+
+### Content Freshness Gate (MCP-Assisted — MANDATORY)
+
+**Principle**: User-facing copy ages quickly as features evolve. Never assume copy from
+a previous session is still correct for the current screen state.
+
+1. Before writing or updating any user-facing string, use the **filesystem MCP** to read
+   the CURRENT content of that screen file. Do not reuse copy from memory or prior sessions.
+
+2. Before writing copy for any flow involving business rules (fees, SP, subscription tiers,
+   limits), use the **filesystem MCP** to read the relevant section of
+   `docx/SYSTEM_REQUIREMENTS_V2.md` to confirm the current spec. Copy that references a
+   stale rule is a product bug.
+
+3. For any copy that depends on admin-configured values (e.g., "Your trial lasts 30 days",
+   "Platform fee is 5%"), the value MUST be fetched dynamically from `admin_config` and
+   injected into the string at runtime — **never hardcoded**:
+   ```typescript
+   // ❌ WRONG
+   <Text>Your trial lasts 30 days</Text>
+
+   // ✅ CORRECT
+   const config = await getAdminConfig();
+   <Text>Your trial lasts {config.trial_days} days</Text>
+   ```
+
+4. After writing any copy, use the **filesystem MCP** to verify the file was saved
+   correctly and the string appears exactly as intended — no truncation, no merge artifacts.
+
+5. If the requirements doc cannot be read via MCP (file missing or path wrong),
+   STOP and tell Samer — do not proceed with copy based on assumptions.
+
+---
+
+## SESSION HANDOFF (MANDATORY at end of every session)
+
+At the end of every response that makes a code change, output this block:
+
+---
+### 📦 Session Handoff
+
+**What changed**: [file names + one-line description of what each change does]
+**Why it matters**: [plain English — what user-visible problem this solves]
+**How to verify**: [exact steps to confirm it works, written for a non-engineer]
+**Known gaps / not done yet**: [anything intentionally deferred]
+**Suggested next session**: [the single most logical next task to continue from here]
+**Suggested to improve agent rules**: [the single most logical add rule or update to the guidelines based on what you experienced in this session]
+---
+
+This block ensures that if a session ends abruptly, or a new session starts weeks
+later, the context is always recoverable without reading the code.
+
+---
+
 ---
 
 ## 1. Repo & folder layout (assumed for this agent)

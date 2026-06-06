@@ -42,15 +42,14 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
   });
 
   describe('Rendering States', () => {
-    it('should render empty state with add buttons', () => {
+    it('should render empty state with add photo button', () => {
       const { getByTestId, getByText } = render(
         <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
       );
 
       expect(getByTestId('image-picker-grid')).toBeTruthy();
       expect(getByText('Photos (0/5)')).toBeTruthy();
-      expect(getByTestId('image-picker-grid-add-from-gallery')).toBeTruthy();
-      expect(getByTestId('image-picker-grid-add-from-camera')).toBeTruthy();
+      expect(getByTestId('image-picker-grid-add-photo')).toBeTruthy();
     });
 
     it('should render with existing images and show cover badge on first', () => {
@@ -64,7 +63,7 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
       expect(getByText('Cover')).toBeTruthy(); // First image shows cover badge
     });
 
-    it('should not show add buttons when at max limit (5 images)', () => {
+    it('should not show add button when at max limit (5 images)', () => {
       const maxImages: SelectedImage[] = [
         { uri: 'file:///1.jpg', width: 800, height: 600 },
         { uri: 'file:///2.jpg', width: 800, height: 600 },
@@ -78,8 +77,7 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
       );
 
       expect(getByText('Photos (5/5)')).toBeTruthy();
-      expect(queryByTestId('image-picker-grid-add-from-gallery')).toBeNull();
-      expect(queryByTestId('image-picker-grid-add-from-camera')).toBeNull();
+      expect(queryByTestId('image-picker-grid-add-photo')).toBeNull();
     });
 
     it('should show uploading state', () => {
@@ -88,8 +86,35 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
       );
 
       expect(getByText('Uploading images...')).toBeTruthy();
-      expect(queryByTestId('image-picker-grid-add-from-gallery')).toBeNull();
-      expect(queryByTestId('image-picker-grid-add-from-camera')).toBeNull();
+      expect(queryByTestId('image-picker-grid-add-photo')).toBeNull();
+    });
+  });
+
+  describe('Photo Source Modal', () => {
+    it('should open photo source modal when Add Photo is pressed', () => {
+      const { getByTestId, getByText } = render(
+        <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
+      );
+
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+
+      expect(getByText('Add Photo')).toBeTruthy();
+      expect(getByText('Choose how you want to add a photo.')).toBeTruthy();
+      expect(getByTestId('image-picker-grid-source-camera')).toBeTruthy();
+      expect(getByTestId('image-picker-grid-source-library')).toBeTruthy();
+      expect(getByTestId('image-picker-grid-source-cancel')).toBeTruthy();
+    });
+
+    it('should close modal when Cancel is pressed', () => {
+      const { getByTestId, queryByText } = render(
+        <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
+      );
+
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+      fireEvent.press(getByTestId('image-picker-grid-source-cancel'));
+
+      // Modal should be closed — "Add Photo" title no longer visible
+      expect(queryByText('Add Photo')).toBeNull();
     });
   });
 
@@ -108,7 +133,9 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
         <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
       );
 
-      fireEvent.press(getByTestId('image-picker-grid-add-from-gallery'));
+      // Open modal then pick library
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+      fireEvent.press(getByTestId('image-picker-grid-source-library'));
 
       await waitFor(() => {
         expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled();
@@ -141,7 +168,8 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
         <ImagePickerGrid images={mockImages} onImagesChange={mockOnImagesChange} />
       );
 
-      fireEvent.press(getByTestId('image-picker-grid-add-from-gallery'));
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+      fireEvent.press(getByTestId('image-picker-grid-source-library'));
 
       await waitFor(() => {
         expect(mockOnImagesChange).toHaveBeenCalledWith([
@@ -163,7 +191,8 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
         <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
       );
 
-      fireEvent.press(getByTestId('image-picker-grid-add-from-gallery'));
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+      fireEvent.press(getByTestId('image-picker-grid-source-library'));
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
@@ -189,7 +218,8 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
         <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
       );
 
-      fireEvent.press(getByTestId('image-picker-grid-add-from-gallery'));
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+      fireEvent.press(getByTestId('image-picker-grid-source-library'));
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
@@ -205,13 +235,12 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
         .fill(null)
         .map((_, i) => ({ uri: `file:///${i}.jpg`, width: 800, height: 600 }));
 
-      const { getByTestId } = render(
+      const { queryByTestId } = render(
         <ImagePickerGrid images={maxImages} onImagesChange={mockOnImagesChange} />
       );
 
-      // Buttons should not be rendered, but test that pressing would show alert if rendered
-      // This tests the picker logic before render
-      expect(() => getByTestId('image-picker-grid-add-from-gallery')).toThrow();
+      // Button should not be rendered at max capacity
+      expect(queryByTestId('image-picker-grid-add-photo')).toBeNull();
     });
 
     it('should handle user cancellation gracefully', async () => {
@@ -228,7 +257,8 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
         <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
       );
 
-      fireEvent.press(getByTestId('image-picker-grid-add-from-gallery'));
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+      fireEvent.press(getByTestId('image-picker-grid-source-library'));
 
       await waitFor(() => {
         expect(mockOnImagesChange).not.toHaveBeenCalled();
@@ -252,7 +282,9 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
         <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
       );
 
-      fireEvent.press(getByTestId('image-picker-grid-add-from-camera'));
+      // Open modal then pick camera
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+      fireEvent.press(getByTestId('image-picker-grid-source-camera'));
 
       await waitFor(() => {
         expect(ImagePicker.requestCameraPermissionsAsync).toHaveBeenCalled();
@@ -277,7 +309,8 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
         <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
       );
 
-      fireEvent.press(getByTestId('image-picker-grid-add-from-camera'));
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+      fireEvent.press(getByTestId('image-picker-grid-source-camera'));
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
@@ -305,7 +338,8 @@ describe('ImagePickerGrid Component - Unit Tests', () => {
         <ImagePickerGrid images={[]} onImagesChange={mockOnImagesChange} />
       );
 
-      fireEvent.press(getByTestId('image-picker-grid-add-from-camera'));
+      fireEvent.press(getByTestId('image-picker-grid-add-photo'));
+      fireEvent.press(getByTestId('image-picker-grid-source-camera'));
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith('File Too Large', 'Image must be under 5 MB');

@@ -8,21 +8,26 @@
  * - Failure state: XCircle 72px red (#E85D75), error message display
  * - D-14: Buyer CTAs: "Leave a Review", "View SP Earned"
  * - D-14: Seller CTAs: "List Another Item", "View Earnings", "Leave a Review"
- * - "Back to Home" text link
+ * - "View My Trades" button (primary), "Back to Home" button (outlined)
+ * - Kids Club upsell as prominent primary CTA for free users
+ * - Fee savings dynamically computed from admin_config (no hardcoded $2)
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Pressable
+  Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
-import { CheckCircle, XCircle, Coins, Star } from 'phosphor-react-native';
+import { CheckCircle, XCircle, Coins } from 'phosphor-react-native';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import ScreenLayout from '@/components/ScreenLayout';
+import { getTransactionFee } from '@/services/subscription';
+import { useAuth } from '@/hooks/useAuth';
 
 type TradeSuccessRouteProp = RouteProp<RootStackParamList, 'TradeSuccess'>;
 
@@ -44,15 +49,17 @@ function buildCompletionCTA(
   releaseDays: number,
   remainingSP: number,
   spAmountDollars: number,
-  navigation: any
+  navigation: any,
+  feeSavingsCents: number,
 ): CompletionCTA {
   if (isBuyer) {
     if (!isSubscriber) {
       // Permutation 1: Free buyer — upsell Kids Club+
+      const savingsDollars = (feeSavingsCents / 100).toFixed(2);
       return {
-        message: `Kids Club+ would've saved you $2 on this trade — try it free for 30 days.`,
+        message: `Kids Club+ would've saved you $${savingsDollars} on this trade — try it free for 30 days.`,
         ctaLabel: 'Try Kids Club+ Free — 30 Days',
-        onPress: () => navigation.navigate('SubscriptionChoice'),
+        onPress: () => navigation.navigate('PlanComparison'),
       };
     } else if (spUsedByBuyer > 0) {
       // Permutation 2: Subscriber buyer, used SP
@@ -77,7 +84,7 @@ function buildCompletionCTA(
       return {
         message: 'Subscribe to earn Swap Points on your next sale — set "Accept SP" when listing.',
         ctaLabel: 'Try Kids Club+ Free — 30 Days',
-        onPress: () => navigation.navigate('SubscriptionChoice'),
+        onPress: () => navigation.navigate('PlanComparison'),
       };
     } else if (listingType === 'cash_only') {
       // Permutation 5: Subscriber seller, cash_only listing
@@ -110,6 +117,8 @@ export default function TradeSuccessScreen() {
   const route = useRoute<TradeSuccessRouteProp>();
   const navigation = useNavigation<any>();
   const { tradeId } = route.params;
+  const { session } = useAuth();
+  const user = session?.user;
 
   // Determine state from params (default to success)
   const isSuccess = (route.params as any)?.success !== false;
@@ -117,8 +126,6 @@ export default function TradeSuccessScreen() {
   const errorMessage = (route.params as any)?.errorMessage;
   // TFV2-014: role, subscription tier, and SP data for 7-permutation CTAs
   const role: 'buyer' | 'seller' = (route.params as any)?.role ?? 'buyer';
-  const sellerId: string | undefined = (route.params as any)?.sellerId;
-  const buyerId: string | undefined = (route.params as any)?.buyerId;
   const subscriptionStatus: 'free' | 'subscriber' = (route.params as any)?.subscriptionStatus ?? 'free';
   const spUsed: number = (route.params as any)?.spUsed ?? 0;
   const listingType: 'cash_only' | 'accept_sp' | 'donate' = (route.params as any)?.listingType ?? 'cash_only';
@@ -126,6 +133,36 @@ export default function TradeSuccessScreen() {
   const spPendingReleaseDays: number = (route.params as any)?.spPendingReleaseDays ?? 3;
   const remainingSP: number = (route.params as any)?.remainingSP ?? 0;
   const spAmountDollars: number = (route.params as any)?.spAmountDollars ?? 0;
+
+  // ── Dynamic fee savings from admin_config ──────────────────────────────
+  const [feeSavingsCents, setFeeSavingsCents] = useState(200); // default $2
+  const [loadingFee, setLoadingFee] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLoadingFee(false);
+      return;
+    }
+    let cancelled = false;
+    const loadFee = async () => {
+      try {
+        const fee = await getTransactionFee(user.id);
+        if (!cancelled) {
+          // Savings = non-subscriber fee (299) - subscriber fee (99) = 200
+          // But we compute it dynamically: nonSubFee - actualFee
+          const nonSubFee = 299;
+          const savings = Math.max(0, nonSubFee - fee);
+          setFeeSavingsCents(savings);
+        }
+      } catch {
+        // keep default $2
+      } finally {
+        if (!cancelled) setLoadingFee(false);
+      }
+    };
+    void loadFee();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const handlePrimaryAction = () => {
     if (isSuccess) {
@@ -167,13 +204,6 @@ export default function TradeSuccessScreen() {
           </View>
         )}
 
-        {/* Trade ID (success only) */}
-        {isSuccess && (
-          <Text style={styles.tradeId} testID="trade-id-text">
-            Trade ID: {tradeId}
-          </Text>
-        )}
-
         {/* TFV2-014: 7-permutation CTAs based on role + subscription tier */}
         {isSuccess ? (
           (() => {
@@ -190,7 +220,8 @@ export default function TradeSuccessScreen() {
               spPendingReleaseDays,
               remainingSP,
               spAmountDollars,
-              navigation
+              navigation,
+              feeSavingsCents,
             );
             return (
               <View style={styles.ctaGroup}>
@@ -206,28 +237,13 @@ export default function TradeSuccessScreen() {
                   <Text style={styles.primaryButtonText}>{cta.ctaLabel}</Text>
                 </Pressable>
 
-                {/* Rate & Review — non-blocking text link */}
+                {/* View My Trades button (replaces old "Done" text link) */}
                 <Pressable
-                  style={styles.linkButton}
-                  onPress={() => {
-                    const revieweeId = role === 'buyer' ? sellerId : buyerId;
-                    if (revieweeId) {
-                      navigation.navigate('ReviewCreate', { tradeId, revieweeId });
-                    }
-                  }}
-                  testID="cta-rate-review-link"
+                  style={styles.secondaryButton}
+                  onPress={() => navigation.navigate('TradeList')}
+                  testID="cta-view-trades-button"
                 >
-                  <Star size={14} color="#F59E0B" weight="bold" />
-                  <Text style={styles.linkText}>Rate &amp; Review</Text>
-                </Pressable>
-
-                {/* Done text link */}
-                <Pressable
-                  style={styles.linkButton}
-                  onPress={() => navigation.navigate('Home')}
-                  testID="cta-done-link"
-                >
-                  <Text style={styles.linkText}>Done</Text>
+                  <Text style={styles.secondaryButtonText}>View My Trades</Text>
                 </Pressable>
               </View>
             );
@@ -245,13 +261,13 @@ export default function TradeSuccessScreen() {
           </View>
         )}
 
-        {/* Back to Home Link */}
+        {/* Back to Home — outlined button matching app style */}
         <Pressable
           style={styles.backHomeButton}
           onPress={() => navigation.navigate('Home')}
           testID="back-home-button"
         >
-          <Text style={styles.linkText}>Back to Home</Text>
+          <Text style={styles.backHomeButtonText}>Back to Home</Text>
         </Pressable>
       </View>
       <PersistentTabBar />
@@ -303,11 +319,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#F59E0B',
   },
-  tradeId: {
-    fontSize: 12,
-    color: '#999999',
-    marginBottom: 24,
-  },
   ctaMessage: {
     fontSize: 14,
     color: '#6B6B6B',
@@ -355,19 +366,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#5DBB8E',
   },
-  linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 8,
-  },
   backHomeButton: {
+    width: '100%',
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#5DBB8E',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: 16,
-    paddingVertical: 12,
   },
-  linkText: {
-    fontSize: 14,
-    color: '#6B6B6B',
+  backHomeButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#5DBB8E',
   },
 });
 

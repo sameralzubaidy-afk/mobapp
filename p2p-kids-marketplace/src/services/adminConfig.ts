@@ -110,27 +110,8 @@ export async function getAdminConfig(forceRefresh = false): Promise<AdminConfig>
         data_type: string;
       }[];
     } else {
-      const { data: legacyRows, error: legacyError } = await supabase
-        .from('admin_config')
-        .select('config_key, config_value, data_type')
-        .eq('is_active', true);
-
-      if (legacyError) {
-        console.warn('⚠️ Failed to fetch admin config:', legacyError.message);
-        return getDefaultConfig();
-      }
-
-      configRows = (legacyRows ?? []).map(
-        (row: {
-          config_key: string;
-          config_value: string | boolean | number;
-          data_type: string;
-        }) => ({
-          key: row.config_key,
-          value: row.config_value,
-          data_type: row.data_type,
-        })
-      );
+      console.warn('⚠️ Failed to fetch admin config:', keyValueError?.message);
+      return getDefaultConfig();
     }
 
     const config = getDefaultConfig();
@@ -314,28 +295,6 @@ export async function getSPExpirationDays(forceRefresh = false): Promise<number>
   } catch (err) {
     console.warn(
       '⚠️ getSPExpirationDays table read (key/value) failed, trying legacy schema:',
-      (err as Error).message
-    );
-  }
-
-  // Legacy admin_config schema fallback (config_key/config_value).
-  try {
-    const { data, error } = await supabase
-      .from('admin_config')
-      .select('config_value')
-      .eq('config_key', 'sp_expiration_days')
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (!error && data?.config_value != null) {
-      const parsed = Number(data.config_value);
-      if (Number.isFinite(parsed) && parsed > 0) {
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn(
-      '⚠️ getSPExpirationDays table read (legacy schema) failed, trying RPC fallback:',
       (err as Error).message
     );
   }

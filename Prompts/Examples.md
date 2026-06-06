@@ -53,8 +53,52 @@ Supabase: supabase/
 - read this md file for search and filter requiremnets , we need to take these functions into considration as we are enhaceing create new items feature 
 /Users/sameralzubaidi/Desktop/kids_marketplace_app/docx/SEARCH-FILTER-REQUIREMENTS.md
 -----
-My Example 1
 
+
+- [ ] you before start any next task
+
+
+### toubleshooting 
+Use Mobile MCP to take a screenshot of the current simulator screen. Or use Use React Native DevTools MCP to check:
+
+Look at what you see and identify any visible error, broken UI, 
+or unexpected state.
+
+Context: I tried again and got this error after selected the payment method on the screen. 
+Expected: user to complete the flow sucesffully and seller receive the offer 
+
+Then:
+1. Identify which file and component is responsible
+2. Read that file
+3. Fix only the broken part , do the best effort to fix what i have not add new functions unless needed for the fix.
+3.1 if you need to push the fix to supabase , use MCP for it. If you face problems ask me to do it manaully. 
+4. If you need actions from me , list them for me clearly. 
+Logs below from my app simaltor
+
+—
+### Make changes to UI
+Use Mobile MCP to take a screenshot of the current simulator screen.
+
+Look at what you see and help me to make the following changes on 
+this screen users getting after complete offer request. 
+
+Actions: 
+1- remove the rate and review line. no need for it. 
+2- remove the trade id line 
+3- replce done with a button take users to my trade screen. make sure the button style looks like all other buttons in the app 
+3.1 if you need to push the fix to supabase , use MCP for it. If you face problems ask me to do it manaully. 
+4- restyle the back to home button to look like other button on the app
+5- make the join kidsclub button more visiallly important for users 
+6- make sure the fees 2$ is not hard coded value , this must come from the admin congiration side 
+
+Then:
+1. Identify which file and component is responsible
+2. Read that file
+3. Fix only the broken part , do the best effort to fix what i have not add new functions unless needed for the fix, 
+4. If you need actions from me , list them for me clearly. 
+
+--
+My Example 1
 
 ### TASKs in MODULE-15.5-prod-readiness.md
 

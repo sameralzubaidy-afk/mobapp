@@ -311,7 +311,14 @@ export default function TradeInitiationScreen() {
     }
 
     if (cashAmountCents > 0 && paymentInputMode === 'saved' && !savedPaymentMethod?.id) {
-      Alert.alert('Payment Method Required', 'No saved card is available. Please add a new card.');
+      Alert.alert(
+        'Payment Method Required',
+        'No saved card is available. Please add a new card.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Add Payment Method', onPress: () => navigation.navigate('PaymentMethods') },
+        ]
+      );
       return;
     }
 

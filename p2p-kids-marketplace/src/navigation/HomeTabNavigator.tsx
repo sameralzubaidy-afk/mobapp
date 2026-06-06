@@ -50,13 +50,13 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
         <Text style={styles.sheetTitle}>Sell</Text>
 
         {/* List One Item */}
-        <TouchableOpacity style={styles.sheetOption} onPress={onSingleItem} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.sheetOption} onPress={onSingleItem} activeOpacity={0.7} testID="sell-option-list-one-item">
           <Text style={styles.sheetOptionTitle}>List One Item</Text>
           <Text style={styles.sheetOptionSubtitle}>Snap a photo or choose from your library</Text>
         </TouchableOpacity>
 
         {/* Bulk Upload */}
-        <TouchableOpacity style={styles.sheetOption} onPress={onBulkUpload} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.sheetOption} onPress={onBulkUpload} activeOpacity={0.7} testID="sell-option-bulk-upload">
           <View style={styles.sheetOptionRow}>
             <Package size={20} color="#1A1A1A" weight="regular" />
             <View style={styles.sheetOptionTextWrap}>
@@ -80,6 +80,20 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
 // ─── Placeholder — never actually rendered ───────────────────────────────────
 function SellPlaceholder() {
   return <View />;
+}
+
+// ─── Custom tab bar button with testID for Maestro E2E ──────────────────────
+function TabBarButton({ children, testID, onPress, accessibilityState, ...props }: any) {
+  return (
+    <TouchableOpacity
+      testID={testID}
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 6 }}
+    >
+      {children}
+    </TouchableOpacity>
+  );
 }
 
 const Tab = createBottomTabNavigator();
@@ -135,6 +149,7 @@ export function HomeTabNavigator({ navigation }: { navigation: any }) {
                 weight={focused ? 'fill' : 'regular'}
               />
             ),
+            tabBarButton: (props) => <TabBarButton {...props} testID="tab-home" />,
           }}
         />
 
@@ -151,6 +166,7 @@ export function HomeTabNavigator({ navigation }: { navigation: any }) {
                 weight={focused ? 'fill' : 'regular'}
               />
             ),
+            tabBarButton: (props) => <TabBarButton {...props} testID="tab-discover" />,
           }}
         />
 
@@ -172,6 +188,7 @@ export function HomeTabNavigator({ navigation }: { navigation: any }) {
                 <Tag size={26} color="#FFFFFF" weight="regular" />
               </View>
             ),
+            tabBarButton: (props) => <TabBarButton {...props} testID="tab-sell" />,
           }}
         />
 
@@ -188,6 +205,7 @@ export function HomeTabNavigator({ navigation }: { navigation: any }) {
                 weight={focused ? 'fill' : 'regular'}
               />
             ),
+            tabBarButton: (props) => <TabBarButton {...props} testID="tab-inbox" />,
           }}
         />
 
@@ -204,6 +222,7 @@ export function HomeTabNavigator({ navigation }: { navigation: any }) {
                 weight={focused ? 'fill' : 'regular'}
               />
             ),
+            tabBarButton: (props) => <TabBarButton {...props} testID="tab-me" />,
           }}
         />
       </Tab.Navigator>

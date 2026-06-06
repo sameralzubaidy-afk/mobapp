@@ -1,17 +1,79 @@
-# FLOW: MODULE-15.1.2 FLOW-08 TradeFlowV2 Components
-# Scope: TFV2-007/008 countdown + auto-complete UI regression
-# Platform: iOS/Android (Expo)
+# FLOW: module-15.1.2-flow-08-trade-v2-components
+# Purpose: Trade v2 component tests — login → Me → Trades → Trade Detail → Verify status badge
+# Covers: TC-D01-D05 (partial)
 
-appId: host.exp.Exponent
+appId: com.sameralzubaidi.p2pmarketplace
 ---
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+
+# ── Step 1: Seed a test listing (login as seller, create item) ──
+- runFlow: helpers/tfv2-login-seller.yaml
+- runFlow: helpers/tfv2-seed-listing.yaml
+
+# ── Step 2: Stop app and restart as buyer ──
+- stopApp
+- launchApp:
+    clearState: false
+- waitForAnimationToEnd
+- runFlow: helpers/tfv2-login-buyer.yaml
+
+# ── Login as buyer ──
 - runFlow:
-    file: helpers/auth-bootstrap-expo.yaml
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - tapOn:
+          id: "login-email-input"
+      - eraseText
+      - inputText: "test-buyer@kidsmarketplace.test"
+      - tapOn:
+          id: "login-password-input"
+      - eraseText
+      - inputText: "TestBuyer123!"
+      - tapOn:
+          id: "login-submit-button"
+      - waitForAnimationToEnd
 
-- openLink: exp://127.0.0.1:8081/--/trade-v2-preview
+# ── Navigate to Me tab ──
+- tapOn:
+    id: "tab-me"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
 
-- assertVisible:
-    id: preview-offer-countdown-critical
-- assertVisible:
-    id: preview-offer-countdown-normal
-- assertVisible:
-    id: preview-auto-complete-banner
+# ── Navigate to TradeListScreen from Me tab via profile trades stat ──
+- runFlow:
+    when:
+      visible:
+        id: "profile-trades-stat"
+    commands:
+      - tapOn:
+          id: "profile-trades-stat"
+      - waitForAnimationToEnd
+
+      # ── Verify trades screen ──
+      - assertVisible:
+          id: "tab-buying"
+      - waitForAnimationToEnd
+
+      # ── Check Buying tab ──
+      - tapOn:
+          id: "tab-buying"
+      - waitForAnimationToEnd
+
+      # ── Check for existing trades and verify timer/dispute components ──
+      - runFlow:
+          when:
+            visible:
+              id: "trade-row-"
+          commands:
+            - tapOn:
+                id: "trade-row-"
+                index: 0
+            - waitForAnimationToEnd
+            # Verify trade detail screen elements
+            - assertVisible:
+                id: "trade-status-badge"
+

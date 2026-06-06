@@ -58,9 +58,9 @@ const FILTER_DEBOUNCE_MS = 0;
 // Pagination batch size
 const RESULTS_PER_PAGE = 20;
 const AUTOCOMPLETE_MAX = 5;
-const DEFAULT_RADIUS_MILES = 10;
-const MIN_RADIUS_MILES = 5;
-const MAX_RADIUS_MILES = 100;
+const FALLBACK_DEFAULT_RADIUS_MILES = 10;
+const FALLBACK_MIN_RADIUS_MILES = 5;
+const FALLBACK_MAX_RADIUS_MILES = 100;
 
 type NodesWithinRadiusRow = {
   id: string;
@@ -158,7 +158,9 @@ export default function DiscoverScreen({ navigation }: Props) {
   // Location search state (ZIP + radius)
   const [zipCodeInput, setZipCodeInput] = useState('');
   const [appliedZipCode, setAppliedZipCode] = useState('');
-  const [radiusMiles, setRadiusMiles] = useState(DEFAULT_RADIUS_MILES);
+  const [radiusMiles, setRadiusMiles] = useState(FALLBACK_DEFAULT_RADIUS_MILES);
+  const [minRadiusMiles, setMinRadiusMiles] = useState(FALLBACK_MIN_RADIUS_MILES);
+  const [maxRadiusMiles, setMaxRadiusMiles] = useState(FALLBACK_MAX_RADIUS_MILES);
   const [nodeIdsInScope, setNodeIdsInScope] = useState<string[]>([]);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationFilterUnavailable, setLocationFilterUnavailable] = useState(false);
@@ -200,8 +202,8 @@ export default function DiscoverScreen({ navigation }: Props) {
 
       const preferredRadius = await getUserPreferredRadius(userId);
       const clampedRadius = Math.max(
-        MIN_RADIUS_MILES,
-        Math.min(MAX_RADIUS_MILES, Math.round(preferredRadius || DEFAULT_RADIUS_MILES))
+        FALLBACK_MIN_RADIUS_MILES,
+        Math.min(FALLBACK_MAX_RADIUS_MILES, Math.round(preferredRadius || FALLBACK_DEFAULT_RADIUS_MILES))
       );
       setRadiusMiles(clampedRadius);
     };
@@ -419,6 +421,36 @@ export default function DiscoverScreen({ navigation }: Props) {
   const loadInitialData = async () => {
     try {
       setLoading(true);
+
+      // Load admin radius config (best-effort; falls back to module constants)
+      try {
+        const { data: radiusRows } = await supabase
+          .from('admin_config')
+          .select('key, value')
+          .in('key', ['default_radius_miles', 'min_user_radius_miles', 'max_user_radius_miles'])
+          .eq('is_active', true);
+
+        const radiusCfg: Record<string, number> = {};
+        (radiusRows || []).forEach((row: { key: string; value: string }) => {
+          const n = Number(row.value);
+          if (!isNaN(n) && n > 0) radiusCfg[row.key] = n;
+        });
+
+        if (radiusCfg.min_user_radius_miles !== undefined) {
+          setMinRadiusMiles(radiusCfg.min_user_radius_miles);
+        }
+        if (radiusCfg.max_user_radius_miles !== undefined) {
+          setMaxRadiusMiles(radiusCfg.max_user_radius_miles);
+        }
+        if (radiusCfg.default_radius_miles !== undefined) {
+          // Only set default if the user has no saved preference yet
+          setRadiusMiles((prev) =>
+            prev === FALLBACK_DEFAULT_RADIUS_MILES ? radiusCfg.default_radius_miles : prev
+          );
+        }
+      } catch (radiusErr) {
+        console.warn('[DiscoverScreen] Failed to load admin radius config:', radiusErr);
+      }
 
       // Load categories for filter modal AND dictionary
       const categoriesData = await getCategories();
@@ -672,7 +704,7 @@ export default function DiscoverScreen({ navigation }: Props) {
    * Update radius and persist preference.
    */
   const handleRadiusComplete = async (nextRadius: number) => {
-    const clampedRadius = Math.max(MIN_RADIUS_MILES, Math.min(MAX_RADIUS_MILES, Math.round(nextRadius)));
+    const clampedRadius = Math.max(minRadiusMiles, Math.min(maxRadiusMiles, Math.round(nextRadius)));
     setRadiusMiles(clampedRadius);
 
     if (!userId) {
@@ -1030,14 +1062,14 @@ export default function DiscoverScreen({ navigation }: Props) {
   };
 
   /**
-   * Render list footer (loading more indicator)
+   * Render list footer (minimal loading more indicator)
    */
   const renderFooter = () => {
     if (!loadingMore) return null;
 
     return (
       <View style={styles.loadingMore} testID="loading-more-indicator">
-        <ActivityIndicator color="#007AFF" />
+        <ActivityIndicator color="#9CA3AF" size="small" />
       </View>
     );
   };
@@ -1119,6 +1151,8 @@ export default function DiscoverScreen({ navigation }: Props) {
             refreshing={loading}
             onRefresh={handleRefresh}
             testID="discover-refresh-control"
+            tintColor="#9CA3AF"
+            colors={['#9CA3AF']}
           />
         }
         onEndReached={handleLoadMore}
@@ -1132,8 +1166,8 @@ export default function DiscoverScreen({ navigation }: Props) {
         zipCodeInput={zipCodeInput}
         appliedZipCode={appliedZipCode}
         radiusMiles={radiusMiles}
-        minRadiusMiles={MIN_RADIUS_MILES}
-        maxRadiusMiles={MAX_RADIUS_MILES}
+        minRadiusMiles={minRadiusMiles}
+        maxRadiusMiles={maxRadiusMiles}
         locationLoading={locationLoading}
         inactiveZipMessage={inactiveZipMessage}
         waitlistMessage={waitlistMessage}

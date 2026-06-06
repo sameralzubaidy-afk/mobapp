@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
+    "tfv2": "node ../test-automation/trade-flow-v2/run-tradeflow-suite.mjs",
     "test:ci": "jest --runInBand --reporters=default",
     "start": "expo start",
     "start:android": "expo start --clear --localhost --android",

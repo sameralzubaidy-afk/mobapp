@@ -1,0 +1,57 @@
+# FLOW: tfv2-seed-listing
+# Purpose: Ensure test listings exist in the database for trade flow testing.
+# The new photo-first ItemCreateScreen can't be automated via Maestro (can't pick photos),
+# so we rely on the seed-staging-data.ts script to create listings via the API.
+#
+# Prerequisites:
+#   - npm run seed:staging has been run at least once to create test users + listings
+#   - Seller is logged in (run tfv2-login-seller.yaml first)
+#
+# This flow verifies the seller is logged in and navigates to Discover
+# where seeded listings should be visible.
+
+appId: com.sameralzubaidi.p2pmarketplace
+---
+- waitForAnimationToEnd
+
+# Verify seller is logged in by checking for profile elements
+- runFlow:
+    when:
+      visible:
+        id: "tab-me"
+    commands:
+      # Navigate to Me tab to confirm login
+      - tapOn:
+          id: "tab-me"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+
+      # Verify we see profile content (confirms logged in)
+      - assertVisible:
+          id: "profile-trades-stat"
+          optional: true
+
+# Navigate to Discover tab to verify listings exist
+- tapOn:
+    id: "tab-discover"
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Verify discover screen loaded with results
+- assertVisible:
+    id: "discover-results-list"
+    optional: true
+
+# If no results, try a search to trigger refresh
+- runFlow:
+    when:
+      notVisible:
+        id: "search-result-"
+    commands:
+      - tapOn:
+          id: "search-input"
+          optional: true
+      - waitForAnimationToEnd
+      - hideKeyboard
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd

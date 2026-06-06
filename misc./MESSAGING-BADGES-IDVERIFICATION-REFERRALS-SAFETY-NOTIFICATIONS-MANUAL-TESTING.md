@@ -62,6 +62,10 @@
 | | TC-G03 | Resubmit a "needs edits" listing |
 | | TC-G04 | Remove a flagged listing |
 | | TC-G05 | Recall safety alert notification |
+| | TC-G06 | Appeal max-attempt limit follows admin config |
+| | TC-G07 | Appeal window follows admin config |
+| | TC-G08 | AI moderation toggle affects automated image review |
+| | TC-G09 | Recall check toggle and threshold affect recall flagging |
 | **H — Safety & Compliance (Admin)** | TC-H01 | Flagged items moderation queue |
 | | TC-H02 | Approve a flagged item |
 | | TC-H03 | Reject with reason |
@@ -782,6 +786,72 @@
 
 **Expected Result:**
 - A "Safety Alert" notification (red) is delivered indicating a recalled item was detected, and the listing surfaces the safety-review banner.
+
+### TC-G06 · Appeal max-attempt limit follows admin config
+
+**Actors:** test-admin, test-seller
+
+**Precondition:** A rejected/needs-edits listing exists and is still within the appeal window.
+
+**Objective:** Verify `moderation_appeal_max_attempts` limits additional appeals.
+
+**Steps:**
+1. As **test-admin**, open **/config**, set `moderation_appeal_max_attempts` to `1`, and save.
+2. As **test-seller**, submit one valid appeal on the Safety Review screen.
+3. After the listing is returned to a rejected/needs-edits state again, try to submit a second appeal.
+
+**Expected Result:**
+- The first appeal is accepted.
+- The second attempt is blocked with a limit-reached message, or the **Appeal** CTA is disabled/hidden once the configured max is exhausted.
+
+### TC-G07 · Appeal window follows admin config
+
+**Actors:** test-admin, test-seller
+
+**Objective:** Verify `moderation_appeal_window_days` controls how long appeals stay available.
+
+**Steps:**
+1. As **test-admin**, set `moderation_appeal_window_days` to `1` and save.
+2. Open a rejection that is older than 24 hours and compare it to a fresh rejection that is less than 24 hours old.
+
+**Expected Result:**
+- Older rejections no longer allow appeal and show a window-expired state (or hide the CTA entirely).
+- Fresh rejections within the configured window can still be appealed.
+
+### TC-G08 · AI moderation toggle affects automated image review
+
+**Actors:** test-admin, test-seller
+
+**Precondition:** QA has an image fixture that consistently triggers automated image moderation when AI moderation is enabled.
+
+**Objective:** Verify `moderation_ai_enabled` controls the automated image-moderation path.
+
+**Steps:**
+1. As **test-admin**, set `moderation_ai_enabled` to `true`.
+2. As **test-seller**, create a listing with the flagged image fixture and record the result.
+3. Set `moderation_ai_enabled` to `false` and create the same listing again with the same image.
+
+**Expected Result:**
+- With AI moderation enabled, the listing is auto-flagged or routed into safety review from image moderation.
+- With AI moderation disabled, the same image no longer triggers the automated AI moderation path; any manual/admin moderation remains separate.
+
+### TC-G09 · Recall check toggle and threshold affect recall flagging
+
+**Actors:** test-admin, test-seller
+
+**Precondition:** QA has a known recalled-product fixture and, if available, a borderline-match fixture.
+
+**Objective:** Verify `cpsc_recall_check_enabled` and `cpsc_match_threshold` control automated recall detection.
+
+**Steps:**
+1. As **test-admin**, set `cpsc_recall_check_enabled` to `false` and create a listing using the known recalled-product fixture.
+2. Re-enable recall checking and create the same listing again.
+3. If a borderline fixture is available, lower `cpsc_match_threshold` and repeat.
+
+**Expected Result:**
+- With recall checking disabled, no automated recall alert/banner is generated for the exact recall fixture.
+- With recall checking enabled, the exact recall fixture generates the safety alert and review banner.
+- Lowering the threshold makes borderline fixtures flag more aggressively; raising it reduces false positives.
 
 ---
 

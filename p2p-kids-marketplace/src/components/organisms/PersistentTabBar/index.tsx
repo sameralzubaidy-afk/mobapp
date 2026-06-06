@@ -58,13 +58,13 @@ function SellActionSheet({ visible, onClose, onSingleItem, onBulkUpload }: SellA
         <Text style={styles.sheetTitle}>Sell</Text>
 
         {/* List One Item */}
-        <TouchableOpacity style={styles.sheetOption} onPress={onSingleItem} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.sheetOption} onPress={onSingleItem} activeOpacity={0.7} testID="sell-option-list-one-item">
           <Text style={styles.sheetOptionTitle}>List One Item</Text>
           <Text style={styles.sheetOptionSubtitle}>Snap a photo or choose from your library</Text>
         </TouchableOpacity>
 
         {/* Bulk Upload */}
-        <TouchableOpacity style={styles.sheetOption} onPress={onBulkUpload} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.sheetOption} onPress={onBulkUpload} activeOpacity={0.7} testID="sell-option-bulk-upload">
           <View style={styles.sheetOptionRow}>
             <Package size={20} color="#1A1A1A" weight="regular" />
             <View style={styles.sheetOptionTextWrap}>
@@ -96,8 +96,9 @@ type TabItemProps = {
 
 function TabItem({ Icon, label, active = false, onPress }: TabItemProps) {
   const color = active ? '#5DBB8E' : '#6B6B6B';
+  const tabTestId = `tab-${label.toLowerCase()}`;
   return (
-    <TouchableOpacity style={styles.tabItem} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.tabItem} onPress={onPress} activeOpacity={0.7} testID={tabTestId}>
       <Icon size={22} color={color} weight={active ? 'fill' : 'regular'} />
       <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
     </TouchableOpacity>

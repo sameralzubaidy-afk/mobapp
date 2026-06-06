@@ -1,14 +1,13 @@
 /**
  * File: p2p-kids-marketplace/src/screens/trade/TradeReviewScreen.tsx
- * TASK FLOW-08-02: Trade Review Screen - Whisk Design System
+ * @deprecated Use ReviewOfferScreen instead.
  * 
- * NEW SCREEN - For accepting/declining incoming trade offers
+ * ⚠️ This screen is DEPRECATED. It directly updates DB to payment_processing
+ *    instead of calling the transactions-update Edge Function, which means
+ *    Stripe PaymentIntent is never captured and the trade gets stuck.
  * 
- * Features:
- * - Trade summary card with ArrowsLeftRight divider
- * - SP balance preview with Coins icon
- * - Safety disclaimer with ShieldCheck icon
- * - Green accept button + red decline link
+ *    🛡️ Safety redirect: on mount, navigates to ReviewOffer.
+ *    Remove this file entirely once all old notification payloads are expired.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -40,6 +39,11 @@ export default function TradeReviewScreen() {
   const { session } = useAuth();
   const user = session?.user;
   const { tradeId } = route.params;
+
+  // 🛡️ Safety redirect: this screen is deprecated — route to ReviewOffer instead.
+  useEffect(() => {
+    navigation.replace('ReviewOffer', { tradeId });
+  }, []);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

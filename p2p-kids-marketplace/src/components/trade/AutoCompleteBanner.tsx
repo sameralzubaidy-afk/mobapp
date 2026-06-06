@@ -1,8 +1,10 @@
 // File: p2p-kids-marketplace/src/components/trade/AutoCompleteBanner.tsx
+// TFV2-020: Urgency-styled auto-complete warning bar (orange/amber)
+// Supports buyer copy (warning) and seller copy (positive payout framing)
 
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Timer } from 'phosphor-react-native';
+import { Timer, WarningCircle } from 'phosphor-react-native';
 import { createCountdownModel, formatCountdownLabel } from './countdown';
 import type { CountdownModel } from './countdown';
 
@@ -11,6 +13,7 @@ type AutoCompleteBannerProps = {
   status?: string | null;
   nowMs?: number;
   testID?: string;
+  isSeller?: boolean;
 };
 
 export default function AutoCompleteBanner({
@@ -18,6 +21,7 @@ export default function AutoCompleteBanner({
   status,
   nowMs,
   testID,
+  isSeller = false,
 }: AutoCompleteBannerProps) {
   const [, setTick] = useState(0);
 
@@ -40,18 +44,32 @@ export default function AutoCompleteBanner({
     return null;
   }
 
+  const isUrgent = model.minutesLeft < 240; // < 4 hours
+
+  const title = model.expired
+    ? 'Trade is ready for auto-completion'
+    : isSeller
+      ? `Auto-completes in ${formatCountdownLabel(model)} — payout releases then`
+      : `Auto-completes in ${formatCountdownLabel(model)}`;
+
+  const subtitle = model.expired
+    ? 'Complete the trade now or contact support if there is an issue.'
+    : isSeller
+      ? "If the buyer doesn't confirm, the trade closes automatically and your funds are released."
+      : 'If you do not complete this trade, it will auto-complete and funds will be released to the seller.';
+
   return (
     <View testID={testID ?? 'auto-complete-banner'} style={styles.container}>
-      <View style={styles.iconWrap}>
-        <Timer size={18} color="#0F766E" weight="fill" />
+      <View style={[styles.iconWrap, isUrgent && styles.iconWrapUrgent]}>
+        {isUrgent ? (
+          <WarningCircle size={18} color="#FFFFFF" weight="fill" />
+        ) : (
+          <Timer size={18} color="#92400E" weight="fill" />
+        )}
       </View>
       <View style={styles.textWrap}>
-        <Text style={styles.title}>
-          {model.expired ? 'Trade is ready for auto-completion' : `Auto-completes in ${formatCountdownLabel(model)}`}
-        </Text>
-        <Text style={styles.subtitle}>
-          Resolve any issue now if the handoff is incomplete.
-        </Text>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
     </View>
   );
@@ -64,19 +82,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#99F6E4',
-    backgroundColor: '#ECFEFF',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 10,
+    borderColor: '#FDE68A',
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
   },
   iconWrap: {
-    width: 30,
-    height: 30,
+    width: 34,
+    height: 34,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#CCFBF1',
+    backgroundColor: '#FEF3C7',
+  },
+  iconWrapUrgent: {
+    backgroundColor: '#F59E0B',
   },
   textWrap: {
     flex: 1,
@@ -85,12 +106,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     fontWeight: '700',
-    color: '#134E4A',
+    color: '#92400E',
   },
   subtitle: {
-    marginTop: 2,
+    marginTop: 4,
     fontSize: 12,
     lineHeight: 16,
-    color: '#0F766E',
+    color: '#B45309',
   },
 });

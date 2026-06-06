@@ -491,11 +491,11 @@ export default function ItemDetailScreen() {
           {/* Item Info Section */}
           <View style={styles.section}>
             {/* Title */}
-            <Text style={styles.itemTitle}>{listing.title}</Text>
+            <Text style={styles.itemTitle} testID="item-detail-title">{listing.title}</Text>
 
             {/* Price & SP Earn Badge */}
             <View style={styles.priceRow}>
-              <Text style={styles.itemPrice}>${listing.price.toFixed(2)}</Text>
+              <Text style={styles.itemPrice} testID="item-detail-price">${listing.price.toFixed(2)}</Text>
             </View>
 
             {/* SP Accepted Badge (below price if not subscriber) */}
@@ -747,6 +747,7 @@ export default function ItemDetailScreen() {
             <Pressable
               style={styles.useSpLockedChip}
               onPress={() => navigation.navigate('SubscriptionChoice')}
+              testID="use-sp-locked-chip"
             >
               <Lock size={14} color="#6B7280" weight="bold" />
               <Text style={styles.useSpLockedText}>Use SP 🔒</Text>

@@ -26,9 +26,7 @@ serve(async (req) => {
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-  // Prefer anon key + user JWT; service role is optional.
   const supabaseKey = supabaseAnonKey || supabaseServiceKey;
-
   if (!supabaseUrl || !supabaseKey) {
     return new Response(JSON.stringify({
       success: false,
@@ -39,25 +37,17 @@ serve(async (req) => {
     });
   }
 
-  let supabaseClient: ReturnType<typeof createClient>;
   try {
-    supabaseClient = createClient(supabaseUrl, supabaseKey);
-  } catch (e) {
-    console.error('[complete-trade] Failed to create Supabase client:', e);
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Server configuration error: failed to initialize Supabase client',
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  try {
-    // 1. Get authenticated user
+    // 1. Extract auth token BEFORE creating client (needed for RLS headers)
     const authHeader = req.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+
+    // Create client with user's JWT so RLS policies apply to subsequent queries
+    const supabaseClient = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
 
     if (authError || !user) {
       return new Response(
@@ -78,7 +68,7 @@ serve(async (req) => {
 
     const { data: trade, error: tradeError } = await supabaseClient
       .from('trades')
-      .select('id, buyer_id, status, disputed_at, dispute_resolution')
+      .select('id, buyer_id, seller_id, status, disputed_at, dispute_resolution')
       .eq('id', tradeId)
       .maybeSingle();
 
@@ -179,6 +169,20 @@ serve(async (req) => {
     await logTradeEvent(supabaseClient, tradeId, 'trade_completed', user.id, {
       final_status: data.status,
     });
+
+    // Notify seller that the buyer confirmed receipt
+    try {
+      await supabaseClient.rpc('create_trade_notification', {
+        p_user_id:           trade.seller_id,
+        p_notification_type: 'trade_completed',
+        p_title:             'Trade Complete!',
+        p_body:              'The buyer confirmed receipt. Your payout has been initiated.',
+        p_data:              JSON.stringify({ trade_id: tradeId }),
+      });
+    } catch (notifErr: unknown) {
+      const msg = notifErr instanceof Error ? notifErr.message : 'Unknown error';
+      console.error('[complete-trade] Seller notification error:', msg);
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 

@@ -16,6 +16,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   ActivityIndicator,
   Alert,
   Pressable,
@@ -25,11 +26,11 @@ import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navig
 import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { Trade, TradeStatus } from '@/types/trade';
-import { completeTradeV2, cancelTradeV2, processTradePayment } from '@/services/trade';
+import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
-import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
 import { useAuth } from '@/hooks/useAuth';
-import { Modal, LoadingSpinner } from '@/components/ui';
+import { LoadingSpinner } from '@/components/ui';
+import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { AutoCompleteBanner } from '@/components/trade';
 import { SafeMeetupCard } from '@/components/trade/SafeMeetupCard';
 import { IssueReportModal } from './IssueReportModal';
@@ -56,15 +57,28 @@ export default function TradeTimelineScreen() {
   const user = session?.user;
   const { tradeId } = route.params;
 
+  // 🛡️ Guard: if tradeId is missing or not a valid UUID, redirect to trade list
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!tradeId || !UUID_RE.test(tradeId)) {
+    // Use setTimeout to avoid navigation during render
+    setTimeout(() => navigation.replace('TradeList'), 0);
+  }
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [trade, setTrade] = useState<Trade | null>(null);
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
   const [showCancellationModal, setShowCancellationModal] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
-  const [savedPaymentMethod, setSavedPaymentMethod] = useState<PaymentMethodInfo | null>(null);
-  const [loadingSavedPaymentMethod, setLoadingSavedPaymentMethod] = useState(false);
+  const [notifModal, setNotifModal] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    variant?: 'accept' | 'decline' | 'default';
+    confirmLabel?: string;
+    onConfirm?: () => void;
+  } | null>(null);
+  // D-30: Payment pre-auth is handled at offer creation; no manual "Make Payment" step
   const [canReview, setCanReview] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [otherUserReviewed, setOtherUserReviewed] = useState(false);
@@ -73,24 +87,53 @@ export default function TradeTimelineScreen() {
   const [bundleSize, setBundleSize] = useState<number>(0);
   // TFV2-011: Issue report modal
   const [showIssueModal, setShowIssueModal] = useState(false);
+  const [nextStepsDismissed, setNextStepsDismissed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const showNotif = (title: string, message: string, variant?: 'accept' | 'decline' | 'default', onConfirm?: () => void) => {
+    setNotifModal({ visible: true, title, message, variant: variant || 'default', confirmLabel: 'OK', onConfirm });
+  };
 
   const fetchTrade = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+
+      // Step 1: Fetch trade row
+      const { data: tradeDataRaw, error: tradeError } = await supabase
         .from('trades')
-        .select(
-          '*, listing:items(id, title, price, images:item_images(id, url, thumbnail_url, display_order))'
-        )
+        .select('*')
         .eq('id', tradeId)
         .single();
 
-      if (error) throw error;
-      const tradeData = data as any;
-      setTrade(tradeData);
+      if (tradeError) throw tradeError;
+      const tradeData = tradeDataRaw as any;
+
+      // Step 2: Fetch listing (item) + images separately — avoids FK join issues
+      let listingData: any = null;
+      if (tradeData.listing_id) {
+        const { data: item, error: itemError } = await supabase
+          .from('items')
+          .select('id, title, price')
+          .eq('id', tradeData.listing_id)
+          .maybeSingle();
+
+        if (!itemError && item) {
+          const { data: images } = await supabase
+            .from('item_images')
+            .select('id, url, thumbnail_url, display_order')
+            .eq('item_id', tradeData.listing_id)
+            .order('display_order', { ascending: true });
+
+          listingData = { ...item, images: images || [] };
+        }
+      }
+
+      // Attach listing to trade for downstream consumption
+      const enrichedTrade = { ...tradeData, listing: listingData };
+      setTrade(enrichedTrade);
 
       const otherPersonId =
-        user?.id === tradeData.buyer_id ? tradeData.seller_id : tradeData.buyer_id;
+        user?.id === enrichedTrade.buyer_id ? enrichedTrade.seller_id : enrichedTrade.buyer_id;
       if (otherPersonId) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -106,7 +149,7 @@ export default function TradeTimelineScreen() {
         }
       }
 
-      if (user?.id && tradeData.status === 'completed') {
+      if (user?.id && enrichedTrade.status === 'completed') {
         const reviewStatusResult = await getTradeReviewStatus(tradeId, user.id);
         if (reviewStatusResult.success) {
           setHasReviewed(reviewStatusResult.userReviewed);
@@ -120,11 +163,17 @@ export default function TradeTimelineScreen() {
       }
     } catch (error) {
       console.error('❌ Error fetching trade:', error);
-      Alert.alert('Error', 'Failed to load trade');
+      showNotif('Error', 'Failed to load trade', 'decline');
     } finally {
       setLoading(false);
     }
   }, [tradeId, user?.id]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchTrade();
+    setRefreshing(false);
+  }, [fetchTrade]);
 
   useEffect(() => {
     fetchTrade();
@@ -174,46 +223,9 @@ export default function TradeTimelineScreen() {
     return () => { active = false; };
   }, [(trade as any)?.bundle_id]);
 
-  useEffect(() => {
-    if (!trade || !user?.id) {
-      return;
-    }
-
-    const needsBuyerPayment =
-      trade.buyer_id === user.id &&
-      (trade.status === 'payment_processing' || trade.status === 'payment_failed') &&
-      ((trade.cash_amount_cents ?? 0) + (trade.buyer_transaction_fee_cents ?? 0) > 0);
-
-    if (!needsBuyerPayment) {
-      return;
-    }
-
-    let cancelled = false;
-    const loadSavedPaymentMethod = async () => {
-      setLoadingSavedPaymentMethod(true);
-      const method = await getPaymentMethod();
-      if (cancelled) {
-        return;
-      }
-
-      setSavedPaymentMethod(method);
-
-      setLoadingSavedPaymentMethod(false);
-    };
-
-    void loadSavedPaymentMethod();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [trade, user?.id]);
-
   const handleComplete = async () => {
     if (hasUnresolvedDispute) {
-      Alert.alert(
-        'Dispute Open',
-        'This trade has an unresolved dispute and cannot be completed yet.'
-      );
+      showNotif('Dispute Open', 'This trade has an unresolved dispute and cannot be completed yet.', 'decline');
       return;
     }
 
@@ -245,11 +257,12 @@ export default function TradeTimelineScreen() {
                       await completeTradeV2(tid);
                     }
                     if (refreshSession) await refreshSession();
-                    Alert.alert('Done!', `All ${total} items marked as completed.`, [
-                      { text: 'OK', onPress: () => navigation.goBack() },
-                    ]);
+                    showNotif('Done!', `All ${total} items marked as completed.`, 'accept', () => {
+                      setNotifModal(null);
+                      navigation.goBack();
+                    });
                   } catch {
-                    Alert.alert('Error', 'Could not confirm all items. Try confirming each one.');
+                    showNotif('Error', 'Could not confirm all items. Try confirming each one.', 'decline');
                   } finally {
                     setSubmitting(false);
                   }
@@ -279,10 +292,12 @@ export default function TradeTimelineScreen() {
       const result = await completeTradeV2(tradeId);
 
       if (result.success) {
-        Alert.alert('Success', result.message || 'Trade marked as completed!');
-        fetchTrade();
+        showNotif('Success', result.message || 'Trade marked as completed!', 'accept', () => {
+          setNotifModal(null);
+          fetchTrade();
+        });
       } else {
-        Alert.alert('Error', result.error || 'Failed to complete trade');
+        showNotif('Error', result.error || 'Failed to complete trade', 'decline');
       }
     } finally {
       setSubmitting(false);
@@ -313,41 +328,36 @@ export default function TradeTimelineScreen() {
         if (wasSeller && wasInProgress && result.consequenceLevel !== null && result.consequenceLevel !== undefined) {
           const level = result.consequenceLevel;
           if (level === 1) {
-            Alert.alert(
-              'Trade Cancelled',
-              'Cancelling after payment is disappointing for buyers. This has been noted on your account.',
-              [{ text: 'OK', onPress: () => navigation.goBack() }]
-            );
+            showNotif('Trade Cancelled', 'Cancelling after payment is disappointing for buyers. This has been noted on your account.', 'default', () => {
+              setNotifModal(null);
+              navigation.goBack();
+            });
           } else if (level === 2) {
-            Alert.alert(
-              'Trade Cancelled — Warning',
-              "You've now cancelled 2 trades after payment. A third cancellation may affect your selling privileges.",
-              [{ text: 'OK', onPress: () => navigation.goBack() }]
-            );
+            showNotif('Trade Cancelled — Warning', "You've now cancelled 2 trades after payment. A third cancellation may affect your selling privileges.", 'decline', () => {
+              setNotifModal(null);
+              navigation.goBack();
+            });
           } else {
             // Level 3+
-            Alert.alert(
-              'Trade Cancelled — Account Under Review',
-              'Your account is under review due to repeated post-payment cancellations. Our support team will be in touch.',
-              [{ text: 'OK', onPress: () => navigation.goBack() }]
-            );
+            showNotif('Trade Cancelled — Account Under Review', 'Your account is under review due to repeated post-payment cancellations. Our support team will be in touch.', 'decline', () => {
+              setNotifModal(null);
+              navigation.goBack();
+            });
           }
         } else {
-          Alert.alert(
-            'Trade Cancelled',
-            'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.',
-            [{ text: 'OK', onPress: () => navigation.goBack() }]
-          );
+          showNotif('Trade Cancelled', 'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.', 'default', () => {
+            setNotifModal(null);
+            navigation.goBack();
+          });
         }
       } else {
-        Alert.alert(
-          'Cancellation Failed',
-          result.error || 'Failed to cancel trade. Please try again.',
-          [{ text: 'Try Again', onPress: () => setShowCancellationModal(true) }]
-        );
+        showNotif('Cancellation Failed', result.error || 'Failed to cancel trade. Please try again.', 'decline', () => {
+          setNotifModal(null);
+          setShowCancellationModal(true);
+        });
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'An unexpected error occurred');
+      showNotif('Error', error.message || 'An unexpected error occurred', 'decline');
     } finally {
       setIsCancelling(false);
     }
@@ -378,43 +388,8 @@ export default function TradeTimelineScreen() {
     navigation.navigate('Chat', { tradeId });
   };
 
-  const handleMakePayment = async () => {
-    if (!trade || !user?.id) {
-      return;
-    }
-
-    const totalCashChargeCents =
-      Number(trade.cash_amount_cents ?? 0) + Number(trade.buyer_transaction_fee_cents ?? 0);
-
-    if (totalCashChargeCents <= 0) {
-      Alert.alert('Payment Not Required', 'No card payment is required for this trade.');
-      return;
-    }
-
-    if (!savedPaymentMethod?.id) {
-      Alert.alert(
-        'Payment Setup Required',
-        'No saved card is available. Add a payment method in subscription settings, then try again.'
-      );
-      return;
-    }
-
-    try {
-      setIsPaying(true);
-
-      const paymentResult = await processTradePayment(tradeId, savedPaymentMethod.id);
-      if (!paymentResult.success) {
-        Alert.alert('Payment Failed', paymentResult.error || 'Could not process payment');
-        await fetchTrade();
-        return;
-      }
-
-      Alert.alert('Payment Successful', 'Payment completed. Trade is now in progress.');
-      await fetchTrade();
-    } finally {
-      setIsPaying(false);
-    }
-  };
+  // D-30: No manual payment step — Stripe pre-auth is captured on seller accept via transactions-update EF.
+  // The buyer goes directly from pending → in_progress and sees [I Got It].
 
   if (loading || !trade) {
     return (
@@ -429,13 +404,8 @@ export default function TradeTimelineScreen() {
 
   const isBuyer = user?.id === trade.buyer_id;
   const isSeller = user?.id === trade.seller_id;
-  const needsBuyerPayment =
-    isBuyer &&
-    (trade.status === 'payment_processing' || trade.status === 'payment_failed') &&
-    ((trade.cash_amount_cents ?? 0) + (trade.buyer_transaction_fee_cents ?? 0) > 0);
+  // D-30: Payment is pre-authorized at offer creation, captured on seller accept — no manual payment step.
   const hasUnresolvedDispute = !!(trade as any).dispute_status && !['none', 'resolved'].includes((trade as any).dispute_status);
-  const totalCashCharge =
-    ((trade.cash_amount_cents ?? 0) + (trade.buyer_transaction_fee_cents ?? 0)) / 100;
   const completeConfirmMessage =
     'Confirm you received the item as expected? This final step releases Swap Points or cash to the seller.';
   const listing = (trade as any).listing;
@@ -453,9 +423,12 @@ export default function TradeTimelineScreen() {
 
   return (
     <ScreenLayout variant="detail" title="Trade Timeline">
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <AutoCompleteBanner autoCompleteAt={trade.auto_complete_at} status={trade.status} />
-
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
+        }>
         {/* Addendum C: bundle context banner */}
         {bundleSize > 1 && (
           <View style={styles.bundleBanner} testID="bundle-context-banner">
@@ -505,10 +478,122 @@ export default function TradeTimelineScreen() {
 
         <View style={styles.timeline} testID="trade-timeline">
           {renderTimelineStep('pending', 'Initiated', trade.status)}
-          {renderTimelineStep('payment_processing', 'Processing Payment', trade.status)}
           {renderTimelineStep('in_progress', 'In Progress', trade.status)}
           {renderTimelineStep('completed', 'Completed', trade.status)}
         </View>
+
+        {/* What to do next — collapsible guidance (matching Trade Smart card style) */}
+        {trade.status === 'in_progress' && (
+          nextStepsDismissed ? (
+            <Pressable
+              style={styles.nextStepsCollapsed}
+              onPress={() => setNextStepsDismissed(false)}
+              testID="next-steps-toggle"
+            >
+              <CheckCircle size={18} color="#5DBB8E" weight="fill" />
+              <Text style={styles.nextStepsCollapsedText}>What to do next</Text>
+              <Text style={styles.nextStepsCollapsedChevron}>{'\u203A'}</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.nextStepsCard} testID="next-steps-card">
+              <View style={styles.nextStepsHeader}>
+                <View style={styles.nextStepsIconWrap}>
+                  <CheckCircle size={18} color="#FFFFFF" weight="fill" />
+                </View>
+                <Text style={styles.nextStepsTitle}>What to do next</Text>
+              </View>
+              <View style={styles.nextStepsList}>
+                {isBuyer ? (
+                  <>
+                    <View style={styles.nextStepRow}>
+                      <View style={styles.nextStepNumber}>
+                        <Text style={styles.nextStepNumberText}>1</Text>
+                      </View>
+                      <View style={styles.nextStepContent}>
+                        <Text style={styles.nextStepLabel}>Message the seller</Text>
+                        <Text style={styles.nextStepDesc}>Coordinate the meetup location and time</Text>
+                      </View>
+                    </View>
+                    <View style={styles.nextStepRow}>
+                      <View style={styles.nextStepNumber}>
+                        <Text style={styles.nextStepNumberText}>2</Text>
+                      </View>
+                      <View style={styles.nextStepContent}>
+                        <Text style={styles.nextStepLabel}>Meet up and inspect the item</Text>
+                        <Text style={styles.nextStepDesc}>Make sure everything looks as described</Text>
+                      </View>
+                    </View>
+                    <View style={styles.nextStepRow}>
+                      <View style={styles.nextStepNumber}>
+                        <Text style={styles.nextStepNumberText}>3</Text>
+                      </View>
+                      <View style={styles.nextStepContent}>
+                        <Text style={styles.nextStepLabel}>Come back and tap "I Got It"</Text>
+                        <Text style={styles.nextStepDesc}>This releases funds to the seller and completes the trade</Text>
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.nextStepRow}>
+                      <View style={styles.nextStepNumber}>
+                        <Text style={styles.nextStepNumberText}>1</Text>
+                      </View>
+                      <View style={styles.nextStepContent}>
+                        <Text style={styles.nextStepLabel}>Message the buyer</Text>
+                        <Text style={styles.nextStepDesc}>Coordinate a meetup time and place</Text>
+                      </View>
+                    </View>
+                    <View style={styles.nextStepRow}>
+                      <View style={styles.nextStepNumber}>
+                        <Text style={styles.nextStepNumberText}>2</Text>
+                      </View>
+                      <View style={styles.nextStepContent}>
+                        <Text style={styles.nextStepLabel}>Hand off the item</Text>
+                        <Text style={styles.nextStepDesc}>Make sure the buyer is satisfied with their purchase</Text>
+                      </View>
+                    </View>
+                    <View style={styles.nextStepRow}>
+                      <View style={styles.nextStepNumber}>
+                        <Text style={styles.nextStepNumberText}>3</Text>
+                      </View>
+                      <View style={styles.nextStepContent}>
+                        <Text style={styles.nextStepLabel}>Wait for buyer confirmation</Text>
+                        <Text style={styles.nextStepDesc}>Once the buyer confirms receipt, your payout will be released</Text>
+                      </View>
+                    </View>
+                  </>
+                )}
+              </View>
+              <Pressable
+                style={styles.nextStepsCta}
+                onPress={() => setNextStepsDismissed(true)}
+                testID="next-steps-cta"
+              >
+                <CheckCircle size={16} color="#FFFFFF" weight="fill" style={{ marginRight: 6 }} />
+                <Text style={styles.nextStepsCtaText}>Got it</Text>
+              </Pressable>
+            </View>
+          )
+        )}
+
+        {/* Payout Hold Info Bar — seller only */}
+        {isSeller && trade.status === 'in_progress' && (
+          <View style={styles.payoutHoldCard}>
+            <Text style={styles.payoutHoldEmoji}>💰</Text>
+            <View style={styles.payoutHoldTextWrap}>
+              <Text style={styles.payoutHoldTitle}>Your payout is on hold until trade completes</Text>
+              <Text style={styles.payoutHoldDesc}>
+                Funds are held securely and released once the buyer taps "I Got It"
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Auto-complete timer with role-appropriate copy */}
+        {trade.status === 'in_progress' && (
+          <AutoCompleteBanner autoCompleteAt={trade.auto_complete_at} status={trade.status} isSeller={isSeller} />
+        )}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Payment Details</Text>
@@ -548,58 +633,6 @@ export default function TradeTimelineScreen() {
           <Text style={styles.messageButtonText}>Message {isBuyer ? 'Seller' : 'Buyer'}</Text>
         </Pressable>
 
-        {needsBuyerPayment && (
-          <View style={styles.card} testID="trade-payment-section">
-            <Text style={styles.cardTitle}>Make Payment</Text>
-            <Text style={styles.paymentInstructionText}>
-              Complete payment to move this trade into progress.
-            </Text>
-            <Text style={styles.paymentAmountText}>Card Charge: ${totalCashCharge.toFixed(2)}</Text>
-
-            {loadingSavedPaymentMethod && (
-              <View style={styles.paymentModeLoadingContainer}>
-                <ActivityIndicator size="small" color="#5DBB8E" />
-                <Text style={styles.paymentModeLoadingText}>Checking saved cards...</Text>
-              </View>
-            )}
-
-            {!loadingSavedPaymentMethod && (
-              <View style={styles.paymentModeSelector}>
-                <View
-                  style={[
-                    styles.paymentModeOption,
-                    savedPaymentMethod && styles.paymentModeOptionSelected,
-                    !savedPaymentMethod && styles.paymentModeOptionDisabled,
-                  ]}
-                >
-                  <Text style={styles.paymentModeTitle}>Saved Card</Text>
-                  <Text style={styles.paymentModeSubtitle}>
-                    {savedPaymentMethod
-                      ? `${savedPaymentMethod.brand?.toUpperCase() || 'CARD'} •••• ${savedPaymentMethod.last4}`
-                      : 'No saved card found'}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            <Pressable
-              style={[
-                styles.confirmButton,
-                (isPaying || submitting || !savedPaymentMethod?.id) && styles.disabledButton,
-              ]}
-              onPress={handleMakePayment}
-              disabled={isPaying || submitting || !savedPaymentMethod?.id}
-              testID="make-payment-button"
-            >
-              {isPaying ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.confirmButtonText}>Make Payment</Text>
-              )}
-            </Pressable>
-          </View>
-        )}
-
         {/* TFV2-011 / D-26: Dispute status overlay banner */}
         {(trade as any).dispute_status === 'reported' && (
           <View style={styles.disputeBannerAmber} testID="dispute-banner-reported">
@@ -637,10 +670,15 @@ export default function TradeTimelineScreen() {
               {submitting ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <>
-                  <CheckCircle size={20} color="#FFFFFF" weight="regular" />
-                  <Text style={styles.confirmButtonText}>I Got It</Text>
-                </>
+                <View style={styles.confirmButtonInner}>
+                  <CheckCircle size={22} color="#FFFFFF" weight="fill" />
+                  <View style={styles.confirmButtonTextWrap}>
+                    <Text style={styles.confirmButtonText}>I Got It — Complete Trade</Text>
+                    <Text style={styles.confirmButtonSub}>
+                      Tap only after you{'\''}ve received and inspected your item
+                    </Text>
+                  </View>
+                </View>
               )}
             </Pressable>
 
@@ -748,39 +786,29 @@ export default function TradeTimelineScreen() {
       </ScrollView>
       <PersistentTabBar />
 
-      <Modal
+      <TradeConfirmationModal
         visible={showCompleteConfirm}
-        type="alert"
-        showCloseButton={false}
-        onClose={() => setShowCompleteConfirm(false)}
-      >
-        <View>
-          <Text style={styles.confirmModalTitle}>Complete Trade</Text>
-          <Text style={styles.confirmModalMessage}>{completeConfirmMessage}</Text>
+        title="Complete Trade"
+        message={completeConfirmMessage}
+        confirmLabel="Complete"
+        variant="default"
+        onConfirm={confirmCompleteTrade}
+        onCancel={() => setShowCompleteConfirm(false)}
+        loading={submitting}
+      />
 
-          <View style={styles.confirmModalActions}>
-            <Pressable
-              style={styles.confirmModalCancelButton}
-              onPress={() => setShowCompleteConfirm(false)}
-              disabled={submitting}
-            >
-              <Text style={styles.confirmModalCancelText}>Cancel</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.confirmModalCompleteButton, submitting && styles.disabledButton]}
-              onPress={confirmCompleteTrade}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.confirmModalCompleteText}>Complete</Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+      {notifModal && (
+        <TradeConfirmationModal
+          visible={notifModal.visible}
+          title={notifModal.title}
+          message={notifModal.message}
+          confirmLabel={notifModal.confirmLabel || 'OK'}
+          variant={notifModal.variant || 'default'}
+          onConfirm={() => notifModal.onConfirm ? notifModal.onConfirm() : setNotifModal(null)}
+          onCancel={() => setNotifModal(null)}
+          hideCancel
+        />
+      )}
 
       <CancellationReasonModal
         visible={showCancellationModal}
@@ -814,7 +842,7 @@ function renderTimelineStep(
   label: string,
   currentStatus: TradeStatus
 ): React.JSX.Element {
-  const statusOrder: TradeStatus[] = ['pending', 'payment_processing', 'in_progress', 'completed'];
+  const statusOrder: TradeStatus[] = ['pending', 'in_progress', 'completed'];
   const currentIndex = statusOrder.indexOf(currentStatus);
   const stepIndex = statusOrder.indexOf(step);
 
@@ -1155,23 +1183,177 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#5DBB8E',
   },
+  // What to do next card — collapsible, matching Trade Smart card style
+  nextStepsCollapsed: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginBottom: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  nextStepsCollapsedText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  nextStepsCollapsedChevron: {
+    fontSize: 20,
+    color: '#9CA3AF',
+    fontWeight: '600',
+  },
+  nextStepsCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  nextStepsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 18,
+  },
+  nextStepsIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#5DBB8E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextStepsTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  nextStepsList: {
+    gap: 16,
+    marginBottom: 20,
+  },
+  nextStepRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  nextStepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  nextStepNumberText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#5DBB8E',
+  },
+  nextStepContent: {
+    flex: 1,
+  },
+  nextStepLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    lineHeight: 20,
+  },
+  nextStepDesc: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    lineHeight: 18,
+    marginTop: 2,
+  },
+  nextStepsCta: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextStepsCtaText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  // Payout Hold Info Bar (seller only)
+  payoutHoldCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EDF4FF',
+    borderWidth: 1,
+    borderColor: '#B6D4FC',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+    marginBottom: 12,
+  },
+  payoutHoldEmoji: {
+    fontSize: 22,
+  },
+  payoutHoldTextWrap: {
+    flex: 1,
+  },
+  payoutHoldTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1E40AF',
+    lineHeight: 18,
+  },
+  payoutHoldDesc: {
+    fontSize: 12,
+    color: '#3B82F6',
+    lineHeight: 16,
+    marginTop: 2,
+  },
   actions: {
     gap: 12,
     marginBottom: 16,
   },
   confirmButton: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  confirmButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    height: 52,
-    backgroundColor: '#5DBB8E',
-    borderRadius: 26,
-    gap: 8,
+    gap: 12,
+  },
+  confirmButtonTextWrap: {
+    flex: 1,
   },
   confirmButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#FFFFFF',
+  },
+  confirmButtonSub: {
+    fontSize: 12,
+    color: '#D1FAE5',
+    lineHeight: 16,
+    marginTop: 2,
   },
   cancelButtonOutline: {
     flexDirection: 'row',
@@ -1278,49 +1460,5 @@ const styles = StyleSheet.create({
   paymentModeSubtitle: {
     fontSize: 12,
     color: '#6B6B6B',
-  },
-  confirmModalTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 16,
-  },
-  confirmModalMessage: {
-    fontSize: 16,
-    color: '#6B6B6B',
-    lineHeight: 21,
-    marginBottom: 20,
-  },
-  confirmModalActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  confirmModalCancelButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1.5,
-    borderColor: '#7A7A7A',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-  },
-  confirmModalCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B6B6B',
-  },
-  confirmModalCompleteButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#5DBB8E',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  confirmModalCompleteText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
   },
 });

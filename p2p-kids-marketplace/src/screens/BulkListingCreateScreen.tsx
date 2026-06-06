@@ -161,7 +161,7 @@ export default function BulkListingCreateScreen() {
   const { session } = useAuth();
   const sellerId = session?.user?.id || '';
   const initialPhotoSource = route.params?.initialPhotoSource as PhotoSourceOption | undefined;
-  const showPhotoSourcePrompt = Boolean(route.params?.showPhotoSourcePrompt);
+  const showPhotoSourcePrompt = route.params?.showPhotoSourcePrompt !== false;
 
   const [flowState, dispatch] = useReducer(bulkListingReducer, 'IDLE' as BulkFlowState);
   const [photos, setPhotos] = useState<PhotoAsset[]>([]);
