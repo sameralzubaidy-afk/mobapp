@@ -113,10 +113,19 @@ serve(async (req) => {
     );
   }
 
-  // ── 1. Load item ──────────────────────────────────────────────────────
+  // ── 1. Load item + category SP multiplier ────────────────────────────
   const { data: item, error: itemError } = await supabase
     .from('items')
-    .select('id, status, seller_id, price, accepts_swap_points, title')
+    .select(`
+      id, 
+      status, 
+      seller_id, 
+      price, 
+      accepts_swap_points, 
+      title,
+      category_id,
+      categories:category_id(sp_earning_multiplier)
+    `)
     .eq('id', item_id)
     .single();
 
@@ -127,6 +136,11 @@ serve(async (req) => {
   if (item.seller_id === buyerId) {
     return jsonError('Cannot buy your own item', 'SELF_PURCHASE', 400);
   }
+
+  // ✅ FIX: Extract category multiplier for SP calculation consistency
+  // This ensures backend trigger uses the SAME multiplier as frontend preview
+  const categoryMultiplier = 
+    (item.categories as { sp_earning_multiplier?: number } | null)?.sp_earning_multiplier ?? 1.0;
 
   // ── 2. Resolve seller → canonical user_id ────────────────────────────
   const { data: sellerProfile } = await supabase
@@ -142,7 +156,7 @@ serve(async (req) => {
   }
 
   // ── 3. Duplicate offer check ──────────────────────────────────────────
-  const ACTIVE_STATUSES = ['pending', 'payment_processing', 'payment_failed', 'in_progress'];
+  const ACTIVE_STATUSES = ['pending', 'payment_failed', 'in_progress'];
   const { data: existingOffer } = await supabase
     .from('trades')
     .select('id')
@@ -278,11 +292,16 @@ serve(async (req) => {
       buyer_subscription_status,
       buyer_transaction_fee_cents: transaction_fee_cents,
       cash_currency: 'usd',
-      // D-30: Trade is immediately in_progress since Stripe pre-auth is already held
-      status: 'in_progress',
+      // ✅ FIX: Per D-02 + D-30, trade starts in 'pending' status
+      // Stripe pre-auth hold is placed, but NOT captured until seller accepts
+      // Seller acceptance will transition to 'payment_processing' then 'in_progress'
+      status: 'pending',
       stripe_payment_intent_id: paymentIntentId,
       authorization_expires_at: authExpiresAt,
       total_fee_cents: transaction_fee_cents,
+      // ✅ FIX: Store category multiplier for SP calculation consistency
+      // Ensures trigger uses SAME multiplier as frontend preview (fixes 38 SP → 35 SP mismatch)
+      sp_category_multiplier: categoryMultiplier,
     })
     .select()
     .single();

@@ -182,8 +182,10 @@ function getDefaultConfig(): AdminConfig {
     // Fees
     transaction_fee_subscriber_cents: 99,
     transaction_fee_non_subscriber_cents: 299,
-    platform_fee_buyer_fixed_cents: 25,
-    platform_fee_buyer_percentage: 2.5,
+    // ❌ DEPRECATED: Percentage-based buyer fees not used per BRD Section 8.1.1
+    // BRD requires flat fees only (set to 0 to mark as deprecated)
+    platform_fee_buyer_fixed_cents: 0,
+    platform_fee_buyer_percentage: 0.00,
     platform_fee_seller_percentage: 5.0,
     platform_fee_seller_discount_percentage_freemium: 0,
     platform_fee_seller_discount_percentage_kids_club_plus: 0,

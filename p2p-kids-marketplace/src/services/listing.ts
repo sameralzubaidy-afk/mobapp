@@ -655,7 +655,7 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
     .from('transactions')
     .select('id')
     .eq('listing_id', listing_id)
-    .in('status', ['pending', 'payment_processing', 'in_progress']);
+    .in('status', ['pending', 'in_progress']);
 
   if (activeTrades && activeTrades.length > 0) {
     throw new Error('Cannot edit listing with active trades');

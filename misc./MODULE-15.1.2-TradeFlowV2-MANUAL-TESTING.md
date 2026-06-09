@@ -14,8 +14,6 @@
 |---|---|---|
 | **A — Core Happy Paths** | TC-A01 | Cash Only: full happy path (buyer confirms) |
 | | TC-A02 | Accept SP: Use SP slider → seller accepts → buyer confirms |
-| | TC-A03 | Accept SP: Pay Cash (0 SP) — subscriber seller still earns SP |
-| | TC-A04 | Donate listing: [Claim] button, no charge |
 | **B — Offer Lifecycle** | TC-B01 | Seller declines offer |
 | | TC-B02 | Offer expires (seller never responds) + seller ignore prompt |
 | | TC-B03 | Multiple competing offers — sort order + auto-decline |
@@ -145,17 +143,19 @@
 
 - App is running on iOS Simulator and/or Android Emulator.
 - The following test accounts exist and are confirmed (see Accounts table).
-- test-seller has at least one **Cash Only** listing, one **Accept SP** listing, and one **Donate** listing, all available.
+- test-seller has at least one **Cash Only** listing and one **Accept SP** listing, all available.
 - test-buyer (subscriber) has a Swap Points balance of at least 15 SP.
 - test-buyer and test-free have a valid saved payment card.
 - For cart tests: test-seller has at least 3 available items; a second seller (test-seller-2) has at least 1 available item in the same node as test-buyer.
 - For tax tests: the buyer's node has a tax rate configured (e.g., 6.35%) and sales tax is enabled globally, unless a case states otherwise. Admin portal access is available for admin-side cases.
 
+> **Note:** Donate listings (TC-A04) are not yet implemented. See `MODULE-15.1.2-TradeFlowV2-DEFERRED-MANUAL-TESTING.md` for deferred test cases.
+
 ## Accounts for testing
 
 | Role | Email | Subscription | Notes |
 |---|---|---|---|
-| Seller | test-seller@kidsmarketplace.test | Kids Club+ Active | Must be subscriber to offer Accept SP / Donate listings |
+| Seller | test-seller@kidsmarketplace.test | Kids Club+ Active | Must be subscriber to offer Accept SP listings |
 | Buyer (subscriber) | test-buyer@kidsmarketplace.test | Kids Club+ Active | Must have SP ≥ 15 |
 | Buyer (free) | test-free@kidsmarketplace.test | None | Cannot use SP |
 | Admin | test-admin@kidsmarketplace.test | — | Required for dispute resolution test cases |
@@ -217,45 +217,6 @@
 
 ---
 
-### TC-A03 · Accept SP listing: buyer pays cash (0 SP) — subscriber seller still earns SP
-
-**Ref:** TRADING-FLOW-V2 §7 Scenario S4
-**Actors:** test-buyer (subscriber) + test-seller (subscriber)
-
-**Objective:** Verify that an Accept SP listing paid fully in cash still grants the seller platform SP, with no buyer SP used.
-
-**Steps:**
-1. Log in as **Buyer** and open an **Accept SP** listing.
-2. Tap **[Request to Buy]** (do not use the SP slider) and submit the offer.
-3. Log in as **Seller** and accept the offer.
-4. Log in as **Buyer**, open the trade, and tap **[I Got It]** → **[Confirm]**.
-
-**Expected Result:**
-- The offer preview shows "$[price] cash, 0 SP" and no SP is reserved from the buyer.
-- The seller is charged the full cash amount.
-- After completion, the seller's completion screen shows the platform SP reward added to their pending wallet ("[platform_sp] SP releasing in [N] days (platform reward)") with a [View Wallet] button; no buyer SP is involved.
-
----
-
-### TC-A04 · Donate listing: [Claim] button, no charge
-
-**Ref:** TRADING-FLOW-V2 §4.2
-**Actors:** Any buyer + test-seller
-
-**Objective:** Verify a donate listing can be claimed with no payment and no SP.
-
-**Steps:**
-1. Log in as **Buyer** and open a **Donate** listing.
-2. Tap **[Claim]**.
-3. Open the trade and complete it through the normal timeline flow.
-
-**Expected Result:**
-- Only a **[Claim]** button is shown (no "Request to Buy", no "Use SP").
-- No payment is taken and no card is charged.
-- The trade follows the same timeline; no SP is earned because there is no cash transaction.
-
----
-
 ## Group B — Offer Lifecycle
 
 ### TC-B01 · Seller declines offer
@@ -298,6 +259,21 @@
 - Before expiry, the seller receives reminder pushes at roughly 6 hours and 1 hour before the offer expires.
 - After a second consecutive unanswered offer, the seller receives: "You're receiving offers but not responding on [Item]. Want to pause this listing?" with [Pause Listing] and [Dismiss].
 
+#### methods to fast-clock 
+
+-- 1. Find the trade
+SELECT id, offer_expires_at, status FROM trades 
+WHERE status IN ('pending', 'in_progress') 
+ORDER BY created_at DESC LIMIT 5;
+
+-- 2. Set its expiry to 5 minutes from now
+UPDATE trades 
+SET offer_expires_at = NOW() + INTERVAL '5 minutes'
+WHERE id = '<trade-uuid>';
+
+
+-- 3. Process it instantly
+SELECT public.rpc_process_expired_offers(100);
 ---
 
 ### TC-B03 · Multiple competing offers — sort order + auto-decline on acceptance
@@ -2454,8 +2430,6 @@
 |---|---|
 | Core happy path — cash only full flow (S1) | TC-A01 |
 | Core happy path — SP full flow (S5) | TC-A02 |
-| Accept SP / pay cash — platform SP earned (S4) | TC-A03 |
-| Donate listing — [Claim] no charge (§4.2) | TC-A04 |
 | Seller declines offer (S2) | TC-B01 |
 | Offer expiry + seller ignore prompt (S3) | TC-B02 |
 | Multiple competing offers — sort + auto-decline (S6) | TC-B03 |

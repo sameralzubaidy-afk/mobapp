@@ -198,6 +198,51 @@ export async function getSPConfig(key: string): Promise<any> {
 }
 
 /**
+ * Represents a pending SP release from a completed trade
+ */
+export interface PendingSPRelease {
+  trade_id: string;
+  item_title: string | null;
+  sp_amount: number;
+  pending_sp_release_at: string;
+}
+
+/**
+ * Get pending SP releases for the user as a seller (SP earned from trades
+ * that are in the 3-day pending release window).
+ */
+export async function getPendingSPReleases(userId: string): Promise<PendingSPRelease[]> {
+  try {
+    const { data, error } = await supabase
+      .from('trades')
+      .select(`
+        id,
+        sp_earned_at_completion,
+        pending_sp_release_at,
+        listing:listing_id ( title )
+      `)
+      .eq('seller_id', userId)
+      .eq('status', 'completed')
+      .not('sp_earned_at_completion', 'is', null)
+      .gt('sp_earned_at_completion', 0)
+      .not('pending_sp_release_at', 'is', null)
+      .order('pending_sp_release_at', { ascending: true });
+
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      trade_id: row.id,
+      item_title: row.listing?.title ?? null,
+      sp_amount: row.sp_earned_at_completion ?? 0,
+      pending_sp_release_at: row.pending_sp_release_at,
+    }));
+  } catch (error) {
+    console.error('Get pending SP releases error:', error);
+    return [];
+  }
+}
+
+/**
  * Get wallet summary with all metrics
  */
 export async function getWalletSummary(userId: string) {

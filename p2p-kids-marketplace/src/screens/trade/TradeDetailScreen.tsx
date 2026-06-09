@@ -164,6 +164,13 @@ export default function TradeDetailScreen() {
           );
         }
 
+        // ✅ PART 3 FIX: Refresh wallet after trade completion to show SP ledger entries
+        try {
+          if (refreshSession) await refreshSession();
+        } catch (e) {
+          console.warn('[TradeDetail] refreshSession after complete failed', e);
+        }
+
         // Refresh canonical trade record from server to ensure accurate fields
         try {
           await fetchTrade();
@@ -197,9 +204,10 @@ export default function TradeDetailScreen() {
 
       const result = await cancelTradeV2(tradeId, reason);
       if (result.success) {
-        // If SP were refunded, refresh the session so dashboard/wallet shows updated balance immediately
+        // ✅ PART 3 FIX: Refresh session AND fetch trade to update wallet/ledger immediately
         try {
           if (refreshSession) await refreshSession();
+          await fetchTrade(); // Reload trade to show updated status
         } catch (e) {
           console.warn('[TradeDetail] refreshSession after cancel failed', e);
         }
@@ -286,7 +294,8 @@ export default function TradeDetailScreen() {
     'tradeId:',
     tradeId
   );
-  const canAction = trade.status === 'in_progress' && (isBuyer || isSeller);
+  // ✅ PART 3 FIX: Allow actions for both 'pending' AND 'in_progress' status
+  const canAction = (trade.status === 'pending' || trade.status === 'in_progress') && (isBuyer || isSeller);
   const reviewButtonVisible = trade.status === 'completed' && (isBuyer || isSeller);
   const reviewButtonLabel = hasReviewed
     ? 'Already Reviewed'
@@ -300,7 +309,10 @@ export default function TradeDetailScreen() {
         <View style={styles.header}>
           <Text style={styles.statusLabel}>Status</Text>
           <View style={[styles.statusBadge, (styles as any)[`status_${trade.status}`]]} testID="trade-status-badge">
-            <Text style={styles.statusText}>{trade.status.replace('_', ' ').toUpperCase()}</Text>
+            {/* ✅ PART 3 FIX: Show user-friendly status labels */}
+            <Text style={styles.statusText}>
+              {trade.status === 'pending' ? 'AWAITING SELLER' : trade.status.replace('_', ' ').toUpperCase()}
+            </Text>
           </View>
         </View>
 

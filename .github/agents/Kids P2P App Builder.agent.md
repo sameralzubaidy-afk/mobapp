@@ -58,6 +58,42 @@ question before writing code. Do not ask multiple questions at once.
 state your assumptions explicitly at the top of your response.
 
 ---
+## REQUIREMENTS GATE (MANDATORY — runs before every new task)
+
+Before implementing ANY new feature, change, or bug fix, you MUST complete this
+pre-flight requirements check using the **filesystem MCP**. No exceptions.
+
+### Step 1 — Identify the relevant docx files
+
+The canonical requirements live in `docx/`. Before touching any code, scan this
+folder and identify ALL files relevant to the task at hand:
+
+| File | What it governs |
+|------|----------------|
+| `docx/BUSINESS_REQUIREMENTS_DOCUMENT_V2.md` | Master BRD — feature set, user stories, acceptance criteria |
+| `docx/SYSTEM_REQUIREMENTS_V2.md` | Technical + functional requirements, SP rules, fee logic |
+| `docx/Solution Architecture & Implementation Plan.md` | Architecture decisions, data model, service boundaries |
+| `docx/TRADING-FLOW-V2.md` | Trade flow states, transitions, rules — canonical for all trade logic |
+| `docx/SELLER-PAYOUTS-DOCUMENTATION.md` | Payout rules, eligibility, timing, Stripe Connect logic |
+| `docx/SELLER-PAYOUTS-IMPLEMENTATION.md` | Payout implementation spec |
+| `docx/SEARCH-FILTER-REQUIREMENTS.md` | Search, filter, sort behavior — canonical for discovery features |
+| `docx/BULK-LISTING-REQUIREMENTS.md` | Bulk listing rules and constraints |
+| `docx/ADMIN-CATEGORY-MANAGEMENT.md` | Category taxonomy, admin controls |
+| `docx/SOCIAL-LOGIN-REQUIREMENTS.md` | OAuth / social login rules |
+| `docx/TRADING-EDUCATION-REQUIREMENTS.md` | In-app trading education feature rules |
+| `docx/WESTPORT-GTM-CONTEXT-AND-DE....md` | Go-to-market context, launch constraints |
+| `docx/PASS-IT-UP-GTM-PLAN.md` | GTM plan — informs feature priority and phasing |
+| `docx/RESEARCH-SELLER-PAYOUT-OPTION.md` | Payout options research — background for payout decisions |
+| `docx/DOCUMENTATION-UPDATE-SUMMARY.md` | Tracks recent doc changes — check this for anything updated recently |
+| `docx/README-UPDATES.md` | Running changelog of requirement updates |
+---
+### Step 2 — Read before you build
+
+For the task you are about to implement:
+1. Use **filesystem MCP** to read every relevant file from the table above.
+2. Extract the specific rules, acceptance criteria, or constraints that apply.
+3. In your response, list them under a **"Requirements Confirmed"** block:
+
 
 ## SCOPE CONTAINMENT (MANDATORY)
 
@@ -168,7 +204,7 @@ At the end of every response that makes a code change, output this block:
 **How to verify**: [exact steps to confirm it works, written for a non-engineer]
 **Known gaps / not done yet**: [anything intentionally deferred]
 **Suggested next session**: [the single most logical next task to continue from here]
-**Suggested to improve agent rules**: [the single most logical add rule or update to the guidelines based on what you experienced in this session]
+**Suggested to improve agent rules**: [the single most logical add rule or update to the guidelines based on what you experienced in this session] if you do not have a suggestion, say "none".
 ---
 
 This block ensures that if a session ends abruptly, or a new session starts weeks
@@ -1846,6 +1882,9 @@ Every response must include:
   - Lint: PASS/FAIL (include the exact command used)
 - You MUST NOT say “Fixed” unless both are PASS.
 - Open questions / TODOs (if any)
+
+### HP-7: Formula Documentation 
+Cross-Reference rule requiring at least 2 independent doc examples to verify any formula before implementation. This would have caught the SP formula error immediately by forcing verification against the ADMIN-CATEGORY example.
 
 ## 13 Bug-class prevention rules
 

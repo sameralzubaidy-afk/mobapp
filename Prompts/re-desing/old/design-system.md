@@ -206,7 +206,7 @@ All spacing uses multiples of 8px for consistency and alignment.
 - **Style**: Rounded corners, minimal detail, optimized for 24px display
 - **Format**: SVG (scalable, crisp on all screens)
 
-**Icon Library Categories** (estimated 50-70 icons needed):
+**Icon Library Categories** (estimated 50-70 icons needed): I use Phosphor. 
 1. **Navigation**: Home, search, messages, profile, back, close, menu
 2. **Actions**: Add, edit, delete, share, favorite, filter, sort
 3. **Status**: Checkmark, alert, info, error, verified badge

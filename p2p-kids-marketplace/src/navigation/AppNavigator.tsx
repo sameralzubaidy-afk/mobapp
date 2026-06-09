@@ -567,7 +567,7 @@ function RootNavigator() {
               options={{ headerShown: false }}
             />
             {/* @deprecated Use ReviewOffer instead. TradeReview is the old broken screen
-                that sets payment_processing (wrong) instead of calling the EF.
+                that sets in_progress (wrong) instead of calling the EF.
                 Kept only for backward compat with stale notification payloads. */}
             <Stack.Screen
               name="TradeReview"

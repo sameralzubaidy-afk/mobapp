@@ -1,17 +1,18 @@
 // filepath: p2p-kids-marketplace/src/types/trade.ts
 
 /**
- * TradeStatus represents the lifecycle of a trade in V2.
- * - pending: Trade initiated, awaiting payment.
- * - payment_processing: Payment (Stripe/SP) is in flight.
- * - payment_failed: Payment failed, buyer can retry or cancel.
- * - in_progress: Payment successful, item handoff/shipping expected.
+ * TradeStatus represents the lifecycle of a trade in V2 (D-30).
+ * - pending: Legacy — old trades created before D-30.
+ * - payment_failed: Payment failed, buyer can retry.
+ * - in_progress: Trade active (pre-auth held or captured). Default starting state.
  * - completed: Trade finished successfully, SP earned.
  * - cancelled: Trade cancelled by buyer, seller, or system.
+ *
+ * Note: 'payment_processing' was removed in D-30. Accept is handled inline
+ * by transactions-update Edge Function — status stays 'in_progress'.
  */
 export type TradeStatus =
   | 'pending'
-  | 'payment_processing'
   | 'payment_failed'
   | 'in_progress'
   | 'completed'

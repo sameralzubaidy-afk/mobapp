@@ -181,7 +181,7 @@ serve(async (req) => {
       );
     }
 
-    const allowedRetryStatuses = ['pending', 'payment_failed', 'payment_processing'];
+    const allowedRetryStatuses = ['pending', 'payment_failed', 'in_progress'];
     if (!allowedRetryStatuses.includes(trade.status)) {
       return new Response(
         JSON.stringify({ error: `Trade is not in a payable state (current: ${trade.status})` }),
@@ -192,33 +192,6 @@ serve(async (req) => {
       );
     }
 
-    if (trade.status === 'payment_processing') {
-      const lastStatusChangeRaw = trade.last_status_change_at ?? trade.updated_at ?? null;
-      const parsedLastStatusChange = lastStatusChangeRaw ? Date.parse(lastStatusChangeRaw) : NaN;
-      const maxProcessingWindowMs = 90 * 1000;
-      const isStaleProcessing =
-        Number.isNaN(parsedLastStatusChange) || Date.now() - parsedLastStatusChange > maxProcessingWindowMs;
-
-      if (!isStaleProcessing) {
-        return new Response(
-          JSON.stringify({
-            error: 'Payment is already processing. Please wait a moment and retry.',
-            code: 'PAYMENT_ALREADY_PROCESSING',
-          }),
-          {
-            status: 409,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
-      }
-
-      console.warn('[trade-payment] Found stale payment_processing trade; allowing retry', {
-        tradeId: trade.id,
-        last_status_change_at: trade.last_status_change_at,
-        updated_at: trade.updated_at,
-      });
-    }
-
     // ─── D-30 PRE-AUTH CAPTURE PATH ──────────────────────────────────────────────
     // If the trade already has a stripe_payment_intent_id (set by create-trade-offer),
     // it is a pre-auth hold. We only need to capture it — no need to create a new PI,
@@ -226,15 +199,11 @@ serve(async (req) => {
     if (trade.stripe_payment_intent_id) {
       console.log('[trade-payment] D-30: pre-auth capture path, PI=', trade.stripe_payment_intent_id);
 
-      // Mark as payment_processing
-      await supabaseClient
-        .from('trades')
-        .update({ status: 'payment_processing', last_status_change_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      // Trade already in_progress (set by create-trade-offer). Status stays in_progress.
         .eq('id', trade.id);
 
       // SP: already reserved at offer time via fn_reserve_sp_on_offer trigger.
-      // fn_transfer_sp_on_accept trigger fires when status becomes 'in_progress',
-      // so we don't need to manually debit SP here.
+      // No additional SP action needed — reservation + ledger entry handled by trigger.
 
       // Capture the pre-auth hold
       try {
@@ -488,11 +457,11 @@ serve(async (req) => {
       });
     }
 
-    // 6) Mark trade as payment_processing
+    // 6) Mark trade as in_progress (D-30: 'payment_processing' deprecated)
     await supabaseClient
       .from('trades')
       .update({ 
-        status: 'payment_processing', 
+        status: 'in_progress', 
         last_status_change_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -762,7 +731,7 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq('id', currentTradeId)
-          .in('status', ['pending', 'payment_processing']);
+          .in('status', ['pending', 'in_progress']);
       } catch (statusUpdateError) {
         console.error('[trade-payment] Failed to mark trade as payment_failed in fatal catch:', statusUpdateError);
       }

@@ -28,7 +28,7 @@ serve(async (req) => {
   const supabaseAnonKey  = Deno.env.get('SUPABASE_ANON_KEY');
   const supabaseSvcKey   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-  if (!supabaseUrl || !supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseAnonKey || !supabaseSvcKey) {
     return errResp(500, 'CONFIG_ERROR', 'Server configuration error');
   }
 
@@ -80,14 +80,16 @@ serve(async (req) => {
   }
 
   // D-26: Set dispute overlay columns — trade status REMAINS in_progress
-  const svcClient = createClient(supabaseUrl, supabaseSvcKey!);
+  // NOTE: Column names match the actual trades table schema:
+  //   dispute_status, dispute_reason, dispute_notes, dispute_opened_at
+  const svcClient = createClient(supabaseUrl, supabaseSvcKey);
   const { error: updateErr } = await svcClient
     .from('trades')
     .update({
       dispute_status:      'reported',
       dispute_reason:      reason.substring(0, 500),
-      dispute_description: description ? description.substring(0, 2000) : null,
-      dispute_reported_at: new Date().toISOString(),
+      dispute_notes:       description ? description.substring(0, 2000) : null,
+      dispute_opened_at:   new Date().toISOString(),
     })
     .eq('id', trade_id);
 

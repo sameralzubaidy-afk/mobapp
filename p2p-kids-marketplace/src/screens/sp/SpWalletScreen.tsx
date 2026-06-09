@@ -27,7 +27,9 @@ import {
 import {
   getWallet,
   getExpiringBatches,
+  getPendingSPReleases,
   type SPWallet,
+  type PendingSPRelease,
 } from '@/services/sp/wallet';
 import { getSPExpirationDays } from '@/services/adminConfig';
 import { supabase } from '@/config/supabase';
@@ -43,6 +45,7 @@ export default function SpWalletScreen() {
 
   const [wallet, setWallet] = useState<SPWallet | null>(null);
   const [expiringSoonTotal, setExpiringSoonTotal] = useState(0);
+  const [pendingReleases, setPendingReleases] = useState<PendingSPRelease[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expirationDays, setExpirationDays] = useState<number | null>(null);
@@ -77,6 +80,10 @@ export default function SpWalletScreen() {
       const allBatches = await getExpiringBatches(user.id, 30);
       const expiringTotal = allBatches.reduce((sum, batch) => sum + batch.remaining_sp, 0);
       setExpiringSoonTotal(expiringTotal);
+
+      // Load pending SP releases (SP earned from completed trades, awaiting release)
+      const releases = await getPendingSPReleases(user.id);
+      setPendingReleases(releases);
     } catch (error) {
       console.error('[SpWallet] Load error:', error);
     } finally {
@@ -231,6 +238,51 @@ export default function SpWalletScreen() {
               <Text style={styles.statLabel}>Pending</Text>
             </View>
           </View>
+
+          {/* Pending Release Summary Note */}
+          {pendingReleases.length > 0 && (() => {
+            const totalPending = pendingReleases.reduce((sum, r) => sum + r.sp_amount, 0);
+            const earliestDate = pendingReleases.reduce((earliest, r) =>
+              r.pending_sp_release_at < earliest ? r.pending_sp_release_at : earliest,
+              pendingReleases[0].pending_sp_release_at
+            );
+            const releaseDate = new Date(earliestDate);
+            
+            // ✅ PART 3 FIX: Add countdown timer calculation
+            const now = new Date();
+            const msUntilRelease = releaseDate.getTime() - now.getTime();
+            const daysUntilRelease = Math.ceil(msUntilRelease / (1000 * 60 * 60 * 24));
+            const hoursUntilRelease = Math.ceil(msUntilRelease / (1000 * 60 * 60));
+            
+            // Show countdown in days if >1 day, otherwise hours
+            const countdownText = daysUntilRelease > 1 
+              ? `in ${daysUntilRelease} days`
+              : hoursUntilRelease > 1
+              ? `in ${hoursUntilRelease} hours`
+              : 'soon';
+            
+            return (
+              <View style={styles.pendingReleaseNote}>
+                <View style={styles.pendingReleaseNoteIcon}>
+                  <Text style={styles.pendingReleaseNoteIconText}>⏳</Text>
+                </View>
+                <View style={styles.pendingReleaseNoteContent}>
+                  <Text style={styles.pendingReleaseNoteTitle}>
+                    {totalPending} SP Pending Release
+                  </Text>
+                  <Text style={styles.pendingReleaseNoteText}>
+                    Your pending points will be released {countdownText} on{' '}
+                    {releaseDate.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                    .
+                  </Text>
+                </View>
+              </View>
+            );
+          })()}
 
           {/* Expiring Soon Alert */}
           {expiringSoonTotal > 0 && (
@@ -517,6 +569,47 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   expirationInfoText: {
+    fontSize: 13,
+    color: '#247659',
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  // Pending Release Note
+  pendingReleaseNote: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#E0F7F3',
+    borderRadius: 14,
+    borderLeftWidth: 4,
+    borderLeftColor: '#5DBB8E',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  pendingReleaseNoteIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#5DBB8E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: -2,
+  },
+  pendingReleaseNoteIconText: {
+    fontSize: 20,
+  },
+  pendingReleaseNoteContent: {
+    flex: 1,
+  },
+  pendingReleaseNoteTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F6B52',
+    marginBottom: 4,
+  },
+  pendingReleaseNoteText: {
     fontSize: 13,
     color: '#247659',
     fontWeight: '500',

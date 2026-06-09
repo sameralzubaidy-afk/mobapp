@@ -392,7 +392,7 @@ export const getProfileStats = async (
       supabase
         .from('trades')
         .select('id', { count: 'exact', head: true })
-        .in('status', ['pending', 'payment_processing', 'payment_failed', 'in_progress', 'completed'])
+        .in('status', ['pending', 'payment_failed', 'in_progress', 'completed'])
         .or(participantFilter),
       supabase
         .from('trades')

@@ -64,8 +64,8 @@ Use Mobile MCP to take a screenshot of the current simulator screen. Or use Use 
 Look at what you see and identify any visible error, broken UI, 
 or unexpected state.
 
-Context: I tried again and got this error after selected the payment method on the screen. 
-Expected: user to complete the flow sucesffully and seller receive the offer 
+Context:  
+Expected:
 
 Then:
 1. Identify which file and component is responsible
@@ -73,6 +73,9 @@ Then:
 3. Fix only the broken part , do the best effort to fix what i have not add new functions unless needed for the fix.
 3.1 if you need to push the fix to supabase , use MCP for it. If you face problems ask me to do it manaully. 
 4. If you need actions from me , list them for me clearly. 
+5. make sure you do not break any working functions. 
+6. fix only this issue do not touch any other functions. if you are not sure about something stop and ask me do not make assuptions. 
+7. always refer to the reqs in  MODULE-15.1.2-TradeFlowV2.md 
 Logs below from my app simaltor
 
 —

@@ -65,7 +65,7 @@ async function fallbackCancelTrade(
   }
 
   const status = typeof trade.status === 'string' ? trade.status : '';
-  if (!['pending', 'payment_processing', 'payment_failed', 'in_progress'].includes(status)) {
+  if (!['pending', 'payment_failed', 'in_progress'].includes(status)) {
     return {
       success: false,
       error: `This trade cannot be cancelled. Current status: ${status}`,

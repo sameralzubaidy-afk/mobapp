@@ -22,7 +22,7 @@ serve(async (req) => {
 
     const { data: trades, error: fetchError } = await supabaseClient
       .from('trades')
-      .select('id, created_at, last_status_change_at, seller_marked_completed_at')
+      .select('id, created_at, last_status_change_at, seller_marked_completed_at, dispute_status, disputed_at')
       .eq('status', 'in_progress');
 
     if (fetchError) {
@@ -31,7 +31,14 @@ serve(async (req) => {
 
     // Filter trades where the reference timestamp is older than cutoff.
     // Reference timestamp order: seller_marked_completed_at -> last_status_change_at -> created_at
+    // Skip any trade with an UNRESOLVED dispute (dispute_status = reported/under_review OR disputed_at is set)
     const candidates = (trades || []).filter((t: any) => {
+      // Skip disputed trades with no resolution
+      const hasActiveDispute =
+        (t.dispute_status && !['none', 'resolved'].includes(t.dispute_status)) ||
+        (t.disputed_at && !t.dispute_resolution);
+      if (hasActiveDispute) return false;
+
       const refTs = t.seller_marked_completed_at || t.last_status_change_at || t.created_at;
       if (!refTs) return false;
       const refDate = new Date(refTs);

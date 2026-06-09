@@ -288,7 +288,7 @@ describe('TradeTimelineScreen', () => {
     it('should show buyer payment section and submit payment with saved card', async () => {
       const paymentProcessingTrade = {
         ...mockTrade,
-        status: 'payment_processing',
+        status: 'in_progress',
       };
       mockUseAuth.mockReturnValue({ session: mockBuyerSession } as any);
       mockSupabase.from = createFromMock(paymentProcessingTrade) as any;

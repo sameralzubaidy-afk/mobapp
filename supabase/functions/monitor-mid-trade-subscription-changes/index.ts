@@ -46,7 +46,7 @@ serve(async (req) => {
     const { data: trades, error: tradesError } = await supabaseClient
       .from('trades')
       .select('id, buyer_id, buyer_subscription_status, status, metadata')
-      .in('status', ['pending', 'payment_processing', 'in_progress']);
+      .in('status', ['pending', 'in_progress']);
 
     if (tradesError) {
       console.error('[monitor] Error fetching trades:', tradesError);

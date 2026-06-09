@@ -9,9 +9,10 @@
  * - Compact trade rows with 56×56px thumbnails
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   useFocusEffect,
+  useRoute,
 } from '@react-navigation/native';
 import {
   View,
@@ -48,14 +49,18 @@ interface PendingOffer {
   type: 'received' | 'submitted';
   bundle_id?: string | null;
   listing: {
+    id: string;
     title: string;
     price: number;
+    status?: string;
     images: { url: string; thumbnail_url?: string }[];
   };
   offer_expires_at?: string | null;
+  auto_complete_at?: string | null;
 }
 
 export default function TradeListScreen({ navigation }: any) {
+  const route = useRoute();
   const { session } = useAuth();
   const userId = session?.user?.id;
   const [loading, setLoading] = useState(false);
@@ -64,7 +69,8 @@ export default function TradeListScreen({ navigation }: any) {
   const [allOffers, setAllOffers] = useState<PendingOffer[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [refreshing, setRefreshing] = useState(false);
-  const [summary, setSummary] = useState({ inProgress: 0, needsAction: 0, completed: 0 });
+  const [summary, setSummary] = useState({ inProgress: 0, needsAction: 0, pendingOffers: 0, completed: 0 });
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'your_offers' | 'needs_action' | 'in_progress' | 'completed'>('all');
   // TFV2-015: seller ignoring offers prompt (D-13)
   const [ignoredOfferItems, setIgnoredOfferItems] = useState<{ listing_id: string; title: string; count: number }[]>([]);
   const [showIgnoringModal, setShowIgnoringModal] = useState(false);
@@ -73,10 +79,26 @@ export default function TradeListScreen({ navigation }: any) {
 
   useFocusEffect(
     useCallback(() => {
+      // D-30: fetchPendingOffers runs AFTER fetchTrades completes so it has
+      // access to the trades state (summary and list stay in sync).
       fetchTrades();
-      fetchPendingOffers();
+      void fetchAllOffers();
       void fetchSellerIgnoringStats();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+    
+
+  // TFV2-015: Handle notification-triggered ignore prompt modal
+  useEffect(() => {
+    const params = route.params as any;
+    if (params?.showIgnorePrompt && params?.listingId) {
+      setIgnoringModalItem({
+        listing_id: params.listingId,
+        title: params.listingTitle || 'your listing',
+      });
+      setShowIgnoringModal(true);
+      // Clear params to prevent re-triggering on subsequent renders
+      navigation.setParams({ showIgnorePrompt: undefined, listingId: undefined, listingTitle: undefined });
+    }
+  }, [route.params, navigation]);  // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId, activeTab])
   );
 
@@ -172,41 +194,19 @@ export default function TradeListScreen({ navigation }: any) {
     []
   );
 
-  const fetchPendingOffers = async () => {
-    if (!userId) {
-      setPendingOffers([]);
-      return;
-    }
-
-    try {
-      // Get pending offers on user's listings (where they are the seller)
-      const { data, error } = await supabase
-        .from('trades')
-        .select(`
-          id,
-          listing_id,
-          sp_amount,
-          cash_amount_cents,
-          created_at,
-          offer_expires_at,
-          status
-        `)
-        .eq('seller_id', userId)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-
-      const offersWithType = await attachListingDataToOffers(
-        (data || []).map((offer: any) => ({ ...offer, type: 'received' as const }))
-      );
-
-      setPendingOffers(offersWithType);
-      setSummary(prev => ({ ...prev, needsAction: offersWithType.length }));
-    } catch (err) {
-      console.warn('[TradeList] fetchPendingOffers error', err);
-    }
+  const fetchPendingOffers = async (tradesData?: any[]) => {
+    // D-30: Use passed-in tradesData to avoid stale closure over `trades` state.
+    const source = tradesData ?? trades;
+    // FIXED TC-B02: Exclude cancelled offers from "Needs Action" section
+    const sellerNeedsAction = source.filter((t: any) =>
+      t.seller_id === userId
+      && t.status === 'pending'  // Only pending offers need action, NOT cancelled
+      && !t.auto_complete_at
+    );
+    const offersWithType = await attachListingDataToOffers(
+      sellerNeedsAction.map((offer: any) => ({ ...offer, type: 'received' as const }))
+    );
+    setPendingOffers(offersWithType);
   };
 
   const fetchAllOffers = async () => {
@@ -228,10 +228,11 @@ export default function TradeListScreen({ navigation }: any) {
           created_at,
           offer_expires_at,
           status,
-          bundle_id
+          bundle_id,
+          auto_complete_at
         `)
         .eq('seller_id', userId)
-        .in('status', ['pending', 'payment_processing', 'payment_failed', 'in_progress', 'cancelled', 'completed'])
+        .in('status', ['pending', 'payment_failed', 'in_progress', 'cancelled', 'completed'])
         .order('created_at', { ascending: false });
 
       if (receivedError) throw receivedError;
@@ -246,10 +247,11 @@ export default function TradeListScreen({ navigation }: any) {
           cash_amount_cents,
           created_at,
           offer_expires_at,
-          status
+          status,
+          auto_complete_at
         `)
         .eq('buyer_id', userId)
-        .in('status', ['pending', 'payment_processing', 'payment_failed', 'in_progress', 'cancelled', 'completed'])
+        .in('status', ['pending', 'payment_failed', 'in_progress', 'cancelled', 'completed'])
         .order('created_at', { ascending: false });
 
       if (submittedError) throw submittedError;
@@ -285,7 +287,7 @@ export default function TradeListScreen({ navigation }: any) {
       const { data: tradesRaw, error: tradesError } = await supabase
         .from('trades')
         .select(
-          'id, status, created_at, buyer_id, seller_id, bundle_id, listing_id, cash_amount_cents, sp_amount, tax_amount_cents'
+          'id, status, created_at, buyer_id, seller_id, bundle_id, listing_id, cash_amount_cents, sp_amount, tax_amount_cents, auto_complete_at'
         )
         .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
         .order('created_at', { ascending: false });
@@ -302,7 +304,7 @@ export default function TradeListScreen({ navigation }: any) {
         // 3a: Fetch items (no join — avoids FK schema cache issues)
         const { data: items } = await supabase
           .from('items')
-          .select('id, title, price')
+          .select('id, title, price, status')
           .in('id', listingIds);
 
         if (items) {
@@ -345,20 +347,44 @@ export default function TradeListScreen({ navigation }: any) {
       });
 
       setTrades(filteredData);
+
+      // Derive pending offers from the fresh data (not stale closure)
+      // to keep Needs Action in sync with summary count.
+      void fetchPendingOffers(filteredData);
       
-      // Calculate summary stats
-      const inProgressCount = tradesRaw?.filter((t: any) => 
-        ['pending', 'payment_processing', 'in_progress'].includes(t.status)
+      // Calculate summary stats.
+      // D-30: 'in_progress' with auto_complete_at IS NULL = needs action.
+      //        Only count where current user is the SELLER (needs action on their side).
+      //        'in_progress' with auto_complete_at IS NOT NULL = truly in progress (accepted).
+      const needsActionCount = tradesRaw?.filter((t: any) =>
+        t.seller_id === userId && ['pending', 'in_progress'].includes(t.status) && !t.auto_complete_at
+      ).length || 0;
+      // D-31: Count buyer's pending offers (submitted, awaiting seller acceptance)
+      const pendingOfferCount = tradesRaw?.filter((t: any) =>
+        t.buyer_id === userId && ['pending', 'in_progress'].includes(t.status) && !t.auto_complete_at
+      ).length || 0;
+      const inProgressCount = tradesRaw?.filter((t: any) =>
+        t.status === 'in_progress' && t.auto_complete_at
       ).length || 0;
       const completedCount = tradesRaw?.filter((t: any) => t.status === 'completed').length || 0;
       
-      setSummary(prev => ({ ...prev, inProgress: inProgressCount, completed: completedCount }));
+      setSummary(prev => ({ ...prev, inProgress: inProgressCount, needsAction: needsActionCount, pendingOffers: pendingOfferCount, completed: completedCount }));
     } catch (err) {
       console.warn('[TradeList] fetch error', err);
     } finally {
       setLoading(false);
     }
   };
+
+  // D-31: Buyer's submitted offers awaiting seller acceptance
+  // FIXED TC-B02: Exclude cancelled offers from "Your Offers" section
+  const submittedOffers = useMemo(() => {
+    return allOffers.filter((o) =>
+      o.type === 'submitted' &&
+      o.status !== 'cancelled' &&  // Exclude cancelled/expired offers
+      (o.status === 'pending' || (o.status === 'in_progress' && !o.auto_complete_at))
+    );
+  }, [allOffers]);
 
   // Addendum D: group received pending offers by bundle_id for the Offers tab.
   const groupedReceivedOffers = useMemo(() => {
@@ -369,7 +395,13 @@ export default function TradeListScreen({ navigation }: any) {
     const bundleMap: Record<string, PendingOffer[]> = {};
     const seen = new Set<string>();
 
-    const received = allOffers.filter((o) => o.type === 'received' && o.status === 'pending');
+    // D-30: received offers are 'in_progress' with auto_complete_at IS NULL
+    // FIXED TC-B02: Exclude cancelled offers from grouped received offers
+    const received = allOffers.filter((o) =>
+      o.type === 'received' &&
+      o.status !== 'cancelled' &&  // Exclude cancelled/expired offers
+      (o.status === 'pending' || (o.status === 'in_progress' && !o.auto_complete_at))
+    );
     for (const offer of received) {
       if (offer.bundle_id) {
         if (!bundleMap[offer.bundle_id]) {
@@ -395,7 +427,7 @@ export default function TradeListScreen({ navigation }: any) {
   // Addendum D: group in_progress trades by bundle_id.
   const inProgressBundles = useMemo(() => {
     const inProgress = trades.filter(
-      (t: any) => t.status === 'in_progress' && t.bundle_id
+      (t: any) => t.status === 'in_progress' && t.auto_complete_at && t.bundle_id
     );
     const bundleMap: Record<string, any[]> = {};
     for (const t of inProgress) {
@@ -408,12 +440,18 @@ export default function TradeListScreen({ navigation }: any) {
       .map(([bundleId, items]) => ({ bundleId, trades: items }));
   }, [trades]);
 
+  // D-30: only 'in_progress' with auto_complete_at IS NOT NULL is truly active (accepted).
+  // Unaccepted offers (pending or in_progress with auto_complete_at IS NULL) go to Needs Action.
   const activeTrades = useMemo(() => {
-    return trades.filter((t: any) => ['pending', 'payment_processing', 'in_progress'].includes(t.status));
+    return trades.filter((t: any) =>
+      t.status === 'in_progress' && t.auto_complete_at
+    );
   }, [trades]);
 
   const historyTrades = useMemo(() => {
-    return trades.filter((t: any) => ['completed', 'cancelled', 'payment_failed'].includes(t.status));
+    return trades
+      .filter((t: any) => ['completed', 'cancelled', 'payment_failed'].includes(t.status))
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [trades]);
 
   const recentlyCompleted = useMemo(() => {
@@ -447,7 +485,7 @@ export default function TradeListScreen({ navigation }: any) {
   const getStatusBadgeStyle = (status: string) => {
     switch (status) {
       case 'pending':
-      case 'payment_processing':
+      /* D-30: payment_processing deprecated */
         return styles.statusBadgePending;
       case 'in_progress':
         return styles.statusBadgeActive;
@@ -464,7 +502,7 @@ export default function TradeListScreen({ navigation }: any) {
   const getStatusBadgeTextStyle = (status: string) => {
     switch (status) {
       case 'pending':
-      case 'payment_processing':
+      /* D-30: payment_processing deprecated */
         return styles.statusBadgeTextPending;
       case 'in_progress':
         return styles.statusBadgeTextActive;
@@ -632,36 +670,68 @@ export default function TradeListScreen({ navigation }: any) {
     return `${hours}h ${mins}m`;
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState} testID="trade-history-empty-state">
-      <Receipt size={64} color="#E0E0E0" weight="regular" />
-      <Text style={styles.emptyStateTitle}>No Trades Yet</Text>
-      <Text style={styles.emptyStateText}>
-        {activeTab === 'active'
-          ? "You don't have any active trades or offers right now."
-          : 'Your completed and cancelled trades will appear here.'}
-      </Text>
-    </View>
-  );
+  const renderEmptyState = () => {
+    let message: string;
+    if (activeTab === 'history') {
+      message = 'Your completed and cancelled trades will appear here.';
+    } else if (selectedFilter === 'your_offers') {
+      message = "You haven't sent any offers yet. Browse items and make an offer to get started.";
+    } else if (selectedFilter === 'needs_action') {
+      message = 'No pending offers from buyers right now. New offers will appear here.';
+    } else if (selectedFilter === 'in_progress') {
+      message = 'No trades in progress. Accepted offers will show up here.';
+    } else if (selectedFilter === 'completed') {
+      message = 'No completed trades yet. Your finished trades will show up here.';
+    } else {
+      message = "You don't have any active trades or offers right now.";
+    }
+
+    return (
+      <View style={styles.emptyState} testID="trade-history-empty-state">
+        <Receipt size={64} color="#E0E0E0" weight="regular" />
+        <Text style={styles.emptyStateTitle}>No Trades Yet</Text>
+        <Text style={styles.emptyStateText}>
+          {message}
+        </Text>
+      </View>
+    );
+  };
 
   return (
     <ScreenLayout variant="detail" title="My Trades">
-      {/* Summary Header */}
+      {/* Summary Header — tappable to filter */}
       <View style={styles.summaryCard}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{summary.inProgress}</Text>
+        <Pressable
+          style={styles.summaryItem}
+          onPress={() => setSelectedFilter(prev => prev === 'your_offers' ? 'all' : 'your_offers')}
+        >
+          <Text style={[styles.summaryValue, selectedFilter === 'your_offers' && styles.summaryValueActive]}>{summary.pendingOffers}</Text>
+          <Text style={styles.summaryLabel}>Your Offers</Text>
+        </Pressable>
+        <View style={styles.summaryDivider} />
+        <Pressable
+          style={styles.summaryItem}
+          onPress={() => setSelectedFilter(prev => prev === 'in_progress' ? 'all' : 'in_progress')}
+        >
+          <Text style={[styles.summaryValue, selectedFilter === 'in_progress' && styles.summaryValueActive]}>{summary.inProgress}</Text>
           <Text style={styles.summaryLabel}>In Progress</Text>
-        </View>
+        </Pressable>
         <View style={styles.summaryDivider} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{summary.needsAction}</Text>
+        <Pressable
+          style={styles.summaryItem}
+          onPress={() => setSelectedFilter(prev => prev === 'needs_action' ? 'all' : 'needs_action')}
+        >
+          <Text style={[styles.summaryValue, selectedFilter === 'needs_action' && styles.summaryValueActive]}>{summary.needsAction}</Text>
           <Text style={styles.summaryLabel}>Needs Action</Text>
-        </View>
+        </Pressable>
         <View style={styles.summaryDivider} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryValue}>{summary.completed}</Text>
+        <Pressable
+          style={styles.summaryItem}
+          onPress={() => setSelectedFilter(prev => prev === 'completed' ? 'all' : 'completed')}
+        >
+          <Text style={[styles.summaryValue, selectedFilter === 'completed' && styles.summaryValueActive]}>{summary.completed}</Text>
           <Text style={styles.summaryLabel}>Completed</Text>
-        </View>
+        </Pressable>
       </View>
 
       {/* Tabs */}
@@ -690,13 +760,92 @@ export default function TradeListScreen({ navigation }: any) {
         style={styles.content}
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchTrades(); fetchPendingOffers(); setRefreshing(false); }} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchTrades().then(() => fetchPendingOffers()).finally(() => setRefreshing(false)); }} />
         }
       >
         {activeTab === 'active' ? (
           <>
-            {/* Action Required (Offers) */}
-            {pendingOffers.length > 0 && (
+            {/* Submitted Offers (Buyer) */}
+            {submittedOffers.length > 0 && (selectedFilter === 'all' || selectedFilter === 'your_offers') && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <ArrowsLeftRight size={18} color="#5DBB8E" />
+                  <Text style={styles.sectionTitle}>YOUR OFFERS</Text>
+                </View>
+                {submittedOffers.map(offer => (
+                  <TouchableOpacity 
+                    key={offer.id}
+                    style={styles.tradeCard}
+                    onPress={() => navigation.navigate('TradeDetail', { tradeId: offer.id })}
+                  >
+                    <View style={styles.tradeCardMain}>
+                      <View style={styles.tradeCardImageContainer}>
+                        {offer.listing?.images?.[0] ? (
+                          <Image 
+                            source={{ uri: offer.listing.images[0].thumbnail_url || offer.listing.images[0].url }} 
+                            style={styles.tradeCardImage} 
+                          />
+                        ) : (
+                          <View style={styles.tradeCardImagePlaceholder}><Text>📦</Text></View>
+                        )}
+                      </View>
+                      <View style={styles.tradeCardContent}>
+                        <View style={styles.tradeCardHeaderLine}>
+                          <Text style={styles.tradeCardTitle} numberOfLines={1}>{offer.listing?.title || 'Untitled'}</Text>
+                          <View style={[styles.statusBadge, offer.status === 'cancelled' ? styles.statusBadgeCancelled : styles.statusBadgePending]}>
+                            <Text style={[styles.statusBadgeText, offer.status === 'cancelled' ? styles.statusBadgeTextCancelled : styles.statusBadgeTextPending]}>
+                              {offer.status === 'cancelled' ? 'EXPIRED' : 'PENDING'}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.tradeCardMetaLine}>
+                          <View style={[styles.typeBadge, styles.typeBadgeBuying]}>
+                            <Text style={styles.typeBadgeTextBuying}>Buying</Text>
+                          </View>
+                          <Text style={styles.tradeCardDate}>{formatDate(offer.created_at)} · ${(offer.cash_amount_cents / 100).toFixed(2)}</Text>
+                        </View>
+                        {offer.offer_expires_at && (
+                          <View style={styles.expirationLine}>
+                            <View style={styles.expirationDot} />
+                            <Text style={styles.expirationText}>
+                              {offer.status === 'cancelled' 
+                                ? (offer.listing?.status === 'available' ? 'Expired — Item still available' : 'Expired — Item no longer available')
+                                : `Offer expires in ${getTimeAgoBrief(offer.offer_expires_at)}`
+                              }
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <View style={styles.tradeCardDivider} />
+                    <View style={styles.tradeCardActions}>
+                      {offer.status === 'cancelled' && offer.listing?.status === 'available' ? (
+                        <TouchableOpacity 
+                          style={styles.tradeCardBtnPrimary}
+                          onPress={() => {
+                            if (offer.listing?.id) {
+                              navigation.navigate('ItemDetail', { itemId: offer.listing.id });
+                            }
+                          }}
+                        >
+                          <Text style={styles.tradeCardBtnPrimaryText}>View Item Again</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity 
+                          style={styles.tradeCardBtnSecondary}
+                          onPress={() => navigation.navigate('TradeDetail', { tradeId: offer.id })}
+                        >
+                          <Text style={styles.tradeCardBtnSecondaryText}>View Details</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Action Required (Received Offers - Seller) */}
+            {pendingOffers.length > 0 && (selectedFilter === 'all' || selectedFilter === 'needs_action') && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <ArrowsLeftRight size={18} color="#6B6B6B" />
@@ -708,7 +857,6 @@ export default function TradeListScreen({ navigation }: any) {
                     style={styles.tradeCard}
                     onPress={() => navigation.navigate('ReviewOffer', { tradeId: offer.id })}
                    >
-                     {/* Simplified offer display for consistency with trade card */}
                      <View style={styles.tradeCardMain}>
                         <View style={styles.tradeCardImageContainer}>
                           {offer.listing?.images?.[0] ? (
@@ -736,7 +884,9 @@ export default function TradeListScreen({ navigation }: any) {
                           {offer.offer_expires_at && (
                             <View style={styles.expirationLine}>
                               <View style={styles.expirationDot} />
-                              <Text style={styles.expirationText}>Offer expires in {getTimeAgoBrief(offer.offer_expires_at)}</Text>
+                              <Text style={styles.expirationText}>
+                                {offer.status === 'cancelled' ? 'Expired' : `Offer expires in ${getTimeAgoBrief(offer.offer_expires_at)}`}
+                              </Text>
                             </View>
                           )}
                         </View>
@@ -756,7 +906,7 @@ export default function TradeListScreen({ navigation }: any) {
             )}
 
             {/* In Progress Section */}
-            {activeTrades.length > 0 && (
+            {activeTrades.length > 0 && (selectedFilter === 'all' || selectedFilter === 'in_progress') && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <ArrowsLeftRight size={18} color="#6B6B6B" />
@@ -770,8 +920,23 @@ export default function TradeListScreen({ navigation }: any) {
               </View>
             )}
 
-            {/* Recently Completed */}
-            {recentlyCompleted.length > 0 && (
+            {/* Completed Section (shown when filter is active) */}
+            {selectedFilter === 'completed' && historyTrades.filter(t => t.status === 'completed').length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Check size={18} color="#6B6B6B" />
+                  <Text style={styles.sectionTitle}>COMPLETED</Text>
+                </View>
+                {historyTrades.filter(t => t.status === 'completed').map(t => (
+                  <View key={t.id}>
+                    {renderCompactTradeRow({ item: t })}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Recently Completed (only show when no filter is selected) */}
+            {selectedFilter === 'all' && recentlyCompleted.length > 0 && (
               <View style={styles.section}>
                 <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -790,7 +955,14 @@ export default function TradeListScreen({ navigation }: any) {
               </View>
             )}
 
-            {activeTrades.length === 0 && pendingOffers.length === 0 && recentlyCompleted.length === 0 && renderEmptyState()}
+            {(() => {
+              // Determine if we should show empty state based on active filter
+              if (selectedFilter === 'your_offers') return submittedOffers.length === 0;
+              if (selectedFilter === 'needs_action') return pendingOffers.length === 0;
+              if (selectedFilter === 'in_progress') return activeTrades.length === 0;
+              if (selectedFilter === 'completed') return historyTrades.filter(t => t.status === 'completed').length === 0;
+              return activeTrades.length === 0 && pendingOffers.length === 0 && submittedOffers.length === 0 && recentlyCompleted.length === 0;
+            })() && renderEmptyState()}
           </>
         ) : (
           <View style={styles.section}>
@@ -805,6 +977,47 @@ export default function TradeListScreen({ navigation }: any) {
         )}
       </ScrollView>
       <PersistentTabBar />
+
+      {/* TFV2-015: Seller Ignore Prompt Modal */}
+      <Modal
+        visible={showIgnoringModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowIgnoringModal(false)}
+      >
+        <Pressable 
+          style={styles.ignModalOverlay}
+          onPress={() => setShowIgnoringModal(false)}
+        >
+          <Pressable style={styles.ignModalSheet} onPress={e => e.stopPropagation()}>
+            <Text style={styles.ignModalTitle}>Listing Feedback</Text>
+            <Text style={styles.ignModalBody}>
+              You're receiving offers but not responding on "{ignoringModalItem?.title || 'your listing'}". Want to pause this listing?
+            </Text>
+            <TouchableOpacity
+              style={styles.ignModalBtnPrimary}
+              onPress={() => {
+                if (ignoringModalItem?.listing_id) {
+                  void handlePauseListing(ignoringModalItem.listing_id);
+                }
+              }}
+              disabled={pausingListing}
+            >
+              {pausingListing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.ignModalBtnPrimaryText}>Pause Listing</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.ignModalBtnDismiss}
+              onPress={() => setShowIgnoringModal(false)}
+            >
+              <Text style={styles.ignModalBtnDismissText}>Dismiss</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScreenLayout>
   );
 }
@@ -1016,6 +1229,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6B6B6B',
   },
+  tradeCardBtnPrimary: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#5DBB8E',
+    gap: 6,
+  },
+  tradeCardBtnPrimaryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   // Compact Row (History)
   compactRow: {
     flexDirection: 'row',
@@ -1101,6 +1329,10 @@ const styles = StyleSheet.create({
   },
   compactTypeBadgeTextCancelled: {
     color: '#EF4444',
+  },
+  // Summary active filter indicator
+  summaryValueActive: {
+    color: '#D0D0D0',
   },
   // Status Badges
   statusBadge: {

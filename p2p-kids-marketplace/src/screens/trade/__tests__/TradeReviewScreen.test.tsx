@@ -212,7 +212,7 @@ describe('TradeReviewScreen', () => {
         error: null,
       });
       const updateSingle = jest.fn().mockResolvedValue({
-        data: { id: 'trade-123', status: 'payment_processing' },
+        data: { id: 'trade-123', status: 'in_progress' },
         error: null,
       });
 

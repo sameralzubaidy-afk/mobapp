@@ -12,7 +12,7 @@ import { getSubscriptionSummary } from './subscription';
 import { getAdminConfig } from './adminConfig';
 import { getUserReviews } from './review';
 
-const ACTIVE_OFFER_STATUSES = ['pending', 'payment_processing', 'payment_failed', 'in_progress'];
+const ACTIVE_OFFER_STATUSES = ['pending', 'payment_failed', 'in_progress'];
 
 /**
  * Check if there is an active trade between buyer and seller

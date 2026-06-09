@@ -9,7 +9,6 @@ export type TradeEventType =
   | 'seller_cancelled'
   | 'trade_completed'
   | 'trade_disputed'
-  | 'payment_processing'
   | 'payment_captured'
   | 'payment_failed'
   | 'payout_initiated'

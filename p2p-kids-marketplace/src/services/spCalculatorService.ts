@@ -10,11 +10,8 @@ function roundToCents(amount: number): number {
   return Math.round(amount * 100) / 100;
 }
 
-function calculateBuyerPlatformFee(itemPrice: number, feePercentage: number, fixedCents: number): number {
-  const percentComponent = itemPrice * (feePercentage / 100);
-  const fixedComponent = fixedCents / 100;
-  return roundToCents(percentComponent + fixedComponent);
-}
+// ❌ DEPRECATED: Percentage-based fee removed per BACKEND-AUDIT-REPORT Part 1
+// BRD requires flat fees only: $2.99 for free users, $0.99 for subscribers
 
 /**
  * Calculate SP for an item (sell or buy mode)
@@ -67,15 +64,17 @@ export async function calculateSP(
     } else {
       // Buy mode
       const adminConfig = await getAdminConfig();
-      const feePercentage = Number(adminConfig.platform_fee_buyer_percentage ?? 0);
-      const feeFixedCents = Number(adminConfig.platform_fee_buyer_fixed_cents ?? 0);
+      
+      // ✅ FIX: Use flat fee from admin config (educational preview shows non-subscriber fee)
+      // Per SYSTEM_REQUIREMENTS_V2.md Section 8.1.1: Free users = $2.99, Subscribers = $0.99
+      const feeInCents = Number(adminConfig.transaction_fee_non_subscriber_cents ?? 299);
+      const fee = roundToCents(feeInCents / 100);
 
       // For educational preview, default to max usable SP when caller does not provide a value.
       const requestedSp = spToUse ?? spResult.max_spend_sp;
       const clampedSp = Math.max(0, Math.min(requestedSp, spResult.max_spend_sp));
 
       const cashPaid = roundToCents(Math.max(0, itemPrice - clampedSp));
-      const fee = calculateBuyerPlatformFee(itemPrice, feePercentage, feeFixedCents);
       const totalCost = roundToCents(cashPaid + fee);
 
       return {
@@ -127,9 +126,16 @@ export async function getBonusCategories(): Promise<BonusCategory[]> {
 }
 
 /**
- * TFV2-D11: Calculate the platform SP that the buyer earns for this purchase.
- * Formula: ROUND(price * 0.25 * category_multiplier)
- * Used to show combined SP total to seller (D-11 — no breakdown shown to seller).
+ * ⭐ CORRECTED FORMULA (2026-06-07): Calculate total SP seller receives.
+ * Formula depends on buyer's payment method:
+ *   - If buyer uses SP: seller_sp = FLOOR(buyer_sp × category_multiplier)
+ *   - If buyer pays all cash: seller_sp = FLOOR(price × category_multiplier)
+ * 
+ * Examples:
+ *   - $50 item, 1.10× multiplier, buyer offers 30 SP → seller gets 33 SP
+ *   - $50 item, 1.10× multiplier, buyer pays all cash → seller gets 55 SP
+ * 
+ * Used to show total SP to seller (no source breakdown shown per D-11).
  */
 export async function calculatePlatformSP(listingId: string): Promise<number> {
   try {
@@ -144,21 +150,21 @@ export async function calculatePlatformSP(listingId: string): Promise<number> {
       return 0;
     }
 
-    // Platform SP is only awarded for Accept SP listings (Cash Only = no SP)
+    // SP is only awarded for Accept SP listings (Cash Only = no SP)
     if (!listing.accepts_swap_points) {
       return 0;
     }
 
-    const adminConfig = await getAdminConfig();
-    // category_multiplier stored in admin_config or category table; fall back to 1.0
+    // Get category multiplier
     let categoryMultiplier = 1.0;
     const category = await getCategoryById(listing.category_id ?? '');
     if (category?.sp_earning_multiplier) {
       categoryMultiplier = category.sp_earning_multiplier;
     }
 
-    const platformSpRate = Number((adminConfig as any).platform_sp_rate ?? 0.25);
-    return Math.round(listing.price * platformSpRate * categoryMultiplier);
+    // ⭐ CORRECTED: If buyer pays all cash, seller gets price × multiplier
+    // This is used for preview when buyer hasn't decided yet, so assume all cash case
+    return Math.floor(listing.price * categoryMultiplier);
   } catch (err: any) {
     console.error('[spCalculatorService] calculatePlatformSP error:', err);
     return 0;
@@ -166,18 +172,54 @@ export async function calculatePlatformSP(listingId: string): Promise<number> {
 }
 
 /**
- * TFV2-D11: Preview the total SP the seller will see credited.
- * Combines buyer-contributed SP + platform SP.
+ * ⭐ CORRECTED FORMULA (2026-06-07): Preview total SP seller will receive.
+ * 
+ * Formula:
+ *   - If buyer uses SP: total = FLOOR(buyer_sp × category_multiplier)
+ *   - If buyer pays all cash (buyerSpAmount = 0): total = FLOOR(price × category_multiplier)
+ * 
  * D-11 rule: seller sees ONLY the combined total, never a breakdown.
  */
 export async function previewTotalSPToSeller(
   listingId: string,
   buyerSpAmount: number
 ): Promise<{ buyerSp: number; platformSp: number; totalSp: number }> {
-  const platformSp = await calculatePlatformSP(listingId);
-  return {
-    buyerSp:    buyerSpAmount,
-    platformSp,
-    totalSp:    buyerSpAmount + platformSp,
-  };
+  try {
+    const { data: listing, error } = await supabase
+      .from('items')
+      .select('price, category_id, accepts_swap_points')
+      .eq('id', listingId)
+      .single();
+
+    if (error || !listing || !listing.accepts_swap_points) {
+      // Cash only or error → no SP
+      return { buyerSp: 0, platformSp: 0, totalSp: 0 };
+    }
+
+    // Get category multiplier
+    let categoryMultiplier = 1.0;
+    const category = await getCategoryById(listing.category_id ?? '');
+    if (category?.sp_earning_multiplier) {
+      categoryMultiplier = category.sp_earning_multiplier;
+    }
+
+    // ⭐ CORRECTED FORMULA
+    let totalSp = 0;
+    if (buyerSpAmount > 0) {
+      // Buyer used SP: multiply buyer's amount by category multiplier
+      totalSp = Math.floor(buyerSpAmount * categoryMultiplier);
+    } else {
+      // Buyer paid all cash: multiply price by category multiplier
+      totalSp = Math.floor(listing.price * categoryMultiplier);
+    }
+
+    return {
+      buyerSp: buyerSpAmount,
+      platformSp: totalSp - buyerSpAmount, // For backward compatibility
+      totalSp,
+    };
+  } catch (err: any) {
+    console.error('[spCalculatorService] previewTotalSPToSeller error:', err);
+    return { buyerSp: 0, platformSp: 0, totalSp: 0 };
+  }
 }

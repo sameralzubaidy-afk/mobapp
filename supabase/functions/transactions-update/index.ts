@@ -57,7 +57,7 @@ serve(async (req) => {
   // Load trade — RLS allows seller to view
   const { data: trade, error: tradeErr } = await supabase
     .from('trades')
-    .select('id, status, seller_id, buyer_id, listing_id, stripe_payment_intent_id, cash_amount_cents, auto_complete_at')
+    .select('id, status, seller_id, buyer_id, listing_id, stripe_payment_intent_id, cash_amount_cents, auto_complete_at, sp_amount')
     .eq('id', trade_id)
     .single();
 
@@ -65,29 +65,71 @@ serve(async (req) => {
   if (trade.seller_id !== user.id) return errResp(403, 'FORBIDDEN', 'Only the seller can accept/decline offers');
   // D-30: Trade starts as in_progress (Stripe pre-auth held at submission)
   // Seller may only accept/decline before auto_complete_at is set
-  if (trade.status !== 'in_progress' || trade.auto_complete_at !== null) {
-    return errResp(400, 'INVALID_STATE', `Trade status is '${trade.status}', expected 'in_progress' (not yet accepted)`);
+  // Accept both 'pending' (legacy) and 'in_progress' (D-30) for backward compatibility
+  const VALID_DECLINE_STATUSES = ['pending', 'in_progress'];
+  if (!VALID_DECLINE_STATUSES.includes(trade.status) || trade.auto_complete_at !== null) {
+    return errResp(400, 'INVALID_STATE', `Trade status is '${trade.status}', expected one of: ${VALID_DECLINE_STATUSES.join(', ')} (not yet accepted)`);
   }
 
   const svcClient = createClient(supabaseUrl, supabaseSvcKey!);
 
   if (action === 'decline') {
+    // D-30: Cancel the Stripe pre-auth hold (release authorization)
+    if (trade.stripe_payment_intent_id && (trade.cash_amount_cents ?? 0) > 0) {
+      const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
+      if (stripeKey && stripeKey.startsWith('sk_')) {
+        try {
+          const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+          await stripe.paymentIntents.cancel(trade.stripe_payment_intent_id);
+          console.log(`[transactions-update] PI ${trade.stripe_payment_intent_id} cancelled (decline)`);
+        } catch (cancelErr: unknown) {
+          const msg = cancelErr instanceof Error ? cancelErr.message : 'Stripe cancel error';
+          console.error(`[transactions-update] Stripe PI cancel error (non-fatal):`, msg);
+        }
+      }
+    }
+
     const { error: declineErr } = await svcClient
       .from('trades')
       .update({ status: 'cancelled', cancellation_reason: 'seller_declined', updated_at: new Date().toISOString() })
       .eq('id', trade_id);
 
-    if (declineErr) return errResp(500, 'UPDATE_FAILED', 'Failed to decline offer');
+    if (declineErr) {
+      console.error('[transactions-update] Decline update failed:', declineErr.message);
+      return errResp(500, 'UPDATE_FAILED', 'Failed to decline offer');
+    }
 
-    // Release SP hold
-    await svcClient.rpc('fn_release_sp_on_cancel', { p_trade_id: trade_id }).then(({ error }) => {
-      if (error) console.error('[transactions-update] SP release error:', error.message);
-    });
+    // Restore buyer's SP to available_balance (trigger will release reserved_sp automatically)
+    const spAmount = trade.sp_amount ?? 0;
+    if (spAmount > 0) {
+      try {
+        const { error: spErr } = await svcClient.rpc('credit_sp_for_cancelled_trade', {
+          p_user_id: trade.buyer_id,
+          p_trade_id: trade_id,
+          p_points: spAmount
+        });
+        if (spErr) {
+          console.error('[transactions-update] SP refund error:', spErr.message);
+          // Continue with decline even if SP refund fails - buyer can contact support
+        } else {
+          console.log(`[transactions-update] Refunded ${spAmount} SP to buyer ${trade.buyer_id} for trade ${trade_id}`);
+        }
+      } catch (spErr: unknown) {
+        const msg = spErr instanceof Error ? spErr.message : 'Unknown error';
+        console.error('[transactions-update] SP refund error:', msg);
+      }
+    }
 
-    await svcClient.from('trade_events').insert({
-      trade_id, event_type: 'offer_cancelled', actor_id: user.id,
-      metadata: { action: 'declined_by_seller' },
-    });
+    // Log trade event (try/catch — non-fatal)
+    try {
+      await svcClient.from('trade_events').insert({
+        trade_id, event_type: 'offer_cancelled', actor_id: user.id,
+        metadata: { action: 'declined_by_seller' },
+      });
+    } catch (eventErr: unknown) {
+      const msg = eventErr instanceof Error ? eventErr.message : 'Unknown error';
+      console.error('[transactions-update] Trade event insert error:', msg);
+    }
 
     // Notify buyer of decline
     try {

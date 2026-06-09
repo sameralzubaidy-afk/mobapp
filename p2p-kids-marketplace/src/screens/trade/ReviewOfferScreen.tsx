@@ -29,9 +29,9 @@ import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
-import { previewTotalSPToSeller } from '@/services/spCalculatorService';
 import { respondToOffer } from '@/services/tradeServiceV2';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
+import { previewTotalSPToSeller } from '@/services/spCalculatorService';
 
 type ReviewOfferRouteProp = RouteProp<RootStackParamList, 'ReviewOffer'>;
 
@@ -41,6 +41,7 @@ interface OfferData {
   buyer_id: string;
   seller_id: string;
   status: string;
+  cancellation_reason?: string | null;  // Added for TC-B02 expired offer handling
   sp_amount: number;
   cash_amount_cents: number;
   buyer_transaction_fee_cents: number;
@@ -66,12 +67,12 @@ export default function ReviewOfferScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [offer, setOffer] = useState<OfferData | null>(null);
+  // ✅ FIX: Track total SP (buyer SP + platform bonus) for accurate display
+  const [totalSpToSeller, setTotalSpToSeller] = useState<number>(0);
   // Addendum E: bundle context
   const [bundleSiblings, setBundleSiblings] = useState<OfferData[]>([]);
   const [showBundleList, setShowBundleList] = useState(false);
   const [acceptingBundle, setAcceptingBundle] = useState(false);
-  // TFV2-D11: combined SP preview for seller
-  const [spPreview, setSpPreview] = useState<{ totalSp: number } | null>(null);
   // Whisk styled confirmation modals (replacing native Alert.alert)
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [showDeclineModal, setShowDeclineModal] = useState(false);
@@ -90,6 +91,7 @@ export default function ReviewOfferScreen() {
           buyer_id,
           seller_id,
           status,
+          cancellation_reason,
           sp_amount,
           cash_amount_cents,
           buyer_transaction_fee_cents,
@@ -120,12 +122,30 @@ export default function ReviewOfferScreen() {
         .eq('user_id', data.buyer_id)
         .maybeSingle();
 
-      setOffer({
+      const offerData = {
         ...(data as any),
         buyer_profile: {
           name: buyerProfile?.name || 'Buyer',
         },
-      });
+      };
+      setOffer(offerData);
+
+      // ✅ FIX: Calculate total SP (buyer SP + platform bonus) for accurate display
+      if (offerData.sp_amount > 0 && offerData.listing_id) {
+        try {
+          const spPreview = await previewTotalSPToSeller(
+            offerData.listing_id,
+            offerData.sp_amount
+          );
+          setTotalSpToSeller(spPreview.totalSp);
+        } catch (err) {
+          console.error('[ReviewOffer] Failed to calculate total SP:', err);
+          // Fallback to buyer SP only if calculation fails
+          setTotalSpToSeller(offerData.sp_amount);
+        }
+      } else {
+        setTotalSpToSeller(0);
+      }
 
       // Addendum E: fetch bundle siblings if this offer is part of a bundle.
       const bundleId = (data as any)?.bundle_id;
@@ -171,14 +191,6 @@ export default function ReviewOfferScreen() {
   useEffect(() => {
     fetchOffer();
   }, [fetchOffer]);
-
-  // TFV2-D11: load combined SP preview after offer is available
-  useEffect(() => {
-    if (!offer) return;
-    previewTotalSPToSeller(offer.listing_id, offer.sp_amount)
-      .then(preview => setSpPreview({ totalSp: preview.totalSp }))
-      .catch(() => setSpPreview(null));
-  }, [offer?.listing_id, offer?.sp_amount]);
 
   // TFV2-012A (D-30): Accept all bundle offers via Edge Function (Stripe capture + in_progress)
   const handleAcceptBundle = async () => {
@@ -291,6 +303,13 @@ export default function ReviewOfferScreen() {
     <ScreenLayout variant="detail" title="Review Offer">
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Show expired badge for cancelled offers */}
+        {offer.status === 'cancelled' && offer.cancellation_reason === 'Offer expired' && (
+          <View style={styles.expiredBanner}>
+            <Text style={styles.expiredBannerText}>⏱️ Expired</Text>
+          </View>
+        )}
+        
         {offer.status === 'pending' && offer.offer_expires_at ? (
           <OfferCountdownPill
             offerExpiresAt={offer.offer_expires_at}
@@ -370,12 +389,12 @@ export default function ReviewOfferScreen() {
           </View>
         </View>
 
-        {/* SP Earnings Info — D-11: combined total only, no breakdown */}
-        {spPreview && spPreview.totalSp > 0 && (
+        {/* ✅ FIX: SP Info — shows TOTAL SP (buyer SP + platform bonus) */}
+        {totalSpToSeller > 0 && (
           <View style={styles.spInfoCard}>
             <Coins size={20} color="#F59E0B" weight="fill" />
             <Text style={styles.spInfoText}>
-              {spPreview.totalSp} SP releasing in 3 days after completion
+              {totalSpToSeller} SP releasing in 3 days after completion
             </Text>
           </View>
         )}
@@ -388,49 +407,64 @@ export default function ReviewOfferScreen() {
           </Text>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionsContainer}>
-          {/* Addendum E: Accept All button shown only for bundle offers */}
-          {bundleSiblings.length > 0 && offer.status === 'pending' && (
+        {/* Action Buttons - Only show if offer is still pending */}
+        {offer.status === 'pending' ? (
+          <View style={styles.actionsContainer}>
+            {/* Addendum E: Accept All button shown only for bundle offers */}
+            {bundleSiblings.length > 0 && (
+              <TouchableOpacity
+                style={[styles.acceptAllButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
+                onPress={handleAcceptBundle}
+                disabled={submitting || acceptingBundle}
+                accessibilityLabel={`Accept all ${bundleSiblings.length + 1} items`}
+                testID="accept-bundle-button"
+              >
+                {acceptingBundle ? (
+                  <LoadingSpinner color="#FFFFFF" size={20} />
+                ) : (
+                  <Text style={styles.acceptButtonText}>
+                    Accept All {bundleSiblings.length + 1} Items
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
-              style={[styles.acceptAllButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
-              onPress={handleAcceptBundle}
+              style={[styles.acceptButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
+              onPress={handleAccept}
               disabled={submitting || acceptingBundle}
-              accessibilityLabel={`Accept all ${bundleSiblings.length + 1} items`}
-              testID="accept-bundle-button"
+              accessibilityLabel="Accept trade offer"
             >
-              {acceptingBundle ? (
+              {submitting ? (
                 <LoadingSpinner color="#FFFFFF" size={20} />
               ) : (
-                <Text style={styles.acceptButtonText}>
-                  Accept All {bundleSiblings.length + 1} Items
-                </Text>
+                <Text style={styles.acceptButtonText}>Accept Trade</Text>
               )}
             </TouchableOpacity>
-          )}
 
-          <TouchableOpacity
-            style={[styles.acceptButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
-            onPress={handleAccept}
-            disabled={submitting || acceptingBundle}
-            accessibilityLabel="Accept trade offer"
-          >
-            {submitting ? (
-              <LoadingSpinner color="#FFFFFF" size={20} />
-            ) : (
-              <Text style={styles.acceptButtonText}>Accept Trade</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.declineButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
-            onPress={handleDecline}
-            disabled={submitting || acceptingBundle}
-            accessibilityLabel="Decline trade offer"
-          >
-            <Text style={styles.declineButtonText}>Decline</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={[styles.declineButton, (submitting || acceptingBundle) && styles.buttonDisabled]}
+              onPress={handleDecline}
+              disabled={submitting || acceptingBundle}
+              accessibilityLabel="Decline trade offer"
+            >
+              <Text style={styles.declineButtonText}>Decline</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.expiredActionsContainer}>
+            <Text style={styles.expiredMessage}>
+              This offer has expired and can no longer be accepted.
+            </Text>
+            <TouchableOpacity
+              style={styles.expiredBackButton}
+              onPress={() => navigation.goBack()}
+              accessibilityLabel="Go back"
+            >
+              <Text style={styles.expiredBackButtonText}>Back to Offers</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
 
       {/* Whisk styled confirmation modals */}
@@ -703,5 +737,43 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  expiredBanner: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+  },
+  expiredBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#DC2626',
+    textAlign: 'center',
+  },
+  expiredActionsContainer: {
+    gap: 12,
+    paddingTop: 8,
+  },
+  expiredMessage: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  expiredBackButton: {
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 16,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 52,
+  },
+  expiredBackButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
   },
 });

@@ -477,13 +477,32 @@ export default function TradeTimelineScreen() {
         </Pressable>
 
         <View style={styles.timeline} testID="trade-timeline">
-          {renderTimelineStep('pending', 'Initiated', trade.status)}
-          {renderTimelineStep('in_progress', 'In Progress', trade.status)}
-          {renderTimelineStep('completed', 'Completed', trade.status)}
+          {renderTimelineStep('pending', 'Initiated', trade.status, trade.auto_complete_at)}
+          {/* D-30 FIX: Show "Awaiting Seller" when auto_complete_at IS NULL (pending acceptance) */}
+          {renderTimelineStep(
+            'in_progress',
+            trade.auto_complete_at ? 'In Progress' : 'Awaiting Seller',
+            trade.status,
+            trade.auto_complete_at
+          )}
+          {renderTimelineStep('completed', 'Completed', trade.status, trade.auto_complete_at)}
         </View>
 
-        {/* What to do next — collapsible guidance (matching Trade Smart card style) */}
-        {trade.status === 'in_progress' && (
+        {/* D-30 FIX: Show "Awaiting Seller" card for pending offers OR in_progress without auto_complete_at */}
+        {(trade.status === 'pending' || (trade.status === 'in_progress' && !trade.auto_complete_at)) && (
+          <View style={styles.pendingSellerCard} testID="pending-seller-card">
+            <Clock size={20} color="#F59E0B" weight="regular" />
+            <View style={styles.pendingSellerContent}>
+              <Text style={styles.pendingSellerTitle}>Awaiting seller response</Text>
+              <Text style={styles.pendingSellerDesc}>
+                The seller has 48 hours to accept or decline your offer. You'll receive a notification when they respond.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* What to do next — only shown AFTER seller accepts (auto_complete_at set) */}
+        {trade.status === 'in_progress' && trade.auto_complete_at && (
           nextStepsDismissed ? (
             <Pressable
               style={styles.nextStepsCollapsed}
@@ -577,8 +596,8 @@ export default function TradeTimelineScreen() {
           )
         )}
 
-        {/* Payout Hold Info Bar — seller only */}
-        {isSeller && trade.status === 'in_progress' && (
+        {/* Payout Hold Info Bar — seller only, after acceptance (in_progress with auto_complete_at set) */}
+        {isSeller && trade.status === 'in_progress' && trade.auto_complete_at && (
           <View style={styles.payoutHoldCard}>
             <Text style={styles.payoutHoldEmoji}>💰</Text>
             <View style={styles.payoutHoldTextWrap}>
@@ -591,7 +610,8 @@ export default function TradeTimelineScreen() {
         )}
 
         {/* Auto-complete timer with role-appropriate copy */}
-        {trade.status === 'in_progress' && (
+        {/* Hidden when there's an unresolved dispute — no point showing a countdown if trade is frozen */}
+        {trade.status === 'in_progress' && !hasUnresolvedDispute && (
           <AutoCompleteBanner autoCompleteAt={trade.auto_complete_at} status={trade.status} isSeller={isSeller} />
         )}
 
@@ -651,12 +671,14 @@ export default function TradeTimelineScreen() {
           </View>
         )}
 
-        {/* TFV2-020: Safe meetup tips (shown during in-progress trades) */}
-        {trade.status === 'in_progress' && (
+        {/* TFV2-020: Safe meetup tips (only after seller accepts, not for pending offers) */}
+        {trade.status === 'in_progress' && trade.auto_complete_at && (
           <SafeMeetupCard tradeId={tradeId} />
         )}
 
-        {isBuyer && trade.status === 'in_progress' && (
+        {/* D-30 FIX: Only show "I Got It" button when trade truly in progress (status='in_progress' AND auto_complete_at set)
+            Hide for: status='pending' OR status='in_progress' with auto_complete_at=NULL */}
+        {isBuyer && trade.status === 'in_progress' && trade.auto_complete_at && (
           <View style={styles.actions}>
             <Pressable
               style={[
@@ -675,22 +697,24 @@ export default function TradeTimelineScreen() {
                   <View style={styles.confirmButtonTextWrap}>
                     <Text style={styles.confirmButtonText}>I Got It — Complete Trade</Text>
                     <Text style={styles.confirmButtonSub}>
-                      Tap only after you{'\''}ve received and inspected your item
+                      Tap only after you've received and inspected your item
                     </Text>
                   </View>
                 </View>
               )}
             </Pressable>
 
-            <Pressable
-              style={[styles.cancelButtonOutline, submitting && styles.disabledButton]}
-              onPress={handleReportProblem}
-              disabled={submitting}
-              testID="report-problem-button"
-            >
-              <WarningCircle size={20} color="#E85D75" weight="regular" />
-              <Text style={styles.cancelButtonOutlineText}>Report Problem</Text>
-            </Pressable>
+            {!hasUnresolvedDispute && (
+              <Pressable
+                style={[styles.cancelButtonOutline, submitting && styles.disabledButton]}
+                onPress={handleReportProblem}
+                disabled={submitting}
+                testID="report-problem-button"
+              >
+                <WarningCircle size={20} color="#E85D75" weight="regular" />
+                <Text style={styles.cancelButtonOutlineText}>Report Problem</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -728,7 +752,7 @@ export default function TradeTimelineScreen() {
           </View>
         )}
 
-        {isSeller && trade.status === 'payment_processing' && (
+        {isSeller && trade.status === 'in_progress' && (
           <View style={styles.sellerCompletedBox} testID="seller-awaiting-payment-notice">
             <Clock size={20} color="#2563EB" weight="regular" style={{ marginRight: 8 }} />
             <Text style={styles.sellerCompletedText}>
@@ -827,7 +851,13 @@ export default function TradeTimelineScreen() {
           const { data, error } = await supabase.functions.invoke('open-dispute', {
             body: { trade_id: tradeId, reason, description },
           });
-          if (error) throw new Error(error.message ?? 'Failed to report dispute');
+          if (error) {
+            // Extract the actual error message from the FunctionsHttpError context
+            // Supabase SDK puts the parsed response body in error.context
+            const ctx = (error as any)?.context;
+            const actualMsg = ctx?.error?.message || ctx?.message || (error as any)?.message || error.message;
+            throw new Error(actualMsg);
+          }
           if (data && !data.success) throw new Error(data.error?.message ?? 'Failed to report dispute');
           setShowIssueModal(false);
           fetchTrade();
@@ -840,7 +870,8 @@ export default function TradeTimelineScreen() {
 function renderTimelineStep(
   step: TradeStatus,
   label: string,
-  currentStatus: TradeStatus
+  currentStatus: TradeStatus,
+  _autoCompleteAt?: string | null  // Prefixed with _ to indicate intentionally unused
 ): React.JSX.Element {
   const statusOrder: TradeStatus[] = ['pending', 'in_progress', 'completed'];
   const currentIndex = statusOrder.indexOf(currentStatus);
@@ -879,10 +910,9 @@ function renderTimelineStep(
   );
 }
 
-function getStatusDisplay(status: TradeStatus): string {
-  const statusMap: Record<TradeStatus, string> = {
-    pending: 'Pending Payment',
-    payment_processing: 'Processing Payment',
+function getStatusDisplay(status: string): string {
+  const statusMap: Record<string, string> = {
+    pending: 'Awaiting Seller',  // D-30: More accurate - payment is pre-authorized, waiting for seller response
     payment_failed: 'Payment Failed',
     in_progress: 'In Progress',
     completed: 'Completed',
@@ -891,10 +921,9 @@ function getStatusDisplay(status: TradeStatus): string {
   return statusMap[status] || status;
 }
 
-function getStatusBannerStyle(status: TradeStatus): any {
-  const styleMap: Record<TradeStatus, any> = {
+function getStatusBannerStyle(status: string): any {
+  const styleMap: Record<string, any> = {
     pending: styles.statusBannerPending,
-    payment_processing: styles.statusBannerProcessing,
     payment_failed: styles.statusBannerFailed,
     in_progress: styles.statusBannerActive,
     completed: styles.statusBannerCompleted,
@@ -903,10 +932,9 @@ function getStatusBannerStyle(status: TradeStatus): any {
   return styleMap[status] || {};
 }
 
-function getStatusTextStyle(status: TradeStatus): any {
-  const styleMap: Record<TradeStatus, any> = {
+function getStatusTextStyle(status: string): any {
+  const styleMap: Record<string, any> = {
     pending: { color: '#D97706' },
-    payment_processing: { color: '#2563EB' },
     payment_failed: { color: '#DC2626' },
     in_progress: { color: '#059669' },
     completed: { color: '#16A34A' },
@@ -915,12 +943,12 @@ function getStatusTextStyle(status: TradeStatus): any {
   return styleMap[status] || { color: '#1A1A1A' };
 }
 
-function getStatusIcon(status: TradeStatus) {
+function getStatusIcon(status: string) {
   const iconProps = { size: 20, weight: 'regular' as const };
   switch (status) {
     case 'pending':
       return <Clock {...iconProps} color="#D97706" />;
-    case 'payment_processing':
+    case 'payment_processing': /* D-30: deprecated */
       return <ArrowsLeftRight {...iconProps} color="#2563EB" />;
     case 'payment_failed':
       return <XCircle {...iconProps} color="#DC2626" />;
@@ -1211,6 +1239,32 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#9CA3AF',
     fontWeight: '600',
+  },
+  // D-30 FIX: Pending seller acceptance card
+  pendingSellerCard: {
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  pendingSellerContent: {
+    flex: 1,
+  },
+  pendingSellerTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 4,
+  },
+  pendingSellerDesc: {
+    fontSize: 14,
+    color: '#78350F',
+    lineHeight: 20,
   },
   nextStepsCard: {
     backgroundColor: '#FFFFFF',

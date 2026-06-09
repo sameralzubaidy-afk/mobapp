@@ -6,6 +6,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
+import { parseNotificationDeepLink } from './deepLink';
 
 const isExpoGo = Constants?.appOwnership === 'expo';
 let notificationsModule: typeof NotificationsType | null = null;
@@ -265,10 +266,34 @@ export const createNotificationObserver = () => {
   });
 
   // Listen for user tapping on a notification
-  const responseListener = Notifications.addNotificationResponseReceivedListener((_response: unknown) => {
-    // User tapped logic
-    // TODO: Implement navigation based on notification type
-    // Example: if (data.type === 'item_update') navigation.navigate('Item', { itemId: data.itemId });
+  const responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
+    // User tapped notification - handle deep linking
+    try {
+      const data = response?.notification?.request?.content?.data;
+      if (!data) {
+        return;
+      }
+
+      // Handle seller_ignore_prompt notification specially
+      if (data.event_type === 'seller_ignore_prompt' || data.type === 'seller_ignore_prompt') {
+        console.log('[notifications] seller_ignore_prompt tapped:', {
+          listingId: data.listing_id || data.item_id,
+          listingTitle: data.listing_title,
+        });
+        // TODO: Navigate to TradeListScreen with showIgnorePrompt params
+        // This requires setting up a navigation ref in App.tsx
+        return;
+      }
+
+      // Parse and log deep link for other notification types
+      const deepLinkTarget = parseNotificationDeepLink(data);
+      if (deepLinkTarget) {
+        console.log('[notifications] Deep link target:', deepLinkTarget);
+        // TODO: Use navigation ref to handle deep linking
+      }
+    } catch (err) {
+      console.error('[notifications] Error handling notification response:', err);
+    }
   });
 
   // Return cleanup function to remove listeners

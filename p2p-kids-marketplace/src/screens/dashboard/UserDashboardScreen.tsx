@@ -76,7 +76,7 @@ function txStatusLabel(status: string): string {
     pending: 'PENDING',
     active: 'ACTIVE',
     in_progress: 'IN PROGRESS',
-    payment_processing: 'PAYMENT PROCESSING',
+    payment_processing: 'IN PROGRESS', /* D-30: payment_processing deprecated */
     payment_failed: 'PAYMENT FAILED',
     completed: 'COMPLETED',
     cancelled: 'CANCELLED',
@@ -91,7 +91,7 @@ function txStatusColor(status: string): string {
     pending: '#FF9500',
     active: '#5DBB8E',
     in_progress: '#5DBB8E',
-    payment_processing: '#FF9500',
+    payment_processing: '#FF9500', /* D-30: deprecated, kept for legacy data */
     payment_failed: '#E85D75',
     completed: '#34C759',
     cancelled: '#8E8E93',

@@ -95,7 +95,7 @@ export default function TradeReviewScreen() {
 
       const { data: updatedTrade, error } = await supabase
         .from('trades')
-        .update({ status: 'payment_processing' })
+        .update({ status: 'in_progress' })
         .eq('id', tradeId)
         .eq('seller_id', user.id)
         .eq('status', 'pending')

@@ -2,7 +2,7 @@
 
 **Source of truth:** `docx/TRADING-FLOW-V2.md` (v2.1, May 26 2026) · `Prompts/MODULE-15.2-cart-system.md` · `Prompts/MODULE-15.3-PART3-TAX-TASKS-RESTRUCTURED.md` · `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` · `docs/flow-registry.md` (FLOW-27)
 **Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine
-**Last updated:** 2026-05-30
+**Last updated:** 2026-06-06
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -31,13 +31,13 @@
 | | TC-C07 | Free user sees locked Use SP button + upgrade modal |
 | | TC-C08 | SP slider capped at 50% of item price |
 | **D — Auto-Complete & Timers** | TC-D01 | Auto-complete when buyer never taps I Got It |
-| | TC-D02 | Auto-complete skipped when dispute is open |
+| | TC-D02 | Auto-complete skipped + banner hidden when dispute is open |
 | | TC-D03 | Offer countdown pill color states |
 | | TC-D04 | Auto-complete banner visible to buyer only |
 | | TC-D05 | Post-meetup nudge after auto-complete |
-| **E — Dispute Flow** | TC-E01 | Buyer opens Report a Problem modal |
-| | TC-E02 | Disputed trade does not auto-complete |
-| | TC-E03 | Buyer UI during active dispute |
+| **E — Dispute Flow** | TC-E01 | Buyer opens Report a Problem modal (open-dispute EF + admin queue) |
+| | TC-E02 | Disputed trade does not auto-complete or release SP |
+| | TC-E03 | Buyer UI during active dispute — buttons hidden, second report blocked |
 | | TC-E04 | Seller UI during active dispute |
 | | TC-E05 | Admin resolves dispute → Complete |
 | | TC-E06 | Admin resolves dispute → Refund |
@@ -129,7 +129,7 @@
 | | TC-R02 | Seller declines pending offer → cancelled, SP restored |
 | | TC-R03 | Offer expiry → auto-cancel + competing offers cancelled |
 | | TC-R04 | Card declined at offer submission → no trade created |
-| | TC-R05 | Seller cancels in_progress → refund + consequence level |
+| | TC-R05 | Seller cancels in_progress → refund + consequence (cancel_trade_v2 RPC fixed) |
 | | TC-R06 | Refund settlement breakdown (cash + proportional tax + fee) |
 | | TC-R07 | SP reversal on refund (reserved/transferred returned) |
 | | TC-R08 | Seller payout withheld / cancelled on refund |
@@ -567,15 +567,19 @@
 **Actors:** test-buyer + test-seller
 **Precondition:** An In Progress trade has an open dispute; QA fast-forwards past the auto-complete time.
 
-**Objective:** Verify a disputed trade does not auto-complete.
+**Objective:** Verify a disputed trade does not auto-complete and the countdown banner is hidden.
 
 **Steps:**
 1. Open an **In Progress** trade that has a reported dispute.
-2. Allow the auto-complete time to pass.
-3. Reopen the trade.
+2. Verify the auto-complete countdown banner is **not** visible (it is hidden during active disputes).
+3. Allow the auto-complete time to pass.
+4. Reopen the trade.
 
 **Expected Result:**
+- The auto-complete banner is replaced by a yellow dispute banner: "Dispute reported — our team has been notified and will review shortly."
 - The trade stays **In Progress** and is not completed; the dispute remains open.
+- The [I Got It] and [Report a Problem] buttons are hidden from the buyer.
+- Background: the `rpc_process_auto_complete` RPC and `auto-complete-trades` Edge Function both skip trades where `dispute_status` is `reported` or `under_review`, regardless of auto_complete_at timing.
 
 ---
 
@@ -650,42 +654,35 @@
 **Expected Result:**
 - The trade initially shows [I Got It], [Report a Problem], and [Message Seller].
 - The report modal lists reasons ([Seller didn't show up], [Item not as described], [Couldn't agree on meetup], [Other]) with an optional free-text field.
-- After submitting, a toast appears: "Issue reported. Our team will review within 24 hours."; the trade enters a disputed state and the seller plus admin are notified.
-
----
-
-### TC-E02 · Disputed trade does not auto-complete or release SP
-
-**Ref:** TRADING-FLOW-V2 §6.2.4
-**Actors:** test-buyer + test-seller
-**Precondition:** Trade has an open dispute; QA fast-forwards the auto-complete and SP-release windows.
-
-**Objective:** Verify a disputed trade is excluded from auto-complete, SP release, and payout.
-
-**Steps:**
-1. Open a disputed **In Progress** trade.
-2. Allow the auto-complete and SP-release times to pass.
-3. Reopen the trade.
+- After submitting, a yellow banner appears: "Dispute reported — our team has been notified and will review shortly."
+- The `open-dispute` Edge Function saves the dispute with `dispute_status='reported'`, `dispute_reason`, `dispute_notes`, and `dispute_opened_at` in the trades table.
+- The [I Got It] and [Report a Problem] buttons disappear; the auto-complete banner is replaced by the dispute banner.
+- The seller is notified and the admin dispute queue at `/trades/disputes` shows the new dispute.
+- If the buyer taps [Report a Problem] again, the button is no longer visible (protected by `!hasUnresolvedDispute` check).
 
 **Expected Result:**
 - The trade stays **In Progress**, SP is not released, and no payout is initiated while the dispute is open.
 
 ---
 
-### TC-E03 · Buyer UI during active dispute
+### TC-E03 · Buyer UI during active dispute (second report guard)
 
 **Ref:** TRADING-FLOW-V2 §11.4
 **Actors:** test-buyer
 
-**Objective:** Verify the buyer's screen reflects an active dispute and prevents a second report.
+**Objective:** Verify the buyer's screen reflects an active dispute, hides buttons, and prevents a second report.
 
 **Steps:**
 1. Log in as **Buyer** and open a trade with an active dispute.
-2. Look for the auto-complete banner and the action buttons.
+2. Verify the auto-complete banner is **not** visible (hidden via `!hasUnresolvedDispute` condition).
+3. Verify neither [I Got It] nor [Report a Problem] buttons are shown.
+4. Attempt to file a second dispute (e.g., by checking if [Report a Problem] is reachable).
 
 **Expected Result:**
-- The auto-complete banner is replaced by an amber dispute banner: "Your issue has been reported. Our team will review within 24 hours. Auto-complete is paused."
-- The [I Got It] and [Report a Problem] buttons are hidden; [Message Seller] remains; a second dispute cannot be filed.
+- The auto-complete countdown banner is replaced by a yellow dispute banner: "Dispute reported — our team has been notified and will review shortly."
+- The [I Got It] and [Report a Problem] buttons are hidden; [Message Seller] and seller cancel button remain (if applicable).
+- A second dispute cannot be filed — the [Report a Problem] button is gated behind `!hasUnresolvedDispute`; even if invoked programmatically, the `open-dispute` Edge Function returns `409 DISPUTE_EXISTS`.
+- If the error message is ever shown (e.g., via an edge case), it displays the actual reason ("A dispute already exists for this trade") rather than the generic "Edge Function returned a non-2xx status code".
 
 ---
 
@@ -2287,8 +2284,9 @@
 
 **Expected Result:**
 - The trade moves In Progress → **Cancelled** (seller_cancelled).
-- The buyer is fully refunded (see TC-R06) and any SP is restored (see TC-R07).
+- The buyer is fully refunded (see TC-R06) and any SP is restored (see TC-R07). The `cancel_trade_v2` RPC correctly queries `sp_ledger.amount` (not the non-existent `sp_ledger.balance`) to calculate the SP refund.
 - A seller consequence level (1/2/3) is applied per prior post-acceptance cancellations; at level 3 the seller is flagged for admin review.
+- The seller cancel button is only visible when `trade.status === 'in_progress'` and there is no unresolved dispute. The cancellation reason modal shows seller-specific reasons ("Can't do pickup", "Item no longer available", "Other").
 
 ### TC-R06 · Refund settlement breakdown (cash + proportional tax + fee)
 

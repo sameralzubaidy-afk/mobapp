@@ -64,8 +64,18 @@ export async function respondToOffer(
   });
 
   if (error) {
-    console.error('[tradeServiceV2] respondToOffer error:', error);
-    throw new Error(error.message ?? `Failed to ${action} offer.`);
+    // FunctionsHttpError contains the EF response body in context
+    const context = (error as any)?.context || {};
+    const efError = (data as any)?.error || {};
+    console.error('[tradeServiceV2] respondToOffer error:', {
+      action,
+      tradeId,
+      errorCode: efError.code || context.code,
+      errorMessage: efError.message || context.message,
+      statusCode: context.status,
+    });
+    const detail = efError.message ? ` (${efError.code}: ${efError.message})` : '';
+    throw new Error(`Failed to ${action} offer.${detail}`);
   }
 
   return data;
