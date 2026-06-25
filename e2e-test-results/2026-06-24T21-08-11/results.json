@@ -1,0 +1,593 @@
+{
+  "module": "MODULE-15.1.2 TradeFlowV2",
+  "generatedAt": "2026-06-25T02:31:20.046Z",
+  "options": {
+    "list": false,
+    "dryRun": false,
+    "help": false,
+    "noPreflight": false,
+    "bail": false,
+    "json": false,
+    "includePending": false,
+    "includeManual": false,
+    "platform": "ios",
+    "runner": null,
+    "groups": null,
+    "cases": null,
+    "statuses": null,
+    "retries": 1,
+    "timeoutMs": 600000,
+    "outDir": "/Users/sameralzubaidi/Desktop/kids_marketplace_app/e2e-test-results/2026-06-24T21-08-11"
+  },
+  "totals": {
+    "casesSelected": 119,
+    "casesPassed": 0,
+    "casesFailed": 119,
+    "casesSkipped": 15,
+    "unitsExecuted": 26,
+    "unitsPassed": 0,
+    "unitsFailed": 26
+  },
+  "units": [
+    {
+      "runner": "maestro",
+      "asset": "trade-tfv2-023-addenda.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "REG-R01",
+        "REG-R03",
+        "REG-R04",
+        "TC-J01",
+        "TC-J02",
+        "TC-J03",
+        "TC-J04",
+        "TC-J05",
+        "TC-K01",
+        "TC-K02",
+        "TC-K03",
+        "TC-L01",
+        "TC-L02",
+        "TC-L03",
+        "TC-L04",
+        "TC-L05",
+        "TC-L06",
+        "TC-L07",
+        "TC-L08",
+        "TC-R05",
+        "TC-R06"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 76791,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/trade-tfv2-023-addenda.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "trade-flow.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "REG-R02",
+        "TC-A04",
+        "TC-B01",
+        "TC-B03",
+        "TC-B04",
+        "TC-B05",
+        "TC-R01",
+        "TC-R02",
+        "TC-R13"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 1107539,
+      "timedOut": true,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/trade-flow.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-flow-08-trade-v2-components.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "REG-R05",
+        "TC-D01",
+        "TC-D02",
+        "TC-D03",
+        "TC-D04",
+        "TC-D05"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 35880,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-flow-08-trade-v2-components.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "swap-points-wallet.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "REG-R06",
+        "REG-R07",
+        "TC-C01",
+        "TC-C02",
+        "TC-C04",
+        "TC-C05",
+        "TC-C06",
+        "TC-R07"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 846166,
+      "timedOut": true,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/swap-points-wallet.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "checkout-sp-cap.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "REG-R08",
+        "TC-C07",
+        "TC-C08"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 980773,
+      "timedOut": true,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/checkout-sp-cap.yaml",
+      "stderrTail": "\tat maestro.utils.Metrics.measured$default(Metrics.kt:42)\n\tat maestro.drivers.IOSDriver.open(IOSDriver.kt:78)\n\tat maestro.Maestro$Companion.ios(Maestro.kt:683)\n\tat maestro.cli.session.MaestroSessionManager.createIOS(MaestroSessionManager.kt:447)\n\tat maestro.cli.session.MaestroSessionManager.createMaestro(MaestroSessionManager.kt:218)\n\tat maestro.cli.session.MaestroSessionManager.newSession(MaestroSessionManager.kt:109)\n\tat maestro.cli.session.MaestroSessionManager.newSession$default(MaestroSessionManager.kt:67)\n\tat maestro.cli.command.TestCommand.runShardSuite(TestCommand.kt:479)\n\tat maestro.cli.command.TestCommand.access$runShardSuite(TestCommand.kt:81)\n\tat maestro.cli.command.TestCommand$handleSessions$1$results$1$1.invokeSuspend(TestCommand.kt:438)\n\tat kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)\n\tat kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)\n\tat kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)\n\tat kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)\n\tat kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)\n\tat kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)\n\tat kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)\n\tat kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)\n\n"
+    },
+    {
+      "runner": "maestro",
+      "asset": "module-15.1.2-full-trade-flow-v2.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TC-A01",
+        "TC-A02",
+        "TC-A03",
+        "TC-E01",
+        "TC-E02",
+        "TC-E03",
+        "TC-E04",
+        "TC-H01",
+        "TC-H02",
+        "TC-H03",
+        "TC-H04",
+        "TC-Q01",
+        "TC-Q02",
+        "TC-Q03",
+        "TC-Q04",
+        "TC-Q05",
+        "TC-Q06",
+        "TC-Q07",
+        "TC-Q08",
+        "TC-Q09",
+        "TC-Q10",
+        "TC-Q12",
+        "TC-Q15",
+        "TC-Q17"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 100981,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1.2-full-trade-flow-v2.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/trade-disputes.e2e.test.ts",
+      "platform": null,
+      "grep": "resolve.*complete",
+      "cases": [
+        "TC-E05",
+        "TC-R10"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 143625,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/e2e/trade-disputes.e2e.test.ts -g resolve.*complete",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/trade-disputes.e2e.test.ts",
+      "platform": null,
+      "grep": "resolve.*refund",
+      "cases": [
+        "TC-E06",
+        "TC-R09"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 21308,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/e2e/trade-disputes.e2e.test.ts -g resolve.*refund",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "module-15.1-flow-22-payouts.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TC-F01",
+        "TC-F02",
+        "TC-F03",
+        "TC-R08"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 1097506,
+      "timedOut": true,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/module-15.1-flow-22-payouts.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "trade-notifications.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TC-G04"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 63349,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/trade-notifications.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "liability-disclaimer-flow.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TC-I01",
+        "TC-I02",
+        "TC-I03",
+        "TC-I04",
+        "TC-I05"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 985422,
+      "timedOut": true,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/liability-disclaimer-flow.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "cart-flow.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TC-M01",
+        "TC-M02",
+        "TC-M03",
+        "TC-M04",
+        "TC-M05",
+        "TC-M06",
+        "TC-M07",
+        "TC-M08",
+        "TC-M09",
+        "TC-M10",
+        "TC-M11",
+        "TC-M12",
+        "TC-M14",
+        "TC-M15"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 442971,
+      "timedOut": false,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/cart-flow.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/cart-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "minimum cart value",
+      "cases": [
+        "TC-N01"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 33571,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/e2e/cart-admin-config.e2e.test.ts -g minimum cart value",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/cart-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "validation",
+      "cases": [
+        "TC-N02"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 700106,
+      "timedOut": true,
+      "command": "npx playwright test __tests__/e2e/cart-admin-config.e2e.test.ts -g validation",
+      "stderrTail": ""
+    },
+    {
+      "runner": "maestro",
+      "asset": "tax-checkout.yaml",
+      "platform": "ios",
+      "grep": null,
+      "cases": [
+        "TC-O01",
+        "TC-O02",
+        "TC-O03",
+        "TC-O04",
+        "TC-O05",
+        "TC-O06",
+        "TC-O07"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 1110800,
+      "timedOut": true,
+      "command": "maestro test --platform ios --format junit /Users/sameralzubaidi/Desktop/kids_marketplace_app/p2p-kids-marketplace/.maestro/tax-checkout.yaml",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/tax-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "node tax rate",
+      "cases": [
+        "TC-P01"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 14115,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/e2e/tax-admin-config.e2e.test.ts -g node tax rate",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/tax-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "bulk",
+      "cases": [
+        "TC-P02"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 18861,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/e2e/tax-admin-config.e2e.test.ts -g bulk",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/tax-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "history|audit",
+      "cases": [
+        "TC-P03"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 18483,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/e2e/tax-admin-config.e2e.test.ts -g history|audit",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/tax-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "global",
+      "cases": [
+        "TC-P04"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 649956,
+      "timedOut": true,
+      "command": "npx playwright test __tests__/e2e/tax-admin-config.e2e.test.ts -g global",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/tax-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "dashboard|summary",
+      "cases": [
+        "TC-P05"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 21897,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/e2e/tax-admin-config.e2e.test.ts -g dashboard|summary",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/tax-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "jurisdiction",
+      "cases": [
+        "TC-P06"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 15221,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/e2e/tax-admin-config.e2e.test.ts -g jurisdiction",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/tax-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "csv|export",
+      "cases": [
+        "TC-P07"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 638622,
+      "timedOut": true,
+      "command": "npx playwright test __tests__/e2e/tax-admin-config.e2e.test.ts -g csv|export",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/e2e/tax-admin-config.e2e.test.ts",
+      "platform": null,
+      "grep": "new transactions",
+      "cases": [
+        "TC-P08"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 920,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/e2e/tax-admin-config.e2e.test.ts -g new transactions",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/review-moderation.e2e.test.ts",
+      "platform": null,
+      "grep": null,
+      "cases": [
+        "TC-Q18"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 2131,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/review-moderation.e2e.test.ts",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/review-moderation.e2e.test.ts",
+      "platform": null,
+      "grep": "approve|unhide",
+      "cases": [
+        "TC-Q19"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 1927,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/review-moderation.e2e.test.ts -g approve|unhide",
+      "stderrTail": ""
+    },
+    {
+      "runner": "playwright",
+      "asset": "__tests__/review-moderation.e2e.test.ts",
+      "platform": null,
+      "grep": "delete",
+      "cases": [
+        "TC-Q20"
+      ],
+      "passed": false,
+      "attempts": 2,
+      "durationMs": 2626,
+      "timedOut": false,
+      "command": "npx playwright test __tests__/review-moderation.e2e.test.ts -g delete",
+      "stderrTail": ""
+    }
+  ],
+  "skipped": [
+    {
+      "id": "TC-B02",
+      "status": "manual",
+      "reason": "Requires clock fast-forward to expiry window not controllable from the app UI."
+    },
+    {
+      "id": "TC-B06",
+      "status": "manual",
+      "reason": "Requires Stripe test decline card path; not deterministic from UI without a seeded decline fixture."
+    },
+    {
+      "id": "TC-C03",
+      "status": "manual",
+      "reason": "Needs clock fast-forward to expiry."
+    },
+    {
+      "id": "TC-G01",
+      "status": "manual",
+      "reason": "Scheduled push delivery not observable in simulator; deep-link target verified separately."
+    },
+    {
+      "id": "TC-G02",
+      "status": "manual",
+      "reason": "Scheduled push delivery not observable in simulator."
+    },
+    {
+      "id": "TC-G03",
+      "status": "manual",
+      "reason": "Throttle window is server-side; not deterministic from UI."
+    },
+    {
+      "id": "TC-M13",
+      "status": "manual",
+      "reason": "Requires a second actor to mutate availability while the cart screen is open (realtime). Not deterministic single-device."
+    },
+    {
+      "id": "TC-Q11",
+      "status": "manual",
+      "reason": "Requires a review aged >24h (clock control)."
+    },
+    {
+      "id": "TC-Q13",
+      "status": "manual",
+      "reason": "Requires a recent review within 30 days across two trades (time + data)."
+    },
+    {
+      "id": "TC-Q14",
+      "status": "manual",
+      "reason": "Requires clock control around completion time."
+    },
+    {
+      "id": "TC-Q16",
+      "status": "manual",
+      "reason": "Requires 3 distinct reporters; backend threshold effect."
+    },
+    {
+      "id": "TC-R03",
+      "status": "manual",
+      "reason": "Requires clock fast-forward to expiry."
+    },
+    {
+      "id": "TC-R04",
+      "status": "manual",
+      "reason": "Requires Stripe decline-card fixture."
+    },
+    {
+      "id": "TC-R11",
+      "status": "manual",
+      "reason": "Push delivery not observable in simulator."
+    },
+    {
+      "id": "TC-R12",
+      "status": "manual",
+      "reason": "Idempotency is a backend invariant; verify via integration tests, not UI."
+    }
+  ]
+}
