@@ -9,6 +9,12 @@ appId: com.anonymous.p2p-kids-marketplace
 - openLink: 'com.anonymous.p2p-kids-marketplace://expo-development-client/?url=http://127.0.0.1:8081'
 - waitForAnimationToEnd
 
+# Wait for any "Refreshing..." state to complete (session restore)
+- extendedWaitUntil:
+    notVisible:
+      text: "Refreshing..."
+    timeout: 10000
+
 # Setup normalization: if already authenticated, force logout first
 - runFlow:
     when:

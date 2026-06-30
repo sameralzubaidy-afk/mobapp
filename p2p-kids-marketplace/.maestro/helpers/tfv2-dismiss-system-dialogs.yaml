@@ -1,0 +1,75 @@
+# FLOW: tfv2-dismiss-system-dialogs
+# Purpose: Dismiss all known system and app-level interrupters at script start.
+# Called via: runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
+# This must be the FIRST runFlow call after launchApp in every script.
+
+appId: com.sameralzubaidi.p2pmarketplace
+---
+# ═══════════════════════════════════════════════════════════════════════
+# CLASS 4 DEFENSE — Unexpected System / App Dialogs
+# Dismisses all known interrupters before any navigation begins.
+# ═══════════════════════════════════════════════════════════════════════
+
+# ── iOS Save Password sheet ───────────────────────────────────────────
+- runFlow:
+    when:
+      visible:
+        text: "Save Password?"
+    commands:
+      - tapOn:
+          text: "Not Now"
+      - waitForAnimationToEnd
+
+# ── iOS Update Password / Use Existing? sheet ────────────────────────
+- runFlow:
+    when:
+      visible:
+        text: "Use Existing?"
+    commands:
+      - tapOn:
+          text: "Not Now"
+      - waitForAnimationToEnd
+
+# ── iOS Sign in with Apple ───────────────────────────────────────────
+- runFlow:
+    when:
+      visible:
+        text: "Sign in with Apple"
+    commands:
+      - tapOn:
+          text: "Cancel"
+      - waitForAnimationToEnd
+
+# ── Push notification permission ────────────────────────────────────
+- runFlow:
+    when:
+      visible:
+        text: "Allow Notifications"
+    commands:
+      - tapOn:
+          text: "Don't Allow"
+      - waitForAnimationToEnd
+
+# ── iOS Pasteboard paste confirmation ────────────────────────────────
+- runFlow:
+    when:
+      visible:
+        text: "Paste from"
+    commands:
+      - tapOn:
+          text: "Allow Paste"
+      - waitForAnimationToEnd
+
+# ── App-level Welcome screen ─────────────────────────────────────────
+- runFlow:
+    when:
+      visible:
+        id: "welcome-get-started-button"
+    commands:
+      - tapOn:
+          id: "welcome-get-started-button"
+      - waitForAnimationToEnd
+
+# ── iOS Keyboard Dismiss (catch-all) ─────────────────────────────────
+- hideKeyboard
+- waitForAnimationToEnd

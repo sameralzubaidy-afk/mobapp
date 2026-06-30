@@ -462,10 +462,10 @@ async function seedSPLedger(buyerId: string, sellerId: string): Promise<void> {
   console.log('\n💰 Seeding SP ledger entries...');
 
   const entries = [
-    { user_id: buyerId, sp_amount: 50, reason: 'Signup bonus', transaction_type: 'earned' },
-    { user_id: buyerId, sp_amount: 25, reason: 'Completed trade', transaction_type: 'earned' },
-    { user_id: sellerId, sp_amount: 100, reason: 'Seller earnings', transaction_type: 'earned' },
-    { user_id: sellerId, sp_amount: 30, reason: 'Referral bonus', transaction_type: 'earned' },
+    { user_id: buyerId, amount: 50, description: 'Signup bonus', transaction_type: 'earned' },
+    { user_id: buyerId, amount: 25, description: 'Completed trade', transaction_type: 'earned' },
+    { user_id: sellerId, amount: 100, description: 'Seller earnings', transaction_type: 'earned' },
+    { user_id: sellerId, amount: 30, description: 'Referral bonus', transaction_type: 'earned' },
   ];
 
   for (const entry of entries) {
@@ -473,26 +473,26 @@ async function seedSPLedger(buyerId: string, sellerId: string): Promise<void> {
       .from('sp_ledger')
       .select('id')
       .eq('user_id', entry.user_id)
-      .eq('reason', entry.reason)
+      .eq('description', entry.description)
       .maybeSingle();
 
     if (existing) {
-      console.log(`   ✓ SP entry exists: ${entry.reason}`);
+      console.log(`   ✓ SP entry exists: ${entry.description}`);
       continue;
     }
 
     const { error } = await adminSupabase.from('sp_ledger').insert({
       user_id: entry.user_id,
-      sp_amount: entry.sp_amount,
-      reason: entry.reason,
+      amount: entry.amount,
+      description: entry.description,
       transaction_type: entry.transaction_type,
       created_at: new Date().toISOString(),
     });
 
     if (error) {
-      console.error(`   ❌ Failed to create SP entry "${entry.reason}": ${error.message}`);
+      console.error(`   ❌ Failed to create SP entry "${entry.description}": ${error.message}`);
     } else {
-      console.log(`   ✓ Created SP entry: ${entry.reason} (+${entry.sp_amount} SP)`);
+      console.log(`   ✓ Created SP entry: ${entry.description} (+${entry.amount} SP)`);
     }
   }
 }

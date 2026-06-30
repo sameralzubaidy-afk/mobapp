@@ -1,4 +1,5 @@
 // File: supabase/functions/process-expired-offers/index.ts
+// Calls rpc_process_expired_offers, then sends notifications via send-trade-notifications
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 
@@ -13,6 +14,61 @@ function jsonResponse(status: number, payload: Record<string, unknown>) {
     status,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
+}
+
+interface Notification {
+  trade_id: string;
+  event_type: string;
+  recipient_user_id: string;
+  extra_data?: Record<string, unknown>;
+}
+
+/** Send a batch of notifications to send-trade-notifications Edge Function */
+async function sendNotifications(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  notifications: Notification[],
+): Promise<{ sent: number; failed: number }> {
+  let sent = 0;
+  let failed = 0;
+
+  for (const notification of notifications) {
+    try {
+      const resp = await fetch(
+        `${supabaseUrl}/functions/v1/send-trade-notifications`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify(notification),
+        },
+      );
+
+      if (!resp.ok) {
+        console.warn(
+          '[process-expired-offers] notification failed',
+          notification.event_type,
+          notification.trade_id,
+          resp.status,
+        );
+        failed++;
+      } else {
+        sent++;
+      }
+    } catch (err) {
+      console.warn(
+        '[process-expired-offers] notification error',
+        notification.event_type,
+        notification.trade_id,
+        err,
+      );
+      failed++;
+    }
+  }
+
+  return { sent, failed };
 }
 
 serve(async (req) => {
@@ -54,6 +110,7 @@ serve(async (req) => {
         ? Math.min(Math.floor(requestedBatchSize), 500)
         : 100;
 
+    // Step 1: Run the RPC (data-only, no HTTP calls)
     const { data, error } = await supabase.rpc('rpc_process_expired_offers', {
       p_batch_size: batchSize,
     });
@@ -75,10 +132,28 @@ serve(async (req) => {
       });
     }
 
+    // Step 2: Send queued notifications
+    const rpcResult = data as Record<string, unknown>;
+    const notifications = (rpcResult?.notifications ?? []) as Notification[];
+    const { sent, failed } = await sendNotifications(
+      supabaseUrl,
+      serviceRoleKey,
+      notifications,
+    );
+
+    console.log('[process-expired-offers]', {
+      requestId,
+      batchSize,
+      processed: rpcResult?.expired_offers_processed,
+      notificationsSent: sent,
+      notificationsFailed: failed,
+    });
+
     return jsonResponse(200, {
       success: true,
       request_id: requestId,
-      data,
+      data: rpcResult,
+      notifications: { sent, failed, total: notifications.length },
     });
   } catch (error) {
     console.error('[process-expired-offers] unexpected error', {

@@ -5,7 +5,7 @@
 appId: com.sameralzubaidi.p2pmarketplace
 ---
 - launchApp:
-    clearState: false
+    clearState: true
 - waitForAnimationToEnd
 
 # ── Step 1: Seed a test listing (login as seller, create item) ──
@@ -22,13 +22,32 @@ appId: com.sameralzubaidi.p2pmarketplace
           id: "login-email-input"
       - eraseText
       - inputText: "test-seller@kidsmarketplace.test"
+      # Tap twice: first tap dismisses iOS autofill, second focuses field
+      - tapOn:
+          id: "login-password-input"
       - tapOn:
           id: "login-password-input"
       - eraseText
       - inputText: "TestSeller123!"
+      # Tap submit button directly (keyboard dismisses automatically)
       - tapOn:
           id: "login-submit-button"
       - waitForAnimationToEnd
+
+# iOS save-password sheet may appear.
+- runFlow:
+    when:
+      visible:
+        text: "Save Password?"
+    commands:
+      - tapOn:
+          text: "Not Now"
+      - waitForAnimationToEnd
+
+# ── Confirm login succeeded (authenticated stack loaded) ──
+- assertVisible:
+    id: "tab-me"
+- takeScreenshot: "01-after-login"
 
 # ── Navigate to Me tab ──
 - tapOn:
@@ -46,14 +65,14 @@ appId: com.sameralzubaidi.p2pmarketplace
           id: "profile-trades-stat"
       - waitForAnimationToEnd
 
-      # ── Verify trades screen loaded ──
+      # ── Verify trades screen loaded (unified Active/History tabs) ──
       - assertVisible:
-          id: "tab-selling"
+          id: "tab-active"
       - waitForAnimationToEnd
 
-      # ── Check Selling tab ──
+      # ── Stay on Active tab (shows all active trades, both buying + selling) ──
       - tapOn:
-          id: "tab-selling"
+          id: "tab-active"
       - waitForAnimationToEnd
 
       # ── Check for existing trades and verify payout-related elements ──
@@ -69,5 +88,6 @@ appId: com.sameralzubaidi.p2pmarketplace
             # Verify trade detail screen elements
             - assertVisible:
                 id: "trade-status-badge"
+            - takeScreenshot: "02-trade-detail"
 
 - stopApp

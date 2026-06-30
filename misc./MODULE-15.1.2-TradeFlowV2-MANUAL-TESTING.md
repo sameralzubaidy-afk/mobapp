@@ -2,7 +2,7 @@
 
 **Source of truth:** `docx/TRADING-FLOW-V2.md` (v2.1, May 26 2026) · `Prompts/MODULE-15.2-cart-system.md` · `Prompts/MODULE-15.3-PART3-TAX-TASKS-RESTRUCTURED.md` · `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` · `docs/flow-registry.md` (FLOW-27)
 **Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine
-**Last updated:** 2026-05-30
+**Last updated:** 2026-06-09
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -20,6 +20,9 @@
 | | TC-B04 | Buyer cancels pending trade — no consequence level |
 | | TC-B05 | Max 3 pending offers enforced |
 | | TC-B06 | Card declined at offer submission |
+| | TC-B07 | Expired offer timeline — no message button |
+| | TC-B08 | Chat frozen after trade is cancelled or completed |
+| | TC-B09 | Chat remains active for in_progress trades |
 | **C — SP Behavior** | TC-C01 | SP reserved on offer submission |
 | | TC-C02 | SP restored to buyer on seller decline |
 | | TC-C03 | SP restored to buyer on offer expiry |
@@ -240,6 +243,9 @@
 
 ### TC-B02 · Offer expires (seller never responds) + seller ignore prompt
 
+detialed test cases are here 
+TC-B02-TESTING-GUIDE.md 
+
 **Ref:** TRADING-FLOW-V2 §7 Scenario S3, §9.2, §11.8
 **Actors:** test-buyer + test-seller
 **Precondition:** QA fast-forwards the 24h offer clock past expiry for this trade.
@@ -350,6 +356,80 @@ SELECT public.rpc_process_expired_offers(100);
 **Expected Result:**
 - Submission fails immediately with: "Payment method declined. Please update your card."; no pending offer is created and no SP is reserved.
 - After switching to a valid card, the offer submits successfully.
+
+---
+
+### TC-B07 · Expired offer timeline — no message button
+
+**Ref:** TRADING-FLOW-V2 §7 Scenario S3
+**Actors:** test-buyer + test-seller
+**Precondition:** QA fast-forwards the offer clock past expiry so the trade status is `cancelled`.
+
+**Objective:** Verify that on an expired/cancelled offer's timeline screen, neither the buyer nor the seller sees a "Message" button to start a new conversation, since no active trade exists.
+
+**Steps:**
+1. Ensure an offer has expired and the trade status is `cancelled` (see TC-B02 fast-clock method).
+2. Log in as **Buyer** and open the expired trade from **Trades → History**.
+3. Observe the Trade Timeline screen.
+4. Log in as **Seller** and open the same expired trade from **Trades → History**.
+5. Observe the Trade Timeline screen.
+
+**Expected Result:**
+- The Trade Timeline screen shows the trade status as **Cancelled** with reason "Offer expired".
+- Neither the buyer nor the seller sees a **"Message Buyer"** or **"Message Seller"** button anywhere on the screen.
+- All other trade details (Payment Details card, timeline steps with XCircle cancelled icon) remain visible.
+- The **[Report Problem]** and **[Cancel Trade]** action buttons are also not shown (trade is already terminal).
+
+---
+
+### TC-B08 · Chat frozen after trade is cancelled or completed
+
+**Ref:** TRADING-FLOW-V2 §7 Scenario S3
+**Actors:** test-buyer + test-seller
+**Precondition:** A trade exists in `cancelled` or `completed` status, and a chat conversation was previously started between the two parties while the trade was active.
+
+**Objective:** Verify that when a user opens the chat for a cancelled/expired or completed trade, the chat is frozen — messages remain visible but no new messages can be sent.
+
+**Steps:**
+1. Ensure a trade is in `cancelled` status (e.g., via TC-B02 offer expiry flow) AND that at least one message was exchanged between buyer and seller while the trade was active.
+2. Log in as **Buyer** and navigate to the chat from **Trades → History** (tap the trade, then — note: since the message button is hidden per TC-B07, access chat via a deep-link or the Conversations list).
+3. Observe the Chat screen.
+4. Attempt to type a message and tap send.
+5. Log in as **Seller** and open the same chat.
+6. Observe the Chat screen.
+
+**Expected Result:**
+- The chat header, partner avatar/name, and trade context banner are displayed as normal.
+- A **frozen banner** appears below the trade context banner and above the message list:
+  - Amber/yellow background with a Warning icon.
+  - Text: **"This chat is no longer active. The trade has ended."**
+- All previously exchanged messages remain **visible and readable** in the chat.
+- The message **input field is disabled** (grayed out) with placeholder text: **"Chat is no longer active"**.
+- The **PaperClip (image), Smiley (emoji), MapPin (quick replies), and Send buttons** are all disabled (gray appearance).
+- Quick-reply chips do **not** appear.
+- Tapping the input or any button produces **no action**.
+
+---
+
+### TC-B09 · Chat remains active for in_progress trades
+
+**Ref:** TRADING-FLOW-V2 §7 Scenario S1
+**Actors:** test-buyer + test-seller
+
+**Objective:** Verify that the chat freeze only applies to cancelled/completed trades and does NOT affect active (in_progress) trades.
+
+**Steps:**
+1. Ensure a trade is in `in_progress` status (seller has accepted the offer).
+2. Log in as **Buyer** and open the chat for that trade.
+3. Observe the Chat screen.
+4. Type a message and send it.
+5. Log in as **Seller** and open the same chat.
+
+**Expected Result:**
+- No frozen banner is shown.
+- The message input is fully active and editable.
+- All buttons (PaperClip, Smiley, MapPin, Send) are functional.
+- Messages can be sent and received in real time.
 
 ---
 

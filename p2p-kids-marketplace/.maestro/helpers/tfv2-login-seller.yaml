@@ -34,30 +34,50 @@ appId: com.sameralzubaidi.p2pmarketplace
     commands:
       - tapOn:
           id: "login-email-input"
+      - waitForAnimationToEnd
       - eraseText
       - inputText: "test-seller@kidsmarketplace.test"
+
+      # Tap password field twice: first tap dismisses iOS autofill suggestion,
+      # second tap actually focuses the password field
       - tapOn:
           id: "login-password-input"
+      - waitForAnimationToEnd
+      - tapOn:
+          id: "login-password-input"
+      - waitForAnimationToEnd
       - eraseText
       - inputText: "TestSeller123!"
+
+      # Class 1: hideKeyboard before submit (keyboard/autofill overlay blocks the tap)
+      - hideKeyboard
+      - waitForAnimationToEnd
+      # Class 1: scrollUntilVisible to ensure button is on screen
+      - scrollUntilVisible:
+          id: "login-submit-button"
+          direction: DOWN
+          timeout: 5000
       - tapOn:
           id: "login-submit-button"
-      - tapOn:
-          text: "Log In"
-          optional: true
       - waitForAnimationToEnd
+      - waitForAnimationToEnd                      # Double wait: transition + auth
 
-# Retry submit once if still on login screen.
+# Retry submit once if still on login screen (also hardened).
 - runFlow:
     when:
       visible:
         id: "login-email-input"
     commands:
+      # Class 1: hideKeyboard before retry submit
+      - hideKeyboard
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          id: "login-submit-button"
+          direction: DOWN
+          timeout: 5000
       - tapOn:
           id: "login-submit-button"
-      - tapOn:
-          text: "Log In"
-          optional: true
+      - waitForAnimationToEnd
       - waitForAnimationToEnd
 
 # iOS save-password sheet may appear.
@@ -70,8 +90,9 @@ appId: com.sameralzubaidi.p2pmarketplace
           text: "Not Now"
       - waitForAnimationToEnd
 
-# Ensure login precondition is satisfied.
-- extendedWaitUntil:
-    notVisible:
-      id: "login-email-input"
+# Class 3: Assert login result — confirm authenticated stack loaded
+- assertVisible:
+    id: "tab-discover"
     timeout: 15000
+- takeScreenshot: "CHECKPOINT-seller-logged-in"
+  enabled: ${SCREENSHOTS_ENABLED}

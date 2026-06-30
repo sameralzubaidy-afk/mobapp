@@ -53,6 +53,23 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn().mockReturnValue({ goBack: jest.fn(), replace: jest.fn() }),
 }));
 
+jest.mock('@stripe/stripe-react-native', () => ({
+  useStripe: jest.fn(() => ({
+    retrieveSetupIntent: jest.fn(async () => ({
+      setupIntent: { paymentMethodId: 'pm_test_default' },
+      error: null,
+    })),
+  })),
+  initPaymentSheet: jest.fn(async () => ({ error: null })),
+  presentPaymentSheet: jest.fn(async () => ({ error: null })),
+  PaymentSheetError: {},
+}));
+
+jest.mock('@/services/subscription', () => ({
+  getTransactionFee: jest.fn().mockResolvedValue(99),
+  getPaymentMethod: jest.fn().mockResolvedValue({ id: 'pm_test', payment_method_type: 'card', last_four: '4242' }),
+}));
+
 jest.mock('@/components/molecules/WalletWarningBanner', () => ({
   __esModule: true,
   default: () => null,

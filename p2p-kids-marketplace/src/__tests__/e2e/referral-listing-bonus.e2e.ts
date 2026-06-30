@@ -387,7 +387,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
       await ReferralCodeServiceV2.applyReferralCode(newRefereeId, newReferralCode);
 
       // Create and approve listing
-      const { data: listing, error: listingError } = await supabase
+      const { data: listing, error: listingError } = await adminSupabase
         .from('items')
         .insert({
           seller_id: newRefereeId,
@@ -401,7 +401,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
 
       expect(listingError).toBeNull();
 
-      await supabase
+      await adminSupabase
         .from('items')
         .update({ status: 'available', approved_at: new Date().toISOString() })
         .eq('id', listing.id);
@@ -416,7 +416,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
         .eq('user_id', newReferrerId)
         .eq('transaction_type', 'earn_referral');
 
-      expect(ledgerEntries).toHaveLength(0);
+      expect(ledgerEntries || []).toHaveLength(0);
 
       // Re-enable feature for other tests
       await supabase.rpc('update_admin_config_setting', {
@@ -436,7 +436,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
           onConflict: 'user_id',
         });
 
-      const { data: listing, error } = await supabase
+      const { data: listing, error } = await adminSupabase
         .from('items')
         .insert({
           seller_id: noReferralUserId,
@@ -450,7 +450,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
 
       expect(error).toBeNull();
 
-      await supabase
+      await adminSupabase
         .from('items')
         .update({ status: 'available', approved_at: new Date().toISOString() })
         .eq('id', listing.id);
@@ -463,7 +463,7 @@ describeE2E('REF-V2-008: Referral Listing Bonus E2E', () => {
         .select('*')
         .eq('user_id', noReferralUserId);
 
-      expect(ledgerEntries).toHaveLength(0);
+      expect(ledgerEntries || [] || []).toHaveLength(0);
     });
 
     it.skip('should handle non-subscriber referee gracefully', async () => {

@@ -19,8 +19,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 ADMIN_DIR="$WORKSPACE_ROOT/p2p-kids-admin"
 MOBILE_DIR="$WORKSPACE_ROOT/p2p-kids-marketplace"
-APP_ID="${APP_ID:-com.p2pkidsmarketplace}"
+APP_ID="${APP_ID:-com.sameralzubaidi.p2pmarketplace}"
 ADMIN_PORT="${ADMIN_PORT:-3001}"
+
+# ── Dedicated test device config ──────────────────────────────────────────────
+# Set TFV2_IOS_DEVICE_NAME to a specific simulator model name to avoid
+# conflicting with any simulator you are already using for manual testing.
+# Example: TFV2_IOS_DEVICE_NAME="iPhone 16 Pro"
+# Default: "iPhone 16 Pro"
+TFV2_IOS_DEVICE_NAME="${TFV2_IOS_DEVICE_NAME:-iPhone 16 Pro}"
+
+# Same for Android: TFV2_ANDROID_AVD_NAME (default: "pixel_7_e2e")
+TFV2_ANDROID_AVD_NAME="${TFV2_ANDROID_AVD_NAME:-pixel_7_e2e}"
 
 GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 log()   { echo -e "${CYAN}$(date -u +%H:%M:%SZ) [PREFLIGHT]${NC} $*"; }
@@ -39,21 +49,35 @@ ok "Maestro: $(maestro --version 2>/dev/null | head -1)"
 
 # ── 2. iOS Simulator — boot one if none is running ────────────────────────────
 if command -v xcrun &>/dev/null; then
-  log "Checking iOS Simulator..."
-  BOOTED_UDID=$(xcrun simctl list devices booted 2>/dev/null \
-    | grep -E 'iPhone|iPad' | head -1 \
-    | grep -Eo '\([0-9A-F-]{36}\)' | tr -d '()' || true)
+  log "Checking iOS Simulator (target: $TFV2_IOS_DEVICE_NAME)..."
 
-  if [[ -z "${BOOTED_UDID:-}" ]]; then
-    log "No booted simulator found — searching for iPhone 15..."
+  # Step 1: Is our target device already booted?
+  BOOTED_UDID=$(xcrun simctl list devices booted 2>/dev/null \
+    | grep -E "$TFV2_IOS_DEVICE_NAME" \
+    | grep -Eo '\([0-9A-F-]{36}\)' | tr -d '()' | head -1 || true)
+
+  if [[ -n "${BOOTED_UDID:-}" ]]; then
+    ok "Target simulator '$TFV2_IOS_DEVICE_NAME' is already booted: $BOOTED_UDID"
+  else
+    log "Target '$TFV2_IOS_DEVICE_NAME' not booted — searching available devices..."
     AVAIL_UDID=$(xcrun simctl list devices available 2>/dev/null \
-      | grep 'iPhone 15 (' | head -1 \
+      | grep "$TFV2_IOS_DEVICE_NAME (" | head -1 \
       | grep -Eo '\([0-9A-F-]{36}\)' | tr -d '()' || true)
+
     if [[ -z "${AVAIL_UDID:-}" ]]; then
-      fail "No 'iPhone 15' simulator available."
-      fail "Fix: Xcode → Window → Devices and Simulators → '+' → Add iPhone 15"
-      exit 2
+      # Fallback: pick the first available iPhone
+      log "'$TFV2_IOS_DEVICE_NAME' not found. Falling back to first available iPhone..."
+      AVAIL_UDID=$(xcrun simctl list devices available 2>/dev/null \
+        | grep -E 'iPhone.*\(' | head -1 \
+        | grep -Eo '\([0-9A-F-]{36}\)' | tr -d '()' || true)
+      if [[ -z "${AVAIL_UDID:-}" ]]; then
+        fail "No iOS simulator available at all."
+        fail "Fix: Xcode → Window → Devices and Simulators → '+' → Add a simulator"
+        exit 2
+      fi
+      warn "Using fallback simulator (not $TFV2_IOS_DEVICE_NAME). Create one named '$TFV2_IOS_DEVICE_NAME' for isolation."
     fi
+
     log "Booting simulator $AVAIL_UDID..."
     xcrun simctl boot "$AVAIL_UDID"
     open -a Simulator &>/dev/null || true
@@ -61,7 +85,7 @@ if command -v xcrun &>/dev/null; then
     sleep 20
     BOOTED_UDID="$AVAIL_UDID"
   fi
-  ok "iOS Simulator booted: $BOOTED_UDID"
+  ok "iOS Simulator: $BOOTED_UDID"
   export IOS_SIMULATOR_UDID="$BOOTED_UDID"
 
   # ── 3. Verify app is installed ──────────────────────────────────────────────

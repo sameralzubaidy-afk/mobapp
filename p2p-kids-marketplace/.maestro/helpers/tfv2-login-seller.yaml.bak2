@@ -1,0 +1,59 @@
+appId: com.sameralzubaidi.p2pmarketplace
+---
+- waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "welcome-get-started-button"
+    commands:
+      - tapOn:
+          id: "welcome-get-started-button"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "landing-login-button"
+    commands:
+      - tapOn:
+          id: "landing-login-button"
+      - waitForAnimationToEnd
+- runFlow:
+    when:
+      visible:
+        id: "login-email-input"
+    commands:
+      - tapOn:
+          id: "login-email-input"
+      - eraseText
+      - inputText: "test-seller@kidsmarketplace.test"
+      - tapOn:
+          id: "login-password-input"
+      - tapOn:
+          id: "login-password-input"
+      - eraseText
+      - inputText: "TestSeller123!"
+      - waitForAnimationToEnd
+      - scrollUntilVisible:
+          element:
+            id: "login-submit-button"
+          direction: DOWN
+          timeout: 5000
+      - tapOn:
+          id: "login-submit-button"
+      - waitForAnimationToEnd
+
+# Dismiss iOS save-password sheet if it appears.
+- runFlow:
+    when:
+      visible:
+        text: "Save Password?"
+    commands:
+      - tapOn:
+          text: "Not Now"
+      - waitForAnimationToEnd
+
+# Confirm login succeeded: wait for tab bar to appear.
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- assertVisible:
+    id: "tab-me"

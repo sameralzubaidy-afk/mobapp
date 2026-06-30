@@ -32,7 +32,7 @@ jest.mock('@react-navigation/native', () => ({
   useRoute: jest.fn(() => ({
     params: {},
   })),
-  useFocusEffect: jest.fn(),
+  useFocusEffect: jest.fn((cb: () => void) => setImmediate(cb)),
 }));
 
 // Mock all services
@@ -656,7 +656,8 @@ describe('DiscoverScreen', () => {
       });
 
       await waitFor(() => {
-        expect(getByText('Bicycle')).toBeTruthy();
+        // Dictionary is populated from recent searches ('bike', 'toy', 'book')
+        expect(getByText('bike')).toBeTruthy();
       });
     });
 

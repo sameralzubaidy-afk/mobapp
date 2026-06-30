@@ -54,6 +54,14 @@ jest.mock('phosphor-react-native', () => ({
   ArrowLeft: 'ArrowLeft',
   WarningCircle: 'WarningCircle',
   X: 'X',
+  CreditCard: 'CreditCard',
+  CheckCircle: 'CheckCircle',
+  ThumbsUp: 'ThumbsUp',
+  ThumbsDown: 'ThumbsDown',
+  ArrowRight: 'ArrowRight',
+  Eye: 'Eye',
+  EyeSlash: 'EyeSlash',
+  UserCircle: 'UserCircle',
 }));
 
 jest.mock('@/components/ui', () => ({
@@ -76,6 +84,22 @@ jest.mock('@/config/supabase', () => ({
   },
 }));
 
+jest.mock('@/components/ScreenLayout', () => {
+  const R = require('react');
+  const { View, Text, TouchableOpacity } = require('react-native');
+  return {
+    __esModule: true,
+    default: ({ children, variant }: any) =>
+      R.createElement(R.Fragment, null,
+        variant === 'detail'
+          ? R.createElement(TouchableOpacity, { testID: 'back-button' },
+              R.createElement(Text, null, 'Back'))
+          : null,
+        children,
+      ),
+  };
+});
+
 const mockNavigation = {
   navigate: jest.fn(),
   goBack: jest.fn(),
@@ -88,6 +112,12 @@ jest.mock('@react-navigation/native', () => ({
 // ─── SettingsScreen ───────────────────────────────────────────────────────────
 
 jest.mock('@/hooks/useAuth', () => ({
+  useAuth: () => ({
+    user: { id: 'user-1', user_id: 'user-1' },
+    logout: jest.fn(),
+  }),
+}));
+jest.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({
     user: { id: 'user-1', user_id: 'user-1' },
     logout: jest.fn(),

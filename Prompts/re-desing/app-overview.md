@@ -1,7 +1,7 @@
 # App Overview: Pass It Up
 **Kids P2P Marketplace for Used Items**  
-**Date**: May 4, 2026  
-**Version**: 1.0 (UX Redesign Foundation)
+**Date**: June 20, 2026  
+**Version**: 2.0 (Cleaned & Verified Against Codebase)
 
 ---
 
@@ -50,26 +50,26 @@ Kids outgrow everything fast. Pass It Up makes it easy to **pass items up** to t
 ### For Sellers
 **"Turn outgrown items into cash in minutes—not weekends."**
 
-- **Photo-first listing**: Snap photo → auto-fill details → publish (under 60 seconds)
-- **Bulk listing tools**: Upload multiple items at once
+- **Photo-first listing**: Snap photo → add details → publish quickly
+- **Bulk listing tools**: Upload multiple items at once (Post-MVP: coming after initial launch)
 - **Instant local visibility**: Items shown to nearby parents immediately
-- **Swap Points currency**: Earn platform credits to buy without spending cash
-- **Safe transactions**: In-app messaging, payment, and safety checks
+- **Swap Points currency**: Earn platform credits (with active subscription) to use toward future purchases
+- **Safe transactions**: In-app messaging, Stripe payments, and safety checks
 
 ### For Buyers
 **"Find quality kids' items locally—save money, skip shipping."**
 
-- **Local discovery**: Search by ZIP/radius for pickup convenience
-- **Trusted safety**: CPSC recall checks, AI image moderation, ID verification
-- **Swap Points savings**: Use platform credits to cover 30-70% of item price (can spend even without subscription)
+- **Local discovery**: Search by ZIP/radius for pickup convenience (standard list/grid feed; swipe-based discovery is Post-MVP)
+- **Trusted safety**: CPSC recall checks, Google Vision AI image moderation, ID verification
+- **Swap Points savings**: Use platform credits to cover up to 50% of item price (admin-configurable). SP spending continues during the 90-day grace period after subscription ends.
 - **Secure payments**: Stripe integration with buyer protection
 - **Community trust**: Verified sellers, ratings, and reviews
 
 ### Platform Differentiation
 Unlike generic marketplaces (Facebook Marketplace, Craigslist), Pass It Up offers:
-1. **Kid-specific safety**: CPSC recall matching, age-appropriate categories
-2. **Gamified currency**: Swap Points reward active community members
-3. **Hyper-local nodes**: ZIP-based communities for fast pickup
+1. **Kid-specific safety**: CPSC recall matching, age-appropriate categories, Google Vision AI moderation
+2. **Gamified currency**: Swap Points reward active subscribers (subscription-gated earning; spending continues during grace period)
+3. **Hyper-local nodes**: ZIP-based communities for fast local pickup
 4. **Parent-friendly UX**: Designed for time-strapped parents (quick listing, messaging, checkout)
 
 ---
@@ -79,49 +79,50 @@ Unlike generic marketplaces (Facebook Marketplace, Craigslist), Pass It Up offer
 ### Revenue Streams
 
 #### 4.1 Subscription Tiers (Primary Revenue)
-Pass It Up operates on a **freemium subscription model** with three tiers:
+Pass It Up operates on a **freemium subscription model** with two active tiers (plus a third post-grace state):
 
 **Free Tier (Trial)**:
-- 30-day free trial for new users
+- 30-day free trial for new users (admin-configurable duration)
 - Full access to buying and selling
-- **Can earn AND spend Swap Points** during trial
-- 90-day grace period after trial (access continues, gentle nudges to upgrade)
+- **Can earn AND spend Swap Points** during trial (trial = active subscription)
+- 90-day grace period after trial ends (access continues, gentle nudges to upgrade)
 
 **Kids Club Membership** (Paid Tier):
-- **Price**: $9.99/month or $99/year (admin-configurable)
+- **Price**: Admin-configurable (monthly and yearly plans)
 - **Benefits**:
-  - Lower transaction fees (e.g., 5% vs. 8% for non-members)
-  - **Swap Points earning enabled** (earn SP on all sales)
+  - Lower flat transaction fees ($0.99 vs. $2.99 per transaction, admin-configurable)
+  - **Swap Points earning enabled** (earn SP on all sales — gated behind active subscription)
   - Priority listing visibility
-  - Bulk listing tools
-  - Advanced search filters
   - Early access to new features
+  - **Post-MVP**: Bulk listing tools, advanced search filters, Donate-to-charity option
 
 **Free (Post-Grace)**:
 - Access continues with higher transaction fees
-- **Can spend existing SP but CANNOT earn new SP** (earning disabled until subscription active)
-- Limited features (no bulk tools, higher fees)
+- **Can spend existing SP during the 90-day grace period, but CANNOT earn new SP** (earning requires active subscription)
+- After grace period ends, SP balance is frozen until resubscription
+- Limited features vs. paid tier
 
 #### 4.2 Transaction Fees (Secondary Revenue)
-- **Buyer Fee**: 5-8% of item price (tier-dependent, admin-configurable via `admin_config`)
-- **Applied**: At checkout (separate from item price)
-- **Rationale**: Covers payment processing, platform maintenance, safety features
+- **Buyer Transaction Fee**: Flat fee per transaction — $0.99 (subscribers) / $2.99 (free users). Admin-configurable via `admin_config`.
+- **Seller Fee**: 5% of sale price (admin-configurable)
+- **Applied**: At checkout (buyer fee separate from item price; seller fee deducted from payout)
+- **Platform fees always paid in cash** (never SP)
 
 #### 4.3 Swap Points (SP) Currency System
-**SP is NOT a revenue driver**—it's a **retention and engagement tool**.
+**SP is NOT a revenue driver** — it's a **retention and engagement tool**.
 
 **How It Works**:
-- Sellers earn SP when items sell (e.g., 10% of sale price in SP) **IF they have an active subscription**
-- Buyers can spend SP to cover a portion of next purchase (30-70% configurable by admin)
-- SP has no cash value (cannot be withdrawn)
+- Sellers earn SP when items sell, at a category-specific earn rate (item price × category `sp_earning_multiplier`), **IF they have an active subscription** (trial or paid)
+- Buyers can spend SP to cover a portion of a purchase — up to each category's `sp_spending_cap_percent` (overrides global default of 50%)
+- SP has no cash value (cannot be withdrawn or converted to fiat)
 - Encourages circular marketplace activity (sell → earn SP → buy → sell)
 
 **SP Rules**:
-- **Earning requirement**: Users MUST maintain active subscription (trial or paid) to earn SP on sales
-- **Spending rules**: Users can spend existing SP even after subscription ends (no earning, but can spend balance)
-- **Spend cap**: 30-70% of item price (admin-configurable via `admin_config`), buyer must pay remaining % in cash + fees
-- Pending SP releases when buyer confirms item received
-- Platform fees always paid in cash (never SP)
+- **Earning**: Users MUST have an active subscription (trial or paid) to earn SP on sales. Each category has its own `sp_earning_multiplier` (default ~1.1x). "Bonus" categories (e.g., high-demand items) have multipliers >1.10x for accelerated earning. The final SP earned = item price × category multiplier.
+- **Spending**: Users can spend SP during active subscription AND during the 90-day grace period after subscription ends. After grace period, SP is frozen until resubscription.
+- **Spend cap**: Each category has its own `sp_spending_cap_percent` (admin-configurable per category), which overrides the global `sp_max_percentage_per_purchase` (default 50%). Buyer must pay any remaining % in cash, plus all platform fees in cash.
+- **Pending period**: Earned SP is pending for 3 days (admin-configurable) — releases when buyer confirms item received
+- **Platform fees always paid in cash** (never SP)
 
 ---
 
@@ -172,7 +173,7 @@ Pass It Up operates on a **freemium subscription model** with three tiers:
 **Pass It Up Fit**:
 - Local search: Finds items within 10-mile radius
 - Safety features: Trusts CPSC recall checks and verified sellers
-- SP savings: 30-70% off next purchase with earned credits (even after subscription ends)
+- SP savings: Up to 50% off next purchase with earned credits (during subscription or grace period)
 - Fast checkout: In-app payment, no cash meetups
 
 **Quote**: *"I found a barely-used bike for my son at half the price. Picked it up same day. Way better than driving to stores or waiting for shipping."*
@@ -238,21 +239,21 @@ Pass It Up operates on a **freemium subscription model** with three tiers:
 ## 7. Key Differentiators (Competitive Advantage)
 
 ### vs. Facebook Marketplace / Craigslist
-- ✅ **Kid-specific safety**: CPSC recall checks, age categories
+- ✅ **Kid-specific safety**: CPSC recall checks, age categories, Google Vision AI moderation
 - ✅ **In-app payment**: No cash meetups, Stripe protection
 - ✅ **Verified community**: ID badges, ratings, reviews
-- ✅ **Swap Points**: Gamified currency for repeat engagement
+- ✅ **Swap Points**: Gamified currency for repeat engagement (subscription-gated earning; spending during subscription + grace period)
 
 ### vs. Poshmark Kids / Mercari
 - ✅ **Local pickup**: No shipping costs or wait times
 - ✅ **Hyper-local**: ZIP-based nodes for neighborhood trust
-- ✅ **Photo-first listing**: Under 60 seconds (vs. manual forms)
+- ✅ **Quick listing**: Photo-first flow with AI moderation
 - ✅ **Community-driven**: Parent-to-parent vs. reseller-heavy
 
 ### vs. Once Upon A Child / Kid-to-Kid (Retail Consignment)
-- ✅ **Higher seller payouts**: 50-90% of sale price (vs. 30-40% consignment)
+- ✅ **Higher seller payouts**: 95% of sale price after 5% seller fee (vs. 30-40% consignment)
 - ✅ **No dropoff hassle**: List from home, buyers pick up
-- ✅ **Instant cash**: Payouts on transaction (vs. waiting for consignment sale)
+- ✅ **Fast payouts**: Stripe Connect payouts on transaction completion
 - ✅ **Digital-first**: App convenience vs. physical store visits
 
 ---
@@ -289,21 +290,33 @@ Pass It Up operates on a **freemium subscription model** with three tiers:
 ### Architecture
 - **Frontend**: React Native Expo (iOS + Android)
 - **Backend**: Supabase (auth, database, storage, edge functions)
-- **Payments**: Stripe (checkout + seller payouts)
-- **Safety**: CPSC recall API, Google Vision AI moderation
-- **Messaging**: Supabase Realtime
+- **Payments**: Stripe (checkout + seller payouts via Stripe Connect)
+- **Safety**: CPSC recall matching, Google Vision AI image moderation
+- **Messaging**: Supabase Realtime (in-app chat)
+- **Push Notifications**: FCM (Firebase Cloud Messaging)
+- **Email**: SendGrid
+- **SMS**: Twilio (phone verification)
 - **Testing**: Jest (unit), Maestro (UI flows), E2E (Supabase integration)
 
-### Key Flows (from flow-registry.md)
-1. **FLOW-01**: Auth (signup, login, social OAuth, phone verification)
-2. **FLOW-02**: Onboarding (profile setup, node selection, subscription choice)
-3. **FLOW-04**: Listings (photo-first create, bulk tools, edit, safety review)
-4. **FLOW-06**: Discovery (search, filters, favorites, recommendations)
-5. **FLOW-07**: Cart & Bundling (multi-item checkout) ← **NEW for MVP**
-6. **FLOW-08**: Trading (checkout, payment, two-step completion)
-7. **FLOW-10/11**: Swap Points (wallet, earn/spend, ledger)
-8. **FLOW-12**: Subscriptions (purchase, cancel, grace period)
-9. **FLOW-14**: Messaging (realtime chat between buyer/seller)
+### Key Flows (Implemented — from flow-registry.md)
+1. **FLOW-01**: Auth (email/password signup, login, social OAuth: Google/Facebook/Apple, phone verification)
+2. **FLOW-02**: Onboarding (profile setup, node/ZIP selection, subscription choice)
+3. **FLOW-04**: Listings (photo-first create, bulk create, edit, delete, safety review)
+4. **FLOW-06**: Discovery (search, filters, favorites, standard list/grid feed)
+5. **FLOW-07**: Cart & Bundling (multi-item cart, bundle checkout)
+6. **FLOW-08**: Trading (checkout, Stripe payment, two-step completion, trade status state machine)
+7. **FLOW-10/11**: Swap Points (wallet, earn/spend ledger, pending→release lifecycle)
+8. **FLOW-12**: Subscriptions (Stripe integration, purchase, cancel, trial, grace period)
+9. **FLOW-14**: Messaging (realtime chat between buyer and seller)
+10. **FLOW-13**: Referrals (referral codes, SP rewards)
+11. **FLOW-15**: Safety & Moderation (Google Vision AI, CPSC recall checks, reporting)
+12. **FLOW-17**: Notifications (push via FCM, in-app, email)
+
+### Post-MVP Flows (Planned — Not Yet Implemented)
+- **Delivery Service**: Optional same-day local delivery
+- **Swipe-Based Discovery**: Tinder-style card interface for browsing
+- **Donate Option**: Donate items to charity for community badges
+- **Bulk Listing Tools**: Enhanced bulk upload with AI auto-categorization
 
 ### Platform Constraints
 - **No NativeBase**: Disabled due to iOS runtime error (custom design system required)
@@ -331,11 +344,25 @@ Pass It Up operates on a **freemium subscription model** with three tiers:
 
 ---
 
-## 11. Next Steps (Redesign Workflow)
+## 11. Post-MVP Features (Planned — Not Yet Implemented)
+
+The following features are planned for future releases and are **not in the current codebase**:
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Delivery Service** | Post-MVP | Optional same-day local delivery ($10/delivery est.) |
+| **Swipe-Based Discovery** | Post-MVP | Tinder-style card interface for browsing items |
+| **Donate Option** | Post-MVP | Donate items to charity, earn community badges |
+| **Bulk Listing Tools v2** | Post-MVP | Enhanced bulk upload with AI auto-categorization |
+| **Advanced Search Filters** | Post-MVP | Additional filter dimensions beyond current set |
+
+---
+
+## 12. Next Steps (Redesign Workflow)
 
 ### Phase 1: Design Foundation (Current)
 - ✅ **Phase 0**: Codebase audit (complete)
-- 🔄 **Document 1**: App Overview (this document) ← **Review & Approve**
+- 🔄 **Document 1**: App Overview (this document) ← **Updated & Verified**
 - ⏳ **Document 2**: Design System (colors, typography, components)
 - ⏳ **Document 3**: Screen-to-Flow Mapping (technical guide)
 - ⏳ **Document 4**: Figma Agent Prompts (copy-paste ready)
@@ -350,11 +377,10 @@ Pass It Up operates on a **freemium subscription model** with three tiers:
 ### Phase 3: Implementation
 - Update screens per Figma designs
 - Update Maestro UI tests
-- Backend: Implement Cart flow (FLOW-07)
 - Testing: Unit + E2E + Maestro regression
 
 ---
 
-**Document Status**: Draft for User Review  
+**Document Status**: Verified Against Codebase (June 2026)  
 **Next Action**: User review/approval → proceed to Document 2 (Design System)  
-**Contact**: Awaiting feedback on app positioning, personas, value prop accuracy
+**Key Changes in V2**: Removed non-existent features (swipe discovery, item swapping). Corrected SP rules (spending = grace period only). Corrected fee model (flat fees, not percentage-based). Added Post-MVP section for planned features.

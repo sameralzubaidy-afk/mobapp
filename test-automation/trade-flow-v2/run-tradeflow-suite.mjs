@@ -31,7 +31,7 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -213,11 +213,23 @@ function availableIosSimulators() {
 function pickIosSimulator(candidates, preferredUdid) {
   if (!Array.isArray(candidates) || candidates.length === 0) return null;
 
+  // 1. Exact UDID match (most specific)
   if (preferredUdid) {
     const exact = candidates.find((d) => d.udid === preferredUdid);
     if (exact) return exact;
   }
 
+  // 2. Device name match (for isolation from manual testing)
+  const preferredName = process.env.TFV2_IOS_DEVICE_NAME;
+  if (preferredName) {
+    const named = candidates.find((d) => d.name === preferredName);
+    if (named) return named;
+    // Allow prefix match (e.g. "iPhone 16 Pro" matches "iPhone 16 Pro (E2E)")
+    const prefix = candidates.find((d) => d.name.startsWith(preferredName));
+    if (prefix) return prefix;
+  }
+
+  // 3. Fallback: first iPhone
   const iphoneCandidates = candidates.filter((d) => /iPhone/i.test(d.name));
   if (iphoneCandidates.length > 0) return iphoneCandidates[0];
 
@@ -359,10 +371,21 @@ function maestroCommand(unit, manifest, opts) {
     args.push('--device', process.env.ANDROID_EMULATOR_SERIAL);
   }
   args.push(flowPath);
+  // Pass screenshot env vars to Maestro
+  const screenshotsEnabled = String(process.env.TFV2_SCREENSHOTS_ENABLED ?? 'true').toLowerCase() === 'true';
+  const screenshotsDir = opts.outDir
+    ? join(opts.outDir, 'screenshots', unit.asset.replace(/\.yaml$/, ''))
+    : undefined;
   const env = {
     ...process.env,
     APP_ID: process.env.APP_ID || manifest.config.appId,
+    SCREENSHOTS_ENABLED: screenshotsEnabled ? 'true' : 'false',
   };
+  if (screenshotsDir && screenshotsEnabled) {
+    mkdirSync(screenshotsDir, { recursive: true });
+    env.MAESTRO_SCREENSHOTS_DIR = screenshotsDir;
+    env.MAESTRO_ON_FAILURE_SCREENSHOT_DIR = screenshotsDir;
+  }
   return { cmd: 'maestro', args, cwd: mobileDir, env, flowPath };
 }
 
@@ -396,19 +419,30 @@ function preflight(manifest, units, opts) {
     if (!which('maestro')) problems.push('maestro CLI not found on PATH. Install: curl -Ls "https://get.maestro.mobile.dev" | bash');
     if (needsIos) {
       if (!which('xcrun')) problems.push('xcrun not found — Xcode command line tools required for the iOS simulator.');
-      else if (bootedIosSimulators().length === 0) {
-        if (!opts.dryRun && autoBootIosEnabled) {
-          const autoBoot = autoBootIosSimulator(process.env.IOS_SIMULATOR_UDID);
-          if (autoBoot.ok) {
-            log('ok', `Booted iOS simulator automatically: ${autoBoot.selected.name} (${autoBoot.selected.udid}).`);
+      else {
+        // Check if our PREFERRED device is booted (not just any device)
+        const preferredName = process.env.TFV2_IOS_DEVICE_NAME;
+        const booted = bootedIosSimulators();
+        const preferredBooted = preferredName
+          ? booted.filter((d) => typeof d === 'string' && (d.includes(preferredName)))
+          : [];
+        const needsBoot = preferredName
+          ? preferredBooted.length === 0           // our target isn't booted
+          : booted.length === 0;                    // nothing is booted
+        if (needsBoot) {
+          if (!opts.dryRun && autoBootIosEnabled) {
+            const autoBoot = autoBootIosSimulator(process.env.IOS_SIMULATOR_UDID);
+            if (autoBoot.ok) {
+              log('ok', `Booted iOS simulator automatically: ${autoBoot.selected.name} (${autoBoot.selected.udid}).`);
+            } else {
+              problems.push(`No booted iOS simulator. Auto-boot failed: ${autoBoot.reason}`);
+            }
           } else {
-            problems.push(`No booted iOS simulator. Auto-boot failed: ${autoBoot.reason}`);
+            const hint = autoBootIosEnabled
+              ? 'No booted iOS simulator. Boot one: open -a Simulator (or xcrun simctl boot <udid>).'
+              : 'No booted iOS simulator and TFV2_AUTO_BOOT_IOS=false. Boot one: open -a Simulator (or xcrun simctl boot <udid>).';
+            problems.push(hint);
           }
-        } else {
-          const hint = autoBootIosEnabled
-            ? 'No booted iOS simulator. Boot one: open -a Simulator (or xcrun simctl boot <udid>).'
-            : 'No booted iOS simulator and TFV2_AUTO_BOOT_IOS=false. Boot one: open -a Simulator (or xcrun simctl boot <udid>).';
-          problems.push(hint);
         }
       }
     }
@@ -533,7 +567,127 @@ function writeReports(outDir, manifest, opts, selected, unitResults, skipped) {
   const mdPath = join(outDir, 'report.md');
   writeFileSync(mdPath, md.join('\n'));
 
+  // ── Challenges & Recommendations Report (appended to report.md) ────────────
+  const challenges = generateChallengesReport(summary, unitResults, skipped);
+  if (challenges) {
+    appendFileSync(mdPath, '\n' + challenges + '\n');
+  }
+
   return { jsonPath, mdPath, summary, caseStatus };
+}
+
+// ───────────────────── Challenges & Recommendations ─────────────────────────
+function generateChallengesReport(summary, unitResults, skipped) {
+  const lines = [];
+  const failed = unitResults.filter((u) => !u.passed);
+  const passed = unitResults.filter((u) => u.passed);
+  const totalDuration = unitResults.reduce((s, u) => s + u.durationMs, 0);
+
+  if (failed.length === 0 && passed.length > 0) {
+    lines.push('## ✅ Challenges & Recommendations');
+    lines.push('');
+    lines.push('All executed units passed. No blocking issues detected.');
+    lines.push('');
+    lines.push('### Performance');
+    lines.push(`- Total execution time: ${(totalDuration / 1000 / 60).toFixed(1)} min`);
+    lines.push(`- Average per unit: ${(totalDuration / unitResults.length / 1000).toFixed(1)}s`);
+    lines.push(`- Slowest unit: ${formatDuration(Math.max(...unitResults.map((u) => u.durationMs)))}`);
+    lines.push('');
+    lines.push('### Recommendations');
+    lines.push('- Consider adding more `extendedWaitUntil` with tighter timeouts to reduce total run time.');
+    lines.push('- Review skipped cases and create automation assets for any that are now feasible.');
+    lines.push('');
+    return lines.join('\n');
+  }
+
+  if (failed.length === 0) return null; // no results at all
+
+  lines.push('## ❌ Challenges & Recommendations');
+  lines.push('');
+
+  // Failure pattern analysis
+  const timeoutFailures = failed.filter((u) => u.timedOut);
+  const elementFailures = failed.filter((u) =>
+    (u.stderr || '').toLowerCase().includes('not visible') ||
+    (u.stderr || '').toLowerCase().includes('not found')
+  );
+  const crashFailures = failed.filter((u) =>
+    (u.stderr || '').toLowerCase().includes('crash') ||
+    (u.stderr || '').toLowerCase().includes('signal')
+  );
+  const otherFailures = failed.filter((u) =>
+    !timeoutFailures.includes(u) && !elementFailures.includes(u) && !crashFailures.includes(u)
+  );
+
+  lines.push('### Failure Pattern Analysis');
+  lines.push('');
+  lines.push('| Pattern | Count | % of Failures |');
+  lines.push('|---|---|---|');
+  const totalFailed = failed.length;
+  if (timeoutFailures.length) lines.push(`| ⏱️ Timeout | ${timeoutFailures.length} | ${(timeoutFailures.length / totalFailed * 100).toFixed(0)}% |`);
+  if (elementFailures.length) lines.push(`| 🔍 Element not found | ${elementFailures.length} | ${(elementFailures.length / totalFailed * 100).toFixed(0)}% |`);
+  if (crashFailures.length) lines.push(`| 💥 Crash / signal | ${crashFailures.length} | ${(crashFailures.length / totalFailed * 100).toFixed(0)}% |`);
+  if (otherFailures.length) lines.push(`| ❓ Other | ${otherFailures.length} | ${(otherFailures.length / totalFailed * 100).toFixed(0)}% |`);
+  lines.push('');
+
+  // Duration analysis
+  lines.push('### Duration & Performance');
+  lines.push('');
+  lines.push(`- Total execution time: ${(totalDuration / 1000 / 60).toFixed(1)} min`);
+  lines.push(`- Average per unit: ${(totalDuration / unitResults.length / 1000).toFixed(1)}s`);
+  lines.push(`- Slowest passing unit: ${passed.length ? formatDuration(Math.max(...passed.map((u) => u.durationMs))) : 'N/A'}`);
+  lines.push(`- Slowest failing unit: ${formatDuration(Math.max(...failed.map((u) => u.durationMs)))}`);
+  lines.push('');
+
+  // Root cause analysis per failing unit
+  lines.push('### Failure Details');
+  lines.push('');
+  for (const u of failed) {
+    const stderr = (u.stderr || '').toLowerCase();
+    let rootCause = 'Unknown';
+    if (u.timedOut) rootCause = '⏱️ Command timed out — likely a missing testID or slow data load';
+    else if (stderr.includes('not visible') || stderr.includes('not found')) rootCause = '🔍 Element not visible — testID may have changed or screen did not render';
+    else if (stderr.includes('crash') || stderr.includes('signal')) rootCause = '💥 App crashed during test';
+    else if (stderr.includes('network') || stderr.includes('timeout')) rootCause = '🌐 Network issue — backend or admin portal unreachable';
+    else if (stderr.includes('permission') || stderr.includes('denied')) rootCause = '🔒 Permission denied — RLS policy or auth issue';
+    else if (stderr.includes('keyboard')) rootCause = '⌨️ Keyboard interaction issue — common on Android';
+
+    lines.push(`#### ${u.unit.cases.join(', ')} — ${u.unit.asset} (${u.unit.platform || 'web'})`);
+    lines.push(`- **Root cause:** ${rootCause}`);
+    lines.push(`- **Duration:** ${(u.durationMs / 1000).toFixed(1)}s · **Attempts:** ${u.attempts}${u.timedOut ? ' · ⏱️ TIMED OUT' : ''}`);
+    lines.push(`- **Command:** \`${u.command}\``);
+    lines.push('');
+  }
+
+  // Recommendations
+  lines.push('### Recommendations for Future Enhancements');
+  lines.push('');
+  lines.push('| # | Recommendation | Priority |');
+  lines.push('|---|---|---|');
+  if (elementFailures.length > 0) {
+    lines.push('| 1 | Audit testIDs in the affected screens. Renamed components lose their Maestro bindings. | High |');
+  }
+  if (timeoutFailures.length > 0) {
+    lines.push('| 2 | Increase `TFV2_TIMEOUT_MS` or add `extendedWaitUntil` with longer timeouts for slow network responses. | High |');
+  }
+  if (crashFailures.length > 0) {
+    lines.push('| 3 | Investigate app crashes in the affected flows. Check Sentry/error logs for the matching timeframe. | Critical |');
+  }
+  if (skipped.length > 0) {
+    lines.push(`| 4 | ${skipped.length} cases skipped (manual/pending). Prioritize automation for high-value flows. | Medium |`);
+  }
+  lines.push(`| 5 | Consider adding a pre-run data integrity check to verify seeded data exists before starting. | Medium |`);
+  lines.push('| 6 | If flakiness persists, implement per-case retry with exponential backoff in the orchestrator. | Low |');
+  lines.push('| 7 | Review screenshots in `screenshots/` folder to visually confirm UI state at failure point. | Low |');
+  lines.push('');
+
+  return lines.join('\n');
+}
+
+function formatDuration(ms) {
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(1)}s`;
+  return `${(s / 60).toFixed(1)}m ${(s % 60).toFixed(0)}s`;
 }
 
 // ───────────────────────────── main ────────────────────────────────────────

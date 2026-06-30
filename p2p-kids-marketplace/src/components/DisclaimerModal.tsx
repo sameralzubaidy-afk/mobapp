@@ -138,7 +138,7 @@ export default function DisclaimerModal({
           <View style={styles.errorContainer}>
             <Text style={styles.errorIcon}>⚠️</Text>
             <Text style={styles.errorText}>{error}</Text>
-            <Pressable style={styles.retryButton} onPress={fetchDisclaimer}>
+            <Pressable style={styles.retryButton} onPress={fetchDisclaimer} testID={`${testID}-retry-button`}>
               <Text style={styles.retryButtonText}>Retry</Text>
             </Pressable>
           </View>

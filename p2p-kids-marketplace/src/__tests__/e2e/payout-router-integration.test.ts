@@ -176,6 +176,15 @@ d('PAY-006: Payout Router + Trade Completion Trigger (E2E)', () => {
     expect(methodError).toBeNull();
     testPayoutMethod = method;
 
+    // Ensure buyer's SP wallet is active (not frozen) so SP reservation works
+    const { error: walletError } = await supabase
+      .from('sp_wallets')
+      .update({ state: 'active' })
+      .eq('user_id', BUYER_ID);
+    if (walletError) {
+      console.warn('[PAY-006] Failed to unfreeze buyer wallet:', walletError.message);
+    }
+
     // Create a test trade in 'in_progress' status
     const { data: trade, error: tradeError } = await insertTradeWithBackCompat(supabase, {
       buyer_id: BUYER_ID,

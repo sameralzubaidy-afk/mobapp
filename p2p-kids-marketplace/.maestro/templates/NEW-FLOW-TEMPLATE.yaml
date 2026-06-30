@@ -1,0 +1,145 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# MAESTRO FLOW TEMPLATE — Kids P2P Marketplace
+# Copy this file and replace placeholders to create a new test flow.
+# ═══════════════════════════════════════════════════════════════════════════
+# MODULE: <flow-name>          ← update this
+# PURPOSE: <one-line description>
+# COVERS:  <TC-IDs this flow validates>
+#
+# ── testID MANIFEST ────────────────────────────────────────────────────
+# List every testID this flow will assert or tap on here.
+# Update when app testIDs change (node scripts/testid-drift-check.mjs).
+# <ScreenName>: <testid-1>, <testid-2>, ...
+#
+# ── KNOWN MAESTRO 2.6.1 CONSTRAINTS (READ BEFORE EDITING) ──────────────
+# ❌ assertVisible does NOT support timeout: property.
+#    → Remove timeout from assertVisible. Use waitForAnimationToEnd before it.
+# ❌ hideKeyboard fails on iOS simulators with custom TextInput components.
+#    → Replace with: swipe direction: DOWN, duration: 600
+# ✅ scrollUntilVisible REQUIRES an element: wrapper block.
+#    → Always use the element: block, never flat properties.
+# ✅ timeout: IS valid inside scrollUntilVisible (scroll timeout, not assert timeout).
+# ❌ takeScreenshot does NOT support enabled: or any sub-properties.
+#    → Usage: - takeScreenshot: "my-screenshot-name"
+#
+# ── LAST VERIFIED: <date> ──────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════
+
+appId: com.sameralzubaidi.p2pmarketplace
+---
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 0 — Launch + Dismiss System Dialogs (ALWAYS INCLUDE THIS BLOCK)
+# ═══════════════════════════════════════════════════════════════════════════
+- launchApp:
+    clearState: true             # MANDATORY: prevents state leaks from previous runs
+- waitForAnimationToEnd
+
+# Dismiss iOS permission dialogs, app-level welcome screen, iOS save-password sheet
+- runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
+- waitForAnimationToEnd
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 1 — Login (choose seller or buyer helper based on your flow)
+# ═══════════════════════════════════════════════════════════════════════════
+# Use tfv2-login-seller.yaml for flows that need a seller perspective.
+# Use tfv2-login-buyer.yaml for flows that need a buyer perspective.
+- runFlow: helpers/tfv2-login-seller.yaml
+
+# MANDATORY: Assert login succeeded before continuing.
+# This fails fast if the helper silently skipped the login screen.
+- waitForAnimationToEnd
+- assertVisible:
+    id: "tab-me"               # ← tab-me is the canonical post-login landmark
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 2 — Your Test Steps
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ── NAVIGATION PATTERN ────────────────────────────────────────────────────
+# Always wait after navigation; tabs animate in.
+- tapOn:
+    id: "tab-discover"         # ← replace with your target tab
+- waitForAnimationToEnd
+
+# ── DATA-DEPENDENT SCREEN PATTERN (when screen loads remote data) ─────────
+# Use double-wait + pull-to-refresh instead of a single extendedWaitUntil.
+- waitForAnimationToEnd
+- swipe:
+    direction: DOWN
+    duration: 800              # pull-to-refresh trigger
+- waitForAnimationToEnd
+- swipe:
+    direction: UP
+    duration: 400              # settle scroll position
+- waitForAnimationToEnd
+# assertVisible does NOT support timeout. Waits above provide the time buffer.
+- assertVisible:
+    id: "your-list-item-testid"
+
+# ── FORM INPUT PATTERN ────────────────────────────────────────────────────
+- tapOn:
+    id: "my-text-input"
+- eraseText                    # ALWAYS erase before inputText (dirty state prevention)
+- inputText: "value to type"
+
+# ── KEYBOARD DISMISS + SUBMIT PATTERN ────────────────────────────────────
+# This is the pattern that resolved "tap doesn't register" bugs.
+# KeyboardAvoidingView shifts layout on dismiss; we must wait for it to settle.
+- swipe:
+    direction: DOWN
+    duration: 600              # dismisses keyboard via scroll gesture
+- waitForAnimationToEnd
+- waitForAnimationToEnd        # double wait: keyboard out + layout re-renders
+- tapOn:
+    id: "my-submit-button"    # now in stable position, tap registers correctly
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# ── SCROLL-TO-BUTTON PATTERN (button may be below the fold) ──────────────
+# element: wrapper is REQUIRED — flat properties cause parse errors.
+- scrollUntilVisible:
+    element:
+      id: "my-button"
+    direction: DOWN
+    timeout: 5000              # timeout is valid here (scroll timeout, not assert timeout)
+- tapOn:
+    id: "my-button"
+- waitForAnimationToEnd
+
+# ── ASSERTION PATTERN ─────────────────────────────────────────────────────
+# Do NOT add timeout: to assertVisible — it is not supported.
+# Always add waitForAnimationToEnd before the assertion instead.
+- waitForAnimationToEnd
+- assertVisible:
+    id: "expected-element"
+# Optional: take a screenshot as a checkpoint for debugging
+- takeScreenshot: "CHECKPOINT-step-name"
+
+# ── CONDITIONAL DIALOG PATTERN (appears sometimes, not always) ────────────
+- runFlow:
+    when:
+      visible:
+        text: "Dialog Title"
+    commands:
+      - tapOn:
+          text: "Dismiss Button Text"
+      - waitForAnimationToEnd
+
+# ── USER SWITCH PATTERN (flows requiring seller + buyer) ──────────────────
+- stopApp
+- waitForAnimationToEnd
+- launchApp:
+    clearState: true           # MANDATORY on user switch
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+- runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
+- waitForAnimationToEnd
+- runFlow: helpers/tfv2-login-buyer.yaml
+- waitForAnimationToEnd
+- assertVisible:
+    id: "tab-me"               # confirm second user's login succeeded
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 3 — Clean Up (ALWAYS END WITH THIS)
+# ═══════════════════════════════════════════════════════════════════════════
+- stopApp

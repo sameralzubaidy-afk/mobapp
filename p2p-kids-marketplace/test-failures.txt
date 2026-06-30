@@ -1,0 +1,3 @@
+yarn run v1.22.22
+warning ../package.json: No license field
+$ jest --no-coverage

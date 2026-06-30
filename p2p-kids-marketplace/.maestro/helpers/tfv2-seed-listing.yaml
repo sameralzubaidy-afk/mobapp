@@ -49,9 +49,11 @@ appId: com.sameralzubaidi.p2pmarketplace
         id: "search-result-"
     commands:
       - tapOn:
-          id: "search-input"
+          id: "discover-search-input"
           optional: true
       - waitForAnimationToEnd
-      - hideKeyboard
+      - swipe:
+          direction: DOWN
+          duration: 400
       - waitForAnimationToEnd
       - waitForAnimationToEnd

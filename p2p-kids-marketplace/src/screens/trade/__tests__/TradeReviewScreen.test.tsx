@@ -37,6 +37,7 @@ jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: jest.fn(),
     goBack: jest.fn(),
+    replace: jest.fn(),
   }),
 }));
 
@@ -171,6 +172,7 @@ describe('TradeReviewScreen', () => {
       jest.spyOn(require('@react-navigation/native'), 'useNavigation').mockReturnValue({
         navigate: mockNavigate,
         goBack: jest.fn(),
+        replace: jest.fn(),
       });
 
       const mockFrom = jest.fn().mockReturnValue({

@@ -67,6 +67,7 @@ jest.mock('@/config/supabase', () => {
         id: 'trade-123',
         buyer_id: 'user-123',
         seller_id: 'user-456',
+        status: 'in_progress',
         listing: {
           id: 'listing-1',
           title: 'Lego Star Wars Set',

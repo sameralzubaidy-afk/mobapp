@@ -44,13 +44,21 @@ const mockChannel = {
 
 jest.mock('@/config/supabase', () => ({
   supabase: {
-    from: jest.fn().mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      is: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+    from: jest.fn().mockImplementation((table: string) => {
+      const isTradesTable = table === 'trades';
+      const mockChain = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        is: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue(
+          isTradesTable
+            ? { data: { id: 'test-trade-123', buyer_id: 'other-user', seller_id: 'test-user-123', status: 'in_progress' }, error: null }
+            : { data: null, error: null }
+        ),
+      };
+      return mockChain;
     }),
     channel: jest.fn(() => mockChannel),
   },
@@ -76,6 +84,12 @@ jest.mock(
 
 jest.mock('@expo/vector-icons', () => ({
   Ionicons: 'MockIcon',
+}));
+
+jest.mock('@/services/idBadge', () => ({
+  idBadgeService: {
+    getVerificationStatus: jest.fn().mockResolvedValue({ success: true }),
+  },
 }));
 
 // Mock Alert

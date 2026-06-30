@@ -82,6 +82,8 @@ interface Trade {
   id: string;
   buyer_id: string;
   seller_id: string;
+  status?: string;
+  cancellation_reason?: string | null;
   listing?: {
     id: string;
     title: string;
@@ -190,6 +192,8 @@ export default function ChatScreen() {
           id,
           buyer_id,
           seller_id,
+          status,
+          cancellation_reason,
           listing:items(id, title, price, images:item_images(id, url, thumbnail_url, display_order))
         `
         )
@@ -444,7 +448,9 @@ export default function ChatScreen() {
   };
 
   const handleSend = async () => {
-    if (!inputText.trim() || !session?.user?.id || sending) {
+    // Guard: do not allow sending when trade is no longer active (cancelled/completed)
+    const tradeActive = trade?.status === 'pending' || trade?.status === 'in_progress';
+    if (!inputText.trim() || !session?.user?.id || sending || !tradeActive) {
       return;
     }
 
@@ -686,6 +692,8 @@ export default function ChatScreen() {
   const listingImageUri: string | null = firstListingImage
     ? (firstListingImage.thumbnail_url as string | null) || (firstListingImage.url as string)
     : null;
+  // Chat is frozen when trade is no longer active (cancelled or completed)
+  const isTradeActive = trade?.status === 'pending' || trade?.status === 'in_progress';
 
   return (
     <ScreenLayout variant="detail" title="Chat">
@@ -762,6 +770,16 @@ export default function ChatScreen() {
         <Text style={styles.safetyBannerChevron}>{'\u203A'}</Text>
       </TouchableOpacity>
 
+      {/* Chat frozen banner: shown when trade is no longer active (cancelled/expired/completed) */}
+      {!isTradeActive && (
+        <View style={styles.chatFrozenBanner} testID="chat-frozen-banner">
+          <Warning size={18} color="#92400E" weight="fill" />
+          <Text style={styles.chatFrozenBannerText}>
+            This chat is no longer active. The trade has ended.
+          </Text>
+        </View>
+      )}
+
       {/* Messages List */}
       <KeyboardAvoidingView
         style={styles.containerBody}
@@ -837,9 +855,9 @@ export default function ChatScreen() {
         )}
 
         {/* Input bar: #F7F7F7 bg strip */}
-        <View style={styles.inputContainer} testID="message-input-bar">
-          {/* TFV2-021: Quick-reply chips row */}
-          {quickRepliesVisible && (
+        <View style={[styles.inputContainer, !isTradeActive && styles.inputContainerFrozen]} testID="message-input-bar">
+          {/* TFV2-021: Quick-reply chips row — hidden when trade frozen */}
+          {isTradeActive && quickRepliesVisible && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -870,17 +888,17 @@ export default function ChatScreen() {
               ))}
             </ScrollView>
           )}
-          {/* PaperClip icon (20px, #6B6B6B) */}
+          {/* PaperClip icon (20px, #6B6B6B) — disabled when trade frozen */}
           <TouchableOpacity
             testID="image-picker-button"
-            style={[styles.iconButton, (sending || sendingImage) && styles.buttonDisabled]}
+            style={[styles.iconButton, ((sending || sendingImage) || !isTradeActive) && styles.buttonDisabled]}
             onPress={handleImagePicker}
-            disabled={sending || sendingImage}
+            disabled={sending || sendingImage || !isTradeActive}
           >
             {sendingImage ? (
               <ActivityIndicator size="small" color="#6B6B6B" />
             ) : (
-              <PaperclipHorizontal size={20} color="#6B6B6B" weight="regular" />
+              <PaperclipHorizontal size={20} color={isTradeActive ? '#6B6B6B' : '#CCCCCC'} weight="regular" />
             )}
           </TouchableOpacity>
 
@@ -888,41 +906,41 @@ export default function ChatScreen() {
           <View style={styles.inputWrapper}>
             <TextInput
               testID="message-input"
-              style={styles.input}
-              placeholder="Type a message..."
-              placeholderTextColor="#999999"
-              value={inputText}
+              style={[styles.input, !isTradeActive && styles.inputDisabled]}
+              placeholder={isTradeActive ? 'Type a message...' : 'Chat is no longer active'}
+              placeholderTextColor={isTradeActive ? '#999999' : '#BBBBBB'}
+              value={isTradeActive ? inputText : ''}
               onChangeText={handleInputChange}
               multiline
               maxLength={2000}
-              editable={!sending && !sendingImage}
+              editable={isTradeActive && !sending && !sendingImage}
             />
           </View>
 
           {/* Smiley icon (20px, #6B6B6B) - placeholder for future emoji picker */}
           <TouchableOpacity
             testID="emoji-button"
-            style={styles.iconButton}
+            style={[styles.iconButton, !isTradeActive && styles.buttonDisabled]}
             onPress={() => {
               /* Future: show emoji picker */
             }}
-            disabled={sending || sendingImage}
+            disabled={sending || sendingImage || !isTradeActive}
           >
-            <Smiley size={20} color="#6B6B6B" weight="regular" />
+            <Smiley size={20} color={isTradeActive ? '#6B6B6B' : '#CCCCCC'} weight="regular" />
           </TouchableOpacity>
 
           {/* TFV2-021: Quick replies toggle (MapPin icon) */}
           <TouchableOpacity
             testID="quick-replies-toggle"
-            style={styles.iconButton}
+            style={[styles.iconButton, !isTradeActive && styles.buttonDisabled]}
             onPress={() => setQuickRepliesVisible((v) => !v)}
-            disabled={sending || sendingImage}
+            disabled={sending || sendingImage || !isTradeActive}
           >
-            <MapPin size={20} color={quickRepliesVisible ? '#5DBB8E' : '#6B6B6B'} weight={quickRepliesVisible ? 'fill' : 'regular'} />
+            <MapPin size={20} color={quickRepliesVisible ? '#5DBB8E' : isTradeActive ? '#6B6B6B' : '#CCCCCC'} weight={quickRepliesVisible ? 'fill' : 'regular'} />
           </TouchableOpacity>
 
-          {/* PaperPlaneRight send icon (24px, #5DBB8E) - only visible when input has text */}
-          {inputText.trim().length > 0 && (
+          {/* PaperPlaneRight send icon (24px, #5DBB8E) - only visible when input has text AND trade is active */}
+          {isTradeActive && inputText.trim().length > 0 && (
             <TouchableOpacity
               testID="send-button"
               style={[styles.sendButton, (sending || sendingImage) && styles.sendButtonDisabled]}
@@ -1475,5 +1493,31 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#2E7D5B',
     fontWeight: '500',
+  },
+  // Chat frozen banner: amber warning when trade is no longer active
+  chatFrozenBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderBottomWidth: 1,
+    borderBottomColor: '#FCD34D',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  chatFrozenBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#92400E',
+    fontWeight: '500',
+  },
+  // Frozen input container
+  inputContainerFrozen: {
+    backgroundColor: '#F9FAFB',
+  },
+  // Disabled input style
+  inputDisabled: {
+    backgroundColor: '#F3F4F6',
+    color: '#9CA3AF',
   },
 });

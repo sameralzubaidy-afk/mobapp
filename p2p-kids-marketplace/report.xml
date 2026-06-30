@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <testsuites>
-  <testsuite name="Test Suite" device="Medium_Phone_API_36.1" tests="1" failures="1" time="1.0">
-    <testcase id="module-15.1.2-full-trade-flow-v2" name="module-15.1.2-full-trade-flow-v2" classname="module-15.1.2-full-trade-flow-v2" time="1.0" status="ERROR">
-      <failure>Unable to launch app com.sameralzubaidi.p2pmarketplace</failure>
+  <testsuite name="Test Suite" device="iPhone 16 Pro E2E - iOS 26.5 - 74209153-AB20-4414-A8A3-A5BF71FE7716" tests="1" failures="1" time="463.0">
+    <testcase id="tax-checkout" name="tax-checkout" classname="tax-checkout" file=".maestro/tax-checkout.yaml" time="463.0" status="ERROR">
+      <failure>Unknown error</failure>
     </testcase>
   </testsuite>
 </testsuites>

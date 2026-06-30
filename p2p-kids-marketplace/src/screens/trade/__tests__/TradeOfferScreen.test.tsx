@@ -3,10 +3,10 @@ import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import TradeOfferScreen from '../TradeOfferScreen';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
-import { initiateTradeV2 } from '@/services/trade';
+import { createTradeOfferWithHold } from '@/services/trade';
 import { getItemById } from '@/services/items';
 import { getAdminConfig } from '@/services/adminConfig';
-import { getTransactionFee } from '@/services/subscription';
+import { getTransactionFee, getPaymentMethod } from '@/services/subscription';
 import { calculateCategorySP } from '@/services/categoryService';
 
 jest.mock('@/hooks/useAuth', () => ({
@@ -22,6 +22,22 @@ jest.mock('@/services/categoryService');
 jest.mock('@react-navigation/native', () => ({
   useRoute: jest.fn(),
   useNavigation: jest.fn(),
+}));
+
+jest.mock('@stripe/stripe-react-native', () => ({
+  useStripe: jest.fn(() => ({
+    retrieveSetupIntent: jest.fn(async () => ({
+      setupIntent: { paymentMethodId: 'pm_test_default' },
+      error: null,
+    })),
+  })),
+  initPaymentSheet: jest.fn(async () => ({ error: null })),
+  presentPaymentSheet: jest.fn(async () => ({ error: null })),
+  PaymentSheetError: {},
+}));
+
+jest.mock('@/components/organisms/PersistentTabBar', () => ({
+  PersistentTabBar: () => null,
 }));
 
 jest.mock('@/components/molecules/WalletWarningBanner', () => 'WalletWarningBanner');
@@ -54,10 +70,11 @@ const mockUseSPWallet = useSPWallet as jest.Mock;
 const mockUseSubscriptionStatus = useSubscriptionStatus as jest.Mock;
 const mockUseRoute = useRoute as jest.Mock;
 const mockUseNavigation = useNavigation as jest.Mock;
-const mockInitiateTrade = initiateTradeV2 as jest.Mock;
+const mockCreateTradeOffer = createTradeOfferWithHold as jest.Mock;
 const mockGetItemById = getItemById as jest.Mock;
 const mockGetAdminConfig = getAdminConfig as jest.Mock;
 const mockGetTransactionFee = getTransactionFee as jest.Mock;
+const mockGetPaymentMethod = getPaymentMethod as jest.Mock;
 const mockCalculateCategorySP = calculateCategorySP as jest.Mock;
 
 const mockNavigate = jest.fn();
@@ -111,7 +128,8 @@ describe('TradeOfferScreen', () => {
       spend_percent: 50,
       earn_sp: 10,
     });
-    mockInitiateTrade.mockResolvedValue({ success: true, trade_id: 'trade-123' });
+    mockCreateTradeOffer.mockResolvedValue({ success: true, trade_id: 'trade-123' });
+    mockGetPaymentMethod.mockResolvedValue({ id: 'pm_test', payment_method_type: 'card', last_four: '4242' });
   });
 
   it('renders item details after loading', async () => {
@@ -174,9 +192,13 @@ describe('TradeOfferScreen', () => {
     fireEvent.press(getByTestId('mock-disclaimer-accept'));
 
     await waitFor(() => {
-      expect(mockInitiateTrade).toHaveBeenCalledWith({
+      expect(mockCreateTradeOffer).toHaveBeenCalledWith({
         item_id: 'test-item-123',
         sp_amount: 0,
+        payment_method_id: 'pm_test',
+        cash_amount_cents: 10199,
+        transaction_fee_cents: 199,
+        buyer_subscription_status: 'active',
       });
       expect(mockReplace).toHaveBeenCalledWith('TradeSuccess', { tradeId: 'trade-123' });
     });

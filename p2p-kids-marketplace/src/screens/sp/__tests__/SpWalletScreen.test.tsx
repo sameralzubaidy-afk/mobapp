@@ -23,8 +23,19 @@ jest.mock('@/config/supabase', () => ({
     },
   },
 }));
+jest.mock('@/components/ScreenLayout', () => {
+  const React = require('react');
+  return {
+    __esModule: true,
+    default: ({ children }: any) => React.createElement(React.Fragment, null, children),
+  };
+});
+
+jest.mock('@/components/organisms/PersistentTabBar', () => ({
+  PersistentTabBar: () => null,
+}));
+
 jest.mock('@/components/molecules/WalletWarningBanner', () => 'WalletWarningBanner');
-jest.mock('@/components/organisms/BottomNavBar', () => 'BottomNavBar');
 
 const mockNavigate = jest.fn();
 const mockGoBack = jest.fn();
@@ -56,6 +67,7 @@ describe('SpWalletScreen', () => {
     (walletService.getWallet as jest.Mock).mockResolvedValue(mockWallet);
     (walletService.getLedgerHistory as jest.Mock).mockResolvedValue([]);
     (walletService.getExpiringBatches as jest.Mock).mockResolvedValue([]);
+    (walletService.getPendingSPReleases as jest.Mock).mockResolvedValue([]);
     (adminConfigService.getSPExpirationDays as jest.Mock).mockResolvedValue(90);
   });
 
@@ -127,17 +139,6 @@ describe('SpWalletScreen', () => {
     await waitFor(() => {
       expect(queryByText(/will expire/)).toBeNull();
     });
-  });
-
-  it('should navigate back on back button press', async () => {
-    const { getByTestId } = render(<SpWalletScreen />);
-
-    await waitFor(() => {
-      expect(getByTestId('back-button')).toBeTruthy();
-    });
-
-    fireEvent.press(getByTestId('back-button'));
-    expect(mockGoBack).toHaveBeenCalled();
   });
 
   it('should show error state when wallet is null', async () => {

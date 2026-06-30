@@ -36,18 +36,35 @@ describeIfE2E('SAFETY-002: CPSC Recall Matching E2E', () => {
       return;
     }
 
-    // Get a test user ID (use existing test user or create one)
-    const { data: testUsers } = await supabase
-      .from('profiles')
-      .select('user_id')
-      .eq('email', 'test-seller-safety@example.com')
-      .limit(1);
+    // Create a test user with DOB (age 13+) to satisfy COPPA enforcement (PROD-P005).
+    const testEmail = `cpsc-test-${Date.now()}@example.com`;
+    const testPassword = 'TestPassword123!';
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: testEmail,
+      password: testPassword,
+    });
 
-    if (testUsers && testUsers.length > 0) {
-      testSellerId = testUsers[0].user_id;
-    } else {
-      console.warn('⚠️ No test seller found, using placeholder UUID');
+    if (signUpError || !signUpData?.user?.id) {
+      console.warn('⚠️ Could not create test seller, using placeholder UUID');
       testSellerId = '00000000-0000-0000-0000-000000000001';
+      return;
+    }
+
+    testSellerId = signUpData.user.id;
+
+    // Sign in and set DOB so item inserts pass COPPA check
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: testEmail,
+      password: testPassword,
+    });
+    if (signInError) throw signInError;
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ dob: '2000-01-01' })
+      .eq('user_id', testSellerId);
+    if (profileError) {
+      console.warn('⚠️ Could not set DOB for test seller:', profileError.message);
     }
   });
 

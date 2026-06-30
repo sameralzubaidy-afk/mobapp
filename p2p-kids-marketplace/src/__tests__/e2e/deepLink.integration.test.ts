@@ -57,8 +57,8 @@ describe('Deep Link Integration Tests', () => {
         body: 'Alice wants to trade with you',
         data: {
           type: 'trade_request',
-          deep_link: '/trade/trade-abc-123',
-          trade_id: 'trade-abc-123',
+          deep_link: '/trade/123e4567-e89b-12d3-a456-426614174000',
+          trade_id: '123e4567-e89b-12d3-a456-426614174000',
           sender_name: 'Alice',
         },
       };
@@ -67,7 +67,7 @@ describe('Deep Link Integration Tests', () => {
 
       expect(target).not.toBeNull();
       expect(target?.route).toBe('ReviewOffer');
-      expect(target?.params?.tradeId).toBe('trade-abc-123');
+      expect(target?.params?.tradeId).toBe('123e4567-e89b-12d3-a456-426614174000');
     });
 
     it('should handle subscription renewal notification', () => {
@@ -116,8 +116,8 @@ describe('Deep Link Integration Tests', () => {
               body: 'Bob accepted your trade request',
               data: {
                 type: 'trade_accepted',
-                trade_id: 'trade-xyz-456',
-                deep_link: '/trade/trade-xyz-456',
+                trade_id: '223e4567-e89b-12d3-a456-426614174001',
+                deep_link: '/trade/223e4567-e89b-12d3-a456-426614174001',
               },
             },
           },
@@ -130,7 +130,7 @@ describe('Deep Link Integration Tests', () => {
 
       expect(target).not.toBeNull();
       expect(target?.route).toBe('TradeDetail');
-      expect(target?.params?.tradeId).toBe('trade-xyz-456');
+      expect(target?.params?.tradeId).toBe('223e4567-e89b-12d3-a456-426614174001');
     });
 
     it('should handle background notification tap', () => {
@@ -200,8 +200,8 @@ describe('Deep Link Integration Tests', () => {
       // Database might have both formats
       const mixedCaseData = {
         type: 'trade_completed',
-        deep_link: '/trade/trade-mixed-123',
-        trade_id: 'trade-mixed-123',
+        deep_link: '/trade/323e4567-e89b-12d3-a456-426614174002',
+        trade_id: '323e4567-e89b-12d3-a456-426614174002',
         tradeId: 'trade-mixed-456', // Duplicate field, snake_case should win
       };
 
@@ -209,20 +209,20 @@ describe('Deep Link Integration Tests', () => {
 
       expect(target).not.toBeNull();
       expect(target?.route).toBe('TradeDetail');
-      expect(target?.params?.tradeId).toBe('trade-mixed-123'); // trade_id has priority
+      expect(target?.params?.tradeId).toBe('323e4567-e89b-12d3-a456-426614174002'); // trade_id has priority
     });
 
-    it('should handle very long tradeId values', () => {
+    it('should fallback to TradeList for non-UUID trade_id', () => {
       const longIdData = {
         type: 'trade_request',
-        trade_id: 'a'.repeat(200), // Very long ID
+        trade_id: 'a'.repeat(200), // Very long non-UUID ID
       };
 
       const target = parseNotificationDeepLink(longIdData as NotificationDeepLinkData);
 
       expect(target).not.toBeNull();
-      expect(target?.route).toBe('ReviewOffer');
-      expect(target?.params?.tradeId).toBe('a'.repeat(200));
+      // Non-UUID trade IDs are rejected for security — route downgrades to TradeList
+      expect(target?.route).toBe('TradeList');
     });
   });
 
@@ -326,8 +326,8 @@ describe('Deep Link Integration Tests', () => {
       // Scenario 1: Trade accepted
       const tradeAccepted = {
         type: 'trade_accepted',
-        trade_id: 'trade-real-001',
-        deep_link: '/trade/trade-real-001',
+        trade_id: '423e4567-e89b-12d3-a456-426614174003',
+        deep_link: '/trade/423e4567-e89b-12d3-a456-426614174003',
       };
 
       let target = parseNotificationDeepLink(tradeAccepted);

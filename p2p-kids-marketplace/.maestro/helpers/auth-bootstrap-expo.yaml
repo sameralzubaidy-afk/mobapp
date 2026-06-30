@@ -84,6 +84,12 @@ appId: host.exp.exponent
           text: Not Now
       - waitForAnimationToEnd
 
+# Wait for any "Refreshing..." state to complete (session restore)
+- extendedWaitUntil:
+    notVisible:
+      text: "Refreshing..."
+    timeout: 10000
+
 # Expo Go sometimes opens Home first. Tap the recent project if visible.
 - runFlow:
     when:

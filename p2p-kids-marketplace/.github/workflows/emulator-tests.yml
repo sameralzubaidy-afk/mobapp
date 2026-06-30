@@ -45,12 +45,32 @@ jobs:
           xcrun simctl install booted "$APP_PATH"
           # Verify package installed by checking the bundle container
           xcrun simctl get_app_container booted com.p2pkidsmarketplace.app || true
+      - name: Seed staging database with test accounts and listings
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: https://drntwgporzabmxdqykrp.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_jB2O2EoLoNrZxFdVVqxrZQ_GbOuv3HB
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          npm run seed:staging
+
       - name: Run Detox E2E tests (iOS)
         env:
           CI: true
+          DETOX_BUYER_EMAIL: test-buyer@kidsmarketplace.test
+          DETOX_BUYER_PASSWORD: TestBuyer123!
+          DETOX_SELLER_EMAIL: test-seller@kidsmarketplace.test
+          DETOX_SELLER_PASSWORD: TestSeller123!
         run: |
-          # detox will use detox.config.json and run tests
+          # detox will use detox.config.json → detox/jest.config.js → detox/tests/
           npx detox test --configuration ios.sim.debug --cleanup
+
+      - name: Upload Detox screenshots on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detox-screenshots-ios
+          path: artifacts/
+          retention-days: 7
 
   android-emulator:
     name: Android Emulator smoke test

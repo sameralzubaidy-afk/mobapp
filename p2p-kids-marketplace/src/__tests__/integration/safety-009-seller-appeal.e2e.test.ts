@@ -10,22 +10,18 @@
  * Run with: RUN_SUPABASE_E2E=true npm test safety-009-seller-appeal.e2e.test.ts
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { submitListingAppeal } from '@/services/listing';
+import { supabase } from '@/config/supabase';
 
-const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const RUN_E2E = process.env.RUN_SUPABASE_E2E === 'true';
-const SHOULD_RUN = RUN_E2E && Boolean(SUPABASE_URL) && Boolean(SUPABASE_ANON_KEY);
+const SHOULD_RUN = RUN_E2E;
 
 function isAuthRateLimitError(message?: string): boolean {
   return Boolean(message && /request rate limit reached/i.test(message));
 }
 
 describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
-  let supabase: SupabaseClient | null = null;
+  let supabaseReady = false;
   let testListingId = '';
   let sellerId = '';
   let canRunSuite = SHOULD_RUN;
@@ -34,17 +30,26 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   beforeAll(async () => {
     if (!SHOULD_RUN) {
       console.log(
-        '⏭️  Skipping E2E test (requires RUN_SUPABASE_E2E=true and EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY).'
+        '⏭️  Skipping E2E test (requires RUN_SUPABASE_E2E=true).'
       );
       return;
     }
 
-    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Verify supabase client is configured
+    if (!supabase) {
+      canRunSuite = false;
+      skipReason = 'Supabase client not configured (missing env vars)';
+      console.warn(`[SAFETY-009 E2E] ${skipReason}`);
+      return;
+    }
+    supabaseReady = true;
 
-    // Create test seller
+    // Create test seller — capture email before signup so sign-in uses same value
+    const testEmail = `seller-appeal-test-${Date.now()}@example.com`;
+    const testPassword = 'TestPassword123!';
     const { data: authData, error: signupError } = await supabase.auth.signUp({
-      email: `seller-appeal-test-${Date.now()}@example.com`,
-      password: 'TestPassword123!',
+      email: testEmail,
+      password: testPassword,
     });
 
     if (signupError || !authData.user?.id) {
@@ -58,6 +63,20 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
     }
 
     sellerId = authData.user!.id;
+
+    // Sign in to get authenticated session, then set DOB (age 13+)
+    // to satisfy COPPA enforcement trigger (PROD-P005).
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: testEmail,
+      password: testPassword,
+    });
+    if (signInError) throw signInError;
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ dob: '2000-01-01' }) // age 13+ to bypass COPPA check
+      .eq('user_id', sellerId);
+    if (profileError) throw profileError;
 
     // Create test listing in rejected status
     const { data: listing, error: listingError } = await supabase
@@ -82,7 +101,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   afterAll(async () => {
-    if (!canRunSuite || !supabase || !testListingId) return;
+    if (!canRunSuite || !supabaseReady || !testListingId) return;
 
     // Cleanup: delete test listing
     await supabase.from('items').delete().eq('id', testListingId);
@@ -92,7 +111,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should submit appeal and transition listing from rejected to flagged', async () => {
-    if (!canRunSuite || !supabase) {
+    if (!canRunSuite || !supabaseReady) {
       if (skipReason) {
         console.warn(`[SAFETY-009 E2E] Skipping case: ${skipReason}`);
       }
@@ -159,7 +178,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should reject appeal if listing is not in rejected status', async () => {
-    if (!canRunSuite || !supabase) {
+    if (!canRunSuite || !supabaseReady) {
       return;
     }
 
@@ -195,7 +214,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should track appeal history with multiple appeals', async () => {
-    if (!canRunSuite || !supabase) {
+    if (!canRunSuite || !supabaseReady) {
       return;
     }
 
@@ -236,7 +255,7 @@ describe('SAFETY-009: Seller Appeal Workflow E2E', () => {
   });
 
   it('should reject appeal when seller has not edited after rejection', async () => {
-    if (!canRunSuite || !supabase) {
+    if (!canRunSuite || !supabaseReady) {
       return;
     }
 

@@ -1,59 +1,198 @@
-# FLOW: module-15.1.2-full-trade-flow-v2
-# Purpose: Full trade flow E2E — Discover → Item Detail → Request to Buy → Trade Offer → Submit
-# Covers: TC-A01, TC-A02, TC-A03, TC-K01, TC-K02, TC-K03
+# ═══════════════════════════════════════════════════════════════════════════
+# MODULE: module-15.1.2-full-trade-flow-v2
+# PURPOSE: Full trade flow E2E — Discover → Item Detail → Request to Buy →
+#          Trade Offer → Submit → Trade Success → Profile → Trades → Trade Detail
+# COVERS:  TC-A01, TC-A02, TC-A03, TC-K01, TC-K02, TC-K03, TC-E01, TC-E03,
+#          TC-H01, TC-H02
+#
+# ── testID MANIFEST (update this when app testIDs change) ──────────────
+# LoginScreen:         login-email-input, login-password-input, login-submit-button
+# LandingScreen:       landing-login-button
+# WelcomeScreen:       welcome-screen, welcome-get-started-button, welcome-headline
+# DiscoverScreen:      tab-discover, discover-results-list, discover-search-input,
+#                      search-result-{id}, empty-state, discover-refresh-control
+# ItemDetailScreen:    item-detail-title, item-detail-price, request-to-buy-button
+# TradeOfferScreen:    send-offer-button, value-stack-row, sp-amount-input,
+#                      safety-disclaimer, add-new-card-button
+# DisclaimerModal:     disclaimer-modal, disclaimer-modal-checkbox,
+#                      disclaimer-modal-accept-button, disclaimer-modal-cancel-button,
+#                      disclaimer-modal-retry-button
+# TradeSuccessScreen:  success-icon, cta-message, cta-primary-button,
+#                      cta-view-trades-button, back-home-button
+# ProfileScreen:       tab-me, profile-trades-stat
+# TradeListScreen:     tab-active, tab-history, trade-row-{id}, trade-history-empty-state
+# TradeDetailScreen:   trade-status-badge, mark-completed-button, cancel-trade-button,
+#                      review-trade-button
+#
+# ── HARDENING CLASSES APPLIED ──────────────────────────────────────────
+# Class 1 (Element Not Tappable): hideKeyboard + scrollUntilVisible before
+#   every form submission or CTA tap; assert result not action.
+# Class 2 (Race Condition): Double waitForAnimationToEnd + scroll-and-retry
+#   on data-dependent screens; seed verification gate with hard assert.
+# Class 3 (State Leak): clearState on user switch; eraseText before every
+#   inputText; post-helper assertions after every runFlow.
+# Class 4 (System Dialogs): tfv2-dismiss-system-dialogs helper called at
+#   script start and after user switch.
+# Class 5 (testID Drift): Manifest comment block above; screen-context labels
+#   on every assertion for instant triage.
+#
+# ── LAST VERIFIED: 2026-06-24 (agent ran testID audit) ─────────────────
+# ═══════════════════════════════════════════════════════════════════════════
 
 appId: com.sameralzubaidi.p2pmarketplace
 ---
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 0 — Launch + Dismiss System Dialogs
+# ═══════════════════════════════════════════════════════════════════════════
 - launchApp:
-    clearState: false
+    clearState: true                          # Class 3: always clearState on fresh start
 - waitForAnimationToEnd
 
-# ── Step 1: Seed a test listing (login as seller, create item) ──
+# Class 4: Dismiss all known system/app interrupters before anything else
+- runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
+- waitForAnimationToEnd
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 1 — Seed a test listing (login as seller, create item)
+# ═══════════════════════════════════════════════════════════════════════════
+# [SellerLogin] Execute seller login helper
 - runFlow: helpers/tfv2-login-seller.yaml
+
+# Class 3: Assert post-helper state — confirm login succeeded
+- assertVisible:
+    id: "tab-discover"
+- waitForAnimationToEnd
+
+# [SeedListing] Execute seed listing helper
 - runFlow: helpers/tfv2-seed-listing.yaml
 
-# ── Step 2: Stop app and restart as buyer ──
-- stopApp
-- launchApp:
-    clearState: false
+# ── SEED VERIFICATION GATE (Class 2 fix for Failure 2) ─────────────────
+# Confirm seed listing is visible in Discover before switching users.
+# If this fails, stop here — do not switch users, do not proceed.
 - waitForAnimationToEnd
+- waitForAnimationToEnd                           # Double wait for data fetch
+- scroll:
+    direction: DOWN
+    duration: 800
+- waitForAnimationToEnd
+- scroll:
+    direction: UP
+    duration: 400
+# Diagnostic screenshot capturing what the Discover screen shows right before the assert
+# If the assert times out, this screenshot explains WHY (empty state, error banner, etc.)
+- takeScreenshot: "DIAG-seed-gate-before-assert"
+  enabled: ${SCREENSHOTS_ENABLED}
+- assertVisible:
+    id: "search-result-"                          # Hard assert — seed must be visible
+    timeout: 15000
+- takeScreenshot: "CHECKPOINT-seed-verified"
+  enabled: ${SCREENSHOTS_ENABLED}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 2 — Switch to Buyer (clean session)
+# ═══════════════════════════════════════════════════════════════════════════
+# Class 3: Full clean cycle between user sessions
+- stopApp
+- waitForAnimationToEnd                           # Class 3 Fix: wait before relaunch
+- launchApp:
+    clearState: true                              # Class 3: clearState on user switch
+- waitForAnimationToEnd
+- waitForAnimationToEnd
+
+# Class 4: Dismiss system dialogs again after relaunch
+- runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
+- waitForAnimationToEnd
+
+# [BuyerLogin] Execute buyer login helper
 - runFlow: helpers/tfv2-login-buyer.yaml
 
-# ── Login as buyer ──
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 2b — Safety Retry: if login form still visible, re-submit
+# ═══════════════════════════════════════════════════════════════════════════
+# Class 1 fix: hideKeyboard + scrollUntilVisible before submit tap
 - runFlow:
     when:
       visible:
         id: "login-email-input"
     commands:
+      # [LoginScreen] Re-fill email
       - tapOn:
           id: "login-email-input"
       - eraseText
       - inputText: "test-buyer@kidsmarketplace.test"
+
+      # [LoginScreen] Re-fill password (double tap for iOS autofill dismiss)
+      - tapOn:
+          id: "login-password-input"
       - tapOn:
           id: "login-password-input"
       - eraseText
       - inputText: "TestBuyer123!"
+
+      # Class 1: hideKeyboard before submit tap (Failure 1 fix)
+      - hideKeyboard
+      - waitForAnimationToEnd
+
+      # Class 1: scrollUntilVisible to ensure button is on screen
+      - scrollUntilVisible:
+          id: "login-submit-button"
+          direction: DOWN
+          timeout: 5000
+
+      # [LoginScreen] Tap submit
       - tapOn:
           id: "login-submit-button"
       - waitForAnimationToEnd
+      - waitForAnimationToEnd                      # Double wait: transition + auth
 
-# ── Navigate to Discover tab ──
+# Class 4: iOS save-password sheet (may appear after any login)
+- runFlow: helpers/tfv2-dismiss-system-dialogs.yaml
+- waitForAnimationToEnd
+
+# Class 3: Assert login result — confirm authenticated stack loaded
+# [LoginScreen] Assert post-login landmark
+- assertVisible:
+    id: "tab-discover"
+- takeScreenshot: "01-after-login"
+  enabled: ${SCREENSHOTS_ENABLED}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 3 — Navigate to Discover + Wait for Results
+# ═══════════════════════════════════════════════════════════════════════════
+# [DiscoverScreen] Navigate to Discover tab
 - tapOn:
     id: "tab-discover"
 - waitForAnimationToEnd
 
-# ── Verify discover screen loaded ──
-- assertVisible:
-    id: "discover-results-list"
+# Class 2: Double-wait + scroll-and-retry pattern for data-dependent screens
+# (Failure 2 fix — replaces single extendedWaitUntil that silently timed out)
+- waitForAnimationToEnd
+- scroll:
+    direction: DOWN
+    duration: 800
+- waitForAnimationToEnd
+- scroll:
+    direction: UP
+    duration: 400
 - waitForAnimationToEnd
 
-# ── Tap first listing card (should exist after seeding) ──
+# [DiscoverScreen] Hard assert — not optional
+- assertVisible:
+    id: "search-result-"
+    timeout: 15000
+- takeScreenshot: "02-discover-with-results"
+  enabled: ${SCREENSHOTS_ENABLED}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 4 — Tap Listing → Item Detail → Request to Buy
+# ═══════════════════════════════════════════════════════════════════════════
+# [DiscoverScreen] Tap first listing card
 - tapOn:
     id: "search-result-"
     index: 0
 - waitForAnimationToEnd
 
-# ── Verify item detail screen loaded with offer surface ──
+# [ItemDetailScreen] Verify item detail screen loaded
 - assertVisible:
     id: "item-detail-title"
 - assertVisible:
@@ -61,78 +200,136 @@ appId: com.sameralzubaidi.p2pmarketplace
 - assertVisible:
     id: "request-to-buy-button"
 - waitForAnimationToEnd
+- takeScreenshot: "03-item-detail"
+  enabled: ${SCREENSHOTS_ENABLED}
 
-# ── Tap Request to Buy ──
+# [ItemDetailScreen] Tap Request to Buy
+# Class 1: Ensure button is visible and not blocked
+- scrollUntilVisible:
+    id: "request-to-buy-button"
+    direction: DOWN
+    timeout: 5000
 - tapOn:
     id: "request-to-buy-button"
 - waitForAnimationToEnd
 
-# ── Verify Trade Offer screen loaded ──
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 5 — Trade Offer Screen → Submit Offer
+# ═══════════════════════════════════════════════════════════════════════════
+# [TradeOfferScreen] Verify offer screen loaded
+- waitForAnimationToEnd
 - assertVisible:
+    id: "value-stack-row"                         # Hard assert — no optional
+- assertVisible:
+    id: "send-offer-button"                       # Hard assert — no optional
+- takeScreenshot: "04-trade-offer"
+  enabled: ${SCREENSHOTS_ENABLED}
+
+# ── Submit the offer (Fix for "Offer never submitted") ──────────────────
+# Class 1: hide keyboard, ensure send-offer-button is visible, then tap
+- hideKeyboard
+- waitForAnimationToEnd
+- scrollUntilVisible:
     id: "send-offer-button"
-    optional: true
-- assertVisible:
-    id: "value-stack-row"
-    optional: true
-- assertVisible:
-    id: "sp-amount-input"
-    optional: true
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "send-offer-button"
 - waitForAnimationToEnd
 
-# ── Navigate to Me tab ──
+# DisclaimerModal appears after tapping send-offer-button.
+# Wait for it to load, check the checkbox, then accept.
+# [DisclaimerModal] Wait for modal to appear
+- waitForAnimationToEnd
+- assertVisible:
+    id: "disclaimer-modal"
+    timeout: 10000
+
+# Self-heal: if disclaimer fetch failed (network error), tap Retry and wait for load
+- runFlow:
+    when:
+      visible:
+        id: "disclaimer-modal-retry-button"
+    commands:
+      - tapOn:
+          id: "disclaimer-modal-retry-button"
+      - waitForAnimationToEnd
+      - waitForAnimationToEnd
+      # Re-assert the modal loaded successfully after retry
+      - assertVisible:
+          id: "disclaimer-modal-checkbox"
+          timeout: 10000
+
+# Check the "I understand" checkbox (required to enable accept button)
+- scrollUntilVisible:
+    id: "disclaimer-modal-checkbox"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "disclaimer-modal-checkbox"
+- waitForAnimationToEnd
+
+# Tap Accept & Continue to submit the offer
+- tapOn:
+    id: "disclaimer-modal-accept-button"
+- waitForAnimationToEnd
+- waitForAnimationToEnd                          # Wait for Stripe pre-auth + navigation
+
+# [TradeSuccessScreen] Assert post-submission state
+- assertVisible:
+    id: "success-icon"
+    timeout: 15000
+- takeScreenshot: "CHECKPOINT-offer-submitted"
+  enabled: ${SCREENSHOTS_ENABLED}
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 6 — Navigate to Trade List via Profile
+# ═══════════════════════════════════════════════════════════════════════════
+# Class 1: Dismiss keyboard before tab navigation
+- hideKeyboard
+- waitForAnimationToEnd
+
+# [ProfileScreen / TradeListScreen] Navigate to Me tab
 - tapOn:
     id: "tab-me"
 - waitForAnimationToEnd
 - waitForAnimationToEnd
 
-# ── Navigate to TradeListScreen from Me tab via profile trades stat ──
-- runFlow:
-    when:
-      visible:
-        id: "profile-trades-stat"
-    commands:
-      - tapOn:
-          id: "profile-trades-stat"
-      - waitForAnimationToEnd
+# Tap profile trades stat to open TradeListScreen
+- scrollUntilVisible:
+    id: "profile-trades-stat"
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: "profile-trades-stat"
+- waitForAnimationToEnd
 
-      # ── Verify trades screen ──
-      - assertVisible:
-          id: "tab-buying"
-      - waitForAnimationToEnd
+# [TradeListScreen] Verify trades screen and Active tab
+- assertVisible:
+    id: "tab-active"
+- waitForAnimationToEnd
 
-      # ── Check Buying tab ──
-      - tapOn:
-          id: "tab-buying"
-      - waitForAnimationToEnd
+# Tap Active tab to view pending/in-progress trades
+- tapOn:
+    id: "tab-active"
+- waitForAnimationToEnd
 
-      # ── Check for existing trades and verify trade detail ──
-      - runFlow:
-          when:
-            visible:
-              id: "trade-row-"
-          commands:
-            - tapOn:
-                id: "trade-row-"
-                index: 0
-            - waitForAnimationToEnd
-            # Verify trade detail screen elements
-            - assertVisible:
-                id: "trade-status-badge"
-            - assertVisible:
-                id: "mark-completed-button"
-                optional: true
-            - assertVisible:
-                id: "cancel-trade-button"
-                optional: true
+# [TradeListScreen] Tap first trade row to open detail
+- assertVisible:
+    id: "trade-row-"
+    timeout: 10000
+- tapOn:
+    id: "trade-row-"
+    index: 0
+- waitForAnimationToEnd
 
-      # ── Navigate back to Me tab ──
-      - tapOn:
-          id: "tab-me"
-      - waitForAnimationToEnd
+# [TradeDetailScreen] Verify trade detail screen loaded
+- assertVisible:
+    id: "trade-status-badge"
+- takeScreenshot: "05-trade-detail"
+  enabled: ${SCREENSHOTS_ENABLED}
 
-      # ── Verify profile screen ──
-      - assertVisible:
-          id: "profile-trades-stat"
-      - waitForAnimationToEnd
-
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 7 — Clean Up
+# ═══════════════════════════════════════════════════════════════════════════
 - stopApp

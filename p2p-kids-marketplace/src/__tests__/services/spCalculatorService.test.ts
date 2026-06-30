@@ -13,8 +13,7 @@ describe('spCalculatorService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (adminConfigService.getAdminConfig as jest.Mock).mockResolvedValue({
-      platform_fee_buyer_percentage: 2.5,
-      platform_fee_buyer_fixed_cents: 25,
+      transaction_fee_non_subscriber_cents: 299,
     });
   });
 
@@ -72,8 +71,8 @@ describe('spCalculatorService', () => {
         sp_spending_cap_percent: 70,
         sp_to_use: 10,
         cash_paid: 10, // 20 - 10
-        fee: 0.75, // 2.5% of 20 + $0.25 fixed
-        total_cost: 10.75, // 10 + 0.75
+        fee: 2.99, // Flat fee per SYSTEM_REQUIREMENTS_V2.md
+        total_cost: 12.99, // 10 + 2.99
         is_bonus: true,
       });
     });
@@ -97,8 +96,8 @@ describe('spCalculatorService', () => {
         sp_spending_cap_percent: 70,
         sp_to_use: 14,
         cash_paid: 6,
-        fee: 0.75,
-        total_cost: 6.75,
+        fee: 2.99, // Flat fee per SYSTEM_REQUIREMENTS_V2.md
+        total_cost: 8.99, // 6 + 2.99
         is_bonus: true,
       });
     });

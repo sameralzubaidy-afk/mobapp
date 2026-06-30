@@ -214,55 +214,57 @@ describe('DeepLink Service', () => {
         expect(result?.route).toBe('TradeList');
       });
 
-      it('should parse trade_request to TradeReview with tradeId', () => {
+      it('should parse trade_request to ReviewOffer with tradeId', () => {
         const data: NotificationDeepLinkData = {
           type: 'trade_request',
-          trade_id: 'trade-123',
+          trade_id: '123e4567-e89b-12d3-a456-426614174000',
         };
 
         const result = parseNotificationDeepLink(data);
 
         expect(result).not.toBeNull();
         expect(result?.route).toBe('ReviewOffer');
-        expect(result?.params).toEqual({ tradeId: 'trade-123' });
+        expect(result?.params).toEqual({ tradeId: '123e4567-e89b-12d3-a456-426614174000' });
       });
 
       it('should prefer ReviewOffer for trade_request even with /trade/:id deep link', () => {
         const data: NotificationDeepLinkData = {
           type: 'trade_request',
-          deep_link: '/trade/trade-xyz-789',
+          trade_id: '223e4567-e89b-12d3-a456-426614174001',
+          deep_link: '/trade/223e4567-e89b-12d3-a456-426614174001',
         };
 
         const result = parseNotificationDeepLink(data);
 
         expect(result).not.toBeNull();
         expect(result?.route).toBe('ReviewOffer');
-        expect(result?.params).toEqual({ tradeId: 'trade-xyz-789' });
+        expect(result?.params).toEqual({ tradeId: '223e4567-e89b-12d3-a456-426614174001' });
       });
 
       it('should parse trade_accepted with tradeId param', () => {
         const data: NotificationDeepLinkData = {
           type: 'trade_accepted',
-          tradeId: 'trade-abc',
+          tradeId: '323e4567-e89b-12d3-a456-426614174002',
         };
 
         const result = parseNotificationDeepLink(data);
 
         expect(result).not.toBeNull();
         expect(result?.route).toBe('TradeDetail');
-        expect(result?.params?.tradeId).toBe('trade-abc');
+        expect(result?.params?.tradeId).toBe('323e4567-e89b-12d3-a456-426614174002');
       });
 
       it('should parse /trade/:id path to TradeDetail with params', () => {
         const data: NotificationDeepLinkData = {
-          deep_link: '/trade/trade-xyz-789',
+          trade_id: '423e4567-e89b-12d3-a456-426614174003',
+          deep_link: '/trade/423e4567-e89b-12d3-a456-426614174003',
         };
 
         const result = parseNotificationDeepLink(data);
 
         expect(result).not.toBeNull();
         expect(result?.route).toBe('TradeDetail');
-        expect(result?.params?.tradeId).toBe('trade-xyz-789');
+        expect(result?.params?.tradeId).toBe('423e4567-e89b-12d3-a456-426614174003');
       });
     });
 

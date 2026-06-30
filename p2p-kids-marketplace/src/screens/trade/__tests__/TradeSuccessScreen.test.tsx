@@ -87,7 +87,7 @@ describe('TradeSuccessScreen', () => {
       const button = getByTestId('cta-primary-button');
       fireEvent.press(button);
 
-      expect(mockNavigate).toHaveBeenCalledWith('SubscriptionChoice');
+      expect(mockNavigate).toHaveBeenCalledWith('PlanComparison');
     });
   });
 
@@ -139,58 +139,6 @@ describe('TradeSuccessScreen', () => {
     });
   });
 
-  describe('Shared Elements', () => {
-    it('should render "Back to Home" link', () => {
-      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
-        params: { success: true },
-      });
-
-      const { getByText } = render(<TradeSuccessScreen />);
-      expect(getByText('Back to Home')).toBeTruthy();
-    });
-
-    it('should navigate to Home on "Back to Home" press', () => {
-      const mockNavigate = jest.fn();
-      jest.spyOn(require('@react-navigation/native'), 'useNavigation').mockReturnValue({
-        navigate: mockNavigate,
-        goBack: jest.fn(),
-      });
-
-      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
-        params: { success: true },
-      });
-
-      const { getByText } = render(<TradeSuccessScreen />);
-
-      const link = getByText('Back to Home');
-      fireEvent.press(link);
-
-      expect(mockNavigate).toHaveBeenCalledWith('Home');
-    });
-
-    it('should display trade ID when provided', () => {
-      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
-        params: { success: true, tradeId: 'trade-abc-123' },
-      });
-
-      const { getByText } = render(<TradeSuccessScreen />);
-      expect(getByText(/trade-abc-123/i)).toBeTruthy();
-    });
-  });
-
-  describe('Default State', () => {
-    it('should handle no params gracefully', () => {
-      jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
-        params: {},
-      });
-
-      const { getByTestId: _getByTestId } = render(<TradeSuccessScreen />);
-      // Should default to failure state or show generic message
-    });
-  });
-
-  // TFV2: Seller vs Buyer CTA permutations (7 scenarios)
-  describe('Seller vs Buyer CTA Permutations', () => {
     const mockNavigate = jest.fn();
     beforeEach(() => {
       jest.spyOn(require('@react-navigation/native'), 'useNavigation').mockReturnValue({
@@ -209,7 +157,7 @@ describe('TradeSuccessScreen', () => {
       expect(getByText("Try Kids Club+ Free \u2014 30 Days")).toBeTruthy();
       expect(getByTestId('cta-message').props.children).toContain('Kids Club+');
       fireEvent.press(getByTestId('cta-primary-button'));
-      expect(mockNavigate).toHaveBeenCalledWith('SubscriptionChoice');
+      expect(mockNavigate).toHaveBeenCalledWith('PlanComparison');
     });
 
     // Permutation 2: Subscriber buyer, SP used → show savings + Keep Shopping
@@ -259,7 +207,7 @@ describe('TradeSuccessScreen', () => {
       expect(getByText("Try Kids Club+ Free \u2014 30 Days")).toBeTruthy();
       expect(getByTestId('cta-message').props.children).toContain('Swap Points');
       fireEvent.press(getByTestId('cta-primary-button'));
-      expect(mockNavigate).toHaveBeenCalledWith('SubscriptionChoice');
+      expect(mockNavigate).toHaveBeenCalledWith('PlanComparison');
     });
 
     // Permutation 5: Subscriber seller, cash_only → encourage Accept SP
@@ -328,8 +276,10 @@ describe('TradeSuccessScreen', () => {
         params: { success: true, role: 'buyer', subscriptionStatus: 'free', tradeId: 't-shared' },
       });
       const { getByTestId } = render(<TradeSuccessScreen />);
-      expect(getByTestId('cta-rate-review-link')).toBeTruthy();
-      expect(getByTestId('cta-done-link')).toBeTruthy();
+      // Rate & Review and Done links were removed from the success screen.
+      // The screen now shows primary CTA + View Trades + Back to Home buttons.
+      expect(getByTestId('cta-view-trades-button')).toBeTruthy();
+      expect(getByTestId('back-home-button')).toBeTruthy();
     });
   });
 
@@ -408,4 +358,3 @@ describe('TradeSuccessScreen', () => {
       expect(queryByTestId('leave-review-button')).toBeNull();
     });
   });
-});

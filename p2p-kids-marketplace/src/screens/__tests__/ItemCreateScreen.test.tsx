@@ -55,7 +55,7 @@ const mockNavigation = {
 };
 
 const mockRoute = {
-  params: {},
+  params: { showPhotoSourcePrompt: false },
 };
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
@@ -349,7 +349,7 @@ describe('ItemCreateScreen', () => {
         errors: [],
       });
 
-      const { getByTestId } = renderScreen({ params: { draftId: 'draft-1' } } as any);
+      const { getByTestId } = renderScreen({ params: { draftId: 'draft-1', showPhotoSourcePrompt: false } } as any);
 
       fireEvent.press(getByTestId('add-photos-button'));
 

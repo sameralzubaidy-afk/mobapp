@@ -31,6 +31,16 @@ if [[ ! -f "$OUT_DIR/results.json" ]]; then
   exit 1
 fi
 
+# ── 0. Log screenshot locations for QA review ────────────────────────────────
+if [[ -d "$OUT_DIR/screenshots" ]]; then
+  SCREENSHOT_COUNT=$(find "$OUT_DIR/screenshots" -type f -name '*.png' | wc -l | tr -d ' ')
+  SCREENSHOT_FLOWS=$(ls "$OUT_DIR/screenshots" 2>/dev/null | tr '\n' ', ' | sed 's/, $//')
+  if [[ "$SCREENSHOT_COUNT" -gt 0 ]]; then
+    log "Screenshots captured: $SCREENSHOT_COUNT"
+    log "Screenshot locations: $OUT_DIR/screenshots/{$SCREENSHOT_FLOWS}"
+  fi
+fi
+
 # ── 1. Stop admin portal only if this run started it ─────────────────────────
 if [[ -f /tmp/admin-portal-tfv2.pid ]]; then
   ADMIN_PID=$(cat /tmp/admin-portal-tfv2.pid)

@@ -6,21 +6,26 @@
 appId: com.sameralzubaidi.p2pmarketplace
 ---
 - launchApp:
-    clearState: false
+    clearState: true
 - waitForAnimationToEnd
 
 # ── Step 1: Seed a test listing (login as seller, create item) ──
 - runFlow: helpers/tfv2-login-seller.yaml
 - runFlow: helpers/tfv2-seed-listing.yaml
 
-# ── Step 2: Stop app and restart as buyer ──
+# ── Step 2: Stop app and restart as buyer (clearState:true clears seller session) ──
 - stopApp
 - launchApp:
-    clearState: false
+    clearState: true
 - waitForAnimationToEnd
 
 # ── Login as buyer ──
 - runFlow: helpers/tfv2-login-buyer.yaml
+
+# ── Confirm login succeeded (authenticated stack loaded) ──
+- assertVisible:
+    id: "tab-discover"
+- takeScreenshot: "01-after-login"
 
 # ── Navigate to Discover tab ──
 - tapOn:
@@ -170,12 +175,12 @@ appId: com.sameralzubaidi.p2pmarketplace
 
       # ── Verify trades screen loaded ──
       - assertVisible:
-          id: "tab-buying"
+          id: "tab-active"
       - waitForAnimationToEnd
 
-      # ── Check Buying tab ──
+      # ── Check Active tab (shows pending/in-progress trades) ──
       - tapOn:
-          id: "tab-buying"
+          id: "tab-active"
       - waitForAnimationToEnd
 
       # ── Check for existing trades ──
@@ -197,6 +202,7 @@ appId: com.sameralzubaidi.p2pmarketplace
             - assertVisible:
                 id: "cancel-trade-button"
                 optional: true
+            - takeScreenshot: "02-trade-detail"
 
       # ── Navigate back to Me tab ──
       - tapOn:

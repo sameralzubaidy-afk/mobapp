@@ -2,10 +2,12 @@
 // MODULE-14 TASK NOTIF-V2-006: Hook to track unread notification count for badge display
 
 import { useEffect, useState, useCallback } from 'react';
+import Constants from 'expo-constants';
 import {
   getUnreadNotificationCount,
   subscribeToNotifications,
 } from '@/services/referralNotifications';
+import { supabase } from '@/config/supabase';
 
 interface UseNotificationBadgeResult {
   unreadCount: number;
@@ -66,6 +68,52 @@ export function useNotificationBadge(userId: string | undefined): UseNotificatio
     });
     return unsubscribe;
   }, [userId]);
+
+  // Subscribe to realtime updates (mark as read) to refresh badge count immediately
+  useEffect(() => {
+    if (!isValidUserId(userId)) {
+      return;
+    }
+
+    if (Constants.appOwnership === 'expo') {
+      // Realtime in Expo Go is unreliable; rely on manual refresh instead
+      return;
+    }
+
+    const channelTopic = `badge-updates:${userId}:${Date.now()}:${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
+
+    const channel = supabase.channel(channelTopic);
+    let isDisposed = false;
+
+    channel.on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'user_notifications',
+        filter: `user_id=eq.${userId}`,
+      },
+      () => {
+        if (isDisposed) return;
+        refresh();
+      }
+    );
+
+    channel.subscribe((status: string) => {
+      if (isDisposed) return;
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[useNotificationBadge] Realtime update channel status:', status, channelTopic);
+      }
+    });
+
+    return () => {
+      isDisposed = true;
+      void channel.unsubscribe();
+      void supabase.removeChannel(channel);
+    };
+  }, [userId, refresh]);
 
   return { unreadCount, refresh };
 }

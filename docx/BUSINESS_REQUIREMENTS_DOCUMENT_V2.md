@@ -1252,7 +1252,7 @@ These metrics validate the subscription-gated SP model:
 
 - GDPR-compliant (though US-focused)
 - CCPA-compliant (California privacy law)
-- COPPA-aware (no data collection from children)
+- COPPA-aware (no data collection from children) — ⚠️ DEPRECATED per product decision (2026-06-20). COPPA enforcement trigger removed. Platform no longer gates by age.
 
 ---
 

@@ -90,15 +90,12 @@ describe('paymentRetry service', () => {
         error: {
           message: 'Edge Function returned a non-2xx status code',
           context: {
-            clone: () => ({
-              text: async () =>
-                JSON.stringify({
-                  success: false,
-                  error: {
-                    code: 'NO_OPEN_INVOICE',
-                    message: 'No open invoice found to retry',
-                  },
-                }),
+            json: async () => ({
+              success: false,
+              error: {
+                code: 'NO_OPEN_INVOICE',
+                message: 'No open invoice found to retry',
+              },
             }),
           },
         } as any,
@@ -117,12 +114,9 @@ describe('paymentRetry service', () => {
         error: {
           message: 'Edge Function returned a non-2xx status code',
           context: {
-            clone: () => ({
-              text: async () =>
-                JSON.stringify({
-                  code: 'NOT_FOUND',
-                  message: 'Requested function was not found',
-                }),
+            json: async () => ({
+              code: 'NOT_FOUND',
+              message: 'Requested function was not found',
             }),
           },
         } as any,

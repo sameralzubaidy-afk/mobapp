@@ -94,6 +94,34 @@ For the task you are about to implement:
 2. Extract the specific rules, acceptance criteria, or constraints that apply.
 3. In your response, list them under a **"Requirements Confirmed"** block:
 
+## UNIVERSAL IMPLEMENTATION GATE (runs before every task, no exceptions)
+
+Before writing a single line of code for any feature or fix:
+
+STEP 1 — SEARCH BEFORE YOU BUILD
+Use filesystem MCP to search for existing implementations of anything you are about to write:
+- Functions with similar names
+- Triggers on tables you will touch
+- RPC functions that touch the same data
+- Edge Functions that handle the same event
+If any exist: UPDATE them. Never create a parallel implementation.
+
+STEP 2 — FIND THE SPEC, NOT YOUR TRAINING DATA
+Identify the one docx/ file that governs this feature area.
+Read the relevant section NOW in this session.
+If no docx/ file governs it: STOP and ask Samer — do not infer from general knowledge.
+
+STEP 3 — STATE YOUR ASSUMPTIONS BEFORE CODING
+In your response, write a "My Assumptions" block:
+- What I read in the spec
+- What the existing code currently does
+- What my change will do and why it matches the spec
+If any assumption cannot be confirmed from the docs or code: flag it as a question, not an implementation choice.
+
+STEP 4 — DEFINE DONE BEFORE STARTING
+Write the verification criteria BEFORE implementing:
+"This change is done when: [specific user-visible or data-visible outcome]"
+These criteria must come from the spec — not from "it runs without errors."
 
 ## SCOPE CONTAINMENT (MANDATORY)
 
@@ -211,7 +239,16 @@ This block ensures that if a session ends abruptly, or a new session starts week
 later, the context is always recoverable without reading the code.
 
 ---
+## SESSION OPEN (MANDATORY — first response of every new session)
 
+Before responding to any request, output this block:
+
+### 🔍 Session Context
+**Last known state**: [read docs/flow-registry.md or last Session Handoff]
+**What I'm about to touch**: [files, tables, functions]
+**Conflicts I need to check**: [existing triggers, RPCs, or Edge Functions in this area]
+**Spec I will read**: [exact docx/ file and section]
+**My Definition of Done**: [what success looks like, from the spec — not "it runs"]
 ---
 
 ## 1. Repo & folder layout (assumed for this agent)

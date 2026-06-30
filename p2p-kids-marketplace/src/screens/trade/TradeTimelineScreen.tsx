@@ -639,6 +639,8 @@ export default function TradeTimelineScreen() {
           </View>
         </View>
 
+        {/* Hide message button for cancelled/expired trades — no active trade exists */}
+        {trade.status !== 'cancelled' && (
         <Pressable style={styles.messageButton} onPress={handleOpenChat} testID="message-button">
           {counterpartyProfile ? (
             <Avatar
@@ -652,6 +654,7 @@ export default function TradeTimelineScreen() {
           )}
           <Text style={styles.messageButtonText}>Message {isBuyer ? 'Seller' : 'Buyer'}</Text>
         </Pressable>
+        )}
 
         {/* TFV2-011 / D-26: Dispute status overlay banner */}
         {(trade as any).dispute_status === 'reported' && (

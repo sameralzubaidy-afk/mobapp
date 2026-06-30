@@ -1,18 +1,47 @@
 {
-  "testRunner": "jest",
-  "runnerConfig": "./e2e/jest.config.js",
-  "configurations": {
-    "ios.sim.debug": {
-      "type": "ios.simulator",
-      "binaryPath": "ios/build/Build/Products/Debug-iphonesimulator/p2p-kids-marketplace.app",
-      "build": "npx expo prebuild --platform ios --no-install && xcodebuild -workspace ios/ios.xcworkspace -scheme p2p-kids-marketplace -configuration Debug -sdk iphonesimulator -derivedDataPath ios/build",
-      "device": { "type": "iPhone 14" }
+  "artifacts": {
+    "rootDir": "./artifacts",
+    "plugins": {
+      "screenshot": {
+        "enabled": "all",
+        "keepOnlyFailedTestsArtifacts": false
+      }
+    }
+  },
+  "behavior": {
+    "launchApp": "auto"
+  },
+  "apps": {
+    "ios.app": {
+      "type": "ios.app",
+      "binaryPath": "ios/build/Build/Products/Release-iphonesimulator/PassItUp.app",
+      "build": "SENTRY_ALLOW_FAILURE=true SENTRY_DISABLE_AUTO_UPLOAD=true xcodebuild -workspace ios/PassItUp.xcworkspace -scheme PassItUp -configuration Release -sdk iphonesimulator -derivedDataPath ios/build CODE_SIGN_IDENTITY=\"\" CODE_SIGNING_REQUIRED=NO"
     },
-    "android.emu.debug": {
-      "type": "android.emulator",
+    "android.app": {
+      "type": "android.apk",
       "binaryPath": "android/app/build/outputs/apk/debug/app-debug.apk",
-      "build": "npx expo prebuild --platform android --no-install && cd android && ./gradlew assembleDebug",
+      "build": "npx expo prebuild --platform android --no-install && cd android && ./gradlew assembleDebug"
+    }
+  },
+  "devices": {
+    "ios.simulator": {
+      "type": "ios.simulator",
+      "device": { "type": "iPhone 17 Pro" }
+    },
+    "android.emulator": {
+      "type": "android.emulator",
       "device": { "avdName": "Pixel_4_API_31" }
     }
-  }
+  },
+  "configurations": {
+    "ios.sim.debug": {
+      "device": "ios.simulator",
+      "app": "ios.app"
+    },
+    "android.emu.debug": {
+      "device": "android.emulator",
+      "app": "android.app"
+    }
+  },
+  "runnerConfig": "./detox/jest.config.js"
 }
