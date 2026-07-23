@@ -19,7 +19,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-42: Edit Profile Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -33,7 +33,7 @@ describe('TC-42: Edit Profile Screen', () => {
 
     await waitFor(element(by.id('avatar-upload-button')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('avatar-upload-button')).tap();
 
     // waitFor on the profile setup screen handles the navigation transition

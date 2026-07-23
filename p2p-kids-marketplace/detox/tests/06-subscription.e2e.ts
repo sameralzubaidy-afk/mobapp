@@ -15,7 +15,7 @@ import { dismissSystemDialogs } from '../helpers/dialogs';
 
 describe('TC-06: Subscription — Kids Club+ Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -27,7 +27,7 @@ describe('TC-06: Subscription — Kids Club+ Screen', () => {
   it('navigates to the Kids Club+ overview', async () => {
     // Navigate to Home first
     try {
-      await element(by.id('home-tab')).tap();
+      await element(by.id('tab-home')).tap();
       await new Promise(r => setTimeout(r, 600));
     } catch {}
 
@@ -35,7 +35,10 @@ describe('TC-06: Subscription — Kids Club+ Screen', () => {
     try {
       await element(by.text("Kids Club+")).tap();
     } catch {
-      await element(by.id('kids-club-subscription-banner')).tap();
+      // Fallback: tap the subscription promo on the dashboard
+      try {
+        await element(by.text('Join Kid')).tap();
+      } catch {}
     }
 
     await waitFor(element(by.id('kids-club-overview-screen')))

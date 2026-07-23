@@ -19,6 +19,7 @@
 
 import { supabase } from '@/config/supabase';
 import { getPlatformFeeCents } from '@/services/adminConfig';
+import { getPaymentMethod } from '@/services/subscription';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -294,49 +295,36 @@ export async function validateCartForCheckout(): Promise<CartResult<CartValidati
 }
 
 // ─── CART-016: subscribeToCartChanges (realtime) ──────────────────────────────
-// Subscribes to:
-//   1. cart_items changes for this user (all events)
-//   2. items table UPDATE for only the listing_ids currently in the active cart
-//      (per-cart filter per spec R-10)
-// Re-subscription is handled by the caller (CartScreen) when cartItems change.
+// Subscribes to cart_items changes for this user (all events).
+//
+// NOTE: We intentionally do NOT subscribe to `items` table UPDATEs here.
+// The items table RLS policy (items_select_same_node_or_own) requires
+// `status = 'available'` for non-owners. When a seller changes an item
+// to unavailable, the realtime event is filtered out by RLS before it
+// reaches the buyer's callback.
+//
+// Instead, a DB trigger (tr_touch_cart_on_item_status_change) on items.status
+// updates cart_items.updated_at for active carts containing the changed item.
+// This fires the cart_items subscription, which the buyer CAN read.
+//
+// The trigger is defined in:
+//   supabase/migrations/20260720000001_enable_cart_realtime.sql
+// ────────────────────────────────────────────────────────────────────────
 
 export function subscribeToCartChanges(
   userId: string,
   onChange: () => void,
-  listingIds?: string[],
+  _listingIds?: string[],
 ): () => void {
-  const channelName = `cart_items:user_${userId}:${(listingIds ?? []).join(',').slice(0, 64)}`;
-  let channel = supabase
+  const channelName = `cart_items:user_${userId}`;
+  const channel = supabase
     .channel(channelName)
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'cart_items', filter: `user_id=eq.${userId}` },
       () => onChange(),
-    );
-
-  // Only add items-table listener when we have specific listing IDs to watch
-  if (listingIds && listingIds.length > 0) {
-    // Supabase realtime supports `column=in.(val1,val2)` filter
-    channel = channel.on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'items',
-        filter: `id=in.(${listingIds.join(',')})`,
-      },
-      () => onChange(),
-    );
-  } else {
-    // Fallback: no listing IDs yet — subscribe to all items updates until cart loads
-    channel = channel.on(
-      'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'items' },
-      () => onChange(),
-    );
-  }
-
-  channel.subscribe();
+    )
+    .subscribe();
 
   return () => {
     supabase.removeChannel(channel);
@@ -346,10 +334,12 @@ export function subscribeToCartChanges(
 // ─── checkoutCart (backward compat — used by CartCheckoutScreen) ──────────────
 
 export async function checkoutCart(params: {
-  bundleId:       string;
-  spAmountCents?: number;
-  isSubscriber:   boolean;
-  meetupNodeId?:  string;
+  bundleId:          string;
+  spAmountCents?:    number;
+  perItemSpCents?:   Record<string, number>; // NEW: per-listing SP cents (points-redemption)
+  isSubscriber:      boolean;
+  meetupNodeId?:     string;
+  paymentMethodId?:  string;  // NEW: optional override for new-card flow (CartCheckoutScreen)
 }): Promise<CartResult<{ tradeIds: string[]; bundleId: string }>> {
   const userId = await getCurrentUserId();
   if (!userId) return { success: false, error: { code: 'UNAUTHENTICATED', message: 'User not logged in' } };
@@ -380,36 +370,105 @@ export async function checkoutCart(params: {
   // Fetch platform fee from admin_config (source of truth — no hardcoded values)
   const platformFeeCents = await getPlatformFeeCents(params.isSubscriber);
 
+  // Get buyer's saved payment method for Stripe pre-auth (required by create-trade-offer)
+  // If caller provided a paymentMethodId override (e.g., new card entered inline), use it
+  let savedPaymentMethodId: string | undefined = params.paymentMethodId;
+  if (!savedPaymentMethodId) {
+    try {
+      const method = await getPaymentMethod();
+      savedPaymentMethodId = method?.id;
+    } catch (e) {
+      console.error('[cartService.checkoutCart] Failed to get payment method:', e);
+    }
+  }
+
   const tradeIds: string[] = [];
   const failures: string[] = [];
 
-  for (const item of items) {
-    const itemPriceCents = item.priceCents ?? Math.round((item.price ?? 0) * 100);
-    const itemSpCents = params.spAmountCents
-      ? Math.floor((params.spAmountCents / items.length) / 100) * 100
-      : 0;
+  // Bundle checkout: send ALL items in a single Edge Function call (batch mode).
+  // This avoids N parallel HTTP calls, each with their own cold start + Stripe API overhead.
+  // Single Edge Function call does: 1 JWT check, 1 PM verify, then loops items (Stripe PIs + DB inserts).
+  if (items.length > 1) {
+    const batchItems = items.map((item) => {
+      const itemPriceCents = item.priceCents ?? Math.round((item.price ?? 0) * 100);
+      const itemSpCents = params.perItemSpCents?.[item.listingId]
+        ?? (params.spAmountCents
+          ? Math.floor((params.spAmountCents / items.length) / 100) * 100
+          : 0);
+      const cashAmountCents = itemPriceCents - itemSpCents + platformFeeCents;
+      const spAmount = Math.floor(itemSpCents / 100);
+      return {
+        item_id: item.listingId,
+        cash_amount_cents: cashAmountCents,
+        sp_amount: spAmount,
+        transaction_fee_cents: platformFeeCents,
+      };
+    });
+
     try {
       const { data: sess, error: authErr } = await supabase.auth.getSession();
       if (authErr || !sess.session) throw new Error('No session');
       const resp = await supabase.functions.invoke('create-trade-offer', {
         body: {
-          listing_id:         item.listingId,
-          offer_price_cents:  itemPriceCents,
-          sp_amount_cents:    itemSpCents,
-          platform_fee_cents: platformFeeCents,
-          bundle_id:          effectiveBundleId,
-          meetup_node_id:     params.meetupNodeId,
+          items: batchItems,
+          payment_method_id: savedPaymentMethodId,
+          buyer_subscription_status: params.isSubscriber ? 'active' : 'free',
+          bundle_id: effectiveBundleId,
         },
       });
       if (resp.error || !resp.data?.success) {
-        console.error('[cartService.checkoutCart] Offer failed:', resp.error ?? resp.data?.error);
-        failures.push(item.listingId);
-        continue;
+        console.error('[cartService.checkoutCart] Batch offer failed:', resp.error ?? resp.data?.error);
+        // If the entire batch failed, all items failed
+        for (const it of items) failures.push(it.listingId);
+      } else {
+        const { trades, errors } = resp.data;
+        if (trades) {
+          for (const t of trades) tradeIds.push(t.trade_id as string);
+        }
+        if (errors) {
+          for (const e of errors) failures.push(e.item_id ?? 'unknown');
+          console.warn('[cartService.checkoutCart] Batch partial failures:', errors);
+        }
       }
-      tradeIds.push(resp.data.trade_id as string);
     } catch (e) {
-      console.error('[cartService.checkoutCart] Unexpected error:', e);
-      failures.push(item.listingId);
+      console.error('[cartService.checkoutCart] Batch offer unexpected error:', e);
+      for (const it of items) failures.push(it.listingId);
+    }
+  } else {
+    // Single-item checkout: use the original single-item flow (backward compatible)
+    for (const item of items) {
+      const itemPriceCents = item.priceCents ?? Math.round((item.price ?? 0) * 100);
+      const itemSpCents = params.perItemSpCents?.[item.listingId]
+        ?? (params.spAmountCents
+          ? Math.floor((params.spAmountCents / items.length) / 100) * 100
+          : 0);
+      const cashAmountCents = itemPriceCents - itemSpCents + platformFeeCents;
+      const spAmount = Math.floor(itemSpCents / 100);
+      try {
+        const { data: sess, error: authErr } = await supabase.auth.getSession();
+        if (authErr || !sess.session) throw new Error('No session');
+        const resp = await supabase.functions.invoke('create-trade-offer', {
+          body: {
+            item_id:                  item.listingId,
+            cash_amount_cents:        cashAmountCents,
+            sp_amount:                spAmount,
+            transaction_fee_cents:    platformFeeCents,
+            payment_method_id:        savedPaymentMethodId,
+            buyer_subscription_status: params.isSubscriber ? 'active' : 'free',
+            bundle_id:                effectiveBundleId,
+            meetup_node_id:           params.meetupNodeId,
+          },
+        });
+        if (resp.error || !resp.data?.success) {
+          console.error('[cartService.checkoutCart] Offer failed:', resp.error ?? resp.data?.error);
+          failures.push(item.listingId);
+          continue;
+        }
+        tradeIds.push(resp.data.trade_id as string);
+      } catch (e) {
+        console.error('[cartService.checkoutCart] Unexpected error:', e);
+        failures.push(item.listingId);
+      }
     }
   }
 

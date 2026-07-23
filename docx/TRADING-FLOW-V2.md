@@ -1,9 +1,9 @@
 # Trading Flow V2 — Requirements & Implementation Reference
 
 **Project:** Kids P2P Marketplace  
-**Document Version:** 2.1  
-**Date:** May 26, 2026  
-**Last Updated:** May 26, 2026 — Added dispute state machine, payout spec, buyer escape path, event instrumentation, notification throttling, safe meetup V1-lite, parent UX principles, progressive seller consequences, cart bundle model (D-27/D-28/D-29), and resolved internal contradictions.  
+**Document Version:** 2.2
+**Date:** July 15, 2026
+**Last Updated:** July 15, 2026 — Added seller name masking rule (D-31), "More from this seller" discovery flow, bundle CTA on CartScreen, different-seller modal fix (generic copy), and seller group identification.
 **Status:** Approved — Ready for Implementation  
 **Author:** Product Team (Brainstorm session with Copilot)  
 **Supersedes:** Original trade flow in BRD V2 Section 6.4 FR-TX-001 through FR-TX-004
@@ -166,10 +166,13 @@ These principles anchor every module in this document. They must be the first fi
 - Authorization typically expires after 7 days (Stripe constraint)
 - If buyer's card is declined, offer submission fails immediately with clear error
 
-**Max Pending Offers Limit:**
-- Buyer can have max 3 active `pending` offers at any time
-- This prevents excessive fund lockup across multiple authorization holds
-- 4th offer attempt is rejected with error: *"You have 3 pending offers. Cancel one to make a new offer."*
+**Max Pending Offers Limit (Per-Seller Cap — 2026-07-18):**
+- Buyer can have max 3 active `pending` offers **per seller** at any time
+- This prevents excessive fund lockup across multiple authorization holds while allowing buyers to engage with multiple sellers simultaneously
+- A bundle offer (multiple items from the same seller) counts as 1 offer slot — not 1 per item
+- An expired offer immediately frees its slot for that buyer-seller pair (status changes to `cancelled`, which removes it from the pending count)
+- 4th offer to the SAME seller is rejected with error: *"You have 3 pending offers with this seller. Cancel one to make a new offer."*
+- Offers to DIFFERENT sellers are counted independently — 3 open with Seller A does not block offers to Seller B
 
 **Hold Lifecycle:**
 - **Offer created (pending)**: Authorization placed, funds reserved on card
@@ -860,6 +863,14 @@ Changes:
 - No counter-offer button for V1
 
 **Bundle offer grouping** (Decision D-27): When a seller has multiple pending offers from the same buyer that share a `bundle_id`, the ReviewOfferScreen (and seller's Offers tab) groups them under a single row showing a "Bundle — N items" badge. Tapping expands to show all N offer rows. Seller can accept or decline the bundle as a whole (accepting fires `rpc_initiate_trade_v2` / moves to `payment_processing` for all N trades simultaneously) or act on each item individually. This is a display-layer grouping only — each trade is still accepted/declined independently under the hood.
+
+**Bundle CTA on CartScreen** (Decision D-27 extension): When a buyer has 2+ items from the same seller in their active cart, a "Bundle these N items — Make one offer for all items from this seller" CTA appears below the cart summary. Tapping it navigates to CartCheckout in bundle mode with a "Bundle Offer" banner. This provides an explicit entry point for bundle discovery directly from the cart, complementing the existing checkout flow.
+
+**"More from this seller" discovery** (SELLER-GROUP-007): From ItemDetailScreen, when a seller has 2+ approved (status='available') listings, a green CTA appears inside the seller info card: "This seller has N more items." Tapping opens a filtered page showing only that seller's available listings — with ZERO seller name, avatar, or identity visible. Each item supports direct "Add to Cart." If the buyer's active cart matches this seller, a "Matches Your Cart" banner appears at the top. This enables same-seller cart building without ever leaking seller identity.
+
+**Seller Group Identification** (SELLER-GROUP-001): Each seller is assigned a stable, deterministic color + label (e.g., "Seller ● Blue") via SHA-256 hash of seller_id. The hash is opaque — cannot be reversed. The colored badge appears on ItemDetailScreen and the "More from this seller" page but NEVER on the Discover/search grid. This helps buyers visually identify same-seller items without identity exposure.
+
+**Different-Seller Modal Fix** (SELLER-GROUP-003): The cart-conflict modal triggered when adding an item from a different seller now uses generic, seller-agnostic copy ONLY: "Your cart already has items from a different seller. Adding this item will clear your current cart." No seller name, ID, or PII is ever interpolated. The same modal component is shared between ItemDetailScreen and CartScreen as a single source of truth.
 
 ### 11.3.1 Bundle UX Spec
 

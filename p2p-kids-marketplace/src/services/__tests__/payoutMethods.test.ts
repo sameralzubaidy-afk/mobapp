@@ -253,12 +253,49 @@ describe('PayoutMethods Service', () => {
       );
     });
 
-    it('should delete non-primary method successfully', async () => {
+    it('should prevent deleting the only remaining method', async () => {
       const mockGet = {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
         single: jest.fn().mockResolvedValue({
           data: { ...mockPayoutMethod, is_primary: false },
+          error: null,
+        }),
+      };
+
+      // Count query returns only the one method
+      const mockCount = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({
+          data: [{ id: 'method_1' }],
+          error: null,
+        }),
+      };
+
+      (supabase.from as jest.Mock)
+        .mockReturnValueOnce(mockGet)
+        .mockReturnValueOnce(mockCount);
+
+      await expect(deletePayoutMethod('method_1')).rejects.toThrow(
+        'Cannot delete your only payout method'
+      );
+    });
+
+    it('should delete non-primary method successfully when multiple exist', async () => {
+      const mockGet = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: { ...mockPayoutMethod, is_primary: false },
+          error: null,
+        }),
+      };
+
+      // Count query returns 2 methods
+      const mockCount = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({
+          data: [{ id: 'method_1' }, { id: 'method_2' }],
           error: null,
         }),
       };
@@ -271,7 +308,10 @@ describe('PayoutMethods Service', () => {
         }),
       };
 
-      (supabase.from as jest.Mock).mockReturnValueOnce(mockGet).mockReturnValueOnce(mockDelete);
+      (supabase.from as jest.Mock)
+        .mockReturnValueOnce(mockGet)
+        .mockReturnValueOnce(mockCount)
+        .mockReturnValueOnce(mockDelete);
 
       await expect(deletePayoutMethod('method_1')).resolves.not.toThrow();
     });

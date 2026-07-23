@@ -207,7 +207,18 @@ export default function PayoutDashboardScreen() {
 
         {/* Payout History Section */}
         <View style={styles.sectionCard}>
-          <Text style={styles.sectionLabel}>Payout History</Text>
+          <TouchableOpacity
+            style={styles.sectionHeaderRow}
+            onPress={() => navigation.navigate('SellerEarnings')}
+            activeOpacity={0.7}
+            testID="view-all-earnings-link"
+          >
+            <Text style={styles.sectionLabel}>Payout History</Text>
+            <View style={styles.viewAllRow}>
+              <Text style={styles.viewAllText}>View All</Text>
+              <CaretRight size={14} color="#5DBB8E" weight="regular" />
+            </View>
+          </TouchableOpacity>
           {payouts.length === 0 ? (
             <Text style={styles.emptyHistory} testID="empty-history">
               No payouts yet
@@ -341,13 +352,28 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  viewAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#5DBB8E',
+  },
   sectionLabel: {
     fontSize: 13,
     fontWeight: '500',
     color: '#6B6B6B',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
   },
   // Bank row
   bankRow: {

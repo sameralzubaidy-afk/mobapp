@@ -15,7 +15,7 @@ import { dismissSystemDialogs } from '../helpers/dialogs';
 
 describe('TC-24: Messaging Inbox', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });

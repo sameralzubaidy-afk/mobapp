@@ -15,10 +15,13 @@ BEGIN
 
     -- Invoke payout Edge Function asynchronously
     PERFORM net.http_post(
-      url     := current_setting('app.edge_function_base_url') || '/initiate-payout',
+      url     := COALESCE(
+        NULLIF(current_setting('app.edge_function_base_url', true), ''),
+        NULLIF(current_setting('app.supabase_url', true), '') || '/functions/v1'
+      ) || '/initiate-payout',
       headers := jsonb_build_object(
         'Content-Type',  'application/json',
-        'Authorization', 'Bearer ' || current_setting('app.service_role_key')
+        'Authorization', 'Bearer ' || NULLIF(current_setting('app.service_role_key', true), '')
       ),
       body    := jsonb_build_object('trade_id', NEW.id::text)
     );

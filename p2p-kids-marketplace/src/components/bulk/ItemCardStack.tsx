@@ -14,6 +14,8 @@ interface ItemCardStackProps {
   onUpgradePress?: () => void;
   /** V3.1 UX overhaul (Decision 11): per-card AI retry */
   onRetryAI?: (groupId: string) => void;
+  /** Minimum listing price threshold for price_below_minimum chip text */
+  minListingPrice?: number;
 }
 
 /**
@@ -31,6 +33,7 @@ export function ItemCardStack({
   checkingSubscription = false,
   onUpgradePress,
   onRetryAI,
+  minListingPrice = 0,
 }: ItemCardStackProps) {
   return (
     <View style={styles.container} testID="item-card-stack">
@@ -48,6 +51,7 @@ export function ItemCardStack({
           checkingSubscription={checkingSubscription}
           onUpgradePress={onUpgradePress}
           onRetryAI={onRetryAI ? () => onRetryAI(item.groupId) : undefined}
+          minListingPrice={minListingPrice}
         />
       ))}
     </View>

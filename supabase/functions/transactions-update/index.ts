@@ -89,9 +89,20 @@ serve(async (req) => {
       }
     }
 
+    // TAX-STATUS-LIFECYCLE: Void tax on seller decline
+    try {
+      await svcClient.rpc('rpc_void_tax_for_trade', {
+        p_trade_id: trade_id,
+        p_reason: 'seller_declined',
+      });
+    } catch (taxErr: unknown) {
+      const msg = taxErr instanceof Error ? taxErr.message : 'Unknown error';
+      console.error(`[transactions-update] Tax void error (non-fatal):`, msg);
+    }
+
     const { error: declineErr } = await svcClient
       .from('trades')
-      .update({ status: 'cancelled', cancellation_reason: 'seller_declined', updated_at: new Date().toISOString() })
+      .update({ status: 'cancelled', cancellation_reason: 'seller_declined', cancelled_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', trade_id);
 
     if (declineErr) {
@@ -99,26 +110,10 @@ serve(async (req) => {
       return errResp(500, 'UPDATE_FAILED', 'Failed to decline offer');
     }
 
-    // Restore buyer's SP to available_balance (trigger will release reserved_sp automatically)
-    const spAmount = trade.sp_amount ?? 0;
-    if (spAmount > 0) {
-      try {
-        const { error: spErr } = await svcClient.rpc('credit_sp_for_cancelled_trade', {
-          p_user_id: trade.buyer_id,
-          p_trade_id: trade_id,
-          p_points: spAmount
-        });
-        if (spErr) {
-          console.error('[transactions-update] SP refund error:', spErr.message);
-          // Continue with decline even if SP refund fails - buyer can contact support
-        } else {
-          console.log(`[transactions-update] Refunded ${spAmount} SP to buyer ${trade.buyer_id} for trade ${trade_id}`);
-        }
-      } catch (spErr: unknown) {
-        const msg = spErr instanceof Error ? spErr.message : 'Unknown error';
-        console.error('[transactions-update] SP refund error:', msg);
-      }
-    }
+    // SP release is handled automatically by the trigger fn_release_sp_on_cancel
+    // which fires on AFTER UPDATE OF status → 'cancelled'. It releases reserved SP
+    // back to available_balance AND creates the earn_refund ledger entry.
+    // No manual SP code needed here.
 
     // Log trade event (try/catch — non-fatal)
     try {
@@ -152,38 +147,29 @@ serve(async (req) => {
   }
 
   // --- ACCEPT ---
-  // D-30: Capture the Stripe pre-authorization (convert hold → charge)
-  const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
-  if (trade.stripe_payment_intent_id && (trade.cash_amount_cents ?? 0) > 0) {
-    if (!stripeKey || !stripeKey.startsWith('sk_')) {
-      return errResp(500, 'STRIPE_CONFIG_ERROR', 'Payment system not configured');
-    }
-    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
-    try {
-      const captured = await stripe.paymentIntents.capture(trade.stripe_payment_intent_id);
-      if (captured.status !== 'succeeded') {
-        // Capture failed — cancel the trade
-        await svcClient.from('trades').update({
-          status: 'cancelled',
-          cancellation_reason: 'payment_failed',
-          updated_at: new Date().toISOString(),
-        }).eq('id', trade_id);
-        console.error(`[transactions-update] Stripe capture failed: status=${captured.status}`);
-        return errResp(402, 'PAYMENT_FAILED', 'Payment capture failed. Trade cancelled.');
-      }
-      console.log(`[transactions-update] PI ${trade.stripe_payment_intent_id} captured`);
-    } catch (captureErr: unknown) {
-      const msg = captureErr instanceof Error ? captureErr.message : 'Stripe capture error';
-      console.error(`[transactions-update] Stripe capture error:`, msg);
-      return errResp(402, 'PAYMENT_FAILED', 'Payment capture failed. Please try again.');
-    }
+  // D-31 (2026-07-18): Bundle offers created via create-trade-offer's background-processing
+  // path can briefly have cash_amount_cents > 0 with no stripe_payment_intent_id yet — the
+  // pre-auth hold is still being created in the background. Accepting in that window would
+  // skip the capture step below entirely and let the trade proceed without ever charging the
+  // buyer. Block it with a clear, retryable error instead.
+  if ((trade.cash_amount_cents ?? 0) > 0 && !trade.stripe_payment_intent_id) {
+    return errResp(409, 'PAYMENT_PROCESSING', 'This offer is still being processed. Please try again in a few seconds.');
   }
+
+  // TAX-STATUS-LIFECYCLE (2026-07-23): PI capture is DEFERRED to buyer completion or
+  // auto-complete. At seller accept, we only transition the trade to in_progress and
+  // set the auto_complete_at clock. The authorization hold stays on the buyer's card
+  // as an uncaptured hold. Capture happens in complete-trade or auto-complete flows.
+  // This is safe because: (a) authorization lasts 7 days, (b) auto-complete fires at
+  // 48h by default, (c) the check-authorization-expiry cron handles stale auths.
+  console.log(`[transactions-update] PI ${trade.stripe_payment_intent_id} authorization hold preserved (not captured) on seller accept`);
 
   // Load auto_complete_hours from admin_config
   const { data: config, error: configErr } = await svcClient
     .from('admin_config')
     .select('auto_complete_hours')
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (configErr) {
     console.error('[transactions-update] Config fetch error:', configErr.message);
@@ -205,7 +191,7 @@ serve(async (req) => {
   if (acceptErr) return errResp(500, 'UPDATE_FAILED', 'Failed to accept offer');
 
   // TFV2-004: Auto-decline competing offers on the same listing
-  // D-30: competing offers are also in_progress (without auto_complete_at)
+  // D-30: competing offers are still in 'pending' status (not yet accepted)
   const { error: competingErr } = await svcClient
     .from('trades')
     .update({
@@ -214,7 +200,7 @@ serve(async (req) => {
       updated_at:          now.toISOString(),
     })
     .eq('listing_id', trade.listing_id)
-    .eq('status', 'in_progress')
+    .eq('status', 'pending')
     .is('auto_complete_at', null)
     .neq('id', trade_id);
 

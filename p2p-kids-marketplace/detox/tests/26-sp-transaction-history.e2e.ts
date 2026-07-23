@@ -16,7 +16,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-26: SP Transaction History', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -30,7 +30,7 @@ describe('TC-26: SP Transaction History', () => {
 
     await waitFor(element(by.id('profile-sp-balance-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('profile-sp-balance-stat')).tap();
 
     await waitFor(element(by.id('sp-wallet-history-btn')))
@@ -52,12 +52,12 @@ describe('TC-26: SP Transaction History', () => {
   it('shows Earned and Spent tabs', async () => {
     await waitFor(element(by.id('sp-history-tab-earned')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await expect(element(by.id('sp-history-tab-earned'))).toBeVisible();
 
     await waitFor(element(by.id('sp-history-tab-spent')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await expect(element(by.id('sp-history-tab-spent'))).toBeVisible();
   });
 

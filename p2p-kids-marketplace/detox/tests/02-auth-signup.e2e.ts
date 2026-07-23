@@ -14,7 +14,7 @@ import { dismissSystemDialogs } from '../helpers/dialogs';
 
 describe('TC-02: Auth — Signup Form', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
 
     // Navigate: Welcome → Landing → Signup

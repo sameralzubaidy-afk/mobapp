@@ -15,6 +15,7 @@ import { supabase } from '../config/supabase';
 import { ItemDraft, DraftData, AIAnalysisResult } from '../types/listing';
 import { createListing } from './listing';
 import { linkPhotosToItems } from './photoService';
+import { getAdminConfig } from './adminConfig';
 
 type DraftStep = 'photos' | 'grouping' | 'details' | 'price' | 'review';
 
@@ -395,6 +396,11 @@ export async function publishBulkDrafts(
   const failed: { draftId: string; error: string }[] = [];
   const errors: string[] = [];
 
+  // Fetch min listing price ONCE for the whole batch
+  // forceRefresh=true to bypass 5-min cache — admin change must take effect immediately
+  const adminConfig = await getAdminConfig(true);
+  const minListingPrice = adminConfig.min_listing_price;
+
   // Process each draft
   for (const draftId of itemIds) {
     const draft = await getItemDraft(draftId);
@@ -453,6 +459,13 @@ export async function publishBulkDrafts(
         }
         if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
           failed.push({ draftId: itemIdForError, error: 'Price must be greater than 0' });
+          continue;
+        }
+        if (minListingPrice > 0 && parsedPrice < minListingPrice) {
+          failed.push({
+            draftId: itemIdForError,
+            error: `Price must be at least $${minListingPrice.toFixed(2)} to be listed`,
+          });
           continue;
         }
         if (!photoUrls.length) {

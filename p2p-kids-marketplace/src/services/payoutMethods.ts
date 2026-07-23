@@ -271,10 +271,26 @@ export async function deletePayoutMethod(methodId: string): Promise<void> {
     throw new Error("Unauthorized: Cannot delete another user's payout method");
   }
 
-  // Prevent deleting primary method without confirmation
+  // Prevent deleting primary method
   if (existingMethod.is_primary) {
     throw new Error(
       'Cannot delete primary payout method. Please set another method as primary first.'
+    );
+  }
+
+  // Prevent deleting the only remaining method
+  const { data: allMethods, error: countError } = await supabase
+    .from(PAYOUT_METHODS_TABLE)
+    .select('id')
+    .eq('user_id', user.id);
+
+  if (countError) {
+    throw new Error(`Failed to check payout methods: ${countError.message}`);
+  }
+
+  if (!allMethods || allMethods.length <= 1) {
+    throw new Error(
+      'Cannot delete your only payout method. Add a new method first before removing this one.'
     );
   }
 

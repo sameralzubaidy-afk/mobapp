@@ -16,15 +16,15 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-15: Settings & Legal', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
     await goToProfile();
 
-    await waitFor(element(by.id('settings-button')))
+    await waitFor(element(by.id('profile-settings')))
       .toBeVisible()
-      .withTimeout(8000);
-    await element(by.id('settings-button')).tap();
+      .withTimeout(15000);
+    await element(by.id('profile-settings')).tap();
     await new Promise(r => setTimeout(r, 500));
   });
 

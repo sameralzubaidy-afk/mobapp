@@ -6,6 +6,7 @@ module.exports = {
   globalTeardown: 'detox/runners/jest/globalTeardown',
   testTimeout: 600000,
   testMatch: ['<rootDir>/tests/**/*.e2e.ts'],
+  maxWorkers: 1,
   transform: {
     '\\.tsx?$': 'babel-jest',
   },

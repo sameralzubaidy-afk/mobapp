@@ -16,7 +16,7 @@ import { dismissSystemDialogs } from '../helpers/dialogs';
 
 describe('TC-03: Listing Create — Form', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsSeller();
   });

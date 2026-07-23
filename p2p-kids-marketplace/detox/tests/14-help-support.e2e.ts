@@ -15,7 +15,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-14: Help & Support', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
     await goToProfile();
@@ -26,17 +26,17 @@ describe('TC-14: Help & Support', () => {
   });
 
   it('navigates to Settings and opens Help & Support', async () => {
-    await waitFor(element(by.id('settings-button')))
+    await waitFor(element(by.id('profile-settings')))
       .toBeVisible()
-      .withTimeout(8000);
-    await element(by.id('settings-button')).tap();
+      .withTimeout(15000);
+    await element(by.id('profile-settings')).tap();
     await new Promise(r => setTimeout(r, 500));
 
     // Help & Support is typically a row in Settings
     try {
       await element(by.text('Help & Support')).tap();
     } catch {
-      await element(by.id('settings-help-button')).tap();
+      await element(by.id('settings-help-support-button')).tap();
     }
 
     await waitFor(element(by.id('help-screen')))

@@ -35,6 +35,8 @@ export type RootStackParamList = {
   ManageKidsClub: undefined;
   // MODULE-11 SUB-010: Kids Club+ overview
   KidsClubOverview: undefined;
+  // Profile & Payment Methods
+  PaymentMethods: undefined;
   // MODULE-11 SUB-007: Subscription status/billing screen (manual verification)
   SubscriptionStatus: undefined;
   // MODULE-11 SUB-015: Subscription payment screen (Stripe Payment Sheet integration)
@@ -51,16 +53,26 @@ export type RootStackParamList = {
   TradeDetail: { tradeId: string };
   TradeList: undefined;
   TradeDispute: { tradeId: string };
-  TradeSuccess: { tradeId: string };
+  TradeSuccess: {
+    tradeId: string;
+    role?: 'buyer' | 'seller';
+    spUsed?: number;
+    spAmountDollars?: number;
+    remainingSP?: number;
+    listingType?: 'cash_only' | 'accept_sp' | 'donate';
+    totalSpToSeller?: number;
+    spPendingReleaseDays?: number;
+    tradeStatus?: 'initiated' | 'completed';
+    counterpartyId?: string;
+    counterpartyName?: string;
+  };
   TradeV2ComponentsPreview: undefined;
   // MODULE-07: Messaging routes
   Conversations: undefined;
   Chat: { tradeId: string };
   // MODULE-06 (EXT): Seller Payout routes
-  PayoutSettings: undefined;
+  PayoutSettings: { showNoMethodModal?: boolean } | undefined;
   SellerEarnings: undefined;
-  // MODULE-15.1 FLOW-22: Payout screens (redesigned)
-  PayoutDashboard: undefined;
   RequestPayout: undefined;
   // Admin routes
   AdminDashboard: undefined;
@@ -97,8 +109,10 @@ export type RootStackParamList = {
   DeleteAccount: undefined;
   // MODULE-15.1 FLOW-07: Cart & Bundling
   Cart: undefined;
-  CartCheckout: { bundleId: string };
+  CartCheckout: { bundleId: string; bundleMode?: boolean };
   BundleBuilder: { sellerId: string; sellerName?: string };
+  // SELLER-GROUP-007: "More from this seller" page
+  MoreFromThisSeller: { sellerId: string; excludeListingId?: string; returnToCart?: boolean };
   // MODULE-15.2 CART-018: Favorites
   Favorites: undefined;
   // MODULE-15.1 FLOW-12: Subscription Screens

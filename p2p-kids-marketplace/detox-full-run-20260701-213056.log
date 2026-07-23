@@ -1,0 +1,285 @@
+
+> p2p-kids-marketplace@1.0.0 e2e:run:ios
+> detox test --configuration ios.sim.debug
+
+Detected a deprecated "runnerConfig" property (string).
+Please migrate your Detox config according to the guide:
+https://wix.github.io/Detox/docs/guide/migration
+
+21:30:57.228 detox[74187] B jest --config ./detox/jest.config.js
+21:30:57.230 detox[74187] i (node:74187) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+watchman warning:  Recrawled this watch 5 times, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '/Users/sameralzubaidi/Desktop/kids_marketplace_app' ; watchman watch-project '/Users/sameralzubaidi/Desktop/kids_marketplace_app'`
+
+21:31:38.101 detox[74199] i 56-reviews-detailed.e2e.ts is assigned to 92E2BE6A-A0AF-43A7-9E15-12BA8745841D (iPhone 17 Pro)
+21:31:38.104 detox[74199] i TC-56: Reviews Detailed: submits anonymous review and verifies identity hidden (TC-Q04)
+21:31:41.069 detox[74199] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+21:32:22.322 detox[74199] i TC-56: Reviews Detailed: submits anonymous review and verifies identity hidden (TC-Q04) [FAIL]
+21:32:22.328 detox[74199] i TC-56: Reviews Detailed: sees reviews on seller profile with rating summary (TC-Q07, Q08, Q09)
+21:32:23.658 detox[74199] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+21:32:49.530 detox[74199] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+21:32:49.638 detox[74199] i TC-56: Reviews Detailed: sees reviews on seller profile with rating summary (TC-Q07, Q08, Q09) [FAIL]
+21:32:49.639 detox[74199] i TC-56: Reviews Detailed: shows mutual review status on completed trade (TC-Q06)
+21:33:02.102 detox[74199] i TC-56: Reviews Detailed: shows mutual review status on completed trade (TC-Q06) [FAIL]
+21:33:02.104 detox[74199] i TC-56: Reviews Detailed: edits an existing review (TC-Q10)
+21:33:07.214 detox[74199] i TC-56: Reviews Detailed: edits an existing review (TC-Q10) [OK]
+21:33:07.214 detox[74199] i TC-56: Reviews Detailed: verifies duplicate review blocked (TC-Q12)
+21:33:07.223 detox[74199] i TC-56: Reviews Detailed: verifies duplicate review blocked (TC-Q12) [FAIL]
+21:33:07.223 detox[74199] i TC-56: Reviews Detailed: flags a review and verifies cannot flag own (TC-Q15, TC-Q17)
+21:33:07.260 detox[74199] i TC-56: Reviews Detailed: flags a review and verifies cannot flag own (TC-Q15, TC-Q17) [OK]
+
+FAIL detox/tests/56-reviews-detailed.e2e.ts (129.607 s)
+  TC-56: Reviews Detailed
+    ✕ submits anonymous review and verifies identity hidden (TC-Q04) (44216 ms)
+    ✕ sees reviews on seller profile with rating summary (TC-Q07, Q08, Q09) (27309 ms)
+    ✕ shows mutual review status on completed trade (TC-Q06) (12463 ms)
+    ✓ edits an existing review (TC-Q10) (5110 ms)
+    ✕ verifies duplicate review blocked (TC-Q12) (9 ms)
+    ✓ flags a review and verifies cannot flag own (TC-Q15, TC-Q17) (37 ms)
+
+  ● TC-56: Reviews Detailed › submits anonymous review and verifies identity hidden (TC-Q04)
+
+    Test Failed: No elements found for “MATCHER(id == “tab-history”)”
+
+    HINT: To print view hierarchy on failed actions/matches, use log-level verbose or higher.
+
+      39 |     await goToProfile();
+      40 |     await element(by.id('profile-trades-stat')).tap();
+    > 41 |     await element(by.id('tab-history')).tap();
+         |                                         ^
+      42 |
+      43 |     try {
+      44 |       await waitFor(element(by.id(/trade-row-.+/)).atIndex(0))
+
+      at Object.tap (tests/56-reviews-detailed.e2e.ts:41:41)
+      at asyncGeneratorStep (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● TC-56: Reviews Detailed › sees reviews on seller profile with rating summary (TC-Q07, Q08, Q09)
+
+    Test Failed: Timed out while waiting for expectation: TOBEVISIBLE WITH MATCHER(id == “login-email-input”) TIMEOUT(10s)
+
+    HINT: To print view hierarchy on failed actions/matches, use log-level verbose or higher.
+
+      66 |   await waitFor(element(by.id('login-email-input')))
+      67 |     .toBeVisible()
+    > 68 |     .withTimeout(10000);
+         |      ^
+      69 |
+      70 |   await element(by.id('login-email-input')).clearText();
+      71 |   await element(by.id('login-email-input')).typeText(email);
+
+      at withTimeout (helpers/auth.ts:68:6)
+      at asyncGeneratorStep (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at ../node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at ../node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12
+      at apply (helpers/auth.ts:65:31)
+      at submitLoginForm (helpers/auth.ts:97:9)
+      at asyncGeneratorStep (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● TC-56: Reviews Detailed › shows mutual review status on completed trade (TC-Q06)
+
+    Test Failed: No elements found for “MATCHER(id == “tab-history”)”
+
+    HINT: To print view hierarchy on failed actions/matches, use log-level verbose or higher.
+
+      139 |     await goToProfile();
+      140 |     await element(by.id('profile-trades-stat')).tap();
+    > 141 |     await element(by.id('tab-history')).tap();
+          |                                         ^
+      142 |
+      143 |     try {
+      144 |       await waitFor(element(by.id(/trade-row-.+/)).atIndex(0))
+
+      at Object.tap (tests/56-reviews-detailed.e2e.ts:141:41)
+      at asyncGeneratorStep (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● TC-56: Reviews Detailed › verifies duplicate review blocked (TC-Q12)
+
+    Test Failed: No elements found for “MATCHER(id == “tab-me”)”
+
+    HINT: To print view hierarchy on failed actions/matches, use log-level verbose or higher.
+
+      199 |   it('verifies duplicate review blocked (TC-Q12)', async () => {
+      200 |     // TC-Q12: After submitting, re-navigate to review entry
+    > 201 |     await element(by.id('tab-me')).tap();
+          |                                    ^
+      202 |     await element(by.id('profile-trades-stat')).tap();
+      203 |     await element(by.id('tab-history')).tap();
+      204 |
+
+      at Object.tap (tests/56-reviews-detailed.e2e.ts:201:36)
+      at asyncGeneratorStep (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at ../node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+21:33:12.803 detox[74199] i 15-settings-legal.e2e.ts is assigned to 92E2BE6A-A0AF-43A7-9E15-12BA8745841D (iPhone 17 Pro)
+21:33:14.692 detox[74199] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+21:35:20.597 detox[74199] i The app is busy with the following tasks:
+• The event "Network Request" is taking place with object: "URL: “https://drntwgporzabmxdqykrp.supabase.co/rest/v1/user_badges?select=*%2Cbadge%3Abadges%28*%29&user_id=eq.49243010-f458-4744-add1-a6c84ab95f1f&order=awarded_at.desc”".
+• Run loop "Main Run Loop" is awake.
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+21:35:20.653 detox[74199] i TC-15: Settings & Legal: shows all Legal section buttons
+21:35:20.684 detox[74199] i TC-15: Settings & Legal: shows all Legal section buttons [FAIL]
+21:35:20.925 detox[74199] i TC-15: Settings & Legal: opens Privacy Policy and back-navigates to Settings
+21:35:20.933 detox[74199] i TC-15: Settings & Legal: opens Privacy Policy and back-navigates to Settings [FAIL]
+21:35:20.934 detox[74199] i TC-15: Settings & Legal: opens Terms of Service
+21:35:20.936 detox[74199] i TC-15: Settings & Legal: opens Terms of Service [FAIL]
+
+FAIL detox/tests/15-settings-legal.e2e.ts (134.348 s)
+  TC-15: Settings & Legal
+    ✕ shows all Legal section buttons (25 ms)
+    ✕ opens Privacy Policy and back-navigates to Settings (216 ms)
+    ✕ opens Terms of Service (1 ms)
+
+  ● TC-15: Settings & Legal › shows all Legal section buttons
+
+    Test Failed: Timed out while waiting for expectation: TOBEVISIBLE WITH MATCHER(id == “profile-settings”) TIMEOUT(15s)
+
+    HINT: To print view hierarchy on failed actions/matches, use log-level verbose or higher.
+
+      24 |     await waitFor(element(by.id('profile-settings')))
+      25 |       .toBeVisible()
+    > 26 |       .withTimeout(15000);
+         |        ^
+      27 |     await element(by.id('profile-settings')).tap();
+      28 |     await new Promise(r => setTimeout(r, 500));
+      29 |   });
+
+      at Object.withTimeout (tests/15-settings-legal.e2e.ts:26:8)
+      at asyncGeneratorStep (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● TC-15: Settings & Legal › opens Privacy Policy and back-navigates to Settings
+
+    Test Failed: Timed out while waiting for expectation: TOBEVISIBLE WITH MATCHER(id == “profile-settings”) TIMEOUT(15s)
+
+    HINT: To print view hierarchy on failed actions/matches, use log-level verbose or higher.
+
+      24 |     await waitFor(element(by.id('profile-settings')))
+      25 |       .toBeVisible()
+    > 26 |       .withTimeout(15000);
+         |        ^
+      27 |     await element(by.id('profile-settings')).tap();
+      28 |     await new Promise(r => setTimeout(r, 500));
+      29 |   });
+
+      at Object.withTimeout (tests/15-settings-legal.e2e.ts:26:8)
+      at asyncGeneratorStep (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+  ● TC-15: Settings & Legal › opens Terms of Service
+
+    Test Failed: Timed out while waiting for expectation: TOBEVISIBLE WITH MATCHER(id == “profile-settings”) TIMEOUT(15s)
+
+    HINT: To print view hierarchy on failed actions/matches, use log-level verbose or higher.
+
+      24 |     await waitFor(element(by.id('profile-settings')))
+      25 |       .toBeVisible()
+    > 26 |       .withTimeout(15000);
+         |        ^
+      27 |     await element(by.id('profile-settings')).tap();
+      28 |     await new Promise(r => setTimeout(r, 500));
+      29 |   });
+
+      at Object.withTimeout (tests/15-settings-legal.e2e.ts:26:8)
+      at asyncGeneratorStep (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (../node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+
+21:35:41.654 detox[74199] i 50-safety-ux.e2e.ts is assigned to 92E2BE6A-A0AF-43A7-9E15-12BA8745841D (iPhone 17 Pro)
+21:35:47.478 detox[74199] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+21:36:00.701 detox[74199] i The app is busy with the following tasks:
+• There are 3 pending React Native node animation updates.
+• 1 enqueued JavaScript timers:
+  - Timer #1:
+    + JS timer ID: 10.
+    + Duration: 0.
+    + Elapsed: 1487.0179891586304.
+
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+21:47:06.269 detox[74199] i TC-50: Safety UX: opens chat for a trade and verifies safety banner (TC-I03)
+21:47:06.309 detox[74199] i TC-50: Safety UX: opens chat for a trade and verifies safety banner (TC-I03) [FAIL]
+21:47:06.759 detox[74199] i TC-50: Safety UX: sends first message and verifies safety modal (TC-I04)
+21:47:06.884 detox[74199] i TC-50: Safety UX: sends first message and verifies safety modal (TC-I04) [FAIL]
+21:47:06.887 detox[74199] i TC-50: Safety UX: verifies quick-reply chips on in_progress trade (TC-I05)
+21:47:06.888 detox[74199] i TC-50: Safety UX: verifies quick-reply chips on in_progress trade (TC-I05) [FAIL]
+21:47:08.148 detox[74199] i The app is busy with the following tasks:
+• There are 4 pending React Native node animation updates.
+• 1 enqueued JavaScript timers:
+  - Timer #1:
+    + JS timer ID: 12.
+    + Duration: 0.
+    + Elapsed: 659097.3349809647.
+
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+
+FAIL detox/tests/50-safety-ux.e2e.ts (707.586 s)
+  TC-50: Safety UX
+    ✕ opens chat for a trade and verifies safety banner (TC-I03) (18 ms)
+    ✕ sends first message and verifies safety modal (TC-I04) (129 ms)
+    ✕ verifies quick-reply chips on in_progress trade (TC-I05) (1 ms)
+
+  ● TC-50: Safety UX › opens chat for a trade and verifies safety banner (TC-I03)
+
+    thrown: "Exceeded timeout of 600000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      15 |
+      16 | describe('TC-50: Safety UX', () => {
+    > 17 |   beforeAll(async () => {
+         |   ^
+      18 |     await device.launchApp({
+      19 |       newInstance: true,
+      20 |       launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' },
+
+      at beforeAll (tests/50-safety-ux.e2e.ts:17:3)
+      at Object.describe (tests/50-safety-ux.e2e.ts:16:1)
+
+  ● TC-50: Safety UX › sends first message and verifies safety modal (TC-I04)
+
+    thrown: "Exceeded timeout of 600000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      15 |
+      16 | describe('TC-50: Safety UX', () => {
+    > 17 |   beforeAll(async () => {
+         |   ^
+      18 |     await device.launchApp({
+      19 |       newInstance: true,
+      20 |       launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' },
+
+      at beforeAll (tests/50-safety-ux.e2e.ts:17:3)
+      at Object.describe (tests/50-safety-ux.e2e.ts:16:1)
+
+  ● TC-50: Safety UX › verifies quick-reply chips on in_progress trade (TC-I05)
+
+    thrown: "Exceeded timeout of 600000 ms for a hook.
+    Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout."
+
+      15 |
+      16 | describe('TC-50: Safety UX', () => {
+    > 17 |   beforeAll(async () => {
+         |   ^
+      18 |     await device.launchApp({
+      19 |       newInstance: true,
+      20 |       launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' },
+
+      at beforeAll (tests/50-safety-ux.e2e.ts:17:3)
+      at Object.describe (tests/50-safety-ux.e2e.ts:16:1)
+
+21:47:17.672 detox[74199] i 45-sp-reserve-transfer.e2e.ts is assigned to 92E2BE6A-A0AF-43A7-9E15-12BA8745841D (iPhone 17 Pro)
+21:47:49.295 detox[74199] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'

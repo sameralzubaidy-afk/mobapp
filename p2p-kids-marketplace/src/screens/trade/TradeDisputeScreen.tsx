@@ -26,7 +26,6 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { WarningCircle, Flag } from 'phosphor-react-native';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { supabase } from '@/config/supabase';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -245,7 +244,6 @@ export default function TradeDisputeScreen() {
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </ScrollView>
-      <PersistentTabBar />
     </ScreenLayout>
   );
 }

@@ -69,7 +69,7 @@ export default function HelpScreen({ navigation }: HelpScreenProps) {
       title="Help & Support"
       onBack={() => navigation.goBack()}
     >
-      <View style={styles.container}>
+      <View style={styles.container} testID="help-screen">
         {/* Search Bar */}
         <View style={styles.searchWrapper}>
           <MagnifyingGlass size={20} color="#999999" />

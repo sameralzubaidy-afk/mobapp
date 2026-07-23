@@ -40,7 +40,12 @@ import { hasActiveOfferForItem, hasActiveTradeBetween, getSellerRating } from '@
 import { Listing } from '@/types/listing';
 import { trackEvent } from '@/services/analytics';
 import { addToCart, saveCurrentCart, clearCart, getCartItems } from '@/services/cartService';
+import { useCartContext } from '@/contexts/CartContext';
 import { addFavorite, removeFavorite, isFavorited } from '@/services/favoritesService';
+import { showDifferentSellerModal } from '@/components/molecules/DifferentSellerModal';
+import MatchesCartBadge from '@/components/molecules/MatchesCartBadge';
+import { getSellerGroup } from '@/utils/sellerGroup';
+import { getMaskedSellerListings } from '@/services/listing';
 import { RootStackParamList } from '@/navigation/types';
 import { formatPrice } from '@/utils/formatPrice';
 import {
@@ -53,14 +58,16 @@ import {
   Lock,
   ChatCircle,
   User,
+  SquaresFour,
 } from 'phosphor-react-native';
-import { Modal, LoadingSpinner } from '@/components/ui';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
+import { Modal, LoadingSpinner, SuccessToast } from '@/components/ui';
 import StarRating from '@/components/molecules/StarRating';
 import Avatar from '@/components/atoms/Avatar';
 import { ListingImage } from '@/components/atoms';
 import { idBadgeService } from '@/services/idBadge';
 import ScreenLayout from '@/components/ScreenLayout';
+import { useTaxCalculation } from '@/hooks/useTaxCalculation';
+import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
 
 type ItemDetailScreenRouteProp = RouteProp<RootStackParamList, 'ListingDetail'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -74,6 +81,7 @@ interface SellerRatingInfo {
 export default function ItemDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ItemDetailScreenRouteProp>();
+  const { refreshCartCount } = useCartContext();
   const listing_id =
     (route.params as RootStackParamList['ListingDetail'] & { itemId?: string })?.listing_id ||
     (route.params as RootStackParamList['ListingDetail'] & { itemId?: string })?.itemId;
@@ -104,6 +112,16 @@ export default function ItemDetailScreen() {
   const [isFavorite, setIsFavorite] = useState(false);
   // CART-014: Track whether current listing is already in the buyer's cart
   const [inCart, setInCart] = useState(false);
+
+  // SELLER-GROUP: Whether current item's seller matches active cart's seller
+  const [matchesCart, setMatchesCart] = useState(false);
+  // SELLER-GROUP-007: Count of seller's other approved listings (for "More from this seller" CTA)
+  const [sellerOtherCount, setSellerOtherCount] = useState(0);
+
+  // ── Success Toast state ──────────────────────────────────────────────────────
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('Added to Trade Basket');
+  const [toastSubtitle, setToastSubtitle] = useState<string | undefined>();
 
   useEffect(() => {
     loadListing();
@@ -136,6 +154,36 @@ export default function ItemDetailScreen() {
       loadTradeStatusAndRating();
     }
   }, [listing, user?.id]);
+
+  // SELLER-GROUP: Compute anonymous seller group + matches-cart indicator
+  useEffect(() => {
+    (async () => {
+      if (!listing?.seller_id) return;
+      const group = await getSellerGroup(listing.seller_id);
+
+      // Check if this seller matches the active cart's seller
+      const cartRes = await getCartItems();
+      if (cartRes.success && cartRes.data.sellerId) {
+        const cartGroup = await getSellerGroup(cartRes.data.sellerId);
+        setMatchesCart(cartGroup.hash === group.hash);
+      } else {
+        setMatchesCart(false);
+      }
+    })();
+  }, [listing?.seller_id]);
+
+  // SELLER-GROUP-007: Check if seller has other approved listings
+  useEffect(() => {
+    (async () => {
+      if (!listing?.seller_id) return;
+      try {
+        const result = await getMaskedSellerListings(listing.seller_id, listing.id);
+        setSellerOtherCount(result.listings.length);
+      } catch {
+        setSellerOtherCount(0);
+      }
+    })();
+  }, [listing?.seller_id, listing?.id]);
 
   useEffect(() => {
     setActiveImageIndex(0);
@@ -341,6 +389,14 @@ export default function ItemDetailScreen() {
     });
   };
 
+  // MODULE-15.3-PART3 TAX-011: sales tax preview (mirrors TradeInitiationScreen)
+  const listingNodeId = (listing as any)?.node_id ?? null;
+  const listingPriceCents = listing ? Math.round(listing.price * 100) : 0;
+  const tax = useTaxCalculation({
+    nodeId: listingNodeId,
+    taxableAmountCents: listingPriceCents,
+  });
+
   if (loading) {
     return (
       <ScreenLayout variant="detail" title="Item Detail">
@@ -349,7 +405,6 @@ export default function ItemDetailScreen() {
             <LoadingSpinner />
             <Text style={styles.loadingText}>Loading item...</Text>
           </View>
-          <PersistentTabBar />
         </View>
       </ScreenLayout>
     );
@@ -362,7 +417,6 @@ export default function ItemDetailScreen() {
           <View style={styles.centerContent}>
             <Text style={styles.errorTitle}>❌ {error || 'Listing not found'}</Text>
           </View>
-          <PersistentTabBar />
         </View>
       </ScreenLayout>
     );
@@ -370,7 +424,8 @@ export default function ItemDetailScreen() {
 
   // V2: Fee disclosure based on buyer subscription status (admin-config / RPC driven)
   const platformFee = transactionFeeCents / 100;
-  const totalPrice = listing.price + platformFee;
+  const taxDollars = (tax.taxAmountCents || 0) / 100;
+  const totalPrice = listing.price + platformFee + taxDollars;
   const savingsDollars = Math.max(0, (nonSubscriberFeeCents - subscriberFeeCents) / 100);
 
   // Determine seller name display (TASK-ITEM-DETAILS-001)
@@ -620,6 +675,15 @@ export default function ItemDetailScreen() {
                 </Text>
               </View>
 
+              {/* MODULE-15.3-PART3 TAX-011: sales tax row (hidden when 0) */}
+              <TaxBreakdownRow
+                taxAmountCents={tax.taxAmountCents}
+                taxRate={tax.taxRate}
+                jurisdiction={tax.jurisdiction}
+                loading={tax.loading}
+                testID="detail-tax-row"
+              />
+
               <View style={styles.divider} />
 
               <View style={styles.feeRow}>
@@ -687,6 +751,19 @@ export default function ItemDetailScreen() {
                     <Text style={styles.noRatingText}>No rating yet</Text>
                   )}
 
+                  {/* SELLER-GROUP-004: Matches Your Cart indicator */}
+                  {/* DEFERRED-DECISION (2026-07-13): MatchesCartBadge survived a partial revert.
+                       Context: Seller Group badges were rolled back from Discover/search grid cards
+                       because the grid approach was replaced by "More from this seller" page discovery.
+                       What remains: This badge is still active on ItemDetailScreen because it provides
+                       immediate visual feedback when the buyer's cart matches the seller — no need to
+                       navigate away to discover same-seller items.
+                       Do NOT remove without confirming the "More from this seller" CTA below is visible
+                       and providing equivalent same-seller discovery value from this screen. */}
+                  {matchesCart && (
+                    <MatchesCartBadge size="small" testID="item-detail-matches-cart-badge" />
+                  )}
+
                   {/* Action Buttons */}
                   <View style={styles.sellerActionButtons}>
                     <TouchableOpacity style={styles.contactButton} onPress={handleContactSeller}>
@@ -717,6 +794,39 @@ export default function ItemDetailScreen() {
                   )}
                 </View>
               </View>
+
+              {/* SELLER-GROUP-007: "More from this seller" standalone CTA — promoted out of Seller Info card
+                  for better visibility. Full-width green banner below the card, hidden when 0 additional listings. */}
+              {/* BUNDLE-MICROCOPY: Single line below CTA, same condition — only when seller has 2+ listings */}
+              {sellerOtherCount >= 1 && (
+                <>
+                  <TouchableOpacity
+                    style={styles.moreFromSellerStandaloneCta}
+                    onPress={() => {
+                      navigation.navigate('MoreFromThisSeller', {
+                        sellerId: listing.seller_id,
+                        excludeListingId: listing.id,
+                      });
+                    }}
+                    testID="more-from-seller-cta"
+                    activeOpacity={0.7}
+                  >
+                    <SquaresFour size={18} color="#2D6A4F" weight="fill" />
+                    <View style={styles.moreFromSellerCtaTextWrap}>
+                      <Text style={styles.moreFromSellerCtaTitle}>
+                        This seller has {sellerOtherCount} more item{sellerOtherCount !== 1 ? 's' : ''}
+                      </Text>
+                      <Text style={styles.moreFromSellerCtaSubtext}>
+                        Add more to bundle into one trade
+                      </Text>
+                    </View>
+                    <Text style={styles.moreFromSellerCtaArrow}>→</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.bundleMicrocopy}>
+                    Buying more than one item? Add to basket to bundle and save on fees.
+                  </Text>
+                </>
+              )}
             </View>
           )}
 
@@ -756,6 +866,7 @@ export default function ItemDetailScreen() {
 
           <View style={styles.bottomActionRow}>
             {/* CART-014: Hide button for own listings; show "View Cart" when already in cart */}
+            {/* SINGLE-LISTING: Hide "Add" when seller has only 1 listing (sellerOtherCount === 0) */}
             {user?.id !== listing?.seller_id && (
               inCart ? (
                 <Pressable
@@ -764,11 +875,11 @@ export default function ItemDetailScreen() {
                   onPress={() => navigation.navigate('Cart')}
                 >
                   <ShoppingCart size={20} color="#5DBB8E" weight="fill" />
-                  <Text style={styles.addToCartButtonText}>View Cart</Text>
+                  <Text style={styles.addToCartButtonText}>View Trade Basket</Text>
                 </Pressable>
-              ) : (
+              ) : sellerOtherCount >= 1 ? (
                 <Pressable
-                  style={styles.addToCartButton}
+                  style={styles.addToCartCompactButton}
                   testID="add-to-cart-button"
                   onPress={async () => {
                     if (!listing?.id) return;
@@ -776,69 +887,68 @@ export default function ItemDetailScreen() {
                     const r = await addToCart({ listingId: listing.id });
                     if (r.success) {
                       trackEvent('cart_item_added', { item_id: listing.id });
+                      refreshCartCount();
                       setInCart(true);
                       // Cross-node soft nudge: item is from a different neighborhood
                       if ((r.data as any)?.cross_node_warning) {
-                        Alert.alert(
-                          'Added to Cart',
+                        setToastMessage('Added to Trade Basket');
+                        setToastSubtitle(
                           "This item is from a different ZIP code area. You and the seller will need to coordinate a meetup location.",
                         );
                       } else {
-                        Alert.alert('Added to Cart', 'Item added to your cart.');
+                        setToastMessage('Added to Trade Basket');
+                        setToastSubtitle(undefined);
                       }
+                      setShowToast(true);
                       return;
                     }
-                    // CART-004: DIFFERENT_SELLER handling
+                    // CART-004: DIFFERENT_SELLER handling (SELLER-GROUP-003: generic copy, no seller name leak)
                     if (r.error.code === 'DIFFERENT_SELLER') {
-                      const details = (r.error.details ?? {}) as { current_seller_name?: string };
-                      const sellerName = details.current_seller_name ?? 'another seller';
-                      Alert.alert(
-                        'Different Seller',
-                        `Your active cart has items from ${sellerName}. What would you like to do?`,
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Save & Start New Cart',
-                            onPress: async () => {
-                              const save = await saveCurrentCart();
-                              if (!save.success) {
-                                Alert.alert('Could not save cart', save.error.message);
-                                return;
-                              }
-                              const retry = await addToCart({ listingId: listing.id });
-                              if (!retry.success) {
-                                Alert.alert('Could not add to cart', retry.error.message);
-                                return;
-                              }
-                              setInCart(true);
-                              Alert.alert('Added to Cart', 'Item added to a new cart.');
-                            },
-                          },
-                          {
-                            text: 'Replace Cart',
-                            style: 'destructive',
-                            onPress: async () => {
-                              await clearCart();
-                              const retry = await addToCart({ listingId: listing.id });
-                              if (!retry.success) {
-                                Alert.alert('Could not add to cart', retry.error.message);
-                                return;
-                              }
-                              setInCart(true);
-                              Alert.alert('Added to Cart', 'Item added to your cart.');
-                            },
-                          },
-                        ],
-                      );
+                      showDifferentSellerModal({
+                        onSaveAndStartNew: async () => {
+                          const save = await saveCurrentCart();
+                          if (!save.success) {
+                            Alert.alert('Could not save cart', save.error.message);
+                            return;
+                          }
+                          const retry = await addToCart({ listingId: listing.id });
+                          if (!retry.success) {
+                            Alert.alert('Could not add to cart', retry.error.message);
+                            return;
+                          }
+                          refreshCartCount();
+                          setInCart(true);
+                          setToastMessage('Added to Trade Basket');
+                          setToastSubtitle('Cart switched to new seller.');
+                          setShowToast(true);
+                        },
+                        onReplaceCart: async () => {
+                          const cleared = await clearCart();
+                          if (!cleared.success) {
+                            Alert.alert('Could not replace cart', cleared.error.message);
+                            return;
+                          }
+                          const retry = await addToCart({ listingId: listing.id });
+                          if (!retry.success) {
+                            Alert.alert('Could not add to cart', retry.error.message);
+                            return;
+                          }
+                          refreshCartCount();
+                          setInCart(true);
+                          setToastMessage('Added to Trade Basket');
+                          setToastSubtitle('Previous cart was replaced.');
+                          setShowToast(true);
+                        },
+                      });
                       return;
                     }
                     Alert.alert('Could not add to cart', r.error.message);
                   }}
                 >
                   <ShoppingCart size={20} color="#5DBB8E" weight="regular" />
-                  <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+                  <Text style={styles.addToCartCompactText}>Add</Text>
                 </Pressable>
-              )
+              ) : null
             )}
 
             <Pressable
@@ -872,7 +982,13 @@ export default function ItemDetailScreen() {
           onClose={() => setShowDuplicateOfferModal(false)}
         />
 
-        <PersistentTabBar />
+        {/* Auto-dismissing success toast */}
+        <SuccessToast
+          visible={showToast}
+          message={toastMessage}
+          subtitle={toastSubtitle}
+          onDismiss={() => setShowToast(false)}
+        />
       </View>
     </ScreenLayout>
   );
@@ -1316,6 +1432,37 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginBottom: 8,
   },
+  // SELLER-GROUP-007: "More from this seller" standalone CTA — full-width banner below seller card
+  moreFromSellerStandaloneCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#EEF9F4',
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    marginTop: 12,
+  },
+  moreFromSellerCtaTextWrap: {
+    flex: 1,
+  },
+  moreFromSellerCtaTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2D6A4F',
+  },
+  moreFromSellerCtaSubtext: {
+    fontSize: 13,
+    color: '#5DBB8E',
+    marginTop: 2,
+  },
+  moreFromSellerCtaArrow: {
+    fontSize: 18,
+    color: '#5DBB8E',
+    fontWeight: '700',
+  },
   sellerActionButtons: {
     flexDirection: 'row',
     gap: 8,
@@ -1416,7 +1563,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   buyNowButton: {
-    flex: 2,
+    flex: 1,
     backgroundColor: '#5DBB8E',
     height: 52,
     borderRadius: 26,
@@ -1427,5 +1574,34 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  // BUNDLE-MICROCOPY: Rendered inside ScrollView right after the "more from seller" CTA
+  // marginTop connects it to the CTA above (14px), marginBottom to the divider/buttons (18px)
+  bundleMicrocopy: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: 14,
+    marginBottom: 18,
+    // No paddingHorizontal — inherits parent section's paddingHorizontal: 16
+  },
+  // BUNDLE-BUTTON: Compact "Add" button (~35% width, outline, icon-led)
+  addToCartCompactButton: {
+    width: 110,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 2,
+    borderColor: '#5DBB8E',
+    backgroundColor: '#FFFFFF',
+  },
+  addToCartCompactText: {
+    fontSize: 14,
+    color: '#5DBB8E',
+    fontWeight: '600',
   },
 });

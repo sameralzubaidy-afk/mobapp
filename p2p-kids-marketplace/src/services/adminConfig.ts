@@ -61,6 +61,12 @@ export interface AdminConfig {
   feature_flag_sp_redemption_enabled: boolean;
   feature_flag_referral_program_enabled: boolean;
   feature_flag_bundle_purchases_enabled: boolean;
+
+  // Offer Limits (admin-configurable, no hardcoded fallback in enforcement)
+  max_pending_offers_per_seller: number;
+
+  // Listing Price Floor
+  min_listing_price: number;
 }
 
 // In-memory cache with TTL
@@ -221,6 +227,12 @@ function getDefaultConfig(): AdminConfig {
     feature_flag_sp_redemption_enabled: true,
     feature_flag_referral_program_enabled: false,
     feature_flag_bundle_purchases_enabled: false,
+
+    // Offer Limits
+    max_pending_offers_per_seller: 3,
+
+    // Listing Price Floor (0 = disabled / no floor)
+    min_listing_price: 0,
   };
 }
 
@@ -256,11 +268,55 @@ export async function getPlatformFeePercentage(): Promise<number> {
   return getConfigValue('platform_fee_buyer_percentage');
 }
 
+/**
+ * Extract a single result from a TABLE-returning RPC.
+ * Supabase JS returns TABLE results as an array of row objects.
+ */
+function extractRpcRow<T>(data: unknown): T | null {
+  if (Array.isArray(data) && data.length > 0) {
+    return data[0] as T;
+  }
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    return data as T;
+  }
+  return null;
+}
+
 export async function getTransactionFeeSubscriberCents(forceRefresh = false): Promise<number> {
+  // Uses SECURITY DEFINER RPC to bypass RLS on admin_config
+  // Falls back to getConfigValue as secondary fallback
+  try {
+    const { data, error } = await supabase.rpc('fn_get_fee_config');
+    const row = extractRpcRow<{ subscriber_cents: number }>(data);
+    if (!error && row?.subscriber_cents != null && Number.isFinite(row.subscriber_cents)) {
+      return row.subscriber_cents;
+    }
+    if (error) {
+      console.warn('[adminConfig] RPC fn_get_fee_config failed:', error.message);
+    }
+  } catch (err) {
+    console.warn('[adminConfig] RPC fn_get_fee_config error:', (err as Error).message);
+  }
+  // Fallback to cached adminConfig
   return getConfigValue('transaction_fee_subscriber_cents', forceRefresh);
 }
 
 export async function getTransactionFeeNonSubscriberCents(forceRefresh = false): Promise<number> {
+  // Uses SECURITY DEFINER RPC to bypass RLS on admin_config
+  // Falls back to getConfigValue as secondary fallback
+  try {
+    const { data, error } = await supabase.rpc('fn_get_fee_config');
+    const row = extractRpcRow<{ non_subscriber_cents: number }>(data);
+    if (!error && row?.non_subscriber_cents != null && Number.isFinite(row.non_subscriber_cents)) {
+      return row.non_subscriber_cents;
+    }
+    if (error) {
+      console.warn('[adminConfig] RPC fn_get_fee_config failed:', error.message);
+    }
+  } catch (err) {
+    console.warn('[adminConfig] RPC fn_get_fee_config error:', (err as Error).message);
+  }
+  // Fallback to cached adminConfig
   return getConfigValue('transaction_fee_non_subscriber_cents', forceRefresh);
 }
 
@@ -362,4 +418,82 @@ export async function getGracePeriodDays(forceRefresh = false): Promise<number> 
   }
 
   return getConfigValue('grace_period_days', forceRefresh);
+}
+
+/**
+ * Get the number of days SP remains pending after trade completion
+ * before being released to the seller's available balance.
+ * Default: 3 days.
+ */
+export async function getSPReleaseDays(forceRefresh = false): Promise<number> {
+  try {
+    const { data, error } = await supabase.rpc('get_config_value', {
+      p_key: 'sp_pending_days',
+    });
+
+    if (!error && data != null) {
+      const parsed = Number(data);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '⚠️ getSPReleaseDays RPC failed, trying admin_config key sp_pending_days:',
+      (err as Error).message
+    );
+  }
+
+  // Fallback: check admin_config directly for 'sp_pending_days' (Config page Swap Points tab saves here)
+  // Uses direct query instead of getConfigValue to bypass the is_active=true filter,
+  // because secure_upsert_admin_config RPC does NOT set is_active=true.
+  try {
+    const { data, error } = await supabase
+      .from('admin_config')
+      .select('value, data_type')
+      .eq('key', 'sp_pending_days')
+      .maybeSingle();
+
+    if (!error && data?.value != null) {
+      if (data.data_type === 'number') {
+        const parsed = parseFloat(String(data.value));
+        if (Number.isFinite(parsed) && parsed > 0) {
+          return parsed;
+        }
+      }
+      // If data_type is missing (RPC doesn't set it), try parsing as number anyway
+      const parsed = Number(data.value);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '⚠️ getSPReleaseDays admin_config direct query failed:',
+      (err as Error).message
+    );
+  }
+
+  // Last resort: check sp_config table (may be stale if sync trigger is missing)
+  try {
+    const { data, error } = await supabase
+      .from('sp_config')
+      .select('config_value')
+      .eq('config_key', 'sp_pending_days')
+      .maybeSingle();
+
+    if (!error && data?.config_value != null) {
+      const parsed = Number(data.config_value);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn(
+      '⚠️ getSPReleaseDays sp_config table failed:',
+      (err as Error).message
+    );
+  }
+
+  return 3;
 }

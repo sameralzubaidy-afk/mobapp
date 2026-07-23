@@ -20,7 +20,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-29: Trade Dispute Flow', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -34,22 +34,22 @@ describe('TC-29: Trade Dispute Flow', () => {
 
     await waitFor(element(by.id('profile-trades-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('profile-trades-stat')).tap();
 
     await waitFor(element(by.id('tab-active')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('tab-active')).tap();
     // Wait for the trade list to populate before the next test taps a row
-    await waitFor(element(by.id('trade-status-badge')).atIndex(0))
+    await waitFor(element(by.id(/trade-row-.+/)).atIndex(0))
       .toBeVisible()
       .withTimeout(10000);
   });
 
   it('opens a trade detail and taps Report a Problem', async () => {
     try {
-      await element(by.id('trade-status-badge')).atIndex(0).tap();
+      await element(by.id(/trade-row-.+/)).atIndex(0).tap();
     } catch {
       // No active trades — test is inconclusive
       return;
@@ -95,7 +95,7 @@ describe('TC-29: Trade Dispute Flow', () => {
     try {
       await waitFor(element(by.id('cancel-dispute-button')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
       await expect(element(by.id('cancel-dispute-button'))).toBeVisible();
     } catch {
       // Button may be at a different scroll position

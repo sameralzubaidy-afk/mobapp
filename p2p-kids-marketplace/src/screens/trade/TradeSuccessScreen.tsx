@@ -24,9 +24,8 @@ import {
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { CheckCircle, XCircle, Coins } from 'phosphor-react-native';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import ScreenLayout from '@/components/ScreenLayout';
-import { getTransactionFee } from '@/services/subscription';
+import { getTransactionFeeSubscriberCents, getTransactionFeeNonSubscriberCents } from '@/services/adminConfig';
 import { useAuth } from '@/hooks/useAuth';
 
 type TradeSuccessRouteProp = RouteProp<RootStackParamList, 'TradeSuccess'>;
@@ -51,6 +50,7 @@ function buildCompletionCTA(
   spAmountDollars: number,
   navigation: any,
   feeSavingsCents: number,
+  tradeStatus: 'initiated' | 'completed' = 'initiated',
 ): CompletionCTA {
   if (isBuyer) {
     if (!isSubscriber) {
@@ -70,8 +70,13 @@ function buildCompletionCTA(
       };
     } else {
       // Permutation 3: Subscriber buyer, no SP used
+      // Respect tradeStatus — "Trade complete!" only on completed trades
+      const message =
+        tradeStatus === 'completed'
+          ? 'Trade complete! Consider using SP on your next purchase to save more.'
+          : 'Consider using SP on your next purchase to save more.';
       return {
-        message: 'Trade complete! Consider using SP on your next purchase to save more.',
+        message,
         ctaLabel: 'Browse Items',
         onPress: () => navigation.navigate('Discover'),
       };
@@ -126,12 +131,20 @@ export default function TradeSuccessScreen() {
   const errorMessage = (route.params as any)?.errorMessage;
   // TFV2-014: role, subscription tier, and SP data for 7-permutation CTAs
   const role: 'buyer' | 'seller' = (route.params as any)?.role ?? 'buyer';
-  const subscriptionStatus: 'free' | 'subscriber' = (route.params as any)?.subscriptionStatus ?? 'free';
+  // Distinguish initiation vs completion for correct title/message
+  const tradeStatus: 'initiated' | 'completed' = (route.params as any)?.tradeStatus ?? 'initiated';
+  // Derive subscription status from the actual session (not route params)
+  // Callers only pass { tradeId } — without this, all users default to 'free'
+  const subscriptionStatus: 'free' | 'subscriber' =
+    session?.subscription_status && session.subscription_status !== 'free'
+      ? 'subscriber'
+      : 'free';
   const spUsed: number = (route.params as any)?.spUsed ?? 0;
   const listingType: 'cash_only' | 'accept_sp' | 'donate' = (route.params as any)?.listingType ?? 'cash_only';
   const totalSpToSeller: number = (route.params as any)?.totalSpToSeller ?? 0;
   const spPendingReleaseDays: number = (route.params as any)?.spPendingReleaseDays ?? 3;
-  const remainingSP: number = (route.params as any)?.remainingSP ?? 0;
+  // Fallback to session available_points if route param not provided (e.g. from TradeDetailScreen completion flow)
+  const remainingSP: number = (route.params as any)?.remainingSP ?? session?.available_points ?? 0;
   const spAmountDollars: number = (route.params as any)?.spAmountDollars ?? 0;
 
   // ── Dynamic fee savings from admin_config ──────────────────────────────
@@ -146,16 +159,18 @@ export default function TradeSuccessScreen() {
     let cancelled = false;
     const loadFee = async () => {
       try {
-        const fee = await getTransactionFee(user.id);
+        // Fetch both fees independently of the user's tier
+        const [subFee, nonSubFee] = await Promise.all([
+          getTransactionFeeSubscriberCents(),
+          getTransactionFeeNonSubscriberCents(),
+        ]);
         if (!cancelled) {
-          // Savings = non-subscriber fee (299) - subscriber fee (99) = 200
-          // But we compute it dynamically: nonSubFee - actualFee
-          const nonSubFee = 299;
-          const savings = Math.max(0, nonSubFee - fee);
+          // Savings = non-subscriber fee - subscriber fee (e.g., 299 - 99 = 200 = $2.00)
+          const savings = Math.max(0, nonSubFee - subFee);
           setFeeSavingsCents(savings);
         }
       } catch {
-        // keep default $2
+        // keep default $2 (200 cents)
       } finally {
         if (!cancelled) setLoadingFee(false);
       }
@@ -184,7 +199,13 @@ export default function TradeSuccessScreen() {
 
         {/* Title */}
         <Text style={[styles.title, !isSuccess && styles.titleError]}>
-          {isSuccess ? (role === 'seller' ? 'Sale Complete!' : 'Trade Initiated!') : 'Trade Failed'}
+          {isSuccess
+            ? role === 'seller'
+              ? 'Sale Complete!'
+              : tradeStatus === 'completed'
+                ? 'Trade Complete!'
+                : 'Trade Initiated!'
+            : 'Trade Failed'}
         </Text>
 
         {/* Message */}
@@ -192,7 +213,9 @@ export default function TradeSuccessScreen() {
           {isSuccess
             ? role === 'seller'
               ? 'Great news! Your item has been sold. Earnings will be processed shortly.'
-              : 'Your trade request has been sent. You can track the status in your trades list.'
+              : tradeStatus === 'completed'
+                ? 'Your item has been received. Thanks for confirming!'
+                : 'Your trade request has been sent. You can track the status in your trades list.'
             : errorMessage || 'There was a problem initiating the trade. Please try again.'}
         </Text>
 
@@ -222,6 +245,7 @@ export default function TradeSuccessScreen() {
               spAmountDollars,
               navigation,
               feeSavingsCents,
+              tradeStatus,
             );
             return (
               <View style={styles.ctaGroup}>
@@ -235,6 +259,32 @@ export default function TradeSuccessScreen() {
                   testID="cta-primary-button"
                 >
                   <Text style={styles.primaryButtonText}>{cta.ctaLabel}</Text>
+                </Pressable>
+
+                {/* Rate Seller button (completion only) */}
+                {tradeStatus === 'completed' && role === 'buyer' && (
+                  <Pressable
+                    style={styles.secondaryButton}
+                    onPress={() =>
+                      navigation.navigate('SubmitReview', {
+                        tradeId,
+                        revieweeId: (route.params as any)?.counterpartyId || '',
+                        revieweeName: (route.params as any)?.counterpartyName || 'Seller',
+                      })
+                    }
+                    testID="rate-seller-button"
+                  >
+                    <Text style={styles.secondaryButtonText}>Rate Seller</Text>
+                  </Pressable>
+                )}
+
+                {/* View Trade Details button (both buyer and seller) */}
+                <Pressable
+                  style={styles.secondaryButton}
+                  onPress={() => navigation.navigate('TradeDetail', { tradeId })}
+                  testID="cta-view-trade-details-button"
+                >
+                  <Text style={styles.secondaryButtonText}>View Trade Details</Text>
                 </Pressable>
 
                 {/* View My Trades button (replaces old "Done" text link) */}
@@ -261,16 +311,16 @@ export default function TradeSuccessScreen() {
           </View>
         )}
 
-        {/* Back to Home — outlined button matching app style */}
+        {/* Back to Home — reset to Home tab (UserDashboard) instead of navigating
+            to an existing stack that may be showing Discover tab */}
         <Pressable
           style={styles.backHomeButton}
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Home' }] })}
           testID="back-home-button"
         >
           <Text style={styles.backHomeButtonText}>Back to Home</Text>
         </Pressable>
       </View>
-      <PersistentTabBar />
     </ScreenLayout>
   );
 }

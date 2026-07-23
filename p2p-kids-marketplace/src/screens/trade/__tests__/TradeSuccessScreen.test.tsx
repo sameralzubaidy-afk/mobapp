@@ -17,9 +17,20 @@ jest.mock('@react-navigation/native', () => ({
   }),
 }));
 
+// Mock useAuth so subscriptionStatus derives from session (not route params)
+// Default: free user — override per-test via mockReturnValue
+const mockUseAuth = jest.fn();
+jest.mock('@/hooks/useAuth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 describe('TradeSuccessScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default: free user session
+    mockUseAuth.mockReturnValue({
+      session: { subscription_status: 'free' },
+    });
   });
 
   describe('Success State', () => {
@@ -162,6 +173,7 @@ describe('TradeSuccessScreen', () => {
 
     // Permutation 2: Subscriber buyer, SP used → show savings + Keep Shopping
     it('P2: subscriber buyer with SP used should show savings message and Keep Shopping', () => {
+      mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: {
           success: true,
@@ -182,6 +194,7 @@ describe('TradeSuccessScreen', () => {
 
     // Permutation 3: Subscriber buyer, no SP → suggest SP on next purchase
     it('P3: subscriber buyer with no SP should see Browse Items CTA', () => {
+      mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: {
           success: true,
@@ -212,6 +225,7 @@ describe('TradeSuccessScreen', () => {
 
     // Permutation 5: Subscriber seller, cash_only → encourage Accept SP
     it('P5: subscriber seller with cash_only listing should see Create New Listing CTA', () => {
+      mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: {
           success: true,
@@ -230,6 +244,7 @@ describe('TradeSuccessScreen', () => {
 
     // Permutation 6: Subscriber seller, accept_sp, buyer used SP → show pending SP
     it('P6: subscriber seller with accept_sp and SP used should show View Wallet with SP message', () => {
+      mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: {
           success: true,
@@ -251,6 +266,7 @@ describe('TradeSuccessScreen', () => {
 
     // Permutation 7: Subscriber seller, accept_sp, no SP used → platform reward
     it('P7: subscriber seller with accept_sp and no SP used should show platform reward message', () => {
+      mockUseAuth.mockReturnValue({ session: { subscription_status: 'active' } });
       jest.spyOn(require('@react-navigation/native'), 'useRoute').mockReturnValue({
         params: {
           success: true,

@@ -52,6 +52,7 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
     return (
       <TouchableOpacity
         style={styles.container}
+        testID="badge-showcase"
         onPress={handleNavigateToBadges}
         activeOpacity={0.7}
       >
@@ -79,7 +80,7 @@ export const BadgeShowcase: React.FC<BadgeShowcaseProps> = ({ userId }) => {
   );
 
   return (
-    <TouchableOpacity style={styles.container} onPress={handleNavigateToBadges} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.container} testID="badge-showcase" onPress={handleNavigateToBadges} activeOpacity={0.7}>
       <View style={styles.header}>
         <Text style={styles.title}>My Badges ({badges.length})</Text>
         <CaretRight size={24} color="#5DBB8E" weight="bold" />

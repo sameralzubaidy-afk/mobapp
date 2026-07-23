@@ -15,7 +15,8 @@
     "https://deno.land/std@0.168.0/async/retry.ts": "e8e5173623915bbc0ddc537698fa418cf875456c347eda1ed453528645b42e67",
     "https://deno.land/std@0.168.0/async/tee.ts": "3a47cc4e9a940904fd4341f0224907e199121c80b831faa5ec2b054c6d2eff5e",
     "https://deno.land/std@0.168.0/http/server.ts": "e99c1bee8a3f6571ee4cdeb2966efad465b8f6fe62bec1bdb59c1f007cc4d155",
-    "https://esm.sh/@supabase/supabase-js@2.107.0": "8caa09b0223684d83cfa273de2946af25430d7ca8e5320b721226a0c7a8c6e98"
+    "https://esm.sh/@supabase/supabase-js@2.107.0": "8caa09b0223684d83cfa273de2946af25430d7ca8e5320b721226a0c7a8c6e98",
+    "https://esm.sh/stripe@14.11.0": "737efe811e9774b026fe82310499ef228023b4ebfacb298dd7f90644c2a73221"
   },
   "workspace": {
     "packageJson": {

@@ -500,16 +500,24 @@ export async function initiateTradeV2(input: InitiateTradeInput): Promise<Initia
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Count the number of 'pending' offers the buyer currently has open.
- * D-30: max 3 pending offers per buyer at any given time.
+ * Count the number of 'pending' offers the buyer has open.
+ * PER-SELLER CAP (2026-07-18): When sellerId is provided, counts only
+ * offers with that specific seller. When omitted, counts globally
+ * (backward compat for UI badges/summary displays).
  */
-export async function countPendingOffersByBuyer(buyerId: string): Promise<number> {
+export async function countPendingOffersByBuyer(buyerId: string, sellerId?: string): Promise<number> {
   try {
-    const { count, error } = await supabase
+    let query = supabase
       .from('trades')
       .select('id', { count: 'exact', head: true })
       .eq('buyer_id', buyerId)
       .eq('status', 'pending');
+
+    if (sellerId) {
+      query = query.eq('seller_id', sellerId);
+    }
+
+    const { count, error } = await query;
 
     if (error) {
       console.error('[trade] countPendingOffersByBuyer error:', error);
@@ -530,7 +538,7 @@ export interface CreateTradeOfferInput {
   /** Stripe saved payment method ID. Required when cash_amount_cents > 0. */
   payment_method_id?: string;
   /**
-   * Total Stripe charge amount in cents = (item_price - sp_discount) + transaction_fee.
+   * Pre-tax Stripe charge amount in cents = (item_price - sp_discount) + transaction_fee.
    * 0 for SP-only or free trades.
    */
   cash_amount_cents: number;
@@ -538,6 +546,11 @@ export interface CreateTradeOfferInput {
   transaction_fee_cents: number;
   /** 'active' | 'free' | etc. from subscription summary */
   buyer_subscription_status: string;
+  /**
+   * Sales tax amount in cents. Added to cash_amount_cents for the Stripe PaymentIntent.
+   * Pass 0 or omit if no tax applies.
+   */
+  tax_amount_cents?: number;
 }
 
 export interface CreateTradeOfferResult {
@@ -618,6 +631,7 @@ export async function createTradeOfferWithHold(
           cash_amount_cents: input.cash_amount_cents,
           transaction_fee_cents: input.transaction_fee_cents,
           buyer_subscription_status: input.buyer_subscription_status,
+          tax_amount_cents: input.tax_amount_cents ?? 0,
         },
         headers: {
           Authorization: `Bearer ${token}`,
@@ -634,6 +648,23 @@ export async function createTradeOfferWithHold(
         'Failed to submit your offer. Please try again.'
       );
       let code = extractErrorCodeFromPayload(data);
+      // When HTTP error (non-2xx), `data` may be null — try extracting code from error context
+      if (!code && error) {
+        const ctx = (error as any)?.context;
+        // ctx may be a Response object (FunctionsHttpError) — parse JSON body
+        if (ctx && typeof ctx.clone === 'function' && typeof ctx.json === 'function') {
+          try {
+            const cloned = ctx.clone();
+            const parsed = await cloned.json();
+            code = extractErrorCodeFromPayload(parsed);
+          } catch {
+            // not a Response with parseable JSON — fall through
+          }
+        }
+        if (!code) {
+          code = extractErrorCodeFromPayload(ctx?.body ?? ctx);
+        }
+      }
 
       const normalizedMessage = message.toLowerCase();
       const shouldRetryAuth =

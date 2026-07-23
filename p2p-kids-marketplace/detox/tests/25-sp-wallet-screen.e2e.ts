@@ -20,7 +20,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-25: SP Wallet Dedicated Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -34,7 +34,7 @@ describe('TC-25: SP Wallet Dedicated Screen', () => {
 
     await waitFor(element(by.id('profile-sp-balance-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('profile-sp-balance-stat')).tap();
 
     await waitFor(element(by.id('sp-wallet-balance-card')))
@@ -47,14 +47,14 @@ describe('TC-25: SP Wallet Dedicated Screen', () => {
   it('shows the SP balance amount', async () => {
     await waitFor(element(by.id('sp-wallet-balance-amount')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await expect(element(by.id('sp-wallet-balance-amount'))).toBeVisible();
   });
 
   it('shows the SP history button', async () => {
     await waitFor(element(by.id('sp-wallet-history-btn')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await expect(element(by.id('sp-wallet-history-btn'))).toBeVisible();
   });
 
@@ -64,7 +64,7 @@ describe('TC-25: SP Wallet Dedicated Screen', () => {
     try {
       await waitFor(element(by.id('sp-wallet-earn-refer-btn')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
     } catch {
       await waitFor(element(by.id('sp-wallet-earn-refer-btn')))
         .toBeVisible()

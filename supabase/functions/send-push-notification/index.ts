@@ -85,7 +85,7 @@ function mapReceiptStatus(errorCode?: string): PushDeliveryLogRow['receipt_statu
 
 // TFV2-016: Push notification throttle — max 3 trade notifications per user per trade
 // Payout events are never throttled.
-const PAYOUT_EVENT_TYPES = new Set(['payout_sent', 'payout_failed', 'payout_processing']);
+const PAYOUT_EVENT_TYPES = new Set(['payout_sent', 'payout_failed', 'payout_processing', 'payout_requires_action']);
 const MAX_TRADE_PUSH_PER_USER = 3;
 
 async function shouldThrottlePush(

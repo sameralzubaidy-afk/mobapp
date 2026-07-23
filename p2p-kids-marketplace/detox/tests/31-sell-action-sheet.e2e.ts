@@ -14,7 +14,7 @@ import { dismissSystemDialogs } from '../helpers/dialogs';
 
 describe('TC-31: Sell Action Sheet', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsSeller();
   });

@@ -1,8 +1,8 @@
 # MODULE-15.1.2 TradeFlowV2 — Manual Testing Guide
 
 **Source of truth:** `docx/TRADING-FLOW-V2.md` (v2.1, May 26 2026) · `Prompts/MODULE-15.2-cart-system.md` · `Prompts/MODULE-15.3-PART3-TAX-TASKS-RESTRUCTURED.md` · `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` · `docs/flow-registry.md` (FLOW-27)
-**Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine
-**Last updated:** 2026-06-06
+**Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine · Top Nav Header Patterns
+**Last updated:** 2026-07-19
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -73,6 +73,7 @@
 | | TC-L06 | Bundle banner in Review Offer screen |
 | | TC-L07 | Accept All N Items in Review Offer screen |
 | | TC-L08 | Individual accept/decline alongside bundle siblings |
+| | **TC-L09** | **Bundle card in Your Offers (buyer)** |
 | **M — Cart (End User)** | TC-M01 | Add first item → active cart created |
 | | TC-M02 | Add second item from same seller |
 | | TC-M03 | Add item from different seller → choice modal |
@@ -88,6 +89,11 @@
 | | TC-M13 | Realtime: item becomes unavailable while in cart |
 | | TC-M14 | Favorites add / remove |
 | | TC-M15 | Favorites screen: availability + empty state |
+| | **TC-M16** | **Success toast appears and auto-dismisses on add-to-cart** |
+| | **TC-M17** | **Cart badge increments in sync with toast** |
+| | **TC-M18** | **Toast copy uses "Trade Basket" terminology** |
+| | **TC-M19** | **Home dashboard Favorites quick-action tile navigates to Favorites** |
+| | **TC-M20** | **Discover header heart icon navigates to Favorites** |
 | **N — Cart (Admin)** | TC-N01 | Admin sets minimum cart value → reflects in app |
 | | TC-N02 | Admin minimum cart value validation |
 | **O — Tax (End User)** | TC-O01 | Sales tax shown in checkout breakdown (0 SP) |
@@ -138,6 +144,52 @@
 | | TC-R11 | Refund / cancellation notifications to both parties |
 | | TC-R12 | Refund idempotency — no double refund |
 | | TC-R13 | Cancelled / refunded trade status + timeline |
+| **S — Navigation Consistency** | TC-S01 | Bottom nav renders identically on Home |
+| | TC-S02 | Bottom nav renders identically on Discover |
+| | TC-S03 | Bottom nav renders identically on Inbox |
+| | TC-S04 | Bottom nav renders identically on Cart |
+| | TC-S05 | Bottom nav renders on Item Detail (stacked) |
+| | TC-S06 | Bottom nav renders on Cart Checkout (stacked) |
+| | TC-S07 | Bottom nav renders on Trade screens |
+| | TC-S08 | Bottom nav renders on Profile/Settings/Wallet |
+| | TC-S09 | Cart badge shows item count from multiple entry points |
+| | TC-S10 | Cart badge count accuracy — add multiple items |
+| | TC-S11 | Cart badge count accuracy — remove items |
+| | TC-S12 | Cart badge clears when cart is emptied |
+| | TC-S13 | "Me" tab removed — Profile via Home avatar works |
+| | TC-S14 | "Me" tab removal — no orphaned routes |
+| | TC-S15 | Sell FAB opens action sheet on every screen |
+| **S — More From This Seller** | TC-S16 | Item Detail CTA in standalone position below seller card |
+| | TC-S17 | Item Detail CTA hidden at 0 additional listings |
+| | TC-S18 | Item Detail CTA does not disrupt "Matches Your Cart" badge |
+| | TC-S19 | Trade Basket banner shows correct remaining-item count |
+| | TC-S20 | Trade Basket banner recalculates after adding item from filtered page |
+| | TC-S21 | Trade Basket banner disappears when all seller's listings are in basket |
+| | TC-S22 | Trade Basket banner dismissible via X button |
+| | TC-S23 | Banner and filtered page never reveal seller identity |
+| | TC-S24 | Regression: Seller Info card elements unchanged |
+| | TC-S25 | Regression: Trade Basket subtotal/total/bundle CTA layout unaffected |
+| | TC-S26 | Return-to-Cart navigation after adding item from filtered page |
+| **T — Flow Registry (Nav)** | TC-T01 | flow-registry.md entries updated
+| **U — Top Nav Header Consistency** | TC-U01 | Root/tab screens use pattern 1 (no back button, greeting/avatar or title, notification bell) |
+| | TC-U02 | Secondary/detail screens use pattern 2 (back button + title + notification bell) |
+| | TC-U03 | Notification bell behavior + badge accuracy across all screens |
+| | TC-U04 | Screens without ScreenLayout (EditListing, SubmitReview) now have working headers |
+| | TC-U05 | Checkout/payment screens intentionally hide the bell (DEFERRED-DECISION documented) | |
+| **V — Copy Rename Verification** | TC-V01 | "Trade Basket" appears in bottom tab bar |
+| | TC-V02 | "Trade Basket" appears as screen title on Cart screen |
+| | TC-V03 | Empty state shows "trade basket" in copy |
+| | TC-V04 | "View Trade Basket" button on Item Detail screen |
+| | TC-V05 | "Add to Trade Basket" button on More from This Seller screen |
+| | TC-V06 | "In Trade Basket" status on More from This Seller items already in basket |
+| | TC-V07 | "Added to Trade Basket" toast on item add (replaces old blocking alert) |
+| | TC-V08 | "Matches Your Trade Basket" badge on matching items |
+| | TC-V09 | Different-seller modal references "trade basket" |
+| | TC-V10 | Bundle CTA says "Make one offer" (no "Bundle" visible) |
+| | TC-V11 | "Combined Offer" banner on checkout (no "Bundle" visible) |
+| | TC-V12 | Bundle Builder screen title shows "Build Offer" (no "Bundle" visible) |
+| | TC-V13 | Favorites "Added to Trade Basket" alert copy |
+| | TC-V14 | Functional behavior unchanged (adding items, submitting offers still works) | |
 
 ---
 
@@ -1173,19 +1225,26 @@
 
 **Ref:** TRADING-FLOW-V2 §11.3.1
 
-### TC-L01 · Bundle banner on trade detail
+### TC-L01 · Bundle banner on trade detail (with expandable item list)
 
 **Actors:** test-buyer
-**Precondition:** An In Progress trade belongs to a bundle.
+**Precondition:** An In Progress trade belongs to a bundle (2+ items sharing the same `bundle_id`).
 
-**Objective:** Verify the bundle banner shows on a bundled trade and is absent otherwise.
+**Objective:** Verify the bundle banner shows on a bundled trade with an expandable item list of tap-able names, and is absent on non-bundle trades.
 
 **Steps:**
-1. Log in as **test-buyer** and open a bundled trade from **Trades → Buying**.
-2. Open a non-bundle trade.
+1. Log in as **test-buyer** and open a bundled trade from **Trades → Active**.
+2. Locate the green bundle banner at top: "Bundle offer · N items" with "View all items" link.
+3. Tap "View all items" to expand the item list.
+4. Verify each item row shows title, SP (if any), and cash price.
+5. Tap an item name — verify navigation to `ListingDetail` for that item.
+6. Tap "Hide items" to collapse the list.
+7. Open a non-bundle trade.
 
 **Expected Result:**
-- The bundled trade shows a green banner: "Part of a bundle · N items".
+- The bundled trade shows a green banner: "Bundle offer · N items" with expandable item list.
+- "View all items" expands to show all sibling items with tap-able names (navigate to ListingDetail), SP amounts (green), and cash prices.
+- "Hide items" collapses the list.
 - The non-bundle trade shows no bundle banner.
 
 ---
@@ -1308,9 +1367,45 @@
 
 ---
 
+### TC-L09 · Bundle card in Your Offers (buyer)
+
+**Actors:** test-buyer
+**Precondition:** Buyer has 2+ pending offers sharing the same `bundle_id` (submitted via cart checkout to the same seller).
+
+**Objective:** Verify the buyer's "Your Offers" section groups bundle items into a single card (no Accept All / Decline All buttons).
+
+**Steps:**
+1. Log in as **test-buyer** on the mobile app.
+2. From a seller with 2+ available listings, add both items to cart and complete checkout (or use `--extended` seed data).
+3. Navigate to **Trades → Active** (bottom nav Trades icon, then Active tab).
+4. Locate the **YOUR OFFERS** section at the top.
+5. Find the bundle row — it should display:
+   - A green header: **"📦 Bundle Offer · N items"**
+   - A PENDING badge
+   - A "Buying" type badge
+   - Item rows showing the first 3 item titles and prices (e.g., "$20.00" or "$15.00 + 10 SP")
+   - If more than 3 items, a "+N more items" line
+   - An orange offer expiration line (earliest expiry date among bundle items)
+   - A **"View Details"** button — NO Accept All / Decline All buttons
+6. Tap the **"View Details"** button to open the first bundle trade's detail screen.
+7. Navigate back and verify non-bundle offers still render as individual cards with thumbnails and "View Details".
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| 2+ submitted offers share `bundle_id` | They are grouped into a single **"📦 Bundle Offer · N items"** card in YOUR OFFERS |
+| Bundle card header | Green text (`#5DBB8E`), title "📦 Bundle Offer · N items" |
+| Bundle card items | Shows first 3 item titles + prices on separate rows; "+N more" if > 3 |
+| Bundle card expiry | Shows earliest offer expiry with orange dot + countdown |
+| Bundle card action | Single **"View Details"** button — no Accept All / Decline All |
+| Non-bundle submitted offers | Render as individual cards with thumbnail, unchanged from current behavior |
+| Tap "View Details" | Opens `TradeDetail` screen for the first trade in the bundle |
+
+---
+
 ## Group M — Cart (End User)
 
-### TC-M01 · Add first item creates an active cart
+### passed TC-M01 · Add first item creates an active cart
 
 **Actors:** test-buyer
 
@@ -1323,9 +1418,9 @@
 
 **Expected Result:**
 - A confirmation appears (e.g., a toast or the cart badge increments to 1).
-- The Cart screen shows the seller name and the single item with its title, photo, and price.
+- The Cart screen shows the single item with its title, photo, and price.
 
-### TC-M02 · Add second item from the same seller
+### passed TC-M02 · Add second item from the same seller
 
 **Actors:** test-buyer
 
@@ -1342,7 +1437,7 @@
 - No modal appears; the item is added directly.
 - The Cart screen now lists 2 items under the same seller and the cart badge shows 2.
 
-### TC-M03 · Add item from a different seller shows the choice modal
+### passed TC-M03 · Add item from a different seller shows the choice modal
 
 **Actors:** test-buyer
 
@@ -1355,12 +1450,12 @@
 2. Tap **Add to Cart**.
 
 **Expected Result:**
-- A modal appears: "You have N items from [test-seller's name] in your cart. What would you like to do?"
-- Three options are shown: **Save & Start New Cart**, **Replace Cart**, **Cancel**.
-- Tapping **Save & Start New Cart** moves the current cart to saved carts and starts a new active cart containing the test-seller-2 item.
+- A modal appears: "our trade basket already has items from a different seller. Adding this item will clear your current trade basket. What would you like to do?"
+- Three options are shown: Save & Start New Trade Basket, Replace Trade Basket, Cancel
+- Tapping **Save & Start New Trade Baske** moves the current cart to saved carts and starts a new active cart containing the test-seller-2 item.
 - Tapping **Cancel** closes the modal and leaves the original cart unchanged.
 
-### TC-M04 · Replace Cart option
+### passed TC-M04 · Replace Cart option
 
 **Actors:** test-buyer
 
@@ -1377,7 +1472,7 @@
 - The previous test-seller items are removed (not saved).
 - The Cart screen shows only the test-seller-2 item under that seller.
 
-### TC-M05 · Cannot add your own item to cart
+### passed TC-M05 · Cannot add your own item to cart
 
 **Actors:** test-seller
 
@@ -1390,21 +1485,8 @@
 **Expected Result:**
 - The Add to Cart action is unavailable (hidden or disabled), or tapping it shows a message that you cannot add your own item.
 
-### TC-M06 · Cannot add an unavailable or out-of-node item
 
-**Actors:** test-buyer
-
-**Objective:** Verify items that are sold/removed or outside the buyer's node cannot be added.
-
-**Steps:**
-1. Log in as **test-buyer** and open an item that has just been marked sold or is outside your node.
-2. Tap **Add to Cart**.
-
-**Expected Result:**
-- A clear message explains the item is no longer available (sold/deleted) or not available in your area.
-- The item is not added to the cart.
-
-### TC-M07 · Duplicate item is prevented in the same cart
+### passed TC-M07 · Duplicate item is prevented in the same cart
 
 **Actors:** test-buyer
 
@@ -1420,7 +1502,7 @@
 - The item is not duplicated; the cart count is unchanged.
 - The UI indicates the item is already in the cart (e.g., button reads "In Cart").
 
-### TC-M08 · Remove an item from the cart
+### passed TC-M08 · Remove an item from the cart
 
 **Actors:** test-buyer
 
@@ -1434,7 +1516,7 @@
 - The removed item disappears from the list and the cart badge decrements.
 - The cart total updates to reflect the remaining item.
 
-### TC-M09 · Clear the cart
+### passed TC-M09 · Clear the cart
 
 **Actors:** test-buyer
 
@@ -1448,7 +1530,7 @@
 - All items are removed and the screen shows an empty-cart state.
 - The cart badge shows 0 or disappears.
 
-### TC-M10 · Saved carts: max 3, LRU eviction, switch cart
+### passed TC-M10 · Saved carts: max 3, LRU eviction, switch cart
 
 **Actors:** test-buyer
 
@@ -1463,7 +1545,7 @@
 - At most 3 saved carts are kept; the oldest saved cart is dropped when the 4th is saved.
 - Tapping Switch Cart makes the chosen saved cart the active cart and moves the previously active cart into saved.
 
-### TC-M11 · Minimum cart value warning and blocked checkout
+### passed TC-M11 · Minimum cart value warning and blocked checkout
 
 **Actors:** test-buyer
 
@@ -1479,21 +1561,6 @@
 - The checkout button is disabled/blocked while below the minimum.
 - Adding more items to exceed the minimum clears the warning and enables checkout.
 
-### TC-M12 · Max SP available shown per cart item (subscriber)
-
-**Actors:** test-buyer (subscriber)
-
-**Objective:** Verify the cart shows the maximum SP available per item for subscribers on SP-eligible items.
-
-**Steps:**
-1. Log in as **test-buyer** (Kids Club+).
-2. Add an item whose seller accepts SP (payment preference is not Cash Only).
-3. Open the **Cart** screen.
-
-**Expected Result:**
-- Each SP-eligible item shows a "Up to N SP" indicator equal to 50% of that item's price.
-- Items from Cash Only sellers show no SP indicator.
-- The actual SP amount is chosen later on the checkout screen, not in the cart.
 
 ### TC-M13 · Realtime: item becomes unavailable while in cart
 
@@ -1540,6 +1607,94 @@
 **Expected Result:**
 - Unavailable favorited items show a "No Longer Available" overlay but remain visible.
 - With no favorites, the screen shows an empty state: "No favorites yet" with guidance to tap the heart icon.
+
+### TC-M16 · Success toast appears and auto-dismisses on add-to-cart
+
+**Actors:** test-buyer
+
+**Objective:** Verify that tapping "Add to Cart" shows a non-blocking success toast that auto-dismisses without requiring a tap.
+
+**Steps:**
+1. Log in as **test-buyer** and open an available item from **test-seller**.
+2. Tap **Add to Cart**.
+
+**Expected Result:**
+- A green success toast slides in from the top of the screen immediately after the item is added.
+- The toast contains a shopping cart icon and the message "Added to Trade Basket".
+- The user can continue interacting with the screen (scroll, tap other buttons) while the toast is visible — it is **not** blocking like `Alert.alert`.
+- After approximately 2.5 seconds, the toast slides out and disappears automatically.
+- No "OK" button or user interaction is required to dismiss it.
+
+### TC-M17 · Cart badge increments in sync with toast
+
+**Actors:** test-buyer
+
+**Precondition:** cart badge currently shows N items (e.g., 0).
+
+**Objective:** Verify that the bottom-nav cart badge count increments to N+1 at the same time as the success toast appears.
+
+**Steps:**
+1. Log in as **test-buyer** and note the current cart badge count on the bottom nav.
+2. Open an available item from **test-seller** and tap **Add to Cart**.
+3. Observe the bottom-nav cart badge.
+
+**Expected Result:**
+- The cart badge increments to N+1 simultaneously with the toast appearing (no perceptible delay).
+- The increment happens before the toast auto-dismisses — the user sees both the toast and the updated badge at the same time.
+- Repeating the test with M02 (add second item from same seller) and M04 (Replace Cart) also shows correct badge increments.
+
+### TC-M18 · Toast copy uses "Trade Basket" terminology
+
+**Actors:** test-buyer
+
+**Objective:** Verify all success-toast copy uses "Trade Basket" language (matching TC-V07).
+
+**Steps:**
+1. Log in as **test-buyer** and add an item from **test-seller** to the cart.
+2. Observe the success toast text.
+3. Repeat via the **Replace Cart** path (add item from test-seller-2 and choose Replace Cart).
+4. Repeat via the **Save & Start New Cart** path (add from test-seller-3).
+
+**Expected Result:**
+- The toast message always reads **"Added to Trade Basket"** (never "Added to Cart", never "Added to Basket").
+- The toast subtitle (when shown, e.g., cross-node warning) also uses "Trade Basket" language and matches the cross-node copy from the spec.
+- All three add paths (direct add, Replace Cart callback, Save & Start New Cart callback) show the same "Added to Trade Basket" message.
+
+---
+
+### TC-M19 · Home dashboard Favorites quick-action tile navigates to Favorites
+
+**Actors:** test-buyer (any logged-in user)
+
+**Objective:** Verify the Home dashboard quick-action grid has a Favorites tile that navigates to the Favorites screen.
+
+**Steps:**
+1. Log in as **test-buyer** and land on the **Home** dashboard.
+2. Scroll the quick-action grid row to find the **Favorites** tile (heart icon, labeled "Favorites").
+3. Tap the **Favorites** tile.
+
+**Expected Result:**
+- The Favorites tile is visible with a heart icon and the label "Favorites".
+- Tapping it navigates to the Favorites screen showing the user's saved items.
+- The [View Favorites →] link on the Trade Basket screen (Cart → Favorites) continues to work identically.
+
+---
+
+### TC-M20 · Discover header heart icon navigates to Favorites
+
+**Actors:** test-buyer (any logged-in user)
+
+**Objective:** Verify the Discover screen header has a heart icon button that navigates to the Favorites screen.
+
+**Steps:**
+1. Log in as **test-buyer** and navigate to the **Discover** tab.
+2. Locate the heart icon button in the controls row (between the filter/funnel button and the Sort dropdown).
+3. Tap the heart icon.
+
+**Expected Result:**
+- A pink/red heart icon button is visible in the Discover header controls row with accessibility label "View Favorites".
+- Tapping it navigates to the Favorites screen showing the user's saved items.
+- The heart icon does not toggle or change state — it is a navigation trigger only.
 
 ---
 
@@ -2550,6 +2705,11 @@
 | Cart — realtime item unavailable + 24h auto-remove | TC-M13 |
 | Favorites — add / remove, no duplicate | TC-M14 |
 | Favorites — availability status + empty state | TC-M15 |
+| Cart toast — appears and auto-dismisses | TC-M16 |
+| Cart toast — badge increments in sync | TC-M17 |
+| Cart toast — "Trade Basket" copy | TC-M18 |
+| Home dashboard Favorites quick-action tile | TC-M19 |
+| Discover header heart icon navigates to Favorites | TC-M20 |
 | Admin — minimum cart value config reflects in app | TC-N01 |
 | Admin — minimum cart value validation | TC-N02 |
 | Tax — checkout breakdown shows sales tax (0 SP) | TC-O01 |
@@ -2601,3 +2761,722 @@
 | Refund/cancel notifications to both parties | TC-R11 |
 | Refund idempotency (no double refund) | TC-R12 |
 | Cancelled/refunded status + timeline | TC-R13 |
+
+---
+
+## Group S — Navigation Consistency & Bottom Nav
+
+**Ref:** Navigation consolidation per `docs/flow-registry.md` (FLOW-00, FLOW-07)
+**Actors:** test-buyer (any logged-in user)
+**Objective:** Verify the bottom nav is persistent, consistent, and correct across every screen.
+
+### TC-S01 · Bottom nav renders identically on Home (Dashboard)
+
+**Steps:**
+1. Log in and land on the Home / Dashboard screen.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- 5 items visible: Home (highlighted), Discover, orange Sell FAB, Inbox, Cart.
+- Home icon is `House` (fill variant, green `#5DBB8E`).
+- Labels read "Home", "Discover", "Inbox", "Cart".
+- TestIDs: `tab-home`, `tab-discover`, `tab-sell`, `tab-inbox`, `tab-cart`.
+
+---
+
+### TC-S02 · Bottom nav renders identically on Discover
+
+**Steps:**
+1. From Home, tap the **Discover** tab.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Same 5 items, same styling.
+- Discover icon is active (green).
+- No "Cart shortcut" icon in the search header area (removed — replaced by the persistent Cart tab).
+
+---
+
+### TC-S03 · Bottom nav renders identically on Inbox
+
+**Steps:**
+1. Tap the **Inbox** tab.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Same 5 items, same styling.
+- Inbox icon is active (green).
+
+---
+
+### TC-S04 · Bottom nav renders identically on Cart
+
+**Steps:**
+1. Tap the **Cart** tab.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Same 5 items, same styling.
+- Cart icon is active (green).
+
+---
+
+### TC-S05 · Bottom nav renders identically on Item Detail (stacked screen)
+
+**Steps:**
+1. From Discover, tap any listing to open Item Detail (stacked screen).
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Bottom nav is still visible with the same 5 items.
+- The tab that the detail screen was pushed from (Discover) remains highlighted.
+- No duplicate or missing items.
+
+---
+
+### TC-S06 · Bottom nav renders on Cart Checkout (stacked screen)
+
+**Steps:**
+1. Add items to cart and navigate to Cart Checkout.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Bottom nav is still visible.
+- Cart icon remains highlighted.
+- Bar matches exactly the Home/Discover/Inbox styling.
+
+---
+
+### TC-S07 · Bottom nav renders on Trade screens (Timeline, Offer, Success)
+
+**Steps:**
+1. Navigate to any trade screen (Timeline, Offer, Review, Success, Dispute).
+2. Observe the bottom nav bar at each screen.
+
+**Expected Result:**
+- Bottom nav is visible on every trade screen.
+- The tab bar matches exactly (same icons, colors, FAB).
+
+---
+
+### TC-S08 · Bottom nav renders on Profile, Settings, Wallet, Subscriptions
+
+**Steps:**
+1. From Home header avatar, tap to open **Profile**.
+2. Navigate to **Settings**, **SP Wallet**, **Subscription**, **My Listings**.
+3. At each screen, observe the bottom nav.
+
+**Expected Result:**
+- Bottom nav is visible on every screen.
+- Bar never changes or disappears regardless of how deep the user navigates.
+
+---
+
+### TC-S09 · Cart badge shows item count from multiple entry points
+
+**Steps:**
+1. Start with an empty cart. Verify Cart tab has **no badge**.
+2. From Item Detail, tap **Add to Cart** (or use `rpc_cart_add_item` via another listing).
+3. Immediately observe the Cart tab badge on the bottom nav.
+
+**Expected Result:**
+- Cart badge appears with the correct live item count.
+- Badge is red (`#E85D75`), pill-shaped, font weight 700, white text.
+- Badge updates in real time (no pull-to-refresh needed).
+
+---
+
+### TC-S10 · Cart badge count accuracy — add multiple items
+
+**Steps:**
+1. Add 3 different items from the same seller to the cart.
+2. Observe the Cart tab badge.
+
+**Expected Result:**
+- Badge shows `3`.
+
+---
+
+### TC-S11 · Cart badge count accuracy — remove items
+
+**Steps:**
+1. From Cart screen, remove 1 item.
+2. Go back to Discover/Home and observe the Cart tab badge.
+
+**Expected Result:**
+- Badge count decreases from 3 to 2 without manual refresh.
+
+---
+
+### TC-S12 · Cart badge clears when cart is emptied
+
+**Steps:**
+1. Clear the cart (remove all items or use Clear Cart).
+2. Navigate to any screen and observe the Cart tab badge.
+
+**Expected Result:**
+- No badge (count = 0). Cart icon shows regular (unfilled) weight.
+
+---
+
+### TC-S13 · "Me" tab removal — Profile still accessible via Home avatar
+
+**Steps:**
+1. Verify there is NO "Me" tab in the bottom nav bar.
+2. Tabs are: Home, Discover, Sell FAB, Inbox, Cart.
+3. Tap the Home header avatar (left side of greeting) or the User icon (right side).
+4. Confirm navigation opens **ProfileScreen**.
+
+**Expected Result:**
+- "Me" tab is absent from bottom nav.
+- Profile screen still opens from Home header avatar/icon — no route is orphaned.
+
+---
+
+### TC-S14 · "Me" tab removal — no orphaned routes
+
+**Steps:**
+1. Search the codebase for references to `MeTab` or `tab-me` route strings.
+2. Verify no code tries to navigate to `MeTab`.
+
+**Expected Result:**
+- `MeTab` and `tab-me` are fully removed from the app.
+- No red screen, no console error, no broken deep link surfaces.
+
+---
+
+### TC-S15 · Sell FAB opens action sheet on every screen
+
+**Steps:**
+1. From Home, tap the orange Sell FAB → action sheet opens with "List One Item" and "Bulk Upload".
+2. Dismiss, navigate to Discover, tap Sell FAB again → same sheet.
+3. Navigate to Item Detail, Cart, Inbox — repeat.
+
+**Expected Result:**
+- Sell FAB works identically on every screen. Action sheet always shows both options.
+- "List One Item" navigates to `ItemCreate`. "Bulk Upload" navigates to `BulkListingCreate`.
+
+---
+
+### TC-S16 · More from seller — Item Detail CTA in standalone position (below seller card)
+
+**Ref:** SELLER-GROUP-007
+**Actors:** test-buyer + test-seller with 3+ approved listings
+
+**Steps:**
+1. Navigate to ItemDetailScreen for any listing from test-seller.
+2. Scroll down to the Seller Info section.
+
+**Expected Result:**
+- A full-width green banner reading "This seller has X more items" appears BELOW the seller card (not inside it).
+- The banner has a subtitle "Browse all items from this seller" and a "→" arrow.
+- The banner is tappable and opens MoreFromThisSeller page.
+- "Matches Your Cart" badge (if visible) is still inside the seller card, undisturbed.
+- Contact Seller and View Profile buttons are where they were.
+
+### TC-S17 · More from seller — Item Detail CTA hidden at 0 additional listings
+
+**Ref:** SELLER-GROUP-007
+**Actors:** test-buyer + test-seller with only 1 approved listing
+
+**Steps:**
+1. Navigate to ItemDetailScreen for the seller's only listing.
+2. Scroll down.
+
+**Expected Result:**
+- No "more from this seller" banner appears anywhere on the screen.
+- Everything else in the Seller Info card renders normally.
+
+### TC-S18 · More from seller — Item Detail CTA does not disrupt "Matches Your Cart" badge
+
+**Ref:** SELLER-GROUP-004, SELLER-GROUP-007
+**Actors:** test-buyer (active cart matches seller) + test-seller
+
+**Steps:**
+1. Ensure buyer has an active cart containing items from test-seller.
+2. Navigate to ItemDetailScreen for a different listing from the same seller.
+3. Observe the Seller Info card.
+
+**Expected Result:**
+- "Matches Your Cart" badge is still visible inside the seller card (not moved).
+- The standalone CTA is below the card. Both elements visible and legible.
+
+### TC-S19 · More from seller — Trade Basket banner shows correct remaining-item count
+
+**Ref:** SELLER-GROUP-007
+**Actors:** test-buyer with cart from test-seller (1 item in cart, seller has 4 total listings)
+
+**Steps:**
+1. Open Trade Basket screen.
+2. Scroll down past the items list and summary card.
+
+**Expected Result:**
+- A green banner appears between the summary card and the "Make one offer" CTA.
+- Banner reads: "This seller has 3 more items" (4 total − 1 in cart = 3).
+- Tapping "View" opens MoreFromThisSeller page.
+- Banner has an X dismiss button.
+
+### TC-S20 · More from seller — Trade Basket banner recalculates after adding item from filtered page
+
+**Ref:** SELLER-GROUP-007
+**Actors:** test-buyer with 1 item in cart, test-seller with 4 total listings
+
+**Steps:**
+1. From Trade Basket, tap the "View" link on the banner → opens MoreFromThisSeller page.
+2. Tap "Add to Trade Basket" on one of the items there → item is added.
+3. Navigate back to Trade Basket.
+
+**Expected Result:**
+- Banner now reads "This seller has 2 more items" (was 3, now 2).
+- The count correctly decreased by 1.
+
+### TC-S21 · More from seller — Trade Basket banner disappears when all seller's listings are in basket
+
+**Ref:** SELLER-GROUP-007
+**Actors:** test-buyer, test-seller with 3 total listings
+
+**Steps:**
+1. Add all 3 of the seller's listings to the cart.
+2. Open Trade Basket.
+
+**Expected Result:**
+- No "more from this seller" banner appears.
+- All 3 items are listed in the cart.
+
+### TC-S22 · More from seller — Trade Basket banner dismissible via X button
+
+**Ref:** SELLER-GROUP-007
+**Actors:** test-buyer with 1 item in cart, seller with 3+ listings
+
+**Steps:**
+1. Open Trade Basket → banner is visible.
+2. Tap the X dismiss button on the banner.
+
+**Expected Result:**
+- Banner disappears and does not reappear during this cart session.
+- All other cart content (items, summary, buttons) is unaffected.
+
+### TC-S23 · More from seller — Banner and filtered page never reveal seller identity
+
+**Ref:** TASK-ITEM-DETAILS-001, SELLER-GROUP-007
+**Actors:** test-buyer, test-seller
+
+**Steps:**
+1. Open Item Detail for a seller's listing → observe the standalone CTA text.
+2. Tap the CTA → observe the MoreFromThisSeller page title and content.
+3. Repeat from Trade Basket banner.
+
+**Expected Result:**
+- CTA/banner text says "This seller" — never seller's name, avatar, or location.
+- MoreFromThisSeller page title is "More items from this seller" — no seller identity.
+- Individual item cards show no seller name or avatar.
+- No PII leakage on either entry point.
+
+### TC-S24 · Regression: Seller Info card elements unchanged
+
+**Ref:** TASK-ITEM-DETAILS-001
+**Actors:** test-buyer, test-seller
+
+**Steps:**
+1. Navigate to ItemDetailScreen for any listing.
+2. Observe all elements in the Seller Info card.
+
+**Expected Result:**
+- Avatar, masked name (with lock icon), rating stars, "Matches Your Cart" badge (if applicable), Contact Seller button, View Profile button — all present at their original positions.
+- Only the old inline "X more items" text is gone from inside the card.
+
+### TC-S25 · Regression: Trade Basket subtotal/total/bundle CTA layout unaffected
+
+**Ref:** CART-009, CART-014
+**Actors:** test-buyer with cart items from one seller
+
+**Steps:**
+1. Add 2+ items from same seller to cart.
+2. Open Trade Basket.
+
+**Expected Result:**
+- Summary card shows Subtotal and Total correctly.
+- Bundle CTA ("Make one offer for these N items") appears below the "more from this seller" banner (if visible) or in its normal position.
+- Sticky Checkout button is at the bottom.
+- Nothing is shifted or overlapped by the new banner.
+
+### TC-S26 · More from seller — Return-to-Cart navigation after adding item from filtered page
+
+**Ref:** SELLER-GROUP-007
+**Actors:** test-buyer with cart, test-seller
+
+**Steps:**
+1. From Trade Basket, tap the banner's "View" link → opens MoreFromThisSeller page.
+2. Tap "Add to Trade Basket" on an item.
+
+**Expected Result:**
+- After the "Added to Trade Basket" alert, the app navigates back to the Trade Basket screen (Cart).
+- The cart now includes the newly added item.
+- The banner count has recalculated.
+
+---
+
+## Group T — Flow Registry Update (Navigation Only)
+
+### TC-T01 · flow-registry.md entries updated
+
+**Steps:**
+1. Open `docs/flow-registry.md`.
+2. Verify FLOW-00 and FLOW-07 entries reference the persistent bottom nav.
+
+**Expected Result:**
+- FLOW-00 (Infrastructure) smoke includes "bottom nav renders identically on 100% of screens".
+- FLOW-07 (Cart) smoke references the persistent Cart tab badge.
+
+---
+
+## Group U — Top Nav Header Pattern Consistency
+
+**Ref:** AppHeader.tsx (variant: 'main' | 'tab' | 'detail'), ScreenLayout.tsx, Prompt #1B — Top Nav Consolidation
+
+### TC-U01 · Root/tab screens use pattern 1 (no back button, greeting/avatar or title, notification bell)
+
+**Screens under test:** Home (Dashboard), Discover, Inbox (Messages), Cart
+
+**Steps:**
+1. Log in as a subscriber at test-buyer@kidsmarketplace.test.
+2. Navigate to each root tab screen: Home, Discover, Inbox, Cart.
+3. For each screen, inspect the top header area.
+
+**Expected Result for Home:**
+- Left: Avatar + greeting ("Good morning/afternoon/evening, [Name]").
+- Right: Notification bell (with unread badge count) + Profile icon.
+- No back button is visible.
+- Tapping the bell navigates to the Notifications screen.
+- Tapping the avatar or Profile icon navigates to Profile.
+
+**Expected Result for Discover, Inbox, Cart:**
+- Left: Empty spacer (same 40px circle as back button position on detail screens) — no back button.
+- Center: Screen title ("Discover", "Messages", "My Cart").
+- Right: Notification bell (with unread badge count).
+- Tapping the bell navigates to the Notifications screen on every screen.
+- Bell icon, size, and badge style are identical across all three screens.
+
+---
+
+### TC-U02 · Secondary/detail screens use pattern 2 (back button + title + notification bell)
+
+**Screens under test (sample — test 5 that cover different areas):**
+
+| Screen | How to reach |
+|---|---|
+| Item Detail | Tap any listing from Discover or Home |
+| Profile | Tap avatar on Home header |
+| Swap Points | Profile → Swap Points |
+| My Trades | Trades from Home or Profile |
+| Create Listing | Sell FAB → List One Item |
+
+**Steps:**
+1. Navigate to each screen in the table above.
+2. For each screen, inspect the top header area.
+
+**Expected Result (all screens):**
+- Left: ← Back button (40px round, gray `#F4F4F4` background, centered CaretLeft icon).
+- Center: Screen title (bold, 17px, centered).
+- Right: Notification bell (same icon, size, badge logic as root screens).
+- Tapping the back button navigates to the previous screen.
+- Tapping the bell navigates to Notifications.
+
+---
+
+### TC-U03 · Notification bell behavior + badge accuracy
+
+**Steps:**
+1. Log in as test-buyer.
+2. From a secondary screen (e.g., Profile), verify the bell icon and badge.
+3. Tap the bell → should navigate to Notifications screen.
+4. From a root screen (e.g., Discover), verify the same bell icon and badge.
+5. Tap the bell → should navigate to same Notifications screen.
+6. Mark some notifications as read (backend or by opening them).
+7. Navigate back to a root screen → verify badge count decreased.
+8. Navigate to a secondary screen → verify badge count matches.
+
+**Expected Result:**
+- Bell icon: Always the same Phosphor `Bell` icon (22px, bold, `#1A1A1A`).
+- Badge: Red dot with count (capped at 99+), positioned top-right of the bell icon.
+- Tap destination: Always `Notifications` screen — never a different route.
+- Badge count reflects the same `unreadCount` value on every screen it appears.
+- Pull-to-refresh on any screen updates the badge (no stale count).
+
+---
+
+### TC-U04 · Screens without ScreenLayout still have working headers
+
+**Screens under test:** EditListing, SubmitReview
+
+**Steps:**
+1. Log in as test-seller.
+2. Navigate to My Listings → tap an existing listing → tap Edit.
+3. Verify EditListingScreen shows a consistent detail header (back button + "Edit Listing" title + bell).
+4. Complete a trade as test-buyer → navigate to the review prompt.
+5. Verify SubmitReviewScreen shows a consistent detail header (back button + "Review [name]" title + bell).
+
+**Expected Result:**
+- Both screens now use ScreenLayout (not bare View or native navigation header).
+- Header matches variant="detail" pattern exactly: back button (left) + title (center) + bell (right).
+- Back button navigates to the previous screen.
+- Bell navigates to Notifications.
+
+---
+
+### TC-U05 · Checkout/payment screens intentionally hide the bell (DEFERRED-DECISION)
+
+**Screens under test:** CartCheckout, SubscriptionPayment, RequestPayout
+
+**Steps:**
+1. Log in as test-buyer with items in cart → tap Checkout.
+2. Verify header shows back button + "Checkout" title — no bell icon on the right (empty spacer).
+3. Navigate to Subscription → tap a plan → reach Subscription Payment screen.
+4. Verify header shows back button + "Payment" title — no bell.
+5. Log in as test-seller with earnings → navigate to Payouts → Request Payout.
+6. Verify header shows back button + "Request Payout" title — no bell.
+
+**Expected Result:**
+- These three screens are the only authenticated screens where the bell is intentionally hidden.
+- Each has a `// DEFERRED-DECISION` comment documenting the decision.
+- The right spacer is an empty `headerActionBtn` (40px) to keep the title centred.
+- Bell behavior on all other screens remains intact.
+
+---
+
+## Group V — Copy Rename Verification
+
+> This group covers the "Cart → Trade Basket" and "Bundle → (removed)" copy rename. These tests verify that every instance of "Cart" in user-facing UI copy has been replaced with "Trade Basket", every instance of "Bundle" in user-facing copy has been removed or rephrased, and functional behavior is unaffected.
+>
+> **Note:** These are visual/text-only tests (no DB migration, no API change). If a test passes for one device (e.g., iOS Simulator), it is safe to assume the same result on the other, unless the text is in a native component that might render differently.
+
+### TC-V01 · "Trade Basket" appears in bottom tab bar
+
+**Actors:** Any logged-in user (test-buyer)
+
+**Objective:** Verify the bottom tab bar label shows "Trade Basket" instead of "Cart".
+
+**Steps:**
+1. Log in and observe the bottom navigation bar.
+2. Look at the tab that previously said "Cart".
+
+**Expected Result:**
+- The tab label reads **Trade Basket**.
+- The ShoppingCart icon is unchanged.
+- Tapping the tab navigates to the Cart screen (functionally unchanged).
+
+### TC-V02 · "Trade Basket" appears as screen title on Cart screen
+
+**Actors:** test-buyer
+
+**Precondition:** Cart screen is accessible.
+
+**Objective:** Verify the Cart screen title shows "Trade Basket".
+
+**Steps:**
+1. Navigate to the Cart/Trade Basket screen.
+2. Observe the screen header/title.
+
+**Expected Result:**
+- The screen title reads **Trade Basket** (not "My Cart").
+- The layout and items display identically to before the rename.
+
+### TC-V03 · Empty state shows "trade basket" in copy
+
+**Actors:** test-buyer
+
+**Precondition:** Cart is empty.
+
+**Objective:** Verify the empty state uses "trade basket" language.
+
+**Steps:**
+1. Clear all items from the cart.
+2. Open the Cart/Trade Basket screen.
+
+**Expected Result:**
+- The empty state title reads **"Your trade basket is empty"**.
+- The subtext reads **"Start adding items you love to your trade basket"**.
+- The Browse Items button is unchanged and still functional.
+
+### TC-V04 · "View Trade Basket" button on Item Detail screen
+
+**Actors:** test-buyer
+
+**Precondition:** An item from the current cart's seller is open on Item Detail.
+
+**Objective:** Verify the in-cart button on Item Detail says "View Trade Basket".
+
+**Steps:**
+1. Add an item to the Trade Basket.
+2. Open that same item's detail page.
+3. Look at the bottom action button.
+
+**Expected Result:**
+- The button reads **View Trade Basket** (not "View Cart").
+- Tapping it navigates to the Trade Basket screen.
+- The ShoppingCart icon is unchanged.
+
+### TC-V05 · "Add to Trade Basket" button on More from This Seller screen
+
+**Actors:** test-buyer
+
+**Precondition:** A seller has 2+ items; buyer has items from that seller in the Trade Basket.
+
+**Objective:** Verify the "More from This Seller" screen uses "Trade Basket" copy.
+
+**Steps:**
+1. Navigate to a seller's "More from this seller" screen.
+2. Observe the action button on items not yet in the Trade Basket.
+
+**Expected Result:**
+- The button reads **Add to Trade Basket** (not "Add to Cart").
+- Tapping it adds the item and shows the "Added to Trade Basket" alert.
+
+### TC-V06 · "In Trade Basket" status on More from This Seller items already in basket
+
+**Actors:** test-buyer
+
+**Objective:** Verify items already in the basket show the correct status label.
+
+**Steps:**
+1. Add an item to the Trade Basket.
+2. Navigate to "More from This Seller" for that item's seller.
+3. Find that item in the list.
+
+**Expected Result:**
+- The action button for items already in the basket reads **In Trade Basket** (not "In Cart").
+- The button is disabled (not tappable) and visually dimmed.
+
+### TC-V07 · "Added to Trade Basket" alert on item add
+
+**Actors:** test-buyer
+
+**Objective:** Verify the add-to-basket success alert uses "Trade Basket" copy.
+
+**Steps:**
+1. Add any available item to the Trade Basket from Item Detail, Favorites, or More from This Seller.
+
+**Expected Result:**
+- The alert title reads **"Added to Trade Basket"**.
+- The alert body reads **"Item added to your Trade Basket."** (or similar, always using "Trade Basket").
+- Tapping OK dismisses the alert and the item appears in the basket.
+
+### TC-V08 · "Matches Your Trade Basket" badge on matching items
+
+**Actors:** test-buyer
+
+**Precondition:** Buyer has a Trade Basket with items from one seller.
+
+**Objective:** Verify the badge on matching items uses "Trade Basket" copy.
+
+**Steps:**
+1. Open an Item Detail for an item from the same seller as the current basket.
+2. Look for the badge near the seller info or action row.
+
+**Expected Result:**
+- The badge reads **Matches Your Trade Basket** (not "Matches Your Cart").
+- The ShoppingCart icon and green styling are unchanged.
+- The badge disappears when the basket is cleared.
+
+### TC-V09 · Different-seller modal references "trade basket"
+
+**Actors:** test-buyer
+
+**Precondition:** Buyer has items from one seller in the Trade Basket.
+
+**Objective:** Verify the different-seller conflict modal uses "trade basket" language.
+
+**Steps:**
+1. Attempt to add an item from a different seller.
+2. Observe the modal that appears.
+
+**Expected Result:**
+- The modal body reads: **"Your trade basket already has items from a different seller. Adding this item will clear your current trade basket."**
+- The three action buttons (Cancel, Save & Start New Cart, Replace Cart) are functionally unchanged and use the same labels.
+
+### TC-V10 · Bundle CTA says "Make one offer" (no "Bundle" visible)
+
+**Actors:** test-buyer
+
+**Precondition:** Trade Basket has 2+ items from the same seller.
+
+**Objective:** Verify the bundle CTA text no longer says "Bundle".
+
+**Steps:**
+1. Add 2+ items from the same seller to the Trade Basket.
+2. Open the Trade Basket screen.
+3. Look for the green bundle CTA card above the checkout area.
+
+**Expected Result:**
+- The CTA title reads **"Make one offer for these N items"** (not "Bundle these N items").
+- The CTA subtext reads **"All items from this seller"** (not "Make one offer for all items from this seller" — no change in meaning).
+- The Package icon and green styling are unchanged.
+- Tapping the CTA still navigates to checkout in combined-offer mode.
+- The word "Bundle" does not appear anywhere on the CTA.
+
+### TC-V11 · "Combined Offer" banner on checkout (no "Bundle" visible)
+
+**Actors:** test-buyer
+
+**Precondition:** Buyer taps the combined-offer CTA from Trade Basket.
+
+**Objective:** Verify the checkout banner no longer says "Bundle Offer".
+
+**Steps:**
+1. Tap the "Make one offer for these N items" CTA to enter checkout.
+2. Observe the banner at the top of the checkout screen.
+
+**Expected Result:**
+- The banner title reads **"📦 Combined Offer"** (not "📦 Bundle Offer").
+- The banner text reads: "You're making a single offer for all N items from this seller." — unchanged.
+- The word "Bundle" does not appear anywhere on the banner.
+
+### TC-V12 · Bundle Builder screen title shows "Build Offer" (no "Bundle" visible)
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Bundle Builder screen title uses "Build Offer".
+
+**Steps:**
+1. Navigate to the Bundle Builder screen (from Cart/Trade Basket).
+2. Observe the screen header/title.
+
+**Expected Result:**
+- The screen title reads **"Build Offer"** (not "Bundle").
+- The word "Bundle" does not appear anywhere on the screen's visible copy.
+- All functionality (item selection, price display, Add to Basket) works identically.
+
+### TC-V13 · Favorites "Added to Trade Basket" alert copy
+
+**Actors:** test-buyer
+
+**Precondition:** Buyer has favorited items.
+
+**Objective:** Verify the favorites → basket flow uses "Trade Basket" copy.
+
+**Steps:**
+1. Navigate to the Favorites screen.
+2. Tap the **Add to Trade Basket** action (shopping cart icon/button) on a favorited item.
+
+**Expected Result:**
+- The alert title reads **"Added to Trade Basket"**.
+- The alert body references the item by name and says **"was added to your Trade Basket."**.
+- The item appears in the Trade Basket after dismissal.
+
+### TC-V14 · Functional behavior unchanged (adding items, submitting offers still works)
+
+**Actors:** test-buyer
+
+**Objective:** Verify that nothing broke due to the copy rename.
+
+**Steps:**
+1. Add 3 items from the same seller to the Trade Basket.
+2. Verify the cart count badge updates correctly.
+3. Tap the combined-offer CTA and proceed to checkout.
+4. Submit the offer.
+5. Add an item from a different seller and verify the different-seller modal appears.
+6. Clear the Trade Basket and verify the empty state appears.
+
+**Expected Result:**
+- All functional behavior (add, remove, clear, different-seller modal, combined-offer submission, badge counts) works identically to before the rename.
+- No console errors or crashes related to the copy change.

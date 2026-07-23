@@ -27,7 +27,6 @@ import { supabase } from '@/config/supabase';
 import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { Modal, LoadingSpinner } from '@/components/ui';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { sendTradeNotificationPush } from '@/services/tradeNotifications';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -295,8 +294,6 @@ export default function TradeReviewScreen() {
         onSecondaryPress={() => setShowDeclineConfirm(false)}
         onClose={() => setShowDeclineConfirm(false)}
       />
-
-      <PersistentTabBar />
     </ScreenLayout>
   );
 }

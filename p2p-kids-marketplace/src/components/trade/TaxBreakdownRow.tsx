@@ -18,6 +18,9 @@ interface Props {
   /** Override the auto-hide behavior - e.g. always show on historical trades. */
   alwaysShow?: boolean;
   testID?: string;
+  /** TAX-REFUND-INTEGRITY (2026-07-24): Custom label. Defaults to "Sales Tax".
+   *  Use "Estimated Sales Tax" for in-progress/uncaptured trades. */
+  label?: string;
 }
 
 export const TaxBreakdownRow: React.FC<Props> = ({
@@ -27,13 +30,14 @@ export const TaxBreakdownRow: React.FC<Props> = ({
   loading,
   alwaysShow,
   testID = 'tax-breakdown-row',
+  label = 'Sales Tax',
 }) => {
   if (!alwaysShow && !loading && taxAmountCents <= 0) return null;
 
   return (
     <View style={styles.row} testID={testID}>
       <View>
-        <Text style={styles.label}>Sales Tax</Text>
+        <Text style={styles.label}>{label}</Text>
         <Text style={styles.subtext}>
           {formatTaxRate(taxRate)}
           {jurisdiction ? ` · ${jurisdiction}` : ''}

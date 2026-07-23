@@ -36,25 +36,82 @@ serve(async (req) => {
 
   try {
     switch (event.type) {
+      // TAX-STATUS-LIFECYCLE (2026-07-23): Handle charge.captured to idempotently mark
+      // tax as collected when Stripe confirms a successful capture. This is the webhook
+      // safety net — the primary capture happens in complete-trade or auto-complete EFs,
+      // but if those miss the tax mark step, this webhook ensures it doesn't get lost.
+      case 'charge.captured': {
+        const capturedCharge = event.data.object as Stripe.Charge;
+        const paymentIntentId = capturedCharge.payment_intent as string;
+
+        if (paymentIntentId) {
+          const { data: trade } = await supabaseClient
+            .from('trades')
+            .select('id')
+            .eq('stripe_payment_intent_id', paymentIntentId)
+            .maybeSingle();
+
+          if (trade) {
+            const chargeId = capturedCharge.id;
+            console.log(`[stripe-webhook] charge.captured for PI ${paymentIntentId} — trade ${trade.id}`);
+
+            // Idempotent: rpc_mark_tax_collected is safe to call multiple times
+            await supabaseClient.rpc('rpc_mark_tax_collected', {
+              p_trade_id: trade.id,
+              p_stripe_capture_id: chargeId,
+            });
+          }
+        }
+        break;
+      }
+
+      // TAX-REFUND-INTEGRITY (2026-07-24): charge.refunded webhook now uses
+      // rpc_record_stripe_refund which is idempotent and handles succeeded/pending/failed
+      // refund statuses. It ONLY reverses tax after Stripe confirms the refund.
       case 'charge.refunded': {
-        const charge = event.data.object;
-        const paymentIntentId = charge.payment_intent;
+        const charge = event.data.object as Stripe.Charge;
+        const paymentIntentId = charge.payment_intent as string;
         
         if (paymentIntentId) {
           // Find trade by payment intent ID
           const { data: trade, error: tradeError } = await supabaseClient
             .from('trades')
-            .select('id, status')
+            .select('id, status, stripe_refund_id')
             .eq('stripe_payment_intent_id', paymentIntentId)
-            .single();
+            .maybeSingle();
 
-          if (trade && trade.status !== 'cancelled') {
-            console.log(`[stripe-webhook] Marking trade ${trade.id} as cancelled due to external refund`);
-            await supabaseClient.rpc('cancel_trade_v2', {
-              p_trade_id: trade.id,
-              p_user_id: null, // System action
-              p_reason: 'External Stripe refund'
-            });
+          if (trade) {
+            console.log(`[stripe-webhook] charge.refunded for PI ${paymentIntentId} — trade ${trade.id}`);
+
+            // Extract refund info from the charge
+            const refundAmountCents = Math.round((charge.amount_refunded ?? 0));
+            const refundId = charge.refunds?.data?.[0]?.id ?? `webhook_${charge.id}_refund`;
+
+            // Record the refund on the tax ledger (idempotent — safe to call multiple times)
+            if (refundAmountCents > 0) {
+              try {
+                await supabaseClient.rpc('rpc_record_stripe_refund', {
+                  p_trade_id: trade.id,
+                  p_stripe_refund_id: refundId,
+                  p_refund_amount_cents: refundAmountCents,
+                  p_refund_status: 'succeeded',
+                  p_refund_reason: 'stripe_webhook_refund',
+                  p_initiating_actor: 'stripe_webhook',
+                });
+              } catch (taxRefundErr: unknown) {
+                const msg = taxRefundErr instanceof Error ? taxRefundErr.message : 'Unknown error';
+                console.error(`[stripe-webhook] Tax refund record error for trade ${trade.id}:`, msg);
+              }
+            }
+
+            // Cancel the trade if it's not already cancelled
+            if (trade.status !== 'cancelled') {
+              await supabaseClient.rpc('cancel_trade_v2', {
+                p_trade_id: trade.id,
+                p_user_id: null, // System action
+                p_reason: 'External Stripe refund'
+              });
+            }
           }
         }
         break;

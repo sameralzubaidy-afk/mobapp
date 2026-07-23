@@ -315,7 +315,7 @@ describe('TFV2-012A — createTradeOfferWithHold', () => {
     mockInvoke.mockResolvedValueOnce({
       data: {
         success: false,
-        error: { code: 'MAX_PENDING_OFFERS', message: 'Maximum 3 pending offers reached' },
+        error: { code: 'MAX_PENDING_OFFERS', message: 'You have many pending offers with this seller. Cancel one to make a new offer.' },
       },
       error: null,
     });
@@ -323,7 +323,7 @@ describe('TFV2-012A — createTradeOfferWithHold', () => {
     const result = await createTradeOfferWithHold(validInput);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('Maximum 3 pending offers');
+    expect(result.error).toContain('pending offers with this seller');
     expect(result.error_code).toBe('MAX_PENDING_OFFERS');
   });
 

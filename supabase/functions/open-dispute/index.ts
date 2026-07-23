@@ -109,10 +109,10 @@ serve(async (req) => {
   });
 
   // Send notification to seller (non-blocking)
-  svcClient.from('notification_log').insert({
+  svcClient.from('trade_notification_log').insert({
+    trade_id,
     user_id:           trade.seller_id,
     notification_type: 'trade_dispute_opened',
-    payload:           { trade_id, reason },
     sent_at:           new Date().toISOString(),
   }).then(({ error }) => {
     if (error) console.error('[open-dispute] Notif log error:', error.message);

@@ -222,4 +222,91 @@ describe('TradeListScreen – Addendum D: Bundle grouping logic', () => {
       expect(groupInProgressBundles([], 'buying')).toHaveLength(0);
     });
   });
+
+  // ── groupSubmittedOffers (buyer's Your Offers) ──────────────────────────────
+  describe('groupSubmittedOffers', () => {
+    // Mirrors the memo logic in TradeListScreen for buyer's submitted offers
+    function groupSubmittedOffers(submittedOffers: PendingOffer[]): OfferRow[] {
+      const bundleMap = new Map<string, PendingOffer[]>();
+      const result: OfferRow[] = [];
+
+      for (const offer of submittedOffers) {
+        if (offer.bundle_id) {
+          const existing = bundleMap.get(offer.bundle_id);
+          if (existing) {
+            existing.push(offer);
+          } else {
+            bundleMap.set(offer.bundle_id, [offer]);
+            result.push({ type: 'bundle', bundleId: offer.bundle_id, offers: bundleMap.get(offer.bundle_id)! });
+          }
+        } else {
+          result.push({ type: 'single', offer });
+        }
+      }
+
+      return result;
+    }
+
+    it('groups 2 submitted offers sharing the same bundle_id', () => {
+      const offers: PendingOffer[] = [
+        { id: 'o1', item_id: 'i1', item_title: 'Cap A', item_price: 20, buyer_id: 'b1', status: 'pending', created_at: '2026-07-19', bundle_id: 'bundle-buyer-001' },
+        { id: 'o2', item_id: 'i2', item_title: 'Cap B', item_price: 15, buyer_id: 'b1', status: 'pending', created_at: '2026-07-19', bundle_id: 'bundle-buyer-001' },
+      ];
+
+      const result = groupSubmittedOffers(offers);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('bundle');
+      const bundleRow = result[0] as BundleRow;
+      expect(bundleRow.bundleId).toBe('bundle-buyer-001');
+      expect(bundleRow.offers).toHaveLength(2);
+    });
+
+    it('keeps single (non-bundle) submitted offers as individual rows', () => {
+      const offers: PendingOffer[] = [
+        { id: 'o1', item_id: 'i1', item_title: 'Standalone Item', item_price: 30, buyer_id: 'b1', status: 'pending', created_at: '2026-07-19', bundle_id: null },
+      ];
+
+      const result = groupSubmittedOffers(offers);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('single');
+    });
+
+    it('mixes bundle + single rows in the correct order', () => {
+      const offers: PendingOffer[] = [
+        { id: 'o1', item_id: 'i1', item_title: 'Bundle A-1', item_price: 10, buyer_id: 'b1', status: 'pending', created_at: '2026-07-19', bundle_id: 'bundle-A' },
+        { id: 'o2', item_id: 'i2', item_title: 'Bundle A-2', item_price: 20, buyer_id: 'b1', status: 'pending', created_at: '2026-07-19', bundle_id: 'bundle-A' },
+        { id: 'o3', item_id: 'i3', item_title: 'Solo Item', item_price: 5, buyer_id: 'b1', status: 'pending', created_at: '2026-07-19', bundle_id: null },
+      ];
+
+      const result = groupSubmittedOffers(offers);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].type).toBe('bundle');
+      expect(result[1].type).toBe('single');
+    });
+
+    it('handles empty input', () => {
+      expect(groupSubmittedOffers([])).toHaveLength(0);
+    });
+
+    it('collects all items in a 3-item bundle', () => {
+      const offers: PendingOffer[] = Array.from({ length: 3 }, (_, i) => ({
+        id: `o${i + 1}`,
+        item_id: `i${i + 1}`,
+        item_title: `Item ${i + 1}`,
+        item_price: 10 + i,
+        buyer_id: 'b1',
+        status: 'pending',
+        created_at: '2026-07-19',
+        bundle_id: 'bundle-3items',
+      }));
+
+      const result = groupSubmittedOffers(offers);
+      expect(result).toHaveLength(1);
+      const bundleRow = result[0] as BundleRow;
+      expect(bundleRow.offers).toHaveLength(3);
+    });
+  });
 });

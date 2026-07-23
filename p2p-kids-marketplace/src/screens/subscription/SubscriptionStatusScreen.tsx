@@ -22,7 +22,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -282,8 +281,6 @@ export default function SubscriptionStatusScreen() {
         </Text>
       </ScrollView>
 
-      {/* MODULE-09: Universal Bottom Navigation */}
-      <PersistentTabBar />
     </ScreenLayout>
   );
 }

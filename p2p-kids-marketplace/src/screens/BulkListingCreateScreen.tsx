@@ -38,6 +38,7 @@ import {
 } from '../services/draftService';
 import { getSubscriptionSummary } from '../services/subscription';
 import { getCategories } from '../services/categoryService';
+import { getConfigValue } from '../services/adminConfig';
 import { computePhotoHash, findDuplicateIndices } from '../utils/photoHash';
 import { Category, CategorySelectModal } from '../components/listing/CategorySelectModal';
 import { BulkPhotoUploader } from '../components/bulk/BulkPhotoUploader';
@@ -58,7 +59,7 @@ import ScreenLayout from '@/components/ScreenLayout';
 const BULK_AI_ANALYSIS_BLOCKING_TIMEOUT_MS = 7000;
 type PhotoSourceOption = 'camera' | 'library';
 
-function getMissingRequired(item: BulkEditableItem): string[] {
+function getMissingRequired(item: BulkEditableItem, minListingPrice = 0): string[] {
   const missing: string[] = [];
   if (!item.title.trim()) missing.push('title');
   if (!item.condition) missing.push('condition');
@@ -71,6 +72,8 @@ function getMissingRequired(item: BulkEditableItem): string[] {
   }
   const parsedPrice = Number(item.price);
   if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) missing.push('price');
+  if (minListingPrice > 0 && Number.isFinite(parsedPrice) && parsedPrice < minListingPrice)
+    missing.push('price_below_minimum');
   return missing;
 }
 
@@ -82,7 +85,8 @@ function coverUriForGroup(group: PhotoGroup | undefined): string | null {
 
 function mapGroupsToItems(
   groups: PhotoGroup[],
-  previous: BulkEditableItem[] = []
+  previous: BulkEditableItem[] = [],
+  minListingPrice = 0
 ): BulkEditableItem[] {
   return groups.map((group) => {
     const prev = previous.find((item) => item.groupId === group.groupId);
@@ -107,7 +111,7 @@ function mapGroupsToItems(
       aiError: prev?.aiError ?? null,
       coverPhotoUri: coverUriForGroup(group),
     };
-    mapped.missingRequired = getMissingRequired(mapped);
+    mapped.missingRequired = getMissingRequired(mapped, minListingPrice);
     return mapped;
   });
 }
@@ -193,6 +197,7 @@ export default function BulkListingCreateScreen() {
   const [canAcceptSP, setCanAcceptSP] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
   const [allowManualWhileAnalyzing, setAllowManualWhileAnalyzing] = useState(false);
+  const [minListingPrice, setMinListingPrice] = useState(0);
 
   const lastSavedPayload = useRef<string>('');
   const restoringDraftRef = useRef(false);
@@ -331,7 +336,7 @@ export default function BulkListingCreateScreen() {
         aiError: null,
         coverPhotoUri: coverUriForGroup(group),
       };
-      restored.missingRequired = getMissingRequired(restored);
+      restored.missingRequired = getMissingRequired(restored, minListingPrice);
       return restored;
     });
 
@@ -461,13 +466,24 @@ export default function BulkListingCreateScreen() {
     }
   }, [session?.user?.id]);
 
+  const loadMinListingPrice = useCallback(async () => {
+    try {
+      const value = await getConfigValue('min_listing_price');
+      setMinListingPrice(Number(value) || 0);
+    } catch {
+      setMinListingPrice(0);
+    }
+  }, []);
+
   useEffect(() => {
     void loadSubscription();
+    void loadMinListingPrice();
   }, [loadSubscription]);
 
   useFocusEffect(
     useCallback(() => {
       void loadSubscription();
+      void loadMinListingPrice();
       return undefined;
     }, [loadSubscription])
   );
@@ -654,7 +670,7 @@ export default function BulkListingCreateScreen() {
         const capped = successfulAssets.slice(0, limit);
         // Default 1 photo per item — Decision 1
         const nextGroups = groupPhotosAuto(capped, 1);
-        const nextItems = mapGroupsToItems(nextGroups);
+        const nextItems = mapGroupsToItems(nextGroups, undefined, minListingPrice);
         const groupedPhotos = nextGroups.flatMap((group) => group.photos);
 
         setPhotos(groupedPhotos);
@@ -762,7 +778,7 @@ export default function BulkListingCreateScreen() {
 
         setPhotos(nextPhotos);
         setGroups(nextGroups);
-        setItems((current) => mapGroupsToItems(nextGroups, current));
+        setItems((current) => mapGroupsToItems(nextGroups, current, minListingPrice));
 
         if (uploadResult.errors.length > 0) {
           Alert.alert('Some uploads failed', buildUploadFailureMessage(uploadResult.errors, picked));
@@ -878,7 +894,7 @@ export default function BulkListingCreateScreen() {
     }
     const { groups: merged, overflow } = mergeGroups(groups, selectedSourceGroupIds);
     setGroups(merged);
-    setItems((current) => mapGroupsToItems(merged, current));
+    setItems((current) => mapGroupsToItems(merged, current, minListingPrice));
     setSelectedPhotoIds([]);
     if (overflow > 0) {
       Alert.alert(
@@ -915,7 +931,7 @@ export default function BulkListingCreateScreen() {
       nextGroups = merged.groups;
     }
     setGroups(nextGroups);
-    setItems((current) => mapGroupsToItems(nextGroups, current));
+    setItems((current) => mapGroupsToItems(nextGroups, current, minListingPrice));
     setSelectedPhotoIds([]);
   };
 
@@ -932,7 +948,7 @@ export default function BulkListingCreateScreen() {
           });
           setGroups(nextGroups);
           setPhotos(nextGroups.flatMap((g) => g.photos));
-          setItems((current) => mapGroupsToItems(nextGroups, current));
+          setItems((current) => mapGroupsToItems(nextGroups, current, minListingPrice));
           setSelectedPhotoIds([]);
         },
       },
@@ -948,7 +964,7 @@ export default function BulkListingCreateScreen() {
       const next = prev.map((g) =>
         g.groupId === groupId ? { ...g, primaryPhotoIndex: photoIndexInGroup } : g
       );
-      setItems((current) => mapGroupsToItems(next, current));
+      setItems((current) => mapGroupsToItems(next, current, minListingPrice));
       return next;
     });
   };
@@ -957,7 +973,7 @@ export default function BulkListingCreateScreen() {
     const nextGroups = removePhotoFromGroups(groups, photoId);
     setGroups(nextGroups);
     setPhotos(nextGroups.flatMap((g) => g.photos));
-    setItems((current) => mapGroupsToItems(nextGroups, current));
+    setItems((current) => mapGroupsToItems(nextGroups, current, minListingPrice));
   };
 
   const handleDeleteGroup = (groupId: string) => {
@@ -970,7 +986,7 @@ export default function BulkListingCreateScreen() {
           const nextGroups = removeGroup(groups, groupId);
           setGroups(nextGroups);
           setPhotos(nextGroups.flatMap((g) => g.photos));
-          setItems((current) => mapGroupsToItems(nextGroups, current));
+          setItems((current) => mapGroupsToItems(nextGroups, current, minListingPrice));
         },
       },
     ]);
@@ -979,7 +995,7 @@ export default function BulkListingCreateScreen() {
   const handleSplitGroup = (groupId: string) => {
     const nextGroups = splitGroup(groups, groupId);
     setGroups(nextGroups);
-    setItems((current) => mapGroupsToItems(nextGroups, current));
+    setItems((current) => mapGroupsToItems(nextGroups, current, minListingPrice));
   };
 
   const handleAddPhotosToGroup = (groupId: string) => {
@@ -989,7 +1005,7 @@ export default function BulkListingCreateScreen() {
   const handleAddEmptyGroup = () => {
     const nextGroups = addEmptyGroup(groups);
     setGroups(nextGroups);
-    setItems((current) => mapGroupsToItems(nextGroups, current));
+    setItems((current) => mapGroupsToItems(nextGroups, current, minListingPrice));
   };
 
   // Decision 7: reset every photo into its own item
@@ -1007,7 +1023,7 @@ export default function BulkListingCreateScreen() {
             const fresh = groupPhotosAuto(flat, 1);
             setGroups(fresh);
             setPhotos(flat);
-            setItems(mapGroupsToItems(fresh));
+            setItems(mapGroupsToItems(fresh, undefined, minListingPrice));
             dispatch({ type: 'RESET_GROUPING' });
           },
         },
@@ -1077,7 +1093,7 @@ export default function BulkListingCreateScreen() {
         next.aiState = analysis ? 'success' : 'failed';
         next.aiFilledFields = filled;
         next.aiError = analysis ? null : 'Could not analyze this photo';
-        next.missingRequired = getMissingRequired(next);
+        next.missingRequired = getMissingRequired(next, minListingPrice);
         return next;
       })
     );
@@ -1209,7 +1225,7 @@ export default function BulkListingCreateScreen() {
       prev.map((item) => {
         if (item.groupId !== groupId) return item;
         const next = { ...item, ...patch };
-        next.missingRequired = getMissingRequired(next);
+        next.missingRequired = getMissingRequired(next, minListingPrice);
         return next;
       })
     );
@@ -1482,6 +1498,7 @@ export default function BulkListingCreateScreen() {
               checkingSubscription={checkingSubscription}
               onUpgradePress={() => navigation.navigate('SubscriptionChoice')}
               onRetryAI={handleRetryAIForItem}
+              minListingPrice={minListingPrice}
             />
           </>
         )}
@@ -1502,7 +1519,7 @@ export default function BulkListingCreateScreen() {
         <ApplyToAllBar
           items={items}
           onApply={(next) =>
-            setItems(next.map((it) => ({ ...it, missingRequired: getMissingRequired(it) })))
+            setItems(next.map((it) => ({ ...it, missingRequired: getMissingRequired(it, minListingPrice) })))
           }
         />
       )}

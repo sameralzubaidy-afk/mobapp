@@ -391,7 +391,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 CREATE OR REPLACE FUNCTION public.get_config_value(p_key TEXT)
 RETURNS TEXT AS $$
 BEGIN
-    RETURN (SELECT config_value FROM admin_config WHERE config_key = p_key);
+    RETURN (SELECT value FROM admin_config WHERE key = p_key);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 

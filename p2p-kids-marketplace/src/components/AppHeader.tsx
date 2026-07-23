@@ -2,15 +2,18 @@
  * File: p2p-kids-marketplace/src/components/AppHeader.tsx
  * MODULE-15.1-UI-REDESIGN: App-wide header component
  *
- * Two variants:
+ * Three variants:
  *  - 'main'   : Full greeting header (Home/Dashboard). Avatar + "Good [time], [Name]" on left,
  *               Bell + Profile + optional Logout on right.
+ *  - 'tab'    : Root tab screens (Discover, Inbox, Cart). Title in centre, Bell on right,
+ *               no back button (tab screens are top-level destinations).
  *  - 'detail' : Slim back-button header (all other authenticated screens).
  *               ← Back on left, title in centre, optional Bell on right.
  *
  * Usage:
  *   // In ScreenLayout (preferred) — do not use AppHeader directly
  *   <ScreenLayout variant="main" showLogout>…</ScreenLayout>
+ *   <ScreenLayout variant="tab" title="Discover">…</ScreenLayout>
  *   <ScreenLayout variant="detail" title="Settings">…</ScreenLayout>
  */
 
@@ -26,14 +29,18 @@ import Avatar from '@/components/atoms/Avatar';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface AppHeaderProps {
-  /** 'main': greeting header (Home). 'detail': back + title + bell (all other screens). */
-  variant: 'main' | 'detail';
-  /** Screen title shown in the detail variant centre */
+  /**
+   * 'main'   : Full greeting header (Home/Dashboard). Avatar + greeting + bell + profile + optional logout.
+   * 'tab'    : Root tab screens (Discover, Inbox, Cart). Title in centre, bell on right, no back button.
+   * 'detail' : Secondary/detail screens. ← Back on left, title in centre, bell on right.
+   */
+  variant: 'main' | 'tab' | 'detail';
+  /** Screen title shown in the 'tab' and 'detail' variants' centre */
   title?: string;
   /**
    * Whether to show the notification bell.
-   * Default: true. Pass false on checkout / payment screens (CartScreen,
-   * SubscriptionPaymentScreen, RequestPayoutScreen).
+   * Default: true. Pass false on checkout / payment screens only
+   * (CartCheckoutScreen, SubscriptionPaymentScreen, RequestPayoutScreen).
    */
   showBell?: boolean;
   /**
@@ -171,6 +178,22 @@ export default function AppHeader({
             </TouchableOpacity>
           )}
         </View>
+      </View>
+    );
+  }
+
+  // ── Tab variant (root tab screens — no back button) ─────────────────────
+  if (variant === 'tab') {
+    return (
+      <View style={styles.header}>
+        {/* Empty left spacer keeps title centred — no back button on tab screens */}
+        <View style={styles.headerActionBtn} />
+
+        <Text testID="screen-title" style={styles.detailTitle} numberOfLines={1}>
+          {title ?? ''}
+        </Text>
+
+        {showBell ? renderBell() : <View style={styles.headerActionBtn} />}
       </View>
     );
   }

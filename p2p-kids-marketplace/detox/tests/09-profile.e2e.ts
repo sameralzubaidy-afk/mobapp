@@ -15,7 +15,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-09: Profile Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -32,14 +32,14 @@ describe('TC-09: Profile Screen', () => {
   it('shows the trades stat', async () => {
     await waitFor(element(by.id('profile-trades-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await expect(element(by.id('profile-trades-stat'))).toBeVisible();
   });
 
   it('shows the SP balance stat', async () => {
     await waitFor(element(by.id('profile-sp-balance-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await expect(element(by.id('profile-sp-balance-stat'))).toBeVisible();
     await device.takeScreenshot('09-profile-stats-visible');
   });

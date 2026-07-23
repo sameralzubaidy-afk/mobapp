@@ -12,7 +12,7 @@
  * - Image preview with reorder and delete
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -30,11 +30,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { getSubscriptionSummary } from '../../services/subscription';
 import { createListing, uploadListingImages } from '../../services/listing';
 import { getCategories } from '../../services/items';
+import { getConfigValue } from '../../services/adminConfig';
 import { ListingCondition } from '../../types/listing';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+import { PriceAdjustmentModal } from '../../components/listing/PriceAdjustmentModal';
 
 interface ListingCategory {
   id: string;
@@ -63,11 +64,19 @@ export default function CreateListingScreen({ navigation }: any) {
   // Subscription state
   const [canAcceptSP, setCanAcceptSP] = useState(false);
 
+  // Min listing price from admin config
+  const [minListingPrice, setMinListingPrice] = useState(0);
+  const [showPriceAdjustmentModal, setShowPriceAdjustmentModal] = useState(false);
+  const [priceFieldY, setPriceFieldY] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const priceInputRef = useRef<TextInput>(null);
+
   // Check subscription whenever screen comes into focus (e.g., after upgrading)
   useFocusEffect(
     React.useCallback(() => {
       loadSubscription();
       loadCategories();
+      loadMinListingPrice();
     }, [session?.user?.id])
   );
 
@@ -112,6 +121,15 @@ export default function CreateListingScreen({ navigation }: any) {
     }
   };
 
+  const loadMinListingPrice = async () => {
+    try {
+      const value = await getConfigValue('min_listing_price', true); // forceRefresh to bypass cache
+      setMinListingPrice(Number(value) || 0);
+    } catch {
+      setMinListingPrice(0);
+    }
+  };
+
   const handleCreateListing = async () => {
     // Validate form
     if (!title.trim()) {
@@ -127,6 +145,10 @@ export default function CreateListingScreen({ navigation }: any) {
     const price = parseFloat(priceText);
     if (isNaN(price) || price <= 0) {
       Alert.alert('Invalid Price', 'Please enter a valid price greater than $0');
+      return;
+    }
+    if (minListingPrice > 0 && price < minListingPrice) {
+      setShowPriceAdjustmentModal(true);
       return;
     }
 
@@ -196,6 +218,19 @@ export default function CreateListingScreen({ navigation }: any) {
     }
   };
 
+  // Price Adjustment: dismiss modal → scroll to price field → focus
+  const handlePriceAdjustmentUpdate = useCallback(() => {
+    setShowPriceAdjustmentModal(false);
+    setTimeout(() => {
+      if (priceFieldY > 0) {
+        scrollViewRef.current?.scrollTo({ y: priceFieldY - 20, animated: true });
+      }
+      setTimeout(() => {
+        priceInputRef.current?.focus();
+      }, 350);
+    }, 100);
+  }, [priceFieldY]);
+
   if (checkingSubscription) {
     return (
       <View style={styles.loadingContainer}>
@@ -213,7 +248,7 @@ export default function CreateListingScreen({ navigation }: any) {
   return (
     <ScreenLayout variant="detail" title="Create Listing">
       <View style={{ flex: 1, flexDirection: 'column' }}>
-        <ScrollView style={styles.container}>
+        <ScrollView ref={scrollViewRef} style={styles.container}>
           <View style={styles.form}>
             <Text style={styles.sectionTitle}>Item Details</Text>
 
@@ -243,15 +278,18 @@ export default function CreateListingScreen({ navigation }: any) {
             />
 
             {/* Price */}
-            <Text style={styles.label}>Price ($) *</Text>
-            <TextInput
-              testID="create-listing-price-input"
-              style={styles.input}
-              placeholder="0.00"
-              value={priceText}
-              onChangeText={setPriceText}
-              keyboardType="decimal-pad"
-            />
+            <View style={styles.field} onLayout={(e) => setPriceFieldY(e.nativeEvent.layout.y)}>
+              <Text style={styles.label}>Price ($) *</Text>
+              <TextInput
+                ref={priceInputRef}
+                testID="create-listing-price-input"
+                style={styles.input}
+                placeholder="0.00"
+                value={priceText}
+                onChangeText={setPriceText}
+                keyboardType="decimal-pad"
+              />
+            </View>
 
             {/* Category */}
             <Text style={styles.label}>Category *</Text>
@@ -382,7 +420,13 @@ export default function CreateListingScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
         </ScrollView>
-        <PersistentTabBar />
+
+        {/* Price Adjustment Modal (min listing price validation) */}
+        <PriceAdjustmentModal
+          visible={showPriceAdjustmentModal}
+          minPrice={minListingPrice}
+          onUpdatePrice={handlePriceAdjustmentUpdate}
+        />
 
         <Modal
           visible={showSuccessModal}
@@ -654,6 +698,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  field: {
+    marginBottom: 16,
   },
   // Navigation handled by BottomNavBar
 });

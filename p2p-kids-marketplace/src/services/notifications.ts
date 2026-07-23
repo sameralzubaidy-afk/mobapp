@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { parseNotificationDeepLink } from './deepLink';
+import { navigationRef } from '@/navigation/AppNavigator';
 
 const isExpoGo = Constants?.appOwnership === 'expo';
 let notificationsModule: typeof NotificationsType | null = null;
@@ -274,14 +275,21 @@ export const createNotificationObserver = () => {
         return;
       }
 
-      // Handle seller_ignore_prompt notification specially
+      // Handle seller_ignore_prompt notification → open TradeListScreen with modal
       if (data.event_type === 'seller_ignore_prompt' || data.type === 'seller_ignore_prompt') {
-        console.log('[notifications] seller_ignore_prompt tapped:', {
-          listingId: data.listing_id || data.item_id,
-          listingTitle: data.listing_title,
-        });
-        // TODO: Navigate to TradeListScreen with showIgnorePrompt params
-        // This requires setting up a navigation ref in App.tsx
+        const listingId = data.listing_id || data.item_id;
+        const listingTitle = data.listing_title || 'your listing';
+        console.log('[notifications] seller_ignore_prompt tapped:', { listingId, listingTitle });
+
+        if (navigationRef.isReady()) {
+          (navigationRef as any).navigate('TradeList', {
+            showIgnorePrompt: true,
+            listingId,
+            listingTitle,
+          });
+        } else {
+          console.warn('[notifications] Navigation ref not ready for seller_ignore_prompt');
+        }
         return;
       }
 

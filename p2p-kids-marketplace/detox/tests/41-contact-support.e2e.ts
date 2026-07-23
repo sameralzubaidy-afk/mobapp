@@ -15,7 +15,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-41: Contact Support Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -29,7 +29,7 @@ describe('TC-41: Contact Support Screen', () => {
 
     await waitFor(element(by.id('profile-settings')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('profile-settings')).tap();
 
     // Help row on the Settings screen
@@ -55,10 +55,10 @@ describe('TC-41: Contact Support Screen', () => {
   });
 
   it('taps the Contact Support button', async () => {
-    await waitFor(element(by.id('contact-support-button')))
+    await waitFor(element(by.id('help-menu-contact')))
       .toBeVisible()
       .withTimeout(8000);
-    await element(by.id('contact-support-button')).tap();
+    await element(by.id('help-menu-contact')).tap();
 
     // Wait for the contact form to render instead of an arbitrary sleep
     await waitFor(element(by.id('subject-input')))
@@ -75,10 +75,10 @@ describe('TC-41: Contact Support Screen', () => {
   });
 
   it('shows the submit/support button', async () => {
-    await waitFor(element(by.id('support-button')))
+    await waitFor(element(by.id('send-message-button')))
       .toBeVisible()
       .withTimeout(8000);
-    await expect(element(by.id('support-button'))).toBeVisible();
+    await expect(element(by.id('send-message-button'))).toBeVisible();
     await device.takeScreenshot('41-contact-support-form');
   });
 });

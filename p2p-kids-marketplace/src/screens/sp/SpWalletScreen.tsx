@@ -23,6 +23,7 @@ import {
   UserPlus,
   Info,
   CaretRight,
+  LockKey,
 } from 'phosphor-react-native';
 import {
   getWallet,
@@ -31,11 +32,10 @@ import {
   type SPWallet,
   type PendingSPRelease,
 } from '@/services/sp/wallet';
-import { getSPExpirationDays } from '@/services/adminConfig';
+import { getSPExpirationDays, getSPReleaseDays } from '@/services/adminConfig';
 import { supabase } from '@/config/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import WalletWarningBanner, { type WalletState } from '@/components/molecules/WalletWarningBanner';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -49,6 +49,7 @@ export default function SpWalletScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expirationDays, setExpirationDays] = useState<number | null>(null);
+  const [releaseDays, setReleaseDays] = useState<number>(3);
 
   useEffect(() => {
     loadWalletData();
@@ -68,6 +69,9 @@ export default function SpWalletScreen() {
       try {
         const expiryDays = await getSPExpirationDays();
         setExpirationDays(expiryDays);
+
+        const releaseDaysVal = await getSPReleaseDays();
+        setReleaseDays(releaseDaysVal);
       } catch (error) {
         console.error('[SpWallet] Error fetching SP config:', error);
       }
@@ -137,6 +141,24 @@ export default function SpWalletScreen() {
             </Text>
             <Text style={styles.balanceLabel}>Swap Points</Text>
           </View>
+
+          {/* Reserved SP Card — visible only when SP is reserved in pending trades */}
+          {wallet.reserved_sp > 0 && (
+            <View style={styles.reservedCard} testID="sp-wallet-reserved-card">
+              <View style={styles.reservedIconCircle}>
+                <LockKey size={20} color="#F59E0B" weight="fill" />
+              </View>
+              <View style={styles.reservedContent}>
+                <View style={styles.reservedHeaderRow}>
+                  <Text style={styles.reservedTitle}>Reserved in trades</Text>
+                  <Text style={styles.reservedAmount}>{wallet.reserved_sp} SP</Text>
+                </View>
+                <Text style={styles.reservedSubtext}>
+                  SP used in pending offers — returned if trade is cancelled.
+                </Text>
+              </View>
+            </View>
+          )}
 
           {/* Quick Actions */}
           <View style={styles.quickActionsRow}>
@@ -242,24 +264,6 @@ export default function SpWalletScreen() {
           {/* Pending Release Summary Note */}
           {pendingReleases.length > 0 && (() => {
             const totalPending = pendingReleases.reduce((sum, r) => sum + r.sp_amount, 0);
-            const earliestDate = pendingReleases.reduce((earliest, r) =>
-              r.pending_sp_release_at < earliest ? r.pending_sp_release_at : earliest,
-              pendingReleases[0].pending_sp_release_at
-            );
-            const releaseDate = new Date(earliestDate);
-            
-            // ✅ PART 3 FIX: Add countdown timer calculation
-            const now = new Date();
-            const msUntilRelease = releaseDate.getTime() - now.getTime();
-            const daysUntilRelease = Math.ceil(msUntilRelease / (1000 * 60 * 60 * 24));
-            const hoursUntilRelease = Math.ceil(msUntilRelease / (1000 * 60 * 60));
-            
-            // Show countdown in days if >1 day, otherwise hours
-            const countdownText = daysUntilRelease > 1 
-              ? `in ${daysUntilRelease} days`
-              : hoursUntilRelease > 1
-              ? `in ${hoursUntilRelease} hours`
-              : 'soon';
             
             return (
               <View style={styles.pendingReleaseNote}>
@@ -271,13 +275,7 @@ export default function SpWalletScreen() {
                     {totalPending} SP Pending Release
                   </Text>
                   <Text style={styles.pendingReleaseNoteText}>
-                    Your pending points will be released {countdownText} on{' '}
-                    {releaseDate.toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                    .
+                    Your pending SPs will be released individually, {releaseDays} days after each trade you complete.
                   </Text>
                 </View>
               </View>
@@ -300,7 +298,6 @@ export default function SpWalletScreen() {
             <Text style={styles.footerText}>🔒 SP can only be used for item purchases</Text>
           </View>
         </ScrollView>
-        <PersistentTabBar />
       </View>
     </ScreenLayout>
   );
@@ -400,6 +397,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 4,
+  },
+  // Reserved SP Card
+  reservedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 16,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+    gap: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  reservedIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFF4ED',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reservedContent: {
+    flex: 1,
+  },
+  reservedHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  reservedTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  reservedAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#F59E0B',
+  },
+  reservedSubtext: {
+    fontSize: 12,
+    color: '#6B6B6B',
+    lineHeight: 16,
   },
   // Quick Actions
   quickActionsRow: {

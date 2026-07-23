@@ -167,6 +167,38 @@ serve(async (req) => {
           // Update trade with refund/cancellation ID
           await adminClient.from('trades').update({ stripe_refund_id: stripeRefundId }).eq('id', tradeId);
           
+          // TAX-STATUS-LIFECYCLE: Void or refund tax based on Stripe action
+          try {
+            if (stripeRefundId?.startsWith('cancelled_')) {
+              // PI was cancelled (uncaptured) — void the tax
+              await adminClient.rpc('rpc_void_tax_for_trade', {
+                p_trade_id: tradeId,
+                p_reason: 'admin_force_cancel',
+              });
+            } else {
+              // PI was refunded (captured) — record the refund via the idempotent RPC
+              const { data: taxRecord } = await adminClient
+                .from('tax_records')
+                .select('tax_amount_cents')
+                .eq('trade_id', tradeId)
+                .maybeSingle();
+
+              if (taxRecord && stripeRefundId && (taxRecord as { tax_amount_cents: number }).tax_amount_cents > 0) {
+                await adminClient.rpc('rpc_record_stripe_refund', {
+                  p_trade_id: tradeId,
+                  p_stripe_refund_id: stripeRefundId,
+                  p_refund_amount_cents: (taxRecord as { tax_amount_cents: number }).tax_amount_cents,
+                  p_refund_status: 'succeeded',
+                  p_refund_reason: 'admin_force_cancel',
+                  p_initiating_actor: 'admin',
+                });
+              }
+            }
+          } catch (taxErr: unknown) {
+            const msg = taxErr instanceof Error ? taxErr.message : 'Unknown error';
+            console.error(`[admin-trade-action] Tax handling error (non-fatal): ${msg}`);
+          }
+          
           // Log refund/cancellation action
           await adminClient.from('admin_audit_logs').insert({
             actor_id: effectiveAdminId,

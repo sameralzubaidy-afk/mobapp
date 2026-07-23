@@ -14,7 +14,7 @@ import { goToHome } from '../helpers/navigation';
 
 describe('TC-12: Notification Center', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
     await goToHome();
@@ -25,10 +25,10 @@ describe('TC-12: Notification Center', () => {
   });
 
   it('opens the notification center when the bell is tapped', async () => {
-    await waitFor(element(by.id('notif-button')))
+    await waitFor(element(by.id('header-notifications-btn')))
       .toBeVisible()
       .withTimeout(8000);
-    await element(by.id('notif-button')).tap();
+    await element(by.id('header-notifications-btn')).tap();
 
     await waitFor(element(by.id('notification-center-screen')))
       .toBeVisible()

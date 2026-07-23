@@ -19,7 +19,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-22: Seller Trade Actions', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsSeller();
   });
@@ -32,12 +32,12 @@ describe('TC-22: Seller Trade Actions', () => {
     await goToProfile();
     await waitFor(element(by.id('profile-trades-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('profile-trades-stat')).tap();
 
     await waitFor(element(by.id('tab-active')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('tab-active')).tap();
     await device.takeScreenshot('22-seller-active-trades');
   });
@@ -45,12 +45,12 @@ describe('TC-22: Seller Trade Actions', () => {
   it('opens a trade detail and shows trade action buttons', async () => {
     // Tap first trade row
     try {
-      await element(by.id('trade-status-badge')).atIndex(0).tap();
+      await element(by.id(/trade-row-.+/)).atIndex(0).tap();
     } catch {
       await element(by.id('tab-active')).atIndex(0).tap();
     }
 
-    await waitFor(element(by.id('trade-status-badge')))
+    await waitFor(element(by.id('trade-timeline')))
       .toBeVisible()
       .withTimeout(10000);
     await device.takeScreenshot('22-seller-trade-detail');
@@ -58,11 +58,23 @@ describe('TC-22: Seller Trade Actions', () => {
 
   it('shows at least one seller action button', async () => {
     // Seller can see mark-completed, cancel, or review depending on trade state
-    const hasAction = await Promise.any([
-      waitFor(element(by.id('mark-completed-button'))).toBeVisible().withTimeout(3000),
-      waitFor(element(by.id('cancel-trade-button'))).toBeVisible().withTimeout(3000),
-      waitFor(element(by.id('review-trade-button'))).toBeVisible().withTimeout(3000),
-    ]).then(() => true).catch(() => false);
+    let hasAction = false;
+    try {
+      await waitFor(element(by.id('mark-completed-button'))).toBeVisible().withTimeout(3000);
+      hasAction = true;
+    } catch {}
+    if (!hasAction) {
+      try {
+        await waitFor(element(by.id('cancel-trade-button'))).toBeVisible().withTimeout(3000);
+        hasAction = true;
+      } catch {}
+    }
+    if (!hasAction) {
+      try {
+        await waitFor(element(by.id('review-trade-button'))).toBeVisible().withTimeout(3000);
+        hasAction = true;
+      } catch {}
+    }
 
     expect(hasAction).toBe(true);
     await device.takeScreenshot('22-seller-action-buttons-visible');

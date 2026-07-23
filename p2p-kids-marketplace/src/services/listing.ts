@@ -216,6 +216,24 @@ export async function createListing(input: CreateListingInput): Promise<Listing>
     throw new Error('Price must be greater than $0');
   }
 
+  // Validate against admin-configurable minimum listing price floor
+  // forceRefresh=true to bypass 5-min cache — admin change must take effect immediately
+  const adminConfig = await getAdminConfig(true);
+  const mlp = adminConfig.min_listing_price;
+  // Defensive parse: ensure numeric even if data_type is missing from DB row
+  const effectiveMinPrice = typeof mlp === 'number' && Number.isFinite(mlp) ? mlp : Number(mlp) || 0;
+  console.log('[createListing] min_listing_price check:', {
+    price,
+    min_listing_price: mlp,
+    effectiveMinPrice,
+    typeof: typeof mlp,
+  });
+  if (effectiveMinPrice > 0 && price < effectiveMinPrice) {
+    throw new Error(
+      `Price must be at least $${effectiveMinPrice.toFixed(2)} to be listed`
+    );
+  }
+
   // Validate title length
   if (title.length < 3 || title.length > 100) {
     throw new Error('Title must be between 3 and 100 characters');
@@ -671,8 +689,20 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
   }
 
   // Validate price if being updated
-  if (typeof updatePayload.price === 'number' && updatePayload.price <= 0) {
-    throw new Error('Price must be greater than $0');
+  if (typeof updatePayload.price === 'number') {
+    if (updatePayload.price <= 0) {
+      throw new Error('Price must be greater than $0');
+    }
+    // Validate against admin-configurable minimum listing price floor
+    const adminConfig = await getAdminConfig();
+    if (
+      adminConfig.min_listing_price > 0 &&
+      updatePayload.price < adminConfig.min_listing_price
+    ) {
+      throw new Error(
+        `Price must be at least $${adminConfig.min_listing_price.toFixed(2)} to be listed`
+      );
+    }
   }
 
   const editableFieldKeys = [
@@ -705,6 +735,12 @@ export async function updateListing(input: UpdateListingInput): Promise<Listing>
   } else if (hasSellerEdits && listing.status === 'rejected') {
     updatePayload.edited_since_rejection = true;
     updatePayload.edited_since_rejection_at = new Date().toISOString();
+  } else if (hasSellerEdits && listing.status === 'available') {
+    // SAFETY-008 / LISTING-V2-003: Editing an approved listing requires re-approval.
+    // Set status to pending so admin must review changes before the listing is visible again.
+    updatePayload.status = 'pending';
+    updatePayload.approved_at = null;
+    updatePayload.approved_by = null;
   }
 
   const containsEditedTrackingFields =
@@ -1207,6 +1243,12 @@ export async function getListingById(listing_id: string): Promise<Listing | null
       return getListingByIdFallback(listing_id);
     }
 
+    // ⭐ FIX: Don't show items that are no longer available (sold, removed, etc.)
+    if (item.status !== 'available') {
+      console.log('[listing] getListingById - item not available (status=' + item.status + '), returning null');
+      return null;
+    }
+
     console.log('[listing] getListingById fetched item:', item); // Log the fetched item
 
     // Fetch category separately with better error handling
@@ -1356,6 +1398,12 @@ async function getListingByIdFallback(listing_id: string): Promise<Listing | nul
       images: data.images ?? [],
     };
 
+    // ⭐ FIX: Don't show items that are no longer available
+    if (data.status !== 'available') {
+      console.log('[listing] getListingByIdFallback - item not available (status=' + data.status + '), returning null');
+      return null;
+    }
+
     console.log('[listing] getListingByIdFallback - successfully fetched listing:', listing.id);
     return listing;
   } catch (err) {
@@ -1422,4 +1470,84 @@ export async function getListingSummary(seller_id: string): Promise<ListingSumma
     total_sold: sold,
     total_earnings_dollars: earnings,
   };
+}
+
+/**
+ * SELLER-GROUP-006: Get approved listings for a specific seller — MASKED.
+ *
+ * Returns only status='available' items. NEVER includes seller identity fields
+ * (name, avatar, email, phone, city, state, ZIP, bio). Safe for buyer-facing
+ * "More from this seller" display without revealing seller identity.
+ *
+ * @param seller_id - Seller user ID (from auth.users)
+ * @param exclude_listing_id - Optional listing ID to exclude (the current item)
+ * @returns Array of masked listing summaries
+ */
+export interface MaskedSellerListing {
+  id: string;
+  title: string;
+  price: number;
+  condition: string | null;
+  category_id: string | null;
+  accepts_swap_points: boolean;
+  created_at: string;
+  image_url: string | null;
+}
+
+export async function getMaskedSellerListings(
+  seller_id: string,
+  exclude_listing_id?: string,
+): Promise<{ listings: MaskedSellerListing[]; total_count: number }> {
+  let query = supabase
+    .from('items')
+    .select('id, title, price, condition, category_id, accepts_swap_points, created_at', { count: 'exact' })
+    .eq('seller_id', seller_id)
+    .eq('status', 'available')
+    .order('created_at', { ascending: false });
+
+  if (exclude_listing_id) {
+    query = query.neq('id', exclude_listing_id);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error('[listing] getMaskedSellerListings error:', error.message);
+    throw new Error(`Failed to fetch seller listings: ${error.message}`);
+  }
+
+  const rows = (data || []) as {
+    id: string; title: string; price: number; condition: string | null;
+    category_id: string | null; accepts_swap_points: boolean; created_at: string;
+  }[];
+
+  // Fetch first image for each listing (batch)
+  const listingIds = rows.map((r) => r.id);
+  let imageMap: Map<string, string> = new Map();
+  if (listingIds.length > 0) {
+    const { data: images } = await supabase
+      .from('item_images')
+      .select('item_id, url')
+      .in('item_id', listingIds)
+      .order('display_order', { ascending: true });
+
+    for (const img of (images || [])) {
+      if (!imageMap.has(img.item_id)) {
+        imageMap.set(img.item_id, img.url);
+      }
+    }
+  }
+
+  const listings: MaskedSellerListing[] = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    price: r.price,
+    condition: r.condition,
+    category_id: r.category_id,
+    accepts_swap_points: r.accepts_swap_points,
+    created_at: r.created_at,
+    image_url: imageMap.get(r.id) || null,
+  }));
+
+  return { listings, total_count: count ?? listings.length };
 }

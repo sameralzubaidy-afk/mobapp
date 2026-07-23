@@ -108,6 +108,8 @@ export function SubscriptionPaymentScreen() {
   };
 
   return (
+    // DEFERRED-DECISION (2026-07-19): Payment screens had showBell={false} intentionally
+    // to avoid subscription payment-flow distractions. Keeping bell hidden — revert if product team decides otherwise.
     <ScreenLayout variant="detail" title="Payment" showBell={false}>
       <ScrollView
         style={styles.container}

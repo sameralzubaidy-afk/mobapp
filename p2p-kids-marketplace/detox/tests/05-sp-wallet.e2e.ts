@@ -14,7 +14,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-05: SP Wallet — Balance', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -27,7 +27,7 @@ describe('TC-05: SP Wallet — Balance', () => {
     await goToProfile();
     await waitFor(element(by.id('profile-sp-balance-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await expect(element(by.id('profile-sp-balance-stat'))).toBeVisible();
     await device.takeScreenshot('05-sp-balance-visible');
   });

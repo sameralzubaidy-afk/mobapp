@@ -39,14 +39,12 @@ import { LoadingSpinner } from '@/components/ui';
 
 // Phosphor Icons — Whisk Design System
 import {
-  ChatText,
   Coins,
   CreditCard,
   Handshake,
+  Heart,
   List,
-  MagnifyingGlass,
   Sparkle,
-  Storefront,
   TrendUp,
 } from 'phosphor-react-native';
 
@@ -62,11 +60,9 @@ function _getGreeting(): string {
 
 // ─── Quick Action tile config ──────────────────────────────────────────────────
 const QUICK_ACTIONS = [
-  { key: 'sell',       label: 'Sell',        Icon: Storefront,      route: 'ItemCreate' },
-  { key: 'discover',   label: 'Discover',    Icon: MagnifyingGlass, route: 'Discover' },
+  { key: 'favorites',  label: 'Favorites',   Icon: Heart,           route: 'Favorites' },
   { key: 'myTrades',   label: 'My Trades',   Icon: Handshake,       route: 'TradeList' },
   { key: 'myListings', label: 'My Listings', Icon: List,            route: 'MyListings' },
-  { key: 'messages',   label: 'Messages',    Icon: ChatText,        route: 'Conversations' },
   { key: 'payouts',    label: 'Payouts',     Icon: CreditCard,      route: 'PayoutSettings' },
 ] as const;
 
@@ -300,6 +296,7 @@ export default function UserDashboardScreen() {
 
   // ── JSX ────────────────────────────────────────────────────────────────────
   return (
+    <View testID="dashboard-screen" style={{ flex: 1 }}>
     <ScreenLayout variant="main" showLogout style={styles.container}>
       {/* ── Scrollable Content ─────────────────────────────────────────────── */}
       <ScrollView
@@ -312,6 +309,7 @@ export default function UserDashboardScreen() {
         {subscription.canSpendSP ? (
           <TouchableOpacity
             style={styles.spStrip}
+            testID="sp-strip"
             onPress={() => navigation.navigate('SpWallet')}
             activeOpacity={0.85}
           >
@@ -325,6 +323,7 @@ export default function UserDashboardScreen() {
           /* Free users: upgrade nudge strip */
           <TouchableOpacity
             style={[styles.spStrip, styles.spStripFree]}
+            testID="sp-strip"
             onPress={() => navigation.navigate('SubscriptionPlans')}
             activeOpacity={0.85}
           >
@@ -336,23 +335,14 @@ export default function UserDashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {/* ── Quick Actions Row ────────────────────────────────────────── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.actionsScroll}
-          contentContainerStyle={styles.actionsScrollContent}
-        >
+        {/* ── Quick Actions Grid ──────────────────────────────────────────── */}
+        <View style={styles.actionsGrid}>
           {QUICK_ACTIONS.map(({ key, label, Icon, route }) => (
             <TouchableOpacity
               key={key}
               testID={`action-tile-${key}`}
               style={styles.actionTile}
-              onPress={() =>
-                key === 'sell'
-                  ? setSellSheetVisible(true)
-                  : navigation.navigate(route as any)
-              }
+              onPress={() => navigation.navigate(route as any)}
               activeOpacity={0.75}
             >
               <View style={styles.actionIconWrap}>
@@ -361,7 +351,7 @@ export default function UserDashboardScreen() {
               <Text style={styles.actionLabel}>{label}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+        </View>
 
         {/* ── Subscription Alerts (always shown when relevant) ──────────── */}
         <TrialReminderBanner />
@@ -596,6 +586,7 @@ export default function UserDashboardScreen() {
       </Modal>
 
     </ScreenLayout>
+    </View>
   );
 }
 
@@ -676,16 +667,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
-  // ─── Quick Actions Row ────────────────────────────────────────────────────────
-  actionsScroll: {
-    marginHorizontal: -20,
-    marginBottom: 24,
-  },
-  actionsScrollContent: {
+  // ─── Quick Actions Grid ───────────────────────────────────────────────────────
+  actionsGrid: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 4,
+    flexWrap: 'wrap',
+    justifyContent: 'space-evenly',
+    gap: 12,
+    marginBottom: 24,
+    paddingHorizontal: 4,
   },
   actionTile: {
     width: 80,

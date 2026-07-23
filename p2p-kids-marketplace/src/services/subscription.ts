@@ -774,58 +774,82 @@ export interface PaymentMethodInfo {
   exp_year: number;
 }
 
-export async function getPaymentMethod(): Promise<PaymentMethodInfo | null> {
-  try {
-    console.log('[subscription] 📤 Fetching payment method...');
+// In-memory cache + promise dedup: prefetched by CartCheckoutScreen on mount
+// so submit flow skips EF cold start. Promise dedup prevents concurrent EF calls.
+let _pmCache: PaymentMethodInfo | null | undefined;
+let _pmPromise: Promise<PaymentMethodInfo | null> | null = null;
 
-    // Get current session
-    const {
-      data: { session },
-      error: authError,
-    } = await supabase.auth.getSession();
-    if (authError || !session) {
-      console.error('[subscription] ❌  No active session');
-      return null;
-    }
+/**
+ * Get the buyer's saved Stripe payment method.
+ * Results are cached in-memory for the session.
+ * Pass forceRefresh=true to bypass cache (e.g., after adding a new PM).
+ */
+export async function getPaymentMethod(forceRefresh = false): Promise<PaymentMethodInfo | null> {
+  if (!forceRefresh && _pmCache !== undefined) {
+    return _pmCache;
+  }
+  // Dedup concurrent calls — share the same in-flight promise
+  if (!forceRefresh && _pmPromise !== null) {
+    return _pmPromise;
+  }
+  _pmPromise = (async (): Promise<PaymentMethodInfo | null> => {
+    try {
+      console.log('[subscription] 📤 Fetching payment method...');
 
-    let accessToken = session.access_token;
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    if (session.expires_at && session.expires_at <= nowEpoch + 60) {
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError || !refreshData?.session?.access_token) {
-        console.error('[subscription] ❌ Session refresh failed');
+      // Get current session
+      const {
+        data: { session },
+        error: authError,
+      } = await supabase.auth.getSession();
+      if (authError || !session) {
+        console.error('[subscription] ❌  No active session');
         return null;
       }
-      accessToken = refreshData.session.access_token;
-    }
 
-    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+      let accessToken = session.access_token;
+      const nowEpoch = Math.floor(Date.now() / 1000);
+      if (session.expires_at && session.expires_at <= nowEpoch + 60) {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData?.session?.access_token) {
+          console.error('[subscription] ❌ Session refresh failed');
+          return null;
+        }
+        accessToken = refreshData.session.access_token;
+      }
 
-    // Call the get-payment-method Edge Function
-    const { data, error } = await supabase.functions.invoke('get-payment-method', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        ...(anonKey ? { apikey: anonKey } : {}),
-      },
-    });
+      const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 
-    if (error) {
-      console.error('[subscription] ❌ Get payment method error:', error.message);
+      // Call the get-payment-method Edge Function
+      const { data, error } = await supabase.functions.invoke('get-payment-method', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          ...(anonKey ? { apikey: anonKey } : {}),
+        },
+      });
+
+      if (error) {
+        console.error('[subscription] ❌ Get payment method error:', error.message);
+        return null;
+      }
+
+      if (!data || !data.payment_method) {
+        console.log('[subscription] ℹ️ No payment method found');
+        _pmCache = null;
+        return null;
+      }
+
+      _pmCache = data.payment_method as PaymentMethodInfo;
+      console.log('[subscription] ✅ Payment method retrieved');
+      return _pmCache;
+    } catch (error) {
+      const err = error as Error;
+      console.error('[subscription] ❌ getPaymentMethod error:', err.message);
+      _pmCache = null;
       return null;
     }
+  })();
 
-    if (!data || !data.payment_method) {
-      console.log('[subscription] ℹ️ No payment method found');
-      return null;
-    }
-
-    console.log('[subscription] ✅ Payment method retrieved');
-    return data.payment_method as PaymentMethodInfo;
-  } catch (error) {
-    const err = error as Error;
-    console.error('[subscription] ❌ getPaymentMethod error:', err.message);
-    return null;
-  }
+  return _pmPromise;
 }
 
 /**

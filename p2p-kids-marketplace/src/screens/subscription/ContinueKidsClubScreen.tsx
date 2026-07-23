@@ -138,7 +138,7 @@ export default function ContinueKidsClubScreen() {
   const priceFormatted = formatDollarAmount(monthlyPrice);
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} testID="kids-club-overview-screen">
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
@@ -182,6 +182,7 @@ export default function ContinueKidsClubScreen() {
         {/* CTA */}
         <TouchableOpacity
           style={[styles.primaryButton, loading && styles.disabledButton]}
+          testID="subscribe-cta-button"
           onPress={handleContinueWithPayment}
           disabled={loading}
         >

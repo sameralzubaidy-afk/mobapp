@@ -1,0 +1,710 @@
+
+> p2p-kids-marketplace@1.0.0 e2e:run:ios
+> detox test --configuration ios.sim.debug -- --runInBand
+
+Detected a deprecated "runnerConfig" property (string).
+Please migrate your Detox config according to the guide:
+https://wix.github.io/Detox/docs/guide/migration
+
+22:20:58.947 detox[15936] B jest --config ./detox/jest.config.js --runInBand
+22:20:58.949 detox[15936] i (node:15936) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+watchman warning:  Recrawled this watch 5 times, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '/Users/sameralzubaidi/Desktop/kids_marketplace_app' ; watchman watch-project '/Users/sameralzubaidi/Desktop/kids_marketplace_app'`
+
+22:21:05.836 detox[15947] i _run-all.e2e.ts is assigned to 92E2BE6A-A0AF-43A7-9E15-12BA8745841D (iPhone 17 Pro)
+22:21:07.702 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:21:13.225 detox[15947] i TC-01: Auth — Login: logs in as buyer and reaches the main tab navigation
+22:21:33.753 detox[15947] i TC-01: Auth — Login: logs in as buyer and reaches the main tab navigation [OK]
+
+22:21:35.774 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:21:54.283 detox[15947] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:21:54.362 detox[15947] i TC-02: Auth — Signup Form: renders all required signup form fields
+22:21:54.363 detox[15947] i TC-02: Auth — Signup Form: renders all required signup form fields [FAIL]
+22:21:54.363 detox[15947] i TC-02: Auth — Signup Form: does not navigate away when submitting an empty form
+22:21:54.363 detox[15947] i TC-02: Auth — Signup Form: does not navigate away when submitting an empty form [FAIL]
+
+22:21:56.373 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:22:19.362 detox[15947] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:22:19.464 detox[15947] i TC-03: Listing Create — Form: navigates to the create listing screen
+22:22:19.464 detox[15947] i TC-03: Listing Create — Form: navigates to the create listing screen [FAIL]
+22:22:19.464 detox[15947] i TC-03: Listing Create — Form: renders title, description, and price fields
+22:22:19.464 detox[15947] i TC-03: Listing Create — Form: renders title, description, and price fields [FAIL]
+22:22:19.465 detox[15947] i TC-03: Listing Create — Form: accepts text input in title and price fields
+22:22:19.465 detox[15947] i TC-03: Listing Create — Form: accepts text input in title and price fields [FAIL]
+22:22:19.465 detox[15947] i TC-03: Listing Create — Form: shows image picker option
+22:22:19.465 detox[15947] i TC-03: Listing Create — Form: shows image picker option [FAIL]
+
+22:22:21.478 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:22:44.630 detox[15947] i The app is busy with the following tasks:
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:22:44.633 detox[15947] i TC-04a: Trade Flow — Initiate: loads the Discover screen with listing results
+22:22:44.637 detox[15947] i TC-04a: Trade Flow — Initiate: loads the Discover screen with listing results [FAIL]
+22:22:44.638 detox[15947] i TC-04a: Trade Flow — Initiate: opens item detail screen when a listing is tapped
+22:22:44.639 detox[15947] i TC-04a: Trade Flow — Initiate: opens item detail screen when a listing is tapped [FAIL]
+22:22:44.639 detox[15947] i TC-04a: Trade Flow — Initiate: shows the Trade Offer screen after tapping Request to Buy
+22:22:44.640 detox[15947] i TC-04a: Trade Flow — Initiate: shows the Trade Offer screen after tapping Request to Buy [FAIL]
+
+22:22:46.890 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:22:57.835 detox[15947] i The app is busy with the following tasks:
+• There are 9 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• 1 enqueued JavaScript timers:
+  - Timer #1:
+    + JS timer ID: 7.
+    + Duration: 150.
+    + Elapsed: 1340.2780294418335.
+
+• Run loop "Main Run Loop" is awake.
+• The event "Network Request" is taking place with object: "URL: “https://drntwgporzabmxdqykrp.supabase.co/rest/v1/profiles?select=*%2Cnode%3Anodes%28*%29&user_id=eq.49243010-f458-4744-add1-a6c84ab95f1f”".
+• 1 enqueued native timers:
+  - Timer #1:
+    + Fire date: none.
+    + Time until fire: 0.000.
+    + Repeat interval: 0.
+    + Is recurring: YES.
+• The event "Network Request" is taking place with object: "URL: “https://o4510507009114112.ingest.us.sentry.io/api/4510514140610560/envelope/”".
+22:23:20.768 detox[15947] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:23:21.047 detox[15947] i TC-04b: Trade Flow — Complete: navigates from Discover to the Trade Offer screen
+22:23:21.049 detox[15947] i TC-04b: Trade Flow — Complete: navigates from Discover to the Trade Offer screen [FAIL]
+22:23:21.050 detox[15947] i TC-04b: Trade Flow — Complete: enters an SP amount in the offer form
+22:23:21.050 detox[15947] i TC-04b: Trade Flow — Complete: enters an SP amount in the offer form [FAIL]
+22:23:21.051 detox[15947] i TC-04b: Trade Flow — Complete: accepts the safety disclaimer
+22:23:21.051 detox[15947] i TC-04b: Trade Flow — Complete: accepts the safety disclaimer [FAIL]
+22:23:21.052 detox[15947] i TC-04b: Trade Flow — Complete: submits the offer and shows the Trade Success screen
+22:23:21.052 detox[15947] i TC-04b: Trade Flow — Complete: submits the offer and shows the Trade Success screen [FAIL]
+
+22:23:28.090 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:24:03.742 detox[15947] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:24:03.970 detox[15947] i TC-05: SP Wallet — Balance: shows the SP balance stat on the Profile screen
+22:24:03.971 detox[15947] i TC-05: SP Wallet — Balance: shows the SP balance stat on the Profile screen [FAIL]
+
+22:24:09.752 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:24:21.747 detox[15947] i The app is busy with the following tasks:
+• 22 enqueued JavaScript timers:
+  - Timer #1:
+    + JS timer ID: 41.
+    + Duration: 0.
+    + Elapsed: 841.9020175933838.
+
+  - Timer #2:
+    + JS timer ID: 30.
+    + Duration: 0.
+    + Elapsed: 1261.763095855713.
+
+  - Timer #3:
+    + JS timer ID: 38.
+    + Duration: 0.
+    + Elapsed: 1142.2839164733887.
+
+  - Timer #4:
+    + JS timer ID: 27.
+    + Duration: 0.
+    + Elapsed: 1304.3290376663208.
+
+  - Timer #5:
+    + JS timer ID: 46.
+    + Duration: 50.
+    + Elapsed: 620.6589937210083.
+
+  - Timer #6:
+    + JS timer ID: 35.
+    + Duration: 0.
+    + Elapsed: 1212.3949527740479.
+
+  - Timer #7:
+    + JS timer ID: 24.
+    + Duration: 0.
+    + Elapsed: 1419.219970703125.
+
+  - Timer #8:
+    + JS timer ID: 43.
+    + Duration: 0.
+    + Elapsed: 800.7830381393433.
+
+  - Timer #9:
+    + JS timer ID: 32.
+    + Duration: 0.
+    + Elapsed: 1240.388035774231.
+
+  - Timer #10:
+    + JS timer ID: 40.
+    + Duration: 0.
+    + Elapsed: 954.4041156768799.
+
+  - Timer #11:
+    + JS timer ID: 29.
+    + Duration: 0.
+    + Elapsed: 1276.8490314483643.
+
+  - Timer #12:
+    + JS timer ID: 37.
+    + Duration: 0.
+    + Elapsed: 1151.0560512542725.
+
+  - Timer #13:
+    + JS timer ID: 45.
+    + Duration: 0.
+    + Elapsed: 743.5849905014038.
+
+  - Timer #14:
+    + JS timer ID: 34.
+    + Duration: 0.
+    + Elapsed: 1213.0579948425293.
+
+  - Timer #15:
+    + JS timer ID: 42.
+    + Duration: 0.
+    + Elapsed: 801.0209798812866.
+
+  - Timer #16:
+    + JS timer ID: 31.
+    + Duration: 0.
+    + Elapsed: 1243.9780235290527.
+
+  - Timer #17:
+    + JS timer ID: 39.
+    + Duration: 0.
+    + Elapsed: 1028.5760164260864.
+
+  - Timer #18:
+    + JS timer ID: 28.
+    + Duration: 0.
+    + Elapsed: 1277.8199911117554.
+
+  - Timer #19:
+    + JS timer ID: 36.
+    + Duration: 0.
+    + Elapsed: 1173.658013343811.
+
+  - Timer #20:
+    + JS timer ID: 25.
+    + Duration: 0.
+    + Elapsed: 1417.6501035690308.
+
+  - Timer #21:
+    + JS timer ID: 44.
+    + Duration: 0.
+    + Elapsed: 749.7240304946899.
+
+  - Timer #22:
+    + JS timer ID: 33.
+    + Duration: 0.
+    + Elapsed: 1237.1189594268799.
+
+• There are 4 pending React Native node animation updates.
+• There are 4 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:25:45.421 detox[15947] i The app is busy with the following tasks:
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:25:55.428 detox[15947] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:25:59.139 detox[15947] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:25:59.334 detox[15947] i TC-06: Subscription — Kids Club+ Screen: navigates to the Kids Club+ overview
+22:25:59.335 detox[15947] i TC-06: Subscription — Kids Club+ Screen: navigates to the Kids Club+ overview [FAIL]
+22:25:59.335 detox[15947] i TC-06: Subscription — Kids Club+ Screen: shows the subscribe CTA button
+22:25:59.335 detox[15947] i TC-06: Subscription — Kids Club+ Screen: shows the subscribe CTA button [FAIL]
+22:25:59.336 detox[15947] i TC-06: Subscription — Kids Club+ Screen: opens the subscription payment screen
+22:25:59.336 detox[15947] i TC-06: Subscription — Kids Club+ Screen: opens the subscription payment screen [FAIL]
+
+22:26:05.445 detox[15947] i Detox can't seem to connect to the test app(s)!
+
+HINT: 
+
+Have you forgotten to call 'device.launchApp()' in the beginning of your test?
+Refer to our troubleshooting guide, for full details: https://wix.github.io/Detox/docs/troubleshooting/running-tests#tests-execution-hangs
+
+---
+The following package could not be delivered:
+
+{
+  type: 'currentStatus',
+  params: {},
+  messageId: 110
+}
+22:26:05.866 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:27:01.002 detox[15947] i The app is busy with the following tasks:
+• 1 enqueued native timers:
+  - Timer #1:
+    + Fire date: none.
+    + Time until fire: 0.000.
+    + Repeat interval: 0.
+    + Is recurring: YES.
+• UI elements are busy:
+  - Layer animations pending: 1.
+• 21 enqueued JavaScript timers:
+  - Timer #1:
+    + JS timer ID: 30.
+    + Duration: 0.
+    + Elapsed: 46029.48498725891.
+
+  - Timer #2:
+    + JS timer ID: 38.
+    + Duration: 0.
+    + Elapsed: 45948.081970214844.
+
+  - Timer #3:
+    + JS timer ID: 16.
+    + Duration: 0.
+    + Elapsed: 46413.012981414795.
+
+  - Timer #4:
+    + JS timer ID: 35.
+    + Duration: 0.
+    + Elapsed: 45980.637073516846.
+
+  - Timer #5:
+    + JS timer ID: 24.
+    + Duration: 0.
+    + Elapsed: 46234.036922454834.
+
+  - Timer #6:
+    + JS timer ID: 32.
+    + Duration: 0.
+    + Elapsed: 46021.10493183136.
+
+  - Timer #7:
+    + JS timer ID: 21.
+    + Duration: 150.
+    + Elapsed: 46299.62205886841.
+
+  - Timer #8:
+    + JS timer ID: 29.
+    + Duration: 0.
+    + Elapsed: 46031.368017196655.
+
+  - Timer #9:
+    + JS timer ID: 7.
+    + Duration: 150.
+    + Elapsed: 46966.43400192261.
+
+  - Timer #10:
+    + JS timer ID: 37.
+    + Duration: 0.
+    + Elapsed: 45948.71199131012.
+
+  - Timer #11:
+    + JS timer ID: 26.
+    + Duration: 0.
+    + Elapsed: 46157.227993011475.
+
+  - Timer #12:
+    + JS timer ID: 34.
+    + Duration: 0.
+    + Elapsed: 46008.708000183105.
+
+  - Timer #13:
+    + JS timer ID: 12.
+    + Duration: 0.
+    + Elapsed: 46651.304960250854.
+
+  - Timer #14:
+    + JS timer ID: 31.
+    + Duration: 0.
+    + Elapsed: 46026.20995044708.
+
+  - Timer #15:
+    + JS timer ID: 20.
+    + Duration: 0.
+    + Elapsed: 46310.79399585724.
+
+  - Timer #16:
+    + JS timer ID: 39.
+    + Duration: 0.
+    + Elapsed: 45909.90996360779.
+
+  - Timer #17:
+    + JS timer ID: 28.
+    + Duration: 0.
+    + Elapsed: 46032.45997428894.
+
+  - Timer #18:
+    + JS timer ID: 36.
+    + Duration: 0.
+    + Elapsed: 45960.36398410797.
+
+  - Timer #19:
+    + JS timer ID: 25.
+    + Duration: 0.
+    + Elapsed: 46233.57009887695.
+
+  - Timer #20:
+    + JS timer ID: 14.
+    + Duration: 0.
+    + Elapsed: 46522.34208583832.
+
+  - Timer #21:
+    + JS timer ID: 33.
+    + Duration: 0.
+    + Elapsed: 46009.876012802124.
+
+• Run loop "Main Run Loop" is awake.
+• The event "Network Request" is taking place with object: "URL: “https://drntwgporzabmxdqykrp.supabase.co/auth/v1/user”".
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:27:22.011 detox[15947] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:27:22.016 detox[15947] i TC-07: Cart / Checkout — Add to Cart Flow: shows listing results on the Discover screen
+22:27:22.017 detox[15947] i TC-07: Cart / Checkout — Add to Cart Flow: shows listing results on the Discover screen [FAIL]
+22:27:22.017 detox[15947] i TC-07: Cart / Checkout — Add to Cart Flow: opens item detail screen and shows price and CTA
+22:27:22.018 detox[15947] i TC-07: Cart / Checkout — Add to Cart Flow: opens item detail screen and shows price and CTA [FAIL]
+22:27:22.019 detox[15947] i TC-07: Cart / Checkout — Add to Cart Flow: shows the Request to Buy / checkout CTA
+22:27:22.033 detox[15947] i TC-07: Cart / Checkout — Add to Cart Flow: shows the Request to Buy / checkout CTA [FAIL]
+
+22:27:28.724 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:27:40.307 detox[15947] i The app is busy with the following tasks:
+• The event "Network Request" is taking place with object: "URL: “https://drntwgporzabmxdqykrp.supabase.co/rest/v1/user_subscriptions?select=trial_end_date%2Ctrial_reminder_day_23_sent%2Ctrial_reminder_day_28_sent%2Ctrial_reminder_day_29_sent&user_id=eq.49243010-f458-4744-add1-a6c84ab95f1f&status=eq.trial”".
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• The event "Network Request" is taking place with object: "URL: “https://drntwgporzabmxdqykrp.supabase.co/rest/v1/rpc/get_recommendations”".
+• 18 enqueued JavaScript timers:
+  - Timer #1:
+    + JS timer ID: 35.
+    + Duration: 0.
+    + Elapsed: 325.07598400115967.
+
+  - Timer #2:
+    + JS timer ID: 21.
+    + Duration: 150.
+    + Elapsed: 1385.1159811019897.
+
+  - Timer #3:
+    + JS timer ID: 39.
+    + Duration: 0.
+    + Elapsed: 235.96107959747314.
+
+  - Timer #4:
+    + JS timer ID: 40.
+    + Duration: 0.
+    + Elapsed: 61.347007751464844.
+
+  - Timer #5:
+    + JS timer ID: 38.
+    + Duration: 0.
+    + Elapsed: 238.72292041778564.
+
+  - Timer #6:
+    + JS timer ID: 36.
+    + Duration: 0.
+    + Elapsed: 324.39589500427246.
+
+  - Timer #7:
+    + JS timer ID: 34.
+    + Duration: 0.
+    + Elapsed: 325.8669376373291.
+
+  - Timer #8:
+    + JS timer ID: 32.
+    + Duration: 0.
+    + Elapsed: 330.96790313720703.
+
+  - Timer #9:
+    + JS timer ID: 30.
+    + Duration: 0.
+    + Elapsed: 335.02399921417236.
+
+  - Timer #10:
+    + JS timer ID: 28.
+    + Duration: 0.
+    + Elapsed: 1014.8850679397583.
+
+  - Timer #11:
+    + JS timer ID: 24.
+    + Duration: 0.
+    + Elapsed: 1198.5219717025757.
+
+  - Timer #12:
+    + JS timer ID: 20.
+    + Duration: 0.
+    + Elapsed: 1418.868064880371.
+
+  - Timer #13:
+    + JS timer ID: 37.
+    + Duration: 0.
+    + Elapsed: 242.74694919586182.
+
+  - Timer #14:
+    + JS timer ID: 33.
+    + Duration: 0.
+    + Elapsed: 330.23297786712646.
+
+  - Timer #15:
+    + JS timer ID: 31.
+    + Duration: 0.
+    + Elapsed: 332.2709798812866.
+
+  - Timer #16:
+    + JS timer ID: 29.
+    + Duration: 0.
+    + Elapsed: 340.41500091552734.
+
+  - Timer #17:
+    + JS timer ID: 27.
+    + Duration: 0.
+    + Elapsed: 1044.4459915161133.
+
+  - Timer #18:
+    + JS timer ID: 25.
+    + Duration: 0.
+    + Elapsed: 1197.6690292358398.
+
+• Run loop "Main Run Loop" is awake.
+• UI elements are busy:
+  - Layers needs layout: 1.
+  - Layer animations pending: 1.
+• The event "Network Request" is taking place with object: "URL: “https://drntwgporzabmxdqykrp.supabase.co/rest/v1/rpc/get_subscription_status”".
+• 1 enqueued native timers:
+  - Timer #1:
+    + Fire date: none.
+    + Time until fire: 0.000.
+    + Repeat interval: 0.
+    + Is recurring: YES.
+22:28:27.302 detox[15947] i The app is busy with the following tasks:
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:28:37.823 detox[15947] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:28:40.546 detox[15947] i TC-08: Cancel Trade: navigates to the Profile trades list
+22:28:40.547 detox[15947] i TC-08: Cancel Trade: navigates to the Profile trades list [FAIL]
+22:28:40.548 detox[15947] i TC-08: Cancel Trade: opens the Active trades tab
+22:28:40.548 detox[15947] i TC-08: Cancel Trade: opens the Active trades tab [FAIL]
+22:28:40.548 detox[15947] i TC-08: Cancel Trade: opens a trade detail and shows the Cancel Trade button
+22:28:40.549 detox[15947] i TC-08: Cancel Trade: opens a trade detail and shows the Cancel Trade button [FAIL]
+22:28:40.549 detox[15947] i TC-08: Cancel Trade: cancels the trade and returns to trade list
+22:28:40.549 detox[15947] i TC-08: Cancel Trade: cancels the trade and returns to trade list [FAIL]
+
+22:28:46.594 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:28:59.153 detox[15947] i The app is busy with the following tasks:
+• 1 enqueued native timers:
+  - Timer #1:
+    + Fire date: none.
+    + Time until fire: 0.000.
+    + Repeat interval: 0.
+    + Is recurring: YES.
+• UI elements are busy:
+  - Layer animations pending: 1.
+• 19 enqueued JavaScript timers:
+  - Timer #1:
+    + JS timer ID: 35.
+    + Duration: 0.
+    + Elapsed: 216.68899059295654.
+
+  - Timer #2:
+    + JS timer ID: 21.
+    + Duration: 150.
+    + Elapsed: 591.0639762878418.
+
+  - Timer #3:
+    + JS timer ID: 37.
+    + Duration: 0.
+    + Elapsed: 145.2469825744629.
+
+  - Timer #4:
+    + JS timer ID: 38.
+    + Duration: 0.
+    + Elapsed: 31.44204616546631.
+
+  - Timer #5:
+    + JS timer ID: 36.
+    + Duration: 0.
+    + Elapsed: 145.77889442443848.
+
+  - Timer #6:
+    + JS timer ID: 34.
+    + Duration: 0.
+    + Elapsed: 229.3679714202881.
+
+  - Timer #7:
+    + JS timer ID: 32.
+    + Duration: 0.
+    + Elapsed: 241.3330078125.
+
+  - Timer #8:
+    + JS timer ID: 30.
+    + Duration: 0.
+    + Elapsed: 244.07601356506348.
+
+  - Timer #9:
+    + JS timer ID: 28.
+    + Duration: 0.
+    + Elapsed: 281.3969850540161.
+
+  - Timer #10:
+    + JS timer ID: 24.
+    + Duration: 0.
+    + Elapsed: 480.04794120788574.
+
+  - Timer #11:
+    + JS timer ID: 20.
+    + Duration: 0.
+    + Elapsed: 613.0009889602661.
+
+  - Timer #12:
+    + JS timer ID: 16.
+    + Duration: 0.
+    + Elapsed: 781.3889980316162.
+
+  - Timer #13:
+    + JS timer ID: 14.
+    + Duration: 0.
+    + Elapsed: 894.0670490264893.
+
+  - Timer #14:
+    + JS timer ID: 12.
+    + Duration: 0.
+    + Elapsed: 1027.1990299224854.
+
+  - Timer #15:
+    + JS timer ID: 33.
+    + Duration: 0.
+    + Elapsed: 233.95490646362305.
+
+  - Timer #16:
+    + JS timer ID: 31.
+    + Duration: 0.
+    + Elapsed: 242.06697940826416.
+
+  - Timer #17:
+    + JS timer ID: 29.
+    + Duration: 0.
+    + Elapsed: 254.14502620697021.
+
+  - Timer #18:
+    + JS timer ID: 27.
+    + Duration: 0.
+    + Elapsed: 283.85603427886963.
+
+  - Timer #19:
+    + JS timer ID: 25.
+    + Duration: 0.
+    + Elapsed: 479.3510437011719.
+
+• Run loop "Main Run Loop" is awake.
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• The event "Network Request" is taking place with object: "URL: “https://drntwgporzabmxdqykrp.supabase.co/auth/v1/user”".
+22:29:47.506 detox[15947] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:29:47.966 detox[15947] i TC-09: Profile Screen: navigates to the Profile (Me) tab
+22:29:47.970 detox[15947] i TC-09: Profile Screen: navigates to the Profile (Me) tab [FAIL]
+22:29:47.971 detox[15947] i TC-09: Profile Screen: shows the trades stat
+22:29:47.971 detox[15947] i TC-09: Profile Screen: shows the trades stat [FAIL]
+22:29:47.971 detox[15947] i TC-09: Profile Screen: shows the SP balance stat
+22:29:47.972 detox[15947] i TC-09: Profile Screen: shows the SP balance stat [FAIL]
+
+22:29:51.081 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:30:15.177 detox[15947] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:30:15.308 detox[15947] i TC-10: Discovery & Browse: shows seeded listing results on the Discover screen
+22:30:15.309 detox[15947] i TC-10: Discovery & Browse: shows seeded listing results on the Discover screen [FAIL]
+22:30:15.309 detox[15947] i TC-10: Discovery & Browse: search input is visible and accepts text
+22:30:15.309 detox[15947] i TC-10: Discovery & Browse: search input is visible and accepts text [FAIL]
+22:30:15.309 detox[15947] i TC-10: Discovery & Browse: clears search and restores results
+22:30:15.309 detox[15947] i TC-10: Discovery & Browse: clears search and restores results [FAIL]
+22:30:15.309 detox[15947] i TC-10: Discovery & Browse: shows the SP-eligible filter switch
+22:30:15.310 detox[15947] i TC-10: Discovery & Browse: shows the SP-eligible filter switch [FAIL]
+
+22:30:17.357 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:30:40.185 detox[15947] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:30:40.362 detox[15947] i TC-11: Home Dashboard: navigates to the Home tab and shows the dashboard screen
+22:30:40.362 detox[15947] i TC-11: Home Dashboard: navigates to the Home tab and shows the dashboard screen [FAIL]
+22:30:40.363 detox[15947] i TC-11: Home Dashboard: renders the header row with avatar and greeting
+22:30:40.363 detox[15947] i TC-11: Home Dashboard: renders the header row with avatar and greeting [FAIL]
+22:30:40.363 detox[15947] i TC-11: Home Dashboard: shows the notification bell icon
+22:30:40.363 detox[15947] i TC-11: Home Dashboard: shows the notification bell icon [FAIL]
+22:30:40.364 detox[15947] i TC-11: Home Dashboard: shows the SP balance strip
+22:30:40.364 detox[15947] i TC-11: Home Dashboard: shows the SP balance strip [FAIL]
+
+22:30:42.391 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:31:05.846 detox[15947] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:31:05.937 detox[15947] i TC-12: Notification Center: opens the notification center when the bell is tapped
+22:31:05.937 detox[15947] i TC-12: Notification Center: opens the notification center when the bell is tapped [FAIL]
+22:31:05.938 detox[15947] i TC-12: Notification Center: shows the notification list
+22:31:05.938 detox[15947] i TC-12: Notification Center: shows the notification list [FAIL]
+22:31:05.938 detox[15947] i TC-12: Notification Center: shows a Notifications screen title
+22:31:05.938 detox[15947] i TC-12: Notification Center: shows a Notifications screen title [FAIL]
+
+22:31:07.928 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:31:30.680 detox[15947] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:31:30.764 detox[15947] i TC-13: Notification Preferences: navigates to the Settings screen
+22:31:30.764 detox[15947] i TC-13: Notification Preferences: navigates to the Settings screen [FAIL]
+22:31:30.764 detox[15947] i TC-13: Notification Preferences: opens the Notification Preferences screen
+22:31:30.764 detox[15947] i TC-13: Notification Preferences: opens the Notification Preferences screen [FAIL]
+22:31:30.764 detox[15947] i TC-13: Notification Preferences: shows all notification category sections
+22:31:30.765 detox[15947] i TC-13: Notification Preferences: shows all notification category sections [FAIL]
+22:31:30.765 detox[15947] i TC-13: Notification Preferences: shows push toggle for Subscription category
+22:31:30.765 detox[15947] i TC-13: Notification Preferences: shows push toggle for Subscription category [FAIL]
+
+22:31:32.774 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:31:55.700 detox[15947] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:31:55.792 detox[15947] i TC-14: Help & Support: navigates to Settings and opens Help & Support
+22:31:55.792 detox[15947] i TC-14: Help & Support: navigates to Settings and opens Help & Support [FAIL]
+22:31:55.793 detox[15947] i TC-14: Help & Support: shows the FAQ list
+22:31:55.793 detox[15947] i TC-14: Help & Support: shows the FAQ list [FAIL]
+22:31:55.793 detox[15947] i TC-14: Help & Support: shows the search input bar
+22:31:55.793 detox[15947] i TC-14: Help & Support: shows the search input bar [FAIL]
+22:31:55.793 detox[15947] i TC-14: Help & Support: shows category filter chips
+22:31:55.793 detox[15947] i TC-14: Help & Support: shows category filter chips [FAIL]
+
+22:31:57.979 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:32:21.403 detox[15947] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:32:21.539 detox[15947] i TC-15: Settings & Legal: shows all Legal section buttons
+22:32:21.539 detox[15947] i TC-15: Settings & Legal: shows all Legal section buttons [FAIL]
+22:32:21.539 detox[15947] i TC-15: Settings & Legal: opens Privacy Policy and back-navigates to Settings
+22:32:21.539 detox[15947] i TC-15: Settings & Legal: opens Privacy Policy and back-navigates to Settings [FAIL]
+22:32:21.540 detox[15947] i TC-15: Settings & Legal: opens Terms of Service
+22:32:21.540 detox[15947] i TC-15: Settings & Legal: opens Terms of Service [FAIL]
+
+22:32:23.554 detox[15947] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:32:46.532 detox[15947] i The app is busy with the following tasks:
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:32:46.533 detox[15947] i TC-16: ID Verification Screen: opens the ID Verification screen from the Profile menu
+22:32:46.534 detox[15947] i TC-16: ID Verification Screen: opens the ID Verification screen from the Profile menu [FAIL]
+22:32:46.534 detox[15947] i TC-16: ID Verification Screen: shows the unverified state with upload area
+22:32:46.534 detox[15947] i TC-16: ID Verification Screen: shows the unverified state with upload area [FAIL]
+22:32:46.534 detox[15947] i TC-16: ID Verification Screen: back button navigates away from verification screen
+22:32:46.534 detox[15947] i TC-16: ID Verification Screen: back button navigates away from verification screen [FAIL]
+

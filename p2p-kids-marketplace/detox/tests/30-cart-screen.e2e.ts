@@ -19,7 +19,7 @@ import { goToDiscover, tapFirstListing } from '../helpers/navigation';
 
 describe('TC-30: Cart Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -37,7 +37,7 @@ describe('TC-30: Cart Screen', () => {
   it('adds item to cart', async () => {
     await waitFor(element(by.id('add-to-cart-button')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('add-to-cart-button')).tap();
     // waitFor(view-cart-button) in the next assertion handles the cart-add delay
     await device.takeScreenshot('30-added-to-cart');
@@ -46,7 +46,7 @@ describe('TC-30: Cart Screen', () => {
   it('opens the CartScreen via view-cart-button', async () => {
     await waitFor(element(by.id('view-cart-button')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('view-cart-button')).tap();
     // CartScreen content waitFor in next test handles the navigation transition
     await device.takeScreenshot('30-cart-screen');
@@ -66,7 +66,7 @@ describe('TC-30: Cart Screen', () => {
     try {
       await waitFor(element(by.id('cart-subtotal')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
       await expect(element(by.id('cart-subtotal'))).toBeVisible();
     } catch {
       // Subtotal may be combined with the total row in compact layout

@@ -10,7 +10,7 @@
  * - Secondary message button
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,9 +18,9 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
-  Alert,
   Pressable,
   Image,
+  TouchableOpacity,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
@@ -28,10 +28,11 @@ import { supabase } from '@/config/supabase';
 import { Trade, TradeStatus } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
+import { getSPReleaseDays } from '@/services/adminConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
-import { AutoCompleteBanner } from '@/components/trade';
+import { AutoCompleteBanner, createCountdownModel, formatCountdownLabel } from '@/components/trade';
 import { SafeMeetupCard } from '@/components/trade/SafeMeetupCard';
 import { IssueReportModal } from './IssueReportModal';
 import {
@@ -43,10 +44,11 @@ import {
   ArrowsLeftRight,
   Star,
 } from 'phosphor-react-native';
-import { CancellationReasonModal, SELLER_INPROGRESS_REASONS } from '@/components/molecules/CancellationReasonModal';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
+import { CancellationReasonModal, SELLER_INPROGRESS_REASONS, BUYER_OFFER_REASONS } from '@/components/molecules/CancellationReasonModal';
 import Avatar from '@/components/atoms/Avatar';
 import ScreenLayout from '@/components/ScreenLayout';
+import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
+import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 
 type TradeTimelineRouteProp = RouteProp<RootStackParamList, 'TradeTimeline'>;
 
@@ -85,10 +87,50 @@ export default function TradeTimelineScreen() {
   const [counterpartyProfile, setCounterpartyProfile] = useState<any>(null);
   // Addendum C: bundle size for bundle-aware complete confirmation
   const [bundleSize, setBundleSize] = useState<number>(0);
+  // MODULE-15.1.2-TradeFlowV2 TC-L09: bundle siblings for expandable item list on buyer's timeline
+  const [bundleSiblings, setBundleSiblings] = useState<any[]>([]);
+  const [showBundleList, setShowBundleList] = useState(false);
+  // Addendum C: bundle confirm all modal state (replaces native Alert for green button)
+  const [bundleConfirmData, setBundleConfirmData] = useState<{
+    total: number;
+    allIds: string[];
+  } | null>(null);
   // TFV2-011: Issue report modal
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [nextStepsDismissed, setNextStepsDismissed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [spReleaseDays, setSpReleaseDays] = useState(3);
+  // Track previous trade status to detect transitions to 'completed'
+  const previousStatusRef = useRef<string | null>(null);
+
+  // Navigate seller to TradeSuccessScreen only when trade status *changes* to completed
+  const navigateSellerToSuccess = (currentTrade: Trade) => {
+    const prevStatus = previousStatusRef.current;
+    previousStatusRef.current = currentTrade.status;
+
+    const isSeller = user?.id === currentTrade.seller_id;
+    // Only navigate on transition to completed (prevStatus was tracked and not completed)
+    // Skip on initial load (prevStatus === null) and when status hasn't changed
+    if (!isSeller || currentTrade.status !== 'completed' || prevStatus === null || prevStatus === 'completed') return;
+    const derivedListingType: 'cash_only' | 'accept_sp' | 'donate' =
+      (currentTrade.payment_preference_snapshot as any) || 'cash_only';
+    const totalSpToSeller = currentTrade.sp_earned_at_completion ?? currentTrade.sp_amount ?? 0;
+    const spUsedByBuyer = currentTrade.sp_amount ?? 0;
+
+    navigation.replace('TradeSuccess', {
+      tradeId,
+      role: 'seller',
+      spUsed: spUsedByBuyer,
+      spAmountDollars: spUsedByBuyer,
+      remainingSP: session?.available_points ?? 0,
+      listingType: derivedListingType,
+      totalSpToSeller,
+      spPendingReleaseDays: 3,
+      tradeStatus: 'completed',
+      counterpartyId: currentTrade.buyer_id ?? '',
+      counterpartyName: 'the Buyer',
+    });
+  };
 
   const showNotif = (title: string, message: string, variant?: 'accept' | 'decline' | 'default', onConfirm?: () => void) => {
     setNotifModal({ visible: true, title, message, variant: variant || 'default', confirmLabel: 'OK', onConfirm });
@@ -113,7 +155,7 @@ export default function TradeTimelineScreen() {
       if (tradeData.listing_id) {
         const { data: item, error: itemError } = await supabase
           .from('items')
-          .select('id, title, price')
+          .select('id, title, price, node_id')
           .eq('id', tradeData.listing_id)
           .maybeSingle();
 
@@ -131,6 +173,9 @@ export default function TradeTimelineScreen() {
       // Attach listing to trade for downstream consumption
       const enrichedTrade = { ...tradeData, listing: listingData };
       setTrade(enrichedTrade);
+
+      // TC-H03: Navigate seller to TradeSuccessScreen when trade is completed
+      navigateSellerToSuccess(enrichedTrade as Trade);
 
       const otherPersonId =
         user?.id === enrichedTrade.buyer_id ? enrichedTrade.seller_id : enrichedTrade.buyer_id;
@@ -158,6 +203,17 @@ export default function TradeTimelineScreen() {
           const result = await canReviewUser(tradeId, user.id);
           if (result.success) {
             setCanReview(result.canReview === true);
+          }
+        }
+
+        // Fetch SP release days when trade is completed and involves SP
+        const totalSpForSeller = enrichedTrade.sp_earned_at_completion ?? enrichedTrade.sp_amount ?? 0;
+        if (totalSpForSeller > 0) {
+          try {
+            const days = await getSPReleaseDays();
+            setSpReleaseDays(days);
+          } catch {
+            // keep default 3
           }
         }
       }
@@ -205,23 +261,46 @@ export default function TradeTimelineScreen() {
     }, [fetchTrade])
   );
 
-  // Addendum C: fetch bundle sibling count when trade has a bundle_id.
+  // Addendum C + TC-L09: fetch bundle sibling count AND sibling listing data for expandable item list.
   useEffect(() => {
     const bundleId = (trade as any)?.bundle_id;
     if (!bundleId) {
       setBundleSize(0);
+      setBundleSiblings([]);
       return;
     }
     let active = true;
+
+    // Fetch sibling count
     supabase
       .from('trades')
       .select('id', { count: 'exact', head: true })
       .eq('bundle_id', bundleId)
+      .in('status', ['pending', 'payment_processing', 'in_progress'])
       .then(({ count }: { count: number | null }) => {
         if (active) setBundleSize(count ?? 0);
       });
+
+    // Fetch sibling trade data with listing info for the expandable item list
+    supabase
+      .from('trades')
+      .select(`
+        id,
+        listing_id,
+        status,
+        sp_amount,
+        cash_amount_cents,
+        listing:items(id, title, price)
+      `)
+      .eq('bundle_id', bundleId)
+      .neq('id', tradeId)
+      .then(({ data: siblings }: { data: any }) => {
+        if (!active) return;
+        setBundleSiblings(siblings || []);
+      });
+
     return () => { active = false; };
-  }, [(trade as any)?.bundle_id]);
+  }, [(trade as any)?.bundle_id, tradeId]);
 
   const handleComplete = async () => {
     if (hasUnresolvedDispute) {
@@ -243,38 +322,8 @@ export default function TradeTimelineScreen() {
           siblings.every((s: any) => s.status === 'in_progress');
         if (allInProgress) {
           const total = (siblings?.length ?? 0) + 1;
-          Alert.alert(
-            `Confirm all ${total} items received?`,
-            'All items from this seller are ready to confirm.',
-            [
-              {
-                text: `Confirm All ${total}`,
-                onPress: async () => {
-                  setSubmitting(true);
-                  try {
-                    const allIds = [tradeId, ...(siblings?.map((s: any) => s.id) ?? [])];
-                    for (const tid of allIds) {
-                      await completeTradeV2(tid);
-                    }
-                    if (refreshSession) await refreshSession();
-                    showNotif('Done!', `All ${total} items marked as completed.`, 'accept', () => {
-                      setNotifModal(null);
-                      navigation.goBack();
-                    });
-                  } catch {
-                    showNotif('Error', 'Could not confirm all items. Try confirming each one.', 'decline');
-                  } finally {
-                    setSubmitting(false);
-                  }
-                },
-              },
-              {
-                text: 'Just This One',
-                style: 'cancel',
-                onPress: () => setShowCompleteConfirm(true),
-              },
-            ]
-          );
+          const allIds = [tradeId, ...(siblings?.map((s: any) => s.id) ?? [])];
+          setBundleConfirmData({ total, allIds });
           return;
         }
       } catch {
@@ -292,10 +341,40 @@ export default function TradeTimelineScreen() {
       const result = await completeTradeV2(tradeId);
 
       if (result.success) {
-        showNotif('Success', result.message || 'Trade marked as completed!', 'accept', () => {
-          setNotifModal(null);
-          fetchTrade();
-        });
+        // Refresh wallet + trade data after completion
+        try {
+          if (refreshSession) await refreshSession();
+        } catch (e) {
+          console.warn('[TradeTimeline] refreshSession after complete failed', e);
+        }
+        try {
+          await fetchTrade();
+        } catch (e) {
+          console.warn('[TradeTimeline] fetchTrade after complete failed', e);
+        }
+
+        // TC-H02: Navigate buyer to TradeSuccessScreen with SP/role params
+        const isBuyer = user?.id === trade?.buyer_id;
+        if (isBuyer) {
+          const derivedListingType: 'cash_only' | 'accept_sp' | 'donate' =
+            (trade?.payment_preference_snapshot as any) || 'cash_only';
+          navigation.replace('TradeSuccess', {
+            tradeId,
+            role: 'buyer',
+            spUsed: trade?.sp_amount ?? 0,
+            spAmountDollars: trade?.sp_amount ?? 0,
+            remainingSP: session?.available_points ?? 0,
+            listingType: derivedListingType,
+            tradeStatus: 'completed',
+            counterpartyId: trade?.seller_id ?? '',
+            counterpartyName: counterpartyProfile?.name || 'the Seller',
+          });
+        } else {
+          showNotif('Success', result.message || 'Trade marked as completed!', 'accept', () => {
+            setNotifModal(null);
+            fetchTrade();
+          });
+        }
       } else {
         showNotif('Error', result.error || 'Failed to complete trade', 'decline');
       }
@@ -313,9 +392,6 @@ export default function TradeTimelineScreen() {
   };
 
   const handleCancellationConfirm = async (reason: string) => {
-    // Capture trade state BEFORE cancellation for consequence logic.
-    const wasInProgress = trade?.status === 'in_progress';
-    const wasSeller = user?.id === trade?.seller_id;
     try {
       setIsCancelling(true);
       setShowCancellationModal(false);
@@ -324,32 +400,12 @@ export default function TradeTimelineScreen() {
       if (result.success) {
         if (refreshSession) await refreshSession();
 
-        // TFV2-023: tiered consequence toasts for seller post-acceptance cancellations.
-        if (wasSeller && wasInProgress && result.consequenceLevel !== null && result.consequenceLevel !== undefined) {
-          const level = result.consequenceLevel;
-          if (level === 1) {
-            showNotif('Trade Cancelled', 'Cancelling after payment is disappointing for buyers. This has been noted on your account.', 'default', () => {
-              setNotifModal(null);
-              navigation.goBack();
-            });
-          } else if (level === 2) {
-            showNotif('Trade Cancelled — Warning', "You've now cancelled 2 trades after payment. A third cancellation may affect your selling privileges.", 'decline', () => {
-              setNotifModal(null);
-              navigation.goBack();
-            });
-          } else {
-            // Level 3+
-            showNotif('Trade Cancelled — Account Under Review', 'Your account is under review due to repeated post-payment cancellations. Our support team will be in touch.', 'decline', () => {
-              setNotifModal(null);
-              navigation.goBack();
-            });
-          }
-        } else {
-          showNotif('Trade Cancelled', 'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.', 'default', () => {
-            setNotifModal(null);
-            navigation.goBack();
-          });
-        }
+        // DEPRECATED(TFV2-023): Seller-facing Level 1/2/3 consequence alerts removed.
+        // The backend counter and admin flag still fire silently.
+        showNotif('Trade Cancelled', 'Your trade has been cancelled. Any Swap Points have been refunded to your wallet.', 'default', () => {
+          setNotifModal(null);
+          navigation.goBack();
+        });
       } else {
         showNotif('Cancellation Failed', result.error || 'Failed to cancel trade. Please try again.', 'decline', () => {
           setNotifModal(null);
@@ -391,6 +447,15 @@ export default function TradeTimelineScreen() {
   // D-30: No manual payment step — Stripe pre-auth is captured on seller accept via transactions-update EF.
   // The buyer goes directly from pending → in_progress and sees [I Got It].
 
+  // MODULE-15.3-PART3 TAX-011: live tax preview for in-progress trades; stored tax used for completed
+  const sellerNodeId = ((trade as any)?.listing as any)?.node_id ?? null;
+  const taxableAmountCents = trade ? trade.cash_amount_cents : 0;
+  const taxPreview = useTaxCalculation({
+    nodeId: sellerNodeId,
+    taxableAmountCents: taxableAmountCents,
+    enabled: !trade || trade.status !== 'completed', // skip live calc for completed trades
+  });
+
   if (loading || !trade) {
     return (
       <ScreenLayout variant="detail" title="Trade Timeline">
@@ -406,6 +471,14 @@ export default function TradeTimelineScreen() {
   const isSeller = user?.id === trade.seller_id;
   // D-30: Payment is pre-authorized at offer creation, captured on seller accept — no manual payment step.
   const hasUnresolvedDispute = !!(trade as any).dispute_status && !['none', 'resolved'].includes((trade as any).dispute_status);
+  // Compute auto-complete countdown for the seller payout card
+  const autoCompleteCountdownLabel = (() => {
+    if (!trade.auto_complete_at) return '';
+    const baseMs = Date.parse(trade.auto_complete_at) - 72 * 60 * 60 * 1000;
+    const startIso = Number.isFinite(baseMs) ? new Date(baseMs).toISOString() : trade.auto_complete_at;
+    const model = createCountdownModel(trade.auto_complete_at, startIso);
+    return formatCountdownLabel(model);
+  })();
   const completeConfirmMessage =
     'Confirm you received the item as expected? This final step releases Swap Points or cash to the seller.';
   const listing = (trade as any).listing;
@@ -429,12 +502,75 @@ export default function TradeTimelineScreen() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5DBB8E" />
         }>
-        {/* Addendum C: bundle context banner */}
+        {/* Addendum C + TC-L09: bundle context banner with expandable item list (tap-able names) */}
         {bundleSize > 1 && (
           <View style={styles.bundleBanner} testID="bundle-context-banner">
-            <Text style={styles.bundleBannerText}>
-              Part of a bundle · {bundleSize} items
+            <Text style={styles.bundleBannerTitle}>
+              Bundle offer · {bundleSize} items
             </Text>
+            <TouchableOpacity
+              onPress={() => setShowBundleList((v) => !v)}
+              accessibilityLabel="Toggle bundle item list"
+            >
+              <Text style={styles.bundleBannerToggle}>
+                {showBundleList ? 'Hide items' : 'View all items'}
+              </Text>
+            </TouchableOpacity>
+            {showBundleList && (
+              <View style={styles.bundleItemsList}>
+                {/* Current trade item */}
+                {(trade as any)?.listing && (
+                  <TouchableOpacity
+                    key={tradeId}
+                    style={styles.bundleItemRow}
+                    onPress={() => {
+                      navigation.navigate('TradeDetail', { tradeId });
+                    }}
+                  >
+                    <Text style={styles.bundleItemTitle} numberOfLines={1}>
+                      {(trade as any).listing?.title || 'Item'}
+                    </Text>
+                    <View style={styles.bundleItemDetail}>
+                      {(trade as any).sp_amount > 0 && (
+                        <Text style={styles.bundleItemSp}>
+                          +{(trade as any).sp_amount} SP
+                        </Text>
+                      )}
+                      <Text style={styles.bundleItemPrice}>
+                        ${((trade as any).cash_amount_cents / 100).toFixed(2)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                {/* Sibling items */}
+                {bundleSiblings.map((sibling: any) => {
+                  const listing = sibling.listing || {};
+                  return (
+                    <TouchableOpacity
+                      key={sibling.id}
+                      style={styles.bundleItemRow}
+                      onPress={() => {
+                        navigation.navigate('TradeDetail', { tradeId: sibling.id });
+                      }}
+                    >
+                      <Text style={styles.bundleItemTitle} numberOfLines={1}>
+                        {listing.title || 'Item'}
+                      </Text>
+                      <View style={styles.bundleItemDetail}>
+                        {sibling.sp_amount > 0 && (
+                          <Text style={styles.bundleItemSp}>
+                            +{sibling.sp_amount} SP
+                          </Text>
+                        )}
+                        <Text style={styles.bundleItemPrice}>
+                          ${(sibling.cash_amount_cents / 100).toFixed(2)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </View>
         )}
 
@@ -604,43 +740,172 @@ export default function TradeTimelineScreen() {
               <Text style={styles.payoutHoldTitle}>Your payout is on hold until trade completes</Text>
               <Text style={styles.payoutHoldDesc}>
                 Funds are held securely and released once the buyer taps "I Got It"
+                {autoCompleteCountdownLabel
+                  ? `, or automatically in ${autoCompleteCountdownLabel} if no action is taken.`
+                  : '.'}
               </Text>
             </View>
           </View>
         )}
 
-        {/* Auto-complete timer with role-appropriate copy */}
+        {/* Auto-complete timer — buyer only; seller sees the countdown in the payout card below */}
         {/* Hidden when there's an unresolved dispute — no point showing a countdown if trade is frozen */}
-        {trade.status === 'in_progress' && !hasUnresolvedDispute && (
-          <AutoCompleteBanner autoCompleteAt={trade.auto_complete_at} status={trade.status} isSeller={isSeller} />
+        {isBuyer && trade.status === 'in_progress' && !hasUnresolvedDispute && (
+          <AutoCompleteBanner autoCompleteAt={trade.auto_complete_at} status={trade.status} isSeller={false} />
         )}
+
+        {/* SP Release Status — seller only, completed trade with SP involved */}
+        {isSeller && trade.status === 'completed' && (() => {
+          const totalSpForSeller = trade.sp_earned_at_completion ?? trade.sp_amount ?? 0;
+          if (totalSpForSeller <= 0) return null;
+
+          const isReleased = !!trade.sp_released_at;
+          const releaseDate = trade.sp_released_at
+            ? new Date(trade.sp_released_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : null;
+
+          return (
+            <View style={[styles.card, { backgroundColor: isReleased ? '#F0FDF4' : '#FFF9EC' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: isReleased ? '#DCFCE7' : '#FEF3C7',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  {isReleased ? (
+                    <CheckCircle size={20} color="#16A34A" weight="fill" />
+                  ) : (
+                    <Clock size={20} color="#D97706" weight="regular" />
+                  )}
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.cardTitle, { marginBottom: 4 }]}>
+                    {isReleased ? 'SP Released' : 'Swap Points Pending'}
+                  </Text>
+                  <Text style={{ fontSize: 14, color: '#6B6B6B', lineHeight: 20 }}>
+                    {isReleased
+                      ? `${totalSpForSeller} SP released to your wallet${releaseDate ? ` on ${releaseDate}` : ''}.`
+                      : `${totalSpForSeller} SP releasing in ${spReleaseDays} days — added to your pending wallet.`}
+                  </Text>
+                  <Pressable
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isReleased ? '#5DBB8E' : '#F59E0B',
+                      borderRadius: 20,
+                      paddingVertical: 8,
+                      paddingHorizontal: 16,
+                      marginTop: 12,
+                      alignSelf: 'flex-start',
+                      gap: 6,
+                    }}
+                    onPress={() => navigation.navigate('SpWallet')}
+                    testID="sp-view-wallet-button"
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#FFFFFF' }}>
+                      View Wallet
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          );
+        })()}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Payment Details</Text>
-          <View style={styles.row}>
-            <Text style={styles.label}>Cash Paid:</Text>
-            <Text style={styles.value}>${(trade.cash_amount_cents / 100).toFixed(2)}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Swap Points Used:</Text>
-            <Text style={styles.value}>{trade.sp_amount} SP</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Platform Fee:</Text>
-            <Text style={styles.value}>
-              ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
-            </Text>
-          </View>
-          <View style={[styles.row, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total:</Text>
-            <Text style={styles.totalValue}>
-              ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents) / 100).toFixed(2)}
-            </Text>
-          </View>
+          {/* TAX-REFUND-INTEGRITY (2026-07-24): Buyer-facing wording changes.
+              Before capture: "Payment authorized" — the card has an authorization hold, not a completed charge.
+              After capture: "Paid" — Stripe confirmed the payment.
+              Seller never sees the payment label (sellers see their own payout info). */}
+          {isBuyer ? (
+            <>
+              <View style={styles.row}>
+                <Text style={styles.label}>
+                  {trade.status === 'completed' || trade.status === 'cancelled'
+                    ? 'Paid:'
+                    : 'Payment authorized:'}
+                </Text>
+                <Text style={styles.value}>${(trade.cash_amount_cents / 100).toFixed(2)}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Swap Points Used:</Text>
+                <Text style={styles.value}>{trade.sp_amount} SP</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Platform Fee:</Text>
+                <Text style={styles.value}>
+                  ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
+                </Text>
+              </View>
+              {/* MODULE-15.3-PART3 TAX-011: sales tax row — buyer only, seller does not see tax.
+                  TAX-REFUND-INTEGRITY (2026-07-24):
+                  In-progress: "Estimated sales tax" (finalized at completion).
+                  Completed: "Sales Tax" with stored snapshot. */}
+              {trade.status === 'completed' ? (
+                <TaxBreakdownRow
+                  taxAmountCents={trade.tax_amount_cents ?? 0}
+                  taxRate={trade.tax_rate_applied ?? 0}
+                  jurisdiction={trade.tax_jurisdiction}
+                  loading={false}
+                  alwaysShow={!!trade.tax_amount_cents}
+                  label={trade.status === 'completed' ? 'Sales Tax' : 'Estimated Sales Tax'}
+                  testID="timeline-payment-tax-row"
+                />
+              ) : (
+                <TaxBreakdownRow
+                  taxAmountCents={taxPreview.taxAmountCents}
+                  taxRate={taxPreview.taxRate}
+                  jurisdiction={taxPreview.jurisdiction}
+                  loading={taxPreview.loading}
+                  label="Estimated Sales Tax"
+                  testID="timeline-payment-tax-preview"
+                />
+              )}
+              <View style={[styles.row, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Total:</Text>
+                <Text style={styles.totalValue}>
+                  ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents + (isBuyer ? ((trade.status === 'completed' ? (trade.tax_amount_cents ?? 0) : taxPreview.taxAmountCents)) : 0)) / 100).toFixed(2)}
+                </Text>
+              </View>
+            </>
+          ) : (
+            /* Seller view: shows their payout info, not the buyer's payment label */
+            <>
+              <View style={styles.row}>
+                <Text style={styles.label}>Cash Amount:</Text>
+                <Text style={styles.value}>${(trade.cash_amount_cents / 100).toFixed(2)}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Swap Points Used:</Text>
+                <Text style={styles.value}>{trade.sp_amount} SP</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Platform Fee:</Text>
+                <Text style={styles.value}>
+                  ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
+                </Text>
+              </View>
+              <View style={[styles.row, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Total:</Text>
+                <Text style={styles.totalValue}>
+                  ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents) / 100).toFixed(2)}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
-        {/* Hide message button for cancelled/expired trades — no active trade exists */}
-        {trade.status !== 'cancelled' && (
+        {/* Hide message button for cancelled and pending trades — no active trade exists */}
+        {trade.status !== 'cancelled' && trade.status !== 'pending' && (
         <Pressable style={styles.messageButton} onPress={handleOpenChat} testID="message-button">
           {counterpartyProfile ? (
             <Avatar
@@ -811,7 +1076,6 @@ export default function TradeTimelineScreen() {
         )}
 
       </ScrollView>
-      <PersistentTabBar />
 
       <TradeConfirmationModal
         visible={showCompleteConfirm}
@@ -821,6 +1085,40 @@ export default function TradeTimelineScreen() {
         variant="default"
         onConfirm={confirmCompleteTrade}
         onCancel={() => setShowCompleteConfirm(false)}
+        loading={submitting}
+      />
+
+      {/* Addendum C: Bundle confirm all modal with app green color */}
+      <TradeConfirmationModal
+        visible={bundleConfirmData !== null}
+        title={`Confirm all ${bundleConfirmData?.total ?? 0} items received?`}
+        message="All items from this seller are ready to confirm."
+        confirmLabel={`Confirm All ${bundleConfirmData?.total ?? 0}`}
+        cancelLabel="Just This One"
+        variant="accept"
+        onConfirm={async () => {
+          if (!bundleConfirmData) return;
+          setSubmitting(true);
+          setBundleConfirmData(null);
+          try {
+            for (const tid of bundleConfirmData.allIds) {
+              await completeTradeV2(tid);
+            }
+            if (refreshSession) await refreshSession();
+            showNotif('Done!', `All ${bundleConfirmData.total} items marked as completed.`, 'accept', () => {
+              setNotifModal(null);
+              navigation.goBack();
+            });
+          } catch {
+            showNotif('Error', 'Could not confirm all items. Try confirming each one.', 'decline');
+          } finally {
+            setSubmitting(false);
+          }
+        }}
+        onCancel={() => {
+          setBundleConfirmData(null);
+          setShowCompleteConfirm(true);
+        }}
         loading={submitting}
       />
 
@@ -843,7 +1141,13 @@ export default function TradeTimelineScreen() {
         onConfirm={handleCancellationConfirm}
         onCancel={() => setShowCancellationModal(false)}
         isLoading={isCancelling}
-        reasons={isSeller && trade.status === 'in_progress' ? SELLER_INPROGRESS_REASONS : undefined}
+        reasons={
+          isSeller && trade.status === 'in_progress'
+            ? SELLER_INPROGRESS_REASONS
+            : !isSeller && trade.status === 'pending'
+              ? BUYER_OFFER_REASONS
+              : undefined
+        }
       />
 
       {/* TFV2-011: Issue report modal (D-26 — does NOT cancel trade) */}
@@ -988,19 +1292,58 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 32,
   },
-  // Addendum C: bundle context banner style
+  // Addendum C + TC-L09: bundle context banner with expandable item list
   bundleBanner: {
     backgroundColor: '#EEF9F4',
     borderRadius: 8,
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
     marginBottom: 8,
-    alignSelf: 'flex-start',
   },
-  bundleBannerText: {
+  bundleBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#5DBB8E',
+    marginBottom: 4,
+  },
+  bundleBannerToggle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5DBB8E',
+    marginBottom: 4,
+  },
+  bundleItemsList: {
+    marginTop: 6,
+  },
+  bundleItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#D1D9E6',
+  },
+  bundleItemTitle: {
     fontSize: 13,
     fontWeight: '500',
+    color: '#1A1A1A',
+    flex: 1,
+    marginRight: 8,
+  },
+  bundleItemPrice: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4D4D4D',
+  },
+  bundleItemDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bundleItemSp: {
+    fontSize: 12,
     color: '#5DBB8E',
+    fontWeight: '600',
   },
   // D-26: dispute status banners
   disputeBannerAmber: {

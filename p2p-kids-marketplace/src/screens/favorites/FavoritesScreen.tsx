@@ -20,11 +20,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Heart, Trash } from 'phosphor-react-native';
 import { RootStackParamList } from '@/navigation/types';
 import { getFavorites, removeFavorite, Favorite } from '@/services/favoritesService';
-import { addToCart } from '@/services/cartService';
 import { theme } from '@/theme';
 import { Button } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -68,22 +66,12 @@ export default function FavoritesScreen() {
     ]);
   };
 
-  const handleMoveToCart = async (f: Favorite) => {
-    const r = await addToCart({ listingId: f.listingId, sellerId: f.sellerId });
-    if (!r.success) {
-      Alert.alert('Could not add to cart', r.error.message);
-      return;
-    }
-    Alert.alert('Added to cart', `"${f.title}" was added to your cart.`);
-  };
-
   if (loading) {
     return (
       <ScreenLayout variant="detail" title="Favorites">
         <View style={styles.center}>
           <ActivityIndicator />
         </View>
-        <PersistentTabBar />
       </ScreenLayout>
     );
   }
@@ -104,7 +92,6 @@ export default function FavoritesScreen() {
             Browse Items
           </Button>
         </View>
-        <PersistentTabBar />
       </ScreenLayout>
     );
   }
@@ -120,8 +107,13 @@ export default function FavoritesScreen() {
         renderItem={({ item }) => (
           <View style={styles.row} testID={`favorite-row-${item.listingId}`}>
             <TouchableOpacity
-              onPress={() => navigation.navigate('ListingDetail', { listing_id: item.listingId } as never)}
+              onPress={() => {
+                if (item.status === 'available') {
+                  navigation.navigate('ListingDetail', { listing_id: item.listingId } as never);
+                }
+              }}
               style={styles.thumbWrap}
+              activeOpacity={item.status === 'available' ? 0.2 : 1}
             >
               {item.imageUrl ? (
                 <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
@@ -145,11 +137,13 @@ export default function FavoritesScreen() {
                 <Button
                   variant="primary"
                   size="small"
-                  onPress={() => handleMoveToCart(item)}
+                  onPress={() =>
+                    navigation.navigate('ListingDetail', { listing_id: item.listingId })
+                  }
                   disabled={item.status !== 'available'}
-                  testID={`favorite-add-to-cart-${item.listingId}`}
+                  testID={`favorite-request-buy-${item.listingId}`}
                 >
-                  Add to Cart
+                  Request to Buy
                 </Button>
               </View>
             </View>
@@ -163,7 +157,6 @@ export default function FavoritesScreen() {
           </View>
         )}
       />
-      <PersistentTabBar />
     </ScreenLayout>
   );
 }

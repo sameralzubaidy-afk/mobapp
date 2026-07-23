@@ -9,7 +9,7 @@
  *  D-29: 4th item triggers an eviction warning modal before adding.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Crypto from 'expo-crypto';
 import {
   View,
@@ -21,22 +21,25 @@ import {
   Alert,
 } from 'react-native';
 import { getCartItems, removeFromCart, CartItem as ServiceCartItem, saveCurrentCart, switchToSavedCart, clearCart, validateCartForCheckout, subscribeToCartChanges, SavedCartSummary } from '@/services/cartService';
+import { getMaskedSellerListings } from '@/services/listing';
 import { supabase } from '@/config/supabase';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigation/types';
-import { Button } from '@/components/ui';
+import { Button, Modal } from '@/components/ui';
 import { theme } from '@/theme';
 import { trackEvent } from '@/services/analytics';
 import {
   ShoppingCart,
   Trash,
-  Plus,
-  Minus,
   Coins,
+  Package,
+  SquaresFour,
+  X,
 } from 'phosphor-react-native';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import ScreenLayout from '@/components/ScreenLayout';
+import { showDifferentSellerModal } from '@/components/molecules/DifferentSellerModal';
+import { useCartContext } from '@/contexts/CartContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -49,10 +52,12 @@ interface CartItem {
   imageUrl: string;
   sellerId: string;
   liveStatus?: string;
+  acceptsSP?: boolean;
 }
 
 export default function CartScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { refreshCartCount } = useCartContext();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [savedCarts, setSavedCarts] = useState<SavedCartSummary[]>([]);
   const [minCartValueCents, setMinCartValueCents] = useState<number>(0);
@@ -60,6 +65,19 @@ export default function CartScreen() {
   const [loading, setLoading] = useState(true);
   // TFV2-022: D-27 bundle_id shared by all items in this cart session
   const [bundleId] = useState<string>(() => Crypto.randomUUID());
+
+  // SELLER-GROUP-007: Total count of seller's approved listings (for "more from this seller" banner)
+  const [sellerTotalListings, setSellerTotalListings] = useState(0);
+  const [showMoreFromSellerBanner, setShowMoreFromSellerBanner] = useState(true);
+  const [showSwitchModal, setShowSwitchModal] = useState(false);
+  const [switchTargetCartId, setSwitchTargetCartId] = useState<string | null>(null);
+  // CART-009: Min cart value modal state
+  const [showMinValueModal, setShowMinValueModal] = useState(false);
+  const [minValueModalMessage, setMinValueModalMessage] = useState('');
+
+  // Compute remaining items not yet in basket (clamped to 0 for safety)
+  const sellerId = cartItems.length > 0 ? cartItems[0].sellerId : null;
+  const remainingFromSeller = Math.max(0, sellerTotalListings - cartItems.length);
 
   const loadCartItems = useCallback(async () => {
     try {
@@ -75,6 +93,7 @@ export default function CartScreen() {
           imageUrl:   i.imageUrl ?? '',
           sellerId:   i.sellerId,
           liveStatus: i.liveStatus,
+          acceptsSP:  i.acceptsSP,
         }));
         setCartItems(mapped);
         setSavedCarts(result.data.savedCarts ?? []);
@@ -89,26 +108,61 @@ export default function CartScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    loadCartItems();
-  }, [loadCartItems]);
+  // Re-fetch cart items every time this screen gains focus (handles case where
+  // items were added on ItemDetailScreen/MoreFromThisSeller while Cart was
+  // already mounted in the navigation stack).
+  useFocusEffect(
+    useCallback(() => {
+      loadCartItems();
+      refreshCartCount();
+    }, [loadCartItems, refreshCartCount])
+  );
 
-  // CART-016: Realtime subscription — filtered by current cart listing IDs per spec
-  // Re-subscribes whenever cartItems changes so the items-table filter stays accurate.
+  // CART-016: Realtime subscription — cart_items changes for this user.
+  // Uses ref to avoid the async subscribe / cleanup race condition.
+  // Does NOT depend on cartItems — the subscription is set up once on mount
+  // and cleaned up on unmount. The DB trigger tr_touch_cart_on_item_status_change
+  // (migration 20260720000001) bridges items.status changes into cart_items updates.
+  // See cartService.subscribeToCartChanges for the full RLS rationale.
+  const unsubscribeRef = useRef<(() => void) | null>(null);
   useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
-    const listingIds = cartItems.map((i) => i.listingId).filter(Boolean);
+    let cancelled = false;
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      unsubscribe = subscribeToCartChanges(user.id, () => {
+      if (!user || cancelled) return;
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+      unsubscribeRef.current = subscribeToCartChanges(user.id, () => {
         loadCartItems();
-      }, listingIds);
+      });
     })();
     return () => {
-      if (unsubscribe) unsubscribe();
+      cancelled = true;
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
     };
-  }, [loadCartItems, cartItems]);
+  }, [loadCartItems]);
+
+  // SELLER-GROUP-007: Fetch seller's total approved listings for "more from this seller" banner
+  useEffect(() => {
+    (async () => {
+      if (!sellerId) {
+        setSellerTotalListings(0);
+        return;
+      }
+      try {
+        const result = await getMaskedSellerListings(sellerId);
+        setSellerTotalListings(result.total_count);
+        setShowMoreFromSellerBanner(true);
+      } catch {
+        setSellerTotalListings(0);
+      }
+    })();
+  }, [sellerId]);
 
   // CART-009: Fetch admin-configured minimum cart value
   useEffect(() => {
@@ -126,6 +180,30 @@ export default function CartScreen() {
     })();
   }, []);
 
+  const handleClearCart = () => {
+    Alert.alert(
+      'Clear Trade Basket',
+      'Are you sure you want to remove all items from your trade basket?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear Basket',
+          style: 'destructive',
+          onPress: async () => {
+            const r = await clearCart();
+            if (!r.success) {
+              Alert.alert('Could not clear basket', r.error.message);
+              return;
+            }
+            trackEvent('cart_cleared', { cleared_items: r.data.clearedItems });
+            await loadCartItems();
+            refreshCartCount();
+          },
+        },
+      ],
+    );
+  };
+
   const handleSaveCart = async () => {
     const r = await saveCurrentCart();
     if (!r.success) {
@@ -136,30 +214,27 @@ export default function CartScreen() {
     trackEvent('cart_saved', { items_saved: cartItems.length });
     Alert.alert('Cart saved', 'Your cart was saved for later.');
     await loadCartItems();
+    refreshCartCount();
   };
 
   const handleSwitchSaved = (cartId: string) => {
-    Alert.alert(
-      'Switch saved cart?',
-      'Your current active cart will be saved and the selected cart will become active.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Switch',
-          onPress: async () => {
-            const prevCartId = bundleId;
-            const r = await switchToSavedCart(cartId);
-            if (!r.success) {
-              Alert.alert('Could not switch', r.error.message);
-              return;
-            }
-            // CART-018: analytics
-            trackEvent('cart_switched', { from_cart_id: prevCartId, to_cart_id: cartId });
-            await loadCartItems();
-          },
-        },
-      ],
-    );
+    setSwitchTargetCartId(cartId);
+    setShowSwitchModal(true);
+  };
+
+  const confirmSwitchCart = async () => {
+    if (!switchTargetCartId) return;
+    setShowSwitchModal(false);
+    const prevCartId = bundleId;
+    const r = await switchToSavedCart(switchTargetCartId);
+    if (!r.success) {
+      Alert.alert('Could not switch', r.error.message);
+      return;
+    }
+    // CART-018: analytics
+    trackEvent('cart_switched', { from_cart_id: prevCartId, to_cart_id: switchTargetCartId });
+    await loadCartItems();
+    refreshCartCount();
   };
 
   const handleDeleteSaved = (cartId: string) => {
@@ -171,6 +246,7 @@ export default function CartScreen() {
         onPress: async () => {
           await clearCart(cartId);
           await loadCartItems();
+          refreshCartCount();
         },
       },
     ]);
@@ -196,84 +272,37 @@ export default function CartScreen() {
             await removeFromCart(itemId).catch((e) =>
               console.warn('[CartScreen] removeFromCart error:', e)
             );
+            // Reload from server to refresh savedCarts + ensure sync
+            await loadCartItems();
+            refreshCartCount();
           },
         },
       ]
     );
   };
 
-  const handleIncreaseQuantity = (itemId: string) => {
-    setCartItems(prev =>
-      prev.map(item =>
-        item.id === itemId
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      )
-    );
-  };
-
-  const handleDecreaseQuantity = (itemId: string) => {
-    setCartItems(prev =>
-      prev.map(item =>
-        item.id === itemId && item.quantity > 1
-          ? { ...item, quantity: item.quantity - 1 }
-          : item
-      )
-    );
-  };
-
-  const handleCheckout = async () => {
-    if (cartItems.length === 0) {
-      Alert.alert('Empty Cart', 'Please add items to your cart before checkout');
-      return;
-    }
-    // CART-009: Server-side validation gate
-    const v = await validateCartForCheckout();
-    if (!v.success) {
-      Alert.alert('Could not validate cart', v.error.message);
-      return;
-    }
-    if (!v.data.ok) {
-      const first = v.data.errors[0];
-      const msg =
-        first?.code === 'MIN_CART_VALUE_NOT_MET'
-          ? `Minimum cart value is $${(v.data.minCartValueCents / 100).toFixed(2)}. Your cart total is $${(v.data.cartTotalCents / 100).toFixed(2)}.`
-          : (first?.message ?? 'Cart cannot be checked out');
-      // CART-018: analytics — checkout blocked
-      trackEvent('cart_checkout_blocked', {
-        reason: first?.code ?? 'UNKNOWN',
-        cart_total_cents: v.data.cartTotalCents,
-        min_cart_value_cents: v.data.minCartValueCents,
-      });
-      Alert.alert('Cannot checkout', msg);
-      return;
-    }
-    // CART-018: analytics — checkout initiated
-    trackEvent('cart_checkout_initiated', {
-      cart_total_cents: v.data.cartTotalCents,
-      item_count: v.data.itemCount,
-    });
-    // TFV2-022 D-27: Pass bundle_id to CartCheckoutScreen so all trades share same bundle
-    navigation.navigate('CartCheckout', { bundleId });
-  };
-
   // TFV2-022 D-28: Enforce single-seller rule when adding items
   // Called externally (e.g. from ItemDetailScreen) via navigation params or a cart context
+  // SELLER-GROUP-003: Uses shared DifferentSellerModal — generic copy, no seller name leak
   const _handleAddItem = (item: CartItem) => {
     // D-28: Single seller enforcement
     if (cartItems.length > 0 && cartItems[0].sellerId !== item.sellerId) {
-      Alert.alert(
-        'Different Seller',
-        'Your cart already has items from a different seller. Adding this item will clear your current cart.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Replace Cart',
-            style: 'destructive',
-            onPress: () => setCartItems([item]),
-          },
-        ]
-      );
+      showDifferentSellerModal({
+        onSaveAndStartNew: async () => {
+          await saveCurrentCart();
+          refreshCartCount();
+          setCartItems([item]);
+        },
+        onReplaceCart: async () => {
+          const cleared = await clearCart();
+          if (!cleared.success) {
+            Alert.alert('Could not replace cart', cleared.error.message);
+            return;
+          }
+          refreshCartCount();
+          setCartItems([item]);
+        },
+      });
       return;
     }
 
@@ -303,6 +332,14 @@ export default function CartScreen() {
     navigation.navigate('Discover');
   };
 
+  // CART-009: Navigate to MoreFromThisSeller from the min value modal
+  const handleBrowseFromMinValueModal = () => {
+    setShowMinValueModal(false);
+    if (sellerId) {
+      navigation.navigate('MoreFromThisSeller', { sellerId, returnToCart: true });
+    }
+  };
+
   const calculateSubtotal = () => {
     return cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   };
@@ -311,25 +348,23 @@ export default function CartScreen() {
     return Math.max(0, calculateSubtotal() - spDiscount);
   };
 
-  // R-04: Disable checkout button when subtotal (in cents) is below admin-configured minimum
+  // Subtotal in cents for analytics and validation
   const subtotalCents = Math.round(calculateSubtotal() * 100);
-  const isCheckoutDisabled = cartItems.length > 0 && minCartValueCents > 0 && subtotalCents < minCartValueCents;
-  const amountNeededCents = isCheckoutDisabled ? minCartValueCents - subtotalCents : 0;
 
   if (loading) {
     return (
-      <ScreenLayout variant="detail" title="My Cart" showBell={false}>
+      <ScreenLayout variant="tab" title="Trade Basket">
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading cart...</Text>
+          <Text style={styles.loadingText}>Loading trade basket...</Text>
         </View>
-        <PersistentTabBar />
       </ScreenLayout>
     );
   }
 
-  if (cartItems.length === 0) {
+  // Show full empty placeholder only when there is nothing at all (no items, no saved carts)
+  if (cartItems.length === 0 && savedCarts.length === 0) {
     return (
-      <ScreenLayout variant="detail" title="My Cart">
+      <ScreenLayout variant="tab" title="Trade Basket">
 
         <View style={styles.emptyContainer}>
           <ShoppingCart
@@ -338,9 +373,9 @@ export default function CartScreen() {
             weight="regular"
             testID="cart-empty-icon"
           />
-          <Text style={styles.emptyTitle}>Your cart is empty</Text>
+          <Text style={styles.emptyTitle}>Your trade basket is empty</Text>
           <Text style={styles.emptySubtext}>
-            Start adding items you love to your cart
+            Start adding items you love to your trade basket
           </Text>
           <Button
             variant="primary"
@@ -352,14 +387,12 @@ export default function CartScreen() {
             Browse Items
           </Button>
         </View>
-
-        <PersistentTabBar />
       </ScreenLayout>
     );
   }
 
   return (
-    <ScreenLayout variant="detail" title="My Cart">
+    <ScreenLayout variant="tab" title="Trade Basket">
       {/* Cart Items */}
       <ScrollView
         style={styles.scrollView}
@@ -375,16 +408,39 @@ export default function CartScreen() {
           <Text style={styles.favoritesLinkText}>View Favorites →</Text>
         </TouchableOpacity>
 
-        {/* CART-009: Min cart value notice */}
-        {minCartValueCents > 0 && (
-          <View style={styles.minValueNotice} testID="cart-min-value-notice">
-            <Text style={styles.minValueText}>
-              Minimum order: ${(minCartValueCents / 100).toFixed(2)}
-            </Text>
+        {/* CART-009: Min cart value branded notice with CTA */}
+        {minCartValueCents > 0 && subtotalCents < minCartValueCents && (
+          <View style={styles.minValueBannerCard} testID="cart-min-value-banner">
+            <View style={styles.minValueBannerTextWrap}>
+              <Text style={styles.minValueBannerTitle}>
+                Add ${((minCartValueCents - subtotalCents) / 100).toFixed(2)} more to check out
+              </Text>
+              <Text style={styles.minValueBannerSubtext}>
+                Minimum checkout is ${(minCartValueCents / 100).toFixed(2)}.
+                {remainingFromSeller > 0
+                  ? ' Browse more items from this seller to fill your Trade Basket!'
+                  : ''}
+              </Text>
+            </View>
+            {remainingFromSeller > 0 && sellerId && (
+              <TouchableOpacity
+                style={styles.minValueBrowseButton}
+                onPress={() => {
+                  navigation.navigate('MoreFromThisSeller', { sellerId, returnToCart: true });
+                }}
+                activeOpacity={0.7}
+                testID="cart-min-value-browse-button"
+              >
+                <SquaresFour size={16} color="#FFFFFF" weight="fill" />
+                <Text style={styles.minValueBrowseButtonText}>
+                  Browse {remainingFromSeller} More Item{remainingFromSeller !== 1 ? 's' : ''}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
-        {/* CART-006/007: Saved carts section (max 3) */}
+        {/* CART-006/007: Saved carts section (max 3) — always visible when saved carts exist */}
         {savedCarts.length > 0 && (
           <View style={styles.savedCartsSection} testID="saved-carts-section">
             <Text style={styles.savedCartsTitle}>Saved carts ({savedCarts.length}/3)</Text>
@@ -434,35 +490,24 @@ export default function CartScreen() {
                 <Text style={styles.itemPrice} testID={`cart-item-price-${item.id}`}>
                   ${item.price.toFixed(2)}
                 </Text>
-                {/* R-10: Inline unavailability warning */}
-                {item.liveStatus && item.liveStatus !== 'available' && (
-                  <Text style={styles.unavailableText} testID={`cart-item-unavailable-${item.id}`}>
-                    This item is no longer available
-                  </Text>
-                )}
-
-                {/* Quantity Controls */}
-                <View style={styles.quantityContainer}>
-                  <TouchableOpacity
-                    onPress={() => handleDecreaseQuantity(item.id)}
-                    style={styles.qtyButton}
-                    disabled={item.quantity <= 1}
-                    testID={`cart-item-decrease-${item.id}`}
-                  >
-                    <Minus size={16} color={theme.textColors.primary} weight="bold" />
-                  </TouchableOpacity>
-                  
-                  <Text style={styles.qtyText} testID={`cart-item-quantity-${item.id}`}>
-                    {item.quantity}
-                  </Text>
-                  
-                  <TouchableOpacity
-                    onPress={() => handleIncreaseQuantity(item.id)}
-                    style={styles.qtyButton}
-                    testID={`cart-item-increase-${item.id}`}
-                  >
-                    <Plus size={16} color={theme.textColors.primary} weight="bold" />
-                  </TouchableOpacity>
+                {/* Useful Item Info (replaces quantity controls — no inventory) */}
+                <View style={styles.itemInfoRow}>
+                  {item.liveStatus === 'available' && (
+                    <View style={styles.availableBadge}>
+                      <Text style={styles.availableBadgeText}>Available</Text>
+                    </View>
+                  )}
+                  {item.liveStatus && item.liveStatus !== 'available' && (
+                    <Text style={styles.unavailableText} testID={`cart-item-unavailable-${item.id}`}>
+                      This item is no longer available
+                    </Text>
+                  )}
+                  {item.acceptsSP && (
+                    <View style={styles.acceptsSpBadge}>
+                      <Coins size={14} color="#F59E0B" weight="fill" />
+                      <Text style={styles.acceptsSpText}>Accepts Points</Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -508,28 +553,143 @@ export default function CartScreen() {
             </Text>
           </View>
         </View>
-      </ScrollView>
 
-      {/* Sticky Checkout Button */}
-      <View style={styles.stickyBottomContainer}>
-        {/* R-04: "Add $X more" banner when below minimum */}
-        {isCheckoutDisabled && (
-          <Text style={styles.minValueBanner} testID="min-value-banner">
-            Add ${(amountNeededCents / 100).toFixed(2)} more to reach the checkout minimum
-          </Text>
+        {/* CART-009: Min cart value branded modal — shows when cart total is below the configured minimum */}
+        <Modal
+          visible={showMinValueModal}
+          title="Minimum checkout not met"
+          message={minValueModalMessage}
+          primaryButtonText={remainingFromSeller > 0 && sellerId ? 'Browse More Items' : undefined}
+          secondaryButtonText={remainingFromSeller > 0 && sellerId ? 'Cancel' : 'OK'}
+          onPrimaryPress={handleBrowseFromMinValueModal}
+          onSecondaryPress={() => setShowMinValueModal(false)}
+          onClose={() => setShowMinValueModal(false)}
+          showCloseButton={false}
+        />
+
+        {/* Branded switch-cart confirmation modal — replaces native Alert.alert per design system BP rule */}
+        <Modal
+          visible={showSwitchModal}
+          title="Switch saved cart?"
+          message="Your current active cart will be saved and the selected cart will become active."
+          primaryButtonText="Switch"
+          secondaryButtonText="Cancel"
+          onPrimaryPress={confirmSwitchCart}
+          onSecondaryPress={() => setShowSwitchModal(false)}
+          onClose={() => setShowSwitchModal(false)}
+          showCloseButton={false}
+        />
+
+        {/* CART-005: Clear Basket button */}
+        {cartItems.length > 0 && (
+          <TouchableOpacity
+            style={styles.clearBasketRow}
+            onPress={handleClearCart}
+            testID="clear-basket-button"
+          >
+            <Trash size={16} color={theme.colors.error[500]} weight="regular" />
+            <Text style={styles.clearBasketText}>Clear Basket</Text>
+          </TouchableOpacity>
         )}
-        <Button
-          variant="primary"
-          size="large"
-          onPress={handleCheckout}
-          disabled={isCheckoutDisabled}
-          testID="checkout-button"
-        >
-          Checkout
-        </Button>
-      </View>
 
-      <PersistentTabBar />
+        {/* SELLER-GROUP-007: "More from this seller" banner — shown when seller has items not yet in basket */}
+        {sellerId && remainingFromSeller > 0 && showMoreFromSellerBanner && (
+          <View style={styles.moreFromSellerBanner} testID="cart-more-from-seller-banner">
+            <TouchableOpacity
+              style={styles.moreFromSellerBannerContent}
+              onPress={() => {
+                navigation.navigate('MoreFromThisSeller', {
+                  sellerId,
+                  returnToCart: true,
+                });
+              }}
+              activeOpacity={0.7}
+            >
+              <SquaresFour size={18} color="#2D6A4F" weight="fill" />
+              <View style={styles.moreFromSellerBannerTextWrap}>
+                <Text style={styles.moreFromSellerBannerTitle}>
+                  This seller has {remainingFromSeller} more item{remainingFromSeller !== 1 ? 's' : ''}
+                </Text>
+                <Text style={styles.moreFromSellerBannerLink}>View</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.moreFromSellerBannerDismiss}
+              onPress={() => setShowMoreFromSellerBanner(false)}
+              hitSlop={8}
+              testID="cart-more-from-seller-dismiss"
+            >
+              <X size={16} color="#6B7280" weight="bold" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* SELLER-GROUP-005: Make-offer CTA — always visible, runs validation before navigating */}
+        <TouchableOpacity
+          style={styles.bundleCta}
+          onPress={async () => {
+            if (cartItems.length === 0) {
+              Alert.alert('Empty Cart', 'Please add items before making an offer');
+              return;
+            }
+            // CART-009: Server-side validation gate (moved from removed Checkout button)
+            const v = await validateCartForCheckout();
+            if (!v.success) {
+              Alert.alert('Could not validate cart', v.error.message);
+              return;
+            }
+            if (!v.data.ok) {
+              const first = v.data.errors[0];
+              trackEvent('cart_checkout_blocked', {
+                reason: first?.code ?? 'UNKNOWN',
+                cart_total_cents: v.data.cartTotalCents,
+                min_cart_value_cents: v.data.minCartValueCents,
+              });
+              // CART-009: Show branded modal with option to browse more items
+              if (first?.code === 'MIN_CART_VALUE_NOT_MET') {
+                const needed = ((v.data.minCartValueCents - v.data.cartTotalCents) / 100).toFixed(2);
+                const minTotal = (v.data.minCartValueCents / 100).toFixed(2);
+                const currentTotal = (v.data.cartTotalCents / 100).toFixed(2);
+                setMinValueModalMessage(
+                  `Add $${needed} more to reach the $${minTotal} minimum. ` +
+                  `Your current total is $${currentTotal}.`
+                );
+                setShowMinValueModal(true);
+                return;
+              }
+              const msg = first?.message ?? 'Cart cannot be checked out';
+              Alert.alert('Could not validate cart', msg);
+              return;
+            }
+            trackEvent('bundle_cta_tapped', {
+              item_count: cartItems.length,
+              subtotal_cents: subtotalCents,
+            });
+            trackEvent('cart_checkout_initiated', {
+              cart_total_cents: v.data.cartTotalCents,
+              item_count: v.data.itemCount,
+            });
+            // TFV2-022 D-27: Pass bundle_id so all trades share same bundle
+            navigation.navigate('CartCheckout', {
+              bundleId,
+              bundleMode: cartItems.length >= 2,
+            });
+          }}
+          testID="bundle-cta-button"
+        >
+          <Package size={20} color="#5DBB8E" weight="fill" />
+          <View style={styles.bundleCtaTextWrap}>
+            <Text style={styles.bundleCtaTitle}>
+              {cartItems.length >= 2
+                ? `Make one offer for these ${cartItems.length} items`
+                : 'Make an offer for this item'}
+            </Text>
+            <Text style={styles.bundleCtaSubtext}>
+              {cartItems.length >= 2 ? 'All items from this seller' : ''}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </ScrollView>
     </ScreenLayout>
   );
 }
@@ -624,31 +784,85 @@ const styles = StyleSheet.create({
     color: theme.colors.primary[500],
     fontWeight: '600',
   },
-  minValueNotice: {
+  // CART-009: Branded minimum value warning card with CTA button
+  minValueBannerCard: {
     marginHorizontal: 24,
     marginTop: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    backgroundColor: theme.colors.neutral[100],
+    padding: theme.spacing.md,
+    backgroundColor: '#EEF9F4',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+  },
+  minValueBannerTextWrap: {
+    marginBottom: theme.spacing.sm,
+  },
+  minValueBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2D6A4F',
+    marginBottom: 4,
+  },
+  minValueBannerSubtext: {
+    fontSize: 13,
+    color: '#5DBB8E',
+    lineHeight: 18,
+  },
+  minValueBrowseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#5DBB8E',
     borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: theme.spacing.md,
   },
-  minValueText: {
-    ...theme.typography.caption,
-    color: theme.textColors.secondary,
+  minValueBrowseButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  // R-04: Banner above checkout button when below minimum
-  minValueBanner: {
-    ...theme.typography.caption,
-    color: (theme.colors.warning as Record<number, string> | undefined)?.[700] ?? '#92400E',
-    textAlign: 'center' as const,
-    marginBottom: theme.spacing.xs,
-    paddingHorizontal: theme.spacing.sm,
+  // Removed unused minValueBanner style — replaced by minValueBannerCard above
+  // Item info badges (replaces quantity controls)
+  itemInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+    flexWrap: 'wrap',
   },
-  // R-10: Inline unavailability warning on item row
+  availableBadge: {
+    backgroundColor: '#E8F5F0',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+  },
+  availableBadgeText: {
+    fontSize: 11,
+    color: '#5DBB8E',
+    fontWeight: '600',
+  },
   unavailableText: {
-    ...theme.typography.caption,
-    color: theme.colors.error?.[500] ?? '#EF4444',
-    marginTop: 2,
+    fontSize: 11,
+    color: '#EF4444',
+    fontWeight: '500',
+  },
+  acceptsSpBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
+  acceptsSpText: {
+    fontSize: 11,
+    color: '#F59E0B',
+    fontWeight: '600',
   },
   savedCartsSection: {
     marginHorizontal: 24,
@@ -687,7 +901,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: theme.spacing.md,
   },
-
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -695,19 +908,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.neutral[100],
   },
-
   thumbnail: {
     width: 72,
     height: 72,
     borderRadius: 8,
     backgroundColor: theme.colors.neutral[100],
   },
-
   itemInfo: {
     flex: 1,
     marginLeft: theme.spacing.md,
   },
-
   itemTitle: {
     ...theme.typography.body,
     fontSize: 15,
@@ -715,39 +925,30 @@ const styles = StyleSheet.create({
     color: theme.textColors.primary,
     marginBottom: theme.spacing.xs,
   },
-
   itemPrice: {
     fontSize: 15,
     color: theme.textColors.primary,
     marginBottom: theme.spacing.sm,
   },
-
-  quantityContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.neutral[100],
-    borderRadius: 8,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: 4,
-    gap: theme.spacing.sm,
-    alignSelf: 'flex-start',
-  },
-
-  qtyButton: {
-    padding: 4,
-  },
-
-  qtyText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.textColors.primary,
-    minWidth: 20,
-    textAlign: 'center',
-  },
-
   trashButton: {
     padding: theme.spacing.sm,
     marginLeft: theme.spacing.sm,
+  },
+
+  clearBasketRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: theme.spacing.md,
+    marginHorizontal: 24,
+    paddingVertical: theme.spacing.sm,
+  },
+  clearBasketText: {
+    ...theme.typography.body,
+    color: theme.colors.error[500],
+    fontWeight: '500',
+    fontSize: 14,
   },
 
   summaryCard: {
@@ -847,5 +1048,69 @@ const styles = StyleSheet.create({
   browseButton: {
     width: '100%',
     maxWidth: 300,
+  },
+
+  // SELLER-GROUP-007: "More from this seller" banner styles
+  moreFromSellerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF9F4',
+    borderRadius: 12,
+    marginHorizontal: 24,
+    marginTop: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    paddingLeft: 12,
+  },
+  moreFromSellerBannerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+  },
+  moreFromSellerBannerTextWrap: {
+    flex: 1,
+  },
+  moreFromSellerBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2D6A4F',
+  },
+  moreFromSellerBannerLink: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#5DBB8E',
+    marginTop: 2,
+  },
+  moreFromSellerBannerDismiss: {
+    padding: 12,
+  },
+
+  // SELLER-GROUP-005: Bundle CTA styles
+  bundleCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF9F4',
+    borderRadius: 12,
+    padding: theme.spacing.md,
+    marginHorizontal: 24,
+    marginTop: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    gap: 12,
+  },
+  bundleCtaTextWrap: {
+    flex: 1,
+  },
+  bundleCtaTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#2D6A4F',
+  },
+  bundleCtaSubtext: {
+    fontSize: 13,
+    color: '#5DBB8E',
+    marginTop: 2,
   },
 });

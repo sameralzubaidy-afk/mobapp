@@ -474,6 +474,60 @@ export async function getUnreadCount(tradeId: string, userId: string): Promise<n
 }
 
 /**
+ * Get total unread message count across all active trades for a user.
+ * Used by PersistentTabBar to show the inbox badge count.
+ *
+ * @param userId - Current user ID
+ * @returns Total number of unread messages
+ */
+export async function getTotalUnreadMessageCount(userId: string): Promise<number> {
+  if (!userId) return 0;
+
+  try {
+    // Get all trades where user is a participant
+    // TFV2-002: V2 trade statuses are pending, in_progress, completed, cancelled
+    // Exclude cancelled trades — chat is frozen and no new messages expected
+    const { data: trades, error: tradesError } = await supabase
+      .from('trades')
+      .select('id, buyer_id, seller_id')
+      .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+      .in('status', ['pending', 'in_progress', 'completed']);
+
+    if (tradesError || !trades || trades.length === 0) return 0;
+
+    let totalUnread = 0;
+
+    for (const trade of trades) {
+      const otherUserId = trade.buyer_id === userId ? trade.seller_id : trade.buyer_id;
+      const lastViewedKey = `last_viewed_${userId}_${trade.id}`;
+      const lastViewedStr = await AsyncStorage.getItem(lastViewedKey);
+      const lastViewed = parseLastViewedMs(lastViewedStr);
+
+      const { data: unreadMessages } = await supabase
+        .from('messages')
+        .select('id, created_at')
+        .eq('trade_id', trade.id)
+        .eq('sender_id', otherUserId)
+        .is('deleted_at', null)
+        .gte('created_at', new Date(lastViewed).toISOString());
+
+      const actualUnread =
+        unreadMessages?.filter((msg: { id: string; created_at: string }) => {
+          const msgTime = new Date(msg.created_at).getTime();
+          return Number.isFinite(msgTime) && msgTime > lastViewed;
+        }) || [];
+
+      totalUnread += actualUnread.length;
+    }
+
+    return totalUnread;
+  } catch (error) {
+    console.error('[chat.getTotalUnreadMessageCount] Error:', error);
+    return 0;
+  }
+}
+
+/**
  * Mark all messages in a trade as read
  * Stores the current timestamp as the "last viewed" time
  * This enables accurate unread count tracking without DB changes

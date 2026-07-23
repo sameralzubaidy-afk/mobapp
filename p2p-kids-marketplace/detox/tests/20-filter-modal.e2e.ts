@@ -17,7 +17,7 @@ import { goToDiscover } from '../helpers/navigation';
 
 describe('TC-20: Filter Modal', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
     await goToDiscover();
@@ -44,11 +44,23 @@ describe('TC-20: Filter Modal', () => {
 
   it('shows filter options inside the modal', async () => {
     // At least one of these filter options should be visible
-    const filterOptionFound = await Promise.any([
-      waitFor(element(by.text('Category'))).toBeVisible().withTimeout(3000),
-      waitFor(element(by.text('Condition'))).toBeVisible().withTimeout(3000),
-      waitFor(element(by.text('Price'))).toBeVisible().withTimeout(3000),
-    ]).then(() => true).catch(() => false);
+    let filterOptionFound = false;
+    try {
+      await waitFor(element(by.text('Category'))).toBeVisible().withTimeout(3000);
+      filterOptionFound = true;
+    } catch {}
+    if (!filterOptionFound) {
+      try {
+        await waitFor(element(by.text('Condition'))).toBeVisible().withTimeout(3000);
+        filterOptionFound = true;
+      } catch {}
+    }
+    if (!filterOptionFound) {
+      try {
+        await waitFor(element(by.text('Price'))).toBeVisible().withTimeout(3000);
+        filterOptionFound = true;
+      } catch {}
+    }
 
     if (!filterOptionFound) {
       await device.takeScreenshot('20-filter-modal-state');

@@ -158,25 +158,17 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
   });
 
   // ── Quick Action Tiles ───────────────────────────────────────────────────────
-  it('renders all 6 quick action tiles', () => {
+  it('renders all 4 quick action tiles', () => {
     const { getByTestId } = render(<UserDashboardScreen />);
-    ['sell', 'discover', 'myTrades', 'myListings', 'messages', 'payouts'].forEach((key) => {
+    ['favorites', 'myTrades', 'myListings', 'payouts'].forEach((key) => {
       expect(getByTestId(`action-tile-${key}`)).toBeTruthy();
     });
   });
 
-  it('opens sell sheet when Sell tile is pressed', () => {
+  it('navigates to Favorites when Favorites tile is pressed', () => {
     const { getByTestId } = render(<UserDashboardScreen />);
-    fireEvent.press(getByTestId('action-tile-sell'));
-    // Sell opens a modal, NOT a navigate call
-    expect(mockNavigate).not.toHaveBeenCalledWith('ItemCreate');
-    expect(getByTestId('sell-options-sheet')).toBeTruthy();
-  });
-
-  it('navigates to Discover when Discover tile is pressed', () => {
-    const { getByTestId } = render(<UserDashboardScreen />);
-    fireEvent.press(getByTestId('action-tile-discover'));
-    expect(mockNavigate).toHaveBeenCalledWith('Discover');
+    fireEvent.press(getByTestId('action-tile-favorites'));
+    expect(mockNavigate).toHaveBeenCalledWith('Favorites');
   });
 
   it('navigates to TradeList when My Trades tile is pressed', () => {
@@ -191,10 +183,10 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
     expect(mockNavigate).toHaveBeenCalledWith('MyListings');
   });
 
-  it('navigates to Conversations when Messages tile is pressed', () => {
+  it('navigates to PayoutSettings when Payouts tile is pressed', () => {
     const { getByTestId } = render(<UserDashboardScreen />);
-    fireEvent.press(getByTestId('action-tile-messages'));
-    expect(mockNavigate).toHaveBeenCalledWith('Conversations');
+    fireEvent.press(getByTestId('action-tile-payouts'));
+    expect(mockNavigate).toHaveBeenCalledWith('PayoutSettings');
   });
 
   it('navigates to PayoutSettings when Payouts tile is pressed', () => {

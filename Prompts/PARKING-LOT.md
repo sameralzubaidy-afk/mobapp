@@ -182,3 +182,329 @@ MODULE-08-BADGES-V2.md
   ## TASK SAFETY-005: Implement Custom AI Agent for Title/Description Review (Supabase Edge Function or External Service)
   ## TASK SAFETY-006: Create AI Moderation Logging (Store All Decisions, Confidence Scores)
   ## TASK SAFETY-007: Implement Fallback to GPT-4 for Low-Confidence Cases
+
+---
+
+## AI ROADMAP BACKLOG (from Product Discussions)
+
+---
+
+### Epic: AI Assisted Listing Experience
+
+#### TASK AI-LISTING-001: Display AI Confidence Levels
+
+**Priority:** Medium
+
+**Purpose:** Display AI confidence for generated fields (category, title, attributes) so users understand how reliable the suggestions are.
+
+**Acceptance Criteria:**
+- Show confidence percentage for AI-generated fields
+- Hide confidence when below a configurable threshold
+- Users can edit all fields regardless of confidence
+
+---
+
+#### TASK AI-LISTING-002: Generate Rich Item Metadata
+
+**Priority:** High
+
+**Purpose:** Generate additional metadata behind the scenes that improves search and recommendations.
+
+**Metadata Examples:**
+- Age Range
+- Indoor/Outdoor
+- Brand
+- Material
+- Keywords
+- Safety Tags
+
+---
+
+#### TASK AI-LISTING-003: Improve AI Listing Quality
+
+**Priority:** High
+
+**Purpose:** Before publishing, review the listing and provide suggestions to improve quality.
+
+**Examples of Suggestions:**
+- Add another photo
+- Add brand
+- Add dimensions
+- Improve description
+- Specify condition
+
+---
+
+#### TASK AI-LISTING-004: Listing Quality Score
+
+**Priority:** Medium
+
+**Purpose:** Calculate an internal listing quality score.
+
+**Use Cases:**
+- Measure listing completeness
+- Drive future seller coaching
+- Track quality improvements over time
+
+---
+
+### Epic: AI Pricing
+
+#### TASK AI-PRICING-001: Add "Coming Soon" Label for Price Recommendations
+
+**Priority:** High (UX)
+
+**Purpose:** Display a label informing users that AI price recommendations will be available in a future release.
+
+**Copy:**
+> AI Price Recommendations — Coming Soon
+
+---
+
+#### TASK AI-PRICING-002: Research AI Price Recommendation Strategy
+
+**Priority:** Future — Not part of MVP
+
+**Purpose:** Investigate approaches for generating price recommendations.
+
+**Research Topics:**
+- Marketplace historical pricing
+- Depreciation model
+- External pricing APIs
+- Retail MSRP estimation
+
+---
+
+### Epic: AI Search
+
+#### TASK AI-SEARCH-001: AI Intent Extraction
+
+**Priority:** High
+
+**Purpose:** Allow users to search naturally using conversational language.
+
+**Example Query:**
+> Blue bike for a 6 year old under $100
+
+**Expected Behavior:** AI converts natural language into structured filters and executes the search.
+
+---
+
+#### TASK AI-SEARCH-002: Hybrid Search Architecture
+
+**Priority:** High
+
+**Purpose:** Minimize AI costs by routing queries intelligently.
+
+**Architecture:**
+- Simple searches → existing search
+- Natural language → AI extracts filters → existing Supabase search executes query
+
+---
+
+#### TASK AI-SEARCH-003: Search Result Caching
+
+**Priority:** Medium
+
+**Purpose:** Cache AI-interpreted search queries.
+
+**Benefits:**
+- Lower AI cost
+- Faster response time
+- Better scalability
+
+---
+
+#### TASK AI-SEARCH-004: "Did You Mean?" Search Suggestions
+
+**Priority:** High
+
+**Examples:**
+- Elsa Dress → Frozen Dress
+- Bike → Bicycle
+- Scooter → Ride-on Toy
+
+---
+
+#### TASK AI-SEARCH-005: AI Search Feature Flag
+
+**Priority:** Medium
+
+**Purpose:** Allow AI search to be enabled/disabled without deployment.
+
+---
+
+#### TASK AI-SEARCH-006: Define Search Success Metrics
+
+**Priority:** Medium
+
+**Metrics to Track:**
+- Search Success Rate
+- Click Through Rate (CTR)
+- Search Refinement Rate
+- AI Usage Rate
+
+---
+
+### Epic: Seller Success
+
+#### TASK SELLER-001: Seller Insights Dashboard
+
+**Priority:** Future — Post-MVP
+
+**Purpose:** After publishing, AI provides coaching to help sellers improve listings.
+
+**Examples:**
+- Add another photo
+- Lower price
+- Add dimensions
+- Improve description
+
+**Approach:** Initially rule-based. Later AI-powered.
+
+---
+
+#### TASK SELLER-002: Seller Performance Recommendations
+
+**Priority:** Future — Post-MVP
+
+**Purpose:** Use marketplace analytics to generate personalized recommendations.
+
+**Triggers:**
+- Low views
+- Low favorites
+- Slow selling items
+
+---
+
+### Epic: Personalization
+
+#### TASK PERSONALIZE-001: Personalized Recommendations
+
+**Priority:** Future — Post-MVP
+
+**Purpose:** Recommend products based on user profile and behavior.
+
+**Signals:**
+- Child age
+- Browsing history
+- Saved items
+- Purchase history
+
+---
+
+#### TASK PERSONALIZE-002: Buyer AI Assistant
+
+**Priority:** Future — Post-MVP
+
+**Purpose:** Conversational assistant that helps parents discover items.
+
+**Example:**
+> "I'm looking for outdoor toys for a 4-year-old under $50."
+
+---
+
+### Epic: Analytics
+
+#### TASK ANALYTICS-001: AI Adoption Dashboard
+
+**Priority:** Medium
+
+**Metrics to Track:**
+- AI generated listings
+- AI edits accepted
+- AI edits rejected
+- Average time to publish
+- Listing completion rate
+
+---
+
+#### TASK ANALYTICS-002: Listing Quality Analytics
+
+**Priority:** Medium
+
+**Metrics to Track:**
+- Quality score
+- Average photos
+- Description length
+- Time to sale
+- Views
+- Favorites
+
+---
+
+### Technical Backlog
+
+#### TASK TECH-001: Backend AI Search Service
+
+**Purpose:** Create a backend service that:
+- Accepts natural language input
+- Calls Google AI
+- Returns structured JSON filters
+
+---
+
+#### TASK TECH-002: Search Cache Layer
+
+**Purpose:** Implement caching for AI search interpretation.
+
+**Options:**
+- Redis
+- Supabase cache
+- In-memory cache
+
+---
+
+#### TASK TECH-003: AI Prompt Library
+
+**Purpose:** Centralize prompts used by the application.
+
+**Benefits:**
+- Easier maintenance
+- Versioning
+- A/B testing
+- Prompt tuning
+
+---
+
+#### TASK TECH-004: AI Configuration Management
+
+**Purpose:** Store AI configuration in one place.
+
+**Configuration Examples:**
+- Model version
+- Temperature
+- Confidence thresholds
+- Prompt versions
+
+---
+
+### Parking Lot (Future Ideas — No Timeline)
+
+- Semantic/vector search
+- AI ranking of search results
+- Advanced recommendation engine
+- AI pricing engine (after marketplace gains data)
+- AI-powered seller coaching
+- AI buyer concierge
+- Marketplace trend analytics
+
+---
+
+### Prioritized MVP Backlog (Star Rating)
+
+| Priority | Backlog Item | Epic |
+|----------|-------------|------|
+| ⭐⭐⭐⭐⭐ | AI Intent Extraction for Search | AI Search |
+| ⭐⭐⭐⭐⭐ | Hybrid AI Search Architecture | AI Search |
+| ⭐⭐⭐⭐⭐ | "Did You Mean?" Search Suggestions | AI Search |
+| ⭐⭐⭐⭐☆ | Generate Rich Metadata During Listing Creation | AI Assisted Listing |
+| ⭐⭐⭐⭐☆ | Listing Quality Assistant | AI Assisted Listing |
+| ⭐⭐⭐⭐☆ | "Coming Soon" Label for AI Price Recommendations | AI Pricing |
+| ⭐⭐⭐☆☆ | Search Result Caching | AI Search |
+| ⭐⭐⭐☆☆ | AI Confidence Indicators | AI Assisted Listing |
+| ⭐⭐⭐☆☆ | AI Analytics Dashboard | Analytics |
+| ⭐⭐☆☆☆ | Seller Insights Dashboard | Seller Success |
+| ⭐☆☆☆☆ | Personalized Recommendations | Personalization |
+| ⭐☆☆☆☆ | Buyer AI Assistant | Personalization |
+| ⭐☆☆☆☆ | AI Price Recommendation Engine | AI Pricing |

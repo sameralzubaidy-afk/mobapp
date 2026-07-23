@@ -4,7 +4,7 @@
 // TASK FLOW-15: UI Redesign - Phosphor icons, green theme, updated layout
 
 import React, { useState, useEffect, useCallback, useContext, useRef } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -62,7 +62,8 @@ const getInitials = (name?: string | null) => {
   return parts.map((part) => part[0]?.toUpperCase() ?? '').join('') || 'U';
 };
 
-export default function ProfileScreen({ navigation, route }: any) {
+export default function ProfileScreen({ route }: any) {
+  const navigation = useNavigation();
   const { logout: contextLogout, session } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any | null>(null);
@@ -379,7 +380,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
 
             {/* Edit Profile Action Label (moved up for intuition) */}
-            <TouchableOpacity style={styles.editLink} onPress={handleEditProfile}>
+            <TouchableOpacity style={styles.editLink} onPress={handleEditProfile} testID="avatar-upload-button">
               <PencilSimple size={14} color="#5DBB8E" weight="bold" />
               <Text style={styles.editLinkText}>Edit basic info</Text>
             </TouchableOpacity>
@@ -400,7 +401,7 @@ export default function ProfileScreen({ navigation, route }: any) {
             <TouchableOpacity
               style={styles.statChip}
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('TradeList')}
+              onPress={() => navigation.getParent()?.navigate('TradeList')}
               testID="profile-trades-stat"
             >
               <Package size={18} color="#5DBB8E" weight="regular" />
@@ -488,6 +489,7 @@ export default function ProfileScreen({ navigation, route }: any) {
                 verificationStatus?.status === 'approved' && styles.verifiedCard,
                 verificationStatus?.status === 'pending' && styles.pendingCard,
               ]}
+              testID="id-verification-menu-item"
               onPress={() => navigation.navigate('IDVerificationUpload')}
             >
               <View

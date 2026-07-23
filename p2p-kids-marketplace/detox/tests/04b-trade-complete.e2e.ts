@@ -24,7 +24,7 @@ import { goToDiscover } from '../helpers/navigation';
 
 describe('TC-04b: Trade Flow — Complete', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });

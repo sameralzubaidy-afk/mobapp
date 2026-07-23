@@ -183,7 +183,8 @@
       "expo-web-browser",
       "expo-font",
       "@sentry/react-native/expo",
-      "expo-dev-client"
+      "expo-dev-client",
+      "./plugins/withModularHeaders"
     ],
     "owner": "samer.alzubaidy",
     "runtimeVersion": {

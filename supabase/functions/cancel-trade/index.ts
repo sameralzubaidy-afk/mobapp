@@ -94,18 +94,10 @@ async function fallbackCancelTrade(
     spRefunded = trade.sp_amount;
   }
 
-  if (spRefunded > 0) {
-    const { error: refundError } = await supabaseClient.rpc('credit_sp_for_cancelled_trade', {
-      p_user_id: buyerId,
-      p_trade_id: tradeId,
-      p_points: spRefunded,
-    });
-
-    if (refundError) {
-      spRefundError = refundError.message;
-      spRefunded = 0;
-    }
-  }
+  // SP release is handled by trigger fn_release_sp_on_cancel which fires on
+  // AFTER UPDATE OF status → 'cancelled'. It releases reserved SP back to
+  // available_balance AND creates the earn_refund ledger entry.
+  // Do NOT call credit_sp_for_cancelled_trade here — it would double-credit.
 
   const updatePayload: Record<string, unknown> = {
     status: 'cancelled',
@@ -207,6 +199,27 @@ serve(async (req: Request) => {
       throw new Error('Trade not found');
     }
 
+    // TAX-STATUS-LIFECYCLE (2026-07-23): Cancel the Stripe PaymentIntent for pending offers
+    // with an authorization hold. Previously, only in_progress trades had their PI refunded.
+    // Now pending trades must explicitly cancel their authorization hold so the buyer's card
+    // is not left with a lingering hold when they actively cancel.
+    if (trade.status === 'pending' && trade.stripe_payment_intent_id) {
+      console.log('[cancel-trade] Cancelling PI for pending trade:', tradeId, 'PI:', trade.stripe_payment_intent_id);
+      try {
+        const pi = await stripe.paymentIntents.retrieve(trade.stripe_payment_intent_id);
+        if (['requires_capture', 'requires_confirmation', 'requires_action', 'requires_payment_method'].includes(pi.status)) {
+          await stripe.paymentIntents.cancel(trade.stripe_payment_intent_id);
+          console.log('[cancel-trade] PI cancelled successfully for pending trade:', tradeId);
+        } else {
+          console.log('[cancel-trade] PI status is', pi.status, '- no cancel needed for trade:', tradeId);
+        }
+      } catch (stripeError: unknown) {
+        console.error('[cancel-trade] PI cancel failed for pending trade (non-fatal):', stripeError);
+        // Non-fatal — the trade cancellation proceeds regardless. The authorization
+        // will expire naturally within 7 days if we can't cancel it now.
+      }
+    }
+
     // 3. Handle Stripe refund if trade was paid and refund requested
     if (issue_refund && trade.status === 'in_progress' && trade.stripe_payment_intent_id) {
       console.log('[cancel-trade] Checking existing refund for trade:', tradeId, 'stripe_refund_id:', trade.stripe_refund_id);
@@ -230,6 +243,21 @@ serve(async (req: Request) => {
       } else {
         console.log('[cancel-trade] Refund already recorded, skipping Stripe refund creation.');
       }
+    }
+
+    // TAX-STATUS-LIFECYCLE (2026-07-23): Void the tax record before the RPC cancels the trade.
+    // This must happen BEFORE cancel_trade_v2 so the tax_records lock is acquired first
+    // (avoiding deadlock with the fn_release_sp_on_cancel trigger which locks sp_wallets).
+    try {
+      await supabaseClient.rpc('rpc_void_tax_for_trade', {
+        p_trade_id: tradeId,
+        p_reason: reason || 'trade_cancelled',
+      });
+    } catch (voidTaxErr: unknown) {
+      const msg = voidTaxErr instanceof Error ? voidTaxErr.message : 'Unknown error';
+      console.error('[cancel-trade] Tax void error (non-fatal):', msg);
+      // Non-fatal — the trade cancellation proceeds regardless. Tax records for
+      // zero-tax trades will get a noop, and capture_failed records still get voided.
     }
 
     // 4. Call the RPC to cancel the trade in DB and refund SP

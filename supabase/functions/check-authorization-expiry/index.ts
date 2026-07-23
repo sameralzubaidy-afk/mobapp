@@ -81,6 +81,17 @@ serve(async (req) => {
           },
         });
 
+        // TAX-STATUS-LIFECYCLE: Void the tax record for this expired authorization
+        try {
+          await svcClient.rpc('rpc_void_tax_for_trade', {
+            p_trade_id: trade.id,
+            p_reason: 'authorization_expired',
+          });
+        } catch (taxErr: unknown) {
+          const msg = taxErr instanceof Error ? taxErr.message : 'Unknown error';
+          console.error(`[check-authorization-expiry] Tax void error for trade ${trade.id}:`, msg);
+        }
+
         cancelled++;
         console.log(`[check-authorization-expiry] Cancelled expired trade ${trade.id}`);
       } catch (e: unknown) {

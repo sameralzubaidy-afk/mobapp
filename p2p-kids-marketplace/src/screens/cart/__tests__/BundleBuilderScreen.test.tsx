@@ -48,11 +48,11 @@ describe('BundleBuilderScreen', () => {
   });
 
   describe('Header', () => {
-    it('should render "Bundle" heading', async () => {
+    it('should render "Build Offer" heading', async () => {
       const { getByText } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        expect(getByText('Bundle')).toBeTruthy();
+        expect(getByText('Build Offer')).toBeTruthy();
       });
     });
 

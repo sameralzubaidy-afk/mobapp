@@ -48,7 +48,7 @@ import { upsertZipWaitlist } from '@/services/waitlist';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getFavorites, toggleFavorite } from '@/services/favoritesService';
-import { MagnifyingGlass, FunnelSimple, X, ShoppingCart } from 'phosphor-react-native';
+import { BookmarkSimple, MagnifyingGlass, FunnelSimple, X } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
 // Search debounce constants: 200ms for active typing, 0ms for filter/sort changes
@@ -170,6 +170,9 @@ export default function DiscoverScreen({ navigation }: Props) {
   // Guards to prevent duplicate pagination requests and stale response races.
   const paginationRequestInFlightRef = useRef(false);
   const latestRequestIdRef = useRef(0);
+
+  // Ref to hold performSearch for useFocusEffect (avoid TDZ issue)
+  const performSearchRef = useRef<((opts?: { resetOffset?: boolean; forcedOffset?: number }) => Promise<void>) | null>(null);
 
   // --- COMPUTED VALUES ---
 
@@ -355,6 +358,8 @@ export default function DiscoverScreen({ navigation }: Props) {
           }
         });
       }
+      // Refresh listings to clear sold/expired items from stale client cache
+      performSearchRef.current?.({ resetOffset: true });
     }, [session?.user])
   );
 
@@ -589,6 +594,9 @@ export default function DiscoverScreen({ navigation }: Props) {
       locationFilterUnavailable,
     ]
   );
+
+  // Sync performSearch ref so useFocusEffect can call it (avoids TDZ)
+  performSearchRef.current = performSearch;
 
   /**
    * Handle reaching end of list (infinite scroll)
@@ -895,6 +903,13 @@ export default function DiscoverScreen({ navigation }: Props) {
 
   /**
    * Render a single search result card
+   *
+   * DEFERRED-DECISION (2026-07-13): Seller Group badges and "Matches Your Cart" indicators
+   * were intentionally REMOVED from Discover/search grid item cards. This was a deliberate
+   * partial revert — the badge approach was replaced by "More from this seller" page discovery
+   * (see MoreFromThisSellerScreen). Do NOT add seller identity indicators back to Discover cards
+   * without a product decision. The ItemCard component no longer accepts sellerGroupColor,
+   * sellerGroupLabel, or matchesCart props.
    */
   const renderResult = useCallback(({ item }: { item: SearchResult }) => {
     const mainImageUrl = item.images && item.images.length > 0 ? item.images[0].url : null;
@@ -960,14 +975,6 @@ export default function DiscoverScreen({ navigation }: Props) {
               )}
             </View>
           </View>
-          {/* Cart shortcut */}
-          <Pressable
-            onPress={() => (navigation as any).navigate('Cart')}
-            style={styles.cartIconButton}
-            hitSlop={8}
-          >
-            <ShoppingCart size={24} color="#374151" weight="regular" />
-          </Pressable>
         </View>
 
         {/* Filter and Sort Row */}
@@ -984,6 +991,16 @@ export default function DiscoverScreen({ navigation }: Props) {
                 <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
               </View>
             )}
+          </Pressable>
+
+          {/* Favorites shortcut bookmark icon */}
+          <Pressable
+            testID="discover-favorites-button"
+            accessibilityLabel="View Favorites"
+            style={styles.filterButton}
+            onPress={() => navigation.navigate('Favorites')}
+          >
+            <BookmarkSimple size={22} color="#E85D75" weight="regular" />
           </Pressable>
 
           <SortDropdown value={sortBy} onChange={handleSortChange} />
@@ -1131,7 +1148,7 @@ export default function DiscoverScreen({ navigation }: Props) {
   // --- MAIN RENDER ---
 
   return (
-    <ScreenLayout variant="detail" title="Discover">
+    <ScreenLayout variant="tab" title="Discover">
       {/* Search Input - Static at the top to prevent losing focus on re-renders */}
       {renderHeader()}
 
@@ -1235,12 +1252,7 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 4,
   },
-  cartIconButton: {
-    padding: 4,
-    marginLeft: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+
   searchContainer: {
     flex: 1,
   },

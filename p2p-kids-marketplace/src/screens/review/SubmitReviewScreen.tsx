@@ -22,6 +22,7 @@ import { submitReview, canReviewUser, skipReview } from '@/services/review';
 import { StarRating } from '@/components/StarRating';
 // import { logEvent } from '@/services/analytics'; // TODO: uncomment when analytics service is available
 import { LoadingSpinner } from '@/components/ui';
+import ScreenLayout from '@/components/ScreenLayout';
 
 type SubmitReviewRouteProp = RouteProp<RootStackParamList, 'SubmitReview'>;
 type SubmitReviewNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SubmitReview'>;
@@ -41,20 +42,7 @@ export function SubmitReviewScreen() {
 
   useEffect(() => {
     checkCanReview();
-
-    // Set up navigation header without back button
-    navigation.setOptions({
-      headerShown: true,
-      headerTitle: `Review ${revieweeName}`,
-      headerTitleStyle: {
-        fontSize: 18,
-        fontWeight: '600',
-      },
-      headerTintColor: '#3B82F6',
-      headerBackTitle: 'Back',
-      headerLeft: () => null, // Hide back button
-    });
-  }, [navigation, revieweeName]);
+  }, []);
 
   const checkCanReview = async () => {
     if (!user?.id) {
@@ -157,10 +145,12 @@ export function SubmitReviewScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <LoadingSpinner />
-        <Text style={styles.loadingText}>Checking review eligibility...</Text>
-      </View>
+      <ScreenLayout variant="detail" title={`Review ${revieweeName}`}>
+        <View style={styles.loadingContainer}>
+          <LoadingSpinner />
+          <Text style={styles.loadingText}>Checking review eligibility...</Text>
+        </View>
+      </ScreenLayout>
     );
   }
 
@@ -169,18 +159,19 @@ export function SubmitReviewScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.keyboardAvoid}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        keyboardShouldPersistTaps="handled"
-        testID="submit-review-screen"
+    <ScreenLayout variant="detail" title={`Review ${revieweeName}`}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Text style={styles.title}>Review {revieweeName}</Text>
-        <Text style={styles.subtitle}>Share your experience with this trade</Text>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+          testID="submit-review-screen"
+        >
+          <Text style={styles.title}>Review {revieweeName}</Text>
+          <Text style={styles.subtitle}>Share your experience with this trade</Text>
 
         {/* Rating Section */}
         <View style={styles.section}>
@@ -252,6 +243,7 @@ export function SubmitReviewScreen() {
         <Text style={styles.note}>You can edit your review within 24 hours of submission.</Text>
       </ScrollView>
     </KeyboardAvoidingView>
+    </ScreenLayout>
   );
 }
 

@@ -482,6 +482,50 @@ Kids P2P Marketplace addresses these challenges through:
 - Notify seller 7 days before expiration
 - Allow one-tap relist (re-use photos/description)
 
+### 6.2A Cart & Bundling (FR-CART)
+
+**FR-CART-001: Single-Seller Cart Enforcement**
+
+- Active cart is locked to ONE seller at a time
+- Adding an item from a different seller triggers a generic modal: "Your cart already has items from a different seller. Adding this item will clear your current cart."
+- Modal offers three actions: Cancel, Save & Start New Cart, Replace Cart
+- **NEVER** reveals the seller name, ID, or any PII in the modal — generic, seller-agnostic copy only
+- Max 3 items per active cart (4th triggers eviction warning)
+- Max 3 saved carts per user (LRU eviction, 7-day expiry)
+- Minimum cart value enforced at checkout (admin-configurable, default $20.00)
+
+**FR-CART-002: Bundle Offer Submission**
+
+- When 2+ items in cart share the same seller, a "Bundle these N items" CTA appears on CartScreen
+- Bundle CTA navigates to checkout in bundle mode with a "Bundle Offer" banner
+- All items in the bundle are submitted as a single offer covering all items from that seller
+- Single-item cart flow is unchanged (no bundle CTA)
+
+**FR-CART-003: "More from this Seller" Discovery**
+
+- On ItemDetailScreen, when a seller has 2+ approved listings, a "This seller has N more items" CTA appears inside the seller info card
+- CTA navigates to a filtered page titled "More from this seller" showing only that seller's available listings
+- Filtered page NEVER reveals seller name, avatar, location, or any PII — title is generic
+- Each item on the filtered page supports "Add to Cart" directly
+- If buyer's active cart matches the seller, a "Matches Your Cart" banner appears at the top
+
+### 6.2B Seller Privacy & Safety (FR-PRIVACY)
+
+**FR-PRIVACY-001: Seller Name Masking**
+
+- Seller name is masked as "🔒 Seller Info Hidden" for ALL buyers who do not have an active trade (pending or in_progress) with that seller
+- Seller name, avatar, and contact information unlock ONLY after the seller accepts the buyer's offer (trade moves to in_progress)
+- Seller rating (star average + total reviews) is ALWAYS visible regardless of trade status
+- A non-identifying Seller Group badge (colored tag derived from an opaque hash of seller_id) is shown on ItemDetailScreen to help buyers recognize items from the same seller without identity leak
+
+**FR-PRIVACY-002: Seller Group Identification**
+
+- Each seller is assigned a stable, deterministic color + label (e.g., "Seller ● Blue") via SHA-256 hash of seller_id
+- The hash is opaque — it cannot be reversed to recover the seller_id
+- The badge appears on ItemDetailScreen and the "More from this seller" filtered page
+- The badge NEVER appears on the Discover/search grid (to keep the feed clean)
+- Two items from the same seller always show the same color/label
+
 ### 6.3 Swap Points System (FR-SP) - **SUBSCRIBERS ONLY**
 
 **FR-SP-001: Earning SP**
@@ -564,6 +608,45 @@ Kids P2P Marketplace addresses these challenges through:
   - Cancel seller's pending SP (if not yet released)
   - If seller already spent received SP → platform absorbs loss
 - Dispute resolution via support tickets
+
+**FR-TX-005: Sales Tax Status Lifecycle (2026-07-23)**
+
+**Overview:** Sales tax follows a state-based lifecycle tied to Stripe payment capture. Tax is calculated and quoted at offer submission using the item's tax category, the applicable category-level tax rule, and the `include_fee_in_tax_base` admin setting. It becomes "collected" only after Stripe confirms capture, and is "voided" on cancellation/decline/expiry before capture.
+
+**Tax Status Values:**
+
+| Status | Meaning | When Set |
+|--------|---------|----------|
+| `quoted` | Tax calculated; Stripe auth hold exists but no money captured | Offer submission |
+| `collected` | Stripe capture succeeded; tax is payable | Buyer completion or auto-complete |
+| `voided` | Authorization canceled/declined/expired before capture | Cancel/decline/expiry |
+| `capture_failed` | Capture attempt failed; no money moved | Failed capture in complete-trade or auto-complete |
+| `refunded` | Full captured tax was refunded via Stripe | Dispute refund or admin force-cancel |
+| `partially_refunded` | Partial captured tax was refunded | Proportional refund processed |
+
+**Lifecycle Transition Rules:**
+
+- **Offer submitted**: Tax calculated using (a) item's `tax_category_id` → active `tax_rules` rule, (b) seller node rate fallback, (c) `include_fee_in_tax_base` toggle. Tax `tax_snapshot` JSONB stored immutably. Status = `quoted`.
+- **Seller accepts**: Tax remains `quoted`. Stripe PaymentIntent is NOT captured (authorization hold only).
+- **Seller declines**: Stripe PI canceled. Tax → `voided`.
+- **Buyer cancels (pending)**: Stripe PI canceled immediately. Tax → `voided`.
+- **Offer expires**: Stripe PI canceled via cron. Tax → `voided`.
+- **Buyer completes (I Got It)**: Stripe PI captured. On success: tax → `collected`. On failure: tax → `capture_failed`, trade stays `in_progress`.
+- **Auto-complete (48h)**: Stripe PI captured same as buyer-complete path.
+- **Dispute resolved as refund**: Stripe refund issued. Tax → `refunded`.
+- **Admin force-cancel**: Uncaptured PI → cancel + void. Captured PI → refund + refunded.
+- **External Stripe refund (webhook)**: Tax → `refunded` via idempotent RPC.
+
+**Key Rules:**
+- Swap Points (SP) are **payment tender** — they do NOT reduce the taxable merchandise price. The taxable amount is always the full item price.
+- The `include_fee_in_tax_base` admin_config toggle controls whether the mandatory buyer platform fee ($0.99/$2.99) is added to the taxable base. This is captured at offer time in the `tax_snapshot`.
+- Category-level tax rules (from `tax_rules` table) are applied per listing at the time the offer is submitted. Rules are versioned and effective-dated.
+- Historical tax records (created before this lifecycle) are backfill-classified: completed → `collected`, cancelled → `voided`.
+- Stripe PaymentIntent authorization holds last 7 days. The `check-authorization-expiry` cron handles stale authorizations.
+
+**Database Changes:**
+- `tax_records` table: added `tax_status` (enum), `tax_snapshot` (JSONB), `captured_at`, `voided_at`, `stripe_capture_id` columns
+- New RPCs: `rpc_void_tax_for_trade`, `rpc_mark_tax_collected`, `rpc_mark_tax_capture_failed`, `rpc_refund_tax_with_status`
 
 ### 6.5 Search & Discovery (FR-SD)
 

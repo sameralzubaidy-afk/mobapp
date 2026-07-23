@@ -7,6 +7,10 @@
  * - Allows buyer/seller to mark trade as 'completed'
  * - Allows buyer/seller to cancel trade
  * - Allows users to review completed trades
+ *
+ * TODO(TAX-GAP): The create-trade-offer Edge Function does not include tax in the
+ * Stripe PaymentIntent — tax is applied post-completion via applyTaxToTrade().
+ * This is the existing architecture and is unchanged.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -26,12 +30,13 @@ import { Trade } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { useAuth } from '@/hooks/useAuth';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { CancellationReasonModal } from '@/components/molecules/CancellationReasonModal';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { LoadingSpinner } from '@/components/ui';
 import { Info, CheckCircle, CircleDashed, Star } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
+import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
+import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 
 type TradeDetailRouteProp = RouteProp<RootStackParamList, 'TradeDetail'>;
 type TradeDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'TradeDetail'>;
@@ -178,10 +183,25 @@ export default function TradeDetailScreen() {
           console.warn('[TradeDetail] fetchTrade after complete failed', e);
         }
 
-        showNotif('Success', result.message || 'Trade marked as completed!', 'accept', () => {
-          setNotifModal(null);
-          fetchTrade();
-        });
+        if (!isSeller) {
+          // ✅ TC-H02: Navigate buyer to TradeSuccessScreen with SP/role params
+          const derivedListingType: 'cash_only' | 'accept_sp' | 'donate' =
+            (trade?.payment_preference_snapshot as any) ||
+            ((trade as any)?.listing?.accepts_swap_points ? 'accept_sp' : 'cash_only');
+          navigation.replace('TradeSuccess', {
+            tradeId,
+            role: 'buyer',
+            spUsed: trade?.sp_amount ?? 0,
+            spAmountDollars: trade?.sp_amount ?? 0,
+            remainingSP: session?.available_points ?? 0,
+            listingType: derivedListingType,
+          });
+        } else {
+          showNotif('Success', result.message || 'Trade marked as completed!', 'accept', () => {
+            setNotifModal(null);
+            fetchTrade();
+          });
+        }
       } else {
         showNotif('Error', result.error || 'Failed to complete trade', 'decline');
       }
@@ -271,6 +291,15 @@ export default function TradeDetailScreen() {
     navigation.navigate('ListingDetail', { listing_id: listingId });
   };
 
+  // MODULE-15.3-PART3 TAX-011: live tax preview for in-progress trades; stored tax used for completed
+  const detailSellerNodeId = ((trade as any)?.listing as any)?.node_id ?? null;
+  const detailTaxableCents = trade ? trade.cash_amount_cents : 0;
+  const detailTaxPreview = useTaxCalculation({
+    nodeId: detailSellerNodeId,
+    taxableAmountCents: detailTaxableCents,
+    enabled: !trade || trade.status !== 'completed',
+  });
+
   if (loading || !trade) {
     return (
       <View style={styles.loadingContainer}>
@@ -343,10 +372,31 @@ export default function TradeDetailScreen() {
               ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
             </Text>
           </View>
+          {/* MODULE-15.3-PART3 TAX-011: sales tax row — buyer only, seller does not see tax.
+              In-progress: live preview via useTaxCalculation.
+              Completed: stored tax from trade row (applied via applyTaxToTrade). */}
+          {isBuyer && (trade.status === 'completed' ? (
+            <TaxBreakdownRow
+              taxAmountCents={trade.tax_amount_cents ?? 0}
+              taxRate={trade.tax_rate_applied ?? 0}
+              jurisdiction={trade.tax_jurisdiction}
+              loading={false}
+              alwaysShow={!!trade.tax_amount_cents}
+              testID="detail-payment-tax-row"
+            />
+          ) : (
+            <TaxBreakdownRow
+              taxAmountCents={detailTaxPreview.taxAmountCents}
+              taxRate={detailTaxPreview.taxRate}
+              jurisdiction={detailTaxPreview.jurisdiction}
+              loading={detailTaxPreview.loading}
+              testID="detail-payment-tax-preview"
+            />
+          ))}
           <View style={[styles.row, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>
-              ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents) / 100).toFixed(2)}
+              ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents + (isBuyer ? (trade.status === 'completed' ? (trade.tax_amount_cents ?? 0) : detailTaxPreview.taxAmountCents) : 0)) / 100).toFixed(2)}
             </Text>
           </View>
         </View>
@@ -466,7 +516,6 @@ export default function TradeDetailScreen() {
           </View>
         )}
       </ScrollView>
-      <PersistentTabBar />
 
       <TradeConfirmationModal
         visible={showCompleteConfirm}

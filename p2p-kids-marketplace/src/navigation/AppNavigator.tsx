@@ -6,7 +6,10 @@ import Constants from 'expo-constants';
 import * as ExpoLinking from 'expo-linking';
 import { LoadingSpinner } from '@/components/ui';
 import { HomeTabNavigator } from '@/navigation/HomeTabNavigator';
+import { CartProvider } from '@/contexts/CartContext';
+import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import DiscoverScreen from '@/screens/home/DiscoverScreen';
+import ConversationsListScreen from '@/screens/messaging/ConversationsListScreen';
 import CategoryBrowseScreen from '@/screens/home/CategoryBrowseScreen';
 import ItemDetailScreen from '@/screens/home/ItemDetailScreen';
 import SpWalletScreen from '@/screens/sp/SpWalletScreen';
@@ -38,15 +41,16 @@ import TradeSuccessScreen from '@/screens/trade/TradeSuccessScreen';
 import TradeTimelineScreen from '@/screens/trade/TradeTimelineScreen';
 import TradeReviewScreen from '@/screens/trade/TradeReviewScreen';
 import ReviewOfferScreen from '@/screens/trade/ReviewOfferScreen';
+import TradeListScreen from '@/screens/trade/TradeListScreen';
 import TradeDisputeScreen from '@/screens/trade/TradeDisputeScreen';
 import TradeV2ComponentsPreviewScreen from '@/screens/trade/TradeV2ComponentsPreviewScreen';
 import CartScreen from '@/screens/cart/CartScreen';
 import CartCheckoutScreen from '@/screens/cart/CartCheckoutScreen';
 import BundleBuilderScreen from '@/screens/cart/BundleBuilderScreen';
+import MoreFromThisSellerScreen from '@/screens/home/MoreFromThisSellerScreen';
 import FavoritesScreen from '@/screens/favorites/FavoritesScreen';
 import PayoutSettingsScreen from '@/screens/seller/PayoutSettingsScreen';
 import SellerEarningsScreen from '@/screens/seller/SellerEarningsScreen';
-import PayoutDashboardScreen from '@/screens/payouts/PayoutDashboardScreen';
 import RequestPayoutScreen from '@/screens/payouts/RequestPayoutScreen';
 import AdminDashboardScreen from '@/screens/admin/AdminDashboardScreen';
 import { ReviewModerationScreen } from '@/screens/admin/ReviewModerationScreen';
@@ -81,6 +85,11 @@ import OfflineScreen from '@/screens/error/OfflineScreen';
 import LoadingScreen from '@/screens/LoadingScreen';
 import SuccessScreen from '@/screens/feedback/SuccessScreen';
 import ErrorScreen from '@/screens/feedback/ErrorScreen';
+import ChatScreen from '@/screens/messaging/ChatScreen';
+import HelpScreen from '@/screens/help/HelpScreen';
+import HelpSupportMenuScreen from '@/screens/support/HelpSupportMenuScreen';
+import ContactSupportScreen from '@/screens/support/ContactSupportScreen';
+import FAQDetailScreen from '@/screens/support/FAQDetailScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
 import {
@@ -135,6 +144,7 @@ const linking = {
       CreateListing: 'create-listing',
       ItemCreate: 'create-item',
       BundleBuilder: 'bundle-builder/:sellerId',
+      MoreFromThisSeller: 'more-from-seller/:sellerId',
       BulkListingCreate: 'bulk-create',
       EditListing: 'edit-listing',
       ListingDetail: 'listing/:listing_id',
@@ -153,7 +163,7 @@ const linking = {
   },
 };
 
-const navigationRef = createNavigationContainerRef<any>();
+export const navigationRef = createNavigationContainerRef<any>();
 
 function isTransientNetworkError(error: unknown): boolean {
   const message =
@@ -443,29 +453,30 @@ function RootNavigator() {
       onReady={onNavigationReady}
       onStateChange={onNavigationStateChange}
     >
-      <Stack.Navigator
-        key={navigatorKey}
-        screenOptions={{ headerShown: false }}
-        initialRouteName={isSubscriptionExpired ? 'SubscriptionExpired' : undefined}
-      >
-        {isAuthenticated && isSuspended ? (
-          // Authenticated + Suspended -> blocked account screen
-          <Stack.Screen
-            name="SuspendedAccount"
-            component={SuspendedAccountScreen}
-            options={{ headerShown: false }}
-          />
-        ) : isAuthenticated ? (
-          // Authenticated users -> Dashboard stack
-          <>
-            {showOnboardingCarousel ? (
-              // MODULE-18 EDU-004: Onboarding carousel (first-run only)
-              <Stack.Screen
-                name="Onboarding"
-                component={OnboardingScreen}
-                options={{ headerShown: false }}
-              />
-            ) : null}
+      <CartProvider>
+        <Stack.Navigator
+          key={navigatorKey}
+          screenOptions={{ headerShown: false }}
+          initialRouteName={isSubscriptionExpired ? 'SubscriptionExpired' : undefined}
+        >
+          {isAuthenticated && isSuspended ? (
+            // Authenticated + Suspended -> blocked account screen
+            <Stack.Screen
+              name="SuspendedAccount"
+              component={SuspendedAccountScreen}
+              options={{ headerShown: false }}
+            />
+          ) : isAuthenticated ? (
+            // Authenticated users -> Dashboard stack
+            <>
+              {showOnboardingCarousel ? (
+                // MODULE-18 EDU-004: Onboarding carousel (first-run only)
+                <Stack.Screen
+                  name="Onboarding"
+                  component={OnboardingScreen}
+                  options={{ headerShown: false }}
+                />
+              ) : null}
 
             <Stack.Screen
               name="Home"
@@ -488,9 +499,21 @@ function RootNavigator() {
               component={CartCheckoutScreen}
               options={{ headerShown: false }}
             />
+            {/* Inbox tab — root stack screen so PersistentTabBar can navigate to it */}
+            <Stack.Screen
+              name="InboxTab"
+              component={ConversationsListScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen
               name="BundleBuilder"
               component={BundleBuilderScreen}
+              options={{ headerShown: false }}
+            />
+            {/* SELLER-GROUP-007: "More from this seller" page */}
+            <Stack.Screen
+              name="MoreFromThisSeller"
+              component={MoreFromThisSellerScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-15.2 CART-018: Favorites screen */}
@@ -521,7 +544,7 @@ function RootNavigator() {
             />
             <Stack.Screen
               name="SubscriptionChoice"
-              component={SubscriptionChoiceScreen}
+              component={SubscriptionPlansScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-04: Listing screens */}
@@ -581,7 +604,7 @@ function RootNavigator() {
             />
             <Stack.Screen
               name="TradeList"
-              component={require('@/screens/trade/TradeListScreen').default}
+              component={TradeListScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -612,12 +635,12 @@ function RootNavigator() {
             {/* MODULE-07: Messaging screens */}
             <Stack.Screen
               name="Conversations"
-              component={require('@/screens/messaging/ConversationsListScreen').default}
+              component={ConversationsListScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Chat"
-              component={require('@/screens/messaging/ChatScreen').default}
+              component={ChatScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-06 (EXT): Seller Payout screens */}
@@ -631,12 +654,7 @@ function RootNavigator() {
               component={SellerEarningsScreen}
               options={{ headerShown: false }}
             />
-            {/* MODULE-15.1 FLOW-22: Payout Dashboard + Request Payout (redesigned) */}
-            <Stack.Screen
-              name="PayoutDashboard"
-              component={PayoutDashboardScreen}
-              options={{ headerShown: false }}
-            />
+            {/* MODULE-15.1 FLOW-22: Request Payout (redesigned) */}
             <Stack.Screen
               name="RequestPayout"
               component={RequestPayoutScreen}
@@ -771,28 +789,28 @@ function RootNavigator() {
             {/* MODULE-18 EDU-005: Help screen */}
             <Stack.Screen
               name="Help"
-              component={require('@/screens/help/HelpScreen').default}
+              component={HelpScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-15.1 FLOW-19: Help & Support screens */}
             <Stack.Screen
               name="HelpSupport"
-              component={require('@/screens/support/HelpSupportMenuScreen').default}
+              component={HelpSupportMenuScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
               name="Support"
-              component={require('@/screens/support/HelpScreen').default}
+              component={HelpScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
               name="ContactSupport"
-              component={require('@/screens/support/ContactSupportScreen').default}
+              component={ContactSupportScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
               name="FAQDetail"
-              component={require('@/screens/support/FAQDetailScreen').default}
+              component={FAQDetailScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-03 AUTH-V3-004: Linked Accounts Management */}
@@ -898,7 +916,7 @@ function RootNavigator() {
             />
             <Stack.Screen
               name="SubscriptionChoice"
-              component={SubscriptionChoiceScreen}
+              component={SubscriptionPlansScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -935,7 +953,9 @@ function RootNavigator() {
             />
           </>
         )}
-      </Stack.Navigator>
+        </Stack.Navigator>
+        {isAuthenticated && !isSuspended && <PersistentTabBar />}
+      </CartProvider>
     </NavigationContainer>
   );
 }

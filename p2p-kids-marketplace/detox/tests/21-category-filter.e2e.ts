@@ -17,7 +17,7 @@ import { goToDiscover } from '../helpers/navigation';
 
 describe('TC-21: Category Filter', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
     await goToDiscover();
@@ -52,11 +52,23 @@ describe('TC-21: Category Filter', () => {
 
   it('shows seeded categories in the modal', async () => {
     // Seeded categories from seed-staging-data.ts: Toys, Sports, Electronics, Books
-    const categoryFound = await Promise.any([
-      waitFor(element(by.text('Toys'))).toBeVisible().withTimeout(3000),
-      waitFor(element(by.text('Books'))).toBeVisible().withTimeout(3000),
-      waitFor(element(by.text('Sports'))).toBeVisible().withTimeout(3000),
-    ]).then(() => true).catch(() => false);
+    let categoryFound = false;
+    try {
+      await waitFor(element(by.text('Toys'))).toBeVisible().withTimeout(3000);
+      categoryFound = true;
+    } catch {}
+    if (!categoryFound) {
+      try {
+        await waitFor(element(by.text('Books'))).toBeVisible().withTimeout(3000);
+        categoryFound = true;
+      } catch {}
+    }
+    if (!categoryFound) {
+      try {
+        await waitFor(element(by.text('Sports'))).toBeVisible().withTimeout(3000);
+        categoryFound = true;
+      } catch {}
+    }
 
     expect(categoryFound).toBe(true);
     await device.takeScreenshot('21-categories-visible');

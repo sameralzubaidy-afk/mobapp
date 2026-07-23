@@ -13,7 +13,7 @@ import { dismissSystemDialogs } from '../helpers/dialogs';
 
 describe('TC-23: Forgot Password', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
   });
 
@@ -42,15 +42,15 @@ describe('TC-23: Forgot Password', () => {
   });
 
   it('shows the forgot-password-link on the Login screen', async () => {
-    await waitFor(element(by.id('forgot-password-link')))
+    await waitFor(element(by.id('login-forgot-password-link')))
       .toBeVisible()
       .withTimeout(8000);
-    await expect(element(by.id('forgot-password-link'))).toBeVisible();
+    await expect(element(by.id('login-forgot-password-link'))).toBeVisible();
     await device.takeScreenshot('23-forgot-password-link-visible');
   });
 
   it('taps forgot-password-link and opens password recovery screen', async () => {
-    await element(by.id('forgot-password-link')).tap();
+    await element(by.id('login-forgot-password-link')).tap();
 
     // waitFor handles the navigation transition — no fixed sleep needed.
     // Verify we have moved away from the login screen.

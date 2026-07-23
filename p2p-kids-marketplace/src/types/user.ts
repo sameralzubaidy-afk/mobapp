@@ -100,6 +100,7 @@ export interface AuthSession {
   pending_points: number;
   lifetime_earned: number;
   lifetime_spent: number;
+  reserved_points: number;
   wallet_state: 'active' | 'frozen' | 'suspended' | 'grace_period' | 'inactive'; // ADMIN-V2-003: wallet state enforcement
 }
 

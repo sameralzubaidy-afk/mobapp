@@ -22,7 +22,6 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { getBillingHistory } from '@/services/billingHistory';
 import type { BillingHistory } from '@/types/billingHistory.types';
 import { formatPrice } from '@/utils/formatPrice';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -162,8 +161,6 @@ export default function BillingHistoryScreen() {
             payment.
           </Text>
         </View>
-
-        <PersistentTabBar />
       </ScreenLayout>
     );
   }
@@ -227,8 +224,6 @@ export default function BillingHistoryScreen() {
         {/* Footer spacing */}
         <View style={{ height: 80 }} />
       </ScrollView>
-
-      <PersistentTabBar />
     </ScreenLayout>
   );
 }

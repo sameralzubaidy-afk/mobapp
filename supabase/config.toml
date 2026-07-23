@@ -25,3 +25,6 @@ verify_jwt = false
 [functions.detach-payment-method]
 verify_jwt = false
 
+[functions.send-offer-reminders]
+verify_jwt = false
+

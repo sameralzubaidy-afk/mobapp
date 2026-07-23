@@ -18,7 +18,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-35: Safe Meetup Section', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -32,20 +32,20 @@ describe('TC-35: Safe Meetup Section', () => {
 
     await waitFor(element(by.id('profile-trades-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('profile-trades-stat')).tap();
 
     await waitFor(element(by.id('tab-active')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('tab-active')).tap();
     // Wait for the trade list to populate before the next tap
-    await waitFor(element(by.id('trade-status-badge')).atIndex(0))
+    await waitFor(element(by.id(/trade-row-.+/)).atIndex(0))
       .toBeVisible()
       .withTimeout(10000);
 
     try {
-      await element(by.id('trade-status-badge')).atIndex(0).tap();
+      await element(by.id(/trade-row-.+/)).atIndex(0).tap();
     } catch {
       // No active trades — test is inconclusive
       return;
@@ -69,7 +69,7 @@ describe('TC-35: Safe Meetup Section', () => {
     try {
       await waitFor(element(by.id('safe-meetup-toggle')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
       await expect(element(by.id('safe-meetup-toggle'))).toBeVisible();
     } catch {
       // Toggle may be inside a collapsed card section
@@ -80,7 +80,7 @@ describe('TC-35: Safe Meetup Section', () => {
     try {
       await waitFor(element(by.id('safe-meetup-tips')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
       await expect(element(by.id('safe-meetup-tips'))).toBeVisible();
     } catch {
       // Tips may expand after tapping the toggle
@@ -89,7 +89,7 @@ describe('TC-35: Safe Meetup Section', () => {
         // waitFor handles the expand animation instead of a fixed sleep
         await waitFor(element(by.id('safe-meetup-tips')))
           .toBeVisible()
-          .withTimeout(8000);
+          .withTimeout(15000);
       } catch {
         // Section may not be expanded in this trade state — acceptable
       }

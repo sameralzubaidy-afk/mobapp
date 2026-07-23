@@ -15,7 +15,7 @@ import { goToHome } from '../helpers/navigation';
 
 describe('TC-11: Home Dashboard', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -39,7 +39,7 @@ describe('TC-11: Home Dashboard', () => {
   });
 
   it('shows the notification bell icon', async () => {
-    await expect(element(by.id('notif-button'))).toBeVisible();
+    await expect(element(by.id('header-notifications-btn'))).toBeVisible();
   });
 
   it('shows the SP balance strip', async () => {

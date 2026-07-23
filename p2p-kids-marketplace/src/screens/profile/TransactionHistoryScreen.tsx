@@ -18,7 +18,6 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '@/hooks/useAuth';
 import { getBillingHistory } from '@/services/billingHistory';
 import type { BillingHistory } from '@/types/billingHistory.types';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { Receipt } from 'phosphor-react-native';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -128,8 +127,6 @@ export default function TransactionHistoryScreen() {
           />
         )}
       </View>
-
-      <PersistentTabBar />
     </ScreenLayout>
   );
 }

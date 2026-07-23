@@ -2082,8 +2082,33 @@ add one section on the top give summary on what this file covers from testing an
       - Dashboard recommendations cards show listing thumbnails.
 - Automated (offline): Jest covers `getItems` node filtering and NODE-007 radius fetch.
 
-### FLOW-07: Cart & Bundling
+### FLOW-07:  & Bundling
 - Smoke: (manual - see MODULE-15.1-FLOW-07-MANUAL-TESTING.md)
+- **SELLER-GROUP-001..007 (2026-07-13):** Seller Masking, Bundle Discovery, and Same-Seller Cart Enforcement
+  - Module: SELLER-GROUP (cross-cutting — touches FLOW-06 ItemDetail, FLOW-07 Cart, FLOW-08 Trade)
+  - Scope:
+    - **SELLER-GROUP-001**: `src/utils/sellerGroup.ts` — Deterministic SHA-256-based seller group hash utility. 12 colors/labels (e.g., "Seller ● Blue"), in-memory cache. NEVER exposes PII.
+    - **SELLER-GROUP-002**: `src/components/molecules/SellerGroupBadge.tsx` — Colored dot + label badge component (small/medium sizes). Used on ItemDetailScreen and "More from this seller" page.
+    - **SELLER-GROUP-003**: `src/components/molecules/DifferentSellerModal.tsx` — Shared different-seller cart-conflict modal with generic, seller-agnostic copy. Single source of truth for both ItemDetailScreen and CartScreen. Modal message: "Your cart already has items from a different seller. Adding this item will clear your current cart." — NEVER interpolates seller name/ID.
+    - **SELLER-GROUP-004**: `src/components/molecules/MatchesCartBadge.tsx` — Green "Matches Your Cart" badge (cart icon + text). Shown on ItemDetailScreen and filtered seller page when buyer's active cart seller matches.
+    - **SELLER-GROUP-005**: Bundle CTA on CartScreen — When 2+ same-seller items in cart, a green card appears: "Bundle these N items — Make one offer for all items from this seller." Tapping navigates to CartCheckout with `bundleMode: true`.
+    - **SELLER-GROUP-006**: `src/services/listing.ts` — Added `getMaskedSellerListings(seller_id, exclude_listing_id?)` and `MaskedSellerListing` type. Returns only `status='available'` items with NO seller identity fields (title, price, condition, image only). Safe for buyer-facing display.
+    - **SELLER-GROUP-007**: `src/screens/home/MoreFromThisSellerScreen.tsx` — Lightweight "More from this seller" filtered page. 2-column grid, "Add to Cart" on each item, "Matches Your Cart" banner, favorite toggle. Generic title — zero seller identity leaks. Route: `MoreFromThisSeller: { sellerId: string; excludeListingId?: string }`.
+    - **ItemDetailScreen integration**: "More from this seller" CTA (green "This seller has N more items") shown only when seller has 2+ approved listings. SellerGroupBadge + MatchesCartBadge shown in seller info section.
+    - **CartCheckoutScreen integration**: Reads `bundleMode` param; shows "📦 Bundle Offer" banner when entering via bundle CTA.
+    - **Navigation**: `MoreFromThisSeller` route added to `RootStackParamList` and `AppNavigator`.
+  - Key Rules:
+    - Seller identity (name, avatar, contact) unlocks ONLY after trade reaches `in_progress` (post-acceptance). Rating always visible.
+    - Seller Group badge uses opaque hash — cannot be reversed to recover seller_id.
+    - Discover/search grid is CLEAN — no seller group badges or "Matches Your Cart" indicators on grid cards.
+    - Single-seller cart enforcement: DIFFERENT_SELLER error from RPC triggers generic modal with no identity leak.
+  - Tests:
+    - Unit: `src/utils/sellerGroup.ts` (deterministic hash, cache), `src/services/listing.ts` (getMaskedSellerListings returns no PII fields)
+    - Manual: `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group S (13 test cases: TC-S01–S13)
+    - Regression: Bundle CTA (CartScreen unchanged), different-seller modal (generic copy), trade-lifecycle masking (unchanged)
+  - Validation:
+    - `npx tsc -p tsconfig.json --noEmit` (must exit 0 on changed files)
+    - Manual testing guide Group S executed on iOS Simulator + Android Emulator
 - **MODULE-15.1-UI-REDESIGN-FLOW-07 (2026-05-08):** Cart & Bundling screens redesigned
   - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-07)
   - Scope:
@@ -2240,7 +2265,7 @@ add one section on the top give summary on what this file covers from testing an
 - **MODULE-15.1.2-TRADEFLOWV2-FULL (2026-05-28):** Complete Trade Flow V2 — all 24 tasks TFV2-001 through TFV2-022 + TFV2-023 + Addenda A–E
   - Module: MODULE-15.1.2 TradeFlowV2 — full module
   - Scope:
-    - **TFV2-001** Admin config trade timing fields: `auto_complete_hours`, `sp_pending_release_days`, `offer_notif_1/2_hours_before`, `auto_complete_notif_1/2_hours_before` — cross-field validation trigger
+    - **TFV2-001** Admin config trade timing fields: `auto_complete_hours`, `sp_pending_release_days`, `offer_notif_1/2_hours_before`, `auto_complete_notif_1/2_hours_before`, `max_pending_offers_per_seller` — cross-field validation trigger
     - **TFV2-002** trades table V2 columns: `offer_expires_at`, `auto_complete_at`, `bundle_id`, `dispute_status`, `payout_status`, `payout_idempotency_key`, `sp_earned_at_completion`, `sp_released_at`; `sp_wallets.reserved_sp`; `listing_offer_stats` table; `fn_lock_payment_preference` trigger (FR-LM-002)
     - **TFV2-003** SP reserve/release triggers: `fn_reserve_sp_on_offer` (reduces available_sp, increases reserved_sp on trade INSERT), `fn_release_sp_on_cancel` (restores on cancellation), `fn_release_all_sp_on_complete` (consumes reserved on completion)
     - **TFV2-004** Offer expiry cron: `rpc_process_expired_offers()` — auto-declines expired offers, sets `cancelled_expired_competing` for competing offers when one accepted
@@ -2252,7 +2277,7 @@ add one section on the top give summary on what this file covers from testing an
     - **TFV2-010** ReviewOfferScreen SP wallet projection: combined SP total shown (no source breakdown — D-11), testID `trade-review-sp-summary`
     - **TFV2-011** TradeTimelineScreen buyer-only completion (D-03): testID `confirm-trade-button` for BUYER only; seller has NO completion button anywhere
     - **TFV2-012** Item Detail "Request to Buy" button (D-07): button label is "Request to Buy" — NOT "Buy Now"/"Pay Cash"; "Use SP 🔒" visible but locked for free users (D-08)
-    - **TFV2-012A** Stripe pre-authorization: `createTradeOfferWithHold` → atomic SP hold + Stripe pre-auth at offer submission; max 3 pending offers per buyer enforced
+    - **TFV2-012A** Stripe pre-authorization: `createTradeOfferWithHold` → atomic SP hold + Stripe pre-auth at offer submission; max N pending offers per seller enforced (N live from admin_config, default 3). Bundle offer counts as 1 slot, not 1 per item. See D-32 (per-seller cap) and D-33 (admin-configurable).
     - **TFV2-013** Unified offer flow: no pre-charge at offer; hold captured only; charge captured only on acceptance (D-30)
     - **TFV2-014** TradeSuccessScreen targeted CTAs: seller = `list-another-button` + `view-earnings-button` + `leave-review-button-seller`; buyer = `leave-review-button-buyer` + `back-home-button`
     - **TFV2-015** Seller ignoring offers prompt: nudge shown when `listing_offer_stats.consecutive_unanswered_offers_count >= threshold`
@@ -2271,6 +2296,8 @@ add one section on the top give summary on what this file covers from testing an
     - **D-27** bundle_id = UX grouping ONLY — zero business logic attached
     - **D-29** Eviction modal when 4th cart added (NOT silent LRU)
     - **D-30** Payment authorization hold at offer submission (Stripe pre-auth + SP hold atomic)
+    - **D-32 (2026-07-18)** Offer cap is per-seller, not global: max N pending offers per buyer-seller pair. N is read live from admin_config. Bundle = 1 slot. Offers to different sellers are counted independently.
+    - **D-33 (2026-07-18)** Offer cap is admin-configurable via Trade Timing page (/settings/trade-timing). Range: 1–10. Takes effect immediately — no app restart. The Edge Function reads the live value on every request with NO hardcoded fallback.
     - **TODO-07 🔴** Platform fee hardcoded $0.99/$2.99 — do NOT fetch from config
   - Tests:
     - Unit: `src/__tests__/services/trade-tfv2-core-logic.test.ts` (~50 tests — SP calc formula, timing config validation, countdown logic, createTradeOfferWithHold, completeTradeV2, cancelTradeV2 consequenceLevel, offer expiry, SP 50% cap)
@@ -2304,9 +2331,63 @@ add one section on the top give summary on what this file covers from testing an
   - With `enable_automatic_seller_payout=false`: completing a trade increases seller "Available to Withdraw" by `trades.cash_amount_cents` and increases "Lifetime Earnings"; "Pending (In Progress)" reflects any withdrawals in `pending/processing`.
   - When `STRIPE_SECRET_KEY` is missing/blank: payment fails with a clear server config error (not a Stripe runtime error).
   - Seller Stripe Connect onboarding completes -> `seller_payout_methods.stripe_onboarding_complete=true` and (once Stripe enables payouts) `stripe_payouts_enabled=true`.
-  - PayPal/Venmo payout: Seller creates PayPal/Venmo payout method, withdraws, and payout moves `pending` -> `processing` after submission; later `completed/failed` via PayPal webhook.
+  - PayPal/Venvo payout: Seller creates PayPal/Venmo payout method, withdraws, and payout moves `pending` -> `processing` after submission; later `completed/failed` via PayPal webhook.
   - Stripe payouts: a `seller_payouts` row with `provider='stripe'` and `provider_reference_id=<stripe payout id>` moves `processing` -> `completed/failed` via Stripe payout webhooks.
+  - **Per-seller offer cap (D-32, 2026-07-18):** Buyer can have max N pending offers with Seller A and independently N with Seller B (N default 3, admin-configurable via D-33). Bundle offer = 1 slot. 4th offer to same seller blocked with "You have N pending offers with this seller." Cross-seller offers unaffected.
+  - **Admin-configurable cap (D-33, 2026-07-18):** Admin changes Max Offers Per Seller on /settings/trade-timing → takes effect immediately. No hardcoded fallback if config fetch fails. Forward-looking only (no retroactive cancellation).
 - Automated (offline): Jest covers `SellerEarningsScreen` payout summary rendering.
+- **D-31 (2026-07-18): Bundle Checkout Perf Fix — Background Stripe Pre-Auth Hold Creation ("Option B")**
+  - Module: MODULE-06 Trade Flow V2 / Cart Checkout
+  - Problem: Bundle checkout (Buy Now on a multi-item cart) took 5+ seconds because `create-trade-offer`'s batch path created a Stripe PaymentIntent for every cash item, one call at a time inside the request, before returning any response. Stripe serializes concurrent PaymentIntent creation for the same customer, so a 5-item bundle waited on 5 sequential Stripe round-trips before the buyer saw anything.
+  - Scope:
+    - `supabase/functions/create-trade-offer/index.ts` — batch/bundle path only (single-item path via `createSingleOffer` is UNCHANGED, still synchronous):
+      - Split bundle offer creation into two phases. **Phase 1** (awaited, fast): validates each item, checks for duplicate offers, calculates tax, and inserts the `trades` row immediately with `status='pending'` and `stripe_payment_intent_id=null`. The buyer gets a success response as soon as Phase 1 finishes for every item in the bundle — no Stripe wait.
+      - **Phase 2** (background, via `EdgeRuntime.waitUntil()` — runs strictly AFTER the HTTP response is sent): creates the real Stripe pre-auth hold for each cash item, then attaches `stripe_payment_intent_id` + `authorization_expires_at` to its trade row, guarded by `.eq('status', 'pending')` so a hold is never attached to a trade the seller already declined mid-flight — in that race, the newly-created Stripe hold is cancelled instead of attached (no orphaned authorizations).
+      - On a Phase 2 failure (card declined, Stripe error, etc.) `handleBackgroundHoldFailure()` runs: the trade flips to `status='payment_failed'`, `cancellation_reason='payment_hold_failed'`; the underlying item is explicitly re-affirmed `status='available'` (guarded to never touch an item that has genuinely sold/been removed) so the seller never silently loses the chance to sell it; the buyer gets both an in-app notification (`create_trade_notification` RPC, type `offer_payment_hold_failed`) and a push notification naming the specific item and asking them to update their payment method; a `payment_failed` trade event is logged via `logTradeEvent`.
+      - `'payment_processing'` is NOT used as an interim status — that value was deprecated/removed from the `trades.status` CHECK constraint by an earlier migration (`20260606000002_deprecate_payment_processing.sql`). The interim state is `status='pending'` + `stripe_payment_intent_id IS NULL`, distinguished from a fully-held pending trade purely by PI-nullness.
+    - `supabase/functions/transactions-update/index.ts` (single-item seller accept) and `supabase/functions/transactions-accept-bundle/index.ts` (seller "Accept All") — **money-correctness guard** added to both accept paths: if `cash_amount_cents > 0` and `stripe_payment_intent_id` is still null (the background hold hasn't landed yet), the accept is rejected with a `409 PAYMENT_PROCESSING` / `{ code: 'PAYMENT_PROCESSING' }` error ("This offer is still being processed. Please try again in a few seconds.") instead of silently skipping the capture step and letting the trade proceed uncharged. Decline paths (`transactions-update` decline action, `transactions-decline-bundle`) needed NO changes — they never attempt a Stripe capture regardless of PI presence.
+    - `supabase/functions/send-trade-notifications/index.ts` — added a new `offer_payment_hold_failed` entry to `EVENT_COPY` (title "Payment Issue", body names the specific listing). The existing generic `payment_failed` entry (used for accept-time capture failures) was left untouched.
+  - Notes:
+    - 🟡 DEFECT (pre-existing, out of scope): `deno check` on `send-trade-notifications/index.ts` reports a real TS error at the unrelated `payout_requires_action` entry (`(data?.amount_cents || 0) / 100` — `unknown` arithmetic). Confirmed via `git diff` this line was not touched by this change. Not fixed here per Scope Containment; flagging for a future dedicated fix.
+    - `EdgeRuntime.waitUntil()` is newly introduced to this codebase (first usage) — a local `declare const EdgeRuntime` type shim was added since it isn't part of default Deno types, with a `typeof EdgeRuntime !== 'undefined'` guard and a local-dev (`supabase functions serve`) fallback that fires the background promise without the keep-alive guarantee (logs a warning).
+  - Tests / Validation:
+    - `cd /Users/sameralzubaidi/Desktop/kids_marketplace_app && deno check --no-lock supabase/functions/create-trade-offer/index.ts supabase/functions/transactions-update/index.ts supabase/functions/transactions-accept-bundle/index.ts` — PASS, 0 errors (this is the Deno-appropriate Tier 0 gate for Edge Functions; the VS Code TS server's generic `get_errors` check is not Deno-aware and reports false-positive "Cannot find name 'Deno'" noise on these files — cross-checked against an untouched sibling function to confirm the false-positive).
+    - Deployed via `cd p2p-kids-marketplace && npx supabase functions deploy <name>` for `create-trade-offer`, `transactions-update`, `transactions-accept-bundle`, `send-trade-notifications` — all 4 deployed successfully (exit code 0).
+    - Manual (not yet performed — recommended next session): time a 3-5 item bundle Buy Now end-to-end (should respond in ~1s, not 5+s); confirm each item's Stripe hold appears on the trade within a few seconds after checkout; simulate a declined card mid-bundle and confirm the affected item flips to `payment_failed`, stays `available` in Discovery, and the buyer receives both an in-app and push notification; attempt to accept an offer immediately after bundle checkout (before the background hold lands) and confirm the seller sees the "still being processed" error instead of a false accept.
+- **D-32 (2026-07-18): Per-Seller Offer Cap (was Global Cap)**
+  - Module: MODULE-06 Trade Flow V2 / Offer Submission
+  - Change: Offer cap changed from GLOBAL (max 3 pending offers per buyer across entire marketplace) to PER-SELLER (max N pending offers per buyer-seller pair).
+  - Scope:
+    - `supabase/functions/create-trade-offer/index.ts` — Single-item path: resolved seller from `item_id` before checking count of `pending` trades for that `buyer_id + seller_id`. Batch (bundle) path: resolved seller from first item, counted as 1 slot total. Error code `MAX_PENDING_OFFERS` preserved (backward compat with client handling).
+    - `p2p-kids-marketplace/src/services/trade.ts` — `countPendingOffersByBuyer` now accepts optional `sellerId` param for per-seller counts.
+    - Client UI: `TradeInitiationScreen.tsx` and `TradeOfferScreen.tsx` error messages updated to use server's dynamic message (no hardcoded "3").
+  - Bundle exception removed: The old `if (!bundle_id)` guard that skipped the cap check for bundles is replaced with a per-seller check where bundle = 1 slot.
+  - Key behavior:
+    - Buyer can have 3 offers with Seller A AND 3 offers with Seller B simultaneously (6 total).
+    - Bundle offer (multi-item cart checkout) counts as exactly 1 slot, not N per item.
+    - Offers to different sellers never interfere with each other.
+    - Expired offers free the slot immediately (status=`cancelled`).
+  - Tests:
+    - Manual: `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` TC-B05 through TC-B05e (5 test cases covering cross-seller, same-seller block, bundle=1, expiry frees slot, global cap regression)
+  - Depends on: D-30 (pre-auth hold), D-33 (admin-configurable)
+- **D-33 (2026-07-18): Admin-Configurable Offer Cap (was Hardcoded 3)**
+  - Module: MODULE-06 Trade Flow V2 / Admin Configuration
+  - Change: The per-seller offer cap value (previously hardcoded `MAX_PENDING_OFFERS_PER_SELLER = 3`) is now read live from `admin_config.max_pending_offers_per_seller` on every request.
+  - Scope:
+    - **DB**: Migration `20260718000001_admin_config_per_seller_offer_cap.sql` seeds `max_pending_offers_per_seller='3'` into `admin_config` (category `trade`). Updates `fn_validate_trade_timing_config` trigger to validate range 1–10.
+    - **Admin UI**: `p2p-kids-admin/src/app/settings/trade-timing/page.tsx` — new **"Offer Limits"** section between Offer Expiry and Auto-Complete with `numField`. Validates 1–10. Saves via existing `upsert_admin_config_setting` RPC.
+    - **Admin types**: `p2p-kids-admin/src/types/config.ts` — `max_pending_offers_per_seller` added to `TradeTimingConfig`.
+    - **Edge Function**: `supabase/functions/create-trade-offer/index.ts` — removed `MAX_PENDING_OFFERS_PER_SELLER` constant. New `getMaxPendingOffersPerSeller()` helper reads live from `admin_config`. **No hardcoded fallback** — if config fetch fails, returns `500 CONFIG_UNAVAILABLE`.
+    - **Mobile client**: `p2p-kids-marketplace/src/services/adminConfig.ts` — `max_pending_offers_per_seller` added to `AdminConfig` interface with `getDefaultConfig()` fallback of 3 (for client-side UI badges only; server enforcement has NO fallback).
+  - Key behavior:
+    - Admin changes cap on `/settings/trade-timing` → takes effect immediately on next offer submission — no app restart, no redeploy.
+    - Error messages reflect the current cap dynamically (e.g., "You have 5 pending offers with this seller...").
+    - Config fetch failure → Edge Function rejects with `CONFIG_UNAVAILABLE` → client shows "Offer limit configuration is unavailable."
+    - Reverting to a lower cap is forward-looking only — existing open offers above the new cap are NOT retroactively cancelled.
+  - Tests:
+    - Manual: `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` TC-B05f through TC-B05j (5 test cases covering change 3→5, revert 5→3, validation 1–10, config fetch failure, regression with non-default cap)
+    - Migration verification queries included in migration file.
+  - Admin page location: `http://localhost:3001/settings/trade-timing` → **Offer Limits** section → **Max Offers Per Seller**.
 
 ### FLOW-09: Fees & Pricing Engine
 - Smoke: (manual)
@@ -5787,9 +5868,10 @@ Satisfied Items:
 - **Tier**: Tier 0 always; Tier 1 when checkout/trade flows change; Tier 2 when tax DB migrations or RPCs change
 - **Hard rules**:
   - Tax rate is stored as DECIMAL fraction (0.0635) — UI shows as percent (6.35)
-  - Taxable base = `cash_amount_cents - buyer_transaction_fee_cents` (platform fee NOT taxed)
+  - Taxable base = `cash_amount_cents - buyer_transaction_fee_cents` (platform fee NOT taxed) — **Note:** Overridden by FLOW-39's `include_fee_in_tax_base` toggle for new offers
   - Rounding = `FLOOR((amount * rate) + 0.5)`
   - `apply_tax_to_trade` is idempotent (returns existing record on second call)
+- **⚠️ Superseded by FLOW-39 (Tax Status Lifecycle, 2026-07-23):** This flow covers the original per-node tax calculation. FLOW-39 adds category-level rules, deferred capture, and the `tax_status` state machine. The two flows share the same `tax_records` table — FLOW-39 extends it with `tax_status`, `tax_snapshot`, and status-transition RPCs.
 
 ### FLOW-21: Error Recovery & Crash Reporting (PROD-P003 + PROD-P004)
 - **Purpose**: Render-time JS errors anywhere in the app must show a friendly fallback with "Try Again" instead of a red/white screen, and must be reported to Sentry for triage.
@@ -6104,3 +6186,50 @@ Satisfied Items:
 - **Tier requirements:** Tier 0 mandatory; Tier 2 required because DB/RLS/function hardening changed.
 - **Smoke/verification:** run SQL verification queries embedded in each migration + edge function auth/ownership test cases.
 - **Rollback:** revert these migrations/functions as a single unit and re-run policy/function verification queries.
+
+---
+
+### FLOW-39: Tax Status Lifecycle — Capture Deferred to Completion (2026-07-23)
+- **Module**: MODULE-15.1.2 TradeFlowV2 (tax-status-lifecycle)
+- **Purpose**: State-based sales-tax lifecycle where tax is `quoted` at offer submission, becomes `collected` only after a verified Stripe capture (buyer completion or auto-complete), and is `voided` on cancellation/decline/expiry.
+- **Migration**: `supabase/migrations/20260723000002_tax_status_lifecycle.sql`
+- **Edge Functions modified** (11 total):
+  - `create-trade-offer/index.ts` — category-level tax rules + `tax_snapshot` + `include_fee_in_tax_base`
+  - `transactions-update/index.ts` — PI capture **removed** from seller accept; tax void on decline
+  - `transactions-accept-bundle/index.ts` — PI capture **removed** from bundle accept
+  - `transactions-decline-bundle/index.ts` — tax void on bundle decline
+  - `cancel-trade/index.ts` — PI cancellation for pending offers + tax void
+  - `complete-trade/index.ts` — PI capture added before completion; tax `collected` / `capture_failed`
+  - `process-auto-complete/index.ts` — PI capture before auto-complete
+  - `auto-complete-trades/index.ts` — PI capture before auto-complete (legacy 7-day path)
+  - `process-expired-offers/index.ts` — PI cancel + tax void for expired offers
+  - `check-authorization-expiry/index.ts` — tax void on auth expiry
+  - `stripe-webhook/index.ts` — `charge.captured` handler (idempotent tax mark), `charge.refunded` tax refund
+  - `resolve-dispute/index.ts` — PI cancel + tax refund/void on refund path
+  - `admin-trade-action/index.ts` — tax void/refund on force-cancel
+- **RPCs created** (6 total):
+  - `rpc_void_tax_for_trade` — transitions quoted/capture_failed → voided
+  - `rpc_mark_tax_collected` — transitions quoted/capture_failed → collected (idempotent)
+  - `rpc_mark_tax_capture_failed` — transitions quoted → capture_failed
+  - `rpc_refund_tax_with_status` — wraps `refund_tax` to also update tax_status (refunded/partially_refunded)
+  - `rpc_capture_trade_payment` — DB-side idempotency guard for capture
+  - `rpc_finalize_trade_after_capture` — atomic: mark collected + complete_trade_v2
+- **Tax status values**: `quoted` | `collected` | `voided` | `capture_failed` | `refunded` | `partially_refunded`
+- **Key behavioral changes**:
+  1. Stripe PaymentIntent capture deferred from seller-accept → buyer-complete / auto-complete
+  2. Buyer cancellation of pending offers explicitly cancels the Stripe PI (was orphaned before)
+  3. `tax_snapshot` JSONB stores immutable record of calculation inputs per item (category, rule, price, rate)
+  4. Category-level tax rules (`tax_rules` table) used per listing via `get_applicable_tax_rule`
+  5. `include_fee_in_tax_base` admin_config toggle respected at offer time
+  6. SP does NOT reduce taxable amount (BP-37) — SP is payment tender, not a price discount
+  7. Webhook/retry idempotency: `rpc_mark_tax_collected` is safe to call multiple times
+- **History**: The `tax_records` table (created in `tax_001`) previously had no `tax_status`. Historical backfill classifies completed-trade records as `collected`, cancelled as `voided`, refunded as `refunded`.
+- **Hard rules**:
+  - Tax becomes `collected` ONLY after Stripe capture confirms — never before
+  - If capture fails, payout + SP release are blocked; trade stays `in_progress` for recovery
+  - Duplicate webhooks do not double-record tax, payout, or SP effects
+  - Admin force-cancel handles both uncaptured PIs (cancel + void) and captured PIs (refund + refund tax)
+- **Manual test cases**: Group O-2 in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` (TC-O2-C01 through TC-O2-C12)
+- **Stripe configuration required**: Enable `charge.captured` and `charge.refunded` events in Stripe webhook endpoint
+- **Tier requirements**: Tier 0 (typecheck) mandatory; Tier 1 for trade flow changes; Tier 2 because DB migration + Stripe capture flow changed
+- **Rollback**: Revert the migration `20260723000002_tax_status_lifecycle.sql` and re-deploy all 11+ Edge Functions from pre-change versions

@@ -1,0 +1,140 @@
+
+> p2p-kids-marketplace@1.0.0 e2e:run:ios
+> detox test --configuration ios.sim.debug detox/tests/_run-all.e2e.ts -- --runInBand
+
+Detected a deprecated "runnerConfig" property (string).
+Please migrate your Detox config according to the guide:
+https://wix.github.io/Detox/docs/guide/migration
+
+22:46:53.134 detox[64448] B jest --config ./detox/jest.config.js --runInBand detox/tests/_run-all.e2e.ts
+22:46:53.136 detox[64448] i (node:64448) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+watchman warning:  Recrawled this watch 5 times, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '/Users/sameralzubaidi/Desktop/kids_marketplace_app' ; watchman watch-project '/Users/sameralzubaidi/Desktop/kids_marketplace_app'`
+
+22:46:59.858 detox[64459] i _run-all.e2e.ts is assigned to 92E2BE6A-A0AF-43A7-9E15-12BA8745841D (iPhone 17 Pro)
+22:47:03.049 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:47:08.483 detox[64459] i TC-01: Auth — Login: logs in as buyer and reaches the main tab navigation
+22:47:27.916 detox[64459] i TC-01: Auth — Login: logs in as buyer and reaches the main tab navigation [OK]
+
+22:47:31.081 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:47:39.502 detox[64459] i TC-02: Auth — Signup Form: renders all required signup form fields
+22:47:39.960 detox[64459] i TC-02: Auth — Signup Form: renders all required signup form fields [OK]
+22:47:39.961 detox[64459] i TC-02: Auth — Signup Form: does not navigate away when submitting an empty form
+22:47:39.971 detox[64459] i TC-02: Auth — Signup Form: does not navigate away when submitting an empty form [FAIL]
+
+22:47:43.035 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:48:07.786 detox[64459] i TC-03: Listing Create — Form: navigates to the create listing screen
+22:48:19.712 detox[64459] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:48:19.856 detox[64459] i TC-03: Listing Create — Form: navigates to the create listing screen [FAIL]
+22:48:19.857 detox[64459] i TC-03: Listing Create — Form: renders title, description, and price fields
+22:48:19.904 detox[64459] i TC-03: Listing Create — Form: renders title, description, and price fields [FAIL]
+22:48:19.904 detox[64459] i TC-03: Listing Create — Form: accepts text input in title and price fields
+22:48:19.951 detox[64459] i TC-03: Listing Create — Form: accepts text input in title and price fields [FAIL]
+22:48:19.952 detox[64459] i TC-03: Listing Create — Form: shows image picker option
+22:48:19.999 detox[64459] i TC-03: Listing Create — Form: shows image picker option [FAIL]
+
+22:48:23.368 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:48:49.897 detox[64459] i [04a] Cleanup: {"success":true,"trades_cancelled":1,"listings_reset":1}
+22:48:49.898 detox[64459] i TC-04a: Trade Flow — Initiate: loads the Discover screen with listing results
+22:48:58.424 detox[64459] i TC-04a: Trade Flow — Initiate: loads the Discover screen with listing results [OK]
+22:48:58.425 detox[64459] i TC-04a: Trade Flow — Initiate: opens item detail screen when a listing is tapped
+22:49:01.982 detox[64459] i TC-04a: Trade Flow — Initiate: opens item detail screen when a listing is tapped [OK]
+22:49:01.983 detox[64459] i TC-04a: Trade Flow — Initiate: shows the Trade Offer screen after tapping Request to Buy
+22:49:14.163 detox[64459] i TC-04a: Trade Flow — Initiate: shows the Trade Offer screen after tapping Request to Buy [OK]
+
+22:49:17.245 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:49:41.966 detox[64459] i TC-04b: Trade Flow — Complete: navigates from Discover to the Trade Offer screen
+22:50:03.710 detox[64459] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:50:03.732 detox[64459] i TC-04b: Trade Flow — Complete: navigates from Discover to the Trade Offer screen [FAIL]
+22:50:03.735 detox[64459] i TC-04b: Trade Flow — Complete: enters an SP amount in the offer form
+22:50:08.973 detox[64459] i TC-04b: Trade Flow — Complete: enters an SP amount in the offer form [FAIL]
+22:50:08.975 detox[64459] i TC-04b: Trade Flow — Complete: accepts the safety disclaimer
+22:50:13.563 detox[64459] i TC-04b: Trade Flow — Complete: accepts the safety disclaimer [OK]
+22:50:13.564 detox[64459] i TC-04b: Trade Flow — Complete: submits the offer and shows the Trade Success screen
+22:50:13.733 detox[64459] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:50:18.897 detox[64459] i TC-04b: Trade Flow — Complete: submits the offer and shows the Trade Success screen [FAIL]
+
+22:50:23.583 detox[64459] i Detox can't seem to connect to the test app(s)!
+
+HINT: 
+
+Have you forgotten to call 'device.launchApp()' in the beginning of your test?
+Refer to our troubleshooting guide, for full details: https://wix.github.io/Detox/docs/troubleshooting/running-tests#tests-execution-hangs
+
+---
+The following package could not be delivered:
+
+{
+  type: 'currentStatus',
+  params: {},
+  messageId: 172
+}
+22:50:34.897 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:57:04.319 detox[64459] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 1 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• 1 enqueued native timers:
+  - Timer #1:
+    + Fire date: 2026-07-01 22:57:04 -0400.
+    + Time until fire: 0.500.
+    + Repeat interval: 0.
+    + Is recurring: NO.
+22:57:27.525 detox[64459] i TC-05: SP Wallet — Balance: shows the SP balance stat on the Profile screen
+22:57:36.479 detox[64459] i TC-05: SP Wallet — Balance: shows the SP balance stat on the Profile screen [OK]
+
+22:57:39.781 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:58:04.395 detox[64459] i TC-06: Subscription — Kids Club+ Screen: navigates to the Kids Club+ overview
+22:58:16.063 detox[64459] i The app is busy with the following tasks:
+• Run loop "Main Run Loop" is awake.
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+22:58:16.205 detox[64459] i TC-06: Subscription — Kids Club+ Screen: navigates to the Kids Club+ overview [FAIL]
+22:58:16.205 detox[64459] i TC-06: Subscription — Kids Club+ Screen: shows the subscribe CTA button
+22:58:16.250 detox[64459] i TC-06: Subscription — Kids Club+ Screen: shows the subscribe CTA button [FAIL]
+22:58:16.251 detox[64459] i TC-06: Subscription — Kids Club+ Screen: opens the subscription payment screen
+22:58:16.302 detox[64459] i TC-06: Subscription — Kids Club+ Screen: opens the subscription payment screen [FAIL]
+
+22:58:19.603 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:58:45.020 detox[64459] i TC-07: Cart / Checkout — Add to Cart Flow: shows listing results on the Discover screen
+22:58:54.421 detox[64459] i TC-07: Cart / Checkout — Add to Cart Flow: shows listing results on the Discover screen [OK]
+22:58:54.421 detox[64459] i TC-07: Cart / Checkout — Add to Cart Flow: opens item detail screen and shows price and CTA
+22:59:05.387 detox[64459] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+22:59:05.570 detox[64459] i TC-07: Cart / Checkout — Add to Cart Flow: opens item detail screen and shows price and CTA [FAIL]
+22:59:05.570 detox[64459] i TC-07: Cart / Checkout — Add to Cart Flow: shows the Request to Buy / checkout CTA
+22:59:10.762 detox[64459] i TC-07: Cart / Checkout — Add to Cart Flow: shows the Request to Buy / checkout CTA [FAIL]
+
+22:59:14.033 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'
+22:59:38.627 detox[64459] i TC-08: Cancel Trade: navigates to the Profile trades list
+22:59:50.046 detox[64459] i TC-08: Cancel Trade: navigates to the Profile trades list [OK]
+22:59:50.046 detox[64459] i TC-08: Cancel Trade: opens the Active trades tab
+23:00:00.050 detox[64459] i The app is busy with the following tasks:
+• There are 2 work items pending on the dispatch queue: "Main Queue (<OS_dispatch_queue_main: com.apple.main-thread>)".
+• Run loop "Main Run Loop" is awake.
+23:00:05.181 detox[64459] i TC-08: Cancel Trade: opens the Active trades tab [FAIL]
+23:00:05.183 detox[64459] i TC-08: Cancel Trade: opens a trade detail and shows the Cancel Trade button
+23:00:05.215 detox[64459] i TC-08: Cancel Trade: opens a trade detail and shows the Cancel Trade button [FAIL]
+23:00:05.215 detox[64459] i TC-08: Cancel Trade: cancels the trade and returns to trade list
+23:00:05.227 detox[64459] i TC-08: Cancel Trade: cancels the trade and returns to trade list [FAIL]
+
+23:00:08.583 detox[64459] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'

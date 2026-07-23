@@ -15,7 +15,7 @@ import { goToDiscover } from '../helpers/navigation';
 
 describe('TC-37: Search Autocomplete & Recent Searches', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });

@@ -16,7 +16,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-13: Notification Preferences', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
     await goToProfile();
@@ -27,18 +27,18 @@ describe('TC-13: Notification Preferences', () => {
   });
 
   it('navigates to the Settings screen', async () => {
-    await waitFor(element(by.id('settings-button')))
+    await waitFor(element(by.id('profile-settings')))
       .toBeVisible()
-      .withTimeout(8000);
-    await element(by.id('settings-button')).tap();
+      .withTimeout(15000);
+    await element(by.id('profile-settings')).tap();
     await device.takeScreenshot('13-settings-screen');
   });
 
   it('opens the Notification Preferences screen', async () => {
-    await waitFor(element(by.id('notification-preferences-row')))
+    await waitFor(element(by.id('settings-notification-preferences-button')))
       .toBeVisible()
       .withTimeout(8000);
-    await element(by.id('notification-preferences-row')).tap();
+    await element(by.id('settings-notification-preferences-button')).tap();
 
     // Verify preferences screen loaded
     await waitFor(element(by.id('category-section-subscription')))

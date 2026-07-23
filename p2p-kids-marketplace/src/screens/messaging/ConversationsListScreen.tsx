@@ -223,7 +223,7 @@ export default function ConversationsListScreen() {
 
   if (loading) {
     return (
-      <ScreenLayout variant="detail" title="Messages">
+      <ScreenLayout variant="tab" title="Messages">
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading conversations...</Text>
@@ -233,7 +233,7 @@ export default function ConversationsListScreen() {
   }
 
   return (
-    <ScreenLayout variant="detail" title="Messages">
+    <ScreenLayout variant="tab" title="Messages">
 
       {/* Pill-shaped search bar */}
       <View style={styles.searchContainer}>

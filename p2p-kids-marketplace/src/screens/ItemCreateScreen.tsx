@@ -32,7 +32,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../hooks/useAuth';
 import { useItemDraft } from '../hooks/useItemDraft';
 import { useAIAnalysis } from '../hooks/useAIAnalysis';
+import { getUserFriendlyAiError } from '../utils/aiErrorFormat';
 import { createListing, uploadListingImages } from '../services/listing';
+import { getAdminConfig } from '../services/adminConfig';
 import { getSubscriptionSummary } from '../services/subscription';
 import { uploadPhotoBatch } from '../services/photoService';
 import {
@@ -171,6 +173,13 @@ export default function ItemCreateScreen() {
   const [phoneVerificationPending, setPhoneVerificationPending] = useState(false);
   const aiBlockingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Price adjustment modal state (min listing price validation)
+  const [showPriceAdjustmentModal, setShowPriceAdjustmentModal] = useState(false);
+  const [priceAdjustmentThreshold, setPriceAdjustmentThreshold] = useState(0);
+  const [priceFieldY, setPriceFieldY] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const priceInputRef = useRef<TextInput>(null);
+
   // Draft management
   const {
     draft,
@@ -186,6 +195,7 @@ export default function ItemCreateScreen() {
     result: aiResult,
     error: aiError,
     retry: retryAI,
+    reset: resetAI,
   } = useAIAnalysis(uploadedPhotoUrls, sellerId);
 
   const clearAIBlockingTimeout = useCallback(() => {
@@ -710,6 +720,7 @@ export default function ItemCreateScreen() {
   const handleContinueWithoutAI = () => {
     clearAIBlockingTimeout();
     setAllowManualWhileAnalyzing(true);
+    resetAI();
   };
 
   const canPublish = (): boolean => {
@@ -751,6 +762,29 @@ export default function ItemCreateScreen() {
     dispatch({ type: 'PUBLISH_START' });
 
     try {
+      // Screen-level min listing price check (belt-and-suspenders — service layer also checks)
+      const adminConfig = await getAdminConfig(true); // forceRefresh to bypass cache
+      const minListingPrice = adminConfig.min_listing_price;
+      const parsedPrice = parseFloat(priceInput);
+      const effectiveMinPrice =
+        typeof minListingPrice === 'number' && Number.isFinite(minListingPrice)
+          ? minListingPrice
+          : Number(minListingPrice) || 0;
+      if (effectiveMinPrice > 0 && parsedPrice < effectiveMinPrice) {
+        // Dismiss PUBLISHING modal first (PUBLISH_ERROR → flowState = ERROR
+        // → isPublishing = false → Modal visible=false).
+        dispatch({ type: 'PUBLISH_ERROR' });
+        setPriceAdjustmentThreshold(effectiveMinPrice);
+        // Wait for the PUBLISHING modal's fade-out animation to fully
+        // complete (300ms default) before showing the price modal.
+        // Two RN Modals with overlapping fade animations create a blank
+        // native overlay that blocks touches but shows no content.
+        setTimeout(() => {
+          setShowPriceAdjustmentModal(true);
+        }, 400);
+        return;
+      }
+
       const isOtherCategory =
         category?.id === 'other' || category?.name?.trim().toLowerCase() === 'other';
 
@@ -806,15 +840,35 @@ export default function ItemCreateScreen() {
       setShowSubmitReviewModal(true);
     } catch (err: any) {
       console.error('[ItemCreateScreen] Submit for review error:', err);
-      setError(err.message || 'Failed to submit item for review');
+      const errorMsg = err.message || 'Failed to submit item for review';
+      setError(errorMsg);
       dispatch({ type: 'PUBLISH_ERROR' });
-      Alert.alert('Error', 'Failed to submit item for review. Please try again.');
+      Alert.alert('Error', errorMsg);
     }
   };
 
   const isPublishing = flowState === 'PUBLISHING';
   const isAnalyzing = aiStatus === 'analyzing';
   const isAnalyzingBlocking = isAnalyzing && !allowManualWhileAnalyzing;
+
+  // Price Adjustment: dismiss modal → scroll to price field → focus
+  const handlePriceAdjustmentUpdate = useCallback(() => {
+    setShowPriceAdjustmentModal(false);
+    // Small delay to let modal dismiss animation settle
+    setTimeout(() => {
+      // Scroll to the price field's Y position within the ScrollView content.
+      // The onLayout on the price field wrapper captures this value relative
+      // to the ScrollView's content container.
+      if (priceFieldY > 0) {
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, priceFieldY - 100), animated: true });
+      }
+      // Focus the price input after a brief pause for scroll animation
+      setTimeout(() => {
+        priceInputRef.current?.focus();
+      }, 350);
+    }, 100);
+  }, [priceFieldY]);
+
   const handleBackPress = useCallback(() => {
     void saveNow();
     navigation.goBack();
@@ -823,7 +877,11 @@ export default function ItemCreateScreen() {
   return (
     <ScreenLayout variant="detail" title="New Item" onBack={handleBackPress}>
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
         {/* Photo Upload */}
         <PhotoUploadManager
           photos={photos}
@@ -843,18 +901,18 @@ export default function ItemCreateScreen() {
           />
         )}
 
-        {/* AI Analysis Error */}
+        {/* AI Analysis Error — user-friendly message, raw error logged to console */}
         {aiStatus === 'error' && photos.length > 0 && (
           <View style={styles.aiErrorCard}>
-            <Text style={styles.aiErrorTitle}>AI analysis failed</Text>
-            <Text style={styles.aiErrorMessage}>{aiError || 'Please try AI analysis again.'}</Text>
+            <Text style={styles.aiErrorTitle}>Photo analysis issue</Text>
+            <Text style={styles.aiErrorMessage}>{getUserFriendlyAiError(aiError)}</Text>
             <TouchableOpacity
               style={styles.aiRetryButton}
               onPress={retryAI}
               accessibilityRole="button"
               testID="ai-retry-button"
             >
-              <Text style={styles.aiRetryButtonText}>Retry AI</Text>
+              <Text style={styles.aiRetryButtonText}>Try Again</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -1000,9 +1058,10 @@ export default function ItemCreateScreen() {
             </View>
 
             {/* Price (manual only) */}
-            <View style={styles.field}>
+            <View style={styles.field} onLayout={(e) => setPriceFieldY(e.nativeEvent.layout.y)}>
               <Text style={styles.label}>Price *</Text>
               <TextInput
+                ref={priceInputRef}
                 style={styles.input}
                 value={priceInput}
                 onChangeText={setPriceInput}
@@ -1155,6 +1214,29 @@ export default function ItemCreateScreen() {
               testID="submit-review-go-dashboard"
             >
               <Text style={styles.submitModalSecondaryButtonText}>Go To Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Price Adjustment Modal (min listing price validation) */}
+      <Modal visible={showPriceAdjustmentModal} transparent animationType="fade" onRequestClose={handlePriceAdjustmentUpdate}>
+        <View style={styles.priceAdjOverlay}>
+          <View style={styles.priceAdjDialog}>
+            <Text style={styles.priceAdjTitle}>Let's Adjust Your Price</Text>
+            <Text style={styles.priceAdjMessage}>
+              To keep Pass It Up full of quality items buyers can trust, listings
+              must be priced at ${priceAdjustmentThreshold.toFixed(2)} or more. Update
+              your price to publish this listing.
+            </Text>
+            <TouchableOpacity
+              style={styles.priceAdjButton}
+              onPress={handlePriceAdjustmentUpdate}
+              accessibilityRole="button"
+              accessibilityLabel="Update Price"
+              testID="price-adjustment-update-btn"
+            >
+              <Text style={styles.priceAdjButtonText}>Update Price</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1582,6 +1664,53 @@ const styles = StyleSheet.create({
   aiContinueButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
+    fontWeight: '600',
+  },
+  priceAdjOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  priceAdjDialog: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  priceAdjTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  priceAdjMessage: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#6B6B6B',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  priceAdjButton: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    width: '100%',
+    alignItems: 'center',
+  },
+  priceAdjButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
   },
 });

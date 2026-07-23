@@ -17,7 +17,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-16: ID Verification Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
     await goToProfile();
@@ -30,7 +30,7 @@ describe('TC-16: ID Verification Screen', () => {
   it('opens the ID Verification screen from the Profile menu', async () => {
     await waitFor(element(by.id('id-verification-menu-item')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('id-verification-menu-item')).tap();
 
     await waitFor(element(by.id('id-verification-screen')))

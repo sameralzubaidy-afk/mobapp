@@ -13,7 +13,7 @@ import { dismissSystemDialogs } from '../helpers/dialogs';
 
 describe('TC-18: Password Toggle', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
 
     // Navigate to login screen

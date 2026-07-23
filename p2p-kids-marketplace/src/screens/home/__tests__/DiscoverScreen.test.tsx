@@ -144,6 +144,19 @@ describe('DiscoverScreen', () => {
       });
     });
 
+    it('renders favorites heart button and navigates to Favorites on press', async () => {
+      const { getByTestId } = render(
+        <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
+      );
+
+      await waitFor(() => {
+        expect(getByTestId('discover-favorites-button')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('discover-favorites-button'));
+      expect(mockNavigation.navigate).toHaveBeenCalledWith('Favorites');
+    });
+
     it('loads recent searches on mount', async () => {
       const { getByTestId } = render(
         <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />

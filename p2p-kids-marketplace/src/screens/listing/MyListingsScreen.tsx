@@ -31,7 +31,6 @@ import { getMyListings, getListingSummary, deleteListing } from '../../services/
 import { getActiveDrafts, deleteDraft } from '../../services/draftService';
 import { Listing, ListingSummary, ItemDraft } from '../../types/listing';
 import { ListingImage } from '../../components/atoms';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -610,8 +609,6 @@ export default function MyListingsScreen({ navigation }: any) {
             </View>
           </Modal>
 
-          {/* Unified Navigation Bar */}
-          <PersistentTabBar />
         </View>
       </View>
     </ScreenLayout>

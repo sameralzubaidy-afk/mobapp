@@ -106,6 +106,10 @@ const DEEP_LINK_ROUTES: Record<string, keyof RootStackParamList> = {
   '/notifications': 'Notifications',
   Notifications: 'Notifications',
 
+  // Payouts
+  '/payout-settings': 'PayoutSettings',
+  PayoutSettings: 'PayoutSettings',
+
   // Admin
   '/admin': 'AdminDashboard',
   AdminDashboard: 'AdminDashboard',
@@ -156,6 +160,11 @@ const TYPE_TO_ROUTE_MAP: Record<
   id_verification_approved: { route: 'IDVerificationUpload', action: 'navigate' },
   id_verification_rejected: { route: 'IDVerificationUpload', action: 'navigate' },
 
+  // Payout Events
+  payout_requires_action: { route: 'PayoutSettings', action: 'navigate' },
+  payout_sent: { route: 'PayoutSettings', action: 'navigate' },
+  payout_failed: { route: 'PayoutSettings', action: 'navigate' },
+
   // Trade Events
   trade_request: { route: 'TradeList', action: 'navigate' },
   trade_completion_requested: { route: 'TradeList', action: 'navigate' },
@@ -165,6 +174,8 @@ const TYPE_TO_ROUTE_MAP: Record<
   trade_completed: { route: 'TradeList', action: 'navigate' },
   trade_cancelled: { route: 'TradeList', action: 'navigate' },
   trade_message: { route: 'Chat', action: 'navigate' },
+  ac_reminder_24h: { route: 'TradeTimeline', action: 'navigate' },
+  ac_reminder_2h: { route: 'TradeTimeline', action: 'navigate' },
 
   // Message Events (MODULE-14 NOTIF-V2-007 - Message notifications)
   message: { route: 'Chat', action: 'navigate' },

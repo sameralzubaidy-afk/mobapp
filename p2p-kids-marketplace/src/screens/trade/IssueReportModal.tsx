@@ -15,6 +15,7 @@ const REASONS = [
   { id: 'no_show',          label: 'Seller was a no-show',         description: 'The seller did not show up to the agreed meetup.' },
   { id: 'not_as_described', label: 'Item not as described',        description: 'The item looks different from the listing photos or description.' },
   { id: 'no_meetup',        label: 'Seller not responding',        description: 'The seller stopped responding and won\'t arrange a meetup.' },
+  { id: 'no_agreement',     label: 'Couldn\'t agree on meetup',    description: 'The buyer and seller could not agree on a meetup time or place.' },
   { id: 'other',            label: 'Other issue',                  description: '' },
 ] as const;
 

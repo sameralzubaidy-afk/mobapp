@@ -11,11 +11,28 @@ import {
 } from 'react-native';
 import { CaretDown, CaretUp } from 'phosphor-react-native';
 import { Condition } from '../../types/listing';
+import { getUserFriendlyAiError } from '../../utils/aiErrorFormat';
 import { ConditionSelector } from '../listing/ConditionSelector';
 import { ColorPicker } from '../listing/ColorPicker';
 import { AgeGroupSelector } from '../listing/AgeGroupSelector';
 import { GenderSelector } from '../listing/GenderSelector';
 import { SPEarningsPreview } from '../listing/SPEarningsPreview';
+
+/**
+ * Human-readable labels for missingRequired field keys.
+ * Keys not listed here fall back to the raw key string (title-cased).
+ */
+const MISSING_FIELD_LABELS: Record<string, string> = {
+  title: 'Title',
+  condition: 'Condition',
+  category: 'Category',
+  price: 'Price',
+  price_below_minimum: 'Price below minimum',
+};
+
+function formatMissingField(key: string): string {
+  return MISSING_FIELD_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 /**
  * AI processing state for a single bulk item — drives the row status chip.
@@ -59,9 +76,11 @@ interface BulkItemCardProps {
   onUpgradePress?: () => void;
   /** V3.1 UX overhaul (Decision 11): retry AI for this item only */
   onRetryAI?: () => void;
+  /** Minimum listing price threshold for price_below_minimum chip text */
+  minListingPrice?: number;
 }
 
-function StatusChip({ item }: { item: BulkEditableItem }) {
+function StatusChip({ item, minListingPrice }: { item: BulkEditableItem; minListingPrice?: number }) {
   if (!item.includeInPublish) {
     return (
       <View style={[styles.chip, styles.chipExcluded]} testID="status-chip-excluded">
@@ -84,10 +103,16 @@ function StatusChip({ item }: { item: BulkEditableItem }) {
     );
   }
   if (item.missingRequired.length > 0) {
+    const missingLabels = item.missingRequired.map((key) => {
+      if (key === 'price_below_minimum' && minListingPrice && minListingPrice > 0) {
+        return `Price must be $${minListingPrice.toFixed(2)}+`;
+      }
+      return formatMissingField(key);
+    });
     return (
       <View style={[styles.chip, styles.chipMissing]} testID="status-chip-missing">
         <Text style={[styles.chipText, styles.chipTextWarning]}>
-          Missing: {item.missingRequired.join(', ')}
+          Missing: {missingLabels.join(', ')}
         </Text>
       </View>
     );
@@ -120,6 +145,7 @@ export function BulkItemCard({
   checkingSubscription = false,
   onUpgradePress,
   onRetryAI,
+  minListingPrice = 0,
 }: BulkItemCardProps) {
   const cover = item.coverPhotoUri || null;
   const isOtherCategory =
@@ -157,7 +183,7 @@ export function BulkItemCard({
             {item.condition ? ` • ${item.condition.replace('_', ' ')}` : ''}
           </Text>
           <View style={styles.chipRow}>
-            <StatusChip item={item} />
+            <StatusChip item={item} minListingPrice={minListingPrice} />
             {item.aiState === 'failed' && onRetryAI && (
               <TouchableOpacity
                 onPress={onRetryAI}
@@ -324,11 +350,11 @@ export function BulkItemCard({
           />
 
           {item.missingRequired.length > 0 && (
-            <Text style={styles.warningText}>Missing: {item.missingRequired.join(', ')}</Text>
+            <Text style={styles.warningText}>Missing: {item.missingRequired.map(formatMissingField).join(', ')}</Text>
           )}
           {item.aiError && (
             <Text style={styles.warningText} testID={`bulk-item-ai-error-${index}`}>
-              AI error: {item.aiError}
+              {getUserFriendlyAiError(item.aiError)}
             </Text>
           )}
         </ScrollView>

@@ -16,7 +16,6 @@ describe('TC-01: Auth — Login', () => {
     // while still allowing waitFor + timeouts to operate normally.
     await device.launchApp({
       newInstance: true,
-      delete: false,
       launchArgs: {
         DTXDisableMainRunLoopSync: true,
         detoxURLBlacklistRegex: '.*',

@@ -1,6 +1,7 @@
 // File: supabase/functions/complete-trade/index.ts
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'https://esm.sh/stripe@14.11.0';
 import { logTradeEvent } from '../_shared/trade-events.ts';
 
 const corsHeaders = {
@@ -128,9 +129,115 @@ serve(async (req) => {
       );
     }
 
-    // 2. Call the RPC to complete the trade
-    // The RPC handles status checks, authorization (buyer/seller), item status update, and SP earning.
-    // complete_trade_v2 expects (p_trade_id UUID, p_user_id UUID)
+    // TAX-STATUS-LIFECYCLE (2026-07-23): Capture the Stripe PaymentIntent BEFORE completing
+    // the trade. Previously, the PI was captured at seller-accept time. Now it is deferred
+    // to buyer-complete time so that tax becomes "collected" only when money actually moves.
+    // The complete_trade_v2 RPC (which releases SP and triggers payout) is called ONLY
+    // after capture succeeds — if capture fails, no SP or payout changes occur.
+    //
+    // Fallback for zero-cash trades ($0 items): no capture needed, skip directly to completion.
+    let stripeCaptureId: string | null = null;
+    let captureSucceeded = false;
+
+    // Load trade with PI info using service role client (bypasses RLS for completeness)
+    const svcClient = createClient(supabaseUrl!, supabaseServiceKey!);
+    const { data: tradeWithPi } = await svcClient
+      .from('trades')
+      .select('id, stripe_payment_intent_id, cash_amount_cents, status, stripe_refund_id')
+      .eq('id', tradeId)
+      .single();
+
+    const piId = tradeWithPi?.stripe_payment_intent_id as string | undefined;
+    const cashCents = (tradeWithPi?.cash_amount_cents as number) ?? 0;
+    const tradePiStatus = tradeWithPi?.status as string | undefined;
+
+    if (piId && cashCents > 0 && tradePiStatus !== 'completed') {
+      const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
+      if (stripeKey && stripeKey.startsWith('sk_')) {
+        const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+        try {
+          console.log(`[complete-trade] Capturing PI ${piId} for trade ${tradeId}`);
+          const capturedPi = await stripe.paymentIntents.capture(piId);
+
+          if (capturedPi.status === 'succeeded') {
+            stripeCaptureId = capturedPi.latest_charge ?? null;
+            captureSucceeded = true;
+            console.log(`[complete-trade] PI ${piId} captured successfully. Charge: ${stripeCaptureId}`);
+
+            // Mark tax as collected (idempotent RPC)
+            try {
+              await svcClient.rpc('rpc_mark_tax_collected', {
+                p_trade_id: tradeId,
+                p_stripe_capture_id: stripeCaptureId,
+              });
+              console.log(`[complete-trade] Tax marked collected for trade ${tradeId}`);
+            } catch (taxMarkErr: unknown) {
+              const msg = taxMarkErr instanceof Error ? taxMarkErr.message : 'Unknown error';
+              console.error(`[complete-trade] Tax mark error (non-fatal): ${msg}`);
+              // Non-fatal — capture succeeded, tax can be reconciled later
+            }
+          } else {
+            // Capture did not succeed — mark tax as capture_failed, do NOT complete trade
+            console.error(`[complete-trade] PI capture returned status: ${capturedPi.status}`);
+            try {
+              await svcClient.rpc('rpc_mark_tax_capture_failed', {
+                p_trade_id: tradeId,
+                p_failure_reason: `stripe_status_${capturedPi.status}`,
+              });
+            } catch (e) {
+              console.error('[complete-trade] Tax capture_failed mark error:', e);
+            }
+            return new Response(JSON.stringify({
+              success: false,
+              error: 'Payment capture failed. Please try again or contact support.',
+              code: 'CAPTURE_FAILED',
+              details: { stripe_status: capturedPi.status },
+            }), {
+              status: 402,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } catch (captureErr: unknown) {
+          const msg = captureErr instanceof Error ? captureErr.message : 'Stripe capture error';
+          console.error(`[complete-trade] Stripe capture error: ${msg}`);
+
+          // Mark tax as capture_failed
+          try {
+            await svcClient.rpc('rpc_mark_tax_capture_failed', {
+              p_trade_id: tradeId,
+              p_failure_reason: msg,
+            });
+          } catch (e) {
+            console.error('[complete-trade] Tax capture_failed mark error:', e);
+          }
+
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Payment capture failed. Please try again or contact support.',
+            code: 'CAPTURE_FAILED',
+          }), {
+            status: 402,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } else {
+        console.error('[complete-trade] Stripe key not configured');
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Payment system configuration error.',
+          code: 'STRIPE_CONFIG_ERROR',
+        }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else if (!piId && cashCents > 0) {
+      console.warn(`[complete-trade] Trade ${tradeId} has cash but no PI — may still be processing (D-31 background path)`);
+      // Try calling rpc_finalize_trade_after_capture anyway — it will handle the
+      // no-tax-record case gracefully via the RPC's noop path.
+    }
+
+    // 2. Call the RPC to complete the trade (SP release + payout trigger)
     const { data, error: rpcError } = await supabaseClient.rpc('complete_trade_v2', {
       p_trade_id: tradeId,
       p_user_id: user.id
@@ -168,6 +275,7 @@ serve(async (req) => {
     // TFV2-019: log trade_completed event
     await logTradeEvent(supabaseClient, tradeId, 'trade_completed', user.id, {
       final_status: data.status,
+      stripe_capture_id: stripeCaptureId,
     });
 
     // Notify seller that the buyer confirmed receipt
@@ -188,7 +296,8 @@ serve(async (req) => {
       success: true, 
       tradeId: data.trade_id,
       status: data.status,
-      message: data.message 
+      message: data.message,
+      stripe_capture_id: stripeCaptureId,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

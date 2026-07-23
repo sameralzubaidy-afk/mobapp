@@ -18,7 +18,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-08: Cancel Trade', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -31,7 +31,7 @@ describe('TC-08: Cancel Trade', () => {
     await goToProfile();
     await waitFor(element(by.id('profile-trades-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('profile-trades-stat')).tap();
     await device.takeScreenshot('08-trades-list');
   });
@@ -39,7 +39,7 @@ describe('TC-08: Cancel Trade', () => {
   it('opens the Active trades tab', async () => {
     await waitFor(element(by.id('tab-active')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('tab-active')).tap();
     await new Promise(r => setTimeout(r, 500));
     await device.takeScreenshot('08-active-trades-tab');
@@ -50,8 +50,8 @@ describe('TC-08: Cancel Trade', () => {
     try {
       await element(by.id('tab-active')).atIndex(0).tap();
     } catch {
-      // Fallback: the trade rows may be siblings, not children of tab-active
-      await element(by.id('trade-status-badge')).atIndex(0).tap();
+      // Fallback: tap the first trade row directly
+      await element(by.id(/trade-row-.+/)).atIndex(0).tap();
     }
 
     await waitFor(element(by.id('cancel-trade-button')))

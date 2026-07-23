@@ -8,6 +8,7 @@ export interface SPWallet {
   id: string;
   user_id: string;
   available_balance: number;
+  reserved_sp: number;
   pending_balance: number;
   lifetime_earned: number;
   lifetime_spent: number;
@@ -226,6 +227,7 @@ export async function getPendingSPReleases(userId: string): Promise<PendingSPRel
       .not('sp_earned_at_completion', 'is', null)
       .gt('sp_earned_at_completion', 0)
       .not('pending_sp_release_at', 'is', null)
+      .is('sp_released_at', null)
       .order('pending_sp_release_at', { ascending: true });
 
     if (error) throw error;

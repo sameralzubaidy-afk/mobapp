@@ -18,7 +18,7 @@ import { goToHome } from '../helpers/navigation';
 
 describe('TC-33: Payout Settings Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsSeller();
   });

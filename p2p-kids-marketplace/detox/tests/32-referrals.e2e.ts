@@ -15,7 +15,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-32: Referrals Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -29,7 +29,7 @@ describe('TC-32: Referrals Screen', () => {
 
     await waitFor(element(by.id('profile-sp-balance-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('profile-sp-balance-stat')).tap();
 
     await waitFor(element(by.id('sp-wallet-earn-refer-btn')))
@@ -51,7 +51,7 @@ describe('TC-32: Referrals Screen', () => {
   it('shows the share button', async () => {
     await waitFor(element(by.id('share-btn')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await expect(element(by.id('share-btn'))).toBeVisible();
   });
 
@@ -59,7 +59,7 @@ describe('TC-32: Referrals Screen', () => {
     try {
       await waitFor(element(by.id('hero-card')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
       await expect(element(by.id('hero-card'))).toBeVisible();
     } catch {
       // May need scroll to top

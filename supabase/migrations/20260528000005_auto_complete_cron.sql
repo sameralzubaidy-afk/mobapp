@@ -93,25 +93,29 @@ BEGIN
     FROM grouped_points gp
     WHERE w.user_id = gp.seller_id
     RETURNING w.user_id
+  ),
+  trades_update AS (
+    UPDATE public.trades t
+    SET
+      sp_released_at = now(),
+      updated_at = now()
+    FROM ready_trades rt
+    WHERE t.id = rt.id
+    RETURNING t.id
+  ),
+  notification_insert AS (
+    INSERT INTO public.user_notifications (user_id, category, type, title, body, data)
+    SELECT
+      gp.seller_id,
+      'sp_events',
+      'sp_released',
+      'Swap Points Released',
+      format('%s SP moved from pending to available balance.', gp.total_points),
+      jsonb_build_object('sp_released', gp.total_points, 'processed_at', now())
+    FROM grouped_points gp
+    RETURNING 1
   )
-  UPDATE public.trades t
-  SET
-    sp_released_at = now(),
-    updated_at = now()
-  FROM ready_trades rt
-  WHERE t.id = rt.id;
-
-  GET DIAGNOSTICS v_released_count = ROW_COUNT;
-
-  INSERT INTO public.user_notifications (user_id, category, type, title, body, data)
-  SELECT
-    gp.seller_id,
-    'sp_events',
-    'sp_released',
-    'Swap Points Released',
-    format('%s SP moved from pending to available balance.', gp.total_points),
-    jsonb_build_object('sp_released', gp.total_points, 'processed_at', now())
-  FROM grouped_points gp;
+  SELECT count(*) INTO v_released_count FROM trades_update;
 
   RETURN jsonb_build_object(
     'success', true,

@@ -1,19 +1,20 @@
 /**
  * File: p2p-kids-marketplace/src/components/organisms/PersistentTabBar/index.tsx
  *
- * Persistent 5-tab bottom nav bar for stack screens that live OUTSIDE the
- * HomeTabNavigator. Visually identical to the Tab.Navigator bar so users see
- * one consistent footer on every screen in the app.
+ * Persistent 5-tab bottom nav bar. Rendered ONCE at the root authenticated
+ * stack level (in AppNavigator.tsx) so every screen sees the same bar.
  *
- * Usage:
- *   <PersistentTabBar />
+ * Tabs: Home | Discover | [Sell FAB] | Inbox | Cart
  *
  * Navigation behaviour:
- *   – Tapping a tab navigates to 'Home' (HomeTabNavigator) → specific tab screen
- *   – Sell FAB opens the same action sheet (List One Item / Bulk Upload / Cancel)
+ *   – Home → root Stack 'Home' (renders HomeTabNavigator)
+ *   – Discover → root Stack 'Discover' (full-screen screen)
+ *   – Inbox → root Stack 'InboxTab' (full-screen ConversationsListScreen)
+ *   – Cart → root Stack 'Cart' (full-screen CartScreen)
+ *   – Sell FAB → opens action sheet (List One Item / Bulk Upload / Cancel)
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -21,17 +22,22 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useNavigationState, NavigationState } from '@react-navigation/native';
 import {
   House,
   MagnifyingGlass,
   Tag,
   ChatCircleText,
-  UserCircle,
+  ShoppingCart,
   Package,
 } from 'phosphor-react-native';
+import { useCartContext } from '@/contexts/CartContext';
+import { getTotalUnreadMessageCount } from '@/services/chat';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/config/supabase';
 
 // ─── Sell Action Sheet (self-contained modal) ─────────────────────────────────
 
@@ -92,38 +98,127 @@ type TabItemProps = {
   label: string;
   active?: boolean;
   onPress: () => void;
+  badgeCount?: number;
 };
 
-function TabItem({ Icon, label, active = false, onPress }: TabItemProps) {
+function TabItem({ Icon, label, active = false, onPress, badgeCount }: TabItemProps) {
   const color = active ? '#5DBB8E' : '#6B6B6B';
   const tabTestId = `tab-${label.toLowerCase()}`;
   return (
     <TouchableOpacity style={styles.tabItem} onPress={onPress} activeOpacity={0.7} testID={tabTestId}>
-      <Icon size={22} color={color} weight={active ? 'fill' : 'regular'} />
+      <View>
+        <Icon size={22} color={color} weight={active ? 'fill' : 'regular'} />
+        {badgeCount !== undefined && badgeCount > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {badgeCount > 99 ? '99+' : String(badgeCount)}
+            </Text>
+          </View>
+        )}
+      </View>
       <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Active tab helper ────────────────────────────────────────────────────────
 
-export type PersistentTabBarActiveTab = 'Home' | 'Discover' | 'Inbox' | 'Me' | null;
+function computeActiveTab(state: NavigationState | undefined): string | null {
+  if (!state) return null;
 
-interface PersistentTabBarProps {
-  /** Optional: highlight one of the 5 tabs. Leave unset for detail screens. */
-  activeTab?: PersistentTabBarActiveTab;
+  const route = state.routes[state.index];
+  if (!route) return null;
+
+  const name = route.name;
+
+  if (name === 'Home' || name === 'HomeDash') return 'Home';
+  if (name === 'Discover') return 'Discover';
+  if (name === 'InboxTab' || name === 'Conversations') return 'Inbox';
+  if (name === 'Cart' || name === 'CartCheckout') return 'Cart';
+
+  // Walk back to find which tab the current detail screen belongs to
+  for (let i = state.routes.length - 1; i >= 0; i--) {
+    const r = state.routes[i].name;
+    if (r === 'Home' || r === 'HomeDash') return 'Home';
+    if (r === 'Discover') return 'Discover';
+    if (r === 'InboxTab') return 'Inbox';
+    if (r === 'Cart') return 'Cart';
+  }
+
+  return null;
 }
 
-export function PersistentTabBar({ activeTab }: PersistentTabBarProps = {}) {
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function PersistentTabBar() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [sellSheetVisible, setSellSheetVisible] = useState(false);
+  const { cartCount } = useCartContext();
+  const { session } = useAuth();
+  const userId = session?.user?.id;
+
+  const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
+
+  const refreshInboxBadge = useCallback(async () => {
+    if (!userId) {
+      setInboxUnreadCount(0);
+      return;
+    }
+    try {
+      const count = await getTotalUnreadMessageCount(userId);
+      setInboxUnreadCount(count);
+    } catch {
+      console.warn('[PersistentTabBar] Failed to refresh inbox badge');
+    }
+  }, [userId]);
+
+  // Fetch on mount and when user changes
+  useEffect(() => {
+    refreshInboxBadge();
+  }, [refreshInboxBadge]);
+
+  // Re-fetch when app comes to foreground (user may have read messages)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        refreshInboxBadge();
+      }
+    });
+    return () => sub.remove();
+  }, [refreshInboxBadge]);
+
+  // Real-time subscription: refresh inbox badge when a new message arrives
+  // BP-23: This Realtime callback mirrors the mount-time refreshInboxBadge side effect
+  // so new messages arriving while the app is open update the badge immediately
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase.channel(`inbox-badge-${userId}`);
+    channel.on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages' },
+      () => {
+        // Debounce: avoid re-fetching on every bulk insert
+        refreshInboxBadge();
+      }
+    );
+    channel.subscribe();
+
+    return () => {
+      supabase.removeChannel(channel).catch(() => {});
+    };
+  }, [userId, refreshInboxBadge]);
 
   const tabBarHeight = 56 + insets.bottom;
+  const activeTab = computeActiveTab(useNavigationState((s: NavigationState) => s));
 
-  /** Navigate to a specific tab inside the HomeTabNavigator */
-  const goToTab = (screenName: string) => {
-    navigation.navigate('Home', { screen: screenName });
+  const navigateToTab = (routeName: string) => {
+    // Refresh badge when navigating to inbox (user may read messages there)
+    if (routeName === 'InboxTab') {
+      refreshInboxBadge();
+    }
+    navigation.navigate(routeName);
   };
 
   return (
@@ -142,7 +237,7 @@ export function PersistentTabBar({ activeTab }: PersistentTabBarProps = {}) {
           Icon={House}
           label="Home"
           active={activeTab === 'Home'}
-          onPress={() => goToTab('HomeDash')}
+          onPress={() => navigateToTab('Home')}
         />
 
         {/* 2 — Discover */}
@@ -150,10 +245,10 @@ export function PersistentTabBar({ activeTab }: PersistentTabBarProps = {}) {
           Icon={MagnifyingGlass}
           label="Discover"
           active={activeTab === 'Discover'}
-          onPress={() => goToTab('BrowseTab')}
+          onPress={() => navigateToTab('Discover')}
         />
 
-        {/* 3 — Sell FAB (raised green circle, never highlighted) */}
+        {/* 3 — Sell FAB (raised orange circle, never highlighted) */}
         <TouchableOpacity
           style={styles.fabWrapper}
           onPress={() => setSellSheetVisible(true)}
@@ -169,15 +264,17 @@ export function PersistentTabBar({ activeTab }: PersistentTabBarProps = {}) {
           Icon={ChatCircleText}
           label="Inbox"
           active={activeTab === 'Inbox'}
-          onPress={() => goToTab('InboxTab')}
+          badgeCount={inboxUnreadCount}
+          onPress={() => navigateToTab('InboxTab')}
         />
 
-        {/* 5 — Me */}
+        {/* 5 — Trade Basket (replaces Me) */}
         <TabItem
-          Icon={UserCircle}
-          label="Me"
-          active={activeTab === 'Me'}
-          onPress={() => goToTab('MeTab')}
+          Icon={ShoppingCart}
+          label="Trade Basket"
+          active={activeTab === 'Cart'}
+          badgeCount={cartCount}
+          onPress={() => navigateToTab('Cart')}
         />
       </View>
 
@@ -229,6 +326,24 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: '#5DBB8E',
+  },
+  // ── Badge ────────────────────────────────────────────────────────────────────
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#E85D75',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
   // ── FAB ─────────────────────────────────────────────────────────────────────
   fabWrapper: {

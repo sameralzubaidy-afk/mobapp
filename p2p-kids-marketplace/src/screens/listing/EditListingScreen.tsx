@@ -9,7 +9,7 @@
  * - SP toggle re-validation on change
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -26,12 +26,15 @@ import { useAuth } from '../../hooks/useAuth';
 import { getSubscriptionSummary } from '../../services/subscription';
 import { deleteListing, updateListing, getListingById, syncListingImages } from '../../services/listing';
 import { getCategories } from '../../services/items';
+import { getConfigValue } from '../../services/adminConfig';
 import { Listing, ListingCondition } from '../../types/listing';
 import ImagePickerGrid, { SelectedImage } from '../../components/molecules/ImagePickerGrid';
 import { ColorPicker } from '../../components/listing/ColorPicker';
 import { AgeGroupSelector } from '../../components/listing/AgeGroupSelector';
 import { GenderSelector } from '../../components/listing/GenderSelector';
+import ScreenLayout from '@/components/ScreenLayout';
 import { LoadingSpinner } from '@/components/ui';
+import { PriceAdjustmentModal } from '../../components/listing/PriceAdjustmentModal';
 
 interface ListingCategory {
   id: string;
@@ -75,14 +78,31 @@ export default function EditListingScreen({ route, navigation }: any) {
   // Subscription state
   const [canAcceptSP, setCanAcceptSP] = useState(false);
 
+  // Min listing price from admin config
+  const [minListingPrice, setMinListingPrice] = useState(0);
+  const [showPriceAdjustmentModal, setShowPriceAdjustmentModal] = useState(false);
+  const [priceFieldY, setPriceFieldY] = useState(0);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const priceInputRef = useRef<TextInput>(null);
+
   // Original listing
   const [originalListing, setOriginalListing] = useState<Listing | null>(null);
 
   // Load listing and subscription on mount
   useEffect(() => {
     loadData();
+    loadMinListingPrice();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listing_id]);
+
+  const loadMinListingPrice = async () => {
+    try {
+      const value = await getConfigValue('min_listing_price');
+      setMinListingPrice(Number(value) || 0);
+    } catch {
+      setMinListingPrice(0);
+    }
+  };
 
   const loadData = async () => {
     if (!session?.user?.id) {
@@ -171,6 +191,10 @@ export default function EditListingScreen({ route, navigation }: any) {
       Alert.alert('Invalid Price', 'Please enter a valid price greater than $0');
       return;
     }
+    if (minListingPrice > 0 && price < minListingPrice) {
+      setShowPriceAdjustmentModal(true);
+      return;
+    }
 
     if (!categoryId) {
       Alert.alert('Required', 'Please select a category');
@@ -250,12 +274,28 @@ export default function EditListingScreen({ route, navigation }: any) {
     ]);
   };
 
+  // NOTE: useCallback must stay BEFORE the early return to avoid
+  // "Rendered more hooks than during the previous render" errors.
+  const handlePriceAdjustmentUpdate = useCallback(() => {
+    setShowPriceAdjustmentModal(false);
+    setTimeout(() => {
+      if (priceFieldY > 0) {
+        scrollViewRef.current?.scrollTo({ y: Math.max(0, priceFieldY - 100), animated: true });
+      }
+      setTimeout(() => {
+        priceInputRef.current?.focus();
+      }, 350);
+    }, 100);
+  }, [priceFieldY]);
+
   if (loadingListing || checkingSubscription) {
     return (
-      <View style={styles.loadingContainer}>
-        <LoadingSpinner />
-        <Text style={styles.loadingText}>Loading listing...</Text>
-      </View>
+      <ScreenLayout variant="detail" title="Edit Listing">
+        <View style={styles.loadingContainer}>
+          <LoadingSpinner />
+          <Text style={styles.loadingText}>Loading listing...</Text>
+        </View>
+      </ScreenLayout>
     );
   }
 
@@ -273,8 +313,8 @@ export default function EditListingScreen({ route, navigation }: any) {
   };
 
   return (
-    <>
-      <ScrollView style={styles.container}>
+    <ScreenLayout variant="detail" title="Edit Listing">
+      <ScrollView ref={scrollViewRef} style={styles.container}>
         <View style={styles.form}>
         <Text style={styles.sectionTitle}>Edit Item Details</Text>
 
@@ -302,14 +342,17 @@ export default function EditListingScreen({ route, navigation }: any) {
         />
 
         {/* Price */}
-        <Text style={styles.label}>Price ($) *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="0.00"
-          value={priceText}
-          onChangeText={setPriceText}
-          keyboardType="decimal-pad"
-        />
+        <View style={styles.field} onLayout={(e) => setPriceFieldY(e.nativeEvent.layout.y)}>
+          <Text style={styles.label}>Price ($) *</Text>
+          <TextInput
+            ref={priceInputRef}
+            style={styles.input}
+            placeholder="0.00"
+            value={priceText}
+            onChangeText={setPriceText}
+            keyboardType="decimal-pad"
+          />
+        </View>
 
         {/* Category */}
         <Text style={styles.label}>Category *</Text>
@@ -467,6 +510,13 @@ export default function EditListingScreen({ route, navigation }: any) {
         </View>
       </ScrollView>
 
+      {/* Price Adjustment Modal (min listing price validation) */}
+      <PriceAdjustmentModal
+        visible={showPriceAdjustmentModal}
+        minPrice={minListingPrice}
+        onUpdatePrice={handlePriceAdjustmentUpdate}
+      />
+
       <Modal
         visible={showSuccessModal}
         transparent
@@ -491,7 +541,7 @@ export default function EditListingScreen({ route, navigation }: any) {
           </View>
         </View>
       </Modal>
-    </>
+    </ScreenLayout>
   );
 }
 
@@ -747,5 +797,8 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  field: {
+    marginBottom: 16,
   },
 });

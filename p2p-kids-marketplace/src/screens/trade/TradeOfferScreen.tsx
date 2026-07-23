@@ -43,9 +43,11 @@ import WalletWarningBanner, { type WalletState } from '@/components/molecules/Wa
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { Modal, LoadingSpinner } from '@/components/ui';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
+import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { ArrowsLeftRight, Coins, ShieldCheck } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
+import { useTaxCalculation } from '@/hooks/useTaxCalculation';
+import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
 
 type TradeOfferRouteProp = RouteProp<RootStackParamList, 'TradeInitiation'>;
 
@@ -77,6 +79,8 @@ export default function TradeOfferScreen() {
   const [maxSpPercentage, setMaxSpPercentage] = useState(50);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);
+  const [showOfferLimitModal, setShowOfferLimitModal] = useState(false);
+  const [offerLimitMessage, setOfferLimitMessage] = useState('');
   const [transactionFeeCents, setTransactionFeeCents] = useState(0);
   const [savedPaymentMethod, setSavedPaymentMethod] = useState<PaymentMethodInfo | null>(null);
   const [loadingSavedPaymentMethod, setLoadingSavedPaymentMethod] = useState(false);
@@ -211,11 +215,9 @@ export default function TradeOfferScreen() {
           return;
         }
 
-        const { data, error } = await supabase.functions.invoke('create-subscription-from-payment-method', {
+        const { data, error } = await supabase.functions.invoke('attach-payment-method', {
           body: {
-            user_id: currentSession.user.id,
             payment_method_id: result.paymentMethodId,
-            is_renewal: true,
           },
           headers: {
             Authorization: `Bearer ${currentSession.access_token}`,
@@ -322,19 +324,16 @@ export default function TradeOfferScreen() {
         cash_amount_cents: cashAmountCents,
         transaction_fee_cents: platformFeeCents,
         buyer_subscription_status: subscriptionStatus,
+        tax_amount_cents: tax.taxAmountCents,
       });
 
       if (!offerResult.success || !offerResult.trade_id) {
-        // D-30: max pending offers error → actionable message
+        // D-30: max pending offers per seller (cap is admin-configurable)
         if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
-          Alert.alert(
-            'Too Many Open Offers',
-            'You have 3 pending offers. Cancel one to make a new offer.',
-            [
-              { text: 'View My Offers', onPress: () => navigation.navigate('TradeList') },
-              { text: 'OK', style: 'cancel' },
-            ]
+          setOfferLimitMessage(
+            offerResult.error || 'You have reached the offer limit for this seller. Cancel one to make a new offer.'
           );
+          setShowOfferLimitModal(true);
           return;
         }
 
@@ -369,7 +368,14 @@ export default function TradeOfferScreen() {
       }
 
       // ── 4. Success ─────────────────────────────────────────────────────────
-      navigation.replace('TradeSuccess', { tradeId });
+      navigation.replace('TradeSuccess', {
+        tradeId,
+        role: 'buyer',
+        spUsed: spAmount,
+        spAmountDollars: spAmount,
+        remainingSP: walletStats?.available ?? 0,
+        listingType: item?.accepts_swap_points ? 'accept_sp' : 'cash_only',
+      });
     } catch (error: any) {
       console.error('[TradeOfferScreen] handleInitiateTrade error:', error);
       setErrorModal({
@@ -382,6 +388,13 @@ export default function TradeOfferScreen() {
       setSubmitting(false);
     }
   };
+
+  // MODULE-15.3-PART3 TAX-011: tax calculated on full item price (SP doesn't reduce taxable amount)
+  const itemPriceCentsForTax = item ? Math.round(item.price * 100) : 0;
+  const tax = useTaxCalculation({
+    nodeId: (item as any)?.node_id ?? null,
+    taxableAmountCents: itemPriceCentsForTax,
+  });
 
   if (loading || !item) {
     return (
@@ -404,6 +417,7 @@ export default function TradeOfferScreen() {
   const offerAmountCents = itemPriceCents - spDiscountCents;
   const platformFeeCents = transactionFeeCents > 0 ? transactionFeeCents : (isSubscriber ? 99 : 299);
   const cashAmountCents = itemPriceCents - spDiscountCents + platformFeeCents;
+  const grandTotalCents = cashAmountCents + (tax.taxAmountCents || 0);
 
   return (
     <ScreenLayout variant="detail" title="Make Offer">
@@ -415,6 +429,7 @@ export default function TradeOfferScreen() {
           ref={scrollViewRef}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          testID="offer-screen-scroll-view"
         >
           <Text style={styles.heading}>Make an Offer</Text>
 
@@ -609,7 +624,7 @@ export default function TradeOfferScreen() {
           </View>
 
           {/* Addendum B (D-20): Value stack — fee + SP breakdown.
-              TODO-07 🔴: Platform fee hardcoded per Section 4.1 until fee engine is unblocked. */}
+              Platform fee is now dynamic — fetched from admin_config via getTransactionFee(). */}
           <View style={styles.valueStackCard} testID="value-stack-row">
             <Text style={styles.valueStackTitle}>What you pay</Text>
             <View style={styles.valueStackRow}>
@@ -627,13 +642,21 @@ export default function TradeOfferScreen() {
             <View style={styles.valueStackRow}>
               <Text style={styles.valueStackLabel}>Platform fee</Text>
               <Text style={styles.valueStackValue}>
-                {isSubscriber ? '$0.99' : '$2.99'}
+                ${(platformFeeCents / 100).toFixed(2)}
               </Text>
             </View>
+            {/* MODULE-15.3-PART3 TAX-011: sales tax row (hidden when 0) */}
+            <TaxBreakdownRow
+              taxAmountCents={tax.taxAmountCents}
+              taxRate={tax.taxRate}
+              jurisdiction={tax.jurisdiction}
+              loading={tax.loading}
+              testID="offer-tax-row"
+            />
             <View style={[styles.valueStackRow, styles.valueStackTotalRow]}>
               <Text style={styles.valueStackTotalLabel}>Total cash</Text>
               <Text style={styles.valueStackTotalValue}>
-                ${((offerAmountCents / 100) + (isSubscriber ? 0.99 : 2.99)).toFixed(2)}
+                ${(grandTotalCents / 100).toFixed(2)}
               </Text>
             </View>
           </View>
@@ -652,8 +675,6 @@ export default function TradeOfferScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <PersistentTabBar />
 
       <DisclaimerModal
         visible={showDisclaimer}
@@ -681,6 +702,20 @@ export default function TradeOfferScreen() {
         }}
         onSecondaryPress={() => setErrorModal({ ...errorModal, visible: false })}
         onClose={() => setErrorModal({ ...errorModal, visible: false })}
+      />
+
+      <TradeConfirmationModal
+        visible={showOfferLimitModal}
+        title="Too Many Open Offers"
+        message={offerLimitMessage}
+        confirmLabel="View My Offers"
+        cancelLabel="OK"
+        variant="accept"
+        onConfirm={() => {
+          setShowOfferLimitModal(false);
+          navigation.navigate('TradeList');
+        }}
+        onCancel={() => setShowOfferLimitModal(false)}
       />
     </ScreenLayout>
   );

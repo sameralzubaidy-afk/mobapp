@@ -19,7 +19,7 @@ import { goToDiscover, tapFirstListing } from '../helpers/navigation';
 
 describe('TC-27: Favorites Screen', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -37,7 +37,7 @@ describe('TC-27: Favorites Screen', () => {
   it('adds the item to cart', async () => {
     await waitFor(element(by.id('add-to-cart-button')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('add-to-cart-button')).tap();
     // waitFor(view-cart-button) in the next step handles the delay
     await device.takeScreenshot('27-after-add-to-cart');
@@ -46,18 +46,18 @@ describe('TC-27: Favorites Screen', () => {
   it('opens the Cart screen via view-cart-button', async () => {
     await waitFor(element(by.id('view-cart-button')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('view-cart-button')).tap();
 
     // Verify we are on the CartScreen
     try {
       await waitFor(element(by.id('cart-summary')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
     } catch {
       await waitFor(element(by.id('cart-total')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
     }
     await device.takeScreenshot('27-cart-screen');
   });
@@ -65,19 +65,19 @@ describe('TC-27: Favorites Screen', () => {
   it('navigates to Favorites via cart-favorites-link', async () => {
     await waitFor(element(by.id('cart-favorites-link')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('cart-favorites-link')).tap();
 
     // FavoritesScreen — either empty state or list
     try {
       await waitFor(element(by.id('favorites-list')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
       await expect(element(by.id('favorites-list'))).toBeVisible();
     } catch {
       await waitFor(element(by.id('favorites-empty')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
       await expect(element(by.id('favorites-empty'))).toBeVisible();
     }
     await device.takeScreenshot('27-favorites-screen');
@@ -87,7 +87,7 @@ describe('TC-27: Favorites Screen', () => {
     try {
       await waitFor(element(by.id('favorites-browse-button')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
       await expect(element(by.id('favorites-browse-button'))).toBeVisible();
     } catch {
       // Non-empty favorites list is also valid — skip

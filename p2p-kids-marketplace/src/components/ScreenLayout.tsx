@@ -11,6 +11,11 @@
  *     {content}
  *   </ScreenLayout>
  *
+ *   // Root tab screen (no back button, title + bell)
+ *   <ScreenLayout variant="tab" title="Discover">
+ *     {content}
+ *   </ScreenLayout>
+ *
  *   // Standard detail screen
  *   <ScreenLayout variant="detail" title="Settings">
  *     {content}

@@ -54,6 +54,29 @@ export const PREDEFINED_REASONS: CancellationReason[] = [
   },
 ];
 
+/**
+ * BUYER_OFFER_REASONS: Used when a buyer cancels their own submitted offer.
+ * Excludes 'Buyer unresponsive' (buyer is the person canceling) and
+ * 'Item damaged/incorrect' (item hasn't been received yet at offer stage).
+ */
+export const BUYER_OFFER_REASONS: CancellationReason[] = [
+  {
+    id: 'found_elsewhere',
+    label: 'Found elsewhere',
+    description: 'Found a better deal or item elsewhere',
+  },
+  {
+    id: 'changed_mind',
+    label: 'Changed mind',
+    description: 'No longer interested in the item',
+  },
+  {
+    id: 'other',
+    label: 'Other reason',
+    description: 'Please specify in the text box below',
+  },
+];
+
 interface CancellationReasonModalProps {
   visible: boolean;
   itemTitle?: string;

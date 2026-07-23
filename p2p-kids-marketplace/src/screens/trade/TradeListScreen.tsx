@@ -30,10 +30,8 @@ import {
 } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
-import { respondToOffer } from '@/services/tradeServiceV2';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
+import { acceptBundleOffers, declineBundleOffers } from '@/services/tradeServiceV2';
 import { Receipt, ArrowRight, ArrowsLeftRight, Check, CaretRight, ChatTeardropText } from 'phosphor-react-native';
-import { LoadingSpinner } from '@/components/ui';
 import { OfferCountdownPill } from '@/components/trade';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -71,6 +69,17 @@ export default function TradeListScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState({ inProgress: 0, needsAction: 0, pendingOffers: 0, completed: 0 });
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'your_offers' | 'needs_action' | 'in_progress' | 'completed'>('all');
+  // Track which bundle is being processed (prevents double-tap, grays out buttons)
+  const [processingBundleId, setProcessingBundleId] = useState<string | null>(null);
+  // Confirmation modal state for bundle Accept All / Decline All
+  const [bundleConfirmModal, setBundleConfirmModal] = useState<{
+    visible: boolean;
+    action: 'accept' | 'decline';
+    bundleId: string;
+    offerIds: string[];
+    title: string;
+  }>({ visible: false, action: 'accept', bundleId: '', offerIds: [], title: '' });
+
   // TFV2-015: seller ignoring offers prompt (D-13)
   const [ignoredOfferItems, setIgnoredOfferItems] = useState<{ listing_id: string; title: string; count: number }[]>([]);
   const [showIgnoringModal, setShowIgnoringModal] = useState(false);
@@ -84,7 +93,8 @@ export default function TradeListScreen({ navigation }: any) {
       fetchTrades();
       void fetchAllOffers();
       void fetchSellerIgnoringStats();
-    
+    }, [userId, activeTab])
+  );
 
   // TFV2-015: Handle notification-triggered ignore prompt modal
   useEffect(() => {
@@ -98,9 +108,7 @@ export default function TradeListScreen({ navigation }: any) {
       // Clear params to prevent re-triggering on subsequent renders
       navigation.setParams({ showIgnorePrompt: undefined, listingId: undefined, listingTitle: undefined });
     }
-  }, [route.params, navigation]);  // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userId, activeTab])
-  );
+  }, [route.params, navigation]);
 
   /** TFV2-015 (D-13): Load listings where seller has ≥2 unanswered offers */
   const fetchSellerIgnoringStats = async () => {
@@ -248,6 +256,7 @@ export default function TradeListScreen({ navigation }: any) {
           created_at,
           offer_expires_at,
           status,
+          bundle_id,
           auto_complete_at
         `)
         .eq('buyer_id', userId)
@@ -386,6 +395,38 @@ export default function TradeListScreen({ navigation }: any) {
     );
   }, [allOffers]);
 
+  // Addendum D: group submitted (buyer) offers by bundle_id for the "Your Offers" section.
+  // Buyer sees bundled offers as a single card (no Accept All / Decline All — those are seller actions).
+  const groupedSubmittedOffers = useMemo(() => {
+    type GroupRow =
+      | { type: 'single'; offer: PendingOffer }
+      | { type: 'bundle'; bundleId: string; offers: PendingOffer[] };
+    const result: GroupRow[] = [];
+    const bundleMap: Record<string, PendingOffer[]> = {};
+    const seen = new Set<string>();
+
+    for (const offer of submittedOffers) {
+      if (offer.bundle_id) {
+        if (!bundleMap[offer.bundle_id]) {
+          bundleMap[offer.bundle_id] = [];
+        }
+        bundleMap[offer.bundle_id].push(offer);
+        seen.add(offer.id);
+      }
+    }
+
+    for (const offer of submittedOffers) {
+      if (offer.bundle_id && bundleMap[offer.bundle_id] && !seen.has(`__bundle__${offer.bundle_id}`)) {
+        seen.add(`__bundle__${offer.bundle_id}`);
+        result.push({ type: 'bundle', bundleId: offer.bundle_id, offers: bundleMap[offer.bundle_id] });
+      } else if (!offer.bundle_id) {
+        result.push({ type: 'single', offer });
+      }
+    }
+
+    return result;
+  }, [submittedOffers]);
+
   // Addendum D: group received pending offers by bundle_id for the Offers tab.
   const groupedReceivedOffers = useMemo(() => {
     type GroupRow =
@@ -427,7 +468,7 @@ export default function TradeListScreen({ navigation }: any) {
   // Addendum D: group in_progress trades by bundle_id.
   const inProgressBundles = useMemo(() => {
     const inProgress = trades.filter(
-      (t: any) => t.status === 'in_progress' && t.auto_complete_at && t.bundle_id
+      (t: any) => t.status === 'in_progress' && t.bundle_id
     );
     const bundleMap: Record<string, any[]> = {};
     for (const t of inProgress) {
@@ -439,6 +480,17 @@ export default function TradeListScreen({ navigation }: any) {
       .filter(([, items]) => items.length > 1)
       .map(([bundleId, items]) => ({ bundleId, trades: items }));
   }, [trades]);
+
+  // Collect all trade IDs that belong to a grouped bundle (for filtering out of individual list)
+  const bundledTradeIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const bundle of inProgressBundles) {
+      for (const trade of bundle.trades) {
+        ids.add(trade.id);
+      }
+    }
+    return ids;
+  }, [inProgressBundles]);
 
   // D-30: only 'in_progress' with auto_complete_at IS NOT NULL is truly active (accepted).
   // Unaccepted offers (pending or in_progress with auto_complete_at IS NULL) go to Needs Action.
@@ -458,27 +510,32 @@ export default function TradeListScreen({ navigation }: any) {
     return trades.filter((t: any) => t.status === 'completed').slice(0, 3);
   }, [trades]);
 
-  const handleAcceptBundle = async (offerIds: string[]) => {
-    try {
-      // Call transactions-update EF for each offer (captures Stripe PI, sets in_progress)
-      for (const id of offerIds) {
-        await respondToOffer(id, 'accept');
-      }
-      fetchAllOffers();
-    } catch (err) {
-      console.warn('[TradeList] handleAcceptBundle error', err);
-    }
+  /** Show confirmation modal before accepting a bundle */
+  const requestAcceptBundle = (bundleId: string, offerIds: string[], title: string) => {
+    setBundleConfirmModal({ visible: true, action: 'accept', bundleId, offerIds, title });
   };
 
-  const handleDeclineBundle = async (offerIds: string[]) => {
+  /** Show confirmation modal before declining a bundle */
+  const requestDeclineBundle = (bundleId: string, offerIds: string[], title: string) => {
+    setBundleConfirmModal({ visible: true, action: 'decline', bundleId, offerIds, title });
+  };
+
+  /** Execute the confirmed bundle action */
+  const executeBundleAction = async () => {
+    const { action, bundleId, offerIds } = bundleConfirmModal;
+    setBundleConfirmModal(prev => ({ ...prev, visible: false }));
+    setProcessingBundleId(bundleId);
     try {
-      // Call transactions-update EF for each offer (sends decline notification)
-      for (const id of offerIds) {
-        await respondToOffer(id, 'decline');
+      if (action === 'accept') {
+        await acceptBundleOffers(offerIds);
+      } else {
+        await declineBundleOffers(offerIds);
       }
       fetchAllOffers();
     } catch (err) {
-      console.warn('[TradeList] handleDeclineBundle error', err);
+      console.warn('[TradeList] executeBundleAction error', err);
+    } finally {
+      setProcessingBundleId(null);
     }
   };
 
@@ -765,104 +822,244 @@ export default function TradeListScreen({ navigation }: any) {
       >
         {activeTab === 'active' ? (
           <>
-            {/* Submitted Offers (Buyer) */}
-            {submittedOffers.length > 0 && (selectedFilter === 'all' || selectedFilter === 'your_offers') && (
+            {/* Submitted Offers (Buyer) — grouped by bundle_id */}
+            {groupedSubmittedOffers.length > 0 && (selectedFilter === 'all' || selectedFilter === 'your_offers') && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <ArrowsLeftRight size={18} color="#5DBB8E" />
                   <Text style={styles.sectionTitle}>YOUR OFFERS</Text>
                 </View>
-                {submittedOffers.map(offer => (
-                  <TouchableOpacity 
-                    key={offer.id}
-                    style={styles.tradeCard}
-                    onPress={() => navigation.navigate('TradeDetail', { tradeId: offer.id })}
-                  >
-                    <View style={styles.tradeCardMain}>
-                      <View style={styles.tradeCardImageContainer}>
-                        {offer.listing?.images?.[0] ? (
-                          <Image 
-                            source={{ uri: offer.listing.images[0].thumbnail_url || offer.listing.images[0].url }} 
-                            style={styles.tradeCardImage} 
-                          />
-                        ) : (
-                          <View style={styles.tradeCardImagePlaceholder}><Text>📦</Text></View>
-                        )}
-                      </View>
-                      <View style={styles.tradeCardContent}>
-                        <View style={styles.tradeCardHeaderLine}>
-                          <Text style={styles.tradeCardTitle} numberOfLines={1}>{offer.listing?.title || 'Untitled'}</Text>
-                          <View style={[styles.statusBadge, offer.status === 'cancelled' ? styles.statusBadgeCancelled : styles.statusBadgePending]}>
-                            <Text style={[styles.statusBadgeText, offer.status === 'cancelled' ? styles.statusBadgeTextCancelled : styles.statusBadgeTextPending]}>
-                              {offer.status === 'cancelled' ? 'EXPIRED' : 'PENDING'}
-                            </Text>
+                {groupedSubmittedOffers.map((row, idx) => {
+                  if (row.type === 'bundle') {
+                    // Bundle card — grouped offers share the same bundle_id
+                    const bundleOffers = row.offers;
+                    return (
+                      <TouchableOpacity
+                        key={`bundle-submitted-${row.bundleId}`}
+                        style={[styles.tradeCard, { paddingBottom: 12 }]}
+                        onPress={() => navigation.navigate('TradeDetail', { tradeId: bundleOffers[0].id })}
+                      >
+                        <View style={styles.tradeCardMain}>
+                          <View style={styles.tradeCardContent}>
+                            <View style={styles.tradeCardHeaderLine}>
+                              <Text style={[styles.tradeCardTitle, { color: '#5DBB8E' }]} numberOfLines={1}>
+                                📦 Bundle Offer · {bundleOffers.length} items
+                              </Text>
+                              <View style={[styles.statusBadge, styles.statusBadgePending]}>
+                                <Text style={[styles.statusBadgeText, styles.statusBadgeTextPending]}>PENDING</Text>
+                              </View>
+                            </View>
+                            <View style={styles.tradeCardMetaLine}>
+                              <View style={[styles.typeBadge, styles.typeBadgeBuying]}>
+                                <Text style={styles.typeBadgeTextBuying}>Buying</Text>
+                              </View>
+                              <Text style={styles.tradeCardDate}>
+                                {formatDate(bundleOffers[0].created_at)}
+                              </Text>
+                            </View>
+                            {bundleOffers.slice(0, 3).map((o, i) => (
+                              <View key={o.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: i === 0 ? 8 : 4 }}>
+                                <Text style={{ fontSize: 13, color: '#333', flex: 1 }} numberOfLines={1}>
+                                  {o.listing?.title || 'Untitled'}
+                                </Text>
+                                <Text style={{ fontSize: 13, color: '#6B6B6B' }}>
+                                  ${(o.cash_amount_cents / 100).toFixed(2)}
+                                  {o.sp_amount > 0 ? ` + ${o.sp_amount} SP` : ''}
+                                </Text>
+                              </View>
+                            ))}
+                            {bundleOffers.length > 3 && (
+                              <Text style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                                +{bundleOffers.length - 3} more items
+                              </Text>
+                            )}
+                            {bundleOffers[0]?.offer_expires_at && (
+                              <View style={styles.expirationLine}>
+                                <View style={styles.expirationDot} />
+                                <Text style={styles.expirationText}>
+                                  Offer expires in {getTimeAgoBrief(bundleOffers[0].offer_expires_at)}
+                                </Text>
+                              </View>
+                            )}
                           </View>
                         </View>
-                        <View style={styles.tradeCardMetaLine}>
-                          <View style={[styles.typeBadge, styles.typeBadgeBuying]}>
-                            <Text style={styles.typeBadgeTextBuying}>Buying</Text>
-                          </View>
-                          <Text style={styles.tradeCardDate}>{formatDate(offer.created_at)} · ${(offer.cash_amount_cents / 100).toFixed(2)}</Text>
+                        <View style={styles.tradeCardDivider} />
+                        <View style={[styles.tradeCardActions, { flexDirection: 'row' }]}>
+                          <TouchableOpacity
+                            style={[styles.tradeCardBtnSecondary, { flex: 1 }]}
+                            onPress={() => navigation.navigate('TradeDetail', { tradeId: bundleOffers[0].id })}
+                          >
+                            <Text style={styles.tradeCardBtnSecondaryText}>View Details</Text>
+                          </TouchableOpacity>
                         </View>
-                        {offer.offer_expires_at && (
-                          <View style={styles.expirationLine}>
-                            <View style={styles.expirationDot} />
-                            <Text style={styles.expirationText}>
-                              {offer.status === 'cancelled' 
-                                ? (offer.listing?.status === 'available' ? 'Expired — Item still available' : 'Expired — Item no longer available')
-                                : `Offer expires in ${getTimeAgoBrief(offer.offer_expires_at)}`
-                              }
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                    <View style={styles.tradeCardDivider} />
-                    <View style={styles.tradeCardActions}>
-                      {offer.status === 'cancelled' && offer.listing?.status === 'available' ? (
-                        <TouchableOpacity 
-                          style={styles.tradeCardBtnPrimary}
-                          onPress={() => {
-                            if (offer.listing?.id) {
-                              navigation.navigate('ItemDetail', { itemId: offer.listing.id });
-                            }
-                          }}
-                        >
-                          <Text style={styles.tradeCardBtnPrimaryText}>View Item Again</Text>
-                        </TouchableOpacity>
-                      ) : (
-                        <TouchableOpacity 
-                          style={styles.tradeCardBtnSecondary}
-                          onPress={() => navigation.navigate('TradeDetail', { tradeId: offer.id })}
-                        >
-                          <Text style={styles.tradeCardBtnSecondaryText}>View Details</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Action Required (Received Offers - Seller) */}
-            {pendingOffers.length > 0 && (selectedFilter === 'all' || selectedFilter === 'needs_action') && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <ArrowsLeftRight size={18} color="#6B6B6B" />
-                  <Text style={styles.sectionTitle}>NEEDS ACTION</Text>
-                </View>
-                {pendingOffers.map(offer => (
-                   <TouchableOpacity 
-                    key={offer.id}
-                    style={styles.tradeCard}
-                    onPress={() => navigation.navigate('ReviewOffer', { tradeId: offer.id })}
-                   >
-                     <View style={styles.tradeCardMain}>
+                      </TouchableOpacity>
+                    );
+                  }
+                  // Single offer (not part of a bundle)
+                  const offer = row.offer;
+                  return (
+                    <TouchableOpacity 
+                      key={offer.id}
+                      style={styles.tradeCard}
+                      onPress={() => navigation.navigate('TradeDetail', { tradeId: offer.id })}
+                    >
+                      <View style={styles.tradeCardMain}>
                         <View style={styles.tradeCardImageContainer}>
                           {offer.listing?.images?.[0] ? (
                             <Image 
                               source={{ uri: offer.listing.images[0].thumbnail_url || offer.listing.images[0].url }} 
                               style={styles.tradeCardImage} 
+                            />
+                          ) : (
+                            <View style={styles.tradeCardImagePlaceholder}><Text>📦</Text></View>
+                          )}
+                        </View>
+                        <View style={styles.tradeCardContent}>
+                          <View style={styles.tradeCardHeaderLine}>
+                            <Text style={styles.tradeCardTitle} numberOfLines={1}>{offer.listing?.title || 'Untitled'}</Text>
+                            <View style={[styles.statusBadge, offer.status === 'cancelled' ? styles.statusBadgeCancelled : styles.statusBadgePending]}>
+                              <Text style={[styles.statusBadgeText, offer.status === 'cancelled' ? styles.statusBadgeTextCancelled : styles.statusBadgeTextPending]}>
+                                {offer.status === 'cancelled' ? 'EXPIRED' : 'PENDING'}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.tradeCardMetaLine}>
+                            <View style={[styles.typeBadge, styles.typeBadgeBuying]}>
+                              <Text style={styles.typeBadgeTextBuying}>Buying</Text>
+                            </View>
+                            <Text style={styles.tradeCardDate}>{formatDate(offer.created_at)} · ${(offer.cash_amount_cents / 100).toFixed(2)}</Text>
+                          </View>
+                          {offer.offer_expires_at && (
+                            <View style={styles.expirationLine}>
+                              <View style={styles.expirationDot} />
+                              <Text style={styles.expirationText}>
+                                {offer.status === 'cancelled' 
+                                  ? (offer.listing?.status === 'available' ? 'Expired — Item still available' : 'Expired — Item no longer available')
+                                  : `Offer expires in ${getTimeAgoBrief(offer.offer_expires_at)}`
+                                }
+                              </Text>
+                            </View>
+                          )}
+                          {offer.sp_amount > 0 && (
+                            <View style={styles.pointsRedemptionTag}>
+                              <Text style={styles.pointsRedemptionTagText}>
+                                Includes points redemption
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.tradeCardDivider} />
+                      <View style={styles.tradeCardActions}>
+                        {offer.status === 'cancelled' && offer.listing?.status === 'available' ? (
+                          <TouchableOpacity 
+                            style={styles.tradeCardBtnPrimary}
+                            onPress={() => {
+                              if (offer.listing?.id) {
+                                navigation.navigate('ItemDetail', { itemId: offer.listing.id });
+                              }
+                            }}
+                          >
+                            <Text style={styles.tradeCardBtnPrimaryText}>View Item Again</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity 
+                            style={styles.tradeCardBtnSecondary}
+                            onPress={() => navigation.navigate('TradeDetail', { tradeId: offer.id })}
+                          >
+                            <Text style={styles.tradeCardBtnSecondaryText}>View Details</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* Action Required (Received Offers - Seller) */}
+            {groupedReceivedOffers.length > 0 && (selectedFilter === 'all' || selectedFilter === 'needs_action') && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <ArrowsLeftRight size={18} color="#6B6B6B" />
+                  <Text style={styles.sectionTitle}>NEEDS ACTION</Text>
+                </View>
+                {groupedReceivedOffers.map((row, idx) => {
+                  if (row.type === 'bundle') {
+                    const bundleOffers = row.offers;
+                    return (
+                      <View key={`bundle-${row.bundleId}`} style={[styles.tradeCard, { paddingBottom: 12 }]}>
+                        {/* Bundle Header */}
+                        <View style={styles.tradeCardMain}>
+                          <View style={styles.tradeCardContent}>
+                            <View style={styles.tradeCardHeaderLine}>
+                              <Text style={[styles.tradeCardTitle, { color: '#5DBB8E' }]} numberOfLines={1}>
+                                📦 Bundle Offer · {bundleOffers.length} items
+                              </Text>
+                              <View style={[styles.statusBadge, styles.statusBadgePending]}>
+                                <Text style={[styles.statusBadgeText, styles.statusBadgeTextPending]}>OFFER</Text>
+                              </View>
+                            </View>
+                            {bundleOffers.slice(0, 3).map((o, i) => (
+                              <View key={o.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: i === 0 ? 8 : 4 }}>
+                                <Text style={{ fontSize: 13, color: '#333', flex: 1 }} numberOfLines={1}>
+                                  {o.listing?.title || 'Untitled'}
+                                </Text>
+                                <Text style={{ fontSize: 13, color: '#6B6B6B' }}>
+                                  ${(o.cash_amount_cents / 100).toFixed(2)}
+                                  {o.sp_amount > 0 ? ` + ${o.sp_amount} SP` : ''}
+                                </Text>
+                              </View>
+                            ))}
+                            {bundleOffers.length > 3 && (
+                              <Text style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                                +{bundleOffers.length - 3} more items
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                        <View style={styles.tradeCardDivider} />
+                        {/* Bundle Actions */}
+                        <View style={[styles.tradeCardActions, { flexDirection: 'row', gap: 8 }]}>
+                          <TouchableOpacity
+                            style={[styles.tradeCardBtnSecondary, { flex: 1 }, processingBundleId === row.bundleId && styles.tradeCardBtnDisabled]}
+                            onPress={() => navigation.navigate('ReviewOffer', { tradeId: bundleOffers[0].id })}
+                            disabled={processingBundleId === row.bundleId}
+                          >
+                            <Text style={[styles.tradeCardBtnSecondaryText, processingBundleId === row.bundleId && { opacity: 0.5 }]}>Review Each</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.tradeCardBtnPrimary, { flex: 1, backgroundColor: '#5DBB8E' }, processingBundleId === row.bundleId && styles.tradeCardBtnDisabled]}
+                            onPress={() => requestAcceptBundle(row.bundleId, bundleOffers.map(o => o.id), `${bundleOffers.length} items`)}
+                            disabled={processingBundleId === row.bundleId}
+                          >
+                            <Text style={[styles.tradeCardBtnPrimaryText, { color: '#fff' }]}>Accept All</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.tradeCardBtnSecondary, { flex: 1 }, processingBundleId === row.bundleId && styles.tradeCardBtnDisabled]}
+                            onPress={() => requestDeclineBundle(row.bundleId, bundleOffers.map(o => o.id), `${bundleOffers.length} items`)}
+                            disabled={processingBundleId === row.bundleId}
+                          >
+                            <Text style={[styles.tradeCardBtnSecondaryText, { color: '#E53E3E' }, processingBundleId === row.bundleId && { opacity: 0.5 }]}>Decline All</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  }
+                  // Single offer (not part of a bundle)
+                  const offer = row.offer;
+                  return (
+                    <TouchableOpacity
+                      key={offer.id}
+                      style={styles.tradeCard}
+                      onPress={() => navigation.navigate('ReviewOffer', { tradeId: offer.id })}
+                    >
+                      <View style={styles.tradeCardMain}>
+                        <View style={styles.tradeCardImageContainer}>
+                          {offer.listing?.images?.[0] ? (
+                            <Image
+                              source={{ uri: offer.listing.images[0].thumbnail_url || offer.listing.images[0].url }}
+                              style={styles.tradeCardImage}
                             />
                           ) : (
                             <View style={styles.tradeCardImagePlaceholder}><Text>📦</Text></View>
@@ -877,7 +1074,7 @@ export default function TradeListScreen({ navigation }: any) {
                           </View>
                           <View style={styles.tradeCardMetaLine}>
                             <View style={[styles.typeBadge, styles.typeBadgeSelling]}>
-                                <Text style={styles.typeBadgeTextSelling}>Selling</Text>
+                              <Text style={styles.typeBadgeTextSelling}>Selling</Text>
                             </View>
                             <Text style={styles.tradeCardDate}>{formatDate(offer.created_at)} · ${(offer.cash_amount_cents / 100).toFixed(2)}</Text>
                           </View>
@@ -889,19 +1086,27 @@ export default function TradeListScreen({ navigation }: any) {
                               </Text>
                             </View>
                           )}
+                          {offer.sp_amount > 0 && (
+                            <View style={styles.pointsRedemptionTag}>
+                              <Text style={styles.pointsRedemptionTagText}>
+                                Includes points redemption
+                              </Text>
+                            </View>
+                          )}
                         </View>
-                     </View>
-                     <View style={styles.tradeCardDivider} />
-                     <View style={styles.tradeCardActions}>
-                        <TouchableOpacity 
+                      </View>
+                      <View style={styles.tradeCardDivider} />
+                      <View style={styles.tradeCardActions}>
+                        <TouchableOpacity
                           style={styles.tradeCardBtnSecondary}
                           onPress={() => navigation.navigate('ReviewOffer', { tradeId: offer.id })}
                         >
                           <Text style={styles.tradeCardBtnSecondaryText}>Review Offer</Text>
                         </TouchableOpacity>
-                     </View>
-                   </TouchableOpacity>
-                ))}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             )}
 
@@ -912,7 +1117,47 @@ export default function TradeListScreen({ navigation }: any) {
                   <ArrowsLeftRight size={18} color="#6B6B6B" />
                   <Text style={styles.sectionTitle}>IN PROGRESS</Text>
                 </View>
-                {activeTrades.map(t => (
+                {/* Bundled in-progress group (Addendum D / TC-L05) */}
+                {inProgressBundles.map(bundle => (
+                  <TouchableOpacity
+                    key={`bundle-${bundle.bundleId}`}
+                    style={styles.tradeCard}
+                    onPress={() => navigation.navigate('TradeDetail', { tradeId: bundle.trades[0].id })}
+                  >
+                    <View style={styles.tradeCardMain}>
+                      <View style={styles.tradeCardContent}>
+                        <View style={styles.tradeCardHeaderLine}>
+                          <Text style={[styles.tradeCardTitle, { color: '#5DBB8E' }]} numberOfLines={1}>
+                            📦 Bundle · {bundle.trades.length} items
+                          </Text>
+                          <View style={[styles.statusBadge, styles.statusBadgeActive]}>
+                            <Text style={[styles.statusBadgeText, styles.statusBadgeTextActive]}>IN PROGRESS</Text>
+                          </View>
+                        </View>
+                        {bundle.trades.slice(0, 3).map((t: any, i: number) => (
+                          <View key={t.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: i === 0 ? 8 : 4 }}>
+                            <Text style={{ fontSize: 13, color: '#333', flex: 1 }} numberOfLines={1}>
+                              {t.listing?.title || 'Untitled'}
+                            </Text>
+                            <Text style={{ fontSize: 13, color: '#6B6B6B' }}>
+                              ${(t.cash_amount_cents / 100).toFixed(2)}
+                            </Text>
+                          </View>
+                        ))}
+                        {bundle.trades.length > 3 && (
+                          <Text style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
+                            +{bundle.trades.length - 3} more items
+                          </Text>
+                        )}
+                        <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                          <Text style={{ fontSize: 13, color: '#5DBB8E' }}>View →</Text>
+                        </View>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                {/* Individual (non-bundled) in-progress trades */}
+                {activeTrades.filter((t: any) => !bundledTradeIds.has(t.id)).map(t => (
                   <View key={t.id}>
                     {renderTradeCard({ item: t })}
                   </View>
@@ -957,11 +1202,11 @@ export default function TradeListScreen({ navigation }: any) {
 
             {(() => {
               // Determine if we should show empty state based on active filter
-              if (selectedFilter === 'your_offers') return submittedOffers.length === 0;
-              if (selectedFilter === 'needs_action') return pendingOffers.length === 0;
+              if (selectedFilter === 'your_offers') return groupedSubmittedOffers.length === 0;
+              if (selectedFilter === 'needs_action') return groupedReceivedOffers.length === 0;
               if (selectedFilter === 'in_progress') return activeTrades.length === 0;
               if (selectedFilter === 'completed') return historyTrades.filter(t => t.status === 'completed').length === 0;
-              return activeTrades.length === 0 && pendingOffers.length === 0 && submittedOffers.length === 0 && recentlyCompleted.length === 0;
+              return activeTrades.length === 0 && groupedReceivedOffers.length === 0 && submittedOffers.length === 0 && recentlyCompleted.length === 0;
             })() && renderEmptyState()}
           </>
         ) : (
@@ -976,7 +1221,44 @@ export default function TradeListScreen({ navigation }: any) {
           </View>
         )}
       </ScrollView>
-      <PersistentTabBar />
+
+      {/* Bundle Accept/Decline Confirmation Modal */}
+      <Modal
+        visible={bundleConfirmModal.visible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setBundleConfirmModal(prev => ({ ...prev, visible: false }))}
+      >
+        <Pressable
+          style={styles.ignModalOverlay}
+          onPress={() => setBundleConfirmModal(prev => ({ ...prev, visible: false }))}
+        >
+          <Pressable style={styles.ignModalSheet} onPress={e => e.stopPropagation()}>
+            <Text style={styles.ignModalTitle}>
+              {bundleConfirmModal.action === 'accept' ? 'Accept All Offers?' : 'Decline All Offers?'}
+            </Text>
+            <Text style={styles.ignModalBody}>
+              {bundleConfirmModal.action === 'accept'
+                ? `This will accept all ${bundleConfirmModal.title} and charge the buyer's saved payment method.`
+                : `This will decline all ${bundleConfirmModal.title}. The buyer won't be charged.`}
+            </Text>
+            <TouchableOpacity
+              style={styles.ignModalBtnPrimary}
+              onPress={executeBundleAction}
+            >
+              <Text style={styles.ignModalBtnPrimaryText}>
+                {bundleConfirmModal.action === 'accept' ? 'Accept All' : 'Decline All'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.ignModalBtnDismiss}
+              onPress={() => setBundleConfirmModal(prev => ({ ...prev, visible: false }))}
+            >
+              <Text style={styles.ignModalBtnDismissText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* TFV2-015: Seller Ignore Prompt Modal */}
       <Modal
@@ -1204,6 +1486,21 @@ const styles = StyleSheet.create({
     color: '#F97316',
     fontWeight: '500',
   },
+  pointsRedemptionTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    backgroundColor: '#EEF9F4',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+  },
+  pointsRedemptionTagText: {
+    fontSize: 11,
+    color: '#5DBB8E',
+    fontWeight: '600',
+  },
   tradeCardDivider: {
     height: 1,
     backgroundColor: '#F0F0F0',
@@ -1238,6 +1535,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#5DBB8E',
     gap: 6,
+  },
+  tradeCardBtnDisabled: {
+    opacity: 0.5,
   },
   tradeCardBtnPrimaryText: {
     fontSize: 14,

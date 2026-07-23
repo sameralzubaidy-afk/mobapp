@@ -57,8 +57,8 @@ describe('CartScreen', () => {
 
       await waitFor(() => {
         expect(getByTestId('cart-empty-icon')).toBeTruthy();
-        expect(getByText('Your cart is empty')).toBeTruthy();
-        expect(getByText('Start adding items you love to your cart')).toBeTruthy();
+        expect(getByText('Your trade basket is empty')).toBeTruthy();
+        expect(getByText('Start adding items you love to your trade basket')).toBeTruthy();
         expect(getByTestId('browse-items-button')).toBeTruthy();
       });
     });
@@ -91,7 +91,7 @@ describe('CartScreen', () => {
       });
     });
 
-    it('should render "My Cart" title', async () => {
+    it('should render "Trade Basket" title', async () => {
       const { getByText } = render(<CartScreen />);
 
       await waitFor(() => {
@@ -113,8 +113,8 @@ describe('CartScreen', () => {
     });
   });
 
-  describe('Checkout Button', () => {
-    it('should show alert when checkout pressed with empty cart', async () => {
+  describe('Make Offer CTA', () => {
+    it('should render bundle-cta-button when cart has items', async () => {
       const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
@@ -122,8 +122,6 @@ describe('CartScreen', () => {
         expect(getByTestId('cart-empty-icon')).toBeTruthy();
       });
 
-      // Manually trigger checkout for empty cart scenario
-      // This tests the handleCheckout function behavior
       expect(Alert.alert).not.toHaveBeenCalled();
     });
   });

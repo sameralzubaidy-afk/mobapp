@@ -63,6 +63,7 @@ import {
   MapPin,
 } from 'phosphor-react-native';
 import { Avatar } from '@/components/atoms';
+import { QuickReplyChips } from '@/components/messaging/QuickReplyChips';
 import {
   getMessages,
   sendMessage,
@@ -129,9 +130,8 @@ export default function ChatScreen() {
 
   // TFV2-020: Safe meetup modal (shown once per listing)
   const [safetyModalVisible, setSafetyModalVisible] = useState(false);
-  // TFV2-021: Quick-reply chips visible state
-  const [quickRepliesVisible, setQuickRepliesVisible] = useState(false);
-
+  // TFV2-021: Quick-reply chips visible state (default on for in_progress)
+  const [quickRepliesVisible, setQuickRepliesVisible] = useState(true);
   const flatListRef = useRef<FlatList>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const typingChannelRef = useRef<RealtimeChannel | null>(null);
@@ -266,6 +266,31 @@ export default function ChatScreen() {
       (newMessage) => {
         console.log('[ChatScreen] Realtime message received:', newMessage.id);
         upsertMessageInState(newMessage);
+
+        // MSG-008: Mark new messages from the other user as delivered/read
+        // (Messages loaded on mount get marked at lines 243-257; this handles
+        // messages arriving via realtime while the chat is already open.)
+        if (session?.user?.id && newMessage.sender_id !== session.user.id) {
+          markTradeMessagesAsDelivered(tradeId, session.user.id)
+            .then((count) => {
+              if (count > 0) {
+                console.log('[ChatScreen] Marked new messages as delivered:', count);
+              }
+            })
+            .catch((error) => {
+              console.warn('[ChatScreen] Failed to mark new messages as delivered:', error);
+            });
+
+          markTradeMessagesAsRead(tradeId, session.user.id)
+            .then((count) => {
+              if (count > 0) {
+                console.log('[ChatScreen] Marked new messages as read:', count);
+              }
+            })
+            .catch((error) => {
+              console.warn('[ChatScreen] Failed to mark new messages as read:', error);
+            });
+        }
       },
       (updatedMessage) => {
         console.log(
@@ -750,7 +775,7 @@ export default function ChatScreen() {
             {listing.title} • ${listing.price.toFixed(2)}
           </Text>
           <TouchableOpacity
-            onPress={() => navigation.navigate('ListingDetail', { listing_id: listing.id })}
+            onPress={() => navigation.navigate('TradeTimeline', { tradeId })}
             testID="view-trade-link"
           >
             <Text style={styles.viewTradeLink}>View Trade</Text>
@@ -854,40 +879,27 @@ export default function ChatScreen() {
           </View>
         )}
 
+        {/* TFV2-021: Quick-reply chips row — above input bar, visible when trade is in_progress and toggled on */}
+        {trade?.status === 'in_progress' && quickRepliesVisible && (
+          <View style={styles.quickRepliesWrapper}>
+            <QuickReplyChips
+              onChipPress={(message, isPrefill) => {
+                if (isPrefill) {
+                  setInputText(message);
+                } else {
+                  setInputText(message);
+                  // Send immediately after a short delay to let state settle
+                  setTimeout(() => {
+                    handleSend();
+                  }, 100);
+                }
+              }}
+            />
+          </View>
+        )}
+
         {/* Input bar: #F7F7F7 bg strip */}
         <View style={[styles.inputContainer, !isTradeActive && styles.inputContainerFrozen]} testID="message-input-bar">
-          {/* TFV2-021: Quick-reply chips row — hidden when trade frozen */}
-          {isTradeActive && quickRepliesVisible && (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.quickRepliesRow}
-              contentContainerStyle={styles.quickRepliesContent}
-              keyboardShouldPersistTaps="handled"
-              testID="quick-replies-row"
-            >
-              {[
-                'Meet at library? 📚',
-                'Park works! 🌳',
-                'Tomorrow 3pm?',
-                'Weekend works?',
-                'Community center nearby?',
-                'School parking lot?',
-              ].map((chip) => (
-                <TouchableOpacity
-                  key={chip}
-                  style={styles.quickReplyChip}
-                  onPress={() => {
-                    setInputText((prev) => (prev ? `${prev} ${chip}` : chip));
-                    setQuickRepliesVisible(false);
-                  }}
-                  testID={`quick-reply-${chip}`}
-                >
-                  <Text style={styles.quickReplyChipText}>{chip}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
           {/* PaperClip icon (20px, #6B6B6B) — disabled when trade frozen */}
           <TouchableOpacity
             testID="image-picker-button"
@@ -1467,7 +1479,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  // TFV2-021: Quick replies row
+  // TFV2-021: Quick replies wrapper row (above input bar)
+  quickRepliesWrapper: {
+    borderTopWidth: 1,
+    borderTopColor: '#EEEEEE',
+    backgroundColor: '#FAFAFA',
+  },
+  // TFV2-021: Quick replies row (deprecated — kept for reference)
   quickRepliesRow: {
     maxHeight: 44,
     borderTopWidth: 1,

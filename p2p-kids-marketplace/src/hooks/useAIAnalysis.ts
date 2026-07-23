@@ -22,6 +22,7 @@ export interface UseAIAnalysisResult {
   result: AIAnalysisResult | null;
   error: string | null;
   retry: () => void;
+  reset: () => void;
 }
 
 /**
@@ -147,6 +148,21 @@ export function useAIAnalysis(photoUrls: string[], sellerId: string): UseAIAnaly
     analyze();
   }, [analyze]);
 
+  // Reset to idle — clears error and result without starting a new analysis
+  const reset = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    retryCountRef.current = 0;
+    setStatus('idle');
+    setResult(null);
+    setError(null);
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -164,5 +180,6 @@ export function useAIAnalysis(photoUrls: string[], sellerId: string): UseAIAnaly
     result,
     error,
     retry,
+    reset,
   };
 }

@@ -44,6 +44,7 @@ import DisclaimerModal from '@/components/DisclaimerModal';
 import { supabase } from '@/config/supabase';
 import { SPInfoTooltip } from '@/components/modals/SPInfoTooltip';
 import { LoadingSpinner } from '@/components/ui';
+import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import ScreenLayout from '@/components/ScreenLayout';
 // MODULE-15.3-PART3 TAX-011: tax preview row
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
@@ -79,6 +80,8 @@ export default function TradeInitiationScreen() {
   const [cardComplete, setCardComplete] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);
+  const [showOfferLimitModal, setShowOfferLimitModal] = useState(false);
+  const [offerLimitMessage, setOfferLimitMessage] = useState('');
   const [stripeReady, setStripeReady] = useState(false);
   const [stripeError, setStripeError] = useState<string | null>(null);
   const [savedPaymentMethod, setSavedPaymentMethod] = useState<PaymentMethodInfo | null>(null);
@@ -392,16 +395,12 @@ export default function TradeInitiationScreen() {
       });
 
       if (!offerResult.success || !offerResult.trade_id) {
-        // D-30: max pending offers error → actionable message
+        // D-30: max pending offers per seller (cap is admin-configurable)
         if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
-          Alert.alert(
-            'Too Many Open Offers',
-            'You have 3 pending offers. Cancel one to make a new offer.',
-            [
-              { text: 'View My Offers', onPress: () => navigation.navigate('TradeList') },
-              { text: 'OK', style: 'cancel' },
-            ]
+          setOfferLimitMessage(
+            offerResult.error || 'You have reached the offer limit for this seller. Cancel one to make a new offer.'
           );
+          setShowOfferLimitModal(true);
           return;
         }
 
@@ -436,7 +435,14 @@ export default function TradeInitiationScreen() {
       }
 
       // ── 4. Success ─────────────────────────────────────────────────────────
-      navigation.replace('TradeSuccess', { tradeId });
+      navigation.replace('TradeSuccess', {
+        tradeId,
+        role: 'buyer',
+        spUsed: spAmount,
+        spAmountDollars: spAmount,
+        remainingSP: walletStats?.available ?? 0,
+        listingType: item?.accepts_swap_points ? 'accept_sp' : 'cash_only',
+      });
     } catch (error: any) {
       console.error('[TradeInitiationScreen] handleInitiateTrade error:', error);
       Alert.alert('Error', error.message || 'An unexpected error occurred');
@@ -805,6 +811,20 @@ export default function TradeInitiationScreen() {
         visible={showSpInfoTooltip}
         onClose={() => setShowSpInfoTooltip(false)}
         testID="trade-sp-info-tooltip"
+      />
+
+      <TradeConfirmationModal
+        visible={showOfferLimitModal}
+        title="Too Many Open Offers"
+        message={offerLimitMessage}
+        confirmLabel="View My Offers"
+        cancelLabel="OK"
+        variant="accept"
+        onConfirm={() => {
+          setShowOfferLimitModal(false);
+          navigation.navigate('TradeList');
+        }}
+        onCancel={() => setShowOfferLimitModal(false)}
       />
     </ScreenLayout>
   );

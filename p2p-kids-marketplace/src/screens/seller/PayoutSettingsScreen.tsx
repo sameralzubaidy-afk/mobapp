@@ -18,6 +18,7 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Modal,
 } from 'react-native';
 import * as ExpoLinking from 'expo-linking';
 import { useNavigation } from '@react-navigation/native';
@@ -56,13 +57,71 @@ import {
   Bank,
   ArrowDown,
   Plus,
-  CaretRight,
   CheckCircle,
   Clock,
+  Check,
+  DotsThree,
+  CurrencyDollar,
+  CreditCard,
+  PencilSimple,
+  Trash,
 } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+// =============================================================================
+// Provider Helpers
+// =============================================================================
+
+/** Return a phosphor icon element for the given provider type */
+function getProviderIcon(methodType: string): React.ReactNode {
+  switch (methodType) {
+    case 'paypal':
+    case 'venmo':
+      return <CurrencyDollar size={22} color="#5DBB8E" weight="bold" />;
+    case 'stripe_connect':
+      return <CreditCard size={22} color="#5DBB8E" weight="bold" />;
+    case 'bank_ach':
+    default:
+      return <Bank size={22} color="#5DBB8E" weight="bold" />;
+  }
+}
+
+/** Return a tint color hex for the given provider type */
+function getProviderColor(methodType: string): string {
+  switch (methodType) {
+    case 'paypal':
+      return '#0070BA';
+    case 'venmo':
+      return '#008CFF';
+    case 'stripe_connect':
+      return '#635BFF';
+    case 'bank_ach':
+    default:
+      return '#5DBB8E';
+  }
+}
+
+/** Return badge styling based on status message */
+function getStatusBadgeStyle(statusMessage: string, isPrimary: boolean): { bg: string; border: string; text: string } {
+  if (isPrimary) {
+    return { bg: '#E8F5F0', border: '#5DBB8E', text: '#5DBB8E' };
+  }
+  switch (statusMessage) {
+    case 'Verified':
+    case 'Verified & Active':
+      return { bg: '#E8F5F0', border: '#5DBB8E', text: '#5DBB8E' };
+    case 'Verification pending':
+    case 'Verification required':
+      return { bg: '#FFF8E1', border: '#F59E0B', text: '#B8860B' };
+    case 'Onboarding required':
+    case 'Onboarding complete, pending verification':
+      return { bg: '#F5F5F5', border: '#D1D1D1', text: '#6B6B6B' };
+    default:
+      return { bg: '#F5F5F5', border: '#D1D1D1', text: '#6B6B6B' };
+  }
+}
 
 // =============================================================================
 // Main Component
@@ -86,6 +145,11 @@ export default function PayoutSettingsScreen() {
   const [payoutLimit, setPayoutLimit] = useState(5); // Start with 5, increase on "Load More"
   const [loadingMore, setLoadingMore] = useState(false);
   const [adminPayoutConfig, setAdminPayoutConfig] = useState<AdminPayoutConfig | null>(null);
+
+  // Bottom sheet state
+  const [selectedMethodForSheet, setSelectedMethodForSheet] = useState<SellerPayoutMethod | null>(null);
+  const [showMethodSheet, setShowMethodSheet] = useState(false);
+
   const [_eligibility, setEligibility] = useState({
     can_receive_payouts: false,
     message: '',
@@ -288,7 +352,7 @@ export default function PayoutSettingsScreen() {
   // Guard skipped during pull-to-refresh to prevent blank screen flash.
   if (loading && !refreshing) {
     return (
-      <ScreenLayout variant="detail" title="Payout Settings">
+      <ScreenLayout variant="detail" title="Payout Settings" onBack={_handleBackPress}>
         <View style={styles.centerContainer}>
           <LoadingSpinner />
         </View>
@@ -300,7 +364,7 @@ export default function PayoutSettingsScreen() {
   const _primaryDisplay = primaryMethod ? formatPayoutMethodDisplay(primaryMethod) : null;
 
   return (
-    <ScreenLayout variant="detail" title="Payout Settings">
+    <ScreenLayout variant="detail" title="Payout Settings" onBack={_handleBackPress}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -353,37 +417,112 @@ export default function PayoutSettingsScreen() {
           <>
             {methods.map((method) => {
               const display = formatPayoutMethodDisplay(method);
+              const isUnverifiedStatus =
+                display.status_message === 'Verification pending' ||
+                display.status_message === 'Onboarding required' ||
+                display.status_message === 'Verification required';
+
+              // Pick icon + color per provider
+              const providerIcon = getProviderIcon(method.method_type);
+              const providerColor = getProviderColor(method.method_type);
+
+              // Extract provider name from label like "PayPal (email)" or "Stripe (acct_****)"
+              const parenIdx = display.label.indexOf('(');
+              const providerName = parenIdx > 0 ? display.label.slice(0, parenIdx).trim() : display.label;
+              const accountIdentifier = parenIdx > 0 ? display.label.slice(parenIdx).replace(/[()]/g, '') : '';
+
+              // Badge styling
+              const badgeStyle = getStatusBadgeStyle(display.status_message, method.is_primary);
+
               return (
-                <TouchableOpacity
+                <View
                   key={method.id}
-                  style={styles.methodRow}
-                  onPress={() => handleSetPrimary(method.id)}
-                  testID={`method-row-${method.id}`}
+                  style={styles.methodCard}
+                  testID={`method-card-${method.id}`}
                 >
-                  <Bank size={20} color="#5DBB8E" />
-                  <View style={styles.methodRowTextWrap}>
-                    <View style={styles.methodRowTitleRow}>
-                      <Text style={styles.methodRowName} testID="bank-name">
-                        {display.label}
-                      </Text>
-                      {method.is_primary && (
-                        <View style={styles.primaryPill}>
-                          <Text style={styles.primaryPillText}>Primary</Text>
-                        </View>
-                      )}
+                  {/* Left: icon + info — tap opens bottom sheet */}
+                  <TouchableOpacity
+                    style={styles.methodCardBody}
+                    onPress={() => {
+                      setSelectedMethodForSheet(method);
+                      setShowMethodSheet(true);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.providerIconCircle, { backgroundColor: providerColor + '18' }]}>
+                      {providerIcon}
                     </View>
-                    {display.status_message ? (
-                      <Text style={styles.methodRowMasked} testID="bank-masked">
+                    <View style={styles.methodCardInfo}>
+                      <Text style={styles.methodCardProviderName} testID="provider-name">
+                        {providerName}
+                      </Text>
+                      <Text style={styles.methodCardAccount} testID="account-id">
+                        {accountIdentifier}
+                      </Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: badgeStyle.bg, borderColor: badgeStyle.border }]}>
+                      {method.is_primary && (
+                        <CheckCircle size={12} color={badgeStyle.text} weight="fill" style={{ marginRight: 3 }} />
+                      )}
+                      <Text style={[styles.statusBadgeText, { color: badgeStyle.text }]}>
                         {display.status_message}
                       </Text>
-                    ) : null}
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Right: radio button + kebab */}
+                  <View style={styles.methodCardActions}>
+                    <TouchableOpacity
+                      style={styles.radioBtn}
+                      onPress={() => {
+                        if (isUnverifiedStatus) {
+                          Alert.alert(
+                            'Cannot Set as Primary',
+                            `This method has status "${display.status_message}". Please wait until it is verified before setting it as primary.`
+                          );
+                          return;
+                        }
+                        handleSetPrimary(method.id);
+                      }}
+                      testID={`radio-btn-${method.id}`}
+                      accessibilityLabel={
+                        isUnverifiedStatus
+                          ? `Cannot set as primary — ${display.status_message}`
+                          : method.is_primary
+                          ? 'Current primary method'
+                          : 'Set as primary'
+                      }
+                    >
+                      {method.is_primary ? (
+                        <CheckCircle size={22} color="#5DBB8E" weight="fill" />
+                      ) : (
+                        <View
+                          style={[
+                            styles.radioOuter,
+                            { borderColor: isUnverifiedStatus ? '#CCCCCC' : '#5DBB8E' },
+                          ]}
+                        >
+                          <View style={styles.radioInner} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.kebabBtn}
+                      onPress={() => {
+                        setSelectedMethodForSheet(method);
+                        setShowMethodSheet(true);
+                      }}
+                      testID={`kebab-btn-${method.id}`}
+                    >
+                      <DotsThree size={20} color="#6B6B6B" weight="bold" />
+                    </TouchableOpacity>
                   </View>
-                  <CaretRight size={16} color="#999999" />
-                </TouchableOpacity>
+                </View>
               );
             })}
             <TouchableOpacity
-              style={styles.addAnotherRow}
+              style={styles.addAnotherCard}
               onPress={handleAddMethod}
               testID="add-another-method-row"
             >
@@ -393,13 +532,12 @@ export default function PayoutSettingsScreen() {
           </>
         ) : (
           <TouchableOpacity
-            style={styles.methodRow}
+            style={styles.addMethodCardEmpty}
             onPress={handleAddMethod}
             testID="add-bank-row"
           >
             <Plus size={20} color="#5DBB8E" />
             <Text style={styles.addBankText}>Add Bank Account</Text>
-            <CaretRight size={16} color="#999999" />
           </TouchableOpacity>
         )}
 
@@ -429,7 +567,98 @@ export default function PayoutSettingsScreen() {
         )}
       </ScrollView>
 
-      {/* ── Modals (logic unchanged) ── */}
+      {/* ── Payout Method Bottom Sheet ── */}
+      {showMethodSheet && selectedMethodForSheet && (
+        <PayoutMethodBottomSheet
+          method={selectedMethodForSheet}
+          isPrimary={selectedMethodForSheet.id === primaryMethodId}
+          methodsCount={methods.length}
+          onClose={() => {
+            setShowMethodSheet(false);
+            setSelectedMethodForSheet(null);
+          }}
+          onSetPrimary={async (methodId) => {
+            setShowMethodSheet(false);
+            setSelectedMethodForSheet(null);
+            const display = formatPayoutMethodDisplay(
+              methods.find((m) => m.id === methodId)!
+            );
+            const isUnverified =
+              display.status_message === 'Verification pending' ||
+              display.status_message === 'Onboarding required' ||
+              display.status_message === 'Verification required';
+            if (isUnverified) {
+              Alert.alert(
+                'Cannot Set as Primary',
+                `This method has status "${display.status_message}". Please wait until it is verified before setting it as primary.`
+              );
+              return;
+            }
+            await handleSetPrimary(methodId);
+          }}
+          onDelete={async (methodId) => {
+            setShowMethodSheet(false);
+            setSelectedMethodForSheet(null);
+            // Use a short delay so the bottom sheet closes smoothly before alert appears
+            setTimeout(() => {
+              const method = methods.find((m) => m.id === methodId);
+              if (!method) return;
+
+              // Primary method guard
+              if (method.is_primary) {
+                Alert.alert(
+                  'Cannot Delete Primary Method',
+                  'Please set another method as primary first, then delete this one.',
+                  [{ text: 'OK' }]
+                );
+                return;
+              }
+
+              // Only method guard
+              if (methods.length <= 1) {
+                Alert.alert(
+                  'Cannot Delete Only Method',
+                  'Add another payout method first before removing this one.',
+                  [{ text: 'OK' }]
+                );
+                return;
+              }
+
+              Alert.alert(
+                'Delete Payout Method',
+                `Are you sure you want to remove ${formatPayoutMethodDisplay(method).label}?`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                      try {
+                        await deletePayoutMethod(methodId);
+                        Alert.alert('Deleted', 'Payout method removed successfully.');
+                        loadPayoutMethods();
+                      } catch (error) {
+                        console.error('Failed to delete method:', error);
+                        Alert.alert('Error', String(error) || 'Failed to delete payout method');
+                      }
+                    },
+                  },
+                ]
+              );
+            }, 300);
+          }}
+          onEditDetails={(_methodId) => {
+            setShowMethodSheet(false);
+            setSelectedMethodForSheet(null);
+            Alert.alert(
+              'Edit Details',
+              'Editing payout method details is not yet available. Contact support for changes.'
+            );
+          }}
+        />
+      )}
+
+      {/* ── Modals ── */}
       {showNoMethodModal && (
         <NoMethodModal
           onClose={() => setShowNoMethodModal(false)}
@@ -639,45 +868,9 @@ interface PayoutMethodCardProps {
   onDelete: () => void;
 }
 
-function _PayoutMethodCard({ method, isPrimary, onSetPrimary, onDelete }: PayoutMethodCardProps) {
-  const display = formatPayoutMethodDisplay(method);
-
-  return (
-    <View style={styles.methodCard}>
-      <View style={styles.methodHeader}>
-        <View style={styles.methodInfo}>
-          <Text style={styles.methodLabel}>{display.label}</Text>
-          <Text style={styles.methodStatus}>{display.status_message}</Text>
-        </View>
-        {isPrimary && (
-          <View style={styles.primaryBadge}>
-            <Text style={styles.primaryBadgeText}>PRIMARY</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.methodActions}>
-        {!isPrimary && method.is_verified && (
-          <TouchableOpacity style={styles.actionButton} onPress={onSetPrimary}>
-            <Text style={styles.actionButtonText}>Set as Primary</Text>
-          </TouchableOpacity>
-        )}
-        {!isPrimary && (
-          <TouchableOpacity style={[styles.actionButton, styles.deleteButton]} onPress={onDelete}>
-            <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Delete</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {!method.is_verified && (
-        <View style={styles.verificationWarning}>
-          <Text style={styles.verificationWarningText}>
-            ⚠ Verification required before setting as primary
-          </Text>
-        </View>
-      )}
-    </View>
-  );
+function _PayoutMethodCard(_props: PayoutMethodCardProps) {
+  // Legacy — no longer used. New card UI rendered inline above.
+  return null;
 }
 
 // =============================================================================
@@ -974,6 +1167,149 @@ function AddPayoutMethodModal({ onClose, payoutFeeSummary }: AddPayoutMethodModa
 }
 
 // =============================================================================
+// Payout Method Bottom Sheet Component
+// =============================================================================
+
+interface PayoutMethodBottomSheetProps {
+  method: SellerPayoutMethod;
+  isPrimary: boolean;
+  methodsCount: number;
+  onClose: () => void;
+  onSetPrimary: (methodId: string) => void;
+  onDelete: (methodId: string) => void;
+  onEditDetails: (methodId: string) => void;
+}
+
+function PayoutMethodBottomSheet({
+  method,
+  isPrimary,
+  methodsCount,
+  onClose,
+  onSetPrimary,
+  onDelete,
+  onEditDetails,
+}: PayoutMethodBottomSheetProps) {
+  const display = formatPayoutMethodDisplay(method);
+  const isUnverifiedStatus =
+    display.status_message === 'Verification pending' ||
+    display.status_message === 'Onboarding required' ||
+    display.status_message === 'Verification required';
+
+  // Provider icon for the header
+  const providerIcon = getProviderIcon(method.method_type);
+  const providerColor = getProviderColor(method.method_type);
+
+  return (
+    <Modal
+      transparent
+      animationType="slide"
+      visible={true}
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.sheetOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+        testID="sheet-overlay"
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => {}}
+          style={styles.sheetContainer}
+          testID="sheet-container"
+        >
+          {/* Handle bar */}
+          <View style={styles.sheetHandle} />
+
+          {/* Method info header */}
+          <View style={styles.sheetHeader}>
+            <View style={[styles.providerIconCircle, { backgroundColor: providerColor + '18', width: 36, height: 36, borderRadius: 18 }]}>
+              {providerIcon}
+            </View>
+            <View style={styles.sheetHeaderTextWrap}>
+              <Text style={styles.sheetMethodLabel}>{display.label}</Text>
+              <Text style={styles.sheetMethodStatus}>{display.status_message}</Text>
+            </View>
+          </View>
+
+          <View style={styles.sheetDivider} />
+
+          {/* Set as Primary */}
+          <TouchableOpacity
+            style={[
+              styles.sheetOption,
+              isUnverifiedStatus && styles.sheetOptionDisabled,
+            ]}
+            onPress={() => {
+              if (isUnverifiedStatus) return;
+              onSetPrimary(method.id);
+            }}
+            disabled={isUnverifiedStatus}
+            testID="sheet-set-primary"
+          >
+            <Check
+              size={20}
+              color={isUnverifiedStatus ? '#CCCCCC' : '#5DBB8E'}
+              weight="bold"
+            />
+            <View style={styles.sheetOptionTextWrap}>
+              <Text
+                style={[
+                  styles.sheetOptionText,
+                  isUnverifiedStatus && styles.sheetOptionTextDisabled,
+                ]}
+              >
+                {isPrimary ? 'Currently Primary' : 'Set as Primary'}
+              </Text>
+              {isUnverifiedStatus && (
+                <Text style={styles.sheetOptionSubtext}>
+                  Verification required before setting as primary
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {/* Edit Details */}
+          <TouchableOpacity
+            style={styles.sheetOption}
+            onPress={() => onEditDetails(method.id)}
+            testID="sheet-edit-details"
+          >
+            <PencilSimple size={20} color="#6B6B6B" weight="bold" />
+            <Text style={styles.sheetOptionText}>Edit Details</Text>
+          </TouchableOpacity>
+
+          {/* Delete Method */}
+          <TouchableOpacity
+            style={styles.sheetOption}
+            onPress={() => {
+              if (isPrimary || methodsCount <= 1) {
+                onDelete(method.id);
+              } else {
+                onDelete(method.id);
+              }
+            }}
+            testID="sheet-delete-method"
+          >
+            <Trash size={20} color="#E85D75" weight="bold" />
+            <Text style={styles.sheetDeleteText}>Delete Method</Text>
+          </TouchableOpacity>
+
+          {/* Cancel */}
+          <TouchableOpacity
+            style={styles.sheetCancelBtn}
+            onPress={onClose}
+            testID="sheet-cancel"
+          >
+            <Text style={styles.sheetCancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+// =============================================================================
 // Styles
 // =============================================================================
 
@@ -1092,68 +1428,208 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     marginTop: 4,
   },
-  // ── Payout method row ───────────────────────────────────────────────────────
-  methodRow: {
+  // ── Payout method card ─────────────────────────────────────────────────────
+  methodCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5E5',
-    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    marginBottom: 12,
   },
-  methodRowTextWrap: {
+  methodCardBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    flex: 1,
+    padding: 16,
+    paddingRight: 8,
+  },
+  methodCardActions: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 8,
+    gap: 2,
+  },
+  // ── Radio button & kebab ────────────────────────────────────────────────────
+  radioBtn: {
+    padding: 6,
+  },
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'transparent',
+  },
+  kebabBtn: {
+    padding: 4,
+  },
+  providerIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  methodCardInfo: {
     flex: 1,
   },
-  methodRowTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  methodRowName: {
+  methodCardProviderName: {
     fontSize: 15,
-    fontWeight: '500',
-    color: '#1A1A1A',
-  },
-  primaryPill: {
-    backgroundColor: '#E8F5F0',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  primaryPillText: {
-    fontSize: 11,
     fontWeight: '600',
-    color: '#5DBB8E',
+    color: '#1A1A1A',
+    marginBottom: 2,
   },
-  methodRowMasked: {
+  methodCardAccount: {
     fontSize: 13,
     color: '#6B6B6B',
-    marginTop: 2,
   },
-  addBankText: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#5DBB8E',
-  },
-  addAnotherRow: {
+  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  addMethodCardEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderStyle: 'dashed',
+    backgroundColor: '#FAFAFA',
+  },
+  addAnotherCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
-    gap: 10,
+    gap: 8,
+    marginTop: 4,
   },
   addAnotherText: {
     fontSize: 14,
     color: '#5DBB8E',
     fontWeight: '500',
   },
+  addBankText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#5DBB8E',
+  },
+  // ── Bottom Sheet ───────────────────────────────────────────────────────────
+  sheetOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  sheetContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: '#D1D1D1',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  sheetHeaderTextWrap: {
+    flex: 1,
+  },
+  sheetMethodLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  sheetMethodStatus: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginTop: 2,
+  },
+  sheetDivider: {
+    height: 1,
+    backgroundColor: '#E5E5E5',
+    marginBottom: 8,
+  },
+  sheetOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+  },
+  sheetOptionDisabled: {
+    opacity: 0.5,
+  },
+  sheetOptionTextWrap: {
+    flex: 1,
+  },
+  sheetOptionText: {
+    fontSize: 15,
+    color: '#1A1A1A',
+    fontWeight: '500',
+  },
+  sheetOptionTextDisabled: {
+    color: '#999999',
+  },
+  sheetOptionSubtext: {
+    fontSize: 12,
+    color: '#999999',
+    marginTop: 2,
+  },
+  sheetDeleteText: {
+    fontSize: 15,
+    color: '#E85D75',
+    fontWeight: '500',
+  },
+  sheetCancelBtn: {
+    marginTop: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+  },
+  sheetCancelText: {
+    fontSize: 15,
+    color: '#6B6B6B',
+    fontWeight: '600',
+  },
   // ── No Method Modal ───────────────────────────────────────────────────────────────────────────────────────────
   noMethodModalContent: {
+    width: '90%',
+    maxWidth: 400,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 28,
-    marginHorizontal: 24,
     alignItems: 'center',
   },
   noMethodIcon: {
@@ -1164,12 +1640,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1A1A',
     textAlign: 'center',
+    alignSelf: 'stretch',
     marginBottom: 10,
   },
   noMethodMessage: {
     fontSize: 15,
     color: '#6B6B6B',
     textAlign: 'center',
+    alignSelf: 'stretch',
     lineHeight: 22,
     marginBottom: 24,
   },
@@ -1248,8 +1726,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#5DBB8E',
   },
-  // ── PayoutMethodCard (management via Add Method modal) ──────────────────────
-  methodCard: {
+  // ── PayoutMethodCard (legacy, unused) ───────────────────────────────────────
+  legacyMethodCard: {
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 16,
@@ -1257,41 +1735,41 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
-  methodHeader: {
+  legacyMethodHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
   },
-  methodInfo: {
+  legacyMethodInfo: {
     flex: 1,
   },
-  methodLabel: {
+  legacyMethodLabel: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
     color: '#000',
   },
-  methodStatus: {
+  legacyMethodStatus: {
     fontSize: 14,
     color: '#666',
   },
-  primaryBadge: {
+  legacyPrimaryBadge: {
     backgroundColor: '#5DBB8E',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
   },
-  primaryBadgeText: {
+  legacyPrimaryBadgeText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '600',
   },
-  methodActions: {
+  legacyMethodActions: {
     flexDirection: 'row',
     gap: 8,
   },
-  actionButton: {
+  legacyActionButton: {
     flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -1299,26 +1777,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#5DBB8E',
     alignItems: 'center',
   },
-  actionButtonText: {
+  legacyActionButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',
   },
-  deleteButton: {
+  legacyDeleteButton: {
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#E85D75',
   },
-  deleteButtonText: {
+  legacyDeleteButtonText: {
     color: '#E85D75',
   },
-  verificationWarning: {
+  legacyVerificationWarning: {
     marginTop: 12,
     padding: 8,
     backgroundColor: '#fff3cd',
     borderRadius: 4,
   },
-  verificationWarningText: {
+  legacyVerificationWarningText: {
     fontSize: 12,
     color: '#856404',
   },
@@ -1411,10 +1889,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modalCancelButtonText: {
     fontSize: 16,
     color: '#666',
+    textAlign: 'center',
   },
   modalSubmitButton: {
     flex: 1,
@@ -1422,6 +1902,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#5DBB8E',
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modalSubmitButtonDisabled: {
     opacity: 0.6,
@@ -1430,6 +1911,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+    textAlign: 'center',
   },
   // Balance Card styles
   // Withdraw Modal styles

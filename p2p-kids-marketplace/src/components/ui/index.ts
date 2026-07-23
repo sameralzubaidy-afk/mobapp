@@ -15,3 +15,5 @@ export { Badge } from './Badge';
 export type { BadgeVariant } from './Badge';
 
 export { LoadingSpinner } from './LoadingSpinner';
+
+export { SuccessToast } from './SuccessToast';

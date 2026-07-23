@@ -115,7 +115,7 @@ export default function BundleBuilderScreen() {
     // TODO: Add bundle to cart
     Alert.alert(
       'Bundle Added',
-      `${selectedItems.size} item(s) added to your cart with ${getSavingsPercentage()}% discount!`,
+      `${selectedItems.size} item(s) added to your trade basket with ${getSavingsPercentage()}% discount!`,
       [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]
@@ -183,7 +183,7 @@ export default function BundleBuilderScreen() {
 
   if (loading) {
     return (
-      <ScreenLayout variant="detail" title="Bundle" showBell={false}>
+      <ScreenLayout variant="detail" title="Build Offer">
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading items...</Text>
         </View>
@@ -192,7 +192,7 @@ export default function BundleBuilderScreen() {
   }
 
   return (
-    <ScreenLayout variant="detail" title="Bundle">
+    <ScreenLayout variant="detail" title="Build Offer">
       {/* Items Grid */}
       {availableItems.length === 0 ? (
         <View style={styles.emptyContainer}>

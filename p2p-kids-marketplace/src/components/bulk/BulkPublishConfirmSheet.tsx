@@ -2,6 +2,22 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { BulkEditableItem } from './BulkItemCard';
 
+/**
+ * Human-readable labels for missingRequired field keys.
+ * Keys not listed here fall back to the raw key string (title-cased).
+ */
+const MISSING_FIELD_LABELS: Record<string, string> = {
+  title: 'Title',
+  condition: 'Condition',
+  category: 'Category',
+  price: 'Price',
+  price_below_minimum: 'Price below minimum threshold',
+};
+
+function formatMissingField(key: string): string {
+  return MISSING_FIELD_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 interface BulkPublishConfirmSheetProps {
   visible: boolean;
   items: BulkEditableItem[];
@@ -54,7 +70,7 @@ export function BulkPublishConfirmSheet({
                       {!item.includeInPublish
                         ? 'Excluded from submission'
                         : item.missingRequired.length > 0
-                          ? `Missing: ${item.missingRequired.join(', ')}`
+                          ? `Missing: ${item.missingRequired.map(formatMissingField).join(', ')}`
                           : `$${item.price || '—'} • Ready`}
                     </Text>
                   </View>

@@ -83,7 +83,7 @@ export default function BottomNavBar({ showHelp = true }: BottomNavBarProps) {
     <View style={styles.container}>
       <NavItem Icon={House}           label="Home"     routeName="Home"       active={isActive('Home')}        onPress={() => nav('Home')} />
       <NavItem Icon={MagnifyingGlass} label="Discover" routeName="Discover"   active={isActive('Discover')}    onPress={() => nav('Discover')} />
-      <NavItem Icon={ShoppingCart}    label="Cart"     routeName="Cart"       active={isActive('Cart')}        onPress={() => nav('Cart')} />
+      <NavItem Icon={ShoppingCart}    label="Trade Basket"     routeName="Cart"       active={isActive('Cart')}        onPress={() => nav('Cart')} />
       <NavItem Icon={Storefront}      label="Sell"     active={false}          onPress={() => setSellSheetVisible(true)} />
       <NavItem Icon={List}            label="My Items" routeName="MyListings"  active={isActive('MyListings')} onPress={() => nav('MyListings')} />
       {showHelp && (

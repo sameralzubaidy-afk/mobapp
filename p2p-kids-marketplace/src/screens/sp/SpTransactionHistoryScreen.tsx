@@ -22,7 +22,6 @@ import {
 } from 'phosphor-react-native';
 import { getLedgerHistory, type SPLedgerEntry } from '@/services/sp/wallet';
 import { supabase } from '@/config/supabase';
-import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -179,7 +178,6 @@ export default function SpTransactionHistoryScreen() {
             ))
           )}
         </ScrollView>
-        <PersistentTabBar />
       </View>
     </ScreenLayout>
   );

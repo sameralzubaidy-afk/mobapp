@@ -154,6 +154,8 @@ export default function RequestPayoutScreen() {
   };
 
   if (loading) {
+    // DEFERRED-DECISION (2026-07-19): Payout screens had showBell={false} intentionally
+    // to avoid financial-flow distractions. Keeping bell hidden — revert if product team decides otherwise.
     return (
       <ScreenLayout variant="detail" title="Request Payout" showBell={false}>
         <LoadingSpinner fullScreen={false} />
@@ -161,6 +163,7 @@ export default function RequestPayoutScreen() {
     );
   }
 
+  // DEFERRED-DECISION (2026-07-19): Keep bell hidden on payout — see first instance
   return (
     <ScreenLayout variant="detail" title="Request Payout" showBell={false}>
       <KeyboardAvoidingView

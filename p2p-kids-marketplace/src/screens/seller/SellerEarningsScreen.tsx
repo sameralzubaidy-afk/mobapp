@@ -17,11 +17,15 @@ import {
   StyleSheet,
   TouchableOpacity
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../../hooks/useAuth';
 import { getSellerPayouts } from '../../services/payoutService';
 import type { SellerPayout } from '../../types/payout.types';
+import type { RootStackParamList } from '../../navigation/types';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+import { Coins } from 'phosphor-react-native';
 
 type PayoutDisplayItem = SellerPayout & {
   methodName: string;
@@ -30,6 +34,7 @@ type PayoutDisplayItem = SellerPayout & {
 };
 
 export default function SellerEarningsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { session } = useAuth();
   const user = session?.user ?? null;
   const [payouts, setPayouts] = useState<PayoutDisplayItem[]>([]);
@@ -153,7 +158,7 @@ export default function SellerEarningsScreen() {
 
   const calculatePendingEarnings = (): number => {
     return payouts
-      .filter((p) => ['pending', 'processing'].includes(p.status))
+      .filter((p) => ['pending', 'processing', 'requires_action'].includes(p.status))
       .reduce((sum, p) => sum + p.net_amount_cents, 0);
   };
 
@@ -196,7 +201,11 @@ export default function SellerEarningsScreen() {
       )}
 
       {item.status === 'requires_action' && (
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('PayoutSettings', { showNoMethodModal: true })}
+          testID="set-up-payout-method-btn"
+        >
           <Text style={styles.actionButtonText}>Set Up Payout Method</Text>
         </TouchableOpacity>
       )}
@@ -206,17 +215,17 @@ export default function SellerEarningsScreen() {
   const renderSummary = () => (
     <View>
       <View style={styles.summaryHeader}>
-        <Text style={styles.summaryHeaderEmoji}>💰</Text>
+        <Coins size={24} color="#5DBB8E" weight="fill" />
         <Text style={styles.summaryHeaderTitle}>Your Earnings</Text>
       </View>
       <View style={styles.summaryContainer}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Total Earnings</Text>
-          <Text style={styles.summaryAmount}>{formatAmount(calculateTotalEarnings())}</Text>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Total Earnings</Text>
+          <Text style={styles.statAmount}>{formatAmount(calculateTotalEarnings())}</Text>
         </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Pending</Text>
-          <Text style={[styles.summaryAmount, styles.pendingAmount]}>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Pending</Text>
+          <Text style={[styles.statAmount, styles.pendingAmount]}>
             {formatAmount(calculatePendingEarnings())}
           </Text>
         </View>
@@ -265,7 +274,7 @@ export default function SellerEarningsScreen() {
         ListHeaderComponent={renderSummary}
         ListEmptyComponent={renderEmpty}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#4A7C59']} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#5DBB8E']} tintColor="#5DBB8E" />
         }
         contentContainerStyle={styles.listContent}
       />
@@ -306,7 +315,7 @@ const styles = StyleSheet.create({
   retryButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#4A7C59',
+    backgroundColor: '#5DBB8E',
     borderRadius: 12,
   },
   retryButtonText: {
@@ -321,14 +330,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
-  },
-  summaryHeaderEmoji: {
-    fontSize: 28,
-    marginRight: 8,
+    gap: 8,
   },
   summaryHeaderTitle: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#1A1A1A',
   },
   summaryContainer: {
@@ -336,40 +342,34 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 20,
   },
-  summaryCard: {
+  statCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
   },
-  summaryLabel: {
+  statLabel: {
     fontSize: 12,
     color: '#808080',
     marginBottom: 8,
   },
-  summaryAmount: {
+  statAmount: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1A1A1A',
   },
   pendingAmount: {
-    color: '#FFA726',
+    color: '#FF8C42',
   },
   payoutCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
   },
   payoutHeader: {
     flexDirection: 'row',
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   payoutNet: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#4A7C59',
+    color: '#5DBB8E',
     marginBottom: 4,
   },
   statusBadge: {
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   },
   payoutDetails: {
     borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
+    borderTopColor: '#F0F0F0',
     paddingTop: 12,
   },
   detailRow: {
@@ -439,15 +439,18 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     marginTop: 12,
-    paddingVertical: 12,
-    backgroundColor: '#4A7C59',
+    height: 48,
+    justifyContent: 'center',
+    backgroundColor: '#5DBB8E',
     borderRadius: 12,
     alignItems: 'center',
+    paddingHorizontal: 16,
   },
   actionButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
+    letterSpacing: 0.5,
   },
   emptyContainer: {
     padding: 40,

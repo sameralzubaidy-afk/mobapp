@@ -32,10 +32,23 @@ const EVENT_COPY: Record<string, { title: string; body: (data?: Record<string, u
   payment_processing: { title: 'Payment Processing', body: () => 'Your payment is being processed.' }, /* D-30: deprecated, kept for legacy events */
   payment_captured:   { title: 'Payment Confirmed',  body: () => 'Payment confirmed for your trade.' },
   payment_failed:     { title: 'Payment Issue',      body: () => 'There was an issue with your payment.' },
+  // D-31 (2026-07-18): Bundle checkout background hold failure — distinct from payment_failed
+  // (which is used at accept-time capture) so copy can name the specific item and direct the
+  // buyer to update their payment method.
+  offer_payment_hold_failed: {
+    title: 'Payment Issue',
+    body: (data) => `Payment issue on "${data?.listing_title || 'an item'}" — update your payment method to retry.`,
+  },
   payout_initiated:   { title: 'Payout Started',     body: () => 'Your seller payout has been initiated.' },
+  payout_requires_action: {
+    title: 'Payout Action Required',
+    body: (data) => `Your ${data?.listing_title || 'item'} sold! Add a payout method to receive your $${((data?.amount_cents || 0) / 100).toFixed(2)}.`,
+  },
   payout_sent:        { title: 'Payout Sent!',       body: () => 'Your earnings have been sent to your account.' },
   payout_failed:      { title: 'Payout Failed',      body: () => 'There was an issue sending your payout.' },
   dispute_resolved:   { title: 'Dispute Resolved',   body: () => 'An admin has resolved the dispute on your trade.' },
+  ac_reminder_24h:    { title: 'Auto-Complete Soon', body: (data) => `Your trade for "${data?.listing_title || 'item'}" auto-completes in 24h. Got it? Tap 'I Got It'.` },
+  ac_reminder_2h:     { title: 'Auto-Complete Soon', body: (data) => `"${data?.listing_title || 'item'}" trade auto-completes in 2 hours.` },
 };
 
 function errResp(status: number, code: string, message: string) {

@@ -8,7 +8,7 @@ AS $$
 DECLARE v_is_admin BOOLEAN; v_before RECORD; v_actor UUID;
 BEGIN
   v_actor := auth.uid();
-  SELECT EXISTS (SELECT 1 FROM public.profiles p WHERE p.user_id = v_actor AND p.role = 'admin') INTO v_is_admin;
+  SELECT public.admin_has_role(v_actor) INTO v_is_admin;
   IF NOT COALESCE(v_is_admin, FALSE) THEN
     RETURN jsonb_build_object('success', false,
       'error', jsonb_build_object('code','FORBIDDEN','message','Admin role required'));

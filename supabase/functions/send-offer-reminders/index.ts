@@ -56,6 +56,17 @@ async function sendNotifications(
         );
         failed++;
       } else {
+        // Check if the push was actually delivered (not silently skipped)
+        const result = await resp.json().catch(() => ({}));
+        const pushSent = result?.sent ?? -1;
+        if (pushSent === 0) {
+          console.warn(
+            '[send-offer-reminders] notification NOT delivered - no push tokens or push failed',
+            notification.event_type,
+            notification.trade_id,
+            { reason: result?.reason || 'unknown', recipient: notification.recipient_user_id },
+          );
+        }
         sent++;
       }
     } catch (err) {
@@ -133,9 +144,51 @@ serve(async (req) => {
       });
     }
 
-    // Step 2: Send queued notifications
+    // Step 2: Create in-app notifications (user_notifications rows)
     const rpcResult = data as Record<string, unknown>;
     const notifications = (rpcResult?.notifications ?? []) as Notification[];
+    let inAppCreated = 0;
+    let inAppFailed = 0;
+
+    const NOTIF_TITLES: Record<string, string> = {
+      offer_reminder_6h: 'Offer Expiring Soon',
+      offer_reminder_1h: 'Offer Expiring Soon',
+    };
+    const NOTIF_BODIES: Record<string, (d?: Record<string, unknown>) => string> = {
+      offer_reminder_6h: (d) =>
+        `You have an offer on "${(d?.listing_title as string) || 'your listing'}" expiring in ${(d?.hours_remaining as number) || 6} hours.`,
+      offer_reminder_1h: (d) =>
+        `You have an offer on "${(d?.listing_title as string) || 'your listing'}" expiring in ${(d?.hours_remaining as number) || 1} hour.`,
+    };
+
+    for (const notif of notifications) {
+      const title = NOTIF_TITLES[notif.event_type] || 'Offer Update';
+      const body = NOTIF_BODIES[notif.event_type]?.(notif.extra_data) || 'Your offer is expiring soon.';
+      try {
+        const { error: insertErr } = await supabase
+          .from('user_notifications')
+          .insert({
+            user_id: notif.recipient_user_id,
+            category: 'trades',
+            type: notif.event_type,
+            title,
+            body,
+            channels: ['push', 'in_app'],
+            data: { trade_id: notif.trade_id, event_type: notif.event_type, ...(notif.extra_data ?? {}) },
+          });
+        if (insertErr) {
+          console.warn('[send-offer-reminders] in-app insert failed', notif.event_type, notif.trade_id, insertErr.message);
+          inAppFailed++;
+        } else {
+          inAppCreated++;
+        }
+      } catch (err) {
+        console.warn('[send-offer-reminders] in-app insert error', notif.event_type, notif.trade_id, err);
+        inAppFailed++;
+      }
+    }
+
+    // Step 3: Send push notifications
     const { sent, failed } = await sendNotifications(
       supabaseUrl,
       serviceRoleKey,
@@ -147,15 +200,18 @@ serve(async (req) => {
       batchSize,
       reminders6h: rpcResult?.reminder_6h_sent,
       reminders1h: rpcResult?.reminder_1h_sent,
-      notificationsSent: sent,
-      notificationsFailed: failed,
+      inAppCreated,
+      inAppFailed,
+      pushSent: sent,
+      pushFailed: failed,
     });
 
     return jsonResponse(200, {
       success: true,
       request_id: requestId,
       data: rpcResult,
-      notifications: { sent, failed, total: notifications.length },
+      in_app: { created: inAppCreated, failed: inAppFailed },
+      push: { sent, failed, total: notifications.length },
     });
   } catch (error) {
     console.error('[send-offer-reminders] unexpected error', {

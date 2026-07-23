@@ -73,6 +73,7 @@ export const useSPWallet = () => {
   return {
     available: session?.available_points ?? 0,
     pending: session?.pending_points ?? 0,
+    reserved: session?.reserved_points ?? 0,
     lifetime_earned: session?.lifetime_earned ?? 0,
     lifetime_spent: session?.lifetime_spent ?? 0,
   };

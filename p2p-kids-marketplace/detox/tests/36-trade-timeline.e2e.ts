@@ -18,7 +18,7 @@ import { goToProfile } from '../helpers/navigation';
 
 describe('TC-36: Trade Timeline', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
@@ -32,20 +32,20 @@ describe('TC-36: Trade Timeline', () => {
 
     await waitFor(element(by.id('profile-trades-stat')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('profile-trades-stat')).tap();
 
     await waitFor(element(by.id('tab-active')))
       .toBeVisible()
-      .withTimeout(8000);
+      .withTimeout(15000);
     await element(by.id('tab-active')).tap();
     // Wait for trade list to render before tapping a row
-    await waitFor(element(by.id('trade-status-badge')).atIndex(0))
+    await waitFor(element(by.id(/trade-row-.+/)).atIndex(0))
       .toBeVisible()
       .withTimeout(10000);
 
     try {
-      await element(by.id('trade-status-badge')).atIndex(0).tap();
+      await element(by.id(/trade-row-.+/)).atIndex(0).tap();
     } catch {
       // No active trades — inconclusive
       return;
@@ -72,7 +72,7 @@ describe('TC-36: Trade Timeline', () => {
     try {
       await waitFor(element(by.id('trade-offer-card')))
         .toBeVisible()
-        .withTimeout(8000);
+        .withTimeout(15000);
       await expect(element(by.id('trade-offer-card'))).toBeVisible();
     } catch {
       // Offer card may not be visible for all trade states

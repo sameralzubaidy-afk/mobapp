@@ -1,0 +1,37 @@
+
+> p2p-kids-marketplace@1.0.0 e2e:run:ios
+> detox test --configuration ios.sim.debug
+
+Detected a deprecated "runnerConfig" property (string).
+Please migrate your Detox config according to the guide:
+https://wix.github.io/Detox/docs/guide/migration
+
+22:17:53.889 detox[2385] B jest --config ./detox/jest.config.js
+22:17:53.891 detox[2385] i (node:2385) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+● Validation Warning:
+
+  Unknown option "runInBand" with value true was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+● Validation Warning:
+
+  Unknown option "runInBand" with value true was found.
+  This is probably a typing mistake. Fixing it will remove this message.
+
+  Configuration Documentation:
+  https://jestjs.io/docs/configuration
+
+watchman warning:  Recrawled this watch 5 times, most recently because:
+MustScanSubDirs UserDroppedTo resolve, please review the information on
+https://facebook.github.io/watchman/docs/troubleshooting.html#recrawl
+To clear this warning, run:
+`watchman watch-del '/Users/sameralzubaidi/Desktop/kids_marketplace_app' ; watchman watch-project '/Users/sameralzubaidi/Desktop/kids_marketplace_app'`
+
+22:17:59.821 detox[2401] i 56-reviews-detailed.e2e.ts is assigned to 92E2BE6A-A0AF-43A7-9E15-12BA8745841D (iPhone 17 Pro)
+22:17:59.823 detox[2401] i TC-56: Reviews Detailed: submits anonymous review and verifies identity hidden (TC-Q04)
+22:18:01.702 detox[2401] i com.sameralzubaidi.p2pmarketplace launched. To watch simulator logs, run:
+        /usr/bin/xcrun simctl spawn 92E2BE6A-A0AF-43A7-9E15-12BA8745841D log stream --level debug --style compact --predicate 'process == "PassItUp"'

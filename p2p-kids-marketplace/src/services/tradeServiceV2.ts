@@ -119,3 +119,55 @@ export async function openDispute(
 
   return data;
 }
+
+/**
+ * Accept a bundle of offers (seller only) in a single EF call.
+ * Calls `transactions-accept-bundle` Edge Function which processes
+ * all trades in parallel internally, avoiding N cold starts.
+ */
+export async function acceptBundleOffers(
+  tradeIds: string[]
+): Promise<{ trades: Array<{ trade_id: string; status: string }>; errors?: Array<{ trade_id: string; error: string }> }> {
+  const { data, error } = await supabase.functions.invoke('transactions-accept-bundle', {
+    body: { trade_ids: tradeIds },
+  });
+
+  if (error) {
+    const context = (error as any)?.context || {};
+    const efError = (data as any)?.error || {};
+    console.error('[tradeServiceV2] acceptBundleOffers error:', {
+      count: tradeIds.length,
+      errorCode: efError.code || context.code,
+      errorMessage: efError.message || context.message,
+    });
+    throw new Error(efError.message ?? 'Failed to accept offers.');
+  }
+
+  return data;
+}
+
+/**
+ * Decline a bundle of offers (seller only) in a single EF call.
+ * Calls `transactions-decline-bundle` Edge Function which processes
+ * all trades in parallel internally, avoiding N cold starts.
+ */
+export async function declineBundleOffers(
+  tradeIds: string[]
+): Promise<{ trades: Array<{ trade_id: string; status: string }>; errors?: Array<{ trade_id: string; error: string }> }> {
+  const { data, error } = await supabase.functions.invoke('transactions-decline-bundle', {
+    body: { trade_ids: tradeIds },
+  });
+
+  if (error) {
+    const context = (error as any)?.context || {};
+    const efError = (data as any)?.error || {};
+    console.error('[tradeServiceV2] declineBundleOffers error:', {
+      count: tradeIds.length,
+      errorCode: efError.code || context.code,
+      errorMessage: efError.message || context.message,
+    });
+    throw new Error(efError.message ?? 'Failed to decline offers.');
+  }
+
+  return data;
+}

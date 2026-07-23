@@ -11,6 +11,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'https://esm.sh/stripe@14.11.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,7 +110,8 @@ serve(async (req) => {
     return errResp(400, 'ALREADY_RESOLVED', 'Dispute is already resolved');
   }
 
-  const resolution = action === 'resolve_complete' ? 'completed_favor_seller' : 'refund_issued_favor_buyer';
+  // NOTE: dispute_resolution CHECK constraint only allows: NULL, 'open', 'resolved_buyer', 'resolved_seller', 'rejected'
+  const resolution = action === 'resolve_complete' ? 'resolved_seller' : 'resolved_buyer';
 
   const { error: resolveErr } = await svcClient
     .from('trades')
@@ -130,11 +132,80 @@ serve(async (req) => {
     return errResp(500, 'UPDATE_FAILED', 'Failed to resolve dispute');
   }
 
-  // Handle SP on refund
-  if (action === 'resolve_refund' && trade.sp_amount && trade.sp_amount > 0) {
-    await svcClient.rpc('fn_release_sp_on_cancel', { p_trade_id: trade_id }).then(({ error }) => {
-      if (error) console.error('[resolve-dispute] SP release error:', error.message);
-    });
+  // TAX-STATUS-LIFECYCLE: On refund path, cancel the Stripe PI and void/refund tax
+  if (action === 'resolve_refund') {
+    // Cancel PI (for in_progress trades where PI was captured, issue a refund)
+    if (trade.stripe_payment_intent_id) {
+      const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
+      if (stripeKey && stripeKey.startsWith('sk_')) {
+        const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+        try {
+          // Check if already refunded (idempotency)
+          const { data: existingRefund } = await svcClient
+            .from('trades')
+            .select('stripe_refund_id')
+            .eq('id', trade_id)
+            .single();
+
+          if (!existingRefund?.stripe_refund_id) {
+            console.log(`[resolve-dispute] Issuing Stripe refund for PI: ${trade.stripe_payment_intent_id}`);
+            const refund = await stripe.refunds.create({
+              payment_intent: trade.stripe_payment_intent_id,
+              reason: 'requested_by_customer',
+              metadata: { supabase_trade_id: trade_id, admin_action: 'resolve_dispute_refund' },
+            });
+            await svcClient.from('trades').update({ stripe_refund_id: refund.id }).eq('id', trade_id);
+
+            // TAX-REFUND-INTEGRITY (2026-07-24): Use the new rpc_record_stripe_refund
+            // which is idempotent and only reverses tax after Stripe confirms the refund.
+            try {
+              const { data: taxRecord } = await svcClient
+                .from('tax_records')
+                .select('tax_amount_cents')
+                .eq('trade_id', trade_id)
+                .maybeSingle();
+
+              if (taxRecord && (taxRecord as { tax_amount_cents: number }).tax_amount_cents > 0) {
+                await svcClient.rpc('rpc_record_stripe_refund', {
+                  p_trade_id: trade_id,
+                  p_stripe_refund_id: refund.id,
+                  p_refund_amount_cents: (taxRecord as { tax_amount_cents: number }).tax_amount_cents,
+                  p_refund_status: refund.status,
+                  p_refund_reason: 'dispute_resolved_refund',
+                  p_initiating_actor: 'admin',
+                });
+              }
+            } catch (taxRefundErr: unknown) {
+              const msg = taxRefundErr instanceof Error ? taxRefundErr.message : 'Unknown error';
+              console.error(`[resolve-dispute] Tax refund error: ${msg}`);
+            }
+          } else {
+            console.log(`[resolve-dispute] Refund already exists (${existingRefund.stripe_refund_id}), skipping Stripe refund`);
+          }
+        } catch (stripeErr: unknown) {
+          const msg = stripeErr instanceof Error ? stripeErr.message : 'Stripe error';
+          console.error(`[resolve-dispute] Stripe refund error (non-fatal): ${msg}`);
+        }
+      }
+    }
+
+    // Void tax if not already refunded (fallback for zero-cash trades or tax-only refund failure)
+    try {
+      await svcClient.rpc('rpc_void_tax_for_trade', {
+        p_trade_id: trade_id,
+        p_reason: 'dispute_resolved_refund',
+      });
+    } catch (voidTaxErr: unknown) {
+      const msg = voidTaxErr instanceof Error ? voidTaxErr.message : 'Unknown error';
+      console.error(`[resolve-dispute] Tax void error (non-fatal): ${msg}`);
+    }
+
+    // SP release
+    if (trade.sp_amount && trade.sp_amount > 0) {
+      await svcClient.rpc('fn_release_sp_on_cancel', { p_trade_id: trade_id }).then(({ error }) => {
+        if (error) console.error('[resolve-dispute] SP release error:', error.message);
+      });
+    }
   }
 
   // Log event

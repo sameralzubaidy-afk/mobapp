@@ -48,11 +48,9 @@ async function attachPaymentMethodToCustomer(paymentMethodId: string): Promise<{
       return { success: false, error: 'Not authenticated' };
     }
 
-    const { data, error } = await supabase.functions.invoke('create-subscription-from-payment-method', {
+    const { data, error } = await supabase.functions.invoke('attach-payment-method', {
       body: {
-        user_id: session.user.id,
         payment_method_id: paymentMethodId,
-        is_renewal: true,
       },
       headers: {
         Authorization: `Bearer ${session.access_token}`,
@@ -88,10 +86,10 @@ export default function PaymentMethodsScreen() {
   const { setupPaymentSheet, presentSheet } = usePaymentSheet();
 
   // Fetch payment method on mount
-  const fetchPaymentMethod = useCallback(async () => {
+  const fetchPaymentMethod = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
-      const pm = await getPaymentMethod();
+      const pm = await getPaymentMethod(forceRefresh);
       setPaymentMethod(pm);
     } catch (error) {
       console.error('[PaymentMethodsScreen] Error fetching payment method:', error);
@@ -127,8 +125,8 @@ export default function PaymentMethodsScreen() {
           return;
         }
 
-        // 4. Refresh payment method details from DB
-        await fetchPaymentMethod();
+        // 4. Refresh payment method details from DB (bypass cache — we just saved a new one)
+        await fetchPaymentMethod(true);
 
         // 5. Try immediate charge retry to clear any payment-failure state
         const {
@@ -241,7 +239,7 @@ export default function PaymentMethodsScreen() {
     return (
       <ScreenLayout variant="detail" title="Payment Methods">
         <View style={styles.loadingContainer}>
-          <LoadingSpinner size="large" color="#5DBB8E" />
+          <LoadingSpinner size={40} color="#5DBB8E" />
           <Text style={styles.loadingText}>Loading payment methods...</Text>
         </View>
       </ScreenLayout>

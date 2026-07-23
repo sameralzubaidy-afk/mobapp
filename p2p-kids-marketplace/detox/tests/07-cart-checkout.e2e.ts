@@ -17,7 +17,7 @@ import { goToDiscover } from '../helpers/navigation';
 
 describe('TC-07: Cart / Checkout — Add to Cart Flow', () => {
   beforeAll(async () => {
-    await device.launchApp({ newInstance: true });
+    await device.launchApp({ newInstance: true, launchArgs: { DTXDisableMainRunLoopSync: true, detoxURLBlacklistRegex: '.*' } });
     await dismissSystemDialogs();
     await loginAsBuyer();
   });
