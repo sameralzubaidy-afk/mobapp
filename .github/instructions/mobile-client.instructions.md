@@ -19,6 +19,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-36 Realtime subscriptions — confirm the table is in the `supabase_realtime` publication; watch for RLS-filtered events.
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
+- Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
 Problem: App services catch errors and return undefined, making debugging impossible.
@@ -167,3 +168,15 @@ const taxableAmountCents = Math.round((((trade as any)?.listing as any)?.price ?
 const taxableAmountCents = trade.cash_amount_cents;
 ```
 3. Audit all `useTaxCalculation(` call sites when fixing or reviewing a tax-related PR.
+
+## Backward Compatibility for the Mobile Client
+
+The app may talk to a backend one deploy ahead (or behind) during rolling deploys. Client code MUST survive both directions.
+
+Rules:
+- **Defensively parse server responses.** Treat any new server field as optional: `data.field ?? fallback`, or feature-detect with `'field' in data` / `data.field != null` before using it. Never assume a field the current backend version doesn't yet send is present.
+- **Never crash on an absent field.** A missing field from an older backend (or one mid-deploy) must degrade gracefully, not throw.
+- **Don't reshape service return types** without auditing every caller (see BP-29).
+- **Cache compatibility.** When a cached object's shape changes (e.g., a service now returns a grouped array), add a cache schema version or clear old-shaped entries — never read a stale-shaped cached object as if it were the new shape.
+- **Keep old UI paths working** when a new field is absent — render the pre-feature state instead of blocking the screen.
+- If a field is REQUIRED by the UI but optional in the API, add a `// TODO(BACKCOMP):` noting the contract change and coordinate both sides.

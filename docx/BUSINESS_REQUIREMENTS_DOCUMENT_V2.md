@@ -6,7 +6,7 @@
 **Date:** December 5, 2025  
 **Status:** Final  
 **Author:** Product Team  
-**Last Updated:** December 5, 2025
+**Last Updated:** August 9, 2026
 
 ---
 
@@ -33,6 +33,7 @@ This version reflects the **FINAL DECISION** to implement Swap Points as an **ex
 4. [Product Overview](#4-product-overview)
 5. [Market Analysis](#5-market-analysis)
 6. [Functional Requirements](#6-functional-requirements)
+6.10. [N6 — Node Tagging (Cross-Cutting)](#610-n6--node-tagging-cross-cutting)
 7. [Non-Functional Requirements](#7-non-functional-requirements)
 8. [User Stories](#8-user-stories)
 9. [Revenue Model](#9-revenue-model)
@@ -700,6 +701,58 @@ Kids P2P Marketplace addresses these challenges through:
 - Calculate from: seller ratings, buyer ratings, response time, completion rate
 - Display badges: New Member, Trusted Seller, Top Seller, Power Seller
 - **Donation badges** (subscribers only): Helper, Generous, Champion, Super Parent
+
+---
+
+### 6.8 N1 — Configurability (Cross-Cutting)
+
+**User story:** As an admin, I want to change any marketplace rule (countdowns, grace period, payout buffer, SP caps/multipliers, tax rates, buyer/seller fees) from the admin portal and have it take effect immediately — without a code deploy — so we can tune the marketplace without shipping.
+
+**N1-001: Single admin-tunable config layer**
+
+- One place (`admin_config` + the per-entity values on categories/nodes) holds every tunable rule; no hardcoded fee/timing/SP/tax values in the app or backend.
+- All six domains are editable by an admin and read at runtime by the rest of the product.
+
+**N1-002: The six domains**
+
+1. Countdown windows — offer (timeout + reminders, auto-complete) and pickup (window before a buyer must confirm a meetup).
+2. Grace period length — days a cancelled subscription keeps SP frozen before expiry.
+3. Payout buffer — days a completed payout sits before release to the seller.
+4. SP caps/multipliers per category — earning multiplier and spending cap per category.
+5. Tax rates per node/category — sales tax per geographic node and per category.
+6. Buyer/seller fee parameters — platform fees by tier, transaction fees, payout fees.
+
+**N1-003: Change takes effect without a deploy**
+
+- Saving a value in the admin portal updates the config row; the app and Edge Functions read it live.
+- Every change records who made it and when (audit trail).
+
+**Acceptance criteria (Definition of Done)**
+
+- An admin can change any of the six domains and confirm the new value is used by the live app / E2E flows without a code deploy.
+- The manual-testing guide (TC-F05) and the flow registry cover these config surfaces.
+
+---
+
+### 6.9 R1–R13 Requirement Set — Shared Dependency Note
+
+> This task series introduces requirements **R1–R13** (the individual feature rules that consume the config layer: pickup deadlines, payout release rules, SP caps, tax, fees, etc.). **Every R-requirement reads its values from the N1 config layer above instead of hardcoding them** (read helper: `fn_admin_config_int`, bulk read: `fn_get_admin_config_values`, write: `upsert_admin_config_setting`). As each R-requirement is implemented, any remaining hardcoded default in an Edge Function or the app is migrated to a config read and removed.
+
+### 6.10 N6 — Node Tagging (Cross-Cutting)
+
+**Why this matters (plain English):** We run one pilot market at a time (a “node” — a town/region such as Westport). Every KPI that decides whether a node is working — signups, listings, trades, money taken in fees, payouts, Swap Points — must be countable **per node**. That only works if every record in the system is tagged with the node it belongs to. This requirement makes that tagging universal and automatic.
+
+**Definition of Done:** Every user, listing, trade, and cost/ledger record resolves to **exactly one node**, node tags are set automatically at the moment each record is created (no manual entry), and the admin can see the per-node KPIs needed for the expansion gates (GTM plan §13 Success Metrics + §15.6 Expansion Readiness).
+
+| ID | Rule (business level) |
+|----|-----------------------|
+| BR-N6-001 | Every **user** is resolved to exactly one node at signup (via their ZIP code or nearest active node). `profiles.node_id` is the single source of truth for a user's node. |
+| BR-N6-002 | Every **listing** is tagged to its seller's node at the moment it is created. A listing's node never changes after creation (it is a snapshot of where it was listed). |
+| BR-N6-003 | Every **trade** is tagged to the seller's node at the moment an offer is created (matches the seller's node used for tax today). |
+| BR-N6-004 | Every **cost/ledger record** — payments, refunds, SP wallet/ledger/batches, seller payouts/balance, and cart items — is tagged to the node of its related trade or user, so fees, payouts, and SP movement are countable per node. |
+| BR-N6-005 | Node tags are enforced **server-side at write time** (database triggers + Edge Function resolution). The app never asks the user to pick a node. |
+| BR-N6-006 | Admins can view the GTM §13 KPIs **per node** (users, listings, trades, GMV, fees, payouts, SP earned/spent) via the admin portal / per-node KPI RPC. |
+| BR-N6-007 | **Backward compatible.** Existing records are backfilled automatically; no existing flow (listings, trades, payments, SP, payouts) changes behavior. A record whose user/listing/trade has no node yet stays untagged rather than breaking. |
 
 ---
 

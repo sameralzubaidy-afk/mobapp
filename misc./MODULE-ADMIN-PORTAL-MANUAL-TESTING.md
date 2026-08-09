@@ -1,9 +1,9 @@
 # MODULE-18 Admin Portal — Manual Testing Guide
 
 **Source of truth:** `docs/flow-registry.md` (FLOW-18 Admin Controls / CPSC Recall Imports / ID Badge Verification · FLOW-20 Audit/Logging · FLOW-21 Category Management / Education CMS · FLOW-22 Sales Tax · FLOW-25 Manual Payout Admin · FLOW-28 Cron & Background Jobs · FLOW-30 SP Wallet Admin Ops · FLOW-34 Admin Auth Middleware)
-**Tasks covered:** Admin Auth & Dashboard (health strip, Action Center, KPI cards, no duplicate nav cards) · Users · Listings/Items/Flagged · Categories · Nodes/Node Settings/Waitlist · Global Config (cart, trade-timing) · Policies · Trades · Disputes · Tax · Payouts (config + earnings) · SP Economy/Analytics/Wallet · Subscriptions · Referrals · ID Badges/Badges · Review Moderation · Education/FAQ CMS · Support · Revenue/Notification Analytics · Audit Logs · Monitoring/Cron · Sidebar Navigation (grouped & collapsible)
+**Tasks covered:** Admin Auth & Dashboard (health strip, Action Center, KPI cards, no duplicate nav cards) · Users · Listings/Items/Flagged · Categories · Nodes/Node Settings/Waitlist + **per-node KPIs (N6 node tagging)** · Global Config (cart, trade-timing, N1 configurability — pickup/payout) · Policies · Trades · Disputes · Tax · Payouts (config + earnings) · SP Economy/Analytics/Wallet · Subscriptions · Referrals · ID Badges/Badges · Review Moderation · Education/FAQ CMS · Support · Revenue/Notification Analytics · Audit Logs · Monitoring/Cron · Sidebar Navigation (grouped & collapsible)
 **Last updated:** 2026-08-09
-**Scope:** Admin portal manual testing in a **web browser** (this is a web-based admin tool, not a mobile app). No SQL / no DB access required.
+**Scope:** Admin portal manual testing in a **web browser** (this is a web-based admin tool, not a mobile app). No SQL / no DB access required — **exception:** the N6 node-tagging data-layer checks (TC-E06, and the SQL reconcile step in TC-E07) run **read-only** queries in the Supabase SQL Editor on staging.
 **Devices:** Desktop browser (Chrome/Safari/Firefox). Admin login required.
 
 > Note: detailed **Sales Tax admin** cases (node rate config, bulk update, audit history, reporting dashboard, CSV export) live in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group P (TC-P01–TC-P08). This guide's Tax group (Group J) covers entry points and cross-references those.
@@ -39,10 +39,13 @@
 | | TC-E03 | Deactivate node with members warning |
 | | TC-E04 | Node settings (radius validations) |
 | | TC-E05 | ZIP waitlist queue + status filter |
+| | TC-E06 | Node tagging completeness (N6) — every record resolves to one node |
+| | TC-E07 | Per-node KPIs (N6) — expansion-gate metrics per node |
 | **F — Global Config & Settings** | TC-F01 | Global configuration inline edit + permission gate |
 | | TC-F02 | Cart settings (min value, max carts, expiry) |
-| | TC-F03 | Trade timing config (8 keys + nested validation) |
+| | TC-F03 | Trade timing config (timing keys + nested validation) |
 | | TC-F04 | Settings single-source — cross-link + last-updated + audit |
+| | TC-F05 | N1 configurability — pickup countdown + payout buffer (new keys) |
 | **G — Policy Management** | TC-G01 | Policy tabs (TOS/Privacy/Liability) + versions |
 | | TC-G02 | Create new policy version (version regex) |
 | | TC-G03 | Edit draft policy |
@@ -548,6 +551,48 @@
 
 ---
 
+### TC-E06 · Node tagging completeness (N6)
+
+**Ref:** FLOW-03 · BRD §6.10 (BR-N6-001..005, 007) · SRS §8A (SR-N6-001..005, 007, 008) · migration `20260809000005_n6_node_tagging.sql`
+**Actors:** test-admin (SQL Editor on staging)
+
+**Objective:** Verify every user, listing, trade, and cost/ledger record resolves to exactly **one** node.
+
+**Steps (SQL Editor — one statement at a time):**
+1. Run the per-table NULL-node coverage query from migration verification #3 (items, trades, payments, trade_refunds, sp_wallets, sp_ledger, sp_batches, seller_payouts, seller_balance, cart_items).
+2. For any table with non-zero NULLs, run migration verification #4 to confirm the residual is **only** legacy rows whose user/listing/trade has no node assigned at all.
+3. Create a new listing under a seller that has a node, then create a trade on it, and confirm `node_id` is auto-populated on the new `items` / `trades` / `payments` rows (write-trigger check).
+
+**Expected Result:**
+- `nulls` = 0 for every table except the documented unresolvable legacy residual (rows whose actor has no node).
+- New rows are tagged automatically — no manual entry, no app change required.
+
+---
+
+### TC-E07 · Per-node KPIs (N6 expansion-gate metrics)
+
+**Ref:** FLOW-03 · BRD §6.10 (BR-N6-006) · SRS §8A (SR-N6-006) · GTM plan §13/§15.6
+**Actors:** test-admin (browser + SQL Editor on staging)
+
+**Objective:** Verify the per-node KPIs are visible in the admin Nodes page and reconcile with the RPC.
+
+**Steps (UI):**
+1. Open **/nodes**.
+2. Confirm the **Per-Node Marketplace KPIs** panel renders above the nodes table with columns: Node, Users, Listings, Trades, Completed, GMV, Platform Fees, Paid Payouts, SP Earned, SP Spent.
+3. Confirm one row per node and that **Refresh** reloads the values.
+
+**Steps (SQL Editor — one statement at a time, reconcile with UI):**
+1. Run `SELECT public.admin_node_kpis(NULL);` — expect one JSON row per node matching the UI.
+2. Pick a live node id (`SELECT id, name FROM public.nodes;`) and run `SELECT public.admin_node_kpis('<node-id>');`.
+
+**Expected Result:**
+- Each node row contains: `node_id`, `node_name`, `users`, `listings`, `trades`, `completed_trades`, `gmv_cents`, `platform_fee_cents`, `paid_payouts_cents`, `sp_earned`, `sp_spent`.
+- The node-filtered call returns only that node's metrics.
+- UI values reconcile with the RPC (e.g. `users` = count of `profiles.node_id` = node).
+- No 401/"No valid authentication provided" errors — the page sends `x-admin-secret` (BP-49).
+
+---
+
 ## Group F — Global Config & Settings
 
 ### TC-F01 · Global configuration inline edit + permission gate
@@ -591,19 +636,21 @@
 
 ---
 
-### TC-F03 · Trade timing config (8 keys + nested validation)
+### TC-F03 · Trade timing config (timing keys + nested validation) — incl. consolidated fees
 
-**Ref:** FLOW-08 · /settings/trade-timing
+**Ref:** FLOW-08 · FLOW-09 · /settings/trade-timing
 **Actors:** test-admin
 
-**Objective:** Verify trade timing config and nested validations.
+**Objective:** Verify trade timing config, nested validations, and the consolidated fee params (buyer/seller platform fees + bundle fee toggle now live in the same Transaction Fees section).
 
 **Steps:**
-1. Open **/settings/trade-timing**; set offer timeout, the two offer notifications, auto-complete timeout + notification, pending SP release days, and member/non-member transaction fees; Save.
-2. Try invalid ordering (e.g., notif 1 ≥ timeout).
+1. Open **/settings/trade-timing**; set offer timeout, the two offer notifications, auto-complete timeout + notification, pending SP release days, and transaction fees (Kids Club+ / Free-tier member fees, seller fee % per tier, buyer platform fee fixed + %, and the **Charge One Fee Per Bundle** toggle); Save.
+2. Try invalid ordering (e.g., notif 1 ≥ timeout) and invalid fee values (negative fixed cents, buyer % > 100).
+3. **Cross-link check:** Open **/config → FEES**; confirm `platform_fee_buyer_fixed_cents`, `platform_fee_buyer_percentage`, and `charge_one_fee_per_bundle` show the same values as the Trade Timing page, with an Info-blue banner "… also managed on the Trade Timing page" linking to **/settings/trade-timing**.
 
 **Expected Result:**
-- Valid values save; nested rules enforced (notif1 < timeout, notif2 < notif1 and ≥ 1, auto-complete notif < auto-complete hours, all ≥ 1, fees ≥ 0); invalid values are blocked.
+- Valid values save; nested rules enforced (notif1 < timeout, notif2 < notif1 and ≥ 1, auto-complete notif < auto-complete hours, all ≥ 1, fees ≥ 0, buyer fixed ≥ 0, buyer % 0–100); invalid values are blocked.
+- The Trade Timing page is the single place to manage every fee parameter; /config → FEES stays consistent (same `admin_config` rows) and cross-links.
 - After saving distinct non-default values, rerun TradeFlow TC-B02 / TC-D01 / TC-D03 / TC-G01 / TC-G02 and Subscription TC-F06 / TC-R05 to confirm the new timing and fee values propagate.
 
 ---
@@ -629,6 +676,30 @@
 - The same `admin_config` row backs both surfaces — no value divergence after editing in either place.
 - Every field shows a Label-style "LAST UPDATED · <ts> · by <editor>" in Neutral 700.
 - All settings edits land in `admin_audit_log` regardless of surface.
+
+---
+
+### TC-F05 · N1 configurability — pickup countdown + payout buffer (new keys)
+
+**Ref:** FLOW-08 (Trade) · FLOW-09 (Fees) · FLOW-18 (Admin Controls) · N1 Configurability (cross-cutting)
+**Actors:** test-admin
+
+**Objective:** Verify the two NEW N1 config keys — `pickup_window_hours` (pickup countdown) and `payout_buffer_days` (payout buffer) — are seeded, editable from the admin UI, validate, persist, show audit metadata, and appear in the /config hub — all without a code deploy. These are tunable now and are the shared dependency that the R1–R13 requirements read from instead of hardcoding.
+
+**Preconditions:** Migration `supabase/migrations/20260809000004_n1_configurability.sql` applied.
+
+**Steps:**
+1. **Seeded + visible:** Open **/config → TRADE** and **/config → FEES**. Confirm `pickup_window_hours` and `payout_buffer_days` rows exist (values 72 and 2 respectively), with the descriptions from the migration and "LAST UPDATED · … · by" labels.
+2. **Edit on the standalone page:** Open **/settings/trade-timing**. In the **Pickup & Payout** section, set Pickup Window = 24 and Payout Buffer = 1; Save.
+3. **Cross-link banner:** On /config → TRADE and /config → FEES, confirm the Info-blue banner appears for both keys ("… also managed on the Trade Timing page") and opens **/settings/trade-timing**.
+4. **Validation:** Try Pickup Window = 0 or 200, and Payout Buffer = -1 or 31 — confirm each is blocked with its error message (window 1–168, buffer 0–30).
+5. **Single-source + audit:** Re-open /settings/trade-timing and /config — both show 24 and 1, the same last-updated timestamp/editor; then run `SELECT key, value, updated_by, updated_at FROM admin_config WHERE key IN ('pickup_window_hours','payout_buffer_days');` and `SELECT admin_id, action, entity_type, changes FROM admin_audit_log WHERE entity_type='admin_config' ORDER BY created_at DESC LIMIT 5;` — confirm the values and the `update_trade_timing_settings` audit row.
+6. **Typed read helper (no deploy):** Confirm the read RPC works: `SELECT public.fn_admin_config_int('pickup_window_hours', 72);` returns 24, and `SELECT public.fn_admin_config_int('missing_key', 7);` returns 7 (the caller decides, no crash).
+
+**Expected Result:**
+- Both keys are admin-tunable with validation, persist across surfaces, record the editor, and appear in the /config hub — proving a config change takes effect without a code deploy.
+- Changing a value here is immediately readable via `fn_admin_config_int`, the canonical read helper R1–R13 will use instead of hardcoded numbers.
+- No duplicate config store was created: the keys live in the existing `admin_config` table (single source of truth).
 
 ---
 
@@ -2046,6 +2117,8 @@
 | Deactivate node members warning | TC-E03 |
 | Node settings radius validation | TC-E04 |
 | ZIP waitlist queue | TC-E05 |
+| Node tagging completeness (N6) | TC-E06 |
+| Per-node KPIs (N6) | TC-E07 |
 | Global config inline edit | TC-F01, TC-R04 |
 | Cart settings + validation (FLOW-07) | TC-F02 |
 | Trade timing config (FLOW-08) | TC-F03, TC-R03 |

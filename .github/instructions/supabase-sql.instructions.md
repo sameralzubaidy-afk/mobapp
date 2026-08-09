@@ -38,6 +38,7 @@ Full bug-prevention rule text below: BP-1, BP-2, BP-3, BP-4, BP-5, BP-6, BP-9, B
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC, never direct `admin_config` table writes (records the editor + lands in the shared audit trail).
 - BP-50 Migration version uniqueness — before creating a migration, list `supabase/migrations/` and confirm no existing file shares the same `YYYYMMDDHHMMSS` timestamp prefix (parallel WIP can collide, e.g. two `20260809000001` files); use the next available version.
+- SQL-8 Backward compatibility — additive schema changes (nullable/defaulted new columns + backfill) preferred; never drop/rename columns/functions/views deployed code reads; coordinate RPC signature changes with their readers.
 
 ## Postgres RPC / SQL Naming Convention (MANDATORY)
 
@@ -127,6 +128,20 @@ Assume the user might accidentally re-run the same SQL in Supabase SQL Editor. T
 - policies/views/functions must be droppable safely
 - table creation must either be `IF NOT EXISTS` (if idempotent mode) OR clearly marked one-time
 - never include "run entire file" advice without also giving the 2-block plan above
+
+## SQL-8: Backward Compatibility (Migration Safety)
+
+Assume deployed Edge Functions, the shipped mobile app, the admin portal, AND existing rows are all already live. A migration MUST NOT break them.
+
+Rules:
+- **Additive by default.** Prefer `ADD COLUMN ... NULL` or `ADD COLUMN ... DEFAULT <value>` followed by an explicit backfill for existing rows. Only tighten to `NOT NULL` in a LATER migration, once backfill and readers are verified.
+- **Never rename/repurpose a column read by deployed code.** Rename flow (4 phases, across coordinated migrations): 1) add the new column, 2) write both columns, 3) backfill + migrate readers, 4) drop the old column only after no reader references it.
+- **Never drop** a column/table/function/view/index still referenced by deployed code or a `supabase_realtime` subscription (see BP-36).
+- **Enums:** adding values is safe; removing values breaks old writers — keep + deprecate instead.
+- **Types:** widening (int → bigint, numeric precision up) is safe; narrowing is not.
+- **RPC signature changes:** changing `RETURNS TABLE` requires DROP-then-CREATE (BP-12). Coordinate so the deployed caller and the DB change ship together — or keep the old-signature function alive during a transition window.
+- **Views:** prefer `CREATE OR REPLACE VIEW` keeping the same column names/order. If columns must change, keep the old view (or a `_v1` alias) until consumers migrate.
+- State in every SQL response: "Backward compatible: ✅ / ⚠️ breaking — needs owner approval + rollout plan (see the Backward Compatibility Gate in `Kids P2P App Builder.agent.md`)."
 
 ## HP-4: DB invariants (bugs must not reach data)
 

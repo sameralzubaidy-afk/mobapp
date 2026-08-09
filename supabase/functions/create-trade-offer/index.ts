@@ -15,6 +15,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
 import { logTradeEvent } from '../_shared/trade-events.ts';
+import { resolveSellerProfile } from '../_shared/node.ts';
 
 // D-31 (Option B, 2026-07-18): Supabase Edge Runtime global for background tasks.
 // Not part of default Deno types, so it's declared here. See docs/flow-registry.md
@@ -394,18 +395,13 @@ serve(async (req) => {
     const categoryMultiplier =
       (item.categories as { sp_earning_multiplier?: number } | null)?.sp_earning_multiplier ?? 1.0;
 
-    // Resolve seller
-    const { data: sellerProfile } = await supabase
-      .from('profiles')
-      .select('user_id, node_id')
-      .or(`user_id.eq.${item.seller_id},id.eq.${item.seller_id}`)
-      .limit(1)
-      .maybeSingle();
+    // Resolve seller (N6: node resolution on write via shared helper — same query/semantics)
+    const sellerProfile = await resolveSellerProfile(supabase, item.seller_id);
     console.log(`[perf][${itemId}] sellerLookup done t=${Date.now() - tStart}ms`);
 
-    const sellerUserId = (sellerProfile as { user_id?: string } | null)?.user_id ?? null;
+    const sellerUserId = sellerProfile?.user_id ?? null;
     if (!sellerUserId) return { error: 'Seller account not found', code: 'SELLER_NOT_FOUND', status: 422 };
-    const sellerNodeId = (sellerProfile as { node_id?: string } | null)?.node_id ?? null;
+    const sellerNodeId = sellerProfile?.node_id ?? null;
 
     // Duplicate offer check
     const ACTIVE_STATUSES = ['pending', 'payment_failed', 'in_progress'];
@@ -768,17 +764,12 @@ serve(async (req) => {
     const categoryMultiplier =
       (item.categories as { sp_earning_multiplier?: number } | null)?.sp_earning_multiplier ?? 1.0;
 
-    const { data: sellerProfile } = await supabase
-      .from('profiles')
-      .select('user_id, node_id')
-      .or(`user_id.eq.${item.seller_id},id.eq.${item.seller_id}`)
-      .limit(1)
-      .maybeSingle();
+    const sellerProfile = await resolveSellerProfile(supabase, item.seller_id);
     console.log(`[perf][${itemId}] (bundle) sellerLookup done t=${Date.now() - tStart}ms`);
 
-    const sellerUserId = (sellerProfile as { user_id?: string } | null)?.user_id ?? null;
+    const sellerUserId = sellerProfile?.user_id ?? null;
     if (!sellerUserId) return { error: 'Seller account not found', code: 'SELLER_NOT_FOUND', status: 422 };
-    const sellerNodeId = (sellerProfile as { node_id?: string } | null)?.node_id ?? null;
+    const sellerNodeId = sellerProfile?.node_id ?? null;
 
     const ACTIVE_STATUSES = ['pending', 'payment_failed', 'in_progress'];
     const { data: existingOffer } = await supabase

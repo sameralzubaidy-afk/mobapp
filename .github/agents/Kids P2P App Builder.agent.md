@@ -42,6 +42,7 @@ NON-NEGOTIABLE RULES (READ FIRST — one-line index of the hard gates detailed l
 7. Duplicate Identifier Guard — search the file, then the repo, for a symbol before creating it; never ship AuthContext2-style duplicates.
 8. Tier 0 Compile Gate — typecheck + lint must pass before you ever say "open the simulator" (canonical commands live in HP-2a — don't restate them elsewhere).
 9. Session Handoff — every response that changes code ends with the 📦 Session Handoff block (includes Change Classification / Impacted Flows / Regression Plan — see Section 14C).
+10. Backward Compatibility — every change keeps shipped clients (mobile + admin) and existing data working; breaking changes need owner approval + a coordinated rollout plan (see Backward Compatibility Gate below).
 
 Quick DO-NOT list:
 - Do NOT guess at a product/UX decision — ask.
@@ -51,6 +52,7 @@ Quick DO-NOT list:
 - Do NOT tell the user to open the simulator while typecheck/lint is failing.
 - Do NOT invent npm/yarn scripts that aren't in package.json.
 - Do NOT execute ANY Supabase MCP call (read or write) without asking Samer's approval first, every time — see MCP Usage Protocol.
+- Do NOT break backward compatibility silently — no dropping/renaming fields, columns, routes, or params that shipped clients or existing data depend on without flagging it, getting approval, and providing a rollout plan (see Backward Compatibility Gate).
 
 CLARIFICATION GATE (MANDATORY before implementation)
 Before writing any code for a new feature or fix, you MUST ask yourself:
@@ -112,6 +114,35 @@ Before editing ANY file, read the CURRENT content of that file using filesystem 
 If a file is longer than what can be displayed, read the specific section you are editing plus the lines immediately before and after.
 After writing, re-read the affected lines to confirm the edit landed correctly and no surrounding code was accidentally modified.
 If two files need to be changed for the same fix, read both BEFORE writing either.
+BACKWARD COMPATIBILITY GATE (MANDATORY)
+Principle: The shipped mobile app and admin portal can be running older code than the backend, and existing rows already exist in every table. Assume an older client is already installed on user phones. Every change MUST keep those shipped clients and existing data working — otherwise it is a breaking change that needs explicit owner approval and a coordinated rollout plan.
+
+Rules (apply before any change that touches a schema, API contract, or route):
+
+1. DB schema is additive by default.
+   - New columns MUST be nullable or have a DEFAULT, plus an explicit backfill for existing rows. Never add a NOT NULL column without a default old rows can satisfy.
+   - Never rename or repurpose an existing column/table that deployed code reads. If a rename is unavoidable, do the 4-phase dance: add the new column → write both → backfill + migrate readers → drop the old one in a LATER coordinated migration.
+   - Never drop a column, table, function, view, or index still referenced by deployed code or a `supabase_realtime` subscription.
+   - Enums: ADDING values is safe; REMOVING values is breaking (old code writing the removed value fails) — keep + deprecate instead.
+   - Type widening (int → bigint) is safe; narrowing is not.
+
+2. API / Edge Function contracts are additive-only.
+   - Never remove or rename an existing response field — old clients ignore unknown fields but break on missing ones. Add new fields as optional.
+   - Never change the meaning of an existing error code — add new codes instead.
+   - New required request params need server-side defaults so old clients that don't send them still work. Validate the defaulted path.
+
+3. RPC signature changes are coordinated.
+   - Changing `RETURNS TABLE` requires DROP-then-CREATE (BP-12). Ship the reader change and the DB change together, or keep the old-signature function alive during a transition window — never leave a deployed caller pointing at a dropped signature.
+
+4. Navigation stays compatible.
+   - New route params MUST be optional with defaults (existing callers won't pass them — BP-43-1).
+   - Never rename/remove a route that shipped clients or deep links/notifications reference. During a transition keep the old name working as an alias/redirect.
+
+5. Breaking-change checklist (only after owner approval):
+   - [ ] Backward-compatibility window defined (how long old + new must coexist)
+   - [ ] Rollout order specified (migration → backend → client, or per the change)
+   - [ ] Rollback plan stated (what to revert + how to verify)
+   - [ ] "Backward Compatibility" field filled in the Session Handoff
 USER-FACING COPY STANDARDS (MANDATORY)
 This app is used by adults (18+) who are parents managing their children's marketplace activity. All user-facing text must be clear, trustworthy, and action-oriented — the tone is a friendly, reliable service, not a developer console.
 
@@ -157,6 +188,7 @@ At the end of every response that makes a code change, output this block, make s
 📦 Session Handoff
 Change Classification: [DB/API/UI/Stripe/Realtime/SP/Fee/etc. — see Section 14C for the full A–H list]
 Impacted Flows: [Flow IDs from Section 14D, e.g. FLOW-08, FLOW-11 — "none" only if truly no flow is touched]
+Backward Compatibility: [state how this change keeps existing shipped clients + data working — or mark it BREAKING and note the owner approval + rollout plan]
 Regression Plan: [which tiers ran (0/1/2) + why, per Section 14C's classification → tier mapping — state PASS/FAIL per tier]
 What changed: [file names + one-line description of what each change does]
 Why it matters: [plain English — what user-visible problem this solves]
@@ -988,6 +1020,7 @@ Impacted Flows
 Required Regression Tiers
 Agent must ensure Tier 0 passes first (or provide exact package.json edits to enable it).
 Agent must NOT ask the user to test in simulator when there are known compile/type errors.
+Agent must NOT start a UI test / browser verification for a new implementation until it has checked whether the change needs a SQL/migration change that must be applied to the STAGING database first. If a SQL change is required and has NOT yet been applied to staging, STOP and ask the user (Samer) to approve/apply it BEFORE running any UI test — a UI test against un-migrated staging data is wasted time. (Example that triggered this rule — N1 configurability, 2026-08-09: the admin Trade Timing UI test could not render the new Pickup/Payout keys because the migration `20260809000004_n1_configurability.sql` had not been applied to staging; the browser session had to be abandoned mid-verification.)
 No Duplicate Implementations / Duplicate Identifier Guardrail / Duplicate Symbol Guard — all merged into Section 13 "Duplicate Identifier Prevention" (single canonical source for the search-before-create rule, ripgrep commands, and required evidence). Do not restate these as separate rules.
 
 Navigation Hardening Protocol — moved to .github/instructions/navigation.instructions.md (auto-attaches when editing p2p-kids-marketplace/src/navigation/**). Covers NAV-0 through NAV-6 (route ownership, auth boundary, onboarding completion, regression tiers) plus BP-43 (route params, navigator import validation, buyer/seller path checks).
@@ -1018,6 +1051,7 @@ yarn typecheck (or next lint + tsc --noEmit)
 yarn build (Next.js compile check)
 Admin unit tests use Vitest (`npm test` / `npx vitest run <file>`), NOT Jest — running `npx jest` on a Vitest test file fails with "Vitest cannot be imported in a CommonJS module using require()".
 You MUST NOT mark work complete if build fails. You MUST include the exact error line + the fix.
+Admin dev/build cache rule: NEVER run `yarn build` / `next build` in the same project folder as a running `next dev` — they share `.next` and corrupt each other, and the dev server then crashes with `Cannot find module './NNNN.js'` (MODULE_NOT_FOUND) plus 404s on `/_next/static/*` assets. If both are needed, `rm -rf p2p-kids-admin/.next` between them (build first, then start dev on a clean cache). If a running dev server starts 404ing on static assets or throwing MODULE_NOT_FOUND, clear `.next` and restart dev before diagnosing further — it is cache corruption, not a code regression.
 
 Compile/Lint Gate Before Manual Testing (MANDATORY)
 Same gate as HP-2a and Tier 0 (Section B) — do not restate the commands here, just enforce the outcome: if typecheck, lint, or the bundler build fails, fix it FIRST and re-run before any manual verification step.
@@ -1236,6 +1270,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail).
 - BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it).
 - BP-50 Migration version uniqueness — before creating a migration, list `supabase/migrations/` and confirm no existing file shares the same `YYYYMMDDHHMMSS` timestamp prefix (parallel WIP collides, e.g. two `20260809000001` files); use the next available version.
+- BC-1 Backward Compatibility Gate — every change keeps shipped clients (mobile + admin) and existing data working; breaking changes need owner approval + a coordinated rollout plan (full text in the main body, "Backward Compatibility Gate" section).
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
 

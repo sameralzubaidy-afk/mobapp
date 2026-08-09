@@ -2220,6 +2220,7 @@ add one section on the top give summary on what this file covers from testing an
     - `npm run test:maestro:ios -- .maestro/cart-flow.yaml` (all 13 states pass)
 
 ### FLOW-08: Trade Flow – Checkout + Transaction State Machine
+- **N1-PICKUP-COUNTDOWN-CONFIG (2026-08-09):** The pickup countdown window is now an admin-tunable config key (`admin_config.pickup_window_hours`, seeded 72h, editable on `/settings/trade-timing` + `/config`) instead of a hardcoded value. Tunable now; the actual pickup-deadline enforcement wiring lands with the pickup R-requirement (which reads this key via `fn_admin_config_int`). Config-only — no state-machine change in this entry. Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F05.
 - **MODULE-15.1-UI-REDESIGN-FLOW-08 (2025-01-20):** Trade flow screens redesigned to Whisk-inspired design system
   - Module: MODULE-15.1-UI-REDESIGN (TASK FLOW-08)
   - Scope:
@@ -2427,6 +2428,11 @@ add one section on the top give summary on what this file covers from testing an
   - Admin page location: `http://localhost:3001/settings/trade-timing` → **Offer Limits** section → **Max Offers Per Seller**.
 
 ### FLOW-09: Fees & Pricing Engine
+- **FEES-CONSOLIDATE (2026-08-09):** Fee parameters consolidated onto a single admin surface — /settings/trade-timing → Transaction Fees is now the PRIMARY place to manage fees. The buyer platform fee (fixed cents + %) and the charge-once-per-bundle toggle moved from /config → FEES into the Trade Timing page; /config → FEES still shows them with a cross-link banner to Trade Timing (single source stays `admin_config`). Seller fees (free/KCP %) were already there. `platform_fee_seller_discount_percentage_freemium` remains a legacy/unused key on /config (the active free-tier key is `platform_fee_seller_percentage`, already on Trade Timing).
+  - Scope: Admin UI only (no DB/API/Edge Function changes)
+  - Files: `p2p-kids-admin/src/app/settings/trade-timing/page.tsx` (2 buyer-fee numFields + bundle toggle boolField in Transaction Fees), `p2p-kids-admin/src/types/config.ts`, `p2p-kids-admin/src/app/settings/trade-timing/__tests__/trade-timing-settings.test.ts` (3 new tests → 26), `p2p-kids-admin/src/app/config/page.tsx` (cross-link banners + descriptions for the 3 keys)
+  - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F03
+  - Tier: Tier 0 (typecheck + lint + unit 26/26 + build) PASS
 - Smoke: (manual)
   - Subscriber fee vs non-subscriber fee matches configuration.
   - Changing admin fee config updates new trade fee snapshots without mobile code changes.
@@ -2760,6 +2766,23 @@ add one section on the top give summary on what this file covers from testing an
     - Behavior: no homepage card duplicates sidebar navigation; the embedded Action Center shows the top 5 pending sources with "View all →" to /action-center; KPI cards (Total Trades, Fee Revenue, Avg SP Usage, Completed Rate · SP Circulation, Total Earned, Total Spent, Active Wallets) sit below the Action Center.
     - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-A03, TC-A06, TC-X12, TC-Z01, TC-Z07
     - Tier: Tier 0 (typecheck + lint + build) PASS
+  - **N1-CONFIGURABILITY (2026-08-09):** Cross-cutting admin config layer (N1). Gap-fills the two missing tunable domains — `pickup_window_hours` (pickup countdown) and `payout_buffer_days` (payout buffer) — on the existing `admin_config` table (no new config store), and adds the canonical typed read helper `fn_admin_config_int(p_key, p_default)` that the R1–R13 requirements read instead of hardcoding. All six N1 domains (offer/pickup countdowns, grace period, payout buffer, SP caps/multipliers, node/category tax, buyer/seller fees) now have an admin surface.
+    - Scope: DB (1 migration) + Admin UI (trade-timing settings page, /config hub cross-links + descriptions, types, unit tests) + docs (SYSTEM_REQUIREMENTS §1.6, BRD §6.8/§6.9, manual-testing TC-F05, flow-registry)
+    - Files:
+      - `supabase/migrations/20260809000004_n1_configurability.sql` — seeds `pickup_window_hours` (trade, 72) + `payout_buffer_days` (fees, 2) via the shared write path; adds `fn_admin_config_int` (SECURITY DEFINER read helper, reuses `fn_admin_config_safe_int`); ON CONFLICT DO NOTHING so admin edits survive replays
+      - `p2p-kids-admin/src/app/settings/trade-timing/page.tsx` — new "Pickup & Payout" section (Pickup Window 1–168h, Payout Buffer 0–30d), per-key `CONFIG_CATEGORIES` map so the new keys save under `trade`/`fees` (existing keys keep legacy `feature_flags` bucket — behavior-preserving), validation, subtitle
+      - `p2p-kids-admin/src/types/config.ts` — `TradeTimingConfig` gains `pickup_window_hours` + `payout_buffer_days`
+      - `p2p-kids-admin/src/app/settings/trade-timing/__tests__/trade-timing-settings.test.ts` — 6 new N1 validation tests (23 total)
+      - `p2p-kids-admin/src/app/config/page.tsx` — cross-link banners for both keys → `/settings/trade-timing`; descriptions in the hub
+    - Behavior: an admin changes either value on /settings/trade-timing (or /config) and it persists via `upsert_admin_config_setting` with editor + audit; immediately readable via `fn_admin_config_int`. Both keys are tunable now; enforcement wiring lands with the pickup/payout R-requirements (flagged in the migration + docs).
+    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F05
+    - Tier: Tier 0 (typecheck + lint + unit test 23/23 + build) PASS
+  - **FIX-42804-ADMIN-CONFIG-META (2026-08-09):** Fixed Postgres 42804 drift that silently dropped the "Last updated · <ts> · by <email>" editor labels on every admin settings surface. `fn_get_admin_config_meta` / `fn_resolve_admin_emails` returned `auth.users.email` (varchar(255)) into declared `TEXT` columns without a cast → runtime 42804 → PostgREST 400 → `settingsAudit` swallowed it. Added explicit `au.email::text` casts (same pattern as `174_admin_referral_analytics.sql` / tax RPCs); signatures unchanged (no DROP).
+    - Scope: DB (1 migration)
+    - Files: `supabase/migrations/20260809000006_fix_admin_config_meta_42804.sql` (renamed from `...0005` because `20260809000005_n6_node_tagging.sql` already existed — parallel WIP; BP-50)
+    - Behavior: both RPCs return editor emails with no 42804; verified on staging (`drntwgporzabmxdqykrp`) via direct SELECTs (`out_updated_by_email = 'samer@samer.com'`) and in the browser — `/config → TRADE` Pickup Window Hours now shows "Last updated · 8/9/2026 · by samer@samer.com".
+    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F01, TC-F04
+    - Tier: Tier 0 (DB-only — no app code changed) PASS · Tier 2 (DB): applied to staging + verified
 - Smoke: (manual)
   - Admin can navigate to `/analytics` dashboard
   - Revenue metrics display: MRR, ARR, transaction fees, ARPU

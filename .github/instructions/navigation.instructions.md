@@ -62,3 +62,12 @@ If a navigation fix fails once:
 ## BP-43: Learned Navigation & Params Rules
 
 Full text lives in `Kids P2P App Builder.agent.md` (Bug Prevention Rule Index, BP-43) — the canonical single source for the numbered BP library. Summary: verify callers actually pass route params (not just the type def), verify which screen file the navigator actually imports before editing, and check both buyer AND seller navigation paths for completion flows.
+
+## NAV-7: Backward Compatibility
+
+Navigation changes must not break screens already shipped on user phones, or deep-link/notification links that point at old routes.
+
+- **New route params MUST be optional with defaults.** Existing callers won't pass a newly added param — reading it without a default silently falls back (see BP-43-1). Use `route.params?.someParam ?? default`.
+- **Never rename or remove a route constant** without updating ALL callers AND any deep-link / notification / external link that references it. During a transition, keep the old name working as an alias or redirect.
+- **Moving a route between navigators is a breaking change.** A `navigate`/`reset` from the old owner will fail (see NAV-1). Keep routes owned by the same navigator during the transition, or ship the ownership move together with all its callers.
+- **Adding a screen to a stack is safe**; removing or reordering existing screens is not. Verify against the Route Ownership Map before reordering.

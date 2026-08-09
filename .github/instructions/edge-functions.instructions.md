@@ -5,7 +5,7 @@ applyTo: "supabase/functions/**"
 
 # Edge Function Hardening Protocol
 
-Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP-27, BP-28, BP-40, BP-41. (BP-5 SECURITY DEFINER and BP-21 cron-job-with-migration live in `supabase-sql.instructions.md`; BP-20 check-existing-triggers and BP-39 `FunctionsHttpError.context` live in the main agent file / `mobile-client.instructions.md` respectively.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 43 rules.
+Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP-27, BP-28, BP-40, BP-41, plus the Backward Compatibility section. (BP-5 SECURITY DEFINER and BP-21 cron-job-with-migration live in `supabase-sql.instructions.md`; BP-20 check-existing-triggers and BP-39 `FunctionsHttpError.context` live in the main agent file / `mobile-client.instructions.md` respectively.) See the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 43 rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -22,6 +22,7 @@ Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP
 - BP-28 Admin-configurable values — Edge Functions must fail loud (`CONFIG_UNAVAILABLE`), never silently fall back.
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
 - BP-41 Edge Function deploys — every relative import must be in the `files` array, including transitive ones.
+- Backward compatibility — API response shapes are additive-only; new request params need defaults for old clients; deploy order is migration-first; version the contract if a break is unavoidable.
 
 ## HP-3: Supabase auth/RLS rule (be explicit)
 
@@ -39,6 +40,17 @@ Any multi-table mutation that must be atomic MUST be implemented as a Postgres R
 ## Pre-deployment gate
 
 Before deploying any Edge Function, run `deno check --no-lock` on the entrypoint (and any changed files) as the Tier 0 gate for this app — NOT `get_errors`, which produces false positives on Deno globals (`Deno.env`, `EdgeRuntime`, remote `https://` imports). See BP-25.
+
+## Backward Compatibility for Edge Function / API Contracts
+
+The shipped mobile app and admin portal can run older code than the deployed functions. Never break them.
+
+Rules:
+- **Response shapes are additive-only.** Never remove or rename an existing field — old clients ignore unknown fields but break (or crash on `undefined`) when a field they read disappears. Add new fields as optional/nullable.
+- **Never change the meaning of an existing error code.** Old clients branch on codes; changing semantics silently changes behavior. Add a new code instead.
+- **New required request params need server-side defaults** for old clients that don't send them. Validate the defaulted path with a test.
+- **Deploy order is migration-first.** If a function depends on a new column/table, apply the migration BEFORE deploying the function (see the Pre-Verification Gate in `Kids P2P App Builder.agent.md`).
+- **If a breaking contract change is unavoidable:** version the contract (e.g., a `-v2` function name, or an `Accept`/`x-api-version` header) and keep the old version serving during a transition window. Get owner approval and state the window in the Session Handoff's "Backward Compatibility" field.
 
 ---
 

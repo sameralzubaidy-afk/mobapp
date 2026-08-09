@@ -1,9 +1,11 @@
 # P2P Kids Marketplace - System Requirements & Specifications Document V2
 
 **Version:** 2.0  
-**Last Updated:** December 5, 2025  
+**Last Updated:** August 9, 2026  
 **Document Purpose:** Complete technical specifications for subscription-gated Swap Points model  
-**Status:** Final - Ready for Development
+**Status:** Final - Ready for Development  
+
+> **Added 2026-08-09 — N1 Configurability (Cross-Cutting):** Section 1.6 below establishes the single admin-tunable configuration layer that all requirement domains (R1–R13) read from instead of hardcoding values.
 
 ---
 
@@ -31,6 +33,7 @@ This version reflects the **FINAL DECISION** to implement Swap Points as an **ex
 6. [Core Features & Specifications](#core-features--specifications)
 7. [Trade Flow & Seller Payouts](#trade-flow--seller-payouts)
 8. [Business Rules & Logic](#business-rules--logic)
+8A. [N6 — Node Tagging (Cross-Cutting)](#8a-n6--node-tagging-cross-cutting)
 9. [Data Models](#data-models)
 10. [API Specifications](#api-specifications)
 11. [Trust & Safety Implementation](#trust--safety-implementation)
@@ -101,6 +104,39 @@ P2P Kids Marketplace is a hyper-local, mobile-first marketplace where verified p
 - Real-time chat delivery: <500ms
 - 99.9% uptime target
 - Cost optimization should never compromise these metrics
+
+---
+
+### 1.6 N1 — Configurability (Cross-Cutting)
+
+**Status:** Implemented 2026-08-09 (gap-fill + consolidation). This is a **shared dependency** for the R1–R13 requirement set: every other requirement must read its fee, timing, SP, and tax values from this config layer rather than hardcoding them.
+
+**Goal:** An admin can change any of the six domains below in the admin portal and the change takes effect in the live app and E2E flows **without a code deploy**.
+
+#### The six tunable domains → single source of truth
+
+| # | Domain | Where the value lives (single source) | Admin surface |
+|---|---|---|---|
+| 1 | Countdown windows — **offer** | `admin_config.offer_timeout_hours`, `offer_notif_1/2_hours_before`, `auto_complete_hours`, `auto_complete_notif_hours_before` | `/settings/trade-timing` + `/config → trade` |
+| 2 | Countdown windows — **pickup** | `admin_config.pickup_window_hours` **(new)** | `/settings/trade-timing` (Pickup & Payout section) |
+| 3 | Grace period length | `admin_config.grace_period_days` (canonical; `sp_config.grace_period_days` is the legacy duplicate — readers must prefer `admin_config`) | `/subscriptions/manage` + `/config` |
+| 4 | Payout buffer | `admin_config.payout_buffer_days` **(new)** | `/settings/trade-timing` (Pickup & Payout section) |
+| 5 | SP caps / multipliers per category | `categories.sp_earning_multiplier`, `categories.sp_spending_cap_percent`, `categories.sp_rate_change_notify` | Category admin (Group D) |
+| 6 | Tax rates per node/category | `nodes.tax_rate` / `nodes.tax_enabled`, `category_tax_rules`, plus `admin_config.default_sales_tax_rate` | `/tax/settings`, `/tax/nodes`, `/tax/rules` |
+| — | Buyer/seller fee parameters | `admin_config` (fees): `platform_fee_*`, `transaction_fee_*`, `payout_fee_*` | `/config → fees` + `/settings/trade-timing` |
+
+#### RPC contract (config read / write)
+
+- **Write (single path):** `upsert_admin_config_setting(p_key, p_value, p_category, p_data_type, p_is_secret, p_is_active, p_admin_id)` — records `admin_config.updated_by` and lands an `admin_audit_log` row. All admin surfaces must use this RPC; never write `admin_config` directly (BP-48).
+- **Read (bulk):** `fn_get_admin_config_values(p_keys text[])` — active-only, SECURITY DEFINER, used by admin settings pages.
+- **Read (typed, for R1–R13):** `fn_admin_config_int(p_key text, p_default int)` **(new)** — returns the stored integer or `p_default` when missing/invalid so the caller can decide to fail loud (BP-28) instead of silently hardcoding.
+
+#### Rules
+
+1. **No hardcoded values** for fees, timing, SP caps/multipliers, or tax in the mobile app or Edge Functions — read from config at runtime. Migration `20260804000001_remove_hardcoded_config_fallbacks.sql` already removed referral-SP hardcoded fallbacks; remaining EF-level defaults (e.g. `?? 72`, `DEFAULT_GRACE_PERIOD_DAYS`) are flagged known gaps to migrate as each R-requirement lands.
+2. **Single source of truth** — the `admin_config` key/value table is the hub; per-entity values (category SP, node/category tax) live on those entity tables and are all admin-editable.
+3. **No duplicate config stores** — new keys must be added to `admin_config`; do not create a second config table.
+4. **Audit every change** — editor + timestamp recorded on `admin_config` and in `admin_audit_log`.
 
 ---
 
@@ -1708,6 +1744,58 @@ Seller receives (seller is free tier — 5% seller fee):
   - Cannot purchase
   - Cannot message
   - Can appeal via support ticket
+
+---
+
+## 8A. N6 — Node Tagging (Cross-Cutting)
+
+**Owner summary:** Guarantees every user, listing, trade, and cost/ledger record
+resolves to **exactly one node** (pilot market) so per-node KPIs and expansion-gate
+metrics can be computed (BRD §6.10; GTM plan §13 Success Metrics + §15.6 Expansion
+Readiness). Backward compatible — additive-only, no existing flow changes behavior.
+
+### 8A.1 Node identity — single source of truth
+
+| Entity | Column | Type | Resolved from |
+|---|---|---|---|
+| User | `profiles.node_id` | UUID FK → `nodes(id)` | ZIP / nearest active node at signup (**canonical**) |
+| Listing | `items.node_id` | UUID FK → `nodes(id)` | seller profile node at INSERT (snapshot) |
+| Trade | `trades.node_id` | UUID FK → `nodes(id)` | seller profile node at INSERT (snapshot; fallback buyer) |
+| Tax | `tax_records.node_id` | UUID FK → `nodes(id)` | seller node at offer creation |
+| Payment | `payments.node_id` | UUID FK → `nodes(id)` | related trade's node (fallback seller profile) |
+| Refund | `trade_refunds.node_id` | UUID FK → `nodes(id)` | related trade's node |
+| SP wallet | `sp_wallets.node_id` | UUID FK → `nodes(id)` | user profile node |
+| SP ledger | `sp_ledger.node_id` | UUID FK → `nodes(id)` | related trade's node (fallback user profile) |
+| SP batch | `sp_batches.node_id` | UUID FK → `nodes(id)` | user profile node |
+| Payout | `seller_payouts.node_id` | UUID FK → `nodes(id)` | related trade's node (fallback user profile) |
+| Seller balance | `seller_balance.node_id` | UUID FK → `nodes(id)` | user profile node |
+| Cart item | `cart_items.node_id` | UUID FK → `nodes(id)` | listing's node (fallback seller profile) |
+
+### 8A.2 Requirements
+
+| ID | Requirement |
+|----|-------------|
+| SR-N6-001 | Every user resolves to exactly one node — `profiles.node_id` (UUID FK → `nodes(id)`, ON DELETE SET NULL). |
+| SR-N6-002 | `items.node_id` is set at INSERT from the seller's profile node via a fill-only-when-NULL BEFORE INSERT trigger (`set_item_node_id_from_seller`). Snapshot semantics — never re-derived on UPDATE. |
+| SR-N6-003 | `trades.node_id` is set at INSERT from the seller's profile node (fallback buyer) via the existing `populate_trade_node_id` trigger (migration 089). |
+| SR-N6-004 | Cost/ledger tables (`payments`, `trade_refunds`, `sp_wallets`, `sp_ledger`, `sp_batches`, `seller_payouts`, `seller_balance`, `cart_items`) carry `node_id` (UUID FK, nullable) set by fill-only-when-NULL BEFORE INSERT/UPDATE triggers derived from the related trade / listing / user. |
+| SR-N6-005 | Node resolution on write is server-enforced: DB triggers for every write path, plus a shared Edge Function helper (`supabase/functions/_shared/node.ts`) used by `create-trade-offer` to resolve the seller node for the trade + tax + payment write path. |
+| SR-N6-006 | Read-only RPC `admin_node_kpis(p_node_id UUID DEFAULT NULL)` returns per-node KPIs: users, listings, trades, completed trades, GMV (cents), platform fees (cents), paid payouts (cents), SP earned / SP spent. Service-role only (mirrors `admin_health_summary`). |
+| SR-N6-007 | Backward compatible: new columns are nullable; backfills touch NULL rows only; FKs are added `NOT VALID` and `VALIDATE` only when no orphaned node exists; rows whose actor has no node stay NULL (documented residual). |
+| SR-N6-008 | Indexes exist on every `node_id` column (`idx_<table>_node_id`) for per-node aggregation. |
+
+### 8A.3 Migration
+
+`supabase/migrations/20260809000005_n6_node_tagging.sql` — Mode B (idempotent rerunnable).
+
+### 8A.4 Verification
+
+- `SELECT public.admin_node_kpis(NULL);` — one row per node with all §13 KPI fields.
+- Per-table NULL-node counts → `0` for every table (except the documented residual:
+  legacy rows whose user/listing/trade has no node assigned).
+- Triggers present: `trg_set_item_node_id`, `trg_set_payment_node_id`, `trg_set_trade_refund_node_id`,
+  `trg_set_wallet_node_id`, `trg_set_sp_ledger_node_id`, `trg_set_sp_batch_node_id`,
+  `trg_set_payout_node_id`, `trg_set_seller_balance_node_id`, `trg_set_cart_item_node_id`.
 
 ---
 
