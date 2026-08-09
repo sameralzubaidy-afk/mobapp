@@ -134,6 +134,7 @@ const TYPE_TO_ROUTE_MAP: Record<
   sp_balance_low: { route: 'Discover', action: 'navigate' },
   sp_wallet_frozen: { route: 'ManageKidsClub', action: 'navigate' },
   sp_released: { route: 'SpWallet', action: 'navigate' },
+  sp_refunded: { route: 'SpWallet', action: 'navigate' },
 
   // Subscription Events
   trial_starting: { route: 'KidsClubOverview', action: 'navigate' },

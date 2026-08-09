@@ -67,6 +67,9 @@ export interface AdminConfig {
 
   // Listing Price Floor
   min_listing_price: number;
+
+  // Bundle Fee Behavior
+  charge_one_fee_per_bundle: boolean;
 }
 
 // In-memory cache with TTL
@@ -233,6 +236,9 @@ function getDefaultConfig(): AdminConfig {
 
     // Listing Price Floor (0 = disabled / no floor)
     min_listing_price: 0,
+
+    // Bundle Fee Behavior — default: charge per item (current behavior)
+    charge_one_fee_per_bundle: false,
   };
 }
 
@@ -331,6 +337,29 @@ export async function getPlatformFeeCents(isSubscriber: boolean): Promise<number
   return isSubscriber
     ? getTransactionFeeSubscriberCents()
     : getTransactionFeeNonSubscriberCents();
+}
+
+/**
+ * Returns whether the bundle checkout should charge the platform fee
+ * once (per bundle) instead of per item.
+ * Source of truth: admin_config key=charge_one_fee_per_bundle (boolean, default: false)
+ */
+export async function getChargeOneFeePerBundle(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('admin_config')
+      .select('value')
+      .eq('key', 'charge_one_fee_per_bundle')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!error && data?.value != null) {
+      return data.value === 'true';
+    }
+  } catch (err) {
+    console.warn('⚠️ getChargeOneFeePerBundle failed:', (err as Error).message);
+  }
+  return false; // default: per-item charging (current behavior)
 }
 
 export async function getSPExpirationDays(forceRefresh = false): Promise<number> {

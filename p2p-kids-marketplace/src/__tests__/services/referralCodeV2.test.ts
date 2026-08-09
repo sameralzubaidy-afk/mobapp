@@ -203,6 +203,8 @@ describe('ReferralCodeServiceV2', () => {
           referee_listing_sp: 10,
           referrer_sp: 25,
           referee_sp: 10,
+          program_enabled: true,
+          first_trade_enabled: true,
           first_listing_enabled: true,
         },
         error: null,

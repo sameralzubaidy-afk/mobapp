@@ -395,6 +395,7 @@ export default function ItemDetailScreen() {
   const tax = useTaxCalculation({
     nodeId: listingNodeId,
     taxableAmountCents: listingPriceCents,
+    taxCategoryId: listing?.tax_category_id ?? null,
   });
 
   if (loading) {
@@ -681,6 +682,7 @@ export default function ItemDetailScreen() {
                 taxRate={tax.taxRate}
                 jurisdiction={tax.jurisdiction}
                 loading={tax.loading}
+                isTaxExempt={tax.isTaxExempt}
                 testID="detail-tax-row"
               />
 

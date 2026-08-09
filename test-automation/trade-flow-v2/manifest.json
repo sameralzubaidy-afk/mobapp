@@ -162,8 +162,8 @@
     { "id": "TC-Q16", "group": "Q", "title": "Auto-hide review after 3+ reports", "runner": "maestro", "platforms": ["ios", "android"], "asset": "module-15.1.2-full-trade-flow-v2.yaml", "status": "manual", "reason": "Requires 3 distinct reporters; backend threshold effect." },
     { "id": "TC-Q17", "group": "Q", "title": "Cannot flag own review", "runner": "maestro", "platforms": ["ios", "android"], "asset": "module-15.1.2-full-trade-flow-v2.yaml", "status": "partial", "reason": "Needs the user's own review present." },
     { "id": "TC-Q18", "group": "Q", "title": "Admin moderation queue shows reported reviews", "runner": "playwright", "asset": "__tests__/review-moderation.e2e.test.ts", "status": "automated" },
-    { "id": "TC-Q19", "group": "Q", "title": "Admin approves (unhides) a reported review", "runner": "playwright", "asset": "__tests__/review-moderation.e2e.test.ts", "grep": "approve|unhide", "status": "automated" },
-    { "id": "TC-Q20", "group": "Q", "title": "Admin deletes a reported review", "runner": "playwright", "asset": "__tests__/review-moderation.e2e.test.ts", "grep": "delete", "status": "automated" },
+    { "id": "TC-Q19", "group": "Q", "title": "Admin keeps (unhides) a reported review", "runner": "playwright", "asset": "__tests__/review-moderation.e2e.test.ts", "grep": "keep|reviewed", "status": "automated" },
+    { "id": "TC-Q20", "group": "Q", "title": "Admin hides a reported review", "runner": "playwright", "asset": "__tests__/review-moderation.e2e.test.ts", "grep": "hide", "status": "automated" },
 
     { "id": "TC-R01", "group": "R", "title": "Buyer cancels pending → cancelled, auth voided, SP restored", "runner": "maestro", "platforms": ["ios", "android"], "asset": "trade-flow.yaml", "status": "automated" },
     { "id": "TC-R02", "group": "R", "title": "Seller declines pending → cancelled, SP restored", "runner": "maestro", "platforms": ["ios", "android"], "asset": "trade-flow.yaml", "status": "partial", "reason": "Seller decline needs a second session." },

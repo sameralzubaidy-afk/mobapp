@@ -36,24 +36,28 @@ describe('chat.ts - Conversation Functions', () => {
     it('should return empty array when no trades exist', async () => {
       const mockFrom = jest.fn().mockReturnThis();
       const mockSelect = jest.fn().mockReturnThis();
-      const mockOr = jest.fn().mockResolvedValue({ data: [], error: null });
+      const mockOr = jest.fn().mockReturnThis();
+      const mockRange = jest.fn().mockReturnThis();
+      const mockOrder = jest.fn().mockResolvedValue({ data: [], error: null });
 
       (supabase.from as jest.Mock).mockReturnValue({
         from: mockFrom,
         select: mockSelect,
         or: mockOr,
+        range: mockRange,
+        order: mockOrder,
       });
 
       const result = await getConversations('user-123');
 
-      expect(result).toEqual([]);
+      expect(result.conversations).toEqual([]);
       expect(supabase.from).toHaveBeenCalledWith('trades');
     });
 
     it('should return empty array when userId is missing', async () => {
       const result = await getConversations('');
 
-      expect(result).toEqual([]);
+      expect(result.conversations).toEqual([]);
       expect(supabase.from).not.toHaveBeenCalled();
     });
 
@@ -92,12 +96,13 @@ describe('chat.ts - Conversation Functions', () => {
 
       (AsyncStorage.getItem as jest.Mock).mockResolvedValue(new Date(0).toISOString());
 
-      // Mock trades query (note: implementation chains .or(...).order(...))
+      // Mock trades query (note: implementation chains .or(...).range(...).order(...))
       (supabase.from as jest.Mock).mockImplementation((table) => {
         if (table === 'trades') {
           return {
             select: jest.fn().mockReturnThis(),
             or: jest.fn().mockReturnThis(),
+            range: jest.fn().mockReturnThis(),
             order: jest.fn().mockResolvedValue({ data: mockTrades, error: null }),
           };
         }
@@ -129,8 +134,8 @@ describe('chat.ts - Conversation Functions', () => {
 
       const result = await getConversations('user-123');
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
+      expect(result.conversations).toHaveLength(1);
+      expect(result.conversations[0]).toEqual({
         id: 'trade-1',
         trade_id: 'trade-1',
         other_user_id: 'user-456',
@@ -162,7 +167,9 @@ describe('chat.ts - Conversation Functions', () => {
         if (table === 'trades') {
           return {
             select: jest.fn().mockReturnThis(),
-            or: jest.fn().mockResolvedValue({ data: mockTrades, error: null }),
+            or: jest.fn().mockReturnThis(),
+            range: jest.fn().mockReturnThis(),
+            order: jest.fn().mockResolvedValue({ data: mockTrades, error: null }),
           };
         } else if (table === 'messages') {
           return {
@@ -179,7 +186,7 @@ describe('chat.ts - Conversation Functions', () => {
 
       const result = await getConversations('user-123');
 
-      expect(result).toEqual([]);
+      expect(result.conversations).toEqual([]);
     });
   });
 

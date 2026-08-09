@@ -520,7 +520,9 @@ describe('DiscoverScreen', () => {
       });
 
       await waitFor(() => {
-        expect((searchListings as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(initialCallCount + 1);
+        expect((searchListings as jest.Mock).mock.calls.length).toBeGreaterThanOrEqual(
+          initialCallCount + 1
+        );
       });
     });
 
@@ -787,14 +789,18 @@ describe('DiscoverScreen', () => {
     });
 
     it('retries search when error banner is tapped', async () => {
-      (searchListings as jest.Mock)
-        .mockResolvedValueOnce(mockSearchResults)
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce(mockSearchResults);
-
-      const { getByTestId } = render(
+      const { getByTestId, getByText } = render(
         <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
       );
+
+      // Wait for the mount searches to finish successfully first.
+      await waitFor(() => {
+        expect(getByText('Test Item 1')).toBeTruthy();
+      });
+
+      // Fail every search from here on (persistent), so the error banner stays
+      // visible instead of being cleared by a later resolved search.
+      (searchListings as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       const searchInput = getByTestId('discover-search-input');
       fireEvent.changeText(searchInput, 'test');

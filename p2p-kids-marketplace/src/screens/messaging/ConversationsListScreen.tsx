@@ -31,10 +31,10 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { AuthContext } from '@/contexts/AuthContext';
-import { getConversations, markAsRead, Conversation } from '@/services/chat';
+import { getConversations, markAsRead, Conversation, Message } from '@/services/chat';
 import { MagnifyingGlass, ChatCircleSlash, ArrowsLeftRight, ShieldCheck } from 'phosphor-react-native';
 import { supabase } from '@/config/supabase';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import Avatar from '@/components/atoms/Avatar';
 import ScreenLayout from '@/components/ScreenLayout';
 
@@ -46,9 +46,20 @@ export default function ConversationsListScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const channelRef = React.useRef<RealtimeChannel | null>(null);
+  // Offset (in trades) for the next page of conversations.
+  const offsetRef = React.useRef(0);
+  // First load shows only the most recent 7 chats so the screen opens fast;
+  // the rest are fetched in pages of 7 via the "Load More" button.
+  const CONVERSATION_PAGE_SIZE = 7;
+  // Mirror of `conversations` so the realtime callback can read the current list
+  // without stale closures (the subscription must NOT re-subscribe on list
+  // changes — BP-36).
+  const conversationsRef = React.useRef<Conversation[]>([]);
 
   // Filter conversations by search query
   const filteredConversations = conversations.filter((conv) => {
@@ -75,7 +86,9 @@ export default function ConversationsListScreen() {
 
     console.log('[ConversationsListScreen] Setting up real-time subscription for userId:', userId);
 
-    // Subscribe to all message inserts
+    // Subscribe to message inserts so the list updates in realtime (FLOW-14).
+    // The handler updates the affected conversation in place instead of
+    // re-fetching the whole list and flashing the full-screen loader.
     channelRef.current = supabase
       .channel('conversations:all')
       .on(
@@ -85,10 +98,69 @@ export default function ConversationsListScreen() {
           schema: 'public',
           table: 'messages',
         },
-        (_payload: unknown) => {
-          console.log('[ConversationsListScreen] New message received, refreshing list');
-          // When a new message arrives, refresh the conversations list
-          loadConversations();
+        (payload: RealtimePostgresChangesPayload<Message>) => {
+          const message = payload.new as Message;
+          if (!message?.trade_id) {
+            return;
+          }
+
+          console.log(
+            '[ConversationsListScreen] New message received for trade:',
+            message.trade_id
+          );
+
+          const tradeIndex = conversationsRef.current.findIndex(
+            (c) => c.trade_id === message.trade_id
+          );
+
+          if (tradeIndex === -1) {
+            // Brand-new conversation (trade not loaded yet). Only refresh —
+            // silently, without the spinner — if the current user is a
+            // participant of this trade, so we never reload on messages from
+            // trades the user isn't part of.
+            supabase
+              .from('trades')
+              .select('id')
+              .eq('id', message.trade_id)
+              .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+              .maybeSingle()
+              .then(({ data }: { data: { id: string } | null }) => {
+                if (data) {
+                  console.log('[ConversationsListScreen] New conversation, silent refresh');
+                  void loadConversations(true, true);
+                }
+              })
+              .catch((err: unknown) => {
+                console.warn('[ConversationsListScreen] Membership check failed:', err);
+              });
+            return;
+          }
+
+          // In-place update of the one affected conversation — no full reload.
+          const current = conversationsRef.current;
+          const existing = current[tradeIndex];
+          const isOwnMessage = message.sender_id === userId;
+          const nextList = [...current];
+          nextList[tradeIndex] = {
+            ...existing,
+            last_message_content:
+              message.content?.trim() ||
+              (message.message_type === 'image'
+                ? '📷 Photo'
+                : existing.last_message_content),
+            last_message_time: message.created_at || existing.last_message_time,
+            // Unread only counts the counterparty's messages (mirrors getConversations).
+            unread_count: isOwnMessage
+              ? existing.unread_count
+              : existing.unread_count + 1,
+          };
+          nextList.sort(
+            (a, b) =>
+              new Date(b.last_message_time).getTime() -
+              new Date(a.last_message_time).getTime()
+          );
+          setConversations(nextList);
+          conversationsRef.current = nextList;
         }
       )
       .subscribe((status: string) => {
@@ -103,28 +175,71 @@ export default function ConversationsListScreen() {
     };
   }, [userId]);
 
-  const loadConversations = async () => {
+  const loadConversations = async (reset = true, silent = false) => {
     if (!userId) {
       console.error('[ConversationsListScreen] No userId available');
       setLoading(false);
       return;
     }
 
+    // `silent` = background refresh for the realtime new-conversation case:
+    // never flip the full-screen loading spinner for an in-place update.
+    if (reset && !silent) setLoading(true);
+
     try {
-      const convos = await getConversations(userId);
-      console.log('[ConversationsListScreen] Loaded', convos.length, 'conversations');
-      setConversations(convos);
+      const offset = reset ? 0 : offsetRef.current;
+      const page = await getConversations(userId, {
+        limit: CONVERSATION_PAGE_SIZE,
+        offset,
+      });
+
+      if (reset) {
+        offsetRef.current = CONVERSATION_PAGE_SIZE;
+        setConversations(page.conversations);
+        conversationsRef.current = page.conversations;
+      } else {
+        offsetRef.current = offset + CONVERSATION_PAGE_SIZE;
+        const seen = new Set(conversationsRef.current.map((c) => c.id));
+        const merged = [
+          ...conversationsRef.current,
+          ...page.conversations.filter((c) => !seen.has(c.id)),
+        ];
+        // Keep newest-first by last message time across pages.
+        merged.sort(
+          (a, b) =>
+            new Date(b.last_message_time).getTime() -
+            new Date(a.last_message_time).getTime()
+        );
+        setConversations(merged);
+        conversationsRef.current = merged;
+      }
+
+      setHasMore(page.hasMore);
+      console.log(
+        '[ConversationsListScreen] Loaded',
+        page.conversations.length,
+        'conversations (hasMore:',
+        page.hasMore,
+        ')'
+      );
     } catch (error) {
       console.error('[ConversationsListScreen] Error loading conversations:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
+  };
+
+  const loadMoreConversations = () => {
+    if (loadingMore || !hasMore || loading) return;
+    setLoadingMore(true);
+    void loadConversations(false);
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadConversations();
+    void loadConversations(true);
   };
 
   const handleConversationPress = async (conversation: Conversation) => {
@@ -280,6 +395,28 @@ export default function ConversationsListScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderConversationCard}
           contentContainerStyle={styles.listContent}
+          ListFooterComponent={
+            filteredConversations.length > 0 ? (
+              hasMore ? (
+                <TouchableOpacity
+                  style={styles.loadMoreButton}
+                  onPress={loadMoreConversations}
+                  disabled={loadingMore}
+                  testID="conversations-load-more"
+                >
+                  {loadingMore ? (
+                    <ActivityIndicator size="small" color="#5DBB8E" />
+                  ) : (
+                    <Text style={styles.loadMoreButtonText}>Load More</Text>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <Text style={styles.endOfListText} testID="conversations-end-of-list">
+                  You're all caught up
+                </Text>
+              )
+            ) : null
+          }
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#5DBB8E" />
           }
@@ -372,6 +509,31 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 16,
+  },
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    minWidth: 160,
+  },
+  loadMoreButtonText: {
+    color: '#5DBB8E',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  endOfListText: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginTop: 12,
+    marginBottom: 8,
   },
   conversationCard: {
     flexDirection: 'row',

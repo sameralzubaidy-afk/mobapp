@@ -42,7 +42,10 @@ function isMissingSellerColumnError(message: string): boolean {
 }
 
 async function fallbackCancelTrade(
-  supabaseClient: ReturnType<typeof createClient>,
+  // Use the concrete (permissive) service-role client type so this schema-drift fallback
+  // type-checks cleanly under `deno check` (BP-25). `ReturnType<typeof createClient>` alone
+  // resolves to a `never` schema that makes the .from(...) builders below fail to type-check.
+  supabaseClient: ReturnType<typeof createClient<any, 'public', any>>,
   trade: Record<string, unknown>,
   tradeId: string,
   userId: string,
@@ -220,25 +223,47 @@ serve(async (req: Request) => {
       }
     }
 
-    // 3. Handle Stripe refund if trade was paid and refund requested
+    // 3. Handle Stripe refund if trade was paid and refund requested.
+    // TAX-STATUS-LIFECYCLE (2026-07-23): In the current tax flow, an in_progress
+    // trade's PaymentIntent is still an UNCAPTURED authorization hold (capture happens
+    // only at buyer completion). Stripe does NOT allow refunds on uncaptured PIs — they
+    // must be CANCELLED. Previously this branch unconditionally called refunds.create(),
+    // which failed on uncaptured PIs and left the Stripe transaction stuck as
+    // "uncaptured" even though the trade was cancelled (TC-R05 / TC-O3-C07).
     if (issue_refund && trade.status === 'in_progress' && trade.stripe_payment_intent_id) {
       console.log('[cancel-trade] Checking existing refund for trade:', tradeId, 'stripe_refund_id:', trade.stripe_refund_id);
 
       // Idempotency: don't create a new refund if one already exists
       if (!trade.stripe_refund_id) {
-        console.log('[cancel-trade] Issuing Stripe refund for PI:', trade.stripe_payment_intent_id);
+        console.log('[cancel-trade] Issuing Stripe refund/cancel for PI:', trade.stripe_payment_intent_id);
         try {
-          const refund = await stripe.refunds.create({
-            payment_intent: trade.stripe_payment_intent_id,
-            reason: 'requested_by_customer',
-            metadata: { supabase_trade_id: tradeId },
-          });
+          const pi = await stripe.paymentIntents.retrieve(trade.stripe_payment_intent_id);
 
-          // Store refund id (service role) to prevent duplicate refunds
-          await supabaseClient.from('trades').update({ stripe_refund_id: refund.id }).eq('id', tradeId);
+          if (pi.status === 'requires_capture' || pi.status === 'processing') {
+            // Uncaptured authorization hold — cancel it (can't be refunded).
+            const cancelled = await stripe.paymentIntents.cancel(trade.stripe_payment_intent_id, {
+              cancellation_reason: 'requested_by_customer',
+            });
+            console.log('[cancel-trade] PI cancelled (uncaptured) for trade:', tradeId, 'PI:', cancelled.id);
+            // Store id (service role) to prevent duplicate refund/cancel on retry
+            await supabaseClient.from('trades').update({ stripe_refund_id: `cancelled_${cancelled.id}` }).eq('id', tradeId);
+          } else if (pi.status === 'succeeded') {
+            // Captured payment — issue a refund
+            const refund = await stripe.refunds.create({
+              payment_intent: trade.stripe_payment_intent_id,
+              reason: 'requested_by_customer',
+              metadata: { supabase_trade_id: tradeId },
+            });
+            console.log('[cancel-trade] Stripe refund issued:', refund.id);
+            // Store refund id (service role) to prevent duplicate refunds
+            await supabaseClient.from('trades').update({ stripe_refund_id: refund.id }).eq('id', tradeId);
+          } else {
+            // canceled / requires_payment_method / etc — nothing to refund or cancel
+            console.log('[cancel-trade] PI status is', pi.status, '- no refund/cancel needed for trade:', tradeId);
+          }
         } catch (stripeError: unknown) {
-          console.error('[cancel-trade] Stripe refund failed:', stripeError);
-          // We continue to cancel the trade in DB even if Stripe refund fails (might be already refunded)
+          console.error('[cancel-trade] Stripe refund/cancel failed:', stripeError);
+          // We continue to cancel the trade in DB even if Stripe fails (might be already refunded)
         }
       } else {
         console.log('[cancel-trade] Refund already recorded, skipping Stripe refund creation.');

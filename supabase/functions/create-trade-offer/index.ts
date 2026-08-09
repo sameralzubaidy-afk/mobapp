@@ -100,6 +100,93 @@ async function countPendingSlotsForSeller(
   return uniqueSlots.size;
 }
 
+/**
+ * Read seller fee config from admin_config at runtime.
+ * Returns the base seller percentage and both discount percentages (freemium, KC+).
+ */
+async function getSellerFeeConfig(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseClient: any,
+): Promise<{ basePct: number; discountFreePct: number; discountKcpPct: number }> {
+  // BP-11 (2026-07-27): Direct key lookup — NEVER rely on is_active filter
+  // because secure_upsert_admin_config may not set is_active = true on upsert.
+  // Since admin_config.key has a UNIQUE constraint, omitting the is_active filter
+  // is safe — at most one row per key.
+  const { data, error } = await supabaseClient
+    .from('admin_config')
+    .select('key, value')
+    .in('key', [
+      'platform_fee_seller_percentage',
+      'platform_fee_seller_discount_percentage_freemium',
+      'platform_fee_seller_discount_percentage_kids_club_plus',
+    ]);
+
+  if (error) {
+    console.error('[create-trade-offer] Failed to read seller fee config:', error);
+    throw { code: 'CONFIG_UNAVAILABLE', message: 'Fee configuration is unavailable. Please try again.' };
+  }
+
+  const configMap: Record<string, string> = {};
+  for (const row of data ?? []) {
+    configMap[row.key] = row.value;
+  }
+
+  const basePctStr = configMap['platform_fee_seller_percentage'];
+  if (!basePctStr) {
+    console.warn('[create-trade-offer] platform_fee_seller_percentage not found in admin_config, defaulting to 0');
+    return { basePct: 0, discountFreePct: 0, discountKcpPct: 0 };
+  }
+
+  const basePct = parseInt(basePctStr, 10);
+  if (!Number.isFinite(basePct) || basePct < 0 || basePct > 100) {
+    console.error('[create-trade-offer] Invalid platform_fee_seller_percentage:', basePctStr);
+    throw { code: 'CONFIG_UNAVAILABLE', message: 'Seller fee configuration is invalid. Please contact support.' };
+  }
+
+  const discountFreePct = parseInt(configMap['platform_fee_seller_discount_percentage_freemium'] ?? '0', 10);
+  const discountKcpPct = parseInt(configMap['platform_fee_seller_discount_percentage_kids_club_plus'] ?? '0', 10);
+
+  return { basePct, discountFreePct, discountKcpPct };
+}
+
+/**
+ * Calculate seller transaction fee in cents.
+ * SEL-FEE-SEMANTICS (2026-07-27): Config fields are now interpreted as ABSOLUTE percentages per tier:
+ * - platform_fee_seller_percentage = % for FREE users
+ * - platform_fee_seller_discount_percentage_kids_club_plus = % for SUBSCRIBED users
+ * (NOT base + discount model — each field is a direct percentage for that tier)
+ * 
+ * SEL-FEE-BASE (2026-07-27): Fee is calculated on item price (after SP),
+ * excluding buyer transaction fee.
+ */
+async function calculateSellerFeeCents(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseClient: any,
+  sellerUserId: string,
+  itemPriceAfterSP: number,
+  sellerFeeConfig: { basePct: number; discountFreePct: number; discountKcpPct: number },
+): Promise<number> {
+  // Determine seller's subscription tier
+  let sellerIsSubscriber = false;
+  try {
+    const { data: sellerSub } = await supabaseClient
+      .from('subscriptions')
+      .select('status')
+      .eq('user_id', sellerUserId)
+      .maybeSingle();
+    sellerIsSubscriber = (sellerSub as { status?: string } | null)?.status === 'active'
+      || (sellerSub as { status?: string } | null)?.status === 'trial';
+  } catch {
+    // Non-fatal: default to free tier if subscription lookup fails
+    console.warn(`[create-trade-offer] Failed to read seller subscription for ${sellerUserId}, defaulting to free tier`);
+  }
+
+  // SEL-FEE-SEMANTICS: Use absolute percentage for the seller's tier
+  // basePct = % for free users, discountKcpPct = % for subscribed users
+  const effectivePct = sellerIsSubscriber ? sellerFeeConfig.discountKcpPct : sellerFeeConfig.basePct;
+  return Math.round(itemPriceAfterSP * effectivePct / 100);
+}
+
 function jsonError(message: string, code: string, status: number, details?: Record<string, unknown>) {
   return new Response(
     JSON.stringify({ success: false, error: { code, message, ...(details ? { details } : {}) } }),
@@ -151,6 +238,10 @@ serve(async (req) => {
 
   const buyerId = user.id;
   const requestId = crypto.randomUUID();
+  // SERVER-SIDE ENFORCEMENT (2026-08-01): set in the batch branch by reading
+  // charge_one_fee_per_bundle; shared with the background PI metadata. Single-item
+  // offers never set it (stays false).
+  let oneFeePerBundle = false;
   console.log(`[create-trade-offer] req=${requestId} buyer=${buyerId}`);
 
   let body: {
@@ -249,7 +340,22 @@ serve(async (req) => {
       if (pm.customer === null) {
         await stripe.paymentMethods.attach(payment_method_id!, { customer: stripeCustomerId });
       } else if (pm.customer !== stripeCustomerId) {
-        return jsonError('Payment method not found on your account', 'INVALID_PAYMENT_METHOD', 400);
+        // CUSTOMER-DRIFT RECOVERY (2026-08-02): A saved PM can end up attached to a different
+        // Stripe customer than subscriptions.stripe_customer_id when a flow that creates a new
+        // customer (trade-payment / create-subscription-payment / setup-subscription-payment)
+        // overwrites the stored customer id while an older saved card stays attached to the
+        // original customer. This hard-reject made every offer fail with "Payment method not
+        // found on your account" even though the card visibly belongs to the user.
+        // Mirror the existing trade-payment detach+reattach pattern: move the user's own card
+        // (just retrieved successfully above) onto the canonical customer so the pre-auth hold
+        // can proceed. A card that cannot be moved (detach/attach failure) is still rejected.
+        try {
+          await stripe.paymentMethods.detach(payment_method_id!);
+        } catch (detachErr: unknown) {
+          console.error(`[create-trade-offer] req=${requestId} pm detach error:`, detachErr);
+          return jsonError('Payment method not found on your account', 'INVALID_PAYMENT_METHOD', 400);
+        }
+        await stripe.paymentMethods.attach(payment_method_id!, { customer: stripeCustomerId });
       }
     } catch (err: unknown) {
       console.error(`[create-trade-offer] req=${requestId} pm verify error:`, err);
@@ -329,6 +435,10 @@ serve(async (req) => {
     let vTaxJurisdiction: string | null = null;
     let vTaxSnapshot: Record<string, unknown> | null = null;
     let vIncludeFeeInBase = false;
+    // BP-FIX (2026-07-27): Tracks whether the server intentionally calculated tax (even if $0).
+    // Without this flag, vTaxAmountCents === 0 could mean either "exempt item" or "calc error",
+    // and the finalTaxCents fallback would wrongly use the client's non-category-aware value.
+    let vServerCalculatedTax = false;
 
     if (sellerNodeId && cashCents > 0) {
       vTaxableAmountCents = Math.round(item.price * 100);
@@ -361,23 +471,30 @@ serve(async (req) => {
         let vRuleTaxRate: number | null = null;
 
         if (taxCategoryId) {
+          // BP-fix (2026-07-29): pass item price so price-threshold rules
+          // (min_item_price_cents/max_item_price_cents) are actually enforced,
+          // not just stored and ignored.
           const { data: ruleData } = await supabase.rpc('get_applicable_tax_rule', {
             p_tax_category_id: taxCategoryId,
-            p_taxable_timestamp: new Date().toISOString(),
+            p_check_date: new Date().toISOString(),
+            p_item_price_cents: vTaxableAmountCents,
           });
 
-          const rule = ruleData as {
+          // BP-35: get_applicable_tax_rule returns TABLE (array). Extract first row.
+          const rulesArray = (ruleData as Array<{
             id?: string;
             version?: number;
             is_taxable?: boolean;
             tax_rate?: number | null;
             jurisdiction?: string;
-          } | null;
+          }> | null) ?? [];
+
+          const rule = rulesArray.length > 0 ? rulesArray[0] : null;
 
           if (rule) {
             vRuleId = rule.id ?? null;
             vRuleVersion = rule.version ?? null;
-            vIsTaxable = rule.is_taxable !== false; // default to taxable if null
+            vIsTaxable = rule.is_taxable !== false;
             vRuleTaxRate = rule.tax_rate ?? null;
 
             // If the rule has a jurisdiction override, use it
@@ -389,6 +506,12 @@ serve(async (req) => {
             if (vRuleTaxRate !== null && vRuleTaxRate !== undefined) {
               vTaxRate = vRuleTaxRate;
             }
+          } else {
+            // BP-35: No rule found for this category — treat as non-taxable (fail-safe: exempt rather than overtax)
+            // This handles the case where get_applicable_tax_rule returns zero rows (empty array)
+            // for categories like tax_exempt_goods when no active rule exists.
+            console.warn(`[create-trade-offer] No applicable tax rule found for category ${taxCategoryId} (${taxCategoryKey}) — treating as non-taxable`);
+            vIsTaxable = false;
           }
         }
 
@@ -397,6 +520,7 @@ serve(async (req) => {
           vTaxAmountCents = 0;
           vTaxRate = 0;
           vTaxableAmountCents = 0;
+          vServerCalculatedTax = true;
         } else {
           // Determine the taxable base:
           // Base = item price (always)
@@ -424,6 +548,8 @@ serve(async (req) => {
             vTaxAmountCents = Math.floor((taxableBase * vTaxRate) + 0.5);
           }
 
+          vServerCalculatedTax = true;
+
           // Store the tax snapshot for this item
           vTaxSnapshot = {
             items: [{
@@ -449,13 +575,39 @@ serve(async (req) => {
       }
     }
     console.log(`[perf][${itemId}] taxCalc done t=${Date.now() - tStart}ms`);
-    const finalTaxCents = vTaxAmountCents > 0 ? vTaxAmountCents : clientTaxCents;
+    // BP-FIX (2026-07-27): Use vServerCalculatedTax to distinguish "server intentionally
+    // calculated $0 (exempt)" from "server calc failed (error)". Previously, vTaxAmountCents === 0
+    // for exempt items would fall back to clientTaxCents (the client's non-category-aware value).
+    const finalTaxCents = vServerCalculatedTax ? vTaxAmountCents : clientTaxCents;
+
+    // SEL-005: Calculate seller transaction fee (platform commission deducted from seller's payout).
+    // SEL-FEE-BASE (2026-07-27): Fee is based on item price (after SP), EXCLUDING buyer transaction fee.
+    // The buyer's platform fee goes to the platform, not to the seller, so it should not be part of the seller's commission base.
+    let sellerTransactionFeeCents = 0;
+    if (cashCents > 0) {
+      try {
+        const sellerFeeConfig = await getSellerFeeConfig(supabase);
+        // Calculate on item price only: cashCents - txFeeCents (buyer's fee is not part of seller's revenue)
+        const itemPriceAfterSP = cashCents - txFeeCents;
+        sellerTransactionFeeCents = await calculateSellerFeeCents(supabase, sellerUserId, itemPriceAfterSP, sellerFeeConfig);
+      } catch (feeErr) {
+        console.error(`[create-trade-offer] req=${requestId} seller fee calc error for ${itemId}:`, feeErr);
+        // Non-fatal: seller fee defaults to 0 if config unavailable (graceful degradation for existing flows)
+      }
+    }
 
     // Stripe pre-auth hold
     let paymentIntentId: string | null = null;
     let authExpiresAt: string | null = null;
     if (cashCents > 0) {
       const stripeAmount = cashCents + finalTaxCents;
+      // PAYMENT-ITEMIZATION (2026-07-30): Surface the money breakdown (item price after
+      // SP, platform fee, sales tax, SP) to Stripe via a human-readable description + rich
+      // metadata, so the Stripe dashboard is auditable without querying Postgres.
+      // Note: trade_id is NOT available yet (trade row is inserted after the hold); the
+      // reverse mapping lives in trades.stripe_payment_intent_id. Bundle-path PIs include trade_id.
+      const itemPriceAfterSp = cashCents - txFeeCents;
+      const itemTitle = (item as { title?: string }).title ?? 'item';
       try {
         const tStripeStart = Date.now();
         const pi = await stripe.paymentIntents.create({
@@ -467,7 +619,18 @@ serve(async (req) => {
           capture_method: 'manual',
           off_session: true,
           confirm: true,
-          metadata: { type: 'trade_offer_hold', buyer_id: buyerId, item_id: itemId, request_id: requestId },
+          description: `Kids P2P · ${itemTitle.slice(0, 60)}`,
+          metadata: {
+            type: 'trade_offer_hold',
+            buyer_id: buyerId,
+            item_id: itemId,
+            bundle_id: bundle_id ?? '',
+            request_id: requestId,
+            item_price_cents: String(itemPriceAfterSp),
+            platform_fee_cents: String(txFeeCents),
+            tax_amount_cents: String(finalTaxCents),
+            sp_amount: String(spAmt),
+          },
         });
         console.log(`[perf][${itemId}] stripeCreate done t=${Date.now() - tStart}ms (stripe call itself took ${Date.now() - tStripeStart}ms)`);
 
@@ -504,6 +667,7 @@ serve(async (req) => {
         stripe_payment_intent_id: paymentIntentId,
         authorization_expires_at: authExpiresAt,
         total_fee_cents: txFeeCents,
+        seller_transaction_fee_cents: sellerTransactionFeeCents,
         sp_category_multiplier: categoryMultiplier,
         ...(bundle_id ? { bundle_id } : {}),
       })
@@ -567,6 +731,11 @@ serve(async (req) => {
     needsStripeHold: boolean;
     stripeAmount: number;
     listingTitle: string;
+    // PAYMENT-ITEMIZATION (2026-07-30): money breakdown carried into the background
+    // Stripe hold so description/metadata can be attached to the PaymentIntent.
+    itemPriceCents: number;
+    platformFeeCents: number;
+    taxCents: number;
   }
   interface BundlePhase1Error {
     error: string;
@@ -632,6 +801,7 @@ serve(async (req) => {
     let vTaxJurisdiction: string | null = null;
     let vTaxSnapshot: Record<string, unknown> | null = null;
     let vIncludeFeeInBase = false;
+    let vServerCalculatedTax = false;
 
     if (sellerNodeId && cashCents > 0) {
       vTaxableAmountCents = Math.round(item.price * 100);
@@ -661,18 +831,25 @@ serve(async (req) => {
         let vRuleTaxRate: number | null = null;
 
         if (taxCategoryId) {
+          // BP-fix (2026-07-29): pass item price so price-threshold rules
+          // (min_item_price_cents/max_item_price_cents) are actually enforced,
+          // not just stored and ignored.
           const { data: ruleData } = await supabase.rpc('get_applicable_tax_rule', {
             p_tax_category_id: taxCategoryId,
-            p_taxable_timestamp: new Date().toISOString(),
+            p_check_date: new Date().toISOString(),
+            p_item_price_cents: vTaxableAmountCents,
           });
 
-          const rule = ruleData as {
+          // BP-35: get_applicable_tax_rule returns TABLE (array). Extract first row.
+          const rulesArray = (ruleData as Array<{
             id?: string;
             version?: number;
             is_taxable?: boolean;
             tax_rate?: number | null;
             jurisdiction?: string;
-          } | null;
+          }> | null) ?? [];
+
+          const rule = rulesArray.length > 0 ? rulesArray[0] : null;
 
           if (rule) {
             vRuleId = rule.id ?? null;
@@ -687,6 +864,9 @@ serve(async (req) => {
             if (vRuleTaxRate !== null && vRuleTaxRate !== undefined) {
               vTaxRate = vRuleTaxRate;
             }
+          } else {
+            console.warn(`[create-trade-offer] No applicable tax rule found for category ${taxCategoryId} (${taxCategoryKey}) — treating as non-taxable`);
+            vIsTaxable = false;
           }
         }
 
@@ -694,6 +874,7 @@ serve(async (req) => {
           vTaxAmountCents = 0;
           vTaxRate = 0;
           vTaxableAmountCents = 0;
+          vServerCalculatedTax = true;
         } else {
           let taxableBase = vTaxableAmountCents;
           if (vIncludeFeeInBase) {
@@ -714,6 +895,8 @@ serve(async (req) => {
           } else {
             vTaxAmountCents = Math.floor((taxableBase * vTaxRate) + 0.5);
           }
+
+          vServerCalculatedTax = true;
 
           vTaxSnapshot = {
             items: [{
@@ -739,8 +922,26 @@ serve(async (req) => {
       }
     }
     console.log(`[perf][${itemId}] (bundle) taxCalc done t=${Date.now() - tStart}ms`);
-    const finalTaxCents = vTaxAmountCents > 0 ? vTaxAmountCents : clientTaxCents;
+    // BP-FIX (2026-07-27): Use vServerCalculatedTax to distinguish "server intentionally
+    // calculated $0 (exempt)" from "server calc failed (error)". Previously, vTaxAmountCents === 0
+    // for exempt items would fall back to clientTaxCents (the client's non-category-aware value).
+    const finalTaxCents = vServerCalculatedTax ? vTaxAmountCents : clientTaxCents;
     const needsStripeHold = cashCents > 0;
+
+    // SEL-005: Calculate seller transaction fee for bundle item
+    // SEL-FEE-BASE (2026-07-27): Fee is based on item price (after SP), EXCLUDING buyer transaction fee.
+    // The buyer's platform fee goes to the platform, not to the seller, so it should not be part of the seller's commission base.
+    let sellerTransactionFeeCents = 0;
+    if (cashCents > 0) {
+      try {
+        const sellerFeeConfig = await getSellerFeeConfig(supabase);
+        // Calculate on item price only: cashCents - txFeeCents (buyer's fee is not part of seller's revenue)
+        const itemPriceAfterSP = cashCents - txFeeCents;
+        sellerTransactionFeeCents = await calculateSellerFeeCents(supabase, sellerUserId, itemPriceAfterSP, sellerFeeConfig);
+      } catch (feeErr) {
+        console.error(`[create-trade-offer] req=${requestId} (bundle) seller fee calc error for ${itemId}:`, feeErr);
+      }
+    }
 
     // Phase 1 insert — stripe_payment_intent_id stays NULL; Phase 2 (background) fills it in.
     const { data: trade, error: tradeError } = await supabase
@@ -762,6 +963,7 @@ serve(async (req) => {
         stripe_payment_intent_id: null,
         authorization_expires_at: null,
         total_fee_cents: txFeeCents,
+        seller_transaction_fee_cents: sellerTransactionFeeCents,
         sp_category_multiplier: categoryMultiplier,
         ...(bundle_id ? { bundle_id } : {}),
       })
@@ -802,6 +1004,9 @@ serve(async (req) => {
       needsStripeHold,
       stripeAmount: cashCents + finalTaxCents,
       listingTitle: (item as { title?: string }).title ?? 'this item',
+      itemPriceCents: cashCents - txFeeCents,
+      platformFeeCents: txFeeCents,
+      taxCents: finalTaxCents,
     };
   }
 
@@ -863,7 +1068,19 @@ serve(async (req) => {
   // seller already declined it while the hold was being created, the hold is cancelled
   // immediately instead of being left as an orphaned authorization on the buyer's card.
   async function processStripeHoldInBackground(job: BundlePhase1Success) {
-    const { trade_id: tradeId, itemId, stripeAmount, listingTitle } = job;
+    const {
+      trade_id: tradeId,
+      itemId,
+      stripeAmount,
+      listingTitle,
+      itemPriceCents,
+      platformFeeCents,
+      taxCents,
+      sp_amount: jobSpAmount,
+    } = job;
+    // PAYMENT-ITEMIZATION: bundle_fee_mode is read once in the batch branch (server-side
+    // enforcement) and shared here for the PI metadata. Single-item offers leave it false.
+    const bundleFeeMode = oneFeePerBundle;
     try {
       const tStripeStart = Date.now();
       const pi = await stripe.paymentIntents.create({
@@ -875,7 +1092,20 @@ serve(async (req) => {
         capture_method: 'manual',
         off_session: true,
         confirm: true,
-        metadata: { type: 'trade_offer_hold', buyer_id: buyerId, item_id: itemId, request_id: requestId },
+        description: `Kids P2P · Bundle · ${listingTitle.slice(0, 50)}`,
+        metadata: {
+          type: 'trade_offer_hold',
+          buyer_id: buyerId,
+          item_id: itemId,
+          trade_id: tradeId,
+          bundle_id: bundle_id ?? '',
+          request_id: requestId,
+          item_price_cents: String(itemPriceCents),
+          platform_fee_cents: String(platformFeeCents),
+          tax_amount_cents: String(taxCents),
+          sp_amount: String(jobSpAmount),
+          bundle_fee_mode: bundleFeeMode ? 'one_per_bundle' : 'per_item',
+        },
       });
       console.log(`[perf][${itemId}] (bundle) background stripeCreate done in ${Date.now() - tStripeStart}ms`);
 
@@ -945,16 +1175,37 @@ serve(async (req) => {
     console.log(`[perf][batch] kicking off ${items!.length} items at t=0 (baseline)`);
     const tBatchStart = Date.now();
 
+    // SERVER-SIDE ENFORCEMENT (2026-08-01): The server is authoritative for
+    // charge_one_fee_per_bundle. If enabled, the fee (and the fee the client embedded
+    // in the cash amount) is dropped from every item beyond the first — even if a stale
+    // client still sends a per-item fee. Single-item mode is unaffected.
+    try {
+      const { data: feeMode } = await supabase
+        .from('admin_config')
+        .select('value')
+        .eq('key', 'charge_one_fee_per_bundle')
+        .eq('is_active', true)
+        .maybeSingle();
+      oneFeePerBundle = (feeMode as { value?: string } | null)?.value === 'true';
+    } catch (feeModeErr) {
+      console.warn(`[create-trade-offer] req=${requestId} charge_one_fee_per_bundle read failed, defaulting to per-item:`, feeModeErr);
+    }
+
     const phase1Results = await Promise.allSettled(
-      items!.map(it =>
-        createBundleOfferItemPhase1({
+      items!.map((it, idx) => {
+        const clientFee = it.transaction_fee_cents ?? 0;
+        // Base price after SP = what the client sent minus the fee it embedded.
+        const basePriceAfterSp = it.cash_amount_cents - clientFee;
+        const serverFee = (oneFeePerBundle && idx > 0) ? 0 : clientFee;
+        const serverCash = basePriceAfterSp + serverFee;
+        return createBundleOfferItemPhase1({
           itemId: it.item_id,
-          cashCents: it.cash_amount_cents,
+          cashCents: serverCash,
           spAmt: it.sp_amount ?? 0,
-          txFeeCents: it.transaction_fee_cents ?? 0,
+          txFeeCents: serverFee,
           taxCents: it.tax_amount_cents ?? 0,
-        })
-      )
+        });
+      })
     );
     console.log(`[perf][batch] phase1 (DB inserts) settled for all ${items!.length} items at t=${Date.now() - tBatchStart}ms`);
 

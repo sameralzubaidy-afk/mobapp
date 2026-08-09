@@ -1,8 +1,10 @@
 # MODULE-15.1.2 TradeFlowV2 — Manual Testing Guide
 
 **Source of truth:** `docx/TRADING-FLOW-V2.md` (v2.1, May 26 2026) · `Prompts/MODULE-15.2-cart-system.md` · `Prompts/MODULE-15.3-PART3-TAX-TASKS-RESTRUCTURED.md` · `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` · `docs/flow-registry.md` (FLOW-27)
-**Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine · Points Redemption
-**Last updated:** 2026-07-18
+**Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine · Points Redemption · Bundle Fee Modes (per-item / one-fee) · Admin Partial Refunds · Payments Reconciliation · Navigation Consistency · Top Nav Header Patterns · Copy Rename (Trade Basket) · Admin Bundle Trade Views · Bundle Checkout Skips In-Progress Items (Buyer Notified)
+**Last updated:** 2026-08-01
+**Merged:** 2026-08-01 — This is now the **single canonical copy**. The root-level `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` was merged into this file and marked DEPRECATED. All unique cases from both copies are preserved (A03–A04, K04–K10, M16–M20, O1-C17, Navigation Consistency S01–S15 → X01–X15, Flow Registry T01 → X16, U01–U05, V01–V14, W01–W12).
+**TC-L11 added:** 2026-08-01 — bundle checkout now notifies the buyer (branded OK modal) when one or more items are skipped because they already have an active/in-progress trade; the flow continues for eligible items (PARTIAL-SUCCESS).
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -14,6 +16,8 @@
 |---|---|---|
 | **A — Core Happy Paths** | TC-A01 | Cash Only: full happy path (buyer confirms) |
 | | TC-A02 | Accept SP: Use SP slider → seller accepts → buyer confirms |
+| | TC-A03 | Accept SP: Pay Cash (0 SP) — subscriber seller still earns SP |
+| | TC-A04 | Donate listing: [Claim] button, no charge |
 | **B — Offer Lifecycle** | TC-B01 | Seller declines offer |
 | | TC-B02 | Offer expires (seller never responds) + seller ignore prompt |
 | | TC-B03 | Multiple competing offers — sort order + auto-decline |
@@ -63,6 +67,7 @@
 | | TC-H02 | Subscriber buyer used SP — "You saved $X" |
 | | TC-H03 | Subscriber seller on Accept SP listing — SP pending notice |
 | | TC-H04 | Subscriber seller on Cash Only listing — upsell |
+| | TC-H05 | Subscription lifecycle — trial / paid / cancel regression |
 | **I — Safety UX** | TC-I01 | Safe meetup card on in_progress trade |
 | | TC-I02 | Safe meetup card dismissible per trade |
 | | TC-I03 | In-chat safety banner persistent |
@@ -76,6 +81,14 @@
 | **K — Value Stack & Fees** | TC-K01 | Subscriber sees $0.99 fee + Sales Tax line in value stack |
 | | TC-K02 | Non-subscriber sees $2.99 fee + Sales Tax line in value stack |
 | | TC-K03 | SP discount row conditional on SP used |
+| | TC-K04 | Bundle checkout — fee charged per item (admin toggle OFF) |
+| | TC-K05 | Bundle checkout — one fee per bundle (admin toggle ON) |
+| | TC-K06 | Bundle timeline — fee display matches charge mode |
+| | TC-K07 | Admin partial refund — refund price only, keep fee |
+| | TC-K08 | Admin partial refund — tax ledger partially refunded |
+| | TC-K09 | Payments reconciliation page — charged vs refunded per trade |
+| | TC-K10 | Server-side enforcement — one-fee-per-bundle with stale client |
+| | TC-K11 | Seller fee = 5% × cash portion (SP trade) |
 | **L — Bundle Flows** | TC-L01 | Bundle banner on trade detail |
 | | TC-L02 | Confirm All shortcut for bundle (buyer) |
 | | TC-L03 | Bundle offer rows in Offers tab (seller) |
@@ -85,6 +98,8 @@
 | | TC-L07 | Accept All N Items in Review Offer screen |
 | | TC-L08 | Individual accept/decline alongside bundle siblings |
 | | **TC-L09** | **Bundle card in Your Offers (buyer)** |
+| | TC-L10 | Bundle cancel prompt (buyer + seller) |
+| | TC-L11 | Bundle checkout skips items already in an active trade — buyer notified, flow continues |
 | **M — Cart (End User)** | TC-M01 | Add first item → active cart created |
 | | TC-M02 | Add second item from same seller |
 | | TC-M03 | Add item from different seller → choice modal |
@@ -100,6 +115,11 @@
 | | TC-M13 | Realtime: item becomes unavailable while in cart |
 | | TC-M14 | Favorites add / remove |
 | | TC-M15 | Favorites screen: availability + empty state |
+| | TC-M16 | Success toast appears and auto-dismisses on add-to-cart |
+| | TC-M17 | Cart badge increments in sync with toast |
+| | TC-M18 | Toast copy uses "Trade Basket" terminology |
+| | TC-M19 | Home dashboard Favorites quick-action tile navigates to Favorites |
+| | TC-M20 | Discover header heart icon navigates to Favorites |
 | **N — Cart (Admin)** | TC-N01 | Admin sets minimum cart value → reflects in app |
 | | TC-N02 | Admin minimum cart value validation |
 | | TC-N03 | Admin updates Minimum Listing Price on Config → Fees tab |
@@ -184,6 +204,48 @@
 | | TC-S11 | Regression: Discover/search grid unchanged (no badges) |
 | | TC-S12 | Regression: single-item offer flow unchanged |
 | | TC-S13 | Regression: seller identity unlocks only post-acceptance |
+| **X — Navigation Consistency & Bottom Nav** | TC-X01 | Bottom nav renders identically on Home (Dashboard) |
+| | TC-X02 | Bottom nav renders identically on Discover |
+| | TC-X03 | Bottom nav renders identically on Inbox |
+| | TC-X04 | Bottom nav renders identically on Cart |
+| | TC-X05 | Bottom nav renders on Item Detail / Cart Checkout / Trade screens |
+| | TC-X06 | Bottom nav renders on Profile, Settings, Wallet, Subscriptions |
+| | TC-X07 | Cart badge shows item count from multiple entry points |
+| | TC-X08 | Cart badge count accuracy — add / remove / clear |
+| | TC-X09 | "Me" tab removed — Profile still accessible via Home avatar |
+| | TC-X10 | Sell FAB opens action sheet on every screen |
+| | TC-X16 | Flow Registry (nav) — flow-registry.md entries updated |
+| **U — Top Nav Header Pattern Consistency** | TC-U01 | Root/tab screens use pattern 1 (no back button, greeting/avatar/title, bell) |
+| | TC-U02 | Secondary/detail screens use pattern 2 (back button + title + bell) |
+| | TC-U03 | Notification bell behavior + badge accuracy |
+| | TC-U04 | Screens without ScreenLayout still have working headers |
+| | TC-U05 | Checkout/payment screens intentionally hide the bell |
+| **V — Copy Rename Verification** | TC-V01 | "Trade Basket" appears in bottom tab bar |
+| | TC-V02 | "Trade Basket" appears as screen title on Cart screen |
+| | TC-V03 | Empty state shows "trade basket" in copy |
+| | TC-V04 | "View Trade Basket" button on Item Detail screen |
+| | TC-V05 | "Add to Trade Basket" button on More from This Seller screen |
+| | TC-V06 | "In Trade Basket" status on More from This Seller items already in basket |
+| | TC-V07 | "Added to Trade Basket" alert on item add |
+| | TC-V08 | "Matches Your Trade Basket" badge on matching items |
+| | TC-V09 | Different-seller modal references "trade basket" |
+| | TC-V10 | Bundle CTA says "Make one offer" (no "Bundle" visible) |
+| | TC-V11 | "Combined Offer" banner on checkout (no "Bundle" visible) |
+| | TC-V12 | Bundle Builder screen title shows "Build Offer" (no "Bundle" visible) |
+| | TC-V13 | Favorites "Added to Trade Basket" alert copy |
+| | TC-V14 | Functional behavior unchanged (adding items, submitting offers) |
+| **W — Admin Bundle Trade Views** | TC-W01 | Trades page has "Single Trades" and "Bundle Trades" tabs |
+| | TC-W02 | Single Trades tab shows only non-bundle trades |
+| | TC-W03 | Bundle Trades tab groups trades by bundle_id |
+| | TC-W04 | Bundle row shows item count, totals, buyer/seller, statuses |
+| | TC-W05 | Clicking a bundle row navigates to bundle detail page |
+| | TC-W06 | Bundle detail page lists all trades in the bundle |
+| | TC-W07 | Bundle detail page shows monetary breakdown |
+| | TC-W08 | Each trade row links to individual trade detail |
+| | TC-W09 | Bundle detail page has "Force Cancel Entire Bundle" action |
+| | TC-W10 | Force Cancel succeeds for all trades in the bundle |
+| | TC-W11 | Status filter works in Bundle Trades view |
+| | TC-W12 | Tab toggle resets filters when switching views |
 
 ---
 
@@ -262,6 +324,46 @@
 - The seller's offer row shows "$22 cash + 8 SP — Total: $30"; the Review screen shows the combined SP releasing at completion.
 - While In Progress, the buyer's SP stays reserved (not yet transferred to the seller).
 - After the buyer confirms: the trade completes; the buyer sees "Got it! You saved $8 using SP."; the seller's completion screen shows the SP (buyer 8 SP + platform reward) added to their pending wallet with a [View Wallet] button; the buyer's reserved SP returns to 0.
+
+---
+
+
+### TC-A03 · Accept SP listing: buyer pays cash (0 SP) — subscriber seller still earns SP
+
+**Ref:** TRADING-FLOW-V2 §7 Scenario S4
+**Actors:** test-buyer (subscriber) + test-seller (subscriber)
+
+**Objective:** Verify that an Accept SP listing paid fully in cash still grants the seller platform SP, with no buyer SP used.
+
+**Steps:**
+1. Log in as **Buyer** and open an **Accept SP** listing.
+2. Tap **[Request to Buy]** (do not use the SP slider) and submit the offer.
+3. Log in as **Seller** and accept the offer.
+4. Log in as **Buyer**, open the trade, and tap **[I Got It]** → **[Confirm]**.
+
+**Expected Result:**
+- The offer preview shows "$[price] cash, 0 SP" and no SP is reserved from the buyer.
+- The seller is charged the full cash amount.
+- After completion, the seller's completion screen shows the platform SP reward added to their pending wallet ("[platform_sp] SP releasing in [N] days (platform reward)") with a [View Wallet] button; no buyer SP is involved.
+
+---
+
+### TC-A04 · Donate listing: [Claim] button, no charge
+
+**Ref:** TRADING-FLOW-V2 §4.2
+**Actors:** Any buyer + test-seller
+
+**Objective:** Verify a donate listing can be claimed with no payment and no SP.
+
+**Steps:**
+1. Log in as **Buyer** and open a **Donate** listing.
+2. Tap **[Claim]**.
+3. Open the trade and complete it through the normal timeline flow.
+
+**Expected Result:**
+- Only a **[Claim]** button is shown (no "Request to Buy", no "Use SP").
+- No payment is taken and no card is charged.
+- The trade follows the same timeline; no SP is earned because there is no cash transaction.
 
 ---
 
@@ -1294,6 +1396,33 @@ SELECT public.rpc_process_expired_offers(100);
 
 ---
 
+### TC-H05 · Subscription lifecycle — trial / paid / cancel regression
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 § Subscriptions (FR-UM-004) · MODULE-11 SUB-002 / SUB-008 / SUB-009 · misc./SUB-002 / SUB-008 / SUB-009
+**Actors:** new user (onboarding), test user with payment method
+
+**Objective:** Verify the three subscription lifecycle transitions (trial start → paid conversion → cancel) still work end-to-end, and that the subscription state machine (status, `getSubscriptionSummary` feature gates, grace period) remains intact. This is a regression guard for R6/R7 — it must PASS today with the current in-app flows.
+
+**Steps:**
+1. **Trial start:** Sign up a fresh account (or use `SubscriptionChoiceScreen` onboarding) and enroll in the trial.
+2. Confirm status via `getSubscriptionSummary` → status = `trial`, `can_earn_sp` / `can_spend_sp` = true, `transaction_fee_cents` = 99.
+3. **Paid conversion:** Use the trial-conversion test screen (or Stripe webhook) to convert to a paid subscription.
+4. Confirm status = `active`, `stripe_subscription_id` set, `auto_renew_enabled` = true.
+5. **Cancel:** Open `ManageKidsClub` → Cancel, pick a reason, confirm.
+6. Confirm the post-cancel status matches the V2 rules (active user → `cancelled` with benefits until period end; trial user with SP activity → `grace_period`; trial user without SP → `free`).
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| Trial start | `subscriptions.status` = `trial`; `getSubscriptionSummary` returns `can_earn_sp=true`, `can_spend_sp=true`, `transaction_fee_cents=99`; buyer fee charged at $0.99 |
+| Paid conversion | Status transitions `trial` → `active`; `stripe_subscription_id` populated; `auto_renew_enabled=true`; $0.99 fee retained |
+| Cancel (active) | Status = `cancelled`; `cancelled_at` recorded; benefits (incl. SP spend) remain until period end; auto-renew off |
+| Cancel (trial, no SP) | Status = `free` — no grace period |
+| Cancel (trial, SP activity) | Status = `grace_period`; `grace_ends_at` = now + `admin_config.grace_period_days` (default 90); SP wallet frozen (`can_spend_sp=false`) |
+| Feature gates after cancel | `getSubscriptionSummary.can_earn_sp` / `can_spend_sp` = false in `grace_period` / `free` |
+
+---
+
 ##  passed Group I — Safety UX
 
 ###  passed TC-I01 · Safe meetup guidance card visible on in_progress trade
@@ -1538,6 +1667,213 @@ SELECT public.rpc_process_expired_offers(100);
 - With SP at 0 the "SP discount" row is hidden.
 - With SP at 5 the row appears showing `-5 SP`.
 - Returning to 0 hides the row again.
+
+---
+
+
+### passed TC-K04 · Bundle checkout — fee charged per item (admin toggle OFF)
+
+**Actors:** test-buyer (subscriber), test-buyer (free)
+**Precondition:** Admin toggle `charge_one_fee_per_bundle` is OFF (default). Bundle has 3+ items from the same seller.
+
+**Objective:** Verify that when the admin toggle is OFF, the platform fee is charged per item in the bundle.
+
+**Steps:**
+1. Log in as **test-buyer (subscriber)** on the mobile app.
+2. Add 3 items from the same seller to cart.
+3. Navigate to **CartCheckout** screen.
+4. Review the **Order Summary** section.
+5. Verify the **Platform Fee** row shows: `Platform Fee (×3 items): $2.97` (3 × $0.99).
+6. Verify the **Cash Total** includes 3× the platform fee.
+7. Tap **Send Offer** and complete checkout.
+8. Navigate to the bundle trade's **Timeline** screen.
+9. Expand the bundle item list ("View all items").
+10. Scroll to the **bundle totals** section.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| CartCheckout: Platform Fee label | Shows "Platform Fee (×3 items)" with dollar amount = 3 × subscriber fee |
+| CartCheckout: Cash Total | Includes 3× platform fee + subtotal - SP + tax |
+| Trade Timeline: Bundle totals | "Platform Fee" row sums all `buyer_transaction_fee_cents` = 3 × fee |
+| Toggle OFF + free user | Same behavior with non-subscriber fee ($2.99 per item) |
+| Single-item trade (non-bundle) | Fee charged once, no "(×1 items)" suffix |
+
+---
+
+### passed TC-K05 · Bundle checkout — one fee per bundle (admin toggle ON)
+
+**Actors:** test-buyer (subscriber), test-buyer (free)
+**Precondition:** Admin toggle `charge_one_fee_per_bundle` is ON (enabled). Bundle has 3+ items from the same seller.
+
+**Objective:** Verify that when the admin toggle is ON, the platform fee is charged only once for the entire bundle.
+
+**Steps:**
+1. Log in as **test-buyer (subscriber)** on the mobile app.
+2. Add 3 items from the same seller to cart.
+3. Navigate to **CartCheckout** screen.
+4. Review the **Order Summary** section.
+5. Verify the **Platform Fee** row shows: `Platform Fee: $0.99` (single fee, no ×N suffix).
+6. Verify the **Cash Total** includes exactly 1× the platform fee.
+7. Tap **Send Offer** and complete checkout.
+8. Navigate to the bundle trade's **Timeline** screen.
+9. Expand the bundle item list ("View all items").
+10. Scroll to the **bundle totals** section.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| Admin toggle ON | Config page at `localhost:3001/config` → Fees tab shows `Charge One Fee Per Bundle: Enabled` |
+| CartCheckout: Platform Fee label | Shows "Platform Fee: $0.99" — no "(×N items)" suffix |
+| CartCheckout: Cash Total | Includes exactly 1× platform fee + subtotal - SP + tax |
+| Trade Timeline: Bundle totals | "Platform Fee" row shows exactly 1× fee (single `buyer_transaction_fee_cents` across all bundle trades) |
+| Toggle ON + free user | One fee of $2.99 for the entire bundle |
+| Single-item trade (non-bundle) | Fee charged once — unaffected by toggle |
+
+---
+
+### passed TC-K06 · Bundle timeline — fee display matches charge mode
+
+**Actors:** test-buyer (subscriber)
+**Precondition:** Two bundle trades exist — one created with toggle OFF (per-item fees), one created with toggle ON (one fee).
+
+**Objective:** Verify the TradeTimelineScreen bundle total section correctly reflects the fee mode that was active when the offers were created.
+
+**Steps:**
+1. Log in as **test-buyer**.
+2. Open a bundle trade that was created with `charge_one_fee_per_bundle = OFF`.
+3. Expand "View all items" and scroll to bundle totals.
+4. Open a different bundle trade that was created with `charge_one_fee_per_bundle = ON`.
+5. Expand "View all items" and scroll to bundle totals.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| Toggle OFF bundle | "Platform Fee" = sum of all individual fees (e.g., $2.97 for 3 items at $0.99) |
+| Toggle ON bundle | "Platform Fee" = single fee (e.g., $0.99) |
+| Both bundles | "Items Total" and "Sales Tax" display correctly regardless of fee mode |
+
+---
+
+### passed TC-K07 · Admin partial refund — refund price only, keep fee
+
+**Actors:** admin (admin portal)
+**Precondition:** A `completed` trade exists with captured payment: price $100, fee $0.99, tax $7.00 (total charged $107.99).
+
+**Objective:** Verify the admin can issue a partial refund that returns the item price but KEEPS the platform fee, and the trade is NOT cancelled.
+
+**Steps:**
+1. Log in to admin portal → **Trades** → open the completed trade.
+2. In **Admin Interventions** → **Partial / Line-Item Refund**, tap **Issue Partial Refund**.
+3. In the modal set **Item Price = $100.00**, **Platform Fee = $0.00**, **Sales Tax = $7.00**.
+4. Enter a reason, tap **Refund $107.00**.
+5. Verify success alert.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| Stripe refund | Stripe refund of exactly $107.00 issued against the trade's PI (amount, not full $107.99) |
+| Trade status | Trade remains `completed` — NOT cancelled |
+| Payments ledger | `payments.refunded_cents` = $107.00; `status` = `partially_refunded`; `refunded_fee_cents` = $0 (fee kept) |
+| Refund history | A `trade_refunds` row exists with price $100 / fee $0 / tax $7 split |
+| Tax ledger | `tax_records.tax_status` = `refunded` (full tax reversed) |
+| Stripe dashboard | Refund shows amount $107.00 with metadata `admin_action=partial_refund` |
+
+---
+
+### passed TC-K08 · Admin partial refund — tax ledger partially refunded
+
+**Actors:** admin (admin portal)
+**Precondition:** A `completed` trade with tax $7.00 has already had a partial refund of the item price only (tax untouched).
+
+**Objective:** Verify a SECOND partial refund of the sales-tax component marks the tax ledger `refunded` (or `partially_refunded` on a split), and over-refund attempts are rejected.
+
+**Steps:**
+1. In admin → open the trade → **Issue Partial Refund**.
+2. Set **Sales Tax = $7.00** only (price and fee = 0). Refund.
+3. Try to refund **Sales Tax = $7.00** again on the same trade.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| First tax refund | `tax_records.tax_status` = `refunded`; `refunded_tax_cents` = $7.00 |
+| Duplicate / over-refund | Rejected with `REFUND_EXCEEDS_TAX` (or `REFUND_EXCEEDS_TOTAL`) — no double refund |
+| Payments ledger | `refunded_cents` never exceeds `total_charged_cents` |
+| Multiple refunds | Each refund creates its own `trade_refunds` row (history preserved) |
+
+---
+
+### passed TC-K09 · Payments reconciliation page — charged vs refunded per trade
+
+**Actors:** admin (admin portal)
+
+**Objective:** Verify the admin **Payments** page (sidebar → Payments) shows the charged snapshot vs. refunded totals for every trade and reconciles against Stripe.
+
+**Steps:**
+1. Log in to admin portal → sidebar **Payments**.
+2. Verify the summary strip: Payments count, **Total Charged**, **Total Refunded**, **Net Collected**.
+3. Verify each row shows: date, trade id (links to trade detail), buyer, item price, fee, tax, SP, **Charged** (price+fee+tax), **Refunded**, status pill, Stripe PI.
+4. Use the **status filter** (e.g., `partially_refunded`) and the **search** box (trade id / PI id / bundle id).
+5. Cross-check a `succeeded` row's **Charged** against the Stripe dashboard payment amount.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| Charged column | = item price + fee + tax (matches Stripe PI amount) |
+| Refunded column | Sums all refunds; shows `—` when 0 |
+| Net Collected | = Total Charged − Total Refunded |
+| Status pill | `succeeded` / `partially_refunded` / `refunded` / `cancelled` etc. |
+| Search by PI/bundle/trade | Filters correctly via PostgREST |
+| Trade link | Navigates to the trade detail page |
+
+---
+
+### deffered TC-K10 · Server-side enforcement — one-fee-per-bundle with stale client
+
+**Actors:** test-buyer (subscriber)
+**Precondition:** Admin toggle `charge_one_fee_per_bundle` is ON. A bundle has 3 items from the same seller.
+
+**Objective:** Verify the Edge Function enforces one fee per bundle EVEN IF the client still sends a per-item fee (stale app version).
+
+**Steps:**
+1. In a dev tool / the mobile app, submit a 3-item bundle checkout where the request body charges `transaction_fee_cents` on ALL 3 items (simulates an old client).
+2. Inspect the created trades.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| Fee on trades | Only item 0 has `buyer_transaction_fee_cents` > 0; items 1–2 have 0 |
+| Cash on trades | Items 1–2 `cash_amount_cents` = price − SP (fee removed server-side) |
+| Stripe holds | Stripe PI amounts for items 1–2 exclude the fee |
+| Single-item mode | Fee charged once — unaffected by enforcement |
+
+---
+
+### TC-K11 · Seller fee = 5% × cash portion (SP trade)
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8.1 (8.1.2 Seller fee / Example 2, 8.1.4 default 5%) · Migration `20260727000001_add_seller_transaction_fee_cents.sql`
+**Actors:** test-seller (free tier — deterministic 5%), test-buyer (subscriber)
+**Precondition:** `platform_fee_seller_percentage` = 5 (default seed). Seller is on the FREE tier so `effectivePct = basePct = 5` (subscriber-tier seller fee depends on `platform_fee_seller_discount_percentage_kids_club_plus` — see note). Item is $25, Accept SP enabled.
+
+**Objective:** Verify the seller fee is 5% of the **cash portion** (price − SP), NOT 5% of the full item price — this is the exact input contract R5 (SP redemption) must consume. Fee must be computed at offer time and deducted from the payout at completion.
+
+**Steps:**
+1. test-seller (free) lists a $25 item with **Accept SP** enabled.
+2. test-buyer (subscriber) submits an offer using **12 SP** on the $25 item → cash portion = $13.00, buyer fee = $0.99.
+3. Verify `trades.seller_transaction_fee_cents` on the created offer.
+4. test-seller accepts; test-buyer confirms completion.
+5. Verify `trades.payout_amount_cents` on the completed trade and the seller payout record.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| Offer-time fee | `seller_transaction_fee_cents` = round(5% × $13.00) = **$0.65 (65¢)** — NOT $1.25 (5% × $25 full price) |
+| Fee base | Based on cash portion (price − SP), excluding buyer fee — matches §8.1.2 Example 2 |
+| Completion payout | `payout_amount_cents` = cash portion − seller fee = $13.00 − $0.65 = **$12.35** (before provider payout fees) |
+| SP not fee'd | Seller still credited 12 SP (pending → released per SP rules); no fee deducted from SP |
+| Verification SQL | `SELECT sp_amount, cash_amount_cents, buyer_transaction_fee_cents, seller_transaction_fee_cents FROM trades WHERE listing_id = '<id>';` then after completion `SELECT payout_amount_cents FROM trades WHERE id = '<trade_id>';` |
+
+> Note: The subscriber-seller variant uses `platform_fee_seller_discount_percentage_kids_club_plus` (seed = 0). This is now editable in the admin portal at **Config → Trade Timing → Transaction Fees → Seller Fee % — Kids Club+**. Set it to 5 if the intended policy is a uniform 5% seller fee across tiers. The spec (§8.1.2 / §8.1.5) has been aligned to the code: seller fee = rate × cash portion (item price − SP), with per-tier admin config documented in §8.1.3.
 
 ---
 
@@ -1821,6 +2157,72 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
+### passed TC-L10 · Bundle cancel prompt (buyer + seller)
+
+**Ref:** TRADING-FLOW-V2 §11.3.1 (mirrors Addendum C "Confirm All" — FLOW-08-BUNDLE-CANCEL, 2026-08-01)
+**Actors:** test-buyer + test-seller
+**Precondition:** A bundle of 2+ trades sharing the same `bundle_id` exists (via cart checkout — see TC-L01 Option A).
+
+**Objective:** Verify that cancelling one trade in a bundle prompts the user to cancel the whole bundle or just this one — mirroring the "Confirm All" shortcut for completion.
+
+**Steps (Buyer cancels a pending bundle offer):**
+1. Log in as **test-buyer** and submit a 2+ item bundle offer to test-seller via cart checkout (both trades `pending`).
+2. Open one of the pending bundle trades from **Trades → Active → YOUR OFFERS**.
+3. Tap **[Cancel Trade]**, pick a reason, and confirm.
+4. Observe the bundle-scope prompt.
+
+**Steps (Seller cancels an in_progress bundle trade):**
+5. Log in as **test-seller**, accept the bundle so both trades are `in_progress`.
+6. Open one of the bundle trades and tap **[Cancel Trade]** (in_progress), pick a reason, and confirm.
+7. Observe the bundle-scope prompt.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| Bundle member cancel (buyer, pending) | A modal appears: **"Cancel all 2 items?"** with **[Cancel All 2]** (red confirm) and **[Just This One]**. |
+| Bundle member cancel (seller, in_progress) | Same modal appears: **"Cancel all 2 items?"** with **[Cancel All 2]** / **[Just This One]**. |
+| **[Cancel All N]** | All bundle trades (current + cancellable siblings) cancel; buyer's reserved SP (if any) restored; success toast "Your trades have been cancelled." |
+| **[Just This One]** | Only the current trade cancels; siblings stay `pending`/`in_progress`. |
+| Non-bundle cancel | **No** bundle-scope prompt — normal single-trade cancel modal only. |
+| Sibling in terminal state (completed/cancelled) | Excluded from the count (N reflects only cancellable trades). |
+| Report a Problem on a bundle member | **No** bundle prompt — dispute stays per-trade (spec Key invariant §11.3.1). |
+
+---
+
+### passed TC-L11 · Bundle checkout skips items already in an active trade — buyer notified, flow continues
+
+**Ref:** TRADING-FLOW-V2 §4.3 (duplicate active-offer check / D-30), §11.3.1 (bundle UX) — PARTIAL-SUCCESS (2026-08-01)
+**Actors:** test-buyer (subscriber) + test-seller
+**Precondition:** test-buyer already has an **active trade** (e.g. `in_progress`) on one of test-seller's listings. test-seller has at least 2 additional available listings. Cart feature flag is enabled.
+
+**Objective:** Verify that when a buyer submits a bundle (cart) checkout that includes an item already in an active trade, the app submits offers for the eligible items only, shows the buyer a branded, non-blocking notice (with an OK button), and lets them continue to the success screen — it does NOT stop the flow and does NOT create a duplicate offer.
+
+**Steps:**
+1. Log in as **test-buyer** and ensure one of test-seller's items is already in an **active trade** (buyer already has an offer on it — `pending` or `in_progress`).
+2. Add that in-progress item AND a second eligible item from test-seller to the cart.
+3. Open the **Cart** screen and tap **[Checkout]** (bundle mode).
+4. Review the order summary and tap **[Send Offer]** (accept any disclaimer as needed).
+5. Observe the screen after submission.
+
+**Expected Result:**
+| Scenario | Expected Outcome |
+|---|---|
+| Eligible item | Offer is submitted successfully (trade created, Stripe pre-auth hold placed). |
+| In-progress item | **No duplicate offer** is created — the create-trade-offer Edge Function returns `DUPLICATE_OFFER` for that item and it is skipped server-side. |
+| Buyer notice | A branded modal appears — title **"Already In an Active Trade"** (or **"Some Items Weren't Included"** for mixed reasons), message lists the skipped item(s) by name, ends with **"Your other offers were submitted successfully."** |
+| OK button | The modal has a single green **OK** button (`#5DBB8E`) per the design system — no native `Alert.alert`. |
+| Flow continues | Tapping **OK** navigates to the **TradeSuccess** screen for the successfully submitted offer(s). The buyer is NOT blocked. |
+| Data | `trades` returned by `create-trade-offer` contain only the eligible item's trade id; `errors` contain the skipped item's id + `DUPLICATE_OFFER`. |
+| Wallet/SP | SP reserved only for the eligible offer; no SP held for the skipped in-progress item. |
+| Cart | Cart is cleared after checkout (existing behavior). |
+
+**Negative / regression checks:**
+- A bundle where ALL items are eligible shows **no** notice modal — straight to TradeSuccess.
+- A single-item checkout that fails (e.g. duplicate) still shows the existing blocking error — no change.
+- Repeating the same in-progress item in a fresh bundle still shows the notice each time.
+
+---
+
 ## Group M — Cart (End User)
 
 ### passed TC-M01 · Add first item creates an active cart
@@ -1855,7 +2257,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - No modal appears; the item is added directly.
 - The Cart screen now lists 2 items under the same seller and the cart badge shows 2.
 
-### TC-M03 · Add item from a different seller shows the choice modal
+### passed TC-M03 · Add item from a different seller shows the choice modal
 
 **Actors:** test-buyer
 
@@ -1873,7 +2275,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - Tapping **Save & Start New Cart** moves the current cart to saved carts and starts a new active cart containing the test-seller-2 item.
 - Tapping **Cancel** closes the modal and leaves the original cart unchanged.
 
-### TC-M04 · Replace Cart option
+### passed TC-M04 · Replace Cart option
 
 **Actors:** test-buyer
 
@@ -1890,7 +2292,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - The previous test-seller items are removed (not saved).
 - The Cart screen shows only the test-seller-2 item under that seller.
 
-### TC-M05 · Cannot add your own item to cart
+### passed TC-M05 · Cannot add your own item to cart
 
 **Actors:** test-seller
 
@@ -1903,7 +2305,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 **Expected Result:**
 - The Add to Cart action is unavailable (hidden or disabled), or tapping it shows a message that you cannot add your own item.
 
-### TC-M06 · Cannot add an unavailable or out-of-node item
+### passed TC-M06 · Cannot add an unavailable or out-of-node item
 
 **Actors:** test-buyer
 
@@ -1917,7 +2319,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - A clear message explains the item is no longer available (sold/deleted) or not available in your area.
 - The item is not added to the cart.
 
-### TC-M07 · Duplicate item is prevented in the same cart
+### passed TC-M07 · Duplicate item is prevented in the same cart
 
 **Actors:** test-buyer
 
@@ -1933,7 +2335,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - The item is not duplicated; the cart count is unchanged.
 - The UI indicates the item is already in the cart (e.g., button reads "In Cart").
 
-### TC-M08 · Remove an item from the cart
+### passed TC-M08 · Remove an item from the cart
 
 **Actors:** test-buyer
 
@@ -1947,7 +2349,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - The removed item disappears from the list and the cart badge decrements.
 - The cart total updates to reflect the remaining item.
 
-### TC-M09 · Clear the cart
+###  passed TC-M09 · Clear the cart
 
 **Actors:** test-buyer
 
@@ -1961,7 +2363,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - All items are removed and the screen shows an empty-cart state.
 - The cart badge shows 0 or disappears.
 
-### TC-M10 · Saved carts: max 3, LRU eviction, switch cart
+### passed TC-M10 · Saved carts: max 3, LRU eviction, switch cart
 
 **Actors:** test-buyer
 
@@ -1976,7 +2378,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - At most 3 saved carts are kept; the oldest saved cart is dropped when the 4th is saved.
 - Tapping Switch Cart makes the chosen saved cart the active cart and moves the previously active cart into saved.
 
-### TC-M11 · Minimum cart value warning and blocked checkout
+### deffered TC-M11 · Minimum cart value warning and blocked checkout
 
 **Actors:** test-buyer
 
@@ -1992,7 +2394,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - The checkout button is disabled/blocked while below the minimum.
 - Adding more items to exceed the minimum clears the warning and enables checkout.
 
-### TC-M12 · Max SP available shown per cart item (subscriber)
+### passed TC-M12 · Max SP available shown per cart item (subscriber)
 
 **Actors:** test-buyer (subscriber)
 
@@ -2008,7 +2410,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - Items from Cash Only sellers show no SP indicator.
 - The actual SP amount is chosen later on the checkout screen, not in the cart.
 
-### TC-M13 · Realtime: item becomes unavailable while in cart
+### passed TC-M13 · Realtime: item becomes unavailable while in cart
 
 **Actors:** test-buyer, test-seller
 
@@ -2056,9 +2458,100 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
+
+### passed TC-M16 · Success toast appears and auto-dismisses on add-to-cart
+
+**Actors:** test-buyer
+
+**Objective:** Verify that tapping "Add to Cart" shows a non-blocking success toast that auto-dismisses without requiring a tap.
+
+**Steps:**
+1. Log in as **test-buyer** and open an available item from **test-seller**.
+2. Tap **Add to Cart**.
+
+**Expected Result:**
+- A green success toast slides in from the top of the screen immediately after the item is added.
+- The toast contains a shopping cart icon and the message "Added to Trade Basket".
+- The user can continue interacting with the screen (scroll, tap other buttons) while the toast is visible — it is **not** blocking like `Alert.alert`.
+- After approximately 2.5 seconds, the toast slides out and disappears automatically.
+- No "OK" button or user interaction is required to dismiss it.
+
+### passed TC-M17 · Cart badge increments in sync with toast
+
+**Actors:** test-buyer
+
+**Precondition:** cart badge currently shows N items (e.g., 0).
+
+**Objective:** Verify that the bottom-nav cart badge count increments to N+1 at the same time as the success toast appears.
+
+**Steps:**
+1. Log in as **test-buyer** and note the current cart badge count on the bottom nav.
+2. Open an available item from **test-seller** and tap **Add to Cart**.
+3. Observe the bottom-nav cart badge.
+
+**Expected Result:**
+- The cart badge increments to N+1 simultaneously with the toast appearing (no perceptible delay).
+- The increment happens before the toast auto-dismisses — the user sees both the toast and the updated badge at the same time.
+- Repeating the test with M02 (add second item from same seller) and M04 (Replace Cart) also shows correct badge increments.
+
+### passed TC-M18 · Toast copy uses "Trade Basket" terminology
+
+**Actors:** test-buyer
+
+**Objective:** Verify all success-toast copy uses "Trade Basket" language (matching TC-V07).
+
+**Steps:**
+1. Log in as **test-buyer** and add an item from **test-seller** to the cart.
+2. Observe the success toast text.
+3. Repeat via the **Replace Cart** path (add item from test-seller-2 and choose Replace Cart).
+4. Repeat via the **Save & Start New Cart** path (add from test-seller-3).
+
+**Expected Result:**
+- The toast message always reads **"Added to Trade Basket"** (never "Added to Cart", never "Added to Basket").
+- The toast subtitle (when shown, e.g., cross-node warning) also uses "Trade Basket" language and matches the cross-node copy from the spec.
+- All three add paths (direct add, Replace Cart callback, Save & Start New Cart callback) show the same "Added to Trade Basket" message.
+
+---
+
+### passed TC-M19 · Home dashboard Favorites quick-action tile navigates to Favorites
+
+**Actors:** test-buyer (any logged-in user)
+
+**Objective:** Verify the Home dashboard quick-action grid has a Favorites tile that navigates to the Favorites screen.
+
+**Steps:**
+1. Log in as **test-buyer** and land on the **Home** dashboard.
+2. Scroll the quick-action grid row to find the **Favorites** tile (heart icon, labeled "Favorites").
+3. Tap the **Favorites** tile.
+
+**Expected Result:**
+- The Favorites tile is visible with a heart icon and the label "Favorites".
+- Tapping it navigates to the Favorites screen showing the user's saved items.
+- The [View Favorites →] link on the Trade Basket screen (Cart → Favorites) continues to work identically.
+
+---
+
+### passed TC-M20 · Discover header heart icon navigates to Favorites
+
+**Actors:** test-buyer (any logged-in user)
+
+**Objective:** Verify the Discover screen header has a heart icon button that navigates to the Favorites screen.
+
+**Steps:**
+1. Log in as **test-buyer** and navigate to the **Discover** tab.
+2. Locate the heart icon button in the controls row (between the filter/funnel button and the Sort dropdown).
+3. Tap the heart icon.
+
+**Expected Result:**
+- A pink/red heart icon button is visible in the Discover header controls row with accessibility label "View Favorites".
+- Tapping it navigates to the Favorites screen showing the user's saved items.
+- The heart icon does not toggle or change state — it is a navigation trigger only.
+
+---
+
 ## Group N — Cart (Admin)
 
-### TC-N01 · Admin sets minimum cart value and it reflects in the app
+### deffered TC-N01 · Admin sets minimum cart value and it reflects in the app
 
 **Actors:** Admin, test-buyer
 
@@ -2219,7 +2712,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - The two above-threshold items published successfully (or show as pending).
 - The bulk session is not entirely rejected — valid items still publish.
 
-### TC-N14 · Regression: minimum-price validation still blocks publish in single-item and bulk flows
+### defeered TC-N14 · Regression: minimum-price validation still blocks publish in single-item and bulk flows
 
 **Actors:** test-seller
 
@@ -2235,7 +2728,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - After raising the price above the threshold, all three flows allow publication.
 - The threshold value is read from the admin config (dynamic, not hardcoded).
 
-### TC-N05 · Bulk listing: below-threshold items flagged, valid items still publish
+### defeered TC-N05 · Bulk listing: below-threshold items flagged, valid items still publish
 
 **Actors:** test-seller
 **Precondition:** Admin has set `min_listing_price` to $5.00. test-seller has photos ready for a bulk upload.
@@ -2326,280 +2819,274 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-## Group O — Tax (End User)
+## Group O — Tax (End User Mobile App)
+
+**Focus:** Buyer-facing tax display, calculation correctness, SP interaction, refund visibility
 
 ### passed TC-O01 · Sales tax shown in checkout/cart breakdown (0 SP)
 
-**Actors:** test-buyer
-
-**Precondition:** The buyer's node has a tax rate configured (e.g., 6.35%) and sales tax is enabled globally.
-
-**Objective:** Verify the checkout/initiation breakdown shows a sales tax line with no SP applied. Covers both TradeInitiationScreen (buy-now) and CartCheckoutScreen (cart flow).
+**Precondition:** Node has 6.35% tax rate, global tax enabled, item is $30 `general_tangible_goods`.
 
 **Steps:**
-1. Log in as **test-buyer** and start checkout on an item without applying any SP (via TradeInitiationScreen).
-2. Review the price breakdown.
-3. Repeat on the **Cart Checkout** screen (add items to cart → tap Checkout).
+1. As **test-buyer**, open an item → tap **Request to Buy** (single-item flow).
+2. Observe the price breakdown on TradeInitiationScreen.
+3. Repeat via **Cart Checkout** flow (add item to cart → tap Checkout).
 
-**Expected Result:**
-- **TradeInitiationScreen:** Shows Item Price → Subtotal → **Sales Tax** → Platform Fee → Total.
+**Expected:**
+- **TradeInitiationScreen:** Shows Item Price → Subtotal → **Sales Tax** (calculated amount) → Platform Fee → Total.
 - **CartCheckoutScreen:** Shows Subtotal → SP Discount (if any) → Platform Fee → **Sales Tax** → Total.
-- The Sales Tax amount equals the node rate applied to the taxable amount, and the Total includes it.
-- The label reads "Sales Tax" (kid-friendly), not a technical jurisdiction name.
+- Tax amount = `FLOOR((3000 * 0.0635) + 0.5) = 191 cents = $1.91`.
+- Label reads **"Sales Tax"** (kid-friendly, not jurisdiction name).
+- Total includes the tax.
 
-### passed TC-O02 · Tax does not recalculates on SP slider change (offer + checkout)
+---
 
-**Actors:** test-buyer (subscriber)
+### passed TC-O02 · Tax recalculates on SP slider change (offer + checkout)
 
-**Objective:** Verify sales tax is not changed on the SP-discounted amount in both offer and checkout screens.
-
-**Steps:**
-1. Start checkout on an SP-eligible item as **test-buyer** (via TradeInitiationScreen).
-2. Move the SP slider up (e.g., apply the maximum 50%).
-3. Watch the breakdown update.
-4. Repeat on the **Make Offer** screen (TradeOfferScreen) with the same item.
-
-**Expected Result:**
-- The taxable amount does not drops by the SP discount and the **Sales Tax** recalculates on the lower (discounted) amount within ~300ms.
-- The Total updates accordingly. The platform fee is still charged in cash.
-- The recalculation applies on both `TradeInitiationScreen` and `TradeOfferScreen`.
-
-### passed TC-O03 · Tax is $0 when sales tax is disabled globally
-
-**Actors:** Admin, test-buyer
-
-**Objective:** Verify no tax is charged when sales tax is turned off globally.
+**Precondition:** test-buyer (subscriber) with ≥ 15 SP, item is $30 Accept SP, `include_fee_in_tax_base = false`.
 
 **Steps:**
-1. In the **admin portal**, disable sales tax globally.
+1. Open the $30 item → tap **Use SP** → move slider to apply 15 SP (max 50%).
+2. Watch the breakdown update in real time.
+3. Repeat on TradeOfferScreen.
+
+**Expected:**
+- Tax recalculates within ~300ms as the slider moves.
+- **Tax base = full $30 item price** (NOT reduced by SP — BP-37).
+- Tax amount stays at $1.91 (calculated on $30, not on $15 cash).
+- Platform fee ($0.99) is still charged in cash.
+- Recalculation applies on both TradeInitiationScreen and TradeOfferScreen.
+
+**⚠️ Known Issue:** Tax should NOT recalculate when SP changes (BP-37). If test shows tax recalculating, this is a bug.
+
+---
+
+### passed ✅ TC-O03 · Tax is $0 when sales tax is disabled globally
+
+**Steps:**
+1. As **test-admin**, navigate to Tax → Settings and uncheck **"Enable sales tax collection"**.
 2. As **test-buyer**, start checkout on any item.
 
-**Expected Result:**
-- The breakdown shows $0.00 sales tax (or the Sales Tax line is hidden).
-- The Total contains no tax.
+**Expected:**
+- Sales Tax line shows $0.00 (or is hidden).
+- Total = item price + platform fee only.
+- Stripe authorization = cash + fee (no tax).
 
-### passed TC-O04 · Tax is $0 when the node tax is disabled
+---
 
-**Actors:** Admin, test-buyer
-
-**Objective:** Verify no tax is charged when the buyer's node has tax disabled while global tax is on.
-
-**Steps:**
-1. In the **admin portal**, keep global tax enabled but disable tax for the buyer's node.
-2. As **test-buyer** in that node, start checkout.
-
-**Expected Result:**
-- The Sales Tax line shows $0.00 for items in that node.
-- The Total contains no tax.
-
-### deferred to post-MVP. TC-O05 · Tax-exempt user sees a Tax Free badge
-
-**Actors:** test-buyer (tax-exempt)
-
-**Objective:** Verify a tax-exempt buyer sees a Tax Free indicator at checkout.
+### passed ✅ TC-O04 · Tax is $0 when the node tax rate is disabled
 
 **Steps:**
-1. Log in as a tax-exempt **test-buyer** and start checkout.
+1. As **test-admin**, navigate to Tax → Nodes and set test-buyer's node rate to 0%.
+2. As **test-buyer**, start checkout.
+
+**Expected:**
+- Sales Tax = $0.00 for items in that node.
+- Items in other nodes with non-zero rates still collect tax normally.
+
+---
+
+### passed TC-O05 · Tax-exempt item shows Tax Free badge
+
+**Ref:** MODULE-15.3-PART3 TAX-011 (`Prompts/MODULE-15.3-sales-tax-engine.md`), `docx/design-system-passitup.md`
+**Actors:** test-seller (creates a tax-exempt listing) + test-buyer
+**Status:** Implemented 2026-08-01 — badge renders on the Item Detail Price Breakdown and all checkout surfaces (offer initiation, offer, cart checkout, trade detail/timeline).
+
+**Precondition:**
+- Global sales tax is **ENABLED** (`sales_tax_enabled = true`) and the buyer's node has a **non-zero** tax rate (6.35%) — so this test proves the badge comes from item exemption, NOT from tax being disabled or a zero node rate.
+- The **Books** product category maps to the **Tax Exempt Goods** tax category (default from `20260727000001_category_tax_mapping.sql`). Verify:
+  ```sql
+  SELECT c.name AS category, tc.key AS tax_category_key
+  FROM public.category_tax_mapping ctm
+  JOIN public.categories c      ON c.id = ctm.category_id
+  JOIN public.tax_categories tc ON tc.id = ctm.tax_category_id
+  WHERE c.name = 'Books';
+  -- Expected: category = 'Books', tax_category_key = 'tax_exempt_goods'
+  ```
+- test-seller has no existing active **Books** listing (a new one will auto-assign `tax_exempt_goods` via the `trg_set_default_tax_category` trigger).
+
+**Objective:** Verify a buyer sees a green **"Tax Free"** badge with **$0.00** when purchasing a tax-exempt item, and does **NOT** see it for taxable items or when tax is merely $0 from global/node config (TC-O03/TC-O04).
+
+**Steps:**
+1. As **test-seller**, create a new single-item listing under the **Books** category priced ≥ the admin minimum (e.g., $10.00), complete all required fields, and **Submit for Review**. Confirm it publishes.
+2. As **test-buyer**, open the item's **Item Detail** screen and scroll to the **💰 Price Breakdown** card.
+3. Observe the Sales Tax area (between Transaction Fee and Total).
+4. Tap **Request to Buy** → on the offer initiation screen, observe the tax area.
+5. If the item accepts SP and the buyer is a subscriber, advance to the offer screen (SP slider) and observe the value stack's tax row.
+6. Add a **second, non-exempt** listing (e.g., a Toys or Electronics item → General Tangible Goods) at a similar price and repeat steps 2–5.
+7. (Negative check) Have **test-admin** disable global tax (per TC-O03) or zero the buyer's node rate (per TC-O04), then open checkout on a taxable item.
 
 **Expected Result:**
-- A "Tax Free" badge is shown and the Sales Tax line is $0.00.
+| Scenario | Expected Outcome |
+|---|---|
+| Exempt item (Books) — Item Detail | A green pill badge reads **"Tax Free"** (text `#5DBB8E` on `#E8F5F0`, pill shape) with **$0.00** where the Sales Tax row would be. |
+| Exempt item (Books) — offer initiation / offer screen | Same **"Tax Free"** badge + **$0.00**; Total = item price + platform fee only (no tax). |
+| Exempt item (Books) — SP used (subscriber) | Badge stays; SP reduces cash, but the taxable base is still not taxed (**$0.00**). |
+| Exempt item (Books) — completed trade | Trade Timeline "Payment Details" shows the **"Tax Free"** badge instead of a tax row. |
+| Non-exempt item | **No** badge — a normal **"Sales Tax"** row shows the calculated amount (e.g., $1.91 on $30 @ 6.35%). |
+| Tax $0 because global tax disabled (TC-O03) | **No** "Tax Free" badge — the tax row is hidden (badge is reserved for item exemption). |
+| Tax $0 because node rate is 0 (TC-O04) | **No** "Tax Free" badge — same as above. |
 
-### passed TC-O06 · Transaction history shows tax details
+**Verification queries (optional):**
+```sql
+-- Confirm the new Books listing's tax category is exempt
+SELECT i.title, tc.key AS tax_category_key
+FROM public.items i
+LEFT JOIN public.tax_categories tc ON tc.id = i.tax_category_id
+WHERE i.seller_id = '<seller-uuid>'
+ORDER BY i.created_at DESC LIMIT 1;
+-- Expected: tax_category_key = 'tax_exempt_goods'
 
-**Actors:** test-buyer
+-- Confirm the exempt trade carried zero tax
+SELECT t.status, tr.tax_status, tr.tax_amount_cents, tr.taxable_amount_cents
+FROM public.trades t
+LEFT JOIN public.tax_records tr ON tr.trade_id = t.id
+WHERE t.buyer_id = '<buyer-uuid>'
+ORDER BY t.created_at DESC LIMIT 1;
+-- Expected: tax_amount_cents = 0, tax_status = 'quoted' (or 'voided' if cancelled)
+```
 
-**Objective:** Verify a completed purchase shows its tax breakdown in history.
+---
+
+### passed ✅ TC-O06 · Transaction history shows tax details
 
 **Steps:**
 1. Complete a taxable purchase as **test-buyer**.
-2. Open **Transaction History** and select that transaction.
-3. Tap **View Tax Details**.
+2. Navigate to **Trades → History** → select the completed trade.
+3. Scroll to **Payment Details** card.
 
-**Expected Result:**
-- The transaction list shows the tax amount on the row.
-- The tax detail view shows the taxable amount, tax rate as a percentage (e.g., "6.35%"), jurisdiction, and any refunded tax, all formatted in USD.
+**Expected:**
+- Payment Details shows: Cash Paid, SP Used (if any), Platform Fee, **Sales Tax**, Total.
+- Tax amount matches the value stored at offer time (from `tax_records.tax_amount_cents`).
+- Tax rate and jurisdiction are NOT shown (simplified for buyers).
 
-### TC-O07 · Refund shows proportional tax refunded
+---
 
-**Actors:** test-buyer, Admin
+### ⏭️ TC-O07 · Refund shows proportional tax refunded
 
-**Objective:** Verify a partial/full refund reflects a proportional tax refund to the user.
+**Status:** Admin dispute refund flow exists, but end-user "refund detail view" showing proportional tax is deferred.
 
-**Steps:**
-1. For a completed taxable transaction, have a 50% refund processed (via dispute/admin resolution).
-2. As **test-buyer**, open the transaction's tax details.
+**When implemented, verify:**
+- Partial refund (50%) → tax refunded = 50% of original tax.
+- Full refund → tax refunded = 100% of original tax.
+- Multiple partial refunds accumulate correctly, never exceeding original tax.
 
-**Expected Result:**
-- The tax detail view shows 50% of the original tax as "Refunded tax" and a reduced net tax.
-- A full refund shows the full tax refunded; multiple partial refunds accumulate correctly and never exceed the tax originally collected.
+---
 
-### TC-O08 · Tax shown on trade timeline/detail for buyer only
+### passed ✅ TC-O08 · Tax shown on trade timeline/detail for buyer only
 
-**Ref:** TRADING-FLOW-V2 §11.3
-
-**Actors:** test-buyer, test-seller
-
-**Precondition:** Sales tax is enabled globally and on the seller's node with a configured rate (e.g., 6.35%).
-
-**Objective:** Verify the buyer sees a Sales Tax line on in-progress and completed trade screens, while the seller does not.
+**Precondition:** Completed trade with captured tax.
 
 **Steps:**
-1. Submit an offer on a taxable item (with or without SP).
-2. Have the seller accept → trade moves to **In Progress**.
-3. Log in as **test-buyer** and open the trade → **Trade Timeline** screen.
-4. Scroll to the **Payment Details** section.
-5. Log in as **test-seller** and open the same trade.
-6. Complete the trade (buyer taps [I Got It] → [Confirm]).
-7. Log in as **test-buyer** and reopen the completed trade.
-8. Log in as **test-seller** and reopen the completed trade.
+1. As **test-buyer**, open a completed trade → scroll to **Payment Details**.
+2. As **test-seller**, open the same trade → scroll to **Payment Details**.
 
-**Expected Result:**
-- **In Progress (buyer view):** Payment Details shows Cash Paid, SP Used, Platform Fee, **Sales Tax** (live preview with rate and jurisdiction via `useTaxCalculation`), and Total including tax.
-- **In Progress (seller view):** Payment Details shows Platform Fee and Total — **no Sales Tax line**.
-- **Completed (buyer view):** Sales Tax row shows the stored tax amount applied at offer time (via `create-trade-offer` EF Option B). Total includes tax.
-- **Completed (seller view):** No Sales Tax line shown. Total = cash + platform fee only.
+**Expected:**
+- **Buyer view:** Shows Cash Paid, SP Used, Platform Fee, **Sales Tax** (with amount), Total.
+- **Seller view:** Shows Cash Received, Platform Fee, SP Earned → **NO Sales Tax line**.
+- Seller does NOT see tax (it's a buyer-side cost, not part of seller's payout calculation).
 
 ---
 
 ## Group O-1 — Tax by Catalog Category (Admin Configuration)
 
-> This group covers the catalog-level tax category system: admin management of versioned
-> tax rules by category, listing backfill, listing-level category overrides, fee-in-tax-base
-> toggle, and audit trail verification. Cross-references to Groups O (end-user tax UI),
-> P (admin tax), and Q (reviews) are noted where applicable.
->
-> **Key concept:** Tax rules are versioned and effective-dated. Editing a rule creates a new
-> prospective version — historical trades keep their recorded tax snapshot. Overlapping active
-> rules for the same category + jurisdiction + date range are blocked by a DB trigger.
-> The `include_fee_in_tax_base` admin_config toggle controls whether the mandatory buyer
-> platform fee ($0.99/$2.99) is included in the taxable base.
+**Focus:** Admin tax rules management, category mappings, price thresholds, versioning
 
-### TC-O1-C01 · Admin creates a new tax rule for general_tangible_goods
-
-**Ref:** tax-category-rules §1, §4
-**Actors:** test-admin
-
-**Objective:** Verify an admin can create a new effective-dated tax rule for an unused tax category.
+### passed ✅ TC-O1-C01 · Admin creates a new tax rule for general_tangible_goods
 
 **Steps:**
-1. Log in to the **admin portal** and navigate to **Tax → Tax Rules**.
-2. Tap **+ New Tax Rule**.
-3. In the form, select **General Tangible Goods** as the Tax Category.
-4. Enter **"Standard CT Tangible Goods Rate"** as the Display Name.
-5. Enter a description: *"Default taxable rate for physical goods in Connecticut."*
-6. Leave **Items in this category are taxable** checked.
-7. Enter **6.35** as the Tax Rate (%).
-8. Leave jurisdiction as **CT**.
-9. Leave Min/Max price blank (no thresholds).
-10. Set Effective From to **today's date**.
-11. Leave Effective To blank (ongoing).
-12. Tap **Create Rule**.
+1. Admin portal → **Tax → Tax Rules** → tap **+ New Tax Rule**.
+2. Select **General Tangible Goods** as Tax Category.
+3. Enter Display Name: **"Standard CT Tangible Goods Rate"**.
+4. Description: *"Default taxable rate for physical goods in Connecticut."*
+5. Leave **Items in this category are taxable** checked.
+6. Tax Rate: **6.35%**, Jurisdiction: **CT**.
+7. Leave Min/Max price blank, Effective From = today, Effective To = blank (ongoing).
+8. Tap **Create Rule**.
 
-**Expected Result:**
-- A success message appears: "Rule created successfully."
-- The rule appears in the table with version **v1**, Active status, Taxable, rate **6.35%**, CT jurisdiction.
-- A new row appears under Version History for the category.
-- The `admin_audit_logs` table contains a `tax_rule_created` entry for this action.
+**Expected:**
+- Success message: "Rule created successfully."
+- Rule appears in table with version **v1**, Active status, 6.35% rate, CT jurisdiction.
+- `admin_audit_logs` has a `tax_rule_created` entry.
 
-### TC-O1-C02 · Admin creates a second rule for same category — overlap blocked
+---
 
-**Ref:** tax-category-rules overlap validation trigger
-**Actors:** test-admin
-**Precondition:** An active ongoing rule exists for general_tangible_goods, CT, with effective_from today (TC-O1-C01).
+### ✅ TC-O1-C02 · Admin creates second rule for same category — overlap blocked
 
-**Objective:** Verify the DB trigger blocks creating a second overlapping active rule for the same category+jurisdiction+date range.
+**Precondition:** Active ongoing rule exists for general_tangible_goods, CT (TC-O1-C01).
 
 **Steps:**
-1. Still on the Tax Rules page, tap **+ New Tax Rule**.
-2. Select **General Tangible Goods**, jurisdiction **CT**.
-3. Enter display name **"Duplicate Rule Test"**.
-4. Set Effective From to **today** and Effective To blank.
-5. Tap **Create Rule**.
+1. Tap **+ New Tax Rule** → select General Tangible Goods, CT.
+2. Effective From = today, Effective To = blank.
+3. Tap **Create Rule**.
 
-**Expected Result:**
-- The save fails with an error message: "Overlapping active tax rule exists for category..." (the exact server error from the overlap trigger).
-- No duplicate rule appears in the table.
-- The original rule (TC-O1-C01) remains unchanged and active.
+**Expected:**
+- Save fails with error: **"Overlapping active tax rule exists for category..."**
+- No duplicate rule created.
+- Original rule unchanged.
 
-### TC-O1-C03 · Admin edits an existing rule — new version created
+---
 
-**Ref:** tax-category-rules versioning
-**Actors:** test-admin
-**Precondition:** An active rule exists for general_tangible_goods, CT (TC-O1-C01).
+### ✅ TC-O1-C03 · Admin edits existing rule — new version created
 
-**Objective:** Verify editing creates a new prospective version (v2) and closes the original.
+**Precondition:** Active rule exists (TC-O1-C01).
 
 **Steps:**
-1. On the Tax Rules page, locate the rule from TC-O1-C01 and tap **Edit**.
-2. Change the Display Name to **"Updated CT Tangible Goods Rate (v2)"**.
-3. Change the Tax Rate to **6.99**.
-4. Set Effective From to **tomorrow's date**.
-5. Tap **Create New Version**.
-6. Observe the table and the Version History.
+1. Locate the rule → tap **Edit**.
+2. Change Display Name to **"Updated CT Tangible Goods Rate (v2)"**.
+3. Change Tax Rate to **6.99%**, Effective From = tomorrow.
+4. Tap **Create New Version**.
 
-**Expected Result:**
-- A success message: "Rule updated — new version 2 created."
-- The original rule (v1) now shows **Inactive** status and its Effective To is set to the end of today.
-- The new rule (v2) shows **Active** status, rate **6.99%**, effective from tomorrow.
-- Version History shows both v1 (Inactive) and v2 (Active) in chronological order.
-- The `admin_audit_logs` table has a `tax_rule_updated` entry tracking the before/after values.
+**Expected:**
+- Success: "Rule updated — new version 2 created."
+- Original (v1) shows **Inactive**, Effective To = end of today.
+- New (v2) shows **Active**, rate 6.99%, effective from tomorrow.
+- Version History shows both v1 (Inactive) and v2 (Active).
+- `admin_audit_logs` has a `tax_rule_updated` entry with before/after values.
 
-### TC-O1-C04 · Admin deactivates a rule
+---
 
-**Ref:** tax-category-rules deactivation
-**Actors:** test-admin
-**Precondition:** A rule exists (can be the v2 from TC-O1-C03).
-
-**Objective:** Verify an admin can deactivate a rule, closing its effective period.
+### ✅ TC-O1-C04 · Admin deactivates a rule
 
 **Steps:**
-1. On the Tax Rules page, locate the active rule and tap **Deactivate**.
-2. Read the confirmation modal text.
-3. Tap **Deactivate** in the modal.
-4. Observe the table.
+1. Locate an active rule → tap **Deactivate**.
+2. Confirm in modal.
 
-**Expected Result:**
-- The confirmation modal warns: "This will set the rule as inactive and close its effective period. Historical trades that used this rule retain their recorded tax calculation."
-- After confirming, the rule shows **Inactive** status.
-- Its Effective To is set to the deactivation time.
-- The rule no longer appears in active-rule lookups.
+**Expected:**
+- Confirmation modal warns: "This will set the rule as inactive and close its effective period. Historical trades that used this rule retain their recorded tax calculation."
+- Rule shows **Inactive** status, Effective To set to deactivation time.
+- Rule no longer appears in active-rule lookups.
 
-### TC-O1-C05 · Existing listings backfill to general_tangible_goods
+---
 
-**Ref:** tax-category-rules backfill migration
-**Actors:** test-admin (verification only)
+### ✅ TC-O1-C05 · Existing listings backfill to general_tangible_goods
 
-**Objective:** Verify all existing listings (created before the migration) have `tax_category_id` set to `general_tangible_goods`.
+**Verification Query:**
+```sql
+-- Should return 0
+SELECT COUNT(*) AS items_without_tax_category 
+FROM public.items 
+WHERE tax_category_id IS NULL;
 
-**Steps:**
-1. Run the backfill verification query in the Supabase SQL Editor:
-   ```sql
-   SELECT COUNT(*) AS items_without_tax_category FROM public.items WHERE tax_category_id IS NULL;
-   ```
-2. Run a sample check:
-   ```sql
-   SELECT i.id, i.title, tc.key AS tax_category_key
-   FROM public.items i
-   LEFT JOIN public.tax_categories tc ON tc.id = i.tax_category_id
-   LIMIT 10;
-   ```
+-- Sample check — all should show general_tangible_goods
+SELECT i.id, i.title, tc.key AS tax_category_key
+FROM public.items i
+LEFT JOIN public.tax_categories tc ON tc.id = i.tax_category_id
+LIMIT 10;
+```
 
-**Expected Result:**
-- `items_without_tax_category` returns **0**.
-- The sample check shows every item has `tax_category_key = 'general_tangible_goods'`.
-- No existing listing reads, discovery, or purchase flows were broken by the backfill.
+**Expected:**
+- Zero items have NULL `tax_category_id`.
+- All items default to `general_tangible_goods`.
+- No regressions in discovery or purchase flows.
 
-### TC-O1-C06 · New single-listing creation receives default tax category
+---
 
-**Ref:** tax-category-rules default assignment
-**Actors:** test-seller
-
-**Objective:** Verify a newly created single listing automatically gets `general_tangible_goods` as its tax category.
+### ✅ TC-O1-C06 · New single-listing creation receives default tax category
 
 **Steps:**
-1. Log in as **test-seller** and create a new single listing (complete all required fields).
-2. Note the listing ID from the success screen or My Listings.
-3. Run the verification query:
+1. As **test-seller**, create a new single listing.
+2. Verify via SQL:
    ```sql
    SELECT i.title, tc.key, tc.name
    FROM public.items i
@@ -2607,21 +3094,17 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
    WHERE i.id = '<new-listing-uuid>';
    ```
 
-**Expected Result:**
-- The query returns the listing with `tax_category_key = 'general_tangible_goods'`.
-- The listing appears in Discovery and can be purchased normally (no regression).
+**Expected:**
+- Query returns `tax_category_key = 'general_tangible_goods'`.
+- Listing is discoverable and purchasable.
 
-### TC-O1-C07 · New bulk-listing creation receives default tax category
+---
 
-**Ref:** tax-category-rules default assignment
-**Actors:** test-seller
-
-**Objective:** Verify all items created through a bulk listing session get `general_tangible_goods`.
+### ✅ TC-O1-C07 · New bulk-listing creation receives default tax category
 
 **Steps:**
-1. Log in as **test-seller** and create a bulk listing with 2+ items.
-2. Complete all required fields and publish.
-3. Run the verification query:
+1. Create a bulk listing with 2+ items.
+2. Verify via SQL:
    ```sql
    SELECT i.title, tc.key, tc.name
    FROM public.items i
@@ -2631,25 +3114,19 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
    LIMIT 5;
    ```
 
-**Expected Result:**
-- The bulk-listed items have `tax_category_key = 'general_tangible_goods'`.
-- All items appear in My Listings and are purchasable (no regression).
+**Expected:**
+- All bulk items have `tax_category_key = 'general_tangible_goods'`.
+- All items appear in My Listings and are purchasable.
 
-### TC-O1-C08 · Admin changes an individual listing's tax category
+---
 
-**Ref:** tax-category-rules `update_item_tax_category_admin` RPC
-**Actors:** test-admin
-
-**Objective:** Verify an admin can change a listing's tax category from the admin items detail page.
+### ✅ TC-O1-C08 · Admin changes individual listing's tax category
 
 **Steps:**
-1. Log in to the **admin portal** and navigate to an item's detail page (e.g., via Items or Listings).
-2. Scroll to the **Tax Category** field.
-3. Tap **Change tax category**.
-4. Select a different category from the dropdown (e.g., **Clothing and Footwear (clothing_footwear)**).
-5. Tap **Save**.
-6. Observe the success message.
-7. Run the verification query:
+1. Admin portal → navigate to an item's detail page.
+2. Scroll to **Tax Category** field → tap **Change tax category**.
+3. Select **Clothing and Footwear (clothing_footwear)** → tap **Save**.
+4. Verify via SQL:
    ```sql
    SELECT i.title, tc.key AS tax_category_key
    FROM public.items i
@@ -2657,24 +3134,20 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
    WHERE i.id = '<item-uuid>';
    ```
 
-**Expected Result:**
-- A green success message: "Tax category updated."
-- The Tax Category field now shows the new category name and key.
-- The verification query confirms `tax_category_key = 'clothing_footwear'`.
-- The `admin_audit_logs` table has an `item_tax_category_changed` entry with old/new values.
+**Expected:**
+- Success message: "Tax category updated."
+- Tax Category field shows new category name.
+- Query confirms `tax_category_key = 'clothing_footwear'`.
+- `admin_audit_logs` has `item_tax_category_changed` entry.
 
-### TC-O1-C09 · Tax-exempt category configuration
+---
 
-**Ref:** tax-category-rules `tax_exempt_goods` seed category
-**Actors:** test-admin
-
-**Objective:** Verify the `tax_exempt_goods` category exists with default non-taxable behavior.
+### ✅ TC-O1-C09 · Tax-exempt category configuration
 
 **Steps:**
-1. Navigate to **Tax → Tax Rules** and verify **Tax Exempt Goods** appears in the category list.
-2. Create a new rule for **Tax Exempt Goods** with **Items in this category are taxable** unchecked.
-3. Save and verify the rule is active.
-4. Verify the applicable rule query returns `is_taxable = false`:
+1. Navigate to **Tax → Tax Rules** → verify **Tax Exempt Goods** in category list.
+2. Create a rule for Tax Exempt Goods with **Items in this category are taxable** unchecked.
+3. Verify via SQL:
    ```sql
    SELECT is_taxable FROM public.get_applicable_tax_rule(
      (SELECT id FROM public.tax_categories WHERE key = 'tax_exempt_goods' LIMIT 1),
@@ -2682,109 +3155,180 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
    );
    ```
 
-**Expected Result:**
-- The `tax_exempt_goods` category is pre-seeded and listed in the dropdown.
-- A rule can be created with `is_taxable = false`.
-- The `get_applicable_tax_rule` RPC returns `is_taxable = false`.
-
-### TC-O1-C10 · Price-threshold category configuration (clothing_footwear)
-
-**Ref:** tax-category-rules price threshold rules
-**Actors:** test-admin
-
-**Objective:** Verify price thresholds can be configured on a tax rule.
-
-**Steps:**
-1. On the Tax Rules page, create a new rule for **Clothing and Footwear (clothing_footwear)**.
-2. Set Display Name: **"CT Clothing — Under $50 threshold"**.
-3. Set **Items in this category are taxable** checked.
-4. Set Tax Rate to **6.35%**.
-5. Set Min Item Price to **$0.00** and Max Item Price to **$50.00**.
-6. Save and verify.
-7. View the rule in the table.
-
-**Expected Result:**
-- The rule saves successfully.
-- The table shows the price range: `$0.00 – $50.00`.
-- The Version History shows the rule with its price thresholds.
-- The overlap trigger does NOT block this rule (different category from TC-O1-C01).
-
-### TC-O1-C11 · Fee-in-tax-base toggle on and off
-
-**Ref:** tax-category-rules `include_fee_in_tax_base` admin_config
-**Actors:** test-admin
-
-**Objective:** Verify the fee-in-tax-base setting can be toggled and persists.
-
-**Steps:**
-1. Navigate to **Tax → Tax Settings**.
-2. Scroll to the **Marketplace Fee Tax Base** section.
-3. Verify the checkbox **Include marketplace transaction fee in sales-tax base** is present with a descriptive help text.
-4. Check the box and tap **Save Settings**.
-5. Verify success: "Tax settings saved."
-6. Refresh the page and confirm the checkbox is still checked.
-7. Run the verification query:
-   ```sql
-   SELECT key, value FROM public.admin_config WHERE key = 'include_fee_in_tax_base';
-   ```
-8. Verify the RPC returns the correct value:
-   ```sql
-   SELECT public.get_include_fee_in_tax_base();
-   ```
-9. Uncheck the box, save, and verify it persists as `false`.
-
-**Expected Result:**
-- The toggle is visible in the Tax Settings page with the label and help text.
-- Saving with the box checked: `admin_config` shows `value = 'true'`.
-- `get_include_fee_in_tax_base()` returns `true`.
-- After unchecking and saving: `value = 'false'` and the RPC returns `false`.
-- No change to checkout totals, Stripe behavior, or tax reporting (future prompt).
-
-### TC-O1-C12 · Unauthorized user cannot view or edit tax configuration
-
-**Ref:** tax-category-rules RLS + admin role check
-**Actors:** test-seller (non-admin)
-
-**Objective:** Verify a non-admin user cannot access or modify tax rules or categories.
-
-**Steps:**
-1. Log in to the **admin portal** as a **test-seller** (non-admin user).
-2. Navigate to **Tax → Tax Rules** directly via URL: `/tax/rules`.
-3. Attempt to call the `upsert_tax_rule` RPC from the browser console or API.
-
-**Expected Result:**
-- The Tax Rules page either redirects to login, shows an access-denied message, or loads the page but all mutation buttons (Create, Edit, Deactivate) are absent or disabled.
-- Direct RPC calls return: `{"success": false, "error": {"code": "FORBIDDEN", "message": "Admin role required"}}`.
-- Direct SQL `SELECT * FROM public.tax_rules` returns only the rows the non-admin user's RLS allows (should be all rows since the SELECT policy allows everyone to read, but the INSERT/UPDATE/DELETE is admin-only).
-
-### TC-O1-C13 · Audit trail accurately shows actor, timestamp, and before/after values
-
-**Ref:** tax-category-rules audit trigger
-**Actors:** test-admin
-
-**Objective:** Verify the audit trigger on `tax_rules` writes complete before/after information to `admin_audit_logs`.
-
-**Steps:**
-1. Perform a series of tax rule operations (create, edit, deactivate).
-2. Query the audit logs:
-   ```sql
-   SELECT actor_id, action_type, entity_type, entity_id, payload, created_at
-   FROM public.admin_audit_logs
-   WHERE entity_type = 'tax_rule'
-   ORDER BY created_at DESC
-   LIMIT 10;
-   ```
-
-**Expected Result:**
-- Each operation has its own audit row.
-- `action_type` is one of: `tax_rule_created`, `tax_rule_updated`, `tax_rule_deactivated`.
-- `actor_id` matches the authenticated admin user.
-- `payload` contains the before/after values for updates.
-- `created_at` is properly timestamped.
-- The audit log entry for an edit shows the old display_name, tax_rate, effective_to, etc. in the `before` object, and the new values in the `after` object.
+**Expected:**
+- `tax_exempt_goods` category is pre-seeded.
+- Rule can be created with `is_taxable = false`.
+- `get_applicable_tax_rule` returns `is_taxable = false`.
 
 ---
 
+### ✅ TC-O1-C10 · Price-threshold category configuration (clothing_footwear)
+
+**Steps:**
+1. Tax Rules page → create rule for **Clothing and Footwear**.
+2. Display Name: **"CT Clothing — Under $50 threshold"**.
+3. Tax Rate: 6.35%, Min Price: $0.00, Max Price: $50.00.
+4. Save and verify in table.
+
+**Expected:**
+- Rule saves successfully.
+- Table shows price range: `$0.00 – $50.00`.
+- Version History shows rule with price thresholds.
+- Overlap trigger does NOT block (different category from general_tangible_goods).
+
+---
+
+### ✅ TC-O1-C11 · Fee-in-tax-base toggle on and off
+
+**Steps:**
+1. Navigate to **Tax → Tax Settings**.
+2. Check **Include marketplace transaction fee in sales-tax base** → tap **Save**.
+3. Refresh and verify checkbox is still checked.
+4. Verify via SQL:
+   ```sql
+   SELECT key, value FROM public.admin_config WHERE key = 'include_fee_in_tax_base';
+   SELECT public.get_include_fee_in_tax_base();
+   ```
+5. Uncheck, save, and verify it persists as `false`.
+
+**Expected:**
+- Toggle visible with label and help text.
+- Saving with box checked: `admin_config.value = 'true'`, RPC returns `true`.
+- After unchecking: `value = 'false'`, RPC returns `false`.
+- No immediate change to checkout totals (future prompt).
+
+---
+
+### ⏭️ TC-O1-C12 · Unauthorized user cannot view or edit tax configuration
+
+**Status:** Deferred to post-MVP (admin role enforcement via RLS).
+
+---
+
+### ✅ TC-O1-C13 · Audit trail shows actor, timestamp, before/after values
+
+**Verification Query:**
+```sql
+SELECT actor_id, action_type, entity_type, entity_id, payload, created_at
+FROM public.admin_audit_logs
+WHERE entity_type = 'tax_rule'
+ORDER BY created_at DESC
+LIMIT 10;
+```
+
+**Expected:**
+- Each operation (create, edit, deactivate) has its own audit row.
+- `action_type`: `tax_rule_created`, `tax_rule_updated`, `tax_rule_deactivated`.
+- `actor_id` matches authenticated admin user.
+- `payload` contains before/after values for edits.
+
+---
+
+### ⚠️ TC-O1-C14 · Admin views and edits category→tax-category mapping
+
+**Steps:**
+1. Admin portal → **Tax → Category Mapping**.
+2. Verify table shows all 8 product categories with current mappings.
+3. For **Books** row, tap **Change** → select **General Tangible Goods** → **Save**.
+4. Change Books back to **Tax Exempt Goods** → **Save**.
+
+**Expected:**
+- Page loads with all 8 categories:
+  - Books → Tax Exempt Goods (default)
+  - Clothing → Clothing and Footwear
+  - All others → General Tangible Goods
+- Changing Books to General Tangible Goods saves successfully.
+- Changing back also saves successfully.
+- `admin_audit_logs` has `category_tax_mapping_changed` entries.
+
+---
+
+### ⚠️ TC-O1-C15 · Category mapping change affects new listings immediately
+
+**Steps:**
+1. As **test-admin**, verify Books is mapped to **Tax Exempt Goods**.
+2. As **test-seller**, create a new listing under **Books** category.
+3. Verify via SQL that it has `tax_category_key = 'tax_exempt_goods'`.
+4. As **test-admin**, change Books mapping to **General Tangible Goods**.
+5. As **test-seller**, create a *second* new listing under **Books**.
+6. Verify second listing has `tax_category_key = 'general_tangible_goods'`.
+7. Verify first listing's category is unchanged (not retroactively updated).
+
+**Expected:**
+- First listing: `tax_exempt_goods`.
+- After admin change, second listing: `general_tangible_goods`.
+- First listing unchanged.
+- No deploy needed — change is immediate.
+
+---
+
+### ⚠️ TC-O1-C16 · Admin cannot map to non-existent or inactive tax category
+
+**Steps:**
+1. Open **Tax → Category Mapping** → tap **Change** on any row.
+2. Attempt to save with empty dropdown.
+3. Attempt to supply fabricated UUID via console:
+   ```javascript
+   const { data } = await supabase.rpc('upsert_category_tax_mapping', {
+     p_category_id: '<any-valid-category-uuid>',
+     p_tax_category_id: '00000000-0000-0000-0000-000000000000'
+   });
+   ```
+
+**Expected:**
+- Empty dropdown: Save button disabled or shows validation error.
+- Direct RPC call with non-existent UUID returns: `{"success": false, "error": {"code": "NOT_FOUND", "message": "Tax category not found or inactive"}}`.
+- Mapping unchanged.
+
+---
+
+
+### ✅ TC-O1-C17 · Admin filters tax rules by active / inactive status
+
+**Steps:**
+1. Admin portal → **Tax → Tax Rules**.
+2. Locate the **status filter dropdown** next to the category filter (data-testid: `tax-rule-filter-status`).
+3. Verify it shows **"All statuses"** by default and all rules are visible.
+4. Select **"Active only"** from the dropdown.
+
+**Expected Result:**
+- Table updates to show only rules with an **Active** (green) badge.
+- Inactive rules are hidden.
+- No page reload / loading spinner — filter applies instantly.
+
+**Steps (continued):**
+5. Select **"Inactive only"** from the dropdown.
+
+**Expected Result:**
+- Table updates to show only rules with an **Inactive** (gray) badge.
+- Active rules are hidden.
+
+**Steps (continued):**
+6. Select **"All statuses"** again.
+7. Apply a category filter alongside the status filter (e.g., category = "Clothing and Footwear" + status = "Active only").
+
+**Expected Result:**
+- Both filters apply simultaneously.
+- Only active rules for the selected category are shown.
+- Switching back to "All statuses" shows all rules for that category.
+- Clearing the category filter shows all active rules across all categories.
+
+---
+
+## Group O-2 — Tax Status Lifecycle (Capture Deferred to Completion)
+
+**Focus:** Tax state machine (quoted → collected → refunded/voided), capture timing, SP interaction
+
+**Tax Status Values:**
+- `quoted`: Offer submitted, Stripe auth hold exists, no money moved
+- `collected`: Stripe capture succeeded, tax is payable
+- `voided`: Auth canceled/declined/expired before capture
+- `capture_failed`: Capture attempt failed
+- `refunded`: Full captured tax refunded
+- `partially_refunded`: Partial refund processed
+
+**Tax Status Lifecycle Diagram:**
+```
                       ┌─────────────────┐
                       │    quoted       │ ← Created at offer submission
                       └────────┬────────┘
@@ -2801,357 +3345,248 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
         partially_                           quoted (retry)
         refunded                              or voided
         (Stripe refund)
+```
 
-## Group O-2 — Tax Status Lifecycle (Capture Deferred to Completion)
+---
 
-> This group covers the state-based sales-tax lifecycle introduced in migration
-> `20260723000002_tax_status_lifecycle.sql`. Key behavioral change: Stripe PaymentIntent
-> capture is deferred from seller-accept to buyer-complete / auto-complete. Tax records
-> are `quoted` at offer submission, become `collected` only after Stripe capture confirms,
-> and become `voided` on cancellation/decline/expiry.
->
-> **Tax status values:**
-> - `quoted`: Offer has tax calculated; Stripe auth hold exists but no money moved
-> - `collected`: Stripe capture succeeded; tax is payable
-> - `voided`: Auth was canceled/declined/expired before capture
-> - `capture_failed`: Capture attempt failed; no money moved
-> - `refunded`: Full captured tax was refunded
-> - `partially_refunded`: Partial refund was processed
->
-> **Key concepts:**
-> - SP does NOT reduce the taxable amount (SP is payment tender, not a price discount)
-> - `include_fee_in_tax_base` toggle controls whether the platform fee is part of taxable base
-> - Category-level tax rules (from `tax_rules` table) are used per item
-> - Historical/backfill records are classified but not falsely marked as collected
+### ✅ TC-O2-C01 · Single taxable item, no SP — offer is quoted/authorized, not collected
 
-### TC-O2-C01 · Single taxable item, no SP — submitted offer is quoted/authorized, not collected
-
-**Ref:** tax-status-lifecycle §1
-**Actors:** test-buyer (subscriber) + test-seller
-**Precondition:** Seller's node has sales tax enabled (e.g., 6.35%). Item is `general_tangible_goods`. Buyer has a saved payment method.
-
-**Objective:** Verify that when a buyer submits an offer on a taxable item with no SP, the tax is marked `quoted` (not collected) and the Stripe PI is an uncaptured authorization hold.
+**Precondition:** Seller's node has 6.35% tax, item is `general_tangible_goods`, buyer has saved payment method.
 
 **Steps:**
-1. Log in as **test-buyer** and open a taxable item from **test-seller**.
-2. Set SP to 0 and submit the offer.
-3. Run the verification query:
+1. As **test-buyer**, submit an offer on a $30 item with SP = 0.
+2. Verify via SQL:
    ```sql
-   SELECT tr.id, tr.trade_id, tr.tax_status, tr.tax_amount_cents, tr.taxable_amount_cents,
-          tr.tax_snapshot, tr.captured_at IS NOT NULL AS is_captured
+   SELECT tr.id, tr.tax_status, tr.tax_amount_cents, tr.taxable_amount_cents,
+          tr.captured_at IS NOT NULL AS is_captured
    FROM public.tax_records tr
    JOIN public.trades t ON t.id = tr.trade_id
    WHERE t.buyer_id = '<buyer-uuid>' AND t.status = 'pending'
    ORDER BY tr.created_at DESC LIMIT 1;
    ```
-4. On Stripe Dashboard, find the PaymentIntent and verify its status.
+3. Check Stripe Dashboard for PI status.
 
-**Expected Result:**
+**Expected:**
 - `tax_status` = `'quoted'`
-- `captured_at` IS NULL (not captured)
-- `tax_snapshot` contains item-level category, rule, price, rate, fee-in-base flag
-- `tax_snapshot` has `items[0].is_taxable = true`, correct `tax_rate` (e.g., `0.0635`)
-- Stripe Dashboard shows the PI in `requires_capture` status (authorization hold only)
-- The Stripe authorization amount = `cash_cents + platform_fee + tax` (SP did not reduce taxable base)
+- `captured_at` IS NULL
+- `tax_snapshot` contains item-level category, rule, price, rate
+- Stripe Dashboard: PI in `requires_capture` status (authorization hold only).
 
-### TC-O2-C02 · Bundle with taxable, exempt, and threshold-based items — line-level tax correct
+---
 
-**Ref:** tax-status-lifecycle §1 (category-level calculation)
-**Actors:** test-buyer (subscriber) + test-seller
-**Precondition:** Seller has 3 items: Item A = `general_tangible_goods` (taxable), Item B = `tax_exempt_goods` (not taxable), Item C = `clothing_footwear` with a price-threshold rule active (under $50 min). Buyer has sufficient SP and saved payment method.
+### ⚠️ TC-O2-C02 · Bundle with taxable, exempt, and threshold items — line-level tax correct
 
-**Objective:** Verify that a bundle checkout calculates tax at the line-item level using each item's tax category, so exempt items don't get taxed and threshold-based items are correctly handled.
+**Precondition:** Seller has 3 items:
+- Item A = `general_tangible_goods` (taxable)
+- Item B = `tax_exempt_goods` (not taxable)
+- Item C = `clothing_footwear` with price-threshold rule (under $50 min)
 
 **Steps:**
-1. Log in as **test-buyer**.
-2. Add all 3 items to the cart and checkout as a bundle.
-3. After submission, run:
+1. Add all 3 items to cart and checkout as a bundle.
+2. Verify via SQL:
    ```sql
    SELECT tr.trade_id, tr.tax_status, tr.tax_amount_cents, tr.taxable_amount_cents,
           tr.tax_snapshot
    FROM public.tax_records tr
-   ORDER BY tr.created_at DESC LIMIT 1;
+   ORDER BY tr.created_at DESC LIMIT 3;
    ```
 
-**Expected Result:**
-- All trades have `tax_status = 'quoted'`
-- The `tax_snapshot` has ONE record per trade (single-item), but each reflects the correct category-level calculation
-- For Item B (tax_exempt): `tax_amount_cents = 0`, `is_taxable = false`
-- For Item C (clothing_footwear): tax rate and threshold applied per the active rule
-- Item A (general_tangible_goods): standard rate applied
-- The Stripe authorization total = sum of all items' cash + fees + tax (for taxable items only)
+**Expected:**
+- All trades have `tax_status = 'quoted'`.
+- Item B: `tax_amount_cents = 0`, `is_taxable = false`.
+- Item C: threshold rule applied correctly.
+- Item A: standard rate applied.
+- Stripe authorization = sum of cash + fees + tax (for taxable items only).
 
-### TC-O2-C03 · Platform-fee tax toggle off and on — tax base changes by fee amount
+---
 
-**Ref:** tax-status-lifecycle §1 (`include_fee_in_tax_base`)
-**Actors:** test-admin + test-buyer + test-seller
-
-**Objective:** Verify that toggling `include_fee_in_tax_base` changes the taxable base by exactly the platform fee amount for new offers (historical offers are unaffected).
+### ⚠️ TC-O2-C03 · Platform-fee tax toggle off and on — tax base changes by fee amount
 
 **Steps:**
-1. As **test-admin**, verify `include_fee_in_tax_base` is `false` in the admin portal **Tax → Settings**.
-2. As **test-buyer**, submit an offer on a $30 taxable item with no SP.
-3. Note the `taxable_amount_cents` and `tax_amount_cents` in `tax_records`.
-4. As **test-admin**, set `include_fee_in_tax_base` to `true` and save.
-5. As **test-buyer**, submit a second offer on a different $30 taxable item with no SP.
+1. As **test-admin**, verify `include_fee_in_tax_base` is `false`.
+2. As **test-buyer**, submit offer on $30 item with no SP.
+3. Note `taxable_amount_cents` and `tax_amount_cents`.
+4. As **test-admin**, set `include_fee_in_tax_base` to `true`.
+5. As **test-buyer**, submit second offer on different $30 item with no SP.
 6. Compare the two tax records.
 
-**Expected Result:**
-- First offer (fee-not-in-base): `taxable_amount_cents = 3000` (just item price), `tax_amount_cents = floor(3000 * 0.0635 + 0.5) = 191`
-- Second offer (fee-in-base): `taxable_amount_cents = 3000 + 99 = 3099`, `tax_amount_cents = floor(3099 * 0.0635 + 0.5) = 197`
-- Difference in tax = 6 cents (attributable to the $0.99 fee being included)
-- The `tax_snapshot.include_fee_in_tax_base` field is `false` for trade 1 and `true` for trade 2
-- The first offer's tax snapshot was NOT retroactively changed
+**Expected:**
+- First offer (fee NOT in base): `taxable_amount_cents = 3000`, `tax_amount_cents = 191`.
+- Second offer (fee IN base): `taxable_amount_cents = 3099`, `tax_amount_cents = 197`.
+- Difference = 6 cents (attributable to $0.99 fee).
+- First offer's snapshot unchanged (not retroactive).
 
-### TC-O2-C04 · SP used — taxable item base unchanged, card auth reflects SP tender
+---
 
-**Ref:** tax-status-lifecycle §1 (BP-37), TRADING-FLOW-V2 §4.4
-**Actors:** test-buyer (subscriber) + test-seller
-**Precondition:** Item is $30, accepts SP. Buyer has ≥ 15 SP.
+### ✅ TC-O2-C04 · SP used — taxable base unchanged, card auth reflects SP tender
 
-**Objective:** Verify the taxable base uses the full item price (not the SP-reduced cash amount), while the Stripe authorization total correctly reflects SP as payment tender.
+**Precondition:** Item is $30 Accept SP, buyer has ≥ 15 SP.
 
 **Steps:**
-1. Log in as **test-buyer** and open a $30 **Accept SP** item.
-2. Apply 15 SP (max 50% = $15.00).
-3. Submit the offer.
-4. Run:
+1. Open $30 item → apply 15 SP (max 50%).
+2. Submit offer.
+3. Verify via SQL:
    ```sql
    SELECT tr.tax_status, tr.taxable_amount_cents, tr.tax_amount_cents,
           tr.tax_snapshot->'items'->0->>'item_price_cents' AS item_price,
-          t.cash_amount_cents, t.sp_amount,
-          t.stripe_payment_intent_id
+          t.cash_amount_cents, t.sp_amount
    FROM public.tax_records tr
    JOIN public.trades t ON t.id = tr.trade_id
    ORDER BY tr.created_at DESC LIMIT 1;
    ```
 
-**Expected Result:**
-- `taxable_amount_cents` = 3000 (full item price — NOT 1500)
-- `tax_amount_cents` = calculated on 3000 (full price)
-- `cash_amount_cents` (on trade) = `3000 - 1500(sp) + fee = 1500 + fee` (SP reduced the cash due)
-- Stripe PI authorization amount = `1500(cash) + fee + tax` (correctly reflects SP as tender)
-- `tax_status` = `'quoted'`
-- `tax_snapshot.items[0].item_price_cents` = 3000
+**Expected:**
+- `taxable_amount_cents` = 3000 (FULL item price, NOT 1500) — **BP-37**.
+- `tax_amount_cents` = calculated on 3000.
+- `cash_amount_cents` = 1500 + fee (SP reduced cash, not taxable base).
+- Stripe PI authorization = `1500 + fee + tax`.
 
-### TC-O2-C05 · Seller accepts — tax remains quoted/authorized, not collected
+---
 
-**Ref:** tax-status-lifecycle §2, TRADING-FLOW-V2 §4.3
-**Actors:** test-buyer + test-seller
-**Precondition:** A `quoted` offer exists (TC-O2-C01 or C04).
+### ✅ TC-O2-C05 · Seller accepts — tax remains quoted/authorized, not collected
 
-**Objective:** Verify that seller acceptance does NOT capture the PI or change tax to collected.
+**Precondition:** A `quoted` offer exists.
 
 **Steps:**
-1. Log in as **test-seller** and accept the pending offer.
-2. Run:
+1. As **test-seller**, accept the pending offer.
+2. Verify via SQL:
    ```sql
-   SELECT t.status, t.auto_complete_at IS NOT NULL AS has_auto_complete,
-          tr.tax_status, tr.captured_at
+   SELECT t.status, tr.tax_status, tr.captured_at
    FROM public.trades t
    JOIN public.tax_records tr ON tr.trade_id = t.id
    WHERE t.id = '<trade-uuid>';
    ```
-3. On Stripe Dashboard, check the PI status.
+3. Check Stripe Dashboard.
 
-**Expected Result:**
-- `trades.status` = `'in_progress'`
-- `auto_complete_at` is set (48h from now)
-- `tax_status` = `'quoted'` (unchanged — still not collected)
-- `captured_at` IS NULL
-- Stripe Dashboard shows the PI still in `requires_capture` (uncaptured authorization)
-- The authorization hold is still on the buyer's card
+**Expected:**
+- `trades.status` = `'in_progress'`.
+- `tax_status` = `'quoted'` (unchanged).
+- `captured_at` IS NULL.
+- Stripe PI still in `requires_capture`.
 
-### TC-O2-C06 · Buyer cancels while Awaiting Seller — PI canceled, tax voided, SP released once
+---
 
-**Ref:** tax-status-lifecycle §3, TRADING-FLOW-V2 §7 S3
-**Actors:** test-buyer + test-seller
-**Precondition:** A `pending` quoted offer exists (buyer submitted, seller hasn't acted yet).
+### ✅ TC-O2-C06 · Buyer cancels while Awaiting Seller — PI canceled, tax voided, SP released once
 
-**Objective:** Verify that when a buyer actively cancels an offer while the seller hasn't yet accepted, the PI is immediately canceled, tax goes to voided, and SP is released exactly once (no double-release).
+**Precondition:** A `pending` quoted offer exists (used SP).
 
 **Steps:**
-1. Log in as **test-buyer** with a pending offer that used SP.
-2. Tap **Cancel Trade**, select a reason, and confirm.
-3. Run:
+1. As **test-buyer**, tap **Cancel Trade** → select reason → confirm.
+2. Verify via SQL:
    ```sql
-   SELECT t.status, t.cancellation_reason,
-          tr.tax_status, tr.voided_at
+   SELECT t.status, tr.tax_status, tr.voided_at
    FROM public.trades t
    JOIN public.tax_records tr ON tr.trade_id = t.id
    WHERE t.id = '<trade-uuid>';
-   ```
-4. Check the buyer's SP wallet:
-   ```sql
-   SELECT available_balance, reserved_sp FROM public.sp_wallets
+   
+   -- Check SP wallet
+   SELECT available_balance, reserved_sp 
+   FROM public.sp_wallets
    WHERE user_id = '<buyer-uuid>';
-   ```
-5. Check SP ledger for duplicate entries:
-   ```sql
-   SELECT transaction_type, amount, description
+   
+   -- Check for duplicate SP refund
+   SELECT transaction_type, amount 
    FROM public.sp_ledger
-   WHERE user_id = '<buyer-uuid>'
+   WHERE user_id = '<buyer-uuid>' 
      AND related_transaction_id = '<trade-uuid>'
      AND transaction_type = 'earn_refund';
    ```
 
-**Expected Result:**
-- `trades.status` = `'cancelled'`
-- `tax_status` = `'voided'`
-- `voided_at` IS NOT NULL
-- Stripe Dashboard: the PI is canceled (not just expired)
-- SP wallet: reserved SP is restored to available_balance exactly once
-- SP ledger: exactly 1 `earn_refund` entry for this trade (no duplicate)
-- Buyer receives confirmation that the offer was cancelled (in-app + push)
+**Expected:**
+- `trades.status` = `'cancelled'`.
+- `tax_status` = `'voided'`, `voided_at` IS NOT NULL.
+- Stripe PI canceled.
+- SP restored to available exactly once (no duplicate `earn_refund` entry).
 
-### TC-O2-C07 · Seller declines and offer expiry — PI canceled, tax voided
+---
 
-**Ref:** tax-status-lifecycle §3, TRADING-FLOW-V2 §7 S2, S3
-**Actors:** test-buyer + test-seller
-
-**Objective:** Verify that seller decline and offer expiry both cancel the PI and void the tax.
+### ✅ TC-O2-C07 · Seller declines and offer expiry — PI canceled, tax voided
 
 **Steps:**
-1. **Decline path**: Log in as **test-seller** and decline a pending offer.
-   ```sql
-   SELECT t.status, t.cancellation_reason,
-          tr.tax_status, tr.voided_at
-   FROM public.trades t
-   JOIN public.tax_records tr ON tr.trade_id = t.id
-   WHERE t.id = '<declined-trade-uuid>';
-   ```
-2. **Expiry path**: Fast-forward a different pending offer past its `offer_expires_at` and run the expiry cron.
+1. **Decline path:** As **test-seller**, decline a pending offer. Verify tax voided.
+2. **Expiry path:** Fast-forward a different offer past `offer_expires_at`, run expiry cron:
    ```sql
    UPDATE trades SET offer_expires_at = NOW() + INTERVAL '5 seconds'
    WHERE id = '<expiring-trade-uuid>' AND status = 'pending';
    SELECT public.rpc_process_expired_offers(100);
-   -- Then verify:
-   SELECT t.status, t.cancellation_reason,
-          tr.tax_status, tr.voided_at
-   FROM public.trades t
-   JOIN public.tax_records tr ON tr.trade_id = t.id
-   WHERE t.id = '<expiring-trade-uuid>';
    ```
+3. Verify both trades have `tax_status = 'voided'`.
 
-**Expected Result (both paths):**
-- `trades.status` = `'cancelled'`
-- `tax_status` = `'voided'`
-- `voided_at` IS NOT NULL
-- Stripe PI is canceled (not left as orphaned authorization)
-- SP is released exactly once (no double-release)
-- No Stripe charge appears (only a canceled authorization)
+**Expected (both paths):**
+- `trades.status` = `'cancelled'`.
+- `tax_status` = `'voided'`, `voided_at` IS NOT NULL.
+- Stripe PI canceled.
+- SP released exactly once.
 
-### TC-O2-C08 · Buyer completes successfully — capture succeeds, tax collected, seller funds released
+---
 
-**Ref:** tax-status-lifecycle §4, TRADING-FLOW-V2 §7 S1, S7
-**Actors:** test-buyer + test-seller
-**Precondition:** An `in_progress` trade exists with `tax_status = 'quoted'` and an uncaptured PI.
+### ✅ TC-O2-C08 · Buyer completes successfully — capture succeeds, tax collected
 
-**Objective:** Verify the full happy path: buyer taps [I Got It], PI is captured, tax becomes collected, SP is released, payout is triggered.
+**Precondition:** In Progress trade with `tax_status = 'quoted'`, uncaptured PI.
 
 **Steps:**
-1. Log in as **test-buyer** on an In Progress trade.
-2. Tap **[I Got It]** → **[Confirm]**.
-3. Run:
+1. As **test-buyer**, tap **[I Got It]** → **[Confirm]**.
+2. Verify via SQL:
    ```sql
-   SELECT t.status, t.completed_at,
-          tr.tax_status, tr.captured_at, tr.stripe_capture_id
+   SELECT t.status, tr.tax_status, tr.captured_at, tr.stripe_capture_id
    FROM public.trades t
    JOIN public.tax_records tr ON tr.trade_id = t.id
    WHERE t.id = '<trade-uuid>';
    ```
-4. On Stripe Dashboard, find the captured charge.
-5. Check seller SP wallet and payout status.
+3. Check Stripe Dashboard.
 
-**Expected Result:**
-- `trades.status` = `'completed'`
-- `tax_status` = `'collected'`
-- `captured_at` IS NOT NULL
-- `stripe_capture_id` matches the Stripe Charge ID
-- Stripe Dashboard shows the PI as `succeeded` with a captured charge
-- Seller SP wallet: `pending_balance` increased (SP earned)
-- Seller payout: `processing` or `pending` status
-- Tax snapshot was NOT modified — only `tax_status` and `captured_at` changed
-- Buyer's card was charged the full authorization amount (cash + fee + tax)
+**Expected:**
+- `trades.status` = `'completed'`.
+- `tax_status` = `'collected'`.
+- `captured_at` IS NOT NULL, `stripe_capture_id` matches Stripe Charge ID.
+- Stripe Dashboard: PI status `succeeded`, charge captured.
+- Seller SP wallet: `pending_balance` increased.
+- Seller payout: processing/pending.
 
-### TC-O2-C09 · Auto-complete after configured 48 hours — capture succeeds, tax collected, seller funds released
+---
 
-**Ref:** tax-status-lifecycle §4, TRADING-FLOW-V2 §7 S7
-**Actors:** test-buyer + test-seller
-**Precondition:** An `in_progress` trade with `auto_complete_at` set. QA fast-forwards past auto-complete time.
+### ✅ TC-O2-C09 · Auto-complete after 48 hours — capture succeeds, tax collected
 
-**Objective:** Verify the auto-complete path captures the PI and marks tax collected.
+**Precondition:** In Progress trade with `auto_complete_at` set.
 
 **Steps:**
-1. Fast-forward the trade's `auto_complete_at`:
+1. Fast-forward `auto_complete_at`:
    ```sql
    UPDATE trades SET auto_complete_at = NOW() + INTERVAL '5 seconds'
    WHERE id = '<trade-uuid>' AND status = 'in_progress';
    ```
-2. Run the auto-complete processor:
+2. Run auto-complete processor:
    ```sql
    SELECT public.rpc_process_auto_complete(100);
    ```
-3. Or trigger via the Edge Function (service role):
-   ```bash
-   curl -X POST <supabase_url>/functions/v1/process-auto-complete \
-     -H "Authorization: Bearer $SERVICE_ROLE_KEY"
-   ```
-4. Run verification:
-   ```sql
-   SELECT t.status, t.completed_at,
-          tr.tax_status, tr.captured_at
-   FROM public.trades t
-   JOIN public.tax_records tr ON tr.trade_id = t.id
-   WHERE t.id = '<trade-uuid>';
-   ```
+3. Verify as in TC-O2-C08.
 
-**Expected Result:**
-- `trades.status` = `'completed'`
-- `tax_status` = `'collected'`
-- `captured_at` IS NOT NULL
-- Stripe Dashboard: PI captured successfully
-- Seller SP and payout triggered normally
-- Buyer received auto-complete notification
+**Expected:**
+- Same as TC-O2-C08 (capture succeeds, tax collected, seller paid).
+- Buyer receives auto-complete notification.
 
-### TC-O2-C10 · Capture failure — no payout, no collected tax, recovery state visible
+---
 
-**Ref:** tax-status-lifecycle §4 (capture_failed)
-**Actors:** test-buyer + test-seller
-**Precondition:** An `in_progress` trade with an uncaptured PI. Simulate capture failure (e.g., by voiding the PI on Stripe Dashboard before completing, or using a test scenario where capture would fail).
+### ⚠️ TC-O2-C10 · Capture failure — no payout, no collected tax, recovery state visible
 
-**Objective:** Verify that when Stripe capture fails, the trade does NOT complete, tax is `capture_failed`, no payout is triggered, and no SP is released.
+**Precondition:** In Progress trade, uncaptured PI.
 
 **Steps:**
-1. Before the buyer taps [I Got It], void/cancel the PI on Stripe Dashboard.
+1. Before buyer taps [I Got It], void/cancel the PI on Stripe Dashboard.
 2. As **test-buyer**, tap **[I Got It]** → **[Confirm]**.
-3. Observe the error.
-4. Run:
-   ```sql
-   SELECT t.status, t.cancellation_reason,
-          tr.tax_status, tr.voided_at
-   FROM public.trades t
-   JOIN public.tax_records tr ON tr.trade_id = t.id
-   WHERE t.id = '<trade-uuid>';
-   ```
-5. Check seller payout status and SP wallet.
+3. Observe error.
+4. Verify via SQL.
 
-**Expected Result:**
-- The buyer sees a clear error: "Payment capture failed. Please try again or contact support."
-- `tax_status` = `'capture_failed'` (or `'voided'` if the Stripe error resulted in PI cancel)
-- `trades.status` remains `'in_progress'` (NOT completed)
-- Seller SP wallet is unchanged (no SP released)
-- No seller payout record is created
-- Admin can see the `capture_failed` tax record in the reporting dashboard
-- The trade is recoverable (buyer can retry or admin can intervene)
+**Expected:**
+- Error: "Payment capture failed. Please try again or contact support."
+- `tax_status` = `'capture_failed'` (or `'voided'` if PI canceled).
+- `trades.status` remains `'in_progress'` (NOT completed).
+- Seller SP unchanged, no payout created.
+- Trade is recoverable (buyer can retry or admin can intervene).
 
-### TC-O2-C11 · Duplicate webhook/retry — no duplicate tax collection, payout, refund, or SP event
+---
 
-**Ref:** tax-status-lifecycle §4 (idempotency)
-**Actors:** test-buyer + test-seller
-**Precondition:** A completed trade with `tax_status = 'collected'`. Simulate a duplicate webhook delivery.
-
-**Objective:** Verify that idempotency guards prevent double-processing when webhooks retry or EFs are called redundantly.
+### ⚠️ TC-O2-C11 · Duplicate webhook/retry — no duplicate tax collection, payout, or SP event
 
 **Steps:**
 1. Manually call `rpc_mark_tax_collected` twice:
@@ -3165,267 +3600,197 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
    SELECT public.rpc_refund_tax_with_status('<trade-uuid>', 100, 'test_dup');
    ```
 3. Check for duplicate SP ledger entries.
-4. Check `tax_records` for the refund.
 
-**Expected Result:**
-- `rpc_mark_tax_collected` on an already-collected record returns `success: true` with `action: 'idempotent'` — no second status change
-- `rpc_refund_tax_with_status` on an already-refunded record returns the remaining refundable amount correctly — no second `refunded_tax_cents` addition
-- SP ledger has exactly 1 earn_refund or spend_purchase entry per operation
-- `seller_payouts` has exactly 1 payout record for the trade
-- Duplicate Stripe webhook events (`charge.captured`, `charge.refunded`) do not create duplicate effects
+**Expected:**
+- `rpc_mark_tax_collected` on already-collected record returns `success: true, action: 'idempotent'`.
+- `rpc_refund_tax_with_status` on already-refunded record returns correct remaining refundable amount — no second addition.
+- SP ledger has exactly 1 entry per operation.
+- `seller_payouts` has exactly 1 payout record.
 
-### TC-O2-C12 · Historical/backfill records — clearly classified, never falsely marked as collected
+---
 
-**Ref:** tax-status-lifecycle §5 (backfill), migration BLOCK 9
-**Actors:** test-admin
+### ✅ TC-O2-C12 · Historical/backfill records — clearly classified, never falsely marked as collected
 
-**Objective:** Verify the backfill migration correctly classified historical tax records without falsely marking uncaptured trades as collected.
+**Verification Queries:**
+```sql
+-- Status distribution
+SELECT tr.tax_status, COUNT(*) AS count
+FROM public.tax_records tr
+GROUP BY tr.tax_status;
 
-**Steps:**
-1. Run the backfill classification query:
-   ```sql
-   SELECT tr.tax_status, COUNT(*) AS count
-   FROM public.tax_records tr
-   GROUP BY tr.tax_status
-   ORDER BY tr.tax_status;
-   ```
-2. Spot-check a completed pre-migration trade:
-   ```sql
-   SELECT t.id, t.status, t.completed_at,
-          tr.tax_status, tr.captured_at
-   FROM public.trades t
-   JOIN public.tax_records tr ON tr.trade_id = t.id
-   WHERE t.status = 'completed'
-     AND t.completed_at < '2026-07-23'
-   LIMIT 5;
-   ```
-3. Spot-check a cancelled pre-migration trade:
-   ```sql
-   SELECT t.id, t.status, t.cancelled_at,
-          tr.tax_status, tr.voided_at
-   FROM public.trades t
-   JOIN public.tax_records tr ON tr.trade_id = t.id
-   WHERE t.status = 'cancelled'
-     AND t.cancelled_at < '2026-07-23'
-   LIMIT 5;
-   ```
+-- Completed pre-migration trades
+SELECT t.id, t.status, tr.tax_status, tr.captured_at
+FROM public.trades t
+JOIN public.tax_records tr ON tr.trade_id = t.id
+WHERE t.status = 'completed' AND t.completed_at < '2026-07-23'
+LIMIT 5;
 
-**Expected Result:**
-- Completed pre-migration trades: `tax_status = 'collected'`, `captured_at = completed_at` (best-effort backfill)
-- Cancelled pre-migration trades: `tax_status = 'voided'`, `voided_at = cancelled_at`
-- Pending or in_progress pre-migration trades: `tax_status = 'quoted'` (left as-is — not falsely collected)
-- Refunded trades (stripe_refund_id exists): `tax_status = 'refunded'`
-- Zero trades have `tax_status = 'collected'` without a real capture (historical completed trades are an acceptable approximation since the old flow captured at seller-accept)
+-- Cancelled pre-migration trades
+SELECT t.id, t.status, tr.tax_status, tr.voided_at
+FROM public.trades t
+JOIN public.tax_records tr ON tr.trade_id = t.id
+WHERE t.status = 'cancelled' AND t.cancelled_at < '2026-07-23'
+LIMIT 5;
+```
+
+**Expected:**
+- Completed pre-migration: `tax_status = 'collected'`, `captured_at = completed_at` (backfill approximation).
+- Cancelled pre-migration: `tax_status = 'voided'`, `voided_at = cancelled_at`.
+- Pending/in_progress pre-migration: `tax_status = 'quoted'` (not falsely collected).
 
 ---
 
 ## Group O-3 — Tax Refund & Reconciliation Integrity
 
-> This group covers the Stripe-refund-first-then-tax-reversal flow introduced in migration
-> `20260724000001_tax_refund_and_reconciliation.sql`. Key behavioral change: tax is only
-> marked as refunded after a verified Stripe refund succeeds. `pending_refund` and
-> `reconciliation_required` are new tax_status values.
->
-> **Refund flow:**
-> 1. Edge Function issues Stripe refund → gets refund ID and status back
-> 2. Edge Function calls `rpc_record_stripe_refund` with the refund result
-> 3. If Stripe refund succeeds → tax_status becomes `refunded`/`partially_refunded`
-> 4. If Stripe refund is pending → tax_status becomes `pending_refund`
-> 5. If Stripe refund fails → tax_status stays as-is, reconciliation_status is set
->
-> **Report inclusion rules (migration 20260724000001):**
-> - Tax Collected = only records with `tax_status = 'collected'` AND a captured_at timestamp
-> - Tax Refunded = only records with `tax_status IN ('refunded', 'partially_refunded')` AND verified refunded_at
-> - Net Tax Payable = collected minus refunded (never includes pending/voided/capture-failed/reconciliation)
-> - Pending/Authorized Tax = `tax_status = 'quoted'` — operational only
-> - Voided/Expired Tax = `tax_status = 'voided'` — operational only
-> - Capture Failed Tax = `tax_status = 'capture_failed'` — operational only
-> - Pending Refund = `tax_status = 'pending_refund'` — operational only
-> - Reconciliation Required = `tax_status = 'reconciliation_required'` OR reconciliation_status IS NOT NULL
+**Focus:** Stripe-refund-first flow, buyer wording changes, pending refunds, reconciliation
 
-### TC-O3-C01 · Buyer wording: "Payment authorized" before capture (Awaiting Seller)
+**Refund Flow:**
+1. Edge Function issues Stripe refund → gets refund ID and status
+2. EF calls `rpc_record_stripe_refund` with result
+3. If Stripe refund succeeds → tax_status becomes `refunded`/`partially_refunded`
+4. If Stripe refund pending → tax_status becomes `pending_refund`
+5. If Stripe refund fails → tax_status unchanged, reconciliation_status set
 
-**Ref:** TAX-REFUND-INTEGRITY §4 (buyer-facing wording)
-**Actors:** test-buyer (subscriber) + test-seller
+---
 
-**Objective:** Verify that when a buyer views a pending (Awaiting Seller) trade, the payment details show "Payment authorized:" instead of "Cash Paid:" or "Paid:".
+### ✅ TC-O3-C01 · Buyer wording: "Payment authorized" before capture (Awaiting Seller)
 
 **Steps:**
-1. Log in as **test-buyer** and submit an offer on a taxable item.
-2. Open the **Trade Timeline** screen for the pending trade.
-3. Scroll to the **Payment Details** card.
+1. As **test-buyer**, submit offer → trade is **Pending**.
+2. Open Trade Timeline → scroll to **Payment Details** card.
 
-**Expected Result:**
-- The label reads **"Payment authorized:"** (not "Cash Paid" or "Paid").
-- The amount shows the authorized card amount.
-- The tax label reads **"Estimated Sales Tax"** (not just "Sales Tax").
-- All breakdown rows (Swap Points, Platform Fee, Estimated Sales Tax, Total) are visible.
+**Expected:**
+- Label reads **"Payment authorized:"** (not "Cash Paid" or "Paid").
+- Tax label reads **"Estimated Sales Tax"** (not "Sales Tax").
+- All breakdown rows visible: Swap Points, Platform Fee, Estimated Sales Tax, Total.
 
-### TC-O3-C02 · Buyer wording: "Payment authorized" after seller accept (In Progress)
+---
 
-**Ref:** TAX-REFUND-INTEGRITY §4
-**Actors:** test-buyer + test-seller
-
-**Objective:** Verify the buyer still sees "Payment authorized" (not "Paid") while the trade is In Progress but not yet captured.
+### ✅ TC-O3-C02 · Buyer wording: "Payment authorized" after seller accept (In Progress)
 
 **Steps:**
-1. From TC-O3-C01, have the seller accept the offer → trade moves to **In Progress**.
-2. Log in as **test-buyer** and open the Trade Timeline.
-3. Scroll to Payment Details.
+1. From TC-O3-C01, have seller accept → trade moves to **In Progress**.
+2. As **test-buyer**, open Trade Timeline → scroll to Payment Details.
 
-**Expected Result:**
-- The label still reads **"Payment authorized:"** (capture has not happened yet).
+**Expected:**
+- Label still reads **"Payment authorized:"** (capture not yet happened).
 - Tax label still reads **"Estimated Sales Tax"**.
-- Stripe Dashboard shows the PI in `requires_capture` status (uncaptured).
+- Stripe Dashboard: PI in `requires_capture`.
 
-### TC-O3-C03 · Buyer wording: "Paid" after successful capture (Completed)
+---
 
-**Ref:** TAX-REFUND-INTEGRITY §4
-**Actors:** test-buyer
-
-**Objective:** Verify the buyer sees "Paid" and the final tax amount after successful capture.
+### ✅ TC-O3-C03 · Buyer wording: "Paid" after successful capture (Completed)
 
 **Steps:**
-1. From TC-O3-C02, tap **[I Got It]** → **[Confirm]** to complete the trade.
-2. Verify capture succeeded (no error).
-3. Open the completed trade's Timeline.
-4. Scroll to Payment Details.
+1. From TC-O3-C02, tap **[I Got It]** → **[Confirm]**.
+2. Verify capture succeeded.
+3. Open completed trade's Timeline → scroll to Payment Details.
 
-**Expected Result:**
-- The label now reads **"Paid:"** (not "Payment authorized").
-- The tax label reads **"Sales Tax"** (not "Estimated Sales Tax").
-- The final tax amount uses the stored snapshot (not a live preview).
-- The total includes the captured amount.
+**Expected:**
+- Label now reads **"Paid:"** (not "Payment authorized").
+- Tax label reads **"Sales Tax"** (not "Estimated Sales Tax").
+- Final tax amount uses stored snapshot (not live preview).
 
-### TC-O3-C04 · Capture failure shows "payment could not be completed" (no completed state)
+---
 
-**Ref:** TAX-REFUND-INTEGRITY §4
-**Actors:** test-buyer + test-seller
-
-**Objective:** Verify that when Stripe capture fails, the buyer does NOT see a completed/paid state.
+### ✅ TC-O3-C04 · Capture failure shows "payment could not be completed" (no completed state)
 
 **Steps:**
-1. From an In Progress trade, simulate a capture failure (e.g., void the PI on Stripe Dashboard before completing).
+1. From In Progress trade, simulate capture failure (void PI on Stripe Dashboard).
 2. As **test-buyer**, tap **[I Got It]** → **[Confirm]**.
-3. Observe the error message.
-4. Reopen the trade.
+3. Observe error, reopen trade.
 
-**Expected Result:**
-- The error reads: **"Payment capture failed. Please try again or contact support."**
-- The trade remains **In Progress** (not completed).
-- No SP was released to the seller.
-- No seller payout was triggered.
-- The `tax_status` in `tax_records` is `'capture_failed'`.
+**Expected:**
+- Error: **"Payment capture failed. Please try again or contact support."**
+- Trade remains **In Progress** (not completed).
+- No SP released, no payout triggered.
+- `tax_status` = `'capture_failed'`.
 
-### TC-O3-C05 · Admin dispute route: full refund with Stripe + tax reversal (captured trade)
+---
 
-**Ref:** TAX-REFUND-INTEGRITY §1
-**Actors:** test-admin + test-buyer + test-seller
-
-**Objective:** Verify that the admin dispute route issues a real Stripe refund and reverses tax.
+### ✅ TC-O3-C05 · Admin dispute route: full refund with Stripe + tax reversal (captured trade)
 
 **Steps:**
-1. Complete a trade with a captured payment (buyer confirmed).
-2. As **test-buyer**, open a dispute on the completed trade.
-3. As **test-admin**, navigate to the dispute and tap **Resolve → Refund**.
-4. Confirm.
+1. Complete a trade with captured payment.
+2. As **test-buyer**, open dispute.
+3. As **test-admin**, navigate to dispute → tap **Resolve → Refund** → confirm.
 
-**Expected Result:**
-- Stripe Dashboard shows a refund for the full payment amount (cash + fee + tax).
-- The trade status changes to **Cancelled**.
-- `tax_records` shows `tax_status = 'refunded'`, `stripe_refund_id` is set, `refunded_at` is set.
-- `refunded_tax_cents` equals the original `tax_amount_cents`.
-- SP is released back to the buyer (idempotent — exactly once).
-- The buyer receives a notification: "Your refund for [Item] has been issued."
-- The Net Tax Payable on the reports page correctly reflects the refund.
+**Expected:**
+- Stripe Dashboard shows refund for full amount (cash + fee + tax).
+- Trade status → **Cancelled**.
+- `tax_records`: `tax_status = 'refunded'`, `stripe_refund_id` set, `refunded_at` set.
+- `refunded_tax_cents` = original `tax_amount_cents`.
+- SP released to buyer (idempotent — exactly once).
+- Buyer receives notification: "Your refund for [Item] has been issued."
+- Net Tax Payable on reports reflects refund.
 
-### TC-O3-C06 · Duplicate refund/retry is idempotent
+---
 
-**Ref:** TAX-REFUND-INTEGRITY §1 (idempotency)
-**Actors:** test-admin + test-buyer
-
-**Objective:** Verify that retrying the refund action does not create a duplicate Stripe refund, duplicate tax reversal, or duplicate SP credit.
+### ✅ TC-O3-C06 · Duplicate refund/retry is idempotent
 
 **Steps:**
-1. From TC-O3-C05, resolve the same dispute again as **Refund**.
-2. Check Stripe Dashboard for duplicate refunds.
-3. Check `tax_records` for duplicate `refunded_tax_cents` addition.
-4. Check SP ledger for duplicate `earn_refund` entries.
+1. From TC-O3-C05, resolve same dispute again as **Refund**.
+2. Check Stripe Dashboard, `tax_records`, SP ledger.
 
-**Expected Result:**
-- Stripe Dashboard shows exactly 1 refund (not 2).
-- `tax_records.refunded_tax_cents` was not incremented again (idempotent).
-- SP ledger has exactly 1 `earn_refund` entry.
-- The response from `rpc_record_stripe_refund` includes `action: 'idempotent'`.
+**Expected:**
+- Stripe Dashboard: exactly 1 refund (not 2).
+- `refunded_tax_cents` not incremented again.
+- SP ledger: exactly 1 `earn_refund` entry.
+- RPC response includes `action: 'idempotent'`.
 
-### TC-O3-C07 · Admin dispute route: uncaptured PI is cancelled (not refunded)
+---
 
-**Ref:** TAX-REFUND-INTEGRITY §1
-**Actors:** test-admin + test-buyer + test-seller
-
-**Objective:** Verify that for an uncaptured PI (In Progress, not yet completed), the dispute refund cancels the authorization hold instead of issuing a refund.
+### ✅ TC-O3-C07 · Admin dispute route: uncaptured PI is cancelled (not refunded)
 
 **Steps:**
-1. From an In Progress trade (not yet completed), open a dispute.
+1. From In Progress trade (not yet completed), open dispute.
 2. As **test-admin**, resolve as **Refund**.
-3. Check Stripe Dashboard for the PI.
+3. Check Stripe Dashboard.
 
-**Expected Result:**
-- Stripe Dashboard shows the PI as **canceled** (not refunded).
-- Tax is marked as **voided** (not refunded), since no money was captured.
-- SP is returned to the buyer.
-- The trade is marked as cancelled.
+**Expected:**
+- Stripe PI status: **canceled** (not refunded).
+- Tax marked as **voided** (not refunded, since no money captured).
+- SP returned to buyer, trade cancelled.
 
-### TC-O3-C08 · Admin dispute route: Stripe refund failure stays unresolved
+---
 
-**Ref:** TAX-REFUND-INTEGRITY §1, §2
-**Actors:** test-admin + test-buyer + test-seller
-
-**Objective:** Verify that when Stripe refund fails, the trade remains in an unresolved state and tax is not marked refunded.
+### ⚠️ TC-O3-C08 · Admin dispute route: Stripe refund failure stays unresolved
 
 **Steps:**
-1. Complete a trade (captured), then open a dispute.
-2. Before resolving, revoke the Stripe API key or simulate a refund failure.
+1. Complete trade (captured), open dispute.
+2. Before resolving, revoke Stripe API key or simulate refund failure.
 3. As **test-admin**, attempt to resolve as **Refund**.
-4. Observe the error.
+4. Observe error.
 
-**Expected Result:**
-- The admin sees: "Stripe refund failed: [error message]".
-- The dispute status remains **under_review** (not resolved).
-- The trade status is NOT changed to cancelled.
-- Tax is NOT marked as refunded.
-- No SP is released.
-- The buyer receives: "A refund for [Item] could not be processed. Our team is working on it."
+**Expected:**
+- Admin sees: "Stripe refund failed: [error message]".
+- Dispute status remains **under_review** (not resolved).
+- Trade status NOT changed to cancelled.
+- Tax NOT marked refunded, no SP released.
+- Buyer receives: "A refund for [Item] could not be processed. Our team is working on it."
 
-### TC-O3-C09 · Stripe refund pending → tax pending_refund
+---
 
-**Ref:** TAX-REFUND-INTEGRITY §1
-**Actors:** test-admin + test-buyer
-
-**Objective:** Verify that when Stripe returns a pending refund status, tax is marked as pending_refund.
+### ⚠️ TC-O3-C09 · Stripe refund pending → tax pending_refund
 
 **Steps:**
-1. Complete a trade, then open a dispute.
+1. Complete trade, open dispute.
 2. As **test-admin**, resolve as **Refund**.
-3. Check `tax_records` before the refund completes (if Stripe returns `pending` or `processing`).
+3. Check `tax_records` before Stripe confirms refund.
 
-**Expected Result:**
-- `tax_records.tax_status` = `'pending_refund'`
-- `tax_records.stripe_refund_id` is set
-- `tax_records.refund_status` = `'pending'` or `'processing'`
-- The admin reports page shows this record in "Pending Refund" (not Tax Refunded).
-- Once Stripe confirms, the `charge.refunded` webhook transitions it to `refunded`.
+**Expected:**
+- `tax_records.tax_status` = `'pending_refund'`.
+- `stripe_refund_id` set, `refund_status` = `'pending'` or `'processing'`.
+- Admin reports show record in "Pending Refund" (not Tax Refunded).
+- Once Stripe confirms, `charge.refunded` webhook transitions to `refunded`.
 
-### TC-O3-C10 · Report: newly submitted offer with authorization only → Pending/Authorized Tax
+---
 
-**Ref:** TAX-REFUND-INTEGRITY §3 (reports)
-**Actors:** test-buyer
-
-**Objective:** Verify that newly submitted (quoted) offers appear in Pending/Authorized Tax, not Tax Collected or Net Tax Payable.
+### ✅ TC-O3-C10 · Report: newly submitted offer → Pending/Authorized Tax
 
 **Steps:**
-1. Log in as **test-buyer** and submit an offer on a taxable item.
-2. Run the report summary:
+1. As **test-buyer**, submit offer on taxable item.
+2. Run report summary:
    ```sql
    SELECT jsonb_pretty(get_tax_summary_for_period(
      (SELECT created_at::date - 1 FROM tax_records ORDER BY created_at DESC LIMIT 1),
@@ -3434,273 +3799,304 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
    ));
    ```
 
-**Expected Result:**
-- `tax_collected_cents` = 0 (no capture yet)
-- `pending_tax_cents` > 0 (this offer is quoted)
-- `pending_tax_count` = 1
-- `tax_net_cents` = 0 (pending not included in net)
-
-### TC-O3-C11 · Report: captured trade → Tax Collected using capture timestamp
-
-**Ref:** TAX-REFUND-INTEGRITY §3
-**Actors:** test-buyer + test-seller
-
-**Objective:** Verify that a captured trade appears in Tax Collected using its capture timestamp, not its offer-creation timestamp.
-
-**Steps:**
-1. Complete a trade (buyer confirms → capture succeeds).
-2. Run the report summary for the appropriate date range.
-
-**Expected Result:**
-- `tax_collected_cents` > 0 (this capture is counted)
-- `tax_status` = `'collected'`
-- `captured_at` is set and equals the Stripe capture time
-- If the capture date differs from the offer-created date, the tax appears in the capture period, not the offer period.
-
-### TC-O3-C12 · Report: cancelled/declined/expired → Voided/Expired Tax, not collected
-
-**Ref:** TAX-REFUND-INTEGRITY §3
-**Actors:** test-buyer + test-seller
-
-**Objective:** Verify that cancelled, declined, and expired pre-capture offers appear as Voided/Expired Tax and are excluded from Tax Collected and Net Tax Payable.
-
-**Steps:**
-1. Have a pending offer that is cancelled (buyer cancels before seller accepts).
-2. Run the report summary.
-
-**Expected Result:**
-- `tax_collected_cents` = 0 for this record
-- `voided_tax_cents` > 0
-- `voided_tax_count` includes this trade
-- `tax_net_cents` excludes this voided tax
-
-### TC-O3-C13 · Report: refunded trade → Tax Refunded, Net adjusts
-
-**Ref:** TAX-REFUND-INTEGRITY §3
-**Actors:** test-admin + test-buyer
-
-**Objective:** Verify that a refunded trade correctly affects Tax Refunded and Net Tax Payable.
-
-**Steps:**
-1. Complete a trade (capture succeeds). Note the tax_collected_cents.
-2. Issue a full refund via admin dispute.
-3. Run the report summary covering both events.
-
-**Expected Result:**
-- `tax_collected_cents` includes the original captured tax.
-- `tax_refunded_cents` equals the refunded tax.
-- `tax_net_cents` = collected - refunded (correctly reduced).
-- If the refund is in a later reporting period, the capture still appears in its original capture period.
-
-### TC-O3-C14 · Report: CSV totals match on-screen totals
-
-**Ref:** TAX-REFUND-INTEGRITY §3 (CSV export)
-**Actors:** test-admin
-
-**Objective:** Verify that CSV export totals match the on-screen report totals for the same filters and date range.
-
-**Steps:**
-1. Run the report summary for a date range and note the totals.
-2. Export CSV for the same date range.
-3. Sum the CSV columns and compare.
-
-**Expected Result:**
-- Sum of CSV `tax_amount_cents` column matches `tax_collected_cents` from the summary.
-- Sum of CSV `tax_refunded_cents` matches `tax_refunded_cents` from the summary.
-- Sum of CSV `net_tax_cents` matches `tax_net_cents` from the summary.
-- Count of CSV rows with `tax_status = 'collected'` matches the summary `transaction_count` for captured.
-
-### TC-O3-C15 · Report: unauthorized user cannot access reports, exports, or refunds
-
-**Ref:** TAX-REFUND-INTEGRITY §3 (admin permissions)
-**Actors:** test-seller (non-admin)
-
-**Objective:** Verify that non-admin users cannot access tax reports, CSV export, or refund actions.
-
-**Steps:**
-1. Log in to the admin portal as **test-seller** (non-admin).
-2. Navigate to `/tax/reports` directly.
-3. Attempt to run a report.
-4. Attempt to export CSV.
-
-**Expected Result:**
-- The RPC returns `FORBIDDEN: Admin role required`.
-- Export button fails with an authorization error.
-- Refund/dispute resolution buttons are absent or disabled.
-
-### TC-O3-C16 · Legacy/unverifiable records show reconciliation-required instead of collected
-
-**Ref:** TAX-REFUND-INTEGRITY §7 (backfill)
-**Actors:** test-admin
-
-**Objective:** Verify that legacy records marked as 'collected' without a captured_at timestamp are flagged as reconciliation_required by the backfill migration.
-
-**Steps:**
-1. Run the backfill verification query:
-   ```sql
-   SELECT tax_status, reconciliation_status, reconciliation_reason
-   FROM public.tax_records
-   WHERE captured_at IS NULL AND stripe_capture_id IS NULL
-     AND tax_status IN ('collected', 'reconciliation_required');
-   ```
-2. Check the admin report for `reconciliation_count`.
-
-**Expected Result:**
-- Legacy records without captured_at or stripe_capture_id are now `reconciliation_required`.
-- The admin Reports page shows them in "Reconciliation Required" (not in Tax Collected).
-- The backfill reason explains: "Backfill: Marked collected by status-only heuristic..."
-
-### TC-O3-C17 · Seller does not see "Paid" or "Payment authorized" (seller sees payout info)
-
-**Ref:** TAX-REFUND-INTEGRITY §4
-**Actors:** test-seller
-
-**Objective:** Verify the seller's Trade Timeline shows payout information, not the buyer's payment authorization label.
-
-**Steps:**
-1. From a completed trade, log in as **test-seller**.
-2. Open the Trade Timeline.
-3. Scroll to the payment section.
-
-**Expected Result:**
-- The seller does NOT see "Cash Paid", "Payment authorized", or "Paid" labels.
-- The seller sees "Cash Amount:" (for their payout reference).
-- The Tax line is NOT shown to the seller.
-- SP earned is shown if applicable.
-
-### TC-O3-C18 · Platform-fee-in-tax-base toggle is reflected in CSV and transaction detail without changing historical snapshots
-
-**Ref:** TAX-REFUND-INTEGRITY §3 (snapshot integrity)
-**Actors:** test-admin + test-buyer
-
-**Objective:** Verify that toggling `include_fee_in_tax_base` changes the CSV/transaction output for new records without altering historical snapshots.
-
-**Steps:**
-1. Export CSV for a date range that includes records created before and after the toggle change.
-2. Check the `fee_in_tax_base` and `taxable_item_subtotal` columns.
-
-**Expected Result:**
-- Records created before the toggle: `fee_in_tax_base = 'false'`, taxable base excludes the fee.
-- Records created after the toggle: `fee_in_tax_base = 'true'`, taxable base includes the fee.
-- Historical records' snapshots are unchanged.
-- CSV rows reflect each record's immutable snapshot.
+**Expected:**
+- `tax_collected_cents` = 0 (no capture).
+- `pending_tax_cents` > 0 (this offer is quoted).
+- `pending_tax_count` = 1.
+- `tax_net_cents` = 0 (pending not included in net).
 
 ---
 
-## Group P — Tax (Admin)
-
-### TC-P01 · Node tax rate configuration (view/edit with validation)
-
-**Actors:** Admin
-
-**Objective:** Verify admins can view and edit per-node tax rate, jurisdiction, and enabled flag with validation.
+### ✅ TC-O3-C11 · Report: captured trade → Tax Collected using capture timestamp
 
 **Steps:**
-1. In the **admin portal**, open the **Tax → Nodes** page.
-2. Edit a node's tax rate to a valid value (e.g., 6.35%) and set its jurisdiction; save via the confirmation modal.
-3. Try to save an invalid rate (e.g., -1% or 150%).
+1. Complete a trade (buyer confirms → capture succeeds).
+2. Run report summary for appropriate date range.
 
-**Expected Result:**
-- Each node shows its tax rate, jurisdiction, and enabled/disabled status.
-- A confirmation modal appears before saving a change; valid saves show a success notification and persist after refresh.
-- Invalid rates (outside 0–100%) or a missing jurisdiction are blocked with a validation message.
+**Expected:**
+- `tax_collected_cents` > 0 (capture counted).
+- `tax_status` = `'collected'`, `captured_at` set.
+- If capture date differs from offer date, tax appears in capture period (not offer period).
 
-### TC-P02 · Bulk tax update across nodes
+---
 
-**Actors:** Admin
-
-**Objective:** Verify a single rate can be applied to multiple nodes at once.
+### ✅ TC-O3-C12 · Report: cancelled/declined/expired → Voided/Expired Tax, not collected
 
 **Steps:**
-1. On the **Tax → Nodes** page, open the bulk update form.
-2. Apply one rate (e.g., 6.35%) to all enabled nodes and confirm.
+1. Have pending offer cancelled (buyer cancels before seller accepts).
+2. Run report summary.
 
-**Expected Result:**
-- The chosen rate is applied to all enabled nodes only.
-- A success notification appears and the updated rates persist after refresh.
+**Expected:**
+- `tax_collected_cents` = 0 for this record.
+- `voided_tax_cents` > 0.
+- `voided_tax_count` includes this trade.
+- `tax_net_cents` excludes voided tax.
 
-### TC-P03 · Tax rate change history / audit
+---
 
-**Actors:** Admin
-
-**Objective:** Verify tax rate changes are logged for compliance.
-
-**Steps:**
-1. Change a node's tax rate and save.
-2. Open the tax rate change history for that node.
-
-**Expected Result:**
-- The history shows who changed the rate, when, and the old and new values.
-
-### TC-P04 · Global tax settings toggle and warning banner
-
-**Actors:** Admin
-
-**Objective:** Verify global tax settings can be edited and a warning shows when tax is disabled.
+### ✅ TC-O3-C13 · Report: refunded trade → Tax Refunded, Net adjusts
 
 **Steps:**
-1. Open the **Tax → Settings** page.
-2. Toggle global sales tax off and save.
-3. Edit the default tax rate, the "subscription fee taxable" toggle, and the remittance jurisdiction; save.
+1. Complete trade (capture succeeds), note `tax_collected_cents`.
+2. Issue full refund via admin dispute.
+3. Run report summary covering both events.
 
-**Expected Result:**
-- The global on/off toggle, default rate (validated 0–100%), subscription-fee-taxable toggle, and remittance jurisdiction all save and persist.
-- A warning banner appears while sales tax is disabled globally.
+**Expected:**
+- `tax_collected_cents` includes original captured tax.
+- `tax_refunded_cents` equals refunded tax.
+- `tax_net_cents` = collected - refunded (correctly reduced).
+- If refund in later period, capture still appears in original period.
 
-### TC-P05 · Tax reporting dashboard: summary cards and date presets
+---
 
-**Actors:** Admin
-
-**Objective:** Verify the reporting dashboard shows tax totals and supports date presets.
-
-**Steps:**
-1. Open the **Tax → Reports** page.
-2. Switch the date range using presets (This Month, Last Month, Q1–Q4, YTD, All Time).
-
-**Expected Result:**
-- Summary cards show tax collected, refunded, and net owed, plus transaction count / average tax.
-- Changing the date preset updates the figures; the page loads within ~2 seconds for a 1-year range.
-
-### TC-P06 · Jurisdiction breakdown and report types
-
-**Actors:** Admin
-
-**Objective:** Verify jurisdiction breakdown and all report types are accessible.
+### ✅ TC-O3-C14 · Report: CSV totals match on-screen totals
 
 **Steps:**
-1. On the **Tax → Reports** page, view the jurisdiction breakdown table.
-2. Switch between the report types (summary, transactions, refunds, jurisdictions, by-period, tax-exempt, audit trail).
+1. Run report summary for a date range, note totals.
+2. Export CSV for same date range.
+3. Sum CSV columns and compare.
 
-**Expected Result:**
-- The jurisdiction table shows tax amounts per node/jurisdiction.
-- Each of the 7 report types loads its corresponding data; empty ranges show a graceful empty state.
+**Expected:**
+- Sum of CSV `tax_amount_cents` = `tax_collected_cents` from summary.
+- Sum of CSV `tax_refunded_cents` = `tax_refunded_cents` from summary.
+- Sum of CSV `net_tax_cents` = `tax_net_cents` from summary.
 
-### TC-P07 · CSV export for filing
+---
 
-**Actors:** Admin
+## Group P — Tax (Admin Portal)
 
-**Objective:** Verify tax data can be exported as CSV.
+**Focus:** Admin tax configuration, reporting, bulk operations, audit trail
 
-**Steps:**
-1. On the **Tax → Reports** page, set a date range and tap **Export CSV**.
-
-**Expected Result:**
-- A CSV file downloads containing transaction date, buyer email, node name, taxable amount, tax rate, tax amount, refunded tax, and net tax, with USD/percent formatting.
-
-### TC-P08 · Admin rate change applies to new transactions only
-
-**Actors:** Admin, test-buyer
-
-**Objective:** Verify changing a node rate affects new transactions, not past ones.
+### passed ✅ TC-P01 · Node tax rate config (view/edit, validation)
 
 **Steps:**
-1. Note the tax on an existing completed transaction.
-2. In the **admin portal**, change that node's tax rate.
-3. As **test-buyer** in that node, start a new checkout.
+1. Admin portal → **Tax → Nodes**.
+2. Locate test-buyer's node → tap **Edit**.
+3. Change tax rate from 6.35% to 7.00% → **Save**.
+4. Verify success message, rate persists after refresh.
+5. Try invalid values (e.g., -1%, 101%) → verify validation errors.
 
-**Expected Result:**
-- The new checkout's Sales Tax uses the updated rate.
-- The previously completed transaction still shows the rate that was applied at its time of purchase.
+**Expected:**
+- Rate changes save successfully and persist.
+- Invalid rates (< 0% or > 100%) are rejected with inline error.
+- New offers from that node use new rate immediately (no deploy needed).
+
+---
+
+### deffered TC-P02 · Bulk tax update across nodes
+
+**Status:** Needs manual testing if bulk update UI exists.
+
+**When implemented, verify:**
+- Admin can select multiple nodes and apply same rate.
+- Audit log captures bulk update with all affected node IDs.
+- New offers immediately use new rates.
+
+---
+
+### deffered TC-P03 · Tax rate change history / audit
+
+**Steps:**
+1. Navigate to **Tax → Nodes** → tap **View Change History** on a node.
+2. Verify list shows: timestamp, old rate, new rate, admin actor.
+
+**Expected:**
+- Audit trail shows all rate changes for that node.
+- Actor ID matches authenticated admin user.
+- Timestamps are accurate.
+
+---
+
+### passed ✅ TC-P04 · Global tax settings toggle + warning banner
+
+**Steps:**
+1. Navigate to **Tax → Settings**.
+2. Uncheck **"Enable sales tax collection"** → **Save**.
+3. Observe warning banner.
+4. Verify all new offers have $0 tax.
+5. Re-enable → verify new offers collect tax again.
+
+**Expected:**
+- Disabling shows warning: "Sales tax is currently disabled globally. No tax will be collected on new orders."
+- All new offers after disabling: `tax_amount_cents = 0`.
+- Re-enabling restores tax collection on new offers.
+- Historical/in-flight offers unchanged.
+
+---
+
+### TC-P05 · Tax reporting dashboard: summary + date presets
+
+**Steps:**
+1. Navigate to **Tax → Reports**.
+2. Select date preset **"Last 30 Days"** → observe summary.
+3. Select custom date range → observe summary updates.
+
+**Expected:**
+- Summary shows: Total Tax Collected, Total Refunded, Net Tax Payable, Pending Tax, Voided Tax.
+- Date presets: Today, Last 7 Days, Last 30 Days, This Month, Last Month, Custom.
+- All summaries update in real time when date range changes.
+
+---
+
+### ⚠️ TC-P06 · Jurisdiction breakdown + 7 report types
+
+**Steps:**
+1. On **Tax → Reports**, scroll to **Jurisdiction Breakdown**.
+2. Verify list shows each node/jurisdiction with collected/refunded/net amounts.
+3. Verify 7 report categories: Tax Collected, Tax Refunded, Net Tax Payable, Pending/Authorized, Voided/Expired, Capture Failed, Pending Refund, Reconciliation Required.
+
+**Expected:**
+- Jurisdiction breakdown shows per-node totals.
+- All 7 report types are accessible and show correct filtered data.
+- Report types align with tax status lifecycle (O-2).
+
+---
+
+### ✅ TC-P07 · CSV export for filing
+
+**Steps:**
+1. On **Tax → Reports**, select date range → tap **Export CSV**.
+2. Open downloaded file.
+3. Verify columns: Trade ID, Date, Node, Jurisdiction, Item Title, Taxable Amount, Tax Rate, Tax Amount, Refunded Tax, Net Tax, Status.
+4. Sum columns manually and compare to on-screen summary (TC-O3-C14).
+
+**Expected:**
+- CSV downloads successfully with all columns.
+- Manual sum of CSV matches on-screen totals.
+- File naming: `tax-export-{start-date}-{end-date}.csv`.
+
+---
+
+### PASSED ✅ TC-P08 · Admin changes rate → new transactions use new rate
+
+**Steps:**
+1. As **test-admin**, change test-buyer's node rate from 6.35% to 8.00%.
+2. As **test-buyer**, submit a new offer on a $30 item.
+3. Verify tax = `FLOOR((3000 * 0.08) + 0.5) = 240 cents = $2.40`.
+4. Verify older offers still show 6.35% tax (not retroactively changed).
+
+**Expected:**
+- New offer: tax calculated at 8.00%.
+- Old offers: tax unchanged (stored snapshot, not recalculated).
+- No deploy or app restart needed for rate change.
+
+---
+
+## Summary of Test Status
+
+| Group | Total Cases | ✅ Passed | ⚠️ Needs Testing | ⏭️ Deferred | 🔄 Partially Tested |
+|---|---|---|---|---|---|
+| **O — Tax (End User)** | 8 | 6 | 0 | 2 | 0 |
+| **O-1 — Tax Categories (Admin Config)** | 17 | 11 | 5 | 1 | 0 |
+| **O-2 — Tax Status Lifecycle** | 12 | 8 | 4 | 0 | 0 |
+| **O-3 — Tax Refund & Reconciliation** | 14 | 10 | 4 | 0 | 0 |
+| **P — Tax (Admin Portal)** | 8 | 6 | 2 | 0 | 0 |
+| **TOTAL** | **59** | **41** | **15** | **3** | **0** |
+
+**Pass Rate:** 69% (41/59) — Majority of core tax functionality verified.  
+**QA Priority:** Focus on the 15 "Needs Testing" cases — these are implemented but not yet verified.  
+**Deferred Items:** 3 cases deferred to post-MVP (tax exemption, tax-exempt user badge, unauthorized access control).
+
+---
+
+## Critical Paths for QA (Test First)
+
+### P0 — Core Tax Calculation (Must Pass Before Launch)
+1. TC-O01 — Tax shown in checkout
+2. TC-O02 — Tax recalculates with SP (**confirm BP-37: tax should NOT recalculate**)
+3. TC-O2-C04 — SP does not reduce taxable base
+4. TC-O2-C08 — Capture succeeds, tax collected
+5. TC-P01 — Admin can change node rate
+6. TC-P08 — New rate applies to new offers immediately
+
+### P1 — Refund & Reconciliation (Stripe Integration)
+1. TC-O3-C05 — Admin dispute refund with tax reversal
+2. TC-O3-C06 — Refund idempotency
+3. TC-O3-C08 — Stripe refund failure handling
+4. TC-O3-C09 — Pending refund status
+
+### P2 — Category Rules & Admin Config
+1. TC-O1-C01 → TC-O1-C04 — Tax rule CRUD
+2. TC-O1-C14 → TC-O1-C15 — Category mapping changes
+3. TC-O1-C11 — Fee-in-tax-base toggle
+
+### P3 — Reporting & Audit
+1. TC-P05 — Tax reporting dashboard
+2. TC-P07 — CSV export
+3. TC-O3-C14 — CSV totals match on-screen
+
+---
+
+## Known Issues & Workarounds
+
+
+---
+
+## Appendix B: Quick Reference SQL Queries
+
+### Check Tax Status for a Trade
+```sql
+SELECT 
+  t.id AS trade_id,
+  t.status AS trade_status,
+  tr.tax_status,
+  tr.tax_amount_cents,
+  tr.taxable_amount_cents,
+  tr.captured_at,
+  tr.voided_at,
+  tr.stripe_capture_id,
+  tr.stripe_refund_id,
+  tr.refunded_tax_cents,
+  tr.tax_snapshot->'items'->0->>'item_price_cents' AS item_price_cents,
+  tr.tax_snapshot->'rate' AS tax_rate,
+  tr.tax_snapshot->'include_fee_in_tax_base' AS fee_in_base
+FROM trades t
+JOIN tax_records tr ON tr.trade_id = t.id
+WHERE t.id = '<trade-uuid>';
+```
+
+### Get Tax Summary for a Node (Last 30 Days)
+```sql
+SELECT jsonb_pretty(get_tax_summary_for_period(
+  NOW() - INTERVAL '30 days',
+  NOW(),
+  '<node-uuid>',
+  'summary'
+));
+```
+
+### List All Tax Rules for a Category
+```sql
+SELECT 
+  tr.id,
+  tr.version,
+  tr.display_name,
+  tr.is_taxable,
+  tr.tax_rate,
+  tr.jurisdiction,
+  tr.is_active,
+  tr.effective_from,
+  tr.effective_to,
+  tr.min_item_price_cents,
+  tr.max_item_price_cents
+FROM tax_rules tr
+JOIN tax_categories tc ON tc.id = tr.tax_category_id
+WHERE tc.key = 'general_tangible_goods'
+ORDER BY tr.version DESC;
+```
+
+### Verify All Items Have a Tax Category
+```sql
+SELECT 
+  COUNT(*) AS total_items,
+  COUNT(tax_category_id) AS items_with_category,
+  COUNT(*) - COUNT(tax_category_id) AS items_without_category
+FROM items;
+```
+
+---
+
+**End of Tax Testing Consolidated Guide**
 
 ---
 
@@ -3708,7 +4104,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 **Ref:** MODULE-08 · REVIEW-001 through REVIEW-007 · Anti-Brigading Addendum
 
-### TC-Q01 · Review prompt appears for both parties after trade completion
+### passed TC-Q01 · Review prompt appears for both parties after trade completion
 
 **Ref:** MODULE-08 REVIEW-001, REVIEW-002
 **Actors:** test-buyer (subscriber) + test-seller
@@ -3729,7 +4125,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q02 · Star rating required — submit blocked without rating
+### passed TC-Q02 · Star rating required — submit blocked without rating
 
 **Ref:** MODULE-08 REVIEW-001
 **Actors:** test-buyer
@@ -3748,7 +4144,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q03 · Comment is optional and capped at 500 characters
+### passed TC-Q03 · Comment is optional and capped at 500 characters
 
 **Ref:** MODULE-08 REVIEW-001
 **Actors:** test-buyer
@@ -3768,7 +4164,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q04 · Anonymous review hides reviewer identity
+### passed TC-Q04 · Anonymous review hides reviewer identity
 
 **Ref:** MODULE-08 REVIEW-003
 **Actors:** test-buyer, test-seller
@@ -3787,7 +4183,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q05 · Skip review — no blocking, no re-prompt for same trade
+### passed TC-Q05 · Skip review — no blocking, no re-prompt for same trade
 
 **Ref:** MODULE-08 REVIEW-004
 **Actors:** test-buyer
@@ -3807,7 +4203,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q06 · Mutual review status shown on completed trade detail
+### passed TC-Q06 · Mutual review status shown on completed trade detail
 
 **Ref:** MODULE-08 REVIEW-002
 **Actors:** test-buyer + test-seller
@@ -3827,7 +4223,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q07 · Completed reviews visible on counterparty's public profile
+### passed TC-Q07 · Completed reviews visible on counterparty's public profile
 
 **Ref:** MODULE-08 REVIEW-002, REVIEW-005
 **Actors:** test-buyer
@@ -3847,7 +4243,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q08 · Average rating and total count displayed on user profile
+### passed TC-Q08 · Average rating and total count displayed on user profile
 
 **Ref:** MODULE-08 REVIEW-005
 **Actors:** test-buyer (viewing test-seller's profile)
@@ -3866,7 +4262,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q09 · Rating breakdown (5 → 1 stars) shown on profile
+### paassed TC-Q09 · Rating breakdown (5 → 1 stars) shown on profile
 
 **Ref:** MODULE-08 REVIEW-005
 **Actors:** test-buyer
@@ -3885,7 +4281,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q10 · Edit review succeeds within 24h window
+### deffered TC-Q10 · Edit review succeeds within 24h window
 
 **Ref:** MODULE-08 REVIEW-001
 **Actors:** test-buyer
@@ -3907,7 +4303,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q11 · Edit blocked after 24h window
+### deffered TC-Q11 · Edit blocked after 24h window
 
 **Ref:** MODULE-08 REVIEW-001
 **Actors:** test-buyer
@@ -3924,7 +4320,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q12 · One review per trade — duplicate submission blocked
+### passed TC-Q12 · One review per trade — duplicate submission blocked
 
 **Ref:** MODULE-08 REVIEW-001 (Anti-Brigading Addendum)
 **Actors:** test-buyer
@@ -3943,7 +4339,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q13 · 30-day same-counterparty cooldown enforced
+### deffered TC-Q13 · 30-day same-counterparty cooldown enforced
 
 **Ref:** MODULE-08 Anti-Brigading Addendum
 **Actors:** test-buyer
@@ -3963,7 +4359,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q14 · 24h post-completion cooldown — review locked until 24h after trade completion
+### deffered TC-Q14 · 24h post-completion cooldown — review locked until 24h after trade completion
 
 **Ref:** MODULE-08 Anti-Brigading Addendum
 **Actors:** test-buyer
@@ -3982,7 +4378,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q15 · Flag a review (select reason)
+### passed TC-Q15 · Flag a review (select reason)
 
 **Ref:** MODULE-08 REVIEW-006
 **Actors:** test-buyer (flagging a review on test-seller's profile)
@@ -4003,7 +4399,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q16 · Auto-hide review after 3+ reports
+### deffered TC-Q16 · Auto-hide review after 3+ reports
 
 **Ref:** MODULE-08 REVIEW-006
 **Actors:** 3 distinct reporter accounts + test-buyer
@@ -4022,7 +4418,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q17 · Cannot flag own review
+### can not test- TC-Q17 · Cannot flag own review
 
 **Ref:** MODULE-08 REVIEW-006
 **Actors:** test-buyer
@@ -4041,7 +4437,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q18 · Admin moderation queue shows reported reviews with counts and reasons
+### passed TC-Q18 · Admin moderation queue shows reported reviews with counts and reasons
 
 **Ref:** MODULE-08 REVIEW-007
 **Actors:** test-admin
@@ -4062,7 +4458,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q19 · Admin approves (unhides) a reported review
+###  passed TC-Q19 · Admin approves (unhides) a reported review
 
 **Ref:** MODULE-08 REVIEW-007
 **Actors:** test-admin
@@ -4084,7 +4480,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
-### TC-Q20 · Admin deletes a reported review
+### deffered hide is enough TC-Q20 · Admin deletes a reported review
 
 **Ref:** MODULE-08 REVIEW-007
 **Actors:** test-admin
@@ -4112,7 +4508,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 >
 > **State model (reference):** core trade states are `pending` → `in_progress` → `completed` / `cancelled`. Dispute is an overlay (`dispute_status`: reported → under_review → resolved) on `in_progress`, not a separate core state. Cancellation/refund outcomes set `cancelled` with a reason (`buyer_cancelled`, `seller_cancelled`, `cancelled_expired`, `cancelled_expired_competing`) and, where money moved, a refund settlement.
 
-### TC-R01 · Buyer cancels pending trade → cancelled, auth voided, SP restored
+### passed TC-R01 · Buyer cancels pending trade → cancelled, auth voided, SP restored
 
 **Ref:** FLOW-27 · TC-B04/TC-C02
 **Actors:** test-buyer (subscriber) + test-seller
@@ -4129,7 +4525,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - The buyer's reserved SP returns to available (reserved → 0).
 - No seller consequence level is applied; the listing returns to available.
 
-### TC-R02 · Seller declines pending offer → cancelled, SP restored
+### passed TC-R02 · Seller declines pending offer → cancelled, SP restored
 
 **Ref:** FLOW-27 · TC-B01/TC-C02
 **Actors:** test-buyer + test-seller
@@ -4143,7 +4539,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - The trade becomes **Cancelled** (seller decline); the buyer's payment authorization is released and reserved SP is restored to available.
 - The buyer is notified the offer was declined.
 
-### TC-R03 · Offer expiry → auto-cancel + competing offers cancelled
+### passedTC-R03 · Offer expiry → auto-cancel + competing offers cancelled
 
 **Ref:** FLOW-27 · TC-B02/TC-B03/TC-C03
 **Actors:** test-buyer + test-seller
@@ -4158,7 +4554,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 - The expired offer auto-cancels (reason cancelled_expired); the buyer's hold and SP are restored.
 - When one competing offer is accepted, the remaining competing offers are cancelled (cancelled_expired_competing) and those buyers' holds/SP are restored.
 
-### TC-R04 · Card declined at offer submission → no trade created
+### passed TC-R04 · Card declined at offer submission → no trade created
 
 **Ref:** FLOW-27 · TC-B06
 **Actors:** test-buyer (declining test card)
@@ -4171,7 +4567,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 **Expected Result:**
 - An error is shown; no Pending trade is created; no SP is reserved and no charge/hold remains.
 
-### TC-R05 · Seller cancels in_progress → refund + consequence level
+### passed TC-R05 · Seller cancels in_progress → refund + consequence level
 
 **Ref:** FLOW-27 · TC-J01/TC-C06
 **Actors:** test-buyer + test-seller
@@ -4906,6 +5302,786 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 
 ---
 
+
+## Group X — Navigation Consistency & Bottom Nav
+
+> **Merged from root copy (2026-07-30).** Originally numbered TC-S01–S15 in the root file; re-lettered to TC-X01–X15 to avoid collision with Group S (Seller Group & Bundle Discovery). Root TC-S16–S26 ("More from seller") are NOT ported — they duplicate misc TC-S14–S24.
+
+### TC-X01 · Bottom nav renders identically on Home (Dashboard)
+
+**Steps:**
+1. Log in and land on the Home / Dashboard screen.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- 5 items visible: Home (highlighted), Discover, orange Sell FAB, Inbox, Cart.
+- Home icon is `House` (fill variant, green `#5DBB8E`).
+- Labels read "Home", "Discover", "Inbox", "Cart".
+- TestIDs: `tab-home`, `tab-discover`, `tab-sell`, `tab-inbox`, `tab-cart`.
+
+---
+
+### TC-X02 · Bottom nav renders identically on Discover
+
+**Steps:**
+1. From Home, tap the **Discover** tab.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Same 5 items, same styling.
+- Discover icon is active (green).
+- No "Cart shortcut" icon in the search header area (removed — replaced by the persistent Cart tab).
+
+---
+
+### TC-X03 · Bottom nav renders identically on Inbox
+
+**Steps:**
+1. Tap the **Inbox** tab.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Same 5 items, same styling.
+- Inbox icon is active (green).
+
+---
+
+### TC-X04 · Bottom nav renders identically on Cart
+
+**Steps:**
+1. Tap the **Cart** tab.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Same 5 items, same styling.
+- Cart icon is active (green).
+
+---
+
+### TC-X05 · Bottom nav renders identically on Item Detail (stacked screen)
+
+**Steps:**
+1. From Discover, tap any listing to open Item Detail (stacked screen).
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Bottom nav is still visible with the same 5 items.
+- The tab that the detail screen was pushed from (Discover) remains highlighted.
+- No duplicate or missing items.
+
+---
+
+### TC-X06 · Bottom nav renders on Cart Checkout (stacked screen)
+
+**Steps:**
+1. Add items to cart and navigate to Cart Checkout.
+2. Observe the bottom nav bar.
+
+**Expected Result:**
+- Bottom nav is still visible.
+- Cart icon remains highlighted.
+- Bar matches exactly the Home/Discover/Inbox styling.
+
+---
+
+### TC-X07 · Bottom nav renders on Trade screens (Timeline, Offer, Success)
+
+**Steps:**
+1. Navigate to any trade screen (Timeline, Offer, Review, Success, Dispute).
+2. Observe the bottom nav bar at each screen.
+
+**Expected Result:**
+- Bottom nav is visible on every trade screen.
+- The tab bar matches exactly (same icons, colors, FAB).
+
+---
+
+### TC-X08 · Bottom nav renders on Profile, Settings, Wallet, Subscriptions
+
+**Steps:**
+1. From Home header avatar, tap to open **Profile**.
+2. Navigate to **Settings**, **SP Wallet**, **Subscription**, **My Listings**.
+3. At each screen, observe the bottom nav.
+
+**Expected Result:**
+- Bottom nav is visible on every screen.
+- Bar never changes or disappears regardless of how deep the user navigates.
+
+---
+
+### TC-X09 · Cart badge shows item count from multiple entry points
+
+**Steps:**
+1. Start with an empty cart. Verify Cart tab has **no badge**.
+2. From Item Detail, tap **Add to Cart** (or use `rpc_cart_add_item` via another listing).
+3. Immediately observe the Cart tab badge on the bottom nav.
+
+**Expected Result:**
+- Cart badge appears with the correct live item count.
+- Badge is red (`#E85D75`), pill-shaped, font weight 700, white text.
+- Badge updates in real time (no pull-to-refresh needed).
+
+---
+
+### TC-X10 · Cart badge count accuracy — add multiple items
+
+**Steps:**
+1. Add 3 different items from the same seller to the cart.
+2. Observe the Cart tab badge.
+
+**Expected Result:**
+- Badge shows `3`.
+
+---
+
+### TC-X11 · Cart badge count accuracy — remove items
+
+**Steps:**
+1. From Cart screen, remove 1 item.
+2. Go back to Discover/Home and observe the Cart tab badge.
+
+**Expected Result:**
+- Badge count decreases from 3 to 2 without manual refresh.
+
+---
+
+### TC-X12 · Cart badge clears when cart is emptied
+
+**Steps:**
+1. Clear the cart (remove all items or use Clear Cart).
+2. Navigate to any screen and observe the Cart tab badge.
+
+**Expected Result:**
+- No badge (count = 0). Cart icon shows regular (unfilled) weight.
+
+---
+
+### TC-X13 · "Me" tab removal — Profile still accessible via Home avatar
+
+**Steps:**
+1. Verify there is NO "Me" tab in the bottom nav bar.
+2. Tabs are: Home, Discover, Sell FAB, Inbox, Cart.
+3. Tap the Home header avatar (left side of greeting) or the User icon (right side).
+4. Confirm navigation opens **ProfileScreen**.
+
+**Expected Result:**
+- "Me" tab is absent from bottom nav.
+- Profile screen still opens from Home header avatar/icon — no route is orphaned.
+
+---
+
+### TC-X14 · "Me" tab removal — no orphaned routes
+
+**Steps:**
+1. Search the codebase for references to `MeTab` or `tab-me` route strings.
+2. Verify no code tries to navigate to `MeTab`.
+
+**Expected Result:**
+- `MeTab` and `tab-me` are fully removed from the app.
+- No red screen, no console error, no broken deep link surfaces.
+
+---
+
+### TC-X15 · Sell FAB opens action sheet on every screen
+
+**Steps:**
+1. From Home, tap the orange Sell FAB → action sheet opens with "List One Item" and "Bulk Upload".
+2. Dismiss, navigate to Discover, tap Sell FAB again → same sheet.
+3. Navigate to Item Detail, Cart, Inbox — repeat.
+
+**Expected Result:**
+- Sell FAB works identically on every screen. Action sheet always shows both options.
+- "List One Item" navigates to `ItemCreate`. "Bulk Upload" navigates to `BulkListingCreate`.
+
+---
+
+### TC-X16 · flow-registry.md entries updated
+
+**Steps:**
+1. Open `docs/flow-registry.md`.
+2. Verify FLOW-00 and FLOW-07 entries reference the persistent bottom nav.
+
+**Expected Result:**
+- FLOW-00 (Infrastructure) smoke includes "bottom nav renders identically on 100% of screens".
+- FLOW-07 (Cart) smoke references the persistent Cart tab badge.
+
+---
+
+
+## Group U — Top Nav Header Pattern Consistency
+
+**Ref:** AppHeader.tsx (variant: 'main' | 'tab' | 'detail'), ScreenLayout.tsx, Prompt #1B — Top Nav Consolidation
+
+### TC-U01 · Root/tab screens use pattern 1 (no back button, greeting/avatar or title, notification bell)
+
+**Screens under test:** Home (Dashboard), Discover, Inbox (Messages), Cart
+
+**Steps:**
+1. Log in as a subscriber at test-buyer@kidsmarketplace.test.
+2. Navigate to each root tab screen: Home, Discover, Inbox, Cart.
+3. For each screen, inspect the top header area.
+
+**Expected Result for Home:**
+- Left: Avatar + greeting ("Good morning/afternoon/evening, [Name]").
+- Right: Notification bell (with unread badge count) + Profile icon.
+- No back button is visible.
+- Tapping the bell navigates to the Notifications screen.
+- Tapping the avatar or Profile icon navigates to Profile.
+
+**Expected Result for Discover, Inbox, Cart:**
+- Left: Empty spacer (same 40px circle as back button position on detail screens) — no back button.
+- Center: Screen title ("Discover", "Messages", "My Cart").
+- Right: Notification bell (with unread badge count).
+- Tapping the bell navigates to the Notifications screen on every screen.
+- Bell icon, size, and badge style are identical across all three screens.
+
+---
+
+### TC-U02 · Secondary/detail screens use pattern 2 (back button + title + notification bell)
+
+**Screens under test (sample — test 5 that cover different areas):**
+
+| Screen | How to reach |
+|---|---|
+| Item Detail | Tap any listing from Discover or Home |
+| Profile | Tap avatar on Home header |
+| Swap Points | Profile → Swap Points |
+| My Trades | Trades from Home or Profile |
+| Create Listing | Sell FAB → List One Item |
+
+**Steps:**
+1. Navigate to each screen in the table above.
+2. For each screen, inspect the top header area.
+
+**Expected Result (all screens):**
+- Left: ← Back button (40px round, gray `#F4F4F4` background, centered CaretLeft icon).
+- Center: Screen title (bold, 17px, centered).
+- Right: Notification bell (same icon, size, badge logic as root screens).
+- Tapping the back button navigates to the previous screen.
+- Tapping the bell navigates to Notifications.
+
+---
+
+### TC-U03 · Notification bell behavior + badge accuracy
+
+**Steps:**
+1. Log in as test-buyer.
+2. From a secondary screen (e.g., Profile), verify the bell icon and badge.
+3. Tap the bell → should navigate to Notifications screen.
+4. From a root screen (e.g., Discover), verify the same bell icon and badge.
+5. Tap the bell → should navigate to same Notifications screen.
+6. Mark some notifications as read (backend or by opening them).
+7. Navigate back to a root screen → verify badge count decreased.
+8. Navigate to a secondary screen → verify badge count matches.
+
+**Expected Result:**
+- Bell icon: Always the same Phosphor `Bell` icon (22px, bold, `#1A1A1A`).
+- Badge: Red dot with count (capped at 99+), positioned top-right of the bell icon.
+- Tap destination: Always `Notifications` screen — never a different route.
+- Badge count reflects the same `unreadCount` value on every screen it appears.
+- Pull-to-refresh on any screen updates the badge (no stale count).
+
+---
+
+### TC-U04 · Screens without ScreenLayout still have working headers
+
+**Screens under test:** EditListing, SubmitReview
+
+**Steps:**
+1. Log in as test-seller.
+2. Navigate to My Listings → tap an existing listing → tap Edit.
+3. Verify EditListingScreen shows a consistent detail header (back button + "Edit Listing" title + bell).
+4. Complete a trade as test-buyer → navigate to the review prompt.
+5. Verify SubmitReviewScreen shows a consistent detail header (back button + "Review [name]" title + bell).
+
+**Expected Result:**
+- Both screens now use ScreenLayout (not bare View or native navigation header).
+- Header matches variant="detail" pattern exactly: back button (left) + title (center) + bell (right).
+- Back button navigates to the previous screen.
+- Bell navigates to Notifications.
+
+---
+
+### TC-U05 · Checkout/payment screens intentionally hide the bell (DEFERRED-DECISION)
+
+**Screens under test:** CartCheckout, SubscriptionPayment, RequestPayout
+
+**Steps:**
+1. Log in as test-buyer with items in cart → tap Checkout.
+2. Verify header shows back button + "Checkout" title — no bell icon on the right (empty spacer).
+3. Navigate to Subscription → tap a plan → reach Subscription Payment screen.
+4. Verify header shows back button + "Payment" title — no bell.
+5. Log in as test-seller with earnings → navigate to Payouts → Request Payout.
+6. Verify header shows back button + "Request Payout" title — no bell.
+
+**Expected Result:**
+- These three screens are the only authenticated screens where the bell is intentionally hidden.
+- Each has a `// DEFERRED-DECISION` comment documenting the decision.
+- The right spacer is an empty `headerActionBtn` (40px) to keep the title centred.
+- Bell behavior on all other screens remains intact.
+
+---
+
+> **Merged from root copy (2026-07-30).**
+
+## Group V — Copy Rename Verification
+
+> This group covers the "Cart → Trade Basket" and "Bundle → (removed)" copy rename. These tests verify that every instance of "Cart" in user-facing UI copy has been replaced with "Trade Basket", every instance of "Bundle" in user-facing copy has been removed or rephrased, and functional behavior is unaffected.
+>
+> **Note:** These are visual/text-only tests (no DB migration, no API change). If a test passes for one device (e.g., iOS Simulator), it is safe to assume the same result on the other, unless the text is in a native component that might render differently.
+
+### TC-V01 · "Trade Basket" appears in bottom tab bar
+
+**Actors:** Any logged-in user (test-buyer)
+
+**Objective:** Verify the bottom tab bar label shows "Trade Basket" instead of "Cart".
+
+**Steps:**
+1. Log in and observe the bottom navigation bar.
+2. Look at the tab that previously said "Cart".
+
+**Expected Result:**
+- The tab label reads **Trade Basket**.
+- The ShoppingCart icon is unchanged.
+- Tapping the tab navigates to the Cart screen (functionally unchanged).
+
+### TC-V02 · "Trade Basket" appears as screen title on Cart screen
+
+**Actors:** test-buyer
+
+**Precondition:** Cart screen is accessible.
+
+**Objective:** Verify the Cart screen title shows "Trade Basket".
+
+**Steps:**
+1. Navigate to the Cart/Trade Basket screen.
+2. Observe the screen header/title.
+
+**Expected Result:**
+- The screen title reads **Trade Basket** (not "My Cart").
+- The layout and items display identically to before the rename.
+
+### TC-V03 · Empty state shows "trade basket" in copy
+
+**Actors:** test-buyer
+
+**Precondition:** Cart is empty.
+
+**Objective:** Verify the empty state uses "trade basket" language.
+
+**Steps:**
+1. Clear all items from the cart.
+2. Open the Cart/Trade Basket screen.
+
+**Expected Result:**
+- The empty state title reads **"Your trade basket is empty"**.
+- The subtext reads **"Start adding items you love to your trade basket"**.
+- The Browse Items button is unchanged and still functional.
+
+### TC-V04 · "View Trade Basket" button on Item Detail screen
+
+**Actors:** test-buyer
+
+**Precondition:** An item from the current cart's seller is open on Item Detail.
+
+**Objective:** Verify the in-cart button on Item Detail says "View Trade Basket".
+
+**Steps:**
+1. Add an item to the Trade Basket.
+2. Open that same item's detail page.
+3. Look at the bottom action button.
+
+**Expected Result:**
+- The button reads **View Trade Basket** (not "View Cart").
+- Tapping it navigates to the Trade Basket screen.
+- The ShoppingCart icon is unchanged.
+
+### TC-V05 · "Add to Trade Basket" button on More from This Seller screen
+
+**Actors:** test-buyer
+
+**Precondition:** A seller has 2+ items; buyer has items from that seller in the Trade Basket.
+
+**Objective:** Verify the "More from This Seller" screen uses "Trade Basket" copy.
+
+**Steps:**
+1. Navigate to a seller's "More from this seller" screen.
+2. Observe the action button on items not yet in the Trade Basket.
+
+**Expected Result:**
+- The button reads **Add to Trade Basket** (not "Add to Cart").
+- Tapping it adds the item and shows the "Added to Trade Basket" alert.
+
+### TC-V06 · "In Trade Basket" status on More from This Seller items already in basket
+
+**Actors:** test-buyer
+
+**Objective:** Verify items already in the basket show the correct status label.
+
+**Steps:**
+1. Add an item to the Trade Basket.
+2. Navigate to "More from This Seller" for that item's seller.
+3. Find that item in the list.
+
+**Expected Result:**
+- The action button for items already in the basket reads **In Trade Basket** (not "In Cart").
+- The button is disabled (not tappable) and visually dimmed.
+
+### TC-V07 · "Added to Trade Basket" alert on item add
+
+**Actors:** test-buyer
+
+**Objective:** Verify the add-to-basket success alert uses "Trade Basket" copy.
+
+**Steps:**
+1. Add any available item to the Trade Basket from Item Detail, Favorites, or More from This Seller.
+
+**Expected Result:**
+- The alert title reads **"Added to Trade Basket"**.
+- The alert body reads **"Item added to your Trade Basket."** (or similar, always using "Trade Basket").
+- Tapping OK dismisses the alert and the item appears in the basket.
+
+### TC-V08 · "Matches Your Trade Basket" badge on matching items
+
+**Actors:** test-buyer
+
+**Precondition:** Buyer has a Trade Basket with items from one seller.
+
+**Objective:** Verify the badge on matching items uses "Trade Basket" copy.
+
+**Steps:**
+1. Open an Item Detail for an item from the same seller as the current basket.
+2. Look for the badge near the seller info or action row.
+
+**Expected Result:**
+- The badge reads **Matches Your Trade Basket** (not "Matches Your Cart").
+- The ShoppingCart icon and green styling are unchanged.
+- The badge disappears when the basket is cleared.
+
+### TC-V09 · Different-seller modal references "trade basket"
+
+**Actors:** test-buyer
+
+**Precondition:** Buyer has items from one seller in the Trade Basket.
+
+**Objective:** Verify the different-seller conflict modal uses "trade basket" language.
+
+**Steps:**
+1. Attempt to add an item from a different seller.
+2. Observe the modal that appears.
+
+**Expected Result:**
+- The modal body reads: **"Your trade basket already has items from a different seller. Adding this item will clear your current trade basket."**
+- The three action buttons (Cancel, Save & Start New Cart, Replace Cart) are functionally unchanged and use the same labels.
+
+### TC-V10 · Bundle CTA says "Make one offer" (no "Bundle" visible)
+
+**Actors:** test-buyer
+
+**Precondition:** Trade Basket has 2+ items from the same seller.
+
+**Objective:** Verify the bundle CTA text no longer says "Bundle".
+
+**Steps:**
+1. Add 2+ items from the same seller to the Trade Basket.
+2. Open the Trade Basket screen.
+3. Look for the green bundle CTA card above the checkout area.
+
+**Expected Result:**
+- The CTA title reads **"Make one offer for these N items"** (not "Bundle these N items").
+- The CTA subtext reads **"All items from this seller"** (not "Make one offer for all items from this seller" — no change in meaning).
+- The Package icon and green styling are unchanged.
+- Tapping the CTA still navigates to checkout in combined-offer mode.
+- The word "Bundle" does not appear anywhere on the CTA.
+
+### TC-V11 · "Combined Offer" banner on checkout (no "Bundle" visible)
+
+**Actors:** test-buyer
+
+**Precondition:** Buyer taps the combined-offer CTA from Trade Basket.
+
+**Objective:** Verify the checkout banner no longer says "Bundle Offer".
+
+**Steps:**
+1. Tap the "Make one offer for these N items" CTA to enter checkout.
+2. Observe the banner at the top of the checkout screen.
+
+**Expected Result:**
+- The banner title reads **"📦 Combined Offer"** (not "📦 Bundle Offer").
+- The banner text reads: "You're making a single offer for all N items from this seller." — unchanged.
+- The word "Bundle" does not appear anywhere on the banner.
+
+### TC-V12 · Bundle Builder screen title shows "Build Offer" (no "Bundle" visible)
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Bundle Builder screen title uses "Build Offer".
+
+**Steps:**
+1. Navigate to the Bundle Builder screen (from Cart/Trade Basket).
+2. Observe the screen header/title.
+
+**Expected Result:**
+- The screen title reads **"Build Offer"** (not "Bundle").
+- The word "Bundle" does not appear anywhere on the screen's visible copy.
+- All functionality (item selection, price display, Add to Basket) works identically.
+
+### TC-V13 · Favorites "Added to Trade Basket" alert copy
+
+**Actors:** test-buyer
+
+**Precondition:** Buyer has favorited items.
+
+**Objective:** Verify the favorites → basket flow uses "Trade Basket" copy.
+
+**Steps:**
+1. Navigate to the Favorites screen.
+2. Tap the **Add to Trade Basket** action (shopping cart icon/button) on a favorited item.
+
+**Expected Result:**
+- The alert title reads **"Added to Trade Basket"**.
+- The alert body references the item by name and says **"was added to your Trade Basket."**.
+- The item appears in the Trade Basket after dismissal.
+
+### TC-V14 · Functional behavior unchanged (adding items, submitting offers still works)
+
+**Actors:** test-buyer
+
+**Objective:** Verify that nothing broke due to the copy rename.
+
+**Steps:**
+1. Add 3 items from the same seller to the Trade Basket.
+2. Verify the cart count badge updates correctly.
+3. Tap the combined-offer CTA and proceed to checkout.
+4. Submit the offer.
+5. Add an item from a different seller and verify the different-seller modal appears.
+6. Clear the Trade Basket and verify the empty state appears.
+
+**Expected Result:**
+- All functional behavior (add, remove, clear, different-seller modal, combined-offer submission, badge counts) works identically to before the rename.
+- No console errors or crashes related to the copy change.
+
+---
+
+> **Merged from root copy (2026-07-30).**
+
+## Group W — Admin Bundle Trade Views
+
+### TC-W01 · Trades page has "Single Trades" and "Bundle Trades" tabs
+
+**Ref:** ADMIN-V2-010 (new)
+**Actors:** Admin user
+
+**Objective:** Verify the trades list page has two tab buttons to switch between single and bundle views.
+
+**Steps:**
+1. Log into the admin portal (http://localhost:3001).
+2. Navigate to **Trades** in the left sidebar.
+
+**Expected Result:**
+- Two tab buttons are visible at the top of the page: **"Single Trades"** (left) and **"Bundle Trades"** (right).
+- "Single Trades" is selected by default (blue highlight).
+- The active tab is visually distinct (blue background vs white).
+
+---
+
+### TC-W02 · Single Trades tab shows only non-bundle trades
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify the Single Trades view filters out bundle trades.
+
+**Steps:**
+1. On the **Trades** page, ensure **"Single Trades"** tab is selected.
+2. Review the listed trades.
+
+**Expected Result:**
+- All listed trades are non-bundle (no "Bundle ID" column shown, each row = one item).
+- No trade shown is part of a bundle (trades that belong to a bundle are hidden from this view).
+- The table columns match the original layout: Trade ID, Status, Buyer/Seller, Amount, Created, Actions.
+
+---
+
+### TC-W03 · Bundle Trades tab groups trades by bundle_id
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify that clicking "Bundle Trades" shows trades grouped by bundle_id.
+
+**Steps:**
+1. Tap the **"Bundle Trades"** tab.
+2. Review the displayed data.
+
+**Expected Result:**
+- Each row represents a bundle (multiple trades sharing the same bundle_id), not a single trade.
+- The table columns show: Bundle ID, Items/Statuses, Buyer/Seller, Total Amount, Created, Actions.
+- If no bundle trades exist, an empty state reads "No bundle trades found."
+
+---
+
+### TC-W04 · Bundle row shows item count, total amounts, buyer/seller, statuses
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify bundle summary information is correct.
+
+**Steps:**
+1. In the **Bundle Trades** view, locate a bundle row.
+2. Examine the displayed columns.
+
+**Expected Result:**
+- **Bundle ID**: First 8 characters of the bundle UUID, followed by "..."
+- **Items/Statuses**: Shows "N items" and pill badges for each distinct status in the bundle (e.g., "completed", "in_progress").
+- **Buyer/Seller**: Shows buyer name, email, phone | seller name, email, phone (same format as single view).
+- **Total Amount**: Shows total cash amount, total SP (if any), and total fees.
+- **Created**: Date of the earliest trade in the bundle.
+
+---
+
+### TC-W05 · Clicking a bundle row navigates to bundle detail page
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify the "View Bundle" link navigates to the bundle detail page.
+
+**Steps:**
+1. In **Bundle Trades** view, tap the **"View Bundle"** link on any bundle row.
+
+**Expected Result:**
+- Navigates to `/trades/bundles/{bundleId}`.
+- The page title shows "Bundle Details" with the full Bundle ID.
+
+---
+
+### TC-W06 · Bundle detail page lists all trades in the bundle
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify all trades in the bundle are listed as individual cards.
+
+**Steps:**
+1. Navigate to a bundle detail page (from TC-W05).
+2. Scroll down to the **"Trades in this Bundle"** section.
+
+**Expected Result:**
+- Each trade in the bundle shows as a separate card.
+- Each card shows: trade ID (truncated), status badge, item title, price, condition.
+- Each card has a "View Details →" link to the individual trade detail page.
+
+---
+
+### TC-W07 · Bundle detail page shows monetary breakdown
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify the bundle summary card shows aggregated financial data.
+
+**Steps:**
+1. On the bundle detail page, review the **Bundle Summary** card at the top.
+2. Scroll to the **Bundle Monetary Breakdown** section.
+
+**Expected Result:**
+- Total Cash (All Items): Sum of all cash_amount_cents in the bundle.
+- Total Swap Points Applied: Sum of all sp_amount (if any SP was used).
+- Total Platform Fees: Sum of all buyer_transaction_fee_cents.
+- Total Charged (Cash): Total cash + total fees.
+
+---
+
+### TC-W08 · Each trade row links to individual trade detail
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify the admin can drill into individual trades from the bundle detail.
+
+**Steps:**
+1. On the bundle detail page, tap **"View Details →"** on any trade card.
+
+**Expected Result:**
+- Navigates to `/trades/{tradeId}`.
+- Shows the full single-trade detail page with monetary breakdown, item details, audit trail, and actions.
+
+---
+
+### TC-W09 · Bundle detail page has "Force Cancel Entire Bundle" action
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify the bundle-level force cancel action is present and functional.
+
+**Steps:**
+1. On a bundle detail page where at least one trade is not completed/cancelled, scroll to the bottom.
+
+**Expected Result:**
+- A red **"Admin Interventions"** section is visible.
+- The button reads **"Force Cancel Entire Bundle"**.
+- The warning text states "Force-cancelling this bundle will attempt to cancel all N trades..."
+
+---
+
+### TC-W10 · Force Cancel succeeds for all trades in the bundle
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify the force cancel action processes all trades in the bundle.
+
+**Steps:**
+1. On a bundle detail page with active (non-terminal) trades, tap **"Force Cancel Entire Bundle"**.
+2. Enter a cancellation reason.
+3. Tap **"Confirm Force Cancel"**.
+
+**Expected Result:**
+- Each trade in the bundle is force-cancelled via the `/api/admin/trades/force-cancel` API.
+- A result summary appears showing succeeded/failed counts.
+- If all succeed, the page auto-reloads after 1.5 seconds.
+- After reload, all trades show "cancelled" status.
+
+---
+
+### TC-W11 · Status filter works in Bundle Trades view
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify the status filter still works in the Bundle Trades view.
+
+**Steps:**
+1. In the **Bundle Trades** view, select a status from the dropdown (e.g., "completed").
+
+**Expected Result:**
+- The page filters to show only bundles containing trades with that status.
+- Note: Since bundles can have mixed statuses, a bundle is included if any of its trades match the filter.
+
+---
+
+### TC-W12 · Tab toggle resets filters when switching views
+
+**Ref:** ADMIN-V2-010
+**Actors:** Admin user
+
+**Objective:** Verify that switching between Single Trades and Bundle Trades clears filters and search.
+
+**Steps:**
+1. Set a status filter and search query in Single Trades view.
+2. Tap the **"Bundle Trades"** tab.
+
+**Expected Result:**
+- Status filter resets to "All Statuses".
+- Search query is cleared.
+- The bundle list shows all bundle trades unfiltered.
+- Switching back to "Single Trades" also shows all single trades unfiltered.
+
+> **Merged from root copy (2026-07-30).**
+
 ## Regression checks (run after any change to trade screens)
 
 ### TC-R01 · Value stack totals correct
@@ -5026,6 +6202,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 | Subscriber buyer used SP — saved message (§12) | TC-H02 |
 | Subscriber seller Accept SP — SP pending notice (§12) | TC-H03 |
 | Subscriber seller Cash Only — upsell CTA (§12) | TC-H04 |
+| Subscription lifecycle — trial / paid / cancel (FR-UM-004, SUB-002/008/009) | TC-H05 |
 | Safe meetup card on in_progress (§11.5) | TC-I01 |
 | Safe meetup card dismissible per trade (§11.5) | TC-I02 |
 | In-chat safety banner persistent (V1-3) | TC-I03 |
@@ -5039,6 +6216,7 @@ The banner counts ALL trades sharing the `bundle_id` regardless of status (pendi
 | Value stack $0.99 subscriber fee | TC-K01 |
 | Value stack $2.99 non-subscriber fee | TC-K02 |
 | SP discount row conditional | TC-K03 |
+| Seller fee 5% × cash portion (SP trade) | TC-K11 |
 | Bundle banner on trade detail | TC-L01 |
 | Confirm All shortcut for bundle | TC-L02 |
 | Bundle offer rows in Offers tab | TC-L03 |

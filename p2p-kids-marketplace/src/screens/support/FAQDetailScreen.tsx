@@ -14,17 +14,8 @@ interface FAQ {
   answer: string;
 }
 
-interface FAQDetailScreenProps {
-  navigation: any;
-  route: {
-    params: {
-      faq: FAQ;
-    };
-  };
-}
-
-export default function FAQDetailScreen({ navigation, route }: FAQDetailScreenProps) {
-  const { faq } = route.params;
+export default function FAQDetailScreen({ navigation, route }: any) {
+  const { faq } = route.params as { faq: FAQ };
 
   return (
     <ScreenLayout variant="detail" title="FAQ" onBack={() => navigation.goBack()}>

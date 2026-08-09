@@ -381,23 +381,24 @@ serve(async (req) => {
         },
       };
 
-      // Trial initialization for first-time upgrades (free -> trialing) using admin-config days.
-      if (!isRenewal) {
+      // Stripe rejects a request that sets both trial_end and trial_period_days, so these
+      // two branches must be mutually exclusive (see BUG: "Received both trial_end and
+      // trial_period_days parameters" when a non-renewal subscribe hit a user already in trial).
+      const existingTrialEndsAt = subscription.trial_ends_at || subscription.trial_end_date;
+      if (subscription.status === 'trial' && existingTrialEndsAt) {
+        // Preserve existing trial window for users already in trial.
+        const trialEndTimestamp = Math.floor(
+          new Date(existingTrialEndsAt).getTime() / 1000,
+        );
+        subscriptionParams.trial_end = trialEndTimestamp;
+      } else if (!isRenewal) {
+        // Trial initialization for first-time upgrades (free -> trialing) using admin-config days.
         const trialDaysRaw = await getAdminConfigNumber(supabaseClient, 'trial_period_days', 30);
         const trialDays = Math.max(Math.round(trialDaysRaw), 0);
 
         if (trialDays > 0) {
           subscriptionParams.trial_period_days = trialDays;
         }
-      }
-
-      // Preserve existing trial window for users already in trial.
-      const existingTrialEndsAt = subscription.trial_ends_at || subscription.trial_end_date;
-      if (subscription.status === 'trial' && existingTrialEndsAt) {
-        const trialEndTimestamp = Math.floor(
-          new Date(existingTrialEndsAt).getTime() / 1000,
-        );
-        subscriptionParams.trial_end = trialEndTimestamp;
       }
 
       stripeSubscription = await stripe.subscriptions.create(subscriptionParams);

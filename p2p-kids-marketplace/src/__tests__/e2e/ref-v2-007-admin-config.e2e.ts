@@ -79,12 +79,15 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
     const newReferrerSP = 40;
     const newRefereeSP = 20;
 
-    const { error: updateError1 } = await supabase
+    // sp_config UPDATE is RLS-restricted to admins (auth.uid() must be in
+    // role_based_access_control) — the anon client silently affects 0 rows, so
+    // use the service-role client for this admin action.
+    const { error: updateError1 } = await adminSupabase
       .from('sp_config')
       .update({ config_value: newReferrerSP.toString() })
       .eq('config_key', 'referral_reward_referrer_sp');
 
-    const { error: updateError2 } = await supabase
+    const { error: updateError2 } = await adminSupabase
       .from('sp_config')
       .update({ config_value: newRefereeSP.toString() })
       .eq('config_key', 'referral_reward_referee_sp');
@@ -144,7 +147,7 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
       if (!result.success && !isAcceptableIdempotentFailure) {
         if (configBefore) {
           for (const item of configBefore) {
-            await supabase
+            await adminSupabase
               .from('sp_config')
               .update({ config_value: item.config_value })
               .eq('config_key', item.config_key);
@@ -220,7 +223,9 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
     console.log('[E2E] Referral rewards granted:', rewardResult);
 
     // Step 8: Verify SP ledger entries match configured values
-    const { data: referrerLedger, error: refLedgerError } = await supabase
+    // sp_ledger is RLS-protected (authenticated can only read own rows; anon has
+    // no access), so verify via the service-role client like other admin checks.
+    const { data: referrerLedger, error: refLedgerError } = await adminSupabase
       .from('sp_ledger')
       .select('amount, created_at')
       .eq('user_id', referrerUserId)
@@ -228,7 +233,7 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
       .limit(1)
       .single();
 
-    const { data: refereeLedger, error: refeeLedgerError } = await supabase
+    const { data: refereeLedger, error: refeeLedgerError } = await adminSupabase
       .from('sp_ledger')
       .select('amount, created_at')
       .eq('user_id', refereeUserId)
@@ -253,10 +258,11 @@ describe('REF-V2-007: Admin Config for SP Bonus Rewards', () => {
       `[E2E] ✅ Verified: Referrer received ${newReferrerSP} SP, Referee received ${newRefereeSP} SP`
     );
 
-    // Step 9: Restore original config (cleanup)
+    // Step 9: Restore original config (cleanup) — service-role client required
+    // because sp_config modification is RLS-restricted to admins.
     if (configBefore) {
       for (const item of configBefore) {
-        await supabase
+        await adminSupabase
           .from('sp_config')
           .update({ config_value: item.config_value })
           .eq('config_key', item.config_key);

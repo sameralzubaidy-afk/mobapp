@@ -148,36 +148,58 @@ serve(async (req) => {
             .single();
 
           if (!existingRefund?.stripe_refund_id) {
-            console.log(`[resolve-dispute] Issuing Stripe refund for PI: ${trade.stripe_payment_intent_id}`);
-            const refund = await stripe.refunds.create({
-              payment_intent: trade.stripe_payment_intent_id,
-              reason: 'requested_by_customer',
-              metadata: { supabase_trade_id: trade_id, admin_action: 'resolve_dispute_refund' },
-            });
-            await svcClient.from('trades').update({ stripe_refund_id: refund.id }).eq('id', trade_id);
+            // TAX-STATUS-LIFECYCLE (2026-07-23): An in_progress trade's PI is usually an
+            // UNCAPTURED authorization hold (capture happens only at buyer completion).
+            // Stripe does NOT allow refunds on uncaptured PIs — they must be CANCELLED.
+            // Previously this branch unconditionally refunded, which failed on uncaptured
+            // PIs and left the Stripe transaction stuck as "uncaptured" (TC-O3-C07).
+            const pi = await stripe.paymentIntents.retrieve(trade.stripe_payment_intent_id);
 
-            // TAX-REFUND-INTEGRITY (2026-07-24): Use the new rpc_record_stripe_refund
-            // which is idempotent and only reverses tax after Stripe confirms the refund.
-            try {
-              const { data: taxRecord } = await svcClient
-                .from('tax_records')
-                .select('tax_amount_cents')
-                .eq('trade_id', trade_id)
-                .maybeSingle();
+            if (pi.status === 'requires_capture' || pi.status === 'processing') {
+              // Uncaptured authorization hold — cancel it (can't be refunded).
+              const cancelled = await stripe.paymentIntents.cancel(trade.stripe_payment_intent_id, {
+                cancellation_reason: 'requested_by_customer',
+              });
+              console.log(`[resolve-dispute] PI ${pi.id} cancelled (uncaptured) for trade ${trade_id}`);
+              await svcClient.from('trades').update({ stripe_refund_id: `cancelled_${cancelled.id}` }).eq('id', trade_id);
+              // Tax is voided below via rpc_void_tax_for_trade (quoted → voided). No
+              // rpc_record_stripe_refund here — nothing was captured to refund.
+            } else if (pi.status === 'succeeded') {
+              // Captured payment — issue a refund
+              console.log(`[resolve-dispute] Issuing Stripe refund for PI: ${trade.stripe_payment_intent_id}`);
+              const refund = await stripe.refunds.create({
+                payment_intent: trade.stripe_payment_intent_id,
+                reason: 'requested_by_customer',
+                metadata: { supabase_trade_id: trade_id, admin_action: 'resolve_dispute_refund' },
+              });
+              await svcClient.from('trades').update({ stripe_refund_id: refund.id }).eq('id', trade_id);
 
-              if (taxRecord && (taxRecord as { tax_amount_cents: number }).tax_amount_cents > 0) {
-                await svcClient.rpc('rpc_record_stripe_refund', {
-                  p_trade_id: trade_id,
-                  p_stripe_refund_id: refund.id,
-                  p_refund_amount_cents: (taxRecord as { tax_amount_cents: number }).tax_amount_cents,
-                  p_refund_status: refund.status,
-                  p_refund_reason: 'dispute_resolved_refund',
-                  p_initiating_actor: 'admin',
-                });
+              // TAX-REFUND-INTEGRITY (2026-07-24): Use the new rpc_record_stripe_refund
+              // which is idempotent and only reverses tax after Stripe confirms the refund.
+              try {
+                const { data: taxRecord } = await svcClient
+                  .from('tax_records')
+                  .select('tax_amount_cents')
+                  .eq('trade_id', trade_id)
+                  .maybeSingle();
+
+                if (taxRecord && (taxRecord as { tax_amount_cents: number }).tax_amount_cents > 0) {
+                  await svcClient.rpc('rpc_record_stripe_refund', {
+                    p_trade_id: trade_id,
+                    p_stripe_refund_id: refund.id,
+                    p_refund_amount_cents: (taxRecord as { tax_amount_cents: number }).tax_amount_cents,
+                    p_refund_status: refund.status,
+                    p_refund_reason: 'dispute_resolved_refund',
+                    p_initiating_actor: 'admin',
+                  });
+                }
+              } catch (taxRefundErr: unknown) {
+                const msg = taxRefundErr instanceof Error ? taxRefundErr.message : 'Unknown error';
+                console.error(`[resolve-dispute] Tax refund error: ${msg}`);
               }
-            } catch (taxRefundErr: unknown) {
-              const msg = taxRefundErr instanceof Error ? taxRefundErr.message : 'Unknown error';
-              console.error(`[resolve-dispute] Tax refund error: ${msg}`);
+            } else {
+              // canceled / requires_payment_method / etc — nothing to refund or cancel
+              console.log(`[resolve-dispute] PI ${pi.id} status is ${pi.status} — no refund/cancel issued`);
             }
           } else {
             console.log(`[resolve-dispute] Refund already exists (${existingRefund.stripe_refund_id}), skipping Stripe refund`);

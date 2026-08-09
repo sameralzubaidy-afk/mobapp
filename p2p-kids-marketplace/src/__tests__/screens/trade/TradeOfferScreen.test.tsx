@@ -9,6 +9,7 @@ import { render } from '@testing-library/react-native';
 
 import TradeOfferScreen from '../../../screens/trade/TradeOfferScreen';
 import { useSubscriptionStatus, useSPWallet } from '@/hooks/useAuth';
+import { getTransactionFee } from '@/services/subscription';
 
 // ─── Mock all external dependencies ─────────────────────────────────────────
 
@@ -67,8 +68,12 @@ jest.mock('@stripe/stripe-react-native', () => ({
 
 jest.mock('@/services/subscription', () => ({
   getTransactionFee: jest.fn().mockResolvedValue(99),
-  getPaymentMethod: jest.fn().mockResolvedValue({ id: 'pm_test', payment_method_type: 'card', last_four: '4242' }),
+  getPaymentMethod: jest
+    .fn()
+    .mockResolvedValue({ id: 'pm_test', payment_method_type: 'card', last_four: '4242' }),
 }));
+
+const mockGetTransactionFee = getTransactionFee as jest.Mock;
 
 jest.mock('@/components/molecules/WalletWarningBanner', () => ({
   __esModule: true,
@@ -113,6 +118,7 @@ describe('TradeOfferScreen – Addendum B: Value Stack', () => {
     beforeEach(() => {
       (useSubscriptionStatus as jest.Mock).mockReturnValue({ status: 'active' });
       (useSPWallet as jest.Mock).mockReturnValue({ available: 100, pending: 0, reserved: 0 });
+      mockGetTransactionFee.mockResolvedValue(99);
     });
 
     it('renders the value-stack-row testID', async () => {
@@ -154,6 +160,7 @@ describe('TradeOfferScreen – Addendum B: Value Stack', () => {
     beforeEach(() => {
       (useSubscriptionStatus as jest.Mock).mockReturnValue({ status: 'inactive' });
       (useSPWallet as jest.Mock).mockReturnValue({ available: 0, pending: 0, reserved: 0 });
+      mockGetTransactionFee.mockResolvedValue(299);
     });
 
     it('shows $2.99 platform fee for non-subscriber', async () => {
@@ -171,6 +178,10 @@ describe('TradeOfferScreen – Addendum B: Value Stack', () => {
   });
 
   describe('Trade/trial user view ($0.99 fee)', () => {
+    beforeEach(() => {
+      mockGetTransactionFee.mockResolvedValue(99);
+    });
+
     it('shows $0.99 for trial subscriber', async () => {
       (useSubscriptionStatus as jest.Mock).mockReturnValue({ status: 'trial' });
       const { findByText } = render(<TradeOfferScreen />);

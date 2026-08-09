@@ -8,7 +8,7 @@
  */
 import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { formatCents, formatTaxRate } from '@/services/tax';
+import { formatCents } from '@/services/tax';
 
 interface Props {
   taxAmountCents: number;
@@ -21,6 +21,9 @@ interface Props {
   /** TAX-REFUND-INTEGRITY (2026-07-24): Custom label. Defaults to "Sales Tax".
    *  Use "Estimated Sales Tax" for in-progress/uncaptured trades. */
   label?: string;
+  /** TC-O05 (2026-08-01): item is tax-exempt (tax_exempt_goods category).
+   *  When true, renders a "Tax Free" badge instead of a hidden $0 tax row. */
+  isTaxExempt?: boolean;
 }
 
 export const TaxBreakdownRow: React.FC<Props> = ({
@@ -31,18 +34,27 @@ export const TaxBreakdownRow: React.FC<Props> = ({
   alwaysShow,
   testID = 'tax-breakdown-row',
   label = 'Sales Tax',
+  isTaxExempt,
 }) => {
+  // TC-O05 (2026-08-01): a tax-exempt item renders a "Tax Free" badge instead of
+  // hiding the row when tax is $0 — this distinguishes a true exemption from a
+  // merely-disabled/zero node rate (TC-O03/TC-O04 must NOT show the badge).
+  if (isTaxExempt && !loading) {
+    return (
+      <View style={styles.row} testID="tax-free-badge">
+        <View style={styles.exemptBadge}>
+          <Text style={styles.exemptBadgeText}>Tax Free</Text>
+        </View>
+        <Text style={styles.value}>{formatCents(0)}</Text>
+      </View>
+    );
+  }
+
   if (!alwaysShow && !loading && taxAmountCents <= 0) return null;
 
   return (
     <View style={styles.row} testID={testID}>
-      <View>
-        <Text style={styles.label}>{label}</Text>
-        <Text style={styles.subtext}>
-          {formatTaxRate(taxRate)}
-          {jurisdiction ? ` · ${jurisdiction}` : ''}
-        </Text>
-      </View>
+      <Text style={styles.label}>{label}</Text>
       {loading ? (
         <ActivityIndicator size="small" testID="tax-loading" />
       ) : (
@@ -62,8 +74,20 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   label: { fontSize: 15, color: '#222' },
-  subtext: { fontSize: 11, color: '#888', marginTop: 2 },
   value: { fontSize: 15, color: '#222' },
+  // TC-O05 (2026-08-01): badge styling follows docx/design-system-passitup.md —
+  // primary green #5DBB8E text on the light-green tint #E8F5F0, pill shape.
+  exemptBadge: {
+    backgroundColor: '#E8F5F0',
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  exemptBadgeText: {
+    color: '#5DBB8E',
+    fontSize: 13,
+    fontWeight: '600',
+  },
 });
 
 export default TaxBreakdownRow;

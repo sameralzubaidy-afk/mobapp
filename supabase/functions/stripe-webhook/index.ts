@@ -102,6 +102,21 @@ serve(async (req) => {
                 const msg = taxRefundErr instanceof Error ? taxRefundErr.message : 'Unknown error';
                 console.error(`[stripe-webhook] Tax refund record error for trade ${trade.id}:`, msg);
               }
+
+              // PAY-317 (2026-08-01): sync the payments reconciliation ledger. Idempotent —
+              // skips refunds already recorded by the trade-refund EF; records FULL refunds
+              // from any path (force-cancel / dispute / cancel / manual Stripe).
+              try {
+                await supabaseClient.rpc('rpc_sync_payment_refund_webhook', {
+                  p_trade_id: trade.id,
+                  p_stripe_refund_id: refundId,
+                  p_refund_amount_cents: refundAmountCents,
+                  p_status: 'succeeded',
+                });
+              } catch (paySyncErr: unknown) {
+                const msg = paySyncErr instanceof Error ? paySyncErr.message : 'Unknown error';
+                console.error(`[stripe-webhook] Payments ledger sync error for trade ${trade.id}:`, msg);
+              }
             }
 
             // Cancel the trade if it's not already cancelled

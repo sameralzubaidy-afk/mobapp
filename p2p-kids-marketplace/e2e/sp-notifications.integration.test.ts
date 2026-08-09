@@ -288,7 +288,9 @@ describeE2E('SP Notifications E2E Tests', () => {
       expect(notifications?.length).toBeGreaterThan(0);
 
       const notification = notifications![0];
-      expect(notification.title).toContain('SP Spent');
+      // BP-14: spend_purchase reservations are "reserved" (returnable), not "spent"
+      // (see migration 20260704000001_add_reserved_sp_to_wallet_summary.sql).
+      expect(notification.title).toContain('SP Reserved');
       expect(notification.body).toContain('20 SP');
       expect(notification.data.amount).toBe(-20);
 

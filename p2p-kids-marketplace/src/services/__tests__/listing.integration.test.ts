@@ -12,6 +12,11 @@ import { supabase } from '../../config/supabase';
 jest.mock('../subscription');
 jest.mock('../analytics');
 jest.mock('../../config/supabase');
+// getAdminConfig() queries admin_config via supabase.from() internally — mock it so
+// createListing's own supabase.from('items') builder is not consumed by the lookup.
+jest.mock('../adminConfig', () => ({
+  getAdminConfig: jest.fn().mockResolvedValue({ min_listing_price: 0 }),
+}));
 
 const mockGetSubscriptionSummary = getSubscriptionSummary as jest.MockedFunction<
   typeof getSubscriptionSummary

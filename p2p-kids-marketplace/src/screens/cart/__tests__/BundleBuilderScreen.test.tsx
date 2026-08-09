@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/screens/cart/__tests__/BundleBuilderScreen.test.tsx
  * MODULE-15.1-UI-REDESIGN: Bundle Builder Screen Unit Tests
  * Task: FLOW-07 Cart & Bundling
- * 
+ *
  * Tests bundle builder screen rendering, item selection, and savings calculation.
  */
 
@@ -111,7 +111,8 @@ describe('BundleBuilderScreen', () => {
       const { getByText } = render(<BundleBuilderScreen />);
 
       await waitFor(() => {
-        const heading = getByText('Bundle');
+        // ScreenLayout title is "Build Offer" (see Header describe above).
+        const heading = getByText('Build Offer');
         expect(heading).toBeTruthy();
       });
     });

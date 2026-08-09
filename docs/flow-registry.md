@@ -2104,7 +2104,7 @@ add one section on the top give summary on what this file covers from testing an
     - Single-seller cart enforcement: DIFFERENT_SELLER error from RPC triggers generic modal with no identity leak.
   - Tests:
     - Unit: `src/utils/sellerGroup.ts` (deterministic hash, cache), `src/services/listing.ts` (getMaskedSellerListings returns no PII fields)
-    - Manual: `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group S (13 test cases: TC-S01–S13)
+    - Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group S (13 test cases: TC-S01–S13)
     - Regression: Bundle CTA (CartScreen unchanged), different-seller modal (generic copy), trade-lifecycle masking (unchanged)
   - Validation:
     - `npx tsc -p tsconfig.json --noEmit` (must exit 0 on changed files)
@@ -2140,11 +2140,37 @@ add one section on the top give summary on what this file covers from testing an
     - `npm run test:maestro:android -- .maestro/module-15.1-flow-07-cart.yaml` (Android emulator)
     - Manual testing required (see MODULE-15.1-FLOW-07-MANUAL-TESTING.md)
 
+- **FLOW-07 ITEM-DETAIL NAV FROM CART (2026-08-01):** Tapping an item card on Trade Basket or Checkout opens that item's detail screen
+  - Module: FLOW-07 (Cart & Bundling) — UX navigation enhancement, zero business-logic change
+  - Scope:
+    - `src/screens/cart/CartScreen.tsx` — item row thumbnail + title/price area wrapped in `TouchableOpacity` (`itemTapTarget`, `cart-item-open-{id}`); tapping calls `handleOpenItemDetail` → `navigate('ListingDetail', { listing_id })`. Remove (trash) button kept as sibling so it does not navigate.
+    - `src/screens/cart/CartCheckoutScreen.tsx` — item header row (thumbnail + title/price + "Not eligible" badge) wrapped in `TouchableOpacity` (`checkout-item-open-{listingId}`); SP input area left untappable so points entry still works. Added `TouchableOpacity` import + `CartItem` type import.
+  - Back-nav behavior: `ListingDetail` is pushed onto the stack — Back returns to the exact Trade Basket / Checkout screen with all state (items, SP inputs, scroll) preserved. Checkout has no focus-reload, so SP input state survives the round-trip.
+  - Tests:
+    - Tier 0: `npx eslint src/screens/cart/CartScreen.tsx src/screens/cart/CartCheckoutScreen.tsx` (exit 0), `get_errors` (no TS errors on both files)
+    - Note: repo-wide `yarn typecheck`/`yarn lint` still fail on PRE-EXISTING errors in unrelated files (AuthContext.tsx:769, AppNavigator.tsx:813, ProfileScreen.tsx:131/282; 108 repo lint errors) — none introduced by this change.
+  - Validation:
+    - Manual: iOS Simulator — Trade Basket → tap item card → ItemDetail opens → Back → basket intact. Checkout → tap item header → ItemDetail opens → Back → checkout SP inputs intact.
+
+- **FLOW-07 BUNDLE SKIP IN-PROGRESS NOTICE (2026-08-01):** Bundle checkout now notifies the buyer (branded OK modal) when one or more items are skipped because they already have an active/in-progress trade — eligible offers still submit and the flow continues (PARTIAL-SUCCESS)
+  - Module: FLOW-07 (Cart & Bundling) + FLOW-08 (Trade Flow) — client-only surfacing; no DB/Edge Function change
+  - Scope:
+    - `src/services/cartService.ts` — new `CheckoutSkippedItem`/`CheckoutWarning` types; `CartResult.warning` is now structured (was an unused string); new `buildCheckoutWarning()` maps the batch `create-trade-offer` per-item `errors` (e.g. `DUPLICATE_OFFER` — item already in an active trade) to skipped items with titles; new `buildSkippedItemsCopy()` builds human copy; `checkoutCart()` populates `warning` on partial bundle success.
+    - `src/screens/cart/CartCheckoutScreen.tsx` — in `handleConfirm`, when `result.warning?.skippedItems` exists, show the branded `TradeConfirmationModal` (green `#5DBB8E` OK button, `hideCancel`) before navigating; OK continues to `TradeSuccess` for the eligible offers (non-blocking).
+    - `src/services/__tests__/cartService.test.ts` — 8 new unit tests for `buildCheckoutWarning` + `buildSkippedItemsCopy`.
+  - Behavior:
+    - Server (`create-trade-offer`) already skips items with an active offer (`pending`/`payment_failed`/`in_progress` → `DUPLICATE_OFFER`) and returns per-item `errors`. This change surfaces that to the buyer instead of silently proceeding.
+    - All-eligible bundles → no modal (straight to TradeSuccess). All-items-fail → existing blocking error unchanged. Single-item duplicate → existing blocking error unchanged.
+  - Tests:
+    - Tier 0: `npx eslint src/services/cartService.ts src/screens/cart/CartCheckoutScreen.tsx src/services/__tests__/cartService.test.ts` (exit 0); `npx prettier --check` (clean); `yarn jest src/services/__tests__/cartService.test.ts` (23 passed)
+    - Note: repo-wide `yarn typecheck` still fails on PRE-EXISTING errors in unrelated files (ProfileScreen.tsx, auth.ts, trade.ts) — none introduced by this change; `CartScreen.test.tsx` has a pre-existing `useFocusEffect` mock failure unrelated to this change.
+  - Validation:
+    - Manual: iOS Simulator — test-buyer has an in-progress trade on one of test-seller's listings → add that item + one eligible item to cart → checkout → verify eligible offer submits, an "Already In an Active Trade" modal appears with a green OK, and OK continues to TradeSuccess (see TC-L11 in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`).
+
 - **MODULE-15.2 CART-SYSTEM (2026-05-28):** RPC-backed cart + favorites system
   - Module: MODULE-15.2 (TASK CART-001..CART-020)
   - Scope:
-    - DB: `supabase/migrations/20260528100001_cart_system_schema.sql` (extends `cart_items` with cart_id/cart_status/snapshots; `favorites` extended; admin_config keys `cart_min_value_cents`, `cart_max_saved_carts`, `cart_saved_expiry_days`)
-    - RPCs (10): rpc_cart_add_item / rpc_cart_remove_item / rpc_cart_clear / rpc_cart_get_items / rpc_cart_save_current / rpc_cart_switch_to_saved / rpc_cart_validate_for_checkout / rpc_favorites_add / rpc_favorites_remove / rpc_favorites_get (`20260528100002_cart_system_rpcs.sql`)
+    - DB: `supabase/migrations/20260528100001_cart_system_schema.sql` (extends `cart_items` with cart_id/cart_status/snapshots; `favorites` extended; admin_config keys `cart_min_value_cents`, `cart_max_saved_carts`, `cart_saved_expiry_days`)    - RPCs (10): rpc_cart_add_item / rpc_cart_remove_item / rpc_cart_clear / rpc_cart_get_items / rpc_cart_save_current / rpc_cart_switch_to_saved / rpc_cart_validate_for_checkout / rpc_favorites_add / rpc_favorites_remove / rpc_favorites_get (`20260528100002_cart_system_rpcs.sql`)
     - Services: `src/services/cartService.ts` (RPC-backed, RealtimeChannel sub), `src/services/favoritesService.ts` (NEW)
     - Screens: `src/screens/cart/CartScreen.tsx` (saved carts, min-value notice, save button, realtime), `src/screens/favorites/FavoritesScreen.tsx` (NEW)
     - Wiring: `src/screens/home/ItemDetailScreen.tsx` (real Add-to-Cart + DIFFERENT_SELLER modal + Heart toggle)
@@ -2250,7 +2276,7 @@ add one section on the top give summary on what this file covers from testing an
     - Unit: `src/__tests__/screens/trade/TradeListBundleGrouping.test.ts` (13 tests — groupReceivedOffers: bundle rows, single rows, mixed, separate bundles, empty, 3-item bundle; groupInProgressBundles: buying tab, wrong tab skips, single-item bundle excluded, wrong status excluded, empty)
     - Integration: `src/__tests__/e2e/trade-tfv2-023-bundle.e2e.ts` (RUN_SUPABASE_E2E=true — fn_handle_seller_cancellation level 1, level 3 + admin flag, bundle_id column verified, bundle trades queried, subscription_tier readable)
     - Maestro: `.maestro/trade-tfv2-023-addenda.yaml` (5 flow blocks: seller-cancel-inprogress → consequence alert, value stack $0.99 subscriber, bundle banner TradeTimeline, bundle offer rows Offers tab, ReviewOffer bundle banner + Accept All)
-    - Manual: `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` (17 test cases + 4 regression checks + DB verification queries)
+    - Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` (17 test cases + 4 regression checks + DB verification queries)
   - Notes:
     - TODO-07 🔴 LOCKED: Platform fee hardcoded `$0.99` (subscriber) / `$2.99` (free) in value stack — do NOT fetch from config until fee engine unblocked
     - Navigation unchanged: all routes already registered in AppNavigator.tsx
@@ -2261,7 +2287,18 @@ add one section on the top give summary on what this file covers from testing an
     - `cd p2p-kids-marketplace && RUN_SUPABASE_E2E=true npm run test:e2e` (integration tests pass)
     - `cd p2p-kids-marketplace && npm run test:maestro:ios -- .maestro/trade-tfv2-023-addenda.yaml`
     - `cd p2p-kids-marketplace && npm run test:maestro:android -- .maestro/trade-tfv2-023-addenda.yaml`
-    - Manual: see `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` TCs 001–017
+    - Manual: see `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` TCs 001–017
+- **FLOW-08-BUNDLE-CANCEL (2026-08-01):** Bundle-aware Cancel Trade prompt (mirrors Addendum C "Confirm All" shortcut)
+  - Module: MODULE-15.1.2 TradeFlowV2 (FLOW-08)
+  - Scope:
+    - Mobile only — `TradeTimelineScreen.tsx`: when a buyer or seller cancels a trade that is part of a bundle (`bundle_id IS NOT NULL`) and there is ≥1 cancellable sibling, a branded modal asks **"Cancel all N items?"** with **[Cancel All N]** / **[Just This One]** (variant=decline, red confirm).
+    - **[Cancel All N]** loops `cancelTradeV2()` over the current trade + all cancellable siblings (same reason); **[Just This One]** falls through to the existing single-trade cancel (`performSingleCancel`).
+    - Role-aware sibling filtering (mirrors the cancel-button visibility rules): buyer → `pending` siblings only; seller → `in_progress` siblings + `pending` with `cash_amount_cents = 0`. Terminal siblings (completed/cancelled) are never included in the count.
+    - **Report a Problem / dispute is intentionally NOT bundle-scoped** — stays per-trade per TRADING-FLOW-V2 §11.3.1 Key invariant ("If one bundle trade is disputed, the others continue normally").
+  - No DB / Edge Function change: the loop reuses the existing `cancel-trade` EF per trade (same pattern as the Confirm-All loop over `completeTradeV2`).
+  - Tests:
+    - Tier 0: `yarn typecheck` (0 errors in TradeTimelineScreen.tsx; repo has pre-existing unrelated errors in ProfileScreen.tsx/auth.ts/trade.ts) + `npx eslint src/screens/trade/TradeTimelineScreen.tsx` (0 errors).
+    - Manual: see `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` (add a bundle-cancel case: buyer cancels 1 of N pending bundle offers → prompt appears; seller cancels 1 of N in_progress bundle trades → prompt appears; non-bundle cancel → no prompt).
 - **MODULE-15.1.2-TRADEFLOWV2-FULL (2026-05-28):** Complete Trade Flow V2 — all 24 tasks TFV2-001 through TFV2-022 + TFV2-023 + Addenda A–E
   - Module: MODULE-15.1.2 TradeFlowV2 — full module
   - Scope:
@@ -2368,7 +2405,7 @@ add one section on the top give summary on what this file covers from testing an
     - Offers to different sellers never interfere with each other.
     - Expired offers free the slot immediately (status=`cancelled`).
   - Tests:
-    - Manual: `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` TC-B05 through TC-B05e (5 test cases covering cross-seller, same-seller block, bundle=1, expiry frees slot, global cap regression)
+    - Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` TC-B05 through TC-B05e (5 test cases covering cross-seller, same-seller block, bundle=1, expiry frees slot, global cap regression)
   - Depends on: D-30 (pre-auth hold), D-33 (admin-configurable)
 - **D-33 (2026-07-18): Admin-Configurable Offer Cap (was Hardcoded 3)**
   - Module: MODULE-06 Trade Flow V2 / Admin Configuration
@@ -2385,7 +2422,7 @@ add one section on the top give summary on what this file covers from testing an
     - Config fetch failure → Edge Function rejects with `CONFIG_UNAVAILABLE` → client shows "Offer limit configuration is unavailable."
     - Reverting to a lower cap is forward-looking only — existing open offers above the new cap are NOT retroactively cancelled.
   - Tests:
-    - Manual: `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` TC-B05f through TC-B05j (5 test cases covering change 3→5, revert 5→3, validation 1–10, config fetch failure, regression with non-default cap)
+    - Manual: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` TC-B05f through TC-B05j (5 test cases covering change 3→5, revert 5→3, validation 1–10, config fetch failure, regression with non-default cap)
     - Migration verification queries included in migration file.
   - Admin page location: `http://localhost:3001/settings/trade-timing` → **Offer Limits** section → **Max Offers Per Seller**.
 
@@ -2652,6 +2689,77 @@ add one section on the top give summary on what this file covers from testing an
 
 ### FLOW-18: Admin Controls – Config + Overrides + Revenue Analytics + User Management + Category Management
 - Purpose: Admin can configure platform settings, view revenue metrics, analytics, manage users, and manage categories
+  - **ADMIN-NAV-GROUPED (2026-08-08):** Left sidebar grouped into collapsible sections
+    - Scope: UI-ONLY (no DB/API/Edge Function changes)
+    - Files:
+      - `p2p-kids-admin/src/components/layout/Sidebar.tsx` — replaced flat `NAV_ITEMS` with grouped `NAV_SECTIONS` (7 sections); per-section expand/collapse state; per-admin persistence via localStorage (`kids-admin:sidebar-sections:<email>`); active-route section auto-expand; collapsed icon rail shows every destination
+      - `p2p-kids-admin/src/components/layout/AdminShell.tsx` — passes the signed-in admin's email to `Sidebar` as `adminKey` so section state persists per admin
+      - `p2p-kids-admin/src/app/globals.css` — added `--sidebar-section-label` / `--sidebar-item-inactive` (design-system Neutral-900/700 roles mapped onto the dark sidebar; base color `#3D1073` unchanged)
+    - Behavior: 7 sections (OVERVIEW / TRADE OPERATIONS / USERS & TRUST / MONETIZATION / CATALOG / PLATFORM CONFIG / ANALYTICS); uppercase label + chevron toggles each; state persists per admin across sessions; active route auto-expands its parent section on load and on navigation
+    - Notes: "Action Center" intentionally omitted (no route yet — ships with its own prompt). Badges + Listings kept (USERS & TRUST / CATALOG) to preserve existing access.
+    - Tests: `__tests__/components/layout/Sidebar.test.tsx` (12 tests — 7 original + 5 new for grouping/collapse/persistence/auto-expand/rail)
+    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group W (TC-W01–TC-W07)
+    - Tier: Tier 0 (typecheck + lint + build) PASS
+  - **ADMIN-SETTINGS-SINGLE-SOURCE (2026-08-08):** Consolidated settings so the /config hub and the standalone settings pages share ONE source (admin_config) + ONE audit trail (admin_audit_log), with cross-link banners and "LAST UPDATED · <ts> · by <editor>" on every field
+    - Scope: DB (1 migration) + Admin UI (config hub, tax settings/nodes/rules, cart settings, trade timing, node settings)
+    - Files:
+      - `supabase/migrations/20260808000001_settings_single_source_audit.sql` — `upsert_admin_config_setting` gains `p_admin_id` (records `admin_config.updated_by`; COALESCE-preserves editor on legacy 6-arg calls); adds `fn_get_admin_config_meta` + `fn_resolve_admin_emails` (SECURITY DEFINER) for editor-email lookup
+      - `p2p-kids-admin/src/app/api/admin/config/route.ts` — PATCH records the acting admin and writes `admin_audit_log` (previously wrote to non-existent `audit_logs` → silently dropped)
+      - `p2p-kids-admin/src/app/config/page.tsx` — passes `user_id` on save; renders editor emails in LAST UPDATED labels; cross-link banners on Tax / Feature Flags / Trade tabs; supports `/config?tab=<cat>` deep links
+      - `p2p-kids-admin/src/app/tax/settings/page.tsx`, `p2p-kids-admin/src/app/settings/cart/page.tsx`, `p2p-kids-admin/src/app/tax/nodes/page.tsx`, `p2p-kids-admin/src/app/tax/rules/page.tsx`, `p2p-kids-admin/src/app/settings/trade-timing/page.tsx`, `p2p-kids-admin/src/app/settings/nodes/page.tsx` — cross-link banners + last-updated labels/columns; saves pass `p_admin_id`
+      - `p2p-kids-admin/src/lib/settingsAudit.ts` + `p2p-kids-admin/src/components/settings/{SettingsLinkBanner,LastUpdatedLabel}.tsx` — shared helpers/components (design-system Info Banner Card + Label style)
+    - Behavior: TRUE duplicates (Tax Settings ↔ Config→Tax, Cart Settings ↔ Config→Feature Flags, Trade Timing ↔ Config, Node Settings ↔ Config) already shared `admin_config` rows; now every surface records `updated_at`/`updated_by` and writes `admin_audit_log`. Tax Nodes (`nodes` table) and Tax Rules (`tax_categories`/`tax_rules`) remain distinct data (not merged into /config) but are cross-linked so admins understand the relationship.
+    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-F01, TC-F02, TC-F04, TC-J01
+    - Tier: Tier 0 (typecheck + lint + build + affected settings unit tests) PASS
+  - **ADMIN-ACTION-CENTER (2026-08-08):** New "Action Center" — a single feed aggregating every pending admin action (Flagged Items, Disputes, ID Badge requests, Cancel Insights spike, Failed Payouts, Config Drift) into bundled count-cards with severity tags + inline actions; pinned sidebar nav item with live count badge; header bell wired to open it.
+    - Scope: DB (1 migration, read-only RPCs) + Admin UI (page, sidebar, topbar)
+    - Files:
+      - `supabase/migrations/20260808000002_admin_action_center.sql` — `admin_action_center_summary()` (aggregated counts across items/trades/id_badge_verification_requests/seller_payouts/admin_config + cancellation-spike heuristic) and `admin_action_center_detail(p_source)` (per-source drill rows). Data-only; all mutations reuse existing admin endpoints.
+      - `p2p-kids-admin/src/app/api/admin/action-center/route.ts` — GET summary + per-source detail (verifyAdminAuth, service-role RPC)
+      - `p2p-kids-admin/src/app/action-center/page.tsx` + `ActionCenterClient.tsx` — the Action Center UI (design-system Card: white, 16px radius, Level-1 shadow; Status Badge pills 24px/12px: Urgent=Error500, Routine=Warning500; Success500 "All caught up" empty state)
+      - `p2p-kids-admin/src/hooks/useActionCenterCount.ts` — shared live-count hook (60s poll) for sidebar + topbar badges
+      - `p2p-kids-admin/src/components/layout/Sidebar.tsx` — "Action Center" pinned OVERVIEW item + live count badge (Accent 500)
+      - `p2p-kids-admin/src/components/layout/TopNavbar.tsx` — header bell now navigates to /action-center with a live count badge (replaces dead dropdown + static dot)
+    - Behavior: same-type items bundle into one card with a count; clicking a card expands/drills into the list; inline actions call the existing per-domain admin endpoints (item status approve, dispute-action mark-under-review, id-badge decide approve, payout retry) and deep-link for review-only sources (cancel insights, config drift). Empty queue shows "All caught up" with a Success 500 checkmark.
+    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group X (TC-X01–TC-X09)
+    - Tier: Tier 0 (typecheck + lint + build) PASS
+  - **ADMIN-HEALTH-STRIP (2026-08-09):** New dashboard health/status strip — a thin, always-visible row of 6 indicators (Payments failed-rate, Email Delivery %, Nodes Active, Failed Payouts, Uptime, GMV 7d) below the dashboard title and above an embedded Action Center section. Every indicator has configurable warn/crit thresholds (admin_config category 'health'; the enum label is added by `20260809000002_add_health_config_category.sql` because a new enum value cannot be used in the same transaction that adds it, SQLSTATE 55P04) so dot colors (green/yellow/red = Success/Warning/Error 500) tune without a code change. Uptime is a config-driven input (BRD NFR-AVAIL-001 default 99.9); "Email Delivery" replaces "SMS Delivery" because `email_logs` is the only delivery-status table (SMS has no outcome telemetry).
+    - Scope: DB (2 migrations: 1 enum-only + 1 read-only RPC + config seeds) + Admin UI (dashboard, strip component, health API, payouts deep-link)
+    - Files:
+      - `supabase/migrations/20260809000002_add_health_config_category.sql` — adds the 'health' label to `admin_config_category` in its own transaction (a new enum value cannot be used in the same transaction that adds it — SQLSTATE 55P04)
+      - `supabase/migrations/20260809000003_admin_health_strip.sql` — seeds 13 `admin_config` keys (category 'health') via the shared `upsert_admin_config_setting` RPC (BP-48) + `admin_health_summary()` SECURITY DEFINER read-only RPC returning 6 indicator `{id, value, display, thresholds{warn,crit}}`; service-role only
+      - `p2p-kids-admin/src/app/api/admin/health/route.ts` — GET summary (verifyAdminAuth, service-role RPC)
+      - `p2p-kids-admin/src/lib/healthStatus.ts` + `src/lib/__tests__/healthStatus.test.ts` — pure `deriveHealthStatus(value, thresholds, direction)` (unit-tested) + the 6-indicator registry (label/direction/href)
+      - `p2p-kids-admin/src/components/health/HealthStatusStrip.tsx` — the strip UI (design-system: Neutral 100 bg, 12px radius, 16px padding, 8px semantic dots, 12px Neutral-700 labels)
+      - `p2p-kids-admin/src/app/page.tsx` — renders `HealthStatusStrip` + embedded `ActionCenterClient variant="embedded"`
+      - `p2p-kids-admin/src/app/action-center/ActionCenterClient.tsx` — new `embedded` variant (compact header + "View all →" link, no refresh)
+      - `p2p-kids-admin/src/app/payouts/earnings/page.tsx` — reads `?status=` query param so the Failed Payouts indicator deep-links to a pre-filtered list
+    - Behavior: strip always visible on the dashboard; clicking an indicator navigates (Payments→/payments?status=failed, Email Delivery→/monitoring, Nodes Active→/nodes, Failed Payouts→/payouts/earnings?status=failed, Uptime→/monitoring, GMV→/analytics). Thresholds tuned via /config without a code change. Action Center embedded below the strip (Option A).
+    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group Z (TC-Z01–TC-Z07)
+    - Tier: Tier 0 (typecheck + lint + unit test + build) PASS
+  - **ADMIN-COMMAND-PALETTE (2026-08-09):** New global command palette (⌘K / Ctrl+K and header search bar) searching Settings, Users, Listings, and Trades in parallel — grouped results with section labels, breadcrumb context per row, ~200ms debounce, top-5 per group with a "See all N results" inline expansion, and a footer "View all in <domain>" link to the prefilled list page. Results are admin-scoped server-side.
+    - Scope: DB (1 migration, read-only RPC) + Admin UI (palette component, shell, topbar, deep-link prefills)
+    - Files:
+      - `supabase/migrations/20260809000001_admin_global_search.sql` — `admin_global_search(p_query, p_limit)` SECURITY DEFINER RPC returning grouped JSONB `{ settings, users, listings, trades }` with per-group `total` + capped `items`; ILIKE substring across `admin_config`/`sp_config`, `profiles`, `items`(+category/seller), `trades`(+buyer/seller); rejects non-admins via `admin_has_role(auth.uid())`; never matches/returns `admin_config` secrets
+      - `p2p-kids-admin/src/lib/globalSearch.ts` — RPC types + fetch + single-source navigation helpers
+      - `p2p-kids-admin/src/components/command-palette/CommandPalette.tsx` — the palette UI (design-system: centered modal, white, 20px radius, Level-2 shadow, rgba(0,0,0,0.4) backdrop; pill search input 48px/24px/Neutral 100; group labels 12px/500/uppercase/Neutral 700); ⌘K/Esc/↑/↓/↵ + Tab focus trap
+      - `p2p-kids-admin/src/components/layout/AdminShell.tsx` — mounts the palette, owns open state, wires header search
+      - `p2p-kids-admin/src/components/layout/TopNavbar.tsx` — header search bar now opens the palette (replaces dead dropdown + `console.log`); keeps `topbar-global-search` testid + controlled input
+      - `p2p-kids-admin/src/app/users/page.tsx` + `src/app/listings/page.tsx` + `src/app/components/ListingSearch.tsx` — read `?search=` / `?tab=` / `?q=` deep-link params to prefill + filter
+      - `p2p-kids-admin/src/styles/theme.ts` + `src/app/globals.css` — added `--neutral-100/500/700` + `--shadow-level-2` tokens
+    - Behavior: ⌘K (or clicking the header search) opens the palette from any page; one query returns all four entity groups (Settings/Users/Listings/Trades) in parallel; each row shows breadcrumb context (e.g. `Config → SMS → sms_key`, `Trades → b1f6a59f…`); "See all N results" expands a group inline (re-fetch at limit 25); footer "View all in users/listings/trades" navigates to the prefilled list page; row select navigates directly (`/trades/<id>`, `/config?tab=`, `/users?search=`, `/listings?tab=search&q=`); non-admins are rejected by the RPC.
+    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group Y (TC-Y01–TC-Y12)
+    - Tests: `src/__tests__/components/command-palette/CommandPalette.test.tsx` (6 tests — hint state, grouped render, row navigation, see-all expansion, keyboard nav, error/forbidden state)
+    - Tier: Tier 0 (typecheck + lint + build + full admin unit suite) PASS · Tier 2 (DB): migration `20260809000001_admin_global_search.sql` applied to staging (project `drntwgporzabmxdqykrp`), function exists in `pg_proc`, and the admin gate verified (invoking without an admin JWT raises `P0001 Forbidden: admin role required`). Positive-path (real results) pending an admin-session browser smoke.
+  - **ADMIN-DASHBOARD-REDESIGN (2026-08-09):** Dashboard homepage redesigned — the legacy duplicate card grid (Revenue & Analytics, SP Economy, Trades, Subscriptions, ID Badges, Payouts, Referrals, Config, Nodes, Users, Monitoring, Audit Logs, Reviews, Cron — all already sidebar destinations) was removed. The page now composes top-to-bottom: intro line → health strip → embedded Action Center (top 5 items + "View all →") → KPI stat cards, with 24px (lg) spacing between major sections and KPI cards restyled to the design-system card spec (white, 16px radius, Level 1 shadow, 16px padding).
+    - Scope: Admin UI ONLY (no DB/API/Edge Function changes)
+    - Files:
+      - `p2p-kids-admin/src/app/page.tsx` — removed the duplicate card grid; page is now intro → `HealthStatusStrip` → `ActionCenterClient variant="embedded" maxCards={5}` → `TradeAnalytics` → `SPEconomySummary`; `space-y-6` (24px) between major sections
+      - `p2p-kids-admin/src/app/action-center/ActionCenterClient.tsx` — new optional `maxCards` prop (dashboard embeds the top 5 source cards; the standalone /action-center page passes no cap and shows every source)
+      - `p2p-kids-admin/src/app/components/TradeAnalytics.tsx` + `SPEconomySummary.tsx` — KPI cards restyled to `rounded-2xl` (16px) + Level 1 shadow `0px 2px 8px rgba(0,0,0,0.08)` + `p-4` (16px); removed `mb-8` so the page's 24px spacing governs sections
+    - Behavior: no homepage card duplicates sidebar navigation; the embedded Action Center shows the top 5 pending sources with "View all →" to /action-center; KPI cards (Total Trades, Fee Revenue, Avg SP Usage, Completed Rate · SP Circulation, Total Earned, Total Spent, Active Wallets) sit below the Action Center.
+    - Manual: `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` TC-A03, TC-A06, TC-X12, TC-Z01, TC-Z07
+    - Tier: Tier 0 (typecheck + lint + build) PASS
 - Smoke: (manual)
   - Admin can navigate to `/analytics` dashboard
   - Revenue metrics display: MRR, ARR, transaction fees, ARPU
@@ -3109,6 +3217,12 @@ add one section on the top give summary on what this file covers from testing an
       - Delivery status ONLY for own messages (not received messages)
       - Input bar bg is #F7F7F7 (distinct from screen bg #FFFFFF)
       - Message bubbles have sharp corner on sender side (borderTopRightRadius: 4 for sent, borderTopLeftRadius: 4 for received)
+- **FLOW-14 REALTIME-INBOX-FIX (2026-08-02):** Inbox updates conversations in place — no full reload on message send
+    - Bug: `ConversationsListScreen` realtime handler called `loadConversations()` on EVERY message INSERT (system-wide, unfiltered), which set `loading=true` (full-screen "Loading conversations…" spinner) and re-fetched up to 50 conversations — the Inbox "loaded everything" whenever user A messaged user B.
+    - Fix: the realtime handler now (1) updates only the affected conversation in place (last-message preview, timestamp, unread +1 for counterparty messages, re-sort newest-first) — no spinner, no re-fetch; (2) reacts only to messages in the current user's trades; (3) does a silent (no-spinner) refresh only for brand-new conversations the user is part of.
+    - Scope: `p2p-kids-marketplace/src/screens/messaging/ConversationsListScreen.tsx` (single file).
+    - Tests: manual two-user realtime check; no component test currently exists for ConversationsListScreen.
+    - Follow-up (2026-08-02): first load now fetches only the most recent **7** conversations (`CONVERSATION_PAGE_SIZE = 7`); the existing "Load More" button pages the rest — cuts the initial ~3s load by ~7× (each conversation triggers several lookups).
 
 ### FLOW-18: ID Badge Verification (Admin Queue & Review)
 - Purpose: Admin reviews and approves/rejects manual ID verification requests from users.
@@ -3308,6 +3422,25 @@ add one section on the top give summary on what this file covers from testing an
   - Dependencies:
     - NOTIF-V2-001 (Notification Schema & Preferences)
     - MODULE-08 (Badges V2 - user_badges, badges tables)
+
+- **REVIEW-007 UPDATE (2026-08-02): Review Moderation Decision Notifications + Keep action**
+  - Purpose: Rename admin "Approve" → "Keep" (marks review `pending_review` → `reviewed`, keeps the review visible — the report is REJECTED) and notify every reporter in-app + push of the admin's decision for BOTH Keep and Hide actions.
+  - Database:
+    - Migration: `supabase/migrations/20260802000001_review_moderation_status_and_notifications.sql`
+    - New column: `reviews.review_status` (`active` | `pending_review` | `reviewed` | `hidden`, default `active`)
+    - Trigger `check_review_reports()` now sets `review_status = 'pending_review'` when a report is created (unless already hidden)
+  - Admin Portal:
+    - `p2p-kids-admin/src/app/reviews/page.tsx` — "Keep" button (renamed from Approve), Pending Review / Reviewed ✓ / Hidden / Visible status badges, status filter options
+    - `p2p-kids-admin/src/app/api/reviews/[reviewId]/keep/route.ts` — NEW (renamed from approve): reviewed + visible + report_count=0 + deletes reports + notifies each reporter via `create_system_notification_with_preferences('review_report_kept', ...)`
+    - `p2p-kids-admin/src/app/api/reviews/[reviewId]/hide/route.ts` — now also sets `review_status='hidden'` and notifies each reporter via `create_system_notification_with_preferences('review_report_hidden', ...)`
+    - `p2p-kids-admin/src/app/api/reviews/reported/route.ts` — returns `review_status`
+  - Notification copy (system category):
+    - Keep: "Report reviewed" / "We reviewed your report about a review. After checking it, the review stays up because it follows our guidelines."
+    - Hide: "Review removed" / "The review you reported has been removed. Thanks for helping keep our community safe."
+  - Testing:
+    - E2E: `p2p-kids-admin/__tests__/review-moderation.e2e.test.ts` (keep test verifies `review_status='reviewed'`, reports deleted, reporter notified)
+    - Unit: `p2p-kids-admin/__tests__/review-moderation.unit.test.ts` (16 tests, unchanged behavior)
+  - Tier: Tier 1 (API + notification delivery path changed)
 
 ### FLOW-19: Trading Education – Onboarding, Help Content, SP Calculator (MODULE-18 V1)
 - Purpose: Educate users about Swap Points, trading mechanics, and safety via configurable content, interactive SP calculator, and contextual prompts
@@ -5859,6 +5992,9 @@ Satisfied Items:
   - Global admin_config: `sales_tax_enabled`, `default_sales_tax_rate`, `subscription_fee_taxable`, `tax_remittance_jurisdiction`
   - RPCs: `calculate_tax`, `apply_tax_to_trade` (idempotent), `refund_tax`, `get_tax_summary_for_period`, `update_node_tax_config` (admin-only), `get_node_tax_rate`
   - Tax row in checkout (TradeInitiationScreen) and trade detail (TradeDetailScreen) + admin tax pages
+  - **TC-O05 (2026-08-01):** "Tax Free" badge for tax-exempt items (`tax_exempt_goods` category). Detected client-side via `isTaxExemptCategory()` in `src/services/tax.ts` (reads `tax_categories`, cached); rendered by `TaxBreakdownRow` as a green pill (`#5DBB8E` on `#E8F5F0`, `$0.00`) across ItemDetail, TradeInitiation, TradeOffer, CartCheckout (badge only when ALL bundle items exempt), TradeDetail, TradeTimeline. Does NOT show when tax is $0 from global/node config (TC-O03/O04). Unit: `src/__tests__/services/tax.test.ts` (`isTaxExemptCategory`). Manual: TC-O05 in `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`.
+  - **TC-P05 (2026-08-01) tax reports page crash fix:** Every non-summary tab on `/tax/reports` (transactions, refunds, by_period, jurisdictions, tax_exempt, audit_trail, reconciliation_required) threw `Cannot read properties of undefined (reading 'map')` at `summary.by_jurisdiction.map`, and the Refunds tab also threw `missing FROM-clause entry for table "tr"` from the RPC. Two-part fix: (1) backend — new migration `supabase/migrations/20260801000004_fix_tax_report_refunds_sql.sql` re-creates `get_tax_summary_for_period` with the `refunds` branch fixed (outer query no longer references `tr`; totals/rows now computed from single alias `rj`; signature unchanged); (2) frontend — `p2p-kids-admin/src/app/tax/reports/page.tsx` gates the summary stat cards + By Jurisdiction table to the `summary` tab only, and renders the `rows` array returned by the RPC via a generic `DynamicTable` (money `*_cents` → `$`, `tax_rate` → %, dates localized) for all other report types. Refunds tab additionally shows Total Refunded + Refund Count. Tier 0: `yarn typecheck` / `yarn lint` / `yarn build` all PASS on `p2p-kids-admin`.
+  - **TC-P05 (2026-08-01) follow-up — tab-switch stale-data crash:** Switching tabs (e.g. Transactions → Summary) crashed with the same `Cannot read properties of undefined (reading 'map')` because the previous tab's response stayed in `summary` while `reportType` already changed — so `summary.by_jurisdiction.map` ran on a transactions-shaped (or any non-summary) response that has no `by_jurisdiction`. Fixed in `p2p-kids-admin/src/app/tax/reports/page.tsx`: tab clicks now clear `summary`/`error` and auto-run the selected report type (with a `useRef` sequence guard so the last-clicked tab always wins and out-of-order responses are discarded); `run()` accepts an explicit report type. Tier 0: `yarn typecheck` / `yarn lint` PASS.
 - **Smoke**: `scripts/smoke/tax-flow.mjs` (read-only by default; pass `--trade-id` for mutating tests)
 - **Unit**: `p2p-kids-marketplace/src/__tests__/services/tax.test.ts`, `src/__tests__/hooks/useTaxCalculation.test.ts`
 - **E2E**: `p2p-kids-marketplace/src/__tests__/tax-e2e.test.ts` (gated by `RUN_SUPABASE_E2E=true`)

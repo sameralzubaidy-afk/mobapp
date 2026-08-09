@@ -79,7 +79,7 @@ const mockConversations = [
     other_user_avatar_url: null,
     other_user_verification_status: 'none' as const,
     listing_title: 'Pokemon Cards Collection',
-    listing_price: 25.50,
+    listing_price: 25.5,
     last_message_content: 'Great, I can pick up tomorrow!',
     last_message_time: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
     unread_count: 0,
@@ -99,7 +99,9 @@ const renderScreen = (authContext = mockAuthContext) => {
 describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (chatService.getConversations as jest.Mock) = jest.fn().mockResolvedValue(mockConversations);
+    (chatService.getConversations as jest.Mock) = jest
+      .fn()
+      .mockResolvedValue({ conversations: mockConversations, hasMore: false });
     (chatService.markAsRead as jest.Mock) = jest.fn().mockResolvedValue(undefined);
   });
 
@@ -112,13 +114,18 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
     it('should fetch conversations on mount', async () => {
       renderScreen();
       await waitFor(() => {
-        expect(chatService.getConversations).toHaveBeenCalledWith('user-123');
+        // ConversationsListScreen paginates: first load fetches CONVERSATION_PAGE_SIZE = 7
+        // (see docs/flow-registry.md follow-up 2026-08-02), with a Load More button for the rest.
+        expect(chatService.getConversations).toHaveBeenCalledWith(
+          'user-123',
+          expect.objectContaining({ limit: 7, offset: 0 })
+        );
       });
     });
 
     it('should display conversations after loading', async () => {
       const { getByText, queryByText } = renderScreen();
-      
+
       await waitFor(() => {
         expect(queryByText('Loading conversations...')).toBeNull();
       });
@@ -131,7 +138,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
   describe('Conversation Card Rendering', () => {
     it('should render unread badge for conversations with unread_count > 0', async () => {
       const { getByTestId } = renderScreen();
-      
+
       await waitFor(() => {
         const badge = getByTestId('unread-badge');
         expect(badge).toBeTruthy();
@@ -140,7 +147,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
     it('should render verified badge for approved verification status', async () => {
       const { getAllByTestId } = renderScreen();
-      
+
       await waitFor(() => {
         const badges = getAllByTestId('verified-badge');
         expect(badges.length).toBeGreaterThan(0);
@@ -149,7 +156,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
     it('should render trade context chip with listing title and price', async () => {
       const { getByText } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByText(/Lego Star Wars Set/)).toBeTruthy();
         expect(getByText(/\$45\.99/)).toBeTruthy();
@@ -158,7 +165,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
     it('should render last message preview', async () => {
       const { getByText } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByText('Is this still available?')).toBeTruthy();
       });
@@ -166,7 +173,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
     it('should format timestamp correctly for today vs older messages', async () => {
       const { getByTestId } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByTestId('conversation-conv-1')).toBeTruthy();
         expect(getByTestId('conversation-conv-2')).toBeTruthy();
@@ -174,10 +181,36 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
     });
   });
 
+  describe('Load More', () => {
+    it('should show a Load More button when more pages exist and append the next page', async () => {
+      const firstPage = [{ ...mockConversations[0] }];
+      const secondPage = [{ ...mockConversations[1] }];
+      (chatService.getConversations as jest.Mock)
+        .mockResolvedValueOnce({ conversations: firstPage, hasMore: true })
+        .mockResolvedValueOnce({ conversations: secondPage, hasMore: false });
+
+      const { getByText, getByTestId, queryByText } = renderScreen();
+
+      // First page loads; Load More button appears.
+      await waitFor(() => {
+        expect(getByText('Alice Seller')).toBeTruthy();
+      });
+      expect(getByTestId('conversations-load-more')).toBeTruthy();
+      expect(queryByText('Bob Buyer')).toBeNull();
+
+      // Tapping Load More appends the second page.
+      fireEvent.press(getByTestId('conversations-load-more'));
+
+      await waitFor(() => {
+        expect(getByText('Bob Buyer')).toBeTruthy();
+      });
+    });
+  });
+
   describe('Search Functionality', () => {
     it('should render search input', async () => {
       const { getByTestId } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByTestId('conversations-search-input')).toBeTruthy();
       });
@@ -185,7 +218,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
     it('should filter conversations by user name', async () => {
       const { getByTestId, getByText, queryByText } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByText('Alice Seller')).toBeTruthy();
       });
@@ -201,7 +234,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
     it('should filter conversations by listing title', async () => {
       const { getByTestId, getByText, queryByText } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByText(/Lego Star Wars Set/)).toBeTruthy();
       });
@@ -217,7 +250,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
     it('should show "No results" when search has no matches', async () => {
       const { getByTestId, getByText } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByText('Alice Seller')).toBeTruthy();
       });
@@ -232,7 +265,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
     it('should be case-insensitive', async () => {
       const { getByTestId, getByText } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByText('Alice Seller')).toBeTruthy();
       });
@@ -248,10 +281,13 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
   describe('Empty States', () => {
     it('should show empty state when no conversations exist', async () => {
-      (chatService.getConversations as jest.Mock).mockResolvedValue([]);
-      
+      (chatService.getConversations as jest.Mock).mockResolvedValue({
+        conversations: [],
+        hasMore: false,
+      });
+
       const { getByText } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByText(/No messages yet/i)).toBeTruthy();
         expect(getByText(/Browse Items/i)).toBeTruthy();
@@ -259,10 +295,13 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
     });
 
     it('should navigate to discovery when "Browse Items" is pressed', async () => {
-      (chatService.getConversations as jest.Mock).mockResolvedValue([]);
-      
+      (chatService.getConversations as jest.Mock).mockResolvedValue({
+        conversations: [],
+        hasMore: false,
+      });
+
       const { getByTestId } = renderScreen();
-      
+
       await waitFor(() => {
         const browseButton = getByTestId('browse-items-button');
         fireEvent.press(browseButton);
@@ -275,7 +314,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
   describe('Navigation', () => {
     it('should navigate to ChatScreen when conversation is tapped', async () => {
       const { getByTestId } = renderScreen();
-      
+
       await waitFor(() => {
         const conversation = getByTestId('conversation-conv-1');
         fireEvent.press(conversation);
@@ -288,7 +327,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
 
     it('should mark conversation as read when navigating to chat', async () => {
       const { getByTestId } = renderScreen();
-      
+
       await waitFor(() => {
         const conversation = getByTestId('conversation-conv-1');
         fireEvent.press(conversation);
@@ -301,12 +340,10 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
   describe('Error Handling', () => {
     it('should handle getConversations error gracefully', async () => {
       const consoleError = jest.spyOn(console, 'error').mockImplementation();
-      (chatService.getConversations as jest.Mock).mockRejectedValue(
-        new Error('Network error')
-      );
-      
+      (chatService.getConversations as jest.Mock).mockRejectedValue(new Error('Network error'));
+
       const { getByText } = renderScreen();
-      
+
       await waitFor(() => {
         expect(getByText(/No messages yet/i)).toBeTruthy();
       });
@@ -318,7 +355,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
   describe('UI Design System Compliance (MODULE-15.1)', () => {
     it('should render with Whisk green unread badges (#5DBB8E)', async () => {
       const { getByTestId } = renderScreen();
-      
+
       await waitFor(() => {
         const badge = getByTestId('unread-badge');
         const style = badge.props.style;
@@ -330,7 +367,7 @@ describe('ConversationsListScreen - MODULE-15.1 FLOW-14', () => {
       // Phosphor icons are rendered via phosphor-react-native
       // This test ensures the testID is present, confirming the icon renders
       const { getAllByTestId } = renderScreen();
-      
+
       await waitFor(() => {
         const badges = getAllByTestId('verified-badge');
         expect(badges.length).toBeGreaterThan(0);

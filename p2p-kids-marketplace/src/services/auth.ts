@@ -408,6 +408,7 @@ export async function loginWithContext(input: LoginInput): Promise<AuthSession> 
       pending_points: 0,
       lifetime_earned: 0,
       lifetime_spent: 0,
+      reserved_points: 0,
       wallet_state: 'inactive', // ADMIN-V2-003
     };
 
@@ -439,6 +440,7 @@ export async function loginWithContext(input: LoginInput): Promise<AuthSession> 
       pending_points: (walletSummary.pending_points as number) || 0,
       lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
       lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
+      reserved_points: (walletSummary.reserved_points as number) || 0,
       wallet_state:
         (walletSummary.wallet_state as
           | 'active'
@@ -533,6 +535,7 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
       pending_points: 0,
       lifetime_earned: 0,
       lifetime_spent: 0,
+      reserved_points: 0,
       wallet_state: 'inactive', // ADMIN-V2-003
     };
 
@@ -555,6 +558,7 @@ export async function getCurrentSession(): Promise<AuthSession | null> {
       pending_points: (walletSummary.pending_points as number) || 0,
       lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
       lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
+      reserved_points: (walletSummary.reserved_points as number) || 0,
       wallet_state:
         (walletSummary.wallet_state as
           | 'active'

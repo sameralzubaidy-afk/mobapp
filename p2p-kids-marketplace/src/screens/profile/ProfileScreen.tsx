@@ -63,7 +63,7 @@ const getInitials = (name?: string | null) => {
 };
 
 export default function ProfileScreen({ route }: any) {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { logout: contextLogout, session } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any | null>(null);

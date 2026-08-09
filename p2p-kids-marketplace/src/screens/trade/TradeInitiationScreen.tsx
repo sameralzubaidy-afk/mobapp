@@ -254,12 +254,12 @@ export default function TradeInitiationScreen() {
 
   // MODULE-15.3-PART3 TAX-011: call hook unconditionally before any early return
   // to satisfy react-hooks/rules-of-hooks. Pass safe defaults when item is null.
+  // BP-37: tax is always on the full item price \u2014 SP is a payment method, not a taxable-base discount.
   const itemPriceCentsForTax = item ? Math.round(item.price * 100) : 0;
-  const spDiscountCentsForTax = spAmount * 100;
-  const taxableSubtotalCents = Math.max(0, itemPriceCentsForTax - spDiscountCentsForTax);
   const tax = useTaxCalculation({
     nodeId: (item as any)?.seller_node_id ?? null,
-    taxableAmountCents: taxableSubtotalCents,
+    taxableAmountCents: itemPriceCentsForTax,
+    taxCategoryId: item?.tax_category_id ?? null,
   });
 
   // MODULE-12 V3: Use category-specific max SP cap (already calculated in fetchData)
@@ -639,6 +639,7 @@ export default function TradeInitiationScreen() {
               taxRate={tax.taxRate}
               jurisdiction={tax.jurisdiction}
               loading={tax.loading}
+              isTaxExempt={tax.isTaxExempt}
               testID="checkout-tax-row"
             />
 

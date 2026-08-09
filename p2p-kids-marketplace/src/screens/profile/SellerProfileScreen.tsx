@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Star, ShieldCheck, MapPin, IdentificationCard, CaretDown, CaretUp } from 'phosphor-react-native';
 import Avatar from '@/components/atoms/Avatar';
@@ -19,7 +20,8 @@ import { getUserBadges } from '@/services/badges';
 import { idBadgeService, IDVerificationStatus } from '@/services/idBadge';
 import { supabase } from '@/services/supabase/client';
 import { UserBadge } from '@/types/badge';
-import { getReviewStats, ReviewStats } from '@/services/review';
+import { getReviewStats, getUserReviews, ReviewStats, Review } from '@/services/review';
+import { ReviewCard } from '@/components/ReviewCard';
 import ScreenLayout from '@/components/ScreenLayout';
 
 const isUuid = (value: string): boolean =>
@@ -32,6 +34,8 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any | null>(null);
   const [reviewStats, setReviewStats] = useState<ReviewStats | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
   const [completedTradesCount, setCompletedTradesCount] = useState(0);
   const [badges, setBadges] = useState<UserBadge[]>([]);
   const [idVerificationStatus, setIdVerificationStatus] = useState<IDVerificationStatus['status']>('none');
@@ -123,6 +127,18 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
       if (bestReviewBundle?.statsResult.success && bestReviewBundle.statsResult.stats) {
         setReviewStats(bestReviewBundle.statsResult.stats);
       }
+
+      // MODULE-08 REVIEW-002/005: load the actual review cards (content + details)
+      // for the same candidate the stats came from, so the list matches the count.
+      // getUserReviews already excludes hidden reviews (is_hidden = true) — TC-Q16.
+      const reviewsForCandidate = bestReviewBundle?.candidateId ?? candidateIds[0];
+      if (reviewsForCandidate) {
+        const reviewListResult = await getUserReviews(reviewsForCandidate);
+        if (reviewListResult.success) {
+          setReviews(reviewListResult.reviews);
+        }
+      }
+      setReviewsLoading(false);
 
       const candidateUuids = candidateIds.filter((candidateId) => isUuid(String(candidateId)));
       if (candidateUuids.length === 0) {
@@ -355,6 +371,48 @@ export default function SellerProfileScreen({ navigation: _navigation, route }: 
               <Text style={styles.tradesCountLabel}>Total completed trades</Text>
             </View>
           </View>
+
+          {/* Reviews Section — MODULE-08 REVIEW-002/005 (TC-Q07/Q08/Q09/Q16) */}
+          <View style={styles.reviewsSection}>
+            <Text style={styles.sectionTitle}>
+              Reviews ({reviewStats?.total_reviews ?? reviews.length})
+            </Text>
+
+            {reviewStats && reviewStats.total_reviews > 0 && (
+              <View style={styles.ratingBreakdown}>
+                {[5, 4, 3, 2, 1].map((stars) => {
+                  const count =
+                    reviewStats.rating_breakdown[
+                      stars as keyof typeof reviewStats.rating_breakdown
+                    ];
+                  const percentage =
+                    reviewStats.total_reviews > 0
+                      ? (count / reviewStats.total_reviews) * 100
+                      : 0;
+
+                  return (
+                    <View key={stars} style={styles.breakdownRow}>
+                      <Text style={styles.breakdownLabel}>{stars} ★</Text>
+                      <View style={styles.breakdownBar}>
+                        <View style={[styles.breakdownFill, { width: `${percentage}%` }]} />
+                      </View>
+                      <Text style={styles.breakdownCount}>{count}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+            {reviewsLoading ? (
+              <ActivityIndicator size="small" color="#5DBB8E" style={{ marginVertical: 20 }} />
+            ) : reviews.length > 0 ? (
+              reviews.map((review) => (
+                <ReviewCard key={review.id} review={review} showReportMenu={false} />
+              ))
+            ) : (
+              <Text style={styles.noReviewsText}>No reviews yet</Text>
+            )}
+          </View>
         </ScrollView>
       </View>
     </ScreenLayout>
@@ -578,5 +636,43 @@ const styles = StyleSheet.create({
   tradesCountLabel: {
     fontSize: 14,
     color: '#6B6B6B',
+  },
+  reviewsSection: {
+    marginBottom: 24,
+  },
+  ratingBreakdown: {
+    backgroundColor: '#F7F7F7',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 8,
+  },
+  breakdownLabel: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    width: 32,
+  },
+  breakdownBar: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  breakdownFill: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#F59E0B',
+  },
+  breakdownCount: {
+    fontSize: 13,
+    color: '#1A1A1A',
+    width: 24,
+    textAlign: 'right',
   },
 });

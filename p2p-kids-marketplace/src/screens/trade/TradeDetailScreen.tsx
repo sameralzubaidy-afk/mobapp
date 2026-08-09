@@ -293,10 +293,12 @@ export default function TradeDetailScreen() {
 
   // MODULE-15.3-PART3 TAX-011: live tax preview for in-progress trades; stored tax used for completed
   const detailSellerNodeId = ((trade as any)?.listing as any)?.node_id ?? null;
-  const detailTaxableCents = trade ? trade.cash_amount_cents : 0;
+  // BP-37: tax is always on the full item price — cash_amount_cents already has SP subtracted, so it can't be used here
+  const detailTaxableCents = Math.round((((trade as any)?.listing as any)?.price ?? 0) * 100);
   const detailTaxPreview = useTaxCalculation({
     nodeId: detailSellerNodeId,
     taxableAmountCents: detailTaxableCents,
+    taxCategoryId: ((trade as any)?.listing as any)?.tax_category_id ?? null,
     enabled: !trade || trade.status !== 'completed',
   });
 
@@ -382,6 +384,7 @@ export default function TradeDetailScreen() {
               jurisdiction={trade.tax_jurisdiction}
               loading={false}
               alwaysShow={!!trade.tax_amount_cents}
+              isTaxExempt={detailTaxPreview.isTaxExempt}
               testID="detail-payment-tax-row"
             />
           ) : (
@@ -390,6 +393,7 @@ export default function TradeDetailScreen() {
               taxRate={detailTaxPreview.taxRate}
               jurisdiction={detailTaxPreview.jurisdiction}
               loading={detailTaxPreview.loading}
+              isTaxExempt={detailTaxPreview.isTaxExempt}
               testID="detail-payment-tax-preview"
             />
           ))}

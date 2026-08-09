@@ -1,7 +1,7 @@
 # MODULE-15.1.2 TradeFlowV2 — DEFERRED Manual Testing
 
 **Purpose:** Test cases for features **not yet implemented** in the Kids P2P Marketplace  
-**Source:** Extracted from `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` on 2026-06-07  
+**Source:** Extracted from `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` on 2026-06-07  
 **Status:** Deferred pending feature implementation  
 **Do not run these tests** — they will fail because the features are not built
 

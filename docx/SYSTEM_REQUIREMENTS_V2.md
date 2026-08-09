@@ -1487,9 +1487,14 @@ Seller fee
 
 text
 Copy code
-seller_fee = seller_percent_fee × item_price
-seller_cash_payout = (cash_collected_from_buyer) - seller_fee
+seller_fee = seller_percent_fee × cash_portion        # cash_portion = item_price − SP
+seller_cash_payout = cash_portion − seller_fee
 When SP is used (up to the allowed SP cap), the buyer fee is still based on item_price and is always paid in cash.
+
+The seller fee is ALWAYS calculated on the CASH PORTION of the trade (item price
+minus Swap Points), never on the full item price, and never on the buyer's platform
+fee (that fee belongs to the platform). The SP portion is never fee'd. The seller
+rate is admin-configurable per subscription tier (Free vs Kids Club+), see §8.1.3.
 
 The SP portion of the transaction is credited to the seller’s SP wallet (no fee deducted from SP).
 
@@ -1497,7 +1502,7 @@ The SP portion of the transaction is credited to the seller’s SP wallet (no fe
 |-----------|----------------|------------|-------|
 | **Free User** | $2.99 | Buyer | Per transaction, regardless of item price |
 | **Subscriber** | $0.99 | Buyer | Reduced fee (save $2 per transaction) |
-| **Seller Fee** | 5% | Seller | Deducted from cash payout (both user types) |
+| **Seller Fee** | 5% (free tier default) | Seller | Deducted from cash payout on the cash portion (item price − SP); admin-configurable per tier (Free vs Kids Club+) |
 
 **Fee Calculation Examples:**
 
@@ -1508,7 +1513,7 @@ Example 1: Free user buys $25 item (cash only)
 ├─ Total buyer pays: $27.99
 └─ Seller receives: $25.00 - (5% × $25) = $23.75
 
-Example 2: Subscriber buys $25 item (12 SP + cash)
+Example 2: Subscriber buys $25 item (12 SP + cash) — seller is FREE tier (5% seller fee)
 ├─ Item price: $25.00
 ├─ SP used: 12 SP (= $12 discount)
 ├─ Cash portion: $13.00
@@ -1516,7 +1521,7 @@ Example 2: Subscriber buys $25 item (12 SP + cash)
 ├─ Total buyer pays: $13.99 cash + 12 SP
 └─ Seller receives: 
     ├─ 12 SP (to wallet, available immediately)
-    └─ $13.94 cash ($13 + $0.99 fee - 5% of $13)
+    └─ $12.35 cash (cash portion $13.00 − 5% × $13.00 = $0.65 seller fee; the $0.99 buyer fee goes to the platform, not the seller)
 ```
 
 8.1.3 Admin Configuration (Per Node)
@@ -1545,9 +1550,16 @@ If disabled:
 
 Paid users pay the same effective buyer fee as free users (free_fixed_fee + free_percent_fee × item_price).
 
-Seller
+Seller (per subscription tier — admin-configurable)
 
-seller_percent_fee (default: 5.0%)
+seller_percent_fee_free        (default: 5.0%) — seller fee % for FREE (non-subscriber) sellers
+seller_percent_fee_subscriber  (seeded default: 0.0%) — seller fee % for Kids Club+ (subscriber) sellers
+
+> Implementer note: mapped to admin_config keys `platform_fee_seller_percentage` (free) and
+> `platform_fee_seller_discount_percentage_kids_club_plus` (subscriber). The "discount" in the
+> key name is legacy — each value is an ABSOLUTE percentage for that tier, applied as
+> `seller_fee = rate × cash_portion`. Both are editable from the admin portal
+> (Config → Trade Timing → Transaction Fees).
 
 8.1.4 Default V1 Configuration (Launch Assumptions)
 
@@ -1569,9 +1581,10 @@ paid_percent_fee = 0.00
 
 (paid_min_fee / paid_max_fee not used, or both = $0.99 for a strictly flat fee)
 
-Seller (all users)
+Seller (per tier)
 
-seller_percent_fee = 5.0%
+seller_percent_fee_free       = 5.0% (seeded default)
+seller_percent_fee_subscriber = 0.0% (seeded default — set to 5.0% in the admin portal for a uniform 5% seller fee across tiers)
 
 8.1.5 Calculation Examples (Illustrative)
 
@@ -1601,12 +1614,12 @@ cash portion of price    = $13.00
 Buyer fee                = 0.99 + (0.00 × 25.00) = $0.99 (cash only)
 Total buyer pays         = $13.00 + $0.99 = $13.99 cash + 12 SP
 
-Seller receives:
+Seller receives (seller is free tier — 5% seller fee):
   - 12 SP to SP wallet (no fee deducted from SP)
   - Cash payout:
         gross cash        = $13.00
-        seller fee (5%)   = 5% × $25.00 = $1.25
-        net cash          = $13.00 - $1.25 = $11.75
+        seller fee (5%)   = 5% × $13.00 (cash portion, not full price) = $0.65
+        net cash          = $13.00 - $0.65 = $12.35
 
 ### 8.2 Minimum Transaction Value
 

@@ -169,6 +169,51 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
 }
 
 /**
+ * Cheap existence checks used to decide whether the stored seller_balance row
+ * may be stale (a zeroed field that corresponds to real activity). These are
+ * head-only COUNT queries so we avoid re-downloading every completed trade and
+ * payout on every balance read.
+ */
+async function hasCompletedTrades(userId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('trades')
+    .select('id', { count: 'exact', head: true })
+    .eq('seller_id', userId)
+    .eq('status', 'completed');
+  if (error) {
+    console.warn('[sellerBalance] hasCompletedTrades error', error);
+    return false;
+  }
+  return (count ?? 0) > 0;
+}
+
+async function hasPendingPayouts(userId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('seller_payouts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .in('status', ['pending', 'processing']);
+  if (error) {
+    console.warn('[sellerBalance] hasPendingPayouts error', error);
+    return false;
+  }
+  return (count ?? 0) > 0;
+}
+
+async function hasCompletedPayouts(userId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('seller_payouts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('status', 'completed');
+  if (error) {
+    console.warn('[sellerBalance] hasCompletedPayouts error', error);
+    return false;
+  }
+  return (count ?? 0) > 0;
+}
+
+/**
  * Get seller balance for the authenticated user
  */
 export async function getSellerBalance(): Promise<SellerBalance | null> {
@@ -195,17 +240,35 @@ export async function getSellerBalance(): Promise<SellerBalance | null> {
     throw error;
   }
 
-  // If the seller_balance row looks stale (common when triggers didn't run), derive
-  // from completed trades + payouts, which reflects the real withdrawable amount.
-  const derived = await getSellerBalanceDerivedFromTradesAndPayouts(user.id);
-  const staleAvailable =
-    (data.available_balance_cents ?? 0) === 0 && derived.available_balance_cents > 0;
-  const stalePending = (data.pending_balance_cents ?? 0) === 0 && derived.pending_balance_cents > 0;
-  const staleLifetime =
-    (data.lifetime_earnings_cents ?? 0) === 0 && derived.lifetime_earnings_cents > 0;
+  // Only run the expensive derived scan when a zeroed stored field corresponds
+  // to real activity (stale-trigger scenario). Otherwise the stored row is the
+  // source of truth and we skip re-downloading every completed trade + payout.
+  const storedAvailableZero = (data.available_balance_cents ?? 0) === 0;
+  const storedPendingZero = (data.pending_balance_cents ?? 0) === 0;
+  const storedLifetimeZero = (data.lifetime_earnings_cents ?? 0) === 0;
 
-  if (staleAvailable || stalePending || staleLifetime) {
-    return derived;
+  const [hasTrades, hasPending, hasCompletedPayout] = await Promise.all([
+    storedAvailableZero || storedLifetimeZero ? hasCompletedTrades(user.id) : Promise.resolve(false),
+    storedPendingZero ? hasPendingPayouts(user.id) : Promise.resolve(false),
+    storedLifetimeZero ? hasCompletedPayouts(user.id) : Promise.resolve(false),
+  ]);
+
+  const needsDeriveCheck =
+    (storedAvailableZero && hasTrades) ||
+    (storedPendingZero && hasPending) ||
+    (storedLifetimeZero && (hasTrades || hasCompletedPayout));
+
+  if (needsDeriveCheck) {
+    // If the seller_balance row looks stale (common when triggers didn't run), derive
+    // from completed trades + payouts, which reflects the real withdrawable amount.
+    const derived = await getSellerBalanceDerivedFromTradesAndPayouts(user.id);
+    const staleAvailable = storedAvailableZero && derived.available_balance_cents > 0;
+    const stalePending = storedPendingZero && derived.pending_balance_cents > 0;
+    const staleLifetime = storedLifetimeZero && derived.lifetime_earnings_cents > 0;
+
+    if (staleAvailable || stalePending || staleLifetime) {
+      return derived;
+    }
   }
 
   return data;

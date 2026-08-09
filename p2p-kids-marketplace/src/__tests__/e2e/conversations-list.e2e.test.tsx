@@ -105,7 +105,10 @@ describe('ConversationsListScreen E2E', () => {
   });
 
   it('should display empty state when no conversations exist', async () => {
-    (chatService.getConversations as jest.Mock).mockResolvedValue([]);
+    (chatService.getConversations as jest.Mock).mockResolvedValue({
+      conversations: [],
+      hasMore: false,
+    });
 
     const { getByText } = renderScreen();
 
@@ -129,7 +132,10 @@ describe('ConversationsListScreen E2E', () => {
       },
     ];
 
-    (chatService.getConversations as jest.Mock).mockResolvedValue(mockConversations);
+    (chatService.getConversations as jest.Mock).mockResolvedValue({
+      conversations: mockConversations,
+      hasMore: false,
+    });
 
     const { getByText } = renderScreen();
 
@@ -152,7 +158,10 @@ describe('ConversationsListScreen E2E', () => {
       },
     ];
 
-    (chatService.getConversations as jest.Mock).mockResolvedValue(mockConversations);
+    (chatService.getConversations as jest.Mock).mockResolvedValue({
+      conversations: mockConversations,
+      hasMore: false,
+    });
 
     const { getByText } = renderScreen();
 

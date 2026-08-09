@@ -28,7 +28,7 @@ import { supabase } from '@/config/supabase';
 import { Trade, TradeStatus } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
-import { getSPReleaseDays } from '@/services/adminConfig';
+import { getSPReleaseDays, getAdminConfig } from '@/services/adminConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '@/components/ui';
 import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
@@ -95,6 +95,12 @@ export default function TradeTimelineScreen() {
     total: number;
     allIds: string[];
   } | null>(null);
+  // BUNDLE-CANCEL (2026-08-01): bundle cancel-all modal state — mirrors Addendum C confirm-all.
+  const [bundleCancelData, setBundleCancelData] = useState<{
+    total: number;
+    allIds: string[];
+    reason: string;
+  } | null>(null);
   // TFV2-011: Issue report modal
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [nextStepsDismissed, setNextStepsDismissed] = useState(false);
@@ -155,7 +161,7 @@ export default function TradeTimelineScreen() {
       if (tradeData.listing_id) {
         const { data: item, error: itemError } = await supabase
           .from('items')
-          .select('id, title, price, node_id')
+          .select('id, title, price, node_id, tax_category_id')
           .eq('id', tradeData.listing_id)
           .maybeSingle();
 
@@ -172,6 +178,32 @@ export default function TradeTimelineScreen() {
 
       // Attach listing to trade for downstream consumption
       const enrichedTrade = { ...tradeData, listing: listingData };
+
+      // SEL-005-FALLBACK (2026-07-27): For trades where seller_transaction_fee_cents
+      // is 0, null, or undefined (column doesn't exist on DB yet, or trade was created
+      // before create-trade-offer populated it), calculate dynamically from admin_config.
+      // SEL-FEE-BASE (2026-07-27): Fee is based on cash amount (after SP), not listing price.
+      // SEL-FEE-SEMANTICS (2026-07-27): Config fields are absolute percentages per tier:
+      // - platform_fee_seller_percentage = % for FREE users
+      // - platform_fee_seller_discount_percentage_kids_club_plus = % for SUBSCRIBED users
+      if ((enrichedTrade.seller_transaction_fee_cents ?? 0) === 0) {
+        try {
+          const config = await getAdminConfig();
+          // Always use cash amount — fee is on what the seller actually receives in cash
+          const cashAmountCents = tradeData.cash_amount_cents ?? 0;
+          const subStatus = session?.subscription_status;
+          const isSubscriber = subStatus === 'active' || subStatus === 'trial';
+          // Use absolute percentage for the seller's tier
+          const effectivePct = isSubscriber
+            ? config.platform_fee_seller_discount_percentage_kids_club_plus
+            : config.platform_fee_seller_percentage;
+          enrichedTrade.seller_transaction_fee_cents = Math.round(cashAmountCents * effectivePct / 100);
+        } catch (e) {
+          console.warn('[TradeTimeline] Failed to calculate fallback seller fee:', e);
+          // Keep 0 — display shows -$0.00, avoids crash
+        }
+      }
+
       setTrade(enrichedTrade);
 
       // TC-H03: Navigate seller to TradeSuccessScreen when trade is completed
@@ -282,6 +314,8 @@ export default function TradeTimelineScreen() {
       });
 
     // Fetch sibling trade data with listing info for the expandable item list
+    // BUNDLE-TOTAL (2026-07-30): also fetch buyer_transaction_fee_cents and tax_amount_cents
+    // to compute bundle-level totals (deal total, fees, taxes) for buyer Payment Details.
     supabase
       .from('trades')
       .select(`
@@ -290,6 +324,8 @@ export default function TradeTimelineScreen() {
         status,
         sp_amount,
         cash_amount_cents,
+        buyer_transaction_fee_cents,
+        tax_amount_cents,
         listing:items(id, title, price)
       `)
       .eq('bundle_id', bundleId)
@@ -391,10 +427,10 @@ export default function TradeTimelineScreen() {
     setShowIssueModal(true);
   };
 
-  const handleCancellationConfirm = async (reason: string) => {
+  // Single-trade cancel (also the "Just This One" path for bundle cancels).
+  const performSingleCancel = async (reason: string) => {
     try {
       setIsCancelling(true);
-      setShowCancellationModal(false);
 
       const result = await cancelTradeV2(tradeId, reason);
       if (result.success) {
@@ -417,6 +453,50 @@ export default function TradeTimelineScreen() {
     } finally {
       setIsCancelling(false);
     }
+  };
+
+  // BUNDLE-CANCEL (2026-08-01): Mirror Addendum C "Confirm All" shortcut for cancels.
+  // If this trade is part of a bundle with cancellable siblings, ask whether to cancel
+  // the whole bundle or just this one. Disputes / Report-a-Problem stay per-trade
+  // (TRADING-FLOW-V2 §11.3.1 Key invariant) — this prompt is cancel-only.
+  const handleCancellationConfirm = async (reason: string) => {
+    // Close the reason modal immediately; the bundle-scope prompt (if any) is next.
+    setShowCancellationModal(false);
+
+    const bundleId = (trade as any)?.bundle_id;
+    if (bundleId) {
+      try {
+        const isBuyerRole = user?.id === trade?.buyer_id;
+        const isSellerRole = user?.id === trade?.seller_id;
+        const { data: siblings } = await supabase
+          .from('trades')
+          .select('id, status, cash_amount_cents')
+          .eq('bundle_id', bundleId)
+          .neq('id', tradeId);
+        // Only include siblings the current user is actually allowed to cancel,
+        // matching the cancel-button visibility rules on this screen.
+        const cancellableSiblings = (siblings ?? []).filter((s: any) => {
+          if (isBuyerRole) return s.status === 'pending';
+          if (isSellerRole) {
+            return (
+              s.status === 'in_progress' ||
+              (s.status === 'pending' && (s.cash_amount_cents ?? 0) === 0)
+            );
+          }
+          return false;
+        });
+        if (cancellableSiblings.length > 0) {
+          const total = cancellableSiblings.length + 1;
+          const allIds = [tradeId, ...cancellableSiblings.map((s: any) => s.id)];
+          setBundleCancelData({ total, allIds, reason });
+          return;
+        }
+      } catch {
+        // Non-blocking: fall through to single-trade cancel on error.
+      }
+    }
+
+    await performSingleCancel(reason);
   };
 
   const handleReviewPress = () => {
@@ -449,10 +529,12 @@ export default function TradeTimelineScreen() {
 
   // MODULE-15.3-PART3 TAX-011: live tax preview for in-progress trades; stored tax used for completed
   const sellerNodeId = ((trade as any)?.listing as any)?.node_id ?? null;
-  const taxableAmountCents = trade ? trade.cash_amount_cents : 0;
+  // BP-37: tax is always on the full item price — cash_amount_cents already has SP subtracted, so it can't be used here
+  const taxableAmountCents = Math.round((((trade as any)?.listing as any)?.price ?? 0) * 100);
   const taxPreview = useTaxCalculation({
     nodeId: sellerNodeId,
     taxableAmountCents: taxableAmountCents,
+    taxCategoryId: ((trade as any)?.listing as any)?.tax_category_id ?? null,
     enabled: !trade || trade.status !== 'completed', // skip live calc for completed trades
   });
 
@@ -569,6 +651,47 @@ export default function TradeTimelineScreen() {
                     </TouchableOpacity>
                   );
                 })}
+                {/* BUNDLE-TOTAL (2026-07-30): aggregated totals at bottom of expanded bundle item list.
+                    Shows buyer the full deal total, total platform fees, and total tax across all items. */}
+                {isBuyer && (() => {
+                  const bundleCashCents = (trade.cash_amount_cents ?? 0) +
+                    bundleSiblings.reduce((s, o) => s + (o.cash_amount_cents ?? 0), 0);
+                  const bundleFeeCents = (trade.buyer_transaction_fee_cents ?? 0) +
+                    bundleSiblings.reduce((s, o) => s + (o.buyer_transaction_fee_cents ?? 0), 0);
+                  const bundleTaxCents = (trade.tax_amount_cents ?? 0) +
+                    bundleSiblings.reduce((s, o) => s + (o.tax_amount_cents ?? 0), 0);
+                  return (
+                    <View style={styles.bundleTotalsSection}>
+                      <View style={styles.bundleTotalSeparator} />
+                      <View style={styles.bundleTotalRow}>
+                        <Text style={styles.bundleTotalLabel}>Items Total:</Text>
+                        <Text style={styles.bundleTotalValue}>
+                          ${(bundleCashCents / 100).toFixed(2)}
+                        </Text>
+                      </View>
+                      <View style={styles.bundleTotalRow}>
+                        <Text style={styles.bundleTotalLabel}>Platform Fee:</Text>
+                        <Text style={styles.bundleTotalValue}>
+                          ${(bundleFeeCents / 100).toFixed(2)}
+                        </Text>
+                      </View>
+                      {bundleTaxCents > 0 && (
+                        <View style={styles.bundleTotalRow}>
+                          <Text style={styles.bundleTotalLabel}>Sales Tax:</Text>
+                          <Text style={styles.bundleTotalValue}>
+                            ${(bundleTaxCents / 100).toFixed(2)}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={[styles.bundleTotalRow, styles.bundleTotalGrandRow]}>
+                        <Text style={styles.bundleTotalGrandLabel}>Deal Total:</Text>
+                        <Text style={styles.bundleTotalGrandValue}>
+                          ${((bundleCashCents + bundleFeeCents + bundleTaxCents) / 100).toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })()}
               </View>
             )}
           </View>
@@ -634,6 +757,55 @@ export default function TradeTimelineScreen() {
                 The seller has 48 hours to accept or decline your offer. You'll receive a notification when they respond.
               </Text>
             </View>
+          </View>
+        )}
+
+        {/* TFV2-011 / D-26: Dispute status card — moved ABOVE "What to do next" so a dispute
+            is the first thing the user sees. Redesigned as an elevated alert card that is
+            visually distinct from the amber auto-complete countdown banner.
+            Red = reported, orange = under_review. */}
+        {(trade as any).dispute_status === 'reported' && (
+          <View style={styles.disputeCard} testID="dispute-banner-reported">
+            <View style={styles.disputeCardHeader}>
+              <View style={styles.disputeCardIconWrap}>
+                <WarningCircle size={20} color="#FFFFFF" weight="fill" />
+              </View>
+              <View style={styles.disputeCardHeaderText}>
+                <Text style={styles.disputeCardTitle}>Dispute in progress</Text>
+                <View style={styles.disputeCardBadge}>
+                  <View style={styles.disputeCardBadgeDot} />
+                  <Text style={styles.disputeCardBadgeText}>Our team has been notified</Text>
+                </View>
+              </View>
+            </View>
+            <Text style={styles.disputeCardBody}>
+              Dispute reported — our team has been notified and will review shortly.
+            </Text>
+            <Text style={styles.disputeCardNote}>
+              The trade is paused while we review. Keep chatting with the other party — we'll notify you with the outcome.
+            </Text>
+          </View>
+        )}
+        {(trade as any).dispute_status === 'under_review' && (
+          <View style={[styles.disputeCard, styles.disputeCardOrange]} testID="dispute-banner-under-review">
+            <View style={styles.disputeCardHeader}>
+              <View style={[styles.disputeCardIconWrap, styles.disputeCardIconWrapOrange]}>
+                <WarningCircle size={20} color="#FFFFFF" weight="fill" />
+              </View>
+              <View style={styles.disputeCardHeaderText}>
+                <Text style={[styles.disputeCardTitle, styles.disputeCardTitleOrange]}>Dispute under review</Text>
+                <View style={styles.disputeCardBadge}>
+                  <View style={[styles.disputeCardBadgeDot, styles.disputeCardBadgeDotOrange]} />
+                  <Text style={[styles.disputeCardBadgeText, styles.disputeCardBadgeTextOrange]}>Our team is investigating</Text>
+                </View>
+              </View>
+            </View>
+            <Text style={[styles.disputeCardBody, styles.disputeCardBodyOrange]}>
+              Dispute under review — our team is actively investigating.
+            </Text>
+            <Text style={[styles.disputeCardNote, styles.disputeCardNoteOrange]}>
+              No action needed from you right now — we'll notify you as soon as there's an update.
+            </Text>
           </View>
         )}
 
@@ -857,6 +1029,7 @@ export default function TradeTimelineScreen() {
                   jurisdiction={trade.tax_jurisdiction}
                   loading={false}
                   alwaysShow={!!trade.tax_amount_cents}
+                  isTaxExempt={taxPreview.isTaxExempt}
                   label={trade.status === 'completed' ? 'Sales Tax' : 'Estimated Sales Tax'}
                   testID="timeline-payment-tax-row"
                 />
@@ -866,6 +1039,7 @@ export default function TradeTimelineScreen() {
                   taxRate={taxPreview.taxRate}
                   jurisdiction={taxPreview.jurisdiction}
                   loading={taxPreview.loading}
+                  isTaxExempt={taxPreview.isTaxExempt}
                   label="Estimated Sales Tax"
                   testID="timeline-payment-tax-preview"
                 />
@@ -878,7 +1052,11 @@ export default function TradeTimelineScreen() {
               </View>
             </>
           ) : (
-            /* Seller view: shows their payout info, not the buyer's payment label */
+            /* Seller view: shows their payout info with the seller platform fee deducted.
+               SEL-005 (2026-07-27): seller_transaction_fee_cents is stored at offer creation
+               time from admin_config.platform_fee_seller_percentage (default 5%, discount
+               applied per seller's subscription tier). New offers only — existing trades
+               without the column default to 0. */
             <>
               <View style={styles.row}>
                 <Text style={styles.label}>Cash Amount:</Text>
@@ -891,13 +1069,13 @@ export default function TradeTimelineScreen() {
               <View style={styles.row}>
                 <Text style={styles.label}>Platform Fee:</Text>
                 <Text style={styles.value}>
-                  ${(trade.buyer_transaction_fee_cents / 100).toFixed(2)}
+                  -${((trade.seller_transaction_fee_cents ?? 0) / 100).toFixed(2)}
                 </Text>
               </View>
               <View style={[styles.row, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total:</Text>
                 <Text style={styles.totalValue}>
-                  ${((trade.cash_amount_cents + trade.buyer_transaction_fee_cents) / 100).toFixed(2)}
+                  ${(Math.max(0, trade.cash_amount_cents - (trade.seller_transaction_fee_cents ?? 0)) / 100).toFixed(2)}
                 </Text>
               </View>
             </>
@@ -919,24 +1097,6 @@ export default function TradeTimelineScreen() {
           )}
           <Text style={styles.messageButtonText}>Message {isBuyer ? 'Seller' : 'Buyer'}</Text>
         </Pressable>
-        )}
-
-        {/* TFV2-011 / D-26: Dispute status overlay banner */}
-        {(trade as any).dispute_status === 'reported' && (
-          <View style={styles.disputeBannerAmber} testID="dispute-banner-reported">
-            <WarningCircle size={16} color="#92400E" weight="fill" />
-            <Text style={styles.disputeBannerText}>
-              Dispute reported — our team has been notified and will review shortly.
-            </Text>
-          </View>
-        )}
-        {(trade as any).dispute_status === 'under_review' && (
-          <View style={styles.disputeBannerOrange} testID="dispute-banner-under-review">
-            <WarningCircle size={16} color="#7C2D12" weight="fill" />
-            <Text style={styles.disputeBannerTextOrange}>
-              Dispute under review — our team is actively investigating.
-            </Text>
-          </View>
         )}
 
         {/* TFV2-020: Safe meetup tips (only after seller accepts, not for pending offers) */}
@@ -1118,6 +1278,42 @@ export default function TradeTimelineScreen() {
         onCancel={() => {
           setBundleConfirmData(null);
           setShowCompleteConfirm(true);
+        }}
+        loading={submitting}
+      />
+
+      {/* BUNDLE-CANCEL (2026-08-01): Cancel-all modal for bundle members (mirrors Addendum C confirm-all). */}
+      <TradeConfirmationModal
+        visible={bundleCancelData !== null}
+        title={`Cancel all ${bundleCancelData?.total ?? 0} items?`}
+        message="All items from this seller will be cancelled and relisted."
+        confirmLabel={`Cancel All ${bundleCancelData?.total ?? 0}`}
+        cancelLabel="Just This One"
+        variant="decline"
+        onConfirm={async () => {
+          if (!bundleCancelData) return;
+          setSubmitting(true);
+          const data = bundleCancelData;
+          setBundleCancelData(null);
+          try {
+            for (const tid of data.allIds) {
+              await cancelTradeV2(tid, data.reason);
+            }
+            if (refreshSession) await refreshSession();
+            showNotif('Trade Cancelled', 'Your trades have been cancelled. Any Swap Points have been refunded to your wallet.', 'default', () => {
+              setNotifModal(null);
+              navigation.goBack();
+            });
+          } catch {
+            showNotif('Error', 'Could not cancel all items. Try cancelling each one.', 'decline');
+          } finally {
+            setSubmitting(false);
+          }
+        }}
+        onCancel={() => {
+          const reason = bundleCancelData?.reason;
+          setBundleCancelData(null);
+          if (reason) performSingleCancel(reason);
         }}
         loading={submitting}
       />
@@ -1345,42 +1541,136 @@ const styles = StyleSheet.create({
     color: '#5DBB8E',
     fontWeight: '600',
   },
-  // D-26: dispute status banners
-  disputeBannerAmber: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    backgroundColor:  '#FFF9EC',
-    borderWidth:      1,
-    borderColor:      '#FDE68A',
-    borderRadius:     8,
-    padding:          12,
-    marginBottom:     8,
-    gap:              8,
+  // BUNDLE-TOTAL (2026-07-30): aggregated bundle totals section in the bundle context banner
+  bundleTotalsSection: {
+    marginTop: 8,
   },
-  disputeBannerOrange: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    backgroundColor:  '#FFF7ED',
-    borderWidth:      1,
-    borderColor:      '#FDBA74',
-    borderRadius:     8,
-    padding:          12,
-    marginBottom:     8,
-    gap:              8,
+  bundleTotalSeparator: {
+    height: 1,
+    backgroundColor: '#D1D9E6',
+    marginBottom: 8,
   },
-  disputeBannerText: {
-    flex:       1,
-    fontSize:   13,
-    fontFamily: 'Inter-Regular',
-    color:      '#92400E',
-    lineHeight: 18,
+  bundleTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
   },
-  disputeBannerTextOrange: {
-    flex:       1,
-    fontSize:   13,
-    fontFamily: 'Inter-Regular',
-    color:      '#7C2D12',
-    lineHeight: 18,
+  bundleTotalLabel: {
+    fontSize: 13,
+    color: '#6B6B6B',
+  },
+  bundleTotalValue: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#4D4D4D',
+  },
+  bundleTotalGrandRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#D1D9E6',
+    marginTop: 4,
+    paddingTop: 8,
+  },
+  bundleTotalGrandLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  bundleTotalGrandValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  // D-26: Dispute status card — elevated alert card, visually distinct from the amber
+  // auto-complete countdown banner. Red = reported, orange = under_review.
+  disputeCard: {
+    backgroundColor: '#FFF7F7',
+    borderWidth: 1,
+    borderColor: '#F3C2C9',
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  disputeCardOrange: {
+    backgroundColor: '#FFF8F0',
+    borderColor: '#F6CD9C',
+  },
+  disputeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  disputeCardIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E85D75',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disputeCardIconWrapOrange: {
+    backgroundColor: '#EA580C',
+  },
+  disputeCardHeaderText: {
+    flex: 1,
+  },
+  disputeCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#9F1239',
+    lineHeight: 20,
+  },
+  disputeCardTitleOrange: {
+    color: '#9A3412',
+  },
+  disputeCardBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  disputeCardBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E85D75',
+  },
+  disputeCardBadgeDotOrange: {
+    backgroundColor: '#EA580C',
+  },
+  disputeCardBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9F1239',
+  },
+  disputeCardBadgeTextOrange: {
+    color: '#9A3412',
+  },
+  disputeCardBody: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#7F1D1D',
+  },
+  disputeCardBodyOrange: {
+    color: '#7C2D12',
+  },
+  disputeCardNote: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F3C2C9',
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#9F1239',
+  },
+  disputeCardNoteOrange: {
+    borderTopColor: '#F6CD9C',
+    color: '#9A3412',
   },
   statusBanner: {
     flexDirection: 'row',

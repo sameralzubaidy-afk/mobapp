@@ -228,6 +228,13 @@ describeSupabase('Admin Force-Cancel Trade Integration (TRADE-V2-009)', () => {
       }
 
       // ARRANGE: Create an in_progress trade (simulated payment)
+      // The reserve-on-offer trigger (fn_reserve_sp_on_offer) rejects SP reservation
+      // when the buyer wallet is frozen, so ensure the buyer wallet is active first.
+      await supabase
+        .from('sp_wallets')
+        .update({ state: 'active' })
+        .eq('user_id', TEST_CONFIG.buyerId);
+
       const { data: trade, error: createError } = await supabase
         .from('trades')
         .insert({

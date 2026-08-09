@@ -8,11 +8,13 @@
  */
 import { useEffect, useState } from 'react';
 import { useDebouncedValue } from './useDebouncedValue';
-import { calculateTax, TaxCalculation } from '@/services/tax';
+import { calculateTax, isTaxExemptCategory, TaxCalculation } from '@/services/tax';
 
 export interface UseTaxCalculationOptions {
   nodeId: string | null | undefined;
   taxableAmountCents: number;
+  /** Item's tax category — when supplied, preview honors exemption/price-threshold rules. */
+  taxCategoryId?: string | null;
   /** Disable the hook entirely (e.g. while parent inputs are loading). */
   enabled?: boolean;
   debounceMs?: number;
@@ -27,6 +29,8 @@ export interface UseTaxCalculationResult {
   error: string | null;
   /** Raw RPC payload (or null if no successful fetch yet). */
   raw: TaxCalculation | null;
+  /** TC-O05: true when the item's tax category is tax_exempt_goods ("Tax Free" badge). */
+  isTaxExempt: boolean;
 }
 
 const EMPTY: TaxCalculation = {
@@ -38,7 +42,7 @@ const EMPTY: TaxCalculation = {
 };
 
 export function useTaxCalculation(opts: UseTaxCalculationOptions): UseTaxCalculationResult {
-  const { nodeId, taxableAmountCents, enabled = true, debounceMs = 300 } = opts;
+  const { nodeId, taxableAmountCents, taxCategoryId, enabled = true, debounceMs = 300 } = opts;
   const debouncedAmount = useDebouncedValue(taxableAmountCents, debounceMs);
   const debouncedNodeId = useDebouncedValue(nodeId, debounceMs);
 
@@ -64,7 +68,7 @@ export function useTaxCalculation(opts: UseTaxCalculationOptions): UseTaxCalcula
       };
     }
     setState((s) => ({ ...s, loading: true, error: null }));
-    calculateTax(debouncedNodeId ?? null, debouncedAmount)
+    calculateTax(debouncedNodeId ?? null, debouncedAmount, taxCategoryId ?? null, debouncedAmount)
       .then((res) => {
         if (cancelled) return;
         if (res.success) {
@@ -80,7 +84,28 @@ export function useTaxCalculation(opts: UseTaxCalculationOptions): UseTaxCalcula
     return () => {
       cancelled = true;
     };
-  }, [debouncedAmount, debouncedNodeId, enabled]);
+  }, [debouncedAmount, debouncedNodeId, taxCategoryId, enabled]);
+
+  // TC-O05 (2026-08-01): resolve whether the item's tax category is the exempt
+  // one, so consumers can render the "Tax Free" badge. Fail-safe: any error
+  // leaves isTaxExempt = false (badge hidden) — a hidden badge is low-risk.
+  const [isTaxExempt, setIsTaxExempt] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!enabled || !taxCategoryId) {
+      setIsTaxExempt(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    isTaxExemptCategory(taxCategoryId).then((v) => {
+      if (!cancelled) setIsTaxExempt(v);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [taxCategoryId, enabled]);
 
   return {
     loading: state.loading,
@@ -90,5 +115,6 @@ export function useTaxCalculation(opts: UseTaxCalculationOptions): UseTaxCalcula
     globalEnabled: state.data.global_enabled,
     error: state.error,
     raw: state.raw,
+    isTaxExempt,
   };
 }

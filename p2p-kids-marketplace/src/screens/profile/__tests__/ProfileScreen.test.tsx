@@ -9,6 +9,7 @@ import { getTrialStatus } from '@/services/subscriptions/trialConversion';
 import { idBadgeService } from '@/services/idBadge';
 import { ReferralCodeServiceV2 } from '@/services/referralCodeV2';
 import { AuthContext } from '@/contexts/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 
 jest.mock('@/services/profile', () => ({
   getUserProfile: jest.fn(),
@@ -39,6 +40,7 @@ jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
   return {
     ...actual,
+    useNavigation: jest.fn(),
     useFocusEffect: (cb: () => void | (() => void)) => {
       cb();
     },
@@ -88,10 +90,13 @@ const mockGetUserProfile = getUserProfile as jest.MockedFunction<typeof getUserP
 const mockGetReviewStats = getReviewStats as jest.MockedFunction<typeof getReviewStats>;
 const mockGetUserReviews = getUserReviews as jest.MockedFunction<typeof getUserReviews>;
 const mockGetTrialStatus = getTrialStatus as jest.MockedFunction<typeof getTrialStatus>;
-const mockGetVerificationStatus = idBadgeService
-  .getVerificationStatus as jest.MockedFunction<typeof idBadgeService.getVerificationStatus>;
-const mockGetReferralCode = ReferralCodeServiceV2
-  .getReferralCode as jest.MockedFunction<typeof ReferralCodeServiceV2.getReferralCode>;
+const mockGetVerificationStatus = idBadgeService.getVerificationStatus as jest.MockedFunction<
+  typeof idBadgeService.getVerificationStatus
+>;
+const mockGetReferralCode = ReferralCodeServiceV2.getReferralCode as jest.MockedFunction<
+  typeof ReferralCodeServiceV2.getReferralCode
+>;
+const mockUseNavigation = useNavigation as jest.Mock;
 
 describe('ProfileScreen', () => {
   const logoutMock = jest.fn(async () => {});
@@ -134,12 +139,16 @@ describe('ProfileScreen', () => {
     mockGetReferralCode.mockResolvedValue('abc12345' as any);
   });
 
-  const renderScreen = (navigation: any = { navigate: jest.fn(), goBack: jest.fn() }) =>
-    render(
+  const renderScreen = (navigation: any = { navigate: jest.fn(), goBack: jest.fn() }) => {
+    // ProfileScreen uses useNavigation() (not the prop), so point the hook at the
+    // navigation object each test asserts against.
+    mockUseNavigation.mockReturnValue(navigation);
+    return render(
       <AuthContext.Provider value={{ logout: logoutMock } as any}>
         <ProfileScreen navigation={navigation} />
       </AuthContext.Provider>
     );
+  };
 
   it('shows loading state initially', () => {
     const { getByText } = renderScreen();

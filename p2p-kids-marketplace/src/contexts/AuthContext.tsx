@@ -736,6 +736,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               pending_points: 0,
               lifetime_earned: 0,
               lifetime_spent: 0,
+              reserved_points: 0,
               wallet_state: 'inactive' as
                 | 'active'
                 | 'frozen'
@@ -805,6 +806,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               pending_points: (walletSummary.pending_points as number) || 0,
               lifetime_earned: (walletSummary.lifetime_earned as number) || 0,
               lifetime_spent: (walletSummary.lifetime_spent as number) || 0,
+              reserved_points: (walletSummary.reserved_points as number) || 0,
               wallet_state: walletSummary.wallet_state || 'inactive', // ADMIN-V2-003
             };
             setSession(authSession);

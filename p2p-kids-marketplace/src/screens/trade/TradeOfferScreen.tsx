@@ -394,6 +394,7 @@ export default function TradeOfferScreen() {
   const tax = useTaxCalculation({
     nodeId: (item as any)?.node_id ?? null,
     taxableAmountCents: itemPriceCentsForTax,
+    taxCategoryId: item?.tax_category_id ?? null,
   });
 
   if (loading || !item) {
@@ -651,6 +652,7 @@ export default function TradeOfferScreen() {
               taxRate={tax.taxRate}
               jurisdiction={tax.jurisdiction}
               loading={tax.loading}
+              isTaxExempt={tax.isTaxExempt}
               testID="offer-tax-row"
             />
             <View style={[styles.valueStackRow, styles.valueStackTotalRow]}>

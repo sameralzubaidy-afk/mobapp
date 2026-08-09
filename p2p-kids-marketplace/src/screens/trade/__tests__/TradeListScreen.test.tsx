@@ -69,13 +69,56 @@ describe('TradeListScreen', () => {
     // Every method returns the chain itself (builder pattern) so any sequence works.
     // The chain is also thenable (like real Supabase queries).
     const buildChain = (resolveTo?: any) => {
+      // Collect query filters (eq/in/or/neq) and apply them to the canned rows
+      // before resolving, so the mock mirrors how Supabase filters server-side.
+      // Without this, the same rows are returned for EVERY query — including the
+      // seller-received AND buyer-submitted offer queries — which makes one trade
+      // render in both sections and breaks getByText uniqueness.
+      const filters: ((row: any) => boolean)[] = [];
       const chain: any = new Proxy(
         {},
         {
           get(_target, prop: string) {
             if (prop === 'then') {
-              return (onFulfilled: any) =>
-                Promise.resolve(resolveTo ?? { data: [], error: null }).then(onFulfilled);
+              return (onFulfilled: any) => {
+                const rows = resolveTo?.data ?? [];
+                const data = rows.filter((row: any) => filters.every((f) => f(row)));
+                return Promise.resolve({ ...resolveTo, data, error: null }).then(onFulfilled);
+              };
+            }
+            if (prop === 'eq') {
+              return (column: string, value: any) => {
+                filters.push((row: any) => row[column] === value);
+                return chain;
+              };
+            }
+            if (prop === 'neq') {
+              return (column: string, value: any) => {
+                filters.push((row: any) => row[column] !== value);
+                return chain;
+              };
+            }
+            if (prop === 'in') {
+              return (column: string, values: any[]) => {
+                filters.push((row: any) => values.includes(row[column]));
+                return chain;
+              };
+            }
+            if (prop === 'or') {
+              return (filterString: string) => {
+                // Supabase or() format: "col1.eq.val1,col2.eq.val2"
+                const clauses = filterString.split(',').map((clause: string) => {
+                  const [col, op, val] = clause.split('.');
+                  return (row: any) => {
+                    if (op === 'eq') return row[col] === val;
+                    if (op === 'neq') return row[col] !== val;
+                    if (op === 'is') return val === 'null' ? row[col] == null : row[col] === val;
+                    return false;
+                  };
+                });
+                filters.push((row: any) => clauses.some((c) => c(row)));
+                return chain;
+              };
             }
             return jest.fn(() => chain);
           },
@@ -89,11 +132,22 @@ describe('TradeListScreen', () => {
     const itemsData = listingIds.map((id: string) => {
       const t = trades.find((tr: any) => tr.listing_id === id);
       const listing = t?.listing || {};
-      return { id, title: listing.title || 'Test Item', price: listing.price || 25, status: 'available' };
+      return {
+        id,
+        title: listing.title || 'Test Item',
+        price: listing.price || 25,
+        status: 'available',
+      };
     });
-    const itemImagesData = listingIds.flatMap((id: string) => ([
-      { item_id: id, id: `img-${id}`, url: `https://example.com/${id}.jpg`, thumbnail_url: null, display_order: 0 },
-    ]));
+    const itemImagesData = listingIds.flatMap((id: string) => [
+      {
+        item_id: id,
+        id: `img-${id}`,
+        url: `https://example.com/${id}.jpg`,
+        thumbnail_url: null,
+        display_order: 0,
+      },
+    ]);
 
     // Return appropriate data per table — same result regardless of call count
     mockSupabase.from = jest.fn().mockImplementation((table: string) => {
@@ -146,7 +200,7 @@ describe('TradeListScreen', () => {
   });
 
   describe('Tab Switching', () => {
-    it('should switch to History tab on press', () => {
+    it('should switch to History tab on press', async () => {
       mockFetchTrades([]);
       const { getByTestId, getByText } = render(
         <TradeListScreen navigation={mockNavigation as any} />
@@ -155,7 +209,10 @@ describe('TradeListScreen', () => {
       const historyTab = getByTestId('tab-history');
       fireEvent.press(historyTab);
 
-      expect(getByText('No Trades Yet')).toBeTruthy();
+      // History is paginated and loads asynchronously — wait for the empty state.
+      await waitFor(() => {
+        expect(getByText('No Trades Yet')).toBeTruthy();
+      });
     });
   });
 
@@ -209,7 +266,9 @@ describe('TradeListScreen', () => {
             id: 'listing-2',
             title: 'Board Game',
             price: 100,
-            images: [{ url: 'https://example.com/game.jpg', thumbnail_url: null, display_order: 0 }],
+            images: [
+              { url: 'https://example.com/game.jpg', thumbnail_url: null, display_order: 0 },
+            ],
           },
         },
         {
@@ -282,7 +341,9 @@ describe('TradeListScreen', () => {
         },
       ]);
 
-      const { getByTestId, getByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
+      const { getByTestId, getByText } = render(
+        <TradeListScreen navigation={mockNavigation as any} />
+      );
 
       await waitFor(() => {
         expect(getByTestId('trade-row-trade-1')).toBeTruthy();
@@ -367,23 +428,37 @@ describe('TradeListScreen', () => {
 
       mockFetchTrades(unsortedTrades);
 
-      const { getAllByTestId, getByTestId, getByText, getAllByText } = render(<TradeListScreen navigation={mockNavigation as any} />);
+      const { getByTestId, getByText, getAllByText } = render(
+        <TradeListScreen navigation={mockNavigation as any} />
+      );
 
       // Wait for data to load on the Active tab (RECENTLY COMPLETED shows the 3 trades)
-      await waitFor(() => {
-        expect(getByText('Expensive Item')).toBeTruthy();
-        expect(getByText('Mid Item')).toBeTruthy();
-        expect(getByText('Cheap Item')).toBeTruthy();
-      }, { timeout: 5000 });
+      await waitFor(
+        () => {
+          expect(getByText('Expensive Item')).toBeTruthy();
+          expect(getByText('Mid Item')).toBeTruthy();
+          expect(getByText('Cheap Item')).toBeTruthy();
+        },
+        { timeout: 5000 }
+      );
 
-      // Switch to History tab to see compact rows in sorted order
+      // Switch to History tab to see compact rows in sorted order.
+      // History is now paginated and loads asynchronously, so wait for it.
       fireEvent.press(getByTestId('tab-history'));
 
+      const titles = await waitFor(
+        () => {
+          const found = getAllByText(/Expensive Item|Mid Item|Cheap Item/);
+          expect(found).toHaveLength(3);
+          return found;
+        },
+        { timeout: 5000 }
+      );
+
       // Component sorts history by created_at DESC, not total_value
-      const titles = getAllByText(/Expensive Item|Mid Item|Cheap Item/);
-      expect(titles[0].props.children).toBe('Mid Item');     // created Jan 3
+      expect(titles[0].props.children).toBe('Mid Item'); // created Jan 3
       expect(titles[1].props.children).toBe('Expensive Item'); // created Jan 2
-      expect(titles[2].props.children).toBe('Cheap Item');   // created Jan 1
+      expect(titles[2].props.children).toBe('Cheap Item'); // created Jan 1
     });
   });
 });

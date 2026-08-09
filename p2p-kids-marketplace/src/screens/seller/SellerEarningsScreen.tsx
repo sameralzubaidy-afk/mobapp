@@ -15,7 +15,8 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
-  TouchableOpacity
+  TouchableOpacity,
+  ActivityIndicator
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -41,12 +42,14 @@ export default function SellerEarningsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [payoutLimit, setPayoutLimit] = useState(20); // Initial page; grows on "Load More"
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     loadPayouts();
   }, []);
 
-  const loadPayouts = async () => {
+  const loadPayouts = async (limit: number = payoutLimit) => {
     if (!user) {
       setLoading(false);
       setRefreshing(false);
@@ -55,7 +58,7 @@ export default function SellerEarningsScreen() {
 
     setError(null);
     try {
-      const data = await getSellerPayouts(user.id, 20);
+      const data = await getSellerPayouts(user.id, limit);
       console.log('[DEBUG] Fetched payouts:', {
         count: data.length,
         data: data.map((p) => ({ status: p.status, net_amount_cents: p.net_amount_cents })),
@@ -80,12 +83,22 @@ export default function SellerEarningsScreen() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
   const handleRefresh = () => {
     setRefreshing(true);
-    loadPayouts();
+    setPayoutLimit(20); // Reset to the initial page on refresh
+    void loadPayouts(20);
+  };
+
+  const handleLoadMore = () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    const newLimit = payoutLimit + 20;
+    setPayoutLimit(newLimit);
+    void loadPayouts(newLimit);
   };
 
   const getPayoutMethodLabel = (payout: SellerPayout): string => {
@@ -257,7 +270,7 @@ export default function SellerEarningsScreen() {
         <View style={styles.errorContainer}>
           <Text style={styles.errorTitle}>Failed to Load Earnings</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadPayouts}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => void loadPayouts()}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -273,6 +286,22 @@ export default function SellerEarningsScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderSummary}
         ListEmptyComponent={renderEmpty}
+        ListFooterComponent={
+          payouts.length > 0 ? (
+            <TouchableOpacity
+              style={styles.loadMoreButton}
+              onPress={handleLoadMore}
+              disabled={loadingMore}
+              testID="earnings-load-more"
+            >
+              {loadingMore ? (
+                <ActivityIndicator size="small" color="#5DBB8E" />
+              ) : (
+                <Text style={styles.loadMoreButtonText}>Load More</Text>
+              )}
+            </TouchableOpacity>
+          ) : null
+        }
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#5DBB8E']} tintColor="#5DBB8E" />
         }
@@ -325,6 +354,24 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+  },
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    minWidth: 160,
+  },
+  loadMoreButtonText: {
+    color: '#5DBB8E',
+    fontSize: 14,
+    fontWeight: '600',
   },
   summaryHeader: {
     flexDirection: 'row',

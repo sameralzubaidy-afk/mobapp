@@ -48,6 +48,7 @@ export interface Trade {
   // Fees & Snapshots
   buyer_subscription_status: string | null; // 'free', 'trial', 'active', etc.
   buyer_transaction_fee_cents: number; // $0.99 or $2.99 in cents
+  seller_transaction_fee_cents: number; // Platform commission deducted from seller's payout (e.g., 10% of item price)
 
   // External IDs
   stripe_payment_intent_id?: string | null;

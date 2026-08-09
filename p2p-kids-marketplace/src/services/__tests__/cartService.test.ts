@@ -17,6 +17,8 @@ import {
   saveCurrentCart,
   switchToSavedCart,
   validateCartForCheckout,
+  buildCheckoutWarning,
+  buildSkippedItemsCopy,
 } from '../cartService';
 
 // ─── Mocks ─────────────────────────────────────────────────────────────────────
@@ -38,7 +40,7 @@ mockChainable.maybeSingle.mockResolvedValue({ data: { listing_id: 'L-1' }, error
 jest.mock('@/config/supabase', () => ({
   supabase: {
     auth: { getUser: () => mockGetUser() },
-    rpc:  (fn: string, params?: unknown) => mockRpc(fn, params),
+    rpc: (fn: string, params?: unknown) => mockRpc(fn, params),
     channel: () => ({
       on: () => ({ on: () => ({ subscribe: () => ({}) }) }),
     }),
@@ -71,32 +73,32 @@ describe('cartService.getCartItems', () => {
         active_cart_items: [
           {
             cart_item_id: 'CI-1',
-            listing_id:   'L-1',
-            seller_id:    'S-1',
-            cart_id:      'C-1',
-            added_at:     '2026-05-28T00:00:00Z',
-            live_title:   'Trike',
+            listing_id: 'L-1',
+            seller_id: 'S-1',
+            cart_id: 'C-1',
+            added_at: '2026-05-28T00:00:00Z',
+            live_title: 'Trike',
             live_price_cents: 4500,
             snapshot_image_url: 'http://img/1.jpg',
-            live_status:  'available',
+            live_status: 'available',
             live_accepts_sp: true,
-            seller_name:  'Alice',
+            seller_name: 'Alice',
             max_sp_available: 2250,
             snapshot_payment_preference: 'accepts_sp',
           },
         ],
         saved_carts: [
           {
-            cart_id:           'C-saved-1',
-            seller_id:         'S-2',
-            seller_name:       'Bob',
-            item_count:        2,
+            cart_id: 'C-saved-1',
+            seller_id: 'S-2',
+            seller_name: 'Bob',
+            item_count: 2,
             total_price_cents: 8000,
-            last_updated:      '2026-05-27T00:00:00Z',
+            last_updated: '2026-05-27T00:00:00Z',
           },
         ],
         is_subscriber: true,
-      }),
+      })
     );
 
     const r = await getCartItems();
@@ -105,11 +107,20 @@ describe('cartService.getCartItems', () => {
     if (!r.success) return;
     expect(r.data.items).toHaveLength(1);
     expect(r.data.items[0]).toMatchObject({
-      id: 'CI-1', listingId: 'L-1', sellerId: 'S-1', price: 45, priceCents: 4500,
-      maxSpAvailableCents: 2250, acceptsSP: true,
+      id: 'CI-1',
+      listingId: 'L-1',
+      sellerId: 'S-1',
+      price: 45,
+      priceCents: 4500,
+      maxSpAvailableCents: 2250,
+      acceptsSP: true,
     });
     expect(r.data.savedCarts).toHaveLength(1);
-    expect(r.data.savedCarts?.[0]).toMatchObject({ cartId: 'C-saved-1', itemCount: 2, totalPriceCents: 8000 });
+    expect(r.data.savedCarts?.[0]).toMatchObject({
+      cartId: 'C-saved-1',
+      itemCount: 2,
+      totalPriceCents: 8000,
+    });
     expect(r.data.isSubscriber).toBe(true);
     expect(r.data.subtotal).toBe(45);
   });
@@ -136,8 +147,9 @@ describe('cartService.addToCart', () => {
   it('surfaces DIFFERENT_SELLER error with details', async () => {
     mockRpc.mockResolvedValueOnce(
       fail('DIFFERENT_SELLER', 'Cart has items from another seller', {
-        current_seller_id: 'S-1', current_seller_name: 'Alice',
-      }),
+        current_seller_id: 'S-1',
+        current_seller_name: 'Alice',
+      })
     );
     const r = await addToCart({ listingId: 'L-9' });
     expect(r.success).toBe(false);
@@ -171,7 +183,9 @@ describe('cartService.addToCart', () => {
   });
 
   it('surfaces CANNOT_BUY_OWN_ITEM', async () => {
-    mockRpc.mockResolvedValueOnce(fail('CANNOT_BUY_OWN_ITEM', 'You cannot add your own listing to cart'));
+    mockRpc.mockResolvedValueOnce(
+      fail('CANNOT_BUY_OWN_ITEM', 'You cannot add your own listing to cart')
+    );
     const r = await addToCart({ listingId: 'L-own' });
     expect(r.success).toBe(false);
     if (r.success) return;
@@ -226,7 +240,9 @@ describe('cartService.saveCurrentCart', () => {
   });
 
   it('surfaces SAVED_CART_LIMIT_REACHED', async () => {
-    mockRpc.mockResolvedValueOnce(fail('SAVED_CART_LIMIT_REACHED', 'You can only save up to 3 carts'));
+    mockRpc.mockResolvedValueOnce(
+      fail('SAVED_CART_LIMIT_REACHED', 'You can only save up to 3 carts')
+    );
     const r = await saveCurrentCart();
     expect(r.success).toBe(false);
     if (r.success) return;
@@ -257,7 +273,7 @@ describe('cartService.validateCartForCheckout', () => {
         seller_count: 1,
         min_cart_value_cents: 2000,
         errors: [],
-      }),
+      })
     );
     const r = await validateCartForCheckout();
     expect(mockRpc).toHaveBeenCalledWith('rpc_cart_validate_for_checkout', undefined);
@@ -286,5 +302,111 @@ describe('cartService.validateCartForCheckout', () => {
     if (!r.success) return;
     expect(r.data.ok).toBe(false);
     expect(r.data.errors[0].code).toBe('MIN_CART_VALUE_NOT_MET');
+  });
+});
+
+// ─── buildCheckoutWarning (PARTIAL-SUCCESS, 2026-08-01) ───────────────────────
+// Covers the bundle-checkout case where one or more items already have an active
+// trade (in_progress / pending) and the create-trade-offer Edge Function skips them.
+
+describe('cartService.buildCheckoutWarning', () => {
+  const items = [
+    { listingId: 'L-1', title: 'Trike' },
+    { listingId: 'L-2', title: 'Lego Set' },
+    { listingId: 'L-3', title: 'Art Kit' },
+  ];
+
+  it('returns undefined when no items were skipped', () => {
+    expect(buildCheckoutWarning([], items)).toBeUndefined();
+    expect(buildCheckoutWarning(undefined as unknown as never, items)).toBeUndefined();
+  });
+
+  it('maps per-item Edge Function errors to structured skipped items with titles', () => {
+    const warning = buildCheckoutWarning(
+      [
+        {
+          item_id: 'L-2',
+          code: 'DUPLICATE_OFFER',
+          error: 'You already have an active offer on this item',
+        },
+      ],
+      items
+    );
+    expect(warning).toBeDefined();
+    if (!warning) return;
+    expect(warning.code).toBe('PARTIAL_SUCCESS');
+    expect(warning.skippedItems).toHaveLength(1);
+    expect(warning.skippedItems[0]).toMatchObject({
+      listingId: 'L-2',
+      title: 'Lego Set',
+      code: 'DUPLICATE_OFFER',
+      message: 'You already have an active offer on this item',
+    });
+  });
+
+  it('handles multiple skipped items and unknown title gracefully', () => {
+    const warning = buildCheckoutWarning(
+      [
+        { item_id: 'L-1', code: 'DUPLICATE_OFFER', error: 'active offer' },
+        { item_id: 'L-3', code: 'ITEM_NOT_AVAILABLE', error: 'no longer available' },
+      ],
+      items
+    );
+    expect(warning?.skippedItems).toHaveLength(2);
+    expect(warning?.skippedItems[1]).toMatchObject({
+      listingId: 'L-3',
+      code: 'ITEM_NOT_AVAILABLE',
+    });
+  });
+});
+
+// ─── buildSkippedItemsCopy (PARTIAL-SUCCESS, 2026-08-01) ──────────────────────
+
+describe('cartService.buildSkippedItemsCopy', () => {
+  it('uses the active-trade copy when all skipped items are DUPLICATE_OFFER', () => {
+    const copy = buildSkippedItemsCopy({
+      code: 'PARTIAL_SUCCESS',
+      skippedItems: [
+        { listingId: 'L-2', title: 'Lego Set', code: 'DUPLICATE_OFFER', message: 'active offer' },
+      ],
+    });
+    expect(copy.title).toBe('Already In an Active Trade');
+    expect(copy.message).toContain('already part of an active trade');
+    expect(copy.message).toContain('Lego Set');
+    expect(copy.message).toContain('Your other offers were submitted successfully.');
+  });
+
+  it('uses the generic copy for mixed/non-duplicate reasons', () => {
+    const copy = buildSkippedItemsCopy({
+      code: 'PARTIAL_SUCCESS',
+      skippedItems: [
+        {
+          listingId: 'L-3',
+          title: 'Art Kit',
+          code: 'ITEM_NOT_AVAILABLE',
+          message: 'no longer available',
+        },
+      ],
+    });
+    expect(copy.title).toBe("Some Items Weren't Included");
+    expect(copy.message).toContain("couldn't be added to this offer");
+    expect(copy.message).toContain('Art Kit');
+  });
+
+  it('truncates listed titles at 3 with a +N more line', () => {
+    const copy = buildSkippedItemsCopy({
+      code: 'PARTIAL_SUCCESS',
+      skippedItems: [
+        { listingId: 'L-1', title: 'One', code: 'DUPLICATE_OFFER', message: 'active' },
+        { listingId: 'L-2', title: 'Two', code: 'DUPLICATE_OFFER', message: 'active' },
+        { listingId: 'L-3', title: 'Three', code: 'DUPLICATE_OFFER', message: 'active' },
+        { listingId: 'L-4', title: 'Four', code: 'DUPLICATE_OFFER', message: 'active' },
+        { listingId: 'L-5', title: 'Five', code: 'DUPLICATE_OFFER', message: 'active' },
+      ],
+    });
+    expect(copy.message).toContain('• One');
+    expect(copy.message).toContain('• Three');
+    expect(copy.message).toContain('+2 more');
+    expect(copy.message).not.toContain('• Four');
   });
 });

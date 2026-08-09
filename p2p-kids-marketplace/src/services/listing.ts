@@ -1371,6 +1371,7 @@ async function getListingByIdFallback(listing_id: string): Promise<Listing | nul
       description: data.description,
       price: typeof data.price === 'string' ? parseFloat(data.price) : data.price,
       category_id: data.category_id,
+      tax_category_id: data.tax_category_id ?? null,
       condition: data.condition,
       status: data.status,
       accepts_swap_points: data.accepts_swap_points ?? false,

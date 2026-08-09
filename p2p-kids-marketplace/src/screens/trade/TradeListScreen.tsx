@@ -37,6 +37,9 @@ import ScreenLayout from '@/components/ScreenLayout';
 
 type TabType = 'active' | 'history';
 
+// History tab loads this many trades per page, then appends more on scroll.
+const HISTORY_PAGE_SIZE = 10;
+
 interface PendingOffer {
   id: string;
   listing_id: string;
@@ -63,6 +66,10 @@ export default function TradeListScreen({ navigation }: any) {
   const userId = session?.user?.id;
   const [loading, setLoading] = useState(false);
   const [trades, setTrades] = useState<any[]>([]);
+  // History tab is paginated so large trade histories load fast.
+  const [historyTrades, setHistoryTrades] = useState<any[]>([]);
+  const [historyHasMore, setHistoryHasMore] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [pendingOffers, setPendingOffers] = useState<PendingOffer[]>([]);
   const [allOffers, setAllOffers] = useState<PendingOffer[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('active');
@@ -93,6 +100,8 @@ export default function TradeListScreen({ navigation }: any) {
       fetchTrades();
       void fetchAllOffers();
       void fetchSellerIgnoringStats();
+      // Reset paginated history to the newest page on focus/tab change.
+      void fetchHistoryPage(true);
     }, [userId, activeTab])
   );
 
@@ -240,8 +249,12 @@ export default function TradeListScreen({ navigation }: any) {
           auto_complete_at
         `)
         .eq('seller_id', userId)
-        .in('status', ['pending', 'payment_failed', 'in_progress', 'cancelled', 'completed'])
-        .order('created_at', { ascending: false });
+        // Only offer-status rows are ever displayed from allOffers (submitted/
+        // received pending offers). This avoids re-fetching every completed/
+        // cancelled trade + their images on every screen focus.
+        .in('status', ['pending', 'in_progress'])
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (receivedError) throw receivedError;
 
@@ -260,8 +273,10 @@ export default function TradeListScreen({ navigation }: any) {
           auto_complete_at
         `)
         .eq('buyer_id', userId)
-        .in('status', ['pending', 'payment_failed', 'in_progress', 'cancelled', 'completed'])
-        .order('created_at', { ascending: false });
+        // Same status narrowing as the received query above.
+        .in('status', ['pending', 'in_progress'])
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (submittedError) throw submittedError;
 
@@ -292,97 +307,159 @@ export default function TradeListScreen({ navigation }: any) {
     }
     setLoading(true);
     try {
-      // Step 1: Fetch all trades — no join so deleted listings don't drop rows
+      // Step 1: Fetch ACTIVE trades only (pending/in_progress) — these are few
+      // and drive the Active tab + Needs Action / In Progress / Your Offers
+      // counts. History (completed/cancelled/payment_failed) is paginated
+      // separately in fetchHistoryPage so large histories no longer block load.
       const { data: tradesRaw, error: tradesError } = await supabase
         .from('trades')
         .select(
           'id, status, created_at, buyer_id, seller_id, bundle_id, listing_id, cash_amount_cents, sp_amount, tax_amount_cents, auto_complete_at'
         )
         .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+        .in('status', ['pending', 'in_progress'])
         .order('created_at', { ascending: false });
 
       if (tradesError) throw tradesError;
 
-      // Step 2: Client-side filtering (removed tab-specific buying/selling filters to show all trades)
-      let filteredData = (tradesRaw || []) as any[];
+      // Step 1b: Recently completed (top 3) for the Active tab's
+      // "Recently Completed" section.
+      const { data: recentCompleted, error: recentError } = await supabase
+        .from('trades')
+        .select(
+          'id, status, created_at, buyer_id, seller_id, bundle_id, listing_id, cash_amount_cents, sp_amount, tax_amount_cents, auto_complete_at'
+        )
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(3);
+      if (recentError) throw recentError;
 
-      // Step 3: Fetch listing data separately (resilient to deleted/missing items and FK issues)
-      const listingIds = [...new Set(filteredData.map((t: any) => t.listing_id).filter(Boolean))];
-      const listingMap: Record<string, any> = {};
-      if (listingIds.length > 0) {
-        // 3a: Fetch items (no join — avoids FK schema cache issues)
-        const { data: items } = await supabase
-          .from('items')
-          .select('id, title, price, status')
-          .in('id', listingIds);
+      // Step 1c: Accurate "Completed" count for the summary strip (head-only).
+      const { count: completedCount, error: countError } = await supabase
+        .from('trades')
+        .select('id', { count: 'exact', head: true })
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+        .eq('status', 'completed');
+      if (countError) throw countError;
 
-        if (items) {
-          for (const item of items) {
-            listingMap[item.id] = { ...item, images: [] };
-          }
+      const activeRaw = [...(tradesRaw || []), ...(recentCompleted || [])];
+      // Dedupe by id (defensive — the active and recent-completed queries can overlap).
+      const uniqueRaw = Array.from(new Map(activeRaw.map((t: any) => [t.id, t])).values());
 
-          // 3b: Fetch images separately and attach
-          const { data: allImages } = await supabase
-            .from('item_images')
-            .select('item_id, id, url, thumbnail_url, display_order')
-            .in('item_id', listingIds)
-            .order('display_order', { ascending: true });
-
-          if (allImages) {
-            for (const img of allImages) {
-              if (listingMap[img.item_id]) {
-                listingMap[img.item_id].images.push({
-                  id: img.id,
-                  url: img.url,
-                  thumbnail_url: img.thumbnail_url,
-                  display_order: img.display_order,
-                });
-              }
-            }
-          }
-        }
-      }
-
-      filteredData = filteredData.map((t: any) => ({
-        ...t,
-        listing: listingMap[t.listing_id] || null,
-      }));
+      // Step 2: Fetch listing data separately (resilient to deleted/missing items).
+      const attached = await attachListingDataToOffers(uniqueRaw);
 
       // D-09: Sort by total_value (cash + SP) DESC so highest-value trades appear first
-      filteredData = [...filteredData].sort((a: any, b: any) => {
+      const sorted = [...attached].sort((a: any, b: any) => {
         const aVal = (a.cash_amount_cents ?? 0) / 100 + (a.sp_amount ?? 0);
         const bVal = (b.cash_amount_cents ?? 0) / 100 + (b.sp_amount ?? 0);
         return bVal - aVal;
       });
 
-      setTrades(filteredData);
+      setTrades(sorted);
 
       // Derive pending offers from the fresh data (not stale closure)
       // to keep Needs Action in sync with summary count.
-      void fetchPendingOffers(filteredData);
-      
+      void fetchPendingOffers(sorted);
+
       // Calculate summary stats.
       // D-30: 'in_progress' with auto_complete_at IS NULL = needs action.
       //        Only count where current user is the SELLER (needs action on their side).
       //        'in_progress' with auto_complete_at IS NOT NULL = truly in progress (accepted).
-      const needsActionCount = tradesRaw?.filter((t: any) =>
+      const needsActionCount = (tradesRaw || []).filter((t: any) =>
         t.seller_id === userId && ['pending', 'in_progress'].includes(t.status) && !t.auto_complete_at
       ).length || 0;
       // D-31: Count buyer's pending offers (submitted, awaiting seller acceptance)
-      const pendingOfferCount = tradesRaw?.filter((t: any) =>
+      const pendingOfferCount = (tradesRaw || []).filter((t: any) =>
         t.buyer_id === userId && ['pending', 'in_progress'].includes(t.status) && !t.auto_complete_at
       ).length || 0;
-      const inProgressCount = tradesRaw?.filter((t: any) =>
+      const inProgressCount = (tradesRaw || []).filter((t: any) =>
         t.status === 'in_progress' && t.auto_complete_at
       ).length || 0;
-      const completedCount = tradesRaw?.filter((t: any) => t.status === 'completed').length || 0;
-      
-      setSummary(prev => ({ ...prev, inProgress: inProgressCount, needsAction: needsActionCount, pendingOffers: pendingOfferCount, completed: completedCount }));
+
+      setSummary(prev => ({
+        ...prev,
+        inProgress: inProgressCount,
+        needsAction: needsActionCount,
+        pendingOffers: pendingOfferCount,
+        completed: completedCount ?? prev.completed,
+      }));
     } catch (err) {
       console.warn('[TradeList] fetch error', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  /** Load one page of history trades (completed/cancelled/payment_failed), newest first. */
+  const fetchHistoryPage = async (reset: boolean) => {
+    if (!userId) {
+      setHistoryTrades([]);
+      setHistoryHasMore(false);
+      return;
+    }
+    if (historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      const start = reset ? 0 : historyTrades.length;
+      const end = start + HISTORY_PAGE_SIZE - 1;
+      const { data: historyRaw, error } = await supabase
+        .from('trades')
+        .select(
+          'id, status, created_at, buyer_id, seller_id, bundle_id, listing_id, cash_amount_cents, sp_amount, tax_amount_cents, auto_complete_at'
+        )
+        .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+        .in('status', ['completed', 'cancelled', 'payment_failed'])
+        .order('created_at', { ascending: false })
+        .range(start, end);
+
+      if (error) throw error;
+
+      const attached = await attachListingDataToOffers(historyRaw || []);
+      // Keep newest-first ordering (matches the previous client-side sort).
+      const sorted = [...attached].sort(
+        (a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      setHistoryTrades(prev => {
+        if (reset) return sorted;
+        const seen = new Set(prev.map((t: any) => t.id));
+        return [...prev, ...sorted.filter((t: any) => !seen.has(t.id))];
+      });
+      setHistoryHasMore((historyRaw?.length ?? 0) === HISTORY_PAGE_SIZE);
+    } catch (err) {
+      console.warn('[TradeList] fetchHistoryPage error', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  /** Load the next history page when the user taps "Load More". */
+  const loadMoreHistory = () => {
+    if (!userId || historyLoading || !historyHasMore) return;
+    void fetchHistoryPage(false);
+  };
+
+  /** "Load More" button (or end-of-list text) rendered under history rows. */
+  const renderHistoryLoadMore = () => {
+    if (historyHasMore) {
+      return (
+        <TouchableOpacity
+          style={styles.loadMoreButton}
+          onPress={loadMoreHistory}
+          disabled={historyLoading}
+          testID="history-load-more"
+        >
+          {historyLoading ? (
+            <ActivityIndicator size="small" color="#5DBB8E" />
+          ) : (
+            <Text style={styles.loadMoreButtonText}>Load More</Text>
+          )}
+        </TouchableOpacity>
+      );
+    }
+    return <Text style={styles.historyEndText}>You're all caught up</Text>;
   };
 
   // D-31: Buyer's submitted offers awaiting seller acceptance
@@ -498,12 +575,6 @@ export default function TradeListScreen({ navigation }: any) {
     return trades.filter((t: any) =>
       t.status === 'in_progress' && t.auto_complete_at
     );
-  }, [trades]);
-
-  const historyTrades = useMemo(() => {
-    return trades
-      .filter((t: any) => ['completed', 'cancelled', 'payment_failed'].includes(t.status))
-      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [trades]);
 
   const recentlyCompleted = useMemo(() => {
@@ -817,7 +888,13 @@ export default function TradeListScreen({ navigation }: any) {
         style={styles.content}
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchTrades().then(() => fetchPendingOffers()).finally(() => setRefreshing(false)); }} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              Promise.all([fetchTrades(), fetchHistoryPage(true)]).finally(() => setRefreshing(false));
+            }}
+          />
         }
       >
         {activeTab === 'active' ? (
@@ -1177,6 +1254,7 @@ export default function TradeListScreen({ navigation }: any) {
                     {renderCompactTradeRow({ item: t })}
                   </View>
                 ))}
+                {renderHistoryLoadMore()}
               </View>
             )}
 
@@ -1211,13 +1289,18 @@ export default function TradeListScreen({ navigation }: any) {
           </>
         ) : (
           <View style={styles.section}>
-             {historyTrades.length > 0 ? (
-               historyTrades.map(t => (
-                 <View key={t.id}>
-                   {renderCompactTradeRow({ item: t })}
-                 </View>
-               ))
-             ) : renderEmptyState()}
+            {historyLoading && historyTrades.length === 0 ? (
+              <ActivityIndicator style={styles.historyLoading} color="#5DBB8E" />
+            ) : historyTrades.length > 0 ? (
+              <>
+                {historyTrades.map(t => (
+                  <View key={t.id}>
+                    {renderCompactTradeRow({ item: t })}
+                  </View>
+                ))}
+                {renderHistoryLoadMore()}
+              </>
+            ) : renderEmptyState()}
           </View>
         )}
       </ScrollView>
@@ -1698,6 +1781,35 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  historyLoading: {
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  historyEndText: {
+    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 13,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    minWidth: 160,
+  },
+  loadMoreButtonText: {
+    color: '#5DBB8E',
+    fontSize: 14,
+    fontWeight: '600',
   },
   // TFV2-015: Ignoring Offers Alert & Modal
   ignoredOffersAlertText: {

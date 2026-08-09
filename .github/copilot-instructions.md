@@ -84,6 +84,17 @@ When tests fail, read the `stderrTail` section in `results.json` for each failed
 - **Admin portal 502/ECONNREFUSED** → Portal not running. Fix: `cd p2p-kids-admin && npm run dev`
 - **"No booted simulator"** → Run `xcrun simctl list devices booted` to verify, then `xcrun simctl boot <UDID>`
 
+### Unit-test failure classification (Jest) — ALWAYS get the full picture first
+
+Whenever asked to classify, triage, or fix Jest unit-test failures (e.g. the A/B/C classification task, "why is this test failing", "fix the failing tests"), you MUST run the full unit-test suite FIRST and enumerate ALL failing suites + tests before classifying or touching any code. NEVER classify from a partial paste or a single failing file — the reported subset is almost never the whole set (e.g. a "3 suites / 22 tests" report can hide a suite the user didn't paste).
+
+1. Run from `p2p-kids-marketplace/`: `npm test` (full suite; ~40–300s). To reproduce an E2E-gated run (integration/e2e suites enabled), set `RUN_SUPABASE_E2E=true`.
+2. Capture complete output to a file and extract the canonical list (strip ANSI first): `grep -E "^FAIL "` for failing suites and `grep -E "^\s*●" | sort -u` for distinct failing tests.
+3. Reconcile the totals: `Test Suites:` failed count must equal the number of `FAIL` lines, and `Tests:` failed must equal the sum of distinct `●` failures. If they don't reconcile, you don't have the full picture yet — investigate before classifying.
+4. Only then classify each failure (A: test env/mock/setup — fix in the TEST file, never app code; B: spec mismatch — read the relevant docx/ spec section first to decide which side is wrong; C: missing backend contract — read the current RPC/Edge Function first).
+5. Note env variance: integration/e2e suites skip unless `RUN_SUPABASE_E2E=true`, so a run with that flag shows fewer skipped suites. Differing pass/skip totals between two runs is environmental, not a code regression — don't chase it as a bug.
+6. Flag flaky observations: if a suite fails in one run but passes in the canonical run, report it as a flake to watch, not as a confirmed failure.
+
 ### Important safety rules
 
 - NEVER `git push` — QA must review and push manually after the run.
@@ -118,3 +129,19 @@ ADMIN_E2E_PASSWORD=<ask team lead>
 IOS_SIMULATOR_UDID=<from xcrun simctl list devices booted>
 ANDROID_EMULATOR_SERIAL=<from adb devices>
 ```
+
+### Admin portal login (browser-based manual verification)
+
+When you need to log into the **admin portal** (`p2p-kids-admin`, runs on `http://localhost:3001`)
+to visually verify a page in the browser, use these credentials (they work against the staging
+Supabase project):
+
+```
+Email:    samer@samer.com
+Password: samer
+```
+
+- Enter them on the `/auth/login` page (do not use the hardcoded `admin@example.com` demo creds —
+  they do not exist in staging and return "Invalid login credentials").
+- These are for local/staging UI verification only — never use them as production admin creds,
+  and never log them to build output.

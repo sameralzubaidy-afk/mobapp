@@ -242,6 +242,8 @@ describe('ReferralRewardsService', () => {
           referee_listing_sp: 10,
           referrer_sp: 25,
           referee_sp: 10,
+          program_enabled: true,
+          first_trade_enabled: true,
           first_listing_enabled: true,
         },
         error: null,
@@ -253,13 +255,12 @@ describe('ReferralRewardsService', () => {
       expect(result.referee_sp).toBe(10);
     });
 
-    it('should return defaults when config not found', async () => {
+    it('should fail loud when config not found (no hardcoded defaults)', async () => {
       (supabase.rpc as jest.Mock).mockResolvedValue(null);
 
-      const result = await ReferralRewardsService.getConfiguredRewardAmounts();
-
-      expect(result.referrer_sp).toBe(50);
-      expect(result.referee_sp).toBe(25);
+      await expect(ReferralRewardsService.getConfiguredRewardAmounts()).rejects.toThrow(
+        /configuration unavailable/i
+      );
     });
   });
 

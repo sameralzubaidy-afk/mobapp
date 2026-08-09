@@ -37,6 +37,7 @@ export interface Item {
   description: string | null;
   price: number;
   category_id: string | null;
+  tax_category_id: string | null;
   condition: string | null;
   status: string;
   accepts_swap_points: boolean;

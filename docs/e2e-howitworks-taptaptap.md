@@ -582,7 +582,7 @@ The single source of truth is `test-automation/trade-flow-v2/manifest.json`.
 
 ### Mapping logic:
 
-1. Every TC in the manual doc (`MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`) is listed in `manifest.json`
+1. Every TC in the manual doc (`misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md`) is listed in `manifest.json`
 2. Each TC points to an `asset` (YAML file) and `runner` (maestro/playwright)
 3. Multiple TCs can share the same asset — the orchestrator runs the script once and attributes the result to all mapped TCs
 4. If `status` is `"manual"` or `"pending"`, the orchestrator **skips** it (reports as skipped, not failure)

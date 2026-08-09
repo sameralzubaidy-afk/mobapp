@@ -48,6 +48,7 @@ export interface Listing {
   description: string | null; // item_description in spec, but DB uses 'description'
   price: number; // price in dollars (DB stores as DECIMAL, not cents)
   category_id: string | null;
+  tax_category_id?: string | null;
   condition: ListingCondition | null;
   status: ListingStatus;
 

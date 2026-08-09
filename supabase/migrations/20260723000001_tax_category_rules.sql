@@ -452,9 +452,10 @@ BEGIN
       );
     END IF;
 
-    -- Close the existing rule's effective period
+    -- Close the existing rule's effective period and mark it inactive
     UPDATE public.tax_rules tr
-    SET effective_to = COALESCE(p_effective_from, NOW()),
+    SET is_active = FALSE,
+        effective_to = GREATEST(COALESCE(p_effective_from, NOW()), effective_from + INTERVAL '1 microsecond'),
         updated_at = NOW(),
         updated_by = v_actor_id
     WHERE tr.id = p_rule_id;

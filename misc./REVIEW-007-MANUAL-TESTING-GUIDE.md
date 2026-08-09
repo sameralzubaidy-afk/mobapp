@@ -432,20 +432,27 @@ curl -X POST http://localhost:3000/api/reviews/[REVIEW_ID]/hide
 
 ---
 
-### API-003: POST /api/reviews/:reviewId/approve
+### API-003: POST /api/reviews/:reviewId/keep
 
 **Test with curl:**
 ```bash
-curl -X POST http://localhost:3000/api/reviews/[REVIEW_ID]/approve
+curl -X POST http://localhost:3000/api/reviews/[REVIEW_ID]/keep
 ```
 
 **Expected Response:**
 ```json
 {
   "success": true,
-  "message": "Review approved successfully"
+  "message": "Review kept successfully",
+  "review_status": "reviewed",
+  "reporters_notified": 1
 }
 ```
+
+**Behavior (2026-08-02):** Renamed from `approve` → `keep`. Marks the review
+`review_status` `pending_review` → `reviewed`, keeps it visible, resets
+`report_count` to 0, deletes the reports (the report is REJECTED), and pushes an
+in-app + push notification (`review_report_kept`) to every reporter.
 
 ---
 

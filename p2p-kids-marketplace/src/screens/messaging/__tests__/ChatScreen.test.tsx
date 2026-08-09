@@ -302,13 +302,14 @@ describe('ChatScreen - MODULE-15.1 FLOW-14', () => {
       });
     });
 
-    it('should navigate to ListingDetail when "View Trade" is pressed', async () => {
+    it('should navigate to TradeTimeline when "View Trade" is pressed', async () => {
       const { getByTestId } = renderScreen();
       await waitFor(() => {
         const link = getByTestId('view-trade-link');
         fireEvent.press(link);
       });
-      expect(mockNavigate).toHaveBeenCalledWith('ListingDetail', { listing_id: 'listing-1' });
+      // ChatScreen only has tradeId in route params; "View Trade" goes to the trade timeline.
+      expect(mockNavigate).toHaveBeenCalledWith('TradeTimeline', { tradeId: 'trade-123' });
     });
   });
 

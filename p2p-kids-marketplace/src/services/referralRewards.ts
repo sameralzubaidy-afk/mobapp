@@ -45,22 +45,29 @@ export interface ReferralEligibility {
  * - sp_wallets, sp_ledger, sp_batches tables
  */
 export class ReferralRewardsService {
-  private static parseNumber(value: unknown, defaultValue: number): number {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value;
-    }
+  /**
+   * Parse a required numeric config value; throws SP_CONFIG_MISSING if absent.
+   * No hardcoded fallback — admin config must supply the value (via sp_config).
+   */
+  private static requireNumber(value: unknown, key: string): number {
+    const n =
+      typeof value === 'number' && Number.isFinite(value)
+        ? value
+        : typeof value === 'string' && Number.isFinite(Number(value))
+          ? Number(value)
+          : NaN;
 
-    if (typeof value === 'string') {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
+    if (!Number.isFinite(n)) {
+      throw new Error(`SP_CONFIG_MISSING: ${key}`);
     }
-
-    return defaultValue;
+    return n;
   }
 
-  private static parseBoolean(value: unknown, defaultValue: boolean): boolean {
+  /**
+   * Parse a required boolean config value; throws SP_CONFIG_MISSING if absent.
+   * No hardcoded fallback — admin config must supply the value (via sp_config).
+   */
+  private static requireBoolean(value: unknown, key: string): boolean {
     if (typeof value === 'boolean') {
       return value;
     }
@@ -79,7 +86,7 @@ export class ReferralRewardsService {
       }
     }
 
-    return defaultValue;
+    throw new Error(`SP_CONFIG_MISSING: ${key}`);
   }
 
   /**
@@ -231,6 +238,17 @@ export class ReferralRewardsService {
    * @param client - Supabase client (optional)
    * @returns Object with referrer and referee SP amounts for trade and listing
    */
+  /**
+   * Get configured SP reward amounts from admin config (FAIL LOUD)
+   *
+   * The server RPC (get_referral_listing_config) raises SP_CONFIG_MISSING when a
+   * required key is absent from sp_config. This service propagates that failure
+   * to the caller — it NEVER fabricates default reward amounts.
+   *
+   * @param client - Supabase client (optional)
+   * @returns Object with referrer and referee SP amounts for trade and listing
+   * @throws Error when the config cannot be loaded or a required value is missing
+   */
   static async getConfiguredRewardAmounts(client: SupabaseClient = defaultClient): Promise<{
     referrer_sp: number;
     referee_sp: number;
@@ -240,46 +258,35 @@ export class ReferralRewardsService {
     first_trade_enabled: boolean;
     first_listing_enabled: boolean;
   }> {
-    try {
-      const { data, error } = await client.rpc('get_referral_listing_config');
-
-      if (error || !data || (Array.isArray(data) && data.length === 0)) {
-        console.error('[ReferralRewards] Get config error:', error);
-        return {
-          referrer_sp: 25,
-          referee_sp: 10,
-          referrer_listing_sp: 25,
-          referee_listing_sp: 10,
-          program_enabled: true,
-          first_trade_enabled: true,
-          first_listing_enabled: true,
-        };
-      }
-
-      // Handle table/array response or single object
-      const config = Array.isArray(data) ? data[0] : data;
-
-      return {
-        referrer_sp: this.parseNumber(config.referrer_sp, 25),
-        referee_sp: this.parseNumber(config.referee_sp, 10),
-        referrer_listing_sp: this.parseNumber(config.referrer_listing_sp, 25),
-        referee_listing_sp: this.parseNumber(config.referee_listing_sp, 10),
-        program_enabled: this.parseBoolean(config.program_enabled, true),
-        first_trade_enabled: this.parseBoolean(config.first_trade_enabled, true),
-        first_listing_enabled: this.parseBoolean(config.first_listing_enabled, true),
-      };
-    } catch (err) {
-      console.error('[ReferralRewards] Get config error:', err);
-      return {
-        referrer_sp: 50,
-        referee_sp: 25,
-        referrer_listing_sp: 25,
-        referee_listing_sp: 10,
-        program_enabled: true,
-        first_trade_enabled: true,
-        first_listing_enabled: true,
-      };
+    const rpcResult = await client.rpc('get_referral_listing_config');
+    if (!rpcResult) {
+      throw new Error('Referral configuration unavailable: empty response');
     }
+    const { data, error } = rpcResult;
+
+    if (error) {
+      // e.g. "SP_CONFIG_MISSING: referral_reward_referrer_sp" raised by the RPC.
+      throw new Error(`Referral configuration unavailable: ${error.message}`);
+    }
+
+    // Handle table/array response or single object
+    const config = Array.isArray(data) ? data?.[0] : data;
+    if (!config) {
+      throw new Error('Referral configuration unavailable: empty response');
+    }
+
+    return {
+      referrer_sp: this.requireNumber(config.referrer_sp, 'referrer_sp'),
+      referee_sp: this.requireNumber(config.referee_sp, 'referee_sp'),
+      referrer_listing_sp: this.requireNumber(config.referrer_listing_sp, 'referrer_listing_sp'),
+      referee_listing_sp: this.requireNumber(config.referee_listing_sp, 'referee_listing_sp'),
+      program_enabled: this.requireBoolean(config.program_enabled, 'program_enabled'),
+      first_trade_enabled: this.requireBoolean(config.first_trade_enabled, 'first_trade_enabled'),
+      first_listing_enabled: this.requireBoolean(
+        config.first_listing_enabled,
+        'first_listing_enabled'
+      ),
+    };
   }
 
   /**
@@ -336,20 +343,30 @@ export class ReferralRewardsService {
    * @param client - Supabase client (optional)
    * @returns True if referral_first_listing_enabled = true
    */
+  /**
+   * Check if listing bonus feature is enabled (REF-V2-008) — FAIL LOUD
+   *
+   * @param client - Supabase client (optional)
+   * @returns True if referral_first_listing_enabled = true
+   * @throws Error when the config cannot be loaded or the toggle is missing
+   */
   static async isListingBonusEnabled(client: SupabaseClient = defaultClient): Promise<boolean> {
-    try {
-      const { data, error } = await client.rpc('get_referral_listing_config');
-
-      if (error || !data) {
-        console.error('[ReferralRewards] Check listing bonus enabled error:', error);
-        return true; // Default to enabled if error
-      }
-
-      const config = Array.isArray(data) ? data[0] : data;
-      return config?.first_listing_enabled ?? true;
-    } catch (err) {
-      console.error('[ReferralRewards] Check listing bonus enabled error:', err);
-      return true; // Default to enabled
+    const rpcResult = await client.rpc('get_referral_listing_config');
+    if (!rpcResult) {
+      throw new Error('Referral configuration unavailable: empty response');
     }
+    const { data, error } = rpcResult;
+
+    if (error) {
+      // e.g. "SP_CONFIG_MISSING: referral_first_listing_enabled" raised by the RPC.
+      throw new Error(`Referral configuration unavailable: ${error.message}`);
+    }
+
+    const config = Array.isArray(data) ? data?.[0] : data;
+    if (!config) {
+      throw new Error('Referral configuration unavailable: empty response');
+    }
+
+    return this.requireBoolean(config.first_listing_enabled, 'first_listing_enabled');
   }
 }

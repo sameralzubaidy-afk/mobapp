@@ -20,12 +20,11 @@ import {
   ScrollView,
   TextInput,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   Alert,
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { Coins } from 'phosphor-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -34,17 +33,26 @@ import { RootStackParamList } from '@/navigation/types';
 import { Button } from '@/components/ui';
 import { colors } from '@/theme';
 import ScreenLayout from '@/components/ScreenLayout';
-import { getCartItems, checkoutCart, CartWithDetails, CartResult } from '@/services/cartService';
+import {
+  getCartItems,
+  checkoutCart,
+  CartItem,
+  CartWithDetails,
+  CartResult,
+  CheckoutWarning,
+  buildSkippedItemsCopy,
+} from '@/services/cartService';
 import { useSubscriptionStatus } from '@/hooks/useAuth';
-import { useTaxCalculation } from '@/hooks/useTaxCalculation';
+import { calculateTax, isTaxExemptCategory } from '@/services/tax';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
-import { getPlatformFeeCents } from '@/services/adminConfig';
+import { getPlatformFeeCents, getChargeOneFeePerBundle } from '@/services/adminConfig';
 import { supabase } from '@/config/supabase';
 import { getBuyerSpBalance } from '@/services/spWalletService';
 import { calculateCategorySP } from '@/services/categoryService';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
 import { Modal } from '@/components/ui/Modal';
 import DisclaimerModal from '@/components/DisclaimerModal';
+import { TradeConfirmationModal } from '@/components/molecules/TradeConfirmationModal';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -52,7 +60,7 @@ type RouteProps = RouteProp<RootStackParamList, 'CartCheckout'>;
 
 interface ItemSpState {
   spApplied: number;
-  maxAllowed: number;  // Max SP this item can accept (min of 50% cap, category cap)
+  maxAllowed: number; // Max SP this item can accept (min of 50% cap, category cap)
   catCap: number;
 }
 
@@ -76,7 +84,15 @@ export default function CartCheckoutScreen() {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [platformFeeCents, setPlatformFeeCents] = useState<number>(0);
+  const [chargeOneFeePerBundle, setChargeOneFeePerBundle] = useState<boolean>(false);
   const [sellerNodeId, setSellerNodeId] = useState<string | null>(null);
+
+  // PARTIAL-SUCCESS (2026-08-01): state for the "some items weren't included" modal —
+  // shown after a bundle checkout when one or more items were skipped (e.g. they
+  // already have an active/in-progress trade). Non-blocking — OK continues the flow.
+  const [showSkippedModal, setShowSkippedModal] = useState(false);
+  const [skippedWarning, setSkippedWarning] = useState<CheckoutWarning | null>(null);
+  const [successTradeIds, setSuccessTradeIds] = useState<string[]>([]);
 
   // Points-redemption state
   const [walletBalance, setWalletBalance] = useState<number>(0);
@@ -88,7 +104,6 @@ export default function CartCheckoutScreen() {
   const [loadingSavedPaymentMethod, setLoadingSavedPaymentMethod] = useState(false);
   const [paymentInputMode, setPaymentInputMode] = useState<'saved' | 'new'>('new');
   const [addingNewCard, setAddingNewCard] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
   const loadedSavedMethodKeyRef = useRef<string | null>(null);
 
   // Prefetch payment method + warm create-trade-offer EF on mount
@@ -99,10 +114,18 @@ export default function CartCheckoutScreen() {
   }, []);
 
   // Load platform fee from admin_config (dynamic — no hardcoded values)
+  // BUNDLE-FEE-MODE (2026-07-30): Also load the one-fee-per-bundle toggle
   useEffect(() => {
-    getPlatformFeeCents(isSubscriber).then(setPlatformFeeCents).catch(() => {
-      setPlatformFeeCents(isSubscriber ? 99 : 299);
-    });
+    getPlatformFeeCents(isSubscriber)
+      .then(setPlatformFeeCents)
+      .catch(() => {
+        setPlatformFeeCents(isSubscriber ? 99 : 299);
+      });
+    getChargeOneFeePerBundle()
+      .then(setChargeOneFeePerBundle)
+      .catch(() => {
+        setChargeOneFeePerBundle(false);
+      });
   }, [isSubscriber]);
   const platformFeeDollars = platformFeeCents / 100;
 
@@ -130,7 +153,9 @@ export default function CartCheckoutScreen() {
     };
 
     void load();
-    return () => { isCancelled = true; };
+    return () => {
+      isCancelled = true;
+    };
   }, [cart, loading, bundleId]);
 
   const subtotal = cart?.subtotal ?? 0;
@@ -141,14 +166,83 @@ export default function CartCheckoutScreen() {
   // Calculate remaining balance
   const remainingBalance = Math.max(0, walletBalance - totalSpApplied);
 
-  // MODULE-15.3-PART3 TAX-011: tax calculated on pre-points subtotal (points don't reduce taxable amount)
-  const taxableAmountCents = Math.round(subtotal * 100);
-  const tax = useTaxCalculation({
-    nodeId: sellerNodeId,
-    taxableAmountCents,
-  });
-  const taxDollars = (tax.taxAmountCents || 0) / 100;
-  const cashTotal = Math.max(0, subtotal - totalSpApplied) + platformFeeDollars + taxDollars;
+  // BP-fix (2026-07-29 / TC-O2-C02): tax is now computed PER LINE ITEM using each
+  // item's own tax_category_id, instead of one flat rate on the whole bundle
+  // subtotal. A bundle mixing a taxable item, a Tax Exempt Goods item, and a
+  // price-threshold item must NOT charge one blended rate on everything — each
+  // item's exemption/threshold rule has to be honored individually. Tax is
+  // computed on each item's full price (points don't reduce the taxable amount).
+  const [taxState, setTaxState] = useState<{
+    loading: boolean;
+    taxAmountCents: number;
+    taxRate: number;
+    jurisdiction: string | null;
+    isTaxExempt: boolean;
+  }>({ loading: false, taxAmountCents: 0, taxRate: 0, jurisdiction: null, isTaxExempt: false });
+
+  useEffect(() => {
+    let cancelled = false;
+    const items = cart?.items ?? [];
+    if (items.length === 0 || !sellerNodeId) {
+      setTaxState({
+        loading: false,
+        taxAmountCents: 0,
+        taxRate: 0,
+        jurisdiction: null,
+        isTaxExempt: false,
+      });
+      return;
+    }
+    setTaxState((s) => ({ ...s, loading: true }));
+    (async () => {
+      const results = await Promise.all(
+        items.map((it) => {
+          const priceCents = it.priceCents ?? Math.round((it.price ?? 0) * 100);
+          return calculateTax(sellerNodeId, priceCents, it.taxCategoryId ?? null, priceCents);
+        })
+      );
+      // TC-O05 (2026-08-01): badge only when EVERY item in the bundle is
+      // tax-exempt — a mixed bundle is not "Tax Free" (taxable items still owe tax).
+      const exemptResults = await Promise.all(
+        items.map((it) => isTaxExemptCategory(it.taxCategoryId ?? null))
+      );
+      const allExempt = exemptResults.length > 0 && exemptResults.every(Boolean);
+      if (cancelled) return;
+      let totalTaxCents = 0;
+      let jurisdiction: string | null = null;
+      for (const r of results) {
+        if (r.success) {
+          totalTaxCents += r.data.tax_amount_cents;
+          if (!jurisdiction && r.data.tax_jurisdiction) jurisdiction = r.data.tax_jurisdiction;
+        }
+      }
+      const taxableTotalCents = items.reduce(
+        (sum, it) => sum + (it.priceCents ?? Math.round((it.price ?? 0) * 100)),
+        0
+      );
+      // Blended rate shown in the UI subtext only — the dollar amount charged is the
+      // exact sum of each item's own correctly-computed tax, never a blended estimate.
+      const blendedRate = taxableTotalCents > 0 ? totalTaxCents / taxableTotalCents : 0;
+      setTaxState({
+        loading: false,
+        taxAmountCents: totalTaxCents,
+        taxRate: blendedRate,
+        jurisdiction,
+        isTaxExempt: allExempt,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cart?.items, sellerNodeId]);
+
+  const taxDollars = (taxState.taxAmountCents || 0) / 100;
+  // BUNDLE-FEE-MODE (2026-07-30): When one-fee-per-bundle is disabled, the fee is
+  // charged per item. Show the accurate total fee amount in the UI.
+  const itemCount = cart?.items?.length ?? 1;
+  const effectiveFeeDollars =
+    bundleMode && !chargeOneFeePerBundle ? platformFeeDollars * itemCount : platformFeeDollars;
+  const cashTotal = Math.max(0, subtotal - totalSpApplied) + effectiveFeeDollars + taxDollars;
 
   const loadCart = useCallback(async () => {
     setLoading(true);
@@ -168,10 +262,19 @@ export default function CartCheckoutScreen() {
         }
       }
     } else {
-      Alert.alert('Error', result.error.message, [{ text: 'Go Back', onPress: () => navigation.goBack() }]);
+      Alert.alert('Error', result.error.message, [
+        { text: 'Go Back', onPress: () => navigation.goBack() },
+      ]);
     }
     setLoading(false);
   }, [navigation]);
+
+  // FLOW-07 (2026-08-01): Tap an item card -> open that item's detail screen.
+  // ListingDetail is pushed onto the stack, so Back returns to Checkout with
+  // all state (SP inputs, scroll) preserved.
+  const handleOpenItemDetail = (item: CartItem) => {
+    navigation.navigate('ListingDetail', { listing_id: item.listingId });
+  };
 
   // Fetch wallet balance and category caps
   const loadPointsData = useCallback(async () => {
@@ -343,7 +446,7 @@ export default function CartCheckoutScreen() {
         if (paymentInputMode === 'new' && !savedPaymentMethod?.id) {
           Alert.alert(
             'Payment Method Required',
-            'Please add a new card first by tapping "Add New Card" below.',
+            'Please add a new card first by tapping "Add New Card" below.'
           );
           setSubmitting(false);
           return;
@@ -377,8 +480,8 @@ export default function CartCheckoutScreen() {
       }
 
       const result: CartResult<{ tradeIds: string[]; bundleId: string }> = await checkoutCart({
-        bundleId:        cart.bundleId ?? bundleId,
-        spAmountCents:   totalSpCents,
+        bundleId: cart.bundleId ?? bundleId,
+        spAmountCents: totalSpCents,
         perItemSpCents,
         isSubscriber,
         paymentMethodId: selectedPaymentMethodId,
@@ -411,6 +514,17 @@ export default function CartCheckoutScreen() {
         }
       }
 
+      // PARTIAL-SUCCESS (2026-08-01): If the bundle checkout skipped one or more items
+      // (e.g. they already have an active/in-progress trade), tell the buyer BEFORE
+      // moving on. This does NOT block the flow — eligible offers are already submitted
+      // and the branded modal's OK button continues to the success screen.
+      if (result.warning?.skippedItems?.length) {
+        setSuccessTradeIds(tradeIds);
+        setSkippedWarning(result.warning);
+        setShowSkippedModal(true);
+        return;
+      }
+
       navigation.replace('TradeSuccess', {
         tradeId: tradeIds[0] ?? '',
       });
@@ -425,6 +539,9 @@ export default function CartCheckoutScreen() {
   // Check if any item is SP-eligible (subscriber + item accepts SP)
   const isItemSpEligible = (item: CartWithDetails['items'][0]) =>
     isSubscriber && canSpendSP && item.acceptsSP === true;
+
+  // PARTIAL-SUCCESS (2026-08-01): precompute the modal copy once per render.
+  const skippedCopy = skippedWarning ? buildSkippedItemsCopy(skippedWarning) : null;
 
   if (loading) {
     // DEFERRED-DECISION (2026-07-19): Checkout screens had showBell={false} intentionally
@@ -488,16 +605,27 @@ export default function CartCheckoutScreen() {
             const itemPrice = item.price ?? 0;
 
             return (
-              <View key={item.id} style={styles.itemCard} testID={`checkout-item-${item.listingId}`}>
-                {/* Item header: thumbnail + title + price */}
-                <View style={styles.itemRow}>
+              <View
+                key={item.id}
+                style={styles.itemCard}
+                testID={`checkout-item-${item.listingId}`}
+              >
+                {/* Item header: thumbnail + title + price — FLOW-07: tap -> item detail (back returns to checkout) */}
+                <TouchableOpacity
+                  style={styles.itemRow}
+                  activeOpacity={0.7}
+                  onPress={() => handleOpenItemDetail(item)}
+                  testID={`checkout-item-open-${item.listingId}`}
+                >
                   <Image
                     source={{ uri: item.imageUrl }}
                     style={styles.itemThumbnail}
                     testID={`checkout-item-image-${item.listingId}`}
                   />
                   <View style={styles.itemInfo}>
-                    <Text style={styles.itemTitle} numberOfLines={2}>{item.title ?? 'Item'}</Text>
+                    <Text style={styles.itemTitle} numberOfLines={2}>
+                      {item.title ?? 'Item'}
+                    </Text>
                     <Text style={styles.itemPrice}>${itemPrice.toFixed(2)}</Text>
                   </View>
 
@@ -506,13 +634,18 @@ export default function CartCheckoutScreen() {
                       <Text style={styles.notEligibleText}>Not eligible for points</Text>
                     </View>
                   )}
-                </View>
+                </TouchableOpacity>
 
                 {/* SP input field (like TradeOfferScreen) */}
                 {eligible && spState && (
                   <View style={styles.spFieldContainer}>
                     <View style={styles.spInputWrapper}>
-                      <Coins size={20} color="#F59E0B" weight="regular" style={{ marginRight: 12 }} />
+                      <Coins
+                        size={20}
+                        color="#F59E0B"
+                        weight="regular"
+                        style={{ marginRight: 12 }}
+                      />
                       <TextInput
                         style={styles.spInput}
                         value={spState.spApplied === 0 ? '' : spState.spApplied.toString()}
@@ -525,7 +658,12 @@ export default function CartCheckoutScreen() {
                       <Text style={styles.spUnit}>SP</Text>
                     </View>
                     <Text style={styles.spHint}>
-                      Max: {Math.min(spState.maxAllowed, Math.max(0, walletBalance - getAvailableBalance() + spState.spApplied))} SP
+                      Max:{' '}
+                      {Math.min(
+                        spState.maxAllowed,
+                        Math.max(0, walletBalance - getAvailableBalance() + spState.spApplied)
+                      )}{' '}
+                      SP
                     </Text>
                     {spState.spApplied > 0 && spState.spApplied < spState.maxAllowed && (
                       <Text style={styles.spBalanceNote}>
@@ -545,35 +683,51 @@ export default function CartCheckoutScreen() {
 
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>Subtotal</Text>
-            <Text style={styles.breakdownValue} testID="subtotal-amount">${subtotal.toFixed(2)}</Text>
+            <Text style={styles.breakdownValue} testID="subtotal-amount">
+              ${subtotal.toFixed(2)}
+            </Text>
           </View>
 
           {totalSpApplied > 0 && (
             <View style={styles.breakdownRow}>
               <Text style={[styles.breakdownLabel, styles.discountLabel]}>Points Applied</Text>
-              <Text style={[styles.breakdownValue, styles.discountValue]} testID="points-applied-amount">
+              <Text
+                style={[styles.breakdownValue, styles.discountValue]}
+                testID="points-applied-amount"
+              >
                 -${totalSpApplied.toFixed(2)}
               </Text>
             </View>
           )}
 
+          {/* BUNDLE-FEE-MODE (2026-07-30): Show per-item count when charging per item,
+              show single fee label when one-fee-per-bundle is enabled. */}
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Platform Fee</Text>
-            <Text style={styles.breakdownValue} testID="platform-fee-amount">${platformFeeDollars.toFixed(2)}</Text>
+            <Text style={styles.breakdownLabel}>
+              {bundleMode && !chargeOneFeePerBundle
+                ? `Platform Fee (\u00D7${itemCount} items)`
+                : 'Platform Fee'}
+            </Text>
+            <Text style={styles.breakdownValue} testID="platform-fee-amount">
+              ${effectiveFeeDollars.toFixed(2)}
+            </Text>
           </View>
 
           {/* MODULE-15.3-PART3 TAX-011: sales tax row (hidden when 0) */}
           <TaxBreakdownRow
-            taxAmountCents={tax.taxAmountCents}
-            taxRate={tax.taxRate}
-            jurisdiction={tax.jurisdiction}
-            loading={tax.loading}
+            taxAmountCents={taxState.taxAmountCents}
+            taxRate={taxState.taxRate}
+            jurisdiction={taxState.jurisdiction}
+            loading={taxState.loading}
+            isTaxExempt={taxState.isTaxExempt}
             testID="cart-tax-row"
           />
 
           <View style={[styles.breakdownRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Cash Total</Text>
-            <Text style={styles.totalValue} testID="cash-total-amount">${cashTotal.toFixed(2)}</Text>
+            <Text style={styles.totalValue} testID="cash-total-amount">
+              ${cashTotal.toFixed(2)}
+            </Text>
           </View>
         </View>
 
@@ -681,11 +835,7 @@ export default function CartCheckoutScreen() {
 
         {/* ── CTA ── */}
         <View style={styles.ctaContainer}>
-          <Button
-            onPress={handleSendOffer}
-            disabled={submitting}
-            testID="send-offer-button"
-          >
+          <Button onPress={handleSendOffer} disabled={submitting} testID="send-offer-button">
             {submitting ? 'Processing…' : `Send Offer · $${cashTotal.toFixed(2)}`}
           </Button>
           <Button
@@ -719,6 +869,34 @@ export default function CartCheckoutScreen() {
         onSecondaryPress={() => setShowPaymentMethodModal(false)}
         onClose={() => setShowPaymentMethodModal(false)}
       />
+
+      {/* PARTIAL-SUCCESS (2026-08-01): Branded, non-blocking notice when a bundle
+          checkout skipped one or more items (e.g. already in an active trade).
+          Green OK button (#5DBB8E) per the design system; continues to TradeSuccess. */}
+      {skippedWarning && skippedCopy && (
+        <TradeConfirmationModal
+          visible={showSkippedModal}
+          title={skippedCopy.title}
+          message={skippedCopy.message}
+          confirmLabel="OK"
+          variant="accept"
+          hideCancel
+          onConfirm={() => {
+            setShowSkippedModal(false);
+            navigation.replace('TradeSuccess', {
+              tradeId: successTradeIds[0] ?? '',
+            });
+          }}
+          onCancel={() => {
+            // Offers are already submitted and the cart is cleared — system-back
+            // (Android) must continue to TradeSuccess, not strand the buyer here.
+            setShowSkippedModal(false);
+            navigation.replace('TradeSuccess', {
+              tradeId: successTradeIds[0] ?? '',
+            });
+          }}
+        />
+      )}
     </ScreenLayout>
   );
 }

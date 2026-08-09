@@ -11,17 +11,22 @@ import {
   getTaxSummary,
   formatCents,
   formatTaxRate,
+  isTaxExemptCategory,
+  __resetTaxCategoriesCache,
 } from '@/services/tax';
 import { supabase } from '@/config/supabase';
 
 jest.mock('@/config/supabase', () => ({
-  supabase: { rpc: jest.fn() },
+  supabase: { rpc: jest.fn(), from: jest.fn() },
 }));
 
 const mockRpc = supabase.rpc as unknown as jest.Mock;
+const mockFrom = supabase.from as unknown as jest.Mock;
 
 beforeEach(() => {
   mockRpc.mockReset();
+  mockFrom.mockReset();
+  __resetTaxCategoriesCache();
 });
 
 describe('tax service (TAX-014)', () => {
@@ -210,6 +215,47 @@ describe('tax service (TAX-014)', () => {
       const res = await calculateTax('node-x', bigPrice);
       expect(res.success).toBe(true);
       if (res.success) expect(res.data.tax_amount_cents).toBe(expectedTax);
+    });
+  });
+
+  // TC-O05 (2026-08-01): "Tax Free" badge detection
+  describe('isTaxExemptCategory', () => {
+    function stubCategories(rows: { id: string; key: string }[]) {
+      mockFrom.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ data: rows, error: null }),
+      });
+    }
+
+    it('returns false for null/undefined ids (no fetch)', async () => {
+      expect(await isTaxExemptCategory(null)).toBe(false);
+      expect(await isTaxExemptCategory(undefined)).toBe(false);
+      expect(mockFrom).not.toHaveBeenCalled();
+    });
+
+    it('returns true only when the category key is tax_exempt_goods', async () => {
+      stubCategories([
+        { id: 'exempt-1', key: 'tax_exempt_goods' },
+        { id: 'gen-1', key: 'general_tangible_goods' },
+        { id: 'rev-1', key: 'review_required' },
+      ]);
+      expect(await isTaxExemptCategory('exempt-1')).toBe(true);
+      // review_required is a pending operational state, NOT a real exemption
+      expect(await isTaxExemptCategory('gen-1')).toBe(false);
+      expect(await isTaxExemptCategory('rev-1')).toBe(false);
+    });
+
+    it('caches the category map across calls', async () => {
+      stubCategories([{ id: 'exempt-1', key: 'tax_exempt_goods' }]);
+      await isTaxExemptCategory('exempt-1');
+      await isTaxExemptCategory('exempt-1');
+      expect(mockFrom).toHaveBeenCalledTimes(1);
+    });
+
+    it('is fail-safe on fetch error (badge hidden, no throw)', async () => {
+      mockFrom.mockReturnValue({
+        select: jest.fn().mockResolvedValue({ data: null, error: { message: 'nope' } }),
+      });
+      expect(await isTaxExemptCategory('exempt-1')).toBe(false);
     });
   });
 });

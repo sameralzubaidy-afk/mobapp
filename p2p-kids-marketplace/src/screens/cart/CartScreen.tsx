@@ -11,16 +11,18 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import * as Crypto from 'expo-crypto';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Alert,
-} from 'react-native';
-import { getCartItems, removeFromCart, CartItem as ServiceCartItem, saveCurrentCart, switchToSavedCart, clearCart, validateCartForCheckout, subscribeToCartChanges, SavedCartSummary } from '@/services/cartService';
+  getCartItems,
+  removeFromCart,
+  CartItem as ServiceCartItem,
+  saveCurrentCart,
+  switchToSavedCart,
+  clearCart,
+  validateCartForCheckout,
+  subscribeToCartChanges,
+  SavedCartSummary,
+} from '@/services/cartService';
 import { getMaskedSellerListings } from '@/services/listing';
 import { supabase } from '@/config/supabase';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -29,14 +31,7 @@ import { RootStackParamList } from '@/navigation/types';
 import { Button, Modal } from '@/components/ui';
 import { theme } from '@/theme';
 import { trackEvent } from '@/services/analytics';
-import {
-  ShoppingCart,
-  Trash,
-  Coins,
-  Package,
-  SquaresFour,
-  X,
-} from 'phosphor-react-native';
+import { ShoppingCart, Trash, Coins, Package, SquaresFour, X } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
 import { showDifferentSellerModal } from '@/components/molecules/DifferentSellerModal';
 import { useCartContext } from '@/contexts/CartContext';
@@ -85,15 +80,15 @@ export default function CartScreen() {
       const result = await getCartItems();
       if (result.success) {
         const mapped: CartItem[] = result.data.items.map((i: ServiceCartItem) => ({
-          id:         i.id,
-          listingId:  i.listingId,
-          title:      i.title ?? 'Untitled',
-          price:      i.price ?? 0,
-          quantity:   1,
-          imageUrl:   i.imageUrl ?? '',
-          sellerId:   i.sellerId,
+          id: i.id,
+          listingId: i.listingId,
+          title: i.title ?? 'Untitled',
+          price: i.price ?? 0,
+          quantity: 1,
+          imageUrl: i.imageUrl ?? '',
+          sellerId: i.sellerId,
           liveStatus: i.liveStatus,
-          acceptsSP:  i.acceptsSP,
+          acceptsSP: i.acceptsSP,
         }));
         setCartItems(mapped);
         setSavedCarts(result.data.savedCarts ?? []);
@@ -128,7 +123,9 @@ export default function CartScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user || cancelled) return;
       if (unsubscribeRef.current) {
         unsubscribeRef.current();
@@ -200,7 +197,7 @@ export default function CartScreen() {
             refreshCartCount();
           },
         },
-      ],
+      ]
     );
   };
 
@@ -253,32 +250,35 @@ export default function CartScreen() {
   };
 
   const handleRemoveItem = (itemId: string) => {
-    Alert.alert(
-      'Remove Item',
-      'Are you sure you want to remove this item from your cart?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            const removedItem = cartItems.find(item => item.id === itemId);
-            setCartItems(prev => prev.filter(item => item.id !== itemId));
-            // CART-018: analytics
-            trackEvent('cart_item_removed', {
-              listing_id: removedItem?.listingId ?? itemId,
-              reason: 'user_action',
-            });
-            await removeFromCart(itemId).catch((e) =>
-              console.warn('[CartScreen] removeFromCart error:', e)
-            );
-            // Reload from server to refresh savedCarts + ensure sync
-            await loadCartItems();
-            refreshCartCount();
-          },
+    Alert.alert('Remove Item', 'Are you sure you want to remove this item from your cart?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          const removedItem = cartItems.find((item) => item.id === itemId);
+          setCartItems((prev) => prev.filter((item) => item.id !== itemId));
+          // CART-018: analytics
+          trackEvent('cart_item_removed', {
+            listing_id: removedItem?.listingId ?? itemId,
+            reason: 'user_action',
+          });
+          await removeFromCart(itemId).catch((e) =>
+            console.warn('[CartScreen] removeFromCart error:', e)
+          );
+          // Reload from server to refresh savedCarts + ensure sync
+          await loadCartItems();
+          refreshCartCount();
         },
-      ]
-    );
+      },
+    ]);
+  };
+
+  // FLOW-07 (2026-08-01): Tap an item card -> open that item's detail screen.
+  // ListingDetail is pushed onto the stack, so Back returns to the Trade Basket
+  // with all state (items, scroll) preserved.
+  const handleOpenItemDetail = (item: CartItem) => {
+    navigation.navigate('ListingDetail', { listing_id: item.listingId });
   };
 
   // TFV2-022 D-28: Enforce single-seller rule when adding items
@@ -341,7 +341,7 @@ export default function CartScreen() {
   };
 
   const calculateSubtotal = () => {
-    return cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   };
 
   const calculateTotal = () => {
@@ -365,7 +365,6 @@ export default function CartScreen() {
   if (cartItems.length === 0 && savedCarts.length === 0) {
     return (
       <ScreenLayout variant="tab" title="Trade Basket">
-
         <View style={styles.emptyContainer}>
           <ShoppingCart
             size={64}
@@ -374,9 +373,7 @@ export default function CartScreen() {
             testID="cart-empty-icon"
           />
           <Text style={styles.emptyTitle}>Your trade basket is empty</Text>
-          <Text style={styles.emptySubtext}>
-            Start adding items you love to your trade basket
-          </Text>
+          <Text style={styles.emptySubtext}>Start adding items you love to your trade basket</Text>
           <Button
             variant="primary"
             size="large"
@@ -448,14 +445,26 @@ export default function CartScreen() {
               <View key={sc.cartId} style={styles.savedCartRow} testID={`saved-cart-${sc.cartId}`}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.savedCartLine}>
-                    {sc.itemCount} item{sc.itemCount === 1 ? '' : 's'} · ${(sc.totalPriceCents / 100).toFixed(2)}
+                    {sc.itemCount} item{sc.itemCount === 1 ? '' : 's'} · $
+                    {(sc.totalPriceCents / 100).toFixed(2)}
                   </Text>
-                  <Text style={styles.savedCartMeta}>Saved {new Date(sc.lastUpdated).toLocaleDateString()}</Text>
+                  <Text style={styles.savedCartMeta}>
+                    Saved {new Date(sc.lastUpdated).toLocaleDateString()}
+                  </Text>
                 </View>
-                <Button variant="secondary" size="small" onPress={() => handleSwitchSaved(sc.cartId)} testID={`saved-cart-switch-${sc.cartId}`}>
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onPress={() => handleSwitchSaved(sc.cartId)}
+                  testID={`saved-cart-switch-${sc.cartId}`}
+                >
                   Switch
                 </Button>
-                <TouchableOpacity onPress={() => handleDeleteSaved(sc.cartId)} testID={`saved-cart-delete-${sc.cartId}`} style={{ padding: 8 }}>
+                <TouchableOpacity
+                  onPress={() => handleDeleteSaved(sc.cartId)}
+                  testID={`saved-cart-delete-${sc.cartId}`}
+                  style={{ padding: 8 }}
+                >
                   <Trash size={18} color={theme.colors.error[500]} weight="regular" />
                 </TouchableOpacity>
               </View>
@@ -466,7 +475,12 @@ export default function CartScreen() {
         {/* CART-006: Save current cart action */}
         {cartItems.length > 0 && (
           <View style={styles.saveCurrentRow}>
-            <Button variant="secondary" size="small" onPress={handleSaveCart} testID="save-current-cart-button">
+            <Button
+              variant="secondary"
+              size="small"
+              onPress={handleSaveCart}
+              testID="save-current-cart-button"
+            >
               Save current cart for later
             </Button>
           </View>
@@ -475,41 +489,52 @@ export default function CartScreen() {
         <View style={styles.itemsList}>
           {cartItems.map((item) => (
             <View key={item.id} style={styles.itemRow} testID={`cart-item-${item.id}`}>
-              {/* Thumbnail */}
-              <Image
-                source={{ uri: item.imageUrl }}
-                style={styles.thumbnail}
-                testID={`cart-item-image-${item.id}`}
-              />
+              {/* FLOW-07: Tap thumbnail + title area -> open item detail (back returns to basket) */}
+              <TouchableOpacity
+                style={styles.itemTapTarget}
+                activeOpacity={0.7}
+                onPress={() => handleOpenItemDetail(item)}
+                testID={`cart-item-open-${item.id}`}
+              >
+                {/* Thumbnail */}
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.thumbnail}
+                  testID={`cart-item-image-${item.id}`}
+                />
 
-              {/* Item Info */}
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemTitle} numberOfLines={2}>
-                  {item.title}
-                </Text>
-                <Text style={styles.itemPrice} testID={`cart-item-price-${item.id}`}>
-                  ${item.price.toFixed(2)}
-                </Text>
-                {/* Useful Item Info (replaces quantity controls — no inventory) */}
-                <View style={styles.itemInfoRow}>
-                  {item.liveStatus === 'available' && (
-                    <View style={styles.availableBadge}>
-                      <Text style={styles.availableBadgeText}>Available</Text>
-                    </View>
-                  )}
-                  {item.liveStatus && item.liveStatus !== 'available' && (
-                    <Text style={styles.unavailableText} testID={`cart-item-unavailable-${item.id}`}>
-                      This item is no longer available
-                    </Text>
-                  )}
-                  {item.acceptsSP && (
-                    <View style={styles.acceptsSpBadge}>
-                      <Coins size={14} color="#F59E0B" weight="fill" />
-                      <Text style={styles.acceptsSpText}>Accepts Points</Text>
-                    </View>
-                  )}
+                {/* Item Info */}
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemTitle} numberOfLines={2}>
+                    {item.title}
+                  </Text>
+                  <Text style={styles.itemPrice} testID={`cart-item-price-${item.id}`}>
+                    ${item.price.toFixed(2)}
+                  </Text>
+                  {/* Useful Item Info (replaces quantity controls — no inventory) */}
+                  <View style={styles.itemInfoRow}>
+                    {item.liveStatus === 'available' && (
+                      <View style={styles.availableBadge}>
+                        <Text style={styles.availableBadgeText}>Available</Text>
+                      </View>
+                    )}
+                    {item.liveStatus && item.liveStatus !== 'available' && (
+                      <Text
+                        style={styles.unavailableText}
+                        testID={`cart-item-unavailable-${item.id}`}
+                      >
+                        This item is no longer available
+                      </Text>
+                    )}
+                    {item.acceptsSP && (
+                      <View style={styles.acceptsSpBadge}>
+                        <Coins size={14} color="#F59E0B" weight="fill" />
+                        <Text style={styles.acceptsSpText}>Accepts Points</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Remove Button */}
               <TouchableOpacity
@@ -608,7 +633,8 @@ export default function CartScreen() {
               <SquaresFour size={18} color="#2D6A4F" weight="fill" />
               <View style={styles.moreFromSellerBannerTextWrap}>
                 <Text style={styles.moreFromSellerBannerTitle}>
-                  This seller has {remainingFromSeller} more item{remainingFromSeller !== 1 ? 's' : ''}
+                  This seller has {remainingFromSeller} more item
+                  {remainingFromSeller !== 1 ? 's' : ''}
                 </Text>
                 <Text style={styles.moreFromSellerBannerLink}>View</Text>
               </View>
@@ -647,12 +673,14 @@ export default function CartScreen() {
               });
               // CART-009: Show branded modal with option to browse more items
               if (first?.code === 'MIN_CART_VALUE_NOT_MET') {
-                const needed = ((v.data.minCartValueCents - v.data.cartTotalCents) / 100).toFixed(2);
+                const needed = ((v.data.minCartValueCents - v.data.cartTotalCents) / 100).toFixed(
+                  2
+                );
                 const minTotal = (v.data.minCartValueCents / 100).toFixed(2);
                 const currentTotal = (v.data.cartTotalCents / 100).toFixed(2);
                 setMinValueModalMessage(
                   `Add $${needed} more to reach the $${minTotal} minimum. ` +
-                  `Your current total is $${currentTotal}.`
+                    `Your current total is $${currentTotal}.`
                 );
                 setShowMinValueModal(true);
                 return;
@@ -907,6 +935,11 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.neutral[100],
+  },
+  itemTapTarget: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   thumbnail: {
     width: 72,

@@ -9,6 +9,7 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -48,6 +49,8 @@ export default function PayoutDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [payoutLimit, setPayoutLimit] = useState(10); // Initial page; grows on "Load More"
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const loadData = useCallback(async () => {
     setError(null);
@@ -75,7 +78,24 @@ export default function PayoutDashboardScreen() {
 
   const handleRefresh = () => {
     setRefreshing(true);
+    setPayoutLimit(10); // Reset to the initial page on refresh
     loadData();
+  };
+
+  const handleLoadMore = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const newLimit = payoutLimit + 10;
+      setPayoutLimit(newLimit);
+      const more = await getRecentPayouts(newLimit);
+      setPayouts(more);
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to load more payouts');
+      console.error('[PayoutDashboard] handleLoadMore error:', err);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   const displayBalance = formatBalanceForDisplay(balance);
@@ -224,36 +244,50 @@ export default function PayoutDashboardScreen() {
               No payouts yet
             </Text>
           ) : (
-            payouts.map((payout) => {
-              const statusInfo = formatPayoutStatus(payout.status);
-              return (
-                <View
-                  key={payout.id}
-                  style={styles.historyRow}
-                  testID={`history-row-${payout.id}`}
-                >
-                  {renderHistoryIcon(payout.status)}
-                  <View style={styles.historyInfo}>
-                    <Text style={styles.historyAmount} testID={`history-amount-${payout.id}`}>
-                      {formatCentsToDollars(payout.net_amount_cents)} AUD
-                    </Text>
-                    <Text style={styles.historyDate}>
-                      {new Date(payout.created_at).toLocaleDateString('en-AU', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+            <>
+              {payouts.map((payout) => {
+                const statusInfo = formatPayoutStatus(payout.status);
+                return (
+                  <View
+                    key={payout.id}
+                    style={styles.historyRow}
+                    testID={`history-row-${payout.id}`}
+                  >
+                    {renderHistoryIcon(payout.status)}
+                    <View style={styles.historyInfo}>
+                      <Text style={styles.historyAmount} testID={`history-amount-${payout.id}`}>
+                        {formatCentsToDollars(payout.net_amount_cents)} AUD
+                      </Text>
+                      <Text style={styles.historyDate}>
+                        {new Date(payout.created_at).toLocaleDateString('en-AU', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[styles.historyStatus, { color: statusInfo.color }]}
+                      testID={`history-status-${payout.id}`}
+                    >
+                      {statusInfo.label}
                     </Text>
                   </View>
-                  <Text
-                    style={[styles.historyStatus, { color: statusInfo.color }]}
-                    testID={`history-status-${payout.id}`}
-                  >
-                    {statusInfo.label}
-                  </Text>
-                </View>
-              );
-            })
+                );
+              })}
+              <TouchableOpacity
+                style={styles.loadMoreButton}
+                onPress={handleLoadMore}
+                disabled={loadingMore}
+                testID="payout-load-more"
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color="#5DBB8E" />
+                ) : (
+                  <Text style={styles.loadMoreButtonText}>Load More</Text>
+                )}
+              </TouchableOpacity>
+            </>
           )}
         </View>
       </ScrollView>
@@ -434,5 +468,23 @@ const styles = StyleSheet.create({
     color: '#999999',
     textAlign: 'center',
     paddingVertical: 20,
+  },
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#5DBB8E',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    minWidth: 160,
+  },
+  loadMoreButtonText: {
+    color: '#5DBB8E',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

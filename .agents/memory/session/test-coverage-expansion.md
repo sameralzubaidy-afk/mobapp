@@ -1,6 +1,6 @@
 # Task: Create 3 new manual test files + extend 1, mirroring MODULE-15.1.2-TradeFlowV2 format
 
-## Reference format (MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md)
+## Reference format (misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md)
 Header(Source of truth, Tasks covered, Last updated, Scope, Devices) → Test Case Index table → Pre-conditions → Accounts table → Groups (each TC: Ref, Actors, Objective, Steps, Expected Result) → Regression (TC-RXX) → Verification checklist mapping table.
 
 ## Deliverables (in order)

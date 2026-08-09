@@ -264,20 +264,43 @@ export interface Conversation {
 }
 
 /**
- * Get all conversations for the current user
+ * A page of conversations plus whether more pages exist.
+ */
+export interface ConversationPage {
+  conversations: Conversation[];
+  hasMore: boolean;
+}
+
+/**
+ * Get a page of conversations for the current user
  * Shows trades with messages, ordered by most recent message
  *
+ * Bounded + paginated: each page enriches at most `limit` of the most-recent
+ * trades that have at least one message, so users with many trades don't
+ * trigger hundreds of per-trade queries (last message, profile, verification,
+ * unread count) on every load.
+ *
  * @param userId - Current user ID
- * @returns Array of conversations with last message preview and unread count
+ * @param options - { limit: page size (default 50), offset: trades window start (default 0) }
+ * @returns A page of conversations plus whether more pages exist
  */
-export async function getConversations(userId: string): Promise<Conversation[]> {
+export async function getConversations(
+  userId: string,
+  options?: { limit?: number; offset?: number }
+): Promise<ConversationPage> {
   if (!userId) {
     console.error('[chat.getConversations] Missing userId');
-    return [];
+    return { conversations: [], hasMore: false };
   }
 
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+
   try {
-    // Fetch all trades where user is buyer or seller (without joining to users table yet)
+    // Fetch a window of trades where user is buyer or seller AND that have at
+    // least one message (messages!inner acts as an existence filter), newest
+    // first. Paging by offset keeps enrichment bounded for users with many
+    // trades while still letting the UI load more on demand.
     const { data: trades, error: tradesError } = await supabase
       .from('trades')
       .select(
@@ -289,15 +312,17 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
           id,
           title,
           price
-        )
+        ),
+        messages!inner(id)
       `
       )
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+      .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
 
     if (tradesError) {
       console.error('[chat.getConversations] Error fetching trades:', tradesError);
-      return [];
+      return { conversations: [], hasMore: false };
     }
 
     // For each trade, get last message and unread count
@@ -411,10 +436,13 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
         (a, b) => new Date(b.last_message_time).getTime() - new Date(a.last_message_time).getTime()
       );
 
-    return validConversations;
+    return {
+      conversations: validConversations,
+      hasMore: (trades?.length ?? 0) === limit,
+    };
   } catch (error) {
     console.error('[chat.getConversations] Unexpected error:', error);
-    return [];
+    return { conversations: [], hasMore: false };
   }
 }
 
@@ -484,14 +512,17 @@ export async function getTotalUnreadMessageCount(userId: string): Promise<number
   if (!userId) return 0;
 
   try {
-    // Get all trades where user is a participant
+    // Get recent trades where user is a participant AND that have at least one
+    // message (trades without messages can't have unread messages).
     // TFV2-002: V2 trade statuses are pending, in_progress, completed, cancelled
     // Exclude cancelled trades — chat is frozen and no new messages expected
     const { data: trades, error: tradesError } = await supabase
       .from('trades')
-      .select('id, buyer_id, seller_id')
+      .select('id, buyer_id, seller_id, messages!inner(id)')
       .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
-      .in('status', ['pending', 'in_progress', 'completed']);
+      .in('status', ['pending', 'in_progress', 'completed'])
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (tradesError || !trades || trades.length === 0) return 0;
 

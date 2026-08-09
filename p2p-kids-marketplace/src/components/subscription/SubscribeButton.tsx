@@ -102,7 +102,21 @@ export function SubscribeButton({
       );
 
       if (createSubError) {
-        throw new Error(createSubError.message || 'Failed to create subscription');
+        // FunctionsHttpError.message is always the generic "Edge Function returned a
+        // non-2xx status code" — the real reason (e.g. ADMIN_PRICE_MISSING,
+        // PAYMENT_REQUIRED, SUBSCRIPTION_NOT_ACTIVATED) is in the response body.
+        let serverMessage: string | undefined;
+        const context = (createSubError as { context?: Response }).context;
+        if (context && typeof context.json === 'function') {
+          try {
+            const body = await context.clone().json();
+            serverMessage = body?.error;
+          } catch {
+            // Body wasn't JSON or already consumed — fall back below.
+          }
+        }
+        console.error('[SubscribeButton] Edge Function error body:', serverMessage || '(unavailable)');
+        throw new Error(serverMessage || createSubError.message || 'Failed to create subscription');
       }
 
       console.log('[SubscribeButton] Subscription created:', subscriptionData);

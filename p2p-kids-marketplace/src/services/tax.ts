@@ -64,15 +64,24 @@ function unwrap<T>(rpcData: unknown): ServiceResult<T> {
   return { success: false, error: { code: 'UNKNOWN', message: 'Unknown RPC response shape' } };
 }
 
-/** Pure preview - safe to call repeatedly from UI. */
+/**
+ * Pure preview - safe to call repeatedly from UI.
+ * taxCategoryId/itemPriceCents are optional (BP-fix 2026-07-29): when supplied,
+ * the RPC honors the item's tax category exemption / price-threshold rule
+ * instead of always applying the node's flat rate.
+ */
 export async function calculateTax(
   nodeId: string | null,
   taxableAmountCents: number,
+  taxCategoryId?: string | null,
+  itemPriceCents?: number | null,
 ): Promise<ServiceResult<TaxCalculation>> {
   try {
     const { data, error } = await supabase.rpc('calculate_tax', {
       p_node_id: nodeId,
       p_taxable_amount_cents: taxableAmountCents,
+      p_tax_category_id: taxCategoryId ?? null,
+      p_item_price_cents: itemPriceCents ?? null,
     });
     if (error) {
       console.error('[tax] calculateTax rpc error:', error);
@@ -156,4 +165,55 @@ export function formatCents(cents: number | null | undefined): string {
 export function formatTaxRate(rate: number | null | undefined): string {
   const r = typeof rate === 'number' && Number.isFinite(rate) ? rate : 0;
   return `${(r * 100).toFixed(2)}%`;
+}
+
+/** Key of the platform's canonical tax-exempt category (see tax_categories seed). */
+const TAX_EXEMPT_CATEGORY_KEY = 'tax_exempt_goods';
+
+let taxCategoriesPromise: Promise<Map<string, string>> | null = null;
+
+/**
+ * Lazily fetch id → key for all tax categories and cache for the app session.
+ * tax_categories is readable by all authenticated users (RLS USING(TRUE)).
+ * Fail-safe: on any error returns an empty map (the badge simply won't render).
+ */
+function getTaxCategoryKeyMap(): Promise<Map<string, string>> {
+  if (!taxCategoriesPromise) {
+    taxCategoriesPromise = (async () => {
+      const map = new Map<string, string>();
+      try {
+        const { data, error } = await supabase.from('tax_categories').select('id, key');
+        if (error) {
+          console.error('[tax] getTaxCategoryKeyMap error:', error.message);
+          return map;
+        }
+        for (const row of data ?? []) {
+          if (row?.id && row?.key) map.set(String(row.id), String(row.key));
+        }
+      } catch (e: any) {
+        console.error('[tax] getTaxCategoryKeyMap exception:', e?.message ?? e);
+      }
+      return map;
+    })();
+  }
+  return taxCategoriesPromise;
+}
+
+/**
+ * True when the item's tax category is the platform's exempt category
+ * (tax_exempt_goods) — the driver for the "Tax Free" badge (TC-O05).
+ * Deliberately does NOT treat `review_required` as exempt: that category is a
+ * pending operational state, not a real exemption.
+ */
+export async function isTaxExemptCategory(
+  taxCategoryId: string | null | undefined,
+): Promise<boolean> {
+  if (!taxCategoryId) return false;
+  const map = await getTaxCategoryKeyMap();
+  return map.get(taxCategoryId) === TAX_EXEMPT_CATEGORY_KEY;
+}
+
+/** Test-only: clear the cached tax-category lookup (e.g. between test cases). */
+export function __resetTaxCategoriesCache(): void {
+  taxCategoriesPromise = null;
 }

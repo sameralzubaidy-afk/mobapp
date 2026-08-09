@@ -2,7 +2,7 @@
  * File: p2p-kids-marketplace/src/screens/cart/__tests__/CartScreen.test.tsx
  * MODULE-15.1-UI-REDESIGN: Cart Screen Unit Tests
  * Task: FLOW-07 Cart & Bundling
- * 
+ *
  * Tests cart screen rendering, item management, and checkout flow.
  */
 
@@ -23,6 +23,13 @@ jest.mock('@react-navigation/native', () => ({
   useRoute: () => ({
     params: {},
   }),
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const React = require('react');
+    React.useEffect(() => {
+      const cleanup = cb();
+      return typeof cleanup === 'function' ? cleanup : undefined;
+    }, [cb]);
+  },
 }));
 
 jest.mock('@/components/organisms/BottomNavBar', () => 'BottomNavBar');
@@ -83,11 +90,11 @@ describe('CartScreen', () => {
   });
 
   describe('Header', () => {
-    it('should render shared back button in header', async () => {
+    it('should render shared screen title in header', async () => {
       const { getByTestId } = render(<CartScreen />);
 
       await waitFor(() => {
-        expect(getByTestId('back-button')).toBeTruthy();
+        expect(getByTestId('screen-title')).toBeTruthy();
       });
     });
 
@@ -95,7 +102,7 @@ describe('CartScreen', () => {
       const { getByText } = render(<CartScreen />);
 
       await waitFor(() => {
-        expect(getByText('My Cart')).toBeTruthy();
+        expect(getByText('Trade Basket')).toBeTruthy();
       });
     });
   });
@@ -104,12 +111,12 @@ describe('CartScreen', () => {
     it('should render a valid initial state while cart data loads', async () => {
       const { queryByText, findByText } = render(<CartScreen />);
 
-      if (queryByText('Loading cart...')) {
-        expect(queryByText('Loading cart...')).toBeTruthy();
+      if (queryByText('Loading trade basket...')) {
+        expect(queryByText('Loading trade basket...')).toBeTruthy();
         return;
       }
 
-      expect(await findByText('Your cart is empty')).toBeTruthy();
+      expect(await findByText('Your trade basket is empty')).toBeTruthy();
     });
   });
 

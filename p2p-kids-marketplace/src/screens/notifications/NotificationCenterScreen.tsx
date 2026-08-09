@@ -158,6 +158,10 @@ const TYPE_ICONS: Record<string, NotificationIconConfig> = {
     Icon: CurrencyCircleDollar,
     ...COLORS.green,
   },
+  sp_refunded: {
+    Icon: CurrencyCircleDollar,
+    ...COLORS.green,
+  },
   sp_spent: {
     Icon: CurrencyCircleDollar,
     ...COLORS.amber,

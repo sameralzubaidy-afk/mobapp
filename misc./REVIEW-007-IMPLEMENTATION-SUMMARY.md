@@ -37,9 +37,10 @@
 5. **__tests__/review-moderation.e2e.test.ts** - E2E tests
    - GET /api/reviews/reported endpoint
    - POST /api/reviews/:reviewId/hide endpoint
-   - POST /api/reviews/:reviewId/approve endpoint
+   - POST /api/reviews/:reviewId/keep endpoint (renamed from approve)
    - POST /api/reviews/ban-user endpoint
    - Database verification after each action
+   - Verify `review_status` transitions and reporter notification row created
 
 6. **REVIEW-007-MANUAL-TESTING-GUIDE.md** - Comprehensive test guide
    - 16 manual test cases (TC-001 to TC-016)
@@ -79,13 +80,19 @@
 - Each report in separate bordered box
 
 ### ✅ Admin Actions
-1. **Approve** - Unhides review and deletes all reports
-2. **Hide** - Hides review but keeps reports
+1. **Keep** (renamed from Approve) - Marks `review_status` `pending_review` → `reviewed`, keeps the review visible, resets report count, deletes all reports (the report is REJECTED), and notifies every reporter (in-app + push)
+2. **Hide** - Marks `review_status` → `hidden`, hides the review, and notifies every reporter (in-app + push)
 3. **Ban User** - Permanently bans the reviewer
    - Two-step confirmation (reason + confirmation dialog)
    - Updates profile status to 'banned'
    - Logs to audit_logs
    - Refreshes moderation queue after ban
+
+### Reporter Notifications (2026-08-02)
+- **Keep** → `create_system_notification_with_preferences(reporter, 'review_report_kept', ...)` — in-app + push "Report reviewed" / "We reviewed your report about a review. After checking it, the review stays up because it follows our guidelines."
+- **Hide** → `create_system_notification_with_preferences(reporter, 'review_report_hidden', ...)` — in-app + push "Review removed" / "The review you reported has been removed. Thanks for helping keep our community safe."
+- Respects each reporter's `notification_preferences` (category `system`) via the canonical helper.
+- `review_status` lifecycle: `active` → `pending_review` (report created) → `reviewed` (kept) | `hidden`.
 
 ### ✅ Improved UI/UX
 - Better status badges (green "Visible", gray "Hidden")
@@ -162,8 +169,8 @@
 
 ### Backend Services
 - [x] GET `/api/reviews/reported` endpoint
-- [x] POST `/api/reviews/:reviewId/approve` endpoint (existing)
-- [x] POST `/api/reviews/:reviewId/hide` endpoint (existing)
+- [x] POST `/api/reviews/:reviewId/keep` endpoint (renamed from approve; marks reviewed + notifies reporters)
+- [x] POST `/api/reviews/:reviewId/hide` endpoint (existing; notifies reporters)
 - [x] POST `/api/reviews/ban-user` endpoint (new)
 
 ### Frontend Components

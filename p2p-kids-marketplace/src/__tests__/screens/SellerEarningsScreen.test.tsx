@@ -12,6 +12,20 @@ import { getSellerPayouts } from '../../services/payoutService';
 import { useAuth } from '../../hooks/useAuth';
 
 // Mock dependencies
+// Mock navigation so useNavigation() doesn't throw outside a NavigationContainer.
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+  }),
+  useFocusEffect: (cb: () => void | (() => void)) => {
+    const React = require('react');
+    React.useEffect(() => {
+      const cleanup = cb();
+      return typeof cleanup === 'function' ? cleanup : undefined;
+    }, [cb]);
+  },
+}));
 jest.mock('../../hooks/useAuth');
 jest.mock('../../services/payoutService');
 

@@ -30,6 +30,7 @@ describe('chat.ts - getConversations', () => {
       is: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
+      range: jest.fn().mockReturnThis(),
       single: jest.fn().mockResolvedValue({ data: null, error: null }),
       or: jest.fn().mockReturnThis(),
       gte: jest.fn().mockResolvedValue({ data: [], error: null }),
@@ -67,6 +68,7 @@ describe('chat.ts - getConversations', () => {
         is: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
+        range: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         gte: jest.fn().mockReturnThis(),
         single: jest.fn(),
@@ -89,8 +91,8 @@ describe('chat.ts - getConversations', () => {
 
     const conversations = await getConversations('user-1');
 
-    expect(conversations).toHaveLength(1);
-    expect(conversations[0]).toMatchObject({
+    expect(conversations.conversations).toHaveLength(1);
+    expect(conversations.conversations[0]).toMatchObject({
       id: 'trade-1',
       other_user_name: 'John Doe',
       listing_title: 'Test Item',
@@ -104,13 +106,14 @@ describe('chat.ts - getConversations', () => {
       const chain: any = {
         select: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
+        range: jest.fn().mockReturnThis(),
         order: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
       return chain;
     });
 
     const conversations = await getConversations('user-1');
-    expect(conversations).toEqual([]);
+    expect(conversations.conversations).toEqual([]);
   });
 
   it('should filter out trades without messages', async () => {
@@ -130,6 +133,7 @@ describe('chat.ts - getConversations', () => {
         is: jest.fn().mockReturnThis(),
         order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockReturnThis(),
+        range: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
         single: jest.fn(),
       };
@@ -144,7 +148,7 @@ describe('chat.ts - getConversations', () => {
     });
 
     const conversations = await getConversations('user-1');
-    expect(conversations).toEqual([]);
+    expect(conversations.conversations).toEqual([]);
   });
 });
 

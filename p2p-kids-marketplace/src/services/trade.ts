@@ -616,7 +616,7 @@ export async function createTradeOfferWithHold(
 ): Promise<CreateTradeOfferResult> {
   try {
     const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-    let accessToken = await getFreshAccessToken();
+    const accessToken = await getFreshAccessToken();
 
     if (!accessToken) {
       return { success: false, error: 'User not authenticated', error_code: 'UNAUTHORIZED' };
@@ -675,9 +675,7 @@ export async function createTradeOfferWithHold(
       if (shouldRetryAuth) {
         const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
         if (!refreshError && refreshData?.session?.access_token) {
-          accessToken = refreshData.session.access_token;
-
-          const retryResult = await invokeCreateTradeOffer(accessToken);
+          const retryResult = await invokeCreateTradeOffer(refreshData.session.access_token);
           data = retryResult.data;
           error = retryResult.error;
 

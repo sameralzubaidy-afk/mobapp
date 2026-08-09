@@ -23,6 +23,7 @@ import { StarRating } from '@/components/StarRating';
 // import { logEvent } from '@/services/analytics'; // TODO: uncomment when analytics service is available
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
+import { theme } from '@/theme';
 
 type SubmitReviewRouteProp = RouteProp<RootStackParamList, 'SubmitReview'>;
 type SubmitReviewNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SubmitReview'>;
@@ -250,11 +251,11 @@ export function SubmitReviewScreen() {
 const styles = StyleSheet.create({
   keyboardAvoid: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.backgroundColors.card,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.backgroundColors.card,
   },
   contentContainer: {
     padding: 20,
@@ -265,116 +266,117 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.backgroundColors.card,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: theme.spacing.md,
     fontSize: 16,
-    color: '#6B7280',
+    color: theme.colors.neutral[700],
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
+    color: theme.colors.neutral[900],
+    marginBottom: theme.spacing.sm,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 24,
+    color: theme.colors.neutral[700],
+    marginBottom: theme.spacing.lg,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: theme.spacing.lg,
   },
   label: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
+    color: theme.colors.neutral[700],
+    marginBottom: theme.spacing.sm,
   },
   required: {
-    color: '#EF4444',
+    color: theme.colors.error[500],
   },
   commentInput: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
+    // Design system §4.3: filled style — no border, #F0F0F0 fill, 12px radius
+    backgroundColor: theme.backgroundColors.input,
+    borderRadius: 12,
+    padding: theme.spacing.md,
     fontSize: 16,
     minHeight: 120,
-    color: '#111827',
+    color: theme.colors.neutral[900],
   },
   charCount: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: theme.colors.neutral[500],
     textAlign: 'right',
-    marginTop: 4,
+    marginTop: theme.spacing.xs,
   },
   anonymousToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-    padding: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
+    marginBottom: theme.spacing.lg,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.neutral[100],
+    borderRadius: 12,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
-    borderRadius: 4,
-    marginRight: 12,
+    borderColor: theme.colors.neutral[300],
+    borderRadius: 6,
+    marginRight: theme.spacing.md,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.backgroundColors.card,
   },
   checkboxChecked: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: theme.colors.primary[500],
+    borderColor: theme.colors.primary[500],
   },
   checkmark: {
-    color: '#FFFFFF',
+    color: theme.textColors.onPrimary,
     fontSize: 16,
     fontWeight: '700',
   },
   anonymousLabel: {
     fontSize: 16,
-    color: '#374151',
+    color: theme.colors.neutral[900],
   },
   submitButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    padding: 16,
+    // Design system §4.1: pill primary CTA — 52px tall, brand green #5DBB8E
+    backgroundColor: theme.colors.primary[500],
+    borderRadius: 26,
+    height: 52,
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
+    marginBottom: theme.spacing.md,
   },
   submitButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    backgroundColor: theme.colors.neutral[300],
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: theme.textColors.onPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
   skipButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 16,
+    // Design system §4.2: text-only secondary variant
+    backgroundColor: 'transparent',
+    padding: theme.spacing.md,
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
+    marginBottom: theme.spacing.md,
   },
   skipButtonText: {
-    color: '#6B7280',
-    fontSize: 16,
+    color: theme.colors.neutral[700],
+    fontSize: 15,
     fontWeight: '600',
   },
   note: {
     fontSize: 12,
-    color: '#6B7280',
+    color: theme.colors.neutral[500],
     textAlign: 'center',
-    fontStyle: 'italic',
+    marginTop: theme.spacing.xs,
   },
 });

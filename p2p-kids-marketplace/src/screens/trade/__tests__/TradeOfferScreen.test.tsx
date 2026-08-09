@@ -129,7 +129,11 @@ describe('TradeOfferScreen', () => {
       earn_sp: 10,
     });
     mockCreateTradeOffer.mockResolvedValue({ success: true, trade_id: 'trade-123' });
-    mockGetPaymentMethod.mockResolvedValue({ id: 'pm_test', payment_method_type: 'card', last_four: '4242' });
+    mockGetPaymentMethod.mockResolvedValue({
+      id: 'pm_test',
+      payment_method_type: 'card',
+      last_four: '4242',
+    });
   });
 
   it('renders item details after loading', async () => {
@@ -198,9 +202,17 @@ describe('TradeOfferScreen', () => {
         payment_method_id: 'pm_test',
         cash_amount_cents: 10199,
         transaction_fee_cents: 199,
+        tax_amount_cents: 0, // MODULE-15.3-PART3 TAX-011: contract now includes tax_amount_cents
         buyer_subscription_status: 'active',
       });
-      expect(mockReplace).toHaveBeenCalledWith('TradeSuccess', { tradeId: 'trade-123' });
+      expect(mockReplace).toHaveBeenCalledWith('TradeSuccess', {
+        tradeId: 'trade-123',
+        role: 'buyer',
+        spUsed: 0,
+        spAmountDollars: 0,
+        remainingSP: 500,
+        listingType: 'accept_sp',
+      });
     });
   });
 });

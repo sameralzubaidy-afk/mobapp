@@ -30,6 +30,9 @@ describe('Referral Listing Bonus (REF-V2-008)', () => {
         referee_sp: 25,
         referrer_listing_sp: 25,
         referee_listing_sp: 10,
+        program_enabled: true,
+        first_trade_enabled: true,
+        first_listing_enabled: true,
       };
 
       (supabase.rpc as jest.Mock).mockResolvedValue({
@@ -44,37 +47,38 @@ describe('Referral Listing Bonus (REF-V2-008)', () => {
       expect(supabase.rpc).toHaveBeenCalledWith('get_referral_listing_config');
     });
 
-    it('should return default values when config is missing', async () => {
+    it('should fail loud when config is missing (no hardcoded defaults)', async () => {
       (supabase.rpc as jest.Mock).mockResolvedValue({
         data: null,
         error: null,
       });
 
-      const result = await ReferralRewardsService.getConfiguredRewardAmounts();
-
-      expect(result.referrer_listing_sp).toBe(25); // default
-      expect(result.referee_listing_sp).toBe(10); // default
+      await expect(ReferralRewardsService.getConfiguredRewardAmounts()).rejects.toThrow(
+        /configuration unavailable/i
+      );
     });
 
-    it('should handle RPC errors gracefully', async () => {
+    it('should fail loud on RPC errors (no hardcoded defaults)', async () => {
       (supabase.rpc as jest.Mock).mockResolvedValue({
         data: null,
-        error: { message: 'RPC failed' },
+        error: { message: 'SP_CONFIG_MISSING: referral_reward_referrer_sp' },
       });
 
-      const result = await ReferralRewardsService.getConfiguredRewardAmounts();
-
-      expect(result.referrer_listing_sp).toBe(25); // default
-      expect(result.referee_listing_sp).toBe(10); // default
+      await expect(ReferralRewardsService.getConfiguredRewardAmounts()).rejects.toThrow(
+        /configuration unavailable/i
+      );
     });
   });
 
   describe('Feature Toggle Validation', () => {
     it('should check if listing bonus is enabled', async () => {
       (supabase.rpc as jest.Mock).mockResolvedValue({
-        referrer_listing_sp: 25,
-        referee_listing_sp: 10,
-        first_listing_enabled: true,
+        data: {
+          referrer_listing_sp: 25,
+          referee_listing_sp: 10,
+          first_listing_enabled: true,
+        },
+        error: null,
       });
 
       const result = await ReferralRewardsService.isListingBonusEnabled();
@@ -98,12 +102,12 @@ describe('Referral Listing Bonus (REF-V2-008)', () => {
       expect(result).toBe(false);
     });
 
-    it('should default to true when config is missing', async () => {
+    it('should fail loud when config is missing (no default enable)', async () => {
       (supabase.rpc as jest.Mock).mockResolvedValue(null);
 
-      const result = await ReferralRewardsService.isListingBonusEnabled();
-
-      expect(result).toBe(true); // default enabled
+      await expect(ReferralRewardsService.isListingBonusEnabled()).rejects.toThrow(
+        /configuration unavailable/i
+      );
     });
   });
 
@@ -255,8 +259,13 @@ describe('Referral Listing Bonus (REF-V2-008)', () => {
   describe('Amount Configuration', () => {
     it('should use admin-configured amounts', async () => {
       const mockConfig = {
+        referrer_sp: 25,
+        referee_sp: 10,
         referrer_listing_sp: 100,
         referee_listing_sp: 50,
+        program_enabled: true,
+        first_trade_enabled: true,
+        first_listing_enabled: true,
       };
 
       (supabase.rpc as jest.Mock).mockResolvedValue({
