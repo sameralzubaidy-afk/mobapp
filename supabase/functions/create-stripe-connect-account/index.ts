@@ -184,7 +184,11 @@ serve(async (req: Request): Promise<Response> => {
         country: 'US',
         email: userEmail,
         capabilities: {
-          transfers: { requested: true }
+          transfers: { requested: true },
+          // R4 (2026-08-09): Direct charges require card_payments on the
+          // connected account (seller becomes merchant of record; Stripe debits
+          // the seller first on disputes). Additive — existing accounts unchanged.
+          card_payments: { requested: true }
         },
         business_type: 'individual',
         metadata: {
@@ -258,7 +262,8 @@ serve(async (req: Request): Promise<Response> => {
           is_primary: false,
           is_verified: false,
           stripe_onboarding_complete: false,
-          stripe_payouts_enabled: false
+          stripe_payouts_enabled: false,
+          stripe_charges_enabled: false
         })
         .select()
         .single();

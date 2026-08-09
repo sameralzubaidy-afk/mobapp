@@ -42,13 +42,13 @@ const EVENT_COPY: Record<string, { title: string; body: (data?: Record<string, u
   payout_initiated:   { title: 'Payout Started',     body: () => 'Your seller payout has been initiated.' },
   payout_requires_action: {
     title: 'Payout Action Required',
-    body: (data) => `Your ${data?.listing_title || 'item'} sold! Add a payout method to receive your $${((data?.amount_cents || 0) / 100).toFixed(2)}.`,
+    body: (data) => `Your ${data?.listing_title || 'item'} sold! Add a payout method to receive your $${((Number(data?.amount_cents) || 0) / 100).toFixed(2)}.`,
   },
   payout_sent:        { title: 'Payout Sent!',       body: () => 'Your earnings have been sent to your account.' },
   payout_failed:      { title: 'Payout Failed',      body: () => 'There was an issue sending your payout.' },
   dispute_resolved:   { title: 'Dispute Resolved',   body: () => 'An admin has resolved the dispute on your trade.' },
-  ac_reminder_24h:    { title: 'Auto-Complete Soon', body: (data) => `Your trade for "${data?.listing_title || 'item'}" auto-completes in 24h. Got it? Tap 'I Got It'.` },
-  ac_reminder_2h:     { title: 'Auto-Complete Soon', body: (data) => `"${data?.listing_title || 'item'}" trade auto-completes in 2 hours.` },
+  ac_reminder_24h:    { title: 'Auto-Complete Soon', body: (data) => `Your trade for "${data?.listing_title || 'item'}" auto-completes in ${data?.hours_remaining || 24}h. Got it? Tap 'I Got It'.` },
+  ac_reminder_2h:     { title: 'Auto-Complete Soon', body: (data) => `"${data?.listing_title || 'item'}" trade auto-completes in ${data?.hours_remaining || 2} hours.` },
 };
 
 function errResp(status: number, code: string, message: string) {

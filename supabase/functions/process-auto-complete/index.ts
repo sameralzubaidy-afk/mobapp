@@ -12,6 +12,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
+import { logFinancialAudit } from '../_shared/audit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -125,6 +126,23 @@ serve(async (req) => {
               const msg = taxErr instanceof Error ? taxErr.message : 'Unknown error';
               console.error(`[process-auto-complete] Tax mark error for ${trade.id}:`, msg);
             }
+
+            // N2 — Idempotency & Audit: auto-complete capture.
+            logFinancialAudit(supabase, {
+              mutationType: 'payment_captured',
+              entityType: 'trade',
+              entityId: trade.id,
+              afterState: { stripe_payment_intent_id: piId, stripe_charge_id: chargeId, source: 'auto_complete' },
+              amountCents: cashCents,
+              idempotencyKey: `capture_${trade.id}`,
+            });
+            logFinancialAudit(supabase, {
+              mutationType: 'tax_collected',
+              entityType: 'trade',
+              entityId: trade.id,
+              afterState: { stripe_charge_id: chargeId },
+              idempotencyKey: `tax_collected_${trade.id}`,
+            });
 
             captureResults.push({ trade_id: trade.id, capture_success: true });
           } else {

@@ -27,6 +27,7 @@ type SyncedMethod = {
   chargesEnabled: boolean;
   stripeOnboardingComplete: boolean;
   stripePayoutsEnabled: boolean;
+  stripeChargesEnabled: boolean;
   isVerified: boolean;
 };
 
@@ -108,7 +109,7 @@ serve(async (req: Request): Promise<Response> => {
 
     let query = supabase
       .from('seller_payout_methods')
-      .select('id, user_id, method_type, stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled, is_verified')
+      .select('id, user_id, method_type, stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled, stripe_charges_enabled, is_verified')
       .eq('user_id', user.id)
       .eq('method_type', 'stripe_connect')
       .not('stripe_account_id', 'is', null);
@@ -165,12 +166,14 @@ serve(async (req: Request): Promise<Response> => {
 
       const nextStripeOnboardingComplete = detailsSubmitted;
       const nextStripePayoutsEnabled = payoutsEnabled;
+      const nextStripeChargesEnabled = chargesEnabled;
       const nextIsVerified = payoutsEnabled;
 
       // Update only when needed
       const needsUpdate =
         method.stripe_onboarding_complete !== nextStripeOnboardingComplete ||
         method.stripe_payouts_enabled !== nextStripePayoutsEnabled ||
+        method.stripe_charges_enabled !== nextStripeChargesEnabled ||
         method.is_verified !== nextIsVerified;
 
       if (needsUpdate) {
@@ -179,6 +182,7 @@ serve(async (req: Request): Promise<Response> => {
           .update({
             stripe_onboarding_complete: nextStripeOnboardingComplete,
             stripe_payouts_enabled: nextStripePayoutsEnabled,
+            stripe_charges_enabled: nextStripeChargesEnabled,
             is_verified: nextIsVerified,
             updated_at: new Date().toISOString(),
           })
@@ -201,6 +205,7 @@ serve(async (req: Request): Promise<Response> => {
         chargesEnabled,
         stripeOnboardingComplete: nextStripeOnboardingComplete,
         stripePayoutsEnabled: nextStripePayoutsEnabled,
+        stripeChargesEnabled: nextStripeChargesEnabled,
         isVerified: nextIsVerified,
       });
     }

@@ -7,6 +7,7 @@ import {
   validateStripePaymentMethodId,
 } from '../_shared/stripe-payment-method-guard.ts';
 import { logTradeEvent } from '../_shared/trade-events.ts';
+import { logFinancialAudit } from '../_shared/audit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -199,8 +200,9 @@ serve(async (req) => {
     if (trade.stripe_payment_intent_id) {
       console.log('[trade-payment] D-30: pre-auth capture path, PI=', trade.stripe_payment_intent_id);
 
-      // Trade already in_progress (set by create-trade-offer). Status stays in_progress.
-        .eq('id', trade.id);
+      // Trade is already in_progress (set at accept) — status stays in_progress.
+      // (FIX 2026-08-09: removed an orphaned `.eq('id', trade.id)` that had no
+      // preceding statement and broke compilation.)
 
       // SP: already reserved at offer time via fn_reserve_sp_on_offer trigger.
       // No additional SP action needed — reservation + ledger entry handled by trigger.
@@ -218,6 +220,15 @@ serve(async (req) => {
           .from('trades')
           .update({ status: 'payment_failed', last_status_change_at: new Date().toISOString(), updated_at: new Date().toISOString() })
           .eq('id', trade.id);
+        // N2 — Idempotency & Audit: capture failure is audited.
+        logFinancialAudit(supabaseClient, {
+          mutationType: 'payment_capture_failed',
+          entityType: 'trade',
+          entityId: trade.id,
+          actorId: requestUser.id,
+          afterState: { status: 'payment_failed', stripe_payment_intent_id: trade.stripe_payment_intent_id },
+          idempotencyKey: `capture_failed_${trade.id}`,
+        });
         const msg = captureErr?.raw?.message ?? captureErr?.message ?? 'Payment capture failed';
         return new Response(JSON.stringify({ error: msg, code: 'CAPTURE_FAILED' }), {
           status: 402,
@@ -248,6 +259,16 @@ serve(async (req) => {
       await logTradeEvent(supabaseClient, trade.id, 'offer_accepted', sellerIdForEvent, {
         stripe_payment_intent_id: trade.stripe_payment_intent_id,
         capture_path: 'd30_pre_auth',
+      });
+
+      // N2 — Idempotency & Audit: pre-auth hold captured (idempotent via key).
+      logFinancialAudit(supabaseClient, {
+        mutationType: 'payment_captured',
+        entityType: 'trade',
+        entityId: trade.id,
+        actorId: requestUser.id,
+        afterState: { stripe_payment_intent_id: trade.stripe_payment_intent_id, status: 'in_progress', capture_path: 'd30_pre_auth' },
+        idempotencyKey: `capture_${trade.id}`,
       });
 
       return new Response(
@@ -457,17 +478,12 @@ serve(async (req) => {
       });
     }
 
-    // 6) Mark trade as in_progress (D-30: 'payment_processing' deprecated)
-    await supabaseClient
-      .from('trades')
-      .update({ 
-        status: 'in_progress', 
-        last_status_change_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', trade.id);
-
-    // 7) Create PaymentIntent (Uncaptured for atomicity)
+    // 6) Create PaymentIntent (Uncaptured for atomicity)
+    // N2 fix: the trade stays 'pending' here — it is flipped to 'in_progress'
+    // only in step 8 AFTER capture succeeds. Previously this step set
+    // in_progress BEFORE the PI was created/captured; a crash in between left a
+    // trade 'in_progress' with no PI, and a retry hit the idempotent
+    // short-circuit and returned success without ever paying.
     console.log('[trade-payment] Creating PaymentIntent (manual capture) for amount:', cashAmountCents);
     const paymentIntent = await stripe.paymentIntents.create({
       amount: cashAmountCents,
@@ -478,10 +494,12 @@ serve(async (req) => {
       capture_method: 'manual', // We will capture only if SP debit succeeds
       off_session: false,
       automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+      idempotencyKey: `pi_trade_${trade.id}`,
       metadata: {
         supabase_trade_id: trade.id,
         buyer_id: trade.buyer_id,
         seller_id: trade.seller_id,
+        idempotency_key: `pi_trade_${trade.id}`,
       },
     });
 
@@ -706,6 +724,16 @@ serve(async (req) => {
       .from('items')
       .update({ status: 'pending', updated_at: new Date().toISOString() })
       .eq('id', trade.listing_id);
+
+    // N2 — Idempotency & Audit: payment captured (legacy path).
+    logFinancialAudit(supabaseClient, {
+      mutationType: 'payment_captured',
+      entityType: 'trade',
+      entityId: trade.id,
+      actorId: requestUser.id,
+      afterState: { stripe_payment_intent_id: paymentIntent.id, status: 'in_progress', capture_path: 'legacy' },
+      idempotencyKey: `capture_${trade.id}`,
+    });
 
     console.log('[trade-payment] Trade payment successful:', trade.id);
 

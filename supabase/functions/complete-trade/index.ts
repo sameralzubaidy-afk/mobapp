@@ -3,6 +3,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
 import { logTradeEvent } from '../_shared/trade-events.ts';
+import { logFinancialAudit } from '../_shared/audit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -143,7 +144,7 @@ serve(async (req) => {
     const svcClient = createClient(supabaseUrl!, supabaseServiceKey!);
     const { data: tradeWithPi } = await svcClient
       .from('trades')
-      .select('id, stripe_payment_intent_id, cash_amount_cents, status, stripe_refund_id')
+      .select('id, stripe_payment_intent_id, cash_amount_cents, status, stripe_refund_id, sp_amount, seller_transaction_fee_cents')
       .eq('id', tradeId)
       .single();
 
@@ -176,6 +177,25 @@ serve(async (req) => {
               console.error(`[complete-trade] Tax mark error (non-fatal): ${msg}`);
               // Non-fatal — capture succeeded, tax can be reconciled later
             }
+
+            // N2 — Idempotency & Audit: money captured.
+            logFinancialAudit(svcClient, {
+              mutationType: 'payment_captured',
+              entityType: 'trade',
+              entityId: tradeId,
+              actorId: user.id,
+              afterState: { stripe_payment_intent_id: piId, stripe_capture_id: stripeCaptureId, status: 'completed' },
+              amountCents: cashCents,
+              idempotencyKey: `capture_${tradeId}`,
+            });
+            logFinancialAudit(svcClient, {
+              mutationType: 'tax_collected',
+              entityType: 'trade',
+              entityId: tradeId,
+              actorId: user.id,
+              afterState: { stripe_capture_id: stripeCaptureId },
+              idempotencyKey: `tax_collected_${tradeId}`,
+            });
           } else {
             // Capture did not succeed — mark tax as capture_failed, do NOT complete trade
             console.error(`[complete-trade] PI capture returned status: ${capturedPi.status}`);
@@ -277,6 +297,40 @@ serve(async (req) => {
       final_status: data.status,
       stripe_capture_id: stripeCaptureId,
     });
+
+    // N2 — Idempotency & Audit: completion + SP release transitions.
+    const spAmount = (tradeWithPi?.sp_amount as number) ?? 0;
+    const sellerFeeCents = (tradeWithPi?.seller_transaction_fee_cents as number) ?? 0;
+    logFinancialAudit(svcClient, {
+      mutationType: 'trade_completed',
+      entityType: 'trade',
+      entityId: tradeId,
+      actorId: user.id,
+      afterState: { final_status: data.status, stripe_capture_id: stripeCaptureId },
+      idempotencyKey: `trade_completed_${tradeId}`,
+    });
+    if (spAmount > 0) {
+      logFinancialAudit(svcClient, {
+        mutationType: 'sp_released',
+        entityType: 'trade',
+        entityId: tradeId,
+        actorId: user.id,
+        afterState: { sp_amount: spAmount, to: 'seller_pending', released_at: 'completion' },
+        amountCents: spAmount,
+        idempotencyKey: `sp_release_${tradeId}`,
+      });
+    }
+    if (sellerFeeCents > 0) {
+      logFinancialAudit(svcClient, {
+        mutationType: 'seller_fee_deducted',
+        entityType: 'trade',
+        entityId: tradeId,
+        actorId: user.id,
+        afterState: { seller_transaction_fee_cents: sellerFeeCents, deducted_at: 'payout' },
+        amountCents: -sellerFeeCents,
+        idempotencyKey: `seller_fee_${tradeId}`,
+      });
+    }
 
     // Notify seller that the buyer confirmed receipt
     try {

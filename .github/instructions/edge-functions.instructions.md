@@ -21,7 +21,7 @@ Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP
 - BP-27 Duplicate enforcement — search for DB triggers/RPCs that duplicate an Edge Function's business rule check.
 - BP-28 Admin-configurable values — Edge Functions must fail loud (`CONFIG_UNAVAILABLE`), never silently fall back.
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
-- BP-41 Edge Function deploys — every relative import must be in the `files` array, including transitive ones.
+- BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`) — the MCP bundler drops bare `_shared/...` entries.
 - Backward compatibility — API response shapes are additive-only; new request params need defaults for old clients; deploy order is migration-first; version the contract if a break is unavoidable.
 
 ## HP-3: Supabase auth/RLS rule (be explicit)
@@ -157,11 +157,11 @@ Rules:
 4. Audit sibling functions that construct `SubscriptionCreateParams` for the same pattern.
 
 ## BP-41: Verify All Relative Imports Are Included in the Edge Function Deploy `files` Array
-Problem: `mcp_supabase_deploy_edge_function`'s `files` array must include ALL files the entrypoint imports via relative paths, including transitive ones. Missing a dependency causes "Module not found" deploy failures.
+Problem: `mcp_supabase_deploy_edge_function`'s `files` array must include ALL files the entrypoint imports via relative paths, including transitive ones. Missing a dependency causes "Module not found" deploy failures. MCP-specific gotcha: file names must use the `functions/` prefix relative to the Supabase functions root — the MCP bundler DROPS bare `_shared/<file>.ts` entries, so a shared dep uploaded without the `functions/` prefix fails with `Module not found ".../_shared/<file>.ts"`.
 
 Rules:
 1. Before deploying, scan the entrypoint for ALL relative imports (including transitive ones).
-2. Use the correct relative file name: `"_shared/<file>.ts"` (relative to the Supabase functions root, not the entrypoint).
+2. Name every file relative to the Supabase functions root WITH the `functions/` prefix: entrypoint `functions/<name>/index.ts` and shared deps `functions/_shared/<file>.ts`. Do NOT use bare `_shared/<file>.ts` — the MCP bundler drops it and the deploy fails "Module not found".
 3. Deploy the entrypoint and dependencies in a single call — do not deploy them separately.
-4. After a "Module not found" failure, re-invoke the deploy with ALL dependency files included.
+4. After a "Module not found" failure, re-invoke the deploy with ALL dependency files included, double-checking the `functions/` prefix on each.
 5. Verify the deployment succeeded by checking the returned `version` incremented.

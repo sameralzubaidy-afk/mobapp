@@ -20,6 +20,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@12.0.0';
+import { logFinancialAudit } from '../_shared/audit.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -252,6 +253,37 @@ serve(async (req) => {
   if (!rpcData?.success) {
     console.error(`[trade-refund] RPC rejected:`, rpcData);
     return jsonError(rpcData?.message ?? 'Refund rejected', rpcData?.code ?? 'REFUND_REJECTED', 409, rpcData ?? undefined);
+  }
+
+  // N2 — Idempotency & Audit: refund issued (keyed by Stripe refund id so a
+  // retry of the SAME refund can never double-log, while distinct partial refunds
+  // each get their own row).
+  logFinancialAudit(adminClient, {
+    mutationType: stripeAction === 'cancelled_uncaptured' ? 'payment_cancelled' : 'refund_issued',
+    entityType: 'trade',
+    entityId: trade_id,
+    actorId: effectiveAdminId ?? null,
+    afterState: {
+      stripe_refund_id: stripeRefundId,
+      refund_price_cents: rp,
+      refund_fee_cents: rf,
+      refund_tax_cents: rt,
+      status: stripeRefundStatus,
+      stripe_action: stripeAction,
+    },
+    amountCents: totalRefundCents,
+    idempotencyKey: stripeRefundId ? `refund_${stripeRefundId}` : `refund_${trade_id}_noop`,
+  });
+  if (rt > 0) {
+    logFinancialAudit(adminClient, {
+      mutationType: 'tax_refunded',
+      entityType: 'trade',
+      entityId: trade_id,
+      actorId: effectiveAdminId ?? null,
+      afterState: { refund_tax_cents: rt, stripe_refund_id: stripeRefundId },
+      amountCents: rt,
+      idempotencyKey: stripeRefundId ? `tax_refunded_${stripeRefundId}` : `tax_refunded_${trade_id}_noop`,
+    });
   }
 
   // ── Audit log ───────────────────────────────────────────────────────────

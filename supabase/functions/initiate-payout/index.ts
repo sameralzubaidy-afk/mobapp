@@ -12,6 +12,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.1';
 import Stripe from 'npm:stripe@12.0.0';
 import { verifyStripeAccountOwnership } from '../_shared/verify-stripe-ownership.ts';
+import { logFinancialAudit } from '../_shared/audit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -176,6 +177,16 @@ serve(async (req) => {
         .eq('id', trade_id);
     }
 
+    // N2 — Idempotency & Audit: payout requires action (no connect account).
+    logFinancialAudit(svcClient, {
+      mutationType: 'payout_requires_action',
+      entityType: 'trade',
+      entityId: trade_id,
+      actorId: trade.seller_id,
+      afterState: { payout_status: 'requires_action', reason: 'no_connect_account' },
+      idempotencyKey: `payout_requires_action_${trade_id}`,
+    });
+
     // Send BOTH in-app and push notification to seller directly
     // (bypasses send-trade-notifications which was silently returning sent=0)
     const efBaseUrl = `${supabaseUrl}/functions/v1`;
@@ -268,6 +279,17 @@ serve(async (req) => {
     updated_at:           new Date().toISOString(),
   }).eq('id', trade_id);
 
+  // N2 — Idempotency & Audit: payout initiated.
+  logFinancialAudit(svcClient, {
+    mutationType: 'payout_initiated',
+    entityType: 'trade',
+    entityId: trade_id,
+    actorId: trade.seller_id,
+    afterState: { payout_status: 'processing', amount_cents: payoutAmountCents },
+    amountCents: payoutAmountCents,
+    idempotencyKey: `payout_${trade_id}`,
+  });
+
   const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
 
   try {
@@ -298,6 +320,17 @@ serve(async (req) => {
       metadata: { transfer_id: transfer.id, amount_cents: payoutAmountCents },
     });
 
+    // N2 — Idempotency & Audit: payout paid.
+    logFinancialAudit(svcClient, {
+      mutationType: 'payout_paid',
+      entityType: 'trade',
+      entityId: trade_id,
+      actorId: trade.seller_id,
+      afterState: { stripe_transfer_id: transfer.id, amount_cents: payoutAmountCents, payout_status: 'paid' },
+      amountCents: payoutAmountCents,
+      idempotencyKey: `payout_${trade_id}`,
+    });
+
     // Notify seller
     await svcClient.from('notification_log').insert({
       user_id:           trade.seller_id,
@@ -324,6 +357,16 @@ serve(async (req) => {
     await svcClient.from('trade_events').insert({
       trade_id, event_type: 'payout_failed', actor_id: trade.seller_id,
       metadata: { error: msg },
+    });
+
+    // N2 — Idempotency & Audit: payout failed.
+    logFinancialAudit(svcClient, {
+      mutationType: 'payout_failed',
+      entityType: 'trade',
+      entityId: trade_id,
+      actorId: trade.seller_id,
+      afterState: { payout_status: 'failed', error: msg },
+      idempotencyKey: `payout_failed_${trade_id}`,
     });
 
     return errResp(502, 'STRIPE_TRANSFER_FAILED', `Payout failed: ${msg}`);

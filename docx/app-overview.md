@@ -299,6 +299,7 @@ Pass It Up operates on a **freemium subscription model** with two active tiers (
 - **Email**: SendGrid
 - **SMS**: Twilio (phone verification)
 - **Testing**: Jest (unit), Maestro (UI flows), E2E (Supabase integration)
+- **Reliability (N2)**: Every payment / Swap Points / fee / tax state transition is **idempotent** (a retried mutation cannot double-charge, double-issue SP, or double-log) and is written to a unified `financial_audit_log` audit journal (see SYSTEM_REQUIREMENTS_V2 §8B).
 
 ### Key Flows (Implemented — from flow-registry.md)
 1. **FLOW-01**: Auth (email/password signup, login, social OAuth: Google/Facebook/Apple, phone verification)
@@ -306,13 +307,14 @@ Pass It Up operates on a **freemium subscription model** with two active tiers (
 3. **FLOW-04**: Listings (photo-first create, bulk create, edit, delete, safety review)
 4. **FLOW-06**: Discovery (search, filters, favorites, standard list/grid feed)
 5. **FLOW-07**: Cart & Bundling (single-seller cart, bundle CTA, "More from this seller" discovery, different-seller modal, seller masking)
-6. **FLOW-08**: Trading (checkout, Stripe payment, two-step completion, trade status state machine)
+6. **FLOW-08**: Trading — auth-and-capture hold at checkout (Stripe authorization placed, not captured), 48-hour offer window (unaccepted offers auto-cancel and release the hold), 72-hour pickup window (drives the auto-complete deadline), capture on "I Got It", 7-day admin guardrail (offer + pickup windows must total under 168h — hard block), and configurable in-app + push reminders during both windows
 7. **FLOW-10/11**: Swap Points (wallet, earn/spend ledger, pending→release lifecycle)
 8. **FLOW-12**: Subscriptions (Stripe integration, purchase, cancel, trial, grace period)
 9. **FLOW-14**: Messaging (realtime chat between buyer and seller)
 10. **FLOW-13**: Referrals (referral codes, SP rewards)
 11. **FLOW-15**: Safety & Moderation (Google Vision AI, CPSC recall checks, reporting)
 12. **FLOW-17**: Notifications (push via FCM, in-app, email)
+13. **N2 (Cross-Cutting)**: Idempotency & audit — every payment/SP/fee/tax transition is retry-safe (no double-charge / double-issue / double-log) and logged to the unified `financial_audit_log` journal; Stripe PaymentIntents use deterministic idempotency keys, and `trades.stripe_payment_intent_id` / `trade_refunds.stripe_refund_id` are unique (SYSTEM_REQUIREMENTS_V2 §8B)
 
 ### Post-MVP Flows (Planned — Not Yet Implemented)
 - **Delivery Service**: Optional same-day local delivery

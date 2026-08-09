@@ -16,6 +16,23 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
 import { logTradeEvent } from '../_shared/trade-events.ts';
 import { resolveSellerProfile } from '../_shared/node.ts';
+import { logFinancialAudit } from '../_shared/audit.ts';
+
+// N2 — Idempotency & Audit: deterministic content hash used to build a stable
+// Stripe idempotency key per offer attempt. Two identical double-taps produce the
+// same key (Stripe dedupes to a single PaymentIntent); a legitimately different
+// offer (different SP/amount) produces a different key. djb2 — fast, stable, and
+// only used to build a key string, never for crypto.
+function hashContent(...parts: Array<string | number>): string {
+  let h = 5381;
+  for (const part of parts) {
+    const s = String(part);
+    for (let i = 0; i < s.length; i++) {
+      h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+    }
+  }
+  return h.toString(36);
+}
 
 // D-31 (Option B, 2026-07-18): Supabase Edge Runtime global for background tasks.
 // Not part of default Deno types, so it's declared here. See docs/flow-registry.md
@@ -606,6 +623,10 @@ serve(async (req) => {
       const itemTitle = (item as { title?: string }).title ?? 'item';
       try {
         const tStripeStart = Date.now();
+        // N2 idempotency: deterministic key per (buyer, item, offer content). A
+        // double-tap/retry of the SAME offer dedupes to one PaymentIntent on
+        // Stripe's side — no orphaned duplicate auth holds.
+        const piKey = `pi_offer_${buyerId}_${itemId}_${hashContent(cashCents, spAmt, txFeeCents, finalTaxCents, payment_method_id ?? '')}`;
         const pi = await stripe.paymentIntents.create({
           amount: stripeAmount,
           currency: 'usd',
@@ -615,6 +636,7 @@ serve(async (req) => {
           capture_method: 'manual',
           off_session: true,
           confirm: true,
+          idempotencyKey: piKey,
           description: `Kids P2P · ${itemTitle.slice(0, 60)}`,
           metadata: {
             type: 'trade_offer_hold',
@@ -626,6 +648,7 @@ serve(async (req) => {
             platform_fee_cents: String(txFeeCents),
             tax_amount_cents: String(finalTaxCents),
             sp_amount: String(spAmt),
+            idempotency_key: piKey,
           },
         });
         console.log(`[perf][${itemId}] stripeCreate done t=${Date.now() - tStart}ms (stripe call itself took ${Date.now() - tStripeStart}ms)`);
@@ -672,6 +695,31 @@ serve(async (req) => {
 
     if (tradeError || !trade) {
       console.error(`[create-trade-offer] req=${requestId} trade insert error for ${itemId}:`, tradeError);
+      // N2 idempotency: a concurrent double-tap can hit the unique index on
+      // trades.stripe_payment_intent_id (both taps deduped to the same PI on
+      // Stripe's side). Replay the winner instead of erroring or cancelling the
+      // shared PaymentIntent.
+      if (tradeError?.code === '23505') {
+        const { data: existing } = await supabase
+          .from('trades')
+          .select('id, status')
+          .eq('buyer_id', buyerId)
+          .eq('listing_id', itemId)
+          .in('status', ACTIVE_STATUSES)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (existing) {
+          console.warn(`[create-trade-offer] req=${requestId} duplicate offer (idempotent replay) trade=${(existing as { id: string }).id}`);
+          return {
+            trade_id: (existing as { id: string }).id,
+            status: (existing as { status: string }).status,
+            sp_amount: spAmt,
+            cash_amount_cents: cashCents,
+            idempotent: true,
+          };
+        }
+      }
       if (paymentIntentId) {
         try { await stripe.paymentIntents.cancel(paymentIntentId); } catch { /* ignore rollback error */ }
       }
@@ -698,6 +746,54 @@ serve(async (req) => {
     logTradeEvent(supabase, trade.id, 'offer_submitted', buyerId, {
       item_id: itemId, sp_amount: spAmt, cash_amount_cents: cashCents, tax_amount_cents: finalTaxCents, request_id: requestId,
     }).catch(() => {});
+
+    // N2 — Idempotency & Audit: audit the offer + fee + payment-intent + tax
+    // transitions (best-effort, idempotent via deterministic keys).
+    logFinancialAudit(supabase, {
+      mutationType: 'offer_created',
+      entityType: 'trade',
+      entityId: trade.id,
+      actorId: buyerId,
+      afterState: { item_id: itemId, sp_amount: spAmt, cash_amount_cents: cashCents - txFeeCents, status: 'pending' },
+      idempotencyKey: `offer_${trade.id}`,
+      nodeId: sellerNodeId,
+    });
+    if (txFeeCents > 0) {
+      logFinancialAudit(supabase, {
+        mutationType: 'buyer_fee_charged',
+        entityType: 'trade',
+        entityId: trade.id,
+        actorId: buyerId,
+        afterState: { platform_fee_cents: txFeeCents, charged_at_offer: true },
+        amountCents: txFeeCents,
+        idempotencyKey: `fee_${trade.id}`,
+        nodeId: sellerNodeId,
+      });
+    }
+    if (paymentIntentId) {
+      logFinancialAudit(supabase, {
+        mutationType: 'payment_intent_created',
+        entityType: 'trade',
+        entityId: trade.id,
+        actorId: buyerId,
+        afterState: { stripe_payment_intent_id: paymentIntentId, capture_method: 'manual', amount_cents: cashCents + finalTaxCents },
+        amountCents: cashCents + finalTaxCents,
+        idempotencyKey: `pi_${trade.id}`,
+        nodeId: sellerNodeId,
+      });
+    }
+    if (finalTaxCents > 0) {
+      logFinancialAudit(supabase, {
+        mutationType: 'tax_quoted',
+        entityType: 'trade',
+        entityId: trade.id,
+        actorId: buyerId,
+        afterState: { tax_amount_cents: finalTaxCents, tax_rate: vTaxRate, taxable_amount_cents: vTaxableAmountCents },
+        amountCents: finalTaxCents,
+        idempotencyKey: `tax_quoted_${trade.id}`,
+        nodeId: sellerNodeId,
+      });
+    }
 
     return { trade_id: trade.id, status: trade.status, sp_amount: spAmt, cash_amount_cents: cashCents };
   }
@@ -986,6 +1082,42 @@ serve(async (req) => {
       item_id: itemId, sp_amount: spAmt, cash_amount_cents: cashCents, tax_amount_cents: finalTaxCents, request_id: requestId,
     }).catch(() => {});
 
+    // N2 — Idempotency & Audit: bundle phase-1 audit (offer + fee + tax quoted).
+    // The PaymentIntent audit is written in Phase 2 once the hold is attached.
+    logFinancialAudit(supabase, {
+      mutationType: 'offer_created',
+      entityType: 'trade',
+      entityId: trade.id,
+      actorId: buyerId,
+      afterState: { item_id: itemId, sp_amount: spAmt, cash_amount_cents: cashCents - txFeeCents, status: 'pending', bundle_id: bundle_id ?? null },
+      idempotencyKey: `offer_${trade.id}`,
+      nodeId: sellerNodeId,
+    });
+    if (txFeeCents > 0) {
+      logFinancialAudit(supabase, {
+        mutationType: 'buyer_fee_charged',
+        entityType: 'trade',
+        entityId: trade.id,
+        actorId: buyerId,
+        afterState: { platform_fee_cents: txFeeCents, charged_at_offer: true, bundle_id: bundle_id ?? null },
+        amountCents: txFeeCents,
+        idempotencyKey: `fee_${trade.id}`,
+        nodeId: sellerNodeId,
+      });
+    }
+    if (finalTaxCents > 0) {
+      logFinancialAudit(supabase, {
+        mutationType: 'tax_quoted',
+        entityType: 'trade',
+        entityId: trade.id,
+        actorId: buyerId,
+        afterState: { tax_amount_cents: finalTaxCents, tax_rate: vTaxRate, taxable_amount_cents: vTaxableAmountCents },
+        amountCents: finalTaxCents,
+        idempotencyKey: `tax_quoted_${trade.id}`,
+        nodeId: sellerNodeId,
+      });
+    }
+
     return {
       trade_id: trade.id,
       status: trade.status,
@@ -1074,6 +1206,9 @@ serve(async (req) => {
     const bundleFeeMode = oneFeePerBundle;
     try {
       const tStripeStart = Date.now();
+      // N2 idempotency: deterministic key per (bundle, item, hold content) so a
+      // re-run of this background job cannot create a second orphaned hold.
+      const piKey = `pi_bundle_${bundle_id ?? ''}_${itemId}_${hashContent(stripeAmount, platformFeeCents, taxCents, jobSpAmount)}`;
       const pi = await stripe.paymentIntents.create({
         amount: stripeAmount,
         currency: 'usd',
@@ -1083,6 +1218,7 @@ serve(async (req) => {
         capture_method: 'manual',
         off_session: true,
         confirm: true,
+        idempotencyKey: piKey,
         description: `Kids P2P · Bundle · ${listingTitle.slice(0, 50)}`,
         metadata: {
           type: 'trade_offer_hold',
@@ -1096,6 +1232,7 @@ serve(async (req) => {
           tax_amount_cents: String(taxCents),
           sp_amount: String(jobSpAmount),
           bundle_fee_mode: bundleFeeMode ? 'one_per_bundle' : 'per_item',
+          idempotency_key: piKey,
         },
       });
       console.log(`[perf][${itemId}] (bundle) background stripeCreate done in ${Date.now() - tStripeStart}ms`);
@@ -1124,6 +1261,17 @@ serve(async (req) => {
         try { await stripe.paymentIntents.cancel(pi.id); } catch { /* best-effort */ }
         return;
       }
+
+      // N2 — Idempotency & Audit: hold attached — audit payment_intent_created.
+      logFinancialAudit(supabase, {
+        mutationType: 'payment_intent_created',
+        entityType: 'trade',
+        entityId: tradeId,
+        actorId: buyerId,
+        afterState: { stripe_payment_intent_id: pi.id, capture_method: 'manual', amount_cents: stripeAmount, bundle_id: bundle_id ?? null },
+        amountCents: stripeAmount,
+        idempotencyKey: `pi_${tradeId}`,
+      });
     } catch (err: unknown) {
       const stripeErr = err as { raw?: { message?: string }; message?: string };
       const msg = stripeErr?.raw?.message ?? stripeErr?.message ?? 'Payment hold failed';

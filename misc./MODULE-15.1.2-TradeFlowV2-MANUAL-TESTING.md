@@ -1,7 +1,7 @@
 # MODULE-15.1.2 TradeFlowV2 — Manual Testing Guide
 
 **Source of truth:** `docx/TRADING-FLOW-V2.md` (v2.1, May 26 2026) · `Prompts/MODULE-15.2-cart-system.md` · `Prompts/MODULE-15.3-PART3-TAX-TASKS-RESTRUCTURED.md` · `Prompts/Done/MODULE-08-REVIEWS-RATINGS.md` · `docs/flow-registry.md` (FLOW-27)
-**Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine · Points Redemption · Bundle Fee Modes (per-item / one-fee) · Admin Partial Refunds · Payments Reconciliation · Navigation Consistency · Top Nav Header Patterns · Copy Rename (Trade Basket) · Admin Bundle Trade Views · Bundle Checkout Skips In-Progress Items (Buyer Notified)
+**Tasks covered:** Core Trade Flows · Payment Authorization · SP Behavior · Dispute Flow · Payout · Countdown Timers · Notifications · Completion CTAs · Safety UX · Seller Consequences · Bundle Flows · Cart System · Sales Tax Engine · Reviews & Ratings · Refund & Cancellation State Machine · Points Redemption · Bundle Fee Modes (per-item / one-fee) · Admin Partial Refunds · Payments Reconciliation · Navigation Consistency · Top Nav Header Patterns · Copy Rename (Trade Basket) · Admin Bundle Trade Views · Bundle Checkout Skips In-Progress Items (Buyer Notified) · R2 Auth-and-Capture + Pickup Window (7-day guardrail, pickup reminders)
 **Last updated:** 2026-08-01
 **Merged:** 2026-08-01 — This is now the **single canonical copy**. The root-level `MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` was merged into this file and marked DEPRECATED. All unique cases from both copies are preserved (A03–A04, K04–K10, M16–M20, O1-C17, Navigation Consistency S01–S15 → X01–X15, Flow Registry T01 → X16, U01–U05, V01–V14, W01–W12).
 **TC-L11 added:** 2026-08-01 — bundle checkout now notifies the buyer (branded OK modal) when one or more items are skipped because they already have an active/in-progress trade; the flow continues for eligible items (PARTIAL-SUCCESS).
@@ -246,6 +246,18 @@
 | | TC-W10 | Force Cancel succeeds for all trades in the bundle |
 | | TC-W11 | Status filter works in Bundle Trades view |
 | | TC-W12 | Tab toggle resets filters when switching views |
+| **R2 — New Implementation** | TC-D06 | Pickup window drives the auto-complete deadline (R2 — configurable) |
+| | TC-G05 | Pickup-window reminders to buyer (R2) |
+| **N2 — Idempotency & Audit (Cross-Cutting)** | TC-N2-C01 | Retried offer submission → exactly 1 PaymentIntent / 1 trade / 1 SP reservation / 1 audit row |
+| | TC-N2-C02 | Retried payout trigger → exactly 1 seller_payouts row / 1 Stripe transfer |
+| | TC-N2-C03 | Retried refund / duplicate refund webhook → exactly 1 refund, no double refund |
+| | TC-N2-C04 | Re-run SP release processor → no double-credit |
+| | TC-N2-C05 | Retried SP debit/credit on cancel → no double mutation |
+| | TC-N2-C06 | Admin SP adjustment double-click → single credit |
+| | TC-N2-C07 | Audit completeness — every payment/SP/fee/tax transition logged |
+| | TC-N2-C08 | Audit log insert-only + RLS (service-role/admin read) |
+| | TC-N2-C09 | Duplicate idempotency key → prior result, no partial write |
+| | TC-N2-C10 | Reconciliation — payments vs trade_refunds vs financial_audit_log |
 
 ---
 
@@ -982,9 +994,9 @@ SELECT public.rpc_release_pending_sp(200);
 
 ### passed TC-D01 · Auto-complete fires when buyer never taps I Got It
 
-**Ref:** TRADING-FLOW-V2 §7 Scenario S7, §9.2
+**Ref:** TRADING-FLOW-V2 §7 Scenario S7, §9.2 · R2 (2026-08-10)
 **Actors:** test-buyer + test-seller
-**Precondition:** QA fast-forwards the 48h auto-complete clock past expiry on an In Progress trade.
+**Precondition:** QA fast-forwards the auto-complete/pickup clock past expiry on an In Progress trade. The post-acceptance deadline is now sourced from the admin-configurable **pickup window** (`pickup_window_hours`, default 72h); auto-complete behavior is retained (owner decision 2026-08-09).
 
 **Objective:** Verify an undisputed In Progress trade auto-completes after its window.
 
@@ -1076,7 +1088,7 @@ SELECT public.rpc_process_expired_offers(100);
 3. Log in as **Buyer** and open the trade after it completes.
 
 **Expected Result:**
-- The buyer sees an auto-complete banner ("Auto-completing in [time]" + "Received it? Tap 'I Got It'").
+- The buyer sees an auto-complete banner ("Confirm pickup — auto-completing in [time]" + "Received it? Tap 'I Got It'").
 - The seller does not see the banner; instead sees "Buyer paid. Awaiting pickup confirmation."
 - Once completed, the banner is gone.
 
@@ -6327,3 +6339,290 @@ FROM items;
 | More from seller — Regression: Seller Info card unchanged (rating, Contact, View Profile) | TC-S22 |
 | More from seller — Regression: Trade Basket subtotal/total/bundle CTA layout unaffected | TC-S23 |
 | More from seller — Return-to-Cart navigation after adding item from filtered page | TC-S24 |
+
+---
+
+## Group R2 — New Implementation (Needs Testing)
+
+> **Status:** Newly implemented 2026-08-10 (R2 — Auth-and-Capture + Countdown State Machine).
+> These cases are **NOT yet executed**. They cover the new pickup-window deadline sourcing,
+> 7-day admin guardrail, and pickup reminders. They are kept in their own section (not mixed
+> with the tested groups) so what is already tested vs. newly implemented stays clear.
+
+### new TC-D06 · Pickup window drives the auto-complete deadline (R2 — configurable)
+
+**Ref:** R2 (2026-08-10) · SYSTEM_REQUIREMENTS_V2 §1.6 · /settings/trade-timing
+**Actors:** test-admin + test-buyer + test-seller
+**Precondition:** Migration `20260810000001_r2_auth_capture_countdown.sql` applied.
+
+**Objective:** Verify the post-acceptance deadline is sourced from the configurable pickup window (`pickup_window_hours`), not the legacy auto-complete key.
+
+**Steps:**
+1. In the admin portal open **/settings/trade-timing**; set **Pickup Window = 48** (offer timeout stays 48 → combined 96h ≤ 167h) and Save.
+2. As buyer, submit an offer; as seller, accept it.
+3. Read the trade row and confirm `auto_complete_at` ≈ accept time + 48h (not 72h).
+4. In admin, set **Pickup Window = 72**; submit + accept a new offer; confirm `auto_complete_at` ≈ accept time + 72h.
+5. (Optional) Confirm the buyer sees the pickup countdown banner and pickup reminders use the configured thresholds.
+
+**Expected Result:**
+- Changing `pickup_window_hours` changes the auto-complete deadline on NEW accepted trades with no code deploy.
+- SQL check: `SELECT id, status, auto_complete_at, created_at FROM trades WHERE status='in_progress' ORDER BY created_at DESC LIMIT 3;`
+
+---
+
+### new TC-G05 · Pickup-window reminders sent to buyer (R2)
+
+**Ref:** R2 (2026-08-10) · SYSTEM_REQUIREMENTS_V2 §1.6
+**Actors:** test-buyer
+**Precondition:** An In Progress trade exists; migration `20260810000001_r2_auth_capture_countdown.sql` applied; QA can advance time to the configured thresholds (defaults 24h / 2h before the pickup/auto-complete deadline).
+
+**Objective:** Verify the buyer receives two configurable pickup-window reminders (in-app + push) with no duplicates.
+
+**Steps:**
+1. Have an **In Progress** trade.
+2. Advance to the first threshold (24h before `auto_complete_at`); check in-app + push.
+3. Advance to the second threshold (2h before); check again.
+4. Re-run the processor (`SELECT public.rpc_send_pickup_reminders(100);`) — confirm no duplicate rows (the `pickup_reminder_1/2_sent_at` guard).
+5. (Optional) In admin, change `pickup_notif_1_hours_before` / `pickup_notif_2_hours_before` and confirm new trades remind at the new thresholds.
+
+**Expected Result:**
+- In-app + push at ~24h: "Confirm Pickup Soon — Confirm pickup for [Item] within 24 hours or the trade auto-completes."
+- In-app + push at ~2h: "Pickup Deadline Soon — [Item] auto-completes in 2 hours. Complete the trade to confirm pickup."
+- Reminders go to the **buyer only**; no third reminder; re-running the processor sends nothing new.
+
+---
+
+## Group N2 — Idempotency & Audit (Cross-Cutting)
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B (N2) · Migration `20260810000006_n2_idempotency_audit.sql`
+**Scope:** Every payment / Swap Points / fee / tax transition must be retry-safe (idempotent) and audited. A retried mutation must never double-charge, double-issue SP, or double-log. All cases below are **server-side** (SQL / EF retry) — no client changes were shipped; the app is unchanged and keeps working with the new guards.
+**Last added:** 2026-08-09
+
+### new TC-N2-C01 · Retried offer submission creates exactly ONE PaymentIntent, ONE trade, ONE SP reservation, ONE audit row
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-002 / SR-N2-003 · Migration `20260810000002`
+**Actors:** test-buyer (subscriber) + test-seller
+**Precondition:** `create-trade-offer` deployed with the N2 Stripe idempotency key; `idx_trades_stripe_payment_intent_id` unique index present.
+
+**Objective:** Verify a double-tap / network-retried offer submission cannot create a second PaymentIntent, a second trade, a second SP reservation, or a duplicate audit row.
+
+**Steps:**
+1. Log in as **Buyer** and submit an offer on a Cash Only item (any SP amount).
+2. Immediately re-submit the **identical** offer (simulate double-tap / client retry). Note: the duplicate-active-offer guard returns "You already have an active offer" for a sequential retry; for a truly concurrent double-tap, the unique index on `stripe_payment_intent_id` dedupes.
+3. Verify Stripe dashboard: exactly **one** PaymentIntent (auth hold) for this offer.
+4. Run SQL to count duplicates for this buyer+listing:
+```sql
+-- One trade, one PI, one SP reservation ledger entry, one audit row:
+SELECT count(*) AS trades FROM trades WHERE buyer_id='<buyer>' AND listing_id='<listing>' AND status IN ('pending','in_progress');
+SELECT count(*) AS pi FROM trades WHERE stripe_payment_intent_id='<pi_id>';
+SELECT count(*) AS sp_reserve FROM sp_ledger WHERE related_transaction_id='<trade_id>' AND transaction_type='spend_purchase';
+SELECT count(*) AS audit FROM financial_audit_log WHERE entity_id='<trade_id>' AND mutation_type='offer_created';
+```
+
+**Expected Result:**
+- Exactly **1** trade row, **1** PaymentIntent id attached, **1** `spend_purchase` reservation ledger entry, and **1** `offer_created` audit row per transition.
+- No orphaned duplicate PaymentIntent appears in the Stripe dashboard (deduped by the deterministic Stripe idempotency key).
+- The buyer is never double-charged.
+
+---
+
+### new TC-N2-C02 · Retried payout trigger produces exactly ONE seller_payouts row and ONE Stripe transfer
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-005
+**Actors:** test-admin (or cron) + test-seller
+**Precondition:** A completed, undisputed trade exists with a payout pending (`payout_status='processing'` or unset).
+
+**Objective:** Verify calling `initiate-payout` (or the payout trigger) twice cannot create a second payout row or a second Stripe transfer.
+
+**Steps:**
+1. Complete a trade; confirm a `seller_payouts` row exists and `trades.payout_idempotency_key` is set.
+2. Invoke `initiate-payout` twice for the same `trade_id` (e.g., trigger + manual retry).
+3. Check counts:
+```sql
+SELECT count(*) FROM seller_payouts WHERE trade_id='<trade_id>';
+SELECT count(*) FROM trades WHERE id='<trade_id>' AND stripe_transfer_id IS NOT NULL;
+```
+
+**Expected Result:**
+- Exactly **1** `seller_payouts` row and **1** Stripe transfer (`stripe_transfer_id` set once).
+- A `payout_initiated` / `payout_paid` audit row exists; re-running does not create a duplicate (keyed by `payout_<trade_id>`).
+
+---
+
+### new TC-N2-C03 · Retried refund / duplicate refund webhook → exactly ONE refund
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-006 · TC-R12 (refund idempotency regression)
+**Actors:** test-admin + test-buyer
+**Precondition:** A `completed` trade with a captured payment exists.
+
+**Objective:** Verify a duplicate refund attempt (double-click, or a re-delivered `charge.refunded` webhook) cannot double-refund, and the audit log stays at one `refund_issued` row.
+
+**Steps:**
+1. Issue a full refund via the admin (or `cancel_trade_v2` with refund). Confirm `trades.stripe_refund_id` is set.
+2. Re-deliver the same `charge.refunded` webhook (or retry the refund RPC) for the same PI.
+3. Check counts:
+```sql
+SELECT count(*) FROM trade_refunds WHERE stripe_refund_id='<refund_id>';
+SELECT count(*) FROM payments WHERE trade_id='<trade_id>' AND refunded_cents > 0;
+SELECT count(*) FROM financial_audit_log WHERE idempotency_key='refund_<refund_id>';
+```
+
+**Expected Result:**
+- Exactly **1** `trade_refunds` row per Stripe refund id (unique partial index blocks a duplicate).
+- No double refund on the payments ledger (`refunded_cents` never exceeds charged).
+- A single `refund_issued` audit row for that refund id.
+
+---
+
+### new TC-N2-C04 · Re-running the SP release processor cannot double-credit the seller
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-004 · TC-C05 (SP release)
+**Actors:** test-seller (subscriber)
+**Precondition:** A `completed` trade has `sp_earned_at_completion` set and `sp_released_at IS NULL`.
+
+**Objective:** Verify calling `rpc_release_pending_sp` twice does not double-credit the seller's pending balance or double-log.
+
+**Steps:**
+1. Complete a trade that earned SP for the seller; note `pending_balance` and `pending_sp_release_at`.
+2. Fast-forward `pending_sp_release_at` to now, then run `SELECT public.rpc_release_pending_sp(100);` **twice**.
+3. Check the seller wallet and ledger:
+```sql
+SELECT pending_balance FROM sp_wallets WHERE user_id='<seller>';
+SELECT count(*) FROM sp_ledger WHERE related_transaction_id='<trade_id>' AND transaction_type='earn_reward';
+SELECT count(*) FROM financial_audit_log WHERE idempotency_key='sp_release_<trade_id>';
+```
+
+**Expected Result:**
+- The seller's `pending_balance` increases by **exactly** the earned SP once (no double-credit).
+- Exactly **1** `earn_reward` ledger entry and **1** `sp_released` audit row.
+
+---
+
+### new TC-N2-C05 · Retried SP debit / credit on cancel → no double mutation
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-004
+**Actors:** test-buyer (subscriber)
+**Precondition:** A trade used SP; the buyer's wallet has a balance to debit/refund.
+
+**Objective:** Verify `debit_sp_for_trade` and `credit_sp_for_cancelled_trade` are idempotent — a retry returns the prior entry without a second wallet mutation.
+
+**Steps:**
+1. Simulate a retried debit: call `SELECT public.debit_sp_for_trade('<buyer>','<trade>',<n>);` twice. The second call must return `idempotent: true`.
+2. Simulate a retried refund on cancel: call `SELECT public.credit_sp_for_cancelled_trade('<buyer>','<trade>',<n>);` twice.
+3. Verify wallet balance + ledger:
+```sql
+SELECT available_balance, reserved_sp FROM sp_wallets WHERE user_id='<buyer>';
+SELECT count(*) FROM sp_ledger WHERE idempotency_key IN ('sp_debit_<trade>','sp_refund_<trade>');
+```
+
+**Expected Result:**
+- The second RPC call returns `{ success: true, idempotent: true }` and the balance changes only once.
+- Exactly **1** ledger entry per key (`sp_debit_<trade>` / `sp_refund_<trade>`).
+
+---
+
+### new TC-N2-C06 · Admin SP adjustment double-click → single credit
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-007
+**Actors:** test-admin
+**Precondition:** An SP wallet exists; admin passes a stable `p_idempotency_key` (or the derived per-minute key dedupes a same-second click).
+
+**Objective:** Verify two identical admin SP adjustments (double-click) credit the wallet once.
+
+**Steps:**
+1. As admin, adjust a wallet by **+10 SP** with an explicit `p_idempotency_key` (e.g., `admin_adj_dod_test`), then repeat the **same** call.
+2. Repeat without a key twice within the same minute (tests the deterministic fallback).
+3. Check:
+```sql
+SELECT available_balance FROM sp_wallets WHERE user_id='<user>';
+SELECT count(*) FROM sp_ledger WHERE idempotency_key IN ('admin_adj_dod_test');
+```
+
+**Expected Result:**
+- The wallet is credited **once** (balance +10, not +20); the second call returns `idempotent: true`.
+- Exactly **1** ledger entry + **1** `sp_issued` audit row for the same key.
+
+---
+
+### new TC-N2-C07 · Audit completeness — every payment/SP/fee/tax transition is logged
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-001
+**Actors:** test-buyer (subscriber) + test-seller
+**Precondition:** N2 Edge Functions deployed (create-trade-offer, trade-payment, complete-trade, cancel-trade, transactions-update, resolve-dispute, trade-refund, stripe-webhook, process-auto-complete, initiate-payout).
+
+**Objective:** Walk one trade end-to-end and confirm each payment/SP/fee/tax transition has a `financial_audit_log` row.
+
+**Steps:**
+1. Submit an offer with SP + tax on an Accept SP item → expect `offer_created`, `payment_intent_created`, `buyer_fee_charged`, `tax_quoted` (and `sp_reserved` via the debit path when applicable).
+2. Seller accepts → confirm no new duplicate, trade moves forward.
+3. Buyer completes ("I Got It") → expect `payment_captured`, `tax_collected`, `sp_released`, `seller_fee_deducted`, `trade_completed`, `payout_initiated`.
+4. Audit trail check:
+```sql
+SELECT mutation_type, amount_cents, created_at FROM financial_audit_log
+WHERE entity_id='<trade_id>' ORDER BY created_at ASC;
+```
+
+**Expected Result:**
+- Each transition above appears exactly once, in chronological order, with correct `amount_cents` and actor.
+- No transition is missing; no duplicate rows (idempotency keys).
+
+---
+
+### new TC-N2-C08 · Audit log is insert-only and admin/service-role readable only
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-001
+**Actors:** test-buyer, test-admin
+**Objective:** Verify `financial_audit_log` RLS — users see only their own rows (actor), admins/service role see all, and no user can UPDATE/DELETE.
+
+**Steps:**
+1. As a normal user, query `financial_audit_log` — only rows where `actor_id = your id` are visible.
+2. As admin (service role), query all rows.
+3. Attempt an UPDATE/DELETE on an audit row as a normal user.
+
+**Expected Result:**
+- Normal users see only their own audit rows; no INSERT/UPDATE/DELETE policies exist for `authenticated` (append-only).
+- Admin/service role sees all rows (used by the admin portal + reconciliation).
+
+---
+
+### new TC-N2-C09 · Duplicate idempotency key → prior result, never a partial write
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-008
+**Actors:** test-buyer (subscriber)
+**Objective:** Verify a replayed mutation with the same idempotency key returns the prior result and leaves no partial/duplicate state.
+
+**Steps:**
+1. Call `SELECT public.fn_log_financial_audit('sp_reserved','trade','<uuid>',NULL,'{}','{}',-1,'<dup_key>',NULL);` twice.
+2. Verify the second call returns `false` (insert skipped) and only one row exists for `<dup_key>`:
+```sql
+SELECT count(*) FROM financial_audit_log WHERE idempotency_key='<dup_key>';
+```
+
+**Expected Result:**
+- First call `true`, second call `false`, exactly **1** row — no double-log, no partial write.
+- The same guarantee applies to the SP RPCs (returns `idempotent: true` with the prior `ledger_entry_id`).
+
+---
+
+### new TC-N2-C10 · Reconciliation — payments vs trade_refunds vs financial_audit_log consistency
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B SR-N2-001/006 · TC-K09 (payments reconciliation)
+**Actors:** test-admin
+**Objective:** Verify the cash ledger (`payments` + `trade_refunds`), the tax ledger, and the new audit journal agree for a sampled trade.
+
+**Steps:**
+1. Pick a completed + partially-refunded trade.
+2. Compare the audit journal against the payments ledger for that trade:
+```sql
+SELECT
+  (SELECT COALESCE(SUM(amount_cents),0) FROM financial_audit_log
+    WHERE entity_id='<trade>' AND mutation_type IN ('payment_captured')) AS captured_audit,
+  (SELECT COALESCE(SUM(amount_cents),0) FROM financial_audit_log
+    WHERE entity_id='<trade>' AND mutation_type='refund_issued') AS refunded_audit,
+  (SELECT charged_cents FROM payments WHERE trade_id='<trade>') AS charged_payments,
+  (SELECT refunded_cents FROM payments WHERE trade_id='<trade>') AS refunded_payments;
+```
+
+**Expected Result:**
+- The audit journal's captured/refunded sums match the `payments` ledger's `charged_cents`/`refunded_cents`.
+- Any mismatch is a red flag for the N2 invariant ("every transition audited, no double-charge/double-log").

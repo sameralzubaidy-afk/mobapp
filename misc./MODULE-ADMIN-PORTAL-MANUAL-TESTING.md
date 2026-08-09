@@ -46,6 +46,8 @@
 | | TC-F03 | Trade timing config (timing keys + nested validation) |
 | | TC-F04 | Settings single-source — cross-link + last-updated + audit |
 | | TC-F05 | N1 configurability — pickup countdown + payout buffer (new keys) |
+| | TC-F06 | R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys) |
+| | TC-F07 | Trade Pipeline visualization — see & track trades in all stages |
 | **G — Policy Management** | TC-G01 | Policy tabs (TOS/Privacy/Liability) + versions |
 | | TC-G02 | Create new policy version (version regex) |
 | | TC-G03 | Edit draft policy |
@@ -131,6 +133,14 @@
 | | TC-Z05 | Failed Payouts deep-link pre-filters to failed |
 | | TC-Z06 | Thresholds tunable via /config (health) without code change |
 | | TC-Z07 | Dashboard embeds Action Center below the strip |
+| **N2 — Idempotency & Audit (Cross-Cutting)** | TC-N2-A01 | Financial audit journal viewable per trade |
+| | TC-N2-A02 | Admin SP adjustment — double-click cannot double-credit |
+| | TC-N2-A03 | Duplicate refund attempt rejected (no double refund) |
+| | TC-N2-A04 | Payout — single row per trade, single transfer |
+| | TC-N2-A05 | Financial Audit screen accessible from sidebar + renders |
+| | TC-N2-A06 | Financial Audit — search & filters |
+| | TC-N2-A07 | Financial Audit — row details, trade link, amount formatting |
+| | TC-N2-A08 | Financial Audit — summary strip reconciles with journal |
 
 ---
 
@@ -684,7 +694,7 @@
 **Ref:** FLOW-08 (Trade) · FLOW-09 (Fees) · FLOW-18 (Admin Controls) · N1 Configurability (cross-cutting)
 **Actors:** test-admin
 
-**Objective:** Verify the two NEW N1 config keys — `pickup_window_hours` (pickup countdown) and `payout_buffer_days` (payout buffer) — are seeded, editable from the admin UI, validate, persist, show audit metadata, and appear in the /config hub — all without a code deploy. These are tunable now and are the shared dependency that the R1–R13 requirements read from instead of hardcoding.
+**Objective:** Verify the N1 config keys — `pickup_window_hours` (pickup countdown, now ENFORCED by R2), `pickup_notif_1/2_hours_before` (pickup reminders), and `payout_buffer_days` (payout buffer) — are seeded, editable from the admin UI, validate, persist, show audit metadata, and appear in the /config hub — all without a code deploy. These are the shared dependency that the R1–R13 requirements read from instead of hardcoding.
 
 **Preconditions:** Migration `supabase/migrations/20260809000004_n1_configurability.sql` applied.
 
@@ -692,7 +702,7 @@
 1. **Seeded + visible:** Open **/config → TRADE** and **/config → FEES**. Confirm `pickup_window_hours` and `payout_buffer_days` rows exist (values 72 and 2 respectively), with the descriptions from the migration and "LAST UPDATED · … · by" labels.
 2. **Edit on the standalone page:** Open **/settings/trade-timing**. In the **Pickup & Payout** section, set Pickup Window = 24 and Payout Buffer = 1; Save.
 3. **Cross-link banner:** On /config → TRADE and /config → FEES, confirm the Info-blue banner appears for both keys ("… also managed on the Trade Timing page") and opens **/settings/trade-timing**.
-4. **Validation:** Try Pickup Window = 0 or 200, and Payout Buffer = -1 or 31 — confirm each is blocked with its error message (window 1–168, buffer 0–30).
+4. **Validation:** Try Pickup Window = 0 or 200, and Payout Buffer = -1 or 31 — confirm each is blocked with its error message (window 1–168, buffer 0–30). The combined 7-day guardrail (offer + pickup must total under 168h) is covered in TC-F06.
 5. **Single-source + audit:** Re-open /settings/trade-timing and /config — both show 24 and 1, the same last-updated timestamp/editor; then run `SELECT key, value, updated_by, updated_at FROM admin_config WHERE key IN ('pickup_window_hours','payout_buffer_days');` and `SELECT admin_id, action, entity_type, changes FROM admin_audit_log WHERE entity_type='admin_config' ORDER BY created_at DESC LIMIT 5;` — confirm the values and the `update_trade_timing_settings` audit row.
 6. **Typed read helper (no deploy):** Confirm the read RPC works: `SELECT public.fn_admin_config_int('pickup_window_hours', 72);` returns 24, and `SELECT public.fn_admin_config_int('missing_key', 7);` returns 7 (the caller decides, no crash).
 
@@ -700,6 +710,59 @@
 - Both keys are admin-tunable with validation, persist across surfaces, record the editor, and appear in the /config hub — proving a config change takes effect without a code deploy.
 - Changing a value here is immediately readable via `fn_admin_config_int`, the canonical read helper R1–R13 will use instead of hardcoded numbers.
 - No duplicate config store was created: the keys live in the existing `admin_config` table (single source of truth).
+
+---
+
+### TC-F06 · R2 — 7-day trade-window guardrail (hard block) + pickup reminders (new keys)
+
+**Ref:** FLOW-08 (Trade) · FLOW-18 (Admin Controls) · R2 (2026-08-10)
+**Actors:** test-admin
+
+**Objective:** Verify the 7-day Stripe authorization guardrail HARD-BLOCKS offer + pickup windows totalling ≥ 168h, and that the two NEW pickup-reminder keys validate and save.
+
+**Preconditions:** Migration `supabase/migrations/20260810000001_r2_auth_capture_countdown.sql` applied.
+
+**Steps:**
+1. Open **/settings/trade-timing**. Set Offer Timeout = 100, Pickup Window = 72 → combined 172h; Save.
+2. Confirm the save is BLOCKED with an error on both fields ("Offer + pickup (172h) must stay under 168h (Stripe's 7-day authorization limit). Lower one window.").
+3. Lower Pickup Window to 67 (100 + 67 = 167) → Save succeeds.
+4. Set Offer Timeout = 48, Pickup Window = 72 (defaults, 120h) → Save succeeds (defaults remain valid).
+5. In the Pickup & Payout section, confirm the two new fields — **First Pickup Reminder** (`pickup_notif_1_hours_before`) and **Final Pickup Reminder** (`pickup_notif_2_hours_before`) — are present with defaults 24 / 2.
+6. Try First Pickup Reminder = 24 with Pickup Window = 24 (equal) → blocked (must be < pickup window); Final = 2 with First = 1 → blocked (must be < first).
+7. Verify the hard block is SERVER-SIDE too (defense in depth): run `SELECT upsert_admin_config_setting('pickup_window_hours', '72', 'trade', 'number', false, true, NULL);` while offer_timeout_hours = 100 is stored → expect a RAISE EXCEPTION. Reset both to defaults afterwards.
+
+**Expected Result:**
+- Failure mode is a HARD BLOCK (not auto-clamp): the admin must lower a window; nothing is silently capped.
+- The DB trigger (`fn_validate_trade_timing_config`) and the admin UI enforce the same ≤167h combined rule.
+- The two pickup-reminder keys seed (24/2), validate their ordering, and persist; `/config → TRADE` shows them.
+- Backstop note: the runtime `check-authorization-expiry` cron still cancels any stale authorization holds at the 7-day mark.
+
+---
+
+### TC-F07 · Trade Pipeline visualization — see & track trades in all stages
+
+**Ref:** FLOW-08 (Trade) · FLOW-18 (Admin Controls) · R2 (2026-08-10)
+**Actors:** test-admin
+
+**Objective:** Verify the new **Trade Pipeline** board (`/trades/pipeline`) lets an admin see and track trades across all stages with live countdowns, filters, and an attention strip.
+
+**Preconditions:** Migrations `20260810000001_r2_auth_capture_countdown.sql` and `20260810000003_admin_trades_view_pipeline.sql` applied. At least one trade exists in each of `pending`, `in_progress`, `completed`, `cancelled`.
+
+**Steps:**
+1. Open the sidebar **Trade Operations → Trade Pipeline** (or `/trades/pipeline`).
+2. Confirm four columns render: **Pending Offer**, **In Progress · Pickup**, **Completed**, **Cancelled**, each with a count.
+3. Confirm a **Pending Offer** card shows the buyer → seller, $cash + SP, and a live "Offer expires in X" countdown (from `offer_expires_at`).
+4. Confirm an **In Progress** card shows "Auto-completes in X" (from `auto_complete_at`) and that a disputed trade shows a **Dispute** chip + "Dispute open — auto-complete paused".
+5. Confirm bundle trades show a **Bundle ×N** chip and that every card deep-links to `/trades/[id]`.
+6. Use the **status tabs** and the **search** box (buyer / seller / trade ID) — confirm they filter the board.
+7. Create or fast-forward a pending offer to <6h before expiry (or an in_progress trade to <4h before `auto_complete_at`) and confirm the amber **attention strip** appears with the correct count; toggle "Show only these".
+8. Confirm the strip disappears when all trades are outside the attention windows or disputes are resolved.
+
+**Expected Result:**
+- The board shows all four stages at once with live (≤30s-ticking) countdowns and per-column counts.
+- Cards link to the existing trade detail page; bundle + dispute chips render.
+- Status tabs and search filter the board; the attention strip flags offers expiring ≤6h, pickup/auto-complete ≤4h, and open disputes.
+- No code deploy needed to see new trades — the board reads `admin_trades_view` directly.
 
 ---
 
@@ -2088,6 +2151,98 @@
 **Objective:** Confirm key admin actions appear in audit logs.
 **Steps:** 1. Perform node deactivate / SP adjust / policy publish; check /audit-logs.
 **Expected Result:** Each appears with actor + timestamp.
+
+---
+
+## Group N2 — Idempotency & Audit (Cross-Cutting)
+
+**Ref:** SYSTEM_REQUIREMENTS_V2 §8B (N2) · Migration `20260810000006_n2_idempotency_audit.sql`
+**Scope:** Payment / SP / fee / tax mutations are now retry-safe and audited. These cases verify the server-side guards from the admin side (audit journal, SP adjustments, refunds, payouts). No client changes.
+**Added:** 2026-08-09
+
+### TC-N2-A01 · Financial audit journal viewable per trade
+**Objective:** Verify the unified `financial_audit_log` journal shows every payment/SP/fee/tax transition for a given trade.
+**Steps:**
+1. Open a trade that completed with SP + tax (or run the audit query for its trade id):
+```sql
+SELECT mutation_type, amount_cents, actor_id, created_at FROM financial_audit_log
+WHERE entity_id='<trade_id>' ORDER BY created_at ASC;
+```
+2. Walk the trade lifecycle and re-query after each transition.
+**Expected Result:** One row per transition — `offer_created`, `payment_intent_created`, `buyer_fee_charged`, `tax_quoted`, `payment_captured`, `sp_released`, `seller_fee_deducted`, `trade_completed`, `payout_*` — chronological, with actor + amount. No duplicates (idempotency keys).
+
+### TC-N2-A02 · Admin SP adjustment — double-click cannot double-credit
+**Objective:** Verify two identical SP adjustments (same idempotency key) credit the wallet once.
+**Steps:**
+1. Adjust a wallet by +10 SP with an explicit `p_idempotency_key` (e.g. `admin_adj_dod_test`), then repeat the exact same call.
+2. Verify ledger + balance:
+```sql
+SELECT available_balance FROM sp_wallets WHERE user_id='<user>';
+SELECT count(*) FROM sp_ledger WHERE idempotency_key='admin_adj_dod_test';
+SELECT count(*) FROM financial_audit_log WHERE idempotency_key='admin_adj_dod_test';
+```
+**Expected Result:** Balance +10 exactly once; the second call returns `idempotent: true`; exactly one `sp_ledger` entry and one `sp_issued` audit row. A same-second double-click with no explicit key is deduped by the derived per-minute key.
+
+### TC-N2-A03 · Duplicate refund attempt rejected (no double refund)
+**Objective:** Verify a re-issued refund (or a re-delivered `charge.refunded` webhook) for an already-refunded trade cannot double-refund.
+**Steps:**
+1. Issue a full refund (force-cancel / dispute-refund / manual).
+2. Re-issue the same refund or re-deliver the webhook for the same PI.
+3. Check ledger:
+```sql
+SELECT count(*) FROM trade_refunds WHERE stripe_refund_id='<refund_id>';
+SELECT refunded_cents, charged_cents FROM payments WHERE trade_id='<trade_id>';
+SELECT count(*) FROM financial_audit_log WHERE idempotency_key='refund_<refund_id>';
+```
+**Expected Result:** Exactly one `trade_refunds` row per Stripe refund id (unique partial index); `refunded_cents` never exceeds `charged_cents`; a single `refund_issued` audit row — no double refund.
+
+### TC-N2-A04 · Payout — single row per trade, single transfer
+**Objective:** Verify a retried payout trigger does not create a second `seller_payouts` row or a second Stripe transfer.
+**Steps:**
+1. Trigger `initiate-payout` (or the payout trigger) for the same trade twice.
+2. Check counts:
+```sql
+SELECT count(*) FROM seller_payouts WHERE trade_id='<trade_id>';
+SELECT count(*) FROM trades WHERE id='<trade_id>' AND stripe_transfer_id IS NOT NULL;
+SELECT mutation_type, idempotency_key FROM financial_audit_log WHERE entity_id='<trade_id>' AND mutation_type LIKE 'payout_%';
+```
+**Expected Result:** Exactly one `seller_payouts` row and one `stripe_transfer_id`; one `payout_initiated`/`payout_paid` (or `requires_action`/`failed`) audit row per transition, keyed by `payout_<trade_id>` — no duplicate payout.
+
+### TC-N2-A05 · Financial Audit screen accessible from sidebar + renders
+**Objective:** Verify the new **Financial Audit** screen (`/audit`) is reachable from the sidebar and renders the N2 journal UI.
+**Steps:**
+1. Log in to the admin portal; open the sidebar → **Monetization** → **Financial Audit** (route `/audit`).
+2. Confirm the page loads with: title "Financial Audit", the N2 description, filter bar (search, Mutation type, Entity type, From, To), summary strip (Entries + Payments/Swap Points/Fees/Tax/Payouts/Refunds/Trade + Cash Movement), and a table area.
+3. With no journal rows yet, confirm the friendly empty state appears.
+**Expected Result:** The sidebar link navigates to `/audit`; the page renders all controls; the empty state reads "No audit entries yet. The journal is written as payments, Swap Points, fees, and taxes move — run a trade to see it populate." — no crash, no 401.
+
+### TC-N2-A06 · Financial Audit — search & filters
+**Objective:** Verify the audit screen can search and filter the journal.
+**Steps:**
+1. On `/audit`, use the **Mutation type** dropdown (all 27 types listed, e.g. Payment Captured, SP Released, Refund Issued).
+2. Use the **Entity type** dropdown (trade / refund / payment / payout / wallet / listing).
+3. Search by a **trade id**, an **entity id**, or an **idempotency key** (e.g. `offer_<trade_id>`, `sp_release_<trade_id>`).
+4. Set **From / To** dates and observe the filtered window.
+5. Clear all filters and confirm the full journal returns.
+**Expected Result:** Each filter narrows the table; search by trade/entity/idempotency key works (text-cast view `admin_financial_audit_view`); combined filters (type + search + date) apply together; clearing filters restores all rows.
+
+### TC-N2-A07 · Financial Audit — row details, trade link, amount formatting
+**Objective:** Verify each journal row shows correct details and the expandable before/after state.
+**Steps:**
+1. Open a trade that has audit rows (submit an offer, complete it, refund it — or use existing rows).
+2. In the table, confirm each row shows Time, Type pill (colored), Entity, Amount, Actor, Node, Idempotency key, and a **View** toggle.
+3. Tap **View** on a row and confirm the **Before/After** JSON blocks expand.
+4. Click the **Entity** link on a `trade` row and confirm it opens `/trades/<trade_id>`.
+5. Confirm amount formatting: `sp_*` rows show "N SP" (no $), cash/fee/tax/payout rows show `$X.XX` from cents.
+**Expected Result:** Rows are chronological (newest first); type pills are color-coded by category; before/after JSON renders readable; the trade link navigates to the trade detail; SP amounts display as SP units and money amounts in dollars.
+
+### TC-N2-A08 · Financial Audit — summary strip reconciles with journal
+**Objective:** Verify the summary counts and Cash Movement reconcile with the filtered rows.
+**Steps:**
+1. On `/audit` with no filters, note **Entries** and the per-category counts (Payments / Swap Points / Fees / Tax / Payouts / Refunds / Trade).
+2. Apply a **Mutation type** filter (e.g. `Refund Issued`) and confirm the Entries count and the Refunds count both drop to that subset, and **Cash Movement** reflects the refunded total.
+3. Cross-check one row against `SELECT mutation_type, amount_cents FROM financial_audit_log WHERE entity_id='<trade_id>' ORDER BY created_at DESC;`
+**Expected Result:** Entries equals the number of table rows; category counts match the type pills in view; Cash Movement equals the sum of non-SP `amount_cents` in the filtered set; the table matches the underlying journal.
 
 ---
 

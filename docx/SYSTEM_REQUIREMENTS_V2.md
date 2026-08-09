@@ -34,6 +34,7 @@ This version reflects the **FINAL DECISION** to implement Swap Points as an **ex
 7. [Trade Flow & Seller Payouts](#trade-flow--seller-payouts)
 8. [Business Rules & Logic](#business-rules--logic)
 8A. [N6 — Node Tagging (Cross-Cutting)](#8a-n6--node-tagging-cross-cutting)
+8B. [N2 — Idempotency & Audit (Cross-Cutting)](#8b-n2--idempotency--audit-cross-cutting)
 9. [Data Models](#data-models)
 10. [API Specifications](#api-specifications)
 11. [Trust & Safety Implementation](#trust--safety-implementation)
@@ -118,12 +119,22 @@ P2P Kids Marketplace is a hyper-local, mobile-first marketplace where verified p
 | # | Domain | Where the value lives (single source) | Admin surface |
 |---|---|---|---|
 | 1 | Countdown windows — **offer** | `admin_config.offer_timeout_hours`, `offer_notif_1/2_hours_before`, `auto_complete_hours`, `auto_complete_notif_hours_before` | `/settings/trade-timing` + `/config → trade` |
-| 2 | Countdown windows — **pickup** | `admin_config.pickup_window_hours` **(new)** | `/settings/trade-timing` (Pickup & Payout section) |
+| 2 | Countdown windows — **pickup** | `admin_config.pickup_window_hours` (enforced — R2), `pickup_notif_1/2_hours_before` **(new)** | `/settings/trade-timing` (Pickup & Payout section) |
 | 3 | Grace period length | `admin_config.grace_period_days` (canonical; `sp_config.grace_period_days` is the legacy duplicate — readers must prefer `admin_config`) | `/subscriptions/manage` + `/config` |
 | 4 | Payout buffer | `admin_config.payout_buffer_days` **(new)** | `/settings/trade-timing` (Pickup & Payout section) |
 | 5 | SP caps / multipliers per category | `categories.sp_earning_multiplier`, `categories.sp_spending_cap_percent`, `categories.sp_rate_change_notify` | Category admin (Group D) |
 | 6 | Tax rates per node/category | `nodes.tax_rate` / `nodes.tax_enabled`, `category_tax_rules`, plus `admin_config.default_sales_tax_rate` | `/tax/settings`, `/tax/nodes`, `/tax/rules` |
 | — | Buyer/seller fee parameters | `admin_config` (fees): `platform_fee_*`, `transaction_fee_*`, `payout_fee_*` | `/config → fees` + `/settings/trade-timing` |
+
+#### R2 — Auth-and-Capture + Countdown State Machine (enforcement, 2026-08-10)
+
+R2 enforces the pickup countdown (previously tunable-but-unenforced) and adds the 7-day Stripe guardrail:
+
+- **Auth-and-capture hold:** checkout places an **uncaptured** Stripe authorization hold (`capture_method='manual'`, `authorization_expires_at` = offer creation + 7 days). SP is soft-reserved; `tax_status='quoted'`. Payment is captured ONLY on buyer completion ("I Got It") or the auto-complete deadline — never at offer submission. (D-30; matches deployed code, spec §4.3 wording updated.)
+- **Offer window (48h default):** `offer_timeout_hours`; unaccepted offers auto-cancel at `offer_expires_at` — Stripe hold cancelled/released, SP restored, tax voided.
+- **Pickup window (72h default):** the post-acceptance deadline is now sourced from `pickup_window_hours` (fallback: legacy `auto_complete_hours`, then 72h). Auto-complete behavior at the deadline is **retained** (owner decision 2026-08-09): if the buyer never confirms, the trade auto-completes (capture + SP release + payout) rather than auto-cancelling.
+- **7-day guardrail (HARD BLOCK):** admins cannot configure `offer_timeout_hours + pickup_window_hours ≥ 168h`. `fn_validate_trade_timing_config()` raises an exception (hard block, not auto-clamp); the admin UI validates the same rule; the runtime `check-authorization-expiry` cron remains the backstop. This guarantees capture always precedes Stripe's 7-day authorization expiry.
+- **Reminders:** configurable in-app + push reminders fire in every window — offer reminders to the seller (`offer_notif_1/2_hours_before`), auto-complete reminders to the buyer (`auto_complete_notif_1/2_hours_before`, default 24h/2h, read from config by `rpc_send_auto_complete_reminders`), and pickup-window reminders to the buyer (`pickup_notif_1/2_hours_before`, default 24h/2h, via `rpc_send_pickup_reminders` + `send-pickup-reminders` cron every 5 min). All three pairs are admin-tunable and take effect without a code deploy.
 
 #### RPC contract (config read / write)
 
@@ -1796,6 +1807,55 @@ Readiness). Backward compatible — additive-only, no existing flow changes beha
 - Triggers present: `trg_set_item_node_id`, `trg_set_payment_node_id`, `trg_set_trade_refund_node_id`,
   `trg_set_wallet_node_id`, `trg_set_sp_ledger_node_id`, `trg_set_sp_batch_node_id`,
   `trg_set_payout_node_id`, `trg_set_seller_balance_node_id`, `trg_set_cart_item_node_id`.
+
+---
+
+## 8B. N2 — Idempotency & Audit (Cross-Cutting)
+
+**Owner summary:** Guarantees every payment / Swap Points (SP) / fee / tax state
+transition is **retry-safe (idempotent)** and **fully audited**. A retried mutation
+(offer submission, payout trigger, refund, SP release, SP adjustment) must never
+double-charge, double-issue SP, or double-log. Cross-cuts R1 (auth/capture), R2
+(payout release), R3 (SP issue), R4 (SP redeem), R5 (SP freeze/release), R6 (fee
+charges). Backward compatible — additive-only; existing flows behave identically,
+they just become safe to retry and leave an audit trail.
+
+### 8B.1 Requirements
+
+| ID | Requirement |
+|----|-------------|
+| SR-N2-001 | Every payment/SP/fee/tax state transition MUST write exactly one row to `financial_audit_log` (mutation_type, entity refs, actor, before/after state, amount_cents, idempotency_key UNIQUE, node_id per N6, created_at). Insert-only; RLS = service-role + admin read. |
+| SR-N2-002 | Retried mutations MUST be idempotent: a retry carrying the same idempotency key returns the prior result and produces **no duplicate side effect and no duplicate audit row** (`ON CONFLICT (idempotency_key) DO NOTHING`). |
+| SR-N2-003 | Stripe PaymentIntent creation on offer submission MUST use a deterministic idempotency key (`pi_offer_<buyer>_<item>_<contentHash>` single / `pi_bundle_<bundle>_<item>_<contentHash>` bundle); `trades.stripe_payment_intent_id` is UNIQUE (partial index). A concurrent double-tap dedupes on Stripe's side and the losing trade insert replays the winner (23505 → existing trade). |
+| SR-N2-004 | SP debit/credit/release mutations MUST set `sp_ledger.idempotency_key` and short-circuit on an existing entry: `debit_sp_for_trade` → `sp_debit_<trade_id>`, `credit_sp_for_cancelled_trade` → `sp_refund_<trade_id>`. Re-running an SP release processor (`rpc_release_pending_sp`) cannot double-credit. |
+| SR-N2-005 | Payouts MUST remain idempotent via `seller_payouts.idempotency_key` (UNIQUE) + `trades.payout_idempotency_key`; the canonical key format is **`trade:<tradeId>:seller:<sellerId>`** (reconciles the earlier `payout_<trade_id>` wording in TRADING-FLOW-V2 §6.3.4). `initiate-payout` audits `payout_initiated / payout_paid / payout_requires_action / payout_failed`. |
+| SR-N2-006 | Refunds MUST be idempotent via `trades.stripe_refund_id` guard + UNIQUE `trade_refunds.stripe_refund_id` (partial index) — closes the webhook-vs-EF TOCTOU race. `rpc_record_stripe_refund` / `rpc_sync_payment_refund_webhook` remain the single refund-recording path. |
+| SR-N2-007 | Admin SP adjustments MUST use a deterministic idempotency key. `admin_adjust_sp_wallet` accepts an optional `p_idempotency_key`; when omitted it derives `admin_adj_<wallet>_<amount>_<actor>_<minute>` so a same-second double-click cannot double-credit. |
+| SR-N2-008 | Error contract: on a duplicate key, the mutation returns the prior result (or a specific `DUPLICATE_MUTATION`-style code) — it must never leave a partial write. Audit writes are best-effort (never break the primary operation). |
+
+### 8B.2 Mutation → audit mapping (what gets logged)
+
+| Domain | Transitions audited (mutation_type) |
+|---|---|
+| R1 auth/capture | `offer_created`, `payment_intent_created`, `payment_captured`, `payment_capture_failed`, `payment_cancelled`, `buyer_fee_charged`, `tax_quoted`, `tax_collected`, `tax_voided` |
+| R2 payout | `payout_initiated`, `payout_paid`, `payout_requires_action`, `payout_failed`, `seller_fee_deducted` |
+| R3/R4/R5 SP | `sp_reserved`, `sp_restored`, `sp_released`, `sp_issued`, `sp_deducted`, `sp_frozen`, `sp_unfrozen`, `sp_expired` |
+| R6 fees/refunds | `refund_issued`, `refund_voided`, `tax_refunded`, `trade_completed`, `trade_cancelled` |
+
+### 8B.3 Migration
+
+`supabase/migrations/20260810000006_n2_idempotency_audit.sql` — Mode B (idempotent rerunnable):
+- `financial_audit_log` table + `fn_log_financial_audit()` (idempotent writer) + `trg_fill_financial_audit_node_id`.
+- UNIQUE partial indexes: `idx_trades_stripe_payment_intent_id`, `idx_trade_refunds_stripe_refund_id`.
+- `debit_sp_for_trade` / `credit_sp_for_cancelled_trade` / `admin_adjust_sp_wallet` made idempotent.
+
+### 8B.4 Verification
+
+- No double-log: `SELECT fn_log_financial_audit(...,'<key>');` twice → first `true`, second `false`, exactly 1 row for `<key>`.
+- No double-debit/credit: pre-insert a ledger row with `sp_debit_<trade>` / `sp_refund_<trade>`; calling the RPC returns `idempotent: true` and the wallet balance is unchanged.
+- Unique indexes present: `idx_trades_stripe_payment_intent_id`, `idx_trade_refunds_stripe_refund_id`.
+- Manual retry cases: `misc./MODULE-15.1.2-TradeFlowV2-MANUAL-TESTING.md` Group N2 (TC-N2-C01…C10), `misc./MODULE-ADMIN-PORTAL-MANUAL-TESTING.md` Group N2 (TC-N2-A01…A08).
+- Admin UI: the **Financial Audit** screen (`/audit`, sidebar → Monetization) surfaces the journal via `admin_financial_audit_view` (text-cast, BP-45) with search/filters, category summary, before/after state, and trade links. Migration `20260810000007_admin_financial_audit_view.sql`.
 
 ---
 

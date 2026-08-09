@@ -68,13 +68,35 @@ serve(async (req) => {
   const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
   const stripe = stripeKey && stripeKey.startsWith('sk_') ? new Stripe(stripeKey, { apiVersion: '2023-10-16' }) : null;
 
-  // Load auto_complete_hours from admin_config (cached once, shared by all trades)
-  const { data: config } = await svcClient
-    .from('admin_config')
-    .select('auto_complete_hours')
-    .limit(1)
-    .maybeSingle();
-  const autoCompleteHours = (config as { auto_complete_hours?: number } | null)?.auto_complete_hours ?? 72;
+  // R2 (2026-08-10): The post-acceptance pickup window drives the auto-complete
+  // deadline (cached once, shared by all trades). pickup_window_hours is canonical;
+  // falls back to the legacy auto_complete_hours key, then 72h. Matches
+  // fn_set_auto_complete_at.
+  let autoCompleteHours = 72;
+  try {
+    const { data: pickupRow } = await svcClient
+      .from('admin_config')
+      .select('value')
+      .eq('key', 'pickup_window_hours')
+      .maybeSingle();
+    const parsedPickup = Number(pickupRow?.value);
+    if (Number.isFinite(parsedPickup) && parsedPickup > 0) {
+      autoCompleteHours = parsedPickup;
+    } else {
+      const { data: legacyRow } = await svcClient
+        .from('admin_config')
+        .select('value')
+        .eq('key', 'auto_complete_hours')
+        .maybeSingle();
+      const parsedLegacy = Number(legacyRow?.value);
+      if (Number.isFinite(parsedLegacy) && parsedLegacy > 0) {
+        autoCompleteHours = parsedLegacy;
+      }
+    }
+  } catch (configErr: unknown) {
+    const msg = configErr instanceof Error ? configErr.message : 'Unknown error';
+    console.error('[transactions-accept-bundle] Config fetch error:', msg);
+  }
 
   // Process each trade: capture Stripe PI, update DB, send notification
   async function acceptSingleTrade(tradeId: string): Promise<{ trade_id: string; status: string; auto_complete_at?: string } | { error: string; code: string }> {

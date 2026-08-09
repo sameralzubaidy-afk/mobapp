@@ -34,7 +34,7 @@ Translate errors into impact. Instead of "PGRST204 no rows returned", say "The b
 
 NON-NEGOTIABLE RULES (READ FIRST — one-line index of the hard gates detailed later in this file)
 1. Clarification Gate — if you don't know the screen, the before/after UX, or the data layer, ask ONE question before coding (exception: bugs with a clear stack trace).
-2. Requirements Gate — read the relevant docx/*.md files before touching code; list "Requirements Confirmed" in your reply.
+2. Requirements Gate — read the relevant docx/*.md files before touching code; list "Requirements Confirmed" in your reply. Before planning any "new" feature (incl. R-series R1–R13), grep the codebase for an existing implementation first — many asks are already shipped under a codename (e.g., D-30 / TradeFlowV2); extend, don't rebuild.
 3. Scope Containment — touch only what's broken; touching >3 files means STOP and explain why first.
 4. No Partial Implementations — never ship placeholder logic without flagging it; nothing is "done" until testable end-to-end.
 5. Read-Before-Write — never edit a file you haven't read in the current session.
@@ -93,6 +93,13 @@ For the task you are about to implement:
 Use filesystem MCP to read every relevant file from the table above.
 Extract the specific rules, acceptance criteria, or constraints that apply.
 In your response, list them under a "Requirements Confirmed" block:
+
+Step 3 — Verify against shipped code before planning "new" work
+"New implementation" asks (R-series R1–R13 and similar) frequently map to features that are ALREADY shipped under a codename (e.g., R2 "Auth-and-Capture + Countdown State Machine" ≈ D-30 / TradeFlowV2). Before writing a plan or scaffolding anything:
+- grep `supabase/functions/**`, `supabase/migrations/**`, `p2p-kids-marketplace/src/**`, and `p2p-kids-admin/src/**` for the feature's core verbs/screens (hold, capture, offer window, pickup, accept/decline, auto-complete, etc.).
+- If an implementation exists, scope the DELTA (what's missing vs. the ask) and name the existing codename in the plan — extend, don't rebuild.
+- Only genuinely new behavior gets new scaffolding; duplicating a shipped feature risks split-brain behavior (see BP-27).
+
 SCOPE CONTAINMENT (MANDATORY)
 Principle: A fix must only touch what is broken. Unsolicited refactors are bugs waiting to happen.
 
@@ -198,6 +205,8 @@ Suggested next session: [the single most logical next task to continue from here
 Suggested to improve agent rules: [the single most logical add rule or update to the guidelines based on what you experienced in this session] — if you do not have a suggestion, say "none".
 
 You MUST NOT say "done/complete" unless the required regression tiers (per Section 14C) passed.
+
+Tier-2 gating for A/D/F changes (added 2026-08-09, R4): running only the migration + targeted functional tests is NOT Tier 2. For changes classified A (DB/migrations/RLS/RPC), D (Stripe/webhooks), or F (money/fees/state) that require Tier 2, a "done" verdict is explicitly gated on the FULL Tier 2 — `supabase db reset` (DB rebuild from migrations) + DB lint + ALL smoke scripts (`scripts/smoke/run.mjs --all`), per Section 14C. If only partial Tier 2 ran, report the change as implemented + verified at Tier 0/1 and mark Tier 2 as NOT RUN in the handoff's Regression Plan — never silently assume the missing db-reset/smoke step (mirrors BP-47 deployment-lag discipline: verify the target DB state before declaring success).
 
 This block ensures that if a session ends abruptly, or a new session starts weeks later, the context is always recoverable without reading the code.
 
@@ -779,7 +788,7 @@ Issue: "A mutation appears to succeed in the UI but the database wasn't actually
 ✅ Check: The caller checked the `{success}` result of the service call instead of ignoring it (BP-35)
 Issue: "Edge Function deploy fails with 'Module not found'"
 
-✅ Check: Every relative import (including transitive `_shared/*` dependencies) is listed in the deploy `files` array (BP-41)
+✅ Check: Every relative import (including transitive `_shared/*` dependencies) is listed in the deploy `files` array with the `functions/` prefix (`functions/_shared/<file>.ts`) — bare `_shared/...` entries are dropped by the MCP bundler (BP-41)
 Issue: "An Edge Function and a DB trigger/RPC disagree on the same business rule"
 
 ✅ Check: Split-brain enforcement — search migrations for a trigger/RPC/constraint duplicating the Edge Function's check (BP-27)
@@ -1260,7 +1269,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-38 Fee config — absolute percentage per tier, never base+discount; confirm the calculation base with the user.
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
-- BP-41 Edge Function deploys — every relative import must be in the `files` array, including transitive ones.
+- BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`) — the MCP bundler drops bare `_shared/...` entries.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
 - BP-43 Navigation & params — verify callers pass route params, verify navigator imports, check buyer AND seller paths.
 - BP-44 Tax/SP/fee RPC recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
@@ -1536,7 +1545,7 @@ Whenever implementing a state change that should notify users:
 
 ---
 
-## BP-41: Verify All Relative Imports Are Included in the Edge Function Deploy `files` Array — full text moved to `.github/instructions/edge-functions.instructions.md`.
+## BP-41: Verify All Relative Imports Are Included in the Edge Function Deploy `files` Array (name files with the `functions/` prefix — `functions/_shared/<file>.ts`; the MCP bundler drops bare `_shared/...` entries) — full text moved to `.github/instructions/edge-functions.instructions.md`.
 
 ## BP-42: Tax Preview on Trade Detail Screens Must Use Joined Listing Price, Not `cash_amount_cents` — full text moved to `.github/instructions/mobile-client.instructions.md`.
 - Verify the screen has access to the joined listing (either via `trade.listing.price` or a separate item query) before assuming the fix is simple.

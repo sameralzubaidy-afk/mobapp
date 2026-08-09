@@ -46,17 +46,21 @@ export default function AutoCompleteBanner({
 
   const isUrgent = model.minutesLeft < 240; // < 4 hours
 
+  // R2 (2026-08-10): the post-acceptance deadline is the configurable pickup
+  // window (pickup_window_hours). At the deadline the trade auto-completes
+  // (capture retained per owner decision 2026-08-09), so the buyer-facing copy
+  // frames the countdown as "confirm pickup".
   const title = model.expired
     ? 'Trade is ready for auto-completion'
     : isSeller
       ? `Auto-completes in ${formatCountdownLabel(model)} — payout releases then`
-      : `Auto-completes in ${formatCountdownLabel(model)}`;
+      : `Confirm pickup — auto-completes in ${formatCountdownLabel(model)}`;
 
   const subtitle = model.expired
     ? 'Complete the trade now or contact support if there is an issue.'
     : isSeller
       ? "If the buyer doesn't confirm, the trade closes automatically and your funds are released."
-      : 'If you do not complete this trade, it will auto-complete and funds will be released to the seller.';
+      : 'Confirm you picked up the item, or the trade auto-completes and funds release to the seller.';
 
   return (
     <View testID={testID ?? 'auto-complete-banner'} style={styles.container}>

@@ -4,12 +4,60 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
 
 import { mapStripePayoutEventToUpdate } from '../_shared/payouts/webhookReconcile.ts';
+import { logFinancialAudit } from '../_shared/audit.ts';
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
 });
 
 const endpointSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+
+// R4 (2026-08-09): Direct-charge dispute cost accounting. Maps a Stripe dispute
+// to its trade via the charge's PaymentIntent, then records the dispute cost on
+// the dispute_costs ledger through rpc_record_dispute_event (idempotent, keyed
+// on the Stripe dispute id). Won/withdrawn disputes realize no loss; lost
+// disputes record fee + AOV x (1 - recovery_rate) with a pending recovery.
+async function handleDisputeEvent(
+  supabaseClient: any,
+  event: Stripe.Event
+): Promise<void> {
+  const dispute = event.data.object as Stripe.Dispute;
+
+  let paymentIntentId: string | null = null;
+  try {
+    if (dispute.charge) {
+      const charge = await stripe.charges.retrieve(
+        typeof dispute.charge === 'string' ? dispute.charge : dispute.charge.id
+      );
+      paymentIntentId = (charge.payment_intent as string) ?? null;
+    }
+  } catch (err: any) {
+    console.error(
+      `[stripe-webhook] Failed to retrieve charge for dispute ${dispute.id}: ${err.message}`
+    );
+  }
+
+  const chargeId =
+    typeof dispute.charge === 'string' ? dispute.charge : (dispute.charge?.id ?? null);
+
+  console.log(
+    `[stripe-webhook] ${event.type} dispute=${dispute.id} status=${dispute.status} pi=${paymentIntentId ?? 'n/a'} amount=${dispute.amount}`
+  );
+
+  const { error } = await supabaseClient.rpc('rpc_record_dispute_event', {
+    p_dispute_id: dispute.id,
+    p_event_type: event.type,
+    p_charge_id: chargeId,
+    p_payment_intent_id: paymentIntentId,
+    p_status: dispute.status,
+    p_amount_cents: dispute.amount,
+    p_outcome: dispute.outcome?.as ?? null,
+  });
+
+  if (error) {
+    console.error(`[stripe-webhook] rpc_record_dispute_event failed for ${dispute.id}: ${error.message}`);
+  }
+}
 
 serve(async (req) => {
   const sig = req.headers.get('stripe-signature');
@@ -59,6 +107,22 @@ serve(async (req) => {
             await supabaseClient.rpc('rpc_mark_tax_collected', {
               p_trade_id: trade.id,
               p_stripe_capture_id: chargeId,
+            });
+
+            // N2 — Idempotency & Audit: charge captured (webhook safety net).
+            logFinancialAudit(supabaseClient, {
+              mutationType: 'payment_captured',
+              entityType: 'trade',
+              entityId: trade.id,
+              afterState: { stripe_payment_intent_id: paymentIntentId, stripe_charge_id: chargeId },
+              idempotencyKey: `capture_${trade.id}`,
+            });
+            logFinancialAudit(supabaseClient, {
+              mutationType: 'tax_collected',
+              entityType: 'trade',
+              entityId: trade.id,
+              afterState: { stripe_charge_id: chargeId },
+              idempotencyKey: `tax_collected_${trade.id}`,
             });
           }
         }
@@ -117,15 +181,29 @@ serve(async (req) => {
                 const msg = paySyncErr instanceof Error ? paySyncErr.message : 'Unknown error';
                 console.error(`[stripe-webhook] Payments ledger sync error for trade ${trade.id}:`, msg);
               }
+
+              // N2 — Idempotency & Audit: refund confirmed by webhook.
+              logFinancialAudit(supabaseClient, {
+                mutationType: 'refund_issued',
+                entityType: 'trade',
+                entityId: trade.id,
+                afterState: { stripe_refund_id: refundId, amount_cents: refundAmountCents, source: 'stripe_webhook' },
+                amountCents: refundAmountCents,
+                idempotencyKey: `refund_${refundId}`,
+              });
             }
 
-            // Cancel the trade if it's not already cancelled
-            if (trade.status !== 'cancelled') {
+            // R4 (2026-08-09): if this refund is dispute-driven (charge.disputed),
+            // the charge.dispute.* handler owns the loss + state — do NOT
+            // auto-cancel here (prevents a double-cancel with the dispute flow).
+            if (trade.status !== 'cancelled' && !charge.disputed) {
               await supabaseClient.rpc('cancel_trade_v2', {
                 p_trade_id: trade.id,
                 p_user_id: null, // System action
                 p_reason: 'External Stripe refund'
               });
+            } else if (charge.disputed) {
+              console.log(`[stripe-webhook] charge.refunded PI ${paymentIntentId} is dispute-driven — dispute handler owns state; skipping auto-cancel`);
             }
           }
         }
@@ -180,6 +258,13 @@ serve(async (req) => {
             updates.is_verified = true;
           }
 
+          // R4 (2026-08-09): Direct-charge readiness — track charges_enabled on
+          // the connected account so we know when a seller can be merchant of
+          // record (required for Direct charges / seller-debited disputes).
+          if (account.charges_enabled) {
+            updates.stripe_charges_enabled = true;
+          }
+
           console.log(`[stripe-webhook] Updating payout method ${method.id} for account ${account.id}`);
           await supabaseClient
             .from('seller_payout_methods')
@@ -216,6 +301,18 @@ serve(async (req) => {
           .update(update)
           .eq('id', sellerPayout.id);
 
+        break;
+      }
+
+      // R4 (2026-08-09): Direct-charge dispute lifecycle — records dispute cost
+      // on the dispute_costs ledger (fee + AOV x (1 - recovery_rate)). With
+      // Direct charges Stripe debits the SELLER (merchant of record) first.
+      case 'charge.dispute.created':
+      case 'charge.dispute.updated':
+      case 'charge.dispute.closed':
+      case 'charge.dispute.funds_withdrawn':
+      case 'charge.dispute.funds_reinstated': {
+        await handleDisputeEvent(supabaseClient, event);
         break;
       }
 
