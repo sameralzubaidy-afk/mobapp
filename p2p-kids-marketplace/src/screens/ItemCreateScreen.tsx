@@ -1048,7 +1048,7 @@ export default function ItemCreateScreen() {
                   </Text>
                   <TouchableOpacity
                     style={styles.spUpgradeButton}
-                    onPress={() => navigation.navigate('SubscriptionChoice')}
+                    onPress={() => navigation.navigate('JoinKidsClub')}
                     testID="sp-upgrade-button"
                   >
                     <Text style={styles.spUpgradeButtonText}>Upgrade Now</Text>
@@ -1081,7 +1081,7 @@ export default function ItemCreateScreen() {
               onLearnMore={() => {
                 navigation.navigate('Help', { section: 'sp_definition' });
               }}
-              onUpgradePress={() => navigation.navigate('SubscriptionChoice')}
+              onUpgradePress={() => navigation.navigate('JoinKidsClub')}
               testID="sp-earnings-preview"
             />
 

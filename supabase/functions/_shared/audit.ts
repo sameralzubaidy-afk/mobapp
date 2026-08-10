@@ -24,6 +24,7 @@ export type FinancialMutationType =
   | 'payout_paid'
   | 'payout_requires_action'
   | 'payout_failed'
+  | 'payout_scheduled'
   | 'sp_reserved'
   | 'sp_restored'
   | 'sp_released'

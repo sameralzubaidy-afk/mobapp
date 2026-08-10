@@ -434,7 +434,7 @@ export default function ProfileScreen({ route }: any) {
                 navigation.navigate(
                   trialStatus?.status === 'active' || trialStatus?.status === 'trial'
                     ? 'MySubscription'
-                    : 'SubscriptionPlans'
+                    : 'JoinKidsClub'
                 )
               }
             >

@@ -229,7 +229,7 @@ These three documents must exist on the website **before** beta users sign up an
 ### 3.5 Marketplace-Specific Legal Considerations
 
 - [ ] **CPSC recalled-products check.** Kids items are heavily regulated. Auto-block listings matching CPSC recall keywords (drop-side cribs, certain bath seats, etc.) — add to moderation rules. List of categories: cpsc.gov/Recalls.
-- ~~[ ] **COPPA exposure.** App is **not for users under 13** — make this explicit in ToS and in App Store age rating (12+).~~ ⚠️ DEPRECATED per product decision (2026-06-20). COPPA enforcement removed. Platform accepts all ages without parental consent gates.
+- [x] **Age gate (N4, 2026-08-09).** App is **18+ only** — no user under 18 may register (hard gate, client + server; reverses the 2026-06-20 COPPA deprecation). Update ToS and the App Store age rating (17+/18+) to match.
 - [ ] **Marketplace seller tax reporting.** Stripe will issue 1099-K to sellers exceeding the federal threshold ($5,000 in 2024, dropping to $600). Disclose this in ToS.
 - [ ] **Insurance:**
   - General Liability + Cyber Liability via Next Insurance or Hiscox (~$50–100/mo). Defensive against user injury claims tied to listed items.

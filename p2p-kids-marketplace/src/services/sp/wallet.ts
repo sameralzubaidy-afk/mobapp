@@ -89,16 +89,17 @@ export async function getBalance(userId: string): Promise<number> {
 }
 
 /**
- * Check if user can spend SP (has active subscription)
+ * Check if user can spend SP (R6: grace-period users CAN spend existing SP).
  */
 export async function canSpendSP(userId: string): Promise<{ allowed: boolean; reason?: string }> {
   try {
-    // Check subscription status
+    // R6 (2026-08-09): only post-grace 'frozen' wallets block spending. Grace users
+    // can spend EXISTING SP; earning new SP stays subscription-gated elsewhere.
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('status')
       .eq('user_id', userId)
-      .in('status', ['active', 'trial'])
+      .in('status', ['active', 'trial', 'paused', 'cancelled', 'canceled', 'grace_period'])
       .single();
 
     if (!subscription) {
@@ -115,13 +116,7 @@ export async function canSpendSP(userId: string): Promise<{ allowed: boolean; re
       return { allowed: false, reason: 'SP wallet is frozen. Please renew your subscription.' };
     }
 
-    if (wallet.state === 'grace_period') {
-      return {
-        allowed: false,
-        reason: 'SP wallet is in grace period. Renew subscription to access your SP.',
-      };
-    }
-
+    // R6: 'active' and 'grace_period' wallets may spend existing SP.
     return { allowed: true };
   } catch (error) {
     console.error('Check SP spend eligibility error:', error);

@@ -70,6 +70,16 @@ export interface AdminConfig {
 
   // Bundle Fee Behavior
   charge_one_fee_per_bundle: boolean;
+
+  // Tiered Buyer-Fee Engine (R1) — flat/percentage buyer fee params.
+  // Read via fn_get_buyer_fee_for_checkout (authoritative); these mirrors exist
+  // so the config cache can expose them if needed.
+  buyer_fee_active_member_cents: number;
+  buyer_fee_first_trade_cents: number;
+  buyer_fee_subsequent_percentage: number;
+  buyer_fee_subsequent_fixed_cents: number;
+  buyer_fee_subsequent_max_cents: number;
+  buyer_fee_label: string;
 }
 
 // In-memory cache with TTL
@@ -239,6 +249,14 @@ function getDefaultConfig(): AdminConfig {
 
     // Bundle Fee Behavior — default: charge per item (current behavior)
     charge_one_fee_per_bundle: false,
+
+    // Tiered Buyer-Fee Engine (R1) — seed defaults; admin_config is authoritative.
+    buyer_fee_active_member_cents: 149,
+    buyer_fee_first_trade_cents: 149,
+    buyer_fee_subsequent_percentage: 5.0,
+    buyer_fee_subsequent_fixed_cents: 199,
+    buyer_fee_subsequent_max_cents: 499,
+    buyer_fee_label: 'Safety & Platform Fee',
   };
 }
 
@@ -360,6 +378,81 @@ export async function getChargeOneFeePerBundle(): Promise<boolean> {
     console.warn('⚠️ getChargeOneFeePerBundle failed:', (err as Error).message);
   }
   return false; // default: per-item charging (current behavior)
+}
+
+export interface BuyerFeeInfo {
+  feeCents: number;
+  feeState: string;
+  label: string;
+}
+
+/**
+ * R1 — Tiered Buyer-Fee Engine: resolves the authoritative buyer fee for a
+ * checkout via fn_get_buyer_fee_for_checkout (SECURITY DEFINER). This is the
+ * SAME function the create-trade-offer Edge Function calls, so the preview and
+ * the actual charge always agree.
+ *
+ * Fee tiers (all amounts dynamic from admin_config 'fees' category):
+ *   - active_member / no_completed_trade / first_trade_in_progress -> flat fee
+ *   - first_trade_completed / subsequent_free -> %% of cash portion + fixed, capped
+ *
+ * @param cashPortionCents cash portion of the order (order total minus Swap
+ *   Points) BEFORE the fee — the percentage tier applies only to this amount.
+ * @returns fee info, or null when the RPC is unavailable (display-only fallback;
+ *   the server remains authoritative for the actual charge).
+ */
+export async function getBuyerFeeForCheckout(
+  cashPortionCents: number
+): Promise<BuyerFeeInfo | null> {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase.rpc('fn_get_buyer_fee_for_checkout', {
+      p_user_id: user.id,
+      p_cash_portion_cents: Math.max(0, Math.round(cashPortionCents)),
+    });
+
+    if (error) {
+      console.warn('[adminConfig] fn_get_buyer_fee_for_checkout failed:', error.message);
+      return null;
+    }
+    const row = extractRpcRow<{ fee_state: string; fee_cents: number | null; label: string }>(data);
+    if (!row || !Number.isFinite(Number(row.fee_cents))) {
+      console.warn('[adminConfig] fn_get_buyer_fee_for_checkout returned no fee:', row);
+      return null;
+    }
+    return {
+      feeCents: Number(row.fee_cents),
+      feeState: row.fee_state,
+      label: row.label ?? 'Safety & Platform Fee',
+    };
+  } catch (err) {
+    console.warn('[adminConfig] fn_get_buyer_fee_for_checkout error:', (err as Error).message);
+    return null;
+  }
+}
+
+/**
+ * R1 — Tiered Buyer-Fee Engine: the flat Safety & Platform Fee charged to active
+ * members (subscription trial|active), dynamic from admin_config
+ * (buyer_fee_active_member_cents). Used by the subscription marketing/plan screens.
+ * Fallback 149 matches the seed default in 20260810000009_tiered_buyer_fee_engine.sql
+ * (BP-13 — the canonical source is admin_config).
+ */
+export async function getActiveMemberFeeCents(forceRefresh = false): Promise<number> {
+  try {
+    const config = await getAdminConfig(forceRefresh);
+    const raw = Number(config.buyer_fee_active_member_cents);
+    if (Number.isFinite(raw) && raw >= 0) {
+      return Math.round(raw);
+    }
+  } catch (err) {
+    console.warn('[adminConfig] getActiveMemberFeeCents error:', (err as Error).message);
+  }
+  return 149;
 }
 
 export async function getSPExpirationDays(forceRefresh = false): Promise<number> {

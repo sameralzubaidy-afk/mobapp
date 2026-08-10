@@ -11,8 +11,122 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.39.1';
 import Stripe from 'npm:stripe@12.0.0';
-import { verifyStripeAccountOwnership } from '../_shared/verify-stripe-ownership.ts';
-import { logFinancialAudit } from '../_shared/audit.ts';
+
+// ===========================================================================
+// Inline copies of _shared/audit.ts + _shared/verify-stripe-ownership.ts.
+// The Supabase MCP bundler cannot resolve `../_shared/*` parent-dir imports
+// (see misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md), so these helpers are
+// inlined here to keep this function deployable as a single file. Keep in sync
+// with the canonical `supabase/functions/_shared/` sources.
+// ===========================================================================
+export type FinancialMutationType =
+  | 'offer_created'
+  | 'payment_intent_created'
+  | 'payment_captured'
+  | 'payment_capture_failed'
+  | 'payment_cancelled'
+  | 'refund_issued'
+  | 'refund_voided'
+  | 'payout_initiated'
+  | 'payout_paid'
+  | 'payout_requires_action'
+  | 'payout_failed'
+  | 'payout_scheduled'
+  | 'sp_reserved'
+  | 'sp_restored'
+  | 'sp_released'
+  | 'sp_issued'
+  | 'sp_deducted'
+  | 'sp_frozen'
+  | 'sp_unfrozen'
+  | 'sp_expired'
+  | 'buyer_fee_charged'
+  | 'seller_fee_deducted'
+  | 'tax_quoted'
+  | 'tax_collected'
+  | 'tax_voided'
+  | 'tax_refunded'
+  | 'trade_cancelled'
+  | 'trade_completed';
+
+// deno-lint-ignore no-explicit-any
+type AuditClient = { rpc: (fn: string, args: Record<string, unknown>) => any };
+
+async function logFinancialAudit(
+  supabase: AuditClient,
+  input: {
+    mutationType: FinancialMutationType;
+    entityType?: string;
+    entityId?: string | null;
+    actorId?: string | null;
+    beforeState?: Record<string, unknown>;
+    afterState?: Record<string, unknown>;
+    amountCents?: number | null;
+    idempotencyKey?: string | null;
+    nodeId?: string | null;
+  },
+): Promise<void> {
+  try {
+    const { error } = (await supabase.rpc('fn_log_financial_audit', {
+      p_mutation_type: input.mutationType,
+      p_entity_type: input.entityType ?? null,
+      p_entity_id: input.entityId ?? null,
+      p_actor_id: input.actorId ?? null,
+      p_before_state: input.beforeState ?? {},
+      p_after_state: input.afterState ?? {},
+      p_amount_cents: input.amountCents ?? null,
+      p_idempotency_key: input.idempotencyKey ?? null,
+      p_node_id: input.nodeId ?? null,
+    })) ?? { error: null };
+    if (error) {
+      console.warn(
+        `[logFinancialAudit] failed mutation=${input.mutationType} entity=${input.entityId}:`,
+        error.message,
+      );
+    }
+  } catch (err) {
+    console.warn('[logFinancialAudit] unexpected error:', err);
+  }
+}
+
+// deno-lint-ignore no-explicit-any
+type SupabaseLike = any;
+
+interface OwnershipCheck {
+  owned: boolean;
+  methodId?: string;
+  error?: string;
+}
+
+async function verifyStripeAccountOwnership(
+  supabase: SupabaseLike,
+  userId: string,
+  stripeAccountId: string,
+): Promise<OwnershipCheck> {
+  if (!userId || !stripeAccountId) {
+    return { owned: false, error: 'Missing userId or stripeAccountId' };
+  }
+  const { data, error } = await supabase
+    .from('seller_payout_methods')
+    .select('id, user_id, stripe_account_id')
+    .eq('stripe_account_id', stripeAccountId)
+    .eq('method_type', 'stripe_connect')
+    .maybeSingle();
+  if (error) {
+    console.error('[verify-stripe-ownership] Lookup failed:', { userId, stripeAccountId, error: error.message });
+    return { owned: false, error: 'Lookup failed' };
+  }
+  if (!data) {
+    console.warn('[verify-stripe-ownership] OWNERSHIP MISMATCH (no row):', { userId, stripeAccountId });
+    return { owned: false, error: 'Stripe account not found' };
+  }
+  if (data.user_id !== userId) {
+    console.warn('[verify-stripe-ownership] OWNERSHIP MISMATCH:', { requestedBy: userId, stripeAccountId, actualOwner: data.user_id });
+    return { owned: false, error: 'Stripe account does not belong to this user' };
+  }
+  return { owned: true, methodId: data.id };
+}
+// ===========================================================================
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -50,7 +164,8 @@ serve(async (req) => {
     .from('trades')
     .select(`
       id, status, payout_status, payout_amount_cents,
-      seller_id, buyer_id, stripe_payment_intent_id
+      seller_id, buyer_id, stripe_payment_intent_id,
+      completed_at, payout_release_at
     `)
     .eq('id', trade_id)
     .single();
@@ -272,6 +387,68 @@ serve(async (req) => {
     );
   }
 
+  // R3 — Delayed Seller Payout + Buffer (defense-in-depth gate).
+  // Even if this EF is invoked before the release date (a stray trigger call,
+  // an admin retry, or a manual test), never dispatch before payout_release_at.
+  // The release date is keyed off the ACTUAL completion timestamp
+  // (trades.completed_at) + the buffer value in effect, read live from
+  // admin_config (BP-28 — no hardcoded fallback beyond config default 0, which
+  // preserves pre-feature immediate behavior).
+  let releaseAt: Date | null = trade.payout_release_at ? new Date(trade.payout_release_at) : null;
+  if (!releaseAt || Number.isNaN(releaseAt.getTime())) {
+    let bufferDays = 0;
+    try {
+      const { data: bufferData } = await svcClient.rpc('fn_admin_config_int', {
+        p_key: 'payout_buffer_days',
+        p_default: 0,
+      });
+      bufferDays = Math.max(0, Math.min(30, Number(bufferData) || 0));
+    } catch (cfgErr) {
+      // Non-fatal: missing config ⇒ immediate release (backward compatible).
+      console.error('[initiate-payout] Failed to read payout_buffer_days config:', cfgErr);
+      bufferDays = 0;
+    }
+    const completedAt = trade.completed_at ? new Date(trade.completed_at) : new Date();
+    releaseAt = new Date(completedAt.getTime() + bufferDays * 86400000);
+
+    const releaseIso = releaseAt.toISOString();
+    await svcClient.from('trades').update({
+      payout_release_at: releaseIso,
+      updated_at: new Date().toISOString(),
+    }).eq('id', trade_id);
+    await svcClient.from('seller_payouts').update({
+      payout_release_at: releaseIso,
+      updated_at: new Date().toISOString(),
+    }).eq('trade_id', trade_id);
+  }
+
+  if (releaseAt.getTime() > Date.now()) {
+    console.log(`[initiate-payout] Trade ${trade_id} payout scheduled until ${releaseAt.toISOString()} — not dispatching yet`);
+    await svcClient.from('trade_events').insert({
+      trade_id,
+      event_name: 'payout_scheduled',
+      user_id: trade.seller_id,
+      metadata: {
+        payout_release_at: releaseAt.toISOString(),
+        amount_cents: payoutAmountCents,
+      },
+    });
+    // N2 — Idempotency & Audit: payout scheduled (not yet dispatched).
+    logFinancialAudit(svcClient, {
+      mutationType: 'payout_scheduled',
+      entityType: 'trade',
+      entityId: trade_id,
+      actorId: trade.seller_id,
+      afterState: { payout_status: 'pending', payout_release_at: releaseAt.toISOString(), amount_cents: payoutAmountCents },
+      amountCents: payoutAmountCents,
+      idempotencyKey: `payout_scheduled_${trade_id}`,
+    });
+    return new Response(
+      JSON.stringify({ success: true, payout_status: 'pending', scheduled_for: releaseAt.toISOString() }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   // Mark as processing (idempotency)
   await svcClient.from('trades').update({
     payout_status:        'processing',
@@ -290,7 +467,11 @@ serve(async (req) => {
     idempotencyKey: `payout_${trade_id}`,
   });
 
-  const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
+  // The pinned stripe@12.0.0 SDK types only expose '2022-11-15' as its latest
+  // API version literal, but this function intentionally pins '2023-10-16'
+  // (the deployed behavior). Cast through unknown to keep the deployed API
+  // version while satisfying the strict SDK type (BP-25 gate).
+  const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as unknown as '2022-11-15' });
 
   try {
     const transfer = await stripe.transfers.create({

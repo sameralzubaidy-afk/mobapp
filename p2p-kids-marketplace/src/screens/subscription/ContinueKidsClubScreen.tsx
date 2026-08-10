@@ -21,8 +21,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getTrialStatus, TrialStatus } from '../../services/subscriptions/trialConversion';
-import { useTrialToPaidConversion } from '../../services/subscriptions/trialToPaidConversion';
 import { getSubscriptionPrice, getTrialDays } from '../../services/adminConfig';
+import { openJoinKidsClubWeb } from '../../utils/subscriptionWeb';
 import { formatDollarAmount } from '@/utils/formatPrice';
 import { LoadingSpinner } from '@/components/ui';
 
@@ -30,7 +30,6 @@ type NavigationProp = NativeStackNavigationProp<any>;
 
 export default function ContinueKidsClubScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { convertWithPaymentSheet } = useTrialToPaidConversion();
 
   const [loading, setLoading] = useState(false);
   const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
@@ -74,33 +73,11 @@ export default function ContinueKidsClubScreen() {
     setLoading(true);
 
     try {
-      const isRenewal = ['grace_period', 'expired', 'cancelled'].includes(
-        trialStatus?.status ?? ''
-      );
-      const result = await convertWithPaymentSheet({ isRenewal });
-
-      if (result.success) {
-        Alert.alert(
-          '🎉 Success!',
-          'Your Kids Club+ subscription is now active! You can continue enjoying all premium features.',
-          [
-            {
-              text: 'Got it!',
-              onPress: () => navigation.navigate('Home'),
-            },
-          ]
-        );
-      } else {
-        if (result.error === 'Payment cancelled') {
-          // User cancelled - don't show error
-          return;
-        }
-
-        Alert.alert('Payment Failed', result.error || 'Unable to process payment');
-      }
+      // R7 — Web-first subscription: open the external browser (passitup.com).
+      // There is NO in-app payment collection.
+      await openJoinKidsClubWeb();
     } catch (error) {
-      console.error('[ContinueKidsClub] Error:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      console.error('[ContinueKidsClub] Error opening web checkout:', error);
     } finally {
       setLoading(false);
     }
@@ -190,7 +167,7 @@ export default function ContinueKidsClubScreen() {
             <ActivityIndicator color="#ffffff" />
           ) : (
             <Text style={styles.primaryButtonText}>
-              {isTrialSubscription ? 'Continue Kids Club+' : `Start ${trialDays}-Day Free Trial`}
+              {isTrialSubscription ? 'Continue on the web' : 'Join Kids Club+ on the web'}
             </Text>
           )}
         </TouchableOpacity>
@@ -207,8 +184,8 @@ export default function ContinueKidsClubScreen() {
         {/* Fine Print */}
         <Text style={styles.finePrint}>
           {isTrialSubscription
-            ? `By continuing, you'll be charged ${priceFormatted}/month starting when your trial ends. You can cancel anytime before the trial ends to avoid charges.`
-            : `By adding a payment method, your Kids Club+ membership starts now with ${trialDays} free days. Your first ${priceFormatted} charge happens after the free period unless you cancel.`}
+            ? `Membership is managed on passitup.com. Your ${priceFormatted}/month charge starts when your trial ends — cancel anytime before then to avoid charges.`
+            : `Membership is completed on passitup.com. Your Kids Club+ membership starts with ${trialDays} free days — your first ${priceFormatted} charge happens after the free period unless you cancel.`}
         </Text>
       </View>
     </ScrollView>

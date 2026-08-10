@@ -389,7 +389,7 @@ export default function CreateListingScreen({ navigation }: any) {
                   </Text>
                   <TouchableOpacity
                     style={styles.upgradeButton}
-                    onPress={() => navigation.navigate('SubscriptionChoice')}
+                    onPress={() => navigation.navigate('JoinKidsClub')}
                   >
                     <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
                   </TouchableOpacity>

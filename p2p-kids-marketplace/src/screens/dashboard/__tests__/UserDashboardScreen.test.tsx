@@ -154,7 +154,7 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
     setupMocks({ canSpendSP: false, subStatus: 'free' });
     const { getByText } = render(<UserDashboardScreen />);
     fireEvent.press(getByText('Upgrade →'));
-    expect(mockNavigate).toHaveBeenCalledWith('SubscriptionPlans');
+    expect(mockNavigate).toHaveBeenCalledWith('JoinKidsClub');
   });
 
   // ── Quick Action Tiles ───────────────────────────────────────────────────────

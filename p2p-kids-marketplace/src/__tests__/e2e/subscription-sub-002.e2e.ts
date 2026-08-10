@@ -263,7 +263,7 @@ describeE2E('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management'
       expect(data).toBe(true); // Trial users can spend SP
     });
 
-    itIfRunnable('should return false for grace_period user', async () => {
+    itIfRunnable('should return true for grace_period user (R6: can spend existing SP)', async () => {
       const { error: updateError } = await updateSubscriptionRow({
         status: 'grace_period',
       });
@@ -274,7 +274,7 @@ describeE2E('MODULE-11 TASK SUB-002 E2E: Subscription Table & Status Management'
       });
 
       expect(error).toBeNull();
-      expect(data).toBe(false); // Grace period users cannot spend SP
+      expect(data).toBe(true); // R6: grace period users CAN spend existing SP
 
       // Restore to trial
       await updateSubscriptionRow({ status: 'trial' });

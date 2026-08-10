@@ -5,7 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { createTradeOfferWithHold } from '@/services/trade';
 import { getItemById } from '@/services/items';
-import { getAdminConfig } from '@/services/adminConfig';
+import { getAdminConfig, getBuyerFeeForCheckout } from '@/services/adminConfig';
 import { getTransactionFee, getPaymentMethod } from '@/services/subscription';
 import { calculateCategorySP } from '@/services/categoryService';
 
@@ -73,6 +73,7 @@ const mockUseNavigation = useNavigation as jest.Mock;
 const mockCreateTradeOffer = createTradeOfferWithHold as jest.Mock;
 const mockGetItemById = getItemById as jest.Mock;
 const mockGetAdminConfig = getAdminConfig as jest.Mock;
+const mockGetBuyerFeeForCheckout = getBuyerFeeForCheckout as jest.Mock;
 const mockGetTransactionFee = getTransactionFee as jest.Mock;
 const mockGetPaymentMethod = getPaymentMethod as jest.Mock;
 const mockCalculateCategorySP = calculateCategorySP as jest.Mock;
@@ -122,6 +123,12 @@ describe('TradeOfferScreen', () => {
 
     mockGetItemById.mockResolvedValue(mockItem);
     mockGetAdminConfig.mockResolvedValue({ sp_max_percentage_per_purchase: 50 });
+    // R1 — Tiered Buyer-Fee Engine: resolve the buyer fee (active member -> flat 149).
+    mockGetBuyerFeeForCheckout.mockResolvedValue({
+      feeCents: 149,
+      feeState: 'active_member',
+      label: 'Safety & Platform Fee',
+    });
     mockGetTransactionFee.mockResolvedValue(199);
     mockCalculateCategorySP.mockResolvedValue({
       max_spend_sp: 50,
@@ -181,10 +188,17 @@ describe('TradeOfferScreen', () => {
   });
 
   it('submits trade after disclaimer accept', async () => {
-    const { getByTestId } = render(<TradeOfferScreen />);
+    const { getByTestId, getByText } = render(<TradeOfferScreen />);
 
     await waitFor(() => {
       expect(getByTestId('send-offer-button')).toBeTruthy();
+    });
+
+    // R1 — wait for the server-resolved tiered fee to render before submitting, so
+    // the client sends the correct 149¢ flat fee (avoids the async race where
+    // buyerFeeInfo is still null and handleInitiateTrade falls back to 99/299).
+    await waitFor(() => {
+      expect(getByText('$1.49')).toBeTruthy();
     });
 
     fireEvent.press(getByTestId('send-offer-button'));
@@ -200,8 +214,10 @@ describe('TradeOfferScreen', () => {
         item_id: 'test-item-123',
         sp_amount: 0,
         payment_method_id: 'pm_test',
-        cash_amount_cents: 10199,
-        transaction_fee_cents: 199,
+        // R1 — Tiered Buyer-Fee Engine: active member pays the flat Safety &
+        // Platform Fee (149¢) resolved via getBuyerFeeForCheckout.
+        cash_amount_cents: 10149, // $100 item + $1.49 flat fee
+        transaction_fee_cents: 149,
         tax_amount_cents: 0, // MODULE-15.3-PART3 TAX-011: contract now includes tax_amount_cents
         buyer_subscription_status: 'active',
       });

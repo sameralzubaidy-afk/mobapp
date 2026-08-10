@@ -46,8 +46,7 @@ function getWarningConfig(state: WalletState) {
       return {
         icon: '⚠️',
         title: 'Swap Points Frozen',
-        message:
-          'Your subscription is in grace period. Renew your subscription to restore SP access.',
+        message: 'Your Swap Points are frozen. Renew your subscription to use them again.',
         bgColor: '#DBEAFE', // blue-100
         iconColor: '#1E40AF', // blue-800
         textColor: '#1E3A8A', // blue-900
@@ -65,7 +64,7 @@ function getWarningConfig(state: WalletState) {
       return {
         icon: '⏳',
         title: 'Grace Period Active',
-        message: 'You have 90 days to renew your subscription and keep your Swap Points.',
+        message: 'You can keep spending existing Swap Points, but you won\'t earn new ones until you renew.',
         bgColor: '#FEF3C7', // yellow-100
         iconColor: '#92400E', // yellow-800
         textColor: '#78350F', // yellow-900

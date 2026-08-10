@@ -263,7 +263,7 @@ export default function SubscriptionStatusScreen() {
           <TouchableOpacity
             style={styles.retryButton}
             onPress={() =>
-              navigation.navigate(isFreeOrCancelled ? 'SubscriptionChoice' : 'ContinueKidsClub')
+              navigation.navigate('JoinKidsClub')
             }
           >
             <Text style={styles.retryButtonText}>

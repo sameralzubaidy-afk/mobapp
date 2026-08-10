@@ -103,6 +103,8 @@ export interface SellerPayout {
   initiated_at: string | null;
   completed_at: string | null;
   failure_reason: string | null;
+  /** R3 — Delayed Seller Payout + Buffer: date the payout releases to the seller. */
+  payout_release_at?: string | null;
   created_at: string;
   updated_at: string;
 }

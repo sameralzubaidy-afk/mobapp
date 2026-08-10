@@ -193,31 +193,21 @@ async function expireSubscription(
     console.error('[expireSubscription] Error updating status:', updateError);
   }
 
-  // Call MODULE-09 SP expiry handler to permanently delete SP
+  // R6 (2026-08-09): post-grace expiry FREEZES the SP balance (can neither earn
+  // nor spend) so a later resubscribe restores it — instead of permanently
+  // deleting the SP as the legacy SP_SUBSCRIPTION_EXPIRE_URL handler did.
   try {
-    const spExpireUrl = Deno.env.get('SP_SUBSCRIPTION_EXPIRE_URL');
-    if (!spExpireUrl) {
-      console.warn('[expireSubscription] SP_SUBSCRIPTION_EXPIRE_URL not configured');
-      return;
-    }
-
-    const response = await fetch(spExpireUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-      },
-      body: JSON.stringify({ userId }),
+    const { error: freezeRpcError } = await supabaseClient.rpc('rpc_set_sp_wallet_state', {
+      p_user_id: userId,
+      p_state: 'frozen',
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[expireSubscription] SP expiry handler failed:', response.status, errorText);
+    if (freezeRpcError) {
+      console.error('[expireSubscription] Freeze SP wallet RPC failed:', freezeRpcError.message);
     } else {
-      console.log('[expireSubscription] SP successfully deleted for user', userId);
+      console.log('[expireSubscription] SP wallet frozen (not deleted) for user', userId);
     }
   } catch (err) {
-    console.error('[expireSubscription] Error calling SP expiry handler:', err);
+    console.error('[expireSubscription] Error freezing SP wallet:', err);
   }
 }
 
@@ -337,9 +327,9 @@ function getReminderTitle(daysRemaining: number): string {
  */
 function getReminderBody(daysRemaining: number): string {
   if (daysRemaining <= 1) {
-    return 'Your grace period ends today. If you do not re-subscribe, your Swap Points will be permanently deleted.';
+    return 'Your grace period ends today. If you do not re-subscribe, your Swap Points will be frozen until you do.';
   } else if (daysRemaining <= 7) {
-    return `You have ${daysRemaining} days to re-subscribe before your Swap Points are permanently deleted.`;
+    return `You have ${daysRemaining} days to re-subscribe before your Swap Points are frozen.`;
   } else if (daysRemaining <= 30) {
     return `Your Kids Club+ grace period ends in ${daysRemaining} days. Re-subscribe to restore your Swap Points access.`;
   } else {

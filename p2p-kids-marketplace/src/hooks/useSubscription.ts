@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { AppState } from 'react-native';
 import { getSubscriptionSummary, SubscriptionSummary } from '../services/subscription';
 import { useAuth } from './useAuth';
 
@@ -47,6 +48,18 @@ export function useSubscription(): UseSubscriptionReturn {
 
   useEffect(() => {
     fetchSubscription();
+  }, [fetchSubscription]);
+
+  // R7 (Step 6 — status sync): refetch whenever the app returns to the
+  // foreground, so a subscription completed on the web (passitup.com) is
+  // reflected the moment the parent reopens the app, without manual refresh.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        fetchSubscription();
+      }
+    });
+    return () => subscription.remove();
   }, [fetchSubscription]);
 
   return {

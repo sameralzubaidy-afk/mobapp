@@ -42,6 +42,7 @@ export interface SellerPayout {
   initiated_at: string | null;
   completed_at: string | null;
   failure_reason: string | null;
+  payout_release_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -97,7 +98,7 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
         .eq('status', 'completed'),
       supabase
         .from('seller_payouts')
-        .select('status, gross_amount_cents, net_amount_cents, created_at')
+        .select('status, gross_amount_cents, net_amount_cents, created_at, payout_release_at')
         .eq('user_id', userId),
     ]);
 
@@ -114,6 +115,7 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
     gross_amount_cents: number | null;
     net_amount_cents: number | null;
     created_at: string | null;
+    payout_release_at: string | null;
   };
   const completedTrades: TradeRow[] = trades || [];
   const allPayouts: PayoutRow[] = payouts || [];
@@ -123,9 +125,16 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
     0
   );
 
-  const pendingPayouts = allPayouts.filter(
-    (p: PayoutRow) => p.status === 'pending' || p.status === 'processing'
-  );
+  // R3 — Delayed Seller Payout + Buffer: a payout is "locked"/pending while it
+  // is in-flight (pending/processing) OR its release date (payout_release_at)
+  // has not arrived yet. Buffered funds therefore count as pending, not
+  // available, mirroring the server-side seller_balance pending semantics.
+  const isLockedPayout = (p: PayoutRow): boolean =>
+    p.status === 'pending' ||
+    p.status === 'processing' ||
+    (!!p.payout_release_at && new Date(p.payout_release_at).getTime() > Date.now());
+
+  const pendingPayouts = allPayouts.filter(isLockedPayout);
   const pending_reserved_gross_cents = pendingPayouts.reduce(
     (sum: number, p: PayoutRow) => sum + (p.gross_amount_cents ?? 0),
     0
@@ -159,9 +168,7 @@ async function getSellerBalanceDerivedFromTradesAndPayouts(userId: string): Prom
     pending_balance_cents,
     lifetime_earnings_cents,
     total_trades_completed: completedTrades.length,
-    total_trades_pending: allPayouts.filter(
-      (p: PayoutRow) => p.status === 'pending' || p.status === 'processing'
-    ).length,
+    total_trades_pending: allPayouts.filter(isLockedPayout).length,
     last_payout_at,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

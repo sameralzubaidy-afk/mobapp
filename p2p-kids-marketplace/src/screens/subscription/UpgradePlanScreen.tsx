@@ -110,7 +110,7 @@ export default function UpgradePlanScreen() {
       return;
     }
 
-    navigation.navigate('SubscriptionPayment', { isRenewal: false });
+    navigation.navigate('JoinKidsClub');
   };
 
   if (loading || configLoading) {

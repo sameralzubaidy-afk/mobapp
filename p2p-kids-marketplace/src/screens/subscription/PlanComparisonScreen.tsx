@@ -21,8 +21,7 @@ import { Crown, CrownSimple, CheckCircle, X } from 'phosphor-react-native';
 import {
   getSubscriptionPrice,
   getTrialDays,
-  getTransactionFeeNonSubscriberCents,
-  getTransactionFeeSubscriberCents,
+  getActiveMemberFeeCents,
 } from '@/services/adminConfig';
 import { TIER_COMPARISON_ROWS } from '@/constants/subscriptionPlans';
 import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
@@ -36,24 +35,22 @@ export default function PlanComparisonScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [monthlyPrice, setMonthlyPrice] = useState<number>(0);
   const [trialDays, setTrialDays] = useState<number>(30);
-  const [freeUserFee, setFreeUserFee] = useState<number>(0);
-  const [subscriberFee, setSubscriberFee] = useState<number>(0);
+  // R1 — Tiered Buyer-Fee Engine: flat active-member fee (dynamic from admin_config).
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number>(149);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const [price, trial, nonSubscriberFeeCents, subscriberFeeCents] = await Promise.all([
+        const [price, trial, memberFeeCents] = await Promise.all([
           getSubscriptionPrice(true),
           getTrialDays(true),
-          getTransactionFeeNonSubscriberCents(true),
-          getTransactionFeeSubscriberCents(true),
+          getActiveMemberFeeCents(true),
         ]);
 
         setMonthlyPrice(price || 0);
         setTrialDays(trial || 30);
-        setFreeUserFee(Number.isFinite(nonSubscriberFeeCents) ? nonSubscriberFeeCents : 0);
-        setSubscriberFee(Number.isFinite(subscriberFeeCents) ? subscriberFeeCents : 0);
+        setActiveMemberFlatCents(memberFeeCents);
       } catch (err) {
         console.error('[PlanComparisonScreen] Failed to load config:', err);
       } finally {
@@ -77,10 +74,13 @@ export default function PlanComparisonScreen() {
       };
     }
     if (row.key === 'transaction_fee') {
+      // R1 — Tiered Buyer-Fee Engine: free users pay a flat fee on their first
+      // trade then a percentage fee after; members pay one flat fee always.
       return {
         ...row,
-        free: formatPrice(freeUserFee),
-        kidsClubPlus: formatPrice(subscriberFee),
+        name: 'Transaction fee (per trade)',
+        free: 'Flat on 1st trade, then %',
+        kidsClubPlus: `${formatPrice(activeMemberFlatCents)} flat`,
       };
     }
 
@@ -92,7 +92,7 @@ export default function PlanComparisonScreen() {
       navigation.goBack();
       return;
     }
-    navigation.navigate('SubscriptionPayment', { isRenewal: false });
+    navigation.navigate('JoinKidsClub');
   };
 
   const renderCell = (value: boolean | string, planType: 'free' | 'kids_club_plus') => {

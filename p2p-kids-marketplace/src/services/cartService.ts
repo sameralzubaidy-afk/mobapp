@@ -18,7 +18,7 @@
  */
 
 import { supabase } from '@/config/supabase';
-import { getPlatformFeeCents, getChargeOneFeePerBundle } from '@/services/adminConfig';
+import { getBuyerFeeForCheckout, getChargeOneFeePerBundle } from '@/services/adminConfig';
 import { getPaymentMethod } from '@/services/subscription';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -498,13 +498,37 @@ export async function checkoutCart(params: {
   }
   const effectiveBundleId = cartBundleId ?? params.bundleId;
 
-  // Fetch platform fee from admin_config (source of truth — no hardcoded values)
-  const platformFeeCents = await getPlatformFeeCents(params.isSubscriber);
-
-  // BUNDLE-FEE-MODE (2026-07-30): Check if admin has enabled one-fee-per-bundle.
-  // When enabled, only the FIRST item in the bundle gets the platform fee;
-  // all other items charge $0 fee. Single-item flows are unaffected.
+  // R1 — Tiered Buyer-Fee Engine: resolve the buyer fee server-authoritatively via
+  // fn_get_buyer_fee_for_checkout — the SAME function the create-trade-offer Edge
+  // Function calls, so the sent fee matches the charge. Per-bundle mode
+  // (charge_one_fee_per_bundle) = ONE fee on the total cash portion applied to the
+  // first item; per-item mode = each item's cash portion gets its own tiered fee.
+  const itemFeePlan = items.map((item) => {
+    const itemPriceCents = item.priceCents ?? Math.round((item.price ?? 0) * 100);
+    const itemSpCents =
+      params.perItemSpCents?.[item.listingId] ??
+      (params.spAmountCents ? Math.floor(params.spAmountCents / items.length / 100) * 100 : 0);
+    return { item, cashPortion: Math.max(0, itemPriceCents - itemSpCents) };
+  });
+  const totalCashPortion = itemFeePlan.reduce((s, x) => s + x.cashPortion, 0);
   const chargeOneFeePerBundle = items.length > 1 ? await getChargeOneFeePerBundle() : false;
+
+  let perItemFeeCents: number[];
+  try {
+    if (chargeOneFeePerBundle) {
+      const bundleFee = await getBuyerFeeForCheckout(totalCashPortion);
+      perItemFeeCents = items.map((_, i) => (i === 0 ? (bundleFee?.feeCents ?? 0) : 0));
+    } else {
+      perItemFeeCents = await Promise.all(
+        itemFeePlan.map((x) =>
+          getBuyerFeeForCheckout(x.cashPortion).then((fee) => fee?.feeCents ?? 0)
+        )
+      );
+    }
+  } catch (feeErr) {
+    console.error('[cartService.checkoutCart] Buyer fee resolution failed, defaulting to 0:', feeErr);
+    perItemFeeCents = items.map(() => 0);
+  }
 
   // Get buyer's saved payment method for Stripe pre-auth (required by create-trade-offer)
   // If caller provided a paymentMethodId override (e.g., new card entered inline), use it
@@ -531,8 +555,8 @@ export async function checkoutCart(params: {
       const itemSpCents =
         params.perItemSpCents?.[item.listingId] ??
         (params.spAmountCents ? Math.floor(params.spAmountCents / items.length / 100) * 100 : 0);
-      // BUNDLE-FEE-MODE: If one-fee-per-bundle is enabled, only charge fee on first item
-      const feeForThisItem = chargeOneFeePerBundle && index > 0 ? 0 : platformFeeCents;
+      // R1: tiered fee precomputed above (per-bundle or per-item).
+      const feeForThisItem = perItemFeeCents[index] ?? 0;
       const cashAmountCents = itemPriceCents - itemSpCents + feeForThisItem;
       const spAmount = Math.floor(itemSpCents / 100);
       return {
@@ -589,7 +613,9 @@ export async function checkoutCart(params: {
       const itemSpCents =
         params.perItemSpCents?.[item.listingId] ??
         (params.spAmountCents ? Math.floor(params.spAmountCents / items.length / 100) * 100 : 0);
-      const cashAmountCents = itemPriceCents - itemSpCents + platformFeeCents;
+      // R1: tiered fee precomputed above (per-item or per-bundle).
+      const feeForThisItem = perItemFeeCents[0] ?? 0;
+      const cashAmountCents = itemPriceCents - itemSpCents + feeForThisItem;
       const spAmount = Math.floor(itemSpCents / 100);
       try {
         const { data: sess, error: authErr } = await supabase.auth.getSession();
@@ -599,7 +625,7 @@ export async function checkoutCart(params: {
             item_id: item.listingId,
             cash_amount_cents: cashAmountCents,
             sp_amount: spAmount,
-            transaction_fee_cents: platformFeeCents,
+            transaction_fee_cents: feeForThisItem,
             payment_method_id: savedPaymentMethodId,
             buyer_subscription_status: params.isSubscriber ? 'active' : 'free',
             bundle_id: effectiveBundleId,

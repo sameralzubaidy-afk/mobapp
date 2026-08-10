@@ -19,14 +19,14 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '@/navigation/types';
 import { CheckCircle, XCircle, Coins } from 'phosphor-react-native';
 import ScreenLayout from '@/components/ScreenLayout';
-import { getTransactionFeeSubscriberCents, getTransactionFeeNonSubscriberCents } from '@/services/adminConfig';
+import { getAdminConfig } from '@/services/adminConfig';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/config/supabase';
 
 type TradeSuccessRouteProp = RouteProp<RootStackParamList, 'TradeSuccess'>;
 
@@ -54,10 +54,16 @@ function buildCompletionCTA(
 ): CompletionCTA {
   if (isBuyer) {
     if (!isSubscriber) {
-      // Permutation 1: Free buyer — upsell Kids Club+
+      // Permutation 1: Free buyer — upsell Kids Club+. R1: only claim a dollar
+      // savings when it actually exists (first-trade free users pay the same flat
+      // fee as members, so their savings is $0).
       const savingsDollars = (feeSavingsCents / 100).toFixed(2);
+      const savingsMsg =
+        feeSavingsCents > 0
+          ? `Kids Club+ would've saved you $${savingsDollars} on this trade — try it free for 30 days.`
+          : `Kids Club+ gives you a flat fee and bonus Swap Points on every sale — try it free for 30 days.`;
       return {
-        message: `Kids Club+ would've saved you $${savingsDollars} on this trade — try it free for 30 days.`,
+        message: savingsMsg,
         ctaLabel: 'Try Kids Club+ Free — 30 Days',
         onPress: () => navigation.navigate('PlanComparison'),
       };
@@ -147,37 +153,43 @@ export default function TradeSuccessScreen() {
   const remainingSP: number = (route.params as any)?.remainingSP ?? session?.available_points ?? 0;
   const spAmountDollars: number = (route.params as any)?.spAmountDollars ?? 0;
 
-  // ── Dynamic fee savings from admin_config ──────────────────────────────
-  const [feeSavingsCents, setFeeSavingsCents] = useState(200); // default $2
-  const [loadingFee, setLoadingFee] = useState(true);
+  // ── Dynamic fee savings from admin_config (R1 — Tiered Buyer-Fee Engine) ────
+  const [feeSavingsCents, setFeeSavingsCents] = useState(0);
 
+  // R1: the Kids Club+ upsell savings = what this buyer ACTUALLY paid on this
+  // trade (trade.buyer_transaction_fee_cents) minus the flat active-member fee
+  // (buyer_fee_active_member_cents). Both are dynamic — the trade fee was
+  // server-computed at offer time, and the member fee comes from admin_config.
   useEffect(() => {
-    if (!user?.id) {
-      setLoadingFee(false);
+    if (!user?.id || !tradeId) {
       return;
     }
     let cancelled = false;
     const loadFee = async () => {
       try {
-        // Fetch both fees independently of the user's tier
-        const [subFee, nonSubFee] = await Promise.all([
-          getTransactionFeeSubscriberCents(),
-          getTransactionFeeNonSubscriberCents(),
+        const [config, { data: trade }] = await Promise.all([
+          getAdminConfig(),
+          supabase
+            .from('trades')
+            .select('buyer_transaction_fee_cents')
+            .eq('id', tradeId)
+            .maybeSingle(),
         ]);
-        if (!cancelled) {
-          // Savings = non-subscriber fee - subscriber fee (e.g., 299 - 99 = 200 = $2.00)
-          const savings = Math.max(0, nonSubFee - subFee);
-          setFeeSavingsCents(savings);
-        }
+        if (cancelled) return;
+        const activeMemberFlatCents = Number(config.buyer_fee_active_member_cents ?? 149);
+        const paidFeeCents = Number(
+          (trade as { buyer_transaction_fee_cents?: number } | null)?.buyer_transaction_fee_cents ?? 0
+        );
+        setFeeSavingsCents(Math.max(0, paidFeeCents - activeMemberFlatCents));
       } catch {
-        // keep default $2 (200 cents)
-      } finally {
-        if (!cancelled) setLoadingFee(false);
+        setFeeSavingsCents(0);
       }
     };
     void loadFee();
-    return () => { cancelled = true; };
-  }, [user?.id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, tradeId]);
 
   const handlePrimaryAction = () => {
     if (isSuccess) {

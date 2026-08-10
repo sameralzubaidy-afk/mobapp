@@ -98,6 +98,16 @@ export function computeNetPayoutCents(
 }
 
 /**
+ * R3 — Delayed Seller Payout + Buffer: whether a payout's release date has
+ * passed (a null/absent release date means immediately released).
+ */
+export function isPayoutReleased(payoutReleaseAt?: string | null): boolean {
+  if (!payoutReleaseAt) return true;
+  const release = new Date(payoutReleaseAt).getTime();
+  return Number.isNaN(release) || release <= Date.now();
+}
+
+/**
  * Request manual payout withdrawal (when auto-payout is disabled)
  * This dispatches a pending payout to the provider
  */
@@ -131,6 +141,21 @@ export async function requestPayoutWithdrawal(
       return {
         success: false,
         error: `Cannot withdraw payout with status: ${payout.status}. Expected: pending`,
+      };
+    }
+
+    // R3 — Delayed Seller Payout + Buffer: block manual withdrawal before the
+    // payout release date (payout_release_at). The server enforces the same
+    // rule; this is the client-side gate so the button gives clear feedback.
+    if (!isPayoutReleased(payout.payout_release_at)) {
+      const releaseDate = new Date(payout.payout_release_at!).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+      return {
+        success: false,
+        error: `This payout releases on ${releaseDate}. Please try again after that date.`,
       };
     }
 

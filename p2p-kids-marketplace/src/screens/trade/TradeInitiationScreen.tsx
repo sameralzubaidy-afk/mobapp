@@ -31,9 +31,8 @@ import { getItemById, Item } from '@/services/items';
 // TFV2-012A: replaced initiateTradeV2 + processTradePayment with createTradeOfferWithHold (D-30)
 import { createTradeOfferWithHold, mapStripeErrorToMessage } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
-import { getAdminConfig } from '@/services/adminConfig';
+import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
 import {
-  getTransactionFee,
   getPaymentMethod,
   type PaymentMethodInfo,
 } from '@/services/subscription';
@@ -76,7 +75,9 @@ export default function TradeInitiationScreen() {
   const [spAmount, setSpAmount] = useState(0);
   const [maxSpAllowed, setMaxSpAllowed] = useState(0); // Category-specific SP cap (MODULE-12 V3)
   const [maxSpPercentage, setMaxSpPercentage] = useState(50); // Fallback global percentage
-  const [transactionFeeCents, setTransactionFeeCents] = useState(0);
+  // R1 — Tiered Buyer-Fee Engine: server-resolved buyer fee, kept in sync with
+  // the SP amount (percentage tier applies to the cash portion).
+  const [buyerFeeInfo, setBuyerFeeInfo] = useState<BuyerFeeInfo | null>(null);
   const [cardComplete, setCardComplete] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);
@@ -106,6 +107,21 @@ export default function TradeInitiationScreen() {
   useEffect(() => {
     fetchData();
   }, [itemId, user?.id]);
+
+  // R1 — Tiered Buyer-Fee Engine: recompute the buyer fee whenever the item or
+  // the applied Swap Points change (percentage tier is a % of the cash portion).
+  useEffect(() => {
+    if (!item || !user?.id) return;
+    let isCancelled = false;
+    const itemPriceCents = Math.round(item.price * 100);
+    const cashPortionCents = itemPriceCents - spAmount * 100;
+    getBuyerFeeForCheckout(cashPortionCents).then((fee) => {
+      if (!isCancelled && fee) setBuyerFeeInfo(fee);
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [item, spAmount, user?.id]);
 
   useEffect(() => {
     // If still loading trade data, keep Stripe unmounted.
@@ -201,10 +217,9 @@ export default function TradeInitiationScreen() {
 
     try {
       setLoading(true);
-      const [itemData, config, feeCents] = await Promise.all([
+      const [itemData, config] = await Promise.all([
         getItemById(itemId),
         getAdminConfig(),
-        getTransactionFee(user.id),
       ]);
 
       if (!itemData) {
@@ -217,9 +232,6 @@ export default function TradeInitiationScreen() {
       await refreshSession();
 
       setItem(itemData);
-      if (Number.isFinite(feeCents) && feeCents >= 0) {
-        setTransactionFeeCents(Math.round(feeCents));
-      }
 
       // MODULE-12 V3: Use category-specific SP spending cap
       if (itemData.category_id) {
@@ -275,7 +287,8 @@ export default function TradeInitiationScreen() {
   // Business Rules using standardized hooks
   const isSubscriber =
     subStatus.status === 'active' || subStatus.status === 'trial' || subStatus.status === 'grace';
-  const platformFeeCents = transactionFeeCents;
+  // R1: server-resolved tiered fee for display + request (legacy fallback only).
+  const platformFeeCents = buyerFeeInfo?.feeCents ?? (isSubscriber ? 99 : 299);
   const itemPriceCents = Math.round(item.price * 100);
 
   // V2: 1 SP = $1.00 (100 cents)
@@ -544,7 +557,7 @@ export default function TradeInitiationScreen() {
                 </Text>
                 <Pressable
                   style={styles.upgradeButton}
-                  onPress={() => navigation.navigate('SubscriptionChoice')}
+                  onPress={() => navigation.navigate('JoinKidsClub')}
                 >
                   <Text style={styles.upgradeButtonText}>Upgrade to Kids Club+</Text>
                 </Pressable>
@@ -625,9 +638,14 @@ export default function TradeInitiationScreen() {
 
             <View style={styles.breakdownRow}>
               <View>
-                <Text style={styles.breakdownLabel}>Platform Fee</Text>
+                <Text style={styles.breakdownLabel}>{buyerFeeInfo?.label ?? 'Safety & Platform Fee'}</Text>
                 <Text style={styles.feeSubtext}>
-                  {subStatus.canSpendSP ? 'Kids Club+ Rate' : 'Standard Rate'}
+                  {buyerFeeInfo?.feeState === 'active_member'
+                    ? 'Membership rate'
+                    : buyerFeeInfo?.feeState === 'first_trade_completed' ||
+                      buyerFeeInfo?.feeState === 'subsequent_free'
+                    ? 'Applies after your first completed trade'
+                    : 'First-trade rate'}
                 </Text>
               </View>
               <Text style={styles.breakdownValue}>${(platformFeeCents / 100).toFixed(2)}</Text>

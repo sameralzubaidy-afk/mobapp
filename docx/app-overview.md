@@ -61,13 +61,14 @@ Kids outgrow everything fast. Pass It Up makes it easy to **pass items up** to t
 
 - **Local discovery**: Search by ZIP/radius for pickup convenience (standard list/grid feed; swipe-based discovery is Post-MVP)
 - **Trusted safety**: CPSC recall checks, Google Vision AI image moderation, ID verification
+- **18+ only (N4)**: No one under 18 can register — a hard age gate at signup blocks under-18 account creation, and no personal data is collected from them.
 - **Swap Points savings**: Use platform credits to cover up to 50% of item price (admin-configurable). SP spending continues during the 90-day grace period after subscription ends.
 - **Secure payments**: Stripe integration with buyer protection
 - **Community trust**: Verified sellers, ratings, and reviews
 
 ### Platform Differentiation
 Unlike generic marketplaces (Facebook Marketplace, Craigslist), Pass It Up offers:
-1. **Kid-specific safety**: CPSC recall matching, age-appropriate categories, Google Vision AI moderation
+1. **Kid-specific safety**: CPSC recall matching, age-appropriate categories, Google Vision AI moderation. Listings are hidden until admin approval, and every uploaded photo must pass Google Vision moderation before a listing can be approved (R8).
 2. **Seller privacy by default**: Seller identity is masked until a trade is active — preventing off-platform dealing, grooming, and stalking. Buyers see a non-identifying colored badge to recognize same-seller items.
 3. **Single-seller cart model**: Each active cart is locked to one seller (one physical meetup per trade). Bundle CTA lets buyers submit a single offer for multiple items from the same seller.
 4. **Gamified currency**: Swap Points reward active subscribers (subscription-gated earning; spending continues during grace period)
@@ -92,23 +93,28 @@ Pass It Up operates on a **freemium subscription model** with two active tiers (
 **Kids Club Membership** (Paid Tier):
 - **Price**: Admin-configurable (monthly and yearly plans)
 - **Benefits**:
-  - Lower flat transaction fees ($0.99 vs. $2.99 per transaction, admin-configurable)
+  - Flat **Safety & Platform Fee** at checkout (default $1.49, admin-configurable) — same flat fee whether on trial or paid
   - **Swap Points earning enabled** (earn SP on all sales — gated behind active subscription)
   - Priority listing visibility
   - Early access to new features
   - **Post-MVP**: Bulk listing tools, advanced search filters, Donate-to-charity option
 
 **Free (Post-Grace)**:
-- Access continues with higher transaction fees
+- Access continues with the standard free-tier buyer fee (flat on the first trade, then a percentage of the cash portion after 1+ completed trades)
 - **Can spend existing SP during the 90-day grace period, but CANNOT earn new SP** (earning requires active subscription)
 - After grace period ends, SP balance is frozen until resubscription
 - Limited features vs. paid tier
 
 #### 4.2 Transaction Fees (Secondary Revenue)
-- **Buyer Transaction Fee**: Flat fee per transaction — $0.99 (subscribers) / $2.99 (free users). Admin-configurable via `admin_config`.
-- **Seller Fee**: 5% of sale price (admin-configurable)
-- **Applied**: At checkout (buyer fee separate from item price; seller fee deducted from payout)
+- **Buyer Fee (Tiered — first-trade protection)**: A tiered buyer fee resolved at checkout by the buyer's fee-state. All amounts are **dynamic from `admin_config`** (fees category), never hardcoded:
+  - **Active members** (trial or paid): flat **Safety & Platform Fee** (default $1.49).
+  - **Free users, first trade** (no completed trade): flat **Safety & Platform Fee** (default $1.49) — first-trade protection.
+  - **Free users with 1+ completed trades**: **5% of the cash portion + $1.99, capped at $4.99** (defaults).
+  - One fee per checkout regardless of bundle size (single seller, multiple items); the percentage applies **only to the cash portion** — never to Swap-Points-covered amounts.
+- **Seller Fee**: 5% of the cash portion (admin-configurable)
+- **Applied**: At checkout — the buyer fee is **server-authoritative** (computed by `fn_get_buyer_fee_for_checkout` / `create-trade-offer`), charged once, always in cash
 - **Platform fees always paid in cash** (never SP)
+- **First-trade eligibility is a state, not a counter** — consumed only when a trade is successfully captured and completed; not consumed on cancel / timeout / failed capture / refund (a full refund restores it)
 
 #### 4.3 Swap Points (SP) Currency System
 **SP is NOT a revenue driver** — it's a **retention and engagement tool**.
@@ -122,7 +128,8 @@ Pass It Up operates on a **freemium subscription model** with two active tiers (
 **SP Rules**:
 - **Earning**: Users MUST have an active subscription (trial or paid) to earn SP on sales. Each category has its own `sp_earning_multiplier` (default ~1.1x). "Bonus" categories (e.g., high-demand items) have multipliers >1.10x for accelerated earning. The final SP earned = item price × category multiplier.
 - **Spending**: Users can spend SP during active subscription AND during the 90-day grace period after subscription ends. After grace period, SP is frozen until resubscription.
-- **Spend cap**: Each category has its own `sp_spending_cap_percent` (admin-configurable per category), which overrides the global `sp_max_percentage_per_purchase` (default 50%). Buyer must pay any remaining % in cash, plus all platform fees in cash.
+- **Spend cap**: Each category has its own `sp_spending_cap_percent` (admin-configurable per category), which overrides the global `sp_max_percentage_per_purchase` (default 50%). Buyer must pay any remaining % in cash, plus all platform fees in cash. An optional absolute `sp_redemption_cap` per category (admin-configurable) tightens the cap further. **R11 (2026-08-09): these caps are enforced SERVER-SIDE at checkout** (Edge Function + DB trigger) — the UI clamp is a convenience, not the enforcement.
+- **Entitlement (R6, 2026-08-09)**: SP earn/spend is gated by subscription state — trial/paid earn+spend; grace spends existing SP (no new earn, pays the free-user fee per R13); post-grace SP is frozen (not deleted) and restored on resubscribe. The server runs an entitlement check before any SP action.
 - **Pending period**: Earned SP is pending for 3 days (admin-configurable) — releases when buyer confirms item received
 - **Platform fees always paid in cash** (never SP)
 
@@ -292,7 +299,7 @@ Pass It Up operates on a **freemium subscription model** with two active tiers (
 ### Architecture
 - **Frontend**: React Native Expo (iOS + Android)
 - **Backend**: Supabase (auth, database, storage, edge functions)
-- **Payments**: Stripe (checkout + seller payouts via Stripe Connect)
+- **Payments**: Stripe — subscription purchase is **web-first** on passitup.com (hosted Checkout: Apple Pay / Google Pay / card, SAQ-A); item/trade payments stay in-app via Stripe PaymentSheet; seller payouts via Stripe Connect
 - **Safety**: CPSC recall matching, Google Vision AI image moderation
 - **Messaging**: Supabase Realtime (in-app chat)
 - **Push Notifications**: FCM (Firebase Cloud Messaging)
@@ -307,9 +314,9 @@ Pass It Up operates on a **freemium subscription model** with two active tiers (
 3. **FLOW-04**: Listings (photo-first create, bulk create, edit, delete, safety review)
 4. **FLOW-06**: Discovery (search, filters, favorites, standard list/grid feed)
 5. **FLOW-07**: Cart & Bundling (single-seller cart, bundle CTA, "More from this seller" discovery, different-seller modal, seller masking)
-6. **FLOW-08**: Trading — auth-and-capture hold at checkout (Stripe authorization placed, not captured), 48-hour offer window (unaccepted offers auto-cancel and release the hold), 72-hour pickup window (drives the auto-complete deadline), capture on "I Got It", 7-day admin guardrail (offer + pickup windows must total under 168h — hard block), and configurable in-app + push reminders during both windows
+6. **FLOW-08**: Trading — auth-and-capture hold at checkout (Stripe authorization placed, not captured), 48-hour offer window (unaccepted offers auto-cancel and release the hold), 72-hour pickup window (drives the auto-complete deadline), capture on "I Got It", 7-day admin guardrail (offer + pickup windows must total under 168h — hard block), configurable in-app + push reminders during both windows, and **delayed seller payout (R3)** — payouts release on a stored `payout_release_at` computed from the actual completion time + the admin-tunable `payout_buffer_days` (default 2 days, 0–30), dispatched by a release cron; buffered funds show as pending until release
 7. **FLOW-10/11**: Swap Points (wallet, earn/spend ledger, pending→release lifecycle)
-8. **FLOW-12**: Subscriptions (Stripe integration, purchase, cancel, trial, grace period)
+8. **FLOW-12**: Subscriptions — **web-first purchase (R7)**: the app shows a non-purchase "Join Kids Club" prompt that opens the external browser to passitup.com; Stripe hosted Checkout (Apple Pay / Google Pay / card) completes the purchase; the backend webhook flags the account (status active/trial, Stripe ids linked); R1 $1.49 member fee + R6 SP earn/spend gating unlock automatically on the next app open; renewals re-sync on each `invoice.payment_succeeded`/`invoice.payment_failed` (grace after 3 failures, then expired)
 9. **FLOW-14**: Messaging (realtime chat between buyer and seller)
 10. **FLOW-13**: Referrals (referral codes, SP rewards)
 11. **FLOW-15**: Safety & Moderation (Google Vision AI, CPSC recall checks, reporting)
@@ -323,6 +330,7 @@ Pass It Up operates on a **freemium subscription model** with two active tiers (
 - **Bulk Listing Tools**: Enhanced bulk upload with AI auto-categorization
 
 ### Platform Constraints
+- **No in-app subscription purchase (R7)**: All subscription billing happens on the web (passitup.com) — the iOS/Android apps contain NO purchase button, price-selection UI, or App Store / Play Store billing trigger. The apps only show a "Join Kids Club" prompt that opens the external browser (App Store Guideline 3.1.3 compliant).
 - **No NativeBase**: Disabled due to iOS runtime error (custom design system required)
 - **Icons**: Ionicons (current), moving to custom icon set
 - **Typography**: System fonts (current), to be specified in design system

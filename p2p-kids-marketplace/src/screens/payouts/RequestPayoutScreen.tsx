@@ -190,6 +190,16 @@ export default function RequestPayoutScreen() {
             </Text>
           </View>
 
+          {/* R3 — Delayed Seller Payout + Buffer: explain locked funds */}
+          {balance && balance.pending_balance_cents > 0 && availableCents === 0 && (
+            <View style={styles.pendingNote} testID="pending-buffer-note">
+              <Text style={styles.pendingNoteText}>
+                Your recent earnings are pending their payout release date and aren't
+                withdrawable yet. Check My Earnings for the release date.
+              </Text>
+            </View>
+          )}
+
           {/* Amount Input — filled style */}
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>Amount (SP)</Text>
@@ -382,6 +392,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#5DBB8E',
+  },
+  pendingNote: {
+    marginTop: -12,
+    marginBottom: 20,
+    backgroundColor: '#EAF6F0',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  pendingNoteText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#3D7A5B',
   },
   // Field groups
   fieldGroup: {

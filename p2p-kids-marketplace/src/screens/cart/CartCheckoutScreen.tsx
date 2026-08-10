@@ -45,7 +45,7 @@ import {
 import { useSubscriptionStatus } from '@/hooks/useAuth';
 import { calculateTax, isTaxExemptCategory } from '@/services/tax';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
-import { getPlatformFeeCents, getChargeOneFeePerBundle } from '@/services/adminConfig';
+import { getBuyerFeeForCheckout, getChargeOneFeePerBundle, type BuyerFeeInfo } from '@/services/adminConfig';
 import { supabase } from '@/config/supabase';
 import { getBuyerSpBalance } from '@/services/spWalletService';
 import { calculateCategorySP } from '@/services/categoryService';
@@ -83,7 +83,8 @@ export default function CartCheckoutScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
-  const [platformFeeCents, setPlatformFeeCents] = useState<number>(0);
+  // R1 — Tiered Buyer-Fee Engine: server-resolved buyer fee for the whole checkout.
+  const [buyerFeeInfo, setBuyerFeeInfo] = useState<BuyerFeeInfo | null>(null);
   const [chargeOneFeePerBundle, setChargeOneFeePerBundle] = useState<boolean>(false);
   const [sellerNodeId, setSellerNodeId] = useState<string | null>(null);
 
@@ -113,20 +114,18 @@ export default function CartCheckoutScreen() {
     supabase.functions.invoke('create-trade-offer', { body: { __warmup: true } }).catch(() => {});
   }, []);
 
-  // Load platform fee from admin_config (dynamic — no hardcoded values)
-  // BUNDLE-FEE-MODE (2026-07-30): Also load the one-fee-per-bundle toggle
+  // BUNDLE-FEE-MODE (2026-07-30): load the one-fee-per-bundle toggle.
   useEffect(() => {
-    getPlatformFeeCents(isSubscriber)
-      .then(setPlatformFeeCents)
-      .catch(() => {
-        setPlatformFeeCents(isSubscriber ? 99 : 299);
-      });
     getChargeOneFeePerBundle()
       .then(setChargeOneFeePerBundle)
       .catch(() => {
         setChargeOneFeePerBundle(false);
       });
-  }, [isSubscriber]);
+  }, []);
+
+  // R1 — Tiered Buyer-Fee Engine: resolved fee (set by the effect below). Legacy
+  // 99/299 fallback is display-only; the Edge Function recomputes authoritatively.
+  const platformFeeCents = buyerFeeInfo?.feeCents ?? (isSubscriber ? 99 : 299);
   const platformFeeDollars = platformFeeCents / 100;
 
   // Load saved payment method (mirrors TradeInitiationScreen logic)
@@ -162,6 +161,26 @@ export default function CartCheckoutScreen() {
 
   // Calculate total points applied across all items
   const totalSpApplied = Object.values(itemSpState).reduce((sum, s) => sum + s.spApplied, 0);
+
+  // R1 — Tiered Buyer-Fee Engine: resolve the buyer fee server-side on the total
+  // cash portion (subtotal − SP). Recompute when the SP applied changes (the
+  // percentage tier applies only to the cash portion; flat tiers are unaffected).
+  useEffect(() => {
+    let cancelled = false;
+    const subtotalCents = Math.round((cart?.subtotal ?? 0) * 100);
+    const spCents = totalSpApplied * 100;
+    const cashPortionCents = Math.max(0, subtotalCents - spCents);
+    getBuyerFeeForCheckout(cashPortionCents)
+      .then((fee) => {
+        if (!cancelled && fee) setBuyerFeeInfo(fee);
+      })
+      .catch(() => {
+        /* display-only fallback; the Edge Function is authoritative */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cart?.subtotal, totalSpApplied]);
 
   // Calculate remaining balance
   const remainingBalance = Math.max(0, walletBalance - totalSpApplied);
@@ -701,12 +720,13 @@ export default function CartCheckoutScreen() {
           )}
 
           {/* BUNDLE-FEE-MODE (2026-07-30): Show per-item count when charging per item,
-              show single fee label when one-fee-per-bundle is enabled. */}
+              show single fee label when one-fee-per-bundle is enabled. R1: fee label
+              comes from admin_config (buyer_fee_label). */}
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownLabel}>
               {bundleMode && !chargeOneFeePerBundle
-                ? `Platform Fee (\u00D7${itemCount} items)`
-                : 'Platform Fee'}
+                ? `${buyerFeeInfo?.label ?? 'Platform Fee'} (\u00D7${itemCount} items)`
+                : (buyerFeeInfo?.label ?? 'Platform Fee')}
             </Text>
             <Text style={styles.breakdownValue} testID="platform-fee-amount">
               ${effectiveFeeDollars.toFixed(2)}

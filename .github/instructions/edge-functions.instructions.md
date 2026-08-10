@@ -21,7 +21,8 @@ Full bug-prevention rule text below: BP-7, BP-17, BP-18, BP-19, BP-25, BP-26, BP
 - BP-27 Duplicate enforcement — search for DB triggers/RPCs that duplicate an Edge Function's business rule check.
 - BP-28 Admin-configurable values — Edge Functions must fail loud (`CONFIG_UNAVAILABLE`), never silently fall back.
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
-- BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`) — the MCP bundler drops bare `_shared/...` entries.
+- BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`); if the MCP bundler still cannot resolve `../_shared/*`, INLINE the helper into the function file (canonical repo pattern — see `misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md`) and keep the `_shared/` source in sync.
+- BP-51 Pre-deploy verification — run `git diff` / grep the function for the new symbol before deploying an Edge Function; edits can be lost if the working tree is reverted between turns.
 - Backward compatibility — API response shapes are additive-only; new request params need defaults for old clients; deploy order is migration-first; version the contract if a break is unavoidable.
 
 ## HP-3: Supabase auth/RLS rule (be explicit)
@@ -157,11 +158,22 @@ Rules:
 4. Audit sibling functions that construct `SubscriptionCreateParams` for the same pattern.
 
 ## BP-41: Verify All Relative Imports Are Included in the Edge Function Deploy `files` Array
-Problem: `mcp_supabase_deploy_edge_function`'s `files` array must include ALL files the entrypoint imports via relative paths, including transitive ones. Missing a dependency causes "Module not found" deploy failures. MCP-specific gotcha: file names must use the `functions/` prefix relative to the Supabase functions root — the MCP bundler DROPS bare `_shared/<file>.ts` entries, so a shared dep uploaded without the `functions/` prefix fails with `Module not found ".../_shared/<file>.ts"`.
+Problem: `mcp_supabase_deploy_edge_function`'s `files` array must include ALL files the entrypoint imports via relative paths, including transitive ones. Missing a dependency causes "Module not found" deploy failures. MCP-specific gotcha: file names must use the `functions/` prefix relative to the Supabase functions root — the MCP bundler DROPS bare `_shared/<file>.ts` entries, so a shared dep uploaded without the `functions/` prefix fails with `Module not found ".../_shared/<file>.ts"`. IMPORTANT: even with the `functions/_shared/` prefix, the MCP bundler has NOT reliably resolved `../_shared/*` parent-dir imports (confirmed 2026-08-10 on `initiate-payout`). The proven repo fix is to INLINE the shared helper into the function file (see `misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md`).
 
 Rules:
 1. Before deploying, scan the entrypoint for ALL relative imports (including transitive ones).
 2. Name every file relative to the Supabase functions root WITH the `functions/` prefix: entrypoint `functions/<name>/index.ts` and shared deps `functions/_shared/<file>.ts`. Do NOT use bare `_shared/<file>.ts` — the MCP bundler drops it and the deploy fails "Module not found".
 3. Deploy the entrypoint and dependencies in a single call — do not deploy them separately.
-4. After a "Module not found" failure, re-invoke the deploy with ALL dependency files included, double-checking the `functions/` prefix on each.
-5. Verify the deployment succeeded by checking the returned `version` incremented.
+4. If the bundle STILL fails with `Module not found ".../_shared/<file>.ts"` even after the `functions/` prefix is applied, INLINE the shared helper (e.g. `logFinancialAudit`, `verifyStripeAccountOwnership`) into the function file and deploy a single self-contained `index.ts`. This is the canonical repo pattern (see `misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md`). Add a comment above the inlined code naming the canonical `_shared/` source and the words "keep in sync".
+5. Whenever you edit a function that has inlined `_shared/` helpers, re-check the inlined copy against the canonical `_shared/` source and update both together.
+6. After a "Module not found" failure, re-invoke the deploy with ALL dependency files included (or the inlined single file), double-checking the `functions/` prefix on each.
+7. Verify the deployment succeeded by checking the returned `version` incremented.
+
+## BP-51: Verify the Intended Change Is Actually in the File Before Deploying an Edge Function
+Problem: Edits made to an Edge Function can be lost if the working tree is reverted between sessions/turns (a `git checkout`/`git stash` or an external reset), while the deploy step then proceeds with a file that no longer contains the change. Result: a deploy goes out without the intended behavior (a silent no-op), or the agent "re-adds" a change it believes is already present. Confirmed 2026-08-09 on `create-trade-offer` (the R11/R6 server-side SP cap + entitlement enforcement was re-applied twice after being lost between turns).
+
+Rules:
+1. Before deploying (or claiming a change is live), run `git diff --stat` / `git diff -- <function>/index.ts` and confirm the intended lines are actually present in the working-tree file — never trust memory of an edit made earlier in the session.
+2. Grep the function for the specific new symbol/call (e.g. `grep -n "resolveSpRedemption" supabase/functions/create-trade-offer/index.ts`) as a cheap presence check before a large deploy.
+3. If the change is missing, re-apply it and re-run the pre-deployment gate (`deno check --no-lock`, BP-25) before deploying.
+4. After deploying, verify the returned `version` incremented (mirrors BP-41 rule 7) so a lost-edit is caught at the deploy boundary, not after.

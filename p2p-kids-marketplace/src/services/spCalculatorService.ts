@@ -65,8 +65,11 @@ export async function calculateSP(
       // Buy mode
       const adminConfig = await getAdminConfig();
       
-      // ✅ FIX: Use flat fee from admin config (educational preview shows non-subscriber fee)
-      // Per SYSTEM_REQUIREMENTS_V2.md Section 8.1.1: Free users = $2.99, Subscribers = $0.99
+      // R1 — Tiered Buyer-Fee Engine: educational preview shows a representative
+      // flat fee. The ACTUAL fee is resolved server-side at checkout via
+      // fn_get_buyer_fee_for_checkout (flat for active members / first-trade users,
+      // or % + fixed for free users with 1+ completed trades). This preview is
+      // illustrative only — it is never the charge.
       const feeInCents = Number(adminConfig.transaction_fee_non_subscriber_cents ?? 299);
       const fee = roundToCents(feeInCents / 100);
 

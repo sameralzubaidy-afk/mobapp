@@ -788,7 +788,11 @@ Issue: "A mutation appears to succeed in the UI but the database wasn't actually
 ✅ Check: The caller checked the `{success}` result of the service call instead of ignoring it (BP-35)
 Issue: "Edge Function deploy fails with 'Module not found'"
 
-✅ Check: Every relative import (including transitive `_shared/*` dependencies) is listed in the deploy `files` array with the `functions/` prefix (`functions/_shared/<file>.ts`) — bare `_shared/...` entries are dropped by the MCP bundler (BP-41)
+✅ Check: Every relative import (including transitive `_shared/*` dependencies) is listed in the deploy `files` array with the `functions/` prefix (`functions/_shared/<file>.ts`) — bare `_shared/...` entries are dropped by the MCP bundler; if `../_shared/*` still won't resolve, INLINE the helper and keep `_shared/` in sync (BP-41)
+Issue: "I edited an Edge Function but the deployed/working version is missing the change"
+
+✅ Check: `git diff -- <function>/index.ts` / grep the function for the intended symbol before deploying — edits made earlier in the session can be lost if the working tree was reverted between turns (BP-51)
+See also: BP-51 (verify the intended change is actually in the file before deploying an Edge Function)
 Issue: "An Edge Function and a DB trigger/RPC disagree on the same business rule"
 
 ✅ Check: Split-brain enforcement — search migrations for a trigger/RPC/constraint duplicating the Edge Function's check (BP-27)
@@ -1269,7 +1273,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-38 Fee config — absolute percentage per tier, never base+discount; confirm the calculation base with the user.
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-40 Stripe trial params — `trial_end`/`trial_period_days` are mutually exclusive; use if/else if.
-- BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`) — the MCP bundler drops bare `_shared/...` entries.
+- BP-41 Edge Function deploys — every relative import must be in the `files` array (including transitive ones), named with the `functions/` prefix (`functions/_shared/<file>.ts`); if the MCP bundler still cannot resolve `../_shared/*`, INLINE the helper into the function file (canonical repo pattern — see `misc./PAY-004-005-DEPLOYMENT-FIX-APPLIED.md`) and keep the `_shared/` source in sync.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
 - BP-43 Navigation & params — verify callers pass route params, verify navigator imports, check buyer AND seller paths.
 - BP-44 Tax/SP/fee RPC recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
@@ -1279,6 +1283,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail).
 - BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it).
 - BP-50 Migration version uniqueness — before creating a migration, list `supabase/migrations/` and confirm no existing file shares the same `YYYYMMDDHHMMSS` timestamp prefix (parallel WIP collides, e.g. two `20260809000001` files); use the next available version.
+- BP-51 Edge Function pre-deploy verification — run `git diff` / grep the function for the new symbol to confirm the intended change is in the file before deploying (edits can be lost when the working tree is reverted between turns).
 - BC-1 Backward Compatibility Gate — every change keeps shipped clients (mobile + admin) and existing data working; breaking changes need owner approval + a coordinated rollout plan (full text in the main body, "Backward Compatibility Gate" section).
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
@@ -1545,7 +1550,9 @@ Whenever implementing a state change that should notify users:
 
 ---
 
-## BP-41: Verify All Relative Imports Are Included in the Edge Function Deploy `files` Array (name files with the `functions/` prefix — `functions/_shared/<file>.ts`; the MCP bundler drops bare `_shared/...` entries) — full text moved to `.github/instructions/edge-functions.instructions.md`.
+## BP-41: Verify All Relative Imports Are Included in the Edge Function Deploy `files` Array (name files with the `functions/` prefix — `functions/_shared/<file>.ts`; the MCP bundler drops bare `_shared/...` entries; if `../_shared/*` still won't resolve, INLINE the helper and keep `_shared/` in sync) — full text moved to `.github/instructions/edge-functions.instructions.md`.
+
+## BP-51: Verify the Intended Change Is Actually in the File Before Deploying an Edge Function (run `git diff` / grep the function for the new symbol; edits can be lost when the working tree is reverted between turns) — full text moved to `.github/instructions/edge-functions.instructions.md`.
 
 ## BP-42: Tax Preview on Trade Detail Screens Must Use Joined Listing Price, Not `cash_amount_cents` — full text moved to `.github/instructions/mobile-client.instructions.md`.
 - Verify the screen has access to the joined listing (either via `trade.listing.price` or a separate item query) before assuming the fix is simple.

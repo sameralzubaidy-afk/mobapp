@@ -31,6 +31,12 @@ jest.mock('@/services/trade', () => ({
 
 jest.mock('@/services/adminConfig', () => ({
   getAdminConfig: jest.fn().mockResolvedValue({ sp_max_percentage_per_purchase: 50 }),
+  // R1 — Tiered Buyer-Fee Engine: active member / first-trade flat fee (149¢).
+  getBuyerFeeForCheckout: jest.fn().mockResolvedValue({
+    feeCents: 149,
+    feeState: 'active_member',
+    label: 'Safety & Platform Fee',
+  }),
 }));
 
 jest.mock('@/services/categoryService', () => ({
@@ -114,7 +120,7 @@ jest.mock('phosphor-react-native', () => ({
 describe('TradeOfferScreen – Addendum B: Value Stack', () => {
   afterEach(() => jest.clearAllMocks());
 
-  describe('Subscriber view ($0.99 platform fee)', () => {
+  describe('Subscriber view ($1.49 flat Safety & Platform Fee)', () => {
     beforeEach(() => {
       (useSubscriptionStatus as jest.Mock).mockReturnValue({ status: 'active' });
       (useSPWallet as jest.Mock).mockReturnValue({ available: 100, pending: 0, reserved: 0 });
@@ -133,15 +139,15 @@ describe('TradeOfferScreen – Addendum B: Value Stack', () => {
       expect(title).toBeTruthy();
     });
 
-    it('shows $0.99 platform fee for subscriber', async () => {
+    it('shows $1.49 flat fee for subscriber (R1 active member)', async () => {
       const { findByText } = render(<TradeOfferScreen />);
-      const feeText = await findByText('$0.99');
+      const feeText = await findByText('$1.49');
       expect(feeText).toBeTruthy();
     });
 
-    it('shows "Platform fee" label', async () => {
+    it('shows "Safety & Platform Fee" label', async () => {
       const { findByText } = render(<TradeOfferScreen />);
-      const label = await findByText('Platform fee');
+      const label = await findByText('Safety & Platform Fee');
       expect(label).toBeTruthy();
     });
 
@@ -156,42 +162,42 @@ describe('TradeOfferScreen – Addendum B: Value Stack', () => {
     });
   });
 
-  describe('Non-subscriber view ($2.99 platform fee)', () => {
+  describe('Non-subscriber view ($1.49 flat first-trade fee)', () => {
     beforeEach(() => {
       (useSubscriptionStatus as jest.Mock).mockReturnValue({ status: 'inactive' });
       (useSPWallet as jest.Mock).mockReturnValue({ available: 0, pending: 0, reserved: 0 });
       mockGetTransactionFee.mockResolvedValue(299);
     });
 
-    it('shows $2.99 platform fee for non-subscriber', async () => {
+    it('shows $1.49 flat first-trade fee for non-subscriber', async () => {
       const { findByText } = render(<TradeOfferScreen />);
-      const feeText = await findByText('$2.99');
+      const feeText = await findByText('$1.49');
       expect(feeText).toBeTruthy();
     });
 
-    it('does NOT show $0.99 for non-subscriber', async () => {
+    it('does NOT show the legacy $2.99 fee for non-subscriber', async () => {
       const { findByText, queryByText } = render(<TradeOfferScreen />);
       // Wait for load
       await findByText('What you pay');
-      expect(queryByText('$0.99')).toBeNull();
+      expect(queryByText('$2.99')).toBeNull();
     });
   });
 
-  describe('Trade/trial user view ($0.99 fee)', () => {
+  describe('Trade/trial user view ($1.49 flat fee)', () => {
     beforeEach(() => {
       mockGetTransactionFee.mockResolvedValue(99);
     });
 
-    it('shows $0.99 for trial subscriber', async () => {
+    it('shows $1.49 for trial subscriber (R1 active member)', async () => {
       (useSubscriptionStatus as jest.Mock).mockReturnValue({ status: 'trial' });
       const { findByText } = render(<TradeOfferScreen />);
-      expect(await findByText('$0.99')).toBeTruthy();
+      expect(await findByText('$1.49')).toBeTruthy();
     });
 
-    it('shows $0.99 for grace-period subscriber', async () => {
+    it('shows $1.49 for grace-period user (R1 first-trade flat fee)', async () => {
       (useSubscriptionStatus as jest.Mock).mockReturnValue({ status: 'grace' });
       const { findByText } = render(<TradeOfferScreen />);
-      expect(await findByText('$0.99')).toBeTruthy();
+      expect(await findByText('$1.49')).toBeTruthy();
     });
   });
 });

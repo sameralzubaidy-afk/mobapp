@@ -67,7 +67,7 @@ export default function SubscriptionExpiredScreen() {
     : 'recently';
 
   const handleRenew = () => {
-    navigation.navigate('SubscriptionPayment', { isRenewal: true });
+    navigation.navigate('JoinKidsClub');
   };
 
   const handleContinueFree = () => {

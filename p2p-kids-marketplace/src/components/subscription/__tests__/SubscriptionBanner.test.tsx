@@ -118,7 +118,7 @@ describe('SubscriptionBanner', () => {
 
     fireEvent.press(getByText('Start Free Trial'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('SubscriptionPlans');
+    expect(mockNavigate).toHaveBeenCalledWith('JoinKidsClub');
   });
 
   it('should navigate to ContinueKidsClub when trial user taps banner', () => {
@@ -133,7 +133,7 @@ describe('SubscriptionBanner', () => {
 
     fireEvent.press(getByText('Continue Kids Club+'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('ContinueKidsClub');
+    expect(mockNavigate).toHaveBeenCalledWith('JoinKidsClub');
   });
 
   it('should navigate to ManageKidsClub when grace_period user taps banner', () => {

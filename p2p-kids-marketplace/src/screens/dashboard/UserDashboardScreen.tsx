@@ -324,7 +324,7 @@ export default function UserDashboardScreen() {
           <TouchableOpacity
             style={[styles.spStrip, styles.spStripFree]}
             testID="sp-strip"
-            onPress={() => navigation.navigate('SubscriptionPlans')}
+            onPress={() => navigation.navigate('JoinKidsClub')}
             activeOpacity={0.85}
           >
             <View style={styles.spStripLeft}>
@@ -490,7 +490,7 @@ export default function UserDashboardScreen() {
           {isFreeUser && (
             <TouchableOpacity
               style={styles.upgradeBtn}
-              onPress={() => navigation.navigate('SubscriptionPlans')}
+              onPress={() => navigation.navigate('JoinKidsClub')}
             >
               <Text style={styles.upgradeBtnText}>Upgrade to Kids Club+</Text>
             </TouchableOpacity>

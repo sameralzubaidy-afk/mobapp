@@ -25,8 +25,7 @@ import { AuthContext } from '@/contexts/AuthContext';
 import { formatPrice } from '@/utils/formatPrice';
 import {
   getSubscriptionPrice,
-  getTransactionFeeNonSubscriberCents,
-  getTransactionFeeSubscriberCents,
+  getActiveMemberFeeCents,
 } from '@/services/adminConfig';
 import { LoadingSpinner } from '@/components/ui';
 import ScreenLayout from '@/components/ScreenLayout';
@@ -63,25 +62,22 @@ export default function KidsClubOverviewScreen() {
 
   // NO HARDCODED PRICE - fetch from admin_config on mount
   const [monthlyPrice, setMonthlyPrice] = useState<number | null>(null);
-  const [subscriberFeeCents, setSubscriberFeeCents] = useState<number>(0);
-  const [nonSubscriberFeeCents, setNonSubscriberFeeCents] = useState<number>(0);
+  // R1 — Tiered Buyer-Fee Engine: flat active-member fee (dynamic).
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number>(149);
 
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const [price, subscriberFee, nonSubscriberFee] = await Promise.all([
+        const [price, memberFeeCents] = await Promise.all([
           getSubscriptionPrice(true),
-          getTransactionFeeSubscriberCents(true),
-          getTransactionFeeNonSubscriberCents(true),
+          getActiveMemberFeeCents(true),
         ]);
         setMonthlyPrice(price);
-        setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
-        setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
+        setActiveMemberFlatCents(memberFeeCents);
       } catch (err) {
         console.error('[KidsClubOverview] Failed to load config:', err);
         setMonthlyPrice(0); // Show 0 if config missing
-        setSubscriberFeeCents(0);
-        setNonSubscriberFeeCents(0);
+        setActiveMemberFlatCents(149);
       }
     };
 
@@ -154,7 +150,7 @@ export default function KidsClubOverviewScreen() {
       case 'free':
         return {
           primaryCtaLabel: 'Start 30-Day Free Trial',
-          primaryCtaRoute: 'ContinueKidsClub',
+          primaryCtaRoute: 'JoinKidsClub',
         };
       case 'trial':
         return {
@@ -185,7 +181,7 @@ export default function KidsClubOverviewScreen() {
       default:
         return {
           primaryCtaLabel: 'Start Free Trial',
-          primaryCtaRoute: 'ContinueKidsClub',
+          primaryCtaRoute: 'JoinKidsClub',
         };
     }
   })();
@@ -222,7 +218,7 @@ export default function KidsClubOverviewScreen() {
             />
             <BenefitItem
               icon="💵"
-              text={`Pay only ${formatPrice(subscriberFeeCents)} per transaction (vs ${formatPrice(nonSubscriberFeeCents)})`}
+              text={`Pay a flat ${formatPrice(activeMemberFlatCents)} Safety & Platform Fee on every trade`}
             />
             <BenefitItem icon="⚡" text="Get early access to new listings" />
             <BenefitItem icon="🌱" text="Help your child learn smart money habits" />

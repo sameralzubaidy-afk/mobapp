@@ -33,7 +33,7 @@ const DEFAULT_GRACE_PERIOD_DAYS = 90;
 // HELPER: Fetch grace period days from admin_config (primary), then subscription tier
 // ============================================================================
 async function getGracePeriodDays(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   userId: string,
 ): Promise<number> {
   try {
@@ -162,6 +162,31 @@ serve(async (req: Request): Promise<Response> => {
         break;
       }
 
+      // ── R7: Web-first subscription purchase ──────────────────────────────────────────
+      // checkout.session.completed — link the web Stripe Checkout to the app account
+      // (resolve by client_reference_id → metadata → email) and flag it subscribed.
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleCheckoutSessionCompleted(supabase, session, event.id);
+        break;
+      }
+
+      // customer.subscription.created — idempotent confirmation of the web subscription
+      // (also covers Checkout-before-webhook ordering).
+      case 'customer.subscription.created': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await handleSubscriptionCreated(supabase, subscription, event.id);
+        break;
+      }
+
+      // invoice.payment_succeeded — renewal success: reset retry count, record billing,
+      // and restore status if a previous failure had pushed the account to grace.
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaymentSucceeded(supabase, invoice, event.id);
+        break;
+      }
+
       default:
         console.log(`[stripe-webhook-subscriptions] Unhandled event type: ${event.type}`);
     }
@@ -183,7 +208,7 @@ serve(async (req: Request): Promise<Response> => {
 // Handler: customer.subscription.updated
 // ─────────────────────────────────────────────────────────────────────────────
 async function handleSubscriptionUpdated(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   subscription: Stripe.Subscription,
   eventId: string,
 ): Promise<void> {
@@ -210,12 +235,16 @@ async function handleSubscriptionUpdated(
 
   // ── Determine new internal status ──────────────────────────────────────────
   // Priority order: explicit cancel flag > Stripe status
-  let newStatus: 'active' | 'canceled' | 'grace_period' = 'active';
+  // R7 fix: Stripe 'trialing' maps to internal 'trial' (web trial), NOT 'active'.
+  let newStatus: 'active' | 'canceled' | 'grace_period' | 'trial' = 'active';
 
   if (subscription.cancel_at_period_end) {
     // User requested cancellation — still has access until period_end
     newStatus = 'canceled';
-  } else if (subscription.status === 'active' || subscription.status === 'trialing') {
+  } else if (subscription.status === 'trialing') {
+    // Web trial period (Stripe trial_period_days) — internal status 'trial'
+    newStatus = 'trial';
+  } else if (subscription.status === 'active') {
     newStatus = 'active';
   } else if (subscription.status === 'canceled') {
     // Stripe already terminated the subscription immediately
@@ -279,6 +308,9 @@ async function handleSubscriptionUpdated(
   if (currentPeriodEnd) {
     updatePayload.current_period_end = currentPeriodEnd;
   }
+  if (newStatus === 'trial' && subscription.trial_end) {
+    updatePayload.trial_end_date = toIsoFromStripeSeconds(subscription.trial_end);
+  }
 
   // If entering grace period immediately (e.g. immediate cancel), set grace dates
   if (newStatus === 'grace_period' && sub.status !== 'grace_period') {
@@ -334,7 +366,7 @@ async function handleSubscriptionUpdated(
 // Handler: customer.subscription.deleted
 // ─────────────────────────────────────────────────────────────────────────────
 async function handleSubscriptionDeleted(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   subscription: Stripe.Subscription,
   eventId: string,
 ): Promise<void> {
@@ -386,7 +418,7 @@ async function handleSubscriptionDeleted(
 // Handler: invoice.payment_failed
 // ─────────────────────────────────────────────────────────────────────────────
 async function handleInvoicePaymentFailed(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   invoice: Stripe.Invoice,
   eventId: string,
 ): Promise<void> {
@@ -417,7 +449,7 @@ async function handleInvoicePaymentFailed(
       .maybeSingle();
 
     if (!fallback.error && fallback.data) {
-      sub = fallback.data;
+      sub = fallback.data as { id: string; user_id: string; status: string; payment_retry_count: number | null };
       fetchError = null;
 
       if (stripeSubId) {
@@ -487,6 +519,298 @@ async function handleInvoicePaymentFailed(
   }
 }
 
+// ============================================================================
+// R7 — Web-first subscription purchase helpers
+// ============================================================================
+
+function secondsToIso(value: number | null | undefined): string | null {
+  if (!value || !Number.isFinite(Number(value)) || Number(value) <= 0) {
+    return null;
+  }
+  const asDate = new Date(Number(value) * 1000);
+  if (Number.isNaN(asDate.getTime())) {
+    return null;
+  }
+  return asDate.toISOString();
+}
+
+function isUuid(value: string | null | undefined): boolean {
+  return typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+async function resolveUserByEmail(
+  supabase: any,
+  email: string | null | undefined,
+): Promise<string | null> {
+  if (!email) {
+    return null;
+  }
+  const { data } = await supabase
+    .from('profiles')
+    .select('user_id')
+    .ilike('email', email.trim().toLowerCase())
+    .maybeSingle();
+  return data?.user_id ?? null;
+}
+
+async function resolveTierIdForPrice(
+  supabase: any,
+  priceId: string | null | undefined,
+): Promise<string | null> {
+  if (!priceId) {
+    return null;
+  }
+  const { data } = await supabase
+    .from('subscription_tiers')
+    .select('id')
+    .eq('stripe_price_id', priceId)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+/**
+ * Upsert the subscriptions row from a Stripe subscription object.
+ * Status mapping: Stripe 'trialing' → internal 'trial'; 'active' → 'active'.
+ */
+async function upsertWebSubscription(
+  supabase: any,
+  userId: string,
+  subscription: Stripe.Subscription,
+  tierId: string | null,
+): Promise<void> {
+  const status = subscription.status === 'trialing' ? 'trial' : 'active';
+  const customerId = typeof subscription.customer === 'string'
+    ? subscription.customer
+    : subscription.customer?.id ?? null;
+
+  const { error } = await supabase.rpc('rpc_upsert_web_subscription', {
+    p_user_id: userId,
+    p_stripe_customer_id: customerId,
+    p_stripe_subscription_id: subscription.id,
+    p_tier_id: tierId,
+    p_status: status,
+    p_period_start: secondsToIso(subscription.current_period_start),
+    p_period_end: secondsToIso(subscription.current_period_end),
+    p_has_used_trial: true,
+    p_cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+    p_trial_end: secondsToIso(subscription.trial_end ?? null),
+  });
+
+  if (error) {
+    throw new Error(`upsertWebSubscription RPC failed: ${error.message}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Handler: checkout.session.completed (R7 — web subscription purchase)
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleCheckoutSessionCompleted(
+  supabase: any,
+  session: Stripe.Checkout.Session,
+  eventId: string,
+): Promise<void> {
+  if (session.mode !== 'subscription') {
+    console.log(`[stripe-webhook-subscriptions] checkout.session.completed: ignoring non-subscription session=${session.id} mode=${session.mode}`);
+    return;
+  }
+
+  // Resolve the app user: client_reference_id → metadata.supabase_user_id → email match.
+  let userId: string | null = null;
+  if (isUuid(session.client_reference_id)) {
+    userId = session.client_reference_id as string;
+  }
+  if (!userId && isUuid(session.metadata?.supabase_user_id)) {
+    userId = session.metadata?.supabase_user_id as string;
+  }
+  if (!userId) {
+    const email = session.customer_details?.email || session.customer_email || session.metadata?.email || null;
+    userId = await resolveUserByEmail(supabase, email);
+  }
+
+  if (!userId) {
+    // No app account yet — the subscription will be bound later via
+    // link-subscription-account (email match + one-time token) once the parent
+    // signs up / signs in with the same email.
+    console.log(
+      `[stripe-webhook-subscriptions] checkout.session.completed: no resolvable app user, deferring binding`,
+      { checkout_session_id: session.id, email: session.customer_details?.email || session.customer_email },
+    );
+    return;
+  }
+
+  const stripeSubId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id;
+  if (!stripeSubId) {
+    console.warn(`[stripe-webhook-subscriptions] checkout.session.completed: no subscription on session=${session.id}`);
+    return;
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(stripeSubId);
+  if (subscription.status !== 'trialing' && subscription.status !== 'active') {
+    console.log(
+      `[stripe-webhook-subscriptions] checkout.session.completed: subscription not yet active/trialing status=${subscription.status}`,
+      { checkout_session_id: session.id },
+    );
+    return;
+  }
+
+  const tierId = await resolveTierIdForPrice(supabase, subscription.items?.data?.[0]?.price?.id ?? null);
+  await upsertWebSubscription(supabase, userId, subscription, tierId);
+  await sendSubscriptionWelcomeNotification(userId, subscription.status === 'trialing');
+
+  console.log(
+    `[stripe-webhook-subscriptions] checkout.session.completed: linked user=${userId} subscription=${stripeSubId} status=${subscription.status} event=${eventId}`,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Handler: customer.subscription.created (R7 — idempotent confirmation)
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleSubscriptionCreated(
+  supabase: any,
+  subscription: Stripe.Subscription,
+  eventId: string,
+): Promise<void> {
+  let userId: string | null = null;
+
+  if (isUuid(subscription.metadata?.supabase_user_id)) {
+    userId = subscription.metadata?.supabase_user_id as string;
+  }
+
+  if (!userId) {
+    const customerId = typeof subscription.customer === 'string'
+      ? subscription.customer
+      : subscription.customer?.id ?? null;
+    if (customerId) {
+      const customer = await stripe.customers.retrieve(customerId);
+      if (!customer.deleted) {
+        if (isUuid(customer.metadata?.supabase_user_id)) {
+          userId = customer.metadata?.supabase_user_id as string;
+        }
+        if (!userId) {
+          userId = await resolveUserByEmail(supabase, customer.email);
+        }
+      }
+    }
+  }
+
+  if (!userId) {
+    console.log(
+      `[stripe-webhook-subscriptions] customer.subscription.created: no resolvable app user, deferring`,
+      { subscription_id: subscription.id },
+    );
+    return;
+  }
+
+  if (subscription.status !== 'trialing' && subscription.status !== 'active') {
+    return;
+  }
+
+  const tierId = await resolveTierIdForPrice(supabase, subscription.items?.data?.[0]?.price?.id ?? null);
+  await upsertWebSubscription(supabase, userId, subscription, tierId);
+
+  console.log(
+    `[stripe-webhook-subscriptions] customer.subscription.created: linked user=${userId} subscription=${subscription.id} status=${subscription.status} event=${eventId}`,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Handler: invoice.payment_succeeded (R7 — renewal success)
+// Resets the payment retry counter, records a billing_history row, and restores
+// status back to 'active' if a prior failure had pushed the account to grace.
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleInvoicePaymentSucceeded(
+  supabase: any,
+  invoice: Stripe.Invoice,
+  eventId: string,
+): Promise<void> {
+  const stripeSubId = typeof invoice.subscription === 'string' ? invoice.subscription : null;
+  const stripeCustomerId = typeof invoice.customer === 'string' ? invoice.customer : null;
+
+  let sub: { id: string; user_id: string; status: string } | null = null;
+
+  if (stripeSubId) {
+    const primary = await supabase
+      .from('subscriptions')
+      .select('id, user_id, status')
+      .eq('stripe_subscription_id', stripeSubId)
+      .maybeSingle();
+    sub = primary.data;
+  }
+
+  if (!sub && stripeCustomerId) {
+    const fallback = await supabase
+      .from('subscriptions')
+      .select('id, user_id, status')
+      .eq('stripe_customer_id', stripeCustomerId)
+      .maybeSingle();
+    if (!fallback.error && fallback.data) {
+      sub = fallback.data;
+    }
+  }
+
+  if (!sub) {
+    console.log(
+      `[stripe-webhook-subscriptions] invoice.payment_succeeded: no subscription record`,
+      { invoice_id: invoice.id, stripe_subscription_id: stripeSubId },
+    );
+    return;
+  }
+
+  const amount = invoice.amount_paid ?? invoice.amount_due ?? 0;
+  const chargeId =
+    (typeof invoice.charge === 'string' && invoice.charge) ||
+    (typeof invoice.payment_intent === 'string' && invoice.payment_intent) ||
+    invoice.id;
+
+  // Renewal success: reset retry count + record last payment (SUB-002 RPC).
+  const { error: attemptError } = await supabase.rpc('record_payment_attempt', {
+    p_user_id: sub.user_id,
+    p_success: true,
+    p_amount: amount,
+    p_charge_id: chargeId,
+  });
+  if (attemptError) {
+    throw new Error(`record_payment_attempt failed: ${attemptError.message}`);
+  }
+
+  // Billing ledger (idempotent on charge_id).
+  const { error: billingError } = await supabase.from('billing_history').upsert(
+    {
+      user_id: sub.user_id,
+      subscription_id: sub.id,
+      charge_id: chargeId,
+      stripe_invoice_id: invoice.id,
+      amount,
+      status: 'succeeded',
+    },
+    { onConflict: 'charge_id' },
+  );
+  if (billingError) {
+    console.error(`[stripe-webhook-subscriptions] invoice.payment_succeeded: billing_history insert failed`, billingError);
+  }
+
+  // If a previous failure had pushed the account into grace/cancel, a successful
+  // renewal restores it to active (R6: SP earn/spend gating re-enables).
+  if (sub.status === 'grace_period' || sub.status === 'grace' || sub.status === 'cancelled' || sub.status === 'canceled') {
+    const { error: statusError } = await supabase.rpc('update_subscription_status', {
+      p_user_id: sub.user_id,
+      p_status: 'active',
+      p_last_payment_date: new Date().toISOString(),
+      p_last_payment_amount: amount,
+      p_next_billing_date: invoice.lines?.data?.[0]?.period?.end
+        ? new Date(invoice.lines.data[0].period.end * 1000).toISOString()
+        : null,
+    });
+    if (statusError) {
+      console.error(`[stripe-webhook-subscriptions] invoice.payment_succeeded: status restore failed`, statusError);
+    }
+  }
+
+  console.log(
+    `[stripe-webhook-subscriptions] invoice.payment_succeeded: user=${sub.user_id} amount=${amount} event=${eventId}`,
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MODULE-14 NOTIF-V2-002: Subscription notification helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -548,6 +872,63 @@ async function sendSubscriptionRenewalNotification(userId: string, nextBillingDa
     console.log(`[stripe-webhook-subscriptions] Renewal notification sent to user=${userId}`);
   } catch (err: any) {
     console.error('[stripe-webhook-subscriptions] Renewal notification error:', err.message);
+  }
+}
+
+/**
+ * Send "Welcome to Kids Club+" notification after a successful web subscription
+ * (R7). For trial subscriptions, tell them when the trial ends.
+ */
+async function sendSubscriptionWelcomeNotification(userId: string, isTrial: boolean): Promise<void> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('[stripe-webhook-subscriptions] Missing Supabase credentials for welcome notification');
+    return;
+  }
+
+  try {
+    const title = isTrial ? 'Welcome to Kids Club+ 🎉' : 'You\'re a Kids Club+ member 🎉';
+    const body = isTrial
+      ? 'Your 30-day free trial has started. Earn Swap Points and enjoy the $1.49 flat fee — no charge until your trial ends.'
+      : 'Your membership is active. Earn Swap Points on sales and pay the $1.49 flat fee instead of the free-user percentage fee.';
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    const { error } = await supabase.from('user_notifications').insert({
+      user_id: userId,
+      category: 'subscription',
+      type: 'subscription',
+      title,
+      body,
+      channels: ['push', 'in_app'],
+      data: {
+        event: 'subscription_created',
+        deep_link: '/profile/subscription',
+      },
+      is_read: false,
+    });
+
+    if (error) {
+      console.error('[stripe-webhook-subscriptions] Failed to create welcome notification:', error);
+      return;
+    }
+
+    await supabase.functions.invoke('send-push-notification', {
+      body: {
+        user_id: userId,
+        title,
+        body,
+        data: {
+          type: 'subscription',
+          event: 'subscription_created',
+        },
+      },
+    });
+
+    console.log(`[stripe-webhook-subscriptions] Welcome notification sent to user=${userId} trial=${isTrial}`);
+  } catch (err: any) {
+    console.error('[stripe-webhook-subscriptions] Welcome notification error:', err.message);
   }
 }
 

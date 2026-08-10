@@ -14,9 +14,141 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
-import { logTradeEvent } from '../_shared/trade-events.ts';
-import { resolveSellerProfile } from '../_shared/node.ts';
-import { logFinancialAudit } from '../_shared/audit.ts';
+
+// NOTE (BP-41, 2026-08-09): logTradeEvent, resolveSellerProfile, logFinancialAudit
+// are INLINED below from their ../_shared/* sources (kept in sync) because the
+// MCP deploy bundler cannot resolve ../_shared/* relative imports.
+
+// ── inlined from ../_shared/trade-events.ts ────────────────────────────────
+type TradeEventType =
+  | 'offer_submitted'
+  | 'offer_accepted'
+  | 'offer_cancelled'
+  | 'seller_cancelled'
+  | 'trade_completed'
+  | 'trade_disputed'
+  | 'payment_captured'
+  | 'payment_failed'
+  | 'payout_initiated'
+  | 'payout_sent'
+  | 'payout_failed';
+
+async function logTradeEvent(
+  supabase: { from: (table: string) => any },
+  tradeId: string,
+  eventType: TradeEventType,
+  actorId: string,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  try {
+    const { error } = await supabase.from('trade_events').insert({
+      trade_id: tradeId,
+      event_type: eventType,
+      actor_id: actorId,
+      metadata: metadata ?? {},
+    });
+    if (error) {
+      console.warn(`[logTradeEvent] failed to write event=${eventType} trade=${tradeId}:`, error.message);
+    }
+  } catch (err) {
+    console.warn(`[logTradeEvent] unexpected error:`, err);
+  }
+}
+
+// ── inlined from ../_shared/node.ts ────────────────────────────────────────
+interface SellerProfile {
+  user_id: string | null;
+  node_id: string | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function resolveSellerProfile(client: any, sellerId: string): Promise<SellerProfile | null> {
+  const { data } = await client
+    .from('profiles')
+    .select('user_id, node_id')
+    .or(`user_id.eq.${sellerId},id.eq.${sellerId}`)
+    .limit(1)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  return {
+    user_id: (data as { user_id?: string | null }).user_id ?? null,
+    node_id: (data as { node_id?: string | null }).node_id ?? null,
+  };
+}
+
+// ── inlined from ../_shared/audit.ts ───────────────────────────────────────
+type FinancialMutationType =
+  | 'offer_created'
+  | 'payment_intent_created'
+  | 'payment_captured'
+  | 'payment_capture_failed'
+  | 'payment_cancelled'
+  | 'refund_issued'
+  | 'refund_voided'
+  | 'payout_initiated'
+  | 'payout_paid'
+  | 'payout_requires_action'
+  | 'payout_failed'
+  | 'payout_scheduled'
+  | 'sp_reserved'
+  | 'sp_restored'
+  | 'sp_released'
+  | 'sp_issued'
+  | 'sp_deducted'
+  | 'sp_frozen'
+  | 'sp_unfrozen'
+  | 'sp_expired'
+  | 'buyer_fee_charged'
+  | 'seller_fee_deducted'
+  | 'tax_quoted'
+  | 'tax_collected'
+  | 'tax_voided'
+  | 'tax_refunded'
+  | 'trade_cancelled'
+  | 'trade_completed';
+
+interface FinancialAuditInput {
+  mutationType: FinancialMutationType;
+  entityType?: string;
+  entityId?: string | null;
+  actorId?: string | null;
+  beforeState?: Record<string, unknown>;
+  afterState?: Record<string, unknown>;
+  amountCents?: number | null;
+  idempotencyKey?: string | null;
+  nodeId?: string | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function logFinancialAudit(
+  supabase: { rpc: (fn: string, args: Record<string, unknown>) => any },
+  input: FinancialAuditInput,
+): Promise<void> {
+  try {
+    const { error } = (await supabase.rpc('fn_log_financial_audit', {
+      p_mutation_type: input.mutationType,
+      p_entity_type: input.entityType ?? null,
+      p_entity_id: input.entityId ?? null,
+      p_actor_id: input.actorId ?? null,
+      p_before_state: input.beforeState ?? {},
+      p_after_state: input.afterState ?? {},
+      p_amount_cents: input.amountCents ?? null,
+      p_idempotency_key: input.idempotencyKey ?? null,
+      p_node_id: input.nodeId ?? null,
+    })) ?? { error: null };
+
+    if (error) {
+      console.warn(
+        `[logFinancialAudit] failed mutation=${input.mutationType} entity=${input.entityId}:`,
+        error.message,
+      );
+    }
+  } catch (err) {
+    console.warn('[logFinancialAudit] unexpected error:', err);
+  }
+}
 
 // N2 — Idempotency & Audit: deterministic content hash used to build a stable
 // Stripe idempotency key per offer attempt. Two identical double-taps produce the
@@ -205,6 +337,115 @@ async function calculateSellerFeeCents(
   return Math.round(itemPriceAfterSP * effectivePct / 100);
 }
 
+/**
+ * R1 — Tiered Buyer-Fee Engine (first-trade protection): authoritative buyer fee
+ * resolution. Calls fn_get_buyer_fee_for_checkout (SECURITY DEFINER) — the SAME
+ * function the mobile order summary uses, so the preview and the charge always
+ * agree. The buyer fee is NEVER trusted from the client.
+ *
+ * Tiers (all amounts dynamic from admin_config 'fees' category):
+ *   - active_member (trial|active)           -> flat active-member fee
+ *   - no_completed_trade / first_trade_in_progress -> flat first-trade fee
+ *   - first_trade_completed / subsequent_free -> % of cash portion + fixed, capped
+ *
+ * BP-28: fail loud (CONFIG_UNAVAILABLE) when the fee cannot be resolved — no
+ * hardcoded fallback.
+ */
+async function resolveBuyerFee(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseClient: any,
+  buyerId: string,
+  cashPortionCents: number,
+): Promise<{ feeCents: number; feeState: string; label: string }> {
+  const { data, error } = await supabaseClient.rpc('fn_get_buyer_fee_for_checkout', {
+    p_user_id: buyerId,
+    p_cash_portion_cents: Math.max(0, Math.round(cashPortionCents)),
+  });
+
+  if (error) {
+    console.error('[create-trade-offer] Failed to resolve buyer fee:', error);
+    throw { code: 'CONFIG_UNAVAILABLE', message: 'Fee configuration is unavailable. Please try again.' };
+  }
+
+  // RPC returns TABLE (array of rows).
+  const row = Array.isArray(data) ? data[0] : data;
+  const rawFee = (row as { fee_cents?: number | null } | null)?.fee_cents ?? null;
+  const feeCents = rawFee === null ? NaN : Number(rawFee);
+  if (!Number.isFinite(feeCents) || feeCents < 0) {
+    console.error('[create-trade-offer] Invalid buyer fee resolution:', row);
+    throw { code: 'CONFIG_UNAVAILABLE', message: 'Fee configuration is invalid. Please contact support.' };
+  }
+
+  return {
+    feeCents,
+    feeState: (row as { fee_state?: string } | null)?.fee_state ?? 'no_completed_trade',
+    label: (row as { label?: string } | null)?.label ?? 'Safety & Platform Fee',
+  };
+}
+
+// R11 + R6 (2026-08-09): server-side SP redemption enforcement shared by the
+// single-item and bundle offer paths. Runs BEFORE any SP is accepted so the
+// Edge Function returns a clean structured error instead of relying on the DB
+// trigger alone:
+//   * R6  entitlement — fn_get_sp_entitlement(buyerId): grace users CAN spend
+//     existing SP (can_spend_sp=true); free/expired/frozen cannot.
+//   * R11 cap — fn_item_effective_sp_cap(itemId): category spend-cap %
+//     (overrides global 50%) bounded by the category absolute cap.
+// Returns null when SP is not used (spAmt <= 0) or when the check passes;
+// otherwise an object matching the caller's { error, code, status } shape.
+async function resolveSpRedemption(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseClient: any,
+  buyerId: string,
+  itemId: string,
+  spAmt: number
+): Promise<{ error: string; code: string; status: number } | null> {
+  if (!spAmt || spAmt <= 0) return null;
+
+  // R6 entitlement (server-authoritative — never trust client subscription state)
+  const { data: entData, error: entError } = await supabaseClient.rpc('fn_get_sp_entitlement', {
+    p_user_id: buyerId,
+  });
+  if (entError) {
+    console.error('[create-trade-offer] fn_get_sp_entitlement error:', entError.message);
+    return { error: 'Unable to verify Swap Points access. Please try again.', code: 'ENTITLEMENT_UNAVAILABLE', status: 500 };
+  }
+  const entRow = (Array.isArray(entData) ? entData[0] : entData) as
+    | { can_spend_sp?: boolean; wallet_state?: string }
+    | null
+    | undefined;
+  if (entRow && entRow.can_spend_sp === false) {
+    const walletState = entRow.wallet_state ?? 'unknown';
+    return {
+      error:
+        walletState === 'frozen'
+          ? 'Your Swap Points balance is frozen. Renew your subscription to use SP again.'
+          : 'Swap Points are not available on your current plan.',
+      code: 'SP_NOT_ENTITLED',
+      status: 403,
+    };
+  }
+
+  // R11 category cap (server-authoritative — never trust client max-sp)
+  const { data: capData, error: capError } = await supabaseClient.rpc('fn_item_effective_sp_cap', {
+    p_listing_id: itemId,
+  });
+  if (capError) {
+    console.error('[create-trade-offer] fn_item_effective_sp_cap error:', capError.message);
+    return { error: 'Unable to verify the Swap Points cap. Please try again.', code: 'CAP_UNAVAILABLE', status: 500 };
+  }
+  const cap = Number((capData as { fn_item_effective_sp_cap?: number } | null)?.fn_item_effective_sp_cap ?? capData);
+  if (Number.isFinite(cap) && spAmt > cap) {
+    return {
+      error: `This item accepts up to ${cap} Swap Points. Reduce the amount and try again.`,
+      code: 'SP_CAP_EXCEEDED',
+      status: 400,
+    };
+  }
+
+  return null;
+}
+
 function jsonError(message: string, code: string, status: number, details?: Record<string, unknown>) {
   return new Response(
     JSON.stringify({ success: false, error: { code, message, ...(details ? { details } : {}) } }),
@@ -387,9 +628,10 @@ serve(async (req) => {
     cashCents: number;
     spAmt: number;
     txFeeCents: number;
+    buyerFeeState: string;
     taxCents: number;
   }) {
-    const { itemId, cashCents, spAmt, txFeeCents, taxCents: clientTaxCents } = params;
+    const { itemId, cashCents, spAmt, txFeeCents, buyerFeeState, taxCents: clientTaxCents } = params;
 
     // PERF-DIAG (temporary): timing instrumentation to locate the source of multi-second
     // bundle checkout latency. Safe to remove once root cause is confirmed — logging only,
@@ -411,6 +653,10 @@ serve(async (req) => {
 
     const categoryMultiplier =
       (item.categories as { sp_earning_multiplier?: number } | null)?.sp_earning_multiplier ?? 1.0;
+
+    // R11 + R6 (2026-08-09): server-side SP cap + entitlement enforcement.
+    const spCheck = await resolveSpRedemption(supabase, buyerId, itemId, spAmt);
+    if (spCheck) return spCheck;
 
     // Resolve seller (N6: node resolution on write via shared helper — same query/semantics)
     const sellerProfile = await resolveSellerProfile(supabase, item.seller_id);
@@ -676,6 +922,7 @@ serve(async (req) => {
         sp_amount: spAmt,
         cash_amount_cents: cashCents - txFeeCents,
         buyer_subscription_status,
+        buyer_fee_state: buyerFeeState, // R1: tiered fee-state snapshot (server-resolved)
         buyer_transaction_fee_cents: txFeeCents,
         cash_currency: 'usd',
         tax_amount_cents: finalTaxCents,
@@ -840,9 +1087,10 @@ serve(async (req) => {
     cashCents: number;
     spAmt: number;
     txFeeCents: number;
+    buyerFeeState: string;
     taxCents: number;
   }): Promise<BundlePhase1Success | BundlePhase1Error> {
-    const { itemId, cashCents, spAmt, txFeeCents, taxCents: clientTaxCents } = params;
+    const { itemId, cashCents, spAmt, txFeeCents, buyerFeeState, taxCents: clientTaxCents } = params;
     const tStart = Date.now();
     console.log(`[perf][${itemId}] (bundle) phase1 start t=0ms`);
 
@@ -859,6 +1107,10 @@ serve(async (req) => {
 
     const categoryMultiplier =
       (item.categories as { sp_earning_multiplier?: number } | null)?.sp_earning_multiplier ?? 1.0;
+
+    // R11 + R6 (2026-08-09): server-side SP cap + entitlement enforcement (bundle path).
+    const spCheck = await resolveSpRedemption(supabase, buyerId, itemId, spAmt);
+    if (spCheck) return spCheck;
 
     const sellerProfile = await resolveSellerProfile(supabase, item.seller_id);
     console.log(`[perf][${itemId}] (bundle) sellerLookup done t=${Date.now() - tStart}ms`);
@@ -1040,6 +1292,7 @@ serve(async (req) => {
         sp_amount: spAmt,
         cash_amount_cents: cashCents - txFeeCents,
         buyer_subscription_status,
+        buyer_fee_state: buyerFeeState, // R1: tiered fee-state snapshot (server-resolved)
         buyer_transaction_fee_cents: txFeeCents,
         cash_currency: 'usd',
         tax_amount_cents: finalTaxCents,
@@ -1330,18 +1583,46 @@ serve(async (req) => {
       console.warn(`[create-trade-offer] req=${requestId} charge_one_fee_per_bundle read failed, defaulting to per-item:`, feeModeErr);
     }
 
+    // R1 — Tiered Buyer-Fee Engine: server-authoritative buyer fee for the whole
+    // checkout. Per-bundle mode (charge_one_fee_per_bundle) = ONE fee on the total
+    // cash portion, applied to the first item (items 2..n carry $0). Per-item mode
+    // = each item's cash portion gets its own tiered fee. Mirrors the resolver the
+    // mobile order summary calls, so preview and charge always agree.
+    const itemCashPortions = items!.map((it) => {
+      const clientFee = it.transaction_fee_cents ?? 0;
+      return Math.max(0, it.cash_amount_cents - clientFee);
+    });
+    const totalCashPortion = itemCashPortions.reduce((sum, v) => sum + v, 0);
+
+    let resolvedBuyerFees: Array<{ feeCents: number; feeState: string }>;
+    try {
+      if (oneFeePerBundle) {
+        const bundleFee = await resolveBuyerFee(supabase, buyerId, totalCashPortion);
+        resolvedBuyerFees = items!.map((_, idx) => ({
+          feeCents: idx === 0 ? bundleFee.feeCents : 0,
+          feeState: bundleFee.feeState,
+        }));
+      } else {
+        resolvedBuyerFees = await Promise.all(
+          itemCashPortions.map((cashPortion) => resolveBuyerFee(supabase, buyerId, cashPortion))
+        );
+      }
+    } catch (feeErr: unknown) {
+      const fe = feeErr as { code?: string; message?: string };
+      return jsonError(fe.message ?? 'Fee configuration is unavailable. Please try again.', fe.code ?? 'CONFIG_UNAVAILABLE', 500);
+    }
+
     const phase1Results = await Promise.allSettled(
       items!.map((it, idx) => {
-        const clientFee = it.transaction_fee_cents ?? 0;
-        // Base price after SP = what the client sent minus the fee it embedded.
-        const basePriceAfterSp = it.cash_amount_cents - clientFee;
-        const serverFee = (oneFeePerBundle && idx > 0) ? 0 : clientFee;
-        const serverCash = basePriceAfterSp + serverFee;
+        const cashPortion = itemCashPortions[idx];
+        const serverFee = resolvedBuyerFees[idx].feeCents;
+        const serverCash = cashPortion + serverFee;
         return createBundleOfferItemPhase1({
           itemId: it.item_id,
           cashCents: serverCash,
           spAmt: it.sp_amount ?? 0,
           txFeeCents: serverFee,
+          buyerFeeState: resolvedBuyerFees[idx].feeState,
           taxCents: it.tax_amount_cents ?? 0,
         });
       })
@@ -1427,11 +1708,26 @@ serve(async (req) => {
     }
   }
 
+  // R1 — Tiered Buyer-Fee Engine: the buyer fee is computed SERVER-SIDE and is
+  // authoritative. The client still sends its own fee estimate (backward compat);
+  // we derive the true cash portion (cash after SP, excluding any fee) and let the
+  // resolver return the correct tiered fee. This also snapshots buyer_fee_state.
+  const clientFeeCents = transaction_fee_cents ?? 0;
+  const cashPortionCents = Math.max(0, cash_amount_cents! - clientFeeCents);
+  let buyerFee: { feeCents: number; feeState: string; label: string };
+  try {
+    buyerFee = await resolveBuyerFee(supabase, buyerId, cashPortionCents);
+  } catch (feeErr: unknown) {
+    const fe = feeErr as { code?: string; message?: string };
+    return jsonError(fe.message ?? 'Fee configuration is unavailable. Please try again.', fe.code ?? 'CONFIG_UNAVAILABLE', 500);
+  }
+
   const singleResult = await createSingleOffer({
     itemId: item_id!,
-    cashCents: cash_amount_cents!,
+    cashCents: cashPortionCents + buyerFee.feeCents,
     spAmt: sp_amount,
-    txFeeCents: transaction_fee_cents,
+    txFeeCents: buyerFee.feeCents,
+    buyerFeeState: buyerFee.feeState,
     taxCents: tax_amount_cents,
   });
 

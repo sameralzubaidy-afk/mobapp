@@ -9,6 +9,7 @@ import {
   computeNetPayoutCents,
   getPayoutStatusMessage,
   formatPayoutAmount,
+  isPayoutReleased,
 } from '../payoutRouter';
 
 describe('payoutRouter', () => {
@@ -103,6 +104,32 @@ describe('payoutRouter', () => {
       expect(formatPayoutAmount(5050)).toBe('50.50');
       expect(formatPayoutAmount(99)).toBe('0.99');
       expect(formatPayoutAmount(0)).toBe('0.00');
+    });
+  });
+
+  describe('isPayoutReleased (R3 — delayed payout buffer)', () => {
+    it('should return true when no release date is set (immediate release)', () => {
+      expect(isPayoutReleased(null)).toBe(true);
+      expect(isPayoutReleased(undefined)).toBe(true);
+      expect(isPayoutReleased('')).toBe(true);
+    });
+
+    it('should return true when the release date is in the past', () => {
+      const past = new Date(Date.now() - 60_000).toISOString();
+      expect(isPayoutReleased(past)).toBe(true);
+    });
+
+    it('should return true when the release date equals now', () => {
+      expect(isPayoutReleased(new Date().toISOString())).toBe(true);
+    });
+
+    it('should return false when the release date is in the future', () => {
+      const future = new Date(Date.now() + 2 * 86_400_000).toISOString();
+      expect(isPayoutReleased(future)).toBe(false);
+    });
+
+    it('should treat an invalid date as released (fail-safe)', () => {
+      expect(isPayoutReleased('not-a-date')).toBe(true);
     });
   });
 });

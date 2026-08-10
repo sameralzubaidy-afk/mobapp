@@ -113,7 +113,7 @@ export default function SubscriptionPlansScreen() {
       // Already free or downgrade flow
       return;
     }
-    navigation.navigate('SubscriptionPayment', { isRenewal: false });
+    navigation.navigate('JoinKidsClub');
   };
 
   if (loading || configLoading) {

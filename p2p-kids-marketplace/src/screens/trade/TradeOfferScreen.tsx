@@ -33,9 +33,9 @@ import { RootStackParamList } from '@/navigation/types';
 import { getItemById, Item } from '@/services/items';
 import { createTradeOfferWithHold, mapStripeErrorToMessage } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
-import { getAdminConfig } from '@/services/adminConfig';
+import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
 import { calculateCategorySP } from '@/services/categoryService';
-import { getTransactionFee, getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
+import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
 import { useStripe } from '@stripe/stripe-react-native';
 import { usePaymentSheet } from '@/hooks/usePaymentSheet';
 import { supabase } from '@/config/supabase';
@@ -81,7 +81,9 @@ export default function TradeOfferScreen() {
   const [showSpInfoTooltip, setShowSpInfoTooltip] = useState(false);
   const [showOfferLimitModal, setShowOfferLimitModal] = useState(false);
   const [offerLimitMessage, setOfferLimitMessage] = useState('');
-  const [transactionFeeCents, setTransactionFeeCents] = useState(0);
+  // R1 — Tiered Buyer-Fee Engine: the buyer fee is resolved from the DB and kept
+  // in sync with the SP amount (percentage tier applies to the cash portion).
+  const [buyerFeeInfo, setBuyerFeeInfo] = useState<BuyerFeeInfo | null>(null);
   const [savedPaymentMethod, setSavedPaymentMethod] = useState<PaymentMethodInfo | null>(null);
   const [loadingSavedPaymentMethod, setLoadingSavedPaymentMethod] = useState(false);
   const [paymentInputMode, setPaymentInputMode] = useState<'saved' | 'new'>('saved');
@@ -99,10 +101,9 @@ export default function TradeOfferScreen() {
 
     try {
       setLoading(true);
-      const [itemData, config, feeCents] = await Promise.all([
+      const [itemData, config] = await Promise.all([
         getItemById(itemId),
         getAdminConfig(),
-        getTransactionFee(user.id),
       ]);
 
       if (!itemData) {
@@ -114,9 +115,6 @@ export default function TradeOfferScreen() {
       await refreshSession();
 
       setItem(itemData);
-      if (Number.isFinite(feeCents) && feeCents >= 0) {
-        setTransactionFeeCents(Math.round(feeCents));
-      }
 
       if (itemData.category_id) {
         const spConfig = await calculateCategorySP(itemData.category_id, itemData.price);
@@ -162,6 +160,23 @@ export default function TradeOfferScreen() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // R1 — Tiered Buyer-Fee Engine: recompute the buyer fee whenever the item or
+  // the applied Swap Points change (the percentage tier is a % of the cash
+  // portion, so SP reduces the fee). The server recomputes authoritatively at
+  // offer time; this keeps the preview accurate.
+  useEffect(() => {
+    if (!item || !user?.id) return;
+    let isCancelled = false;
+    const itemPriceCents = Math.round(item.price * 100);
+    const cashPortionCents = itemPriceCents - spAmount * 100;
+    getBuyerFeeForCheckout(cashPortionCents).then((fee) => {
+      if (!isCancelled && fee) setBuyerFeeInfo(fee);
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [item, spAmount, user?.id]);
 
   // Load saved payment method on mount
   useEffect(() => {
@@ -274,7 +289,9 @@ export default function TradeOfferScreen() {
     // Calculate cash amount (item price - SP discount + fee)
     const itemPriceCents = Math.round(item.price * 100);
     const spDiscountCents = spAmount * 100;
-    const platformFeeCents = transactionFeeCents > 0 ? transactionFeeCents : (isSubscriber ? 99 : 299);
+    // R1: use the server-resolved fee (falls back to a legacy estimate for
+    // display only; the Edge Function recomputes authoritatively).
+    const platformFeeCents = buyerFeeInfo?.feeCents ?? (isSubscriber ? 99 : 299);
     const cashAmountCents = itemPriceCents - spDiscountCents + platformFeeCents;
 
     // ── Payment method validation ──────────────────────────────────────────
@@ -416,7 +433,8 @@ export default function TradeOfferScreen() {
   const itemPriceCents = Math.round(item.price * 100);
   // Offer amount = item price minus SP (no fees shown on offer screen)
   const offerAmountCents = itemPriceCents - spDiscountCents;
-  const platformFeeCents = transactionFeeCents > 0 ? transactionFeeCents : (isSubscriber ? 99 : 299);
+  // R1: server-resolved tiered fee for display (falls back to legacy estimate).
+  const platformFeeCents = buyerFeeInfo?.feeCents ?? (isSubscriber ? 99 : 299);
   const cashAmountCents = itemPriceCents - spDiscountCents + platformFeeCents;
   const grandTotalCents = cashAmountCents + (tax.taxAmountCents || 0);
 
@@ -505,7 +523,7 @@ export default function TradeOfferScreen() {
               </View>
               <Pressable
                 style={styles.subscribeUpsellButton}
-                onPress={() => navigation.navigate('SubscriptionChoice')}
+                onPress={() => navigation.navigate('JoinKidsClub')}
                 testID="subscribe-upsell-button"
               >
                 <Text style={styles.subscribeUpsellButtonText}>Try Kids Club+ Free</Text>
@@ -641,7 +659,7 @@ export default function TradeOfferScreen() {
               </View>
             )}
             <View style={styles.valueStackRow}>
-              <Text style={styles.valueStackLabel}>Platform fee</Text>
+              <Text style={styles.valueStackLabel}>{buyerFeeInfo?.label ?? 'Platform fee'}</Text>
               <Text style={styles.valueStackValue}>
                 ${(platformFeeCents / 100).toFixed(2)}
               </Text>

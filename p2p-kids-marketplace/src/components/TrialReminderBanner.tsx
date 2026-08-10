@@ -41,7 +41,7 @@ export function TrialReminderBanner({ onDismiss }: TrialReminderBannerProps) {
 
   const handleAddPayment = () => {
     // @ts-expect-error - type will be added when navigation types are updated
-    navigation.navigate('SubscriptionPayment');
+    navigation.navigate('JoinKidsClub');
     handleDismiss();
   };
 

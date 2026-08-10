@@ -26,7 +26,7 @@ import LeaderboardScreen from '@/screens/profile/LeaderboardScreen';
 import ForgotPasswordScreen from '@/screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '@/screens/auth/ResetPasswordScreen';
 import WelcomeScreen from '@/screens/onboarding/WelcomeScreen';
-import SubscriptionChoiceScreen from '@/screens/onboarding/SubscriptionChoiceScreen';
+import JoinKidsClubScreen from '@/screens/subscription/JoinKidsClubScreen';
 import FeatureHighlightsScreen from '@/screens/onboarding/FeatureHighlightsScreen';
 // MODULE-18 EDU-004: Trading education onboarding carousel
 import OnboardingScreen from '@/screens/onboarding/OnboardingScreen';
@@ -60,7 +60,6 @@ import { SubscriptionPaymentScreen } from '@/screens/subscription/SubscriptionPa
 import SubscriptionStatusScreen from '@/screens/subscription/SubscriptionStatusScreen';
 import SubscriptionSuccessScreen from '@/screens/subscription/SubscriptionSuccessScreen';
 import ManageKidsClubScreen from '@/screens/subscription/ManageKidsClubScreen';
-import SubscriptionPlansScreen from '@/screens/subscription/SubscriptionPlansScreen';
 import PlanComparisonScreen from '@/screens/subscription/PlanComparisonScreen';
 import UpgradePlanScreen from '@/screens/subscription/UpgradePlanScreen';
 import CancelSubscriptionScreen from '@/screens/subscription/CancelSubscriptionScreen';
@@ -132,6 +131,7 @@ const linking = {
       ForgotPassword: 'forgot-password',
       Welcome: 'welcome',
       SubscriptionChoice: 'subscription-choice',
+      JoinKidsClub: 'join-kids-club',
       ContinueKidsClub: 'continue-kids-club',
       SubscriptionPlans: 'subscription-plans',
       PlanComparison: 'plan-comparison',
@@ -544,7 +544,12 @@ function RootNavigator() {
             />
             <Stack.Screen
               name="SubscriptionChoice"
-              component={SubscriptionPlansScreen}
+              component={JoinKidsClubScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="JoinKidsClub"
+              component={JoinKidsClubScreen}
               options={{ headerShown: false }}
             />
             {/* MODULE-04: Listing screens */}
@@ -702,12 +707,12 @@ function RootNavigator() {
             />
             <Stack.Screen
               name="KidsClubOverview"
-              component={SubscriptionPlansScreen}
+              component={JoinKidsClubScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
               name="SubscriptionPlans"
-              component={SubscriptionPlansScreen}
+              component={JoinKidsClubScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
@@ -916,7 +921,12 @@ function RootNavigator() {
             />
             <Stack.Screen
               name="SubscriptionChoice"
-              component={SubscriptionPlansScreen}
+              component={JoinKidsClubScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="JoinKidsClub"
+              component={JoinKidsClubScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen

@@ -53,9 +53,9 @@ export function SubscriptionBanner() {
   // Handle navigation
   const handlePress = () => {
     if (status === 'free') {
-      navigation.navigate('SubscriptionPlans' as never);
+      navigation.navigate('JoinKidsClub' as never);
     } else if (isTrial) {
-      navigation.navigate('ContinueKidsClub' as never);
+      navigation.navigate('JoinKidsClub' as never);
     } else {
       // grace_period or expired routes through ManageKidsClub for the correct renewal logic
       navigation.navigate('ManageKidsClub' as never);

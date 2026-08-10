@@ -247,6 +247,17 @@ export default function PayoutDashboardScreen() {
             <>
               {payouts.map((payout) => {
                 const statusInfo = formatPayoutStatus(payout.status);
+                // R3 — Delayed Seller Payout + Buffer: show the release date for
+                // pending payouts whose buffer hasn't elapsed yet.
+                const releaseNote =
+                  payout.status === 'pending' &&
+                  payout.payout_release_at &&
+                  new Date(payout.payout_release_at).getTime() > Date.now()
+                    ? `Releases ${new Date(payout.payout_release_at).toLocaleDateString('en-AU', {
+                        day: 'numeric',
+                        month: 'short',
+                      })}`
+                    : '';
                 return (
                   <View
                     key={payout.id}
@@ -265,6 +276,11 @@ export default function PayoutDashboardScreen() {
                           year: 'numeric',
                         })}
                       </Text>
+                      {releaseNote ? (
+                        <Text style={styles.historyRelease} testID={`history-release-${payout.id}`}>
+                          {releaseNote}
+                        </Text>
+                      ) : null}
                     </View>
                     <Text
                       style={[styles.historyStatus, { color: statusInfo.color }]}
@@ -458,6 +474,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B6B6B',
     marginTop: 2,
+  },
+  historyRelease: {
+    fontSize: 12,
+    color: '#5DBB8E',
+    marginTop: 2,
+    fontWeight: '500',
   },
   historyStatus: {
     fontSize: 13,

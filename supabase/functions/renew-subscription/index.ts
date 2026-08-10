@@ -18,7 +18,67 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.5.0?target=deno';
-import { validateStripePaymentMethodId } from '../_shared/stripe-payment-method-guard.ts';
+
+// NOTE (BP-41, 2026-08-09): validateStripePaymentMethodId + helpers INLINED from
+// ../_shared/stripe-payment-method-guard.ts (kept in sync) because the MCP
+// deploy bundler cannot resolve ../_shared/* relative imports.
+type PaymentMethodValidationSuccess = {
+  ok: true;
+  paymentMethodId: string;
+};
+
+type PaymentMethodValidationFailure = {
+  ok: false;
+  code: 'MISSING_PAYMENT_METHOD' | 'CARD_DATA_FORBIDDEN' | 'INVALID_PAYMENT_METHOD_ID';
+  message: string;
+};
+
+type PaymentMethodValidationResult =
+  | PaymentMethodValidationSuccess
+  | PaymentMethodValidationFailure;
+
+function looksLikeRawCardData(value: string): boolean {
+  if (!/^[0-9\s-]+$/.test(value)) {
+    return false;
+  }
+
+  const digitCount = value.replace(/\D/g, '').length;
+  return digitCount >= 12 && digitCount <= 19;
+}
+
+function validateStripePaymentMethodId(rawValue: unknown): PaymentMethodValidationResult {
+  if (typeof rawValue !== 'string' || rawValue.trim().length === 0) {
+    return {
+      ok: false,
+      code: 'MISSING_PAYMENT_METHOD',
+      message: 'Missing payment method ID. Expected Stripe PaymentMethod ID (pm_...).',
+    };
+  }
+
+  const paymentMethodId = rawValue.trim();
+
+  if (looksLikeRawCardData(paymentMethodId)) {
+    return {
+      ok: false,
+      code: 'CARD_DATA_FORBIDDEN',
+      message:
+        'Raw card data is not accepted. Use Stripe SDK or Payment Sheet and send only PaymentMethod ID (pm_...).',
+    };
+  }
+
+  if (!/^pm_[A-Za-z0-9]+$/.test(paymentMethodId)) {
+    return {
+      ok: false,
+      code: 'INVALID_PAYMENT_METHOD_ID',
+      message: 'Invalid payment method format. Expected Stripe PaymentMethod ID (pm_...).',
+    };
+  }
+
+  return {
+    ok: true,
+    paymentMethodId,
+  };
+}
 
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
   apiVersion: '2023-10-16',
@@ -450,26 +510,21 @@ serve(async (req) => {
 
     console.log('[renew-subscription] Updated subscription status to active');
 
-    // 9. Call MODULE-09 SP wallet unfreeze handler
+    // 9. R6 (2026-08-09): unfreeze SP wallet via in-repo RPC so a resubscribed
+    //    user's frozen balance becomes spendable again (replaces the external
+    //    SP_SUBSCRIPTION_UNFREEZE_URL dependency).
     try {
-      const unfreezeUrl = Deno.env.get('SP_SUBSCRIPTION_UNFREEZE_URL');
-      if (unfreezeUrl) {
-        const unfreezeResponse = await fetch(unfreezeUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: authHeader },
-          body: JSON.stringify({ user_id }),
-        });
-
-        if (!unfreezeResponse.ok) {
-          console.error('[renew-subscription] SP unfreeze failed:', await unfreezeResponse.text());
-        } else {
-          console.log('[renew-subscription] SP wallet unfrozen successfully');
-        }
+      const { error: unfreezeError } = await supabaseClient.rpc('rpc_set_sp_wallet_state', {
+        p_user_id: user_id,
+        p_state: 'active',
+      });
+      if (unfreezeError) {
+        console.error('[renew-subscription] SP unfreeze RPC failed:', unfreezeError.message);
       } else {
-        console.warn('[renew-subscription] SP_SUBSCRIPTION_UNFREEZE_URL not configured');
+        console.log('[renew-subscription] SP wallet unfrozen successfully');
       }
     } catch (err) {
-      console.error('[renew-subscription] Error calling SP unfreeze handler:', err);
+      console.error('[renew-subscription] Error unfreezing SP wallet:', err);
     }
 
     // 10. Create billing history record

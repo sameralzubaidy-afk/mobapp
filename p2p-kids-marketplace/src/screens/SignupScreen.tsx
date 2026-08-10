@@ -1,6 +1,11 @@
 // File: p2p-kids-marketplace/src/screens/SignupScreen.tsx
 // MODULE-03 AUTH-V2-002: User Signup with Trial Activation
 // MODULE-03 AUTH-V3-007: Social Login Integration
+//
+// DEFERRED-DECISION (2026-08-09): This screen is NOT the live route —
+// AppNavigator wires @/screens/auth/SignupScreen (18+ DOB gate) instead.
+// Kept in-repo but aligned to the N4 18+ hard gate so it never accepts under-18.
+// Do NOT wire this route without re-confirming it matches the canonical flow.
 
 import React, { useState, useRef } from 'react';
 import {
@@ -49,9 +54,9 @@ export const SignupScreen: React.FC = () => {
     provider: OAuthProvider;
   } | null>(null);
 
-  // Check if user is under 13 (requires parental consent)
+  // N4 (2026-08-09): hard 18+ gate — no parental-consent path; under-18 blocked.
   const ageNum = parseInt(age, 10);
-  const requiresParentalConsent = !isNaN(ageNum) && ageNum < 13;
+  const requiresParentalConsent = false;
 
   /**
    * Validate form inputs
@@ -83,11 +88,11 @@ export const SignupScreen: React.FC = () => {
       newErrors.displayName = 'Display name is required';
     }
 
-    // Age validation
+    // Age validation (N4: hard 18+)
     if (!age) {
       newErrors.age = 'Age is required';
-    } else if (isNaN(ageNum) || ageNum < 5 || ageNum > 17) {
-      newErrors.age = 'Age must be between 5 and 17';
+    } else if (isNaN(ageNum) || ageNum < 18) {
+      newErrors.age = 'You must be 18 or older to register';
     }
 
     // ZIP code validation

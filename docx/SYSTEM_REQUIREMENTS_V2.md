@@ -121,8 +121,8 @@ P2P Kids Marketplace is a hyper-local, mobile-first marketplace where verified p
 | 1 | Countdown windows — **offer** | `admin_config.offer_timeout_hours`, `offer_notif_1/2_hours_before`, `auto_complete_hours`, `auto_complete_notif_hours_before` | `/settings/trade-timing` + `/config → trade` |
 | 2 | Countdown windows — **pickup** | `admin_config.pickup_window_hours` (enforced — R2), `pickup_notif_1/2_hours_before` **(new)** | `/settings/trade-timing` (Pickup & Payout section) |
 | 3 | Grace period length | `admin_config.grace_period_days` (canonical; `sp_config.grace_period_days` is the legacy duplicate — readers must prefer `admin_config`) | `/subscriptions/manage` + `/config` |
-| 4 | Payout buffer | `admin_config.payout_buffer_days` **(new)** | `/settings/trade-timing` (Pickup & Payout section) |
-| 5 | SP caps / multipliers per category | `categories.sp_earning_multiplier`, `categories.sp_spending_cap_percent`, `categories.sp_rate_change_notify` | Category admin (Group D) |
+| 4 | Payout buffer | `admin_config.payout_buffer_days` (enforced — R3) | `/settings/trade-timing` (Pickup & Payout section) |
+| 5 | SP caps / multipliers per category | `categories.sp_earning_multiplier`, `categories.sp_spending_cap_percent`, `categories.sp_rate_change_notify`, `categories.sp_redemption_cap` (absolute per-item cap, optional) | Category admin (Group D) — **server-enforced at checkout by R11/R5** |
 | 6 | Tax rates per node/category | `nodes.tax_rate` / `nodes.tax_enabled`, `category_tax_rules`, plus `admin_config.default_sales_tax_rate` | `/tax/settings`, `/tax/nodes`, `/tax/rules` |
 | — | Buyer/seller fee parameters | `admin_config` (fees): `platform_fee_*`, `transaction_fee_*`, `payout_fee_*` | `/config → fees` + `/settings/trade-timing` |
 
@@ -136,6 +136,17 @@ R2 enforces the pickup countdown (previously tunable-but-unenforced) and adds th
 - **7-day guardrail (HARD BLOCK):** admins cannot configure `offer_timeout_hours + pickup_window_hours ≥ 168h`. `fn_validate_trade_timing_config()` raises an exception (hard block, not auto-clamp); the admin UI validates the same rule; the runtime `check-authorization-expiry` cron remains the backstop. This guarantees capture always precedes Stripe's 7-day authorization expiry.
 - **Reminders:** configurable in-app + push reminders fire in every window — offer reminders to the seller (`offer_notif_1/2_hours_before`), auto-complete reminders to the buyer (`auto_complete_notif_1/2_hours_before`, default 24h/2h, read from config by `rpc_send_auto_complete_reminders`), and pickup-window reminders to the buyer (`pickup_notif_1/2_hours_before`, default 24h/2h, via `rpc_send_pickup_reminders` + `send-pickup-reminders` cron every 5 min). All three pairs are admin-tunable and take effect without a code deploy.
 
+#### R3 — Delayed Seller Payout + Buffer (enforcement, 2026-08-10)
+
+R3 enforces the payout buffer (`admin_config.payout_buffer_days`, seeded default **2**, admin-tunable **0–30** at `/settings/trade-timing` → Pickup & Payout), previously tunable-but-unenforced:
+
+- **Delayed payout release:** when a trade completes, the seller payout is created with a stored `payout_release_at` computed from the **actual completion timestamp** (`trades.completed_at`) + the buffer value in effect **when the trade completes** — never from the expected `auto_complete_at` window. A trade completed later (e.g. via a granted extension) naturally produces a correspondingly later release date, with no special-case logic.
+- **Release date stored:** `seller_payouts.payout_release_at` (mirrored on `trades.payout_release_at`) is written at payout creation by `create_seller_payout_on_trade_completion()`.
+- **Dispatch gated:** the completion trigger (`fn_queue_payout_on_complete`) no longer dispatches `initiate-payout` before the release date. A new hourly cron `release-due-payouts` → Edge Function → `rpc_release_due_payouts` dispatches due payouts (status `completed`, no open dispute, `payout_release_at ≤ now`, `payout_status = 'pending'`) and moves `seller_balance` funds from `pending_balance_cents` → `available_balance_cents` at release.
+- **Funds pending until release:** buffered proceeds sit in `seller_balance.pending_balance_cents` (mirrors the SP 3-day pending pattern) and are not withdrawable until the release date.
+- **Buffer 0 = immediate:** a buffer of 0 (or a missing/invalid config key) preserves today's instant-payout behavior — release date = completion time, trigger dispatches immediately.
+- **Backward compatible:** existing completed payouts were backfilled to release immediately (no retroactive delay); new completions use the configured buffer. Mobile (Earnings / Payout Dashboard / Request Payout) and the admin payouts list surface the release date; manual withdrawal is blocked until release.
+
 #### RPC contract (config read / write)
 
 - **Write (single path):** `upsert_admin_config_setting(p_key, p_value, p_category, p_data_type, p_is_secret, p_is_active, p_admin_id)` — records `admin_config.updated_by` and lands an `admin_audit_log` row. All admin surfaces must use this RPC; never write `admin_config` directly (BP-48).
@@ -148,6 +159,44 @@ R2 enforces the pickup countdown (previously tunable-but-unenforced) and adds th
 2. **Single source of truth** — the `admin_config` key/value table is the hub; per-entity values (category SP, node/category tax) live on those entity tables and are all admin-editable.
 3. **No duplicate config stores** — new keys must be added to `admin_config`; do not create a second config table.
 4. **Audit every change** — editor + timestamp recorded on `admin_config` and in `admin_audit_log`.
+
+---
+
+### 1.7 R7 — Web-First Subscription Purchase + Status Sync (Option A)
+
+> **Added 2026-08-09.** Subscription purchase is a **web-first** funnel. The mobile
+> apps (iOS/Android) contain **NO purchase button, price-selection UI, or App
+> Store / Play Store billing trigger** (App Store Guideline 3.1.3). Parents
+> discover membership in-app, complete the Stripe purchase on the web
+> (passitup.com), and the backend flags the account; R1 (fee) and R6 (SP gating)
+> unlock automatically on the next app open. Renewals re-sync on every Stripe
+> billing event.
+
+**Full 7-step journey (locked 2026-08-09):**
+
+| Step | What happens | Where |
+|---|---|---|
+| 1 | Parent downloads Pass It Up, creates a free account, browses, lists, trades | In app |
+| 2 | Parent sees a "Join Kids Club" prompt surfacing the membership value prop (earn SP, flat $1.49 member fee instead of the free-user percentage fee) | In app |
+| 3 | App shows manage-membership messaging pointing to the web ("Manage your membership at passitup.com") — **NO purchase button anywhere in the iOS/Android app** | In app |
+| 4 | Parent goes to the website, subscribes via Stripe (hosted Checkout), with Apple Pay, Google Pay, and card | Web |
+| 5 | Stripe confirms the subscription; the backend webhook flags that account as subscribed | Backend |
+| 6 | Parent reopens the app; the app reads subscription status; member benefits (SP earn/spend per R6, $1.49 flat fee per R1) unlock | In app |
+| Renewal | Stripe auto-charges the web-side card monthly/annually; the backend re-syncs on each renewal/failure so the app stays accurate | Web/backend |
+
+**Key rules:**
+
+1. **In-app prompt is non-purchase (Steps 2–3).** The "Join Kids Club" entry point (new `JoinKidsClubScreen`) explains the value prop and contains zero purchase UI. Tapping it opens the **external system browser** (`Linking.openURL` → Safari/Chrome) at `passitup.com/join` — never an in-app webview (3.1.3). No IAP, no native Stripe sheet for subscriptions, no price-selection cards.
+2. **Web checkout (Step 4) uses Stripe hosted Checkout Session** (`mode=subscription`, `automatic_payment_methods` → card + Apple Pay + Google Pay). Card data is collected on Stripe's PCI-DSS Level 1 domain → **SAQ-A**; no client Stripe SDK and no custom card fields on the web. Price/trial come from `subscription_tiers` (default active tier's `stripe_price_id`, `trial_days`), fail-loud if unconfigured (BP-28).
+3. **Account linking (Steps 4–5).** The checkout Edge Function resolves the app user by email (`profiles.email`) and sets `client_reference_id` + `metadata.supabase_user_id` on the Session so the webhook binds by ID. If no account exists yet, a one-time HMAC `bind_token` (over the email) is issued; `link-subscription-account` redeems it after the parent signs in (email-match + token).
+4. **Webhook flags the account (Step 5).** `stripe-webhook-subscriptions` handles `checkout.session.completed`, `customer.subscription.created`, `invoice.payment_succeeded` (new) plus the existing `customer.subscription.updated/deleted`, `invoice.payment_failed`. Stripe `trialing` maps to internal `trial` (with `trial_end_date`); `active` → `active`. Writes go through the atomic RPC `rpc_upsert_web_subscription` (owner/service-role only) + a `subscription_events` audit row.
+5. **Benefit unlock (Step 6).** R1 fee and R6 SP gating both read `subscriptions.status IN ('trial','active')` — no fee/SP code change needed; the webhook-set status flips them. The app refetches on app-foreground (`useSubscription` AppState listener) and on screen focus, so reopening reflects the new tier without manual refresh.
+6. **Renewal sync (Renewal row).** `invoice.payment_succeeded` → `record_payment_attempt(success:true)` (resets retry count, clears `payment_failed_at`, sets last payment) + inserts a `billing_history` 'succeeded' row, and restores status to `active` if a prior failure had pushed it to grace. `invoice.payment_failed` (existing) → grace after 3 retries + SP freeze (R6); `grace-period-cron` transitions to `expired` past the grace end. The app reflects the updated status on next open.
+7. **No app-store commission.** All subscription revenue flows through Stripe on the web; the apps take no cut.
+
+**Consumer web app:** new `p2p-kids-web/` (Next.js) at passitup.com with `/` (landing), `/join` (value prop + email → Stripe Checkout via `create-checkout-session` EF), and `/account/subscription` (post-purchase confirmation).
+
+**Edge Functions:** `create-checkout-session` (new), `link-subscription-account` (new), `stripe-webhook-subscriptions` (extended). **RPC:** `rpc_upsert_web_subscription` (new). **Env:** `SUBSCRIPTION_WEB_URL`, `SUBSCRIPTION_WEB_SECRET`, `SUBSCRIPTION_BIND_TOKEN_SECRET` (EF secrets); `EXPO_PUBLIC_SUBSCRIPTION_WEB_URL` (mobile).
 
 ---
 
@@ -340,9 +389,11 @@ R2 enforces the pickup countdown (previously tunable-but-unenforced) and adds th
 | **Free** | Never subscribed | No | N/A |
 | **Trial** | In 30-day free trial | Yes (full access) | N/A |
 | **Active** | Paid subscription active | Yes (full access) | N/A |
-| **Cancelled** | Subscription cancelled | No (wallet frozen) | 90 days |
-| **Grace Period** | Within 90 days of cancellation | No (wallet frozen) | Days remaining |
-| **Expired** | >90 days after cancellation | No (SP permanently lost) | N/A |
+| **Cancelled** | Subscription cancelled; benefits continue until period end | Yes (benefits until period end) | 90 days (starts at period end) |
+| **Grace Period** | Within 90 days of period end | Spend existing SP only (no new earn) | Days remaining |
+| **Expired** | >90 days after period end | No (SP frozen — restored on resubscribe) | N/A |
+
+> **R6 (2026-08-09):** Grace-period users CAN spend existing SP but CANNOT earn new SP, and they pay the free-user fee (R13). After grace ends, the SP balance is FROZEN (not deleted) and becomes spendable again on resubscription.
 
 **State Transitions:**
 ```
@@ -441,13 +492,14 @@ Grace Period → Active (user resubscribes)
 **BR-SUB-003: Cancellation**
 - User can cancel anytime
 - Cancellation effective at end of current billing period
-- SP wallet immediately frozen upon cancellation
-- 90-day grace period begins after subscription ends
+- Benefits (incl. SP spending) continue until the period ends
+- 90-day grace period begins after subscription ends (R6: can spend existing SP, cannot earn new)
 
 **BR-SUB-004: Grace Period**
 - User has 90 days to resubscribe and recover SP
-- SP wallet remains frozen (cannot earn or spend)
-- After 90 days → all SP permanently deleted
+- SP wallet remains SPENDABLE for existing SP (R6) but the user CANNOT earn new SP
+- The user pays the free-user fee at checkout during grace (R13)
+- After 90 days → SP balance is FROZEN (not deleted); it becomes spendable again on resubscription
 - Notifications sent at Day 60, 30, 7, and 1 before expiration
 
 **BR-SUB-005: Resubscription**
@@ -662,15 +714,15 @@ If return occurs on Day 2:
 **After Cancellation:** 90-day grace period
 ```
 User cancels Kids Club+ subscription
-├─ SP frozen immediately (cannot earn new SP, cannot spend existing SP)
+├─ SP wallet remains spendable for EXISTING SP (R6 — cannot earn new SP)
 ├─ 90-day countdown begins
-├─ User can resubscribe anytime during grace period to unfreeze SP
-└─ After 90 days: All SP expire permanently (no recovery)
+├─ User can resubscribe anytime during grace period; SP stays spendable
+└─ After 90 days: SP balance is FROZEN (not deleted) until the user resubscribes
 
 Notifications:
-├─ Day 60: "Your SP will expire in 30 days. Resubscribe to keep them!"
-├─ Day 83: "Your SP expire in 7 days. Don't lose 125 SP - resubscribe now!"
-└─ Day 89: "Last chance! Your 125 SP expire tomorrow."
+├─ Day 60: "Your SP will be frozen in 30 days. Resubscribe to keep them!"
+├─ Day 83: "Your SP freeze in 7 days. Don't lose 125 SP - resubscribe now!"
+└─ Day 89: "Last chance! Your 125 SP freeze tomorrow."
 ```
 
 ### 5.6 Business Rules
@@ -681,9 +733,10 @@ Notifications:
 - If user downgrades from KC+ to Free mid-listing → listing auto-converts to "Cash Only"
 
 **BR-SP-002: Spending Eligibility**
-- Only Kids Club+ subscribers can spend SP
+- Only Kids Club+ subscribers can spend SP — with one R6 exception
+- R6 (2026-08-09): users in the 90-day grace period CAN spend existing SP (they just cannot earn new SP)
 - Free users cannot use SP even if they have balance (shouldn't be possible but enforce)
-- If user has frozen SP (cancelled subscription) → cannot spend
+- If user has frozen SP (post-grace expired) → cannot spend
 
 **BR-SP-003: SP Calculation**
 - Platform calculates SP at time of sale (not at listing time)
@@ -722,10 +775,10 @@ Notifications:
   - Flag user for fraud monitoring
 
 **BR-SP-008: Grace Period**
-- Exactly 90 calendar days from subscription cancellation
-- SP balance frozen (visible but not usable)
-- Resubscription within 90 days → instant unfreeze
-- After 90 days → permanent deletion (no admin override)
+- Exactly 90 calendar days from subscription period end
+- SP balance is spendable for EXISTING SP during grace (R6); the user cannot earn new SP and pays the free-user fee (R13)
+- Resubscription within 90 days → instantly spendable again (wallet back to `active`)
+- After 90 days → SP balance FROZEN (not deleted); it becomes spendable again on resubscription
 
 **BR-SP-009: Negative Balance Prevention**
 - System must validate available SP before allowing spend
@@ -1273,6 +1326,7 @@ Payout Record Fields:
 ├── provider: stripe | paypal
 ├── provider_reference_id: external tracking ID
 ├── idempotency_key: prevents duplicate payouts
+├── payout_release_at: release date = completed_at + payout_buffer_days (R3)
 └── timestamps: created_at, initiated_at, completed_at
 ```
 
@@ -1280,7 +1334,7 @@ Payout Record Fields:
 
 ```
 Success Path:
-pending → processing → completed
+pending → [payout_release_at elapses] → processing → completed
 
 Blocked Path:
 pending → requires_action (no verified method)
@@ -1288,6 +1342,8 @@ pending → requires_action (no verified method)
 Failure Path:  
 processing → failed → retry available
 ```
+
+> **R3 — Delayed payout + buffer:** a payout created at completion sits in `pending` until `payout_release_at` (actual `completed_at` + `payout_buffer_days`). The `release-due-payouts` cron dispatches it (auto mode) and moves `seller_balance` `pending → available`. Buffer `0` = immediate dispatch.
 
 ### 7.4 Payout Calculation Engine
 
@@ -1335,6 +1391,8 @@ Net to Seller: $98.00
 - Platform routes to provider only when seller initiates
 - Aligns with current implementation; no urgent provider setup needed
 
+**Delayed Payout + Buffer (R3):** with either flag, the payout is not dispatched — and buffered funds are not withdrawable — until `payout_release_at`, computed at completion as `trades.completed_at + payout_buffer_days` (admin-tunable 0–30, default 2). The `release-due-payouts` cron dispatches due payouts and moves `seller_balance` `pending_balance_cents → available_balance_cents`. Buffer `0` preserves immediate payout.
+
 ### 7.6 Webhook Reconciliation
 
 **Stripe Webhooks:**
@@ -1375,6 +1433,7 @@ Net to Seller: $98.00
 - Sort by amount, date, seller name
 - View detailed payout record (amounts, fees, provider reference, timestamps)
 - Manual retry button for failed payouts
+- Scheduled release date per pending payout (R3) — "Releases [date]"
 - Webhook delivery status dashboard
 
 **Payout Configuration:**
@@ -1424,8 +1483,31 @@ Net to Seller: $98.00
 ├── initiated_at TIMESTAMPTZ
 ├── completed_at TIMESTAMPTZ
 ├── failure_reason TEXT
+├── payout_release_at TIMESTAMPTZ (R3 — release date = completed_at + payout_buffer_days)
 ├── created_at TIMESTAMPTZ
 └── updated_at TIMESTAMPTZ
+```
+
+**Tiered Buyer-Fee Engine — data model additions (R1, first-trade protection):**
+
+```sql
+-- profiles: stored buyer fee-state + completed-trade counter (trigger-maintained)
+profiles.fee_state TEXT                -- no_completed_trade | first_trade_in_progress
+                                       -- | first_trade_completed | subsequent_free | active_member
+profiles.completed_trade_count INTEGER -- increments ONLY on trades.status -> 'completed'
+
+-- trades: tier snapshot at offer time + first-trade-consumption marker
+trades.buyer_fee_state TEXT                       -- buyer's tier when the offer was created
+trades.consumed_first_trade_eligibility BOOLEAN   -- true when this trade's completion consumed
+                                                  -- first-trade eligibility (full refund restores it)
+
+-- admin_config (fees category) — all tiered buyer-fee params (seeded defaults)
+buyer_fee_active_member_cents    = 149
+buyer_fee_first_trade_cents      = 149
+buyer_fee_subsequent_percentage  = 5.0
+buyer_fee_subsequent_fixed_cents = 199
+buyer_fee_subsequent_max_cents   = 499
+buyer_fee_label                  = "Safety & Platform Fee"
 ```
 
 **admin_config Table Extension:**
@@ -1484,189 +1566,176 @@ Prevents duplicate payouts if Edge Function is called multiple times or retried
 
 ### 8.1 Transaction Fees
 
-This section defines how buyer and seller transaction fees are calculated and configured at the node level.
+This section defines how buyer and seller transaction fees are calculated and configured.
+
+> **R1 — Tiered Buyer-Fee Engine (first-trade protection):** the buyer fee is now a
+> TIERED fee resolved at checkout by a stored buyer fee-state. Active members and free
+> users on their first trade pay a flat **"Safety & Platform Fee"**; free users with one
+> or more completed trades pay a percentage of the **cash portion** + a fixed fee, capped.
+> All amounts are **DYNAMIC from `admin_config`** (category `fees`) — the values below
+> are the seeded defaults, not hardcoded constants. First-trade eligibility is a **state,
+> not a counter** — it is consumed ONLY when a trade is successfully captured and
+> completed; it is NOT consumed on cancel / timeout / failed capture / refund.
 
 #### 8.1.1 Overview
 
-- All transaction fees are **configurable per geographic node** via the admin console.
-- **Buyer fees** are calculated as a combination of:
-  - A **fixed fee component** (flat dollar amount), and  
-  - A **percentage fee component** (percent of item price).
-- **Kids Club+ (paid tier)** can receive a **discounted buyer fee**, controlled by an admin toggle.
-- **Swap Points (SP) can never be used to pay platform fees** — all fees are paid in cash.
-- **Seller fees** remain percentage-based and are deducted from the seller’s cash payout.
+- Buyer fees are **tiered** by the buyer's fee-state and are **server-authoritative**
+  (computed by the `create-trade-offer` Edge Function via `fn_get_buyer_fee_for_checkout`,
+  never trusted from the client).
+- **Three fee states:**
+  1. **Active members** (subscription `trial` or `active`) → flat **Safety & Platform Fee**
+     (`buyer_fee_active_member_cents`, default $1.49).
+  2. **Free users with no completed trade** → flat fee on their first trade
+     (`buyer_fee_first_trade_cents`, default $1.49) — **first-trade protection**.
+  3. **Free users with one or more completed trades** → percentage of the cash portion
+     + fixed fee, capped (`buyer_fee_subsequent_percentage` default 5.0%,
+     `buyer_fee_subsequent_fixed_cents` default $1.99,
+     `buyer_fee_subsequent_max_cents` default $4.99 cap on the TOTAL).
+- **Only one fee is charged per checkout** regardless of bundle size (single seller,
+  multiple items). The percentage fee applies **only to the cash portion** of the order,
+  **never to any Swap-Points-covered amount**.
+- **Swap Points can never be used to pay platform fees** — all fees are paid in cash.
+- **Seller fees** remain percentage-based, deducted from the seller's cash payout on the
+  cash portion (see §8.1.3).
 
-#### 8.1.2 Fee Components & Formulas
+#### 8.1.2 Buyer Fee-State Machine & Consumption Rule
 
-Let:
-
-- `item_price` = listing price in cash-equivalent terms (before SP is applied).  
-- `free_fixed_fee`, `free_percent_fee` = free-tier buyer fee components.  
-- `paid_fixed_fee`, `paid_percent_fee` = Kids Club+ buyer fee components.  
-- `paid_fee_discount_enabled` ∈ {true, false}.  
-- `seller_percent_fee` = seller fee percentage.
-
-**Buyer fee – Free tier**
+The buyer's fee-state is stored on `profiles.fee_state` and transitions through:
 
 ```text
-fee_free = free_fixed_fee + (free_percent_fee × item_price)
-buyer_pays_fee_in_cash = round_to_cents(fee_free)
-Buyer fee – Kids Club+ (paid tier)
+no_completed_trade → first_trade_in_progress → first_trade_completed → subsequent_free → active_member
+```
 
-text
-Copy code
-if paid_fee_discount_enabled:
-    fixed_component  = paid_fixed_fee
-    percent_component = paid_percent_fee
-else:
-    # Discount disabled → paid users use free-tier configuration
-    fixed_component  = free_fixed_fee
-    percent_component = free_percent_fee
+| Fee state | Meaning | Fee applied |
+|---|---|---|
+| `no_completed_trade` | Free user, 0 completed trades, no active trade | Flat first-trade fee |
+| `first_trade_in_progress` | Free user, 0 completed trades, has an active trade | Flat first-trade fee |
+| `first_trade_completed` | Free user, exactly 1 completed trade | Percentage tier (5% + fixed, capped) |
+| `subsequent_free` | Free user, 2+ completed trades | Percentage tier (5% + fixed, capped) |
+| `active_member` | Subscription status `trial` or `active` | Flat active-member fee |
 
-fee_paid = fixed_component + (percent_component × item_price)
-# Optional clamps to avoid extremes
-if paid_fee_discount_enabled:
-    fee_paid = max(paid_min_fee, fee_paid)      # if configured
-    fee_paid = min(paid_max_fee, fee_paid)      # if configured
+**Consumption rule (strictly completion-event driven):** `profiles.completed_trade_count`
+increments ONLY when a trade's status transitions to `completed` (successful capture +
+completion). Cancelled / timed-out / failed-capture / refunded trades do **not** consume
+first-trade eligibility — the state reverts and the flat fee remains available for the next
+attempt. Because consumption is tied to the completion event and **never to elapsed time**,
+no special handling is required during any future extension-consent wait.
 
-buyer_pays_fee_in_cash = round_to_cents(fee_paid)
-Seller fee
+- **Full refund** of the trade that consumed first-trade eligibility restores it
+  (counter decrements, state reverts). Partial refunds never restore eligibility.
+- **Subscription changes** flip the state: entering `trial`/`active` → `active_member`;
+  leaving them reverts to the free state computed from the completed-trade count.
 
-text
-Copy code
+**Fee resolution:** `fn_get_buyer_fee_for_checkout(p_user_id, p_cash_portion_cents)`
+returns the buyer's current `fee_state`, the exact `fee_cents`, and the `label`. It is
+called by both the mobile order summary (preview) and the Edge Function (authoritative
+charge), so preview and charge always agree. If a required config key is missing, the
+function returns `fee_cents = NULL` and the Edge Function fails loud
+(`CONFIG_UNAVAILABLE`) — it never silently charges $0.
+
+#### 8.1.3 Fee Formulas
+
+**Buyer fee — flat tiers (active member / first trade)**
+
+```text
+fee = buyer_fee_active_member_cents        (active member)
+fee = buyer_fee_first_trade_cents          (free, first trade — first-trade protection)
+buyer_pays_fee_in_cash = round_to_cents(fee)
+```
+
+**Buyer fee — percentage tier (free user, 1+ completed trades)**
+
+```text
+cash_portion = order_total − swap_points_used        # SP never reduces the fee base below cash owed
+pct_component = round(cash_portion_cents × buyer_fee_subsequent_percentage / 100)
+fee           = buyer_fee_subsequent_fixed_cents + pct_component
+fee           = min(fee, buyer_fee_subsequent_max_cents)   # cap applies to the TOTAL
+buyer_pays_fee_in_cash = round_to_cents(fee)
+```
+
+**Seller fee (unchanged)**
+
+```text
 seller_fee = seller_percent_fee × cash_portion        # cash_portion = item_price − SP
 seller_cash_payout = cash_portion − seller_fee
-When SP is used (up to the allowed SP cap), the buyer fee is still based on item_price and is always paid in cash.
+```
 
-The seller fee is ALWAYS calculated on the CASH PORTION of the trade (item price
-minus Swap Points), never on the full item price, and never on the buyer's platform
-fee (that fee belongs to the platform). The SP portion is never fee'd. The seller
-rate is admin-configurable per subscription tier (Free vs Kids Club+), see §8.1.3.
-
-The SP portion of the transaction is credited to the seller’s SP wallet (no fee deducted from SP).
+- The seller fee is ALWAYS calculated on the CASH PORTION (item price minus Swap Points),
+  never on the full item price and never on the buyer's platform fee.
+- The SP portion is credited to the seller's SP wallet (no fee deducted from SP).
 
 | User Type | Transaction Fee | Applied To | Notes |
 |-----------|----------------|------------|-------|
-| **Free User** | $2.99 | Buyer | Per transaction, regardless of item price |
-| **Subscriber** | $0.99 | Buyer | Reduced fee (save $2 per transaction) |
-| **Seller Fee** | 5% (free tier default) | Seller | Deducted from cash payout on the cash portion (item price − SP); admin-configurable per tier (Free vs Kids Club+) |
+| **Free User — first trade** | $1.49 (flat, default) | Buyer | First-trade protection; consumed only on capture + completion |
+| **Free User — 1+ completed trades** | 5% of cash + $1.99, capped $4.99 (defaults) | Buyer | Percentage applies only to the cash portion |
+| **Active Member (trial/paid)** | $1.49 (flat, default) | Buyer | Same flat fee for trial or paid |
+| **Seller Fee** | 5% (free tier default) | Seller | Deducted from cash payout on the cash portion; admin-configurable per tier |
 
-**Fee Calculation Examples:**
+**Fee Calculation Examples (defaults):**
 
-```
-Example 1: Free user buys $25 item (cash only)
+```text
+Example 1: Active member buys $25 item (cash only)
 ├─ Item price: $25.00
-├─ Buyer fee: $2.99
-├─ Total buyer pays: $27.99
-└─ Seller receives: $25.00 - (5% × $25) = $23.75
+├─ Buyer fee (flat active-member): $1.49
+├─ Total buyer pays: $26.49
+└─ Seller receives: $25.00 - (5% × $25.00) = $23.75
 
-Example 2: Subscriber buys $25 item (12 SP + cash) — seller is FREE tier (5% seller fee)
+Example 2: Free user, first trade, buys $25 item (cash only)
 ├─ Item price: $25.00
-├─ SP used: 12 SP (= $12 discount)
-├─ Cash portion: $13.00
-├─ Buyer fee: $0.99
-├─ Total buyer pays: $13.99 cash + 12 SP
-└─ Seller receives: 
-    ├─ 12 SP (to wallet, available immediately)
-    └─ $12.35 cash (cash portion $13.00 − 5% × $13.00 = $0.65 seller fee; the $0.99 buyer fee goes to the platform, not the seller)
+├─ Buyer fee (flat first-trade): $1.49
+├─ Total buyer pays: $26.49
+└─ After completion, fee-state becomes 'first_trade_completed' (flat fee no longer applies)
+
+Example 3: Free user, 1+ completed trades, buys $60 item (cash only)
+├─ Item price: $60.00
+├─ Buyer fee: min(199 + round(6000 × 5%), 499) = min(499, 499) = $4.99 (capped)
+├─ Total buyer pays: $64.99
+└─ Seller receives: $60.00 - (5% × $60.00) = $57.00
+
+Example 4: Free user, 1+ completed trades, buys $60 item using $20 SP
+├─ Item price: $60.00, SP used: $20.00 → cash portion: $40.00
+├─ Buyer fee: min(199 + round(4000 × 5%), 499) = min(399, 499) = $3.99 (computed on the $40 cash portion, NOT the $60 price)
+├─ Total buyer pays: $40.00 + $3.99 = $43.99 cash + $20 SP
+└─ Seller receives (5%): $40.00 − $2.00 = $38.00 cash + $20 SP
 ```
 
-8.1.3 Admin Configuration (Per Node)
+#### 8.1.4 Admin Configuration (fees category)
 
-Admin can configure the following values for each node:
+Admin can configure the following `admin_config` keys (category `fees`), editable on
+**Settings → Trade Timing → Tiered Buyer Fee**:
 
-Free tier (non-subscribers)
+| Config key | Seed default | Meaning |
+|---|---|---|
+| `buyer_fee_active_member_cents` | 149 | Flat fee (cents) for active members (trial or paid) |
+| `buyer_fee_first_trade_cents` | 149 | Flat fee (cents) for free users on their first trade |
+| `buyer_fee_subsequent_percentage` | 5.0 | Percentage of the cash portion for free users with 1+ completed trades |
+| `buyer_fee_subsequent_fixed_cents` | 199 | Fixed fee component (cents) for free users with 1+ completed trades |
+| `buyer_fee_subsequent_max_cents` | 499 | Cap (cents) on the TOTAL fee (fixed + percentage) |
+| `buyer_fee_label` | Safety & Platform Fee | Display label on checkout / order summary |
 
-free_fixed_fee (e.g., $2.99)
+**Seller (per subscription tier — admin-configurable)**
 
-free_percent_fee (e.g., 0.00–0.05)
-
-Kids Club+ tier (subscribers)
-
-paid_fee_discount_enabled (boolean)
-
-If enabled:
-
-paid_fixed_fee (e.g., $0.99)
-
-paid_percent_fee (e.g., 0.00–0.03)
-
-Optional: paid_min_fee, paid_max_fee (safety bounds)
-
-If disabled:
-
-Paid users pay the same effective buyer fee as free users (free_fixed_fee + free_percent_fee × item_price).
-
-Seller (per subscription tier — admin-configurable)
-
+```text
 seller_percent_fee_free        (default: 5.0%) — seller fee % for FREE (non-subscriber) sellers
 seller_percent_fee_subscriber  (seeded default: 0.0%) — seller fee % for Kids Club+ (subscriber) sellers
+```
 
-> Implementer note: mapped to admin_config keys `platform_fee_seller_percentage` (free) and
-> `platform_fee_seller_discount_percentage_kids_club_plus` (subscriber). The "discount" in the
-> key name is legacy — each value is an ABSOLUTE percentage for that tier, applied as
-> `seller_fee = rate × cash_portion`. Both are editable from the admin portal
-> (Config → Trade Timing → Transaction Fees).
+> Implementer note: seller keys map to `platform_fee_seller_percentage` (free) and
+> `platform_fee_seller_discount_percentage_kids_club_plus` (subscriber). The "discount" in
+> the key name is legacy — each value is an ABSOLUTE percentage for that tier. Both are
+> editable from **Config → Trade Timing → Transaction Fees**.
 
-8.1.4 Default V1 Configuration (Launch Assumptions)
+**Legacy buyer-fee keys** (`transaction_fee_subscriber_cents`,
+`transaction_fee_non_subscriber_cents`, `platform_fee_buyer_fixed_cents`,
+`platform_fee_buyer_percentage`) are **DEPRECATED** — retained for backward compatibility
+but no longer the source of truth for the buyer fee.
 
-To match the current financial model and examples:
+#### 8.1.5 Fee-Tier Statistics (Admin)
 
-Free buyer (default)
-
-free_fixed_fee = $2.99
-
-free_percent_fee = 0.00
-
-Kids Club+ buyer (default)
-
-paid_fee_discount_enabled = true
-
-paid_fixed_fee = $0.99
-
-paid_percent_fee = 0.00
-
-(paid_min_fee / paid_max_fee not used, or both = $0.99 for a strictly flat fee)
-
-Seller (per tier)
-
-seller_percent_fee_free       = 5.0% (seeded default)
-seller_percent_fee_subscriber = 0.0% (seeded default — set to 5.0% in the admin portal for a uniform 5% seller fee across tiers)
-
-8.1.5 Calculation Examples (Illustrative)
-
-**Note: Examples below assume the default V1 configuration above (no percentage component).
-**
-Example 1: Free user buys $25 item (cash only)
-
-item_price           = $25.00
-free_fixed_fee       = $2.99
-free_percent_fee     = 0.00
-
-Buyer fee            = 2.99 + (0.00 × 25.00) = $2.99
-Total buyer pays     = $25.00 + $2.99 = $27.99
-
-Seller fee (5%)      = 5% × $25.00 = $1.25
-Seller receives      = $25.00 - $1.25 = $23.75 (cash)
-
-
-Example 2: Kids Club+ subscriber buys $25 item using SP + cash
-
-item_price               = $25.00
-paid_fixed_fee           = $0.99
-paid_percent_fee         = 0.00
-SP used                  = 12 SP (equivalent to $12)
-cash portion of price    = $13.00
-
-Buyer fee                = 0.99 + (0.00 × 25.00) = $0.99 (cash only)
-Total buyer pays         = $13.00 + $0.99 = $13.99 cash + 12 SP
-
-Seller receives (seller is free tier — 5% seller fee):
-  - 12 SP to SP wallet (no fee deducted from SP)
-  - Cash payout:
-        gross cash        = $13.00
-        seller fee (5%)   = 5% × $13.00 (cash portion, not full price) = $0.65
-        net cash          = $13.00 - $0.65 = $12.35
+- **Settings → Trade Timing → Buyer Fee-Tier Distribution** shows how many users are in
+  each fee state (flat vs percentage), backed by `fn_admin_get_fee_tier_stats`.
+- **Analytics → Buyer Fee-Tier Distribution** shows the flat vs percentage user counts and
+  share of users by tier.
 
 ### 8.2 Minimum Transaction Value
 
@@ -2472,6 +2541,8 @@ Response (200 OK):
 4. System validates code
 5. If valid → phone_verified = true
 
+**R8 note (2026-08-09):** Phone verification satisfies the "phone/email verification" requirement; a separate in-app email-verification flow is not required. Phone verification gates listing publication (AUTH-V3-008).
+
 **Security Measures:**
 - Rate limiting: 3 code requests per hour per phone number
 - Code expiry: 10 minutes
@@ -2499,6 +2570,8 @@ Response (200 OK):
 4. **Condition Assessment**
    - Analyze wear, tears, stains
    - Suggest condition level (advisory only)
+
+**Approval gate (R8, 2026-08-09):** No listing may be approved until every uploaded image has an `approved` Google Vision decision. A flagged image (LIKELY/VERY_LIKELY) moves the listing to `flagged` and blocks approval (`MODERATION_BLOCKED_FLAGGED`); unreviewed images block approval (`MODERATION_IN_PROGRESS`). Admins may disable the gate via the `moderation_ai_enabled` admin config.
 
 **Text Analysis (title + description):**
 - Profanity filter
@@ -2804,6 +2877,8 @@ customer.subscription.trial_will_end → Send reminder email (Day 23 of trial)
 - Deleted accounts: 30-day soft delete → permanent purge
 - Transaction history: 7 years (legal requirement)
 - SP transactions: Retained with user account
+
+**18+ Registration Gate (N4, 2026-08-09):** No user under 18 may create an account. Enforced client-side (DOB gate before any personal data is collected) and server-side (a BEFORE INSERT trigger on `auth.users` raises `AGE_MINIMUM_REQUIRED`, aborting the insert so no account data is persisted). Minimum age is admin-configurable via `min_registration_age` (default 18). This reverses the 2026-06-20 COPPA deprecation.
 
 ### 14.2 Payment Security
 

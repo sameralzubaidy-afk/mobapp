@@ -12,3 +12,9 @@ export const isAtLeastAge = (dobIso: string, minAge: number): boolean => {
   }
   return age >= minAge;
 };
+
+/**
+ * N4 (2026-08-09): convenience wrapper — TRUE when the DOB implies the user is
+ * at least 18 (the platform's hard minimum registration age).
+ */
+export const isAtLeast18 = (dobIso: string): boolean => isAtLeastAge(dobIso, 18);

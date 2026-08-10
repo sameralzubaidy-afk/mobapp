@@ -205,6 +205,14 @@ export default function SellerEarningsScreen() {
             <Text style={styles.detailValue}>-{formatAmount(item.platform_fee_cents)}</Text>
           </View>
         )}
+        {item.status === 'pending' &&
+          item.payout_release_at &&
+          new Date(item.payout_release_at).getTime() > Date.now() && (
+            <View style={styles.detailRow} testID={`release-date-${item.id}`}>
+              <Text style={styles.detailLabel}>Releases</Text>
+              <Text style={styles.detailValue}>{formatDate(item.payout_release_at)}</Text>
+            </View>
+          )}
       </View>
 
       {item.failure_reason && (

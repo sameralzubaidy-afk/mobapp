@@ -29,6 +29,8 @@ export type RootStackParamList = {
   // Subscription routes
   Subscription: undefined;
   SubscriptionChoice: { userId?: string } | undefined;
+  // R7: Web-first membership prompt (non-purchase; redirects to web checkout)
+  JoinKidsClub: undefined;
   // MODULE-11 SUB-006: Trial conversion
   ContinueKidsClub: undefined;
   // MODULE-11 SUB-008: Manage subscription

@@ -6,18 +6,16 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-nat
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Sparkle, Coins, Gift, Lightning, CreditCard, CheckCircle } from 'phosphor-react-native';
-import { SubscribeButton } from '../../components/subscription/SubscribeButton';
+import { JoinKidsClubButton } from '../../components/subscription/JoinKidsClubButton';
 import { useSubscription } from '../../hooks/useSubscription';
 import type { RootStackParamList } from '@/navigation/types';
 import {
   getSubscriptionPrice,
   getTrialDays,
-  getTransactionFeeNonSubscriberCents,
-  getTransactionFeeSubscriberCents,
+  getActiveMemberFeeCents,
   invalidateConfigCache,
 } from '@/services/adminConfig';
 import { formatDollarAmount, formatPrice } from '@/utils/formatPrice';
-import { useAuth } from '@/hooks/useAuth';
 import ScreenLayout from '@/components/ScreenLayout';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -29,30 +27,24 @@ function formatMonthlyPrice(dollars: number): string {
   return `${formatDollarAmount(dollars)}/month`;
 }
 
-function toPriceCents(dollars: number): number {
-  return Math.max(0, Math.round(dollars * 100));
-}
-
 export function SubscriptionPaymentScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { subscription, refetch } = useSubscription();
-  const { refreshSession } = useAuth();
+  const { subscription } = useSubscription();
   // NO HARDCODED PRICE - fetch from admin_config on mount
   const [monthlyPriceDollars, setMonthlyPriceDollars] = useState<number>(0);
   const [trialDays, setTrialDays] = useState<number>(DEFAULT_TRIAL_DAYS);
-  const [subscriberFeeCents, setSubscriberFeeCents] = useState<number>(0);
-  const [nonSubscriberFeeCents, setNonSubscriberFeeCents] = useState<number>(0);
+  // R1 — Tiered Buyer-Fee Engine: flat active-member fee (dynamic).
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState<number>(149);
   const [configLoading, setConfigLoading] = useState<boolean>(true);
 
   const loadPricingConfig = useCallback(async () => {
     setConfigLoading(true);
     try {
       invalidateConfigCache();
-      const [price, days, subscriberFee, nonSubscriberFee] = await Promise.all([
+      const [price, days, memberFeeCents] = await Promise.all([
         getSubscriptionPrice(true),
         getTrialDays(true),
-        getTransactionFeeSubscriberCents(true),
-        getTransactionFeeNonSubscriberCents(true),
+        getActiveMemberFeeCents(true),
       ]);
 
       if (Number.isFinite(price) && price > 0) {
@@ -72,15 +64,13 @@ export function SubscriptionPaymentScreen() {
         setTrialDays(DEFAULT_TRIAL_DAYS);
       }
 
-      setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
-      setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
+      setActiveMemberFlatCents(memberFeeCents);
     } catch (error) {
       console.error('[SubscriptionPaymentScreen] Failed to load pricing config:', error);
       // Show 0 to indicate configuration error
       setMonthlyPriceDollars(0);
       setTrialDays(DEFAULT_TRIAL_DAYS);
-      setSubscriberFeeCents(0);
-      setNonSubscriberFeeCents(0);
+      setActiveMemberFlatCents(149);
     } finally {
       setConfigLoading(false);
     }
@@ -96,16 +86,7 @@ export function SubscriptionPaymentScreen() {
   const isRenewal = subscription?.status === 'grace_period' || subscription?.status === 'expired';
 
   const monthlyPriceLabel = formatMonthlyPrice(monthlyPriceDollars);
-  const monthlyPriceCents = toPriceCents(monthlyPriceDollars);
   const dueTodayLabel = isRenewal ? monthlyPriceLabel : '$0.00';
-
-  const handleSuccess = async () => {
-    // Refresh both subscription hook data and auth session state used by gated UI screens.
-    await Promise.all([refetch(), refreshSession()]);
-
-    // Navigate to success celebration screen
-    navigation.navigate('SubscriptionSuccess', { isRenewal });
-  };
 
   return (
     // DEFERRED-DECISION (2026-07-19): Payment screens had showBell={false} intentionally
@@ -149,8 +130,7 @@ export function SubscriptionPaymentScreen() {
             <View style={styles.benefitText}>
               <Text style={styles.benefitTitle}>Lower Transaction Fees</Text>
               <Text style={styles.benefitDescription}>
-                Pay only {formatPrice(subscriberFeeCents)} per transaction (vs{' '}
-                {formatPrice(nonSubscriberFeeCents)} for free users)
+                Pay a flat {formatPrice(activeMemberFlatCents)} Safety & Platform Fee on every trade
               </Text>
             </View>
           </View>
@@ -221,21 +201,15 @@ export function SubscriptionPaymentScreen() {
           </View>
         </View>
 
-        {/* Subscribe Button */}
+        {/* Web-only CTA (R7 — no in-app purchase) */}
         <View style={styles.subscribeButtonContainer}>
-          <SubscribeButton
-            isRenewal={isRenewal}
-            priceCents={monthlyPriceCents}
-            trialDays={trialDays}
-            onSuccess={handleSuccess}
-            testID="subscription-payment-button"
-          />
+          <JoinKidsClubButton />
         </View>
 
         {/* Terms */}
         <Text style={styles.terms} testID="payment-terms">
-          By subscribing, you agree to automatic monthly billing. You can cancel anytime from your
-          subscription settings. No refunds for partial months.
+          Membership is completed securely on passitup.com. You can cancel anytime from your
+          subscription settings after subscribing.
         </Text>
       </ScrollView>
     </ScreenLayout>

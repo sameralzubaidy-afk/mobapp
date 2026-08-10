@@ -1481,7 +1481,7 @@ export default function BulkListingCreateScreen() {
                 accepts_swap_points: Boolean(item.accepts_swap_points),
               }))}
               isSubscriber={canAcceptSP}
-              onUpgradePress={() => navigation.navigate('SubscriptionChoice')}
+              onUpgradePress={() => navigation.navigate('JoinKidsClub')}
               testID="bulk-sp-summary"
             />
 
@@ -1496,7 +1496,7 @@ export default function BulkListingCreateScreen() {
               onOpenCategoryPicker={(groupId) => setCategoryPickerGroupId(groupId)}
               canAcceptSP={canAcceptSP}
               checkingSubscription={checkingSubscription}
-              onUpgradePress={() => navigation.navigate('SubscriptionChoice')}
+              onUpgradePress={() => navigation.navigate('JoinKidsClub')}
               onRetryAI={handleRetryAIForItem}
               minListingPrice={minListingPrice}
             />

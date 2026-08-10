@@ -101,7 +101,7 @@ export default function SpWalletScreen() {
 
       {walletSummary.wallet_state === 'grace_period' && (
         <View style={styles.graceBanner}>
-          <Text style={styles.graceText}>⏳ Grace Period Active - Renew soon to keep your SP</Text>
+          <Text style={styles.graceText}>⏳ Grace Period Active - You can still spend existing SP</Text>
         </View>
       )}
     </View>

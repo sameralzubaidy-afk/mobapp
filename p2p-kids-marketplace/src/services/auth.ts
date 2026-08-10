@@ -5,6 +5,7 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase';
 import { AuthSession, LoginInput, UserProfile, AuthError } from '../types/user';
 import { ReferralCodeServiceV2 } from './referralCodeV2';
+import { isAtLeast18 } from '../utils/age';
 
 type SignupPolicyType = 'terms_of_service' | 'privacy_policy';
 
@@ -74,6 +75,15 @@ export async function signup(input: {
 
   const { email, password, name, phone, dob, referralCode } = input;
 
+  // N4 (2026-08-09): Hard 18+ gate — refuse BEFORE any auth user is created so
+  // no account data is persisted for under-18 users (server trigger is backstop).
+  if (dob && !isAtLeast18(dob)) {
+    return {
+      user: null,
+      error: new AuthError('You must be 18 or older to register.', 'AGE_BLOCKED'),
+    };
+  }
+
   try {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -132,6 +142,15 @@ export async function signupWithTrial(input: {
   referralCode?: string;
 }): Promise<{ user: SupabaseUser | null; error: AuthError | null }> {
   const { email, password, name, phone, dob, referralCode } = input;
+
+  // N4 (2026-08-09): Hard 18+ gate — refuse BEFORE any auth user is created so
+  // no account data is persisted for under-18 users (server trigger is backstop).
+  if (dob && !isAtLeast18(dob)) {
+    return {
+      user: null,
+      error: new AuthError('You must be 18 or older to register.', 'AGE_BLOCKED'),
+    };
+  }
 
   try {
     // Step 1: Create auth user

@@ -48,7 +48,7 @@ async function createTestUser(template, index) {
   const email = generateTestEmail(index, template.firstName);
   const phone = generateTestPhone(index);
   const displayName = `${template.firstName} ${template.lastName.charAt(0)}`;
-  const dob = `201${index % 4}-0${(index % 9) + 1}-15`; // Vary DOB
+  const dob = `198${index % 4}-0${(index % 9) + 1}-15`; // Vary DOB (N4: all 18+ per hard registration gate)
 
   console.log(`\n🧪 Creating user ${index}:`);
   console.log(`   Name: ${template.firstName} ${template.lastName}`);

@@ -416,8 +416,8 @@ Data Encryption (Rest)
 Supabase PostgreSQL encryption + encrypted storage buckets
 PII Protection
 Phone/email encrypted at rest, RLS policies isolate user data
-Child Data (COPPA) — ⚠️ DEPRECATED per product decision (2026-06-20)
-COPPA enforcement removed. Platform no longer gates by age. Implementation remains: profiles store only first name, age, sizes (no PII collected from children) as good privacy practice.
+Child Data / Age Gate (N4, 2026-08-09) — replaces the 2026-06-20 COPPA deprecation
+Hard 18+ registration gate: no user under 18 may register. Enforced client-side (DOB gate before any PII is collected) + server-side (BEFORE INSERT trigger on auth.users raises AGE_MINIMUM_REQUIRED, aborting the insert so nothing is persisted). min_registration_age admin config (default 18). Profiles store only first name, age, sizes (no child PII).
 Password Security
 Supabase Auth uses bcrypt (cost 12)
 ID Documents

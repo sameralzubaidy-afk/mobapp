@@ -28,3 +28,12 @@ verify_jwt = false
 [functions.send-offer-reminders]
 verify_jwt = false
 
+[functions.release-due-payouts]
+verify_jwt = false
+
+# R7 — Web-first subscription purchase: called by the consumer web app server
+# (passitup.com) with the x-web-secret shared header OR a user JWT.
+[functions.create-checkout-session]
+verify_jwt = false
+
+

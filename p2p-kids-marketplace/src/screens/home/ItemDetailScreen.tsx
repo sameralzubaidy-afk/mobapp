@@ -31,11 +31,8 @@ import { useUserStore } from '@/stores/userStore';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getListingById } from '@/services/listing';
-import { getSubscriptionSummary, getTransactionFee } from '@/services/subscription';
-import {
-  getTransactionFeeNonSubscriberCents,
-  getTransactionFeeSubscriberCents,
-} from '@/services/adminConfig';
+import { getSubscriptionSummary } from '@/services/subscription';
+import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
 import { hasActiveOfferForItem, hasActiveTradeBetween, getSellerRating } from '@/services/trade';
 import { Listing } from '@/types/listing';
 import { trackEvent } from '@/services/analytics';
@@ -97,9 +94,10 @@ export default function ItemDetailScreen() {
   // Buyer subscription context (MODULE-11 dependency)
   const [buyerCanSpendSP, setBuyerCanSpendSP] = useState(false);
   const [buyerIsSubscriber, setBuyerIsSubscriber] = useState(false);
-  const [transactionFeeCents, setTransactionFeeCents] = useState(0);
-  const [subscriberFeeCents, setSubscriberFeeCents] = useState(0);
-  const [nonSubscriberFeeCents, setNonSubscriberFeeCents] = useState(0);
+  // R1 — Tiered Buyer-Fee Engine: server-resolved buyer fee + active-member flat
+  // fee (both dynamic from admin_config).
+  const [buyerFeeInfo, setBuyerFeeInfo] = useState<BuyerFeeInfo | null>(null);
+  const [activeMemberFlatCents, setActiveMemberFlatCents] = useState(149);
   const [buyerSubLoading, setBuyerSubLoading] = useState(true);
   const [checkingActiveTrade, setCheckingActiveTrade] = useState(false);
   const [showDuplicateOfferModal, setShowDuplicateOfferModal] = useState(false);
@@ -253,30 +251,22 @@ export default function ItemDetailScreen() {
 
   const loadBuyerSubscription = async () => {
     try {
+      // Active-member flat fee from admin config (R1 tiered engine) — used for the
+      // "save on fees" note and as a display fallback.
+      try {
+        const config = await getAdminConfig();
+        setActiveMemberFlatCents(Number(config.buyer_fee_active_member_cents ?? 149));
+      } catch {
+        setActiveMemberFlatCents(149);
+      }
+
       if (!user?.id) {
-        const [subscriberFee, nonSubscriberFee] = await Promise.all([
-          getTransactionFeeSubscriberCents(true),
-          getTransactionFeeNonSubscriberCents(true),
-        ]);
-        setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
-        setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
         setBuyerIsSubscriber(false);
         setBuyerCanSpendSP(false);
-        setTransactionFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
         return;
       }
 
-      const [sub, userFeeCents, subscriberFee, nonSubscriberFee] = await Promise.all([
-        getSubscriptionSummary(user.id),
-        getTransactionFee(user.id),
-        getTransactionFeeSubscriberCents(true),
-        getTransactionFeeNonSubscriberCents(true),
-      ]);
-
-      setSubscriberFeeCents(Number.isFinite(subscriberFee) ? subscriberFee : 0);
-      setNonSubscriberFeeCents(Number.isFinite(nonSubscriberFee) ? nonSubscriberFee : 0);
-      setTransactionFeeCents(Number.isFinite(userFeeCents) ? userFeeCents : 0);
-
+      const sub = await getSubscriptionSummary(user.id);
       setBuyerIsSubscriber(sub.is_subscriber);
       setBuyerCanSpendSP(sub.can_spend_sp);
     } catch (err) {
@@ -287,6 +277,21 @@ export default function ItemDetailScreen() {
       setBuyerSubLoading(false);
     }
   };
+
+  // R1 — Tiered Buyer-Fee Engine: resolve the buyer fee once the listing price is
+  // known (cash portion = full item price on the detail screen). Live RPC — admin
+  // fee-config changes are respected on the next load.
+  useEffect(() => {
+    if (!user?.id || !listing) return;
+    let cancelled = false;
+    const priceCents = Math.round(listing.price * 100);
+    getBuyerFeeForCheckout(priceCents).then((fee) => {
+      if (!cancelled && fee) setBuyerFeeInfo(fee);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, listing]);
 
   const handleMakeOffer = async () => {
     if (!user?.id) {
@@ -423,11 +428,13 @@ export default function ItemDetailScreen() {
     );
   }
 
-  // V2: Fee disclosure based on buyer subscription status (admin-config / RPC driven)
-  const platformFee = transactionFeeCents / 100;
+  // R1 — Tiered Buyer-Fee Engine: server-resolved fee + label. Savings vs the
+  // active-member flat fee (only meaningful for percentage-tier free users).
+  const platformFeeCents = buyerFeeInfo?.feeCents ?? activeMemberFlatCents;
+  const platformFee = platformFeeCents / 100;
   const taxDollars = (tax.taxAmountCents || 0) / 100;
   const totalPrice = listing.price + platformFee + taxDollars;
-  const savingsDollars = Math.max(0, (nonSubscriberFeeCents - subscriberFeeCents) / 100);
+  const savingsDollars = Math.max(0, (platformFeeCents - activeMemberFlatCents) / 100);
 
   // Determine seller name display (TASK-ITEM-DETAILS-001)
   const shouldShowSellerName = hasActiveTrade;
@@ -647,7 +654,7 @@ export default function ItemDetailScreen() {
                     </Text>
                     <TouchableOpacity
                       style={styles.upgradeButton}
-                      onPress={() => navigation.navigate('SubscriptionChoice')}
+                      onPress={() => navigation.navigate('JoinKidsClub')}
                     >
                       <Text style={styles.upgradeButtonText}>Upgrade to Kids Club+</Text>
                     </TouchableOpacity>
@@ -669,7 +676,7 @@ export default function ItemDetailScreen() {
 
               <View style={styles.feeRow}>
                 <Text style={styles.feeLabel}>
-                  Transaction Fee {buyerIsSubscriber ? '(Subscriber Rate)' : '(Non-Subscriber)'}
+                  {buyerFeeInfo?.label ?? 'Safety & Platform Fee'}
                 </Text>
                 <Text style={[styles.feeValue, buyerIsSubscriber && styles.feeValueSubscriber]}>
                   ${platformFee.toFixed(2)}
@@ -693,11 +700,11 @@ export default function ItemDetailScreen() {
                 <Text style={styles.feeTotalValue}>${totalPrice.toFixed(2)}</Text>
               </View>
 
-              {!buyerIsSubscriber && (
+              {!buyerIsSubscriber && savingsDollars > 0 && (
                 <View style={styles.savingsNote}>
                   <Text style={styles.savingsNoteText}>
                     💡 Save ${savingsDollars.toFixed(2)} on fees! Subscribe to Kids Club+ and pay
-                    only {formatPrice(subscriberFeeCents)} per transaction.
+                    only {formatPrice(activeMemberFlatCents)} per transaction.
                   </Text>
                 </View>
               )}
@@ -858,7 +865,7 @@ export default function ItemDetailScreen() {
           {listing?.accepts_swap_points && !buyerIsSubscriber && (
             <Pressable
               style={styles.useSpLockedChip}
-              onPress={() => navigation.navigate('SubscriptionChoice')}
+              onPress={() => navigation.navigate('JoinKidsClub')}
               testID="use-sp-locked-chip"
             >
               <Lock size={14} color="#6B7280" weight="bold" />
