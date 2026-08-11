@@ -71,6 +71,42 @@ describe('GlobalAlertProvider', () => {
     expect(getByTestId('referral-invalid-continue-anyway-button')).toBeTruthy();
   });
 
+  it('exposes each alert button to the accessibility tree as a labeled button (mirrors ui/Button)', () => {
+    const { getByTestId, getByRole } = renderWithProvider((show) =>
+      show({
+        title: 'Invalid Referral Code',
+        message: 'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
+        buttons: [
+          { text: 'Fix it', style: 'cancel', testID: 'referral-invalid-fix-it-button' },
+          {
+            text: 'Continue anyway',
+            primary: true,
+            testID: 'referral-invalid-continue-anyway-button',
+          },
+        ],
+      })
+    );
+
+    fireEvent.press(getByTestId('alert-trigger'));
+
+    // Queryable by accessibility role + label, the same way the iOS
+    // accessibility tree exposes native Button elements.
+    expect(getByRole('button', { name: 'Fix it' })).toBeTruthy();
+    expect(getByRole('button', { name: 'Continue anyway' })).toBeTruthy();
+
+    // Companion props on the touchable so the identifier surfaces on iOS
+    // (a bare testID alone is not exposed to the native tree).
+    const fixIt = getByTestId('referral-invalid-fix-it-button');
+    expect(fixIt.props.accessible).toBe(true);
+    expect(fixIt.props.accessibilityRole).toBe('button');
+    expect(fixIt.props.accessibilityLabel).toBe('Fix it');
+
+    const continueAnyway = getByTestId('referral-invalid-continue-anyway-button');
+    expect(continueAnyway.props.accessible).toBe(true);
+    expect(continueAnyway.props.accessibilityRole).toBe('button');
+    expect(continueAnyway.props.accessibilityLabel).toBe('Continue anyway');
+  });
+
   it('styles the primary action with the app brand green (#5DBB8E)', () => {
     const { getByTestId } = renderWithProvider((show) =>
       show({

@@ -179,6 +179,9 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
                     ]}
                     onPress={() => handleButtonPress(button)}
                     testID={button.testID || `global-alert-button-${index}`}
+                    accessible
+                    accessibilityRole="button"
+                    accessibilityLabel={button.text}
                   >
                     <Text
                       style={[
