@@ -305,7 +305,7 @@ Pass It Up operates on a **freemium subscription model** with two active tiers (
 1. **FLOW-01**: Auth (email/password signup, login, social OAuth: Google/Facebook/Apple, phone verification)
 2. **FLOW-02**: Onboarding (profile setup, node/ZIP selection, subscription choice)
 3. **FLOW-04**: Listings (photo-first create, bulk create, edit, delete, safety review)
-4. **FLOW-06**: Discovery (search, filters, favorites, standard list/grid feed)
+4. **FLOW-06**: Discovery (search, recent searches, state-scoped trending, filters bottom sheet with SP toggle + live count, favorites, standard list/grid feed) — 2026-08-11 redesign
 5. **FLOW-07**: Cart & Bundling (single-seller cart, bundle CTA, "More from this seller" discovery, different-seller modal, seller masking)
 6. **FLOW-08**: Trading — auth-and-capture hold at checkout (Stripe authorization placed, not captured), 48-hour offer window (unaccepted offers auto-cancel and release the hold), 72-hour pickup window (drives the auto-complete deadline), capture on "I Got It", 7-day admin guardrail (offer + pickup windows must total under 168h — hard block), and configurable in-app + push reminders during both windows
 7. **FLOW-10/11**: Swap Points (wallet, earn/spend ledger, pending→release lifecycle)
@@ -361,7 +361,7 @@ The following features are planned for future releases and are **not in the curr
 | **Swipe-Based Discovery** | Post-MVP | Tinder-style card interface for browsing items |
 | **Donate Option** | Post-MVP | Donate items to charity, earn community badges |
 | **Bulk Listing Tools v2** | Post-MVP | Enhanced bulk upload with AI auto-categorization |
-| **Advanced Search Filters** | Post-MVP | Additional filter dimensions beyond current set |
+| **Advanced Search Filters** | Post-MVP | Additional filter dimensions beyond current set (the 2026-08-11 redesign shipped progressive disclosure, an SP-gold quick-toggle + live "Show {n} Results" count, recent searches, and state-scoped trending) |
 
 ---
 

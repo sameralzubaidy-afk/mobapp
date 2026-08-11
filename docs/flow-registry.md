@@ -1493,11 +1493,7 @@ This file is the canonical registry of end-to-end flows and their required regre
     - Unauthorized uploads/deletes rejected by RLS
   - Integration: Storage service (`src/services/supabase/storage.ts`) uses bucket type safety
 
-### now i want you to extend the scope of testing for this file to cover the reqs for cart system and tax engine from end user side and admin site. following the same format for test cases 
-you can find the reqs for these 2 addtions in 
-MODULE-15.2-cart-system.md
-MODULE-15.3-PART3-TAX-TASKS-RESTRUCTURED.md
-add one section on the top give summary on what this file covers from testing and also inlcude perrequsit list. : Discovery – Feed/Search/Filters/Favorites
+### FLOW-06: Discovery – Feed/Search/Filters/Favorites
 - Smoke: (manual)
   - Feed loads; search filters update results.
   - **MODULE-15.1-UI-REDESIGN-FLOW-06 (2025-01-XX):** Discovery & Search screens redesigned to Whisk "Pass It Up" design system
@@ -1628,6 +1624,34 @@ add one section on the top give summary on what this file covers from testing an
       - ✅ Column comments exist for documentation
     - Next steps: DISCOVERY-V3-002 (RPC rewrite), DISCOVERY-V3-005 (unified DiscoverScreen UI)
     - Tier: Tier 2 (DB migration - requires full regression)
+  - **DISCOVERY-V4-001 (2026-08-11):** Discover screen + Filters bottom sheet redesign
+    - Module: Discover Redesign (Pass It Up)
+    - Scope:
+      - Discover-local header composition (new `DiscoverHeader.tsx`) with Bookmark → Favorites + existing bell/chat; shared `AppHeader`/`ScreenLayout` untouched (Home/Inbox/Profile headers verified unchanged)
+      - "💰 Accepts SP" quick-toggle chip (SP-gold) — single source of truth with the Filters-sheet toggle (`filters.spEligibleOnly`)
+      - Recent Searches chip row (Neutral-100 pills, client `searchHistory`, Clear action) + Trending in {State} (Primary-100 chips, state-scoped top categories by active listing count)
+      - Result count line + removable active-filter chips above the grid (Primary tokens; SP chip uses SP-gold tokens; Clear all)
+      - ItemCard → design-system §6.2 (white/16px radius/Level-1 shadow/1:1 image/H4 title/Body Large 700 price) + new gold `AcceptsSpBadge` (§6.7) replacing inline "SP ✓"
+      - Filters sheet: SP toggle card on top (SP-gold), Location/Category/Age Group expanded, Condition/Gender/Color/Brand/Price Range under collapsed "More Filters", Apply = "Show {n} Results" with debounced live count
+    - Files Changed:
+      - NEW `p2p-kids-marketplace/src/theme/discoveryTokens.ts` (design-system.md tokens)
+      - NEW `p2p-kids-marketplace/src/components/atoms/AcceptsSpBadge.tsx`
+      - NEW `p2p-kids-marketplace/src/screens/home/DiscoverHeader.tsx`
+      - `p2p-kids-marketplace/src/screens/home/DiscoverScreen.tsx` (header swap, sections, chips, state)
+      - `p2p-kids-marketplace/src/components/molecules/SearchFilterModal.tsx` (redesign)
+      - `p2p-kids-marketplace/src/components/molecules/ItemCard/index.tsx` (§6.2 + AcceptsSpBadge)
+      - `p2p-kids-marketplace/src/services/discovery.ts` (+getTopCategoriesByState, +countListings)
+      - `p2p-kids-marketplace/src/types/discovery.ts` (+TrendingCategory)
+      - NEW `supabase/migrations/20260811000006_discover_trending_categories_rpc.sql` (get_top_categories_by_state)
+      - NEW `supabase/migrations/20260811000007_discover_count_listings_rpc.sql` (count_listings)
+    - Tests:
+      - Manual: `AUTH-ONBOARDING-NODES-LISTING-DISCOVERY-MANUAL-TESTING.md` (root + misc/ in sync) — new TC-M07..M10, TC-N04, updated TC-M02/M04/M05, index + mapping sync
+      - Unit: `src/services/__tests__/discovery.test.ts` — extend for count/trending RPC mocks
+    - Prerequisites: `search_listings` V4 (20260603000001); categories/geographic_nodes tables
+    - Validation: `yarn typecheck`, `yarn lint`, `yarn test`; apply migrations 20260811000006/07 to staging; manual iOS walk of acceptance criteria; before/after header diff of Home/Inbox/Profile
+    - Tier: Tier 0 (lint + typecheck); Tier 1 (targeted discovery smoke, groups M/N/O); Tier 2 (DB migrations — full `supabase db reset` + smoke `--all` if the new RPCs ship to staging)
+    - Impacted Flows: FLOW-06 (Discovery), FLOW-30 (Global App Shell — nav unchanged; Discover header is local)
+    - Backward compatibility: additive — two new RPCs, no schema/column changes; ItemCard restyle applies to the shared card (CategoryBrowse etc. visually diffed); old "SP Only" toggle relabeled "Accepts SP" with the same `filters.spEligibleOnly` state
   - **DISCOVERY-V3-002 (2026-04-21):** Enhanced search_listings RPC + get_popular_brands
     - Purpose: Replace V2 3-param search_listings with 13-param version supporting 9 filters, pagination, and 4 sort modes
     - Migration: `supabase/migrations/20260420000002_update_search_listings_rpc.sql`

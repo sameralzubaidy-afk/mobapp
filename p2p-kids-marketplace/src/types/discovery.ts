@@ -47,6 +47,17 @@ export interface SearchResult {
 }
 
 /**
+ * Trending category (Discover "Trending in {State}")
+ * DISCOVER-REDESIGN: supply-side metric — top categories by active listing
+ * count within the user's state (get_top_categories_by_state RPC).
+ */
+export interface TrendingCategory {
+  category_id: string;
+  category_name: string;
+  listing_count: number;
+}
+
+/**
  * Category browsing result
  */
 export interface CategoryResult {

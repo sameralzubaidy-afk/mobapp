@@ -5,6 +5,7 @@
 # Responsibilities:
 #   1. Verify Maestro CLI is installed
 #   2. Boot an iOS Simulator if none is running  (Option B — app must be pre-installed)
+#   2b. Hide the iOS Simulator software keyboard after a fresh boot (TFV2_HIDE_KEYBOARD, default on)
 #   3. Verify the app binary is present on the simulator (fast-fail with a clear fix message)
 #   4. Start the admin portal on :3001 if not already running
 #   5. Run seed:staging to ensure test accounts exist (script is idempotent)
@@ -31,6 +32,14 @@ TFV2_IOS_DEVICE_NAME="${TFV2_IOS_DEVICE_NAME:-iPhone 16 Pro}"
 
 # Same for Android: TFV2_ANDROID_AVD_NAME (default: "pixel_7_e2e")
 TFV2_ANDROID_AVD_NAME="${TFV2_ANDROID_AVD_NAME:-pixel_7_e2e}"
+
+# Hide the iOS Simulator on-screen keyboard before Maestro runs (Simulator
+# menu I/O > Keyboard > Toggle Software Keyboard, Cmd+K). Default ON: the
+# software keyboard covers form fields, blocks scrolling, and corrupts taps
+# during automation — the single biggest source of test friction. Only applied
+# when preflight boots the simulator FRESH (a fresh boot shows the keyboard,
+# so one toggle deterministically hides it). Set to 0 to keep it visible.
+TFV2_HIDE_KEYBOARD="${TFV2_HIDE_KEYBOARD:-1}"
 
 GREEN='\033[0;32m'; RED='\033[0;31m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 log()   { echo -e "${CYAN}$(date -u +%H:%M:%SZ) [PREFLIGHT]${NC} $*"; }
@@ -84,9 +93,29 @@ if command -v xcrun &>/dev/null; then
     log "Waiting for simulator to finish booting (20s)..."
     sleep 20
     BOOTED_UDID="$AVAIL_UDID"
+    SIM_FRESH_BOOTED=1
   fi
   ok "iOS Simulator: $BOOTED_UDID"
   export IOS_SIMULATOR_UDID="$BOOTED_UDID"
+
+  # ── 2b. Hide the iOS Simulator software keyboard (fresh boot only) ──────────
+  # The on-screen keyboard covers form fields / blocks scrolling during Maestro
+  # runs (the dominant source of test friction). Send Cmd+K ("Toggle Software
+  # Keyboard") exactly once, right after a FRESH boot — a fresh simulator shows
+  # the keyboard by default, so one toggle deterministically hides it. Skipped
+  # when the sim was already booted (its keyboard state is unknown).
+  if [[ "${TFV2_HIDE_KEYBOARD:-1}" == "1" && "${SIM_FRESH_BOOTED:-0}" == "1" ]]; then
+    if osascript \
+      -e 'tell application "Simulator" to activate' \
+      -e 'delay 1' \
+      -e 'tell application "System Events" to keystroke "k" using command down' \
+      >/dev/null 2>&1; then
+      ok "iOS Simulator software keyboard HIDDEN (Toggle Software Keyboard) for this run"
+    else
+      warn "Could not toggle the Simulator keyboard (osascript needs macOS Accessibility permission)."
+      warn "To hide it manually: Simulator → I/O → Keyboard → Toggle Software Keyboard (or Cmd+K)."
+    fi
+  fi
 
   # ── 3. Verify app is installed ──────────────────────────────────────────────
   log "Verifying app installation ($APP_ID)..."

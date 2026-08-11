@@ -934,6 +934,11 @@ Progress: [●●●●]
 
 ### 6.3 Browse & Discovery
 
+> **Implementation note (2026-08-11):** the shipped app uses a **standard list/grid feed**
+> (2-column card grid on the Discover screen) — the swipe interface in §6.3.1 is **Post-MVP**
+> (see `docx/app-overview.md`). Discover and the Filters bottom sheet are specified in
+> §6.3.3–§6.3.5.
+
 #### 6.3.1 Home Feed (Swipe Interface)
 
 **Layout:**
@@ -1040,6 +1045,41 @@ Progress: [●●●●]
 │                                     │
 │  [Buy Now]  [Learn About Kids Club+]│
 ```
+
+#### 6.3.3 Discover Screen (Implemented — 2026-08-11 redesign)
+
+**Header (Discover-local composition — the shared app Header is untouched):**
+- Title "Discover" (H1); right cluster = **Saved/Bookmark icon** (44×44 Icon Button → Favorites) + Notifications bell + Chat (existing badge behavior).
+- SP quick-toggle chip **"💰 Accepts SP"** in the controls row (SP-gold when active) — a single source of truth with the Filters-sheet toggle (`filters.spEligibleOnly`).
+
+**Search bar + autocomplete (logic unchanged):** debounced full-text search (200ms), autocomplete from recent searches + dictionary. The autocomplete returns plain strings (no per-suggestion "source" field), so no source-icon differentiation is rendered.
+
+**Recent Searches (new):** horizontal chip row (Neutral-100 pills) directly below the search bar, sourced from client-side `searchHistory` (AsyncStorage LRU, max 8, most recent first); each chip re-runs the search; a **Clear** text action empties history.
+
+**Trending (new, MVP):** "Trending in {State}" chip row (Primary-100 bg / Primary-600 text / Primary-400 border) below Recent Searches. Query = top 4–6 categories by **active listing count scoped to the user's state** (state-level only, not ZIP-radius) via `get_top_categories_by_state`; hidden when the user has no node/state. *Backlog:* the listing-count metric is supply-side and may always surface the same 1–2 largest categories; a future iteration should weight by listing velocity (new listings in last 7 days) or search/view volume once analytics exist.
+
+**Result count + active filter chips (new):** above the grid, "{n} results · near {ZIP|state}, {radius} mi" (Body Small, Neutral-700) plus one removable chip per applied filter. Standard chips use Primary-100/600 tokens with an × remove control; the **Accepts SP** chip uses SP-gold tokens; a **Clear all** text action resets all filters. The count uses the `count_listings` RPC.
+
+**Item grid (real listings only):** the grid shows only real, non-sponsored listings. Item Cards follow §6.2: white bg, 16px radius, Level-1 shadow, full-bleed 1:1 image (category-tinted placeholder when image missing), favorite heart overlay top-right, title H4 (2-line), price Body Large 700, and the gold **Accepts SP** badge (§6.7) only when the seller enables swap-point acceptance.
+
+#### 6.3.4 Filters Bottom Sheet (Implemented — 2026-08-11 redesign)
+
+**Presentation:** white background, **20px top-corner radius**, drag handle, slide-up animation (RN Modal / pageSheet — no third-party bottom-sheet dependency).
+
+**Layout (progressive disclosure):**
+1. **"💰 Accepts Swap Points"** toggle card at the very top (SP-gold card, helper "Show items sellers will trade for SP + cash") — bound to the **same shared boolean** as the Discover header chip and applies immediately (not gated by Apply).
+2. **Always expanded:** Location (ZIP + radius slider), Category, Age Group.
+3. **Collapsed by default — "More Filters (Condition, Gender, Color, Brand, Price Range)":** expandable/collapsible section containing Condition, Gender, Color, Brand, Price Range.
+
+**Apply button:** Primary Button, 56px height, reads **"Show {n} Results"** — `n` updates live (debounced) via the `count_listings` RPC as filters change before Apply.
+
+#### 6.3.5 Discover APIs (RPCs)
+
+| RPC | Purpose | Returns |
+|---|---|---|
+| `get_top_categories_by_state(p_state, p_limit DEFAULT 6)` | Trending — top categories by active listing count within a state | `(category_id, category_name, listing_count)` |
+| `count_listings(...)` | Live result count for the Filters sheet — mirrors `search_listings` V4 filter semantics (no sort/pagination) | `total_count` |
+| `search_listings` (V4, existing) | Discovery search — intentionally NOT node-gated at discovery time | paginated results |
 
 ### 6.4 Purchase Flow
 
@@ -2364,6 +2404,30 @@ Response (403 Forbidden) - Free user tries accept_sp or donate:
   "message": "Accept SP and Donate options are only available to Kids Club+ subscribers",
   "upgrade_url": "/subscription/upgrade"
 }
+```
+
+#### GET /api/discovery/trending (RPC: `get_top_categories_by_state`)
+Top 4–6 categories by active listing count within the user's state (MVP "Trending in {State}").
+```sql
+-- p_state: state name from the user's node; p_limit default 6
+SELECT * FROM public.get_top_categories_by_state(p_state := 'Connecticut', p_limit := 6);
+```
+
+#### POST /api/discovery/count (RPC: `count_listings`)
+Live result count mirroring `search_listings` V4 filters (no pagination/sort). Used by the Filters sheet "Show {n} Results" button and the Discover result-count line.
+```sql
+SELECT * FROM public.count_listings(
+  p_query := 'bike',
+  p_sp_eligible_only := TRUE,
+  p_category_ids := NULL,
+  p_condition := NULL,
+  p_min_price := NULL,
+  p_max_price := NULL,
+  p_age_group := NULL,
+  p_gender := NULL,
+  p_brand := NULL,
+  p_colors := NULL
+);
 ```
 
 ### 9.4 Transaction APIs

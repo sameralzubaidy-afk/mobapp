@@ -17,6 +17,11 @@ jest.mock('@/services/brandAutocomplete', () => ({
   getBrandSuggestions: jest.fn(),
 }));
 
+// DISCOVER-REDESIGN: mock the live-count RPC wrapper (debounced inside the sheet).
+jest.mock('@/services/discovery', () => ({
+  countListings: jest.fn().mockResolvedValue(7),
+}));
+
 const mockCategories = [
   { id: 'cat-1', name: 'Toys', is_active: true, display_order: 1 },
   { id: 'cat-2', name: 'Books', is_active: true, display_order: 2 },
@@ -33,8 +38,11 @@ describe('SearchFilterModal', () => {
   });
 
   describe('Rendering', () => {
-    it('should render all 8 sections in correct order', () => {
-      const { getByText } = render(
+    // DISCOVER-REDESIGN: the sheet is now progressively disclosed — SP toggle on
+    // top, Location/Category/Age Group always expanded, the rest collapsed under
+    // "More Filters".
+    it('should render the redesigned layout with progressive disclosure', () => {
+      const { getByText, getByTestId, queryByText } = render(
         <SearchFilterModal
           visible={true}
           filters={getDefaultFilters()}
@@ -44,21 +52,27 @@ describe('SearchFilterModal', () => {
         />
       );
 
-      // Check all section titles in order
-      const sectionTitles = [
-        'CATEGORY',
-        'CONDITION',
-        'AGE GROUP',
-        'GENDER',
-        'COLOR',
-        'BRAND',
-        'PRICE RANGE',
-        'SWAP POINTS ONLY',
-      ];
+      // Always visible: SP toggle card, Location, Category, Age Group, More Filters
+      expect(getByText('💰 Accepts Swap Points')).toBeTruthy();
+      expect(getByText('LOCATION')).toBeTruthy();
+      expect(getByText('CATEGORY')).toBeTruthy();
+      expect(getByText('AGE GROUP')).toBeTruthy();
+      expect(
+        getByText('More Filters (Condition, Gender, Color, Brand, Price Range)')
+      ).toBeTruthy();
 
-      sectionTitles.forEach((title) => {
-        expect(getByText(title)).toBeTruthy();
-      });
+      // Collapsed by default: secondary filters are hidden
+      expect(queryByText('CONDITION')).toBeNull();
+      expect(queryByText('BRAND')).toBeNull();
+      expect(queryByText('PRICE RANGE')).toBeNull();
+
+      // Expand -> secondary filters appear
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+      expect(getByText('CONDITION')).toBeTruthy();
+      expect(getByText('GENDER')).toBeTruthy();
+      expect(getByText('COLOR')).toBeTruthy();
+      expect(getByText('BRAND')).toBeTruthy();
+      expect(getByText('PRICE RANGE')).toBeTruthy();
     });
 
     it('should display active filter count in header', () => {
@@ -126,6 +140,9 @@ describe('SearchFilterModal', () => {
         />
       );
 
+      // Expand "More Filters" (Condition is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+
       // The "new" condition pill should be selected
       const newPill = getByTestId('filter-condition-new');
       expect(newPill.props.accessibilityState.selected).toBe(true);
@@ -142,7 +159,8 @@ describe('SearchFilterModal', () => {
         />
       );
 
-      // Change a filter
+      // Change a filter (Condition lives in the collapsed "More Filters" section)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
       fireEvent.press(getByTestId('filter-condition-new'));
 
       // Close without applying
@@ -212,6 +230,9 @@ describe('SearchFilterModal', () => {
         />
       );
 
+      // Expand "More Filters" (Condition is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+
       // Select "new"
       fireEvent.press(getByTestId('filter-condition-new'));
       expect(getByTestId('filter-condition-new').props.accessibilityState.selected).toBe(true);
@@ -232,6 +253,9 @@ describe('SearchFilterModal', () => {
           onClose={mockOnClose}
         />
       );
+
+      // Expand "More Filters" (Condition is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
 
       const newPill = getByTestId('filter-condition-new');
 
@@ -278,6 +302,9 @@ describe('SearchFilterModal', () => {
         />
       );
 
+      // Expand "More Filters" (Gender is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+
       // Select "Boy"
       fireEvent.press(getByTestId('filter-gender-boy'));
 
@@ -297,6 +324,9 @@ describe('SearchFilterModal', () => {
           onClose={mockOnClose}
         />
       );
+
+      // Expand "More Filters" (Gender is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
 
       // Select "Any" (which maps to undefined)
       fireEvent.press(getByTestId('filter-gender-any'));
@@ -318,6 +348,9 @@ describe('SearchFilterModal', () => {
         />
       );
 
+      // Expand "More Filters" (Color is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+
       fireEvent.press(getByTestId('filter-color-red'));
       fireEvent.press(getByTestId('filter-color-blue'));
 
@@ -335,6 +368,9 @@ describe('SearchFilterModal', () => {
           onClose={mockOnClose}
         />
       );
+
+      // Expand "More Filters" (Color is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
 
       const redChip = getByTestId('filter-color-red');
 
@@ -357,6 +393,9 @@ describe('SearchFilterModal', () => {
           onClose={mockOnClose}
         />
       );
+
+      // Expand "More Filters" (Brand is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
 
       const brandInput = getByTestId('filter-brand-input');
 
@@ -384,6 +423,9 @@ describe('SearchFilterModal', () => {
         />
       );
 
+      // Expand "More Filters" (Brand is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+
       const brandInput = getByTestId('filter-brand-input');
 
       fireEvent.changeText(brandInput, 'lego');
@@ -407,6 +449,9 @@ describe('SearchFilterModal', () => {
           onClose={mockOnClose}
         />
       );
+
+      // Expand "More Filters" (Brand is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
 
       const brandInput = getByTestId('filter-brand-input');
 
@@ -437,6 +482,9 @@ describe('SearchFilterModal', () => {
         />
       );
 
+      // Expand "More Filters" (Price Range is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+
       const preset = getByTestId('filter-price-preset-10-25');
 
       fireEvent.press(preset);
@@ -454,6 +502,9 @@ describe('SearchFilterModal', () => {
           onClose={mockOnClose}
         />
       );
+
+      // Expand "More Filters" (Price Range is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
 
       const minInput = getByTestId('filter-price-min');
       const maxInput = getByTestId('filter-price-max');
@@ -482,6 +533,9 @@ describe('SearchFilterModal', () => {
         />
       );
 
+      // Expand "More Filters" (Price Range is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+
       const minInput = getByTestId('filter-price-min');
       const maxInput = getByTestId('filter-price-max');
 
@@ -503,6 +557,9 @@ describe('SearchFilterModal', () => {
         />
       );
 
+      // Expand "More Filters" (Price Range is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+
       const minInput = getByTestId('filter-price-min');
       const maxInput = getByTestId('filter-price-max');
       const applyButton = getByTestId('filter-modal-apply');
@@ -520,13 +577,16 @@ describe('SearchFilterModal', () => {
     });
   });
 
-  describe('Swap Points Filter', () => {
-    it('should toggle SP filter', () => {
+  describe('Swap Points Filter (live, shared with the Discover header chip)', () => {
+    it('should toggle the shared SP filter immediately via onSpToggle', () => {
+      const mockOnSpToggle = jest.fn();
       const { getByTestId } = render(
         <SearchFilterModal
           visible={true}
           filters={getDefaultFilters()}
           categories={mockCategories}
+          spEligibleOnly={false}
+          onSpToggle={mockOnSpToggle}
           onApply={mockOnApply}
           onClose={mockOnClose}
         />
@@ -534,11 +594,17 @@ describe('SearchFilterModal', () => {
 
       const toggle = getByTestId('filter-sp-toggle');
 
+      // DISCOVER-REDESIGN: the SP toggle is a LIVE filter — flipping it calls the
+      // shared onSpToggle (not the Apply-gated draft).
       fireEvent(toggle, 'onValueChange', true);
+      expect(mockOnSpToggle).toHaveBeenCalledWith(true);
 
+      // Applying the draft does NOT reflect the live SP toggle (SP is shared
+      // separately via onSpToggle) — the draft keeps its default spEligibleOnly:false.
       fireEvent.press(getByTestId('filter-modal-apply'));
-
-      expect(mockOnApply).toHaveBeenCalledWith(expect.objectContaining({ spEligibleOnly: true }));
+      expect(mockOnApply).toHaveBeenCalledWith(
+        expect.objectContaining({ spEligibleOnly: false })
+      );
     });
   });
 
@@ -556,6 +622,7 @@ describe('SearchFilterModal', () => {
         spEligibleOnly: true,
       };
 
+      const mockOnSpToggle = jest.fn();
       const { getByTestId } = render(
         <SearchFilterModal
           visible={true}
@@ -570,6 +637,8 @@ describe('SearchFilterModal', () => {
           inactiveZipMessage={null}
           waitlistMessage={null}
           userProfileZip="12345"
+          spEligibleOnly={true}
+          onSpToggle={mockOnSpToggle}
           onZipCodeInputChange={jest.fn()}
           onRadiusChange={jest.fn()}
           onRadiusComplete={jest.fn(async () => undefined)}
@@ -578,15 +647,19 @@ describe('SearchFilterModal', () => {
         />
       );
 
+      // Expand "More Filters" so Condition/Gender pills are in the tree
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
+
       fireEvent.press(getByTestId('filter-modal-reset'));
 
-      // Check that selections are cleared
+      // Check that selections are cleared (and the LIVE shared SP toggle is reset)
       await waitFor(() => {
         expect(getByTestId('filter-condition-like_new').props.accessibilityState.selected).toBe(
           false
         );
         expect(getByTestId('filter-age-3-5').props.accessibilityState.selected).toBe(false);
         expect(getByTestId('filter-gender-boy').props.accessibilityState.selected).toBe(false);
+        expect(mockOnSpToggle).toHaveBeenCalledWith(false);
       });
     });
   });
@@ -606,7 +679,8 @@ describe('SearchFilterModal', () => {
       expect(getByTestId('filter-modal-reset').props.accessibilityLabel).toBe(
         'Reset all filters'
       );
-      expect(getByTestId('filter-modal-apply').props.accessibilityLabel).toContain('Apply');
+      // DISCOVER-REDESIGN: the Apply button now reads "Show {n} Results".
+      expect(getByTestId('filter-modal-apply').props.accessibilityLabel).toContain('Show');
     });
 
     it('should announce selected state for pills', () => {
@@ -619,6 +693,9 @@ describe('SearchFilterModal', () => {
           onClose={mockOnClose}
         />
       );
+
+      // Expand "More Filters" (Condition is collapsed by default)
+      fireEvent.press(getByTestId('filter-more-filters-toggle'));
 
       const conditionPill = getByTestId('filter-condition-new');
 
@@ -645,7 +722,8 @@ describe('SearchFilterModal', () => {
 
       const toggle = getByTestId('filter-sp-toggle');
 
-      expect(toggle.props.accessibilityLabel).toContain('Swap points only');
+      // DISCOVER-REDESIGN: label is now "Accepts Swap Points enabled/disabled".
+      expect(toggle.props.accessibilityLabel).toContain('Accepts Swap Points');
     });
   });
 });

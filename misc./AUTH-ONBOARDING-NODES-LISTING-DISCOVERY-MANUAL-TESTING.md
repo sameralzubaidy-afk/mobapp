@@ -90,12 +90,17 @@
 | **M — Discovery: Search & Filters** | TC-M01 | Search bar (debounced) + clear |
 | | TC-M02 | Recent searches + autocomplete |
 | | TC-M03 | Sort options |
-| | TC-M04 | Filters modal (category/condition/price/age/gender/brand/color) |
-| | TC-M05 | SP Only toggle |
+| | TC-M04 | Filters modal: SP toggle, Location/Category/Age, More Filters, live count |
+| | TC-M05 | "Accepts SP" quick-toggle (header ↔ sheet sync) |
 | | TC-M06 | Empty / no-results states |
+| | TC-M07 | Recent Searches chip row + Clear |
+| | TC-M08 | Trending in {State} section |
+| | TC-M09 | Result count + active filter chips (incl. gold SP chip) |
+| | TC-M10 | Discover header: bookmark → Favorites (local header) |
 | **N — Discovery: Category & Favorites** | TC-N01 | Category browse filters results |
 | | TC-N02 | Favorite heart toggle on item card |
 | | TC-N03 | Infinite scroll pagination |
+| | TC-N04 | "Accepts SP" badge on item card (gold, §6.7) |
 | **O — Discovery: Node Scoping & SP Visibility** | TC-O01 | Results scoped to user's node |
 | | TC-O02 | Location ZIP + radius filter |
 | | TC-O03 | Inactive ZIP in filter → waitlist prompt |
@@ -1216,11 +1221,12 @@
 **Objective:** Verify recent searches and autocomplete suggestions.
 
 **Steps:**
-1. Focus the empty search field to view recent searches; remove one and use **Clear All**.
-2. Type 2+ characters and observe autocomplete suggestions.
+1. Focus the empty search field; observe the **Recent Searches** chip row directly below the search bar (Neutral-100 pills).
+2. Tap a recent-search chip to re-run that search; use the **Clear** text action to empty history.
+3. Type 2+ characters and observe autocomplete suggestions (the chip row hides while typing).
 
 **Expected Result:**
-- Recent searches list appears with per-item remove (✕) and Clear All; tapping one reuses it.
+- Recent searches appear as tappable chips (max 8, most recent first); tapping one reuses it; **Clear** empties them.
 - Up to 5 autocomplete suggestions appear; tapping one applies the search.
 
 ### TC-M03 · Sort options
@@ -1235,31 +1241,40 @@
 **Expected Result:**
 - Results reorder according to each selection.
 
-### TC-M04 · Filters modal
+### TC-M04 · Filters modal — progressive disclosure + live count
 
 **Actors:** test-buyer
 
-**Objective:** Verify the filters modal applies and shows an active count.
+**Objective:** Verify the redesigned Filters sheet: SP toggle on top, Location/Category/Age Group always expanded, Condition/Gender/Color/Brand/Price Range collapsed under "More Filters", and the live "Show {n} Results" Apply button.
 
 **Steps:**
-1. Open the **Filters** modal and set category, condition, price range, age group, gender, brand, and color.
-2. Apply the filters.
+1. Open the **Filters** sheet.
+2. Confirm the **"💰 Accepts Swap Points"** toggle card is at the very top (SP-gold styling), above Location.
+3. Confirm **Location (ZIP + radius)**, **Category**, and **Age Group** are always visible.
+4. Confirm **More Filters (Condition, Gender, Color, Brand, Price Range)** is collapsed by default; tap it to expand, set a Condition and a Price Range, then collapse it again.
+5. Observe the Apply button updates live ("Show {n} Results") as you toggle filters (debounced).
+6. Tap **Show {n} Results**.
 
 **Expected Result:**
-- Results respect the chosen filters and the Filters button shows an active-filter count badge.
+- Sheet follows the Bottom Sheet spec (white, 20px top radius, drag handle, slide-up).
+- The SP toggle sits above Location; Location/Category/Age Group always expanded; the rest hidden under the collapsible More Filters section.
+- Apply reads "Show {n} Results" with a live (debounced) count and applies the draft on tap; the Filters button shows an active-filter count badge.
 
-### TC-M05 · SP Only toggle
+### TC-M05 · "Accepts SP" quick-toggle — header ↔ sheet sync
 
 **Actors:** test-buyer, test-free
 
-**Objective:** Verify the SP Only toggle filters to SP-eligible items.
+**Objective:** Verify the "💰 Accepts SP" quick-toggle chip and the Filters-sheet toggle share one state and filter to SP-eligible items.
 
 **Steps:**
-1. As **test-buyer**, enable **SP Only** and review results.
-2. As **test-free**, enable **SP Only**.
+1. As **test-buyer**, toggle **Accepts SP** in the Discover controls row; confirm only SP-eligible items show and the chip highlights in SP-gold.
+2. Open the Filters sheet and confirm the **"💰 Accepts Swap Points"** toggle reflects the same ON state (single source of truth).
+3. Flip it OFF inside the sheet; close the sheet and confirm the header chip is OFF and results refetch.
+4. As **test-free**, enable **Accepts SP**.
 
 **Expected Result:**
-- With SP Only on, only SP-eligible items (with a "✓ SP Eligible" badge) are shown.
+- Header chip and sheet toggle never desync (both read/write `filters.spEligibleOnly`); toggling either refetches results + count immediately.
+- With it ON, only SP-eligible items are shown (with the gold **Accepts SP** badge).
 - For a free user, the toggle still filters but an upgrade CTA is surfaced for SP features.
 
 ### TC-M06 · Empty / no-results states
@@ -1273,6 +1288,67 @@
 
 **Expected Result:**
 - A "No Results Found" state appears with guidance to adjust filters and a **Clear Filters** action.
+
+### TC-M07 · Recent Searches chip row + Clear
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Recent Searches section renders as tappable chips above Trending with a Clear action.
+
+**Steps:**
+1. Run 2–3 searches with distinct queries (e.g., "bike", "lego").
+2. On Discover, look directly below the search bar for the **Recent Searches** chip row.
+3. Tap one chip, then tap **Clear**.
+
+**Expected Result:**
+- Chips are Neutral-100 pills (§6.7), most-recent first; tapping a chip re-runs that search; **Clear** empties the row and it disappears.
+
+### TC-M08 · Trending in {State} section
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Trending section shows top categories by active listing count in the user's state, styled distinctly from Recent Searches.
+
+**Steps:**
+1. With a node assigned (state detected), open Discover and locate **Trending in {State}** below Recent Searches.
+2. Tap a trending chip.
+
+**Expected Result:**
+- Chips use Primary-100 background / Primary-600 text / Primary-400 border (distinct from the Neutral-100 recent-search pills) and come from the top 4–6 categories by active listing count in the user's state (`get_top_categories_by_state`).
+- Tapping a chip filters results to that category.
+- If the user has no node/state, the section is hidden.
+
+### TC-M09 · Result count + active filter chips
+
+**Actors:** test-buyer
+
+**Objective:** Verify the "{n} results · near {ZIP/state}, {radius} mi" line and per-filter removable chips above the grid.
+
+**Steps:**
+1. Apply a category + age group + the SP toggle via the Filters sheet.
+2. Observe the summary line and the active-filter chip row above the grid.
+3. Tap the × on one chip, then tap **Clear all**.
+
+**Expected Result:**
+- Summary reads e.g. "24 results · near 06880, 10 mi" in Body Small / Neutral-700.
+- One chip per applied filter; standard chips use Primary-100/600 tokens, the SP chip uses SP-gold tokens.
+- Removing a chip refetches; **Clear all** resets all filters and refetches unfiltered results.
+
+### TC-M10 · Discover header: bookmark → Favorites (local header)
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Discover header shows a Bookmark icon that opens Favorites, while the bell/chat behave as before and other screens' headers are unchanged.
+
+**Steps:**
+1. On Discover, tap the **Bookmark/Saved** icon in the header.
+2. Confirm it opens the **Favorites** screen; go back.
+3. Tap the **bell** and **chat** icons to confirm unchanged behavior (badges intact).
+4. Visit Home, Inbox, and Profile and confirm their headers are visually unchanged.
+
+**Expected Result:**
+- The bookmark is a 44×44 Icon Button that opens Favorites; the local Discover header keeps the bell + chat behavior of the shared header.
+- Home/Inbox/Profile headers render identically to before the change.
 
 ---
 
@@ -1313,6 +1389,20 @@
 
 **Expected Result:**
 - More items load automatically (≈20 per page) in the 2-column grid without a manual "load more" tap.
+
+### TC-N04 · "Accepts SP" badge on item card
+
+**Actors:** test-buyer
+
+**Objective:** Verify SP-eligible item cards show the gold "Accepts SP" badge per design-system §6.7.
+
+**Steps:**
+1. Enable **Accepts SP** and browse the grid.
+2. Inspect an SP-eligible item card.
+
+**Expected Result:**
+- Cards render per §6.2 (white bg, 16px radius, Level-1 shadow, 1:1 image, heart overlay, H4 title, Body Large 700 price).
+- SP-eligible cards show the gold **Accepts SP** badge (SP-100 bg, SP-500 border + coin icon); non-SP cards show no badge.
 
 ---
 
@@ -1821,12 +1911,17 @@
 | Search debounce + clear | TC-M01 |
 | Recent searches + autocomplete | TC-M02 |
 | Sort options | TC-M03 |
-| Filters modal | TC-M04 |
-| SP Only toggle | TC-M05, TC-O04, TC-R06 |
+| Filters modal (SP toggle, More Filters, live count) | TC-M04 |
+| "Accepts SP" toggle (header ↔ sheet sync) | TC-M05, TC-O04, TC-R06 |
 | Empty/no-results states | TC-M06 |
+| Recent Searches chip row + Clear | TC-M07 |
+| Trending in state (top categories by count) | TC-M08 |
+| Result count + active filter chips (incl. gold SP chip) | TC-M09 |
+| Discover header bookmark → Favorites (local header) | TC-M10 |
 | Category browse | TC-N01 |
 | Favorites toggle | TC-N02 |
 | Infinite scroll pagination | TC-N03 |
+| Item card §6.2 layout + gold Accepts SP badge | TC-N04 |
 | Location ZIP + radius | TC-O02 |
 | Inactive ZIP in discovery filter | TC-O03 |
 | Admin radius defaults/bounds | TC-O05 |

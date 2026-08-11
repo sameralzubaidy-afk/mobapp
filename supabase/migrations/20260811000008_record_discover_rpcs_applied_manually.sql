@@ -1,0 +1,17 @@
+-- Migration 20260811000006 (get_top_categories_by_state) and 20260811000007
+-- (count_listings) applied manually via Supabase Dashboard SQL Editor on 2026-08-11.
+-- Applied to project: drntwgporzabmxdqykrp (staging).
+--
+-- Verified after apply:
+--   SELECT * FROM public.count_listings();                          -> total_count = 1203
+--   SELECT * FROM public.count_listings(p_sp_eligible_only := TRUE); -> total_count = 50
+--
+-- CORRECTION (same date): get_top_categories_by_state initially joined
+-- `geographic_nodes` and was tested with the full state name ('Connecticut'). The
+-- app reads session.user.node via `node:nodes(*)` and profiles.node_id FKs to
+-- `nodes(id)`; `nodes.state` is a 2-letter code ('CT'). The corrected function (in
+-- 20260811000006_discover_trending_categories_rpc.sql) joins `nodes` and must be
+-- re-applied manually. Both functions are idempotent (DROP FUNCTION IF EXISTS +
+-- CREATE OR REPLACE), so re-running is safe.
+--
+-- This file is a no-op marker so the migration history records the manual applies.

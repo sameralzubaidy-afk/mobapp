@@ -4,3 +4,4 @@ export { default as Badge } from './Badge';
 export { default as Avatar } from './Avatar';
 export { default as SortDropdown } from './SortDropdown';
 export * from './ListingImage';
+export { default as AcceptsSpBadge } from './AcceptsSpBadge';

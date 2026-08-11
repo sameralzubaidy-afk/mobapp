@@ -797,6 +797,11 @@ See also: BP-51 (verify the intended change is actually in the file before deplo
 Issue: "An Edge Function and a DB trigger/RPC disagree on the same business rule"
 
 ✅ Check: Split-brain enforcement — search migrations for a trigger/RPC/constraint duplicating the Edge Function's check (BP-27)
+Issue: "QA automation can't find a button/modal testID on iOS (identifier never surfaces in the accessibility tree)"
+
+✅ Check: The control sets `accessible` + `accessibilityRole` (and `accessibilityLabel` = visible text), not just `testID` (BP-53)
+✅ Check: The identifier was confirmed with the accessibility-tree/element-listing tool on the running simulator — unit/widget tests query the React tree, NOT the native iOS tree (BP-53)
+See also: BP-53 (a bare TouchableOpacity with only `testID` renders but its identifier is invisible to the iOS tree — mirror `ui/Button`'s `accessible`/`accessibilityRole`), BP-52 (update the widget test a deliberate UI change breaks)
 9.3 Debugging steps
 Isolate the layer: Is it mobile app → Edge Function → Database → RLS?
 Test in Supabase Studio: Run raw SQL queries to verify data/RLS
@@ -1228,7 +1233,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-52)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-53)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1286,6 +1291,7 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-50 Migration version uniqueness — before creating a migration, list `supabase/migrations/` and confirm no existing file shares the same `YYYYMMDDHHMMSS` timestamp prefix (parallel WIP collides, e.g. two `20260809000001` files); use the next available version.
 - BP-51 Edge Function pre-deploy verification — run `git diff` / grep the function for the new symbol to confirm the intended change is in the file before deploying (edits can be lost when the working tree is reverted between turns).
 - BP-52 Intentional behavior changes — update the widget test a deliberate UI/logic change breaks; confirm other failures are pre-existing via git before classifying.
+- BP-53 QA-testID accessibility — controls shipped with a `testID` must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; verify new identifiers on-device — unit tests alone are insufficient evidence of iOS discoverability.
 - BC-1 Backward Compatibility Gate — every change keeps shipped clients (mobile + admin) and existing data working; breaking changes need owner approval + a coordinated rollout plan (full text in the main body, "Backward Compatibility Gate" section).
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
@@ -1579,3 +1585,5 @@ Whenever implementing a state change that should notify users:
 - Any widget test failing right after a UI change → open it first; if it asserts the old behavior, update it (Rule 1), then re-run.
 - Any failure still present after that → verify the file is absent from `git status`/`git diff` before classifying introduced-vs-pre-existing.
 - Example that triggered this rule (2026-08-11): an accessibility task converted the "Login Failed" / "Signup Failed" native alerts to branded modals; `LoginScreen.test.tsx` asserted `Alert.alert('Login Failed', …)` and had to be updated to assert the branded modal's `login-failed-dialog-ok-button`; the remaining `AutoCompleteBanner` failure was confirmed pre-existing via `git status`.
+
+## BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Elements (set `accessible` + `accessibilityRole`, mirror `ui/Button`; confirm identifiers in the on-device accessibility tree — unit tests alone are insufficient) — full text moved to `.github/instructions/mobile-client.instructions.md`.

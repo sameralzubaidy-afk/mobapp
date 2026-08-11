@@ -40,7 +40,7 @@ jest.mock('phosphor-react-native', () => {
   };
 });
 
-// Mock ListingImage
+// Mock ListingImage + AcceptsSpBadge
 jest.mock('@/components/atoms', () => ({
   ListingImage: ({ url, testID }: any) => {
     const React = require('react');
@@ -50,6 +50,13 @@ jest.mock('@/components/atoms', () => ({
       accessible: true,
       accessibilityLabel: url || 'No image',
     });
+  },
+  // DISCOVER-REDESIGN: gold "Accepts SP" badge (design-system §6.7) replaced the
+  // old inline "SP ✓" text.
+  AcceptsSpBadge: ({ testID }: any) => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return React.createElement(Text, { testID: testID || 'accepts-sp-badge' }, 'Accepts SP');
   },
 }));
 
@@ -163,7 +170,7 @@ describe('ItemCard Component', () => {
       <ItemCard {...defaultProps} acceptsSwapPoints={true} />
     );
 
-    expect(getByText('SP ✓')).toBeTruthy();
+    expect(getByText('Accepts SP')).toBeTruthy();
   });
 
   // ============================================
@@ -174,7 +181,7 @@ describe('ItemCard Component', () => {
       <ItemCard {...defaultProps} acceptsSwapPoints={false} />
     );
 
-    expect(queryByText('SP ✓')).toBeNull();
+    expect(queryByText('Accepts SP')).toBeNull();
   });
 
   // ============================================

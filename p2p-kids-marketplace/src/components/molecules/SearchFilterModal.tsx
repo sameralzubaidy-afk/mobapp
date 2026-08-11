@@ -25,10 +25,12 @@ import {
   Platform,
   Pressable,
 } from 'react-native';
-import { FunnelSimple } from 'phosphor-react-native';
+import { FunnelSimple, Coins, CaretDown } from 'phosphor-react-native';
 import { DiscoveryFilters, COLOR_PALETTE, PRICE_PRESETS } from '@/types/discovery';
 import { getDefaultFilters, validatePriceRange, countActiveFilters } from '@/utils/filterHelpers';
 import { getBrandSuggestions } from '@/services/brandAutocomplete';
+import { countListings } from '@/services/discovery';
+import { ds, dsRadii, dsType } from '@/theme/discoveryTokens';
 import RadiusSlider from '@/components/RadiusSlider';
 
 interface Category {
@@ -52,6 +54,12 @@ interface SearchFilterModalProps {
   inactiveZipMessage: string | null;
   waitlistMessage: string | null;
   userProfileZip: string;
+  /** Current applied search query (used for the live result count). Optional (default ''). */
+  currentQuery?: string;
+  /** Live "Accepts Swap Points" state — shared with the Discover header chip. */
+  spEligibleOnly?: boolean;
+  /** Toggle the shared SP filter immediately (applies without tapping Apply). */
+  onSpToggle?: (value: boolean) => void;
   onZipCodeInputChange: (value: string) => void;
   onRadiusChange: (nextRadius: number) => void;
   onRadiusComplete: (nextRadius: number) => Promise<void>;
@@ -95,6 +103,9 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
   inactiveZipMessage: _inactiveZipMessage,
   waitlistMessage: _waitlistMessage,
   userProfileZip,
+  currentQuery = '',
+  spEligibleOnly = false,
+  onSpToggle = () => {},
   onZipCodeInputChange,
   onRadiusChange,
   onRadiusComplete,
@@ -111,6 +122,11 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
 
   // Price validation error
   const [priceError, setPriceError] = useState<string | null>(null);
+
+  // DISCOVER-REDESIGN: live result count + "More Filters" disclosure state
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+  const [countLoading, setCountLoading] = useState(false);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
   // Reset draft state when modal opens
   useEffect(() => {
@@ -147,13 +163,38 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
     }
   }, [draft.minPrice, draft.maxPrice]);
 
+  // DISCOVER-REDESIGN: debounced live result count for the "Show {n} Results"
+  // Apply button. Counts the current draft filters + the LIVE shared SP toggle.
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    setCountLoading(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const total = await countListings(currentQuery, { ...draft, spEligibleOnly });
+        setLiveCount(total);
+      } catch (err) {
+        console.warn('[SearchFilterModal] countListings failed:', err);
+        setLiveCount(null);
+      } finally {
+        setCountLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [visible, currentQuery, draft, spEligibleOnly]);
+
   const handleClearAll = useCallback(() => {
     setDraft(getDefaultFilters());
     setBrandQuery('');
     setPriceError(null);
     // Re-populate user's profile ZIP when resetting
     onZipCodeInputChange(userProfileZip);
-  }, [userProfileZip, onZipCodeInputChange]);
+    // Reset the LIVE shared SP toggle too (it applies immediately)
+    onSpToggle(false);
+  }, [userProfileZip, onZipCodeInputChange, onSpToggle]);
 
   const handleApply = useCallback(() => {
     if (priceError) {
@@ -241,11 +282,10 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
     setDraft((prev) => ({ ...prev, maxPrice: value }));
   }, []);
 
-  const toggleSP = useCallback((value: boolean) => {
-    setDraft((prev) => ({ ...prev, spEligibleOnly: value }));
-  }, []);
-
-  const activeCount = countActiveFilters(draft);
+  // DISCOVER-REDESIGN: the SP toggle is a LIVE filter (shared with the Discover
+  // header chip via onSpToggle), so it is deliberately NOT part of the draft.
+  // Include it in the count so the sheet's active-filter badge stays accurate.
+  const activeCount = countActiveFilters({ ...draft, spEligibleOnly });
   const canApply = !priceError;
 
   return (
@@ -292,6 +332,27 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* DISCOVER-REDESIGN: Accepts Swap Points toggle — at the very top, above
+              Location. Bound to the SHARED spEligibleOnly (applies immediately,
+              synced with the Discover header chip — NOT part of the draft). */}
+          <View style={styles.spToggleCard} testID="filter-sp-toggle-card">
+            <View style={styles.spToggleIconWrap}>
+              <Coins size={20} color={ds.sp[500]} weight="fill" />
+            </View>
+            <View style={styles.spToggleBody}>
+              <Text style={styles.spToggleTitle}>💰 Accepts Swap Points</Text>
+              <Text style={styles.spToggleHelper}>Show items sellers will trade for SP + cash</Text>
+            </View>
+            <Switch
+              value={spEligibleOnly}
+              onValueChange={onSpToggle}
+              trackColor={{ false: ds.neutral[300], true: ds.sp[500] }}
+              thumbColor={ds.neutral.white}
+              accessibilityLabel={`Accepts Swap Points ${spEligibleOnly ? 'enabled' : 'disabled'}`}
+              testID="filter-sp-toggle"
+            />
+          </View>
+
           {/* Section 1: Location (ZIP + Radius) */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>LOCATION</Text>
@@ -314,8 +375,8 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
               {zipCodeInput !== appliedZipCode && /^\d{5}$/.test(zipCodeInput)
                 ? `ZIP ${zipCodeInput} will apply when you tap Apply Filters.`
                 : /^\d{5}$/.test(appliedZipCode)
-                ? `Showing items around ZIP ${appliedZipCode} within ${radiusMiles} miles`
-                : 'No location filter applied. Showing all items.'}
+                  ? `Showing items around ZIP ${appliedZipCode} within ${radiusMiles} miles`
+                  : 'No location filter applied. Showing all items.'}
             </Text>
 
             <View style={styles.radiusSliderWrapper}>
@@ -358,31 +419,7 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </ScrollView>
           </View>
 
-          {/* Section 3: Condition */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>CONDITION</Text>
-            <View style={styles.pillRow}>
-              {CONDITION_OPTIONS.map((option) => {
-                const isSelected = draft.condition === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.value}
-                    onPress={() => selectCondition(option.value)}
-                    style={[styles.pill, isSelected && styles.pillSelected]}
-                    accessibilityState={{ selected: isSelected }}
-                    accessibilityLabel={`Condition: ${option.label}`}
-                    testID={`filter-condition-${option.value}`}
-                  >
-                    <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Section 4: Age Group */}
+          {/* Section: Age Group — always expanded */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>AGE GROUP</Text>
             <View style={styles.pillRow}>
@@ -406,150 +443,187 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             </View>
           </View>
 
-          {/* Section 5: Gender */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>GENDER</Text>
-            <View style={styles.pillRow}>
-              {GENDER_OPTIONS.map((option) => {
-                const isSelected = draft.gender === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.label}
-                    onPress={() => selectGender(option.value)}
-                    style={[styles.pill, isSelected && styles.pillSelected]}
-                    accessibilityState={{ selected: isSelected }}
-                    accessibilityLabel={`Gender: ${option.label}`}
-                    testID={`filter-gender-${option.label.toLowerCase()}`}
-                  >
-                    <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Section 6: Color */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>COLOR</Text>
-            <View style={styles.colorGrid}>
-              {COLOR_PALETTE.map((color) => {
-                const isSelected = !!draft.colors?.includes(color.id);
-                return (
-                  <TouchableOpacity
-                    key={color.id}
-                    onPress={() => toggleColor(color.id)}
-                    style={[styles.colorChip, isSelected && styles.colorChipSelected]}
-                    accessibilityState={{ selected: isSelected }}
-                    accessibilityLabel={`Color: ${color.label}`}
-                    testID={`filter-color-${color.id}`}
-                  >
-                    <View style={[styles.colorSwatch, { backgroundColor: color.hex }]} />
-                    <Text style={styles.colorLabel}>{color.label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Section 7: Brand */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>BRAND</Text>
-            <View style={styles.brandInputContainer}>
-              <TextInput
-                style={styles.brandInput}
-                placeholder="Type brand name (min 2 chars)..."
-                value={brandQuery}
-                onChangeText={handleBrandInputChange}
-                onFocus={() => {
-                  if (brandSuggestions.length > 0) {
-                    setShowBrandDropdown(true);
-                  }
-                }}
-                accessibilityLabel="Brand name input"
-                testID="filter-brand-input"
-              />
-              {showBrandDropdown && (
-                <View style={styles.brandDropdown}>
-                  {brandSuggestions.map((brand, index) => (
-                    <Pressable
-                      key={`${brand}-${index}`}
-                      onPress={() => selectBrand(brand)}
-                      style={styles.brandSuggestion}
-                      accessibilityLabel={`Select brand: ${brand}`}
-                      testID={`brand-suggestion-${index}`}
-                    >
-                      <Text style={styles.brandSuggestionText}>{brand}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Section 8: Price Range */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>PRICE RANGE</Text>
-            <View style={styles.pillRow}>
-              {PRICE_PRESETS.map((preset) => {
-                const isSelected = draft.minPrice === preset.min && draft.maxPrice === preset.max;
-                return (
-                  <TouchableOpacity
-                    key={preset.id}
-                    onPress={() => selectPricePreset(preset)}
-                    style={[styles.pill, isSelected && styles.pillSelected]}
-                    accessibilityState={{ selected: isSelected }}
-                    accessibilityLabel={`Price range: ${preset.label}`}
-                    testID={`filter-price-preset-${preset.id}`}
-                  >
-                    <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
-                      {preset.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <Text style={styles.customPriceLabel}>Custom Range:</Text>
-            <View style={styles.priceInputRow}>
-              <TextInput
-                style={styles.priceInput}
-                placeholder="Min"
-                keyboardType="numeric"
-                value={draft.minPrice !== undefined ? String(draft.minPrice) : ''}
-                onChangeText={setMinPrice}
-                accessibilityLabel="Minimum price"
-                testID="filter-price-min"
-              />
-              <Text style={styles.priceToText}>to</Text>
-              <TextInput
-                style={styles.priceInput}
-                placeholder="Max"
-                keyboardType="numeric"
-                value={draft.maxPrice !== undefined ? String(draft.maxPrice) : ''}
-                onChangeText={setMaxPrice}
-                accessibilityLabel="Maximum price"
-                testID="filter-price-max"
-              />
-            </View>
-            {priceError && (
-              <Text style={styles.priceError} testID="filter-price-error">
-                {priceError}
+          {/* DISCOVER-REDESIGN: More Filters — collapsed by default */}
+          <View style={styles.moreFiltersSection}>
+            <Pressable
+              style={styles.moreFiltersHeader}
+              onPress={() => setMoreFiltersOpen((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: moreFiltersOpen }}
+              testID="filter-more-filters-toggle"
+            >
+              <Text style={styles.moreFiltersTitle}>
+                More Filters (Condition, Gender, Color, Brand, Price Range)
               </Text>
-            )}
-          </View>
-
-          {/* Section 9: Swap Points Only */}
-          <View style={styles.section}>
-            <View style={styles.switchRow}>
-              <Text style={styles.sectionTitle}>SWAP POINTS ONLY</Text>
-              <Switch
-                value={draft.spEligibleOnly || false}
-                onValueChange={toggleSP}
-                accessibilityLabel={`Swap points only ${draft.spEligibleOnly ? 'enabled' : 'disabled'}`}
-                testID="filter-sp-toggle"
+              <CaretDown
+                size={16}
+                color={ds.neutral[700]}
+                weight="bold"
+                style={{ transform: [{ rotate: moreFiltersOpen ? '180deg' : '0deg' }] }}
               />
-            </View>
+            </Pressable>
+
+            {moreFiltersOpen && (
+              <View style={styles.moreFiltersBody}>
+                {/* Section: Condition (inside More Filters) */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>CONDITION</Text>
+                  <View style={styles.pillRow}>
+                    {CONDITION_OPTIONS.map((option) => {
+                      const isSelected = draft.condition === option.value;
+                      return (
+                        <TouchableOpacity
+                          key={option.value}
+                          onPress={() => selectCondition(option.value)}
+                          style={[styles.pill, isSelected && styles.pillSelected]}
+                          accessibilityState={{ selected: isSelected }}
+                          accessibilityLabel={`Condition: ${option.label}`}
+                          testID={`filter-condition-${option.value}`}
+                        >
+                          <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Section 5: Gender */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>GENDER</Text>
+                  <View style={styles.pillRow}>
+                    {GENDER_OPTIONS.map((option) => {
+                      const isSelected = draft.gender === option.value;
+                      return (
+                        <TouchableOpacity
+                          key={option.label}
+                          onPress={() => selectGender(option.value)}
+                          style={[styles.pill, isSelected && styles.pillSelected]}
+                          accessibilityState={{ selected: isSelected }}
+                          accessibilityLabel={`Gender: ${option.label}`}
+                          testID={`filter-gender-${option.label.toLowerCase()}`}
+                        >
+                          <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Section 6: Color */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>COLOR</Text>
+                  <View style={styles.colorGrid}>
+                    {COLOR_PALETTE.map((color) => {
+                      const isSelected = !!draft.colors?.includes(color.id);
+                      return (
+                        <TouchableOpacity
+                          key={color.id}
+                          onPress={() => toggleColor(color.id)}
+                          style={[styles.colorChip, isSelected && styles.colorChipSelected]}
+                          accessibilityState={{ selected: isSelected }}
+                          accessibilityLabel={`Color: ${color.label}`}
+                          testID={`filter-color-${color.id}`}
+                        >
+                          <View style={[styles.colorSwatch, { backgroundColor: color.hex }]} />
+                          <Text style={styles.colorLabel}>{color.label}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                {/* Section 7: Brand */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>BRAND</Text>
+                  <View style={styles.brandInputContainer}>
+                    <TextInput
+                      style={styles.brandInput}
+                      placeholder="Type brand name (min 2 chars)..."
+                      value={brandQuery}
+                      onChangeText={handleBrandInputChange}
+                      onFocus={() => {
+                        if (brandSuggestions.length > 0) {
+                          setShowBrandDropdown(true);
+                        }
+                      }}
+                      accessibilityLabel="Brand name input"
+                      testID="filter-brand-input"
+                    />
+                    {showBrandDropdown && (
+                      <View style={styles.brandDropdown}>
+                        {brandSuggestions.map((brand, index) => (
+                          <Pressable
+                            key={`${brand}-${index}`}
+                            onPress={() => selectBrand(brand)}
+                            style={styles.brandSuggestion}
+                            accessibilityLabel={`Select brand: ${brand}`}
+                            testID={`brand-suggestion-${index}`}
+                          >
+                            <Text style={styles.brandSuggestionText}>{brand}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Section 8: Price Range */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>PRICE RANGE</Text>
+                  <View style={styles.pillRow}>
+                    {PRICE_PRESETS.map((preset) => {
+                      const isSelected =
+                        draft.minPrice === preset.min && draft.maxPrice === preset.max;
+                      return (
+                        <TouchableOpacity
+                          key={preset.id}
+                          onPress={() => selectPricePreset(preset)}
+                          style={[styles.pill, isSelected && styles.pillSelected]}
+                          accessibilityState={{ selected: isSelected }}
+                          accessibilityLabel={`Price range: ${preset.label}`}
+                          testID={`filter-price-preset-${preset.id}`}
+                        >
+                          <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
+                            {preset.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.customPriceLabel}>Custom Range:</Text>
+                  <View style={styles.priceInputRow}>
+                    <TextInput
+                      style={styles.priceInput}
+                      placeholder="Min"
+                      keyboardType="numeric"
+                      value={draft.minPrice !== undefined ? String(draft.minPrice) : ''}
+                      onChangeText={setMinPrice}
+                      accessibilityLabel="Minimum price"
+                      testID="filter-price-min"
+                    />
+                    <Text style={styles.priceToText}>to</Text>
+                    <TextInput
+                      style={styles.priceInput}
+                      placeholder="Max"
+                      keyboardType="numeric"
+                      value={draft.maxPrice !== undefined ? String(draft.maxPrice) : ''}
+                      onChangeText={setMaxPrice}
+                      accessibilityLabel="Maximum price"
+                      testID="filter-price-max"
+                    />
+                  </View>
+                  {priceError && (
+                    <Text style={styles.priceError} testID="filter-price-error">
+                      {priceError}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         </ScrollView>
 
@@ -559,10 +633,16 @@ export const SearchFilterModal: React.FC<SearchFilterModalProps> = ({
             style={[styles.applyButton, !canApply && styles.applyButtonDisabled]}
             onPress={handleApply}
             disabled={!canApply}
-            accessibilityLabel={canApply ? 'Apply filters' : 'Apply disabled due to errors'}
+            accessibilityLabel={
+              canApply ? `Show ${liveCount ?? 0} results` : 'Apply disabled due to errors'
+            }
             testID="filter-modal-apply"
           >
-            <Text style={styles.applyButtonText}>Apply Filters</Text>
+            <Text style={styles.applyButtonText}>
+              {countLoading && liveCount === null
+                ? 'Calculating…'
+                : `Show ${liveCount ?? 0} Results`}
+            </Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -597,7 +677,11 @@ const SPACING = {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: ds.neutral.white,
+    // 20px top-corner radius — design-system §6.4 Bottom Sheet Modal
+    borderTopLeftRadius: dsRadii.xlarge,
+    borderTopRightRadius: dsRadii.xlarge,
+    overflow: 'hidden',
   },
   dragHandleContainer: {
     paddingTop: 12,
@@ -605,10 +689,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dragHandle: {
-    width: 40,
+    width: 32, // §6.4: 32×4 grey pill
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.dragHandle,
+    backgroundColor: ds.neutral[300],
   },
   header: {
     flexDirection: 'row',
@@ -829,11 +913,6 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     marginTop: SPACING.xs,
   },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   footer: {
     paddingHorizontal: SPACING.lg,
     paddingVertical: 12,
@@ -843,19 +922,75 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   applyButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 26,
-    height: 52,
+    backgroundColor: ds.primary[500],
+    borderRadius: dsRadii.medium, // 12 — buttons/inputs (design-system)
+    height: 56, // Primary Button, 56px height
     alignItems: 'center',
     justifyContent: 'center',
   },
   applyButtonDisabled: {
-    backgroundColor: COLORS.textSecondary,
+    backgroundColor: ds.neutral[500],
     opacity: 0.5,
   },
   applyButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.background,
+    ...dsType.button, // Button (16/24/600/+0.5) — design-system §3.2
+    color: ds.neutral.white,
+  },
+  // DISCOVER-REDESIGN: Accepts Swap Points toggle card (SP-gold tokens)
+  spToggleCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 16,
+    backgroundColor: ds.sp[100],
+    borderWidth: 1,
+    borderColor: ds.sp[500],
+    borderRadius: dsRadii.large, // 16 — cards
+  },
+  spToggleIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: ds.neutral.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  spToggleBody: {
+    flex: 1,
+  },
+  spToggleTitle: {
+    ...dsType.body,
+    fontWeight: '600',
+    color: ds.neutral[900],
+  },
+  spToggleHelper: {
+    ...dsType.bodySmall,
+    color: ds.neutral[700],
+    marginTop: 2,
+  },
+  // DISCOVER-REDESIGN: More Filters collapsible
+  moreFiltersSection: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  moreFiltersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  moreFiltersTitle: {
+    ...dsType.body,
+    fontWeight: '600',
+    color: ds.neutral[900],
+    flex: 1,
+    marginRight: 8,
+  },
+  moreFiltersBody: {
+    paddingBottom: 8,
   },
 });

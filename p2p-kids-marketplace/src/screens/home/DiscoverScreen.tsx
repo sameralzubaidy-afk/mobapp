@@ -17,24 +17,24 @@ import {
   ActivityIndicator,
   StyleSheet,
   RefreshControl,
+  ScrollView,
   Modal as RNModal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { searchListings } from '@/services/discovery';
+import { searchListings, getTopCategoriesByState, countListings } from '@/services/discovery';
 import {
   getRecentSearches,
   addSearchToHistory,
-  removeSearchFromHistory,
   clearSearchHistory,
   getAutocompleteSuggestions,
 } from '@/services/searchHistory';
 import { fetchDatabaseBrands } from '@/services/brandAutocomplete';
 import { suggestSpellingCorrection } from '@/services/discovery';
 import { countActiveFilters, getDefaultFilters } from '@/utils/filterHelpers';
-import { SearchResult, DiscoveryFilters, SortOption } from '@/types/discovery';
+import { SearchResult, DiscoveryFilters, SortOption, TrendingCategory } from '@/types/discovery';
 import { getCategories } from '@/services/items';
 import { SortDropdown } from '@/components/atoms';
 import { SearchFilterModal, ItemCard } from '@/components/molecules';
@@ -48,8 +48,10 @@ import { upsertZipWaitlist } from '@/services/waitlist';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/config/supabase';
 import { getFavorites, toggleFavorite } from '@/services/favoritesService';
-import { BookmarkSimple, MagnifyingGlass, FunnelSimple, X } from 'phosphor-react-native';
-import ScreenLayout from '@/components/ScreenLayout';
+import { BookmarkSimple, MagnifyingGlass, FunnelSimple, X, Coins } from 'phosphor-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import DiscoverHeader from './DiscoverHeader';
+import { ds, dsRadii, dsType } from '@/theme/discoveryTokens';
 
 // Search debounce constants: 200ms for active typing, 0ms for filter/sort changes
 const KEYSTROKE_DEBOUNCE_MS = 200;
@@ -155,6 +157,10 @@ export default function DiscoverScreen({ navigation }: Props) {
   // Favorited item IDs for this user (Set for O(1) lookup)
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
 
+  // DISCOVER-REDESIGN: Trending categories (state-scoped) + live result count
+  const [trending, setTrending] = useState<TrendingCategory[]>([]);
+  const [totalResultCount, setTotalResultCount] = useState<number | null>(null);
+
   // Location search state (ZIP + radius)
   const [zipCodeInput, setZipCodeInput] = useState('');
   const [appliedZipCode, setAppliedZipCode] = useState('');
@@ -172,13 +178,63 @@ export default function DiscoverScreen({ navigation }: Props) {
   const latestRequestIdRef = useRef(0);
 
   // Ref to hold performSearch for useFocusEffect (avoid TDZ issue)
-  const performSearchRef = useRef<((opts?: { resetOffset?: boolean; forcedOffset?: number }) => Promise<void>) | null>(null);
+  const performSearchRef = useRef<
+    ((opts?: { resetOffset?: boolean; forcedOffset?: number }) => Promise<void>) | null
+  >(null);
 
   // --- COMPUTED VALUES ---
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
   const userId = session?.user?.user_id ?? null;
   const userEmail = session?.user?.email ?? null;
+
+  // User's detected state (for "Trending in {State}") — derived from the node
+  // assigned at onboarding. Null when the user has no node (waitlist).
+  const userState = (session?.user as any)?.node?.state as string | undefined;
+
+  // DISCOVER-REDESIGN: active-filter chips rendered above the grid. Each entry
+  // is one currently-applied filter; the SP chip uses SP-Gold tokens, all other
+  // chips use Primary tokens (per product requirement).
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: string; label: string; isSp: boolean }[] = [];
+    const categoryName = (id: string) => categories.find((c) => c.id === id)?.name ?? 'Category';
+
+    if (filters.categoryIds && filters.categoryIds.length > 0) {
+      const label =
+        filters.categoryIds.length === 1
+          ? categoryName(filters.categoryIds[0])
+          : `${filters.categoryIds.length} Categories`;
+      chips.push({ key: 'categoryIds', label, isSp: false });
+    }
+    if (filters.ageGroup) {
+      chips.push({ key: 'ageGroup', label: `Age: ${filters.ageGroup}`, isSp: false });
+    }
+    if (filters.condition) {
+      const pretty = filters.condition
+        .split('_')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+      chips.push({ key: 'condition', label: `Condition: ${pretty}`, isSp: false });
+    }
+    if (filters.gender) {
+      chips.push({ key: 'gender', label: `Gender: ${filters.gender}`, isSp: false });
+    }
+    if (filters.colors && filters.colors.length > 0) {
+      chips.push({ key: 'colors', label: `Color: ${filters.colors.length} selected`, isSp: false });
+    }
+    if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+      const min = filters.minPrice !== undefined ? `$${filters.minPrice}` : 'Any';
+      const max = filters.maxPrice !== undefined ? `$${filters.maxPrice}` : 'Any';
+      chips.push({ key: 'price', label: `Price: ${min}–${max}`, isSp: false });
+    }
+    if (filters.brand && filters.brand.trim().length > 0) {
+      chips.push({ key: 'brand', label: `Brand: ${filters.brand}`, isSp: false });
+    }
+    if (filters.spEligibleOnly) {
+      chips.push({ key: 'spEligibleOnly', label: 'Accepts SP', isSp: true });
+    }
+    return chips;
+  }, [filters, categories]);
 
   const sanitizeZipCode = (value: string): string => value.replace(/\D/g, '').slice(0, 5);
 
@@ -206,7 +262,10 @@ export default function DiscoverScreen({ navigation }: Props) {
       const preferredRadius = await getUserPreferredRadius(userId);
       const clampedRadius = Math.max(
         FALLBACK_MIN_RADIUS_MILES,
-        Math.min(FALLBACK_MAX_RADIUS_MILES, Math.round(preferredRadius || FALLBACK_DEFAULT_RADIUS_MILES))
+        Math.min(
+          FALLBACK_MAX_RADIUS_MILES,
+          Math.round(preferredRadius || FALLBACK_DEFAULT_RADIUS_MILES)
+        )
       );
       setRadiusMiles(clampedRadius);
     };
@@ -254,7 +313,12 @@ export default function DiscoverScreen({ navigation }: Props) {
       };
 
       let nearbyNodes: NodesWithinRadiusRow[] | null = null;
-      let nearbyNodesError: { code?: string; message?: string; details?: string; hint?: string } | null = null;
+      let nearbyNodesError: {
+        code?: string;
+        message?: string;
+        details?: string;
+        hint?: string;
+      } | null = null;
 
       const firstAttempt = await supabase.rpc('get_nodes_within_radius', rpcPayloadLegacy);
       if (!firstAttempt.error) {
@@ -262,7 +326,8 @@ export default function DiscoverScreen({ navigation }: Props) {
       } else {
         nearbyNodesError = firstAttempt.error;
 
-        const firstAttemptText = `${firstAttempt.error.message || ''} ${firstAttempt.error.details || ''}`.toLowerCase();
+        const firstAttemptText =
+          `${firstAttempt.error.message || ''} ${firstAttempt.error.details || ''}`.toLowerCase();
         const mayBeSignatureMismatch =
           firstAttempt.error.code === 'PGRST202' ||
           firstAttemptText.includes('could not find the function') ||
@@ -283,14 +348,15 @@ export default function DiscoverScreen({ navigation }: Props) {
         console.error(
           '[DiscoverScreen] get_nodes_within_radius failed:',
           JSON.stringify({
-          code: nearbyNodesError.code,
-          message: nearbyNodesError.message,
-          details: nearbyNodesError.details,
-          hint: nearbyNodesError.hint,
+            code: nearbyNodesError.code,
+            message: nearbyNodesError.message,
+            details: nearbyNodesError.details,
+            hint: nearbyNodesError.hint,
           })
         );
 
-        const normalizedErrorText = `${nearbyNodesError.message || ''} ${nearbyNodesError.details || ''}`.toLowerCase();
+        const normalizedErrorText =
+          `${nearbyNodesError.message || ''} ${nearbyNodesError.details || ''}`.toLowerCase();
         const hasTextVarcharMismatch =
           nearbyNodesError.code === '42804' ||
           normalizedErrorText.includes('returned type character varying') ||
@@ -300,7 +366,8 @@ export default function DiscoverScreen({ navigation }: Props) {
           nearbyNodesError.code === '42883' ||
           normalizedErrorText.includes('st_distancesphere') ||
           normalizedErrorText.includes('st_makepoint') ||
-          normalizedErrorText.includes('function') && normalizedErrorText.includes('does not exist');
+          (normalizedErrorText.includes('function') &&
+            normalizedErrorText.includes('does not exist'));
 
         setNodeIdsInScope([]);
         setLocationFilterUnavailable(true);
@@ -346,10 +413,35 @@ export default function DiscoverScreen({ navigation }: Props) {
     performSearch({ resetOffset: true });
   }, [debouncedQuery, debouncedFilters, debouncedSortBy, nodeIdsInScope, appliedZipCode]);
 
+  /**
+   * Load trending categories scoped to the user's state (DISCOVER-REDESIGN).
+   * MVP: supply-side metric — top categories by active listing count.
+   * // TODO(backlog): this listing-count metric is supply-side and may always
+   * surface the same 1-2 largest categories. A future iteration should weight
+   * by listing *velocity* (new listings in last 7 days) or actual search/view
+   * volume once analytics exist, to make "trending" feel dynamic rather than
+   * static.
+   */
+  const loadTrending = useCallback(async () => {
+    if (!userState) {
+      setTrending([]);
+      return;
+    }
+
+    try {
+      const trendingData = await getTopCategoriesByState(userState, 6);
+      setTrending(trendingData || []);
+    } catch (err) {
+      console.warn('[DiscoverScreen] Failed to load trending:', err);
+      setTrending([]); // Hide the section on error — non-blocking
+    }
+  }, [userState]);
+
   // Load recent searches on mount and when screen gains focus
   useFocusEffect(
     useCallback(() => {
       loadRecentSearches();
+      loadTrending();
       // Reload favorites whenever screen comes into focus
       if (session?.user) {
         getFavorites().then((r) => {
@@ -360,7 +452,7 @@ export default function DiscoverScreen({ navigation }: Props) {
       }
       // Refresh listings to clear sold/expired items from stale client cache
       performSearchRef.current?.({ resetOffset: true });
-    }, [session?.user])
+    }, [session?.user, loadTrending])
   );
 
   // Update autocomplete suggestions when query changes
@@ -472,6 +564,9 @@ export default function DiscoverScreen({ navigation }: Props) {
       const commonWords = ['Bicycle', 'Tricycle', 'Scooter', 'Stroller', 'Monitor'];
       const combinedDict = Array.from(new Set([...categoryNames, ...searches, ...commonWords]));
       setDictionary(combinedDict);
+
+      // DISCOVER-REDESIGN: load state-scoped trending categories (non-blocking)
+      await loadTrending();
     } catch (err) {
       console.error('[DiscoverScreen] Failed to load initial data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load');
@@ -567,6 +662,21 @@ export default function DiscoverScreen({ navigation }: Props) {
           setHasMore(dedupedBatch.length === RESULTS_PER_PAGE && uniqueCount > 0);
         }
 
+        // DISCOVER-REDESIGN: fetch the total matching count for the result-count
+        // line above the grid. Lightweight count_listings RPC; non-fatal — falls
+        // back to the loaded page size on error.
+        if (resetOffset || newOffset === 0) {
+          try {
+            const total = await countListings(debouncedQuery.trim(), searchFilters);
+            if (requestId === latestRequestIdRef.current) {
+              setTotalResultCount(total);
+            }
+          } catch (countErr) {
+            console.warn('[DiscoverScreen] countListings failed:', countErr);
+            setTotalResultCount(dedupedBatch.length);
+          }
+        }
+
         // Add to search history if query is non-empty
         if (debouncedQuery.trim().length > 0) {
           await addSearchToHistory(debouncedQuery.trim());
@@ -613,12 +723,73 @@ export default function DiscoverScreen({ navigation }: Props) {
   }, [loadingMore, hasMore, loading, offset, performSearch]);
 
   /**
-   * Toggle SP-only filtering directly from discover controls.
+   * Toggle the SP-eligible filter from the Discover controls OR the Filters sheet.
+   * Single source of truth: filters.spEligibleOnly — the header chip and the sheet
+   * toggle both read/write this one boolean so they can never desync.
+   * @param nextValue - Optional explicit value (sheet Switch). Omit to toggle.
    */
-  const handleQuickSPToggle = () => {
-    setFilters((prev) => ({ ...prev, spEligibleOnly: !prev.spEligibleOnly }));
+  const handleToggleSpEligible = (nextValue?: boolean) => {
+    setFilters((prev) => ({
+      ...prev,
+      spEligibleOnly: typeof nextValue === 'boolean' ? nextValue : !prev.spEligibleOnly,
+    }));
     setOffset(0);
   };
+
+  /**
+   * Remove a single active filter by key (active-filter chip "×" control).
+   * Each removal refetches via the debounced filters effect.
+   */
+  const handleRemoveFilter = useCallback((key: string) => {
+    setFilters((prev) => {
+      const next: DiscoveryFilters = { ...prev };
+      switch (key) {
+        case 'categoryIds':
+          delete next.categoryIds;
+          break;
+        case 'ageGroup':
+          delete next.ageGroup;
+          break;
+        case 'condition':
+          delete next.condition;
+          break;
+        case 'gender':
+          delete next.gender;
+          break;
+        case 'colors':
+          delete next.colors;
+          break;
+        case 'price':
+          delete next.minPrice;
+          delete next.maxPrice;
+          break;
+        case 'brand':
+          delete next.brand;
+          break;
+        case 'spEligibleOnly':
+          delete next.spEligibleOnly;
+          break;
+      }
+      return next;
+    });
+    setOffset(0);
+  }, []);
+
+  /**
+   * Reset all active filters and refetch unfiltered results ("Clear all").
+   */
+  const handleClearAllActiveFilters = useCallback(() => {
+    setFilters(getDefaultFilters());
+    setOffset(0);
+  }, []);
+
+  /**
+   * Browse a trending category (sets the category filter + refetch).
+   */
+  const handleTrendingTap = useCallback((cat: TrendingCategory) => {
+    setFilters((prev) => ({ ...prev, categoryIds: [cat.category_id] }));
+    setOffset(0);
+  }, []);
 
   /**
    * Apply ZIP filter from user input and auto-enroll waitlist when zip is inactive.
@@ -712,7 +883,10 @@ export default function DiscoverScreen({ navigation }: Props) {
    * Update radius and persist preference.
    */
   const handleRadiusComplete = async (nextRadius: number) => {
-    const clampedRadius = Math.max(minRadiusMiles, Math.min(maxRadiusMiles, Math.round(nextRadius)));
+    const clampedRadius = Math.max(
+      minRadiusMiles,
+      Math.min(maxRadiusMiles, Math.round(nextRadius))
+    );
     setRadiusMiles(clampedRadius);
 
     if (!userId) {
@@ -764,18 +938,6 @@ export default function DiscoverScreen({ navigation }: Props) {
     setQuery(suggestion);
     setAutocompleteVisible(false);
     // Search will be triggered by debouncedQuery effect
-  };
-
-  /**
-   * Handle removing a recent search
-   */
-  const handleRemoveRecentSearch = async (search: string) => {
-    try {
-      await removeSearchFromHistory(search);
-      await loadRecentSearches();
-    } catch (err) {
-      console.warn('[DiscoverScreen] Failed to remove search:', err);
-    }
   };
 
   /**
@@ -863,34 +1025,37 @@ export default function DiscoverScreen({ navigation }: Props) {
   /**
    * Toggle favorite state for an item — optimistic update, then syncs with DB
    */
-  const handleToggleFavorite = useCallback(async (itemId: string) => {
-    if (!session?.user) return;
-    const isCurrentlyFavorited = favoritedIds.has(itemId);
-    // Optimistic update
-    setFavoritedIds((prev) => {
-      const next = new Set(prev);
-      if (isCurrentlyFavorited) {
-        next.delete(itemId);
-      } else {
-        next.add(itemId);
-      }
-      return next;
-    });
-    const r = await toggleFavorite(itemId, isCurrentlyFavorited);
-    if (!r.success) {
-      // Revert on failure
+  const handleToggleFavorite = useCallback(
+    async (itemId: string) => {
+      if (!session?.user) return;
+      const isCurrentlyFavorited = favoritedIds.has(itemId);
+      // Optimistic update
       setFavoritedIds((prev) => {
         const next = new Set(prev);
         if (isCurrentlyFavorited) {
-          next.add(itemId);
-        } else {
           next.delete(itemId);
+        } else {
+          next.add(itemId);
         }
         return next;
       });
-      console.warn('[DiscoverScreen] toggleFavorite failed:', r.error.message);
-    }
-  }, [session?.user, favoritedIds]);
+      const r = await toggleFavorite(itemId, isCurrentlyFavorited);
+      if (!r.success) {
+        // Revert on failure
+        setFavoritedIds((prev) => {
+          const next = new Set(prev);
+          if (isCurrentlyFavorited) {
+            next.add(itemId);
+          } else {
+            next.delete(itemId);
+          }
+          return next;
+        });
+        console.warn('[DiscoverScreen] toggleFavorite failed:', r.error.message);
+      }
+    },
+    [session?.user, favoritedIds]
+  );
 
   /**
    * Handle retry after network error
@@ -911,32 +1076,46 @@ export default function DiscoverScreen({ navigation }: Props) {
    * without a product decision. The ItemCard component no longer accepts sellerGroupColor,
    * sellerGroupLabel, or matchesCart props.
    */
-  const renderResult = useCallback(({ item }: { item: SearchResult }) => {
-    const mainImageUrl = item.images && item.images.length > 0 ? item.images[0].url : null;
+  const renderResult = useCallback(
+    ({ item }: { item: SearchResult }) => {
+      const mainImageUrl = item.images && item.images.length > 0 ? item.images[0].url : null;
 
-    return (
-      <ItemCard
-        id={item.id}
-        title={item.title}
-        price={item.price}
-        imageUrl={mainImageUrl}
-        isFavorite={favoritedIds.has(item.id)}
-        acceptsSwapPoints={item.accepts_swap_points}
-        onPress={() => handleResultPress(item.id)}
-        onFavoritePress={() => handleToggleFavorite(item.id)}
-        onSharePress={() => {
-          // TODO: wire share handler
-          console.log('[DiscoverScreen] Share pressed:', item.id);
-        }}
-        testID={`search-result-${item.id}`}
-      />
-    );
-  }, [favoritedIds, handleToggleFavorite]);
+      return (
+        <ItemCard
+          id={item.id}
+          title={item.title}
+          price={item.price}
+          imageUrl={mainImageUrl}
+          isFavorite={favoritedIds.has(item.id)}
+          acceptsSwapPoints={item.accepts_swap_points}
+          onPress={() => handleResultPress(item.id)}
+          onFavoritePress={() => handleToggleFavorite(item.id)}
+          onSharePress={() => {
+            // TODO: wire share handler
+            console.log('[DiscoverScreen] Share pressed:', item.id);
+          }}
+          testID={`search-result-${item.id}`}
+        />
+      );
+    },
+    [favoritedIds, handleToggleFavorite]
+  );
 
   /**
    * Render list header (search input, filters, sort)
    */
   const renderHeader = () => {
+    // DISCOVER-REDESIGN: result count + location line above the grid.
+    const resultCount = totalResultCount ?? results.length;
+    const locationLabel = /^\d{5}$/.test(appliedZipCode)
+      ? `near ${appliedZipCode}, ${radiusMiles} mi`
+      : userState
+        ? `near ${userState}`
+        : '';
+    // Hide Recent/Trending sections while the user is actively typing in search
+    // (the autocomplete panel takes over then).
+    const showDiscoverySections = !(searchFocused && query.trim().length > 0);
+
     return (
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
@@ -1007,20 +1186,86 @@ export default function DiscoverScreen({ navigation }: Props) {
 
           <Pressable
             testID="discover-sp-toggle"
-            accessibilityLabel={`SP only filter ${filters.spEligibleOnly ? 'enabled' : 'disabled'}`}
+            accessibilityLabel={`Accepts Swap Points filter ${filters.spEligibleOnly ? 'enabled' : 'disabled'}`}
+            accessibilityState={{ selected: filters.spEligibleOnly === true }}
             style={[styles.spQuickToggle, filters.spEligibleOnly && styles.spQuickToggleActive]}
-            onPress={handleQuickSPToggle}
+            onPress={() => handleToggleSpEligible()}
           >
+            <Coins
+              size={16}
+              color={filters.spEligibleOnly ? ds.sp[500] : ds.neutral[700]}
+              weight="fill"
+            />
             <Text
               style={[
                 styles.spQuickToggleText,
                 filters.spEligibleOnly && styles.spQuickToggleTextActive,
               ]}
             >
-              SP Only
+              Accepts SP
             </Text>
           </Pressable>
         </View>
+
+        {/* DISCOVER-REDESIGN: Result count + active filter chips (above the grid) */}
+        {results.length > 0 && (
+          <View style={styles.resultsSummary} testID="discover-results-summary">
+            <Text style={styles.resultsCountText} testID="discover-results-count">
+              {`${resultCount} result${resultCount === 1 ? '' : 's'}`}
+              {locationLabel ? ` · ${locationLabel}` : ''}
+            </Text>
+            {activeFilterChips.length > 0 && (
+              <View style={styles.activeChipsRow}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.activeChipsRowContent}
+                >
+                  {activeFilterChips.map((chip) => (
+                    <View
+                      key={chip.key}
+                      testID={`active-filter-chip-${chip.key}`}
+                      style={[
+                        styles.activeChip,
+                        chip.isSp ? styles.activeChipSp : styles.activeChipPrimary,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.activeChipText,
+                          chip.isSp ? styles.activeChipTextSp : styles.activeChipTextPrimary,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {chip.label}
+                      </Text>
+                      <Pressable
+                        testID={`remove-filter-${chip.key}`}
+                        accessibilityLabel={`Remove ${chip.label} filter`}
+                        onPress={() => handleRemoveFilter(chip.key)}
+                        hitSlop={8}
+                      >
+                        <X
+                          size={14}
+                          color={chip.isSp ? ds.sp[500] : ds.primary[600]}
+                          weight="bold"
+                        />
+                      </Pressable>
+                    </View>
+                  ))}
+                </ScrollView>
+                <Pressable
+                  testID="clear-all-filters"
+                  accessibilityLabel="Clear all filters"
+                  onPress={handleClearAllActiveFilters}
+                  hitSlop={8}
+                >
+                  <Text style={styles.clearAllChipText}>Clear all</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Network Error Banner */}
         {error && (
@@ -1045,33 +1290,67 @@ export default function DiscoverScreen({ navigation }: Props) {
           </View>
         )}
 
-        {/* Recent Searches Panel (shown when focused and query is empty) */}
-        {searchFocused && query.trim().length === 0 && recentSearches.length > 0 && (
-          <View style={styles.recentSearchesPanel} testID="recent-searches-panel">
-            <View style={styles.recentSearchesHeader}>
-              <Text style={styles.recentSearchesTitle}>Recent Searches</Text>
-              <Pressable testID="clear-recent-searches" onPress={handleClearAllRecentSearches}>
-                <Text style={styles.clearAllText}>Clear All</Text>
-              </Pressable>
-            </View>
-            {recentSearches.map((search, index) => (
-              <View key={`recent-${index}`} style={styles.recentSearchRow}>
-                <Pressable
-                  testID={`recent-search-${index}`}
-                  style={styles.recentSearchButton}
-                  onPress={() => handleAutocompleteTap(search)}
+        {/* DISCOVER-REDESIGN: Recent Searches + Trending (below search bar, above grid) */}
+        {showDiscoverySections && (
+          <View style={styles.discoverySections}>
+            {recentSearches.length > 0 && (
+              <View style={styles.discoverySection} testID="recent-searches-panel">
+                <View style={styles.discoverySectionHeader}>
+                  <Text style={styles.discoverySectionTitle}>Recent Searches</Text>
+                  <Pressable
+                    testID="clear-recent-searches"
+                    onPress={handleClearAllRecentSearches}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.clearAllText}>Clear</Text>
+                  </Pressable>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.recentChipsRow}
                 >
-                  <Text style={styles.recentSearchText}>{search}</Text>
-                </Pressable>
-                <Pressable
-                  testID={`remove-recent-search-${index}`}
-                  style={styles.removeRecentButton}
-                  onPress={() => handleRemoveRecentSearch(search)}
-                >
-                  <Text style={styles.removeRecentText}>✕</Text>
-                </Pressable>
+                  {recentSearches.map((search, index) => (
+                    <Pressable
+                      key={`recent-${index}`}
+                      testID={`recent-search-${index}`}
+                      style={styles.recentChip}
+                      onPress={() => handleAutocompleteTap(search)}
+                      accessibilityLabel={`Search for ${search}`}
+                    >
+                      <Text style={styles.recentChipText} numberOfLines={1}>
+                        {search}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
               </View>
-            ))}
+            )}
+
+            {trending.length > 0 && (
+              <View style={styles.discoverySection} testID="trending-panel">
+                <Text style={styles.discoverySectionTitle}>Trending in {userState}</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.trendingChipsRow}
+                >
+                  {trending.map((cat) => (
+                    <Pressable
+                      key={cat.category_id}
+                      testID={`trending-chip-${cat.category_id}`}
+                      style={styles.trendingChip}
+                      onPress={() => handleTrendingTap(cat)}
+                      accessibilityLabel={`Browse trending category ${cat.category_name}`}
+                    >
+                      <Text style={styles.trendingChipText} numberOfLines={1}>
+                        {cat.category_name}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -1148,7 +1427,10 @@ export default function DiscoverScreen({ navigation }: Props) {
   // --- MAIN RENDER ---
 
   return (
-    <ScreenLayout variant="tab" title="Discover">
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      {/* DISCOVER-REDESIGN: Discover-local header (shared AppHeader untouched) */}
+      <DiscoverHeader />
+
       {/* Search Input - Static at the top to prevent losing focus on re-renders */}
       {renderHeader()}
 
@@ -1189,6 +1471,9 @@ export default function DiscoverScreen({ navigation }: Props) {
         inactiveZipMessage={inactiveZipMessage}
         waitlistMessage={waitlistMessage}
         userProfileZip={sanitizeZipCode(session?.user?.zip_code || '')}
+        currentQuery={debouncedQuery}
+        spEligibleOnly={filters.spEligibleOnly === true}
+        onSpToggle={handleToggleSpEligible}
         onZipCodeInputChange={handleZipCodeInputChange}
         onRadiusChange={setRadiusMiles}
         onRadiusComplete={handleRadiusComplete}
@@ -1227,8 +1512,7 @@ export default function DiscoverScreen({ navigation }: Props) {
           </View>
         </View>
       </RNModal>
-
-    </ScreenLayout>
+    </SafeAreaView>
   );
 }
 
@@ -1303,24 +1587,127 @@ const styles = StyleSheet.create({
   },
   spQuickToggle: {
     height: 44,
-    borderRadius: 22,
+    borderRadius: dsRadii.pill,
     borderWidth: 1,
-    borderColor: '#5DBB8E',
+    borderColor: ds.sp[500],
     paddingHorizontal: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ds.neutral.white,
   },
   spQuickToggleActive: {
-    backgroundColor: '#5DBB8E',
+    backgroundColor: ds.sp[100],
   },
   spQuickToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#5DBB8E',
+    ...dsType.label,
+    color: ds.sp[500],
   },
   spQuickToggleTextActive: {
-    color: '#FFFFFF',
+    color: ds.sp[500],
+    fontWeight: '700',
+  },
+  resultsSummary: {
+    marginTop: 12,
+    gap: 8,
+  },
+  resultsCountText: {
+    ...dsType.bodySmall,
+    color: ds.neutral[700],
+  },
+  activeChipsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activeChipsRowContent: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  activeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: dsRadii.pill,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    maxWidth: 220,
+  },
+  activeChipPrimary: {
+    backgroundColor: ds.primary[100],
+    borderColor: ds.primary[400],
+  },
+  activeChipSp: {
+    backgroundColor: ds.sp[100],
+    borderColor: ds.sp[500],
+  },
+  activeChipText: {
+    ...dsType.label,
+    flexShrink: 1,
+  },
+  activeChipTextPrimary: {
+    color: ds.primary[600],
+  },
+  activeChipTextSp: {
+    color: ds.sp[500],
+  },
+  clearAllChipText: {
+    ...dsType.label,
+    color: ds.primary[600],
+  },
+  discoverySections: {
+    marginTop: 12,
+    gap: 16,
+  },
+  discoverySection: {
+    gap: 8,
+  },
+  discoverySectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  discoverySectionTitle: {
+    ...dsType.body,
+    fontWeight: '600',
+    color: ds.neutral[900],
+  },
+  recentChipsRow: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  recentChip: {
+    backgroundColor: ds.neutral[100],
+    borderRadius: dsRadii.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  recentChipText: {
+    ...dsType.bodySmall,
+    color: ds.neutral[700],
+  },
+  trendingChipsRow: {
+    gap: 8,
+    paddingRight: 8,
+  },
+  trendingChip: {
+    backgroundColor: ds.primary[100],
+    borderRadius: dsRadii.pill,
+    borderWidth: 1,
+    borderColor: ds.primary[400],
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  trendingChipText: {
+    ...dsType.bodySmall,
+    color: ds.primary[600],
+    fontWeight: '600',
+  },
+  clearAllText: {
+    ...dsType.label,
+    color: ds.primary[600],
   },
   listContent: {
     padding: 16,
@@ -1358,48 +1745,6 @@ const styles = StyleSheet.create({
   autocompleteSuggestionText: {
     fontSize: 14,
     color: '#1A1A1A',
-  },
-  recentSearchesPanel: {
-    marginTop: 12,
-    padding: 12,
-    backgroundColor: '#F7F7F7',
-    borderRadius: 8,
-  },
-  recentSearchesHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  recentSearchesTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  clearAllText: {
-    fontSize: 12,
-    color: '#5DBB8E',
-    fontWeight: '500',
-  },
-  recentSearchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  recentSearchButton: {
-    flex: 1,
-  },
-  recentSearchText: {
-    fontSize: 14,
-    color: '#6B6B6B',
-  },
-  removeRecentButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  removeRecentText: {
-    fontSize: 16,
-    color: '#999999',
   },
   loadingMore: {
     padding: 16,

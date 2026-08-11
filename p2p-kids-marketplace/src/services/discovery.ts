@@ -15,6 +15,7 @@ import {
   DiscoveryFilters,
   CategoryFilters,
   Recommendation,
+  TrendingCategory,
 } from '../types/discovery';
 import { trackEvent } from './analytics';
 import { findClosestMatch } from '../utils/fuzzyMatch';
@@ -546,4 +547,100 @@ export async function searchListingsWithTiming(
   const timingMs = performance.now() - startTime;
 
   return { results, timingMs };
+}
+
+/**
+ * Get top categories by active listing count within a state (Discover "Trending").
+ * DISCOVER-REDESIGN: MVP supply-side metric — GROUP BY category scoped to the
+ * user's state (geographic_nodes.state). No ranking model / personalization.
+ *
+ * @param state - State name from the user's node
+ * @param limit - Max categories to return (default 6)
+ * @returns Array of trending categories (highest listing count first)
+ * @throws Error if fetch fails (caller should hide the section on error)
+ */
+export async function getTopCategoriesByState(
+  state: string,
+  limit: number = 6
+): Promise<TrendingCategory[]> {
+  try {
+    const trimmedState = state?.trim();
+    if (!trimmedState) {
+      return [];
+    }
+
+    const { data, error } = await supabase.rpc('get_top_categories_by_state', {
+      p_state: trimmedState,
+      p_limit: limit,
+    });
+
+    if (error) {
+      console.error('[getTopCategoriesByState] RPC error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      });
+      throw error;
+    }
+
+    return (data || []) as TrendingCategory[];
+  } catch (err) {
+    console.error('[getTopCategoriesByState] Error:', err);
+    throw new Error(err instanceof Error ? err.message : 'Failed to load trending categories');
+  }
+}
+
+/**
+ * Count listings matching the current Discover filters (live count for the
+ * Filters sheet's "Show {n} Results" button). Mirrors search_listings V4 filter
+ * semantics EXACTLY (no sort/pagination). Discovery is intentionally NOT
+ * node-gated, so p_node_ids is not passed.
+ *
+ * @param query - Current search query
+ * @param filters - Discovery filters to count
+ * @returns Total matching listing count
+ * @throws Error if fetch fails (caller should fall back to a static label)
+ */
+export async function countListings(query: string, filters?: DiscoveryFilters): Promise<number> {
+  try {
+    const trimmedQuery = query?.trim() || '';
+    const spEligibleOnly = filters?.spEligibleOnly ?? false;
+    const categoryIds =
+      filters?.categoryIds && filters.categoryIds.length > 0 ? filters.categoryIds : null;
+    const condition = filters?.condition ?? null;
+    const minPrice = filters?.minPrice ?? null;
+    const maxPrice = filters?.maxPrice ?? null;
+    const ageGroup = filters?.ageGroup ?? null;
+    const gender = filters?.gender ?? null;
+    const brand = filters?.brand ?? null;
+    const colors = filters?.colors && filters.colors.length > 0 ? filters.colors : null;
+
+    const { data, error } = await supabase.rpc('count_listings', {
+      p_query: trimmedQuery,
+      p_sp_eligible_only: spEligibleOnly,
+      p_category_ids: categoryIds,
+      p_condition: condition,
+      p_min_price: minPrice,
+      p_max_price: maxPrice,
+      p_age_group: ageGroup,
+      p_gender: gender,
+      p_brand: brand,
+      p_colors: colors,
+    });
+
+    if (error) {
+      console.error('[countListings] RPC error:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      });
+      throw error;
+    }
+
+    const total = Array.isArray(data) && data.length > 0 ? Number(data[0]?.total_count ?? 0) : 0;
+    return Number.isFinite(total) ? total : 0;
+  } catch (err) {
+    console.error('[countListings] Error:', err);
+    throw new Error(err instanceof Error ? err.message : 'Failed to count listings');
+  }
 }

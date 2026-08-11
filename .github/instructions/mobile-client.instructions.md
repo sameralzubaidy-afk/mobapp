@@ -5,7 +5,7 @@ applyTo: "p2p-kids-marketplace/src/**"
 
 # Mobile Client Hardening Protocol
 
-Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 43 rules.
+Related bug-prevention rules with full detail below: BP-8 (typed service errors), BP-15 (pull-to-refresh cache bypass), BP-23 (Realtime callback mirrors mount-time side effects), BP-29 (downstream reference audit after data-source renames), BP-33 (persistent UI at root level), BP-34 (Alert→Toast success-path audit), BP-35 (check mutating service call results), BP-36 (Realtime subscription table/publication verification), BP-39 (`FunctionsHttpError.context` parsing), BP-42 (trade detail tax preview from joined listing price), BP-53 (QA-testID controls must set `accessible` + `accessibilityRole` and be confirmed on-device) — see the Bug Prevention Rule Index in `Kids P2P App Builder.agent.md` for the one-line summary of all 43 rules.
 
 ### Rule Index (scan this first; open the full rule below only when it's relevant to your current task)
 
@@ -19,6 +19,7 @@ Related bug-prevention rules with full detail below: BP-8 (typed service errors)
 - BP-36 Realtime subscriptions — confirm the table is in the `supabase_realtime` publication; watch for RLS-filtered events.
 - BP-39 FunctionsHttpError — `.message` is hardcoded; always parse `.context.clone().json()`.
 - BP-42 Trade detail tax preview — derive from the joined listing's `price`, never from `cash_amount_cents`.
+- BP-53 QA-testID controls — must set `accessible` + `accessibilityRole` (mirror `ui/Button`) so identifiers surface on the iOS tree; confirm on-device — unit tests alone are insufficient.
 - Backward compatibility — defensively parse server responses (new fields optional, feature-detect), never crash on absent fields, keep old UI paths working during rolling deploys.
 
 ## BP-8: TypeScript Service Error Handling
@@ -168,6 +169,29 @@ const taxableAmountCents = Math.round((((trade as any)?.listing as any)?.price ?
 const taxableAmountCents = trade.cash_amount_cents;
 ```
 3. Audit all `useTaxCalculation(` call sites when fixing or reviewing a tax-related PR.
+
+## BP-53: QA-Automation `testID`s Must Be Exposed as Real iOS Accessibility Elements
+
+Problem: A control shipped with a `testID` (intended for QA automation) does not appear in the iOS accessibility tree unless it is a real accessibility element. A bare `<TouchableOpacity>` with only `testID` renders on screen but its identifier is invisible to the tree, so automation cannot target it — the "stable identifier" a task promised doesn't exist on-device. Unit/widget tests pass because they query the React tree directly, which is NOT the same as the native iOS accessibility tree. (2026-08-11 Stage 3 QA: the GlobalAlertProvider's 4 dialogs — age gate, invalid referral ×2 buttons, OTP dev-bypass, OTP success — were visually branded, but none of their button testIDs surfaced on the simulator's tree; the pre-existing `ui/Button`-based dialogs DID, because `ui/Button` sets `accessible` + `accessibilityRole`.)
+
+Rules:
+1. Any control that carries a `testID` for QA/automation MUST also set `accessible` (and, for buttons, `accessibilityRole="button"` plus `accessibilityLabel` equal to the visible text) so the identifier is exposed to the iOS accessibility tree. Mirror `src/components/ui/Button.tsx`, which already does this.
+2. When adding or migrating a dialog/modal with identifier-carrying buttons, verify the `testID` resolves with the accessibility-tree/element-listing tool on the running simulator — unit/widget tests alone are insufficient evidence of iOS discoverability.
+3. Pattern:
+```tsx
+// ✅ CORRECT — identifier surfaces on iOS
+<TouchableOpacity
+  testID="age-gate-dialog-ok-button"
+  accessible
+  accessibilityRole="button"
+  accessibilityLabel="OK"
+  onPress={...}
+/>
+
+// ❌ WRONG — renders but identifier is invisible to the iOS tree
+<TouchableOpacity testID="age-gate-dialog-ok-button" onPress={...} />
+```
+4. Detection checklist: after a modal/alert/button change, run the element-listing tool on the simulator and confirm each intended `testID` appears; if the identifier is missing but the element renders, it's an exposure bug (add `accessible`/`accessibilityRole`), not a tooling limitation.
 
 ## Backward Compatibility for the Mobile Client
 

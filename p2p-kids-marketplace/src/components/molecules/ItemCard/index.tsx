@@ -10,7 +10,8 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Heart, HeartStraight, Share } from 'phosphor-react-native';
-import { ListingImage } from '@/components/atoms';
+import { ListingImage, AcceptsSpBadge } from '@/components/atoms';
+import { ds, dsRadii, dsShadowL1, dsType } from '@/theme/discoveryTokens';
 
 interface ItemCardProps {
   id: string;
@@ -46,11 +47,7 @@ export default function ItemCard({
     >
       {/* Image with overlay icons */}
       <View style={styles.imageContainer}>
-        <ListingImage
-          url={imageUrl}
-          containerStyle={styles.image}
-          imageStyle={styles.image}
-        />
+        <ListingImage url={imageUrl} containerStyle={styles.image} imageStyle={styles.image} />
 
         {/* Overlay action buttons - top-right */}
         <View style={styles.overlayActions}>
@@ -88,7 +85,7 @@ export default function ItemCard({
         </Text>
         <View style={styles.priceRow}>
           <Text style={styles.price}>${price.toFixed(2)}</Text>
-          {acceptsSwapPoints && <Text style={styles.spBadge}>SP ✓</Text>}
+          {acceptsSwapPoints && <AcceptsSpBadge testID={`${testID || id}-sp-badge`} />}
         </View>
       </View>
     </Pressable>
@@ -98,22 +95,25 @@ export default function ItemCard({
 const styles = StyleSheet.create({
   card: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    overflow: 'hidden',
+    backgroundColor: ds.neutral.white,
+    borderRadius: dsRadii.large, // 16 — design-system §6.2 Item Card
+    ...dsShadowL1,
     marginBottom: 4, // Additional spacing for grid
   },
   imageContainer: {
     position: 'relative',
     width: '100%',
     aspectRatio: 1, // Square images for grid
-    backgroundColor: '#F0F0F0',
+    backgroundColor: ds.neutral[100],
+    // Clip the image corners here (not via card overflow:hidden) so the card
+    // can still render its Level-1 shadow (overflow:hidden clips shadows).
+    borderTopLeftRadius: dsRadii.large,
+    borderTopRightRadius: dsRadii.large,
+    overflow: 'hidden',
   },
   image: {
     width: '100%',
     height: '100%',
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
   },
   overlayActions: {
     position: 'absolute',
@@ -136,32 +136,28 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   details: {
-    padding: 10,
+    padding: 12,
+    backgroundColor: ds.neutral.white,
+    borderBottomLeftRadius: dsRadii.large,
+    borderBottomRightRadius: dsRadii.large,
   },
   title: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1A1A1A',
+    fontSize: dsType.h4.fontSize,
+    lineHeight: dsType.h4.lineHeight,
+    fontWeight: dsType.h4.fontWeight, // H4 (18/24/600) — design-system §6.2
+    color: ds.neutral[900],
     marginBottom: 4,
-    lineHeight: 18,
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
   },
   price: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-  },
-  spBadge: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#5DBB8E',
-    backgroundColor: '#E8F5F0',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    fontSize: 16, // Body Large
+    lineHeight: 24,
+    fontWeight: '700', // Body Large 700 — design-system §6.2
+    color: ds.neutral[900],
   },
 });

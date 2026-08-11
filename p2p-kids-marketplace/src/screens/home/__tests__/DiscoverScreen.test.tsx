@@ -13,7 +13,6 @@ import { searchListings } from '@/services/discovery';
 import {
   getRecentSearches,
   addSearchToHistory,
-  removeSearchFromHistory,
   clearSearchHistory,
   getAutocompleteSuggestions,
 } from '@/services/searchHistory';
@@ -597,7 +596,10 @@ describe('DiscoverScreen', () => {
       expect(queryByTestId('recent-searches-panel')).toBeNull();
     });
 
-    it('allows removing a recent search', async () => {
+    // DISCOVER-REDESIGN: per-item ✕ was deliberately removed — recent searches are
+    // now tappable chips with a single "Clear" action (see "allows clearing all
+    // recent searches" below). Tapping a chip re-runs that search.
+    it('runs search when a recent search chip is tapped', async () => {
       const { getByTestId } = render(
         <DiscoverScreen navigation={mockNavigation as any} route={{} as any} />
       );
@@ -606,14 +608,13 @@ describe('DiscoverScreen', () => {
       fireEvent(searchInput, 'focus');
 
       await waitFor(() => {
-        expect(getByTestId('recent-searches-panel')).toBeTruthy();
+        expect(getByTestId('recent-search-0')).toBeTruthy();
       });
 
-      const removeButton = getByTestId('remove-recent-search-0');
-      fireEvent.press(removeButton);
+      fireEvent.press(getByTestId('recent-search-0'));
 
       await waitFor(() => {
-        expect(removeSearchFromHistory).toHaveBeenCalledWith('bike');
+        expect(searchInput.props.value).toBe('bike');
       });
     });
 

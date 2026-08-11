@@ -7,8 +7,19 @@
  * Unit tests for search and discovery functions
  */
 
-import { searchListings, searchListingsByCategory, getRecommendations } from '../discovery';
-import { SearchResult, CategoryResult, Recommendation } from '../../types/discovery';
+import {
+  searchListings,
+  searchListingsByCategory,
+  getRecommendations,
+  getTopCategoriesByState,
+  countListings,
+} from '../discovery';
+import {
+  SearchResult,
+  CategoryResult,
+  Recommendation,
+  TrendingCategory,
+} from '../../types/discovery';
 import * as supabaseModule from '../../config/supabase';
 import * as analyticsModule from '../analytics';
 
@@ -595,6 +606,97 @@ describe('Discovery Service - DISCOVERY-V2-001: Full-Text Search', () => {
       expect(results).toHaveLength(3);
       expect(results[0].score).toBeGreaterThanOrEqual(results[1].score);
       expect(results[1].score).toBeGreaterThanOrEqual(results[2].score);
+    });
+  });
+
+  describe('getTopCategoriesByState - DISCOVER-REDESIGN', () => {
+    const mockTrending: TrendingCategory[] = [
+      { category_id: '1', category_name: 'Toys', listing_count: 42 },
+      { category_id: '2', category_name: 'Books', listing_count: 18 },
+    ];
+
+    test('should return trending categories scoped to state', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({ data: mockTrending, error: null } as any);
+      const results = await getTopCategoriesByState('Connecticut');
+      expect(results).toHaveLength(2);
+      expect(results[0].category_name).toBe('Toys');
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_top_categories_by_state', {
+        p_state: 'Connecticut',
+        p_limit: 6,
+      });
+    });
+
+    test('should pass custom limit', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({ data: [], error: null } as any);
+      await getTopCategoriesByState('NY', 4);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith('get_top_categories_by_state', {
+        p_state: 'NY',
+        p_limit: 4,
+      });
+    });
+
+    test('should return empty array for empty state without calling RPC', async () => {
+      const results = await getTopCategoriesByState('  ');
+      expect(results).toEqual([]);
+      expect(mockSupabase.rpc).not.toHaveBeenCalled();
+    });
+
+    test('should throw on RPC error (caller hides the section)', async () => {
+      const error = new Error('RPC failed');
+      mockSupabase.rpc.mockResolvedValueOnce({ data: null, error } as any);
+      await expect(getTopCategoriesByState('Connecticut')).rejects.toThrow('RPC failed');
+    });
+  });
+
+  describe('countListings - DISCOVER-REDESIGN', () => {
+    test('should return total count with SP filter', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [{ total_count: 24 }],
+        error: null,
+      } as any);
+      const total = await countListings('bike', { spEligibleOnly: true });
+      expect(total).toBe(24);
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'count_listings',
+        expect.objectContaining({
+          p_query: 'bike',
+          p_sp_eligible_only: true,
+        })
+      );
+    });
+
+    test('should return 0 for empty result set', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({ data: [], error: null } as any);
+      const total = await countListings('');
+      expect(total).toBe(0);
+    });
+
+    test('should pass through filter params', async () => {
+      mockSupabase.rpc.mockResolvedValueOnce({
+        data: [{ total_count: 5 }],
+        error: null,
+      } as any);
+      await countListings('', {
+        categoryIds: ['cat-1'],
+        minPrice: 10,
+        maxPrice: 50,
+        colors: ['blue'],
+      });
+      expect(mockSupabase.rpc).toHaveBeenCalledWith(
+        'count_listings',
+        expect.objectContaining({
+          p_category_ids: ['cat-1'],
+          p_min_price: 10,
+          p_max_price: 50,
+          p_colors: ['blue'],
+        })
+      );
+    });
+
+    test('should throw on RPC error', async () => {
+      const error = new Error('RPC failed');
+      mockSupabase.rpc.mockResolvedValueOnce({ data: null, error } as any);
+      await expect(countListings('x')).rejects.toThrow('RPC failed');
     });
   });
 });
