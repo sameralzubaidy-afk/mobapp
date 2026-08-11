@@ -91,6 +91,8 @@ import ContactSupportScreen from '@/screens/support/ContactSupportScreen';
 import FAQDetailScreen from '@/screens/support/FAQDetailScreen';
 import { AuthProvider, AuthContext } from '@/contexts/AuthContext';
 import StripeProviderWrapper from '@/providers/StripeProviderWrapper';
+// QA-only logout deep link handler (dev/staging only) — see component for the security gate.
+import QaLogoutDeepLinkHandler from '@/components/QaLogoutDeepLinkHandler';
 import {
   parseNotificationDeepLink,
   getFallbackRoute,
@@ -980,6 +982,9 @@ export default function AppNavigator() {
         publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''}
         merchantIdentifier="merchant.com.p2pkidsmarketplace" // required for Apple Pay
       >
+        {/* QA-only logout deep link handler — must live inside AuthProvider (uses useAuth).
+            Inert in production builds (see QaLogoutDeepLinkHandler gate). */}
+        <QaLogoutDeepLinkHandler />
         <RootNavigator />
       </StripeProviderWrapper>
     </AuthProvider>
