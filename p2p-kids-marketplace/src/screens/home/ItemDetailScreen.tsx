@@ -1526,7 +1526,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 12,
+    // Clear the floating pill nav (PersistentTabBar now overlays the stack
+    // content): pill top sits ~110pt from the bottom (safe-area + spacing.sm +
+    // pill height), so the action buttons must stay above it.
+    paddingBottom: 120,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
     gap: 8,

@@ -27,6 +27,8 @@ import { RootStackParamList } from '@/navigation/types';
 import { supabase } from '@/config/supabase';
 import { Trade, TradeStatus } from '@/types/trade';
 import { completeTradeV2, cancelTradeV2 } from '@/services/trade';
+import { requestTradeExtension, respondToExtension } from '@/services/tradeServiceV2';
+import { getPaymentMethod } from '@/services/subscription';
 import { canReviewUser, getTradeReviewStatus } from '@/services/review';
 import { getSPReleaseDays, getAdminConfig } from '@/services/adminConfig';
 import { useAuth } from '@/hooks/useAuth';
@@ -108,6 +110,15 @@ export default function TradeTimelineScreen() {
   const [spReleaseDays, setSpReleaseDays] = useState(3);
   // Track previous trade status to detect transitions to 'completed'
   const previousStatusRef = useRef<string | null>(null);
+
+  // R15 — Trade Extension (one-time, pickup window only)
+  const [extensionSubmitting, setExtensionSubmitting] = useState(false);
+  const [extensionConfirm, setExtensionConfirm] = useState<{
+    visible: boolean;
+    action: 'accept' | 'decline';
+    processing?: boolean;
+  } | null>(null);
+  const [extensionNowMs, setExtensionNowMs] = useState(Date.now());
 
   // Navigate seller to TradeSuccessScreen only when trade status *changes* to completed
   const navigateSellerToSuccess = (currentTrade: Trade) => {
@@ -286,6 +297,13 @@ export default function TradeTimelineScreen() {
       supabase.removeChannel(channel);
     };
   }, [tradeId, fetchTrade]);
+
+  // R15: live countdown while an extension request is pending (re-tick every 30s)
+  useEffect(() => {
+    if (trade?.extension_status !== 'requested') return;
+    const id = setInterval(() => setExtensionNowMs(Date.now()), 30000);
+    return () => clearInterval(id);
+  }, [trade?.extension_status]);
 
   useFocusEffect(
     useCallback(() => {
@@ -522,6 +540,46 @@ export default function TradeTimelineScreen() {
 
   const handleOpenChat = () => {
     navigation.navigate('Chat', { tradeId });
+  };
+
+  // R15 — request ONE extension during the pickup window (buyer or seller)
+  const handleRequestExtension = async () => {
+    if (!trade) return;
+    setExtensionSubmitting(true);
+    try {
+      await requestTradeExtension(tradeId);
+      await fetchTrade();
+    } catch (e) {
+      showNotif('Could not request extension', (e as Error).message, 'decline');
+    } finally {
+      setExtensionSubmitting(false);
+    }
+  };
+
+  // R15 — accept/decline a pending extension request (counterparty only).
+  // Accept voids the old hold + places a FRESH authorization using the buyer's
+  // saved card; decline releases the hold and auto-cancels via the shared R2 path.
+  const handleRespondExtension = async (action: 'accept' | 'decline') => {
+    setExtensionConfirm((prev) => (prev ? { ...prev, processing: true } : prev));
+    setExtensionSubmitting(true);
+    try {
+      let paymentMethodId: string | undefined;
+      if (action === 'accept') {
+        const method = await getPaymentMethod();
+        paymentMethodId = method?.id ?? undefined;
+      }
+      await respondToExtension(tradeId, action, paymentMethodId);
+      await fetchTrade();
+    } catch (e) {
+      showNotif(
+        action === 'accept' ? 'Could not accept extension' : 'Could not decline extension',
+        (e as Error).message,
+        'decline'
+      );
+    } finally {
+      setExtensionSubmitting(false);
+      setExtensionConfirm(null);
+    }
   };
 
   // D-30: No manual payment step — Stripe pre-auth is captured on seller accept via transactions-update EF.
@@ -926,6 +984,121 @@ export default function TradeTimelineScreen() {
           <AutoCompleteBanner autoCompleteAt={trade.auto_complete_at} status={trade.status} isSeller={false} />
         )}
 
+        {/* R15 — Trade Extension (one-time, pickup window only) */}
+        {trade.status === 'in_progress' && trade.auto_complete_at && !hasUnresolvedDispute && (() => {
+          const extStatus = trade.extension_status;
+          const isRequester = !!trade.extension_requested_by && trade.extension_requested_by === user?.id;
+
+          // Pending request → requester sees a waiting banner; counterparty sees accept/decline
+          if (extStatus === 'requested') {
+            const extCountdown = trade.extension_request_expires_at
+              ? formatCountdownLabel(
+                  createCountdownModel(
+                    trade.extension_request_expires_at,
+                    trade.extension_requested_at ?? new Date().toISOString(),
+                    extensionNowMs
+                  )
+                )
+              : '';
+            if (isRequester) {
+              return (
+                <View style={styles.extensionCardPending}>
+                  <View style={styles.extensionCardHeader}>
+                    <Clock size={20} color="#F59E0B" weight="regular" />
+                    <Text style={styles.extensionCardTitle}>Extension request sent</Text>
+                  </View>
+                  <Text style={styles.extensionCardDesc}>
+                    Waiting for the other party to respond. If they don't answer within{' '}
+                    {extCountdown || 'the response window'}, the request expires and the trade is cancelled.
+                  </Text>
+                </View>
+              );
+            }
+            return (
+              <View style={styles.extensionCardPending}>
+                <View style={styles.extensionCardHeader}>
+                  <Clock size={20} color="#F59E0B" weight="regular" />
+                  <Text style={styles.extensionCardTitle}>Extension request</Text>
+                </View>
+                <Text style={styles.extensionCardDesc}>
+                  The other party asked for more time to complete this trade. Respond within{' '}
+                  {extCountdown || '4 hours'}, or the trade is cancelled.
+                </Text>
+                <View style={styles.extensionCardActions}>
+                  <Pressable
+                    style={styles.extensionDeclineButton}
+                    onPress={() => setExtensionConfirm({ visible: true, action: 'decline' })}
+                    disabled={extensionSubmitting}
+                    testID="decline-extension-button"
+                  >
+                    <Text style={styles.extensionDeclineText}>Decline</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.extensionAcceptButton}
+                    onPress={() => setExtensionConfirm({ visible: true, action: 'accept' })}
+                    disabled={extensionSubmitting}
+                    testID="accept-extension-button"
+                  >
+                    {extensionSubmitting ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.extensionAcceptText}>Accept</Text>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }
+
+          // Granted → show the extended pickup window
+          if (extStatus === 'accepted') {
+            return (
+              <View style={styles.extensionCardGranted}>
+                <View style={styles.extensionCardHeader}>
+                  <CheckCircle size={20} color="#16A34A" weight="fill" />
+                  <Text style={styles.extensionCardTitle}>Pickup window extended</Text>
+                </View>
+                <Text style={styles.extensionCardDesc}>
+                  You now have until{' '}
+                  {trade.auto_complete_at ? new Date(trade.auto_complete_at).toLocaleString() : 'the new deadline'} to
+                  complete the trade.
+                </Text>
+              </View>
+            );
+          }
+
+          // No extension used yet → offer the one-time "Request more time"
+          if (!extStatus) {
+            return (
+              <View style={styles.extensionCard}>
+                <View style={styles.extensionCardHeader}>
+                  <Clock size={20} color="#5DBB8E" weight="regular" />
+                  <Text style={styles.extensionCardTitle}>Need more time?</Text>
+                </View>
+                <Text style={styles.extensionCardDesc}>
+                  You can request one extension to extend the pickup window. The other party must accept within 4
+                  hours, or the trade is cancelled.
+                </Text>
+                <Pressable
+                  style={styles.extensionRequestButton}
+                  onPress={handleRequestExtension}
+                  disabled={extensionSubmitting}
+                  testID="request-extension-button"
+                >
+                  {extensionSubmitting ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.extensionRequestText}>Request More Time</Text>
+                  )}
+                </Pressable>
+              </View>
+            );
+          }
+
+          // denied / auto_denied / reauth_failed → trade is cancelled; the cancelled UI covers it.
+          return null;
+        })()}
+
         {/* SP Release Status — seller only, completed trade with SP involved */}
         {isSeller && trade.status === 'completed' && (() => {
           const totalSpForSeller = trade.sp_earned_at_completion ?? trade.sp_amount ?? 0;
@@ -1328,6 +1501,25 @@ export default function TradeTimelineScreen() {
           onConfirm={() => notifModal.onConfirm ? notifModal.onConfirm() : setNotifModal(null)}
           onCancel={() => setNotifModal(null)}
           hideCancel
+        />
+      )}
+
+      {/* R15 — Extension accept/decline confirmation */}
+      {extensionConfirm && (
+        <TradeConfirmationModal
+          visible={extensionConfirm.visible}
+          title={extensionConfirm.action === 'accept' ? 'Accept Extension?' : 'Decline Extension?'}
+          message={
+            extensionConfirm.action === 'accept'
+              ? 'The pickup window will be extended and a new payment hold will be placed. Only one extension is allowed per trade.'
+              : 'The trade will be cancelled and the payment hold released. This cannot be undone.'
+          }
+          confirmLabel={extensionConfirm.action === 'accept' ? 'Accept Extension' : 'Decline Extension'}
+          cancelLabel="Cancel"
+          variant={extensionConfirm.action === 'accept' ? 'accept' : 'decline'}
+          onConfirm={() => handleRespondExtension(extensionConfirm.action)}
+          onCancel={() => setExtensionConfirm(null)}
+          loading={extensionConfirm.processing}
         />
       )}
 
@@ -2150,5 +2342,87 @@ const styles = StyleSheet.create({
   paymentModeSubtitle: {
     fontSize: 12,
     color: '#6B6B6B',
+  },
+  // R15 — Trade Extension
+  extensionCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  extensionCardPending: {
+    backgroundColor: '#FFF9EC',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  extensionCardGranted: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  extensionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  extensionCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    fontFamily: 'Inter-Bold',
+  },
+  extensionCardDesc: {
+    fontSize: 14,
+    color: '#6B6B6B',
+    lineHeight: 20,
+  },
+  extensionCardActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  extensionAcceptButton: {
+    flex: 1,
+    backgroundColor: '#5DBB8E',
+    borderRadius: 20,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  extensionAcceptText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  extensionDeclineButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  extensionDeclineText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  extensionRequestButton: {
+    backgroundColor: '#5DBB8E',
+    borderRadius: 20,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  extensionRequestText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

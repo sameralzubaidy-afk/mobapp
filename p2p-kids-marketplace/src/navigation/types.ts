@@ -20,7 +20,15 @@ export type RootStackParamList = {
   MyListings: undefined;
   CreateListing: undefined;
   // MODULE-04 V3: Photo-first listing creation
-  ItemCreate: { draftId?: string } | undefined;
+  ItemCreate: {
+    draftId?: string;
+    /** Title pre-filled from the Home composer bar (always wins over AI). */
+    prefilledTitle?: string;
+    /** Auto-launch this photo source on the Photos step (camera/library). */
+    initialPhotoSource?: 'camera' | 'library';
+    /** Whether to show the photo-source modal. Default true. */
+    showPhotoSourcePrompt?: boolean;
+  } | undefined;
   BulkListingCreate: { draftId?: string } | undefined;
   EditListing: { listing_id: string };
   ListingDetail: { listing_id: string };

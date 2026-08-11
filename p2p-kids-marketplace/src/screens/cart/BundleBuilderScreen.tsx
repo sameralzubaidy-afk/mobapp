@@ -395,7 +395,10 @@ const styles = StyleSheet.create({
 
   summaryBar: {
     position: 'absolute',
-    bottom: 0,
+    // Clear the floating pill nav (PersistentTabBar now overlays the stack
+    // content): pill top sits ~110pt from the bottom (safe-area + spacing.sm +
+    // pill height), so the sticky summary bar must sit above it.
+    bottom: 120,
     left: 0,
     right: 0,
     flexDirection: 'row',

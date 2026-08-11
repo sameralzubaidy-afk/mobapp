@@ -71,6 +71,40 @@ export async function hasActiveOfferForItem(buyerId: string, listingId: string):
 }
 
 /**
+ * Count the user's ACTIVE trades for the Trades tab badge.
+ *
+ * "Active" = any status that is NOT a terminal state (completed / cancelled),
+ * i.e. pending, payment_processing, payment_failed, in_progress. This matches
+ * the spec's "anything not yet completed/cancelled/archived" and the live
+ * trades_status_check constraint (which still allows payment_processing).
+ * Completed and cancelled trades never count toward the badge.
+ *
+ * @param userId - Current user ID (buyer or seller)
+ * @returns Count of active trades
+ */
+export async function getActiveTradeCount(userId: string): Promise<number> {
+  if (!userId) return 0;
+
+  try {
+    const { count, error } = await supabase
+      .from('trades')
+      .select('id', { count: 'exact', head: true })
+      .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`)
+      .not('status', 'in', '("completed","cancelled")');
+
+    if (error) {
+      console.error('[trade] Error counting active trades:', error);
+      return 0;
+    }
+
+    return count ?? 0;
+  } catch (error) {
+    console.error('[trade] Error in getActiveTradeCount:', error);
+    return 0;
+  }
+}
+
+/**
  * Get seller rating summary
  * Returns average rating and total reviews
  *

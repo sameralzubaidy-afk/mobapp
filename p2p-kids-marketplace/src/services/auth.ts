@@ -372,10 +372,11 @@ export async function loginWithContext(input: LoginInput): Promise<AuthSession> 
 
     const userId = authData.user.id;
 
-    // Step 2: Fetch user profile
+    // Step 2: Fetch user profile (include node join so the Home header can
+    // show the node name immediately after login — matches AuthContext.refreshSession)
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, node:nodes(*)')
       .eq('user_id', userId)
       .single();
 

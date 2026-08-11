@@ -44,8 +44,9 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
   // IMPORTANT: Use seeded IDs from scripts/seed-staging-data.ts
   const REFERRER_USER_ID =
     process.env.TEST_REFERRER_USER_ID || '14be337c-aad6-403f-bab2-ba1a7d80b666'; // test-seller
-  const REFEREE_USER_ID =
+  let REFEREE_USER_ID =
     process.env.TEST_REFEREE_USER_ID || '49243010-f458-4744-add1-a6c84ab95f1f'; // test-buyer
+  const USE_FRESH_REFEREE = !process.env.TEST_REFEREE_USER_ID;
   let testListingId = process.env.TEST_LISTING_ID || 'REPLACE_WITH_ACTUAL_ID';
 
   let referralId: string;
@@ -76,6 +77,36 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
 
     if (testListingId === 'REPLACE_WITH_ACTUAL_ID') {
       throw new Error('Could not find a test listing. Run seed:staging first.');
+    }
+
+    // Create a FRESH referee (when no explicit TEST_REFEREE_USER_ID is set) so the
+    // R12 first-trade gate is reliable — a seeded user may already have completed
+    // trades, which would block the reward.
+    if (USE_FRESH_REFEREE) {
+      const freshEmail = `e2e-referee-${Date.now()}@kidsmarketplace.test`;
+      const { data: freshUser, error: createErr } = await adminSupabase.auth.admin.createUser({
+        email: freshEmail,
+        password: 'E2eRefereePass123!',
+        email_confirm: true,
+      });
+      if (createErr || !freshUser?.user) {
+        throw new Error(
+          `Failed to create fresh E2E referee: ${createErr?.message || 'unknown'}`
+        );
+      }
+      REFEREE_USER_ID = freshUser.user.id;
+      console.log(`   [SETUP] Created fresh referee ${freshEmail} -> ${REFEREE_USER_ID}`);
+
+      // Wait for the on_auth_user_created trigger to create the profile row.
+      for (let i = 0; i < 20; i++) {
+        const { data: p } = await adminSupabase
+          .from('profiles')
+          .select('id')
+          .eq('user_id', REFEREE_USER_ID)
+          .maybeSingle();
+        if (p) break;
+        await new Promise((r) => setTimeout(r, 500));
+      }
     }
 
     // [SETUP] Ensure users have wallets and subscriptions
@@ -141,7 +172,7 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
         .from('sp_ledger')
         .delete()
         .or(
-          `idempotency_key.eq.referral_${referralId}_referrer,idempotency_key.eq.referral_${referralId}_referee`
+          `idempotency_key.eq.referral_trade_${referralId}_referrer,idempotency_key.eq.referral_trade_${referralId}_referee`
         );
 
       await adminSupabase.from('sp_batches').delete().eq('source_id', referralId);
@@ -151,12 +182,23 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
         .update({ status: 'pending', bonus_points: null, bonus_points_referrer: null })
         .eq('id', referralId);
     }
+
+    // R12: the trade trigger resolves the referrer via profiles.referred_by
+    // (set by apply_referral_code in the real flow). Mirror it here.
+    await adminSupabase
+      .from('profiles')
+      .update({ referred_by: REFERRER_USER_ID })
+      .eq('user_id', REFEREE_USER_ID);
   });
 
   afterAll(async () => {
     // Cleanup: Delete test trade (optional)
     if (tradeId) {
       await adminSupabase.from('trades').delete().eq('id', tradeId);
+    }
+    if (USE_FRESH_REFEREE && REFEREE_USER_ID) {
+      // Remove the fresh referee created for isolation.
+      await adminSupabase.auth.admin.deleteUser(REFEREE_USER_ID);
     }
   });
 
@@ -216,8 +258,9 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
   });
 
   test('STEP 2: Complete trade triggers reward', async () => {
-    // Update trade status to 'completed'
-    // This should trigger process_referral_bonus_on_trade_v2()
+    // Update trade status to 'completed'.
+    // Fires trigger_referral_rewards_on_trade_completion →
+    // handle_referral_rewards_on_trade_completion (R12 first-trade gate).
     const { error: updateError } = await adminSupabase
       .from('trades')
       .update({ status: 'completed' })
@@ -228,18 +271,17 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
     // Wait for trigger to process (async)
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // Verify referral status updated to 'completed'
+    // Verify referral completed + per-bonus captured amounts
+    // (R12: reward recorded only on the first completed trade).
     const { data: referralData } = await adminSupabase
       .from('referrals')
-      .select('status, bonus_points, bonus_points_referrer')
+      .select('status, captured_sp_referrer_amount, captured_sp_referee_amount')
       .eq('id', referralId)
       .single();
 
-    expect(['pending', 'completed']).toContain(referralData?.status);
-    if (referralData?.status === 'completed') {
-      expect(referralData?.bonus_points_referrer).toBe(25);
-      expect(referralData?.bonus_points).toBe(10);
-    }
+    expect(referralData?.status).toBe('completed');
+    expect(referralData?.captured_sp_referrer_amount).toBe(25);
+    expect(referralData?.captured_sp_referee_amount).toBe(10);
   });
 
   test('STEP 3: Verify SP ledger entries created', async () => {
@@ -310,20 +352,25 @@ describeE2E('REF-V2-002: Referral SP Rewards E2E', () => {
       .eq('user_id', REFEREE_USER_ID)
       .single();
 
-    // Create and complete a second trade
+    // Create a second trade as 'pending', then transition it to 'completed' so
+    // the R12 first-trade gate is actually exercised (inserting directly as
+    // 'completed' would never fire the AFTER UPDATE trigger).
     const { data: trade2 } = await adminSupabase
       .from('trades')
       .insert({
         listing_id: testListingId,
         buyer_id: REFEREE_USER_ID,
         seller_id: REFERRER_USER_ID,
-        status: 'status' in ({} as any) ? 'completed' : ('completed' as any), // Type safety
+        status: 'pending',
         cash_amount_cents: 2000,
         buyer_transaction_fee_cents: 99,
         sp_amount: 0,
       })
       .select()
       .single();
+
+    // Transition to completed (fires the AFTER UPDATE trigger)
+    await adminSupabase.from('trades').update({ status: 'completed' }).eq('id', trade2!.id);
 
     // Wait for any potential trigger processing
     await new Promise((resolve) => setTimeout(resolve, 2000));

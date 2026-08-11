@@ -761,7 +761,8 @@ Issue: "E2E test fails right after signup because trigger-created rows (subscrip
 
 ✅ Check: The target DB's signup trigger is actually attached AND its handler body matches the latest migration (BP-47)
 ✅ Check: Deployment lag — the deployed function may predate the migration that defines the asserted defaults; apply/redeploy before blaming app code (BP-47)
-See also: BP-47 (E2E tests asserting trigger-created defaults must first verify the trigger exists in the target DB)
+✅ Check: A schema/enum/CHECK value set the new logic assumes is confirmed against the live DB (`FROM pg_constraint`) — the repo migration may not be applied to staging (BP-47)
+See also: BP-47 (verify the target DB's trigger AND its enum/CHECK-constraint values are current before treating a missing-row failure or a schema assumption as an app bug — deployment lag ≠ code bug)
 
 Issue: "Admin edits a setting on one surface but the other surface shows no 'last updated' / who changed it, or a new settings page silently bypasses the shared write path"
 
@@ -1033,7 +1034,7 @@ Impacted Flows
 Required Regression Tiers
 Agent must ensure Tier 0 passes first (or provide exact package.json edits to enable it).
 Agent must NOT ask the user to test in simulator when there are known compile/type errors.
-Agent must NOT start a UI test / browser verification for a new implementation until it has checked whether the change needs a SQL/migration change that must be applied to the STAGING database first. If a SQL change is required and has NOT yet been applied to staging, STOP and ask the user (Samer) to approve/apply it BEFORE running any UI test — a UI test against un-migrated staging data is wasted time. (Example that triggered this rule — N1 configurability, 2026-08-09: the admin Trade Timing UI test could not render the new Pickup/Payout keys because the migration `20260809000004_n1_configurability.sql` had not been applied to staging; the browser session had to be abandoned mid-verification.)
+Agent must NOT start a UI test / browser verification for a new implementation until it has checked whether the change needs a SQL/migration change that must be applied to the STAGING database first. If a SQL change is required and has NOT yet been applied to staging, STOP and ask the user (Samer) to approve/apply it BEFORE running any UI test — a UI test against un-migrated staging data is wasted time. (Example that triggered this rule — N1 configurability, 2026-08-09: the admin Trade Timing UI test could not render the new Pickup/Payout keys because the migration `20260809000004_n1_configurability.sql` had not been applied to staging; the browser session had to be abandoned mid-verification.) The inverse also applies: before building client/EF/UI/admin logic that ASSUMES a current schema/enum/CHECK value set (e.g. `trades.status`), read the LIVE DB (e.g. `FROM pg_constraint`) to confirm the repo's migration state actually matches staging — migration files can lag staging, so a migration-only assumption can be wrong (mirrors BP-47 deployment-lag discipline; example 2026-08-11: the header/nav redesign built the Trades badge against `trades.status` values taken from migrations, but the live staging CHECK still allowed `payment_processing`).
 No Duplicate Implementations / Duplicate Identifier Guardrail / Duplicate Symbol Guard — all merged into Section 13 "Duplicate Identifier Prevention" (single canonical source for the search-before-create rule, ripgrep commands, and required evidence). Do not restate these as separate rules.
 
 Navigation Hardening Protocol — moved to .github/instructions/navigation.instructions.md (auto-attaches when editing p2p-kids-marketplace/src/navigation/**). Covers NAV-0 through NAV-6 (route ownership, auth boundary, onboarding completion, regression tiers) plus BP-43 (route params, navigator import validation, buyer/seller path checks).
@@ -1227,7 +1228,7 @@ Use these rules and examples to drive all your work. Your priority is to help th
 
 ---
 
-## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-50)
+## 🛡️ Appendix: Bug Prevention Rule Library (BP-1 – BP-52)
 
 These rules are derived from 200+ bug fixes in this project. You MUST follow them to prevent recurring issues.
 
@@ -1279,11 +1280,12 @@ These rules are derived from 200+ bug fixes in this project. You MUST follow the
 - BP-44 Tax/SP/fee RPC recompute — must be category-aware and match the offer-time calculation; grep for stale `get_node_tax_rate`-only writers on tax-exemption bugs.
 - BP-45 Searchable admin surfaces — never `ilike` a UUID column or `::cast` inside `or=()`; create a text-cast view (`admin_trades_view`/`admin_payments_view`).
 - BP-46 Function DECLARE hygiene — every `v_*` used in the body must be declared; diff the DECLARE block before authoring/applying (`42601 <var> is not a known variable`).
-- BP-47 E2E trigger-created defaults — verify the target DB's trigger/handler is attached AND current before treating a missing-row failure as an app bug (deployment lag ≠ code bug).
+- BP-47 Live-DB state assumptions — verify the target DB's trigger/handler AND its enum/CHECK-constraint values are attached/current before treating a missing-row failure or a schema assumption as an app bug (deployment lag ≠ code bug).
 - BP-48 Admin config writes — settings MUST go through the shared `upsert_admin_config_setting(p_admin_id)` RPC; never direct `admin_config` table writes (records editor + audit trail).
 - BP-49 Admin client→API auth — browser fetches to `/api/admin/*` MUST send `x-admin-secret: NEXT_PUBLIC_ADMIN_UI_SECRET` (or an explicit Bearer JWT); a header-less client call 401s with "No valid authentication provided" (no middleware to inject it).
 - BP-50 Migration version uniqueness — before creating a migration, list `supabase/migrations/` and confirm no existing file shares the same `YYYYMMDDHHMMSS` timestamp prefix (parallel WIP collides, e.g. two `20260809000001` files); use the next available version.
 - BP-51 Edge Function pre-deploy verification — run `git diff` / grep the function for the new symbol to confirm the intended change is in the file before deploying (edits can be lost when the working tree is reverted between turns).
+- BP-52 Intentional behavior changes — update the widget test a deliberate UI/logic change breaks; confirm other failures are pre-existing via git before classifying.
 - BC-1 Backward Compatibility Gate — every change keeps shipped clients (mobile + admin) and existing data working; breaking changes need owner approval + a coordinated rollout plan (full text in the main body, "Backward Compatibility Gate" section).
 
 BP-1: RLS Policy Prevention — full text moved to `.github/instructions/supabase-sql.instructions.md` (auto-attaches when editing `supabase/migrations/**/*.sql`).
@@ -1360,8 +1362,8 @@ BP-48: Admin Config Settings Writes Must Go Through the Shared RPC (never direct
 
 BP-50: Migration Version Uniqueness (check `supabase/migrations/` for a same-timestamp-prefix collision before creating a new migration) — full text moved to `.github/instructions/supabase-sql.instructions.md`.
 
-BP-47: E2E Tests Asserting Trigger-Created Defaults Must Verify the Trigger Exists in the Target DB (deployment lag ≠ code bug)
-Problem: `sub-018` ("No subscription found") and the notification-preferences E2E both failed after a signup, and the initial triage pointed at app code. The real root cause was that the deployed `handle_new_user()` was an OLD version — the target staging DB's `on_auth_user_created` trigger was not creating the `subscriptions`/`notification_preferences` rows the tests assert. That is deployment lag / a stale trigger, not an app bug.
+BP-47: Live-DB Schema/State Assumptions Must Be Verified Against the Target DB (deployment lag ≠ code bug)
+Problem: `sub-018` ("No subscription found") and the notification-preferences E2E both failed after a signup, and the initial triage pointed at app code. The real root cause was that the deployed `handle_new_user()` was an OLD version — the target staging DB's `on_auth_user_created` trigger was not creating the `subscriptions`/`notification_preferences` rows the tests assert. That is deployment lag / a stale trigger, not an app bug. The same principle bit a mobile UI change (2026-08-11): the header/nav redesign built the Trades badge against `trades.status` values taken from migrations (which had removed `payment_processing`), but the live staging CHECK constraint still allowed it — a migration-only assumption was wrong until verified against the live DB.
 
 Rules:
 - When a live-DB E2E/integration test creates a user and then asserts rows the signup trigger should create (subscription, notification prefs, SP wallet, profile defaults), FIRST verify the trigger is attached AND its handler is current in the target DB:
@@ -1369,12 +1371,18 @@ Rules:
 SELECT tgname, tgenabled FROM pg_trigger WHERE tgrelid = 'auth.users'::regclass;
 SELECT prosrc FROM pg_proc WHERE proname = '<signup handler>';
 ```
-- Confirm the handler's `prosrc` matches the latest canonical migration (grep migrations for the newest `CREATE OR REPLACE FUNCTION <handler>` and diff) — "trigger attached" is not enough; the deployed body may be stale.
-- Only after confirming the trigger + handler are present and current should a failure on trigger-created rows be treated as an app/code bug.
-- Deployment lag ≠ code bug: if the target DB's function predates the migration defining the asserted behavior, the fix is to apply the migration / redeploy the function — not to edit app code.
-- Cross-ref BP-16 (stale trigger comments) and BP-31 (verify trigger AND RPC layers): verify the trigger exists before trusting a comment, a test, or a symptom.
+- Before building client/EF/UI/admin logic that ASSUMES a discrete schema value set (enum/CHECK-constraint values, e.g. `trades.status`), read the LIVE constraint — the repo migration may have removed a value staging still allows (or vice versa):
+```sql
+SELECT pg_get_constraintdef(oid) AS check_def
+FROM pg_constraint
+WHERE conrelid = 'public.<table>'::regclass AND contype = 'c' AND conname = '<constraint>';
+```
+- Confirm the handler's `prosrc` (or the constraint definition) matches the latest canonical migration (grep migrations for the newest `CREATE OR REPLACE FUNCTION <handler>` / constraint and diff) — "trigger attached" / "migration present in repo" is not enough; the deployed/staging state may be stale or ahead.
+- Only after confirming the trigger + handler (or constraint) are present and current should a failure on trigger-created rows — or a mismatch with an assumed enum/CHECK set — be treated as an app/code bug.
+- Deployment lag ≠ code bug: if the target DB predates (or diverges from) the migration defining the asserted behavior, the fix is to apply the migration / redeploy — not to edit app code.
+- Cross-ref BP-16 (stale trigger comments) and BP-31 (verify trigger AND RPC layers): verify the live state before trusting a comment, a test, a migration, or a symptom.
 
-Detection checklist: any E2E failure message like "No subscription found", "notification preferences not created", or "wallet missing" immediately after signup → run the trigger-existence + `prosrc`-diff query above BEFORE opening app code.
+Detection checklist: any E2E failure message like "No subscription found", "notification preferences not created", or "wallet missing" immediately after signup → run the trigger-existence + `prosrc`-diff query above BEFORE opening app code. Any new logic that assumes an enum/CHECK value set (badge counts, status filters, admin pipelines) → read the live `pg_constraint` first; if the repo migration and the live DB disagree, reconcile staging before coding.
 
 BP-49: Admin Portal Client→API Auth — Always Send `x-admin-secret` on Browser Fetches to `/api/admin/*`
 Problem: The admin web app's browser→API routes authenticate two different ways: (1) the shared `x-admin-secret` header — client components send `NEXT_PUBLIC_ADMIN_UI_SECRET` — or (2) a Supabase JWT via an explicit `Authorization: Bearer` header. `verifyAdminAuth()` returns `{ authorized: false, error: 'No valid authentication provided' }` (HTTP 401) when a request carries NEITHER. The app has NO middleware, so the Supabase session cookie never reaches the API route. New client-side fetches that omit the header silently 401 — the page shows a generic "Fetch failed" / 401 instead of data.
@@ -1556,3 +1564,18 @@ Whenever implementing a state change that should notify users:
 
 ## BP-42: Tax Preview on Trade Detail Screens Must Use Joined Listing Price, Not `cash_amount_cents` — full text moved to `.github/instructions/mobile-client.instructions.md`.
 - Verify the screen has access to the joined listing (either via `trade.listing.price` or a separate item query) before assuming the fix is simple.
+
+## BP-52: Intentional Behavior Changes Must Update Their Widget Tests, Then Verify Pre-Existing Failures via Git
+
+**Problem:** A UI/logic change (e.g., converting a native `Alert.alert` to a branded modal, renaming a control, changing a label) intentionally breaks a widget test that asserts the OLD behavior. That test failure is EXPECTED, but without a rule it either (a) gets "fixed" by reverting the accessibility/UI change (defeating the task), or (b) gets blamed as a regression and triggers a wasted investigation. Unrelated pre-existing failures in the same suite can also get mixed into the blame.
+
+**Rules:**
+1. When a change intentionally alters behavior a widget test asserts on, UPDATE the test's assertion/finder to the new behavior in the SAME change — never remove the accessibility/UI prop to make the old test pass (cross-ref BP-34 for the per-call-site audit on Alert→Toast migrations).
+2. The old assertion breaking is expected and correct — do not treat it as a regression and do not revert the feature.
+3. After updating the intended test, classify ANY remaining suite failures as pre-existing BEFORE touching code: run `git status --short` / `git diff --stat` and confirm the failing file is NOT in the change set. If it isn't, it's pre-existing — report it, don't chase it as a regression introduced by this change.
+4. Document the deliberate UI change (e.g., `Alert.alert` → branded `ui/Modal`) in the Session Handoff's Backward Compatibility field so reviewers know the visual delta is intentional.
+
+**Detection checklist:**
+- Any widget test failing right after a UI change → open it first; if it asserts the old behavior, update it (Rule 1), then re-run.
+- Any failure still present after that → verify the file is absent from `git status`/`git diff` before classifying introduced-vs-pre-existing.
+- Example that triggered this rule (2026-08-11): an accessibility task converted the "Login Failed" / "Signup Failed" native alerts to branded modals; `LoginScreen.test.tsx` asserted `Alert.alert('Login Failed', …)` and had to be updated to assert the branded modal's `login-failed-dialog-ok-button`; the remaining `AutoCompleteBanner` failure was confirmed pre-existing via `git status`.

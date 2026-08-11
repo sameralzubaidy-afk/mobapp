@@ -13,6 +13,7 @@
  */
 
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import ItemCreateScreen from '../ItemCreateScreen';
 import * as ImagePicker from 'expo-image-picker';
@@ -39,6 +40,9 @@ jest.mock('../../hooks/useNotificationBadge', () => ({
     unreadCount: 0,
     refreshUnreadCount: jest.fn(),
   }),
+}));
+jest.mock('@/hooks/useUnreadMessagesBadge', () => ({
+  useUnreadMessagesBadge: () => ({ unreadCount: 0, refresh: jest.fn() }),
 }));
 jest.mock('expo-image-picker');
 jest.mock('@react-navigation/native', () => ({
@@ -543,6 +547,77 @@ describe('ItemCreateScreen', () => {
 
     it('should disable publish button during publishing', () => {
       // Test would set flowState to PUBLISHING and verify button is disabled
+    });
+  });
+
+  describe('Composer Title Pre-fill & AI Precedence', () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    const photoAsset = {
+      canceled: false,
+      assets: [
+        {
+          uri: 'photo1.jpg',
+          width: 800,
+          height: 600,
+          fileSize: 1000000,
+          mimeType: 'image/jpeg',
+        },
+      ],
+    } as any;
+
+    const renderWithPhoto = async (params: Record<string, any>) => {
+      mockImagePicker.mockResolvedValue(photoAsset);
+      const utils = renderScreen({ params } as any);
+      fireEvent.press(utils.getByTestId('add-photos-button'));
+      await waitFor(() => expect(mockImagePicker).toHaveBeenCalled());
+      return utils;
+    };
+
+    const aiReady = (result: any) =>
+      mockUseAIAnalysis.mockReturnValue({
+        status: 'ready',
+        result,
+        error: null,
+        analyze: jest.fn(),
+      } as any);
+
+    it('pre-fills the Title field from the composer bar', async () => {
+      const { getByDisplayValue } = await renderWithPhoto({
+        showPhotoSourcePrompt: false,
+        prefilledTitle: 'Lego Star Wars Set',
+      });
+      expect(getByDisplayValue('Lego Star Wars Set')).toBeTruthy();
+    });
+
+    it('does NOT overwrite a composer-pre-filled Title when AI Apply All is used', async () => {
+      aiReady({ title: { value: 'AI Title', confidence: 0.9 } });
+      const { getByDisplayValue, getByTestId } = await renderWithPhoto({
+        showPhotoSourcePrompt: false,
+        prefilledTitle: 'Lego Star Wars Set',
+      });
+      fireEvent.press(getByTestId('apply-all-button'));
+      expect(getByDisplayValue('Lego Star Wars Set')).toBeTruthy();
+      expect(alertSpy).toHaveBeenCalled();
+    });
+
+    it('keeps a composer-pre-filled Title when the AI per-field Use is tapped', async () => {
+      aiReady({ title: { value: 'AI Title', confidence: 0.9 } });
+      const { getByDisplayValue, getByTestId } = await renderWithPhoto({
+        showPhotoSourcePrompt: false,
+        prefilledTitle: 'Lego Star Wars Set',
+      });
+      fireEvent.press(getByTestId('use-title'));
+      expect(getByDisplayValue('Lego Star Wars Set')).toBeTruthy();
+    });
+
+    it('lets AI populate the Title when no composer text was entered', async () => {
+      aiReady({ title: { value: 'AI Title', confidence: 0.9 } });
+      const { getByDisplayValue, getByTestId } = await renderWithPhoto({
+        showPhotoSourcePrompt: false,
+      });
+      fireEvent.press(getByTestId('apply-all-button'));
+      expect(getByDisplayValue('AI Title')).toBeTruthy();
     });
   });
 });

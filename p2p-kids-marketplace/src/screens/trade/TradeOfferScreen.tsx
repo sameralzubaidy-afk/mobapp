@@ -34,6 +34,7 @@ import { getItemById, Item } from '@/services/items';
 import { createTradeOfferWithHold, mapStripeErrorToMessage } from '@/services/trade';
 import { useAuth, useSPWallet, useSubscriptionStatus } from '@/hooks/useAuth';
 import { getAdminConfig, getBuyerFeeForCheckout, type BuyerFeeInfo } from '@/services/adminConfig';
+import { trackEvent } from '@/services/analytics';
 import { calculateCategorySP } from '@/services/categoryService';
 import { getPaymentMethod, type PaymentMethodInfo } from '@/services/subscription';
 import { useStripe } from '@stripe/stripe-react-native';
@@ -171,7 +172,18 @@ export default function TradeOfferScreen() {
     const itemPriceCents = Math.round(item.price * 100);
     const cashPortionCents = itemPriceCents - spAmount * 100;
     getBuyerFeeForCheckout(cashPortionCents).then((fee) => {
-      if (!isCancelled && fee) setBuyerFeeInfo(fee);
+      if (!isCancelled && fee) {
+        setBuyerFeeInfo(fee);
+        // R9 — checkout event: fee breakdown shown to the buyer.
+        trackEvent('checkout_fee_shown', {
+          screen: 'trade_offer',
+          item_id: item.id,
+          fee_cents: fee.feeCents,
+          item_price_cents: itemPriceCents,
+          sp_amount: spAmount,
+          cash_portion_cents: cashPortionCents,
+        });
+      }
     });
     return () => {
       isCancelled = true;
@@ -334,6 +346,14 @@ export default function TradeOfferScreen() {
           ? subStatus.status
           : 'free';
 
+      // R9 — checkout event: user tapped Send Offer, checkout began.
+      trackEvent('checkout_started', {
+        screen: 'trade_offer',
+        item_id: item.id,
+        sp_amount: spAmount,
+        cash_amount_cents: cashAmountCents,
+      });
+
       const offerResult = await createTradeOfferWithHold({
         item_id: item.id,
         sp_amount: spAmount,
@@ -345,6 +365,13 @@ export default function TradeOfferScreen() {
       });
 
       if (!offerResult.success || !offerResult.trade_id) {
+        // R9 — checkout event: checkout did not complete.
+        trackEvent('checkout_failed', {
+          screen: 'trade_offer',
+          item_id: item.id,
+          reason: offerResult.error_code ?? 'offer_error',
+        });
+
         // D-30: max pending offers per seller (cap is admin-configurable)
         if (offerResult.error_code === 'MAX_PENDING_OFFERS') {
           setOfferLimitMessage(
@@ -394,6 +421,12 @@ export default function TradeOfferScreen() {
         listingType: item?.accepts_swap_points ? 'accept_sp' : 'cash_only',
       });
     } catch (error: any) {
+      // R9 — checkout event: unexpected failure during checkout.
+      trackEvent('checkout_failed', {
+        screen: 'trade_offer',
+        item_id: item.id,
+        reason: 'unexpected_error',
+      });
       console.error('[TradeOfferScreen] handleInitiateTrade error:', error);
       setErrorModal({
         visible: true,

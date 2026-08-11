@@ -1284,7 +1284,12 @@ const styles = StyleSheet.create({
   // Input bar: #F7F7F7 bg strip
   inputContainer: {
     flexDirection: 'row',
-    padding: 12,
+    paddingTop: 12,
+    paddingHorizontal: 12,
+    // Clear the floating pill nav (PersistentTabBar now overlays the stack
+    // content): pill top sits ~110pt from the bottom (safe-area + spacing.sm +
+    // pill height), so the input must stay above it.
+    paddingBottom: 120,
     backgroundColor: '#F7F7F7',
     alignItems: 'center',
     gap: 8,

@@ -106,6 +106,15 @@ export interface Trade {
   seller_marked_completed_at?: string | null;
   cancellation_reason?: string | null;
   last_status_change_at: string;
+
+  // R15 (2026-08-10) — Trade Extension (one-time, pickup window only)
+  extension_status?: 'requested' | 'accepted' | 'denied' | 'auto_denied' | 'reauth_failed' | null;
+  extension_requested_by?: string | null;
+  extension_requested_at?: string | null;
+  extension_request_expires_at?: string | null;
+  extension_responded_by?: string | null;
+  extension_responded_at?: string | null;
+  extension_granted_at?: string | null;
 }
 
 /** TFV2-002: Stats per listing for unanswered offer tracking (seller inbox). */

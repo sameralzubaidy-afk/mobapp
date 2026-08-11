@@ -40,6 +40,9 @@ jest.mock('@/hooks/useAuth', () => ({
 
 jest.mock('@/hooks/useSubscription', () => ({ useSubscription: jest.fn() }));
 jest.mock('@/hooks/useNotificationBadge', () => ({ useNotificationBadge: jest.fn() }));
+jest.mock('@/hooks/useUnreadMessagesBadge', () => ({
+  useUnreadMessagesBadge: () => ({ unreadCount: 0, refresh: jest.fn() }),
+}));
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
@@ -75,6 +78,7 @@ const DEFAULT_SESSION = {
     email: 'test@example.com',
     display_name: 'Samer',
     avatar_url: null,
+    node: { name: 'Ledgewood Dr', city: 'Norwalk', state: 'CT' },
   },
 };
 
@@ -124,10 +128,25 @@ describe('UserDashboardScreen — MODULE-15.1 FLOW-16', () => {
     setupMocks();
   });
 
-  // ── Greeting ────────────────────────────────────────────────────────────────
-  it('renders user display name in the header', () => {
-    const { getByText } = render(<UserDashboardScreen />);
-    expect(getByText('Samer')).toBeTruthy();
+  // ── Header (redesigned) ─────────────────────────────────────────────────────
+  it('renders the read-only node/market chip in the header', () => {
+    const { getByTestId, getByText } = render(<UserDashboardScreen />);
+    expect(getByTestId('header-node-chip')).toBeTruthy();
+    expect(getByText('Ledgewood Dr')).toBeTruthy();
+  });
+
+  it('renders the Home composer bar below the header', () => {
+    const { getByTestId } = render(<UserDashboardScreen />);
+    expect(getByTestId('composer-bar')).toBeTruthy();
+  });
+
+  it('composer submit navigates to ItemCreate with the typed title', () => {
+    const { getByTestId } = render(<UserDashboardScreen />);
+    fireEvent.changeText(getByTestId('composer-input'), 'Lego Set');
+    fireEvent.press(getByTestId('composer-add-button'));
+    expect(mockNavigate).toHaveBeenCalledWith('ItemCreate', {
+      prefilledTitle: 'Lego Set',
+    });
   });
 
   // ── SP Strip ────────────────────────────────────────────────────────────────

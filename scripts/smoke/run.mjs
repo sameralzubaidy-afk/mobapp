@@ -39,6 +39,7 @@ if (args.includes('--all')) {
   runScript('transactions');
   runScript('payouts');
   runScript('referrals');
+  runScript('dispute-evidence');
   process.exit(process.exitCode ?? 0);
 }
 

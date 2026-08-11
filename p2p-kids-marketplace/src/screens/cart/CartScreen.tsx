@@ -1046,7 +1046,10 @@ const styles = StyleSheet.create({
 
   stickyBottomContainer: {
     position: 'absolute',
-    bottom: 70,
+    // Clear the floating pill nav (PersistentTabBar now overlays the stack
+    // content): pill top sits ~110pt from the bottom (safe-area + spacing.sm +
+    // pill height), so the sticky total/checkout bar must sit above it.
+    bottom: 120,
     left: 0,
     right: 0,
     backgroundColor: '#FFFFFF',

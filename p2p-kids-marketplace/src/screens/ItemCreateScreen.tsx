@@ -125,6 +125,10 @@ export default function ItemCreateScreen() {
   const draftId = route.params?.draftId;
   const initialPhotoSource = route.params?.initialPhotoSource as PhotoSourceOption | undefined;
   const showPhotoSourcePrompt = route.params?.showPhotoSourcePrompt !== false;
+  // Home composer pre-fill — Title came from the composer bar and must NEVER be
+  // overwritten by AI analysis, even via the per-field "Use" action (spec).
+  const prefilledTitle = route.params?.prefilledTitle;
+  const titlePrefilledFromComposerRef = useRef(Boolean(prefilledTitle));
   const sellerId = session?.user?.id || '';
   const hasTriggeredInitialDraftCreateRef = useRef(false);
   const hasHydratedDraftRef = useRef(false);
@@ -245,6 +249,14 @@ export default function ItemCreateScreen() {
     setRestoredPhotoUrls([]);
     setIsDraftHydrated(!draftId);
   }, [draftId]);
+
+  // Composer pre-fill: if the user typed a title in the Home composer bar, pre-fill
+  // the Title field. Draft resume takes precedence when a draftId is present.
+  useEffect(() => {
+    if (draftId) return; // draft resume wins
+    if (!prefilledTitle) return;
+    setTitle(prefilledTitle);
+  }, [draftId, prefilledTitle]);
 
   // Hydrate form state once when resuming an existing draft.
   useEffect(() => {
@@ -610,8 +622,9 @@ export default function ItemCreateScreen() {
   const handleApplyAllAI = () => {
     if (!aiResult) return;
 
-    // Apply only to empty fields
-    if (!title && aiResult.title) {
+    // Apply only to empty fields. A composer-pre-filled Title is NEVER
+    // overwritten by AI (spec: composer-bar text always wins).
+    if (!title && aiResult.title && !titlePrefilledFromComposerRef.current) {
       setTitle(aiResult.title.value);
     }
 
@@ -648,6 +661,8 @@ export default function ItemCreateScreen() {
   const handleApplyFieldAI = (field: keyof AIAnalysisResult, value: any) => {
     switch (field) {
       case 'title':
+        // Composer-pre-filled titles must never be overwritten by AI (spec).
+        if (titlePrefilledFromComposerRef.current) break;
         setTitle(value);
         break;
       case 'category':

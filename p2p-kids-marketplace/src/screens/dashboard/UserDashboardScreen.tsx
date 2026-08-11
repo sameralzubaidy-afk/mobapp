@@ -28,6 +28,7 @@ import { ItemDraft } from '@/types/listing';
 
 // Shared components (unchanged — DO NOT MODIFY)
 import ScreenLayout from '@/components/ScreenLayout';
+import ComposerBar from '@/components/home/ComposerBar';
 import CategorySelector from '../../components/molecules/CategorySelector';
 import RecommendationsCarousel from '../../components/organisms/RecommendationsCarousel';
 import { ResumeDraftBanner } from '../../components/molecules/ResumeDraftBanner';
@@ -246,7 +247,7 @@ export default function UserDashboardScreen() {
   // Old content stays visible behind the RefreshControl spinner.
   if ((isLoading || subscriptionLoading) && !refreshing) {
     return (
-      <ScreenLayout variant="main" showLogout style={styles.container}>
+      <ScreenLayout variant="main" style={styles.container}>
         <View style={styles.centerContent}>
           <LoadingSpinner />
         </View>
@@ -256,7 +257,7 @@ export default function UserDashboardScreen() {
 
   if (!session) {
     return (
-      <ScreenLayout variant="main" showLogout style={styles.container}>
+      <ScreenLayout variant="main" style={styles.container}>
         <View style={styles.centerContent}>
           <Text style={styles.errorText}>No session found. Please log in.</Text>
         </View>
@@ -297,7 +298,10 @@ export default function UserDashboardScreen() {
   // ── JSX ────────────────────────────────────────────────────────────────────
   return (
     <View testID="dashboard-screen" style={{ flex: 1 }}>
-    <ScreenLayout variant="main" showLogout style={styles.container}>
+    <ScreenLayout variant="main" style={styles.container}>
+      {/* ── Home Composer Bar (persistent, directly below header) ─────────── */}
+      <ComposerBar />
+
       {/* ── Scrollable Content ─────────────────────────────────────────────── */}
       <ScrollView
         style={styles.scroll}

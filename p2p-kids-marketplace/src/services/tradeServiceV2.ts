@@ -171,3 +171,85 @@ export async function declineBundleOffers(
 
   return data;
 }
+
+/**
+ * R15 (2026-08-10): Request ONE extension during the pickup window (buyer or seller).
+ * Calls the `trade-extension` Edge Function (action='request'). The counterparty
+ * has `extension_response_window_hours` (default 4h) to accept/decline; no response
+ * auto-denies + auto-cancels. Any second request on the same trade is rejected.
+ */
+export async function requestTradeExtension(
+  tradeId: string
+): Promise<{ success: boolean; data?: Record<string, unknown> }> {
+  const { data, error } = await supabase.functions.invoke('trade-extension', {
+    body: { action: 'request', trade_id: tradeId },
+  });
+
+  if (error) {
+    const context = (error as any)?.context || {};
+    const efError = (data as any)?.error || {};
+    console.error('[tradeServiceV2] requestTradeExtension error:', {
+      tradeId,
+      errorCode: efError.code || context.code,
+      errorMessage: efError.message || context.message,
+      statusCode: context.status,
+    });
+    const detail = efError.message ? ` (${efError.code}: ${efError.message})` : '';
+    throw new Error(`Could not request an extension.${detail}`);
+  }
+
+  if (!data || data.success !== true) {
+    throw new Error('Could not request an extension.');
+  }
+
+  return data;
+}
+
+/**
+ * R15 (2026-08-10): Accept or decline a pending extension request (counterparty only).
+ * Calls the `trade-extension` Edge Function.
+ *  - accept: voids the existing hold + places a FRESH authorization. `paymentMethodId`
+ *    is the buyer's saved card (pm_...) and is REQUIRED when the trade has a cash hold.
+ *  - decline: releases the hold and auto-cancels the trade via the shared R2 path.
+ */
+export async function respondToExtension(
+  tradeId: string,
+  action: 'accept' | 'decline',
+  paymentMethodId?: string
+): Promise<{ success: boolean; data?: Record<string, unknown> }> {
+  const { data, error } = await supabase.functions.invoke('trade-extension', {
+    body: {
+      action,
+      trade_id: tradeId,
+      ...(action === 'accept' && paymentMethodId ? { payment_method_id: paymentMethodId } : {}),
+    },
+  });
+
+  if (error) {
+    const context = (error as any)?.context || {};
+    const efError = (data as any)?.error || {};
+    console.error('[tradeServiceV2] respondToExtension error:', {
+      action,
+      tradeId,
+      errorCode: efError.code || context.code,
+      errorMessage: efError.message || context.message,
+      statusCode: context.status,
+    });
+    const detail = efError.message ? ` (${efError.code}: ${efError.message})` : '';
+    throw new Error(
+      action === 'accept'
+        ? `Could not accept the extension request.${detail}`
+        : `Could not decline the extension request.${detail}`
+    );
+  }
+
+  if (!data || data.success !== true) {
+    throw new Error(
+      action === 'accept'
+        ? 'Could not accept the extension request.'
+        : 'Could not decline the extension request.'
+    );
+  }
+
+  return data;
+}

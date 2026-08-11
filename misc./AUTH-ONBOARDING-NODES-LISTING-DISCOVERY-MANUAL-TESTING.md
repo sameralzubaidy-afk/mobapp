@@ -1,8 +1,8 @@
 # Auth · Onboarding · Nodes · Listing · Discovery — Manual Testing Guide
 
 **Source of truth:** `Prompts/Done/MODULE-02-AUTHENTICATION.md` · `Prompts/MODULE-03-AUTH-V2.md` · `Prompts/V3/MODULE-03-AUTH-V3-SOCIAL-LOGIN.md` · `Prompts/MODULE-03-NODE-MANAGEMENT.md` · `Prompts/V3/MODULE-04-ITEM-LISTING-V3.md` · `Prompts/Done/MODULE-05-DISCOVERY-V2.md` · `docs/flow-registry.md`
-**Flows covered:** FLOW-01 (Signup/Login/Logout/Session Restore) · FLOW-02 (Profiles & Onboarding) · FLOW-03 (Node/ZIP Gating + Waitlist) · FLOW-04 (Listings — Create/Bulk/Pending) · FLOW-04C (Category SP Calculations & Bonus Badges) · FLOW-05 (Media Upload / Storage) · FLOW-06 (Discovery — Feed/Search/Filters/Favorites)
-**Last updated:** 2026-05-30
+**Flows covered:** FLOW-01 (Signup/Login/Logout/Session Restore) · FLOW-02 (Profiles & Onboarding) · FLOW-03 (Node/ZIP Gating + Waitlist) · FLOW-04 (Listings — Create/Bulk/Pending) · FLOW-04C (Category SP Calculations & Bonus Badges) · FLOW-05 (Media Upload / Storage) · FLOW-06 (Discovery — Feed/Search/Filters/Favorites) · FLOW-30 (Global App Shell — Header, Floating Nav & Home Composer)
+**Last updated:** 2026-08-11
 **Scope:** End-user manual testing via app screens + admin portal screens (no SQL / no DB access required)
 **Devices:** iOS Simulator + Android Emulator · Admin portal in browser
 
@@ -101,6 +101,25 @@
 | | TC-O03 | Inactive ZIP in filter → waitlist prompt |
 | | TC-O04 | Subscriber vs free SP visibility |
 | | TC-O05 | Admin radius defaults and bounds reflect in Discover |
+| **P — Global Header, Floating Nav & Home Composer** | TC-P01 | Header node chip shows registered market (read-only) |
+| | TC-P02 | Header right cluster: bell + chat + avatar; logout removed from header |
+| | TC-P03 | Header chat icon opens Messages with unread badge |
+| | TC-P04 | Floating pill nav: order, margins, radius, shadow, safe area |
+| | TC-P05 | Inbox removed from nav; Messages via header chat only |
+| | TC-P06 | Trades tab: Active Trades (item, counterpart, status label) |
+| | TC-P07 | Trades tab: Trade History (reverse chronological) |
+| | TC-P08 | Trades badge counts active (not completed/cancelled) |
+| | TC-P09 | Basket badge + Home active state unchanged |
+| | TC-P10 | Post FAB globally visible + opens Sell sheet |
+| | TC-P11 | Composer bar: tap focuses, type, placeholder |
+| | TC-P12 | Composer "+" → New Item Photos step, Title pre-filled |
+| | TC-P13 | Composer empty submit → empty Title |
+| | TC-P14 | Composer camera → New Item straight to camera |
+| | TC-P15 | AI never overwrites composer-pre-filled Title |
+| | TC-P16 | FAB Sell sheet unchanged (parallel entry point) |
+| | TC-P17 | Logout still reachable from Profile/Settings |
+| | TC-P18 | Composer analytics (tap + submit with/without text) |
+| | TC-P19 | Accessibility identifiers (Trades tab, header chat) |
 
 ---
 
@@ -1366,6 +1385,268 @@
 
 ---
 
+## Group P — Global Header, Floating Nav & Home Composer
+
+> Chrome redesign (2026-08-11): read-only node chip header, floating pill bottom nav (Home / Discover / Sell / Trades / Basket), Trades tab, and Home composer bar that pre-fills the New Item Title. See `docs/flow-registry.md` FLOW-30.
+
+### TC-P01 · Header node chip shows the registered market (read-only)
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Home header shows the user's registered node/local market name and is display-only.
+
+**Steps:**
+1. Log in as **test-buyer** (assigned to a node during onboarding).
+2. Observe the left side of the Home header.
+
+**Expected Result:**
+- A compact pill chip shows the node/local market name selected at registration (e.g., "Ledgewood Dr").
+- Tapping the chip does nothing — no picker, modal, or navigation opens, and no caret/chevron is shown.
+
+### TC-P02 · Header right cluster: bell + chat + avatar; logout removed from header
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Home header shows bell, chat and avatar in a tight cluster and no longer shows a logout icon.
+
+**Steps:**
+1. Log in and observe the Home header right side.
+2. Look for a standalone logout icon.
+
+**Expected Result:**
+- Right cluster shows (left to right): notification bell, chat/messages icon, user avatar.
+- No logout icon appears in the header.
+
+### TC-P03 · Header chat icon opens Messages with an unread badge
+
+**Actors:** test-buyer
+
+**Objective:** Verify the header chat icon opens the Messages screen and shows the same unread count the old Inbox tab badge showed.
+
+**Steps:**
+1. Have a trade with an unread message (or send one from another account).
+2. Tap the chat icon in the header.
+
+**Expected Result:**
+- A red numeric badge on the chat icon shows the unread-message count (99+ capped).
+- Tapping it opens the Messages (conversations) screen.
+
+### TC-P04 · Floating pill bottom nav: layout
+
+**Actors:** test-buyer
+
+**Objective:** Verify the bottom nav is a floating pill, not a full-width bar.
+
+**Steps:**
+1. Log in and observe the bottom of the screen.
+
+**Expected Result:**
+- The nav is a rounded pill with horizontal margin from both screen edges, elevated with a subtle shadow, and sits above the iOS home-indicator safe area.
+- Tab order left to right: Home, Discover, Sell FAB, Trades, Basket.
+
+### TC-P05 · Inbox removed from nav; Messages via header chat only
+
+**Actors:** test-buyer
+
+**Objective:** Verify the bottom nav no longer has an Inbox tab and Messages is reached from the header.
+
+**Steps:**
+1. Observe the bottom nav (no Inbox tab).
+2. Tap the header chat icon to open Messages.
+
+**Expected Result:**
+- No Inbox tab in the bottom nav.
+- Messages opens from the header chat icon; the Messages screen still works as before.
+
+### TC-P06 · Trades tab — Active Trades
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Trades tab shows active trades with item, counterpart, and status label.
+
+**Steps:**
+1. Have at least one trade in `pending` or `in_progress` status.
+2. Tap the Trades tab.
+
+**Expected Result:**
+- Active Trades lists each active trade with the item, the counterpart user, and a status label (e.g., Pending Confirmation, In Progress).
+
+### TC-P07 · Trades tab — Trade History
+
+**Actors:** test-buyer
+
+**Objective:** Verify completed/cancelled trades appear in Trade History, reverse-chronological.
+
+**Steps:**
+1. Have at least one completed and/or cancelled trade.
+2. Open the Trades tab History section.
+
+**Expected Result:**
+- Completed and cancelled trades appear under Trade History, newest first.
+
+### TC-P08 · Trades badge counts active trades only
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Trades tab badge equals active (non-terminal) trades and excludes completed/cancelled.
+
+**Steps:**
+1. Note the badge on the Trades tab.
+2. Complete or cancel a trade, then return to the tab bar.
+
+**Expected Result:**
+- The badge counts trades with status `pending`, `in_progress` (and `payment_failed`/legacy `payment_processing` if present).
+- Completed and cancelled trades do NOT count toward the badge.
+
+### TC-P09 · Basket badge + Home active state unchanged
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Basket badge and Home tab active styling carry over.
+
+**Steps:**
+1. Add items to the trade basket and observe the Basket badge.
+2. Navigate between tabs and observe Home's active highlight.
+
+**Expected Result:**
+- Basket badge shows the item count (99+ capped).
+- Home tab shows the active green highlight when selected.
+
+### TC-P10 · Post FAB globally visible + Sell sheet
+
+**Actors:** test-buyer
+
+**Objective:** Verify the Sell FAB is visible on every screen and still opens the Sell sheet.
+
+**Steps:**
+1. Visit Home, Discover, Trades, Messages, and Basket.
+2. Tap the Sell FAB.
+
+**Expected Result:**
+- The FAB is visible on every screen (raised orange circle above the pill).
+- Tapping it opens the Sell action sheet with "List One Item" and "Bulk Upload".
+
+### TC-P11 · Composer bar: focus + type
+
+**Actors:** test-buyer
+
+**Objective:** Verify tapping the Home composer bar focuses an inline text field.
+
+**Steps:**
+1. On Home, tap anywhere on the composer bar below the header.
+
+**Expected Result:**
+- The inline field focuses (keyboard appears) and the user can type freely.
+- No navigation happens on focus.
+
+### TC-P12 · Composer "+" → New Item with Title pre-filled
+
+**Actors:** test-buyer
+
+**Objective:** Verify the composer "+" routes to the single-item flow and pre-fills the Title.
+
+**Steps:**
+1. Type "Lego Star Wars Set" into the composer.
+2. Tap the "+" button (or press keyboard return).
+
+**Expected Result:**
+- The New Item screen opens on its Photos step (no Sell sheet appears).
+- The Title field already contains "Lego Star Wars Set".
+
+### TC-P13 · Composer empty submit → empty Title
+
+**Actors:** test-buyer
+
+**Objective:** Verify submitting with no text leaves the Title empty (no regression).
+
+**Steps:**
+1. Tap "+" with the composer empty.
+
+**Expected Result:**
+- New Item opens on its Photos step with an empty Title field.
+
+### TC-P14 · Composer camera icon → New Item straight to camera
+
+**Actors:** test-buyer
+
+**Objective:** Verify the composer camera icon opens New Item directly to the camera.
+
+**Steps:**
+1. Type a title, then tap the camera icon.
+
+**Expected Result:**
+- New Item opens on the Photos step and auto-launches the camera.
+- The typed title is still pre-filled.
+
+### TC-P15 · AI never overwrites a composer-pre-filled Title
+
+**Actors:** test-buyer
+
+**Objective:** Verify AI analysis cannot overwrite a Title pre-filled from the composer bar.
+
+**Steps:**
+1. Pre-fill a Title via the composer (TC-P12).
+2. Add a photo and let AI analysis complete; tap "Apply All" and per-field "Use".
+
+**Expected Result:**
+- The pre-filled Title is never replaced by the AI-suggested title.
+- If the user entered no text, AI may still populate the Title as before.
+
+### TC-P16 · FAB Sell sheet unchanged (parallel entry point)
+
+**Actors:** test-buyer
+
+**Objective:** Verify the FAB still opens the full Sell sheet with Bulk Upload.
+
+**Steps:**
+1. Tap the Sell FAB and confirm the sheet shows "List One Item" and "Bulk Upload".
+
+**Expected Result:**
+- The FAB sheet is unchanged; Bulk Upload is reachable only from here (not the composer bar).
+
+### TC-P17 · Logout still reachable from Profile/Settings
+
+**Actors:** test-buyer
+
+**Objective:** Verify logout still exists after being removed from the header.
+
+**Steps:**
+1. Tap the header avatar → Profile.
+2. Tap Logout (confirm) and also check Settings → Sign Out.
+
+**Expected Result:**
+- Logout works from Profile and Settings; the user returns to Landing.
+
+### TC-P18 · Composer analytics events
+
+**Actors:** test-admin
+
+**Objective:** Verify composer events are recorded.
+
+**Steps:**
+1. On Home, tap the composer bar (focus).
+2. Submit with text, then submit empty.
+3. As admin, inspect `analytics_events` (or the analytics dashboard).
+
+**Expected Result:**
+- `composer_bar_tapped` recorded on focus.
+- `composer_bar_submit` recorded with `has_text=true` and `has_text=false` respectively.
+
+### TC-P19 · Accessibility identifiers (Trades tab + header chat)
+
+**Actors:** test-buyer
+
+**Objective:** Verify stable accessibility identifiers/roles on the new chrome.
+
+**Steps:**
+1. Enable VoiceOver/TalkBack and navigate the bottom nav and header.
+
+**Expected Result:**
+- Trades tab has a button role + label "Trades" (testID `tab-trades`).
+- Header chat button has label "Messages" (testID `header-chat-btn`); the node chip is not announced as a button.
+
+---
+
 ## Regression checks (run after any change to these flows)
 
 ### TC-R01 · Auth boundary integrity
@@ -1418,10 +1699,73 @@
 
 ---
 
+## Accessibility & Automation Identifiers (2026-08-11)
+
+> These cases verify the stable accessibility identifiers added for the AI-agent / accessibility-tree automation pilot.
+> They apply to the iOS accessibility tree (Accessibility Inspector or the automation harness). Identifiers must be
+> discoverable WITHOUT screenshot/coordinate tapping. See `docs/flow-registry.md` FLOW-00/FLOW-01 (ACCESSIBILITY-IDENTIFIERS).
+
+### TC-ACC-01 · Sign Up submit button is discoverable by identifier
+
+**Objective:** Verify the Create Account submit button appears as a button with a stable identifier.
+**Steps:**
+1. From Landing, tap **Sign Up** (Create Account screen).
+2. Inspect the iOS accessibility tree.
+**Expected Result:**
+- The submit control appears as a button with identifier `signup-submit-button` and label "Create Account". No coordinate tap needed.
+
+### TC-ACC-02 · Log In submit button is discoverable by identifier
+
+**Objective:** Verify the Log In submit button appears as a button with a stable identifier.
+**Steps:**
+1. From Landing, tap **Log In**.
+2. Inspect the iOS accessibility tree.
+**Expected Result:**
+- The submit control appears as a button with identifier `login-submit-button` and label "Log In". No coordinate tap needed.
+
+### TC-ACC-03 · Auth error dialog OK buttons are discoverable by identifier
+
+**Objective:** Verify the blocking auth error dialogs expose an identifiable OK button.
+**Steps:**
+1. Log in with a wrong password (e.g. `WrongPassword123!`) to trigger the "Login Failed" dialog.
+2. Inspect the tree while the dialog is up; confirm identifier `login-failed-dialog-ok-button`; tap it via the tree to dismiss.
+3. (If reachable) trigger a backend signup failure so the "Signup Failed" dialog appears; confirm identifier `signup-error-dialog-ok-button`.
+**Expected Result:**
+- Each dialog's OK button is a button in the tree with its own identifier and is activatable by identifier. User stays on the same screen after dismiss (no navigation change).
+
+### TC-ACC-04 · Bottom tab bar items are discoverable by identifier
+
+**Objective:** Verify every persistent bottom tab exposes an accessible button with a stable identifier.
+**Steps:**
+1. Log in and land on Home.
+2. Inspect the tree at the bottom bar.
+**Expected Result:**
+- Tabs appear as buttons: `tab-home`, `tab-discover`, `tab-sell` (Sell FAB), `tab-inbox`, `tab-trade-basket` — each with its visible label and selected state, activatable by identifier.
+
+### TC-ACC-05 · No visual/layout regression from identifiers
+
+**Objective:** Confirm adding accessibility props changed no visuals.
+**Steps:**
+1. Screenshot Create Account, Login, the "Login Failed" dialog, and Home before and after this change.
+2. Compare pixels (or eyeball layout) — no shifts, color changes, or text changes.
+**Expected Result:**
+- Identical layout/colors/text. (Zero-logic UI change.)
+
+### TC-ACC-06 · Widget tests still pass
+
+**Objective:** Ensure the accessibility props did not break unit tests.
+**Steps:**
+1. Run `cd p2p-kids-marketplace && yarn test`.
+**Expected Result:**
+- All suites pass. If a widget test asserts on the tree structure and a new identifier breaks a finder, update the finder to the new `testID` — do not remove the accessibility props.
+
+---
+
 ## Verification checklist mapping
 
 | Verification item | Test cases |
 |---|---|
+| Accessibility identifiers: Sign Up / Log In / dialog OK / tab bar | TC-ACC-01 … TC-ACC-06 |
 | Signup happy path → phone verification | TC-A01 |
 | Signup field validation | TC-A02, TC-A03 |
 | 18+ age gate | TC-A04 |

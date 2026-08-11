@@ -6,8 +6,8 @@
  * Renders AppHeader above children with consistent safe-area handling.
  *
  * Usage:
- *   // Home screen (greeting header + logout button)
- *   <ScreenLayout variant="main" showLogout>
+ *   // Home screen (read-only node chip + bell/chat/avatar cluster)
+ *   <ScreenLayout variant="main">
  *     {content}
  *   </ScreenLayout>
  *
@@ -47,7 +47,6 @@ export default function ScreenLayout({
   variant,
   title,
   showBell,
-  showLogout,
   onBack,
   children,
   style,
@@ -61,7 +60,6 @@ export default function ScreenLayout({
         variant={variant}
         title={title}
         showBell={showBell}
-        showLogout={showLogout}
         onBack={onBack}
       />
       {children}

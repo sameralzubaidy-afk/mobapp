@@ -12,7 +12,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import Stripe from 'https://esm.sh/stripe@14.11.0';
-import { logFinancialAudit } from '../_shared/audit.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -135,20 +134,8 @@ serve(async (req) => {
 
   // TAX-STATUS-LIFECYCLE: On refund path, cancel the Stripe PI and void/refund tax
   if (action === 'resolve_refund') {
-    // R4 (2026-08-09): idempotency guard — if Stripe already reversed this
-    // trade's charge via a LOST dispute (Direct charges debit the seller first),
-    // skip the manual Stripe refund here to avoid double-refunding.
-    const { data: existingDisputeCost } = await svcClient
-      .from('dispute_costs')
-      .select('id, dispute_id')
-      .eq('trade_id', trade_id)
-      .eq('status', 'lost')
-      .maybeSingle();
-
-    if (existingDisputeCost) {
-      console.log(`[resolve-dispute] Trade ${trade_id} already reversed by lost dispute ${existingDisputeCost.dispute_id} — skipping manual Stripe refund`);
-    } else if (trade.stripe_payment_intent_id) {
-      // Cancel PI (for in_progress trades where PI was captured, issue a refund)
+    // Cancel PI (for in_progress trades where PI was captured, issue a refund)
+    if (trade.stripe_payment_intent_id) {
       const stripeKey = (Deno.env.get('STRIPE_SECRET_KEY') ?? '').trim();
       if (stripeKey && stripeKey.startsWith('sk_')) {
         const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' });
@@ -241,43 +228,6 @@ serve(async (req) => {
         if (error) console.error('[resolve-dispute] SP release error:', error.message);
       });
     }
-  }
-
-  // N2 — Idempotency & Audit: dispute-resolution transitions.
-  if (action === 'resolve_complete') {
-    logFinancialAudit(svcClient, {
-      mutationType: 'trade_completed',
-      entityType: 'trade',
-      entityId: trade_id,
-      actorId: user.id,
-      afterState: { resolution, status: 'completed' },
-      idempotencyKey: `trade_completed_${trade_id}`,
-    });
-  } else if (action === 'resolve_refund') {
-    logFinancialAudit(svcClient, {
-      mutationType: 'refund_issued',
-      entityType: 'trade',
-      entityId: trade_id,
-      actorId: user.id,
-      afterState: { resolution, status: 'cancelled', note: 'dispute_resolved_refund' },
-      idempotencyKey: `refund_${trade_id}`,
-    });
-    logFinancialAudit(svcClient, {
-      mutationType: 'trade_cancelled',
-      entityType: 'trade',
-      entityId: trade_id,
-      actorId: user.id,
-      afterState: { reason: 'dispute_resolved_refund', status: 'cancelled' },
-      idempotencyKey: `trade_cancelled_${trade_id}`,
-    });
-    logFinancialAudit(svcClient, {
-      mutationType: 'tax_voided',
-      entityType: 'trade',
-      entityId: trade_id,
-      actorId: user.id,
-      afterState: { reason: 'dispute_resolved_refund' },
-      idempotencyKey: `tax_voided_${trade_id}`,
-    });
   }
 
   // Log event

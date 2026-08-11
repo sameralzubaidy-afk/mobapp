@@ -46,6 +46,7 @@ import { useSubscriptionStatus } from '@/hooks/useAuth';
 import { calculateTax, isTaxExemptCategory } from '@/services/tax';
 import TaxBreakdownRow from '@/components/trade/TaxBreakdownRow';
 import { getBuyerFeeForCheckout, getChargeOneFeePerBundle, type BuyerFeeInfo } from '@/services/adminConfig';
+import { trackEvent } from '@/services/analytics';
 import { supabase } from '@/config/supabase';
 import { getBuyerSpBalance } from '@/services/spWalletService';
 import { calculateCategorySP } from '@/services/categoryService';
@@ -172,7 +173,17 @@ export default function CartCheckoutScreen() {
     const cashPortionCents = Math.max(0, subtotalCents - spCents);
     getBuyerFeeForCheckout(cashPortionCents)
       .then((fee) => {
-        if (!cancelled && fee) setBuyerFeeInfo(fee);
+        if (!cancelled && fee) {
+          setBuyerFeeInfo(fee);
+          // R9 — checkout event: fee breakdown shown to the buyer (cart bundle).
+          trackEvent('checkout_fee_shown', {
+            screen: 'cart_checkout',
+            subtotal_cents: subtotalCents,
+            fee_cents: fee.feeCents,
+            sp_amount_cents: spCents,
+            cash_portion_cents: cashPortionCents,
+          });
+        }
       })
       .catch(() => {
         /* display-only fallback; the Edge Function is authoritative */
@@ -498,6 +509,15 @@ export default function CartCheckoutScreen() {
         totalSpCents += spCents;
       }
 
+      // R9 — checkout event: user tapped Send Offer, checkout began.
+      trackEvent('checkout_started', {
+        screen: 'cart_checkout',
+        bundle_id: cart.bundleId ?? bundleId,
+        item_count: cart.items?.length ?? 0,
+        sp_amount_cents: totalSpCents,
+        subtotal_cents: Math.round((cart?.subtotal ?? 0) * 100),
+      });
+
       const result: CartResult<{ tradeIds: string[]; bundleId: string }> = await checkoutCart({
         bundleId: cart.bundleId ?? bundleId,
         spAmountCents: totalSpCents,
@@ -507,6 +527,12 @@ export default function CartCheckoutScreen() {
       });
 
       if (!result.success) {
+        // R9 — checkout event: cart checkout did not complete.
+        trackEvent('checkout_failed', {
+          screen: 'cart_checkout',
+          reason: result.error.code ?? 'checkout_error',
+        });
+
         // If the EF returned NO_PAYMENT_METHOD (shouldn't happen now, but guard)
         if (result.error.code === 'NO_PAYMENT_METHOD') {
           setShowPaymentMethodModal(true);
@@ -548,6 +574,11 @@ export default function CartCheckoutScreen() {
         tradeId: tradeIds[0] ?? '',
       });
     } catch (e) {
+      // R9 — checkout event: unexpected failure during cart checkout.
+      trackEvent('checkout_failed', {
+        screen: 'cart_checkout',
+        reason: 'unexpected_error',
+      });
       console.error('[CartCheckoutScreen] Checkout error:', e);
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
@@ -935,7 +966,10 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    // Clear the floating pill nav (PersistentTabBar now overlays the stack
+    // content): pill top sits ~110pt from the bottom (safe-area + spacing.sm +
+    // pill height), so the Send Offer button scrolls fully above it.
+    paddingBottom: 120,
   },
   section: {
     backgroundColor: colors.neutral.white,

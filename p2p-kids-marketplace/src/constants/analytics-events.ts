@@ -47,3 +47,31 @@ export const REVIEW_EVENTS = {
   REVIEW_EDITED: 'review_edited',
   REVIEW_REPORTED: 'review_reported',
 };
+
+/**
+ * Global chrome (header + bottom nav) tap tracking.
+ * Note: these are NEW events — the nav bar previously fired no analytics.
+ */
+export const NAV_EVENTS = {
+  HOME_TAB_TAPPED: 'tab_home_tapped',
+  DISCOVER_TAB_TAPPED: 'tab_discover_tapped',
+  SELL_FAB_TAPPED: 'sell_fab_tapped',
+  TRADES_TAB_TAPPED: 'tab_trades_tapped',
+  BASKET_TAB_TAPPED: 'tab_basket_tapped',
+};
+
+export const HEADER_EVENTS = {
+  NOTIFICATIONS_TAPPED: 'header_notifications_tapped',
+  CHAT_TAPPED: 'header_chat_tapped',
+  AVATAR_TAPPED: 'header_avatar_tapped',
+};
+
+/**
+ * Home composer bar events.
+ * composer_bar_submit carries a `has_text` param (true/false) to distinguish
+ * submit-with-text vs submit-empty.
+ */
+export const COMPOSER_EVENTS = {
+  BAR_TAPPED: 'composer_bar_tapped',
+  SUBMITTED: 'composer_bar_submit',
+};

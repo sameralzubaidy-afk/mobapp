@@ -3,16 +3,20 @@
  * MODULE-15.1-UI-REDESIGN: App-wide header component
  *
  * Three variants:
- *  - 'main'   : Full greeting header (Home/Dashboard). Avatar + "Good [time], [Name]" on left,
- *               Bell + Profile + optional Logout on right.
- *  - 'tab'    : Root tab screens (Discover, Inbox, Cart). Title in centre, Bell on right,
- *               no back button (tab screens are top-level destinations).
+ *  - 'main'   : Home header. Read-only node/market chip on left; right cluster =
+ *               Bell + Chat + Avatar (Profile). No logout icon in the header
+ *               (logout lives in Profile/Settings).
+ *  - 'tab'    : Root tab screens (Discover, Messages, Cart). Title in centre,
+ *               Bell + Chat on right, no back button.
  *  - 'detail' : Slim back-button header (all other authenticated screens).
- *               ← Back on left, title in centre, optional Bell on right.
+ *               Back on left, title in centre, Bell + Chat on right.
+ *
+ * The header chat icon uses the same shared CountBadge + unread-message count
+ * source across ALL variants so the chat affordance is visually unified.
  *
  * Usage:
  *   // In ScreenLayout (preferred) — do not use AppHeader directly
- *   <ScreenLayout variant="main" showLogout>…</ScreenLayout>
+ *   <ScreenLayout variant="main">…</ScreenLayout>
  *   <ScreenLayout variant="tab" title="Discover">…</ScreenLayout>
  *   <ScreenLayout variant="detail" title="Settings">…</ScreenLayout>
  */
@@ -20,19 +24,22 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Bell, User, SignOut, CaretLeft } from 'phosphor-react-native';
+import { Bell, ChatCircleText, CaretLeft, MapPin } from 'phosphor-react-native';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useNotificationBadge } from '@/hooks/useNotificationBadge';
+import { useUnreadMessagesBadge } from '@/hooks/useUnreadMessagesBadge';
+import CountBadge from '@/components/ui/CountBadge';
 import Avatar from '@/components/atoms/Avatar';
+import { colors, borderRadius } from '@/theme';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface AppHeaderProps {
   /**
-   * 'main'   : Full greeting header (Home/Dashboard). Avatar + greeting + bell + profile + optional logout.
-   * 'tab'    : Root tab screens (Discover, Inbox, Cart). Title in centre, bell on right, no back button.
-   * 'detail' : Secondary/detail screens. ← Back on left, title in centre, bell on right.
+   * 'main'   : Home header. Read-only node chip on left; Bell + Chat + Avatar on right.
+   * 'tab'    : Root tab screens (Discover, Messages, Cart). Title in centre, Bell + Chat on right.
+   * 'detail' : Secondary/detail screens. Back on left, title in centre, Bell + Chat on right.
    */
   variant: 'main' | 'tab' | 'detail';
   /** Screen title shown in the 'tab' and 'detail' variants' centre */
@@ -43,22 +50,8 @@ export interface AppHeaderProps {
    * (CartCheckoutScreen, SubscriptionPaymentScreen, RequestPayoutScreen).
    */
   showBell?: boolean;
-  /**
-   * Whether to show the logout button.
-   * Default: false. Pass true ONLY on the Home (UserDashboard) screen.
-   */
-  showLogout?: boolean;
   /** Override the back-button press handler. Default: navigation.goBack(). */
   onBack?: () => void;
-}
-
-// ─── Greeting helper ─────────────────────────────────────────────────────────
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -67,7 +60,6 @@ export default function AppHeader({
   variant,
   title,
   showBell = true,
-  showLogout = false,
   onBack,
 }: AppHeaderProps) {
   let navigation: any;
@@ -77,15 +69,23 @@ export default function AppHeader({
   } catch {
     navigation = undefined;
   }
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
 
   const userId = session?.user?.id;
   const { unreadCount } = useNotificationBadge(userId);
+  const { unreadCount: chatUnreadCount } = useUnreadMessagesBadge(userId);
 
   const displayName =
     (session?.user as any)?.display_name ||
     session?.user?.email?.split('@')[0] ||
     'User';
+
+  // Read-only node/market context (registered at onboarding). Fixed — there is
+  // no in-header mechanism to change it and no navigation attached to the chip.
+  const nodeName =
+    (session?.user as any)?.node?.name ||
+    (session?.user as any)?.node?.city ||
+    'Local Market';
 
   const navigateTo = (routeName: string) => {
     if (navigation && typeof navigation.navigate === 'function') {
@@ -112,7 +112,7 @@ export default function AppHeader({
     return React.createElement(IconComponent, props as any);
   };
 
-  // ── Shared bell button ────────────────────────────────────────────────────
+  // ── Shared bell button (count badge via shared CountBadge) ────────────────
   const renderBell = () => (
     <TouchableOpacity
       style={styles.headerActionBtn}
@@ -122,13 +122,22 @@ export default function AppHeader({
       testID="header-notifications-btn"
     >
       {renderIcon(Bell, { size: 22, color: '#1A1A1A', weight: 'bold' })}
-      {unreadCount > 0 && (
-        <View style={styles.unreadBadge}>
-          <Text style={styles.unreadBadgeText}>
-            {unreadCount > 99 ? '99+' : String(unreadCount)}
-          </Text>
-        </View>
-      )}
+      <CountBadge count={unreadCount} top={4} right={4} withRing testID="header-notifications-badge" />
+    </TouchableOpacity>
+  );
+
+  // ── Shared chat/messages button (same icon + badge on ALL variants) ──────
+  // Opens the Messages screen (same destination the bottom-nav Inbox tab used).
+  const renderChat = () => (
+    <TouchableOpacity
+      style={styles.headerActionBtn}
+      onPress={() => navigateTo('InboxTab')}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityLabel="Messages"
+      testID="header-chat-btn"
+    >
+      {renderIcon(ChatCircleText, { size: 22, color: '#1A1A1A', weight: 'bold' })}
+      <CountBadge count={chatUnreadCount} top={4} right={4} withRing testID="header-chat-badge" />
     </TouchableOpacity>
   );
 
@@ -136,47 +145,31 @@ export default function AppHeader({
   if (variant === 'main') {
     return (
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.headerLeft}
-          onPress={() => navigateTo('Profile')}
-          activeOpacity={0.8}
-          accessibilityLabel="View profile"
-        >
-          <Avatar
-            imageUrl={(session?.user as any)?.avatar_url}
-            size={42}
-            name={displayName}
-          />
-          <View style={styles.headerGreeting}>
-            <Text style={styles.greetingLine}>{getGreeting()},</Text>
-            <Text style={styles.displayNameLine} numberOfLines={1}>
-              {displayName}
-            </Text>
-          </View>
-        </TouchableOpacity>
+        {/* Left: read-only node/market chip — display only, NOT tappable */}
+        <View style={styles.nodeChip} testID="header-node-chip">
+          <MapPin size={14} color={colors.primary[500]} weight="fill" />
+          <Text style={styles.nodeChipText} numberOfLines={1}>
+            {nodeName}
+          </Text>
+        </View>
 
+        {/* Right cluster: bell + chat + avatar (avatar → Profile) */}
         <View style={styles.headerActions}>
           {showBell && renderBell()}
-
+          {renderChat()}
           <TouchableOpacity
             style={styles.headerActionBtn}
             onPress={() => navigateTo('Profile')}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Profile"
+            testID="header-profile-btn"
           >
-            {renderIcon(User, { size: 22, color: '#1A1A1A', weight: 'regular' })}
+            <Avatar
+              imageUrl={(session?.user as any)?.avatar_url}
+              size={36}
+              name={displayName}
+            />
           </TouchableOpacity>
-
-          {showLogout && (
-            <TouchableOpacity
-              style={styles.headerActionBtn}
-              onPress={logout}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Sign out"
-            >
-              {renderIcon(SignOut, { size: 22, color: '#E85D75', weight: 'regular' })}
-            </TouchableOpacity>
-          )}
         </View>
       </View>
     );
@@ -193,7 +186,10 @@ export default function AppHeader({
           {title ?? ''}
         </Text>
 
-        {showBell ? renderBell() : <View style={styles.headerActionBtn} />}
+        <View style={styles.headerActions}>
+          {showBell ? renderBell() : <View style={styles.headerActionBtn} />}
+          {renderChat()}
+        </View>
       </View>
     );
   }
@@ -216,8 +212,11 @@ export default function AppHeader({
         {title ?? ''}
       </Text>
 
-      {/* Right placeholder keeps title centred whether bell is shown or not */}
-      {showBell ? renderBell() : <View style={styles.headerActionBtn} />}
+      {/* Right cluster keeps title reasonably centred; chat always present */}
+      <View style={styles.headerActions}>
+        {showBell ? renderBell() : <View style={styles.headerActionBtn} />}
+        {renderChat()}
+      </View>
     </View>
   );
 }
@@ -237,30 +236,26 @@ const styles = StyleSheet.create({
   },
 
   // ── main variant ──────────────────────────────────────────────────────────
-  headerLeft: {
+  nodeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    gap: 5,
+    flexShrink: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: borderRadius.pill,
+    backgroundColor: colors.neutral[100],
   },
-  headerGreeting: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  greetingLine: {
+  nodeChipText: {
     fontSize: 13,
-    color: '#6B6B6B',
-    lineHeight: 17,
-  },
-  displayNameLine: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1A1A1A',
-    lineHeight: 22,
+    fontWeight: '600',
+    color: colors.neutral[900],
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexShrink: 0,
   },
 
   // ── shared icon button ────────────────────────────────────────────────────
@@ -271,26 +266,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F4F4',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  unreadBadge: {
-    position: 'absolute',
-    top: 5,
-    right: 5,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#E85D75',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 3,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  unreadBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    lineHeight: 12,
   },
 
   // ── detail variant ────────────────────────────────────────────────────────

@@ -33,14 +33,17 @@ export const ReferralsScreen: React.FC = () => {
     total_sp_earned: 0,
     trial_extensions_used: 0,
   });
+  // Not-loaded sentinel: 0 amounts + all toggles off. If the config fetch fails,
+  // the screen never renders hardcoded reward values as if they were live (no
+  // hardcoded fallback — REF-V2-008 requires configured amounts only).
   const [rewardsConfig, setRewardsConfig] = useState({
-    referrer_sp: 25,
-    referee_sp: 10,
-    referrer_listing_sp: 25,
-    referee_listing_sp: 10,
-    program_enabled: true,
-    first_trade_enabled: true,
-    first_listing_enabled: true,
+    referrer_sp: 0,
+    referee_sp: 0,
+    referrer_listing_sp: 0,
+    referee_listing_sp: 0,
+    program_enabled: false,
+    first_trade_enabled: false,
+    first_listing_enabled: false,
   });
   const [history, setHistory] = useState<Referral[]>([]);
   const [isLoading, setIsLoading] = useState(true);
