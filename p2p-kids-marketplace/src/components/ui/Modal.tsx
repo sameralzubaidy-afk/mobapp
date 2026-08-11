@@ -29,6 +29,10 @@ interface ModalProps extends Omit<RNModalProps, 'children'> {
   onClose?: () => void;
   showCloseButton?: boolean;
   containerStyle?: ViewStyle;
+  /** Optional accessibility identifier for the primary action button. */
+  primaryButtonTestID?: string;
+  /** Optional accessibility identifier for the secondary action button. */
+  secondaryButtonTestID?: string;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -43,6 +47,8 @@ export const Modal: React.FC<ModalProps> = ({
   onClose,
   showCloseButton = true,
   containerStyle,
+  primaryButtonTestID,
+  secondaryButtonTestID,
   ...props
 }) => {
   const isBottomSheet = type === 'bottomSheet';
@@ -88,6 +94,7 @@ export const Modal: React.FC<ModalProps> = ({
                   size="medium"
                   onPress={onPrimaryPress}
                   style={styles.button}
+                  testID={primaryButtonTestID}
                 >
                   {primaryButtonText}
                 </Button>
@@ -98,6 +105,7 @@ export const Modal: React.FC<ModalProps> = ({
                   size="medium"
                   onPress={onSecondaryPress}
                   style={styles.button}
+                  testID={secondaryButtonTestID}
                 >
                   {secondaryButtonText}
                 </Button>

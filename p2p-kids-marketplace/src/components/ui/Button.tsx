@@ -56,6 +56,9 @@ export const Button: React.FC<ButtonProps> = ({
       style={buttonStyle}
       disabled={disabled || loading}
       activeOpacity={0.7}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={children}
       {...props}
     >
       {loading ? (

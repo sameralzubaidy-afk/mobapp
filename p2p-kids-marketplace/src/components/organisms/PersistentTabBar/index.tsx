@@ -1,20 +1,26 @@
 /**
  * File: p2p-kids-marketplace/src/components/organisms/PersistentTabBar/index.tsx
  *
- * Persistent 5-tab bottom nav bar. Rendered ONCE at the root authenticated
+ * Persistent floating-pill bottom nav. Rendered ONCE at the root authenticated
  * stack level (in AppNavigator.tsx) so every screen sees the same bar.
  *
- * Tabs: Home | Discover | [Sell FAB] | Inbox | Cart
+ * Tabs: Home | Discover | [Sell FAB] | Trades | Cart
  *
  * Navigation behaviour:
- *   – Home → root Stack 'Home' (renders HomeTabNavigator)
+ *   – Home     → root Stack 'Home' (renders HomeTabNavigator)
  *   – Discover → root Stack 'Discover' (full-screen screen)
- *   – Inbox → root Stack 'InboxTab' (full-screen ConversationsListScreen)
- *   – Cart → root Stack 'Cart' (full-screen CartScreen)
+ *   – Trades   → root Stack 'TradeList' (TradeListScreen — Active/History)
+ *   – Cart     → root Stack 'Cart' (full-screen CartScreen)
  *   – Sell FAB → opens action sheet (List One Item / Bulk Upload / Cancel)
+ *
+ * Badges (shared CountBadge component, each fed its own count source):
+ *   – Trades → useTradesBadge (active trades: any status not completed/cancelled)
+ *   – Basket → useCartContext().cartCount
+ * (The unread-message badge that used to live on the Inbox tab now lives on the
+ *  header chat icon — see useUnreadMessagesBadge in AppHeader.)
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -22,7 +28,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  AppState,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useNavigationState, NavigationState } from '@react-navigation/native';
@@ -30,14 +35,17 @@ import {
   House,
   MagnifyingGlass,
   Tag,
-  ChatCircleText,
+  Receipt,
   ShoppingCart,
   Package,
 } from 'phosphor-react-native';
 import { useCartContext } from '@/contexts/CartContext';
-import { getTotalUnreadMessageCount } from '@/services/chat';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/config/supabase';
+import { useTradesBadge } from '@/hooks/useTradesBadge';
+import CountBadge from '@/components/ui/CountBadge';
+import { trackEvent } from '@/services/analytics';
+import { NAV_EVENTS } from '@/constants/analytics-events';
+import { colors, borderRadius, shadows, spacing, componentSpacing } from '@/theme';
 
 // ─── Sell Action Sheet (self-contained modal) ─────────────────────────────────
 
@@ -103,18 +111,21 @@ type TabItemProps = {
 
 function TabItem({ Icon, label, active = false, onPress, badgeCount }: TabItemProps) {
   const color = active ? '#5DBB8E' : '#6B6B6B';
-  const tabTestId = `tab-${label.toLowerCase()}`;
+  const tabTestId = `tab-${label.toLowerCase().replace(/\s+/g, '-')}`;
   return (
-    <TouchableOpacity style={styles.tabItem} onPress={onPress} activeOpacity={0.7} testID={tabTestId}>
+    <TouchableOpacity
+      style={styles.tabItem}
+      onPress={onPress}
+      activeOpacity={0.7}
+      testID={tabTestId}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+    >
       <View>
         <Icon size={22} color={color} weight={active ? 'fill' : 'regular'} />
-        {badgeCount !== undefined && badgeCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {badgeCount > 99 ? '99+' : String(badgeCount)}
-            </Text>
-          </View>
-        )}
+        <CountBadge count={badgeCount ?? 0} testID={`${tabTestId}-badge`} />
       </View>
       <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
     </TouchableOpacity>
@@ -133,7 +144,17 @@ function computeActiveTab(state: NavigationState | undefined): string | null {
 
   if (name === 'Home' || name === 'HomeDash') return 'Home';
   if (name === 'Discover') return 'Discover';
-  if (name === 'InboxTab' || name === 'Conversations') return 'Inbox';
+  if (
+    name === 'TradeList' ||
+    name === 'TradeTimeline' ||
+    name === 'TradeDetail' ||
+    name === 'TradeSuccess' ||
+    name === 'TradeDispute' ||
+    name === 'ReviewOffer' ||
+    name === 'TradeInitiation'
+  ) {
+    return 'Trades';
+  }
   if (name === 'Cart' || name === 'CartCheckout') return 'Cart';
 
   // Walk back to find which tab the current detail screen belongs to
@@ -141,7 +162,17 @@ function computeActiveTab(state: NavigationState | undefined): string | null {
     const r = state.routes[i].name;
     if (r === 'Home' || r === 'HomeDash') return 'Home';
     if (r === 'Discover') return 'Discover';
-    if (r === 'InboxTab') return 'Inbox';
+    if (
+      r === 'TradeList' ||
+      r === 'TradeTimeline' ||
+      r === 'TradeDetail' ||
+      r === 'TradeSuccess' ||
+      r === 'TradeDispute' ||
+      r === 'ReviewOffer' ||
+      r === 'TradeInitiation'
+    ) {
+      return 'Trades';
+    }
     if (r === 'Cart') return 'Cart';
   }
 
@@ -158,124 +189,94 @@ export function PersistentTabBar() {
   const { session } = useAuth();
   const userId = session?.user?.id;
 
-  const [inboxUnreadCount, setInboxUnreadCount] = useState(0);
+  const { activeCount: activeTradeCount } = useTradesBadge(userId);
 
-  const refreshInboxBadge = useCallback(async () => {
-    if (!userId) {
-      setInboxUnreadCount(0);
-      return;
-    }
-    try {
-      const count = await getTotalUnreadMessageCount(userId);
-      setInboxUnreadCount(count);
-    } catch {
-      console.warn('[PersistentTabBar] Failed to refresh inbox badge');
-    }
-  }, [userId]);
-
-  // Fetch on mount and when user changes
-  useEffect(() => {
-    refreshInboxBadge();
-  }, [refreshInboxBadge]);
-
-  // Re-fetch when app comes to foreground (user may have read messages)
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (nextState) => {
-      if (nextState === 'active') {
-        refreshInboxBadge();
-      }
-    });
-    return () => sub.remove();
-  }, [refreshInboxBadge]);
-
-  // Real-time subscription: refresh inbox badge when a new message arrives
-  // BP-23: This Realtime callback mirrors the mount-time refreshInboxBadge side effect
-  // so new messages arriving while the app is open update the badge immediately
-  useEffect(() => {
-    if (!userId) return;
-
-    const channel = supabase.channel(`inbox-badge-${userId}`);
-    channel.on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'messages' },
-      () => {
-        // Debounce: avoid re-fetching on every bulk insert
-        refreshInboxBadge();
-      }
-    );
-    channel.subscribe();
-
-    return () => {
-      supabase.removeChannel(channel).catch(() => {});
-    };
-  }, [userId, refreshInboxBadge]);
-
-  const tabBarHeight = 56 + insets.bottom;
   const activeTab = computeActiveTab(useNavigationState((s: NavigationState) => s));
 
-  const navigateToTab = (routeName: string) => {
-    // Refresh badge when navigating to inbox (user may read messages there)
-    if (routeName === 'InboxTab') {
-      refreshInboxBadge();
+  const navigateToTab = (routeName: string, eventName?: string) => {
+    if (eventName) {
+      trackEvent(eventName);
     }
     navigation.navigate(routeName);
   };
 
   return (
     <>
+      {/* Floating pill bar.
+          barBackground is a separate clipped layer so (a) the white fill is cut
+          to the pill on all four corners and (b) the raised FAB — a sibling, not
+          inside the clipped bounds — is never cut. The drop shadow stays on the
+          bar itself (a view can't combine overflow:hidden + shadow on iOS). */}
       <View
         style={[
           styles.bar,
           {
-            height: tabBarHeight,
-            paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+            // Float the pill above the home-indicator safe area (no flush dock).
+            marginBottom: insets.bottom > 0 ? insets.bottom + spacing.sm : spacing.sm,
           },
         ]}
       >
-        {/* 1 — Home */}
-        <TabItem
-          Icon={House}
-          label="Home"
-          active={activeTab === 'Home'}
-          onPress={() => navigateToTab('Home')}
-        />
+        <View style={styles.barBackground} pointerEvents="none" />
 
-        {/* 2 — Discover */}
-        <TabItem
-          Icon={MagnifyingGlass}
-          label="Discover"
-          active={activeTab === 'Discover'}
-          onPress={() => navigateToTab('Discover')}
-        />
+        {/* Left group (flex:1) — equal width to the right group about the FAB */}
+        <View style={styles.group}>
+          {/* 1 — Home */}
+          <TabItem
+            Icon={House}
+            label="Home"
+            active={activeTab === 'Home'}
+            onPress={() => navigateToTab('Home', NAV_EVENTS.HOME_TAB_TAPPED)}
+          />
 
-        {/* 3 — Sell FAB (raised orange circle, never highlighted) */}
-        <TouchableOpacity
-          style={styles.fabWrapper}
-          onPress={() => setSellSheetVisible(true)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.fab}>
-            <Tag size={26} color="#FFFFFF" weight="regular" />
-          </View>
-        </TouchableOpacity>
+          {/* 2 — Discover */}
+          <TabItem
+            Icon={MagnifyingGlass}
+            label="Discover"
+            active={activeTab === 'Discover'}
+            onPress={() => navigateToTab('Discover', NAV_EVENTS.DISCOVER_TAB_TAPPED)}
+          />
+        </View>
 
-        {/* 4 — Inbox */}
-        <TabItem
-          Icon={ChatCircleText}
-          label="Inbox"
-          active={activeTab === 'Inbox'}
-          badgeCount={inboxUnreadCount}
-          onPress={() => navigateToTab('InboxTab')}
-        />
+        {/* Center FAB slot (fixed width) — keeps both groups symmetric about it */}
+        <View style={styles.fabSlot} pointerEvents="box-none">
+          <TouchableOpacity
+            style={styles.fabHit}
+            onPress={() => {
+              trackEvent(NAV_EVENTS.SELL_FAB_TAPPED);
+              setSellSheetVisible(true);
+            }}
+            activeOpacity={0.85}
+            testID="tab-sell"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="Sell"
+          >
+            <View style={styles.fab}>
+              <Tag size={26} color="#FFFFFF" weight="regular" />
+            </View>
+          </TouchableOpacity>
+        </View>
 
-        {/* 5 — Trade Basket (replaces Me) */}
-        <TabItem
-          Icon={ShoppingCart}
-          label="Trade Basket"
-          active={activeTab === 'Cart'}
-          badgeCount={cartCount}
-          onPress={() => navigateToTab('Cart')}
-        />
+        {/* Right group (flex:1) — equal width to the left group */}
+        <View style={styles.group}>
+          {/* 4 — Trades (active-trades badge; excludes completed/cancelled) */}
+          <TabItem
+            Icon={Receipt}
+            label="Trades"
+            active={activeTab === 'Trades'}
+            badgeCount={activeTradeCount}
+            onPress={() => navigateToTab('TradeList', NAV_EVENTS.TRADES_TAB_TAPPED)}
+          />
+
+          {/* 5 — Trade Basket */}
+          <TabItem
+            Icon={ShoppingCart}
+            label="Trade Basket"
+            active={activeTab === 'Cart'}
+            badgeCount={cartCount}
+            onPress={() => navigateToTab('Cart', NAV_EVENTS.BASKET_TAB_TAPPED)}
+          />
+        </View>
       </View>
 
       {/* Sell action sheet */}
@@ -298,21 +299,32 @@ export function PersistentTabBar() {
 export default PersistentTabBar;
 
 const styles = StyleSheet.create({
-  // ── Bar ─────────────────────────────────────────────────────────────────────
+  // ── Floating pill bar ──────────────────────────────────────────────────────
+  // Uniform pill radius on ALL four corners + drop shadow on the container.
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    // Floating margins — the pill does NOT span the full device width.
+    marginHorizontal: componentSpacing.pageMargin, // 16
+    borderRadius: borderRadius.pill, // uniform on every corner
     paddingTop: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 8,
+    paddingBottom: 10,
+    ...shadows.level2, // drop shadow on the container — not clipped by any parent
   },
-  // ── Tab items ────────────────────────────────────────────────────────────────
+  // Clipped white fill — separate layer (overflow:hidden + shadow can't coexist
+  // on one view on iOS). Clips the background to the same pill shape.
+  barBackground: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: borderRadius.pill,
+    overflow: 'hidden',
+    backgroundColor: colors.neutral.white,
+  },
+  // ── Tab groups (symmetric flex:1 width on each side of the FAB) ────────────
+  group: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   tabItem: {
     flex: 1,
     alignItems: 'center',
@@ -327,29 +339,16 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: '#5DBB8E',
   },
-  // ── Badge ────────────────────────────────────────────────────────────────────
-  badge: {
-    position: 'absolute',
-    top: -6,
-    right: -10,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#E85D75',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  // ── FAB ─────────────────────────────────────────────────────────────────────
-  fabWrapper: {
-    flex: 1,
+  // ── FAB (fixed-width center slot; raised above the pill, separate layer) ───
+  fabSlot: {
+    width: 64,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  fabHit: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -22, // raise the FAB + touch target above the pill (bar has no overflow → not clipped)
   },
   fab: {
     width: 56,
@@ -358,7 +357,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF8C42',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
     shadowColor: '#FF8C42',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.40,

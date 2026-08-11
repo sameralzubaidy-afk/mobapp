@@ -20,7 +20,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { loginWithContext } from '@/services/auth';
 import { AuthError } from '@/types/user';
 import { useAuth } from '@/hooks/useAuth';
-import { Button, TextInput } from '@/components/ui';
+import { Button, Modal, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import { OAuthProvider } from '@/types/auth-v3';
@@ -40,6 +40,10 @@ export default function LoginScreen() {
   // UI state
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // "Login Failed" dialog (branded modal so its OK button carries a stable accessibility identifier)
+  const [loginFailedVisible, setLoginFailedVisible] = useState(false);
+  const [loginFailedMessage, setLoginFailedMessage] = useState('');
 
   const handleSocialLoginSuccess = () => {
     // Root navigator transitions based on auth session + onboarding state.
@@ -129,7 +133,9 @@ export default function LoginScreen() {
         }
       }
 
-      Alert.alert('Login Failed', errorMessage);
+      // Show a branded modal (native Alert buttons can't carry a testID/accessibility identifier)
+      setLoginFailedMessage(errorMessage);
+      setLoginFailedVisible(true);
     } finally {
       setLoading(false);
     }
@@ -246,6 +252,19 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* "Login Failed" dialog — branded modal; OK carries a stable accessibility identifier */}
+      <Modal
+        type="alert"
+        visible={loginFailedVisible}
+        title="Login Failed"
+        message={loginFailedMessage}
+        primaryButtonText="OK"
+        primaryButtonTestID="login-failed-dialog-ok-button"
+        onPrimaryPress={() => setLoginFailedVisible(false)}
+        onClose={() => setLoginFailedVisible(false)}
+        showCloseButton={false}
+      />
     </SafeAreaView>
   );
 }

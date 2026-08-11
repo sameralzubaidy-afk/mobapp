@@ -289,10 +289,10 @@ describe('LoginScreen', () => {
       });
     });
 
-    it('should handle login error and show alert', async () => {
+    it('should handle login error and show branded dialog with identifiable OK button', async () => {
       mockLoginWithContext.mockRejectedValue(new Error('Invalid credentials'));
       
-      const { getByTestId, getByPlaceholderText } = render(
+      const { getByTestId, getByPlaceholderText, queryByTestId } = render(
         <NavigationContainer>
           <LoginScreen />
         </NavigationContainer>
@@ -307,11 +307,16 @@ describe('LoginScreen', () => {
       const submitButton = getByTestId('login-submit-button');
       fireEvent.press(submitButton);
       
+      // Native Alert was replaced by the branded ui/Modal so the OK button
+      // carries a stable accessibility identifier for the automation pilot.
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'Login Failed',
-          expect.stringContaining('Login failed')
-        );
+        expect(getByTestId('login-failed-dialog-ok-button')).toBeTruthy();
+      });
+
+      // The OK button closes the dialog.
+      fireEvent.press(getByTestId('login-failed-dialog-ok-button'));
+      await waitFor(() => {
+        expect(queryByTestId('login-failed-dialog-ok-button')).toBeNull();
       });
     });
   });

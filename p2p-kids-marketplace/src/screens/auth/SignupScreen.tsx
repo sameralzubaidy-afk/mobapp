@@ -22,7 +22,7 @@ import { isAtLeastAge } from '@/utils/age';
 import { DateOfBirthPicker } from '@/components/DateOfBirthPicker';
 import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import { OAuthProvider } from '@/types/auth-v3';
-import { Button, TextInput } from '@/components/ui';
+import { Button, Modal, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
 import { getAllTestUsers, TestUser } from '@/utils/testUsers';
 // TODO: Implement analytics service
@@ -45,6 +45,10 @@ export default function SignupScreen() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+
+  // "Signup Failed" dialog (branded modal so its OK button carries a stable accessibility identifier)
+  const [signupFailedVisible, setSignupFailedVisible] = useState(false);
+  const [signupFailedMessage, setSignupFailedMessage] = useState('');
 
   useEffect(() => {
     const params = (route as any).params as { prefillTestUserId?: string } | undefined;
@@ -316,7 +320,9 @@ export default function SignupScreen() {
       errorMessage = error.message;
     }
 
-    Alert.alert('Signup Failed', errorMessage);
+    // Show a branded modal (native Alert buttons can't carry a testID/accessibility identifier)
+    setSignupFailedMessage(errorMessage);
+    setSignupFailedVisible(true);
   };
 
   const handleSocialSignupSuccess = () => {
@@ -567,6 +573,19 @@ export default function SignupScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* "Signup Failed" dialog — branded modal; OK carries a stable accessibility identifier */}
+      <Modal
+        type="alert"
+        visible={signupFailedVisible}
+        title="Signup Failed"
+        message={signupFailedMessage}
+        primaryButtonText="OK"
+        primaryButtonTestID="signup-error-dialog-ok-button"
+        onPrimaryPress={() => setSignupFailedVisible(false)}
+        onClose={() => setSignupFailedVisible(false)}
+        showCloseButton={false}
+      />
     </SafeAreaView>
   );
 }
