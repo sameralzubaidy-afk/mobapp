@@ -9,19 +9,51 @@ import {
   type AlertButton,
   type AlertOptions,
 } from 'react-native';
+import { colors } from '@/theme';
+
+/**
+ * Alert button extended with accessibility + branding metadata the native
+ * AlertButton type doesn't carry:
+ * - `testID`: stable identifier exposed to the accessibility tree (native
+ *   system alerts expose no identifiers — this is what QA automation needs).
+ * - `primary`: renders the button with the app's primary brand green (#5DBB8E).
+ */
+export type BrandedAlertButton = AlertButton & {
+  testID?: string;
+  primary?: boolean;
+};
 
 type AlertPayload = {
   title: string;
   message?: string;
-  buttons: AlertButton[];
+  buttons: BrandedAlertButton[];
   options?: AlertOptions;
 };
+
+type GlobalAlertContextValue = {
+  /** Queue a branded modal alert (same shape as Alert.alert + testID/primary per button). */
+  showAlert: (payload: AlertPayload) => void;
+};
+
+const GlobalAlertContext = React.createContext<GlobalAlertContextValue>({
+  showAlert: () => {},
+});
+
+/**
+ * Trigger the app's branded alert modal from any screen inside the provider
+ * tree. Use this instead of the native Alert.alert() so dialogs match the
+ * design system (primary green #5DBB8E / error #E85D75 / neutral tones) and
+ * expose testIDs to the accessibility tree.
+ */
+export function useGlobalAlert(): GlobalAlertContextValue {
+  return React.useContext(GlobalAlertContext);
+}
 
 type GlobalAlertProviderProps = {
   children: React.ReactNode;
 };
 
-function normalizeButtons(buttons?: AlertButton[]): AlertButton[] {
+function normalizeButtons(buttons?: BrandedAlertButton[]): BrandedAlertButton[] {
   if (!buttons || buttons.length === 0) {
     return [{ text: 'OK' }];
   }
@@ -36,6 +68,10 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
   const [queue, setQueue] = React.useState<AlertPayload[]>([]);
 
   const current = queue[0] || null;
+
+  const showAlert = React.useCallback((payload: AlertPayload) => {
+    setQueue((prev) => [...prev, { ...payload, buttons: normalizeButtons(payload.buttons) }]);
+  }, []);
 
   const dismissCurrent = React.useCallback(() => {
     setQueue((prev) => prev.slice(1));
@@ -74,19 +110,22 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
     current.options?.onDismiss?.();
   }, [current, dismissCurrent, handleButtonPress]);
 
+  // Legacy fallback: route every remaining Alert.alert(...) call through the
+  // same branded queue so nothing in the app renders a native system alert.
+  // New code should call useGlobalAlert().showAlert(...) directly for explicit
+  // per-button testIDs.
   React.useEffect(() => {
     const originalAlert = Alert.alert;
 
     const themedAlert: typeof Alert.alert = (title, message, buttons, options) => {
-      setQueue((prev) => [
-        ...prev,
-        {
-          title: title || '',
-          message,
-          buttons: normalizeButtons(buttons),
-          options,
-        },
-      ]);
+      // normalizeButtons guarantees a non-undefined BrandedAlertButton[], which
+      // satisfies the optional `buttons` prop without a `| undefined` union.
+      showAlert({
+        title: title || '',
+        message,
+        buttons: normalizeButtons(buttons as BrandedAlertButton[] | undefined),
+        options,
+      });
     };
 
     (Alert as any).alert = themedAlert;
@@ -94,13 +133,18 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
     return () => {
       (Alert as any).alert = originalAlert;
     };
-  }, []);
+  }, [showAlert]);
 
   const buttonCount = current?.buttons.length || 0;
   const useHorizontalActions = buttonCount > 0 && buttonCount <= 2;
 
+  const contextValue = React.useMemo<GlobalAlertContextValue>(
+    () => ({ showAlert }),
+    [showAlert]
+  );
+
   return (
-    <>
+    <GlobalAlertContext.Provider value={contextValue}>
       {children}
 
       <Modal
@@ -121,6 +165,7 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
                 const isDestructive = button.style === 'destructive';
                 const isCancel = button.style === 'cancel';
                 const isSinglePrimary = !isDestructive && !isCancel && buttonCount === 1;
+                const isPrimary = button.primary === true || isSinglePrimary;
 
                 return (
                   <TouchableOpacity
@@ -128,17 +173,17 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
                     style={[
                       styles.button,
                       useHorizontalActions ? styles.buttonRowItem : styles.buttonColItem,
-                      isSinglePrimary && styles.buttonPrimary,
+                      isPrimary && styles.buttonPrimary,
                       isCancel && styles.buttonCancel,
                       isDestructive && styles.buttonDanger,
                     ]}
                     onPress={() => handleButtonPress(button)}
-                    testID={`global-alert-button-${index}`}
+                    testID={button.testID || `global-alert-button-${index}`}
                   >
                     <Text
                       style={[
                         styles.buttonText,
-                        isSinglePrimary && styles.buttonTextPrimary,
+                        isPrimary && styles.buttonTextPrimary,
                         isCancel && styles.buttonTextCancel,
                         isDestructive && styles.buttonTextDanger,
                       ]}
@@ -152,7 +197,7 @@ export default function GlobalAlertProvider({ children }: GlobalAlertProviderPro
           </View>
         </View>
       </Modal>
-    </>
+    </GlobalAlertContext.Provider>
   );
 }
 
@@ -167,7 +212,7 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.neutral.white,
     borderRadius: 24,
     paddingHorizontal: 22,
     paddingTop: 24,
@@ -177,14 +222,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 34,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: colors.neutral[900],
   },
   message: {
     marginTop: 8,
     marginBottom: 20,
     fontSize: 18,
     lineHeight: 24,
-    color: '#6B6B6B',
+    color: colors.neutral[700],
   },
   actions: {
     width: '100%',
@@ -201,7 +246,7 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F0F0F0',
+    backgroundColor: colors.neutral[100],
   },
   buttonRowItem: {
     flex: 1,
@@ -210,29 +255,29 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonPrimary: {
-    backgroundColor: '#5DBB8E',
+    backgroundColor: colors.primary[500],
   },
   buttonCancel: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.neutral.white,
     borderWidth: 1,
-    borderColor: '#6B6B6B',
+    borderColor: colors.neutral[700],
   },
   buttonDanger: {
-    backgroundColor: '#E85D75',
+    backgroundColor: colors.error[500],
   },
   buttonText: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: colors.neutral[900],
   },
   buttonTextPrimary: {
-    color: '#FFFFFF',
+    color: colors.neutral.white,
   },
   buttonTextCancel: {
-    color: '#6B6B6B',
+    color: colors.neutral[700],
     fontWeight: '500',
   },
   buttonTextDanger: {
-    color: '#FFFFFF',
+    color: colors.neutral.white,
   },
 });

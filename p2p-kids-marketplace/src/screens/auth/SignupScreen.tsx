@@ -24,6 +24,7 @@ import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 import { OAuthProvider } from '@/types/auth-v3';
 import { Button, Modal, TextInput } from '@/components/ui';
 import { theme } from '@/theme';
+import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
 import { getAllTestUsers, TestUser } from '@/utils/testUsers';
 // TODO: Implement analytics service
 // import { trackEvent } from '@/services/analytics';
@@ -34,6 +35,7 @@ export default function SignupScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const emailInputRef = useRef<RNTextInput>(null);
+  const { showAlert } = useGlobalAlert();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -199,7 +201,12 @@ export default function SignupScreen() {
     try {
       // Age check: ensure user is at least 18
       if (!isAtLeastAge(formData.dob, 18)) {
-        Alert.alert('Sorry', 'Sorry, you must be 18 years old to register.');
+        // Branded dialog (native Alert buttons can't carry a testID/accessibility identifier)
+        showAlert({
+          title: 'Sorry',
+          message: 'Sorry, you must be 18 years old to register.',
+          buttons: [{ text: 'OK', testID: 'age-gate-dialog-ok-button' }],
+        });
         setLoading(false);
         return;
       }
@@ -210,19 +217,24 @@ export default function SignupScreen() {
         const codeValid = await ReferralCodeServiceV2.checkCodeExists(formData.referralCode.trim());
         if (!codeValid) {
           setLoading(false);
-          Alert.alert(
-            'Invalid Referral Code',
-            'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
-            [
+          // Branded dialog with stable accessibility identifiers (native alerts expose none)
+          showAlert({
+            title: 'Invalid Referral Code',
+            message:
+              'The referral code you entered is invalid. Would you like to fix it or continue without a code?',
+            buttons: [
               {
                 text: 'Fix it',
                 style: 'cancel',
+                testID: 'referral-invalid-fix-it-button',
                 onPress: () => {
                   // Do nothing, let user edit
                 },
               },
               {
                 text: 'Continue anyway',
+                primary: true,
+                testID: 'referral-invalid-continue-anyway-button',
                 onPress: async () => {
                   // Proceed without the referral code
                   setFormData((prev) => ({ ...prev, referralCode: '' }));
@@ -230,8 +242,8 @@ export default function SignupScreen() {
                   await runFinalSignup('');
                 },
               },
-            ]
-          );
+            ],
+          });
           return;
         }
       }

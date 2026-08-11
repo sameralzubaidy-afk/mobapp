@@ -17,6 +17,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { sendPhoneVerificationCode, verifyPhoneCode } from '@/services/phoneService';
 import { Button, OTPInput } from '@/components/ui';
 import { theme } from '@/theme';
+import { useGlobalAlert } from '@/providers/GlobalAlertProvider';
 
 interface RouteParams {
   userId: string;
@@ -27,6 +28,8 @@ export default function PhoneVerificationScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { userId, phone } = route.params as RouteParams;
+
+  const { showAlert } = useGlobalAlert();
 
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -55,12 +58,17 @@ export default function PhoneVerificationScreen() {
     try {
       const result = await sendPhoneVerificationCode(phone);
       if (result.devBypass && result.devBypassCode) {
-        Alert.alert(
-          'Code Sent (DEV Bypass)',
-          `SMS provider is unavailable in development. Use code: ${result.devBypassCode}`
-        );
+        showAlert({
+          title: 'Code Sent (DEV Bypass)',
+          message: `SMS provider is unavailable in development. Use code: ${result.devBypassCode}`,
+          buttons: [{ text: 'OK', testID: 'otp-dev-bypass-dialog-ok-button' }],
+        });
       } else {
-        Alert.alert('Code Sent', `A verification code has been sent to ${phone}`);
+        showAlert({
+          title: 'Code Sent',
+          message: `A verification code has been sent to ${phone}`,
+          buttons: [{ text: 'OK', testID: 'otp-code-sent-dialog-ok-button' }],
+        });
       }
       setCountdown(60); // 60 second cooldown
     } catch (error) {
@@ -84,15 +92,21 @@ export default function PhoneVerificationScreen() {
     try {
       await verifyPhoneCode(phone, code);
       setLoading(false);
-      Alert.alert('Success!', "Your phone number has been verified. Let's complete your profile!", [
-        {
-          text: 'Continue',
-          onPress: () => {
-            // Navigate to ProfileSetup screen (consolidated profile + zip code setup)
-            (navigation as any).navigate('ProfileSetup', { userId });
+      showAlert({
+        title: 'Success!',
+        message: "Your phone number has been verified. Let's complete your profile!",
+        buttons: [
+          {
+            text: 'Continue',
+            primary: true,
+            testID: 'otp-success-dialog-ok-button',
+            onPress: () => {
+              // Navigate to ProfileSetup screen (consolidated profile + zip code setup)
+              (navigation as any).navigate('ProfileSetup', { userId });
+            },
           },
-        },
-      ]);
+        ],
+      });
     } catch (error) {
       setLoading(false);
       setError(true);
@@ -118,14 +132,20 @@ export default function PhoneVerificationScreen() {
     try {
       await verifyPhoneCode(phone, '123456');
       setLoading(false);
-      Alert.alert('Success!', "Your phone number has been verified. Let's complete your profile!", [
-        {
-          text: 'Continue',
-          onPress: () => {
-            (navigation as any).navigate('ProfileSetup', { userId });
+      showAlert({
+        title: 'Success!',
+        message: "Your phone number has been verified. Let's complete your profile!",
+        buttons: [
+          {
+            text: 'Continue',
+            primary: true,
+            testID: 'otp-success-dialog-ok-button',
+            onPress: () => {
+              (navigation as any).navigate('ProfileSetup', { userId });
+            },
           },
-        },
-      ]);
+        ],
+      });
     } catch (error) {
       setLoading(false);
       setError(true);
