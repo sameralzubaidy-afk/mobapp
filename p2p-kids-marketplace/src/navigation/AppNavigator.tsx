@@ -1,10 +1,11 @@
 import React from 'react';
-import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { View } from 'react-native';
 import Constants from 'expo-constants';
 import * as ExpoLinking from 'expo-linking';
 import { LoadingSpinner } from '@/components/ui';
+import { navigationRef } from '@/navigation/navigationRef';
 import { HomeTabNavigator } from '@/navigation/HomeTabNavigator';
 import { CartProvider } from '@/contexts/CartContext';
 import { PersistentTabBar } from '@/components/organisms/PersistentTabBar';
@@ -165,7 +166,7 @@ const linking = {
   },
 };
 
-export const navigationRef = createNavigationContainerRef<any>();
+export { navigationRef };
 
 function isTransientNetworkError(error: unknown): boolean {
   const message =

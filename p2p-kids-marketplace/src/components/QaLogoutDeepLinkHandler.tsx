@@ -15,9 +15,10 @@
 // mirrors the established dev-env detection used by
 // src/services/devTestingService.ts (__DEV__ / EXPO_PUBLIC_ENVIRONMENT).
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Linking from 'expo-linking';
 import { useAuth } from '@/hooks/useAuth';
+import { navigationRef } from '@/navigation/navigationRef';
 
 /**
  * Enables the QA logout deep link in dev / staging builds only.
@@ -63,8 +64,38 @@ function isQaLogoutUrl(url: string | null): boolean {
  * Must be mounted INSIDE AuthProvider (it consumes useAuth()).
  */
 export default function QaLogoutDeepLinkHandler() {
-  const { logout } = useAuth();
+  const { logout, session } = useAuth();
   const enabled = QA_LOGOUT_DEEP_LINK_ENABLED;
+
+  // Keep the CURRENT session observable inside the (closure-based) Linking
+  // listener without re-registering the effect. The effect deps stay stable so
+  // the listener persists across auth-state transitions (signup → onboarding →
+  // main app); the ref gives handleUrl the up-to-date session at trigger time.
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+
+  /**
+   * QA teardown end-state: Landing.
+   *
+   * Why this exists: during the signup/onboarding flow the app has NO
+   * AuthContext session ("Complete Your Profile" — ProfileSetup — is rendered in
+   * the UNAUTHENTICATED stack, so isAuthenticated is false). logout() is
+   * therefore a no-op there (setSession(null) is a no-op when the session is
+   * already null), so the deep link alone would never leave the onboarding
+   * screen. Resetting to Landing gives QA the same clean end state as logging
+   * out from Home/My Trades. Landing lives in the unauthenticated stack, so it
+   * is always a valid reset target during onboarding.
+   */
+  const resetToLanding = () => {
+    try {
+      if (navigationRef.isReady()) {
+        navigationRef.reset({ index: 0, routes: [{ name: 'Landing' }] });
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[QaLogoutDeepLink] Failed to reset to Landing', err);
+    }
+  };
 
   useEffect(() => {
     if (!enabled) return;
@@ -74,6 +105,11 @@ export default function QaLogoutDeepLinkHandler() {
         // eslint-disable-next-line no-console
         console.log('[QaLogoutDeepLink] Logging out via deep link');
         logout();
+        // Onboarding stack has no session — logout() alone cannot transition
+        // the navigator, so explicitly return to Landing for QA teardown.
+        if (!sessionRef.current) {
+          resetToLanding();
+        }
       }
     };
 
@@ -85,6 +121,9 @@ export default function QaLogoutDeepLinkHandler() {
         // eslint-disable-next-line no-console
         console.log('[QaLogoutDeepLink] Logging out via cold-start deep link');
         logout();
+        if (!sessionRef.current) {
+          resetToLanding();
+        }
       }
     });
 
