@@ -10,7 +10,7 @@ import {
   Alert,
   StyleSheet,
   KeyboardAvoidingView,
-  Platform
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -192,6 +192,9 @@ export default function PhoneVerificationScreen() {
                   onPress={handleDevFillTestCode}
                   style={styles.devOtpButton}
                   testID="dev-fill-otp-123456"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Fill 123456"
                 >
                   <Text style={styles.devOtpButtonText}>Fill 123456</Text>
                 </TouchableOpacity>
@@ -199,6 +202,9 @@ export default function PhoneVerificationScreen() {
                   onPress={handleDevVerifyTestCode}
                   style={styles.devOtpButton}
                   testID="dev-verify-otp-123456"
+                  accessible
+                  accessibilityRole="button"
+                  accessibilityLabel="Use & Verify"
                 >
                   <Text style={styles.devOtpButtonText}>Use & Verify</Text>
                 </TouchableOpacity>
@@ -221,10 +227,7 @@ export default function PhoneVerificationScreen() {
           {/* Resend Section */}
           <View style={styles.resendContainer}>
             <Text style={styles.resendText}>Didn't receive the code?</Text>
-            <TouchableOpacity
-              onPress={handleResendCode}
-              disabled={countdown > 0 || resending}
-            >
+            <TouchableOpacity onPress={handleResendCode} disabled={countdown > 0 || resending}>
               <Text
                 style={[
                   styles.resendButton,
@@ -241,10 +244,7 @@ export default function PhoneVerificationScreen() {
           </View>
 
           {/* Change Number Link */}
-          <TouchableOpacity
-            style={styles.changeNumberButton}
-            onPress={() => navigation.goBack()}
-          >
+          <TouchableOpacity style={styles.changeNumberButton} onPress={() => navigation.goBack()}>
             <Text style={styles.changeNumberText}>Change Phone Number</Text>
           </TouchableOpacity>
         </View>

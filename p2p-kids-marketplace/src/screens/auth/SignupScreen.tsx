@@ -12,7 +12,7 @@ import {
   Platform,
   Alert,
   StyleSheet,
-  TextInput as RNTextInput
+  TextInput as RNTextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -532,6 +532,9 @@ export default function SignupScreen() {
                         onPress={() => applyTestUser(user)}
                         style={styles.devAutofillButton}
                         testID={`dev-fill-${user.id}`}
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel={`Autofill ${user.firstName} test user`}
                       >
                         <Text style={styles.devAutofillButtonText}>{user.firstName}</Text>
                       </TouchableOpacity>

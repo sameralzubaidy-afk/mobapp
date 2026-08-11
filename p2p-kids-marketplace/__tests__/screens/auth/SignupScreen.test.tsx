@@ -39,8 +39,9 @@ jest.mock('@/components/auth/SocialLoginButtons', () => ({
 }));
 
 const mockSignupWithTrial = signupWithTrial as jest.MockedFunction<typeof signupWithTrial>;
-const mockCheckCodeExists = ReferralCodeServiceV2
-  .checkCodeExists as jest.MockedFunction<typeof ReferralCodeServiceV2.checkCodeExists>;
+const mockCheckCodeExists = ReferralCodeServiceV2.checkCodeExists as jest.MockedFunction<
+  typeof ReferralCodeServiceV2.checkCodeExists
+>;
 
 describe('SignupScreen', () => {
   beforeEach(() => {
@@ -147,5 +148,26 @@ describe('SignupScreen', () => {
         phone: '+15551234567',
       });
     });
+  });
+
+  it('exposes dev autofill buttons to the accessibility tree as labeled buttons (mirrors ui/Button)', () => {
+    const { getByTestId, getByRole } = renderScreen();
+
+    // Alice/Bob/Charlie are the first 3 test users rendered as dev autofill buttons.
+    const alice = getByTestId('dev-fill-test-user-1');
+    expect(alice.props.accessible).toBe(true);
+    expect(alice.props.accessibilityRole).toBe('button');
+    expect(alice.props.accessibilityLabel).toBe('Autofill Alice test user');
+    expect(getByRole('button', { name: 'Autofill Alice test user' })).toBeTruthy();
+
+    const bob = getByTestId('dev-fill-test-user-2');
+    expect(bob.props.accessible).toBe(true);
+    expect(bob.props.accessibilityRole).toBe('button');
+    expect(bob.props.accessibilityLabel).toBe('Autofill Bob test user');
+
+    const charlie = getByTestId('dev-fill-test-user-3');
+    expect(charlie.props.accessible).toBe(true);
+    expect(charlie.props.accessibilityRole).toBe('button');
+    expect(charlie.props.accessibilityLabel).toBe('Autofill Charlie test user');
   });
 });
