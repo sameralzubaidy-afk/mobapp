@@ -110,9 +110,7 @@ type TabItemProps = {
 };
 
 function TabItem({ Icon, label, active = false, onPress, badgeCount }: TabItemProps) {
-  // Zillow-style states: active icon/label = darker brand green (#4DAA7A) on a
-  // soft light-green rounded-rect highlight (#E8F5F0); inactive = neutral gray.
-  const color = active ? colors.primary[600] : colors.neutral[700];
+  const color = active ? '#5DBB8E' : '#6B6B6B';
   const tabTestId = `tab-${label.toLowerCase().replace(/\s+/g, '-')}`;
   return (
     <TouchableOpacity
@@ -125,14 +123,9 @@ function TabItem({ Icon, label, active = false, onPress, badgeCount }: TabItemPr
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
     >
-      <View style={styles.iconWrap}>
-        {/* Selected highlight — soft rounded-rect behind the active icon (static per tab, Zillow-style) */}
-        {active && <View style={styles.activeHighlight} />}
-        {/* Inner icon-sized wrapper keeps CountBadge's absolute position anchored to the icon */}
-        <View>
-          <Icon size={22} color={color} weight={active ? 'fill' : 'regular'} />
-          <CountBadge count={badgeCount ?? 0} testID={`${tabTestId}-badge`} />
-        </View>
+      <View>
+        <Icon size={22} color={color} weight={active ? 'fill' : 'regular'} />
+        <CountBadge count={badgeCount ?? 0} testID={`${tabTestId}-badge`} />
       </View>
       <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{label}</Text>
     </TouchableOpacity>
@@ -313,6 +306,10 @@ export default PersistentTabBar;
 const styles = StyleSheet.create({
   // ── Floating pill bar ──────────────────────────────────────────────────────
   // Uniform pill radius on ALL four corners + drop shadow on the container.
+  // position:absolute lifts the pill OUT of normal flow so it floats OVER the
+  // stack content (which now extends behind it) instead of occupying its own
+  // opaque full-width strip. left/right pin the floating margins; bottom is
+  // applied inline from the safe-area inset.
   bar: {
     position: 'absolute',
     left: componentSpacing.pageMargin, // 16
@@ -349,27 +346,11 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: '500',
-    color: colors.neutral[500],
+    color: '#6B6B6B',
     marginTop: Platform.OS === 'ios' ? 2 : 3,
   },
   tabLabelActive: {
-    color: colors.primary[600],
-  },
-  // Zillow-style selected-state highlight: a soft rounded-rect behind the icon.
-  // Height is kept TIGHT (28 ≈ 22px icon + 3px padding) so the floating pill
-  // keeps its slim proportions — a tall wrap here inflates the bar height and
-  // both makes the pill look boxy and widens the gap on screens whose sticky
-  // CTAs are sized to the original pill height (e.g. ItemDetailScreen).
-  iconWrap: {
-    width: 44,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activeHighlight: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: 14, // rounded-rect (Zillow-style), not a full pill
-    backgroundColor: colors.primary[100],
+    color: '#5DBB8E',
   },
   // ── FAB (fixed-width center slot; raised above the pill, separate layer) ───
   fabSlot: {
@@ -386,15 +367,14 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.accent[500],
+    backgroundColor: '#FF8C42',
     justifyContent: 'center',
     alignItems: 'center',
-    // Softer, larger shadow so the FAB blends with the polished pill bar.
-    shadowColor: colors.accent[500],
+    shadowColor: '#FF8C42',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.30,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0.40,
+    shadowRadius: 8,
+    elevation: 8,
   },
   // ── Sell sheet ───────────────────────────────────────────────────────────────
   overlay: {
